@@ -56,17 +56,22 @@
 //   SBF11 spawn <gen> <n> <spawnId> <idx> <charId> <x> <y> <z> <yaw> host, reliable: a key of ours she lacks, where
 //                                                                  ours stands (whole cm) and its yaw (0-359 degrees);
 //         [<owner> <effect>]                                       a summon's key (stage 5, is_summon) adds its
-//                                                                  owner's hguid and its SummonActor row, and only it
+//                                                                  owner's hguid and its SummonActor row, and only it;
+//                                                                  a summon's line comes from the side that owns its
+//                                                                  boss (phase 3), the guest's too
 //   SBF11 drop <gen> <n> <spawnId> <idx>                           host, reliable: a key of hers we lack, to despawn
-//   SBF11 bstart <gen> <hguid>                                     host, reliable: its boss is in battle mode (stage
-//                                                                  5), at the edge and every kRefreshMs while it lasts
-//   SBF11 phase <gen> <hguid> <oe> <id,id,...|->                   host, reliable: the rows of that boss's allowlist
+//   SBF11 bstart <gen> <hguid>                                     the boss pair's owner (the host's until phase 3),
+//                                                                  reliable: its boss is in battle mode (stage 5), at
+//                                                                  the edge and every kRefreshMs while it lasts
+//   SBF11 phase <gen> <hguid> <oe> <id,id,...|->                   the boss pair's owner (the host's until phase 3),
+//                                                                  reliable: the rows of that boss's allowlist
 //                                                                  its copy holds, in its order, at each change and
 //                                                                  every kRefreshMs in battle mode (stage 5, owner
-//                                                                  epoch oe; "-": none). She applies a row as it
-//                                                                  comes into the set, and on her first line for a
-//                                                                  copy each one it lacks, so a repeat changes nothing
-//                                                                  and brings back a line refused before she paired
+//                                                                  epoch oe; "-": none). The side that draws it
+//                                                                  applies a row as it comes into the set; on its
+//                                                                  first line for a copy, each one it lacks. So a
+//                                                                  repeat changes nothing and brings back a line
+//                                                                  refused before that side paired
 //   SBF25 poise <gen> <hguid> <oe> <k> <ms>                        the owner of a copy, reliable: a window of raised
 //                                                                  poise (phase 8) it started on its copy, k 1 or 2,
 //                                                                  1 to 16000 ms, at owner epoch oe
@@ -85,7 +90,8 @@
 // Same-place enemies (game/pilot.h) send their show, show-set and show-stop lines on this channel with the same tag,
 // from the side that owns an enemy; pilot_line() tells them apart, and game/pilot.h parses them. own and own-no are
 // the engine's (fight/enemies/engine.h keeps the owners), never Host's or Guest's; so are same spawns' four
-// (game/spawn_sync.h), and bstart and phase (Guest::boss_line checks them for the engine).
+// (game/spawn_sync.h), and bstart and phase (Guest::boss_line checks them for the engine on her side, the engine itself
+// on the host's).
 #pragma once
 
 #include <algorithm>
@@ -289,15 +295,17 @@ inline const Summon *summon_row(int32_t effect) {
       return &s;
   return nullptr;
 }
-// A summon's spawn key, the host's (no row keys a summon: SB's SummonActor passes EventSpawnId 0): kSummonBase | n,
-// SpawnIndex 0, n from a counter the host keeps for the run, 1 to kMaxSummons, one per summon GUID. Pair slots move
-// (a list is compacted when an enemy goes) and summons outlive their owner, so neither the owner's slot nor a count
-// per owner keys one: the owner goes in the line. This build's highest EventSpawnId is 0xD42B5F51, Night Operation's
-// wave monsters key 0xD8000000 | run << 16 | wave << 8 | slot (online/modes/nightop/waves.lua's W.key; no row holds
-// one, so same spawns leave them out), and extras (game/spawn_sync.h) stay below kSummonBase.
-constexpr uint32_t kSummonBase = 0xF0000000, kMaxSummons = ~kSummonBase;
+// A summon's spawn key, given by the side that owns its boss (no row keys a summon: SB's SummonActor passes
+// EventSpawnId 0): kSummonBase | member << 24 | n, SpawnIndex 0. member is that side's (kHostMember or kPairMember,
+// phase 3: a boss the guest owns summons too), n from a counter that side keeps for the run, 1 to kMaxSummons, one per
+// summon GUID. So no key of hers is one the host gave. Pair slots move (a list is compacted when an enemy goes) and
+// summons outlive their owner, so neither the owner's slot nor a count per owner keys one: the owner goes in the line.
+// This build's highest EventSpawnId is 0xD42B5F51, Night Operation's wave monsters key 0xD8000000 | run << 16 | wave <<
+// 8 | slot (online/modes/nightop/waves.lua's W.key; no row holds one, so same spawns leave them out). Extras
+// (game/spawn_sync.h) stay below kSummonBase.
+constexpr uint32_t kSummonBase = 0xF0000000, kMaxSummons = (1u << 24) - 1;
 inline bool is_summon(uint32_t id) { return id >= kSummonBase; }
-inline SpawnKey summon_key(uint32_t n) { return SpawnKey{kSummonBase | n, 0}; }
+inline SpawnKey summon_key(uint8_t member, uint32_t n) { return SpawnKey{kSummonBase | uint32_t(member) << 24 | n, 0}; }
 inline bool summon_key_ok(const SpawnKey &k) { return is_summon(k.spawn) && (k.spawn & kMaxSummons) && !k.index; }
 // The finish guard's rows: a Finish stance (HP under 2) applies Passive_DeathReady, which chains Passive_FinishReady,
 // the state of the finisher prompt; FinishReady_Dispel ends FinishReady and Immortal, so the guard puts the boss's own
@@ -308,10 +316,11 @@ inline bool floor_row(int32_t id) { return id >= kFirstFloor && id <= kLastFloor
 
 // ---- Channel 2 ----
 
-// world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn, drop,
-// bstart and phase: the host's, never recorded; poise: a copy's owner's, never recorded; pvp: either side's, never
-// recorded; fin and qte-own: the host's, never recorded; spec: either side's, never recorded. mate, qte_end and
-// qte_on: the worker's own to the job (fight/enemies/engine.h), never a line.
+// world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn and drop:
+// the host's, never recorded; bstart, phase and a summon's spawn: a boss pair's owner's (phase 3), never recorded;
+// poise: a copy's owner's, never recorded; pvp: either side's, never recorded; fin and qte-own: the host's, never
+// recorded; spec: either side's, never recorded. mate, qte_end and qte_on: the worker's own to the job
+// (fight/enemies/engine.h), never a line.
 enum class Type : uint8_t {
   invalid, on, off, world, scale, place, aggro, bosses, stagger, up, down, dead, hp, cc, hit, own, own_no, exec, have,
   spawn, drop, epoch, bstart, phase, poise, pvp, fin, qte_own, spec, mate, qte_end, qte_on
@@ -1225,6 +1234,19 @@ public:
         return enemies_[i].winner;
     return kNoMember;
   }
+  // Phase 3's boss pilot: that enemy is a boss as our last pass saw it; a fin or a qte-own named a member for it.
+  bool boss(uint32_t guid) const {
+    for (size_t i = 0; i < count_; ++i)
+      if (enemies_[i].guid == guid)
+        return enemies_[i].boss;
+    return false;
+  }
+  bool named(uint32_t guid) const {
+    for (size_t i = 0; i < count_; ++i)
+      if (enemies_[i].guid == guid)
+        return enemies_[i].winner != kNoMember || (enemies_[i].qte && enemies_[i].qte_owner != kNoMember);
+    return false;
+  }
   // Phase 3's boss QTE, the engine's, each turn before her lines: story together runs on both sides (the worker's
   // qte_on message). While it is off no QTE gets an owner and each game plays its own, logged once an off.
   void set_qte(bool on) {
@@ -2040,12 +2062,15 @@ public:
   // enemies we pair, at its generation, not dead. A bstart counts once a copy (from its pairing to its unpairing, the
   // host's down or the host's next world) while the copy stays in battle mode: once the engine's call went, it marks it
   // (started()), and the host's repeats come back as "again", no fault, until the engine takes it out again. A phase
-  // when phase_out() passes it for the charId of the host's up. Null when taken, local then the copy's GUID; else why
-  // not. The copy's ActorType, its drawing and the phase's owner epoch are the engine's to check.
-  const char *boss_line(const Message &m, uint32_t &local) {
+  // when phase_out() passes it for the charId of the host's up. Only from the pair's owner (phase 3): owner, the
+  // engine's word that the host owns it now; a line for a pair she owns is "not the owner". Null when taken, local
+  // then the copy's GUID; else why not. The copy's ActorType, its drawing and the phase's owner epoch are the engine's
+  // to check.
+  const char *boss_line(const Message &m, uint32_t &local, bool owner = true) {
     Pair *p = known_gen_ && m.gen == known_gen_ ? find(m.guid) : nullptr;
     const char *why = !known_gen_ || m.gen != known_gen_ ? "stale"
                       : !p || !p->local || p->dead       ? "unpaired"
+                      : !owner                           ? "not the owner"
                       : m.type == Type::bstart           ? (p->started ? "again" : nullptr)
                       : m.type == Type::phase            ? phase_out(m, p->chr)
                                                          : "not a boss line";
@@ -2098,9 +2123,9 @@ public:
     return say;
   }
   // A summon's spawn line (R33): at the host's generation, a key of summon_key_ok(), a SummonActor row of kSummons
-  // that makes the line's charId, and an owner we pair, not dead. Null when it passes, owner then the owner's copy's
-  // GUID (the engine checks that it is ActorType 4); else why not.
-  const char *summon_out(const Message &m, uint32_t &owner) {
+  // that makes the line's charId, and an owner we pair, not dead, that the host owns (from_owner, phase 3). Null when
+  // it passes, owner then the owner's copy's GUID (the engine checks that it is ActorType 4); else why not.
+  const char *summon_out(const Message &m, uint32_t &owner, bool from_owner = true) {
     const Summon *s = summon_row(m.effect);
     Pair *p = known_gen_ && m.gen == known_gen_ ? find(m.guid) : nullptr;
     const char *why = !known_gen_ || m.gen != known_gen_        ? "stale"
@@ -2108,6 +2133,7 @@ public:
                       : !s                                         ? "not a summon"
                       : s->chr != m.chr                            ? "charId"
                       : !p || !p->local || p->dead                 ? "owner"
+                      : !from_owner                                ? "not the owner"
                                                                    : nullptr;
     if (!why)
       owner = p->local;

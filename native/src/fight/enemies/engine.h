@@ -94,6 +94,12 @@ public:
   // Any thread: our aggro (stage 3b, the host's for both games), true for aggro=host: every enemy stays the host's, as
   // in 3a. The guest hears it like same_place.
   void aggro(bool host_only) { aggro_host_ = host_only; }
+  // Any thread, each worker pass: a story together scene starts or plays in either game (glue's story_scene). A boss
+  // pair then stays with its owner (phase 3).
+  void scene(bool on) { scene_ = on; }
+  // Phase 3's boss pilot, the host's: a boss follows the common enemies' rule. Off for the run at her first own-no
+  // target for a boss pair (her game refused its target), logged once; bosses then stay with the host as before.
+  bool boss_hands() const { return boss_hands_; }
   // Any thread: our bosses=on (stage 5) with our boss_hp_scale in percent (0: off), the host's for both games; set
   // while off. On, fight_chars=auto shares the BossMonsters too (bosses and Alpha Naytibas, never handed to her), and
   // a boss's MaxHP takes this percent in place of enemy_hp_scale. A guest's side takes the host's from its bosses line.
@@ -548,24 +554,26 @@ private:
   template <class Game> const char *despawn(Game &g, uint64_t logic, uint32_t guid, const SpawnKey &k);
 
   // ---- Bosses (stage 5) ----
-  // The host: a summon it keyed (summoned_) goes under its key, kSummonBase | n, SpawnIndex 0, in this pass and for
-  // Host (its up), so her NewActor copy pairs on it; and it was seen in this census. False when a is none.
+  // A summon this side keyed (summoned_) goes under its key, kSummonBase | member << 24 | n, SpawnIndex 0, in this pass
+  // and for the side (the host's up), so the other side's NewActor copy pairs on it; and it was seen in this census.
+  // False when a is none.
   bool summoned(Actor &a);
-  // The host, at a census while same place runs with her: a fighting actor of no spawn key whose owner (logic actor
-  // +0x400) is a BossMonster we follow (followed) and whose SummonActor row, read on the owner's effect list by the
-  // GUID at +0x40c, is one of kSummons for its charId, gets the next key of the run, then goes under it. The reward
-  // dummies, the Elder's dummy and any other summon have no such row: never shared. Reads only; one that fails is no
-  // summon.
+  // At a census while same place runs: a fighting actor of no spawn key whose owner (logic actor +0x400) is a
+  // BossMonster we follow (followed) and own (phase 3: the guest keys the summons of a boss she owns) and whose
+  // SummonActor row, read on the owner's effect list by the GUID at +0x40c, is one of kSummons for its charId, gets the
+  // next key of the run, then goes under it. The reward dummies, the Elder's dummy and any other summon have no such
+  // row: never shared. Reads only; one that fails is no summon.
   template <class Game>
   void new_summon(Game &g, uint64_t la, Actor &a, const uint32_t *followed, size_t count);
   // The EffectTable IDs running on la, in its list's order, into out (kMaxEffects): how many, or -1 when its list
   // fails a check.
   template <class Game> int32_t effect_ids(Game &g, uint64_t la, int32_t *out);
-  // The guest: a line of the host's at now. After a silence of over kSilentMs, each copy's wait for its next bstart
+  // A line of the other side's at now. After a silence of over kSilentMs, each copy's wait for its next bstart
   // (kBattleOn) moves on by that silence.
   void heard(uint64_t now);
-  // After the pair table (n: this pass's enemies). The host tells her about its bosses and their summons; the guest
-  // acts on the host's lines. The finish guard on either side's boss copies, then finisher()'s word.
+  // After the pair table (n: this pass's enemies). Each side acts on the owner's lines for the boss pairs it draws and
+  // tells the other side about the bosses it owns and their summons (phase 3: either side). The finish guard on either
+  // side's boss copies, then finisher()'s word.
   template <class Game> void bosses(Game &g, uint64_t logic, size_t n, bool census, uint64_t now);
   // The finish guard: each copy of local (hguid: the host's GUIDs) that want(i) names, in its Finish stance this pass,
   // gets FinishReady_Dispel, then its own Passive_Immortal back, in that turn, each turn the stance shows. So hits stop
@@ -576,34 +584,47 @@ private:
   template <class Game, class Want>
   void guard(Game &g, uint64_t logic, size_t n, const uint32_t *local, const uint32_t *hguid, size_t count,
              Want &&want);
-  // The host, while same place runs with her: for each boss pair, bstart at the edge of its battle mode (FSBActor
-  // +0xb58) and every kRefreshMs while it lasts; phase, with the rows of its allowlist our copy runs in its list's
-  // order, whenever they change (the first time too) and every kRefreshMs in battle mode; then each summon we keyed and
-  // follow, after its up and every kRefreshMs while we follow it (her side takes a repeat as "again", and one she
-  // refused for a passing reason, her boss copy not paired yet, comes again). A boss with no table row (an Alpha
-  // Naytiba, a family's other row) gets bstart only.
+  // While same place runs, for each boss pair this side owns (phase 3: the guest's too): bstart at the edge of its
+  // battle mode (FSBActor +0xb58) and every kRefreshMs while it lasts; phase, with the rows of its allowlist our copy
+  // runs in its list's order, whenever they change (the first time too) and every kRefreshMs in battle mode; then each
+  // summon we keyed, the host's once it follows it (after its up), hers as her census sees it, again every kRefreshMs
+  // while so. The other side takes a repeat as "again"; one it refused for a passing reason (its boss copy not paired
+  // yet) comes again. A boss with no table row (an Alpha Naytiba, a family's other row) gets bstart only.
   template <class Game> void boss_lines(Game &g, uint64_t logic, size_t n, uint64_t now);
-  // The guest: our copy of the host's enemy this turn's pair table draws, seen as a BossMonster in life state 1, or
-  // null.
+  // The BossOut of the boss pair hguid, a free one taken for it the first time; null when none is free.
+  struct BossOut;
+  BossOut *boss_out(uint32_t hguid);
+  // Our copy of the other side's enemy this turn's pair table draws, seen as a BossMonster in life state 1, or null.
   const Seen *drawn_boss(uint32_t local, size_t n) const;
-  // The guest: the host's bstart (checked: Guest::boss_line, then a copy we draw as a BossMonster, the job sender and
-  // the reg made, which SetBattleMode's body reads through their getters, and our EVE in its fight: within kPartCm or
-  // its last player, so its battle-start events never run in her world for a fight she is not in): SetBattleMode on
-  // our copy, once a copy while it stays in battle mode (kBattleOn, captured before the call). The host's repeats while
-  // its boss is in battle mode keep ours on, and bring back one refused before (no pair yet, not drawn yet, far). Null
-  // when called, else why not.
+  // The owner's bstart or phase line for a boss pair (phase 3): only from the side that owns it now. Guest::boss_line
+  // on her side; on the host's, at our generation while her on holds, for a pair we follow, not dying, from her while
+  // she owns it: a bstart while our kBattleOn capture holds it is "again", a phase passes phase_out(). Null when taken,
+  // local then our copy's GUID; else why not.
+  const char *owner_line(const Message &m, size_t n, uint32_t &local);
+  // The owner's summon spawn line, as owner_line(): Guest::summon_out on her side; on the host's, the same checks of
+  // its key, its row and its charId, for an owner boss we follow, not dying, from her while she owns it. Null when it
+  // passes, owner then our copy of its owner; else why not.
+  const char *owner_summon(const Message &m, size_t n, uint32_t &owner);
+  // The owner's bstart (checked: owner_line(), then a copy we draw as a BossMonster, the job sender and the reg made,
+  // which SetBattleMode's body reads through their getters, and our EVE in its fight: within kPartCm or its last
+  // player, so its battle-start events never run in our world for a fight we are not in): SetBattleMode on our copy,
+  // once a copy while it stays in battle mode (kBattleOn, captured before the call; no call for a copy in battle mode
+  // already). The owner's repeats while its boss is in battle mode keep ours on. They also bring back one refused
+  // before (no pair yet, not drawn yet, far). Null when called, else why not.
   template <class Game> const char *bstart_in(Game &g, uint64_t logic, const Message &m, size_t n, uint64_t now);
-  // The guest: the host's phase line (checked: Guest::boss_line, the pair's owner epoch, a copy we draw as a
-  // BossMonster): the rows Guest::phase picks, through SB's effect call, the copy its own caster, as its own skill's
-  // step applies them. A row of another boss, or a line for an enemy with no table row, is a lie (a bad line).
-  template <class Game> void phase_in(Game &g, uint64_t logic, const Message &m, size_t n);
-  // The guest: the host's summon (checked: Guest::summon_out, then an owner copy we pair as a BossMonster, same place
-  // running here, no summon of ours of that key, within 1 km of our EVE): made through NewActor with its key, then its
-  // row's effects (make_extra); the pair table freezes it once stage 1 pairs it, as any copy the host owns.
+  // The owner's phase line (checked: owner_line(), the pair's owner epoch, a copy we draw as a BossMonster): the rows
+  // Guest::phase picks (on the host's side phase_plan() on her set kept in BossOut), through SB's effect call, the copy
+  // its own caster, as its own skill's step applies them. A row of another boss, or a line for an enemy with no table
+  // row, is a lie (a bad line). now: when a set that differs from the last one counts as a phase change.
+  template <class Game> void phase_in(Game &g, uint64_t logic, const Message &m, size_t n, uint64_t now);
+  // The owner's summon (checked: owner_summon(), then an owner copy we pair as a BossMonster, same place running here,
+  // no summon of ours of that key, within 1 km of our EVE): made through NewActor with its key, then its row's effects
+  // (make_extra). On her side the pair table freezes it once stage 1 pairs it, as any copy the host owns; on the
+  // host's our census follows it as any enemy and her copy pairs on its up.
   template <class Game> void summon_in(Game &g, uint64_t logic, const Message &m, size_t n);
-  // The guest: the host's summon key refused, logged when its reason (why, when given) changes: the host's line comes
-  // again each kRefreshMs. final: never made again, its row's effects refused or made and never paired, where a
-  // NewActor again would do the same. Forgotten at the host's on, off and world lines.
+  // The owner's summon key refused, logged when its reason (why, when given) changes: the owner's line comes again
+  // each kRefreshMs. final: never made again, its row's effects refused or made and never paired, where a NewActor
+  // again would do the same. Forgotten at the other side's on, off and world lines.
   template <class Game> void refuse(Game &g, uint32_t key, const char *why, bool final);
   // ---- Stage 5's solo probes: coop fight pilot test bstart|phase|finish|summon ----
   // On the guest's side, before the finish guard (the glue asks them only during a replay): the test asked starts at
@@ -641,7 +662,7 @@ private:
   template <class Game> const PilotPair *trial_copy(Game &g, size_t n);
   template <class Game> void start_trial(Game &g, uint64_t logic, uint8_t what, size_t n, uint64_t now);
   // phase: trial_.line through phase_in(), with stat 107 before it and the rows the game took or refused.
-  template <class Game> void phase_line(Game &g, uint64_t logic, size_t n, uint64_t fsb);
+  template <class Game> void phase_line(Game &g, uint64_t logic, size_t n, uint64_t fsb, uint64_t now);
   // summon: made and frozen, or why not.
   template <class Game> void start_summon(Game &g, uint64_t logic);
   // summon: its capture kept from the unpaired summons' rule, and at each census its life state and state 39.
@@ -664,7 +685,7 @@ private:
   // this turn's table captures it and our freeze comes off, and that pair not hers for kHerOffMs; else stale (lines
   // that crossed). Not from an ignored peer, an old world or a side that is off. Taken with off or aggro, her side does
   // not run same-place enemies: none goes to her for kHerOffMs (or until her next on, off or world), so her claims do
-  // not freeze our copy once each kOwnMs.
+  // not freeze our copy once each kOwnMs. Taken with target for a boss (phase 3): boss_hands() off for the run.
   template <class Game> void refused(const Message &m, uint64_t now, Io<Game> &io);
   // The host, while same-place enemies run: the rule on each pair it follows and found this pass (last hit, the nearer
   // EVE, the guards: an AI task on the owner's copy, ours as read or hers as her stream says; Down, Groggy, Airborne or
@@ -674,7 +695,9 @@ private:
   // table, no change. A pair whose copy we cannot draw (freeze lost, or refused by the game thread) is ours at once,
   // guards or not, and never hers: its AI already runs on our copy. So is every pair once her lines are ignored. After
   // her own-no off or aggro, none goes to her for a while (refused()); after any other, not that pair (game/pilot.h's
-  // Own::no_until).
+  // Own::no_until). A boss pair (phase 3) goes by the same rule while boss_hands() holds. It is guarded too while a
+  // story scene plays (scene()), its phase rows changed in the last kPhaseHoldMs (BossOut::changed), its Finish stance
+  // shows on our copy, or a fin or qte-own named a member (Host::named).
   template <class Game> void hand_over(Game &g, const uint32_t *guids, size_t count, size_t n, uint64_t now);
   // The guest: the host's own lines in order, each about a pair of the host's current list (its generation), the pair
   // hers only when she can run it (same-place enemies running here, a paired copy seen this pass in life state 1 and
@@ -736,6 +759,8 @@ private:
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint16_t> bosses_{0}; // Our boss_hp_scale with bosses=on; 0: off.
   std::atomic<bool> finish_first_{false}; // Our boss_finish=first (bosses()).
+  std::atomic<bool> scene_{false};        // A story together scene plays (scene()).
+  std::atomic<bool> boss_hands_{true};    // boss_hands(), the logic thread's; for the run.
   std::atomic<uint8_t> fin_{kNoMember};   // finisher(), the logic thread's.
   std::atomic<bool> reactions_{true}, resist_{true}; // Our hit_reactions and stagger_resist (stagger()).
   std::atomic<uint64_t> test_{0}; // A test asked (test()): (stat - kNoTest) << 32 | change; 0 for none.
@@ -819,17 +844,21 @@ private:
   SpawnKey probed_at_[kMaxSeen];
   size_t probed_ = 0;
   bool zone_told_ = false;
-  // Bosses (stage 5). The guest: the host's bstart, phase and summon spawn lines, for bosses() after the pass, and the
-  // copies the finish guard took last turn (logged as it starts). The host: what it told her of each boss pair, and
-  // the summons it keyed (n of the run's counter, the owner's GUID, the SummonActor row; sent; seen in this census).
+  // Bosses (stage 5). The owner's bstart, phase and summon spawn lines (the host's on her side, hers on the host's,
+  // phase 3), for bosses() after the pass, and the copies the finish guard took last turn (logged as it starts). What
+  // this side told of each boss pair it owns, and the summons it keyed (n of the run's counter, the owner's host
+  // GUID, the SummonActor row; sent; seen in this census).
   Ring<Message, kMail> boss_in_;
-  uint64_t heard_ms_ = 0; // The guest: when the host's last line came (heard()).
+  uint64_t heard_ms_ = 0; // When the other side's last line came (heard()).
   uint32_t guarded_[kMaxPairs] = {};
   size_t guards_ = 0;
+  // Each boss pair's phase set: the one we told while we own it, or (the host, phase 3) the one we took from her while
+  // she does (phased: one taken since the last refusal; retry: the last line had a row refused); changed: its last
+  // change, either way (hand_over()'s kPhaseHoldMs).
   struct BossOut {
     uint32_t hguid = 0;
-    bool battle = false, told = false;
-    uint64_t next_start = 0, next_phase = 0;
+    bool battle = false, told = false, phased = false, retry = false;
+    uint64_t next_start = 0, next_phase = 0, changed = 0;
     int32_t ids[kMaxPhaseIds] = {};
     uint8_t n = 0;
   };

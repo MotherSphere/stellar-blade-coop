@@ -326,6 +326,9 @@ constexpr uint32_t kSummonWaitTurns = 180;
 // kSilentMs (its world paused, where its job waits while the link lives on [G], or a stall) moves the wait on by its
 // silence. kSilentMs is two of the host's hp refreshes, which reach every pair each kRefreshMs while its job runs.
 constexpr uint64_t kBattleEndMs = 10000, kSilentMs = 2 * kRefreshMs;
+// Phase 3: a boss pair stays with its owner this long after its phase rows changed (the owner's new set sent, or a set
+// of the owner's taken that differs from the last one), so a phase's start never runs in two games.
+constexpr uint64_t kPhaseHoldMs = 3000;
 // The solo probes (Engine::trial()): how long bstart follows its copy, when phase sends its second line, how long
 // finish holds its copy at 1 HP and summon follows its summon; the summon row it makes (M_Marionette_SummonDollHead2:
 // SE_M_DollHead_02 with 5025010 and 5025013) and how far ahead of our EVE.

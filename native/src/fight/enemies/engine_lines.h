@@ -49,6 +49,10 @@ template <class Game> void Engine::refused(const Message &m, uint64_t now, Io<Ga
   ++counts.own_nos;
   if (m.why == kOff || m.why == kAggro)
     her_off_until_ = now + pilot::kHerOffMs;
+  if (m.why == kTarget && boss_hands_ && host.boss(m.guid)) { // Phase 3: her game would not run a boss.
+    boss_hands_ = false;
+    io.event(Event{"boss pilot off", "her game refused a boss's target: bosses stay ours for this run", m.guid});
+  }
   io.event(Event{"own-no", kOwnNo[m.why < kOwnNoCount ? m.why : uint8_t(kUnpaired)], m.guid});
 }
 

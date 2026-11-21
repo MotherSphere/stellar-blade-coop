@@ -201,6 +201,7 @@ template <class Game> void Engine::hand_over(Game &g, const uint32_t *guids, siz
   const Life her = now - mate_ms_ < kMateMs ? mate_ : Life::unknown;
   const bool her_down = her == Life::down || her == Life::coma;
   const bool give = eve_life_ >= 3 && eve_life_ <= 5 && her == Life::alive;
+  const bool scene = scene_;
   for (size_t i = 0; i < count && !latched_; ++i) {
     pilot::Own *o = owners_.find(guids[i]);
     const Seen *s = fight::find(seen_, n, guids[i]);
@@ -227,8 +228,16 @@ template <class Game> void Engine::hand_over(Game &g, const uint32_t *guids, siz
     const bool to_her = give && (o->owner == pilot::kGuest ||
                                  (flags_.her_ok && placed && within(enemy, flags_.her, kPartCm)));
     const bool lost = std::find(lost_, lost_ + lost_count_, guids[i]) != lost_ + lost_count_ || host.ignored();
-    // A boss stays ours, as with aggro=host (stage 5: bosses attack the host first).
-    if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_ || s->boss, lost || back, to_her))
+    // A boss (phase 3) goes by the same rule while the boss pilot runs, our down EVE's give too. It stays with its
+    // owner while a story scene plays in either game, its phase rows changed in the last kPhaseHoldMs, its Finish
+    // stance shows on our copy, or a fin or qte-own named a member.
+    if (s->boss)
+      f.busy = f.busy || scene || s->finish || host.named(guids[i]) ||
+               std::any_of(std::begin(boss_out_), std::end(boss_out_), [&](const BossOut &x) {
+                 return x.hguid == guids[i] && x.changed && now - x.changed < kPhaseHoldMs;
+               });
+    if (!pilot::rule(*o, f, now, aggro_host_ || now < her_off_until_ || (s->boss && !boss_hands_), lost || back,
+                     to_her))
       continue;
     Message own;
     own.type = Type::own;

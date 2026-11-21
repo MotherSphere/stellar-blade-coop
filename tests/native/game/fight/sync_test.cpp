@@ -817,7 +817,7 @@ int main() {
       w.add(101, 5001, 0).s.nodamage = kNoDamageNoHit;
       w.add(102, 5002, 0).s.boss = true;
       w.add(103, 0xE0000101, 1);
-      w.add(104, summon_key(1).spawn, 0);
+      w.add(104, summon_key(0, 1).spawn, 0);
       if (!part)
         w.apart = {101, 102, 103, 104};
       Host h;
@@ -848,7 +848,7 @@ int main() {
       w.add(901, 5001, 0);
       w.add(902, 5002, 0).s.boss = true;
       w.add(903, 0xE0000101, 1);
-      w.add(904, summon_key(1).spawn, 0);
+      w.add(904, summon_key(0, 1).spawn, 0);
       if (!part)
         w.apart = {901, 902, 903, 904};
       Guest g;
@@ -856,7 +856,7 @@ int main() {
       g.receive(msg("SBF25 up 1 101 5001 0 900 1600"), w);
       g.receive(msg("SBF25 up 1 102 5002 0 900 1600"), w);
       g.receive(msg("SBF25 up 1 103 3758096641 1 900 1600"), w);
-      g.receive(msg("SBF25 up 1 104 " + std::to_string(summon_key(1).spawn) + " 0 900 1600"), w);
+      g.receive(msg("SBF25 up 1 104 " + std::to_string(summon_key(0, 1).spawn) + " 0 900 1600"), w);
       step(g, w, 1, 0);
       assert(g.linked() == 4);
       g.receive(msg("SBF25 hp 1 1 0 101:400:100:200 102:400:100:200 103:400:100:200 104:400:100:200"), w);
@@ -2194,12 +2194,21 @@ int main() {
     assert(summon_row(5036002)->chr == 85041101 && std::size(kSummons) == 10);
     // No such row (5026005), the Elder's dummy (the host's only), a reward dummy (it dies at once), none.
     assert(!summon_row(5026005) && !summon_row(5056160) && !summon_row(5042299) && !summon_row(0));
-    // Their keys: kSummonBase | n, n from the host's counter for the run (1 to kMaxSummons), SpawnIndex 0; no slot in
-    // them. No EventSpawnId of this build comes near (its highest is 0xD42B5F51), and extras stay below.
-    assert(summon_key(1) == (SpawnKey{0xF0000001, 0}) && summon_key(0x10001) == (SpawnKey{0xF0010001, 0}) &&
-           summon_key(kMaxSummons) == (SpawnKey{0xFFFFFFFF, 0}) && kMaxSummons == 0x0FFFFFFF);
-    assert(summon_key_ok(summon_key(1)) && summon_key_ok(summon_key(0x100001)) &&
-           summon_key_ok(summon_key(kMaxSummons)));
+    // Their keys: kSummonBase | member << 24 | n, n from the keying side's counter for the run (1 to kMaxSummons),
+    // SpawnIndex 0; no slot in them. No EventSpawnId of this build comes near (its highest is 0xD42B5F51). Extras stay
+    // below.
+    assert(summon_key(0, 1) == (SpawnKey{0xF0000001, 0}) && summon_key(0, 0x10001) == (SpawnKey{0xF0010001, 0}) &&
+           summon_key(0, kMaxSummons) == (SpawnKey{0xF0FFFFFF, 0}) && kMaxSummons == 0x00FFFFFF);
+    assert(summon_key_ok(summon_key(0, 1)) && summon_key_ok(summon_key(0, 0x100001)) &&
+           summon_key_ok(summon_key(0, kMaxSummons)));
+    // summon_keys (phase 3): a boss the guest owns keys its summons with her member number, so no key of hers is one
+    // the host gave; both are summons.
+    assert(summon_key(0, 5).spawn == 0xF0000005 && summon_key(1, 5).spawn == 0xF1000005);
+    assert(is_summon(0xF0000005) && is_summon(0xF1000005) && summon_key_ok(summon_key(1, 5)));
+    assert(kMaxSummons == (1u << 24) - 1 && !summon_key_ok(SpawnKey{0xF1000000, 0}));
+    for (const uint32_t n : {1u, 5u, 0x10001u, kMaxSummons})
+      for (const uint32_t k : {1u, 5u, 0x10001u, kMaxSummons})
+        assert(!(summon_key(1, n) == summon_key(0, k)));
     assert(!summon_key_ok(SpawnKey{0xF0000000, 0}) && !summon_key_ok(SpawnKey{0xF0000001, 1}) &&
            !summon_key_ok(SpawnKey{0xEFFFFFFF, 0}) && !summon_key_ok(SpawnKey{0xD42B5F51, 0}) &&
            !summon_key_ok(SpawnKey{0, 0}));
@@ -2262,6 +2271,12 @@ int main() {
     assert(summon("SBF25 spawn 1 7 4294967295 0 35025002 -1200 340 0 90 102 5026003").empty()); // The last n.
     assert(summon("SBF25 spawn 1 7 50110 0 35025002 -1200 340 0 90") == "key");                     // No summon.
     assert(summon("SBF25 spawn 2 7 4026597377 0 35025002 -1200 340 0 90 102 5026003") == "stale");
+    // Phase 3: a boss line comes only from the pair's owner. The engine says whether the host owns it. A line of a
+    // pair she owns is refused, so is a summon of a boss she owns.
+    assert(std::string(g.boss_line(msg("SBF25 phase 1 102 0 5026013"), local, false)) == "not the owner");
+    assert(std::string(g.boss_line(msg("SBF25 bstart 1 102"), local, false)) == "not the owner");
+    assert(std::string(g.summon_out(msg("SBF25 spawn 1 7 4026597377 0 35025002 -1200 340 0 90 102 5026003"), owner,
+                                    false)) == "not the owner");
     // The host's dead: its pair takes no line, nor its summons. Its down and a new up of that GUID are a new life,
     // whose fight takes a bstart again. Its world drops them all.
     g.receive(msg("SBF25 dead 1 102"), w);

@@ -447,7 +447,7 @@ template <class Game> void Engine::battles(Game &g, size_t n, uint64_t now) {
   float eve[3], at[3];
   const uint64_t fsb = local_fsb(g);
   const bool eve_ok = plausible(fsb) && g.read(fsb + kLocation, eve, sizeof eve);
-  boss_ = !hosting_seen_ && bstart_ms_ && now - bstart_ms_ < kBattleEndMs;
+  boss_ = bstart_ms_ && now - bstart_ms_ < kBattleEndMs; // The owner's bstart (phase 3: hers on the host's side).
   battle_ = 0;
   for (size_t i = 0; i < n; ++i) {
     uint8_t flag = 0;

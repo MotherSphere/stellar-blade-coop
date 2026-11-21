@@ -554,6 +554,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     say(text);
   }
   FightIo io;
+  fight_engine.scene(story_scene.load()); // Phase 3: a boss pair stays with its owner while a shared scene plays.
   // Our photo mode and a paused world pause it (pinned build; a pause tag once our job stands still). A few reads, so
   // every kGateMs, not at every 5 ms pass.
   static bool photo = false, paused = false;

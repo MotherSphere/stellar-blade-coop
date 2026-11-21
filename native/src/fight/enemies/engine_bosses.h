@@ -9,9 +9,9 @@
 namespace coop::fight {
 
 inline bool Engine::summoned(Actor &a) {
-  for (size_t i = 0; hosting_seen_ && !a.seen.spawn && i < summoned_count_; ++i)
+  for (size_t i = 0; !a.seen.spawn && i < summoned_count_; ++i)
     if (summoned_[i].guid == a.seen.guid) {
-      a.seen.spawn = summon_key(summoned_[i].n).spawn, a.seen.index = 0;
+      a.seen.spawn = summon_key(hosting_seen_ ? kHostMember : kPairMember, summoned_[i].n).spawn, a.seen.index = 0;
       return summoned_[i].seen = true;
     }
   return false;
@@ -29,6 +29,11 @@ template <class Game> void Engine::new_summon(Game &g, uint64_t la, Actor &a, co
       !g.read(owner_fsb + kActorType, &type, 1) || type != kTypeBoss ||
       !g.read(la + kSummonEffect, &made_by, sizeof made_by) || !made_by)
     return;
+  // Only a boss this side owns (phase 3: the guest's too): its pair in the last table, its host's GUID for the line.
+  const PilotPair *p = std::find_if(table_.pairs, table_.pairs + table_.count,
+                                    [&](const PilotPair &x) { return x.local == owner_guid; });
+  if (p == table_.pairs + table_.count || p->owner != table_.side)
+    return;
   int32_t row = 0;
   each_effect(g, owner, [&](uint64_t effect, int32_t id) {
     uint32_t guid = 0;
@@ -38,7 +43,7 @@ template <class Game> void Engine::new_summon(Game &g, uint64_t la, Actor &a, co
   const Summon *s = summon_row(row);
   if (!s || s->chr != a.seen.chr)
     return;
-  summoned_[summoned_count_++] = Summoned{a.seen.guid, ++summon_n_, owner_guid, row, false, false};
+  summoned_[summoned_count_++] = Summoned{a.seen.guid, ++summon_n_, p->hguid, row, false, false};
   summoned(a);
   g.event(Event{"summon keyed", "", 0, a.seen.spawn, a.seen.index});
 }
@@ -56,53 +61,59 @@ inline void Engine::heard(uint64_t now) {
 }
 
 template <class Game> void Engine::bosses(Game &g, uint64_t logic, size_t n, bool census, uint64_t now) {
-  const auto told = [&](const uint32_t *hguids, size_t count) { // finisher(): the first pair's winner.
-    uint8_t f = kNoMember;
-    for (size_t i = 0; i < count && f == kNoMember; ++i)
-      f = hosting_seen_ ? host.finisher(hguids[i]) : guest.finisher(hguids[i]);
-    fin_ = f;
-  };
-  if (hosting_seen_) {
-    uint32_t followed[kMaxTracked];
-    const size_t count = host.tracked(followed);
-    // Ours once another member won its finisher (phase 3): our prompt goes, so no finisher of ours plays.
-    guard(g, logic, n, followed, followed, count, [&](size_t i) {
-      const uint8_t f = host.finisher(followed[i]);
-      return f != kNoMember && f != kHostMember;
-    });
-    told(followed, count);
-    return boss_lines(g, logic, n, now);
-  }
+  // The lines of each boss pair's owner (phase 3: the host's on her side, hers on the host's), after the pass that
+  // read the copies.
   for (Message m; boss_in_.pop(m) && !latched_;)
     if (m.type == Type::bstart)
       bstart_in(g, logic, m, n, now);
     else if (m.type == Type::phase)
-      phase_in(g, logic, m, n);
+      phase_in(g, logic, m, n, now);
     else
       summon_in(g, logic, m, n);
-  trial(g, logic, n, census, now); // Before the guard, so a finish test reads the stance as the game left it.
-  // Our battle mode comes off a copy no longer drawn (its pair gone, same place off) and one whose host's boss left
-  // battle mode: no bstart for kBattleEndMs while the host's lines came (heard()).
+  if (!hosting_seen_)
+    trial(g, logic, n, census, now); // Before the guard, so a finish test reads the stance as the game left it.
+  // Our battle mode comes off a copy no longer drawn (its pair gone, same place off) and one whose owner's boss left
+  // battle mode: no bstart for kBattleEndMs while the other side's lines came (heard()). A copy that turned ours
+  // (phase 3) keeps it with no call: its own AI runs its fight from now.
   const bool hearing = now - heard_ms_ <= kSilentMs;
-  for (size_t i = 0; i < captures_ && !latched_;)
-    if (caps_[i].type == kBattleOn &&
-        (!drawn_boss(caps_[i].guid, n) || (hearing && now >= caps_[i].battle + kBattleEndMs)))
-      lift(g, logic, i);
-    else
+  for (size_t i = 0; i < captures_ && !latched_;) {
+    const Capture c = caps_[i];
+    const PilotPair *p = std::find_if(table_.pairs, table_.pairs + table_.count,
+                                      [&](const PilotPair &x) { return x.local == c.guid; });
+    if (c.type != kBattleOn) {
       ++i;
+    } else if (p != table_.pairs + table_.count && table_.on && p->owner == table_.side) {
+      guest.started(c.key, false, c.guid);
+      caps_[i] = caps_[--captures_];
+    } else if (!drawn_boss(c.guid, n) || (hearing && now >= c.battle + kBattleEndMs)) {
+      lift(g, logic, i);
+    } else {
+      ++i;
+    }
+  }
   uint32_t local[kMaxTracked], hguid[kMaxTracked];
-  const size_t count = guest.tracked(local, hguid);
-  // The finish guard on her boss copies until the host's dead: the boss ends only by the host's finisher, then its
+  const size_t count = hosting_seen_ ? host.tracked(local) : guest.tracked(local, hguid);
+  if (hosting_seen_)
+    std::copy(local, local + count, hguid);
+  // The finish guard. The host's copies once another member won its finisher (phase 3): our prompt goes, so no
+  // finisher of ours plays. Her boss copies until the host's dead: the boss ends only by the host's finisher, then its
   // dead. With the host's boss_finish=first, only once its fin named another member; never once it named her (phase
   // 3): her own finisher may end it.
   guard(g, logic, n, local, hguid, count, [&](size_t i) {
+    if (hosting_seen_) {
+      const uint8_t f = host.finisher(hguid[i]);
+      return f != kNoMember && f != kHostMember;
+    }
     const uint8_t f = guest.finisher(hguid[i]);
     return f != kPairMember && (!guest.finish_first() || f != kNoMember);
   });
-  told(hguid, count);
-  // Her summons: one that left the map is forgotten (a dying one stays until then, so the host's next line for its
-  // key is "again"), and at a census one no pair holds kSummonWaitTurns after it was made goes (the host's is not
-  // shared, or gone), its key refused for good.
+  uint8_t f = kNoMember; // finisher(): the first pair's winner.
+  for (size_t i = 0; i < count && f == kNoMember; ++i)
+    f = hosting_seen_ ? host.finisher(hguid[i]) : guest.finisher(hguid[i]);
+  fin_ = f;
+  // The summons we made from the owner's lines: one that left the map is forgotten (a dying one stays until then, so
+  // the owner's next line for its key is "again"). At a census one no pair holds (the host's side: one it does not
+  // follow) kSummonWaitTurns after it was made goes (the owner's is not shared, or gone), its key refused for good.
   for (size_t i = 0; census && i < captures_ && !latched_;) {
     Actor a;
     const Capture c = caps_[i];
@@ -119,6 +130,7 @@ template <class Game> void Engine::bosses(Game &g, uint64_t logic, size_t n, boo
       ++i;
     }
   }
+  boss_lines(g, logic, n, now);
 }
 
 template <class Game, class Want>
@@ -159,24 +171,21 @@ template <class Game> void Engine::boss_lines(Game &g, uint64_t logic, size_t n,
     if (!kept)
       o = BossOut();
   }
-  if (!table_.on || host.ignored())
+  const uint32_t gen = hosting_seen_ ? host.gen() : guest.gen();
+  if (!table_.on || !gen || (hosting_seen_ && host.ignored()))
     return;
   for (uint8_t r = 0; r < table_.count && !latched_; ++r) {
     const PilotPair &p = table_.pairs[r];
-    const Seen *s = fight::find(seen_, n, p.local);
+    const Seen *s = p.owner == table_.side ? fight::find(seen_, n, p.local) : nullptr; // Ours (phase 3: hers too).
     uint8_t battle = 0;
     if (!s || !s->boss || dying(*s) || !g.read(fsbs_[s - seen_] + kBattleFlag, &battle, 1))
       continue;
-    BossOut *o = std::find_if(std::begin(boss_out_), std::end(boss_out_),
-                              [&](const BossOut &x) { return x.hguid == p.hguid; });
-    if (o == std::end(boss_out_))
-      o = std::find_if(std::begin(boss_out_), std::end(boss_out_), [](const BossOut &x) { return !x.hguid; });
-    if (o == std::end(boss_out_)) // Never: one a pair.
+    BossOut *o = boss_out(p.hguid);
+    if (!o) // Never: one a pair.
       continue;
-    o->hguid = p.hguid;
     if (battle && (!o->battle || now >= o->next_start)) {
       Message m;
-      m.type = Type::bstart, m.gen = host.gen(), m.guid = p.hguid;
+      m.type = Type::bstart, m.gen = gen, m.guid = p.hguid;
       g.send(m);
       if (!o->battle)
         g.event(Event{"bstart sent", "", p.hguid, s->spawn, s->index});
@@ -190,7 +199,7 @@ template <class Game> void Engine::boss_lines(Game &g, uint64_t logic, size_t n,
     if (hn < 0)
       continue;
     Message m;
-    m.type = Type::phase, m.gen = host.gen(), m.guid = p.hguid, m.oe = p.oe;
+    m.type = Type::phase, m.gen = gen, m.guid = p.hguid, m.oe = p.oe;
     for (int32_t i = 0; i < hn && m.idn < kMaxPhaseIds; ++i)
       if (mirrored(*b, held[i]) && std::find(m.ids, m.ids + m.idn, held[i]) == m.ids + m.idn)
         m.ids[m.idn++] = held[i];
@@ -198,23 +207,27 @@ template <class Game> void Engine::boss_lines(Game &g, uint64_t logic, size_t n,
     if (!changed && !(o->battle && now >= o->next_phase))
       continue;
     g.send(m);
-    if (changed && o->told)
+    if (changed && o->told) {
       g.event(Event{"phase sent", "", p.hguid, s->spawn, s->index});
+      o->changed = now;
+    }
     std::copy(m.ids, m.ids + m.idn, o->ids);
     o->n = m.idn, o->told = true, o->next_phase = now + kRefreshMs;
   }
+  // Our summons: the host's once it follows each (after its up); hers as her census sees each (the host's up for it
+  // comes after its line).
   uint32_t followed[kMaxTracked];
-  const size_t count = host.tracked(followed);
+  const size_t count = hosting_seen_ ? host.tracked(followed) : 0;
   for (size_t i = 0; i < summoned_count_ && !latched_; ++i) {
     Summoned &x = summoned_[i];
-    const Seen *s = std::find(followed, followed + count, x.guid) != followed + count
+    const Seen *s = !hosting_seen_ || std::find(followed, followed + count, x.guid) != followed + count
                         ? fight::find(seen_, n, x.guid) : nullptr;
     float at[3], rot[3];
     if (now < x.next || !s || dying(*s) || !g.read(fsbs_[s - seen_] + kLocation, at, sizeof at) ||
         !g.read(fsbs_[s - seen_] + kFsbRotation, rot, sizeof rot) || !std::isfinite(rot[1]))
       continue;
     Message m;
-    m.type = Type::spawn, m.gen = host.gen(), m.epoch = std::max(1u, epochs_.n());
+    m.type = Type::spawn, m.gen = gen, m.epoch = std::max(1u, hosting_seen_ ? epochs_.n() : spawn_guest_.epoch());
     m.spawn = s->spawn, m.index = 0, m.chr = s->chr, m.guid = x.owner, m.effect = x.row;
     bool fits = true;
     for (int k = 0; k < 3; ++k) {
@@ -235,6 +248,17 @@ template <class Game> void Engine::boss_lines(Game &g, uint64_t logic, size_t n,
   }
 }
 
+inline Engine::BossOut *Engine::boss_out(uint32_t hguid) {
+  BossOut *o = std::find_if(std::begin(boss_out_), std::end(boss_out_),
+                            [&](const BossOut &x) { return x.hguid == hguid; });
+  if (o == std::end(boss_out_))
+    o = std::find_if(std::begin(boss_out_), std::end(boss_out_), [](const BossOut &x) { return !x.hguid; });
+  if (o == std::end(boss_out_))
+    return nullptr;
+  o->hguid = hguid;
+  return o;
+}
+
 inline const Seen *Engine::drawn_boss(uint32_t local, size_t n) const {
   for (uint8_t r = 0; r < table_.count; ++r)
     if (table_.pairs[r].local == local && (table_.pairs[r].bits & kRowDrawn)) {
@@ -244,10 +268,46 @@ inline const Seen *Engine::drawn_boss(uint32_t local, size_t n) const {
   return nullptr;
 }
 
+inline const char *Engine::owner_line(const Message &m, size_t n, uint32_t &local) {
+  const bool owner = owners_.owner(m.guid) == (hosting_seen_ ? pilot::kGuest : pilot::kHost);
+  if (!hosting_seen_)
+    return guest.boss_line(m, local, owner);
+  const Seen *s = host.peer_on() && m.gen == host.gen() ? fight::find(seen_, n, m.guid) : nullptr;
+  const bool again = std::any_of(caps_, caps_ + captures_,
+                                 [&](const Capture &c) { return c.type == kBattleOn && c.key == m.guid; });
+  const char *why = !host.peer_on() || m.gen != host.gen() ? "stale"
+                    : !s || dying(*s)                       ? "unpaired"
+                    : !owner                                ? "not the owner"
+                    : m.type == Type::bstart                ? (again ? "again" : nullptr)
+                    : m.type == Type::phase                 ? phase_out(m, s->chr)
+                                                            : "not a boss line";
+  if (!why)
+    local = m.guid;
+  return why;
+}
+
+inline const char *Engine::owner_summon(const Message &m, size_t n, uint32_t &owner) {
+  const bool from = owners_.owner(m.guid) == (hosting_seen_ ? pilot::kGuest : pilot::kHost);
+  if (!hosting_seen_)
+    return guest.summon_out(m, owner, from);
+  const Summon *row = summon_row(m.effect);
+  const Seen *s = host.peer_on() && m.gen == host.gen() ? fight::find(seen_, n, m.guid) : nullptr;
+  const char *why = !host.peer_on() || m.gen != host.gen()        ? "stale"
+                    : !summon_key_ok(SpawnKey{m.spawn, m.index}) ? "key"
+                    : !row                                       ? "not a summon"
+                    : row->chr != m.chr                          ? "charId"
+                    : !s || dying(*s)                            ? "owner"
+                    : !from                                      ? "not the owner"
+                                                                 : nullptr;
+  if (!why)
+    owner = m.guid;
+  return why;
+}
+
 template <class Game> const char *Engine::bstart_in(Game &g, uint64_t logic, const Message &m, size_t n, uint64_t now) {
   uint32_t local = 0;
   Actor a;
-  const char *why = guest.boss_line(m, local);
+  const char *why = owner_line(m, n, local);
   // A bstart for a pair of ours, taken or not (refused as far for a down EVE, which never takes part): the fight=
   // line's boss= holds for kBattleEndMs.
   if (!why || !std::strcmp(why, "again"))
@@ -266,47 +326,77 @@ template <class Game> const char *Engine::bstart_in(Game &g, uint64_t logic, con
     if (caps_[i].type == kBattleOn && caps_[i].key == m.guid)
       caps_[i].battle = now;
   if (why) {
-    guest.counts.stale += std::strcmp(why, "again") != 0;
+    (hosting_seen_ ? host.counts : guest.counts).stale += std::strcmp(why, "again") != 0;
     return why;
   }
   Capture c{local, kBattleOn, 1};
   c.key = m.guid, c.battle = now;
   caps_[captures_++] = c;
-  g.battle(a.fsb, true);
+  // A copy in battle mode already (its own AI ran it before a hand-over, phase 3) keeps it with no call: with +0xb58
+  // on, SetBattleMode's body (FUN_141a7db90) runs the copy's EventOnBattle (FUN_141a68440) again.
+  uint8_t on = 0;
+  if (!g.read(a.fsb + kBattleFlag, &on, 1) || !on)
+    g.battle(a.fsb, true);
   guest.started(m.guid);
   ++counts.bstarts;
   g.event(Event{"bstart", "", m.guid});
   return nullptr;
 }
 
-template <class Game> void Engine::phase_in(Game &g, uint64_t logic, const Message &m, size_t n) {
+template <class Game> void Engine::phase_in(Game &g, uint64_t logic, const Message &m, size_t n, uint64_t now) {
   uint32_t local = 0;
-  const char *why = guest.boss_line(m, local);
+  const char *why = owner_line(m, n, local);
   if (why && (!std::strcmp(why, "not its row") || !std::strcmp(why, "not a boss"))) {
-    if (!guest.counts.bad++)
+    if (hosting_seen_) {
+      Io<Game> io{*this, g, logic, now};
+      host.bad(why, io);
+    } else if (!guest.counts.bad++) {
       g.event(Event{"bad line", why, m.guid});
+    }
     return;
   }
   const uint64_t la = why ? 0 : g.find(logic, local);
   int32_t held[kMaxEffects], rows[kMaxPhaseIds + 2];
   const int32_t hn = la && m.oe == owners_.oe(m.guid) && drawn_boss(local, n) ? effect_ids(g, la, held) : -1;
   if (hn < 0) {
-    ++guest.counts.stale;
+    ++(hosting_seen_ ? host.counts : guest.counts).stale;
     return;
   }
-  const size_t k = guest.phase(m, held, size_t(hn), rows);
+  // On the host's side her set is kept with what we told of that boss (BossOut): a set that differs from the last one
+  // either side had is a phase change (phase 3: the pair stays hers for kPhaseHoldMs).
+  BossOut *o = hosting_seen_ ? boss_out(m.guid) : nullptr;
+  size_t k = 0;
+  if (o) {
+    const Seen *s = fight::find(seen_, n, local);
+    const Boss *b = s ? boss_row(s->chr) : nullptr;
+    k = b ? phase_plan(*b, o->ids, o->n, !o->phased, m, held, size_t(hn), rows) : 0;
+    if ((o->told || o->phased) && (o->n != m.idn || !std::equal(m.ids, m.ids + m.idn, o->ids)))
+      o->changed = now;
+    std::copy(m.ids, m.ids + std::min<size_t>(m.idn, kMaxPhaseIds), o->ids);
+    o->n = std::min<uint8_t>(m.idn, kMaxPhaseIds), o->phased = true;
+  } else if (!hosting_seen_) {
+    k = guest.phase(m, held, size_t(hn), rows);
+  }
   size_t refused = 0;
   for (size_t i = 0; i < k; ++i)
     refused += !self_cast(g, logic, local, rows[i]);
   counts.phase_rows += k - refused, counts.phase_refused += refused;
-  const bool say = guest.phase_done(m.guid, !refused); // A refused row comes again at the host's next line.
+  // A refused row comes again at the owner's next line, planned from the copy's list as a first one.
+  bool say = false;
+  if (o) { // As Guest::phase_done().
+    say = refused && !o->retry;
+    o->retry = refused != 0;
+    o->phased = o->phased && !refused;
+  } else if (!hosting_seen_) {
+    say = guest.phase_done(m.guid, !refused);
+  }
   if (k && !latched_ && (!refused || say))
     g.event(Event{"phase", refused ? "the game refused a row" : "", m.guid});
 }
 
 template <class Game> void Engine::summon_in(Game &g, uint64_t logic, const Message &m, size_t n) {
   uint32_t owner = 0;
-  const char *why = guest.summon_out(m, owner);
+  const char *why = owner_summon(m, n, owner);
   const Seen *o = why ? nullptr : fight::find(seen_, n, owner);
   const float at[3] = {float(m.at[0]), float(m.at[1]), float(m.at[2])};
   float eve[3] = {};

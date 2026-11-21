@@ -2309,13 +2309,15 @@ int main() {
     frame(g, *e, t += 16);
     assert(!Game::held(g.body(101), kBlockAiState) && e->host.counts.bad == 0);
   }
-  // A boss stays the host's (stage 5: bosses attack the host first): her hits never hand it over, with aggro=game.
-  {
+  // boss_hand_by_hit (phase 3): a boss follows the common enemies' rule. Her claims with a drop every 512 ms hand it to
+  // her once the host held it 4 s, once in 10 s; with aggro=host it stays the host's.
+  for (const bool host_only : {false, true}) {
     Game g;
     auto e = engine(false, true);
     e->allow(nullptr, 0);
     e->bosses(200);
     e->same_place(true);
+    e->aggro(host_only);
     e->set(true, true);
     g.spawn(101, 5001, 0, 15005100, 1600, 4);
     g.inbox.push_back(msg("SBF25 on"));
@@ -2323,13 +2325,17 @@ int main() {
     frame(g, *e, t);
     assert(g.table.on && g.table.count == 1 && e->host.linked() == 1);
     std::string sent = lines(g);
-    for (uint32_t claim = 1; t < 12000; frame(g, *e, t += 16)) {
-      if (t % 1008 == 0)
-        g.inbox.push_back(msg("SBF25 hit 1 " + std::to_string(claim++) + " 101 0 0 10 3190 0"));
+    for (uint32_t claim = 1; t < 10000; frame(g, *e, t += 16)) {
+      if (t % 512 == 0)
+        g.inbox.push_back(msg("SBF25 hit 1 " + std::to_string(claim++) + " 101 0 0 10 " +
+                              std::to_string(g.hp(101)) + " 0"));
       sent += lines(g);
     }
-    assert(!has(sent, " own ") && e->counts.owns == 0 && g.table.pairs[0].owner == coop::pilot::kHost);
-    assert(e->host.counts.claims >= 11 && e->host.counts.bad == 0);
+    const std::string own = "SBF25 own 1 101 G 1\n";
+    assert(host_only ? !has(sent, " own ") && e->counts.owns == 0 && g.table.pairs[0].owner == coop::pilot::kHost
+                     : has(sent, own) && sent.find(own) == sent.rfind(own) && e->counts.owns == 1 &&
+                           g.table.pairs[0].owner == coop::pilot::kGuest);
+    assert(e->host.counts.claims >= 19 && e->host.counts.bad == 0);
   }
   // Her lethal claim on a pair of hers that a floor keeps alive (Immortal): our freeze off before the kill, then on
   // again from the next turn's marks, since this turn's state 39 was ours. Our copy the game froze first (its spawn
@@ -2542,8 +2548,8 @@ int main() {
   // Her life comes as the worker's local mate message, never a wire line. Hers down: the pair she runs comes back in
   // the next turn, her stream's AI task or not, with one log line, and stays ours through a 20 s down while her claims
   // keep coming; with no mate message for 3 s her state reads unknown and her last hit gives the pair back to her. Ours
-  // down (life state 3 on our EVE): nothing goes to her while her state is unknown; with hers alive a common pair goes
-  // to her with one log line; the boss stays ours. Her claims on the boss count while we are down and she is up. With
+  // down (life state 3 on our EVE): nothing goes to her while her state is unknown; with hers alive a pair goes to her
+  // with one log line, the boss too (phase 3). Her claims on the boss count while we are down and she is up. With
   // her state unknown too they are dropped (their numbers still acknowledged, logged once a down); they count again
   // once we are up. The pair she took stays hers. Her claims on a common pair still count while we are down. A down
   // EVE's hand-overs move a pair only within 30 m of the EVE that takes it (its force target makes that EVE the enemy's
@@ -2637,12 +2643,13 @@ int main() {
         life(coop::Life::alive);
       frame(g, *e, t += 16);
     }
-    assert(has(sent, "SBF25 own 1 101 G 5\n") && !has(sent, "own 1 130 ") && owner(101) == coop::pilot::kGuest);
-    assert(owner(130) == coop::pilot::kHost && count(g, "own", "to her: our EVE is down") == 1);
+    assert(has(sent, "SBF25 own 1 101 G 5\n") && has(sent, "SBF25 own 1 130 G 1\n") &&
+           owner(101) == coop::pilot::kGuest);
+    assert(owner(130) == coop::pilot::kGuest && count(g, "own", "to her: our EVE is down") == 2);
     assert(!has(sent, "own 1 102 ") && owner(102) == coop::pilot::kHost); // 60 m from her ghost: ours still.
     g.flags.her[0] = 6000;
     life(coop::Life::alive);
-    assert(until(t + 2000, "SBF25 own 1 102 G 3\n") && count(g, "own", "to her: our EVE is down") == 2);
+    assert(until(t + 2000, "SBF25 own 1 102 G 3\n") && count(g, "own", "to her: our EVE is down") == 3);
     sent.clear();
     for (const uint64_t end = t + 4000; t < end; sent += lines(g)) { // 101 by our EVE, her ghost 60 m away.
       if (t % 1008 == 0)
@@ -4549,6 +4556,278 @@ int main() {
       const std::string l = lines(g);
       assert(has(l, " qte-own ") && l.find(" qte-own ") == l.rfind(" qte-own ") && count(g, "qte off") == 1);
     }
+  }
+  // ---- Phase 3: the boss fights whoever hits it, the host's side ----
+  // One boss pair (Marionette 130, GorillaB 132 or Raven 131), same place on, aggro=game, her claims of 10 balance
+  // every 512 ms and none of ours. With no reason to keep it, she gets it once the host held it 4 s
+  // (boss_hand_by_hit). Each reason below keeps it with the host; it goes to her once the reason ends.
+  {
+    const auto boss = [](Game &g, Engine &e, uint32_t guid, uint32_t spawn, uint32_t chr, bool first) {
+      e.allow(nullptr, 0);
+      e.bosses(100, first);
+      e.same_place(true);
+      e.set(true, true);
+      g.spawns();
+      g.spawn(guid, spawn, 0, chr, 1600, kTypeBoss);
+      g.inbox.push_back(msg("SBF25 on"));
+      frame(g, e, 0);
+    };
+    // Every frame up to until (ms), her claim at each 512 ms; the lines sent meanwhile.
+    const auto run = [](Game &g, Engine &e, uint64_t &t, uint32_t &claim, const std::vector<uint32_t> &guids,
+                        uint64_t until) {
+      std::string sent;
+      while (t + 16 <= until) {
+        t += 16;
+        for (uint32_t guid : guids)
+          if (t % 512 == 0)
+            g.inbox.push_back(msg("SBF25 hit " + std::to_string(e.host.gen()) + " " + std::to_string(++claim) + " " +
+                                  std::to_string(guid) + " 0 0 10 " + std::to_string(g.hp(guid)) + " 0"));
+        frame(g, e, t);
+        sent += lines(g);
+      }
+      return sent;
+    };
+    { // boss_busy, its Finish stance: none while Passive_DeathReady, then FinishReady, runs on our copy; once
+      // FinishReady_Dispel ends it, at once.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      boss(g, *e, 132, 32, 15005100, false);
+      g.knock(132, kImmortalRow);
+      g.knock(132, kDeathReady);
+      assert(!has(run(g, *e, t, claim, {132}, 10000), " own "));
+      g.knock(132, kFinishDispel);
+      assert(has(run(g, *e, t, claim, {132}, t + 100), "SBF25 own 1 132 G 1\n") && !e->latched());
+    }
+    { // boss_busy, a phase change: our copy takes 5026013 at 2 s, so none before 3 s after the phase line that told
+      // it, whatever the same set's repeats each second in battle mode; then at once.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      boss(g, *e, 130, 30, 35026001, false);
+      g.mem.put<uint8_t>(g.fsb(130) + kBattleFlag, 1);
+      assert(!has(run(g, *e, t, claim, {130}, 2000), " own "));
+      g.knock(130, 5026013);
+      std::string sent;
+      while (!count(g, "phase sent"))
+        sent += run(g, *e, t, claim, {130}, t + 16);
+      const uint64_t told = t;
+      assert(has(sent, "SBF25 phase 1 130 0 5026013\n"));
+      sent = run(g, *e, t, claim, {130}, told + 2999);
+      assert(!has(sent, " own ") && has(sent, "SBF25 phase 1 130 0 5026013\n") && count(g, "phase sent") == 1);
+      assert(has(run(g, *e, t, claim, {130}, told + 3008), "SBF25 own 1 130 G 1\n"));
+    }
+    { // boss_busy, a story scene in either game (story together's flag): none while it plays.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      e->scene(true);
+      boss(g, *e, 130, 30, 35026001, false);
+      assert(!has(run(g, *e, t, claim, {130}, 10000), " own "));
+      e->scene(false);
+      assert(has(run(g, *e, t, claim, {130}, t + 100), "SBF25 own 1 130 G 1\n"));
+    }
+    { // boss_busy, a qte-own named: Raven's QTE goes to her as her claim takes it to HP 1; none after it.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      boss(g, *e, 131, 1410024156, 35026001, false);
+      g.mem.put(g.stat_at(131, kHp), 3.f);
+      Message mate, q;
+      mate.type = Type::mate, mate.life = coop::Life::alive;
+      q.type = Type::qte_on, q.on = true;
+      g.inbox.push_back(mate);
+      g.inbox.push_back(q);
+      g.inbox.push_back(msg("SBF25 hit " + std::to_string(e->host.gen()) + " " + std::to_string(++claim) +
+                            " 131 2 0 0 3 0"));
+      std::string sent = run(g, *e, t, claim, {}, 100);
+      assert(g.hp(131) == 1 && has(sent, " qte-own ") && count(g, "qte owner", "hers") == 1);
+      assert(!has(run(g, *e, t, claim, {131}, 10000), " own ") && !e->latched());
+    }
+    { // boss_busy, a fin named: her finisher press wins GorillaB at 1 HP; once our guard ended its stance, none.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      boss(g, *e, 132, 32, 15005100, true);
+      g.knock(132, kImmortalRow);
+      g.mem.put(g.stat_at(132, kHp), 1.f);
+      g.knock(132, kDeathReady);
+      run(g, *e, t, claim, {}, 100);
+      g.inbox.push_back(msg("SBF25 exec " + std::to_string(e->host.gen()) + " 132 1"));
+      run(g, *e, t, claim, {}, 1000); // DeathReady runs out into FinishReady, which the guard ends.
+      assert(e->finisher() == kPairMember && !g.dying(132));
+      assert(!has(run(g, *e, t, claim, {132}, 10000), " own ") && !e->latched());
+    }
+    { // boss_pilot_gate: her own-no target for the boss (her game refused its target) keeps every boss with the host
+      // for the run, logged once; a common enemy (102) still changes hands.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      assert(e->boss_hands());
+      boss(g, *e, 130, 30, 35026001, false);
+      g.spawn(102, 5002, 0);
+      std::string sent = run(g, *e, t, claim, {130, 102}, 6000);
+      assert(has(sent, "SBF25 own 1 130 G 1\n") && has(sent, "SBF25 own 1 102 G 1\n"));
+      g.inbox.push_back(msg("SBF25 own-no 1 130 1 target"));
+      run(g, *e, t, claim, {130, 102}, t + 16);
+      assert(count(g, "boss pilot off") == 1 && !e->boss_hands() && count(g, "own-no", "target") == 1);
+      sent = run(g, *e, t, claim, {130}, t + 4500); // Her claims on the boss alone; then our hit on 102.
+      g.hit(102, kShield, 5);
+      sent += run(g, *e, t, claim, {130}, t + 100);
+      assert(has(sent, "SBF25 own 1 102 H 2\n"));
+      sent += run(g, *e, t, claim, {130, 102}, t + 40000);
+      assert(has(sent, "SBF25 own 1 102 G 3\n") && !has(sent, " own 1 130 ") && count(g, "boss pilot off") == 1);
+      e->set(false, true);
+      e->set(true, true);
+      assert(!e->boss_hands()); // For the run, not the session.
+    }
+    { // guest_owner_lines, the host's side: Marionette in battle mode (its own AI) is hers at oe 1. We send no boss
+      // line for it from then on. Her bstart keeps our copy's battle mode with no call (boss= on the fight= line); a
+      // repeat is "again". Her phase at oe 1 goes on our copy (a row the game refused comes again at her next line),
+      // one at oe 0 is stale; her new set keeps the pair hers for 3 s, so our hit takes it back (own H 2) only then.
+      // Our copy then keeps its battle mode (its own AI runs it); her bstart and summon are stale, never a bad line.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      boss(g, *e, 130, 30, 35026001, false);
+      g.mem.put<uint8_t>(g.fsb(130) + kBattleFlag, 1);
+      std::string sent = run(g, *e, t, claim, {130}, 4100);
+      assert(has(sent, "SBF25 bstart 1 130\n") && has(sent, "SBF25 own 1 130 G 1\n"));
+      sent = run(g, *e, t, claim, {}, 8200);
+      assert(!has(sent, " bstart ") && !has(sent, " phase ") && !has(sent, " own "));
+      for (int i = 0; i < 2; ++i) {
+        g.inbox.push_back(msg("SBF25 bstart 1 130"));
+        run(g, *e, t, claim, {}, t + 600);
+        assert(g.battles.empty() && e->counts.bstarts == 1 && count(g, "bstart") == 1 && e->snapshot().boss);
+      }
+      const uint64_t op = g.ops, stale = e->host.counts.stale;
+      g.body(130).refuses = 5026013;
+      g.inbox.push_back(msg("SBF25 phase 1 130 1 5026013"));
+      run(g, *e, t, claim, {}, t + 16);
+      const uint64_t changed = t;
+      assert(e->counts.phase_rows == 0 && e->counts.phase_refused == 1);
+      g.body(130).refuses = 0;
+      g.inbox.push_back(msg("SBF25 phase 1 130 1 5026013"));
+      run(g, *e, t, claim, {}, t + 16);
+      assert(e->counts.phase_rows == 1 && (g.cast_ids(130, op) == std::vector<int32_t>{5026013, 5026013}));
+      assert(count(g, "phase", "the game refused a row") == 1 && count(g, "phase") == 2);
+      g.inbox.push_back(msg("SBF25 phase 1 130 0 5026013,5026021"));
+      run(g, *e, t, claim, {}, t + 16);
+      assert(e->counts.phase_rows == 1 && e->host.counts.stale == stale + 1);
+      g.hit(130, kShield, 5);
+      assert(!has(run(g, *e, t, claim, {}, changed + 2999), " own "));
+      assert(has(run(g, *e, t, claim, {}, changed + 3008), "SBF25 own 1 130 H 2\n"));
+      run(g, *e, t, claim, {}, t + 100);
+      assert(g.battles_off.empty() && g.mem.get<uint8_t>(g.fsb(130) + kBattleFlag) == 1);
+      g.inbox.push_back(msg("SBF25 bstart 1 130"));
+      g.inbox.push_back(msg("SBF25 spawn 1 1 4043309061 0 35025002 300 0 0 90 130 5026000"));
+      run(g, *e, t, claim, {}, t + 16);
+      assert(e->host.counts.stale == stale + 2 && e->counts.bstarts == 1 && count(g, "bad line") == 0);
+      assert(count(g, "summon refused", "not the owner") == 1 && g.extras.empty());
+      assert(e->host.counts.bad == 0 && !e->latched());
+    }
+    { // Her bstart starts our copy's battle mode while she owns it; once her lines go on with no bstart for 10 s (her
+      // boss left battle mode), ours comes off.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      boss(g, *e, 130, 30, 35026001, false);
+      assert(has(run(g, *e, t, claim, {130}, 4100), "SBF25 own 1 130 G 1\n"));
+      g.inbox.push_back(msg("SBF25 bstart 1 130"));
+      run(g, *e, t, claim, {130}, t + 100);
+      const uint64_t on = t;
+      assert((g.battles == std::vector<uint64_t>{g.fsb(130)}) && e->counts.bstarts == 1);
+      run(g, *e, t, claim, {130}, on + 9800);
+      assert(g.battles_off.empty());
+      run(g, *e, t, claim, {130}, on + 10300);
+      assert((g.battles_off == std::vector<uint64_t>{g.fsb(130)}) && count(g, "battle off") == 1);
+    }
+    { // Her bstart while our EVE stands 60 m away: our copy stays out of battle mode (not our fight), yet the fight=
+      // line's boss= says a boss fight runs.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      boss(g, *e, 130, 30, 35026001, false);
+      g.place(1, 6000, 0);
+      assert(has(run(g, *e, t, claim, {130}, 4100), "SBF25 own 1 130 G 1\n"));
+      assert(!e->snapshot().boss);
+      g.inbox.push_back(msg("SBF25 bstart 1 130"));
+      run(g, *e, t, claim, {130}, t + 600);
+      assert(g.battles.empty() && e->counts.bstarts == 0 && e->snapshot().boss);
+    }
+    { // guest_summon_on_host: she owns Marionette; her summon's line (summon_key(1, 5)) makes ours with her key and
+      // its row's effects, which the host then follows and pairs (its up). Her claims on it go through Host. A summon
+      // of our frozen copy (none should come) gets no key of ours.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      uint32_t claim = 0;
+      boss(g, *e, 130, 30, 35026001, false);
+      assert(has(run(g, *e, t, claim, {130}, 4100), "SBF25 own 1 130 G 1\n"));
+      const std::string key = std::to_string(summon_key(1, 5).spawn);
+      assert(key == "4043309061");
+      g.inbox.push_back(msg("SBF25 spawn 1 1 " + key + " 0 35025002 300 0 0 90 130 5026000"));
+      g.summon(160, 130, 5026001, 7801);
+      const std::string sent = run(g, *e, t, claim, {130}, t + 2000);
+      assert(count(g, "bad line") == 0 && count(g, "summon made") == 1 && g.extras.size() == 1);
+      assert(count(g, "summon keyed") == 0 && !has(sent, " spawn "));
+      const uint32_t made = g.extras[0].guid;
+      assert(g.extras[0].id == summon_key(1, 5).spawn && e->host.linked() == 2);
+      assert(has(sent, "SBF25 up 1 " + std::to_string(made) + " " + key + " 0 35025002 1600\n"));
+      g.inbox.push_back(msg("SBF25 hit 1 " + std::to_string(++claim) + " " + std::to_string(made) + " 100 0 0 1600 0"));
+      run(g, *e, t, claim, {}, t + 100);
+      assert(g.hp(made) == 1500 && e->host.counts.bad == 0 && !e->latched());
+    }
+  }
+  // guest_owner_lines, her side: Marionette's copy (930) hers at oe 1 (the host's own G). Her lines carry its battle
+  // mode and phases (the host's GUID, her epoch) and her summon under her key (member 1); the host's bstart for it is
+  // stale.
+  {
+    Game G;
+    G.spawns();
+    auto eg = engine(false, false);
+    eg->allow(nullptr, 0);
+    eg->set(true, false);
+    G.spawn(930, 30, 0, 35026001, 1600, kTypeBoss);
+    for (const char *line : {"SBF25 world 1", "SBF25 place 1 1", "SBF25 bosses 1 100",
+                             "SBF25 up 1 130 30 0 35026001 1600"})
+      G.inbox.push_back(msg(line));
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      std::string sent;
+      for (; t <= until; t += 16) {
+        frame(G, *eg, t);
+        sent += lines(G);
+      }
+      return sent;
+    };
+    run(500);
+    assert(eg->guest.linked() == 1 && Game::held(G.body(930), kBlockAiState));
+    G.inbox.push_back(msg("SBF25 own 1 130 G 1"));
+    run(600);
+    assert(G.table.pairs[0].owner == coop::pilot::kGuest && !Game::held(G.body(930), kBlockAiState));
+    G.mem.put<uint8_t>(G.fsb(930) + kBattleFlag, 1);
+    G.knock(930, 5026013);
+    std::string sent = run(1200);
+    assert(has(sent, "SBF25 bstart 1 130\n") && has(sent, "SBF25 phase 1 130 1 5026013\n"));
+    const uint64_t stale = eg->guest.counts.stale;
+    G.inbox.push_back(msg("SBF25 bstart 1 130"));
+    run(t);
+    assert(eg->guest.counts.stale == stale + 1 && G.battles.empty() && eg->counts.bstarts == 0);
+    G.summon(950, 930, 5026000, 7700);
+    G.place(950, 300, 0, 90);
+    sent = run(t + 3000);
+    assert(has(sent, " spawn 1 ") && has(sent, " 4043309057 0 35025002 300 0 0 90 130 5026000\n"));
+    assert(count(G, "summon keyed") == 1 && eg->guest.counts.bad == 0 && !eg->latched());
   }
   // qte_on_the_line: the worker gives the job story together's flag at each change and, while it is on, at each new
   // session (off needs none: the job starts off); on the host, the QTE scenes that ended in our game. The fight= line

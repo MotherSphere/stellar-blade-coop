@@ -80,7 +80,7 @@ template <class Game> void Engine::trial(Game &g, uint64_t logic, size_t n, bool
       Message &m = trial_.line;
       m.idn = uint8_t(std::remove_if(m.ids, m.ids + m.idn, floor_row) - m.ids);
       trial_.step = 2;
-      return phase_line(g, logic, n, fsb);
+      return phase_line(g, logic, n, fsb, now);
     }
     float floor = 0;
     int32_t held[kMaxEffects], rows[kMaxPhaseIds];
@@ -193,12 +193,12 @@ template <class Game> void Engine::start_trial(Game &g, uint64_t logic, uint8_t 
         std::find(held, held + hn, id) == held + hn) {
       m.ids[m.idn++] = id; // Room: the allowlist holds kMaxPhaseIds at most, and this one is not held.
       trial_.line = m;
-      return phase_line(g, logic, n, fsb);
+      return phase_line(g, logic, n, fsb, now);
     }
   end_trial(g, "refused: every phase row held");
 }
 
-template <class Game> void Engine::phase_line(Game &g, uint64_t logic, size_t n, uint64_t fsb) {
+template <class Game> void Engine::phase_line(Game &g, uint64_t logic, size_t n, uint64_t fsb, uint64_t now) {
   float floor = 0;
   char note[128]; // Room left for the rest of the line in Event::note.
   g.read(fsb + kMinimumHp, &floor, sizeof floor);
@@ -207,7 +207,7 @@ template <class Game> void Engine::phase_line(Game &g, uint64_t logic, size_t n,
   std::snprintf(e.note, sizeof e.note, "%s; floor %.0f", note, double(floor));
   g.event(e);
   const uint64_t taken = counts.phase_rows, refused = counts.phase_refused;
-  phase_in(g, logic, trial_.line, n);
+  phase_in(g, logic, trial_.line, n, now);
   if (latched_)
     return;
   e = told("cast:");
@@ -218,7 +218,7 @@ template <class Game> void Engine::phase_line(Game &g, uint64_t logic, size_t n,
 }
 
 template <class Game> void Engine::start_summon(Game &g, uint64_t logic) {
-  const SpawnKey k = summon_key(1);
+  const SpawnKey k = summon_key(kHostMember, 1); // The first key the host gives, as its line would bring it.
   const Summon *row = summon_row(kTrialSummonRow);
   const uint64_t fsb = local_fsb(g);
   float at[3] = {}, rot[3] = {};

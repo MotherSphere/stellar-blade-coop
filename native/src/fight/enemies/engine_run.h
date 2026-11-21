@@ -235,20 +235,24 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
       continue;
     }
     // The host takes only her on, off and world (R33): a place, down or dead from her is a bad line, and from an
-    // ignored peer nothing counts. Each of the three also ends the hand-over pause after her own-no off.
-    if (!hosting)
+    // ignored peer nothing counts. Each of the three also ends the hand-over pause after her own-no off. Her lines
+    // time her boss pairs' battle mode on our copies (phase 3), as the host's do on hers.
+    if (!hosting) {
       saw(m), heard(now_ms);
-    else if ((m.type == Type::on || m.type == Type::off || m.type == Type::world) && !host.ignored())
-      saw(m), her_off_until_ = 0;
+    } else if (!host.ignored()) {
+      heard(now_ms);
+      if (m.type == Type::on || m.type == Type::off || m.type == Type::world)
+        saw(m), her_off_until_ = 0;
+    }
     if (hosting && m.type == Type::own_no)
       refused(m, now_ms, io);
     else if (!hosting && m.type == Type::own)
       own_in_.push(m); // Answered after the pass (answer()), which reads the copy. kMail: never full.
     else if (hosting && m.type == Type::have)
       her_have(m, now_ms);
-    else if (!hosting && (m.type == Type::bstart || m.type == Type::phase ||
-                          (m.type == Type::spawn && is_summon(m.spawn))))
-      boss_in_.push(m); // Taken after the pass (bosses()), which reads the copies. kMail: never full.
+    else if ((m.type == Type::bstart || m.type == Type::phase || (m.type == Type::spawn && is_summon(m.spawn))) &&
+             !(hosting && host.ignored()))
+      boss_in_.push(m); // A boss pair's owner's (phase 3: hers too), for bosses() after the pass. kMail: never full.
     else if (!hosting && (m.type == Type::epoch || m.type == Type::spawn || m.type == Type::drop))
       spawn_guest_.heard(m, guest.gen());
     else
@@ -356,7 +360,7 @@ template <class Game> size_t Engine::pass(Game &g, uint64_t logic, bool census, 
       counts.rejected += !latched_;
       continue;
     }
-    if (hosting_seen_ && !a.seen.spawn && !summoned(a))
+    if (!a.seen.spawn && !summoned(a)) // Either side's (phase 3): the summons of a boss it owns.
       new_summon(g, f.la, a, followed, count);
     keyed(g, a);
     if (a.controlled == 1 && local && a.fsb == local && pc(g, a))
