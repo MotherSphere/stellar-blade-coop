@@ -171,9 +171,10 @@ function R.new(o)
                 end
             end
         else
-            -- A guest's end: her GO + minutes, or the first board with three takers if it came before.
+            -- A guest's end: her GO + minutes, or the first board with three takers if it came before. The earlier end
+            -- has the more seconds since it.
             local at,since=Ph.clock(cur.go,cur.minutes,now)
-            if cur.full and (at~='up' or now-cur.full<since) then at,since='up',now-cur.full end
+            if cur.full and (at~='up' or now-cur.full>since) then at,since='up',now-cur.full end
             if at=='up' and since>=Ph.WAIT then finish('norank') end
         end
     end

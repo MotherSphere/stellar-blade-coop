@@ -105,6 +105,9 @@ assert(select(2,(make(L,false)).start())=='checks','No photo checks without the 
 assert(select(2,(make(L,nil,false)).start())=='read')
 assert(select(2,(make(L,nil,{'Cat1','Cat2'})).start())=='few')
 assert(#L.sent==0 and #o.told==0)
+-- coop off with no round: the game side still hears it, once.
+r.stop('coop off')
+assert(#o.stopped==1 and o.stopped[1]=='coop off' and r.round()==nil)
 
 -- The host: a round of four. Go names us first, then each member past the handshake, with three distinct targets of
 -- our map and its world; our countdown starts at once. The go line says every target is open: no board at the first
@@ -205,6 +208,9 @@ assert(said(o,'rank: refused P2: time')==1)
 assert(r.claim(2) and said(o,'rank: refused P1: time')==1)
 assert(r.cancel() and last(L.sent)=='void '..seed and r.round().why=='void' and last(o.stopped)=='void')
 assert(select(2,r.cancel())=='none')
+-- A voided round sends nothing more: no rank at its end + 10 s.
+t=3000+5+60+10; r.tick()
+assert(last(L.sent)=='void '..seed,last(L.sent))
 t=3100
 assert(r.start('1'))
 seed=went(L)
@@ -294,6 +300,12 @@ assert(r.round().why=='void' and last(o.stopped)=='void')
 L.from(HOST,'go 18 15 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); r.tick()
 L.from(HOST,'rank 18 Xion 1001:1:3,2002:0:0'); r.tick()
 assert(r.round().phase=='ranked' and #o.records==1)
+-- A rank that gives us a point short of our best: the ranking, no new best.
+local record=o.record
+o.record=function() return false end
+L.from(HOST,'go 22 15 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); L.from(HOST,'rank 22 Xion 2002:1:9,1001:0:0'); r.tick()
+assert(r.round().phase=='ranked' and r.round().best==false)
+o.record=record
 -- The host leaves: the session ends with no rejoin of ours and the native part's notice says she left. While our own
 -- rejoin runs, it goes on.
 L.from(HOST,'go 12 15 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); r.tick()
@@ -332,6 +344,22 @@ t=6049; r.tick()
 assert(r.round().phase=='play')
 t=6050; r.tick()
 assert(r.round().why=='norank')
+-- A board with three takers 10 s before our time is up: the 30 s count from the board, not from the time.
+t=7000
+L.from(HOST,'go 19 1 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); r.tick()
+t=7055; L.from(HOST,'board 19 1001:40,1001:45,1001:50'); r.tick()
+t=7084; r.tick()
+assert(r.round().phase=='play')
+t=7085; r.tick()
+assert(r.round().why=='norank','30 s after the board')
+-- A board with three takers after our time is up (the host's 10 s for late lines): the 30 s count from the time.
+t=8000
+L.from(HOST,'go 21 1 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); r.tick()
+t=8070; L.from(HOST,'board 21 1001:40,1001:45,1001:63'); r.tick()
+t=8094; r.tick()
+assert(r.round().phase=='play')
+t=8095; r.tick()
+assert(r.round().why=='norank','30 s after the time')
 -- A new go while one plays replaces it.
 L.from(HOST,'go 15 15 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); r.tick()
 L.from(HOST,'go 16 15 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); r.tick()
