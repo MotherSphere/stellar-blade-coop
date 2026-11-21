@@ -11,6 +11,8 @@
 // makes them, on the ghost's actor: placed where her game played it, attached to the ghost's part when hers was.
 // Nothing plays from a ghost that does not show, while the sounds look is off or before game_calls_ok(). Under the
 // sounds latch (sound_game.inc): a fault turns her sounds off for the run on both sides and the ghost goes on.
+// Her world effects (Task 11) wait apart and play with SB's own spawn at a location, in the ghost actor's world, while
+// the effects look is on and the ghost has effect boxes: no gate but a shown ghost and no scene. Under their own latch.
 
 namespace coop::pose {
 namespace {
@@ -35,6 +37,18 @@ using PlaySound = void (*)(uintptr_t comp, float start);
 // AActor::bHidden: byte +0x58, bit 0x20 (its reflection params 0x1464c9cf0, set-bit function 0x1446c01a0).
 constexpr size_t kActorHidden = 0x58;
 constexpr uint8_t kHiddenBit = 0x20;
+// SB's spawns at a location, as its footstep notify calls them (0x14201a1a8 and 0x14201a2f8, Ghidra, build 26123051),
+// each returning the component it placed, scaled and started (0 when the game makes none): FUN_142325990, Niagara
+// (system RCX, UWorld RDX, FVector* R8, FRotator* R9, float scale at [rsp+20], a byte at [rsp+28] the footstep passes
+// 1: the world pool's AutoRelease); FUN_142325290, Cascade (template RCX, UWorld RDX, FVector* R8, FRotator* R9, 8
+// bytes at [rsp+20] it never reads, float scale at [rsp+28]; it makes an auto-destroyed component outside any pool).
+// The footstep takes the world from its character's vtable +0x158 (AActor::GetWorld FUN_143f60200, which the ghost's
+// AActor vtable 0x145a581d0 holds there too: freeze_game_shared.inc's kGetWorld).
+constexpr uint64_t kNiagaraAt = 0x142325990, kCascadeAt = 0x142325290;
+using NiagaraAt = uintptr_t (*)(uintptr_t system, uintptr_t world, const float *location, const float *rotator,
+                                float scale, uint8_t auto_release);
+using CascadeAt = uintptr_t (*)(uintptr_t tmpl, uintptr_t world, const float *location, const float *rotator,
+                                uint64_t unused, float scale);
 
 // One sound the ghosts asked for this frame: its slot, its event and its key's objects (copied out of asset_loaded
 // under m); then its place in the world, the ghost's actor and the part it hangs on (0: placed only).
@@ -49,9 +63,11 @@ PlayAsk play_asks[Gate::kMaxAsks];
 Gate::Ask play_gate_asks[Gate::kMaxAsks];
 bool play_admitted[Gate::kMaxAsks];
 Gate play_gate;
-// The viewer's 60 s line (game thread writes, worker reads and resets).
+// The viewer's 60 s lines (game thread writes, worker reads and resets).
 std::atomic<uint64_t> window_play_played{0}, window_play_far{0}, window_play_ghost{0}, window_play_all{0},
     window_play_scene{0}, window_play_hidden{0}, window_play_unnamed{0}, window_play_unloaded{0};
+std::atomic<uint64_t> window_worldfx_played{0}, window_worldfx_unspawned{0}, window_worldfx_hidden{0},
+    window_worldfx_scene{0}, window_worldfx_unnamed{0}, window_worldfx_unloaded{0};
 
 // An int parameter's FName through SB's MakeWithNumber with FNAME_Find: 0 when SB never made that name (no sound of
 // this PC reads it) or for None. rows/rows.h's split_number gives SB's own split of a trailing number.
@@ -106,6 +122,30 @@ void play_event(const PlayAsk &a) {
   sound_applying = false;
 }
 
+// A ghost's actor (the outer of its root part) and whether it is hidden: no actor alive, or its bHidden set.
+uintptr_t play_actor(const Drawn &g, bool &hidden) {
+  const uintptr_t root = static_cast<uintptr_t>(g.display.puppet.empty() ? 0 : g.display.puppet[0].object);
+  const uintptr_t actor = alive(objects, root) ? at<uintptr_t>(root + kOuter) : 0;
+  hidden = !alive(objects, actor) || (at<uint8_t>(actor + kActorHidden) & kHiddenBit);
+  return actor;
+}
+// Where a's event plays (a.world) and the part it hangs on (a.part, 0: placed only): hers relative to part 0 on the
+// drawn root, or on the ghost's part. A part Lua did not draw (a follower, one left out) hangs it on the main mesh.
+// Only for a ghost that shows, whose root part is alive.
+void play_place(const Drawn &g, PlayAsk &a) {
+  float parent[10];
+  if (a.event.part == kNoPart) {
+    std::memcpy(parent, g.draw_root, sizeof parent);
+    a.part = 0;
+  } else {
+    const uintptr_t p =
+        a.event.part < g.display.puppet.size() ? static_cast<uintptr_t>(g.display.puppet[a.event.part].object) : 0;
+    a.part = p && alive(objects, p) ? p : static_cast<uintptr_t>(g.display.puppet[0].object);
+    read_world(a.part, parent);
+  }
+  sound::compose(parent, a.event.place, a.world);
+}
+
 // The frame's work, out of line with plain values: clang-cl catches a fault only in a function the __try calls.
 __declspec(noinline) void play_body(uint64_t now_us) {
   Live &live = *session;
@@ -120,9 +160,8 @@ __declspec(noinline) void play_body(uint64_t now_us) {
     Drawn *g = live.remotes[slot].get();
     if (!g)
       continue;
-    const uintptr_t root = static_cast<uintptr_t>(g->display.puppet.empty() ? 0 : g->display.puppet[0].object);
-    const uintptr_t actor = alive(objects, root) ? at<uintptr_t>(root + kOuter) : 0;
-    const bool hidden = !alive(objects, actor) || (at<uint8_t>(actor + kActorHidden) & kHiddenBit);
+    bool hidden = false;
+    const uintptr_t actor = play_actor(*g, hidden);
     if (!wanted) {
       g->waiting.clear();
     } else if (!ghost_shows(g->drawn(), g->ghost_gone, g->draw_root[7], hidden)) {
@@ -137,7 +176,7 @@ __declspec(noinline) void play_body(uint64_t now_us) {
               return;
             }
             PlayAsk &a = play_asks[n++];
-            a.slot = slot, a.event = e, a.named = book.find(e.asset)->second, a.actor = actor, a.part = root;
+            a.slot = slot, a.event = e, a.named = book.find(e.asset)->second, a.actor = actor;
           });
     }
     window_play_unnamed += g->waiting.dropped() - g->waits_seen;
@@ -145,21 +184,9 @@ __declspec(noinline) void play_body(uint64_t now_us) {
   }
   if (locked)
     m.unlock();
-  for (size_t i = 0; i < n; ++i) { // Where each plays: hers relative to part 0 on the drawn root, or on the part.
+  for (size_t i = 0; i < n; ++i) {
     PlayAsk &a = play_asks[i];
-    const Drawn &g = *live.remotes[a.slot];
-    float parent[10];
-    if (a.event.part == kNoPart) {
-      std::memcpy(parent, g.draw_root, sizeof parent);
-      a.part = 0;
-    } else { // A part Lua did not draw (a follower, one left out) hangs it on the main mesh.
-      const uintptr_t p =
-          a.event.part < g.display.puppet.size() ? static_cast<uintptr_t>(g.display.puppet[a.event.part].object) : 0;
-      if (p && alive(objects, p))
-        a.part = p;
-      read_world(a.part, parent);
-    }
-    sound::compose(parent, a.event.place, a.world);
+    play_place(*live.remotes[a.slot], a);
     const float dx = a.world[4] - eve[4], dy = a.world[5] - eve[5], dz = a.world[6] - eve[6];
     play_gate_asks[i] = {a.slot, have_eve ? std::sqrt(dx * dx + dy * dy + dz * dz) : HUGE_VALF};
   }
@@ -172,16 +199,95 @@ __declspec(noinline) void play_body(uint64_t now_us) {
       play_event(play_asks[i]);
 }
 
-// Each frame on the game thread, pinned, with the engine on and before coop off: her sounds on every ghost, under the
-// sounds latch.
-void play_tick() {
-  if (sounds_faulted || !session)
+// One world effect a ghost reached: dropped (not loaded) unless its object is alive with the class Lua loaded it as.
+// Else SB's own spawn at the place her game played it, at her scale, in the ghost actor's world; the viewer's own
+// sinks record none of it. Placed, not attached: the spawn SB's footstep uses attaches nothing.
+void worldfx_event(const PlayAsk &a) {
+  const Loaded &l = a.named.loaded;
+  const uintptr_t asset = static_cast<uintptr_t>(l.object);
+  if (!alive(objects, asset) || at<uint64_t>(asset + kClass) != l.cls) {
+    ++window_worldfx_unloaded;
     return;
-  __try {
-    play_body(clock_us());
-  } __except (fault_filter(GetExceptionInformation(), sounds_fault_code, sounds_fault_rva, sounds_fault_address)) {
-    sounds_faulted = true;
-    sound_applying = false;
+  }
+  const uintptr_t world = reinterpret_cast<GetWorld>(at<uintptr_t>(at<uintptr_t>(a.actor) + kGetWorld))(a.actor);
+  float rotator[3];
+  quat_to_rotator(a.world[0], a.world[1], a.world[2], a.world[3], rotator);
+  const float scale = a.event.value[0] / 32.f;
+  uintptr_t comp = 0;
+  sound_applying = true;
+  if (world && a.event.kind == Kind::niagara)
+    comp = game_function<NiagaraAt>(kNiagaraAt)(asset, world, a.world + 4, rotator, scale, 1);
+  else if (world)
+    comp = game_function<CascadeAt>(kCascadeAt)(asset, world, a.world + 4, rotator, 0, scale);
+  sound_applying = false;
+  ++(comp ? window_worldfx_played : window_worldfx_unspawned);
+}
+// Her world effects the ghosts' playbacks reached, the same way as play_body, without its gate: each that has its
+// loaded objects plays while its ghost shows, has effect boxes and no scene plays. Past Gate::kMaxAsks in one frame an
+// effect counts as not spawned.
+__declspec(noinline) void worldfx_body(uint64_t now_us) {
+  Live &live = *session;
+  const bool wanted = worldfx_wanted, calls = wanted && ghost_calls_ok();
+  const bool scene = scene_silent(story_scene, sound_theater);
+  const bool locked = calls && m.try_lock(); // Busy: no name this frame; the events keep waiting.
+  size_t n = 0;
+  for (size_t slot = 0; slot < kMaxRemote; ++slot) {
+    Drawn *g = live.remotes[slot].get();
+    if (!g)
+      continue;
+    bool hidden = false;
+    const uintptr_t actor = play_actor(*g, hidden);
+    if (!wanted || !g->display.effects[0]) {
+      g->fx_waiting.clear();
+    } else if (!ghost_shows(g->drawn(), g->ghost_gone, g->draw_root[7], hidden)) {
+      window_worldfx_hidden += g->fx_waiting.clear();
+    } else if (scene) {
+      window_worldfx_scene += g->fx_waiting.clear();
+    } else {
+      auto &book = asset_loaded[slot];
+      g->fx_waiting.release(
+          now_us, [&](uint16_t k) { return locked && book.count(k); },
+          [&](const Event &e) {
+            if (n == Gate::kMaxAsks) {
+              ++window_worldfx_unspawned;
+              return;
+            }
+            PlayAsk &a = play_asks[n++];
+            a.slot = slot, a.event = e, a.named = book.find(e.asset)->second, a.actor = actor;
+          });
+    }
+    window_worldfx_unnamed += g->fx_waiting.dropped() - g->fx_waits_seen;
+    g->fx_waits_seen = g->fx_waiting.dropped();
+  }
+  if (locked)
+    m.unlock();
+  for (size_t i = 0; i < n; ++i) {
+    play_place(*live.remotes[play_asks[i].slot], play_asks[i]);
+    worldfx_event(play_asks[i]);
+  }
+}
+
+// Each frame on the game thread, pinned, with the engine on and before coop off: her sounds on every ghost under the
+// sounds latch, then her world effects under theirs.
+void play_tick() {
+  if (!session)
+    return;
+  if (!sounds_faulted) {
+    __try {
+      play_body(clock_us());
+    } __except (fault_filter(GetExceptionInformation(), sounds_fault_code, sounds_fault_rva, sounds_fault_address)) {
+      sounds_faulted = true;
+      sound_applying = false;
+    }
+  }
+  if (!worldfx_faulted) {
+    __try {
+      worldfx_body(clock_us());
+    } __except (fault_filter(GetExceptionInformation(), worldfx_fault_code, worldfx_fault_rva,
+                             worldfx_fault_address)) {
+      worldfx_faulted = true;
+      sound_applying = false;
+    }
   }
 }
 } // namespace

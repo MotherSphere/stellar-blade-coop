@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // online/partner/sound.h on the build machine: a set of slots swapped all or none and given back; the three sets apart;
-// why a sound is hers; what the sink records; the ring under one mark; a show stage's main actor; the asset key's
-// attenuation with params; an SBA line's words from the name pool; the viewer's place of her sound from its event.
+// the world-effect set; why a sound is hers; what the sink records; the ring under one mark; a show stage's main
+// actor; the asset key's attenuation with params; an SBA line's words from the name pool, a world effect's too; the
+// viewer's place of her sound from its event.
 #include "online/partner/sound.h"
 
 #include <cassert>
@@ -52,6 +53,17 @@ void test_three_sets() { // context, audio sinks, world-effect sinks: one refuse
   assert(coop::sound::swap_all(snd_at, snd_from, snd_to, 2, swap) == 1);      // refused: given back
   assert(coop::sound::swap_all(fx_at, fx_from, fx_to, 2, swap) == 2);
   assert(mem[0] == 0xc0 && mem[2] == 3 && mem[4] == 0xe0); // world effects keep the marks without sounds
+}
+void test_world_sinks_all_or_none() { // Niagara's Activate and Cascade's ActivateSystem, the Cascade slot refused
+  using coop::sound::kWorldSink;
+  static_assert(std::size(kWorldSink) == 2);
+  const uint64_t at[2] = {0, 1}, from[2] = {kWorldSink[0].original, kWorldSink[1].original}, to[2] = {0xf1, 0xf2};
+  uint64_t mem[2] = {from[0], 0x99};
+  auto swap = [&](uint64_t s, uint64_t f, uint64_t t, uint64_t &held) { held = mem[s]; if (held == f) mem[s] = t;
+                                                                         return true; };
+  assert(coop::sound::swap_all(at, from, to, 2, swap) == 1 && mem[0] == from[0] && mem[1] == 0x99);
+  mem[1] = from[1];
+  assert(coop::sound::swap_all(at, from, to, 2, swap) == 2 && mem[0] == 0xf1 && mem[1] == 0xf2);
 }
 void test_rule_of() {
   const uint64_t hers[3] = {0x100, 0x200, 0x300};
@@ -178,6 +190,18 @@ void test_record_words() { // her sound's SBA words from the name pool, as the g
   assert(coop::sound::record_words(read, Memory::kPool, r, left_out).empty());
   r.sound = 0;
   assert(coop::sound::record_words(read, Memory::kPool, r, left_out).empty());
+  // A world effect: its system or template only, as - -; its record's class, attenuation and params are not its own.
+  r.kind = coop::pose::Kind::niagara, r.sound = m.object("/Game/Art/FX/Char/PC/P_Step_Dust", "P_Step_Dust");
+  r.cls = m.object("/Game/Sound/Class/SFX_Class", "SFX_Class"), r.params = 1;
+  left_out = 0;
+  const std::string dust = coop::sound::record_words(read, Memory::kPool, r, left_out);
+  assert(dust == "niagara /Game/Art/FX/Char/PC/P_Step_Dust.P_Step_Dust - -" && !left_out);
+  assert(coop::pose::parse_asset_line(coop::asset_tag() + " 9 " + dust));
+  r.kind = coop::pose::Kind::cascade;
+  assert(coop::sound::record_words(read, Memory::kPool, r, left_out) ==
+         "cascade /Game/Art/FX/Char/PC/P_Step_Dust.P_Step_Dust - -");
+  r.sound = m.object("/Engine/FX/P_Default", "P_Default"); // not one of SB's folders: refused
+  assert(coop::sound::record_words(read, Memory::kPool, r, left_out).empty());
 }
 
 void test_record_words_longest_key() { // a line that fits under key 1 but not under key 4096 is refused before it goes
@@ -242,6 +266,7 @@ void test_compose() { // the viewer puts her sound back where her game played it
 int main() {
   test_swap_all_refuses_and_gives_back();
   test_three_sets();
+  test_world_sinks_all_or_none();
   test_rule_of();
   test_applying_records_nothing();
   test_latest_start_kept();

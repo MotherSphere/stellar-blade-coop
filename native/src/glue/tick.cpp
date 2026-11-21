@@ -445,7 +445,7 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // first fault.
   if (game_pinned && !drone_faulted && !blocked)
     drone_tick();
-  // Her sounds on the ghosts, the sounds latch checked inside: none after coop off.
+  // Her sounds and world effects on the ghosts, each latch checked inside: none after coop off.
   if (game_pinned && engine_on && !blocked)
     play_tick();
   // Its own latch: a ghost fault leaves the shared fight running, and the reverse. Once more after off: the arm rule

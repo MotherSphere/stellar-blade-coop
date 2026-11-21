@@ -44,8 +44,8 @@ bool cycle_fault_logged = false, cycle_odd_logged = false;
 bool drone_fault_logged = false;
 uint64_t drone_written = ~uint64_t(0);
 std::string fault_where(uint64_t rva); // fight_worker_shared.inc's, after this part: the drone's fault line.
-// Her sounds (online/partner/sound_game.inc): their fault; sound_worker.inc's pass, after this part.
-bool sounds_fault_logged = false;
+// Her sounds and world effects (online/partner/sound_game.inc): their faults; sound_worker.inc's pass, after this part.
+bool sounds_fault_logged = false, worldfx_fault_logged = false;
 void sound_pass(bool sounds);
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
@@ -741,6 +741,16 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(sounds_fault_address.load()));
     event(text);
   }
+  if (worldfx_faulted && !worldfx_fault_logged) {
+    worldfx_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "world effects off: fault 0x%08llx in %s reading 0x%llx; their slots go back, the ghost goes on "
+                  "without them",
+                  static_cast<unsigned long long>(worldfx_fault_code.load()), fault_where(worldfx_fault_rva).c_str(),
+                  static_cast<unsigned long long>(worldfx_fault_address.load()));
+    event(text);
+  }
   // coop-drone.txt for the capture, written only when the actor changes (none after coop off); a failed write is tried
   // again at the next pass.
   if (const uint64_t actor = blocked ? 0 : drone_actor.load(); actor != drone_written) {
@@ -822,7 +832,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     }
     lua = now;
   }
-  sound_pass(lua.sounds); // Her sounds' slots, by the sounds look; back after a fault.
+  sound_pass(lua.sounds); // Her sounds' and world effects' slots, by their looks; back after a fault.
   {
     std::vector<std::string> lines;
     std::array<Gap, 8> long_gaps;
@@ -867,6 +877,13 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                    play_ghost = window_play_ghost.exchange(0), play_all = window_play_all.exchange(0),
                    play_scene = window_play_scene.exchange(0), play_hidden = window_play_hidden.exchange(0),
                    play_unnamed = window_play_unnamed.exchange(0), play_unloaded = window_play_unloaded.exchange(0);
+    const uint64_t fx_mark = window_worldfx_mark.exchange(0), fx_owner = window_worldfx_owner.exchange(0),
+                   fx_attach = window_worldfx_attach.exchange(0), fx_other = window_worldfx_other.exchange(0),
+                   fx_skipped = window_worldfx_attached.exchange(0), fx_sent = window_worldfx_sent.exchange(0),
+                   fx_paths = window_worldfx_paths.exchange(0), fx_keys = window_worldfx_keys.exchange(0),
+                   fx_played = window_worldfx_played.exchange(0), fx_unspawned = window_worldfx_unspawned.exchange(0),
+                   fx_hidden = window_worldfx_hidden.exchange(0), fx_scene = window_worldfx_scene.exchange(0),
+                   fx_unnamed = window_worldfx_unnamed.exchange(0), fx_unloaded = window_worldfx_unloaded.exchange(0);
     if (!first && vitals_reads) { // Eight ReadProcessMemory calls each; the cost under Proton is unmeasured.
       char line[96];
       std::snprintf(line, sizeof line, "vitals read, last 60 s: %llu reads, max %llu us",
@@ -922,8 +939,8 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
       if (mark || owner || attach || other || sound_sent || waited || paths || left_out || keys || ring) {
         std::snprintf(line, sizeof line,
                       "sounds, last 60 s: captured %llu (mark %llu, owner %llu, attach %llu, other thread %llu), sent "
-                      "%llu, %llu dropped waiting for a slot, %llu paths refused, %llu params left out, %llu over %zu "
-                      "keys, %llu lost to a full ring",
+                      "%llu, %llu events dropped waiting for a slot, %llu paths refused, %llu params left out, %llu "
+                      "over %zu keys, %llu events lost to a full ring",
                       static_cast<unsigned long long>(mark + owner + attach), static_cast<unsigned long long>(mark),
                       static_cast<unsigned long long>(owner), static_cast<unsigned long long>(attach),
                       static_cast<unsigned long long>(other), static_cast<unsigned long long>(sound_sent),
@@ -940,6 +957,24 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                       static_cast<unsigned long long>(play_ghost), kPerGhost, static_cast<unsigned long long>(play_all),
                       kAll, static_cast<unsigned long long>(play_scene), static_cast<unsigned long long>(play_hidden),
                       static_cast<unsigned long long>(play_unnamed), static_cast<unsigned long long>(play_unloaded));
+        event(line);
+      }
+      if (fx_mark || fx_owner || fx_attach || fx_other || fx_skipped || fx_sent || fx_paths || fx_keys || fx_played ||
+          fx_unspawned || fx_hidden || fx_scene || fx_unnamed || fx_unloaded) {
+        std::snprintf(line, sizeof line,
+                      "world effects, last 60 s: captured %llu (mark %llu, owner %llu, attach %llu, other thread "
+                      "%llu), sent %llu, %llu attached skipped, %llu paths refused, %llu over %zu keys; played %llu, "
+                      "%llu not spawned, %llu from a hidden ghost, %llu in a scene, %llu without a name, %llu not "
+                      "loaded",
+                      static_cast<unsigned long long>(fx_mark + fx_owner + fx_attach),
+                      static_cast<unsigned long long>(fx_mark), static_cast<unsigned long long>(fx_owner),
+                      static_cast<unsigned long long>(fx_attach), static_cast<unsigned long long>(fx_other),
+                      static_cast<unsigned long long>(fx_sent), static_cast<unsigned long long>(fx_skipped),
+                      static_cast<unsigned long long>(fx_paths), static_cast<unsigned long long>(fx_keys),
+                      kMaxAssetKeys, static_cast<unsigned long long>(fx_played),
+                      static_cast<unsigned long long>(fx_unspawned), static_cast<unsigned long long>(fx_hidden),
+                      static_cast<unsigned long long>(fx_scene), static_cast<unsigned long long>(fx_unnamed),
+                      static_cast<unsigned long long>(fx_unloaded));
         event(line);
       }
       if (names_in || names_refused || loaded_in || loaded_refused) {

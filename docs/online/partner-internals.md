@@ -332,16 +332,19 @@ codec](#3-the-pose-codec)) with its volume and pitch in 1/64 steps, its part and
 pose's table no longer has (her drone gone since) goes empty in that pose, since the viewer refuses a whole pose that
 carries one.
 
-The worker swaps two sets apart, each all or none: the seven context slots and the two audio slots. Each swap is a
-compare-and-swap from the game's function, relocated to the loaded image. If one slot of a set holds another value, the
-slots of that set already swapped go back, with the line `sounds refused: 0x<slot> holds <value>; nothing of that set
-swapped, the ghost goes on without sounds (<set>)`. The other set stays. With the sounds look off both sets go back
-until it is on again. At `coop off` and after a fault they go back for the run. A fault in a hook or in the naming turns
-sounds off with one `sounds off: fault ...` line. The ghost goes on.
+The worker swaps three sets apart, each all or none: the seven context slots, the two audio slots and the two
+world-effect slots ([Her world effects](#her-world-effects)). The context set stays while the sounds look or the
+effects look is on, so her world effects keep their marks with sounds off. Each swap is a compare-and-swap from the
+game's function, relocated to the loaded image. If one slot of a set holds another value, the slots of that set already
+swapped go back, with the line `sounds refused: 0x<slot> holds <value>; nothing of that set swapped, the ghost goes on
+without sounds (<set>)`. The other sets stay. With the sounds look off the audio set goes back until it is on again.
+At `coop off` and after a fault they go back for the run. A fault in a hook or in the naming turns sounds off with one
+`sounds off: fault ...` line. The ghost goes on.
 
 `coop status` shows `sounds=on`, `off`, `refused` or `fault`. Every 60 s `coop-link.log` has `sounds, last 60 s:
-captured <n> (mark <n>, owner <n>, attach <n>, other thread <n>), sent <n>, <n> dropped waiting for a slot, <n> paths
-refused, <n> params left out, <n> over 4096 keys, <n> lost to a full ring`. Not tested in game yet.
+captured <n> (mark <n>, owner <n>, attach <n>, other thread <n>), sent <n>, <n> events dropped waiting for a slot, <n>
+paths refused, <n> params left out, <n> over 4096 keys, <n> events lost to a full ring`. Sounds and world effects share
+the rings and the pose's event slots, so the two counts of events cover both. Not tested in game yet.
 
 ## Her sounds, played
 
@@ -387,6 +390,50 @@ sounds look off, nothing plays. A fault turns her sounds off on both sides with 
 
 Every 60 s with any of it, `coop-link.log` has `sounds played, last 60 s: <n> played, <n> far, <n> over a ghost's 8, <n>
 over all 32, <n> in a scene, <n> from a hidden ghost, <n> without a name, <n> not loaded`. Not tested in game yet.
+
+## Her world effects
+
+With the effects look on, the Niagara and Cascade effects her game starts for your EVE travel the way her sounds do
+([Her sounds, sent](#her-sounds-sent)): same context hooks, same rings, same asset keys and event slots. The effects
+look counts as on while your capture names effect lines or a ghost's display names effect boxes. Lua writes neither with
+`effects=off`.
+
+Two sinks sit in the start slots:
+
+| Slot | Game function | Class |
+| --- | --- | --- |
+| `0x145952d08` (vtable `0x145952a98` `+0x270`) | `0x140f309d0`, Activate | UNiagaraComponent |
+| `0x14645f648` (vtable `0x14645ed28` `+0x920`) | `0x144390180`, ActivateSystem | UParticleSystemComponent |
+
+SB's spawns at a location, `0x142325990` (Niagara) and `0x142325290` (Cascade), place and scale the component, then call
+these slots. A sink records a start under the three rules of the audio sink (mark, owner, attach). It reads the system
+at the offset of the capture's `effects` line, or the Cascade template at `+0x578`. It also reads the component's world
+X scale, its attach parent, its class and its place relative to the part it hangs on (her main mesh when none). Nothing
+is recorded while the capture names no effect line. The game thread skips a Niagara start the pose's six effect slots
+already carry, by the effect read's own rule: a component of the capture's Niagara class hung right on one of her
+published leaders whose system the capture lists. Every other start goes as an event: one placed in the world, one on a
+follower part, a system the capture does not list. Its SBA line is `niagara <asset> - -` or `cascade <asset> - -`.
+Its event carries the scale in 1/32 steps.
+
+No decal sink exists. SB starts no decal through a component slot: `0x142324d60` registers the decal and the footstep
+notify places it after. Her footprints stay out. Her sword trail is a show key (`SBShowTrailKey`) that neither the
+engine's trail notify nor the `bVisibleSwordTrail` byte drives, so trails stay out too.
+
+On the viewer, the effect events a ghost's playback reaches wait in their own wait (16 at most, 200 ms each) while the
+ghost has effect boxes. One whose key is loaded plays while the ghost shows and no shared scene plays or your theater
+holds a cutscene. No distance cap or rate cap applies. It plays where her game played it, through the call her footstep
+notify makes, in the ghost actor's world (`AActor::GetWorld`, `0x143f60200`, at vtable `+0x158`): `0x142325990` with her
+scale and 1 for the world pool's auto release, or `0x142325290` with her scale. The effect is placed, never attached.
+These calls run only while `game_calls_ok()` holds. While they run, the sinks record nothing.
+
+The world-effect set swaps apart from the sound sets. A refusal logs `world effects refused: 0x<slot> holds <value>;
+nothing of that set swapped, the ghost goes on without world effects (world effect starts)`. A fault in a sink, in the
+naming or in a play turns world effects off on both sides with one `world effects off: fault ...` line. Her sounds go
+on. `coop status` shows `world_effects=on`, `off`, `refused` or `fault`. Every 60 s with any of it, `coop-link.log` has
+`world effects, last 60 s: captured <n> (mark <n>, owner <n>, attach <n>, other thread <n>), sent <n>, <n> attached
+skipped, <n> paths refused, <n> over 4096 keys; played <n>, <n> not spawned, <n> from a hidden ghost, <n> in a scene,
+<n> without a name, <n> not loaded`. "Not spawned" counts a spawn call that gave no component and an effect past 128 in
+one frame. Not tested in game yet.
 
 ## CNS guard and crash sentinel
 

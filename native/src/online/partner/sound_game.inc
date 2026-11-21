@@ -8,7 +8,9 @@
 // picked into its thread's ring. They make no game call but the originals, through the relocated addresses the worker
 // wrote before its swaps. Each frame the game thread publishes who is her for them. It names each record once
 // (sound_take, which pose_game.inc's drain calls). Under their own SEH latch: a fault turns her sounds off for the run,
-// the worker gives the slots back and logs it once; the ghost goes on.
+// the worker gives the slots back and logs it once; the ghost goes on. Her world effects (Task 11): the sinks in the
+// Niagara and Cascade start slots record into the same rings under the same marks and rules; worldfx_take names them.
+// They have their own latch: a fault turns her world effects off for the run and leaves her sounds on.
 
 namespace coop::pose {
 namespace {
@@ -28,6 +30,14 @@ std::atomic<int32_t> sound_her_index{0}, sound_her_serial{0};
 std::array<std::atomic<uint64_t>, kMaxParts> sound_parts{};
 std::atomic<uint32_t> sound_part_count{0};
 std::atomic<bool> sound_theater{false};
+// Her world effects (sound::kWorldSink): their latch, the effects look (her capture names effect lines or a ghost's
+// display names effect boxes, while the engine runs and before coop off: the worker sets it), the originals the sinks
+// call and the Niagara system's offset in a component (her capture's effects line, Table::Fx::asset; 0 while her
+// capture names no effect line, so the sinks record nothing).
+std::atomic<bool> worldfx_faulted{false}, worldfx_wanted{false};
+std::atomic<uint64_t> worldfx_fault_code{0}, worldfx_fault_rva{0}, worldfx_fault_address{0};
+uint64_t worldfx_sink_run[std::size(sound::kWorldSink)] = {};
+std::atomic<uint32_t> worldfx_asset{0};
 std::atomic<uint32_t> sound_thread{0}; // The game thread's ID, as of its last publish.
 std::atomic<uint32_t> sound_marks{0};
 // Her mark on the two threads that have a ring, [0] the game thread's, [1] SB's logic thread's, each written and read
@@ -41,6 +51,9 @@ sound::Records sound_logic_records; // Appended by the sink on SB's logic thread
 std::atomic<uint64_t> window_sound_mark{0}, window_sound_owner{0}, window_sound_attach{0}, window_sound_other{0},
     window_sound_sent{0}, window_sound_dropped{0}, window_sound_paths{0}, window_sound_left_out{0},
     window_sound_keys{0}, window_sound_ring{0};
+std::atomic<uint64_t> window_worldfx_mark{0}, window_worldfx_owner{0}, window_worldfx_attach{0},
+    window_worldfx_other{0}, window_worldfx_attached{0}, window_worldfx_sent{0}, window_worldfx_paths{0},
+    window_worldfx_keys{0};
 bool shared_scene(); // sound_worker.inc's: story_scene, which freeze_game_shared.inc declares after this part.
 
 uint32_t sound_mark() {
@@ -71,7 +84,7 @@ __declspec(noinline) bool sound_stage_read(uintptr_t updater) {
                            at<uint64_t>(stage + pilot::kStageMain), sound_her, sound_her_index, sound_her_serial);
 }
 bool sound_mesh_hers(const void *mesh) {
-  if (!sounds_wanted || sounds_faulted)
+  if (!(sounds_wanted || worldfx_wanted) || sounds_faulted)
     return false;
   bool hers = false;
   __try {
@@ -83,7 +96,7 @@ bool sound_mesh_hers(const void *mesh) {
 }
 // No mark while her own theater holds a cutscene or a shared scene plays: scene dialogue stays out.
 bool sound_stage_hers(const void *updater) {
-  if (!sounds_wanted || sounds_faulted || sound_theater || shared_scene())
+  if (!(sounds_wanted || worldfx_wanted) || sounds_faulted || sound_theater || shared_scene())
     return false;
   bool hers = false;
   __try {
@@ -136,17 +149,37 @@ template <size_t I> uint64_t sound_show(void *self, int32_t a, void *b) {
   return result;
 }
 
-// ---- The sink ----
-// The started component's fields when it is hers (Rule::none when not): its sound, class, attenuation, volume and
-// pitch, its first int parameters, the part it hangs on and its place relative to that part (to part 0 when it hangs on
-// none of hers). hers: her parts in table order, then her actor and her drone. A part that is gone keeps its place 0.
-__declspec(noinline) sound::Rule sound_read(uintptr_t comp, uint32_t mark, sound::Record &r) {
-  uint64_t hers[kMaxParts + 2];
+// ---- The sinks ----
+// Hers as last published into hers (kMaxParts + 2): her parts in table order, then her actor and her drone. How many
+// parts, 0 while nobody is her.
+size_t sound_hers(uint64_t *hers) {
   const size_t parts = std::min<size_t>(sound_part_count, kMaxParts);
   for (size_t i = 0; i < parts; ++i)
     hers[i] = sound_parts[i];
   hers[parts] = sound_her, hers[parts + 1] = drone_actor;
-  if (!parts || !hers[parts])
+  return hers[parts] ? parts : 0;
+}
+// The part among her parts that parent is and comp's place relative to that part (to part 0 when parent is none of
+// them). A part that is gone keeps its place 0.
+void sound_place(uintptr_t comp, uint64_t parent, const uint64_t *hers, size_t parts, sound::Record &r) {
+  for (size_t i = 0; i < parts; ++i)
+    if (hers[i] == parent)
+      r.part = uint8_t(i);
+  const uintptr_t frame = static_cast<uintptr_t>(hers[r.part == kNoPart ? 0 : r.part]);
+  if (alive(objects, frame)) {
+    float from[10], to[10], place[7];
+    read_world(frame, from);
+    read_world(comp, to);
+    relative(from, to, place);
+    std::memcpy(r.place, place, sizeof place);
+  }
+}
+// The started component's fields when it is hers (Rule::none when not): its sound, class, attenuation, volume and
+// pitch, its first int parameters, the part it hangs on and its place relative to that part.
+__declspec(noinline) sound::Rule sound_read(uintptr_t comp, uint32_t mark, sound::Record &r) {
+  uint64_t hers[kMaxParts + 2];
+  const size_t parts = sound_hers(hers);
+  if (!parts)
     return sound::Rule::none;
   const uint64_t parent = at<uint64_t>(comp + sound::kAttachParent);
   r.rule = sound::rule_of(mark != 0, at<uint64_t>(comp + sound::kOwner), parent, hers, parts + 2);
@@ -170,17 +203,7 @@ __declspec(noinline) sound::Rule sound_read(uintptr_t comp, uint32_t mark, sound
     r.param_name[r.params] = at<uint64_t>(e);
     r.param_value[r.params++] = at<int32_t>(e + sound::kParamInt);
   }
-  for (size_t i = 0; i < parts; ++i)
-    if (hers[i] == parent)
-      r.part = uint8_t(i);
-  const uintptr_t frame = static_cast<uintptr_t>(hers[r.part == kNoPart ? 0 : r.part]);
-  if (alive(objects, frame)) {
-    float from[10], to[10], place[7];
-    read_world(frame, from);
-    read_world(comp, to);
-    relative(from, to, place);
-    std::memcpy(r.place, place, sizeof place);
-  }
+  sound_place(comp, parent, hers, parts, r);
   return r.rule;
 }
 // Records it on the game thread or SB's logic thread, each into its own ring, under the mark of the context wrapper
@@ -209,10 +232,62 @@ template <size_t I> void sound_play(void *self, float start) {
   reinterpret_cast<void (*)(void *, float)>(sound_sink_run[I])(self, start);
 }
 
+// A started Niagara or Cascade component's fields when it is hers (Rule::none when not): its system (at asset_at, her
+// capture's offset) or template, its world X scale (FUN_142325990 and FUN_142325290 scale it before the start), its
+// attach parent and class, the part it hangs on and its place relative to that part.
+__declspec(noinline) sound::Rule worldfx_read(uintptr_t comp, uint32_t mark, Kind kind, uint32_t asset_at,
+                                              sound::Record &r) {
+  uint64_t hers[kMaxParts + 2];
+  const size_t parts = sound_hers(hers);
+  if (!parts)
+    return sound::Rule::none;
+  const uint64_t parent = at<uint64_t>(comp + sound::kAttachParent);
+  r.rule = sound::rule_of(mark != 0, at<uint64_t>(comp + sound::kOwner), parent, hers, parts + 2);
+  r.sound = at<uint64_t>(comp + (kind == Kind::niagara ? asset_at : sound::kCascadeTemplate));
+  if (r.rule == sound::Rule::none || !game::plausible(r.sound))
+    return sound::Rule::none;
+  r.kind = kind;
+  r.component = comp;
+  r.parent = parent;
+  r.component_cls = at<uint64_t>(comp + kClass);
+  float world[10];
+  read_world(comp, world);
+  r.scale = world[7];
+  sound_place(comp, parent, hers, parts, r);
+  return r.rule;
+}
+// As sound_capture, under the world effects' latch.
+void worldfx_capture(uintptr_t comp, Kind kind, uint32_t asset_at) {
+  const uint32_t *const slot = sound_mark_of_thread();
+  const bool on_game = slot == &her_mark[0], on_logic = slot == &her_mark[1];
+  const uint32_t mark = slot ? *slot : 0;
+  sound::Record r;
+  sound::Rule rule = sound::Rule::none;
+  __try {
+    rule = worldfx_read(comp, mark, kind, asset_at, r);
+  } __except (fault_filter(GetExceptionInformation(), worldfx_fault_code, worldfx_fault_rva, worldfx_fault_address)) {
+    worldfx_faulted = true;
+    return;
+  }
+  if (sound::records(on_game && sound_applying, on_game || on_logic, rule))
+    (on_game ? sound_game_records : sound_logic_records).add(r, mark);
+  else if (rule != sound::Rule::none && !on_game && !on_logic)
+    ++window_worldfx_other;
+}
+// Niagara's Activate (this, bool bReset in DL) and Cascade's ActivateSystem (this, bool in DL) in their classes' slot,
+// void.
+template <size_t I> void worldfx_start(void *self, bool flag) {
+  if (worldfx_wanted && !worldfx_faulted)
+    if (const uint32_t asset_at = worldfx_asset)
+      worldfx_capture(reinterpret_cast<uintptr_t>(self), I == sound::kNiagaraSink ? Kind::niagara : Kind::cascade,
+                      asset_at);
+  reinterpret_cast<void (*)(void *, bool)>(worldfx_sink_run[I])(self, flag);
+}
+
 // ---- The game thread, each frame ----
 // Who is her for the hooks: her actor (her main mesh's owner) and her parts while her capture goes to the loopback or
-// a member and her sounds are wanted, else nobody; whether her game's theater holds a cutscene (story::kManagerAt's
-// current theater).
+// a member and her sounds or world effects are wanted, else nobody; the Niagara system's offset while her capture names
+// effect lines; whether her game's theater holds a cutscene (story::kManagerAt's current theater).
 __declspec(noinline) void sound_publish_read(const Live *live) {
   const auto read = [](uint64_t a, void *out, size_t n) {
     std::memcpy(out, reinterpret_cast<const void *>(a), n);
@@ -221,8 +296,8 @@ __declspec(noinline) void sound_publish_read(const Live *live) {
   uint64_t her = 0;
   int32_t index = 0, serial = 0;
   uint32_t n = 0;
-  if (live && live->capture.generation && !live->capture.eve.empty() && (loopback_on || peer_on) && sounds_wanted &&
-      published(objects, live->capture.eve[0])) {
+  if (live && live->capture.generation && !live->capture.eve.empty() && (loopback_on || peer_on) &&
+      (sounds_wanted || worldfx_wanted) && published(objects, live->capture.eve[0])) {
     her = at<uint64_t>(static_cast<uintptr_t>(live->capture.eve[0].object) + sound::kOwner);
     if (!pilot::live(read, objects, her, &index, &serial))
       her = 0;
@@ -232,6 +307,7 @@ __declspec(noinline) void sound_publish_read(const Live *live) {
   sound_her_index = index, sound_her_serial = serial;
   sound_part_count = n;
   sound_her = her;
+  worldfx_asset = her && live->capture.fx.cls ? live->capture.fx.asset : 0;
   const uintptr_t manager = at<uintptr_t>(base + (story::kManagerAt - game::kImageBase));
   sound_theater = game::plausible(manager) && game::plausible(at<uintptr_t>(manager + story::kCurrent));
 }
@@ -244,49 +320,54 @@ void sound_publish(const Live *live) {
   } __except (fault_filter(GetExceptionInformation(), sounds_fault_code, sounds_fault_rva, sounds_fault_address)) {
     sounds_faulted = true;
     sound_her = 0;
+    worldfx_asset = 0;
   }
 }
 // One record into the outbox: its asset key (known by its objects, else its words read once from the name pool and a
-// fresh key's SBA line into lines), then its event. A sound whose path is refused is dropped and counted; a volume
-// or pitch past the event's byte is cut and counted in clamped (the stream line's values cut). Its objects are read
-// through safe_read: a record may wait frames in its ring (the logic thread's while a task runs), so GC may have given
-// an object's memory back.
-__declspec(noinline) void sound_take_body(const sound::Record &r, AssetKeys &keys, Outbox &out,
+// fresh key's SBA line into lines), then its event. A record whose path is refused is dropped and counted; a volume,
+// pitch or scale past the event's byte is cut and counted in clamped (the stream line's values cut). Its objects are
+// read through safe_read: a record may wait frames in its ring (the logic thread's while a task runs), so GC may have
+// given an object's memory back. A sound's key holds its class and attenuation, a world effect's its asset only.
+__declspec(noinline) void event_take_body(const sound::Record &r, AssetKeys &keys, Outbox &out,
                                           std::vector<std::string> &lines, uint64_t now_us, uint32_t &clamped) {
   const auto read = [](uint64_t a, void *out, size_t n) { return safe_read(a, out, n); };
+  const bool is_sound = r.kind == Kind::sound;
+  std::atomic<uint64_t> &paths = is_sound ? window_sound_paths : window_worldfx_paths,
+                        &over = is_sound ? window_sound_keys : window_worldfx_keys,
+                        &sent = is_sound ? window_sound_sent : window_worldfx_sent;
   int32_t index = 0, serial = 0;
   if (!pilot::live(read, objects, r.sound, &index, &serial)) {
-    ++window_sound_paths;
+    ++paths;
     return;
   }
-  const uint64_t b = sound::keyed_attenuation(r);
-  uint16_t k = keys.known(Kind::sound, r.sound, r.cls, b, index, serial);
+  const uint64_t a = is_sound ? r.cls : 0, b = is_sound ? sound::keyed_attenuation(r) : 0;
+  uint16_t k = keys.known(r.kind, r.sound, a, b, index, serial);
   if (!k) {
     uint64_t left_out = 0;
     const std::string words =
         sound::record_words(read, base + (pilot::kNamePool - game::kImageBase), r, left_out);
     window_sound_left_out += left_out;
     if (words.empty()) {
-      ++window_sound_paths;
+      ++paths;
       return;
     }
     bool fresh = false;
-    if (!(k = keys.add(Kind::sound, r.sound, r.cls, b, index, serial, words, fresh))) {
-      ++window_sound_keys;
+    if (!(k = keys.add(r.kind, r.sound, a, b, index, serial, words, fresh))) {
+      ++over;
       return;
     }
     if (fresh)
       lines.push_back(asset_tag() + " " + std::to_string(k) + " " + words);
   }
   Event e;
-  e.kind = Kind::sound;
+  e.kind = r.kind;
   e.asset = k;
   e.part = r.part;
-  e.value[0] = value_byte(r.volume, 64, clamped);
-  e.value[1] = value_byte(r.pitch, 64, clamped);
+  e.value[0] = is_sound ? value_byte(r.volume, 64, clamped) : value_byte(r.scale, 32, clamped);
+  e.value[1] = is_sound ? value_byte(r.pitch, 64, clamped) : 0;
   std::memcpy(e.place, r.place, sizeof e.place);
   if (out.push(e, now_us))
-    ++window_sound_sent;
+    ++sent;
 }
 void sound_take(const sound::Record &r, AssetKeys &keys, Outbox &out, std::vector<std::string> &lines,
                 uint64_t now_us, uint32_t &clamped) {
@@ -294,9 +375,35 @@ void sound_take(const sound::Record &r, AssetKeys &keys, Outbox &out, std::vecto
                                                                                      : window_sound_attach);
   window_sound_left_out += r.left_out;
   __try {
-    sound_take_body(r, keys, out, lines, now_us, clamped);
+    event_take_body(r, keys, out, lines, now_us, clamped);
   } __except (fault_filter(GetExceptionInformation(), sounds_fault_code, sounds_fault_rva, sounds_fault_address)) {
     sounds_faulted = true;
+  }
+}
+// A world effect's record, under its latch: skipped when the pose's effect slots carry it (skip_attached_niagara with
+// her capture's leaders as read_effects takes them, published), else counted by its rule and named as a sound is.
+__declspec(noinline) bool worldfx_attached(const sound::Record &r, const Table &capture) {
+  uint64_t leaders[kMaxParts];
+  size_t n = 0;
+  for (const Part &p : capture.eve)
+    if (n < kMaxParts && p.leader && p.object && published(objects, p))
+      leaders[n++] = p.object;
+  return skip_attached_niagara(r.kind, r.parent, r.component_cls, r.sound, leaders, n, capture.fx.cls,
+                               capture.fx.assets.data() + 1, kMaxEffectAssets);
+}
+void worldfx_take(const sound::Record &r, const Table &capture, AssetKeys &keys, Outbox &out,
+                  std::vector<std::string> &lines, uint64_t now_us, uint32_t &clamped) {
+  __try {
+    if (worldfx_attached(r, capture)) {
+      ++window_worldfx_attached;
+      return;
+    }
+    ++(r.rule == sound::Rule::mark    ? window_worldfx_mark
+       : r.rule == sound::Rule::owner ? window_worldfx_owner
+                                      : window_worldfx_attach);
+    event_take_body(r, keys, out, lines, now_us, clamped);
+  } __except (fault_filter(GetExceptionInformation(), worldfx_fault_code, worldfx_fault_rva, worldfx_fault_address)) {
+    worldfx_faulted = true;
   }
 }
 } // namespace

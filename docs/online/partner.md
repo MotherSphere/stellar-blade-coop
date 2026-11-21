@@ -43,6 +43,12 @@ These looks have not been tested in game yet. Back up your saves before you play
   on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8 starts a second. A fault in the native effect read or write turns effects off until the game restarts
   (`effects off: fault ...`), and the ghost stays without them. Every 60 s with any effect activity, an
   `effects, last 60 s:` line counts those started, those over 6, unlisted reads and boxes written.
+  Her ghost also leaves her footstep dust and the world effects of her skills where her game put them.
+  Each Niagara or Cascade effect her game starts for her goes as an event of her pose, unless the six slots
+  already carry it. The ghost plays it there with the game's own spawn call, at her scale, while it shows and no
+  shared scene plays. `effects=off` hides them with her attached effects. Her footprints (decals) and her sword
+  trails do not reach the ghost. A fault logs `world effects off: fault ...` once. Her world effects then stop on
+  both sides until the game restarts. Every 60 s with any of them, a `world effects, last 60 s:` line counts them.
 - `drone`: her drone. It flies beside her ghost in her drone skin, with its light, lens flare, guide ray and wait
   signal. Her capture adds the drone's meshes after hers. Each pose places them relative to her body. The light
   takes the intensity her drone's light has at that pose and casts no shadows. The lens flare, guide ray and wait
@@ -136,9 +142,10 @@ Scarlet effects its skills play are the game's own systems under `/Game/Art/FX/C
 `/Game/DLC_2/Art/FX/` and EVE's FX folders, so the `effects` look names them by path whether or not you have the mod.
 Its animations arrive as bones, mod or not. Its Raven and Scarlet blades are new meshes inside the game's character
 folders, so your game draws them only with the mod installed; with the same version on both PCs they also load under
-the crash sentinel. What does not reach the ghost from it, as from any skill: effects placed in the world instead of on
-her (about a quarter of its effect keys), its Cascade weapon trails, decals, projectiles, the screen effects (post
-process, camera shake, time scale) and the weapon fades of its mode switch. None of this has been tested in game yet.
+the crash sentinel. Its effects placed in the world instead of on her (about a quarter of its effect keys) reach the
+ghost as world effects of the `effects` look when her game starts them for her. What does not reach the ghost from it,
+as from any skill: its Cascade weapon trails, decals, projectiles, the screen effects (post process, camera shake, time
+scale) and the weapon fades of its mode switch. None of this has been tested in game yet.
 
 ### When a mod asset fails
 

@@ -5,8 +5,10 @@
 // footstep, character sound and sound notifies and of its show sound updaters set a mark while SB runs one of them for
 // her. A sink in the audio component's start slot records the sound SB picked, with its class, attenuation, volume,
 // pitch, int parameters and place, under the mark or when its owner or attach parent is hers. The game thread names
-// each sound once (an asset key and its SBA line, game/events.h) and puts it in the pose's event slots.
-// online/partner/sound_game.inc holds the hooks, online/partner/sound_worker.inc the swaps. No Windows types:
+// each sound once (an asset key and its SBA line, game/events.h) and puts it in the pose's event slots. Her world
+// effects (Task 11) go the same way: sinks in the Niagara and Cascade start slots record the system or template SB
+// started for her, under the same rules. online/partner/sound_game.inc holds the hooks, online/partner/sound_worker.inc
+// the swaps. No Windows types:
 // tests/native/online/partner/sound_test.cpp checks it on the build machine.
 #pragma once
 
@@ -42,6 +44,16 @@ constexpr size_t kFootstep = 0, kCharacterSound = 1, kNotifyBegin = 2, kShowFirs
 // The audio start: UAudioComponent's vtable 0x1463dadb0 and USBSoundComponent's 0x145d078d8 hold the same Play
 // (FUN_1440925f0: this, float StartTime in XMM1, void) at +0x570.
 constexpr Hook kAudioSink[] = {{0x1463db320, 0x1440925f0}, {0x145d07e48, 0x1440925f0}};
+// The world-effect starts, in this order: UNiagaraComponent's vtable 0x145952a98 holds Activate (FUN_140f309d0:
+// this, bool bReset in DL, void) at +0x270, the call FUN_142325990 (Niagara at a location) ends with;
+// UParticleSystemComponent's vtable 0x14645ed28 holds ActivateSystem (FUN_144390180: this, bool in DL, void) at +0x920,
+// which FUN_142325290 (Cascade at a location) and Cascade's own Activate call. Both run after SB placed and scaled the
+// component. No decal: SB starts none through a slot (FUN_142324d60 registers it, the footstep notify places it after).
+constexpr Hook kWorldSink[] = {{0x145952d08, 0x140f309d0}, {0x14645f648, 0x144390180}};
+constexpr size_t kNiagaraSink = 0, kCascadeSink = 1;
+// UParticleSystemComponent::Template (SetTemplate FUN_14438ff20 writes it). A Niagara component's system sits at the
+// offset her capture's effects line names (Table::Fx::asset), read the way read_effects reads it.
+constexpr size_t kCascadeTemplate = 0x578;
 
 // UAudioComponent: Sound, SoundClassOverride, AttenuationSettings and InstanceParameters (their reflection params
 // 0x1464f8fb0, 0x1464f8f70, 0x1464f9840, 0x1464f8ed8), VolumeMultiplier and PitchMultiplier (FUN_144094850 and
@@ -77,7 +89,7 @@ template <class Swap> size_t swap_all(const uint64_t *at, const uint64_t *from, 
   return n;
 }
 // Three sets swap apart: the context set while sounds or her world effects are wanted, the audio sinks while sounds
-// are.
+// are, the world-effect sinks while effects are.
 inline bool context_wanted(bool sounds, bool effects) { return sounds || effects; }
 
 // Why a started sound is hers: started under a mark (a context hook ran SB's function for her), owned by one of hers
@@ -104,10 +116,13 @@ inline bool stage_hers(int32_t weak_index, int32_t weak_serial, uint64_t main, u
 // One sound start as the sink read it: the component, its sound, class and attenuation objects (0 for none), volume and
 // pitch, the part it is attached to (pose::kNoPart: placed relative to part 0) and its place relative to that part
 // (rotation xyzw, translation xyz), why it is hers, its first kMaxParams int parameters (FName as index | number << 32,
-// value) and how many it left out (a float, bool or wave set, or past kMaxParams).
+// value) and how many it left out (a float, bool or wave set, or past kMaxParams). A world effect's start (kind niagara
+// or cascade) holds its system or template in sound, its world X scale, its attach parent and its component's class
+// (the game thread skips one the effect slots carry), with no class, attenuation, volume, pitch or params.
 struct Record {
-  uint64_t component = 0, sound = 0, cls = 0, att = 0;
-  float volume = 0, pitch = 0;
+  pose::Kind kind = pose::Kind::sound;
+  uint64_t component = 0, sound = 0, cls = 0, att = 0, parent = 0, component_cls = 0;
+  float volume = 0, pitch = 0, scale = 0;
   uint8_t part = pose::kNoPart;
   float place[7] = {};
   Rule rule = Rule::none;
@@ -184,15 +199,20 @@ template <class Read> bool asset_path(Read &&read, uint64_t pool, uint64_t objec
   out.assign(p, pl).append(".").append(o, ol);
   return true;
 }
-// The words of r's SBA line, what it carries after its key: sound <asset> <class|-> <attenuation|-> <params|->. Empty
-// when the sound's path does not read or the line would be refused (a path outside SB's own folders, over
-// kMaxMessage under the longest key, kMaxAssetKeys, so it passes under any key AssetKeys::add gives). A class or
-// attenuation that does not read or whose path is refused goes as -. A param whose name does not read or is not a word
-// is left out and counted in left_out.
+// The words of r's SBA line, what it carries after its key: sound <asset> <class|-> <attenuation|-> <params|->, or
+// niagara or cascade <asset> - -. Empty when the asset's path does not read or the line would be refused (a path
+// outside SB's own folders, over kMaxMessage under the longest key, kMaxAssetKeys, so it passes under any key
+// AssetKeys::add gives). A class or attenuation that does not read or whose path is refused goes as -. A param whose
+// name does not read or is not a word is left out and counted in left_out.
 template <class Read> std::string record_words(Read &&read, uint64_t pool, const Record &r, uint64_t &left_out) {
   std::string asset, a = "-", b = "-", path;
   if (!asset_path(read, pool, r.sound, asset))
     return {};
+  const std::string head = asset_tag() + " " + std::to_string(pose::kMaxAssetKeys) + " ";
+  if (r.kind != pose::Kind::sound) {
+    const std::string line = pose::asset_line(uint16_t(pose::kMaxAssetKeys), r.kind, asset, a, b);
+    return line.empty() ? std::string() : line.substr(head.size());
+  }
   if (asset_path(read, pool, r.cls, path) && pose::event_path_ok(path))
     a = path;
   if (asset_path(read, pool, r.att, path) && pose::event_path_ok(path))
@@ -208,8 +228,7 @@ template <class Read> std::string record_words(Read &&read, uint64_t pool, const
       ++left_out;
   }
   const std::string line = pose::asset_line(uint16_t(pose::kMaxAssetKeys), pose::Kind::sound, asset, a, b, params);
-  return line.empty() ? std::string()
-                      : line.substr((asset_tag() + " " + std::to_string(pose::kMaxAssetKeys) + " ").size());
+  return line.empty() ? std::string() : line.substr(head.size());
 }
 
 // The pose's event slots fitted to its table of parts parts: an event recorded on a part the table no longer has (her

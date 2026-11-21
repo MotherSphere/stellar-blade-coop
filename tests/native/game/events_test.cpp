@@ -5,7 +5,8 @@
 // (game/codec.h's put_event and get_event, fuzzed); the sender's Outbox with its waits, its holds and a member on the
 // lowest pose cap; the asset keys; the SBA line (fuzzed), its paths and the name book a later member reads from; the
 // slot watch; the coop-loaded file's lines; the viewer's gate (50 m, 8 a second from one ghost, 32 from all, nothing
-// in a scene), which ghost may play and the wait for a key's name.
+// in a scene), which ghost may play and the wait for a key's name; the attached Niagara effect the effect slots carry
+// (skip_attached_niagara); the effect kinds' slots.
 #include "game/events.h"
 
 #include <cassert>
@@ -424,6 +425,32 @@ void test_name_wait() {
   w.release(500'000, [](uint16_t k) { return k == 9; }, play);
   assert(played == std::vector<uint16_t>({10, 9}) && w.dropped() == 2);
 }
+void test_attached_niagara_skipped() { // read_effects' rule: a listed system of fx.cls on one of her leaders
+  const uint64_t leaders[2] = {0x100, 0x200}, listed[2] = {0x700, 0x701}, cls = 0x50;
+  assert(skip_attached_niagara(Kind::niagara, 0x200, cls, 0x701, leaders, 2, cls, listed, 2));  // the slots carry it
+  assert(!skip_attached_niagara(Kind::niagara, 0x999, cls, 0x701, leaders, 2, cls, listed, 2)); // world-placed
+  assert(!skip_attached_niagara(Kind::niagara, 0x300, cls, 0x701, leaders, 2, cls, listed, 2)); // her non-leader part
+  assert(!skip_attached_niagara(Kind::niagara, 0x200, cls, 0x7ff, leaders, 2, cls, listed, 2)); // an unlisted system
+  assert(!skip_attached_niagara(Kind::niagara, 0x200, 0x51, 0x701, leaders, 2, cls, listed, 2)); // another class
+  assert(!skip_attached_niagara(Kind::cascade, 0x200, cls, 0x701, leaders, 2, cls, listed, 2));
+  assert(!skip_attached_niagara(Kind::niagara, 0, 0, 0, leaders, 2, 0, listed, 2)); // effects off: no fx.cls, no parent
+}
+void test_effect_kinds_round_trip() {
+  uint32_t clamped = 0;
+  assert(value_byte(1.5f, 32, clamped) == 48 && value_byte(8.f, 32, clamped) == 255 && clamped == 1);
+  for (Kind k : {Kind::niagara, Kind::cascade, Kind::decal, Kind::trail_on, Kind::trail_off}) {
+    Event e;
+    e.kind = k;
+    e.asset = 3;
+    e.place[3] = 1;
+    uint8_t b[kEventBytes];
+    uint8_t *w = b;
+    put_event(w, e, clamped);
+    const uint8_t *r = b;
+    Event g;
+    assert(!get_event(r, g, 2) && g.kind == k && g.asset == 3);
+  }
+}
 } // namespace
 
 int main() {
@@ -440,6 +467,8 @@ int main() {
   test_gate();
   test_ghost_shows();
   test_name_wait();
+  test_attached_niagara_skipped();
+  test_effect_kinds_round_trip();
   std::puts("events_test: ok");
   return 0;
 }

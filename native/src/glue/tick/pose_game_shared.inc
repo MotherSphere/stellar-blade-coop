@@ -49,10 +49,11 @@ struct Drawn {
   // Game thread: only the first refused write on this ghost is logged; Lua destroyed this ghost, so nothing is drawn
   // until its display is dropped.
   bool refusal_logged = false, ghost_gone = false;
-  // Game thread: her sounds the playback passed, waiting for their key's loaded objects (partner's play_game.inc plays
-  // them); the µs of the last frame a pose was drawn; the waits given up, as last counted.
-  NameWait waiting;
-  uint64_t drawn_at = 0, waits_seen = 0;
+  // Game thread: her sounds and her world effects the playback passed, each waiting for their key's loaded objects
+  // (partner's play_game.inc plays them); the µs of the last frame a pose was drawn; the waits given up, as last
+  // counted.
+  NameWait waiting, fx_waiting;
+  uint64_t drawn_at = 0, waits_seen = 0, fx_waits_seen = 0;
   Drawn(Table r, Display d) : remote(std::move(r)), display(std::move(d)) {
     decoder.reset(pose_size(remote));
     playback.reset(leader_bytes(remote));

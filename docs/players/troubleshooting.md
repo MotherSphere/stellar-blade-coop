@@ -210,6 +210,11 @@ are not sent while it is loaded. When the line ends with `(her events' context)`
 status` then shows `sounds=refused`. A `sounds off: fault ...` line means a fault turned them off until the game
 restarts. The ghost stays either way.
 
+Your EVE's world effects (her footstep dust, the effects her skills place in the world) go the same way with the
+effects look on (`world_effects=on` in `coop status`). A line `world effects refused: ...` means another mod hooks the
+game's Niagara or Cascade start. Those effects are not sent while it is loaded. `coop status` then shows
+`world_effects=refused`. A `world effects off: fault ...` line means a fault turned them off until the game restarts.
+
 ## Doro races
 
 ### EVE is invisible, or only a Doro shows

@@ -743,12 +743,14 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   may run (both of SB's globals set, the world's manager and map found, game calls allowed);
 - `online_partner_sound_test`: her sounds' slots swapped all or none (another mod's hook in one slot or a page that
   will not become writable gives back the ones taken; unrelocated originals never match) and back; the three sets
-  apart; why a sound is hers (mark, owner, attach, none); nothing recorded while the viewer plays or off the threads
+  apart; the world-effect set (Niagara's and Cascade's start slots, one refused gives the other back); why a sound is
+  hers (mark, owner, attach, none); nothing recorded while the viewer plays or off the threads
   with a ring; the ring of 64 (a later start of a component under one mark replaces its record, the 65th is lost and
   counted); a show stage's main actor; the asset key's attenuation mixed with the int parameters; a record's SBA words
   from a fake name pool (a class outside SB's folders goes as `-`, a parameter name that is not a word is left out, a
   sound not at the top of its package or outside SB's folders is refused, as is a line that passes 512 bytes only
-  under key 4096); an event on a part the table no longer has goes empty; the viewer's `compose`, which puts an
+  under key 4096); a world effect's SBA words (`niagara` or `cascade` with its path and `- -`, refused outside SB's
+  folders); an event on a part the table no longer has goes empty; the viewer's `compose`, which puts an
   event's place back on its parent where her game played it (2000 random transforms, a scaled parent among them);
 - `game_events_test`: `game_calls_ok`, which allows a game call only with the lion gate open, the client in game and
   playing, off SB's logic thread; an event slot's 19 bytes with a fuzz (each slot it accepts encodes back to the same
@@ -760,6 +762,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   watch that forgets a slot's names when its member changes or a session starts or ends; the `coop-loaded` lines; the
   viewer's `Gate` (8 a second from one ghost and 32 from all in any second, the nearest first, none past 50 m or in a
   scene), `ghost_shows` and `NameWait` (a key's name waited for 200 ms at most, 16 events per ghost);
+  `skip_attached_niagara`, which skips only a Niagara start the effect slots carry (a listed system of the capture's
+  class hung on one of her leaders); the effect kinds' slots, each round trip;
 - `online_partner_resend_test`: our component table's resends (`TableResend` in `game/table.h`) on a worker passing
   every 50 ms: at once to a new friend, then 5, 10, 20, 40 and 60 s apart, every 60 s from then on; a change brings the
   next one 5 s after it and starts the doubling over; a sign her side lost our table brings it within 5 s, and a flood

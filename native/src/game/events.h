@@ -5,7 +5,8 @@
 // a trail) and the sender's side of them: the Outbox that puts them in the pose's event slots and the asset keys their
 // names travel under; the SBA lines that carry those names on channel 2, the book a later member reads them from, the
 // slot watch that forgets a member's names and the viewer's coop-loaded lines; the viewer's side of her sounds: which
-// ghost may play, the wait for a key's name and the gate that keeps them near and few. No Windows types:
+// ghost may play, the wait for a key's name and the gate that keeps them near and few; the attached Niagara start the
+// effect slots already carry. No Windows types:
 // tests/native/game/events_test.cpp checks it on the build machine. game/codec.h writes and reads an event slot's bytes
 // (put_event, get_event).
 #pragma once
@@ -423,6 +424,17 @@ inline bool ghost_shows(bool drawn, bool gone, float root_scale, bool hidden) {
 }
 // No ghost sound while a shared scene plays (it has its own) or our own game's theater holds a cutscene.
 inline bool scene_silent(bool story_scene, bool our_theater) { return story_scene || our_theater; }
+
+// A Niagara start the pose's effect slots already carry, so it goes as no event: read_effects' own rule
+// (game/partner/engine.h), a component of the capture's Niagara class fx_cls hung right on one of her published leaders
+// whose system is one of the m listed ones. Anything else, her other parts and unlisted systems included, is an event.
+inline bool skip_attached_niagara(Kind kind, uint64_t parent, uint64_t cls, uint64_t system, const uint64_t *leaders,
+                                  size_t n, uint64_t fx_cls, const uint64_t *listed, size_t m) {
+  const auto in = [](uint64_t v, const uint64_t *list, size_t count) {
+    return v && std::find(list, list + count, v) != list + count;
+  };
+  return kind == Kind::niagara && fx_cls && cls == fx_cls && in(parent, leaders, n) && in(system, listed, m);
+}
 
 // The viewer's events of one ghost waiting for their key's loaded objects (the slot's coop-loaded lines): at most
 // kHeld, each at most kNameWaitUs. A loaded asset plays at once; the first time a sound is heard its asset is loaded

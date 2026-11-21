@@ -173,10 +173,11 @@ bool guarded_effects_write(Drawn &ghost) {
   return all;
 }
 
-// Her sounds the hooks recorded since the last frame (the logic thread's ring only while no logic task runs), into the
-// asset keys and the event outbox while her capture goes to the loopback or a member; else dropped. Each frame, before
-// the capture: an event waits for its slot from the frame SB played it in.
-void events_drain(uint64_t now_us) {
+// Her sounds and world effects the hooks recorded since the last frame (the logic thread's ring only while no logic
+// task runs), into the asset keys and the event outbox while her capture goes to the loopback or a member; else
+// dropped. Each kind under its own latch. Each frame, before the capture: an event waits for its slot from the frame SB
+// played it in.
+void events_drain(const Live &live, uint64_t now_us) {
   const auto read = [](uint64_t a, void *out, size_t n) {
     std::memcpy(out, reinterpret_cast<const void *>(a), n);
     return true;
@@ -190,8 +191,13 @@ void events_drain(uint64_t now_us) {
       break;
     sound::Records &records = ring ? sound_logic_records : sound_game_records;
     const size_t n = records.take(taken, std::size(taken));
-    for (size_t i = 0; (loopback_on || peer_on) && !sounds_faulted && i < n; ++i)
-      sound_take(taken[i], asset_keys, event_outbox, asset_waiting, now_us, clamped);
+    for (size_t i = 0; (loopback_on || peer_on) && i < n; ++i)
+      if (taken[i].kind == Kind::sound) {
+        if (!sounds_faulted)
+          sound_take(taken[i], asset_keys, event_outbox, asset_waiting, now_us, clamped);
+      } else if (!worldfx_faulted) {
+        worldfx_take(taken[i], live.capture, asset_keys, event_outbox, asset_waiting, now_us, clamped);
+      }
     window_sound_ring += records.over() - ring_over_seen[ring];
     ring_over_seen[ring] = records.over();
   }
@@ -252,7 +258,7 @@ void stream(uint64_t now_us) {
     if (live.remotes[0]) // The loopback feeds slot 0 only.
       live.remotes[0]->playback.clear();
   }
-  events_drain(now_us);
+  events_drain(live, now_us);
   const bool capture_due = (loopback_on || record_on || peer_on) && live.capture.generation && now_us >= next_capture;
   if (capture_due && !live.encoder.due(now_us, pilot_sending)) {
     ++window_held; // The byte budget is spent: read again next frame.
@@ -335,12 +341,15 @@ void stream(uint64_t now_us) {
       else if (ghost.playback.sample(now_us, ghost.draw_root, ghost.draw.data(), ghost.draw_fx, ghost.draw_free)) {
         ++(write_puppet(ghost) ? window_drawn_written : window_drawn_refused);
         ghost.drawn_at = now_us;
-        // Her sounds the playback reached go to wait for their names: play_game.inc plays them, no game call here.
+        // Her sounds and world effects the playback reached go to wait for their names (a world effect only while
+        // the ghost has effect boxes: the viewer's effects look): play_game.inc plays them, no game call here.
         Event passed[NameWait::kHeld];
         const size_t n = ghost.playback.passed(passed, std::size(passed));
         for (size_t k = 0; k < n; ++k)
           if (passed[k].kind == Kind::sound)
             ghost.waiting.hold(passed[k], now_us);
+          else if ((passed[k].kind == Kind::niagara || passed[k].kind == Kind::cascade) && ghost.display.effects[0])
+            ghost.fx_waiting.hold(passed[k], now_us);
       }
     }
     Playback::Stats s = ghost.playback.take(); // Summed over the slots: the 60 s line's means stay per pose.
