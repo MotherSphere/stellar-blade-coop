@@ -452,4 +452,100 @@ assert(same(x8.grid,{x=-64029,y=151214,z=-15900,yaw=-41}) and x8.laps==5 and #x8
 for i,o in ipairs({{1250,-1100},{2350,0},{1250,1100},{-1250,-1100},{-2350,0},{-1250,1100}}) do
     assert(same(x8.cps[i],{x=-64029+o[1],y=151214+o[2],z=-15900,r=400}),'checkpoint '..i)
 end
+-- Our race in a round (Mm.racer, Mm.frame): the countdown from the start with no ready check, GO, a split text at
+-- each checkpoint but the finish, the finish with its flags, the results from the host's list, over Mm.SHOW later.
+local function words(out)
+    local w={}
+    for i,l in ipairs(out) do w[i]=l.word..(l.ending and ' '..l.ending or '') end
+    return table.concat(w,',')
+end
+local function whats(ev)
+    local w={}
+    for i,e in ipairs(ev) do w[i]=e.what..(e.n and e.n or '') end
+    return table.concat(w,',')
+end
+assert(Mm.SHOW==20000,'The results stay 20 s after the ranking, as score attack\'s')
+local m=Mm.racer(copy(LINE),7,3,1000)
+assert(m.role=='match' and m.slot==3 and m.phase=='countdown' and m.t_go==1000+R.COUNT and m.her.out)
+assert(same(m.track.drive,require('online.modes.race.drive_model').DEFAULTS))
+local start=R.slot(m.track,3)
+local out,ev=Mm.frame(m,{pos=start},1500)
+assert(#out==0 and #ev==0) -- 3.5 s left: no count yet.
+out,ev=Mm.frame(m,{pos=start},2100)
+assert(whats(ev)=='count3',whats(ev))
+out,ev=Mm.frame(m,{pos=start},3100)
+out,ev=Mm.frame(m,{pos=start},4100)
+assert(whats(ev)=='count1',whats(ev))
+out,ev=Mm.frame(m,{pos=start},5000)
+assert(whats(ev)=='go' and m.phase=='race' and m.runner and #out==0)
+local at,now=start,5000
+local function drive_to(c,flags)
+    local o,e={},{}
+    local steps=math.ceil(math.sqrt((c.x-at.x)^2+(c.y-at.y)^2)/200)
+    for s2=1,steps do
+        now=now+100
+        at={x=at.x+(c.x-at.x)*s2/steps,y=at.y+(c.y-at.y)*s2/steps,z=c.z}
+        local a,b=Mm.frame(m,{pos=at,flags=flags},now)
+        for _,l in ipairs(a) do
+            assert(l.ms==nil or l.ms==now-5000,'a split at its frame\'s race time')
+            o[#o+1]=l
+        end
+        for _,x in ipairs(b) do e[#e+1]=x end
+    end
+    return o,e
+end
+local all={}
+for i=1,3 do
+    out=drive_to(LINE.cps[i])
+    assert(words(out)=='cp' and out[1].lap==1 and out[1].i==i and out[1].ms>(all[i-1] or {ms=0}).ms,i)
+    all[#all+1]=out[1]
+end
+out,ev=drive_to(LINE.cps[4],2)
+assert(words(out)=='done fin' and out[1].flags==2 and out[1].ms>all[3].ms,words(out))
+assert(m.me.ms==out[1].ms and m.me.passed==4)
+-- Once ours is in, nothing more goes out; the panel waits for the list.
+out,ev=Mm.frame(m,{pos=at,dnf='quit'},now+100)
+assert(#out==0 and m.phase=='race')
+local list={{who='me',ms=m.me.ms,pos=1},{who='2',name='P2'}}
+out,ev=Mm.frame(m,{pos=at,list=list},now+200)
+assert(whats(ev)=='results' and ev[1].list==list and m.phase=='results' and m.results==list)
+out,ev=Mm.frame(m,{pos=at,list=list},now+200+Mm.SHOW-1)
+assert(#ev==0)
+out,ev=Mm.frame(m,{pos=at,list=list},now+200+Mm.SHOW)
+assert(whats(ev)=='over' and m.phase=='over')
+-- The late rule from the first finish the round shows, ours or not: a DNF late 60 s after it.
+m=Mm.racer(copy(LINE),7,0,0)
+Mm.frame(m,{pos=R.slot(m.track,0)},R.COUNT)
+out=Mm.frame(m,{pos=R.slot(m.track,0),fin=true},R.COUNT+1000)
+assert(#out==0)
+out=Mm.frame(m,{pos=R.slot(m.track,0),fin=true},R.COUNT+1000+R.LATE-1)
+assert(#out==0)
+out,ev=Mm.frame(m,{pos=R.slot(m.track,0)},R.COUNT+1000+R.LATE)
+assert(words(out)=='done dnf' and out[1].why=='late' and whats(ev)=='dnf',words(out))
+-- The race's limit after GO.
+m=Mm.racer(copy(LINE),7,0,0)
+Mm.frame(m,{},R.COUNT)
+out=Mm.frame(m,{},R.COUNT+R.LIMIT-1)
+assert(#out==0)
+out=Mm.frame(m,{},R.COUNT+R.LIMIT)
+assert(words(out)=='done dnf' and out[1].why=='time')
+-- A quit before GO is a DNF the host hears (it waits for a ready player's end); no GO after it.
+m=Mm.racer(copy(LINE),7,0,0)
+out,ev=Mm.frame(m,{dnf='quit'},100)
+assert(words(out)=='done dnf' and out[1].why=='quit' and whats(ev)=='dnf')
+out,ev=Mm.frame(m,{},R.COUNT)
+assert(#out==0 and #ev==0 and m.phase=='countdown')
+-- A map change in the race: DNF map. A move over 20 m at once: DNF teleport.
+m=Mm.racer(copy(LINE),7,0,0)
+Mm.frame(m,{pos=R.slot(m.track,0)},R.COUNT)
+out=Mm.frame(m,{dnf='map'},R.COUNT+100)
+assert(words(out)=='done dnf' and out[1].why=='map')
+m=Mm.racer(copy(LINE),7,0,0)
+Mm.frame(m,{pos={x=0,y=0,z=0}},R.COUNT)
+out=Mm.frame(m,{pos={x=0,y=3000,z=0}},R.COUNT+10)
+assert(words(out)=='done dnf' and out[1].why=='teleport')
+-- The list before our end (the host ranked without us): the results, nothing sent.
+m=Mm.racer(copy(LINE),7,0,0)
+out,ev=Mm.frame(m,{list={}},100)
+assert(#out==0 and whats(ev)=='results' and m.phase=='results')
 print('race_match_model_test ok')

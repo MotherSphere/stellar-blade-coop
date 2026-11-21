@@ -35,13 +35,22 @@ local function world_of(map)
 end
 local function make_eve()
     local e=uobj({at={X=0,Y=0,Z=0},yaw=0,velocity={X=0,Y=0,Z=0},sprint=false,falling=false,map=MAP})
-    e.Mesh=uobj({K2_GetComponentLocation=function() return {X=e.at.X,Y=e.at.Y,Z=e.at.Z} end})
+    e.Mesh=uobj({K2_GetComponentLocation=function() return {X=e.at.X,Y=e.at.Y,Z=e.at.Z} end,
+        RelativeLocation={X=0,Y=0,Z=-90}})
     e.CharacterMovement=uobj({IsFalling=function() return e.falling end})
     function e:IsA(c) return c==SBC end
     function e:GetWorld() return world_of(self.map) end
     function e:K2_GetActorRotation() return {Pitch=0,Yaw=self.yaw,Roll=0} end
     function e:GetVelocity() return self.velocity end
     function e:IsSprint() return self.sprint end
+    -- A teleport: her centre to at, her feet 90 cm under it (her mesh's place); refuse makes the game refuse it.
+    function e:K2_TeleportTo(at,rot)
+        self.teleports=(self.teleports or 0)+1
+        self.teleported,self.rot=at,rot
+        if self.refuse then return false end
+        self.at,self.yaw={X=at.X,Y=at.Y,Z=at.Z-90},rot.Yaw
+        return true
+    end
     return e
 end
 local player=nil
@@ -188,7 +197,10 @@ local function side(o)
         tell=function(build) s.told[#s.told+1]=build(T.en) end,night=function() return s.night end,
         slot=function() if s.slot_ok then return true end return false,'not a co-op save' end,
         paused=function() return s.paused end,settings=s.settings,riding=function() return s.riding end,
-        dismount=function(why) s.dismounted,s.riding=why,false end})
+        dismount=function(why) s.dismounted,s.riding=why,false end,
+        match_lobby=function() return s.match_lobby end,
+        saved=function(name) s.saved_names=(s.saved_names or '')..name end,
+        round_tick=o.round_tick,round_stop=o.round_stop})
     return s
 end
 local function has(list,text) for _,l in ipairs(list) do if l==text then return true end end end
@@ -954,12 +966,214 @@ do
     d.removed=true
 end
 
+-- 16. A match round's race (the match role, online/modes/race/match/game.lua starts it): EVE teleported onto her slot
+-- (k from 0) facing the track, her centre her mesh's height over it; the look on her and the Doro mode on each round
+-- player's ghost; the countdown with no ready check; out of her slot at GO she is put back; the drive from GO with
+-- drive_model.lua's defaults, each ghost's Doro by its top speed; a split line at each checkpoint, the finish's done
+-- line; the late rule from the round's first finish; the results from the host's list with names; all off when the
+-- round ends it. Then each way out: a map change (DNF map), coop off (DNF quit, then the round stopped), an error
+-- (DNF quit), the round's own end mid-race, a start line during it, the start's refusals.
+do
+    local Dm=require('online.modes.race.drive_model')
+    local function ghost()
+        local g={}
+        function g.doro(on,log)
+            assert(not on or log~=nil,'Its lines in the look\'s log')
+            g.on=on==true
+        end
+        function g.emote(e) g.emote_=e end
+        function g.drive(top) g.top=top end
+        return g
+    end
+    local function match(o)
+        o=o or {}
+        local S=side({speed=o.speed})
+        S.lines,S.news,S.by={},{fin=false},{['2002']=ghost(),['3003']=ghost()}
+        player=S.eve
+        S.eve.at={X=5000,Y=5000,Z=0}
+        local t=assert(R.parse_track(TEXT))
+        S.t=t
+        S.ok,S.key,S.why=S.race.match(t,'quest',7,o.k or 3,S.by,function(l) S.lines[#S.lines+1]=l end,
+            function() return S.news end)
+        return S
+    end
+    local function words(S)
+        local w={}
+        for i,l in ipairs(S.lines) do w[i]=l.word..(l.ending and ' '..l.ending..(l.why and ' '..l.why or '') or '') end
+        return table.concat(w,',')
+    end
+    local S=match()
+    local s3=R.slot(S.t,3)
+    assert(S.ok==true and S.race.armed())
+    assert(S.eve.teleported.X==s3.x and S.eve.teleported.Y==s3.y and S.eve.teleported.Z==s3.z+90
+        and S.eve.rot.Yaw==S.t.grid.yaw and S.eve.rot.Pitch==0,'Onto slot 4, its height over her feet')
+    assert(S.look.on and S.by['2002'].on and S.by['3003'].on,'The look and every ghost\'s Doro mode')
+    -- She walks 5 m off her slot during the countdown: at GO she is put back, the drive goes on with the defaults.
+    S.move=function(s)
+        if not s.go_at then put(s,{x=s3.x+500,y=s3.y,z=s3.z}) end
+    end
+    local kit=fake_kit()
+    S.race.hud({kit=kit,theme={beta=1,warn=2,error=3,text=4,grey=5},settings=S.settings})
+    frames({S},3)
+    assert(kit.projected.X==s3.x and kit.projected.Y==s3.y,'The marker before GO over her own slot')
+    run({S},function() return S.go_at end)
+    assert(S.eve.teleports==2 and math.abs(S.eve.at.X-s3.x)<1e-6 and find(S.logs,'out of slot 4 at GO: put back'))
+    assert(S.drive.on=='race' and S.drive.P.top==Dm.DEFAULTS.top and S.by['2002'].top==Dm.DEFAULTS.top
+        and S.by['3003'].top==Dm.DEFAULTS.top,'Driven with the defaults; the ghosts\' Doros by that top speed')
+    assert(#S.lines==0,'No ready check: nothing sent before the first split')
+    -- Her run from slot 3 through the checkpoints: three splits, then the finish's done line.
+    S.move=racer(3)
+    run({S},function() return #S.lines>=4 end)
+    assert(words(S)=='cp,cp,cp,done fin',words(S))
+    assert(S.lines[1].lap==1 and S.lines[1].i==1 and S.lines[3].i==3 and S.lines[4].ms>S.lines[3].ms)
+    assert(not S.drive.on and S.drive.why=='race fin','The drive off at her finish')
+    -- The host's ranking: the results panel with places and names; each ghost's emote by its place.
+    S.news.list={{who='3003',name='Cee',ms=S.lines[4].ms-500,pos=1},{who='me',ms=S.lines[4].ms,pos=2},
+        {who='2002',name='Bee'}}
+    run({S},function() return kit.shown.race_results end)
+    local res=kit.groups.race_results.view
+    assert(res.rows[1].label.text=='1  Cee' and res.rows[2].label.text=='2  You',res.rows[1].label.text)
+    assert(S.look.emote=='lose' and S.by['3003'].emote_=='win' and S.by['2002'].emote_=='lose')
+    assert(find(S.logs,'^result id=7 track=quest ms=%d+ .* rank=2$'),'The result line with our place')
+    -- The round ends: our race closes here, the look and every ghost's Doro mode off, no line.
+    S.race.match_stop('host')
+    assert(not S.race.armed() and not S.look.on and not S.by['2002'].on and not S.by['3003'].on and #S.lines==4)
+    assert(S.by['3003'].emote_==nil and S.by['2002'].top==nil and find(S.logs,'^race 7 closed %(host%)$'))
+    -- Results 20 s after the list with no end line: the race closes by itself.
+    S=match()
+    S.move=racer(3)
+    run({S},function() return #S.lines>=4 end)
+    S.news.list={}
+    run({S},function() return not S.race.armed() end,30*30)
+    assert(find(S.logs,'^race 7 closed %(over%)$'))
+    -- The late rule: a finish in the round 60 s ago ends ours as a DNF late.
+    S=match({speed=1})
+    S.move=racer(3)
+    run({S},function() return S.go_at end)
+    S.news.fin=true
+    run({S},function() return #S.lines>0 end,62*30)
+    assert(words(S)=='done dnf late',words(S))
+    -- A map change mid-race: her DNF map goes to the round, her race closes here.
+    S=match()
+    run({S},function() return S.go_at end)
+    S.me={map='/game/other'}
+    run({S},function() return not S.race.armed() end)
+    assert(words(S)=='done dnf map' and not S.look.on and not S.by['2002'].on,words(S))
+    -- EVE gone 2 s (a load) before GO: the same, a DNF the host hears (it waits for a ready player's end).
+    S=match()
+    S.me=nil
+    run({S},function() return not S.race.armed() end,80)
+    assert(words(S)=='done dnf map' and not S.go_at,words(S))
+    -- coop off mid-race: her DNF quit goes to the round, the race closes, then the round is stopped.
+    local stopped={}
+    S=side({})
+    S.race=Race.new({log=function(m) S.logs[#S.logs+1]=m end,link=S.link,puppet=S.puppet,look=S.look_api,
+        store=S.store,drive=S.drive_api,tell=function(build) S.told[#S.told+1]=build(T.en) end,
+        night=function() return false end,slot=function() return true end,paused=function() return false end,
+        settings=S.settings,riding=function() return false end,dismount=function() end,
+        round_stop=function(why) stopped[#stopped+1]=why..(S.race.armed() and ' armed' or '') end})
+    player=S.eve
+    S.lines={}
+    assert(S.race.match(assert(R.parse_track(TEXT)),'quest',7,0,{},function(l) S.lines[#S.lines+1]=l end,
+        function() return {} end))
+    run({S},function() return S.go_at end)
+    S.race.stop()
+    assert(not S.race.armed() and words(S)=='done dnf quit' and stopped[1]=='coop off',tostring(stopped[1]))
+    assert(not S.drive.on and S.drive.why=='race coop off' and not S.look.on)
+    -- With no race the round is stopped too.
+    S.race.stop()
+    assert(stopped[2]=='coop off')
+    -- An error mid-race: her DNF quit goes to the round first.
+    S=match()
+    run({S},function() return S.go_at end)
+    S.drive.error='the drive broke'
+    frames({S},2)
+    assert(not S.race.armed() and words(S)=='done dnf quit' and not S.by['2002'].on,words(S))
+    ok,message,why=S.race.match(S.t,'quest',8,0,S.by,function() end,function() return {} end)
+    assert(ok==false and message=='refused' and why:find('^the race stopped on an error'),tostring(why))
+    -- A start line during our race: the old one closes (not ranked), the new one starts on its slot.
+    S=match()
+    run({S},function() return S.go_at end)
+    local t2=assert(R.parse_track(TEXT))
+    assert(S.race.match(t2,'quest',8,1,{},function() end,function() return {} end))
+    assert(find(S.logs,'^race 7 closed %(replaced%)$') and S.race.armed() and not S.by['2002'].on)
+    assert(S.eve.teleported.X==R.slot(t2,1).x)
+    -- 8 players: the last one's slot is the fourth row's right, 9 m behind the grid. On her slot at GO: no teleport.
+    S=match({k=7})
+    local s7=R.slot(S.t,7)
+    assert(S.ok and S.eve.teleported.X==s7.x and S.eve.teleported.Y==s7.y and s7.x==S.t.grid.x-900)
+    run({S},function() return S.go_at end)
+    assert(S.eve.teleports==1 and not find(S.logs,'out of slot'))
+    -- She faces the track's yaw on her slot.
+    S=side()
+    player=S.eve
+    local t90=assert(R.parse_track((TEXT:gsub('grid 0 0 0 0','grid 0 0 0 90'))))
+    assert(S.race.match(t90,'quest',7,1,{},function() end,function() return {} end))
+    assert(S.eve.rot.Yaw==90 and S.eve.teleported.X==R.slot(t90,1).x and S.eve.teleported.Y==R.slot(t90,1).y)
+    -- The start's refusals: a track being recorded, the drive probe on, no EVE, the teleport refused. Nothing armed.
+    S=side()
+    player=S.eve
+    S.race.command('record','x')
+    local function refusal(S2)
+        local a,b,c=S2.race.match(assert(R.parse_track(TEXT)),'quest',7,0,{},function() end,function() return {} end)
+        assert(a==false and not S2.race.armed() and not S2.look.on,tostring(c))
+        return b,c
+    end
+    local key,text=refusal(S)
+    assert(key=='busy' and text=='a track is being recorded')
+    S=side()
+    player=S.eve
+    S.drive.on='probe'
+    key,text=refusal(S)
+    assert(key=='busy' and text=='the drive probe runs')
+    S=side()
+    player=nil
+    key,text=refusal(S)
+    assert(key=='refused' and text=='no EVE in the world')
+    S=side()
+    player=S.eve
+    S.eve.refuse=true
+    key,text=refusal(S)
+    assert(key=='refused' and text=='the game refused the teleport to slot 1',text)
+    -- A look that will not go on: logged, the race still starts.
+    S=side()
+    player=S.eve
+    S.look_refuses='no mesh'
+    assert(S.race.match(assert(R.parse_track(TEXT)),'quest',7,0,{},function() end,function() return {} end))
+    assert(find(S.logs,'^race 7: no look: no mesh$') and S.race.armed())
+    -- coop race start is refused in a match lobby; a saved track goes to the saved hook (coop-tracks.txt).
+    S=side()
+    player=S.eve
+    S.match_lobby=true
+    S.files[FILE]=TEXT
+    ok,message=S.race.command('start','quest')
+    assert(not ok and message=='In a match lobby, races start from the lobby menu.' and not S.race.armed())
+    S.race.command('record','mine')
+    S.eve.at={X=4000,Y=0,Z=0}
+    S.race.command('cp')
+    S.eve.at={X=8000,Y=0,Z=0}
+    S.race.command('cp')
+    assert(S.race.command('save')==true and S.saved_names=='mine')
+    -- The round's 250 ms work comes first in each pass; its first error is logged once, the race's checks go on.
+    local ticks,raise=0,nil
+    S=side({round_tick=function() ticks=ticks+1; if raise then error(raise,0) end end})
+    player=S.eve
+    S.race.slow()
+    assert(ticks==1)
+    raise='round broke'
+    S.race.slow()
+    S.race.slow()
+    assert(ticks==3 and count(S.logs,'^match round: error')==1 and find(S.logs,'round broke'))
+end
+
 -- 15. Together only: online/modes/race/run.lua, online/modes/race/model.lua, online/modes/race/doro.lua,
--- online/modes/race/drive.lua and online/modes/race/drive_model.lua name no achievement, reward, item, quest, save,
+-- online/modes/race/drive.lua, online/modes/race/drive_model.lua and the match part's model.lua, game.lua and
+-- round.lua name no achievement, reward, item, quest, save,
 -- possession or console command call, and spawn a plain /Script/Engine.Actor only (core/actors.lua's one SpawnActor
 -- through Doro.spawn, checked in tests/lua/core/actors_test.lua).
 for _,name in ipairs({'online/modes/race/run','online/modes/race/model','online/modes/race/doro',
-    'online/modes/race/drive','online/modes/race/drive_model'}) do
+    'online/modes/race/drive','online/modes/race/drive_model','online/modes/race/match/model',
+    'online/modes/race/match/game','online/modes/race/match/round'}) do
     local f=assert(io.open('mod/StellarCoop/Scripts/'..name..'.lua','rb'))
     local src=f:read('a')
     f:close()

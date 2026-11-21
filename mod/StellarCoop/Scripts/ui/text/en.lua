@@ -292,7 +292,8 @@ return {
     -- The Doro race's words (online/modes/race/run.lua): its panel, banners and results on the HUD, its notices (the
     -- feed, or the line above EVE), and why a race ended early for you (why), was raced alone (refused: the host's, her
     -- answer) or was not joined (declined: the guest's, the host's track); %s: her name, a track's name or a key's, in
-    -- order.
+    -- order. match: the notices of a Doro race round in a match lobby (online/modes/race/match/game.lua): why we sit out
+    -- the round, the host's room with no track, the host who left and a round cancelled before its ranking.
     race={title='DORO RACE',cp='CP %d/%d',lap='LAP %d/%d',pos='POS %d/%d',go='GO!',wrong_way='WRONG WAY',
         missed='MISSED CHECKPOINT %d',finished='FINISHED',dnf='DNF',slot='Your start',waiting='Waiting for %s',
         results='RESULTS',fast='fast run',pause='paused',why={teleport='Moved more than 20 m at once.',
@@ -307,7 +308,19 @@ return {
         recording='Recording %s: press %s at each checkpoint.',dropped='Checkpoint %d set.',
         too_close='Too close: 15 m at least between checkpoints.',full='64 checkpoints already: save the track.',
         other_map='This track is on another map.',
-        saved='Track %s saved, %d checkpoints.'},
+        saved='Track %s saved, %d checkpoints.',
+        match={off='Doro races are off in Options: you sit out this round.',
+            bike='Get off the bike to race in the next round.',
+            night='A Night Operation run is on: you sit out this round.',
+            save='Doro races need a co-op save: you sit out this round.',
+            room='You are not in the waiting room: you sit out this round.',
+            fence='The track runs outside this room: you sit out this round.',
+            map='The track is on another map: you sit out this round.',
+            busy='You are recording a track or testing the drive: you sit out this round.',
+            refused='Your game could not start the race: you sit out this round. UE4SS.log says why.',
+            track='The track did not arrive whole: you sit out this round.',
+            notrack='No track here: record one in this room with coop race record.',
+            host_left='The host left. This round has no ranking.',cancelled='The round was cancelled.'}},
     -- The SBO lobby's notices (online/lobby/sbo.lua): the co-op save before the entry, why an entry is refused (no),
     -- and what failed (fail). nightop and boss use the game's own name for each mode in each language, its
     -- StringTable_UI rows UI_Night and UI_BossRush_Title.

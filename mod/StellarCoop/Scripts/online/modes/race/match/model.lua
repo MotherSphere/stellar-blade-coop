@@ -3,11 +3,12 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- A Doro race round of an SBO match without a game call: the texts of the dr line, the track as it travels and comes
 -- whole, which tracks a lobby room offers, the host's pick and its Random draw, the floor time of each split, the
--- host's checks of each racer's splits and end, its wait and the ranking, the best times in coop-records.txt and the
--- host's index of her own tracks, coop-tracks.txt. The track, the runner's rules, the slots and the ranking's places
--- are online/modes/race/model.lua's. A match race always drives with online/modes/race/drive_model.lua's defaults, so
--- times on one track compare. tests/lua/online/modes/race/match/model_test.lua covers it with lua5.4 alone.
--- Centimetres and milliseconds; seeds and SteamIDs as the link gives them.
+-- host's checks of each racer's splits and end, its wait and the ranking, our own race from the start line to the
+-- results, the best times in coop-records.txt and the host's index of her own tracks, coop-tracks.txt. The track, the
+-- runner's rules, the slots and the ranking's places are online/modes/race/model.lua's. A match race always drives
+-- with online/modes/race/drive_model.lua's defaults, so times on one track compare.
+-- tests/lua/online/modes/race/match/model_test.lua covers it with lua5.4 alone. Centimetres and milliseconds; seeds
+-- and SteamIDs as the link gives them.
 local R=require('online.modes.race.model')
 local Dm=require('online.modes.race.drive_model')
 local F=require('core.settings_file')
@@ -280,6 +281,84 @@ function Mm.tick(h,now,members)
         return {{ask='end'}}
     end
     return {}
+end
+
+-- Our race in a round: online/modes/race/run.lua's third role, match. It holds the fields run.lua draws of model.lua's
+-- machine (role, id, phase, track, me, her, t_go, runner, results) plus slot, our grid slot from 0. Phases: countdown
+-- (R.COUNT from the start, no ready check: the round's players stand on their slots), race (model.lua's runner from
+-- GO), results (the host's ranking, for Mm.SHOW) and over. her is nobody: model.lua's live place reads 1 of 1. The
+-- track drives with drive_model.lua's defaults.
+Mm.SHOW=20000
+function Mm.racer(t,seed,k,now)
+    t.drive=Dm.clamp(Dm.DEFAULTS)
+    return {role='match',id=seed,track=t,slot=k,phase='countdown',t_go=now+R.COUNT,
+        me={ready=true,passed=0,flags=0},her={out=true,ready=false,passed=0,flags=0},out={},ev={}}
+end
+-- One frame of our race. input: pos (our EVE's feet; nil: not read), flags (the fin flags seen this frame), dnf (quit
+-- or map: ours), fin (a finish came in the round, ours or another's: the late rule runs from the first frame that
+-- says so), list (the host's ranking once it came, each {who=, ms=, pos=}). Returns the texts for the round, in
+-- order ({word='cp', lap=, i=, ms=} at each split, the finish excepted; {word='done', ending='fin', ms=, flags=} or
+-- {word='done', ending='dnf', why=} once) and the events run.lua shows (count, go, cp, missed, wrong_way, right_way,
+-- fin, dnf, results, over). A quit or map before GO is a DNF too: the host waits for a ready player's end.
+function Mm.frame(m,input,now)
+    local me,pos=m.me,input.pos
+    local function emit(e) m.ev[#m.ev+1]=e end
+    local function finish(ms,why)
+        if me.ms or me.why then return end
+        if ms then
+            me.ms,me.passed=ms,m.runner.passed
+            m.first=m.first or now
+            m.out[#m.out+1]={word='done',ending='fin',ms=ms,flags=me.flags}
+            emit({what='fin',ms=ms,flags=me.flags})
+        else
+            me.why=why
+            m.out[#m.out+1]={word='done',ending='dnf',why=why}
+            emit({what='dnf',why=why})
+        end
+    end
+    if input.fin then m.first=m.first or now end
+    if input.dnf and (m.phase=='countdown' or m.phase=='race') then finish(nil,input.dnf) end
+    if m.phase=='countdown' and not me.why then
+        if now>=m.t_go then
+            m.phase,m.runner,m.prev,m.prev_at,me.flags='race',R.runner(m.track),pos,now,0
+            emit({what='go'})
+        else
+            local count=math.ceil((m.t_go-now)/1000)
+            if count<=3 and count~=m.count then
+                m.count=count
+                emit({what='count',n=count})
+            end
+        end
+    elseif m.phase=='race' and not (me.ms or me.why) then
+        local ms=math.floor(now-m.t_go)
+        me.flags=me.flags|(input.flags or 0)
+        if pos and m.prev then
+            for _,e in ipairs(R.run(m.runner,m.prev,pos,ms,now-m.prev_at)) do
+                if e.what=='fin' then finish(e.ms)
+                elseif e.what=='dnf' then finish(nil,e.why)
+                else
+                    if e.what=='cp' then
+                        me.passed=m.runner.passed
+                        m.out[#m.out+1]={word='cp',lap=e.lap,i=e.i,ms=e.ms}
+                    end
+                    emit(e)
+                end
+            end
+        end
+        if ms>=R.LIMIT then finish(nil,'time')
+        elseif m.first and now-m.first>=R.LATE then finish(nil,'late') end
+    end
+    if pos then m.prev,m.prev_at=pos,now end
+    if input.list and (m.phase=='countdown' or m.phase=='race') then
+        m.phase,m.shown,m.results='results',now,input.list
+        emit({what='results',list=m.results})
+    elseif m.phase=='results' and now-m.shown>=Mm.SHOW then
+        m.phase='over'
+        emit({what='over'})
+    end
+    local out,ev=m.out,m.ev
+    m.out,m.ev={},{}
+    return out,ev
 end
 
 -- The best match times, a copy of online/modes/scoreattack/challenges.lua's C.best, C.better and C.write (2026-11-21):

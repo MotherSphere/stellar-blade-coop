@@ -12,18 +12,23 @@
 -- EVE, online/partner/puppet.lua's Doro mode on the ghost) from the time that side is in the race until it ends. From
 -- GO until our own result EVE drives as a car (online/modes/race/drive.lua: the model's velocity and yaw fed to her
 -- movement each frame), with the host's driving values, which travel on the drive line (online/modes/race/model.lua),
--- so both players race with the same.
+-- so both players race with the same. In a match round (online/modes/race/match/game.lua starts it) the race has a
+-- third role, match: EVE goes to her grid slot, the countdown runs from the round's start, every round player's ghost
+-- is a Doro. Our splits and end go to the round (online/modes/race/match/model.lua's racer); coop race start is
+-- refused in a match lobby.
 -- What a race changes in the game: its own display Doros (online/modes/race/doro.lua's plain actors, collision off: one
 -- at the next checkpoint and one at the one after it, or one at the start line before GO), the look's two flags on EVE
 -- and, while it drives, four values of her movement component, her velocity and her yaw. Never a pawn, a reward, an
--- achievement, an item, a quest or a save: a race gives nothing and writes nothing but its track file. Its first Lua
--- error ends the race and its look for this Lua load. The display Doros' paths stay in coop-race-doros.txt while they
+-- achievement, an item, a quest or a save: a race gives nothing. It writes its track file only; in a match lobby a
+-- match round also teleports EVE onto her slot, at its start and at GO. Its first Lua error ends the race and its look
+-- for this Lua load. The display Doros' paths stay in coop-race-doros.txt while they
 -- stand, so the next Lua load (Ctrl+R mid-race) destroys them at its first tick; the four values stay in coop-drive.txt
 -- while it drives, for the same.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Where=require('core.where')
 local R=require('online.modes.race.model')
+local Mm=require('online.modes.race.match.model')
 local Doro=require('online.modes.race.doro')
 local P=require('ui.kit.hud_parts')
 local T=require('ui.text')
@@ -81,7 +86,9 @@ local why_of=U.why
 -- through link.store; nil without the native part) and dismount(why) (vehicles/bike/ride.lua's stop: EVE off the bike,
 -- which also ends its drive), riding() (whether EVE rides the bike, which drives with its own copy of
 -- online/modes/race/drive.lua). No race starts while she rides; the guest's answer to a track line takes her off the
--- bike first.
+-- bike first. Optional: match_lobby() (we are in a match lobby: coop race start is refused), round_tick() (the match
+-- round's 250 ms work, online/modes/race/match/round.lua's tick), round_stop(why) (its stop, at coop off) and
+-- saved(name) (a track saved: online/modes/race/wiring.lua adds it to coop-tracks.txt).
 function Race.new(o)
     local log,link,puppet,look,tell,drive=o.log,o.link,o.puppet,o.look,o.tell,o.drive
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -126,6 +133,17 @@ function Race.new(o)
         for _,d in pairs(r.doros) do paths[#paths+1]=d.path end
         if paths[1] then store.save(table.concat(paths,'\t')) else store.clear() end
     end
+    -- The ghosts the race drew as Doros: her ghost (puppet) in a session, the round's other players' in a match.
+    local function ghosts(r) return r.role=='match' and r.ghosts or {puppet} end
+    -- EVE onto slot k of track t, facing the track, her centre her mesh's height over the slot (online/lobby/sbo.lua's
+    -- seat rule): true, or false and why.
+    local function put(e,t,k)
+        local s,up=R.slot(t,k),-value_of(valid(e.Mesh).RelativeLocation).Z
+        if e:K2_TeleportTo({X=s.x,Y=s.y,Z=s.z+up},{Pitch=0,Yaw=t.grid.yaw,Roll=0})==false then
+            return false,'the game refused the teleport to slot '..(k+1)
+        end
+        return true
+    end
     -- The race gone on this PC: its Doros (one that would not go stays in coop-race-doros.txt for the next Lua load),
     -- the look and her ghost's Doro mode if it turned them on, the HUD.
     local function close(r,why)
@@ -135,14 +153,16 @@ function Race.new(o)
             log(ok and message or 'drive: '..tostring(message))
         end
         pcall(look.drive,nil)
-        pcall(puppet.drive,nil)
+        for _,g in ipairs(ghosts(r)) do pcall(g.drive,nil) end
         for key,d in pairs(r.doros) do
             if pcall(Doro.remove,d) then r.doros[key]=nil end
         end
         pcall(keep,r)
         if r.ghost then
-            pcall(puppet.emote,nil)
-            pcall(puppet.doro,false)
+            for _,g in ipairs(ghosts(r)) do
+                pcall(g.emote,nil)
+                pcall(g.doro,false)
+            end
         end
         if r.looked then
             pcall(look.emote,nil)
@@ -158,12 +178,15 @@ function Race.new(o)
         failed=why_of(e)
         local r=race
         if r then
-            pcall(function() for _,l in ipairs((R.tick(r.m,{dnf='quit'},clock()))) do link.race(l) end end)
+            pcall(function()
+                if r.role=='match' then for _,l in ipairs((Mm.frame(r.m,{dnf='quit'},clock()))) do r.line(l) end
+                else for _,l in ipairs((R.tick(r.m,{dnf='quit'},clock()))) do link.race(l) end end
+            end)
             pcall(close,r,'error')
         end
         return false,'the race stopped on an error until the mod reloads: '..failed
     end
-    local function mine(r) return r.role=='host' and 'host' or 'guest' end
+    local function mine(r) return r.role=='host' and 'host' or r.role=='match' and 'me' or 'guest' end
     -- The race_model events of one frame: notices, banners, sounds, the look and her ghost, the results.
     local function event(r,e)
         local w,m=e.what,r.m
@@ -198,6 +221,11 @@ function Race.new(o)
             banner(r,function() return tostring(e.n) end,nil,'beta',false)
             sound('move')
         elseif w=='go' then
+            local e=r.role=='match' and r.pos and not R.in_slot(m.track,m.slot,r.pos,true) and eve()
+            if e then
+                local ok,why=put(e,m.track,m.slot)
+                log('race '..m.id..': out of slot '..(m.slot+1)..' at GO: '..(ok and 'put back' or why))
+            end
             r.go_clock,r.go_time=os.clock(),os.time()
             banner(r,function(t) return t.race.go end,GO_SHOW,'beta')
             sound('select')
@@ -235,7 +263,11 @@ function Race.new(o)
             end
             local function emote(entry) return entry and entry.pos==1 and 'win' or 'lose' end
             if r.looked then look.emote(emote(ours)) end
-            if r.ghost and hers then puppet.emote(emote(hers)) end
+            if r.ghost and r.role=='match' then
+                for _,entry in ipairs(e.list) do
+                    if r.by_id[entry.who] then r.by_id[entry.who].emote(emote(entry)) end
+                end
+            elseif r.ghost and hers then puppet.emote(emote(hers)) end
             local now,t=os.clock(),os.time()
             log(string.format('result id=%d track=%s ms=%s clock=%.3f time=%d flags=%d rank=%s',m.id,r.name or '-',
                 m.me.ms and tostring(m.me.ms) or '-',(r.end_clock or now)-(r.go_clock or now),
@@ -338,14 +370,14 @@ function Race.new(o)
                 for i=1,2 do
                     local entry,row=list[i],res.rows[i]
                     row.label.set(entry and (entry.pos and tostring(entry.pos) or '-')..'  '
-                        ..(entry.who==mine(r) and w.chat.you or her_name(w)) or '')
+                        ..(entry.who==mine(r) and w.chat.you or entry.name or her_name(w)) or '')
                     row.value.set(entry and (entry.ms and Race.clock(entry.ms) or w.race.dnf) or '')
                 end
             end
         end
         local target,label
         if up and (m.phase=='ready' or m.phase=='countdown') then
-            local s=R.slot(t,r.role=='host' and 0 or 1)
+            local s=R.slot(t,m.slot or (r.role=='host' and 0 or 1))
             target,label={X=s.x,Y=s.y,Z=s.z},w.race.slot
         elseif up and m.phase=='race' and m.runner and not m.runner.done then
             local c=t.cps[m.runner.next]
@@ -385,7 +417,7 @@ function Race.new(o)
                 r.drove=true
                 local ok,why=drive.on(m.track.drive,'race')
                 if not ok then error('no driving: '..why,0) end
-                puppet.drive(m.track.drive.top)
+                for _,g in ipairs(ghosts(r)) do g.drive(m.track.drive.top) end
             end
         elseif drive.racing() then
             log(drive.off('race '..(m.me.ms and 'fin' or m.me.why or m.phase)))
@@ -402,8 +434,15 @@ function Race.new(o)
         r.pos=pos or r.pos
         local lines,flags,dnf,left=r.inbox,r.flags,r.dnf,r.left
         r.inbox,r.flags,r.dnf,r.left={},0,nil,nil
-        local out,ev=R.tick(r.m,{pos=pos,lines=lines,rtt=link.ping(),map=r.map,flags=flags,dnf=dnf,left=left},now)
-        for _,line in ipairs(out) do link.race(line) end
+        local out,ev
+        if r.role=='match' then
+            local news=r.news()
+            out,ev=Mm.frame(r.m,{pos=pos,flags=flags,dnf=dnf,fin=news.fin,list=news.list},now)
+            for _,l in ipairs(out) do r.line(l) end
+        else
+            out,ev=R.tick(r.m,{pos=pos,lines=lines,rtt=link.ping(),map=r.map,flags=flags,dnf=dnf,left=left},now)
+            for _,line in ipairs(out) do link.race(line) end
+        end
         if r.loop then
             local _,f=puppet.anchor()
             local gout=R.tick(r.loop,{pos=f and {x=f.X,y=f.Y,z=f.Z},lines=r.loop_in,map=r.map,left=left},now)
@@ -456,6 +495,7 @@ function Race.new(o)
         if not R.name_ok(name) then return false,NAMES end
         if race then return false,'a race is on: coop race quit leaves it' end
         if rec then return false,'a track is being recorded: coop race save or coop race cancel first' end
+        if o.match_lobby and o.match_lobby() then return false,'In a match lobby, races start from the lobby menu.' end
         if link.mode()=='guest' then return false,'the host starts a race; yours comes when the host starts one' end
         local others=link.crowd()
         if others>1 then return false,'Doro races are for 2 players at most; this session has '..(others+1) end
@@ -544,6 +584,7 @@ function Race.new(o)
         log(string.format('track %s saved: %d checkpoints, %d laps, path %.0f m in %.0f s',name,#t.cps,laps,
             rec.path/100,os.clock()-rec.at))
         rec=nil
+        if o.saved then o.saved(name) end
         tell(function(w) return w.race.saved:format(name,#t.cps) end)
         return true,'Track saved as '..file..' beside coop-settings.txt: coop race start '..name..' races it.'
     end
@@ -608,6 +649,39 @@ function Race.new(o)
     end
     -- Whether a race is armed here: main.lua reads the inbox each frame meanwhile, and coop nightop start refuses.
     function self.armed() return race~=nil end
+    -- A match round's race (online/modes/race/match/game.lua's start): track t named name, the round's seed, our slot k
+    -- from 0, the round's other players' ghosts ({[SteamID]=online/partner/puppet.lua's ghost}), line(l) for each of
+    -- our texts to the round and news() ({fin=, list=} from it, each frame). An earlier match race of ours closes
+    -- first, not ranked. EVE goes to her slot facing the track, the look goes on her and the Doro mode on each ghost,
+    -- then the countdown runs. true, or false, the sit-out key and why: busy (a track being recorded or the drive probe
+    -- on), refused (no EVE, the teleport refused, the race stopped on an error).
+    function self.match(t,name,seed,k,by_id,line,news)
+        if failed then return false,'refused','the race stopped on an error ('..failed..')' end
+        if race and race.role=='match' then pcall(close,race,'replaced') end
+        if race then return false,'busy','a race is on' end
+        if rec then return false,'busy','a track is being recorded' end
+        if drive.active() then return false,'busy','the drive probe runs' end
+        local e=eve()
+        if not e then return false,'refused','no EVE in the world' end
+        local ok,why=put(e,t,k)
+        if not ok then return false,'refused',why end
+        local looked,look_why=look.on()
+        if not looked then log('race '..seed..': no look: '..tostring(look_why)) end
+        local list={}
+        for _,g in pairs(by_id) do
+            list[#list+1]=g
+            local _,ghost_why=g.doro(true,look.log)
+            if ghost_why then log(ghost_why) end
+        end
+        new_race('match',Mm.racer(t,seed,k,clock()),{name=name,map=t.map,looked=looked,ghost=true,ghosts=list,
+            by_id=by_id,line=line,news=news})
+        return true
+    end
+    -- The match round ended for our race (online/modes/race/match/game.lua's stop): it closes here with no line.
+    function self.match_stop(why)
+        local r=race
+        if r and r.role=='match' then pcall(close,r,why) end
+    end
     -- The Doros an earlier Lua load left standing (coop-race-doros.txt): each destroyed if it still is one.
     local function sweep()
         local line=store.load()
@@ -643,8 +717,17 @@ function Race.new(o)
         local ok,e=pcall(frame,r)
         if not ok then return fail(e) end
     end
-    -- Every 250 ms; a track being recorded adds the path EVE ran.
+    -- Every 250 ms: the match round's work first (its first error logged once a Lua load; the race goes on), then a
+    -- track being recorded adds the path EVE ran.
+    local round_failed=false
     function self.slow()
+        if o.round_tick then
+            local ok,e=pcall(o.round_tick)
+            if not ok and not round_failed then
+                round_failed=true
+                log('match round: error (logged once until the mod reloads): '..why_of(e))
+            end
+        end
         if rec then
             pcall(function()
                 local e=eve()
@@ -665,19 +748,21 @@ function Race.new(o)
         local ok,e=pcall(slow,r)
         if not ok then return fail(e) end
     end
-    -- coop off: a recording dropped, a race left (its DNF or abort line out first) and closed, the drive probe off. A
-    -- bike drive stays: main.lua's off handler calls vehicles/bike/ride.lua's stop first.
+    -- coop off: a recording dropped, a race left (its DNF or abort line out first) and closed, the drive probe off,
+    -- then the match round stopped. A bike drive stays: main.lua's off handler calls vehicles/bike/ride.lua's stop
+    -- first.
     function self.stop()
         rec=nil
         local r=race
         if not r then
             if drive.active() and drive.why()~='bike' then log(drive.off('coop off')) end
             pcall(look.drive,nil)
-            return
+        else
+            r.dnf,r.ending=r.dnf or 'quit','coop off'
+            if not failed then pcall(frame,r) end
+            if race==r then pcall(close,r,'coop off') end
         end
-        r.dnf,r.ending=r.dnf or 'quit','coop off'
-        if not failed then pcall(frame,r) end
-        if race==r then pcall(close,r,'coop off') end
+        if o.round_stop then pcall(o.round_stop,'coop off') end -- After our race's DNF went to the round.
     end
     -- The HUD's groups on the Uplink kit, before its first build (main.lua, after Night Operation's): o is {kit,
     -- theme=ui.THEME, settings=main.lua's}.

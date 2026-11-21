@@ -8,8 +8,9 @@
 -- in online/modes/race/run.lua's command. online/modes/race/wiring.lua builds it with new(o) at each Lua load and
 -- main/loader.lua merges it into the command table. o: puppet (the ghost, online/partner/puppet.lua's, read at each
 -- call), doro, coop_slot, race (online/modes/race/run.lua's), riding (main/base.lua's riding, read at each call: EVE
--- rides the bike), match_on (race_match=on, read at each call) and round (online/modes/race/match/round.lua's, nil
--- without the Steam link).
+-- rides the bike), match_on (race_match=on, read at each call), round (online/modes/race/match/round.lua's, nil
+-- without the Steam link) and index(name) (a track name into coop-tracks.txt, the host's tracks a match lobby may
+-- offer: a pick by name puts it there).
 local Tracks=require('online.modes.race.match.tracks')
 local Race={}
 function Race.new(o)
@@ -46,6 +47,7 @@ function Race.new(o)
             if a=='pick' then
                 if not o.round then return false,'Doro races in matches need the Steam link.' end
                 if not o.round.pick(extra) then return false,use end
+                if extra~='random' and not extra:find('^%d+$') and o.index then o.index(extra) end
                 return true,'Doro race: next track '..o.round.pick()
             end
             local n=0

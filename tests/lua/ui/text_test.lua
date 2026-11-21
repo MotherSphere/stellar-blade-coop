@@ -166,9 +166,10 @@ local function notices(w)
         sa.placed:format(8,8)}) do
         lines[#lines+1]=text
     end
-    -- The race's notices (online/modes/race/run.lua): its banners too, which come as notices with the UI off.
+    -- The race's notices (online/modes/race/run.lua): its banners too, which come as notices with the UI off; a match
+    -- round's (online/modes/race/match/game.lua).
     local r=w.race
-    for _,group in ipairs({'why','refused','declined'}) do
+    for _,group in ipairs({'why','refused','declined','match'}) do
         for _,text in pairs(r[group]) do lines[#lines+1]=fill(text) end
     end
     for _,k in ipairs({'armed','armed_guest','false_start','cancelled','out','recording','dropped','too_close','full',
