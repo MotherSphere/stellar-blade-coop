@@ -131,7 +131,8 @@ void sound_pass(bool sounds) {
         s.run[i] = base + (s.hooks[i].original - game::kImageBase);
     sound_relocated = true;
   }
-  const bool want[] = {sound::context_wanted(sounds, effects), sounds, effects};
+  // Each look without its faulted feature: the context set goes back once neither feature uses it.
+  const bool want[] = {sound::context_wanted(sounds_wanted, worldfx_wanted), sounds_wanted, worldfx_wanted};
   static_assert(std::size(want) == std::size(sound_sets));
   for (size_t k = 0; k < std::size(sound_sets); ++k) {
     SoundSet &s = sound_sets[k];

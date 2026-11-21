@@ -85,14 +85,16 @@ uint64_t play_name(const char *text) {
   return uint32_t(out) && uint32_t(out) != at<uint32_t>(base + (world::kNoneName - game::kImageBase)) ? out : 0;
 }
 
-// One admitted sound: dropped (not loaded) unless its object is alive with the class Lua loaded it as and its class and
-// attenuation objects are alive. Else a component of the ghost's actor, never SB's pool (writes go only to the ghost's
-// own components), set up in the footstep's order with her values; the viewer's own sink records none of it.
+// One admitted sound: dropped (not loaded) unless its key names a sound, its object is alive with the class Lua loaded
+// it as and its class and attenuation objects are alive. Else a component of the ghost's actor, never SB's pool (writes
+// go only to the ghost's own components), set up in the footstep's order with her values; the viewer's own sink
+// records none of it.
 void play_event(const PlayAsk &a) {
   const Loaded &l = a.named.loaded;
   const uintptr_t asset = static_cast<uintptr_t>(l.object);
   const auto live_or_none = [](uint64_t o) { return !o || alive(objects, static_cast<uintptr_t>(o)); };
-  if (!alive(objects, asset) || at<uint64_t>(asset + kClass) != l.cls || !live_or_none(l.a) || !live_or_none(l.b)) {
+  if (a.named.kind != a.event.kind || !alive(objects, asset) || at<uint64_t>(asset + kClass) != l.cls ||
+      !live_or_none(l.a) || !live_or_none(l.b)) {
     ++window_play_unloaded;
     return;
   }
@@ -199,13 +201,14 @@ __declspec(noinline) void play_body(uint64_t now_us) {
       play_event(play_asks[i]);
 }
 
-// One world effect a ghost reached: dropped (not loaded) unless its object is alive with the class Lua loaded it as.
-// Else SB's own spawn at the place her game played it, at her scale, in the ghost actor's world; the viewer's own
-// sinks record none of it. Placed, not attached: the spawn SB's footstep uses attaches nothing.
+// One world effect a ghost reached: dropped (not loaded) unless its key names an effect of its kind (a sound or the
+// other kind's asset would reach the wrong spawn) and its object is alive with the class Lua loaded it as. Else SB's
+// own spawn at the place her game played it, at her scale, in the ghost actor's world; the viewer's own sinks record
+// none of it. Placed, not attached: the spawn SB's footstep uses attaches nothing.
 void worldfx_event(const PlayAsk &a) {
   const Loaded &l = a.named.loaded;
   const uintptr_t asset = static_cast<uintptr_t>(l.object);
-  if (!alive(objects, asset) || at<uint64_t>(asset + kClass) != l.cls) {
+  if (a.named.kind != a.event.kind || !alive(objects, asset) || at<uint64_t>(asset + kClass) != l.cls) {
     ++window_worldfx_unloaded;
     return;
   }

@@ -40,12 +40,13 @@ std::vector<std::string> outbox;
 // Her asset names (game/events.h's SBA lines), under m too: the lines the game thread named since the worker's last
 // asset_lines(); asset_keys_reset, set by asset_keys_clear() at a link session's start or end (the game thread takes it
 // in its next hold of m and drops its asset keys before it names another asset); each ghost slot's loaded
-// objects by key, from the slot's coop-loaded file, with the int parameters her SBA line named for that key (the
-// worker writes them in place; asset_slot_reset() empties one; play_game.inc copies an entry out under m).
+// objects by key, from the slot's coop-loaded file, with the kind and the int parameters her SBA line named for that
+// key (the worker writes them in place; asset_slot_reset() empties one; play_game.inc copies an entry out under m).
 std::vector<std::string> asset_named;
 bool asset_keys_reset = false;
 struct Named {
   Loaded loaded{};
+  Kind kind = Kind::sound; // Lua loaded the object as this kind: an event of another kind never plays it.
   uint8_t params = 0;
   char param_name[kMaxParams][sba::kMaxWord + 1] = {};
   int32_t param_value[kMaxParams] = {};

@@ -311,16 +311,27 @@ __declspec(noinline) void sound_publish_read(const Live *live) {
   const uintptr_t manager = at<uintptr_t>(base + (story::kManagerAt - game::kImageBase));
   sound_theater = game::plausible(manager) && game::plausible(at<uintptr_t>(manager + story::kCurrent));
 }
+// Both features read it: it goes on while either latch holds, so her world effects never keep a stale her (or theater)
+// after a sounds fault. A fault in it turns off the first feature still on.
 void sound_publish(const Live *live) {
   sound_thread = GetCurrentThreadId();
-  if (sounds_faulted)
-    return;
-  __try {
-    sound_publish_read(live);
-  } __except (fault_filter(GetExceptionInformation(), sounds_fault_code, sounds_fault_rva, sounds_fault_address)) {
-    sounds_faulted = true;
-    sound_her = 0;
-    worldfx_asset = 0;
+  if (!sounds_faulted) {
+    __try {
+      sound_publish_read(live);
+    } __except (fault_filter(GetExceptionInformation(), sounds_fault_code, sounds_fault_rva, sounds_fault_address)) {
+      sounds_faulted = true;
+      sound_her = 0;
+      worldfx_asset = 0;
+    }
+  } else if (!worldfx_faulted) {
+    __try {
+      sound_publish_read(live);
+    } __except (fault_filter(GetExceptionInformation(), worldfx_fault_code, worldfx_fault_rva,
+                             worldfx_fault_address)) {
+      worldfx_faulted = true;
+      sound_her = 0;
+      worldfx_asset = 0;
+    }
   }
 }
 // One record into the outbox: its asset key (known by its objects, else its words read once from the name pool and a

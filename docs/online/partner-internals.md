@@ -339,7 +339,8 @@ game's function, relocated to the loaded image. If one slot of a set holds anoth
 swapped go back, with the line `sounds refused: 0x<slot> holds <value>; nothing of that set swapped, the ghost goes on
 without sounds (<set>)`. The other sets stay. With the sounds look off the audio set goes back until it is on again.
 At `coop off` and after a fault they go back for the run. A fault in a hook or in the naming turns sounds off with one
-`sounds off: fault ...` line. The ghost goes on.
+`sounds off: fault ...` line. The ghost goes on. Her world effects go on without the marks: only a start owned by her
+or hung on her parts is recorded.
 
 `coop status` shows `sounds=on`, `off`, `refused` or `fault`. Every 60 s `coop-link.log` has `sounds, last 60 s:
 captured <n> (mark <n>, owner <n>, attach <n>, other thread <n>), sent <n>, <n> events dropped waiting for a slot, <n>
@@ -420,11 +421,13 @@ notify places it after. Her footprints stay out. Her sword trail is a show key (
 engine's trail notify nor the `bVisibleSwordTrail` byte drives, so trails stay out too.
 
 On the viewer, the effect events a ghost's playback reaches wait in their own wait (16 at most, 200 ms each) while the
-ghost has effect boxes. One whose key is loaded plays while the ghost shows and no shared scene plays or your theater
-holds a cutscene. No distance cap or rate cap applies. It plays where her game played it, through the call her footstep
-notify makes, in the ghost actor's world (`AActor::GetWorld`, `0x143f60200`, at vtable `+0x158`): `0x142325990` with her
-scale and 1 for the world pool's auto release, or `0x142325290` with her scale. The effect is placed, never attached.
-These calls run only while `game_calls_ok()` holds. While they run, the sinks record nothing.
+ghost has effect boxes. One whose key is loaded plays while the ghost shows. A shared scene or a cutscene of your
+theater drops it. An event whose key names another kind (a sound, or the other effect kind) is dropped as not loaded, as
+a sound event whose key names an effect is. No distance cap or rate cap applies. It plays where her game played it,
+through the call her footstep notify makes, in the ghost actor's world (`AActor::GetWorld`, `0x143f60200`, at vtable
+`+0x158`): `0x142325990` with her scale and 1 for the world pool's auto release, or `0x142325290` with her scale. The
+effect is placed, never attached. These calls run only while `game_calls_ok()` holds. While they run, the sinks record
+nothing.
 
 The world-effect set swaps apart from the sound sets. A refusal logs `world effects refused: 0x<slot> holds <value>;
 nothing of that set swapped, the ghost goes on without world effects (world effect starts)`. A fault in a sink, in the
