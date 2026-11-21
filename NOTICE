@@ -134,7 +134,8 @@ was changed here. The lines that start with "; SBO:" are Stellar Blade
 Online's.
 
 GNatives.lua, GUObjectArray.lua and VTableLayout.ini in
-ue4ss/builds/6ad8eff1-15fa3000/ come from Rev-OG-UwU's SB-UE4SS (https://github.com/Rev-OG-UwU/SB-UE4SS, commit
+ue4ss/builds/6ad8eff1-15fa3000/ come from Rev-OG-UwU's SB-UE4SS
+(https://github.com/Rev-OG-UwU/SB-UE4SS, commit
 a63c3f8ecfc51c679082c30805d8af5c3514ba9a). They first appear in Chrisr0's
 RE-UE4SS (https://github.com/Chrisr0/RE-UE4SS, commit
 e6e59de93656ed3caf242233a0b6f63e073ba3df, June 2025), the repository that
@@ -172,6 +173,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+tools/port/ue4ss.json and the signature scripts that tools/port/find.py
+prints for a later Stellar Blade build are Stellar Blade Online's own work
+under the SBO License. They copy no code from these repositories.
 
 ARTWORK
 

@@ -1660,15 +1660,25 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   the instruction before it and a vtable no code loads (`holder`, past a slot whose code another place also holds).
   Bytes inside an instruction that read as a call give no reference. A run stops after a jump out of the code
   section. A signature that matches twice gives no address. A holder whose code two places hold gives no address. An
-  executable other than the pinned build is refused. Every entry of `tools/port/signatures.json` that needs a
-  signature has one in the form the tool writes, with the names the code gives its address. Then
+  executable other than the pinned build is refused. `main`, on that file pinned in place of build 26123051, writes
+  `signatures.json` and `tools/port/ue4ss.json` from one build. The first takes the code's names. The second keeps its
+  own. An address in both gets the same signature in each. Every entry of `tools/port/signatures.json` that needs a
+  signature has one in the form the tool writes, with the names the code gives its address. So has every entry of
+  `ue4ss.json`, whose names are FText_Constructor, GNatives and GUObjectArray. Then
   `tools/port/find.py` on the same PE file: every entry is found, the image base and a section included. With a
   function added before the others, the code addresses move by 16 bytes and the data addresses stay. Three copies of
   a function give `ambiguous (3 matches)`. A holder's code held in two places gives `ambiguous (2 matches)`. A
   function removed gives `missing`. So does a `read` that lands outside the file. The exit code is 1 for each.
+  `find.py`'s UE4SS signature scripts run under `lua5.4` with a `DerefToInt32` that, as UE4SS's, gives nil for 0: a
+  function's own run, a `ref`, a `ref` with an `add` and a `ref` with `then` each match once in the whole file and give
+  their address, the moved one in the build with moved code. No script comes from a `holder`, a `read`, a signature
+  found twice or not at all, one that also matches in `.rdata` or one that matches in `.rdata` only. Its UE4SS report
+  prints a script for each target or the line `no script.`, with exit code 1 for the latter.
   Last, `find.py` on `~/Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe`, Ghidra's copy of build 26123051:
-  every entry is found at its own address. A PC without that file skips this part and says so. A port points `EXE` at
-  the new build's copy (see [Porting](porting.md#the-port-step-by-step));
+  every entry of both files is found at its own address. Each UE4SS target's script matches once in the whole file
+  and gives the address read in Ghidra (FText constructor 0x142862fc0, GNatives 0x146f17900, GUObjectArray
+  0x146ddd240). A PC without that file skips this part and says so. A port points `EXE` at the new build's copy (see
+  [Porting](porting.md#the-port-step-by-step) and [SBO UE4SS](ue4ss.md#adding-a-build));
 - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
   `tools/install.py` faked;
 - `save_read_test.py`: `tools/save_read.py` on GVAS bodies built in the test (the header, values, containers, the EVAS

@@ -114,6 +114,9 @@ the package lacks (the 1.3 package's `FText_Constructor.lua`, another build's sc
 `ue4ss/Changelog.md`. It keeps an existing `Mods/mods.txt` and never touches a mod folder that the package lacks.
 `--uninstall` leaves UE4SS in place. An install without `--ue4ss` writes no UE4SS file.
 
+[SBO UE4SS](ue4ss.md) says where each file of the package comes from, its license and how to add the set of a new
+Stellar Blade build.
+
 ## tools/wine_smoke.py
 
 `tools/wine_smoke.py` builds `StellarCoop.dll` exactly as the installer does, builds `tests/wine/smoke.cpp`, and loads
@@ -299,8 +302,9 @@ tools/
   mxiii_rows.py             writes native/src/world/maps/matrix13/mxiii_rows.h and world/maps/matrix13/level/rows.lua
                             from data/mxiii-world.json
   port/                     addresses.py lists the game addresses native/src uses; make_signatures.py writes a
-                            byte signature for each into signatures.json, one entry per address with what Ghidra
-                            shows there; find.py finds them in another build (see porting.md)
+                            byte signature for each into signatures.json (one entry per address with what Ghidra
+                            shows there) and for UE4SS's signature targets into ue4ss.json; find.py finds them in
+                            another build and prints the UE4SS signature scripts (see porting.md, ue4ss.md)
   release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
   save_read.py              every value of a .sav file, and the values two saves differ in (see story-dump.md)

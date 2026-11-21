@@ -46,6 +46,12 @@ On Linux, you can build and install the mod from the Stellar Blade Online reposi
 `python3 tools/install.py`. Add `--game <Stellar Blade folder>` if the game is not in the script's default folder
 (`--help` shows it). The script first backs up the files it replaces into `~/StellarCoop-install-backups`.
 
+`python3 tools/install.py --ue4ss` also installs SBO's own UE4SS package in place of the 1.3 package: the official
+UE4SS v4.0.0 with Stellar Blade Online's settings and the files of your game build. It backs up each UE4SS file it
+replaces or removes into the same folder. On a game build it has no files for, it writes no UE4SS file. This option is
+still being tested. Without it, the script leaves your UE4SS as it is. [docs/dev/ue4ss.md](docs/dev/ue4ss.md) lists
+what the package holds.
+
 ### Linux and Steam Deck
 
 UE4SS starts through the `dwmapi.dll` next to the game's executable, in `SB/Binaries/Win64/`. Proton can load its own

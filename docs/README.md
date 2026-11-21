@@ -88,6 +88,7 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [Structure](dev/structure.md) | How the code is organised into modules and the rules that keep them apart |
 | [Migration](dev/migration.md) | Where each file of the two November 2026 restructures went, for forks |
 | [Porting](dev/porting.md) | [The port to a new game build, step by step](dev/porting.md#the-port-step-by-step), [what the signatures cannot find](dev/porting.md#what-the-signatures-cannot-find), the game addresses the native code uses, `tools/port/addresses.py`, `tools/port/make_signatures.py`, the byte signatures in `tools/port/signatures.json` and `tools/port/find.py` |
+| [SBO UE4SS](dev/ue4ss.md) | SBO's UE4SS package: the official UE4SS v4.0.0 files, SBO's settings, the files of each Stellar Blade build, [adding a build](dev/ue4ss.md#adding-a-build), licenses |
 | [Tests](dev/tests.md) | The Lua, C++ and Python tests and what each one checks |
 | [How it works](#how-stellar-blade-online-works) | Index of the internals pages, and where each section of the old single page went |
 | [Architecture](dev/architecture.md) | The Lua and native parts, the Lua scripts, the files they share, the modules and their isolation, the co-op UI's input, loopback, record and replay |

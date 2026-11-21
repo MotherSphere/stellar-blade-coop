@@ -18,12 +18,17 @@ the name it has in the code, its file and its line. It reads the sources only. I
 26123051 (its kind and a short text in `ghidra`), the names the code gives it in `name` and a byte signature that finds
 it in the executable. A signature is a short byte pattern with wildcards. The file holds no other bytes of the game.
 
-`tools/port/make_signatures.py` writes the names and the signatures (see [Signatures](#signatures)). It reads the
-executable of build 26123051. It refuses any other one by its TimeDateStamp and SizeOfImage, the values
-`check_build()` checks.
+`tools/port/ue4ss.json` has the same form for the three addresses that UE4SS's signature scripts find: GNatives,
+GUObjectArray and the FText constructor. Each entry's `name` is the script's name. No native code needs to use these
+addresses. [SBO UE4SS](ue4ss.md#adding-a-build) says how they make a new build's UE4SS files.
 
-`tools/port/find.py` reads the executable of another build and looks for every entry of `signatures.json` there with
-its signature (see [Finding the addresses in a new build](#finding-the-addresses-in-a-new-build)).
+`tools/port/make_signatures.py` writes the names and the signatures of both files in one pass (see
+[Signatures](#signatures)). It reads the executable of build 26123051. It refuses any other one by its TimeDateStamp and
+SizeOfImage, the values `check_build()` checks.
+
+`tools/port/find.py` reads the executable of another build and looks for every entry of `signatures.json` and
+`ue4ss.json` there with its signature (see [Finding the addresses in a new
+build](#finding-the-addresses-in-a-new-build)). For each UE4SS target it finds, it prints a UE4SS signature script.
 
 `tests/tools/port_addresses_test.py` compares the code and the file. It fails when the code uses an address that the
 file lacks. It also fails when the file lists an address that no code uses. `tests/tools/port_signatures_test.py` runs
@@ -48,7 +53,8 @@ repository.
    ```
 
    A `found` line gives the address that the old signature points to. An `ambiguous` or `missing` line gives none
-   (see step 3). The exit code stays 1 while one entry is not found once.
+   (see step 3). The exit code stays 1 while one entry is not found once. The UE4SS targets come last, each with its
+   script ([SBO UE4SS](ue4ss.md#adding-a-build)).
 3. Read each entry's address in Ghidra on the new build, the `found` ones included. Ghidra must show there what the
    entry's `ghidra` text and the comment above the constant in `native/src` describe on build 26123051: the same
    function with the same arguments, the same instruction, the same global or vtable. For an entry with `ref`, also
@@ -85,7 +91,8 @@ repository.
    ```
 
    It accepts the new executable once `engine.h` pins it. It writes each entry's signature from the new build, so the
-   next port starts from this one. In `tests/tools/port_signatures_test.py`, point `EXE` at the new build's copy and
+   next port starts from this one. It also writes the signatures of `ue4ss.json`, whose addresses step 4 changed like
+   those of `signatures.json`. In `tests/tools/port_signatures_test.py`, point `EXE` at the new build's copy and
    change the build number in its messages.
 8. Update the other texts that give an old address or the old build. Run `grep -rni` for `26123051` and for the offset
    from the image base of each address that moved (`1ca5790` for 0x141ca5790) in `docs/`, `tests/`, `tools/`,
@@ -279,9 +286,16 @@ moved, the ambiguous ones and the missing ones:
 275 found (0 moved), 0 ambiguous, 0 missing
 ```
 
-The exit code is 0 only when every entry is found once. On build 26123051 itself, every entry is found at its own
-address in about 10 seconds. A found address is where the old signature points. It is not checked: read each one in
-Ghidra on the new build before the code uses it.
+Then comes the same report for the entries of `ue4ss.json`, after the line `UE4SS signature targets (ue4ss.json):`. For
+each target found once, find.py prints the text of `UE4SS_Signatures/<name>.lua`. Its `Register()` returns the entry's
+pattern. Its `OnMatchFound()` follows the entry's `ref` with `DerefToInt32`. find.py prints a script only when the
+pattern matches once in every section of the file, the code and the data, since UE4SS scans the whole image. A signature
+with a `holder` or a `read` gets none: a script reads 4 bytes at a time with `DerefToInt32` and cannot search the data
+sections. A target without a script gets the line `UE4SS_Signatures/<name>.lua: no script.`
+
+The exit code is 0 only when every entry is found once and every UE4SS target gets a script. On build 26123051 itself,
+every entry is found at its own address in about 10 seconds. A found address is where the old signature points. It is
+not checked: read each one in Ghidra on the new build before the code uses it.
 
 ## A new address in the code
 
@@ -293,6 +307,7 @@ address order, written in lower-case hex with `0x`, with its kind and what Ghidr
 ```
 
 Then run `make_signatures.py` on the executable of build 26123051. Search the new entry's pattern in Ghidra: it must
-match once in `.debug$P`. Ghidra searches every section. On build 26123051, 5 patterns also match in `.edata`: 4
-once, `kWidgetByGuid`'s twice. For an entry with `ref`, look at the instruction at `ref.from`. When the last use of an
-address leaves the code, remove its entry. `port_addresses_test.py` and `port_signatures_test.py` fail until it is done.
+match once in `.debug$P`. Ghidra searches every section. On build 26123051, 5 patterns also match in `.edata`: 4 once,
+`kWidgetByGuid`'s twice. For an entry with `ref`, look at the instruction at `ref.from`. When the last use of an address
+leaves the code, remove its entry. `port_addresses_test.py` and `port_signatures_test.py` fail until it is done. A new
+UE4SS target goes into `ue4ss.json` the same way, with the script's name as its `name`.
