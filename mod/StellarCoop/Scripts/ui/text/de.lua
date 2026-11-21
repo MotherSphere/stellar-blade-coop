@@ -273,6 +273,7 @@ return {
         placed='Doro-Rennen: Platz %d von %d.',
         match={off='Doro-Rennen ist in den Optionen aus: Du setzt diese Runde aus.',
             bike='Steig vom Motorrad ab, um in der nächsten Runde mitzufahren.',
+            seat='Steh vom Sitz auf, um in der nächsten Runde mitzufahren.',
             night='Ein Nächtlicher Einsatz läuft: Du setzt diese Runde aus.',
             save='Rennen brauchen einen Koop-Speicherstand: Du setzt diese Runde aus.',
             room='Du bist nicht im Warteraum: Du setzt diese Runde aus.',

@@ -259,6 +259,7 @@ return {
         placed='Doro-løp: plass %d av %d.',
         match={off='Doro-løp er slått av i Alternativer: du står over denne runden.',
             bike='Gå av motorsykkelen for å kjøre i neste runde.',
+            seat='Reis deg fra setet for å kjøre i neste runde.',
             night='En Nattoperasjon pågår: du står over denne runden.',
             save='Løp krever en co-op-lagring: du står over denne runden.',
             room='Du er ikke i venterommet: du står over denne runden.',

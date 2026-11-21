@@ -3,13 +3,13 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The game side of a Doro race round (online/modes/race/match/game.lua) on fakes of our race, the round, the lobby and
 -- the records file: each sit-out with its notice and nothing sent (race_match=off, the bike, a Night Operation run,
--- not a co-op save, out of the lobby room, the track on another map, the track outside the room's fence, our race's
--- own refusal); EVE up from a hall seat first; the other players' ghosts by SteamID; ready after our race started;
--- our splits and end to the round; the late rule's first finish and the host's ranking with names, as our race reads
--- them; for the HUD the players still racing, each other racer's place in the race and whether our finish wrote a new
--- best; the records written only for a better finish; the round's end: a host who left, a round cancelled or voided
--- before its ranking, none after it or for a player who sat out, the host's room with no track and a guest's track
--- that did not come whole.
+-- not a co-op save, out of the lobby room, the track on another map, the track outside the room's fence, SB's own
+-- hall chair seating her, our race's own refusal); EVE up from the mod's hall seat first; the other players' ghosts
+-- by SteamID; ready after our race started; our splits and end to the round; the late rule's first finish and the
+-- host's ranking with names, as our race reads them; for the HUD the players still racing, each other racer's place
+-- in the race and whether our finish wrote a new best; the records written only for a better finish; the round's
+-- end: a host who left, a round cancelled or voided before its ranking, none after it or for a player who sat out,
+-- the host's room with no track and a guest's track that did not come whole.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local G=require('online.modes.race.match.game')
 local Mm=require('online.modes.race.match.model')
@@ -20,8 +20,8 @@ local function track()
 end
 local f={}
 local function reset()
-    f={on=true,riding=false,night=false,saved=true,room=ROOM,map=MAP,seated=nil,stands=0,told={},logs={},
-        matches={},match_stops={},ready=0,cps={},dones={},ids={'1001','2002','3003'},board={},list=nil,
+    f={on=true,riding=false,night=false,saved=true,room=ROOM,map=MAP,resting=false,seated=nil,stands=0,told={},
+        logs={},matches={},match_stops={},ready=0,cps={},dones={},ids={'1001','2002','3003'},board={},list=nil,
         ghosts={['2002']={name='g2'},['3003']={name='g3'}},records=nil,writes={},run_refuses=nil}
 end
 reset()
@@ -36,8 +36,9 @@ local round={round=function() return {ids=f.ids,board=f.board,list=f.list} end,r
 local game=G.new({run=run,round=round,log=function(m) f.logs[#f.logs+1]=m end,on=function() return f.on end,
     riding=function() return f.riding end,night=function() return f.night end,
     slot=function() if f.saved then return true end return false,'not a co-op save' end,
-    target=function() return f.room end,map=function() return f.map end,seated=function() return f.seated end,
-    stand=function() f.stands=f.stands+1 end,me=function() return '1001' end,ghost=function(id) return f.ghosts[id] end,
+    target=function() return f.room end,map=function() return f.map end,resting=function() return f.resting end,
+    seated=function() return f.seated end,stand=function() f.stands=f.stands+1 end,me=function() return '1001' end,
+    ghost=function(id) return f.ghosts[id] end,
     name=function(id) return 'P'..id end,tell=function(key) f.told[#f.told+1]=key end,
     records={read=function() return f.records end,write=function(text)
         f.writes[#f.writes+1]=text
@@ -63,6 +64,12 @@ reset()
 local wide=track()
 wide.cps[1].x=2900 -- Its centre within 2 m of the fence.
 assert(not game.start(wide,'eight',7,0) and told()=='fence' and #f.matches==0)
+-- SB's own hall chair seats her: the lobby's stand cannot end SB's interaction, so no teleport under it.
+reset()
+f.resting,f.seated=true,{n=3}
+local ok,why=game.start(track(),'eight',7,0)
+assert(ok==false and why=='SB\'s chair seats EVE' and told()=='seat' and #f.matches==0 and f.stands==0
+    and f.ready==0 and f.logs[1]=='sit out: SB\'s chair seats EVE',tostring(f.logs[1]))
 reset()
 f.run_refuses={'busy','a track is being recorded'}
 local ok,why=game.start(track(),'eight',7,0)
@@ -160,7 +167,8 @@ assert(f.matches[2].news().best==false,'A new round: no best yet')
 f.logs={}
 local g2=G.new({run=run,round=round,log=function(x) f.logs[#f.logs+1]=x end,on=function() return true end,
     riding=function() return false end,night=function() return false end,slot=function() return true end,
-    target=function() return ROOM end,map=function() return MAP end,seated=function() end,stand=function() end,
+    target=function() return ROOM end,map=function() return MAP end,resting=function() end,seated=function() end,
+    stand=function() end,
     me=function() return '1001' end,ghost=function() end,name=function() end,tell=function() end,
     records={read=function() error('disk gone',0) end,write=function() f.writes[#f.writes+1]='x'; return true end}})
 g2.start(track(),'eight',7,0)

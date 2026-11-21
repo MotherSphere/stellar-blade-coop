@@ -257,6 +257,7 @@ return {
         placed='Wyścig Doro: miejsce %d z %d.',
         match={off='Wyścig Doro jest wyłączony w Opcjach: pomijasz tę rundę.',
             bike='Zsiądź z motocykla, aby ścigać się w następnej rundzie.',
+            seat='Wstań z miejsca, aby ścigać się w następnej rundzie.',
             night='Trwa Nocna operacja: pomijasz tę rundę.',save='Wyścig wymaga zapisu co-op: pomijasz tę rundę.',
             room='Nie jesteś w poczekalni: pomijasz tę rundę.',fence='Trasa wychodzi poza tę salę: pomijasz tę rundę.',
             map='Trasa jest na innej mapie: pomijasz tę rundę.',

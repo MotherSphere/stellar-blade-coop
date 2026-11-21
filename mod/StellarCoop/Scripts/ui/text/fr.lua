@@ -269,6 +269,7 @@ return {
         placed='Course de Doro : place %d sur %d.',
         match={off='La course de Doro est désactivée dans les Options : vous ne jouez pas cette manche.',
             bike='Descendez de la moto pour courir la prochaine manche.',
+            seat='Levez-vous de votre siège pour courir la prochaine manche.',
             night='Une Opération nocturne est en cours : vous ne jouez pas cette manche.',
             save='Les courses demandent une sauvegarde co-op : vous ne jouez pas cette manche.',
             room="Vous n'êtes pas dans la salle d'attente : vous ne jouez pas cette manche.",

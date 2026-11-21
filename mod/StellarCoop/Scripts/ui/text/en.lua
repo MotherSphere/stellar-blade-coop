@@ -315,6 +315,7 @@ return {
         placed='Doro race: you placed %d of %d.',
         match={off='Doro races are off in Options: you sit out this round.',
             bike='Get off the bike to race in the next round.',
+            seat='Get up from your seat to race in the next round.',
             night='A Night Operation run is on: you sit out this round.',
             save='Doro races need a co-op save: you sit out this round.',
             room='You are not in the waiting room: you sit out this round.',

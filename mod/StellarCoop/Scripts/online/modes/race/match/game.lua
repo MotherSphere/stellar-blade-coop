@@ -7,18 +7,21 @@
 -- is written to coop-records.txt. A player who cannot race sits out the round with one log line and one notice and
 -- sends nothing: race_match=off, EVE on the bike, a Night Operation run on, not a co-op save, EVE not in the lobby
 -- room, the track on another map or outside the room's fence, or the race's own start refuses (a track being
--- recorded, the drive probe on, no EVE, the teleport refused). EVE gets up from a hall seat first. When the round ends
--- our race closes: the host leaving or a round cancelled before its ranking is told. A player who sat out sees only
--- her notice. tests/lua/online/modes/race/match/game_test.lua covers it on fakes.
+-- recorded, the drive probe on, no EVE, the teleport refused). EVE gets up from the mod's own hall seat first. A
+-- player that SB's own hall chair seats sits out too: the lobby's stand cannot end SB's interaction, so a teleport
+-- onto her slot would land while it still runs on her. When the round ends our race closes: the host leaving
+-- or a round cancelled before its ranking is told. A player who sat out sees only her notice.
+-- tests/lua/online/modes/race/match/game_test.lua covers it on fakes.
 local Mm=require('online.modes.race.match.model')
 local G={}
 -- o: run (run.lua's), round (round.lua's), log(text), on() (race_match=on), riding(), night() (a Night Operation run
 -- is on), slot() (a co-op save: true, or false and why), target() (the lobby room EVE stands in, as
--- online/lobby/sbo.lua gives it, or nil), map() (EVE's map as core/unreal.lua's U.map_of gives it, or nil), seated(),
--- stand(), me() (our SteamID), ghost(id) (a round player's ghost, or nil), name(id) (a member's name), tell(key) (a
--- notice: off, bike, night, save, room, fence, map, busy, refused and track for a sit-out; notrack, host_left and
--- cancelled; ui/text's race.match), records ({read() the text of coop-records.txt or nil, write(text) true when
--- written}, or nil).
+-- online/lobby/sbo.lua gives it, or nil), map() (EVE's map as core/unreal.lua's U.map_of gives it, or nil), resting()
+-- (SB's own interaction runs on EVE: a hall chair of SB seats her), seated() (the mod's seat), stand(), me() (our
+-- SteamID), ghost(id) (a round player's ghost, or nil), name(id) (a member's name), tell(key) (a notice: off, bike,
+-- night, save, room, fence, map, seat, busy, refused and track for a sit-out; notrack, host_left and cancelled;
+-- ui/text's race.match), records ({read() the text of coop-records.txt or nil, write(text) true when written}, or
+-- nil).
 function G.new(o)
     local self={}
     local playing=false -- Our race started in the round under way.
@@ -54,6 +57,7 @@ function G.new(o)
         if not room then return sit('room','EVE is not in the lobby room') end
         if t.map~=map then return sit('map','the track is on '..t.map..'; EVE is on '..tostring(map)) end
         if not Mm.fits(t,room,map) then return sit('fence','the track runs outside the room '..room.key) end
+        if o.resting() then return sit('seat','SB\'s chair seats EVE') end
         if o.seated() then o.stand() end
         local cur=o.round.round()
         local me,by_id=o.me(),{}

@@ -262,6 +262,7 @@ return {
         placed='Dororace: plaats %d van %d.',
         match={off='Dororace staat uit in Opties: je slaat deze ronde over.',
             bike='Stap van de motor om de volgende ronde mee te racen.',
+            seat='Sta op van je stoel om de volgende ronde mee te racen.',
             night='Er loopt een Nachtelijke missie: je slaat deze ronde over.',
             save='Races vragen een co-opgame: je slaat deze ronde over.',
             room='Je bent niet in de wachtruimte: je slaat deze ronde over.',

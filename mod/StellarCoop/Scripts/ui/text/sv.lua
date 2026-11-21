@@ -255,6 +255,7 @@ return {
         placed='Dorolopp: plats %d av %d.',
         match={off='Dorolopp är avstängt i Alternativ: du står över den här rundan.',
             bike='Kliv av motorcykeln för att köra i nästa runda.',
+            seat='Res dig från platsen för att köra i nästa runda.',
             night='En Nattinsats pågår: du står över den här rundan.',
             save='Lopp kräver en co-op-sparfil: du står över den här rundan.',
             room='Du är inte i väntrummet: du står över den här rundan.',

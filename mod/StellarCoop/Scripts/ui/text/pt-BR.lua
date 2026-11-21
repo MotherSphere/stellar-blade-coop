@@ -265,6 +265,7 @@ return {
         placed='Corrida de Doro: posição %d de %d.',
         match={off='A Corrida de Doro está desligada nas Opções: você fica fora desta rodada.',
             bike='Desça da moto para correr na próxima rodada.',
+            seat='Levante-se do assento para correr na próxima rodada.',
             night='Uma Operação noturna está em andamento: você fica fora desta rodada.',
             save='Corridas exigem um jogo salvo co-op: você fica fora desta rodada.',
             room='Você não está na sala de espera: fica fora desta rodada.',

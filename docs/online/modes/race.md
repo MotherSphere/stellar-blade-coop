@@ -274,7 +274,8 @@ At the countdown's 0 every game closes the lobby menu. The log reads `[StellarCo
 host's game fixes the track and sends it to every player, one line each 250 ms. Each game, once it has the whole
 track:
 
-1. stands EVE up if she sits on a hall seat;
+1. stands EVE up if she sits on a hall seat through F5. A player that Stellar Blade's own chair seats (its Rest
+   prompt) sits out instead: the mod cannot stand her up from the game's chair;
 2. moves her to her slot on the start line, facing the track's way. The slots stand in rows of two, 3 m apart across
    and 3 m back from row to row: slot 1 on the left of the start line's centre, slot 2 on its right, slots 3 and 4
    behind them and so on to slot 8. Her slot is her place in the round's player list: the host first, then the
@@ -298,6 +299,7 @@ her log. Her game sends nothing:
 | --- | --- |
 | `Doro races are off in Options: you sit out this round.` | `race_match=off` |
 | `Get off the bike to race in the next round.` | EVE rides the [bike](../../vehicles/bike.md) |
+| `Get up from your seat to race in the next round.` | Stellar Blade's own chair seats EVE in a [hall lobby](../lobby.md#hall-lobbies) |
 | `A Night Operation run is on: you sit out this round.` | A [Night Operation](nightop.md) run or a challenge of `coop challenge` is on |
 | `Doro races need a co-op save: you sit out this round.` | Her game does not play a co-op save |
 | `You are not in the waiting room: you sit out this round.` | EVE is not in the lobby room |

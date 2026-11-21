@@ -257,6 +257,7 @@ return {
         placed='Doro-løb: nummer %d af %d.',
         match={off='Doro-løb er slået fra i Indstillinger: du står over i denne runde.',
             bike='Stig af motorcyklen for at køre med i næste runde.',
+            seat='Rejs dig fra sædet for at køre med i næste runde.',
             night='En Natmission er i gang: du står over i denne runde.',
             save='Løb kræver et co-op-spil: du står over i denne runde.',
             room='Du er ikke i venterummet: du står over i denne runde.',

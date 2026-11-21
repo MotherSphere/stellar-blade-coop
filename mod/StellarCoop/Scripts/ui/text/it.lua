@@ -268,6 +268,7 @@ return {
         placed='Gara di Doro: posto %d su %d.',
         match={off='La Gara di Doro è disattivata nelle Opzioni: salti questo round.',
             bike='Scendi dalla moto per correre il prossimo round.',
+            seat='Alzati dal posto per correre il prossimo round.',
             night="È in corso un'Operazione notturna: salti questo round.",
             save='Le gare richiedono un salvataggio co-op: salti questo round.',
             room="Non sei nella sala d'attesa: salti questo round.",

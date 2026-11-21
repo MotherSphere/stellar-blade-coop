@@ -264,6 +264,7 @@ return {
         placed='Doro yarışı: sıra %d / %d.',
         match={off='Doro yarışı Seçeneklerde kapalı: bu turda oynamıyorsun.',
             bike='Sonraki turda yarışmak için motosikletten in.',
+            seat='Sonraki turda yarışmak için oturduğun yerden kalk.',
             night='Bir Gece Operasyonu sürüyor: bu turda oynamıyorsun.',
             save='Yarışlar co-op kaydı gerektirir: bu turda oynamıyorsun.',
             room='Bekleme odasında değilsin: bu turda oynamıyorsun.',

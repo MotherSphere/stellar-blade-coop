@@ -249,6 +249,8 @@ The notice and the `[StellarCoop][DR] sit out: <why>` line in `UE4SS.log` say wh
   room fits: the host picks another, or Random.
 - `the track is on <map>; EVE is on <map>`: the host's track was recorded on another map.
 - `EVE is not in the lobby room`: your game does not see you in the SBO lobby's room.
+- `SB's chair seats EVE`: you rested on one of the game's chairs in a hall when the round started. Get up before
+  the countdown ends.
 - `a track is being recorded`, `the drive probe runs` or `a race is on`: type `coop race cancel`, `coop race drive off`
   or `coop race quit`.
 - `the game refused the teleport to slot <k>` or `no EVE in the world`: the game would not move EVE to her slot.

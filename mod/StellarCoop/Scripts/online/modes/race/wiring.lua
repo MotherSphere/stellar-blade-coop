@@ -113,6 +113,8 @@ if M.link then
             local me=require('core.where').me()
             return me and me.map
         end,
+        -- The lobby's busy(): SBCharacter's IsRunningInteraction (its exec 0x14268cc20 reads byte +0x3493) at its pass.
+        resting=function() return sbo.busy()==true end,
         seated=function() return sbo.seated()~=nil end,stand=function() return sbo.stand() end,
         me=function() return (M.link.saves() or {}).steamid end,
         ghost=function(id)

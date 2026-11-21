@@ -267,6 +267,7 @@ return {
         placed='Doro-kilpa: sija %d/%d.',
         match={off='Doro-kilpa on pois päältä asetuksissa: jäät pois tältä kierrokselta.',
             bike='Nouse moottoripyörän selästä ajaaksesi seuraavalla kierroksella.',
+            seat='Nouse istuimelta ajaaksesi seuraavalla kierroksella.',
             night='Yöoperaatio on käynnissä: jäät pois tältä kierrokselta.',
             save='Kilpa vaatii co-op-tallennuksen: jäät pois tältä kierrokselta.',
             room='Et ole odotushuoneessa: jäät pois tältä kierrokselta.',
