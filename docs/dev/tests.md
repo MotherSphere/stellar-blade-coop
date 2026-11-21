@@ -487,7 +487,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   after it went and came back between two reads, one SB showed again told once across its sublevel's return, a
   SkyCreator sublevel with no dome, nothing read off the live passes and a sublevel that came meanwhile looked up at the
   first live pass, a streaming level whose read raises; the Terrace hall left alone; with the keep, no star material
-  loaded at dusk until it is in;
+  loaded at dusk until it is in; a dome actor that comes back at the freed address of the old one, whose star layer
+  went with the old actor, gets it looked for and made again;
 - `world/objects/wiring_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the
   start once a load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two
   notices;
