@@ -322,13 +322,13 @@ public:
 
 private:
   // Spectate's words on the fight= line (phase 3): ours from the game thread's word, the member she watches as her
-  // last spec line said it (- for none), and our member number (0 the host or alone, 1 the pair).
+  // last spec line said it (- for none) and our member number (0 the host or alone, 1 the pair).
   std::string spectate_words() const {
     return spectate::words(spec_) + " her_spec=" + spectate::member(her_spec_) + " mem=" +
            (linked_ && !hosting_ ? "1" : "0");
   }
   // Each pass: our spec line to her at each change of the member we watch and again after her on (none before we
-  // first watch), and a log line at each enter, reason to get up and leave of the game thread's spectate.
+  // first watch). A log line at each enter, reason to get up and leave of the game thread's spectate.
   template <class Io> void spectated(bool linked, bool hosting, Io &io) {
     const bool on = spec_ & 1;
     const uint8_t watched = on ? uint8_t(spec_ >> 8) : kNoMember, up = uint8_t(spec_ >> 16), out = uint8_t(spec_ >> 40);

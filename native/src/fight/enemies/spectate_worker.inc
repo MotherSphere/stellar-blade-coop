@@ -74,7 +74,7 @@ void spectate_undo(const char *why) {
 }
 // Each fight pass: the facts only the worker knows (paired: the pair there with the shared fight on and not stopped
 // for the run; running: it runs with her, no pause on either side), the fault said once (the slot then goes back), the
-// swap once a run, and the presses swallowed since the last pass.
+// swap once a run and the presses swallowed since the last pass.
 void spectate_pass(bool paired, bool running) {
   spectate_paired = paired, spectate_running = running;
   if (spectate_faulted && !spectate_fault_logged) {
@@ -98,7 +98,7 @@ void spectate_pass(bool paired, bool running) {
     spectate_swallowed_logged = n;
   }
 }
-// The engine line's words (core/link.lua, fight/enemies/spectate.lua): the setting or the latch, and HUDDead's state
+// The engine line's words (core/link.lua, fight/enemies/spectate.lua): the setting or the latch, then HUDDead's state
 // as last read ("-" while not read: our EVE standing, or not found).
 std::string spectate_status() {
   const uint8_t hud = spectate_hud_read;
@@ -126,7 +126,7 @@ std::string ask_spectate(const coop::Request &request) {
       return std::string("spectate test refused: ") +
              (blocked ? "coop off" : spectate_faulted ? "spectate stopped for this run (a fault)" : engine_reason);
     if (spectate_paired)
-      return "spectate test refused: it runs alone, and the online session's pair is there";
+      return "spectate test refused: the online session's pair is there (the test runs alone)";
     spectate_test_asked = true;
     return "spectate test: at life 3 the death screen stays hidden from the next frame until our EVE is up, 14 s at "
            "most";

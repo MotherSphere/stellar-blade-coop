@@ -861,7 +861,7 @@ private:
   bool boss_ = false;
   uint32_t battle_ = 0, zone_ = 0, resets_ = 0;
   // Spectate (phase 3, spectate_turn()): our boss copy since our EVE went down (0: none yet), whether it died, its
-  // phase signature, our EVE's life at the last turn, an LV_Dead death and whether it was read, and our zone's type by
+  // phase signature, our EVE's life at the last turn, an LV_Dead death, whether that was read and our zone's type by
   // alias.
   uint32_t spec_boss_ = 0, spec_sig_ = 0;
   bool spec_died_ = false, spec_pit_ = false, spec_pit_read_ = false;

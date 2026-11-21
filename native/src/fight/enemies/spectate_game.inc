@@ -5,8 +5,9 @@
 // Spectate in the game (phase 3; fight/enemies/spectate.h decides, spectate_worker.inc swaps the slot and logs). Each
 // frame on the game thread, in game with lion_gate open: our EVE's life, the death screen's state, the job's facts
 // (the pair table's spec) and, while our EVE is down, SB's MultiPlay rule row; then SB's death screen setter with 0
-// while spectate holds, and once with SB's own value after a leave. The press handler's slot runs spectate_filter,
-// which swallows Left and Right as spectate.h says and hands every other press to SB's handler unchanged.
+// while spectate holds. After a leave the setter runs once with SB's own value. The press handler's slot runs
+// spectate_filter, which swallows Left and Right as spectate.h says and hands every other press to SB's handler
+// unchanged.
 
 namespace coop::pose {
 namespace {
@@ -188,7 +189,7 @@ __declspec(noinline) bool spectate_after_fault() {
     spectate_set(hud, life == 3 ? 1 : 4);
   return true;
 }
-// coop_tick runs it while not blocked, and after coop off while the hold is ours (its Out::off gives it back).
+// coop_tick runs it while not blocked. After coop off it runs while the hold is ours (its Out::off gives it back).
 bool spectate_holding() {
   return spectate_faulted ? !spectate_released : spectator.on() || spectate_held || spectate_test_until;
 }

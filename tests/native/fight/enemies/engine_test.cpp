@@ -2798,7 +2798,8 @@ int main() {
     run(6000);
     assert(f.nearby == 1 && f.up == 1);
     // spectate_phase_sig: a phase row added on our boss copy changes the signature; the same set again (the row twice,
-    // then once) gives the same value, and without it the first value again. The copy's death counts from then on.
+    // then once) gives the same value. Without it the first value comes back. Two rows give one value in either order.
+    // The copy's death counts from then on.
     const uint32_t first = f.phase_sig;
     g.knock(130, 5026013);
     run(6100);
@@ -2813,6 +2814,16 @@ int main() {
     g.end(130, 5026013);
     run(6400);
     assert(f.phase_sig == first && !f.copy_died);
+    g.knock(130, 5026013), g.knock(130, 5026021);
+    run(6430);
+    const uint32_t both = f.phase_sig;
+    assert(both && both != first && both != second);
+    g.end(130, 5026013), g.knock(130, 5026013); // The list now reads 5026021, then 5026013.
+    run(6460);
+    assert(f.phase_sig == both);
+    g.end(130, 5026013), g.end(130, 5026021);
+    run(6490);
+    assert(f.phase_sig == first);
     g.hit(130, kHp, 1600);
     run(6500);
     assert(f.copy_died);
@@ -2871,7 +2882,39 @@ int main() {
     run(3500);
     assert(g.relocated.size() == 1 && count(g, "pit relocate") == 1 && !e->latched());
   }
-  // ---- Phase 3: spectate on the fight= line, live, and the spec lines both ways ----
+  // ---- Phase 3: the game thread's spectate reaches the host's scene hold, the held scene reaches the facts ----
+  // Raven's spawn row (1410024156: a scene at HP <= 60 %) on our boss copy at 61000 of 100000, our EVE dead, her vitals
+  // alive. While the game thread's flags say spectate, her claim across 60 % waits and the facts say scene_hold. With
+  // spectate off the claim goes.
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    e->bosses(100);
+    e->set(true, true);
+    g.spawn(131, 1410024156, 0, 35026001, 100000, kTypeBoss);
+    g.mem.put(g.stat_at(131, kHp), 61000.f);
+    g.inbox.push_back(msg("SBF25 on"));
+    uint64_t t = 0;
+    frame(g, *e, t);
+    g.mem.put<int32_t>(g.fsb(1) + kLife, 3); // Our EVE dead.
+    Message mate;
+    mate.type = Type::mate, mate.life = coop::Life::alive;
+    g.inbox.push_back(mate);
+    g.flags.spectating = true;
+    frame(g, *e, t += 16);
+    frame(g, *e, t += 16); // The flags reach the engine at its publish, Host and Guest at the next turn.
+    assert(!g.table.spec.scene_hold);
+    g.inbox.push_back(msg("SBF25 hit " + std::to_string(e->host.gen()) + " 1 131 2000 0 0 61000 0"));
+    frame(g, *e, t += 16);
+    assert(g.hp(131) == 61000 && e->host.scene_held() == 131 && count(g, "scene-held") == 1);
+    assert(g.table.spec.scene_hold);
+    g.flags.spectating = false;
+    frame(g, *e, t += 16);
+    frame(g, *e, t += 16);
+    assert(g.hp(131) == 59000 && e->host.scene_held() == 0 && !g.table.spec.scene_hold && !e->latched());
+  }
+  // ---- Phase 3: spectate on the fight= line, live, with the spec lines both ways ----
   // The game thread's word goes on the fight= line at the worker's next pass, with no stats second between, beside the
   // member she watches by her spec line and our member number. Our spec line goes to her at each change of the member
   // we watch and again after her on; the log says each enter, reason and leave once. Her spec line never reaches the

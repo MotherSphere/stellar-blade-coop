@@ -201,13 +201,13 @@
 //
 // Spectate (phase 3, fight/enemies/spectate.h): a player down in a shared boss fight watches the other member. Each
 // frame in game coop_tick reads our EVE's life, the death screen's state (HUDDead, found through SB's UI manager the
-// way the death path reaches it) and, while our EVE is down, SB's MultiPlay rule row through SB's own lookup; with the
-// job's facts (the pair table's spec) spectate decides, and SB's death screen setter keeps the screen hidden while it
+// way the death path reaches it) and, while our EVE is down, SB's MultiPlay rule row through SB's own lookup. With the
+// job's facts (the pair table's spec) spectate decides. SB's death screen setter keeps the screen hidden while it
 // watches, then gives it back once with SB's own value. The worker swaps HUDDead's press handler slot once a run for a
 // filter on the game thread that swallows Left and Right while spectate holds or would enter, so no press starts the
 // camp respawn; the WB Pump's button always passes. A leave, coop off and a fault each give the screen back once; the
 // worker swaps the slot back at coop off and after a fault. All of it runs under its own SEH latches (the tick, the
-// filter, the swap); status() gives the setting and the screen's state in the engine line, and the fight= line carries
+// filter, the swap). status() gives the setting and the screen's state in the engine line. The fight= line carries
 // spectate's state.
 //
 // The SBO lobby's Join (game/sbo.h): on Lua's sbo arm the worker swaps one pointer of the game's image once a run, the
