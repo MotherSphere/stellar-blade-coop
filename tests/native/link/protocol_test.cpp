@@ -21,11 +21,13 @@ static Message parse_text(const std::string &text) { return parse(text.data(), t
 int main() {
   // Lobby tag: protocol and game build.
   assert(lobby_tag(24463856) == std::to_string(kProtocol) + ":24463856");
-  // The match modes: FFA on its first arena and the score attack in the lobby room, nothing else.
+  // The match modes: FFA on its first arena, the score attack and the Doro race in the lobby room, nothing else.
   assert(find_mode("ffa") && find_mode("ffa")->min == 2 && std::string(find_mode("ffa")->map) == "NK_Boss_Scarlet" &&
          !find_mode("tdm") && !find_mode(""));
   assert(find_mode("scoreattack") && find_mode("scoreattack")->min == 2 &&
-         std::string(find_mode("scoreattack")->map) == "lobby" && std::size(kModes) == 2);
+         std::string(find_mode("scoreattack")->map) == "lobby");
+  assert(find_mode("race") && find_mode("race")->min == 2 && std::string(find_mode("race")->map) == "lobby" &&
+         std::size(kModes) == 3 && !find_mode("dr") && !find_mode("Race"));
 
   // The handshake envelope reads the same whatever the sender's protocol: a mismatch is answered, never ignored.
   Message m = parse_text(hello(kProtocol, "v0.2-3-gabc", 24463856));
@@ -156,6 +158,22 @@ int main() {
                                  std::string("SBC25 score go 7 targets")})
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse_text(race_line("go 7 targets")).kind == Kind::race);
+
+  // A Doro race line of a match round, reliable: Lua's text after "SBC<n> dr ", read as the score line is and never as
+  // a race or score line.
+  assert(dr_line("rank 7 1001:61200,2002:dnf") == p + " dr rank 7 1001:61200,2002:dnf");
+  m = parse_text(dr_line("cps 4294967295 1 -6402900 15121400 -1590000 400"));
+  assert(m.kind == Kind::dr && m.text == "cps 4294967295 1 -6402900 15121400 -1590000 400");
+  const std::string dr = p + " dr ";
+  assert(parse_text(dr + std::string(kMaxMessage - dr.size(), '~')).kind == Kind::dr &&
+         parse_text(dr + std::string(kMaxMessage - dr.size() + 1, '~')).kind == Kind::invalid);
+  for (const std::string &bad : {dr + "a\tb", dr + "a\x7f", dr + "caf\xc3\xa9", dr + "a\nb", p + " dr", dr,
+                                 p + " Dr go 7 1 xion_eight", p + " drs go 7 1 xion_eight",
+                                 "SBC" + std::to_string(kProtocol - 1) + " dr go 7 1 xion_eight",
+                                 "SBC" + std::to_string(kProtocol + 1) + " dr go 7 1 xion_eight"})
+    assert(parse_text(bad).kind == Kind::invalid);
+  assert(parse_text(score_line("go 7 1 xion_eight")).kind == Kind::score &&
+         parse_text(race_line("go 7 1 xion_eight")).kind == Kind::race);
 
   // coop gift's line, reliable: s <id> <alias> <count>, a <id>, n <id> <why>, each field at its edge. Anything else is
   // invalid, never cleaned into another line.
@@ -440,7 +458,7 @@ int main() {
                                mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
                                count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line(),
                                cycle_line(3, 1), let_line(2002, {2002, 4003}, 4), wait_line(120),
-                               score_line("done 7 win 900 412")};
+                               score_line("done 7 win 900 412"), dr_line("done 7 fin 61200 1")};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -476,6 +494,8 @@ int main() {
       assert(f.a <= 10);
     if (f.kind == Kind::score) // Printable ASCII, the line exactly as score_line() writes it.
       assert(text == score_line(f.text));
+    if (f.kind == Kind::dr) // The same for dr_line().
+      assert(text == dr_line(f.text));
     if (f.kind == Kind::let) { // 1 to 7 distinct SteamIDs, none 0; the pair 0 or one of them.
       std::set<uint64_t> ids(f.ids.begin(), f.ids.end());
       assert(!f.ids.empty() && f.ids.size() <= kMaxRemote && ids.size() == f.ids.size() && !ids.count(0) &&
@@ -1288,6 +1308,11 @@ int main() {
   Request sr = parse_request("score done 7 win 900 412\r\n");
   assert(sr.command == Command::score && sr.text == "done 7 win 900 412");
   for (const char *bad : {"score", "score ", "scores go 7 targets", "Score go 7 targets"})
+    assert(parse_request(bad).command == Command::none);
+  // A Doro race request of a match round: dr <text>, the same way.
+  Request dq = parse_request("dr done 7 fin 61200 1\r\n");
+  assert(dq.command == Command::dr && dq.text == "done 7 fin 61200 1");
+  for (const char *bad : {"dr", "dr ", "drs go 7 1 xion_eight", "Dr go 7 1 xion_eight", "drive go"})
     assert(parse_request(bad).command == Command::none);
   Request ir = parse_request("items 7 HP_Potion 4096 0\r\n");
   assert(ir.command == Command::items && ir.ask == 7 && ir.alias == "HP_Potion" && ir.index == 4096 && ir.number == 0);

@@ -249,6 +249,10 @@ fake_link.uidev=function() return link_uidev end
 fake_link.scores={}
 fake_link.take_score=function() return {} end
 fake_link.score=function(text) fake_link.scores[#fake_link.scores+1]=text; return true end
+-- link.take_dr() and link.dr(text), the same for the Doro race lines of a match round (fake_link.drs).
+fake_link.drs={}
+fake_link.take_dr=function() return {} end
+fake_link.dr=function(text) fake_link.drs[#fake_link.drs+1]=text; return true end
 native_ok=nil
 captured,remoted={},nil
 -- capture_leave_out: what main.lua gave the capture's leave_out (the bike's idle_part).

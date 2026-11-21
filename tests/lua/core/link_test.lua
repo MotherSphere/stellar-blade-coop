@@ -1487,6 +1487,26 @@ files[CHAT]=table.concat(many,'\n')..'\n'
 link.take_chat()
 scores=link.take_score()
 assert(#scores==64 and scores[1].text=='now 7 7 1' and scores[64].text=='now 7 70 1')
+-- Doro race lines of a match round: dr() is a dr request; each member's line waits for take_dr() with her SteamID,
+-- apart from the chat, the race lines and the score lines, oldest first; a line with no id is no dr line.
+files[REQUEST]=nil
+assert(link.dr('go 7 4242 xion_eight') and files[REQUEST]=='dr go 7 4242 xion_eight\n')
+files[REQUEST]=nil
+assert(#link.take_dr()==0)
+files[CHAT]='dr 2002 ready 7\nin 2002 dr 9\ndr x go 7\nscore 4003 ready 7\ndr 4003 done 7 fin 61200 1\nrace dr 1\n'
+chat=link.take_chat()
+assert(#chat==2 and chat[1].text=='dr 9' and chat[2].race=='dr 1','Dr lines kept apart')
+local drs=link.take_dr()
+assert(#drs==2 and drs[1].from=='2002' and drs[1].text=='ready 7' and drs[2].from=='4003'
+    and drs[2].text=='done 7 fin 61200 1' and #link.take_dr()==0,'Handed over once, in order')
+scores=link.take_score()
+assert(#scores==1 and scores[1].text=='ready 7','A score line stays a score line')
+-- The same ceiling: 64 waiting at most, the oldest dropped.
+for i=1,70 do many[i]='dr 2002 cp 7 1 1 '..i end
+files[CHAT]=table.concat(many,'\n')..'\n'
+link.take_chat()
+drs=link.take_dr()
+assert(#drs==64 and drs[1].text=='cp 7 1 1 7' and drs[64].text=='cp 7 1 1 70' and #link.take_score()==0)
 -- ponytail's ceiling: 512 waiting at most, the oldest dropped, for a native part that never takes the file.
 files[RACE]='stuck\n'
 for i=1,520 do link.race('cp 7 1 1 '..i) end

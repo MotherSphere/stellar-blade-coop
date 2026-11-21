@@ -27,6 +27,7 @@
 //   further).
 //   SBC<protocol> score <text> (a score attack line, online/modes/scoreattack/model.lua's, printable ASCII, in a match
 //   lobby only; the link reads no further either).
+//   SBC<protocol> dr <text> (a Doro race line of a match round, online/modes/race/match/model.lua's, the same way).
 //   SBC<protocol> gift <payload> (coop gift, cutmenus/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept
 //   in the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 //   SBC<protocol> bike park <map> <x> <y> <z> <pitch> <yaw> <roll> or SBC<protocol> bike none (her parked bike,
@@ -138,13 +139,14 @@ constexpr int kMaxMembers = 4;
 constexpr char kModeKey[] = "sbo_mode", kStateKey[] = "sbo_state", kMapKey[] = "sbo_map";
 constexpr char kRoomKey[] = "sbo_room", kHallKey[] = "sbo_hall";
 // A mode: its name in kModeKey, the players its round needs at least, and its map until stage 4 adds arenas. The score
-// attack's map word is lobby: its round plays in the room the members wait in (online/modes/scoreattack/).
+// attack's and the Doro race's map word is lobby: their rounds play in the room the members wait in
+// (online/modes/scoreattack/, online/modes/race/match/).
 struct Mode {
   const char *name;
   uint32_t min;
   const char *map;
 };
-constexpr Mode kModes[] = {{"ffa", 2, "NK_Boss_Scarlet"}, {"scoreattack", 2, "lobby"}};
+constexpr Mode kModes[] = {{"ffa", 2, "NK_Boss_Scarlet"}, {"scoreattack", 2, "lobby"}, {"race", 2, "lobby"}};
 // The mode of that name, or null when unknown.
 inline const Mode *find_mode(std::string_view name) {
   for (const Mode &m : kModes)
@@ -273,7 +275,7 @@ inline Life life_of(const Vitals &v) {
 
 enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
-  race, gift, bike, start, count, end, let, wait, cycle, score
+  race, gift, bike, start, count, end, let, wait, cycle, score, dr
 };
 // The follow's camps lines (online/group/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers
 // that id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in
@@ -317,8 +319,8 @@ struct Message {
                          // the container's name, mod_name_ok(). dlc: its name, chat_clean() to kMaxDlcName and never
                          // empty. camps: the host's world, or "none". night: the
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
-                         // "race ", printable ASCII. score: the text after "score ", the same way. gift: the payload,
-                         // gift_ok(). bike: the payload, bike_ok().
+                         // "race ", printable ASCII. score: the text after "score ", the same way. dr: the text
+                         // after "dr ", the same way. gift: the payload, gift_ok(). bike: the payload, bike_ok().
                          // start: the mode.
   Vitals vitals{};       // vitals: hers, plausible_vitals().
   std::string why;         // camps none: why.
@@ -357,6 +359,8 @@ inline std::string say_line(const std::string &text) {
 inline std::string race_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " race " + text; }
 // A score attack line, reliable, the same way: one that parse() would not read as Kind::score is never sent.
 inline std::string score_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " score " + text; }
+// A Doro race line of a match round, reliable, the same way: one that parse() would not read as Kind::dr is never sent.
+inline std::string dr_line(const std::string &text) { return "SBC" + std::to_string(kProtocol) + " dr " + text; }
 // Our vitals, unreliable: on change and each second (link/core.h).
 inline std::string vit_line(const Vitals &v) {
   std::string line = "SBC" + std::to_string(kProtocol) + " vit";
@@ -682,9 +686,9 @@ inline Message parse(const char *data, size_t size) {
       m.kind = Kind::night;
       m.text = rest;
     }
-  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && (f[1] == "race" || f[1] == "score")) {
+  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && (f[1] == "race" || f[1] == "score" || f[1] == "dr")) {
     if (std::all_of(rest.begin(), rest.end(), [](char c) { return c >= 0x20 && c <= 0x7e; })) {
-      m.kind = f[1] == "race" ? Kind::race : Kind::score;
+      m.kind = f[1] == "race" ? Kind::race : f[1] == "score" ? Kind::score : Kind::dr;
       m.text = rest;
     }
   } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "gift") {
@@ -939,7 +943,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score
+  pausetab, popups, teamshop, score, dr
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -948,7 +952,8 @@ enum class Command {
 // <SteamID>" and "unmute <SteamID>", in any lobby: that member's chat lines are dropped here, or heard again, for the
 // rest of the game run. block: "block <SteamID>" (the block list, link/core.h: kept out of every lobby we host, across
 // game runs); unblock: "unblock <SteamID>" or "unblock all" (player 0). score: "score <text>", a score attack line for
-// every member of the match lobby (link/core.h's score(), which refuses a text score_line() would not carry).
+// every member of the match lobby (link/core.h's score(), which refuses a text score_line() would not carry). dr:
+// "dr <text>", a Doro race line of a match round, the same way (dr(), dr_line()).
 enum class MatchAsk : uint8_t { search, create, cancel, end };
 // shortcut load's maps, game/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
@@ -1427,6 +1432,8 @@ inline Request parse_request(std::string text) {
     r.command = Command::gift, r.text = text.substr(5);
   } else if (text.rfind("score ", 0) == 0) {
     r.command = Command::score, r.text = text.substr(6);
+  } else if (text.rfind("dr ", 0) == 0) {
+    r.command = Command::dr, r.text = text.substr(3);
   } else if (text.rfind("guardtext ", 0) == 0) {
     r.command = Command::guardtext, r.text = text.substr(10);
   } else if (uint64_t ask = 0, index = 0, number_ = 0;

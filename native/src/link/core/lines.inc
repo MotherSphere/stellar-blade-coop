@@ -135,6 +135,25 @@ public:
     ++(ok ? score_out_ : score_dropped_);
     return ok;
   }
+  // A Doro race line of a match round from Lua (a dr request, online/modes/race/match/round.lua's), the same way as a
+  // score attack line: dr_line(), kDrPerSecond and its own counts.
+  bool dr(const std::string &text) {
+    if (!match() || !linked())
+      return false;
+    const std::string line = dr_line(text);
+    bool ok = parse(line.data(), line.size()).kind == Kind::dr;
+    if (ok && over_rate(dr_window_, 1, kDrPerSecond, kDrPerSecond * kMaxMessage)) {
+      ok = false;
+      if (!std::exchange(dr_logged_, true))
+        event("dropped our dr lines: over the rate limit");
+    }
+    if (ok)
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+          ok = false;
+    ++(ok ? dr_out_ : dr_dropped_);
+    return ok;
+  }
   // coop gift's line (cutmenus/mailbox.lua, through a gift request): reliable to the friend past the handshake, or
   // back as hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one
   // goes in the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, a
@@ -229,7 +248,8 @@ public:
   }
   // For coop-chat.txt (glue/steam.cpp), oldest first: "in <SteamID> <text>" (a member's, chat_clean(); ours in the
   // loopback), "fail" (ours could not go), "race <text>" (her race line), "score <SteamID> <text>" (a member's score
-  // attack line, with her SteamID from Steam) and "gift <payload>" (her gift line, or our gift that could not go).
+  // attack line, with her SteamID from Steam), "dr <SteamID> <text>" (a member's Doro race line of a match round, the
+  // same way) and "gift <payload>" (her gift line, or our gift that could not go).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
 private:

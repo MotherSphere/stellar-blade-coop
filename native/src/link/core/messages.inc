@@ -7,13 +7,14 @@ private:
 
   void on_message(Peer &peer, const Message &message) {
     // A match lobby carries no photo or cutscene pause, gift, race, follow or night line, either way (decision 10):
-    // each is dropped with no log line. A score attack line counts in a match lobby only: elsewhere it is dropped too.
+    // each is dropped with no log line. A score attack line or a Doro race line of a match round (dr) counts in a match
+    // lobby only: elsewhere it is dropped too.
     const Kind k = message.kind;
     if (match() && (k == Kind::photo || k == Kind::gift || k == Kind::race || k == Kind::camps_ask ||
                     k == Kind::camps ||
                     k == Kind::night)) // Stage 6 adds the night mode: then the owner's lines count in it.
       return;
-    if (!match() && k == Kind::score)
+    if (!match() && (k == Kind::score || k == Kind::dr))
       return;
     // The host's let and wait lines reach a guest of an online session only, from the host only: any other is junk.
     if ((k == Kind::let || k == Kind::wait) && (host_ || match() || peer.id != host_id_)) {
@@ -274,6 +275,18 @@ private:
       ++(why ? score_dropped_ : score_in_);
       if (why && !std::exchange(peer.score_logged, true))
         event("dropped score lines from " + peer.name + ": " + why);
+      break;
+    }
+    // Her Doro race line of a match round, the same way: online/modes/race/match/ checks who may send which.
+    case Kind::dr: {
+      if (!peer.compatible || !peer.accepted)
+        break;
+      const char *why = over_rate(peer.dr_window, 1, kDrPerSecond, kDrPerSecond * kMaxMessage) ? "over the rate limit"
+                        : !for_lua("dr " + std::to_string(peer.id) + " " + message.text)          ? "too many waiting"
+                                                                                                  : nullptr;
+      ++(why ? dr_dropped_ : dr_in_);
+      if (why && !std::exchange(peer.dr_logged, true))
+        event("dropped dr lines from " + peer.name + ": " + why);
       break;
     }
     case Kind::gift: {

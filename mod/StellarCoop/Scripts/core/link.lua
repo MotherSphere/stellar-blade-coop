@@ -777,10 +777,20 @@ function Link.new(folder,fs)
         scores={}
         return out
     end
+    -- Doro race lines of a match round (online/modes/race/match/round.lua's), the same way: dr() is a dr request, each
+    -- member's comes as "dr <her SteamID> <text>" and take_dr() hands them over.
+    -- shortcut: 64 at most, the oldest dropped, as the score lines.
+    local drs={}
+    function self.dr(text) return self.request('dr '..text) end
+    function self.take_dr()
+        local out=drs
+        drs={}
+        return out
+    end
     -- The native part's coop-chat.txt, taken and deleted at once: {text=,from=} for each member's line (from: her
     -- SteamID as digits; ours in the loopback), {fail=true} when one of ours could not go, {race=} for each of her race
     -- lines, {gift=} for each of her gift lines (or a gift of ours that could not go, as her refusal), oldest first;
-    -- a score line goes to take_score(); anything else is ignored.
+    -- a score line goes to take_score() and a dr line to take_dr(); anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
@@ -789,9 +799,13 @@ function Link.new(folder,fs)
             local from,said=line:match('^in (%d+) (.+)$')
             local raced,gifted=line:match('^race (.+)$'),line:match('^gift (.+)$')
             local scorer,scored=line:match('^score (%d+) (.+)$')
+            local dr_from,dr_text=line:match('^dr (%d+) (.+)$')
             if scorer then
                 if #scores>=64 then table.remove(scores,1) end
                 scores[#scores+1]={from=scorer,text=scored}
+            elseif dr_from then
+                if #drs>=64 then table.remove(drs,1) end
+                drs[#drs+1]={from=dr_from,text=dr_text}
             elseif said then lines[#lines+1]={text=said,from=from}
             elseif raced then lines[#lines+1]={race=raced}
             elseif gifted then lines[#lines+1]={gift=gifted}
