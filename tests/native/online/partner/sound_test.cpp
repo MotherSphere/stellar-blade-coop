@@ -4,7 +4,8 @@
 // online/partner/sound.h on the build machine: a set of slots swapped all or none and given back; the three sets apart;
 // the world-effect set; why a sound is hers; what the sink records; the ring under one mark; a show stage's main
 // actor; the asset key's attenuation with params; an SBA line's words from the name pool, a world effect's too; the
-// viewer's check that a loaded object is still the asset at its path; the viewer's place of her sound from its event.
+// viewer's check that a loaded object is still the asset at its path; a looping sound the viewer skips as SB's one-shot
+// notifies do; the viewer's place of her sound from its event.
 #include "online/partner/sound.h"
 
 #include <cassert>
@@ -243,6 +244,12 @@ void test_is_asset() { // the viewer's loaded object is still the asset at its p
   assert(!coop::sound::is_asset(read, Memory::kPool, 0, path));
   assert(!coop::sound::is_asset(read, Memory::kPool, namesake, ""));
 }
+void test_loops() { // SB's one-shot rule: at INDEFINITELY_LOOPING_DURATION or more a sound loops and is skipped
+  using coop::sound::loops;
+  assert(loops(10000.f) && loops(1e9f) && !loops(9999.99f) && !loops(7.67f) && !loops(0.f));
+  assert(!loops(std::nanf(""))); // JNC after COMISS: SB plays a NaN duration
+  assert(coop::sound::kGetDuration == 0x290);
+}
 void test_fit_parts() { // an event on a part the table no longer has goes empty: get_event would refuse the pose
   using coop::pose::Kind;
   coop::pose::Event slots[coop::pose::kEventSlots];
@@ -295,6 +302,7 @@ int main() {
   test_record_words();
   test_record_words_longest_key();
   test_is_asset();
+  test_loops();
   test_fit_parts();
   test_compose();
   std::puts("sound_test: ok");

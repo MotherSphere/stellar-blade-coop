@@ -67,7 +67,8 @@ bool play_admitted[Gate::kMaxAsks];
 Gate play_gate;
 // The viewer's 60 s lines (game thread writes, worker reads and resets).
 std::atomic<uint64_t> window_play_played{0}, window_play_far{0}, window_play_ghost{0}, window_play_all{0},
-    window_play_scene{0}, window_play_hidden{0}, window_play_unnamed{0}, window_play_unloaded{0};
+    window_play_scene{0}, window_play_hidden{0}, window_play_unnamed{0}, window_play_unloaded{0},
+    window_play_looping{0};
 std::atomic<uint64_t> window_worldfx_played{0}, window_worldfx_unspawned{0}, window_worldfx_hidden{0},
     window_worldfx_scene{0}, window_worldfx_unnamed{0}, window_worldfx_unloaded{0};
 
@@ -107,13 +108,20 @@ bool play_loaded(const Named &n) {
 }
 
 // One admitted sound: dropped (not loaded) unless its key names a sound and its objects are still the ones Lua loaded
-// (play_loaded). Else a component of the ghost's actor, never SB's pool (writes go only to the ghost's own
-// components), set up in the footstep's order with her values; the viewer's own sink records none of it.
+// (play_loaded); dropped as looping when its GetDuration reads as one (sound::loops: SB's one-shot notifies skip it,
+// her notify state stops it, the ghost would never). Else a component of the ghost's actor, never SB's pool (writes go
+// only to the ghost's own components), set up in the footstep's order with her values; the viewer's own sink records
+// none of it.
+using GetDuration = float (*)(uintptr_t sound);
 void play_event(const PlayAsk &a) {
   const Loaded &l = a.named.loaded;
   const uintptr_t asset = static_cast<uintptr_t>(l.object);
   if (a.named.kind != a.event.kind || !play_loaded(a.named)) {
     ++window_play_unloaded;
+    return;
+  }
+  if (sound::loops(reinterpret_cast<GetDuration>(at<uintptr_t>(at<uintptr_t>(asset) + sound::kGetDuration))(asset))) {
+    ++window_play_looping;
     return;
   }
   const float volume = a.event.value[0] / 64.f, pitch = a.event.value[1] / 64.f;

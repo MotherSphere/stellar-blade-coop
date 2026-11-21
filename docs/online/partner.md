@@ -62,8 +62,10 @@ These looks have not been tested in game yet. Back up your saves before you play
   the nearest first. A shared scene plays its own sound, so the ghosts are silent during it and during your own
   cutscenes. A hidden ghost is silent too (your photo mode's veil, or a second without a pose). Your game loads each
   sound the first time a ghost names it, one every 0.25 s, so that first time it may be missing. A sound not loaded
-  within 0.2 s of its turn is dropped. Every 60 s with any sound played or dropped, a `sounds played, last 60 s:` line
-  counts why. A fault logs `sounds off: fault ...` once. Her sounds then stop on both sides until the game restarts.
+  within 0.2 s of its turn is dropped. A sound that loops (the wind of her wall run) does not play on the ghost. Her
+  game stops it when her move ends. The ghost has no such stop. Every 60 s with any sound played or dropped, a
+  `sounds played, last 60 s:` line counts why. A fault logs `sounds off: fault ...` once. Her sounds then stop on both
+  sides until the game restarts.
 - `faces`: her eyes, face and shape keys. Her capture names the morph targets of each part that has them (her default
   face mesh has 169). Each pose carries their weights, one byte each. The ghost sets each weight on the morph of
   the same name on the mesh your game draws, so a morph your mesh lacks stays at 0. Her ponytail on a cloth part shows

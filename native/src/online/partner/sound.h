@@ -249,6 +249,14 @@ inline void fit_parts(pose::Event *slots, size_t parts) {
       slots[k] = pose::Event();
 }
 
+// A sound SB's one-shot paths never start: the engine's UAnimNotify_PlaySound::Notify (FUN_143fccef0) and SB's
+// character sound notify (FUN_142018660) call the sound's GetDuration (vtable +0x290) and skip it at 10000 s or more
+// (INDEFINITELY_LOOPING_DURATION, the float at 0x14675059c; JNC after the COMISS, so a NaN still plays). Only a notify
+// state starts one. Its end stops it. The ghost plays each start as a one-shot and stops none: it skips these too.
+constexpr size_t kGetDuration = 0x290;
+constexpr float kLoopingDuration = 10000.f;
+inline bool loops(float duration) { return duration >= kLoopingDuration; }
+
 // The viewer's side: an event's place (rotation xyzw, translation xyz, relative to parent as game/partner/engine.h's
 // relative() wrote it on her side) back into the world (rotation xyzw, translation xyz), as UE composes child =
 // relative * parent: rotation qp qc, translation tp + qp (tc sp) conj(qp), sp the parent's X scale.

@@ -432,13 +432,17 @@ Each admitted sound plays with the calls SB's footstep notify (`0x142019370`) ma
 A sound is dropped and counted as not loaded when one of its objects is no longer the one Lua loaded. The sound must
 be alive with the class it was loaded as. Its sound class and attenuation, when named, must be alive. The path of each
 one, read from the name pool (its package, then its name), must be the one her SBA line names, in any case. An effect
-gets the same check. A part Lua did not
-draw (a follower, a part left out) hangs the sound on the ghost's main mesh. These calls run only while
+gets the same check. A sound that loops is dropped and counted as looping: its `GetDuration` (vtable `+0x290`) reads
+10000 s or more. SB's own one-shot notifies skip such a sound the same way (`0x143fccef0`, `0x142018660`). Only a
+notify state starts one in her game. Its end stops it. The ghost stops nothing, so a loop would play on it until the
+ghost goes, one more at each start. A part Lua did not draw (a follower, a part left out) hangs the sound on the
+ghost's main mesh. These calls run only while
 `game_calls_ok()` holds. While they run, the sink of [Her sounds, sent](#her-sounds-sent) records nothing. With the
 sounds look off, nothing plays. A fault turns her sounds off on both sides with the `sounds off: fault ...` line.
 
 Every 60 s with any of it, `coop-link.log` has `sounds played, last 60 s: <n> played, <n> far, <n> over a ghost's 8, <n>
-over all 32, <n> in a scene, <n> from a hidden ghost, <n> without a name, <n> not loaded`. Not tested in game yet.
+over all 32, <n> in a scene, <n> from a hidden ghost, <n> without a name, <n> not loaded, <n> looping`. Not tested in
+game yet.
 
 ## Her world effects
 

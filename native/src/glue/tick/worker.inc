@@ -902,7 +902,8 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     const uint64_t played = window_play_played.exchange(0), play_far = window_play_far.exchange(0),
                    play_ghost = window_play_ghost.exchange(0), play_all = window_play_all.exchange(0),
                    play_scene = window_play_scene.exchange(0), play_hidden = window_play_hidden.exchange(0),
-                   play_unnamed = window_play_unnamed.exchange(0), play_unloaded = window_play_unloaded.exchange(0);
+                   play_unnamed = window_play_unnamed.exchange(0), play_unloaded = window_play_unloaded.exchange(0),
+                   play_looping = window_play_looping.exchange(0);
     const uint64_t fx_mark = window_worldfx_mark.exchange(0), fx_owner = window_worldfx_owner.exchange(0),
                    fx_attach = window_worldfx_attach.exchange(0), fx_other = window_worldfx_other.exchange(0),
                    fx_skipped = window_worldfx_attached.exchange(0), fx_sent = window_worldfx_sent.exchange(0),
@@ -981,14 +982,16 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                       kMaxAssetKeys, static_cast<unsigned long long>(ring));
         event(line);
       }
-      if (played || play_far || play_ghost || play_all || play_scene || play_hidden || play_unnamed || play_unloaded) {
+      if (played || play_far || play_ghost || play_all || play_scene || play_hidden || play_unnamed || play_unloaded ||
+          play_looping) {
         std::snprintf(line, sizeof line,
                       "sounds played, last 60 s: %llu played, %llu far, %llu over a ghost's %zu, %llu over all %zu, "
-                      "%llu in a scene, %llu from a hidden ghost, %llu without a name, %llu not loaded",
+                      "%llu in a scene, %llu from a hidden ghost, %llu without a name, %llu not loaded, %llu looping",
                       static_cast<unsigned long long>(played), static_cast<unsigned long long>(play_far),
                       static_cast<unsigned long long>(play_ghost), kPerGhost, static_cast<unsigned long long>(play_all),
                       kAll, static_cast<unsigned long long>(play_scene), static_cast<unsigned long long>(play_hidden),
-                      static_cast<unsigned long long>(play_unnamed), static_cast<unsigned long long>(play_unloaded));
+                      static_cast<unsigned long long>(play_unnamed), static_cast<unsigned long long>(play_unloaded),
+                      static_cast<unsigned long long>(play_looping));
         event(line);
       }
       if (fx_mark || fx_owner || fx_attach || fx_other || fx_skipped || fx_sent || fx_paths || fx_keys || fx_played ||

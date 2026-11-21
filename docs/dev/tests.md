@@ -775,9 +775,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   sound not at the top of its package or outside SB's folders is refused, as is a line that passes 512 bytes only
   under key 4096); a world effect's SBA words (`niagara` or `cascade` with its path and `- -`, refused outside SB's
   folders); an event on a part the table no longer has goes empty; the viewer's `is_asset` (an object still at its
-  path in any case, not one that took its address, not a namesake in another package); the viewer's `compose`, which
-  puts an
-  event's place back on its parent where her game played it (2000 random transforms, a scaled parent among them);
+  path in any case, not one that took its address, not a namesake in another package); `loops`, SB's one-shot rule for a
+  sound at 10000 s or more (a NaN plays, as in SB); the viewer's `compose`, which puts an event's place back on its
+  parent where her game played it (2000 random transforms, a scaled parent among them);
 - `game_events_test`: `game_calls_ok`, which allows a game call only with the lion gate open, the client in game and
   playing, off SB's logic thread; an event slot's 19 bytes with a fuzz (each slot it accepts encodes back to the same
   bytes); the `Outbox`, whose events wait at most 100 ms and hold a slot for 2 poses and 50 ms plus one send interval,
