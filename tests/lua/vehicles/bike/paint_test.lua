@@ -8,7 +8,8 @@
 -- path; apply makes each instance from the mesh's own material; step runs once a second, paints a component once per
 -- mesh and clears it once for a mesh with no entry; a new Lua load clears an earlier load's instance; a component at
 -- another address, or at the same address with another path, is a new one; a failing call logs one line and leaves the
--- slot as the mesh made it.
+-- slot as the mesh made it; each UFunction call passes exactly its parameters, as UE4SS refuses any other count (Lua's
+-- assert returns its message too: SetMaterial once got 3 values, a refused call on every part).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local next_address=0x1000
@@ -36,7 +37,14 @@ local function fake(o)
     for slot=0,3 do c.current[slot]=own[slot] end
     local path=o.path or ('/Game/Map.Map:PersistentLevel.Bike.Part_'..parts)
     function c:GetFullName() return 'SkeletalMeshComponent '..path end
-    function c:CreateDynamicMaterialInstance(slot,base,name)
+    -- UE4SS refuses a call whose argument count is not the UFunction's: "UFunction expected 2 parameters, received 3".
+    local function count(want,...)
+        local n=select('#',...)
+        if n~=want then error(('UFunction expected %d parameters, received %d'):format(want,n),0) end
+    end
+    function c:CreateDynamicMaterialInstance(...)
+        count(3,...)
+        local slot,base,name=...
         assert(name:ToString()=='None')
         if o.fail then error('no instance',0) end
         local mid=object({base=base,values={}})
@@ -44,7 +52,12 @@ local function fake(o)
         self.made[slot],self.made_list[#self.made_list+1],self.current[slot]=mid,mid,mid
         return mid
     end
-    function c:SetMaterial(slot,m) self.set[slot],self.set_list[#self.set_list+1],self.current[slot]=m,m,m end
+    -- UPrimitiveComponent::SetMaterial(ElementIndex, Material): exec thunk 0x1448f4c20 reads an int and an object.
+    function c:SetMaterial(...)
+        count(2,...)
+        local slot,m=...
+        self.set[slot],self.set_list[#self.set_list+1],self.current[slot]=m,m,m
+    end
     return c
 end
 
@@ -77,11 +90,14 @@ local c=fake()
 Paint.apply(c,{[0]={P={0.5,0,0,1}},[2]={Q={0,0.5,0,1}}})
 assert(c.made[0].base==own[0] and c.made[0].values.P.R==0.5 and c.made[2].values.Q.G==0.5 and c.made[1]==nil)
 assert(c.made[2].base==own[2] and c.made[2].values.Q.A==1)
+-- clear: each slot gets the mesh's own material through a two-parameter SetMaterial.
+Paint.clear(c); for slot=0,3 do assert(c.set[slot]==own[slot] and c.current[slot]==own[slot]) end
 -- step: once a second; the same mesh twice paints once; a mesh with no entry clears once.
 local lines={}
 local p=Paint.new({log=function(line) lines[#lines+1]=line end})
 c=fake()
 p.step(10,M,{c}); p.step(10.5,OTHER,{c}); p.step(12,M,{c}); assert(#c.made_list==1 and c.made[S].base==own[S])
+assert(#lines==0,tostring(lines[1]))
 p.step(13,OTHER,{c}); assert(c.set[S]==own[S] and c.current[S]==own[S]); local sets=#c.set_list
 p.step(15,OTHER,{c}); assert(#c.set_list==sets)
 -- reload: a new Paint.new on c, whose slot S holds an earlier load's instance, clears it to own[S], never keeps it.
