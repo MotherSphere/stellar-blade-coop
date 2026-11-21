@@ -210,26 +210,29 @@ st.refuse=nil
 frames(a,10)
 assert(count('ammo: reload (')==reloaded+1 and a.reload_until,'The empty magazine reloads after Ammo.RETRY s')
 
--- A refused take with a part-filled magazine, then fired empty: no reload (and no take) before Ammo.RETRY s.
+-- A refused take at the player's reload of a part-filled magazine: its 20 rounds thrown away, nothing loaded. With
+-- the trigger held, no reload (and no take) before Ammo.RETRY s. v4 reloads a part-filled magazine only at the
+-- player's reload, so a refused take always leaves it empty. Each wait is bounded: a fault fails here instead of looping.
 st=stock(40)
 st.rows=true
 a=new(st)
 frame(a)
-while a.reload_until do frame(a) end
+for _=1,600 do if not a.reload_until then break end; frame(a) end
+assert(not a.reload_until,'The first reload ends')
 for _=1,10 do frame(a,true,true); frame(a,true,false) end
 assert(a.left==20 and a.reserve==10,'Ten presses: '..a.left..' '..a.reserve)
 st.refuse='no EVE'
 local refused=count('rounds not taken')
-while count('rounds not taken')==refused do frame(a) end
+assert(a.manual(clock)==true and a.left==0,'The player\'s reload throws the 20 rounds away')
+for _=1,600 do if count('rounds not taken')>refused then break end; frame(a) end
+assert(count('rounds not taken')==refused+1,'The take was refused once')
 retry=assert(a.retry_at)
-while a.reload_until do frame(a) end
-assert(a.left==20,'The refused take loaded nothing: '..a.left)
+for _=1,600 do if not a.reload_until then break end; frame(a) end
+assert(not a.reload_until and a.left==0,'The refused take loaded nothing: '..a.left)
 reloaded,takes=count('ammo: reload ('),#st.takes
-while a.left>0 do frame(a,true,true) end
-assert(clock<retry-1,'Fired empty well before Ammo.RETRY s')
-while clock<retry-0.05 do frame(a,true,true) end
-assert(count('ammo: reload (')==reloaded and #st.takes==takes and not a.reload_until,
-    'fired empty: '..(count('ammo: reload (')-reloaded)..' reloads before Ammo.RETRY s, none wanted')
+for _=1,math.ceil((retry-0.05-clock)*60) do frame(a,true,true) end
+assert(clock<retry and count('ammo: reload (')==reloaded and #st.takes==takes and not a.reload_until and a.left==0,
+    'trigger held: '..(count('ammo: reload (')-reloaded)..' reloads before Ammo.RETRY s, none wanted')
 assert(cool()==999,'No round while it waits: '..tostring(cool()))
 st.refuse=nil
 frames(a,10,true)
