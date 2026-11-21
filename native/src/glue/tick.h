@@ -193,6 +193,11 @@ bool shortcut_load_pass(std::string &save, std::string &line);
 // through ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build,
 // after coop off and with no EVE read. Returns the line for the log.
 std::string ask_items(const coop::Request &request);
+// Worker thread, the fishing tournament (online/modes/fishing/fishing.h): Lua's fishbook request, our EVE's fishing log
+// book, read now through ReadProcessMemory; the answer goes in the engine line's fish= (status()). Refused off the
+// pinned build and after coop off. Returns the line for the log, empty while the answer's kind (read, or none and why)
+// stays the same: Lua asks once a second.
+std::string ask_fishbook(const coop::Request &request);
 // Worker thread, the Night Operation shop's screen (online/modes/nightop/shop_ui.h): Lua's nightshop request, SB's shop
 // screen opened on Shop_NightOperation_Coop or _CoopBolt, or closed, at the game thread's next frame. Refused off the
 // pinned build and after its latch's fault; after coop off, only a close. Returns the line for the log; fight_pass logs

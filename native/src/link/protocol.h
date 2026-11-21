@@ -913,7 +913,10 @@ inline std::string masked(std::string_view text) {
 // "mark <text>" (a numbered line in both players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop
 // gift (cutmenus/mailbox.lua) "gift <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName
 // index> <FName number>" (how many of that item our EVE carries, read by the worker, cutmenus/items.h: ask 1 to 65535,
-// answered in the engine line's items=; index above 0, both within 32 bits); and for coop lion (fight/bosses/lion.lua)
+// answered in the engine line's items=; index above 0, both within 32 bits); for the fishing tournament
+// (online/modes/fishing/game.lua) "fishbook <ask>" (our EVE's fishing log book, read by the worker,
+// online/modes/fishing/fishing.h: ask 1 to 65535, answered in the engine line's fish=); and for coop lion
+// (fight/bosses/lion.lua)
 // "lion rows <Table>=0x<address> ...", for coop gardener fight (fight/bosses/gardener.lua) "gardener rows
 // <Table>=0x<address> ...", for coop tendril fight (fight/bosses/tendril.lua) "tendril rows <Table>=0x<address> ...",
 // for the shop's Shock Bolt (through fight/bosses/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii
@@ -954,7 +957,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score, mode
+  pausetab, popups, teamshop, score, mode, fishbook
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1074,7 +1077,7 @@ struct Request {
   std::string alias;            // travel, items: the camp's or item's alias (for the log), and its FName.
   uint32_t index = 0, number = 0; // travel, items: the FName. sbo arm: the Join's alias; sbo warp: the zone; sbo
                                   // seq: the sequence's alias.
-  uint32_t ask = 0;             // items: Lua's number for its answer.
+  uint32_t ask = 0;             // items, fishbook: Lua's number for its answer.
   std::string text;             // mark: its text, or empty. gift: the payload. guardtext: what follows the word.
                                 // rules: the word.
   std::string zone, camp;       // where: the map segment and the camp alias (or empty).
@@ -1454,6 +1457,9 @@ inline Request parse_request(std::string text) {
              number_ <= UINT32_MAX) {
     r.command = Command::items, r.alias = f[2], r.ask = static_cast<uint32_t>(ask);
     r.index = static_cast<uint32_t>(index), r.number = static_cast<uint32_t>(number_);
+  } else if (uint64_t ask = 0;
+             split(text, f, 2, nullptr) && f[0] == "fishbook" && number(f[1], ask) && ask && ask <= 65535) {
+    r.command = Command::fishbook, r.ask = static_cast<uint32_t>(ask);
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;

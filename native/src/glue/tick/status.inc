@@ -87,6 +87,9 @@ std::string status() {
   // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)
     s += items_line;
+  // The fishing tournament's book read (online/modes/fishing/game.lua): the last ask's answer, by its number.
+  if (!fishbook_line.empty() && !blocked)
+    s += fishbook_line;
   s += pad_slate ? " pad=slate" : " pad=xinput"; // coop_pad's source: the game's controller events, or XInput.
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";

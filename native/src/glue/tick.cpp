@@ -220,6 +220,10 @@
 // item our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cutmenus/mailbox.lua.
 //
+// The fishing tournament's book read (online/modes/fishing/fishing.h) is the worker's alone too: on Lua's fishbook
+// request it reads our EVE's fishing log book through ReadProcessMemory, her GUID too. status() puts the answer in the
+// engine line's fish= for online/modes/fishing/game.lua. It never writes and calls no game function.
+//
 // The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
 // button pressed, button released), all or none, for hooks on the game thread that record the key and run the game's
@@ -275,6 +279,7 @@
 #include "eve/debug_keys.h"
 #include "game/dev_panels.h"
 #include "cutmenus/items.h"
+#include "online/modes/fishing/fishing.h"
 #include "online/lobby/loading.h"
 #include "game/memory.h"
 #include "online/session/options.h"
@@ -376,6 +381,7 @@
 #include "online/group/travel_worker.inc"
 #include "online/saves/shortcut_worker.inc"
 #include "cutmenus/items_worker.inc"
+#include "online/modes/fishing/fishing_worker.inc"
 #include "glue/tick/quests_worker_shared.inc"
 #include "story/quests/quests_worker.inc"
 #include "glue/tick/world_worker_shared.inc"

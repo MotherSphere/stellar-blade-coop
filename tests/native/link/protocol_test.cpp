@@ -1324,6 +1324,14 @@ int main() {
         std::string("items 1 ") + a65 + " 1 0", std::string("items 1 HP_Potion 1"), std::string("items"),
         std::string("items 1 HP_Potion 1 0 1"), std::string("items -1 HP_Potion 1 0")})
     assert(parse_request(bad).command == Command::none);
+  // The fishing tournament's book read: fishbook <ask>, ask 1 to 65535, the worker's. Anything else is refused.
+  Request fr = parse_request("fishbook 7\r\n");
+  assert(fr.command == Command::fishbook && fr.ask == 7);
+  fr = parse_request("fishbook 65535");
+  assert(fr.command == Command::fishbook && fr.ask == 65535);
+  for (const char *bad : {"fishbook 0", "fishbook 65536", "fishbook", "fishbook ", "fishbook -1", "fishbook 1 2",
+                          "fishbook x", "fishbooks 1", "Fishbook 1"})
+    assert(parse_request(bad).command == Command::none);
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
   // (batch 3), coop mxiii's (batch 4), the Night Operation shop's (batch 5), Lily's signal's (batch 6), Matrix XIII's

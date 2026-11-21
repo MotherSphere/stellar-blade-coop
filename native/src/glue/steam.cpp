@@ -742,6 +742,11 @@ bool step() {
       event(coop::pose::ask_items(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::fishbook: // The fishing tournament's book read: the worker's, now; logged as its kind changes.
+      if (const std::string said = coop::pose::ask_fishbook(coop::parse_request(request)); !said.empty())
+        event(said);
+      request.clear();
+      break;
     case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii's four, the
                               // shop, Lily's signal: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
