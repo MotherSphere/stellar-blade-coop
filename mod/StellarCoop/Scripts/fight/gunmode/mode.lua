@@ -1475,9 +1475,12 @@ function GunMode.new(env)
             local was=s.shots
             s.shots=s.shots+(ammo.fired-fired)
             -- The game's rounds: where the first three and one in fifty went (the destination SB reads, placed from
-            -- her root as it is now) against the reticle point the write took, as seen from the camera.
+            -- her root as it is now) against the reticle point the write took, as seen from the camera. aim.went reads
+            -- the row back: a row whose frame is not her root's is named. This is SB's rule as read in Ghidra, not a
+            -- measured impact.
             if s.shots>was and (was<3 or s.shots//50>was//50) and s.target and s.cam_loc then pcall(function()
-                local to=aim.went(p)
+                local to,why=aim.went(p)
+                if why then g.log(('round #%d: %s'):format(s.shots,why)) end
                 if not to then return end
                 local function v(a) return ('(%.0f, %.0f, %.0f)'):format(a.X,a.Y,a.Z) end
                 g.log(('round #%d: to %s, reticle point %s, %.2f deg apart from the camera (spread %.1f)'):format(

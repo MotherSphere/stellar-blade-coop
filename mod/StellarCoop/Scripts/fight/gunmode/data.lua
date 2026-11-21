@@ -319,7 +319,7 @@ function Data.new(g,native,opts)
             local nr=row(pt,Data.NIKKE_PROJECTILE)
             local dr=row(pt,Data.DRONE_PROJECTILE)
             for _,f in ipairs({'StartTargetTransformType','StartTargetRelativeAxisType','DestTargetTransformType',
-                    'DestTargetRelativeAxisType'}) do -- The Dest pair: fight/gunmode/aim.lua sets it next.
+                    'DestTargetRelativeAxisType','DestTarget'}) do -- The Dest pair: fight/gunmode/aim.lua sets it next.
                 saved[#saved+1]={nr,f,nr[f]}
             end
             local dl=nr.DestTargetRelativeLocation
@@ -337,8 +337,20 @@ function Data.new(g,native,opts)
             local up=nr.DestTargetUpdate
             saved[#saved+1]={nr,'DestTargetUpdate',up}
             nr.DestTargetUpdate=0
-            g.log(('data: NIKKE round: dest target %s, update %s -> 0, movement %s'):format(tostring(nr.DestTarget),
-                tostring(up),tostring(nr.MovementType)))
+            -- The destination is placed on EVE: DestTarget (a byte at 0x1dd, property params 0x145e00000;
+            -- ESBProjectileTarget, enum params 0x146d34f70 on 26123051: MainActor 0, OtherActor 1, SetLocation 2,
+            -- StartToDestDirection 3, SkillTargetLocation 4, InputTransform 5). The row ships StartToDestDirection.
+            -- With it the shot (0x141c4be30) puts the destination StartToDestDirectionDistance (a float at 0x238,
+            -- params 0x145dffce8) out on the line from the muzzle to the skill's own target location (on that location
+            -- for 0). It adds the offset there in world axes (turned by the zero rotator 0x147112ca8). Rounds went to
+            -- the side of the reticle point. MainActor builds the target on her (0x14228c020): the target's update
+            -- (0x142431530) puts it on her RootComponent's world location (component+0x200) for Base and turns the
+            -- offset by that component's rotation (component+0x1f0) for RootAxis. That is aim.write's frame.
+            local dt=nr.DestTarget
+            nr.DestTarget=0
+            g.log(('data: NIKKE round: dest target %s -> 0, start target %s, start-to-dest distance %s, '
+                ..'update %s -> 0, movement %s'):format(tostring(dt),tostring(nr.StartTarget),
+                tostring(nr.StartToDestDirectionDistance),tostring(up),tostring(nr.MovementType)))
             local sl=nr.StartTargetRelativeLocation
             saved[#saved+1]={nr,'StartTargetRelativeLocation',{X=sl.X,Y=sl.Y,Z=sl.Z}}
             nr.StartTargetTransformType=dr.DestTargetTransformType

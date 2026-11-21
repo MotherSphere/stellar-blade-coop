@@ -2,10 +2,11 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Where the rounds go. The round's destination is written in EVE's root frame with its pitch and roll, as SB places it
--- (Base and RootAxis). Firing mode writes it every frame from that frame's camera: a round that spawns in any frame
--- leaves for that frame's reticle point (it was written ten times a second). The spread keeps each round within
--- gun_spread degrees of the reticle point, seen from the camera; gun_spread=0 puts every round on it. The round line
--- names the first three rounds within the spread. A reload in firing mode keeps the aim pose on the layer and the IK.
+-- (MainActor, Base and RootAxis). Firing mode writes it every frame from that frame's camera: a round that spawns in
+-- any frame leaves for that frame's reticle point (it was written ten times a second). The spread keeps each round
+-- within gun_spread degrees of the reticle point, seen from the camera; gun_spread=0 puts every round on it. The round
+-- line names the first three rounds within the spread. A reload in firing mode keeps the aim pose on the layer and the
+-- IK.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Aim=require('fight.gunmode.aim')
 local close=function(a,b,e) return math.abs(a-b)<=(e or 1e-6) end
@@ -35,6 +36,22 @@ do
     assert(most<=0.5+1e-9 and most>0.49,'spread reaches '..most)
     local up=Aim.spread({X=0,Y=0,Z=1000},cam,1,1,0.25) -- straight up
     assert(close(Aim.apart(up,{X=0,Y=0,Z=1000},cam),1,1e-6))
+end
+
+-- 2b. The round line reads the row back: SB's placement from her root for MainActor, Base and RootAxis. A row left on
+-- StartToDestDirection (3) is named instead (its rounds went to the side, 11-21).
+do
+    local a=Aim.new({log=function() end,try=function(f) local ok,v=pcall(f); if ok then return v end end})
+    local p={K2_GetActorLocation=function() return {X=100,Y=0,Z=0} end,
+        K2_GetActorRotation=function() return {Pitch=0,Yaw=90,Roll=0} end}
+    a.row={DestTarget=0,DestTargetTransformType=0,DestTargetRelativeAxisType=2,DestTargetRelativeLocation={X=0,Y=0,Z=0}}
+    assert(a.went(p)==nil,'nothing before a write')
+    a.write(p,{X=100,Y=1000,Z=50})
+    local to=a.went(p)
+    assert(close(to.X,100,1e-6) and close(to.Y,1000,1e-6) and close(to.Z,50,1e-6),'placed from her root')
+    a.row.DestTarget=3
+    local none,why=a.went(p)
+    assert(none==nil and tostring(why):find('dest target 3, transform 0, axis 2',1,true),tostring(why))
 end
 
 -- 3. Firing mode on the fake world: the row's destination is this frame's crosshair point, every frame.
@@ -121,10 +138,16 @@ for _,spread in ipairs({0,0.5}) do
     assert(named==1,'montage named '..named..' times')
     w.mesh.GetAnimInstance=nil
     assert(row.DestTargetUpdate==0,'the destination is placed at the spawn only')
+    assert(row.DestTarget==0,'the destination is placed on her (MainActor), not along SB\'s own target location')
+    local said=0
+    for _,l in ipairs(logs) do
+        if l:find('dest target 3 -> 0, start target 0, start-to-dest distance 50000',1,true) then said=said+1 end
+    end
+    assert(said==1,'the dest target line '..said)
     w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
     for _=1,10 do clock=clock+1/60; gun.tick() end
     clock=clock+1; gun.toggle_now()
     for _=1,60 do clock=clock+1/60; gun.tick() end
-    assert(not gun.state.on and row.DestTargetUpdate==1,'put back')
+    assert(not gun.state.on and row.DestTargetUpdate==1 and row.DestTarget==3,'put back')
 end
 print('gunmode aim_test ok')
