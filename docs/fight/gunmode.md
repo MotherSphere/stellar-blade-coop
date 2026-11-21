@@ -78,7 +78,7 @@ The rifle does not come out during a cutscene, a talk or another interaction, wh
 photo and selfie modes, or while her movement mode is other than walking or falling (swimming, flying, a custom movement
 mode or none). If one of these starts with the rifle out, the rifle goes away within a quarter of a second. The same
 holds while EVE rides the bike, wears the Doro look, plays a `coop emote`, sits on a hall seat or uses `coop fly` or
-`coop glide`. The hold of her movement is the exception once the rifle is out: the game also raises it during its own
+`coop glide`. The hold of her movement is the exception once the rifle is out: the game can raise it during its own
 drone aim, which is firing mode. The rifle then stays out and `UE4SS.log` names the game's actions on the keys held at
 that moment. The bike does not mount while the rifle is out. `UE4SS.log` names the reason on a `[GM]` line. A key press
 or D-pad tap that the rifle refuses also shows a notice on screen: release the drone aim, EVE is not in the game world,

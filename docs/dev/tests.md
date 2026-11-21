@@ -130,7 +130,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the rifle. An off during the
   game's aim keeps TPSMode on RMB and SB's rows taken with the NIKKE shot's cool time at 999 until the aim ends. Then
   everything goes back, as it does at a new controller or a Lua reload in between. During the rifle's arrival TPSMode
-  has no key (RMB and LT included), a pause keeps it so, and once the arrival is over it moves to RMB. The 'off' line
+  has no key (RMB and LT included). A pause keeps it so. Once the arrival is over it moves to RMB. The 'off' line
   counts the rounds the game's aim fired;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or

@@ -55,9 +55,9 @@ end
 -- (a move of SB's own).
 -- out: the rifle is already out. The game's hold of her movement then is no reason: IsMoveInputBlock's exec
 -- (0x14268bc60) is true while MoveInputBlockCount (+0xa84) is above 0 or RemainMoveInputBlockDuraion (+0xa70) is above
--- 0 or -1.0 (0x146750838). The game raises it for a moment when the drone aim starts, which is gun mode's firing mode
--- (2026-11-21 test: every 'off' named it, the first one before any aim write), and for an item's use. The rifle
--- going away under a held aim key left the plain drone aim on.
+-- 0 or -1.0 (0x146750838). In the 2026-11-21 test the game raised it around its own drone aim, gun mode's firing
+-- mode: every 'off' named it, the first one before any aim write. The code that raises it there was not found in
+-- Ghidra. The rifle going away under a held aim key left the plain drone aim on.
 local WALKING,NAV_WALKING,FALLING,SWIMMING=1,2,3,4
 function GunMode.blocked(e,photo,out)
     if photo=='s' then return 'the selfie mode is open' end
