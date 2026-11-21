@@ -30,7 +30,8 @@ std::wstring bench_path(const wchar_t *name) { return dir + name; }
 void bench_pass(uint64_t now_ms) {
   bool exists = false;
   const std::string text = read_file(bench_path(L"coop-bench.txt"), exists, kMaxBenchFile + 1);
-  if (!exists || text == "bench off\n") {
+  const BenchRead got = bench_read(exists, text, bench_running);
+  if (got == BenchRead::off) {
     if (bench_running) {
       bench_running = false;
       bench_text = bench_table_text = "\x01";
@@ -57,7 +58,7 @@ void bench_pass(uint64_t now_ms) {
       bench_text = "\x01"; // The bench file read again against it.
     } // Else Lua had the file open: tried again at the next pass.
   }
-  if (text != bench_text) {
+  if (got == BenchRead::read && text != bench_text) { // Kept: read at the next pass, the file renamed in by then.
     bench_text = text;
     BenchAsk ask;
     const BenchFile r = parse_bench(text, capture, ask);

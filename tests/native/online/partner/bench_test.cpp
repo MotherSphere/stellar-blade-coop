@@ -1,9 +1,9 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// online/partner/bench.h on the build machine: coop-bench.txt's parse, her pose loop, one pose written into a bench
-// ghost over fake memory laid out like the pinned build (its own fake object array, in the shape of
-// tests/native/game/partner/engine_test.cpp's), the stride's frames and coop-bench-out.txt's line.
+// online/partner/bench.h on the build machine: coop-bench.txt's parse and a pass's reading of it, her pose loop, one
+// pose written into a bench ghost over fake memory laid out like the pinned build (its own fake object array, in the
+// shape of tests/native/game/partner/engine_test.cpp's), the stride's frames and coop-bench-out.txt's line.
 #include "online/partner/bench.h"
 
 #include <cassert>
@@ -261,6 +261,14 @@ void test_due() {
   assert(bench_due(g, 0) && bench_due(g, 1));
 }
 
+void test_read() {
+  assert(bench_read(false, "", false) == BenchRead::off);
+  assert(bench_read(false, "", true) == BenchRead::kept); // Between Lua's remove and rename.
+  assert(bench_read(true, "bench off\n", true) == BenchRead::off);
+  assert(bench_read(true, "bench off\n", false) == BenchRead::off);
+  assert(bench_read(true, "bench 7\n", false) == BenchRead::read && bench_read(true, "", true) == BenchRead::read);
+}
+
 void test_out() {
   BenchWindow w;
   w.frames = 60, w.gap_sum_us = 60 * 16700 + 59, w.gap_max_us = 24100, w.tick_sum_us = 60 * 410, w.tick_max_us = 1200;
@@ -280,6 +288,7 @@ int main() {
   test_loop();
   test_write();
   test_due();
+  test_read();
   test_out();
   std::puts("bench_test: ok");
   return 0;

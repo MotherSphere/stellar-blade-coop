@@ -43,8 +43,18 @@ struct BenchAsk {
   size_t refused = 0; // Blocks whose display does not parse on the table (a ghost built on an older one).
 };
 
+// What a pass does with coop-bench.txt (bench_worker.inc): off at "bench off" or with no file before a run, read when
+// there is another text. Lua's put() (core/link.lua) removes the old file before it renames the new one in, so no file
+// during a run is no change: kept, as glue/tick/worker.inc keeps coop-state.txt.
+enum class BenchRead { off, kept, read };
+inline BenchRead bench_read(bool exists, const std::string &text, bool running) {
+  if (!exists)
+    return running ? BenchRead::kept : BenchRead::off;
+  return text == "bench off\n" ? BenchRead::off : BenchRead::read;
+}
+
 // coop-bench.txt (online/partner/bench.lua's Bench.file), every line ending in '\n':
-//   bench off                                     the bench stopped (a missing file reads the same)
+//   bench off                                     the bench stopped
 //   bench <table generation>                      then 0 to kMaxBenchGhosts blocks:
 //   ghost <dx cm> <dy cm> <stride 1|2|4>          |dx| and |dy| at most kMaxBenchOffset, then the ghost's display lines
 //                                                 (game/table.h's parse_display) up to the next ghost line
