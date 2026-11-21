@@ -29,4 +29,10 @@ assert(ok==false and usage=='Use: coop look [cloth|dyes|effects|drone|sounds|fac
 ok,usage=run('drone maybe')
 assert(ok==false and usage:find('^Use: coop look') and look.drone==false and #rebuilds==3)
 assert(select(2,run()):find('coop look <cloth|dyes|effects|drone|sounds|faces> <on|off>',1,true),'the help names them')
+-- The three older looks change the same way.
+for _,name in ipairs({'cloth','dyes','effects'}) do
+    local word=name:sub(1,1):upper()..name:sub(2)
+    assert(select(2,run(name..' off')):find('^'..word..' off until the mod reloads') and look[name]==false,name)
+end
+assert(#rebuilds==6 and rebuilds[6]=='look')
 print('online.partner_commands_test ok')
