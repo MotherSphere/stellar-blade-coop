@@ -9,11 +9,11 @@ local WORLDS=require('core.worlds')
 
 -- A fake walk in the shape of SB's tables (made-up rows, not SB's values): two rows of world Xion over two zones, one of
 -- world WasteLandA, one whose zone has no world row, one whose target has no ZoneEnvSpawnTable row, one with a zone of
--- each world.
+-- each world, one with two zones of Xion.
 local ROWS={{name='Cat1',alias='Env_A'},{name='MemoryOfXion',alias='Env_B'},{name='Butterfly3',alias='Env_C'},
-    {name='Test_1',alias='Env_D'},{name='Fish2',alias='Env_E'},{name='Cat2',alias='Env_F'}}
+    {name='Test_1',alias='Env_D'},{name='Fish2',alias='Env_E'},{name='Cat2',alias='Env_F'},{name='Cat3',alias='Env_G'}}
 local ZONES={Env_A={'Zone_X12'},Env_B={'Zone_X10'},Env_C={'Zone_W10'},Env_D={'Zone_Test'},
-    Env_F={'Zone_W10','Zone_X10'}}
+    Env_F={'Zone_W10','Zone_X10'},Env_G={'Zone_X10','Zone_X12'}}
 local WORLD={Zone_X10='Xion',Zone_X12='Xion',Zone_W10='WasteLandA'}
 local asked={}
 local function zones_of(alias) asked[#asked+1]=alias return ZONES[alias] end
@@ -23,8 +23,8 @@ local function offered(map)
     return table.concat(names,',')..'|'..tostring(world)
 end
 local xion=offered(WORLDS.Xion)
-assert(xion=='Cat1,MemoryOfXion,Cat2|Xion',xion)
-assert(#asked==6,'Every row is looked up once')
+assert(xion=='Cat1,MemoryOfXion,Cat2,Cat3|Xion',xion)
+assert(#asked==7,'Every row is looked up once')
 assert(offered(WORLDS.WasteLandA)=='Butterfly3,Cat2|WasteLandA','A row counts when one of its zones leads there')
 assert(offered(WORLDS.Nest)=='|nil' and offered('/game/nowhere')=='|nil','No row leads there')
 assert(offered(WORLDS.Xion:upper())=='|nil','Maps compare as core/unreal.lua names them')
