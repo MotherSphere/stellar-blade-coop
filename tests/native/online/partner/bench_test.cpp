@@ -122,6 +122,7 @@ void test_parse() {
                           "bench 7\nghost 0 -30001 1\n", "bench 7\nghost 01 0 1\n", "bench 7\nghost  1 0 1\n"})
     assert(parse_bench(bad, t, ask) == BenchFile::malformed);
   assert(parse_bench("bench 6\n", t, ask) == BenchFile::stale && parse_bench("bench 0\n", t, ask) == BenchFile::stale);
+  assert(parse_bench("bench 0\n", Table(), ask) == BenchFile::stale); // No capture of hers: no list either.
   assert(parse_bench("bench 7\n", t, ask) == BenchFile::ok && ask.ghosts.empty() && !ask.refused); // Run 1's baseline.
 
   const std::string head = "bench 7\n";
@@ -170,6 +171,8 @@ void test_loop() {
     const uint8_t *drawn = loop.frame(root); // While recording: the frame just added.
     assert(drawn && root[0] == float(k) && root[4] == float(k) * 10 && drawn[0] == uint8_t(k) &&
            drawn[2 * kTransformBytes - 1] == uint8_t(k));
+    if (k + 1 < kBenchLoopFrames) // A refused read of hers next frame: the same frame again.
+      assert(loop.frame(root) == drawn && root[0] == float(k));
   }
   assert(!loop.recording() && loop.frames() == kBenchLoopFrames);
   const float late[10] = {999};
@@ -232,6 +235,14 @@ void test_write() {
   assert(!r.written && r.refused == 1 && r.why == Io::gate && r.part == 2);
   assert(std::equal(shut.bones[0]->begin(), shut.bones[0]->end(), bones.begin()));
   assert((*shut.bones[1])[0] == 0 && at<float>(shut.mailbox + kRelativeScale + 8) == 7.f);
+  // Both gates closed: the first part refused is the one named.
+  const Ghost both = ghost(o, {{kMeshA, 3}, {kMeshB, 2}});
+  poke(both.parts[0].object + kGateCount, int32_t(0));
+  poke(both.parts[1].object + kGateCount, int32_t(0));
+  assert(parse_bench("bench 7\nghost 0 0 1\n" + display(both, 7), t, ask) == BenchFile::ok);
+  BenchCounts f;
+  bench_write(o.objects, t, ask.ghosts[0], root, bones.data(), 7.f, f, part);
+  assert(f.refused == 1 && f.why == Io::gate && f.part == 0);
   // A mailbox of another actor: refused as the mailbox (part -1), the first refusal kept.
   const Ghost stray = ghost(o, {{kMeshA, 3}});
   poke(stray.mailbox + kOuter, o.raw(0));
@@ -250,6 +261,17 @@ void test_write() {
   bench_write(o.objects, t, ask.ghosts[0], root, bones.data(), 9.f, d, part);
   assert(ask.ghosts[0].gone && !d.written && !d.refused && (*dead.bones[0])[0] == 0);
   assert(at<float>(dead.mailbox + kRelativeScale + 8) == 0.f);
+
+  // A leader left out (a bare far ghost): its bytes are skipped, so the next leader takes its own.
+  Table wide = her(7);
+  wide.eve[1] = Part{0, 0, 0, 4, true};
+  const Ghost bare = ghost(o, {{kMeshA, 3}, {kMeshB, 2}}); // Parts 0 and 2, part 1 left out.
+  assert(parse_bench("bench 7\nghost 0 0 1\n" + display(bare, 7), wide, ask) == BenchFile::ok);
+  const std::vector<uint8_t> nine = pose(1, 9); // Part 0's 3 bones, part 1's 4, part 2's 2.
+  BenchCounts w;
+  bench_write(o.objects, wide, ask.ghosts[0], root, nine.data(), 10.f, w, part);
+  assert(w.written == 1 &&
+         std::equal(bare.bones[1]->begin(), bare.bones[1]->end(), nine.begin() + 7 * kTransformBytes));
 }
 
 void test_due() {
