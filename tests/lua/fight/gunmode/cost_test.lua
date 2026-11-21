@@ -460,4 +460,37 @@ do
     assert(logs[#logs-1]:match('^off %(command%), %d+ shots, Lua %d+ KB$'),logs[#logs-1])
 end
 
+-- 12. A raise in the keep's lookup (core/keep.lua's get) falls through to the engine's name hash: the rifle still
+--     comes out with its mesh and the layer found in memory, neither loaded on the frame, with no tick error.
+do
+    local U=require('core.unreal')
+    local Keep=require('core.keep')
+    local w=world()
+    local function typed(o) if o then o.type=o.type or function() return 'UObject' end end; return o end
+    local loads={}
+    local load=LoadAsset
+    LoadAsset=function(path)
+        if path==Rifle.WEAPON or path==Overlay.CLASS then loads[#loads+1]=path end
+        return load(path)
+    end
+    local object_at=U.object_at
+    U.object_at=function(path) return typed(w.find(path)),true end
+    local k=dofile('tests/lua/core/keep_fake.lua')(function(path) return typed(w.find(path)),true end)
+    local logs={}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end})
+    Keep.slow(); k.settle()
+    assert(Keep.serves(Rifle.WEAPON),'the keep serves the rifle')
+    local get=Keep.get
+    Keep.get=function() error('a lookup that raises') end
+    frames(gun,1)
+    out(w,gun)
+    frames(gun,120)
+    Keep.get=get
+    assert(gun.state.on,'the rifle stays out')
+    for _,m in ipairs(logs) do assert(not m:find('^error: '),m) end
+    assert(#loads==0,'kept assets loaded on the frame: '..table.concat(loads,', '))
+    U.object_at,LoadAsset=object_at,load
+    Keep.reset()
+end
+
 print('gunmode cost: ok')
