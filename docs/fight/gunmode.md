@@ -24,7 +24,7 @@ Each frame `fight/gunmode/ik.lua` places the rifle in her mesh's component space
 at low ready otherwise. It puts her right hand on the rifle's grip and her left palm on the handguard. The rifle is
 attached to her real right hand (`fight/gunmode/rifle.lua`) with the grip of the pose on the layer. When the pose
 changes, her hands and the grip ease to the new place together, so the rifle never jumps in her hand. The ease is
-exponential with a time constant of 0.14 s: two thirds of the way after 0.14 s, 97% of it after 0.5 s.
+exponential with a time constant of 0.14 s: 63% of the way after 0.14 s, 97% after 0.5 s.
 
 During one of the game's own moves on the ground (a dodge, a hit reaction, a knockdown, a parry) the layer plays the
 carry pose until the move ends, in firing mode too. The aim's turn of her body eases out meanwhile. In the air the aim

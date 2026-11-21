@@ -200,7 +200,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   (`BP_NGM_CamMod`). Gun mode's code, tests, tools and page hold no
   clock time of a play session unless it names its log (`UE4SS.log 2026-11-12 21:49`). They cite neither
   `NGM_FACTS.md` nor the rebuild's plan, which are not in this repository. The gun mode page names every table
-  `fight/gunmode/data.lua` changes and the notice the parked key shows. While `mode.lua` ticks no HUD entry, neither
+  `fight/gunmode/data.lua` changes and the notice the parked key shows. It gives the grip's ease with the time
+  constant `ik.lua` runs (`pin_blend`). While `mode.lua` ticks no HUD entry, neither
   the page nor `ammo.lua`'s header promises the `rounds | magazines` count. While it ticks one, the page says what the
   entry shows and names its icon (`Icon_Nikke_LostItem_AssaultRifle`, row `Nikke_AR`). The page, its docs index row and `coop gun`'s comment speak of no crouching.
   The page has no ", and" or ", but", no bold-label bullet and no
