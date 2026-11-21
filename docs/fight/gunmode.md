@@ -262,6 +262,8 @@ of the game run. The magazine loads from the inventory only while a co-op save i
 magazine starts empty. Each reload takes the rounds it loads out of EVE's inventory in one take, at most a magazine
 and at most what she carries. The rounds she carries are the spares. An empty magazine reloads as
 soon as she carries rounds (a buy, a drop). With none in the magazine and none carried the reticle's slot reads NO AMMO.
+Until the count's first read after a co-op save loads (0.37 s after the rifle out in the 2026-11-21 test), the empty
+magazine waits for it with no `out of rounds` line.
 
 Rounds in the magazine have already left the inventory. They stay in the magazine across a new map, a death or a camp
 warp. Nothing gives them back to the inventory: not putting the rifle away, not `coop off`. A reload loads nothing

@@ -252,8 +252,8 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
             -- (no reload when the rifle is lowered: only an empty magazine or the player's reload key, 11-20)
         end
         -- With stock, an empty magazine reloads as soon as she carries rounds (a purchase, a drop), and holds no round
-        -- while she carries none.
-        if self.stocked and self.left<=0 and not self.reload_until and now>=(self.retry_at or 0) then
+        -- while she carries none. Nothing before the count's first read (count() nil): its reserve of 0 is no count.
+        if self.stocked and self.left<=0 and not self.reload_until and now>=(self.retry_at or 0) and stock.count()~=nil then
             if self.reserve>0 then start_reload(now,'empty')
             elseif not self.dry then self.dry=true; pcall(cool,999); g.log('ammo: out of rounds') end
         end

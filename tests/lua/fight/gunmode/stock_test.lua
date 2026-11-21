@@ -11,7 +11,7 @@
 -- take(). A part-spent magazine never reloads by itself (the rifle lowered or not): the player's reload (manual)
 -- keeps its rounds and tops it up through take() with at most what she carries, never while a refused take waits
 -- Ammo.RETRY s. A refused take at the player's reload keeps the magazine as it was. Fired empty after it, the magazine
--- waits Ammo.RETRY s too.
+-- waits Ammo.RETRY s too. Before the count's first read an empty magazine writes no 999 and logs no 'out of rounds'.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -349,5 +349,18 @@ frame(a,true,true)
 assert(cool()==0,'0 kept on the first round: '..tostring(cool()))
 frames(a,12,true,true)
 assert(cool()==CFG.fire_interval,'the rate of fire back: '..tostring(cool()))
+
+-- The rows in before the first read of the count (nikke.lua's count() is nil until a read answers, 0.37 s after the
+-- rifle out in the 2026-11-21 test): no 'out of rounds' and no 999. The first read of 30 starts the reload.
+st=stock(nil)
+st.rows=true
+a=new(st)
+frames(a,20,true,false)
+assert(a.left==0 and not a.reload_until,'empty, nothing to load yet')
+assert(count('out of rounds')==0 and not a.dry,'no out of rounds while the count is unread')
+for _,v in ipairs(cools) do assert(v~=999,'no 999 while the count is unread') end
+st.carried=30
+frame(a,true,false)
+assert(a.reload_until and count('out of rounds')==0,'the first read starts the reload')
 
 print('fight/gunmode/stock_test: ok')

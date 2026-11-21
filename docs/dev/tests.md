@@ -242,7 +242,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   stock with at most what she carries. A refused take there keeps the magazine as it was. The player's reload is
   refused while a refused take waits. A reload's end, a refill and free magazines again write the cool time 0. The
   rifle out keeps the take's 0 (`sync` writes nothing). One cool time and 4 frames after the first round the rate of
-  fire is back.
+  fire is back. Before the count's first read an empty magazine logs no `out of rounds` and writes no 999. The first
+  read starts its reload.
   A fake SB shot follows SB's cool time rule as read in Ghidra: a start copies the row's cool time, the copy counts
   down and a start is refused while both are above 0. Each start drops the game's aim for a frame. A magazine fired
   dry with the trigger held leaves the fake a copy of 999. After the next reload it fires 8 to 14 rounds in 1 s, within
