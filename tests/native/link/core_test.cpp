@@ -2420,13 +2420,13 @@ int main() {
     w.tick();
     F.members[5000].push_back(kFriend);
     w.tick("", 0, 0, 600);
-    const Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1};
+    const Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1, 1};
     F.inbox.push_back({kFriend, vit_line(hers)});
     F.inbox.push_back({kFriend, say_line("before")});
     const size_t logged = events.size();
     w.tick();
     assert(w.status().find("\nmate=") == std::string::npos && !w.link.chat_waiting() && events.size() == logged);
-    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 1};
     w.link.vitals(mine);
     const std::string vit = "SBC" + std::to_string(kProtocol) + " vit ";
     assert(sent_to(kFriend, vit) == 0); // Not linked: nothing goes.
@@ -2434,7 +2434,7 @@ int main() {
     F.inbox.push_back({kFriend, accept()});
     F.inbox.push_back({kFriend, vit_line(hers)});
     w.tick();
-    assert(w.status().find("\nmate=900 1600 0 50 5 200 1000 0 0 0 0 1\n") != std::string::npos);
+    assert(w.status().find("\nmate=900 1600 0 50 5 200 1000 0 0 0 0 1 1\n") != std::string::npos);
     assert(w.status().find("\nfriend=") < w.status().find("\nmate=") &&
            w.status().find("\nmate=") < w.status().find("\nnotice="));
     w.link.vitals(mine);
@@ -2461,7 +2461,7 @@ int main() {
     w.tick("", 0, 0, 1000);
     w.link.vitals(healed);
     assert(sent_to(kFriend, vit_line(healed)) == 2); // The keepalive.
-    F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " vit 1601 1600 0 0 0 0 0 0 0 0 0 1"});
+    F.inbox.push_back({kFriend, "SBC" + std::to_string(kProtocol) + " vit 1601 1600 0 0 0 0 0 0 0 0 0 1 0"});
     w.tick();
     assert(saw("invalid message from Kaanta") && w.status().find("\nmate=900 ") != std::string::npos);
     w.tick("", 0, 0, 1700); // Her last line is 3 s old: gone from the status, so the card greys.
@@ -2469,8 +2469,27 @@ int main() {
     F.inbox.push_back({kFriend, vit_line(mine)});
     w.tick();
     assert(w.status().find("\nmate=1500 ") != std::string::npos);
+    // solo_pair(ours): our type or the pair's last one solo; a public type: false. No vit line for 4 s (a load, lost
+    // unreliable lines) keeps her last type while the session holds; its end forgets it.
+    {
+      Vitals solo{900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1, 5};
+      assert(!w.link.solo_pair(1) && w.link.solo_pair(2));
+      F.inbox.push_back({kFriend, vit_line(solo)});
+      w.tick();
+      assert(w.link.solo_pair(1));
+      w.tick("", 0, 0, 4000);
+      assert(w.link.solo_pair(1) && w.status().find("\nmate=") == std::string::npos);
+      solo[vital::zone] = 1;
+      F.inbox.push_back({kFriend, vit_line(solo)});
+      w.tick();
+      assert(!w.link.solo_pair(1) && w.link.solo_pair(6) && !w.link.solo_pair(0));
+      solo[vital::zone] = 5;
+      F.inbox.push_back({kFriend, vit_line(solo)});
+      w.tick();
+    }
     w.tick("leave");
     assert(w.status().find("\nmate=") == std::string::npos && saw("chat this session: 0 in, 0 out, 0 dropped"));
+    assert(!w.link.solo_pair(1));
   }
 
   // The follow's camps lines (online/group/travel.lua). Outside a session nothing goes. Between two Links, A hosting
@@ -2540,6 +2559,34 @@ int main() {
     assert(!t.a.linked() && !t.b.linked());
     assert(status(t.a).find("camps") == std::string::npos && status(t.b).find("camps") == std::string::npos);
   }
+  // The spot lines (online/group/travel.lua) belong to one session: B's spot? and A's answer show in both statuses.
+  // After B leaves and joins again, neither shows a spot line.
+  reset();
+  {
+    Two t;
+    F.names[kMe] = "Me";
+    assert(t.a.ready(L"SB.exe") == Link::Ready::now && t.b.ready(L"SB.exe") == Link::Ready::now);
+    t.tick(t.a, 50, "host");
+    finish_all();
+    t.tick(t.a, 50);
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    const auto status = [](const Link &l) { return l.status(Counters{}); };
+    t.tick(t.b, 50, "spot? 1 " + std::to_string(kMe));
+    t.tick(t.a, 50);
+    assert(status(t.a).find("\nspot?=1\n") != std::string::npos);
+    t.tick(t.a, 50, "spot 1 10 20 30 40");
+    t.tick(t.b, 50);
+    assert(status(t.b).find("\nspot=1 10 20 30 40\n") != std::string::npos);
+    t.tick(t.b, 50, "leave");
+    t.tick(t.a, 600);
+    assert(!t.a.linked() && !t.b.linked());
+    t.tick(t.b, 50, "join 5000");
+    finish_all();
+    assert(settle(t));
+    assert(status(t.a).find("\nspot") == std::string::npos && status(t.b).find("\nspot") == std::string::npos);
+  }
 
   // Our life= line and her life for the shared fight's job (mate_life()). life=<state> <hp> comes from our last vitals
   // read while a chat session holds and that read is under 3 s old (a load reads none), before the notices. Hers is
@@ -2554,7 +2601,7 @@ int main() {
     w.tick();
     F.members[5000].push_back(kFriend);
     w.tick("", 0, 0, 600);
-    Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 1};
     w.link.vitals(mine);
     assert(w.status().find("\nlife=") == std::string::npos); // No session yet.
     F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
@@ -2572,7 +2619,7 @@ int main() {
     assert(w.status().find("\nlife=3 0\n") != std::string::npos);
     w.tick("", 0, 0, 1);
     assert(w.status().find("\nlife=") == std::string::npos); // Our last read is 3 s old.
-    Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1};
+    Vitals hers = {900, 1600, 0, 50, 5, 200, 1000, 0, 0, 0, 0, 1, 1};
     const auto heard = [&](uint32_t life, uint32_t hp, uint32_t max_hp = 1600) {
       hers[vital::life] = life, hers[vital::hp] = hp, hers[vital::max_hp] = max_hp;
       F.inbox.push_back({kFriend, vit_line(hers)});
@@ -2604,9 +2651,9 @@ int main() {
     w.tick();
     assert(w.link.chatting() && w.link.say("écho 😀") && F.sent.empty());
     assert(w.link.take_chat() == Texts{"in 1001 écho 😀"});
-    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
+    const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 1};
     w.link.vitals(mine);
-    assert(w.status().find("\nmate=1500 1600 30 50 5 400 1000 0 0 0 0 1\n") != std::string::npos);
+    assert(w.status().find("\nmate=1500 1600 30 50 5 400 1000 0 0 0 0 1 1\n") != std::string::npos);
     assert(w.status().find("écho") == std::string::npos);
     w.link.loopback(false);
     w.tick();

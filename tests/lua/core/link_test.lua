@@ -601,7 +601,15 @@ assert(Link.parse_settings('').pause_tab==true and Link.parse_settings('pause_ta
 -- The game's popups during online play: on by default, last in a new file, its comment right after pause_tab.
 assert(Link.parse_settings('').hide_popups==true and Link.parse_settings('hide_popups=off').hide_popups==false
     and Link.DEFAULT:find('\npause_tab=on\n# Popups during online play: on or off, on by default.',1,true)
-    and Link.DEFAULT:find('\nhide_popups=on\n$'))
+    and Link.DEFAULT:find('\nhide_popups=on\n',1,true))
+-- Score attack: on by default, last in a new file, its comment right after hide_popups; read at once, so off sits out
+-- the next round (online/modes/scoreattack/game.lua).
+assert(Link.parse_settings('').scoreattack==true and Link.parse_settings('scoreattack=OFF').scoreattack==false
+    and Link.DEFAULT:find('\nhide_popups=on\n# Score attack: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nscoreattack=on\n$'))
+s,notes=Link.parse_settings('scoreattack=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for scoreattack (use on or off); "
+    .."scoreattack stays on" and s.scoreattack==true,notes[1])
 assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)
@@ -1452,6 +1460,25 @@ chat=link.take_chat()
 assert(#chat==4 and chat[1].gift=='s 17 HP_Potion 3' and not chat[1].text and chat[2].text=='gift a 9'
     and not chat[2].gift and chat[3].race=='gift a 1' and not chat[3].gift and chat[4].gift=='n 18 nolink',
     'Gift lines apart from the chat and the race, in order')
+-- Score attack lines: score() is a score request; each member's line waits for take_score() with her SteamID, apart
+-- from what take_chat() returns, oldest first; a line with no id is no score line.
+files[REQUEST]=nil
+assert(link.score('go 7 targets') and files[REQUEST]=='score go 7 targets\n')
+files[REQUEST]=nil
+assert(#link.take_score()==0)
+files[CHAT]='score 2002 ready 7\nin 2002 score 9\nscore x go 7\nscore 4003 done 7 win 900 412\nrace score 1\n'
+chat=link.take_chat()
+assert(#chat==2 and chat[1].text=='score 9' and chat[2].race=='score 1','Score lines kept apart')
+local scores=link.take_score()
+assert(#scores==2 and scores[1].from=='2002' and scores[1].text=='ready 7' and scores[2].from=='4003'
+    and scores[2].text=='done 7 win 900 412' and #link.take_score()==0,'Handed over once, in order')
+-- ponytail's ceiling: 64 waiting at most, the oldest dropped, for a pass that never takes them.
+local many={}
+for i=1,70 do many[i]='score 2002 now 7 '..i..' 1' end
+files[CHAT]=table.concat(many,'\n')..'\n'
+link.take_chat()
+scores=link.take_score()
+assert(#scores==64 and scores[1].text=='now 7 7 1' and scores[64].text=='now 7 70 1')
 -- ponytail's ceiling: 512 waiting at most, the oldest dropped, for a native part that never takes the file.
 files[RACE]='stuck\n'
 for i=1,520 do link.race('cp 7 1 1 '..i) end
@@ -1465,7 +1492,7 @@ files[RACE]=nil
 -- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change up to 10 times a
 -- second), the RTT of the member the status line names (her member= line's, past the handshake only); whether a chat
 -- session holds: a friend linked (lost or not), a rejoin under way, or the loopback.
-local MATE='mate=900 1600 0 50 5 200 1000 0 0 0 0 1\n'
+local MATE='mate=900 1600 0 50 5 200 1000 0 0 0 0 1 0\n'
 files[STATUS]=HEAD..'peer=2 name=x rtt_ms=5 session=3 session_ping=4 hello=1 accepted=1 compatible=1 lost=0 '
     ..'invalid=0 rtt_ms=118 session=3 session_ping=40\nmember=2 0 1 0 0 118 x rtt_ms=5\nfriend=1 0 x\n'..MATE
     ..'last=#9 x\n'
@@ -1486,6 +1513,42 @@ for _,bad in ipairs({'life=1\n','life=1 2 3\n','life=-1 5\n','life=x 5\n','frien
     fresh.changes()
     assert(fresh.life()==nil,bad)
 end
+-- The zone type rides in the vitals: mate= and vit= with 13 numbers; 12 read as none.
+do
+    local MATE13='mate=900 1600 0 50 5 200 1000 0 0 0 0 1 5\n'
+    files[STATUS]=HEAD..'friend=1 0 x\n'..MATE13
+    fresh.changes()
+    assert(fresh.mate().zone==5 and fresh.mate().life==1)
+    files[STATUS]=HEAD..'friend=1 0 x\nmate=900 1600 0 50 5 200 1000 0 0 0 0 1\n'
+    fresh.changes()
+    assert(fresh.mate()==nil,'The 12 numbers of before: no vitals')
+    for t=-1,8 do assert(Link.solo(t)==(t>=2 and t<=6),t) end
+    assert(Link.solo(nil)==false and Link.solo('5')==false)
+    -- zone() from the engine line; spots() from the spot lines.
+    files[STATUS]='mod=v steam=ready\nengine=on warp=idle me=4242 zonetype=5 area=Zone_Xion_Boss_RavenBeast '
+        ..'rest=2:Zone_X:1 starts=3 travel=idle travel_calls=0\nlink=guest lobby=7\nspot?=4\nspot=9 -1235 0 7 -180\n'
+    fresh.changes()
+    local t,area=fresh.zone()
+    assert(t==5 and area=='Zone_Xion_Boss_RavenBeast')
+    local asked,answer=fresh.spots()
+    assert(asked==4 and answer=='9 -1235 0 7 -180')
+    files[STATUS]='mod=v steam=ready\nengine=on warp=idle me=4242 zonetype=1 area=none rest=0:none:0 starts=0\n'
+        ..'link=guest lobby=7\nspot=9 none air\n'
+    fresh.changes()
+    t,area=fresh.zone()
+    asked,answer=fresh.spots()
+    assert(t==1 and area==nil and asked==nil and answer=='9 none air','area=none: no area')
+    -- No engine line (or one before the warp read): type 0, no area; no spot lines: none (a session's end).
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\nfriend=1 0 x spot?=4 spot=9 1 2 3 4\n'
+    fresh.changes()
+    t,area=fresh.zone()
+    asked,answer=fresh.spots()
+    assert(t==0 and area==nil and asked==nil and answer==nil)
+    -- A rest line in coop-chat.txt: the zone and the resting member's SteamID; a line without digits is ignored.
+    files[CHAT]='rest Zone_Xion_10 2002\nrest Zone_Xion_10 Kaanta\n'
+    lines=fresh.take_chat()
+    assert(#lines==1 and lines[1].rest=='Zone_Xion_10' and lines[1].from=='2002')
+end
 -- The follow's camps lines: the host's camps?=<id> (her last request) and the guest's camps=<answer>, from the start of
 -- their own lines only, each in the log once.
 files[STATUS]=HEAD..'friend=1 0 x\ncamps?=41\ncamps=7 Xion Xion_Camp_10:12\n'
@@ -1502,7 +1565,7 @@ for _,bad in ipairs({'friend=1 0 x camps?=41 camps=7 x\n','camps?=x\ncamps=\n','
     assert(asked==nil and answer==nil,bad)
 end
 files[STATUS]=HEAD..'peer=2 name=x hello=1 accepted=0 compatible=1 lost=0 invalid=0 rtt_ms=40 session=1 '
-    ..'session_ping=-1\nmember=2 0 0 0 0 40 x\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12\nmate=1 2 3\n'
+    ..'session_ping=-1\nmember=2 0 0 0 0 40 x\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12 0\nmate=1 2 3\n'
 fresh.changes()
 assert(fresh.mate()==nil and fresh.ping()==nil and fresh.chatting()==false,'No vitals, no RTT, not linked')
 files[STATUS]=HEAD..'friend=1 1 x\n'
@@ -1599,12 +1662,14 @@ assert(door.pending()==nil and #door.pendings()==0)
 -- vitals (vit=, out of the log as mate= is), how many are past the handshake, the status line with ' +<n>'.
 local V12='1 2 3 4 5 6 7 8 9 10 11 '
 local CROWD='mod=v steam=ready\nlink=host lobby=7003\nhost=1 pair=21 max=4\nmember=21 0 1 0 0 40 Kaanta\n'
-    ..'member=22 1 1 0 0 50 Lucas\nmember=23 2 0 0 0 -1 Wait\nfriend=1 0 Kaanta\nvit=21 '..V12..'1\nvit=22 '..V12..'4\n'
+    ..'member=22 1 1 0 0 50 Lucas\nmember=23 2 0 0 0 -1 Wait\nfriend=1 0 Kaanta\nvit=21 '..V12..'1 0\n'
+    ..'vit=22 '..V12..'4 6\n'
 files[STATUS]=CROWD
 lines=door.changes()
 for _,line in ipairs(lines) do assert(not line:find('^vit='),'vit= stays out of the log') end
 assert(door.host().id=='1' and door.host().pair=='21' and door.others()==2)
 assert(door.vitals('21').life==1 and door.vitals('22').life==4 and door.vitals('22').hp==1 and door.vitals('23')==nil)
+assert(door.vitals('21').zone==0 and door.vitals('22').zone==6,'Her zone type, the thirteenth number')
 assert(door.slot(1).mate().life==4 and door.slot(2).mate()==nil and door.slot(1).friend()=='Lucas')
 assert(door.summary()=='Co-op: hosting Kaanta +1.' and door.ping()==40 and door.cap()==4)
 files[STATUS]=CROWD:gsub('friend=1 0 Kaanta\n',''):gsub('member=21 0 1','member=21 0 0'):gsub('pair=21','pair=0')
@@ -1632,7 +1697,7 @@ door.changes()
 assert(door.host().id=='1' and door.cap()==nil,'max=0: the let line has not come yet')
 for _,bad in ipairs({'host=1\n','host=x pair=2 max=4\n','host=1 pair=2 max=4 x\n','friend=1 0 x host=1 pair=2 max=4\n',
         'host=1 pair=2\n','host=1 pair=2 max=x\n',
-        'vit=21 1 2 3\n','vit=x '..V12..'1\n'}) do
+        'vit=21 1 2 3\n','vit=x '..V12..'1 0\n','vit=21 '..V12..'1\n'}) do
     files[STATUS]='mod=v steam=ready\nlink=host lobby=7003\n'..bad
     door.changes()
     assert(door.host()==nil and door.vitals('21')==nil,bad)

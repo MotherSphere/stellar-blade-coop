@@ -5,11 +5,11 @@
 """tools/install.py backup, install, uninstall and the release zip on a fake game folder in a temporary directory.
 Run: python3 tests/tools/install_test.py"""
 import contextlib
+import faulthandler
 import hashlib
 import io
 import re
 import shutil
-import signal
 import sys
 import tempfile
 import time
@@ -42,6 +42,18 @@ def uninstall(*extra):
     return run(install.main, ['--uninstall', *extra, '--game', str(install.GAME)])
 
 
+def link(path, folder, checks):
+    """Makes path a symbolic link to folder: True. Where this user may not make one (Windows without Developer Mode:
+    WinError 1314), prints the checks that go untested and returns False. Any other error fails the test."""
+    try:
+        path.symlink_to(folder, target_is_directory=True)
+        return True
+    except OSError as error:
+        if getattr(error, 'winerror', None) != 1314: raise
+        print(f'install_test: {checks} not tested: this user may not make symbolic links ({error})')
+        return False
+
+
 with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)
     assert not tmp.resolve().is_relative_to('/mnt')  # Never the real game folder.
@@ -62,7 +74,8 @@ with tempfile.TemporaryDirectory() as tmp:
         return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob('*') if p.is_file()}
 
     # 1. A fresh install writes the files and a manifest equal to them, and backs up nothing.
-    v1 = {'enabled.txt': b'', 'Scripts/main.lua': b'main', 'Scripts/old.lua': b'old', 'StellarCoop.dll': b'dll 1'}
+    dropped = 'Scripts/old\u00e9.lua'  # Part 2 drops it. Out of the f-string: Python 3.11 refuses a backslash there.
+    v1 = {'enabled.txt': b'', 'Scripts/main.lua': b'main', dropped: b'old', 'StellarCoop.dll': b'dll 1'}
     code, out = run(install.install_files, target, v1)
     assert code is None and out == f'Installed 4 files into {target}\n', out
     manifest = (target / install.MANIFEST).read_bytes()
@@ -70,7 +83,8 @@ with tempfile.TemporaryDirectory() as tmp:
     assert files_of(target) == {**v1, install.MANIFEST: manifest} and not backups()
 
     # 2. A reinstall that drops a file removes it, keeps what the mod wrote in game, and backs up first exactly the
-    # files it replaces or removes, the manifest included.
+    # files it replaces or removes, the manifest included. The dropped file's name is not ASCII: the manifest is UTF-8
+    # on every system.
     (target / 'coop-host.log').write_bytes(b'log')
     (target / 'coop-settings.txt').write_bytes(b'send_rate=20\n')
     v2 = {'enabled.txt': b'', 'Scripts/main.lua': b'main 2', 'StellarCoop.dll': b'dll 2'}
@@ -78,7 +92,7 @@ with tempfile.TemporaryDirectory() as tmp:
     first, = backups()
     dest = first / 'StellarCoop'
     assert code is None and re.fullmatch(r'\d{8}T\d{6}Z', first.name), out
-    assert out == (f'Backed up 5 files into {dest}\nRemoving {target / "Scripts/old.lua"}\n'
+    assert out == (f'Backed up 5 files into {dest}\nRemoving {target / dropped}\n'
                    f'Installed 3 files into {target}\n'), out
     assert files_of(dest) == {**v1, install.MANIFEST: manifest}  # Not the log or the settings.
     assert files_of(target) == {**v2, install.MANIFEST: b''.join(f'{r}\n'.encode() for r in sorted(v2)),
@@ -95,20 +109,21 @@ with tempfile.TemporaryDirectory() as tmp:
     for made in (a, b): shutil.rmtree(made.parent)
 
     # 3b. A backup folder that is a link to an unmounted disk fails at once, before install or uninstall changes
-    # anything. It once looped forever, so the alarm (default action: kill) turns a hang into a failure.
+    # anything. It once looped forever, so a timer (exit 1 after a traceback) turns a hang into a failure. Windows has
+    # no signal.alarm.
     backups_root, install.BACKUPS = install.BACKUPS, tmp / 'backups-link'
-    install.BACKUPS.symlink_to(tmp / 'unmounted', target_is_directory=True)
-    before = tree()
-    signal.alarm(10)
-    for call in (lambda: install.install_files(target, v1), lambda: install.uninstall(target, False)):
-        try:
-            call()
-            raise AssertionError('no error')
-        except FileExistsError as error:
-            assert error.filename == str(install.BACKUPS), error
-    signal.alarm(0)
-    assert tree() == before
-    install.BACKUPS.unlink()
+    if link(install.BACKUPS, tmp / 'unmounted', '3b (a backup folder linked to an unmounted disk)'):
+        before = tree()
+        faulthandler.dump_traceback_later(10, exit=True)
+        for call in (lambda: install.install_files(target, v1), lambda: install.uninstall(target, False)):
+            try:
+                call()
+                raise AssertionError('no error')
+            except FileExistsError as error:
+                assert error.filename == str(install.BACKUPS), error
+        faulthandler.cancel_dump_traceback_later()
+        assert tree() == before
+        install.BACKUPS.unlink()
     install.BACKUPS = backups_root
 
     # 4. Refusals while the game runs change nothing, for install and uninstall.
@@ -157,9 +172,9 @@ with tempfile.TemporaryDirectory() as tmp:
     assert uninstall() == (left_alone, '') and uninstall('--dry-run') == (left_alone, '') and tree() == before
     target.rename(tmp / 'checkout')
     (tmp / 'checkout' / install.MANIFEST).write_bytes(b'main.lua\n')
-    target.symlink_to(tmp / 'checkout', target_is_directory=True)
-    before = tree()
-    assert uninstall() == (left_alone, '') and tree() == before
+    if linked := link(target, tmp / 'checkout', '10 (a mod folder linked to a checkout)'):
+        before = tree()
+        assert uninstall() == (left_alone, '') and tree() == before
 
     # 11. The package content check: the shipped files plus the six docs, nothing the mod writes in game, no save
     # and no game file. A stray file in mod/StellarCoop fails here, so it fails the dry run.
@@ -187,9 +202,9 @@ with tempfile.TemporaryDirectory() as tmp:
                               'fight/gunmode/commands',
                               *(f'fight/gunmode/{name}' for name in ('aim', 'aimrot', 'ammo', 'config', 'data',
                                                                      'facts', 'g0', 'g1', 'g1_gates', 'ik', 'input',
-                                                                     'journal', 'laser', 'mode', 'morph', 'overlay',
-                                                                     'probe', 'release_check', 'rifle', 'stance',
-                                                                     'ui/dpad')),
+                                                                     'journal', 'laser', 'mode', 'morph', 'nikke',
+                                                                     'overlay', 'probe', 'release_check', 'rifle',
+                                                                     'rows', 'stance', 'ui/dpad')),
                               'core/keybind', 'core/link',
                               'core/mask', 'core/pak_gate', 'core/settings_file',
                               'core/unreal', 'core/ue4ss_settings', 'eve/chainspin', 'cutmenus/devmenu',
@@ -258,6 +273,10 @@ with tempfile.TemporaryDirectory() as tmp:
                                                          'th', 'tr', 'zh-Hans', 'zh-Hant')),
                               *(f'main/{name}' for name in ('boot', 'base', 'loader', 'commands', 'ui', 'input',
                                                              'frame', 'pass', 'keys')),
+                              'online/modes/scoreattack/commands', 'online/modes/scoreattack/challenges',
+                              'online/modes/scoreattack/model', 'online/modes/scoreattack/waves',
+                              'online/modes/scoreattack/round', 'online/modes/scoreattack/run',
+                              'online/modes/scoreattack/game', 'online/modes/scoreattack/ui/board',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',
@@ -267,7 +286,7 @@ with tempfile.TemporaryDirectory() as tmp:
                                                                    'story/together', 'online/lobby', 'vehicles/bike',
                                                                    'world/daynight', 'cutmenus',
                                                                    'online/saves', 'world/teamshop',
-                                                                   'fight/gunmode')),
+                                                                   'fight/gunmode', 'online/modes/scoreattack')),
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
@@ -352,7 +371,7 @@ with tempfile.TemporaryDirectory() as tmp:
 
     # 18. An uninstall backs up and removes the three pak files and nothing else in ~mods or LogicMods, first without
     # the mod folder, then with an installed one; its dry run says so. With no pak left it says nothing about one.
-    target.unlink()  # The link of 10: no mod folder now.
+    if linked: target.unlink()  # The link of 10: no mod folder now.
     nothing = f'Nothing to uninstall: no StellarCoop folder at {target}\n'
     before = tree()
     assert uninstall('--dry-run') == (None, f'Dry run: would back up 3 pak files into {install.BACKUPS} and remove '

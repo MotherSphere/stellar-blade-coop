@@ -1,0 +1,2 @@
+# LF line ends in every checkout, Windows included: the tests compare file text with LF patterns.
+* text=auto eol=lf

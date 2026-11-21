@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <random>
 #include <set>
@@ -21,9 +22,11 @@ static Message parse_text(const std::string &text) { return parse(text.data(), t
 int main() {
   // Lobby tag: protocol and game build.
   assert(lobby_tag(24463856) == std::to_string(kProtocol) + ":24463856");
-  // The match modes: FFA on its first arena, nothing else.
+  // The match modes: FFA on its first arena and the score attack in the lobby room, nothing else.
   assert(find_mode("ffa") && find_mode("ffa")->min == 2 && std::string(find_mode("ffa")->map) == "NK_Boss_Scarlet" &&
          !find_mode("tdm") && !find_mode(""));
+  assert(find_mode("scoreattack") && find_mode("scoreattack")->min == 2 &&
+         std::string(find_mode("scoreattack")->map) == "lobby" && std::size(kModes) == 2);
 
   // The handshake envelope reads the same whatever the sender's protocol: a mismatch is answered, never ignored.
   Message m = parse_text(hello(kProtocol, "v0.2-3-gabc", 24463856));
@@ -120,7 +123,7 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
-  // The race line, reliable: Lua's text after "SBC23 race ", printable ASCII only, the whole line within kMaxMessage.
+  // The race line, reliable: Lua's text after "SBC25 race ", printable ASCII only, the whole line within kMaxMessage.
   // Anything else is invalid, never cleaned into another line.
   assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
   m = parse_text(race_line("cp 7 1 2 34567"));
@@ -135,12 +138,25 @@ int main() {
                                  race + "end\r", race + "\xff", p + " race", race})
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse(race.data(), race.size() + 1).kind == Kind::invalid); // A NUL after the prefix.
-  for (const char *other : {"SBC22 race cp 7 1 2 3", "SBC24 race cp 7 1 2 3", "SBC race end 7"})
+  for (const char *other : {"SBC24 race cp 7 1 2 3", "SBC26 race cp 7 1 2 3", "SBC race end 7"})
     assert(parse_text(other).kind == Kind::invalid);
   for (int c = 0x20; c < 0x7f; ++c) { // Every printable byte passes as it is.
     m = parse_text(race + "x" + static_cast<char>(c) + "x");
     assert(m.kind == Kind::race && m.text == std::string("x") + static_cast<char>(c) + "x");
   }
+
+  // The score attack line, reliable: Lua's text after "SBC25 score ", read as the race line is and never as one.
+  assert(score_line("rank 7 1001:1620:10:win,2002:0:900:dead") == p + " score rank 7 1001:1620:10:win,2002:0:900:dead");
+  m = parse_text(score_line("go 4294967295 targets"));
+  assert(m.kind == Kind::score && m.text == "go 4294967295 targets");
+  const std::string score = p + " score ";
+  assert(parse_text(score + std::string(kMaxMessage - score.size(), '~')).kind == Kind::score &&
+         parse_text(score + std::string(kMaxMessage - score.size() + 1, '~')).kind == Kind::invalid);
+  for (const std::string &bad : {score + "a\tb", score + "a\x7f", score + "caf\xc3\xa9", score + "a\nb", p + " score",
+                                 score, p + " Score go 7 targets", std::string("SBC24 score go 7 targets"),
+                                 std::string("SBC26 score go 7 targets")})
+    assert(parse_text(bad).kind == Kind::invalid);
+  assert(parse_text(race_line("go 7 targets")).kind == Kind::race);
 
   // coop gift's line, reliable: s <id> <alias> <count>, a <id>, n <id> <why>, each field at its edge. Anything else is
   // invalid, never cleaned into another line.
@@ -165,20 +181,22 @@ int main() {
     assert(!gift_ok(bad) && gift_line(bad).empty());
     assert(parse_text(p + " gift " + bad).kind == Kind::invalid);
   }
-  for (const char *other : {"SBC22 gift a 1", "SBC24 gift a 1", "SBC gift a 1"})
+  for (const char *other : {"SBC24 gift a 1", "SBC26 gift a 1", "SBC gift a 1"})
     assert(parse_text(other).kind == Kind::invalid);
 
-  // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
-  const Vitals v = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
-  assert(vit_line(v) == p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1");
+  // The vit line, unreliable: the partner card's twelve numbers, whole units, then the zone type. Each rule holds at
+  // its edge.
+  const Vitals v = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 1};
+  assert(vit_line(v) == p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1 1");
   m = parse_text(vit_line(v));
   assert(m.kind == Kind::vitals && m.vitals == v && plausible_vitals(v));
   Vitals edge = {kMaxVital, kMaxVital, kMaxVital, kMaxVital, 64, kMaxVital, kMaxVital, kMaxVital, kMaxVital,
-                 kMaxVital, kMaxVital, 255};
+                 kMaxVital, kMaxVital, 255, kMaxZoneType};
   m = parse_text(vit_line(edge));
-  assert(m.kind == Kind::vitals && m.vitals == edge && vit_line(edge).size() <= 9 + 11 * 9 + 4);
+  assert(m.kind == Kind::vitals && m.vitals == edge && vit_line(edge).size() <= 9 + 11 * 9 + 4 + 2);
   for (auto [at, value] : {std::pair<size_t, uint32_t>{vital::hp, kMaxVital + 1}, {vital::max_hp, kMaxVital + 1},
-                           {vital::blocks, 65}, {vital::life, 256}, {vital::tachy, kMaxVital + 1}}) {
+                           {vital::blocks, 65}, {vital::life, 256}, {vital::tachy, kMaxVital + 1},
+                           {vital::zone, kMaxZoneType + 1}}) {
     Vitals bad = edge;
     bad[at] = value;
     assert(!plausible_vitals(bad) && parse_text(vit_line(bad)).kind == Kind::invalid);
@@ -186,6 +204,18 @@ int main() {
   Vitals over = v;
   over[vital::hp] = 1601; // HP over MaxHP.
   assert(!plausible_vitals(over) && parse_text(vit_line(over)).kind == Kind::invalid);
+  // Vitals carry the zone type (13 numbers); a type over 6 or the 12-number line of before is no vitals line.
+  {
+    Vitals z{1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1, 5};
+    assert(vit_line(z) == p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1 5");
+    assert(parse_text(vit_line(z)).kind == Kind::vitals && parse_text(vit_line(z)).vitals[vital::zone] == 5);
+    z[vital::zone] = 7;
+    assert(!plausible_vitals(z) && parse_text(vit_line(z)).kind == Kind::invalid);
+    assert(parse_text(p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1").kind == Kind::invalid);
+    for (uint32_t t = 0; t <= 7; ++t)
+      assert(solo_zone(t) == (t >= 2 && t <= 6));
+    assert(wire_zone(6) == 6 && wire_zone(7) == 0 && wire_zone(255) == 0 && wire_zone(0) == 0);
+  }
 
   // The paks line, reliable: how many .pak mods her game loads beyond the base game's, and their hash
   // (link/pak_list.h).
@@ -246,7 +276,7 @@ int main() {
   const Message c = parse_text(cycle_line(99, 0));
   assert(c.kind == Kind::cycle && c.a == 99 && c.b == 0);
   for (const std::string &bad : {p + " cycle 100 0", p + " cycle 0 3", p + " cycle -1 0", p + " cycle 1",
-                                 p + " cycle 1 2 3", p + " cycle a 1", std::string("SBC22 cycle 1 1")})
+                                 p + " cycle 1 2 3", p + " cycle a 1", std::string("SBC23 cycle 1 1")})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // Night Operation's line, reliable: a full state of the run from the host ("h ...") or the guest ("g ..."), which Lua
@@ -295,7 +325,7 @@ int main() {
   assert(m.kind == Kind::mark && m.text == std::string(kMaxMark, 'y'));
   for (const std::string &bad : {p + " mark", p + " mark 0", p + " mark 0 x", p + " mark 4294967296", p + " mark -1",
                                  p + " mark x", p + " mark 3 ", p + " mark  3", p + " mark 3x boss", p + " marks 3",
-                                 std::string("SBC22 mark 3 x"), std::string("SBC mark 3"), std::string("SBC24 mark 3")})
+                                 std::string("SBC24 mark 3 x"), std::string("SBC mark 3"), std::string("SBC26 mark 3")})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
@@ -332,7 +362,13 @@ int main() {
   // malformed, so the guest would wait through the host's scenes as before. Protocol 22 refuses the link.
   // Protocol 22 (story together for two) was never released either: its builds would count the host's let and wait
   // lines invalid and leave a lobby of 3. Protocol 23 refuses the link. 23 also carries the bike line.
-  static_assert(kProtocol == 23, "23 adds sessions of up to 4 players with the let and wait lines, then the bike line; "
+  // Protocol 23 (sessions of up to 4 players) was never released either: its builds would count every score line
+  // invalid, so a score attack round would never reach them. Protocol 24 refuses the link.
+  // Protocol 24 (the score attack) was never released either: its builds would count the spot?, spot and rest lines
+  // invalid and send a vit line of 12 numbers, which this build counts invalid. Protocol 25 refuses the link.
+  static_assert(kProtocol == 25, "25 adds the spot?, spot and rest lines and the zone type in the vitals; "
+                                 "24 the score attack's mode and score line; 23 sessions of up to 4 players with "
+                                 "the let and wait lines, then the bike line; "
                                  "22 story together's "
                                  "SBS lines on channel 2; 21 the shared world's SBW lines on "
                                  "channel 2; 20 the PvP test's pvp line on channel 2; 19 Matrix XIII's world rows; "
@@ -347,10 +383,25 @@ int main() {
          lobby_tag(24463856) != "15:24463856" && lobby_tag(24463856) != "16:24463856" &&
          lobby_tag(24463856) != "17:24463856" && lobby_tag(24463856) != "18:24463856" &&
          lobby_tag(24463856) != "19:24463856" && lobby_tag(24463856) != "20:24463856" &&
-         lobby_tag(24463856) != "21:24463856" && lobby_tag(24463856) != "22:24463856");
+         lobby_tag(24463856) != "21:24463856" && lobby_tag(24463856) != "22:24463856" &&
+         lobby_tag(24463856) != "23:24463856" && lobby_tag(24463856) != "24:24463856");
+  assert(parse_text("SBC23 ping 1 2").kind == Kind::invalid &&
+         parse_text("SBC24 score go 7 targets").kind == Kind::invalid);
   // A well-formed let line under another protocol's tag: refused by its tag alone (the same line with ours is read).
   assert(parse_text("SBC22 ping 1 2").kind == Kind::invalid && parse_text("SBC22 let 0 2002 4").kind == Kind::invalid &&
-         parse_text("SBC24 let 0 2002 4").kind == Kind::invalid && parse_text(let_line(0, {2002}, 4)).kind == Kind::let);
+         parse_text("SBC24 let 0 2002 4").kind == Kind::invalid &&
+         parse_text("SBC26 let 0 2002 4").kind == Kind::invalid && parse_text(let_line(0, {2002}, 4)).kind == Kind::let);
+  // Protocol 25's spot?, spot, rest and 13-number vit lines under protocol 24's tag: refused by the tag alone.
+  {
+    Vitals alive{};
+    alive[vital::max_hp] = 1600, alive[vital::life] = 1;
+    for (std::string line : {spot_ask_line(5), spot_line(5, Spot{100, -200, 300, 90}), rest_line("Zone_Xion_10", 1001),
+                             vit_line(alive), std::string("SBC25 ping 1 2")}) {
+      assert(parse_text(line).kind != Kind::invalid && line.rfind("SBC25 ", 0) == 0);
+      line.replace(3, 2, "24");
+      assert(parse_text(line).kind == Kind::invalid);
+    }
+  }
   assert(parse_text("SBC21 ping 1 2").kind == Kind::invalid && parse_text("SBC20 ping 1 2").kind == Kind::invalid &&
          parse_text("SBC19 ping 1 2").kind == Kind::invalid);
   assert(parse_text("SBC18 ping 1 2").kind == Kind::invalid && parse_text("SBC18 gift x").kind == Kind::invalid);
@@ -392,12 +443,14 @@ int main() {
   assert(clean(hangul, 64) == hangul.substr(0, 63)); // 21 whole characters, no half one.
 
   // Anything else is invalid: unknown kinds, bad or missing numbers, junk.
-  const std::string n12 = " 1 2 3 4 5 6 7 8 9 10 11 12";
+  const std::string n12 = " 1 2 3 4 5 6 7 8 9 10 11 12", n13 = n12 + " 0";
+  assert(parse_text(p + " vit" + n13).kind == Kind::vitals);
   for (const std::string &bad :
        {p + " say", p + " say ", p + " say \x01\x02", p + " say \xe2\x80\x8b", p + " Say hi", p + " vit",
-        p + " vit 1 2 3 4 5 6 7 8 9 10 11", p + " vit" + n12 + " 13", p + " vit" + n12 + " ",
-        p + " vit  2" + n12.substr(2), p + " vit -1 2 3 4 5 6 7 8 9 10 11 12", p + " vit 1.5 2 3 4 5 6 7 8 9 10 11 12",
-        p + " vit 1 2 3 4 5 6 7 8 9 10 11 x", p + " vit 99999999999999999999 1 0 0 0 0 0 0 0 0 0 1"})
+        p + " vit 1 2 3 4 5 6 7 8 9 10 11", p + " vit" + n12, p + " vit" + n13 + " 0", p + " vit" + n13 + " ",
+        p + " vit  2" + n13.substr(2), p + " vit -1 2 3 4 5 6 7 8 9 10 11 12 0",
+        p + " vit 1.5 2 3 4 5 6 7 8 9 10 11 12 0", p + " vit 1 2 3 4 5 6 7 8 9 10 11 12 x",
+        p + " vit 99999999999999999999 1 0 0 0 0 0 0 0 0 0 1 0"})
     assert(parse_text(bad).kind == Kind::invalid);
   for (const std::string &bad :
        {std::string(), std::string("SBC"), p, p + " dance 1 2", p + " ping", p + " ping 1", p + " ping x 2",
@@ -418,7 +471,9 @@ int main() {
                                pak_line({"~mods/lily_hair_p", 1024, 0xfedcba9876543210ull}), night_line(host_line),
                                mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
                                count_line(5), end_line(), dlc_line(3564740, "Twin Expansion Pack"), dlcs_line(),
-                               cycle_line(3, 1), let_line(2002, {2002, 4003}, 4), wait_line(120)};
+                               cycle_line(3, 1), let_line(2002, {2002, 4003}, 4), wait_line(120),
+                               spot_ask_line(5), spot_line(5, Spot{-1235, 0, 7, -180}), spot_none_line(5, "air"),
+                               rest_line("Zone_Xion_10", 1001), score_line("done 7 win 900 412")};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -437,6 +492,13 @@ int main() {
       assert(!f.text.empty() && f.text == chat_clean(f.text));
     if (f.kind == Kind::vitals) // Leading zeros read as the number they spell.
       assert(plausible_vitals(f.vitals));
+    if (f.kind == Kind::spot_ask || f.kind == Kind::spot) // An id, a place and a yaw in bounds, or a known reason.
+      assert(f.a <= kMaxCampId &&
+             (f.text == "none" ? spot_why(f.why)
+                               : std::abs(f.at[0]) <= kMaxSpotAt && std::abs(f.at[1]) <= kMaxSpotAt &&
+                                     std::abs(f.at[2]) <= kMaxSpotAt && std::abs(f.at[3]) <= kMaxSpotYaw));
+    if (f.kind == Kind::rest)
+      assert(alias_word(f.text) && f.a);
     if (f.kind == Kind::paks)
       assert(f.a <= kMaxPaks);
     if (f.kind == Kind::pak) // A name the sender's rule makes, the line exactly as pak_line() writes it.
@@ -452,6 +514,8 @@ int main() {
     }
     if (f.kind == Kind::count)
       assert(f.a <= 10);
+    if (f.kind == Kind::score) // Printable ASCII, the line exactly as score_line() writes it.
+      assert(text == score_line(f.text));
     if (f.kind == Kind::let) { // 1 to 7 distinct SteamIDs, none 0; the pair 0 or one of them.
       std::set<uint64_t> ids(f.ids.begin(), f.ids.end());
       assert(!f.ids.empty() && f.ids.size() <= kMaxRemote && ids.size() == f.ids.size() && !ids.count(0) &&
@@ -1230,6 +1294,63 @@ int main() {
         std::string("travel ") + a65 + " 1 0", std::string("travel Xion_Camp_10 1"), std::string("travel"),
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
     assert(parse_request(bad).command == Command::none);
+  // spot? and spot: round trips; places within 10'000'000 cm and yaw within 360; the six reasons only.
+  {
+    Message m = parse_text(spot_ask_line(5));
+    assert(spot_ask_line(5) == p + " spot? 5" && m.kind == Kind::spot_ask && m.a == 5 &&
+           spot_line(m) == p + " spot? 5");
+    m = parse_text(spot_line(5, Spot{100, -200, 300, -90}));
+    assert(m.kind == Kind::spot && m.at == (Spot{100, -200, 300, -90}) &&
+           spot_line(m) == p + " spot 5 100 -200 300 -90");
+    m = parse_text(spot_none_line(5, "air"));
+    assert(m.kind == Kind::spot && m.text == "none" && m.why == "air" && spot_line(m) == p + " spot 5 none air");
+    for (const char *why : {"title", "loading", "air", "busy", "solo", "boss"})
+      assert(parse_text(spot_none_line(kMaxCampId, why)).kind == Kind::spot);
+    m = parse_text(spot_line(0, Spot{-10'000'000, 10'000'000, -10'000'000, 360}));
+    assert(m.kind == Kind::spot && m.a == 0 && m.at == (Spot{-10'000'000, 10'000'000, -10'000'000, 360}));
+    assert(parse_text(p + " spot 5 0 0 0 -360").kind == Kind::spot);
+    for (const std::string &bad : {p + " spot 5 none nocamp", p + " spot 5 10000001 0 0 0", p + " spot 5 0 0 0 361",
+                                   p + " spot 5 1.5 0 0 0", p + " spot 5 0 0 0", p + " spot 65536 0 0 0 0",
+                                   p + " spot? x", p + " spot 5 -0x1 0 0 0", p + " spot 5 0 0 -10000001 0",
+                                   p + " spot 5 0 0 0 -361", p + " spot 5 - 0 0 0", p + " spot 5 --1 0 0 0",
+                                   p + " spot 5 +1 0 0 0", p + " spot 5 0 0 0 0 0", p + " spot 5 none",
+                                   p + " spot 5 none air air", p + " spot? 65536", p + " spot? 5 6",
+                                   "SBC" + std::to_string(kProtocol + 1) + " spot? 5"})
+      assert(parse_text(bad).kind == Kind::invalid);
+  }
+  // rest: the zone and the resting member's SteamID.
+  {
+    const Message m = parse_text(rest_line("Zone_Xion_10", 1001));
+    assert(rest_line("Zone_Xion_10", 1001) == p + " rest Zone_Xion_10 1001");
+    assert(m.kind == Kind::rest && m.text == "Zone_Xion_10" && m.a == 1001);
+    assert(parse_text(p + " rest " + std::string(64, 'a') + " 1").kind == Kind::rest);
+    for (const std::string &bad :
+         {p + " rest Zone_Xion_10 0", p + " rest Zone-X 1", p + " rest " + std::string(65, 'a') + " 1",
+          p + " rest Zone_Xion_10", p + " rest Zone_Xion_10 1 2", p + " rest Zone_Xion_10 x"})
+      assert(parse_text(bad).kind == Kind::invalid);
+  }
+  // Lua's words.
+  {
+    Request r = parse_request("spot? 5 1001");
+    assert(r.command == Command::spot && r.line == p + " spot? 5" && r.player == 1001);
+    assert(parse_request("spot? 5 0").command == Command::none);
+    r = parse_request("spot 3 -1235 0 7 -180");
+    assert(r.command == Command::spot && r.line == p + " spot 3 -1235 0 7 -180");
+    assert(parse_request("spot 3 none boss").command == Command::spot &&
+           parse_request("spot 3 none x").command == Command::none);
+    r = parse_request("rest Zone_Xion_10");
+    assert(r.command == Command::rest && r.alias == "Zone_Xion_10");
+    assert(parse_request("rest Zone-X").command == Command::none && parse_request("rest").command == Command::none);
+    r = parse_request("travel spot 100 -200 300 90");
+    assert(r.command == Command::travel && r.spot && r.at == (Spot{100, -200, 300, 90}) && r.index == 0);
+    r = parse_request("travel spot 1 2 3 0 Xion 77 0");
+    assert(r.command == Command::travel && r.spot && r.alias == "Xion" && r.index == 77 && r.number == 0);
+    for (const char *bad : {"travel spot 1 2 3", "travel spot 1 2 3 0 Xion 0 0", "travel spot 10000001 0 0 0",
+                            "travel spot 1 2 3 400", "travel spot 1 2 3 0 Xion 77", "travel spot 1 2"})
+      assert(parse_request(bad).command == Command::none);
+    assert(parse_request("travel Xion_Camp 12 11").command == Command::travel &&
+           !parse_request("travel Xion_Camp 12 11").spot);
+  }
   // sbo requests (design-lobby 3.3, 3.7): exact words, decimal FName ids, a plausible hex manager, one abort word.
   {
     Request r = parse_request("sbo arm 123456 0");
@@ -1258,6 +1379,12 @@ int main() {
   gr = parse_request("gift n 17 slot");
   assert(gr.command == Command::gift && gr.text == "n 17 slot");
   for (const char *bad : {"gift", "gift ", "gift s 1 HP_Potion 11", "gift a 0", "gift n 1 x y", "gifts a 1"})
+    assert(parse_request(bad).command == Command::none);
+  // A score attack request: score <text>, the text as Lua wrote it (the link's score() refuses one the line would not
+  // carry). Nothing after the word is no request.
+  Request sr = parse_request("score done 7 win 900 412\r\n");
+  assert(sr.command == Command::score && sr.text == "done 7 win 900 412");
+  for (const char *bad : {"score", "score ", "scores go 7 targets", "Score go 7 targets"})
     assert(parse_request(bad).command == Command::none);
   Request ir = parse_request("items 7 HP_Potion 4096 0\r\n");
   assert(ir.command == Command::items && ir.ask == 7 && ir.alias == "HP_Potion" && ir.index == 4096 && ir.number == 0);

@@ -74,7 +74,7 @@ site: their rows belong to `Zone_ME_03`, which never starts in this world, and t
 other Matrix 11 camps in its levels: two more in Area03, two in Area04 and one in Area01
 ([Achievements](../dev/safety.md#achievements)).
 
-The two zone tables are the sixteenth and seventeenth of the 39 tables every rows request names (`kLionTables`), and
+The two zone tables are the sixteenth and seventeenth of the 40 tables every rows request names (`kLionTables`), and
 only Matrix XIII's batches write them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
 them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
 line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `core/enemy.lua` reads

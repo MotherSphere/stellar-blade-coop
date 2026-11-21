@@ -437,12 +437,12 @@ local link={remote_table=function() return remote_file end,store=function() retu
 local capture={yaw_delta=function() return 90 end} -- Her actor faces yaw 90 more than her mesh.
 local Words=require('ui.text')
 local words=Words.en -- The words for the screen (main.lua's: the game's language).
-local function new(path_left,name_tag,look,sentinel)
+local function new(path_left,name_tag,look,sentinel,solo)
     stored=path_left
     package.loaded['online.partner.puppet']=nil
     return require('online.partner.puppet').new(link,capture,function(text,
         en) said[#said+1]=text; said_en[#said]=en end,
-        name_tag~=false,look,function() return words end,sentinel)
+        name_tag~=false,look,function() return words end,sentinel,solo)
 end
 local ghost=new(nil)
 local count=0
@@ -2366,6 +2366,35 @@ fail_section=false
 end
 cns={}
 dyeable=false
+
+-- A member in a solo area: her ghost hides and new stamps never show it; the line once a stay; back at the next stamp.
+do
+    local solo=false
+    ghost=new(nil,nil,nil,nil,function() return solo end)
+    ghost.toggle()
+    send(960,her_parts())
+    ghost.tick()
+    clock=clock+2
+    ok,message=build()
+    assert(ok and message:find('^Ghost 960 built'),message)
+    actor=spawned[#spawned]
+    box=actor.mailbox
+    box.RelativeRotation={Pitch=0,Yaw=0,Roll=0}
+    pose_at(40,{X=100,Y=0,Z=30})
+    assert(actor.hidden==false,'Shown at the first stamp')
+    solo=true
+    pose_at(41,{X=100,Y=0,Z=30})
+    assert(actor.hidden==true,'Hidden while she is in a solo area')
+    pose_at(42,{X=120,Y=0,Z=30})
+    assert(actor.hidden==true,'A new stamp does not show her')
+    local said_ok,text=ghost.tick()
+    assert(said_ok==true and text=='Ghost hidden: she is in a solo area.',tostring(text))
+    assert(select(2,ghost.tick())==nil,'Said once a stay')
+    solo=false
+    pose_at(43,{X=140,Y=0,Z=30})
+    assert(actor.hidden==false,'Back at the next stamp')
+    ghost.toggle()
+end
 
 -- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.
 local part=cloth_part(object('Owner'))

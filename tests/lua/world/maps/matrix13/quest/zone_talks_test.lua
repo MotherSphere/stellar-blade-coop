@@ -11,11 +11,18 @@
 -- line a scene; at most one look a second, no object walk, no theater look (the talk player waits for a theater of the
 -- game); leaving the world drops the one playing.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
+-- Lua prints a table as "table: 0x55d0c2a8" on Linux and as "table: 000001D2C3A8" on Windows. This test prints it the
+-- Windows way, so no check here can depend on the address format.
+local plain_tostring=tostring
+tostring=function(v) return (plain_tostring(v):gsub('^table: 0x','table: 00')) end
+local addresses=0
 local function object(t)
     t=t or {}
     t.type=t.type or function() return 'UObject' end
     t.IsValid=t.IsValid or function() return true end
-    t.GetAddress=t.GetAddress or function(self) return tonumber(tostring(self):match('0x(%x+)'),16) end
+    addresses=addresses+1
+    local address=addresses -- One per fake object, never 0.
+    t.GetAddress=t.GetAddress or function() return address end
     return t
 end
 FName=function(s) return s end

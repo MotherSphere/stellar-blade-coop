@@ -109,6 +109,10 @@ constexpr uint64_t kSayPerSecond = 3, kHeardPerSecond = 10, kVitalsEveryMs = 90,
 // Race lines (online/modes/race/model.lua's): ours a second, and hers kept a second. A race sends a few a second, the
 // host's busiest a track line and its six cps lines at once. The lines waiting for Lua hold hers beside the chat's.
 constexpr uint64_t kRacePerSecond = 40;
+// Score attack lines (online/modes/scoreattack/model.lua's), in a match lobby: the most we send a second, which is also
+// the most we keep a second from each member. A player sends about one a second. Reliable lines held up by a stall of
+// up to kLostAfterMs come in at once, her done line among them.
+constexpr uint64_t kScorePerSecond = 16;
 constexpr size_t kChatInbox = 64;
 // Night Operation's lines a second, each way: Lua writes one a tick (4 a second) at most.
 constexpr uint64_t kNightPerSecond = 8;
@@ -293,6 +297,11 @@ private:
   uint64_t camps_asked_ = 0;
   uint64_t camps_n_ = 0; // The host's last number for a guest's camps? (Peer::camps_n), 1 to kMaxCampId.
   std::string camps_answer_;
+  // The spot lines in this session: whether we asked, the member asked, our last spot? id and her answer to it (without
+  // its tag; empty until one came); our last number for a spot? of a member's (Peer::spot_n), 1 to kMaxCampId.
+  bool asked_spot_ = false;
+  uint64_t spot_to_ = 0, spot_asked_ = 0, spot_n_ = 0;
+  std::string spot_answer_;
   // The synced photo mode: photo() called yet, ours, our photo_sync as sent, the cap in s, whether our Lua asks for
   // the host's cutscene pause; as of the last pass, hers ('0' with no friend or a lost one) and ours, whether our game
   // holds its pause and since when, whether the cap ended this photo session of hers.
@@ -324,6 +333,11 @@ private:
   // Race lines: this session's counts (ours out, hers in, dropped either way) and our rate window.
   uint64_t race_in_ = 0, race_out_ = 0, race_dropped_ = 0;
   Window race_window_;
+  // Score attack lines: the counts of the 60 s line (ours out, theirs in, dropped either way), our rate window and its
+  // drop line, said once a 60 s line.
+  uint64_t score_in_ = 0, score_out_ = 0, score_dropped_ = 0;
+  Window score_window_;
+  bool score_logged_ = false;
   Window gift_window_; // Our gift lines.
   Vitals vitals_{}, mate_{}, own_{}; // own_: our last read, sent or not.
   // coop mark: our marks this run (one count a game process, never reset) and the last mark's status line, or empty.

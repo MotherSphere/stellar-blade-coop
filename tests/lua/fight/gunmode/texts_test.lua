@@ -6,7 +6,11 @@
 -- engine hook. Runs from the repository's root.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local S='mod/StellarCoop/Scripts/fight/gunmode/'
-local function read(path) local f=assert(io.open(path,'rb'),path); local s=f:read('a'); f:close(); return s end
+-- LF ends whatever the checkout has: a Windows checkout may have CRLF.
+local function read(path)
+    local f=assert(io.open(path,'rb'),path); local s=f:read('a'); f:close()
+    return (s:gsub('\r\n','\n'))
+end
 local function files(cmd)
     local out={}
     for l in io.popen(cmd):lines() do out[#out+1]=l end

@@ -237,6 +237,43 @@ sliding or does not move with the stick after a race or `coop race drive probe`:
   back at its first tick: `UE4SS.log` says `[StellarCoop][DR] drive restored from coop-drive.txt: MaxAcceleration=...`.
 - Restart the game if neither works. The values are in memory only, and no save holds them.
 
+## Score attack
+
+### I sit out every round
+
+The notice and the `[StellarCoop][SA] sit out: <why>` line in `UE4SS.log` say why (see
+[A round](../online/modes/scoreattack.md#a-round)). After `Your game could not start the challenge`, the line gives the
+run's own reason:
+
+- `census: 1 living within 40 m (nearest 23.4 m); 0 wave bodies`: a living character other than EVE stands within
+  40 m of your spot. The census of a challenge refuses that start too (see
+  [Starting a run](../online/modes/nightop.md#starting-a-run)).
+- `your EVE is down`: the in-place respawn after your last death has not ended. Its `respawn` lines say why.
+- `a coop no probe rule is set in this game run`: `coop no rule` ran in this game run. Restart the game.
+- `the game refused the teleport to <x,y,z>`: the game would not move EVE to her spot.
+
+`EVE is not in the lobby room` means your game does not see you in the SBO lobby's room. `this room has no spot <k>`
+means the round has more players than the room has spots.
+
+### Not ranked
+
+The host's `UE4SS.log` has `rank: refused <name>: <why>` for a result its checks refused (`time`, `score` or `twice`).
+A player is also left out when her result comes after the host stopped waiting (5 s plus the time limit plus 30 s
+after the round's start, a pause included), when she left the lobby or lost her link, or when her run ended with a
+stop: a map change, a load, EVE farther than 80 m from her spot for 10 s, or a Lua reload.
+
+### `The round was cancelled.` or `The host left. This round has no ranking.`
+
+`The round was cancelled.` follows the host's `coop match end`, a Lua reload on the host's PC, or a room that offers no
+challenge (`round <n>: this room offers no challenge: void` in the host's log). `The host left. This round has no
+ranking.` means the host left the lobby or was silent for 10 s. The next host counts down and starts the next round.
+
+### EVE leaves the lobby room after a death
+
+A button pressed on the death screen takes EVE out of the room. Press none: the mod asks the game's in-place respawn
+within 10 s of the death. When it does not, `UE4SS.log` has `respawn waits: <reason>`, then
+`respawn not asked in 10 s: <reason>`. Send that log (see [Which logs to send](#which-logs-to-send)).
+
 ## Menu, chat, controller and screen
 
 ### The game ignores its keys after the co-op menu or the chat
@@ -608,6 +645,13 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
   another travel under way, the game paused, in photo mode or in a menu (the co-op menu too), a Night Operation run, a
   cutscene, a boss fight or an enemy in battle near you, the host's game loading or busy, or less than 10 s since the
   last travel. The log line names which.
+  On the host's map it also covers `the host is in a solo area`, `we are in a solo area`, an answer from the host's
+  game that says it is busy (`no spot from the host: none <loading|busy|solo|boss>`), no answer in 10 s
+  (`no answer from the host in 10 s`) and a host who left your map before his answer came
+  (`refused at the call: the host left this map`). The native part's refusals of the warp to his place are in
+  `coop-link.log` as `travel spot refused: <why>` (`solo` while your own zone is a solo area).
+- `<host> is not on solid ground. Try again in a moment.`: the host's EVE had not walked on a floor in the last 10 s
+  (`no spot from the host: none air`). Wait until he stands on the ground, then press F7 again.
 - `No camp you have found is near <host>.`: the host's game found no travel camp on its map (`none nocamp`), none of
   the camps it sent could be used (`travel: <camp> is not activated in this save` for a camp you have not found), or
   the game refused each one (`travel: SB refused <camp>`).
@@ -619,6 +663,17 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
 - No notice at all: `follow_host=off`, `follow_key=none` (use `coop travel host`), you are the host, your own save is
   loaded, or the host is within 150 m of you on your map. Press F7 and read the `travel refused:` line.
 - A second F7 within 2.5 s is refused in the log only (`one request to the host each 2.5 s`).
+- F7 within 5 m of the host is refused in the log only (`the host is within 5 m`). With his ghost hidden or not yet
+  placed, the log says `the host's place on this map is unknown`.
+- After a camp travel to the host's map you stay at the camp: `travel: no second hop: <why>` means a guard held for
+  30 s after the arrival. Press F7 again.
+
+The way back after a death (`<name> is alive. Press F7 to go back to them.`) writes `[StellarCoop][GR] return: ...`
+lines. No notice shows with `follow_key=none` or `follow_host=off` (`return: no notice (follow_key=none)`), with
+`revive=off`, during a boss fight, in a solo area on either side, with your friend down or on another map, or within
+10 s of the last respawn the mod asked for. `return refused: <why>` names the guard that stopped the respawn call.
+`return: no warp, <why>` means you got up where you fell with no warp: your friend left, went down or entered a solo
+area, the respawn did not take, or you went down again before the warp.
 
 ### A revive is not offered
 
@@ -736,6 +791,9 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 - `link, last 60 s: <p> passes, <f> full receive batches (16 messages)`: the link's passes (one every 5 ms while
   poses stream, every 50 ms otherwise) and the reads that returned 16 messages on one channel, so more may have waited
   for the next pass. The first of these lines in a run counts only its first pass.
+- `score lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
+  [score attack](../online/modes/scoreattack.md) lines: the lines received, sent and dropped (see
+  [The score line](../online/steam-link-internals.md#the-score-line)).
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.

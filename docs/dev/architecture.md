@@ -58,6 +58,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `online/photo/commands.lua` | `coop freeze` |
 | `online/modes/nightop/commands.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `online/modes/race/commands.lua` | `coop race`: the Doro look and probe, and the co-op save check before `online/modes/race/run.lua`'s command |
+| `online/modes/scoreattack/commands.lua` | `coop scoreattack`: the round's state line and the host's challenge pick ([Score attack](../online/modes/scoreattack.md)) |
 | `fight/enemies/commands.lua` | `coop fight` (its pilot and spawn probe included) and `coop pvp`: their lines for the native part |
 | `story/quests/commands.lua` | `coop quests`: its lines for the native part |
 | `fight/bosses/commands.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `fight/bosses/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `fight/bosses/tendril.lua` the same way |
@@ -115,6 +116,9 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `online/modes/race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation, made through `core/actors.lua`), the Doro look on your EVE, and `coop race probe doro` |
 | `online/modes/race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `online/modes/race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
+| `online/modes/scoreattack/model.lua` | Score attack with no engine call: the challenges a lobby room offers, the host's pick and its draw, the score line's texts, the host's checks and wait, the ranking |
+| `online/modes/scoreattack/round.lua` | Score attack on the Steam link: the round from the link's start line, the score lines sent and read, the host's draw and arbitration |
+| `online/modes/scoreattack/run.lua` | Score attack in game: a copy of Night Operation's run with its heal and group play's in-place respawn. `online/modes/scoreattack/game.lua` starts it at the player's lobby spot and `online/modes/scoreattack/ui/board.lua` draws its card, board and result panel |
 | `fight/bosses/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
 | `fight/bosses/enemy.lua` | The cut enemies' copy of `core/enemy.lua`: the flow `coop lion`, `coop gardener fight` and `coop tendril fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the material and the boss bar's name, the lines that follow the body ([The cut Lion](../fight/bosses-internals.md#the-cut-lion)) |
 | `core/enemy.lua` | The same flow as the cut enemies' copy; Matrix XIII's batches (`world/maps/matrix13/level/travel.lua`, `world/maps/matrix13/quest/on_time.lua`) and the hall lobbies' (`online/lobby/halls_rows.lua`) use its rows part only |
@@ -211,9 +215,14 @@ file is written in full beside its final name and then renamed over it, so the r
   the native part has taken the previous file, and the native part takes it at its next pass and sends each line in
   order. Your friend's race lines come in `coop-chat.txt` as `race <text>`, beside the chat lines, and Lua reads that
   file every frame while a race is armed. `coop-race.txt` is deleted with the chat files.
+- Score attack sends its lines as requests (`score <text>` in `coop-request.txt`). The other players' lines come in
+  `coop-chat.txt` as `score <SteamID> <text>`. `core/link.lua` keeps them apart from the chat lines until the module's
+  250 ms pass takes them (`take_score()`).
 - `coop gift` sends its lines as requests (`gift <payload>` in `coop-request.txt`), and asks the inventory read the
   same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
   go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](../cutmenus/menus-internals.md#cut-mailbox)).
+- Another member's camp rest comes in `coop-chat.txt` as `rest <zone> <SteamID>`. `main/input.lua` hands it to the
+  group module ([Rests between members](../online/group-internals.md#rests-between-members)).
 - The SBO lobby's screens (the lobby menu, its settings and the Leave question) hide Stellar Blade's HUD. Every 250 ms
   `online/lobby/wiring.lua` asks `hud hide on` when one of them has opened and `hud hide off` when the last one has
   closed, and `hud hide off` once after each Lua load. On the game thread the native part passes its own key,

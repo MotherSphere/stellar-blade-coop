@@ -272,7 +272,7 @@ int main() {
     match_of(m, 3);
     assert(slot_of(m[0], kFriend) == 0 && slot_of(m[0], kPlayer[2]) == 1);
     for (int i = 0; i < 3; ++i)
-      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
+      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0});
     m.round();
     for (int i = 0; i < 3; ++i)
       assert(m.status(i).find("\nvit=") == std::string::npos && m.status(i).find("\nmate=") == std::string::npos);
@@ -351,7 +351,7 @@ int main() {
   {
     Mesh m(1);
     lobby_of(7000, kPlayer[7], kPublic,
-             {{kLobbyKey, "22:24463856"}, {kModeKey, "ffa"}, {kStateKey, "open"}, {kHallKey, "xion"}});
+             {{kLobbyKey, "24:24463856"}, {kModeKey, "ffa"}, {kStateKey, "open"}, {kHallKey, "xion"}});
     m.tick(0, "match search ffa xion xion");
     m.round();
     m.round();
@@ -409,7 +409,7 @@ int main() {
     Mesh m(1);
     m.tick(0, "match search tdm xion xion");
     m.round();
-    assert(ops_with("search ") == 0 && noticed(m.status(0), "No such mode: tdm. Modes: ffa."));
+    assert(ops_with("search ") == 0 && noticed(m.status(0), "No such mode: tdm. Modes: ffa, scoreattack."));
   }
   // Two searchers in one pass (Review Focus 3, ruling R1): neither lobby exists when the other searches, so each
   // hosts a lobby of one. The host of the higher id searches again 5 s later and joins the lower; the host of the
@@ -954,6 +954,18 @@ int main() {
            !saw("P2: dropped a camps line"));
     m.tick(1, "camps? 3");
     assert(saw("P2: camps line not sent: a match lobby") && sent_count(P + " camps") == 0);
+    // The spot and rest lines: off both ways.
+    inbox(0, kChannel).push_back({kPlayer[1], spot_ask_line(3)});
+    inbox(0, kChannel).push_back({kPlayer[1], rest_line("Zone_A", kPlayer[1])});
+    inbox(1, kChannel).push_back({kPlayer[0], spot_line(3, Spot{1, 2, 3, 4})});
+    m.round();
+    assert(m[0].take_chat().empty() && m.status(0).find("\nspot?=") == std::string::npos &&
+           m.status(1).find("\nspot=") == std::string::npos && !saw("dropped a spot line") &&
+           !saw("dropped a rest line"));
+    m.tick(1, "spot? 3 " + std::to_string(kPlayer[0]));
+    m.tick(1, "rest Zone_A");
+    assert(saw("P2: spot line not sent: a match lobby") && saw("P2: rest line not sent: a match lobby") &&
+           sent_count(P + " spot") == 0 && sent_count(P + " rest") == 0);
     assert(!m[0].send_fight(quest_tag() + " x", true) && !m[0].send_fight(world_tag() + " on", true) &&
            !m[0].send_fight(story_tag() + " on", true) && m[0].send_fight(fight_tag() + " x", true));
     inbox(0, kFightChannel).push_back({kPlayer[1], quest_tag() + " x"});
@@ -1143,6 +1155,64 @@ int main() {
     assert(n == 7 && s.find("\nbike_of=" + std::to_string(kPlayer[1]) + " park /game/lobby 99 ") != std::string::npos &&
            s.find(" park /game/lobby 1 0 0 0 0 0\n") == std::string::npos &&
            s.find("\nbike_of=" + std::to_string(kMe)) == std::string::npos);
+  }
+  // Score attack lines in a match lobby of three: a score request goes reliable to every member past the handshake,
+  // and each member's reaches Lua as "score <her SteamID> <text>", the id from Steam. A text score_line() would not
+  // carry never goes. At most kScorePerSecond a second each way: ours past it is dropped with one log line a minute,
+  // a member's the same. The counts get a line of their own beside the 60 s line, only in a minute that had some.
+  reset();
+  {
+    Mesh m(3);
+    match_by_hand(m, 3);
+    const std::string me = std::to_string(kMe), her = std::to_string(kFriend);
+    const int lines = count("P1: link, last 60 s: ");
+    while (count("P1: link, last 60 s: ") == lines)
+      m.round();
+    m.tick(0, "score go 7 targets");
+    assert(sent_count(P + " score go 7 targets") == 2);
+    m.round();
+    assert(contains(m[1].take_chat(), "score " + me + " go 7 targets") &&
+           contains(m[2].take_chat(), "score " + me + " go 7 targets"));
+    m.tick(1, "score ready 7");
+    m.round();
+    assert(contains(m[0].take_chat(), "score " + her + " ready 7") &&
+           contains(m[2].take_chat(), "score " + her + " ready 7"));
+    assert(!m[0].score("now 7 1\t2") && !m[0].score("") && !m[0].score(std::string(kMaxMessage, '~')) &&
+           sent_count(P + " score") == 4);
+    advance(m, 1000);
+    for (int i = 0; i < 16; ++i)
+      assert(m[0].score("now 7 " + std::to_string(i) + " 1"));
+    assert(!m[0].score("now 7 16 1") && !m[0].score("done 7 win 900 412") && count("P1: dropped our score lines") == 1);
+    m.round();
+    m.round();
+    assert(m[1].take_chat().size() == 16);
+    advance(m, 1000);
+    for (int i = 0; i < 20; ++i)
+      inbox(0, kChannel).push_back({kFriend, score_line("now 7 " + std::to_string(i) + " 1")});
+    m.round();
+    m.round();
+    const auto got = m[0].take_chat();
+    assert(got.size() == 16 && got[0] == "score " + her + " now 7 0 1" && got[15] == "score " + her + " now 7 15 1");
+    assert(count("P1: dropped score lines from P2: over the rate limit") == 1);
+    advance(m, 60000);
+    assert(count("P1: score lines, last 60 s: 17 in, 17 out, 9 dropped") == 1);
+    advance(m, 60000);
+    assert(count("P1: score lines, last 60 s: ") == 1); // A minute without one has no line.
+  }
+  // Outside a match lobby a score line never goes and is never taken, with no log line.
+  reset();
+  {
+    Mesh m(2);
+    m.tick(0, "host");
+    m.round();
+    m.tick(1, "join " + std::to_string(m[0].lobby()));
+    assert(m.settle(2) && !m[0].match());
+    m.tick(0, "score go 7 targets");
+    assert(!m[0].score("go 7 targets") && sent_count(P + " score") == 0);
+    inbox(0, kChannel).push_back({kFriend, score_line("ready 7")});
+    m.round();
+    assert(m[0].take_chat().empty() && !saw("P1: dropped score lines") &&
+           m.status(0).find(" name=P2 hello=1 accepted=1 compatible=1 lost=0 invalid=0 ") != std::string::npos);
   }
   std::puts("link_match_test: ok");
 }

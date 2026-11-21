@@ -49,7 +49,7 @@ for _,list in ipairs({{
             stopped,e=pcall(M.teamshop.stop)
             if not stopped then log('teamshop: '..tostring(e)) end
         end
-        if M.gunrounds then -- Gun mode's rounds: the title wait and the inventory reads ended; rows already in stay.
+        if M.gunrounds then -- Gun mode's rounds: the batch ask and the inventory reads ended; rows already in stay.
             stopped,e=pcall(M.gunrounds.stop)
             if not stopped then log('gun rounds: '..tostring(e)) end
         end
@@ -67,6 +67,10 @@ for _,list in ipairs({{
         end
         stopped,e=pcall(M.night.stop,'coop off') -- The shop's screen closes first.
         if not stopped then log('nightop: '..tostring(e)) end
+        if M.scoreattack then -- Our score attack run ends with no line; a death screen it hid comes back.
+            stopped,e=pcall(M.scoreattack.stop,'coop off')
+            if not stopped then log('scoreattack: '..tostring(e)) end
+        end
         if M.group then -- A death screen the revive hid comes back.
             stopped,e=pcall(M.group.stop)
             if not stopped then log('revive: '..tostring(e)) end

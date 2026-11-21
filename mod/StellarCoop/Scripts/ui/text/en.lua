@@ -4,9 +4,11 @@
 -- T.en of ui/text.lua (see there).
 return {
     title='CO-OP',
-    head={session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
+    head={modes='MODES',
+        session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
         ghost='GHOST',saves='SAVES',combat='COMBAT',display='DISPLAY',chat='CHAT',line='CO-OP LINE'},
-    row={host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',find='Find a session',
+    row={scoreattack='Score attack',
+        host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',find='Find a session',
         copy='Copy my code',remove='Remove %s',join_code='Join with a code',
         chat='Chat',options='Options',report='Write a bug report',close='Close',
         menu_key='Open this menu',host_key='Host at once',status_key='Show the status',leave_key='Leave the session',
@@ -140,7 +142,7 @@ return {
         ['world.objects']='Shared world',['story.together']='Story together',['online.lobby']='The SBO lobby',
         ['vehicles.bike']='The bike',['world.daynight']='Day and night',['cutmenus']='Cut menus',
         ['online.saves']='Co-op saves',
-        ['world.teamshop']='Team shop',['fight.gunmode']='Gun mode'},
+        ['world.teamshop']='Team shop',['fight.gunmode']='Gun mode',['online.modes.scoreattack']='Score attack'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
@@ -186,20 +188,35 @@ return {
     -- Camp rests in a shared area, as the guest (main.lua): the host's rest reset the area in their game, or ours
     -- reset our own only. The revive by the friend (online/group/group.lua): she is down near us, we are down and she
     -- can revive us, she revived us, we revived her; and our game waiting while the host watches a cutscene. (%s: her
-    -- name, or fight.friend.)
+    -- name, or fight.friend.) The return after our death: the offer and always's notice (her name, follow_key). A
+    -- member in a solo area (her name, then one of places by the zone type) and back from it (her name). A member's
+    -- camp rest (online/group/group.lua, %s: her name, or someone): it reset this area in our game, or did not while we
+    -- were busy for a minute; then the stop after too many resets.
     group={rest="Enemies are back: the area reset in %s's game.",
         rest_guest="Shared area: only %s's camp rest brings its enemies back.",
         down='%s is down. Stand next to them for 3 s to revive them.',
         wait='%s can revive you: wait, or respawn at a camp.',
         revived='Revived by %s.',
         you_revived='You revived %s.',
-        cutscene='%s is watching a cutscene. Your game waits until it ends.'},
+        cutscene='%s is watching a cutscene. Your game waits until it ends.',
+        back='%s is alive. Press %s to go back to them.',
+        back_auto='Going back to %s in 5 s. Press %s to stay.',
+        solo='%s is in %s. Online play waits until they are back.',
+        places={training='the training room',spirit='the Matrix 11 demo room',test='a test zone',
+            boss='a Boss Challenge',nikke='a NIKKE stage'},
+        solo_back='%s is back.',
+        rested='%s rested at a camp. The enemies of this area are back.',
+        rest_skipped='%s rested at a camp. This area did not reset in your game: you were busy for a minute.',
+        rest_stopped="Other players' camp rests no longer reset your area until the game restarts. UE4SS.log says why.",
+        someone='A player'},
     -- The follow (online/group/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s:
     -- her name, her map, follow_key), always's notice (her name, follow_key), the travel taken, no camp found, a
-    -- guard of the moment, and the native part's refusal or a warp that never started.
-    travel={offer='%s is in %s. Press %s to travel to the camp nearest them.',
+    -- guard of the moment, the host's last ground point missing or too old (her name), and the native part's refusal
+    -- or a warp that never started.
+    travel={offer='%s is in %s. Press %s to travel to them.',
         auto='Following %s in 5 s. Press %s to stay.',going='Travelling to %s.',
         none='No camp you have found is near %s.',busy='You cannot travel now. Try again in a moment.',
+        air='%s is not on solid ground. Try again in a moment.',
         failed='The travel did not start. UE4SS.log says why.'},
     -- The parked bike (vehicles/bike/ride.lua): a mount refused with the bike's distance and side from her camera (%d
     -- metres, then one of the four side words), refused before it is back on her map (2 s after her arrival) or while
@@ -327,19 +344,29 @@ return {
     -- Equipment and Change are the game's own StringTable_UI words (UI_Lobby_Options, UI_Cancel,
     -- UI_Setting_GamePlay_Mode, UI_Equipment, UI_Setting_Rolling), and Search, Start and Normal Mode
     -- (UI_Interaction_T_Search, UI_BossRush_Start, UI_NormalMode) where the game's word means the same thing there.
-    lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={ffa='Free-for-all'},
-        desc={ffa='2 to 8 players. First to 20 kills, or the best score after 10 minutes. You respawn after 4 s.',
-            more='More modes come in later versions.'},row={search='Search',cancel='Cancel',private='Private match',
+    lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={scoreattack='Score attack',
+            ffa='Free-for-all'},
+        desc={
+            scoreattack='2 to 8 players play the same challenge at once. The best score wins, then the shortest time.',
+            ffa='2 to 8 players. First to 20 kills, or the best score after 10 minutes. You respawn after 4 s.',
+            more='More modes come in later versions.'},row={challenge='Challenge',
+            search='Search',cancel='Cancel',private='Private match',
             code='Code %s',join_code='Join with a code',room='Waiting room',settings='Settings',leave='Leave',
-            more='More modes'},tag={soon='soon'},status={idle='Pick a mode, then Search.',searching='Searching…',
+            more='More modes'},tag={picked='picked',
+            soon='soon'},status={idle='Pick a mode, then Search.',searching='Searching…',
             open='In the lobby, %d of %d',full='Lobby full, %d of %d',start='Starting in %d s',
             private='Private match, %d of %d',created='No lobby found. Yours is open.',copied='Code copied.'},
         members='Members',count='%d of %d',you='you',host='host',connecting='connecting…',lost='lost',
         empty='No lobby yet. Search finds one or opens one.',empty_search='Looking for a public lobby of this mode.',
         hint={change='Change',tabs='Tabs'},room='Lobby menu: %s, or hold View',tab={match='MATCH',sbo='SBO'},
-        head={lobby='LOBBY'},set={room='Map',players='Players',finish='End',tie='Tie',respawn='Respawn',
+        head={lobby='LOBBY'},set={challenge='Challenge',ranking='Ranking',
+            damage='Damage between players',
+            room='Map',players='Players',finish='End',tie='Tie',respawn='Respawn',
             protection='Spawn protection',difficulty='Difficulty',equipment='Equipment',arena='Arena',start='Start',
-            lobby='Lobby',version='Version',mute='Mute %s'},val={random='Random',
+            lobby='Lobby',version='Version',mute='Mute %s'},val={
+            ranking='Best score, then shortest time',
+            damage='None',host_pick="Host's pick",
+            random='Random',
             players='2 to 8',finish='20 kills or 10 min',
             tie='Sudden death, 60 s at most',respawn='4 s',protection='6 s, ends when you attack',
             difficulty='Normal for everyone',equipment='The same for everyone',
@@ -363,6 +390,24 @@ return {
             friends='Only your Steam friends can join. They find it in Find a session or in Steam.',
             invitation='Not listed. Players join with a Steam invite or your join code.',
             closed='Nobody can join, not even with an invite or a code.'}},
+    -- Score attack (online/modes/scoreattack/ui/board.lua, game.lua): the in-round board's wave and end words (ending:
+    -- win, time, dead, stop); the result panel's line under its heading (mine: the end word, the score, the time); its
+    -- note (waiting, unranked; the record line is challenge.record); why a round ends without a ranking (host_left,
+    -- cancelled); why a player sits out a round (out: off, bike, night, room, refused). With the UI off: her run's end
+    -- (end_notice: the challenge, the end word, the score, the time) and her place (placed: hers, of how many).
+    scoreattack={wave='Wave %d/%d',ending={win='Cleared',time='Time up',dead='Died',stop='Stopped'},
+        mine='%s · score %d · %s',
+        waiting='Results still to come: %d.',
+        unranked='Not ranked.',
+        host_left='The host left. This round has no ranking.',
+        cancelled='The round was cancelled.',
+        out={off='Score attack is off in Options: you sit out this round.',
+            bike='Get off the bike to play the next round.',
+            night='A Night Operation run is on: you sit out this round.',
+            room='You are not in the waiting room: you sit out this round.',
+            refused='Your game could not start the challenge: you sit out this round. UE4SS.log says why.'},
+        end_notice='%s: %s, score %d, time %s.',
+        placed='Score attack: you placed %d of %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='The game stayed paused, so the co-op menu did not open.'},
 }

@@ -28,6 +28,7 @@ start with `coop`.
 | [Night Operation](online/modes/nightop.md) | The cut mode, the plan, the solo run, the co-op run, credits |
 | [Reward shop](online/modes/nightop-shop.md) | The points, the seven items, the shop screen, Roxanne's choices, the cut Shock Bolt |
 | [Challenges](online/modes/challenges.md) | `coop challenge`, Target Practice, the Shooting Range alone and for two, score, best runs |
+| [Score attack](online/modes/scoreattack.md) | The SBO lobby's match mode where every player plays the same challenge: starting a round, the host's pick, the ranking and its checks, the screens, best match runs, `coop scoreattack`, the score line |
 | [Night Operation previews](online/modes/nightop-previews.md) | The probe (`coop no`), the recruiter (`coop recruiter`), how the original matchmaking is blocked |
 | [Doro races](online/modes/race.md) | Recording a track, starting a race, driving, rules, results, the Doro look, track files |
 
@@ -84,6 +85,7 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [Building](dev/building.md) | Toolchain, `tools/install.py`, `tools/wine_smoke.py`, the reproducible build, releases, repository layout |
 | [Structure](dev/structure.md) | How the code is organised into modules and the rules that keep them apart |
 | [Migration](dev/migration.md) | Where each file of the two November 2026 restructures went, for forks |
+| [Porting](dev/porting.md) | [The port to a new game build, step by step](dev/porting.md#the-port-step-by-step), [what the signatures cannot find](dev/porting.md#what-the-signatures-cannot-find), the game addresses the native code uses, `tools/port/addresses.py`, `tools/port/make_signatures.py`, the byte signatures in `tools/port/signatures.json` and `tools/port/find.py` |
 | [Tests](dev/tests.md) | The Lua, C++ and Python tests and what each one checks |
 | [How it works](#how-stellar-blade-online-works) | Index of the internals pages, and where each section of the old single page went |
 | [Architecture](dev/architecture.md) | The Lua and native parts, the Lua scripts, the files they share, the modules and their isolation, the co-op UI's input, loopback, record and replay |
