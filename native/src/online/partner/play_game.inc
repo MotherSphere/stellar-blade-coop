@@ -91,7 +91,7 @@ uint64_t play_name(const char *text) {
 // A key's objects as Lua loaded them, still there: the asset alive with the class Lua loaded it as, a and b none or
 // alive, each still the asset at the path her SBA line names (sound::is_asset). Lua's LoadAsset roots nothing: the game
 // may collect an object and give its address to another one, of the same class too, before Lua's check finds it.
-// Plain reads: an object alive this tick is readable, its outer too, and the name pool's blocks are never freed.
+// Plain reads: an object alive this tick is readable with its outer. The name pool's blocks are never freed.
 bool play_loaded(const Named &n) {
   const auto read = [](uint64_t address, void *out, size_t size) {
     std::memcpy(out, reinterpret_cast<const void *>(address), size);
