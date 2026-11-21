@@ -1112,19 +1112,27 @@ function GunMode.new(env)
         dn_t[name],dn_v[name]=dn_frame,v
         return v
     end
-    -- The game's actions on the keys held now, as the input settings map them ('Q: Item_UseHeal UI_LeftShoulder'), for
-    -- the log: which action came with a hold of her movement or an off. One walk of the mappings: called on those
+    -- The game's actions and axes on the keys held now, as the input settings map them ('Q: Item_UseHeal
+    -- MoveRight(-1)[AZERTY]'), for the log: which action came with a hold of her movement or an off. The settings hold
+    -- both keyboard layouts: a row of the AZERTY one is marked (bAZERTY, a bool of SB's FInputActionKeyMapping and
+    -- FInputAxisKeyMapping: params 0x146622560 and 0x1466226e8 on 26123051). One walk of the mappings: called on those
     -- events only.
     local function held_actions()
         local by,order={},{}
-        pcall(function() StaticFindObject(SETTINGS).ActionMappings:ForEach(function(_,wrapped)
-            local row=wrapped:get()
-            local k,n=row.Key.KeyName:ToString(),row.ActionName:ToString()
-            if k~='None' then
-                if not by[k] then by[k]={}; order[#order+1]=k end
-                if not by[k][n] then by[k][n]=true; by[k][#by[k]+1]=n end
-            end
-        end) end)
+        local function add(row,n)
+            local k=row.Key.KeyName:ToString()
+            if k=='None' then return end
+            if row.bAZERTY==true then n=n..'[AZERTY]' end
+            if not by[k] then by[k]={}; order[#order+1]=k end
+            if not by[k][n] then by[k][n]=true; by[k][#by[k]+1]=n end
+        end
+        pcall(function()
+            local settings=StaticFindObject(SETTINGS)
+            settings.ActionMappings:ForEach(function(_,wrapped) local row=wrapped:get(); add(row,row.ActionName:ToString()) end)
+            settings.AxisMappings:ForEach(function(_,wrapped)
+                local row=wrapped:get(); add(row,('%s(%g)'):format(row.AxisName:ToString(),row.Scale))
+            end)
+        end)
         local out={}
         for _,k in ipairs(order) do if down(k) then out[#out+1]=k..': '..table.concat(by[k],' ') end end
         return #out>0 and table.concat(out,'; ') or 'none'

@@ -169,13 +169,16 @@ do
     frames(gun,20)
     assert(gun.state.on,'a jump keeps the rifle out')
     toggle(gun,false)
-    -- The hold's start and an off name the game's actions on the keys held then (Q: the heal on SB's keyboard layout).
+    -- The hold's start and an off name the game's actions on the keys held then (Q: the heal on SB's QWERTY layout).
+    -- Axes count too, each row of the AZERTY layout marked: on it Q strafes left (DefaultInput.ini of 26123051).
     w.mappings[#w.mappings+1]={ActionName=Fake.name('Item_UseHeal'),Key={KeyName=Fake.name('Q')}}
+    local axes={{AxisName=Fake.name('MoveRight'),Scale=-1.0,bAZERTY=true,Key={KeyName=Fake.name('Q')}}}
+    w.settings.AxisMappings={ForEach=function(_,f) for i,row in ipairs(axes) do f(i,{get=function() return row end}) end end}
     toggle(gun,true)
     logs={}
     w.down.Q=true; w.pawn.held=true
     frames(gun,20)
-    assert(gun.state.on and said('keys held: Q: Item_UseHeal'),table.concat(logs,'|'))
+    assert(gun.state.on and said('keys held: Q: Item_UseHeal MoveRight(-1)[AZERTY]'),table.concat(logs,'|'))
     w.pawn.talk=true
     frames(gun,20)
     assert(not gun.state.on and said('keys held at the off: Q: Item_UseHeal'),table.concat(logs,'|'))
