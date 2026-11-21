@@ -22,8 +22,10 @@
 //                                                                  its world (and scale) while on, and at each change
 //   SBF11 aggro <gen> <game|host>                                  host, reliable: its aggro (stage 3b), after its
 //                                                                  place while host, and at each change
-//   SBF11 bosses <gen> <boss %>                                    host, reliable: its bosses=on (stage 5) and its
-//                                                                  boss_hp_scale, after its aggro while on
+//   SBF11 bosses <gen> <boss %> <first|host>                       host, reliable: its bosses=on (stage 5), its
+//                                                                  boss_hp_scale and its boss_finish (phase 3), after
+//                                                                  its aggro while on; read without the last word as
+//                                                                  host (a host from before phase 3)
 //   SBF25 stagger <gen> <0|1> <0|1>                                host, reliable: its hit_reactions and
 //                                                                  stagger_resist (phase 8), after its bosses while
 //                                                                  either is on; again at each change
@@ -70,6 +72,13 @@
 //                                                                  1 to 16000 ms, at owner epoch oe
 //   SBF25 pvp <seq> <skill> <d>                                    both, reliable: the PvP test, a drop of the
 //                                                                  sender's stand-in of us, to apply to our EVE
+//   SBF25 fin <gen> <hguid> <member>                               host, reliable: the member whose finisher on that
+//                                                                  boss counts (phase 3)
+//   SBF25 qte-own <gen> <hguid> <spawnId> <member> <try>           host, reliable: the member who owns that boss's
+//                                                                  QTE (phase 3) at its try, 0 first, 255 at most
+//   SBF25 spec <member> <watched|->                                both, reliable: a downed member watches another
+//                                                                  in a boss fight (phase 3); "-": she stops
+// A member is a number below kMatchMembers: kHostMember, kPairMember (7b1's first guest); 7b2 numbers the others.
 // The host answers the guest's on and world with its whole list (world, its scale, place, aggro, bosses and stagger,
 // then every up). The guest answers the host's on with its own (hers may have come while the host was off), so either
 // side may restart.
@@ -287,11 +296,15 @@ inline bool floor_row(int32_t id) { return id >= kFirstFloor && id <= kLastFloor
 
 // world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn, drop,
 // bstart and phase: the host's, never recorded; poise: a copy's owner's, never recorded; pvp: either side's, never
-// recorded. mate: the worker's own to the job (fight/enemies/engine.h), never a line.
+// recorded; fin and qte-own: the host's, never recorded; spec: either side's, never recorded. mate: the worker's own
+// to the job (fight/enemies/engine.h), never a line.
 enum class Type : uint8_t {
   invalid, on, off, world, scale, place, aggro, bosses, stagger, up, down, dead, hp, cc, hit, own, own_no, exec, have,
-  spawn, drop, epoch, bstart, phase, poise, pvp, mate
+  spawn, drop, epoch, bstart, phase, poise, pvp, fin, qte_own, spec, mate
 };
+// The members of a fight on channel 2's lines (phase 3): 0 the host, 1 the pair; kNoMember for none ("-" in spec).
+constexpr uint8_t kHostMember = 0, kPairMember = 1, kNoMember = 0xFF;
+inline bool member_ok(uint64_t v) { return v < uint64_t(kMatchMembers); }
 // One enemy in an hp message.
 struct Values {
   uint32_t guid = 0;
@@ -300,11 +313,11 @@ struct Values {
 struct Message {
   Type type = Type::invalid;
   uint32_t gen = 0;            // All but on and off.
-  uint32_t guid = 0;           // up, down, dead, hit, bstart, phase: the host's ActorGUID. A summon's spawn: its
-                               // owner's.
+  uint32_t guid = 0;           // up, down, dead, hit, bstart, phase, fin, qte-own: the host's ActorGUID. A
+                               // summon's spawn: its owner's.
   uint32_t seq = 0;            // hit: the claim's number, from 1. hp: the ack, the last claim the host took. pvp:
                                // the line's number, from 1.
-  uint32_t spawn = 0, chr = 0; // up, spawn: EventSpawnId and charId (drop: the EventSpawnId).
+  uint32_t spawn = 0, chr = 0; // up, spawn: EventSpawnId and charId (drop, qte-own: the EventSpawnId).
   uint8_t index = 0;           // up, spawn, drop: SpawnIndex.
   int32_t max_hp = 0;          // up: MaxHP, rounded.
   uint32_t batch = 0;          // hp: the host's turn of values, from 1; its lines share it.
@@ -321,6 +334,10 @@ struct Message {
   bool place = false;                               // place: the host's same_place on.
   bool host_only = false;                           // aggro: aggro=host (game otherwise).
   uint16_t boss = 0;                                // bosses: boss_hp_scale in percent.
+  bool finish_first = false;                        // bosses: boss_finish=first (host otherwise).
+  uint8_t member = kNoMember;                       // fin, qte-own, spec: a member (member_ok).
+  uint8_t watched = kNoMember;                      // spec: the member she watches, kNoMember when she stops.
+  uint8_t tries = 0;                                // qte-own: the try, 0 first.
   bool to_guest = false;                            // own: G (H otherwise).
   uint8_t oe = 0;                                   // own, own-no, phase, poise: the owner epoch.
   uint8_t why = kUnpaired;                          // own-no: one of OwnNo.
@@ -353,7 +370,7 @@ inline std::string format(const Message &m, const std::string &reason = std::str
   case Type::scale: return t + "scale" + n(m.gen) + n(m.scale[kScaleHp]) + n(m.scale[kScaleBalance]);
   case Type::place: return t + "place" + n(m.gen) + n(m.place);
   case Type::aggro: return t + "aggro" + n(m.gen) + (m.host_only ? " host" : " game");
-  case Type::bosses: return t + "bosses" + n(m.gen) + n(m.boss);
+  case Type::bosses: return t + "bosses" + n(m.gen) + n(m.boss) + (m.finish_first ? " first" : " host");
   case Type::stagger: return t + "stagger" + n(m.gen) + n(m.reactions) + n(m.resist);
   case Type::up: return t + "up" + n(m.gen) + n(m.guid) + n(m.spawn) + n(m.index) + n(m.chr) + n(m.max_hp);
   case Type::down: return t + "down" + n(m.gen) + n(m.guid);
@@ -398,6 +415,9 @@ inline std::string format(const Message &m, const std::string &reason = std::str
   }
   case Type::poise: return t + "poise" + n(m.gen) + n(m.guid) + n(m.oe) + n(m.k) + n(m.ms);
   case Type::pvp: return t + "pvp" + n(m.seq) + n(uint32_t(m.skill)) + n(m.delta[kHp]);
+  case Type::fin: return t + "fin" + n(m.gen) + n(m.guid) + n(m.member);
+  case Type::qte_own: return t + "qte-own" + n(m.gen) + n(m.guid) + n(m.spawn) + n(m.member) + n(m.tries);
+  case Type::spec: return t + "spec" + n(m.member) + (m.watched == kNoMember ? " -" : n(m.watched));
   case Type::mate: // Never on the wire.
   case Type::invalid: break;
   }
@@ -465,8 +485,9 @@ inline bool ids(const std::string &text, Message &m) {
 }
 } // namespace detail
 
-// Strict: exactly what format() writes (but leading zeros), within kMaxMessage, every number in range. Anything else
-// is Type::invalid. reason, when given, takes an off's cleaned reason.
+// Strict: exactly what format() writes (but leading zeros, and a bosses line without its last word), within
+// kMaxMessage, every number in range. Anything else is Type::invalid. reason, when given, takes an off's cleaned
+// reason.
 inline Message parse(const char *data, size_t size, std::string *reason = nullptr) {
   using detail::id;
   using detail::whole;
@@ -510,9 +531,12 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && (f[1] == "game" || f[1] == "host");
     m.host_only = f[1] == "host";
     type = Type::aggro;
-  } else if (kind == "bosses") {
-    ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && number(f[1], v) && v >= kMinScale && v <= kMaxScale;
+  } else if (kind == "bosses") { // No third word: a host from before phase 3, read as host.
+    const bool word = split(rest, f, 3, nullptr);
+    ok = (word || split(rest, f, 2, nullptr)) && id(f[0], m.gen) && number(f[1], v) && v >= kMinScale &&
+         v <= kMaxScale && (!word || f[2] == "first" || f[2] == "host");
     m.boss = static_cast<uint16_t>(ok ? v : 0);
+    m.finish_first = word && f[2] == "first";
     type = Type::bosses;
   } else if (kind == "stagger") {
     ok = split(rest, f, 3, nullptr) && id(f[0], m.gen) && (f[1] == "0" || f[1] == "1") && (f[2] == "0" || f[2] == "1");
@@ -579,6 +603,22 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
          whole(f[2], m.delta[kHp]) && m.delta[kHp] > 0;
     m.skill = int32_t(v);
     type = Type::pvp;
+  } else if (kind == "fin") {
+    ok = split(rest, f, 3, nullptr) && id(f[0], m.gen) && id(f[1], m.guid) && number(f[2], v) && member_ok(v);
+    m.member = static_cast<uint8_t>(ok ? v : kNoMember);
+    type = Type::fin;
+  } else if (kind == "qte-own") {
+    uint64_t tries = 0;
+    ok = split(rest, f, 5, nullptr) && id(f[0], m.gen) && id(f[1], m.guid) && id(f[2], m.spawn) && number(f[3], v) &&
+         member_ok(v) && number(f[4], tries) && tries <= 255;
+    m.member = static_cast<uint8_t>(ok ? v : kNoMember), m.tries = static_cast<uint8_t>(tries);
+    type = Type::qte_own;
+  } else if (kind == "spec") {
+    uint64_t w = kNoMember;
+    ok = split(rest, f, 2, nullptr) && number(f[0], v) && member_ok(v) &&
+         (f[1] == "-" || (number(f[1], w) && member_ok(w)));
+    m.member = static_cast<uint8_t>(ok ? v : kNoMember), m.watched = static_cast<uint8_t>(ok ? w : kNoMember);
+    type = Type::spec;
   } else if (kind == "down" || kind == "dead") {
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && id(f[1], m.guid);
     type = kind == "down" ? Type::down : Type::dead;

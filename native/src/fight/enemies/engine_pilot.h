@@ -194,12 +194,12 @@ template <class Game> void Engine::hand_over(Game &g, const uint32_t *guids, siz
   const uint64_t eve_fsb = local_fsb(g);
   const bool eve_ok = plausible(eve_fsb) && g.read(eve_fsb + kLocation, eve_at, sizeof eve_at);
   const uint32_t *skills = flags_.skill, *skills_end = skills + std::min<size_t>(flags_.skill_count, kMaxPairs);
-  // A down EVE: hers (her vitals through the worker, unknown kMateMs after the last) brings each pair within kPartCm
-  // of our EVE back to us at once and keeps every pair of ours ours; ours (life state 3-5) with hers alive gives her
-  // the common pairs within kPartCm of her ghost once the guards let it, and keeps hers hers. A pair further from the
-  // side that would take it stays as the rule has it (see f.closer).
+  // A down EVE: hers (her vitals through the worker, unknown kMateMs after the last; down or in Coma) brings each pair
+  // within kPartCm of our EVE back to us at once and keeps every pair of ours ours; ours (life state 3-5) with hers
+  // alive gives her the common pairs within kPartCm of her ghost once the guards let it, and keeps hers hers. A pair
+  // further from the side that would take it stays as the rule has it (see f.closer).
   const Life her = now - mate_ms_ < kMateMs ? mate_ : Life::unknown;
-  const bool her_down = her == Life::down, give = eve_life_ >= 3 && eve_life_ <= 5 && her == Life::alive;
+  const bool her_down = her == Life::down || her == Life::coma, give = eve_life_ >= 3 && eve_life_ <= 5 && her == Life::alive;
   for (size_t i = 0; i < count && !latched_; ++i) {
     pilot::Own *o = owners_.find(guids[i]);
     const Seen *s = fight::find(seen_, n, guids[i]);

@@ -2629,7 +2629,8 @@ int main() {
     assert(heard(1, 900) == Life::alive && heard(6, 1600) == Life::alive);
     assert(heard(3, 900) == Life::down && heard(4, 0) == Life::down && heard(5, 0) == Life::down);
     assert(heard(1, 0) == Life::down && heard(1, 0, 0) == Life::alive);
-    assert(heard(0, 900) == Life::unknown && heard(2, 900) == Life::unknown && heard(7, 900) == Life::unknown);
+    assert(heard(0, 900) == Life::unknown && heard(7, 900) == Life::unknown);
+    assert(heard(2, 900) == Life::coma && heard(2, 0) == Life::coma); // Coma: the game leaves her at HP 0.
     assert(heard(3, 0) == Life::down);
     w.tick("", 0, 0, 2999);
     assert(w.link.mate_life() == Life::down);

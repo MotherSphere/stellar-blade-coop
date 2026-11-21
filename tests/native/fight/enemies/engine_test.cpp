@@ -2606,6 +2606,7 @@ int main() {
     assert(!has(sent, "own") && owner(101) == coop::pilot::kHost && claim > 20);
     g.place(101, 0, 0);
     assert(owner(102) == coop::pilot::kGuest); // 60 m from our EVE: hers still.
+    life(coop::Life::coma); // In Coma (her vitals' life 2) she still reads down here.
     g.place(102, 1000, 0);
     frame(g, *e, t += 16);
     assert(has(lines(g), "SBF25 own 1 102 H 2\n") && count(g, "own", "back: her EVE is down") == 2);
@@ -5196,7 +5197,7 @@ int main() {
     g.inbox.push_back(msg("SBF25 on"));
     frame(g, *e, 0);
     assert(e->host.linked() == 2 && e->host.bosses() == 200 && boss(202) && !boss(201));
-    assert(has(lines(g), "SBF25 world 1\nSBF25 scale 1 135 115\nSBF25 bosses 1 200\nSBF25 stagger 1 1 1\n"
+    assert(has(lines(g), "SBF25 world 1\nSBF25 scale 1 135 115\nSBF25 bosses 1 200 host\nSBF25 stagger 1 1 1\n"
                          "SBF25 up 1 202 5202 0 15005100 1600\nSBF25 up 1 201 5201 0 7001 1600\n"));
     assert(stat(201, 2) == 2160 && stat(201, 1) == 2160 && stat(201, 13) == 230);
     assert(stat(202, 3) == 3200 && stat(202, 2) == 3200 && stat(202, 1) == 3200 && stat(202, 13) == 230);
@@ -7221,7 +7222,7 @@ int main() {
       assert(has(w.detail(), " bosses=200"));
       w.ask(coop::parse_request("fight off"), gate, io);
       assert(has(io.file, " SBF25 world 1\n") && has(io.file, " SBF25 scale 1 135 115\n"));
-      assert(has(io.file, " SBF25 bosses 1 200\n") && has(io.file, " SBF25 up 1 102 5002 0 15005100 1600\n"));
+      assert(has(io.file, " SBF25 bosses 1 200 host\n") && has(io.file, " SBF25 up 1 102 5002 0 15005100 1600\n"));
       assert(has(io.file, " SBF25 up 1 101 5001 0 900 1600\n") && has(io.file, " 101:2160:100:230"));
       recording = io.file;
     }

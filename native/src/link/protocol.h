@@ -277,14 +277,16 @@ inline bool plausible_vitals(const Vitals &v) {
 }
 // Her vitals count this long after her last line (link/core.h).
 constexpr uint64_t kMateMs = 3000;
-// A player's life as her vitals say it, by the partner card's rule (online/partner/hud.lua): down in life state 3-5 or
-// at 0 HP of a MaxHP above 0, alive in 1 or 6, unknown in any other state. link/core.h's mate_life() says unknown too
-// without her vitals or kMateMs after her last line; the shared fight's job hears it as a local message
-// (fight/enemies/engine.h).
-enum class Life : uint8_t { unknown, alive, down };
+// A player's life as her vitals say it: coma in life state 2 (FSBActor +0x2600, the Coma screen of HUDDead's event
+// handler FUN_141e46750), read first because the game leaves a Coma EVE at HP 0; then by the partner card's rule
+// (online/partner/hud.lua): down in life state 3-5 or at 0 HP of a MaxHP above 0, alive in 1 or 6, unknown in any
+// other state. link/core.h's mate_life() says unknown too without her vitals or kMateMs after her last line; the
+// shared fight's job hears it as a local message (fight/enemies/engine.h).
+enum class Life : uint8_t { unknown, alive, down, coma };
 inline Life life_of(const Vitals &v) {
   const uint32_t state = v[vital::life];
-  return (state >= 3 && state <= 5) || (v[vital::hp] == 0 && v[vital::max_hp] > 0) ? Life::down
+  return state == 2                                                                   ? Life::coma
+         : (state >= 3 && state <= 5) || (v[vital::hp] == 0 && v[vital::max_hp] > 0) ? Life::down
          : state == 1 || state == 6                                                   ? Life::alive
                                                                                       : Life::unknown;
 }

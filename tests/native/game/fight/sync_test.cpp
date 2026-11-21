@@ -207,7 +207,7 @@ int main() {
           "SBF25 stagger 4294967295 0 1", "SBF25 poise 3 77 0 1 1", "SBF25 poise 4294967295 4294967295 255 2 16000",
           "SBF25 scale 3 135 115", "SBF25 scale 4294967295 400 100",
           "SBF25 place 3 1", "SBF25 place 4294967295 0", "SBF25 aggro 3 game", "SBF25 aggro 4294967295 host",
-          "SBF25 bosses 3 200", "SBF25 bosses 4294967295 400", "SBF25 bosses 3 100",
+          "SBF25 bosses 3 200 host", "SBF25 bosses 4294967295 400 first", "SBF25 bosses 3 100 host",
           "SBF25 own 3 77 G 1", "SBF25 own 4294967295 4294967295 H 255", "SBF25 own 3 77 H 0",
           "SBF25 own-no 3 77 0 unpaired", "SBF25 own-no 3 77 255 state", "SBF25 own-no 3 77 9 off",
           "SBF25 own-no 3 77 9 epoch", "SBF25 own-no 3 77 9 aggro", "SBF25 own-no 3 77 9 full",
@@ -447,7 +447,8 @@ int main() {
                                  "SBF25 spawn 3 7 50110 0 15011001 -1200 340 0 90", "SBF25 drop 3 7 50110 0",
                                  "SBF25 spawn 3 7 4026597377 0 35025002 -1200 340 0 90 77 5026003",
                                  "SBF25 bstart 3 77", "SBF25 phase 3 77 1 1001307,1001323,5005115",
-                                 "SBF25 pvp 7 1001001 45"};
+                                 "SBF25 pvp 7 1001001 45", "SBF25 bosses 3 200 first", "SBF25 fin 3 77 1",
+                                 "SBF25 qte-own 3 77 1410024156 1 2", "SBF25 spec 1 0", "SBF25 spec 0 -"};
     for (int round = 0; round < 200000; ++round) {
       std::string text;
       if (round % 3 == 0) {
@@ -484,6 +485,11 @@ int main() {
       assert(m.type != Type::pvp || (m.seq && m.skill > 0 && m.delta[kHp] > 0));
       assert(m.level >= 0 && m.level <= coop::poise::kMaxLevel && m.ms <= coop::poise::kMaxWindowMs && m.k <= 2);
       assert(m.type != Type::poise || (m.k >= 1 && m.ms >= 1));
+      const bool membered = m.type == Type::fin || m.type == Type::qte_own || m.type == Type::spec;
+      assert(membered ? member_ok(m.member) : m.member == kNoMember);
+      assert(m.watched == kNoMember || (m.type == Type::spec && member_ok(m.watched)));
+      assert(m.type == Type::qte_own || !m.tries);
+      assert(m.type == Type::bosses || !m.finish_first);
       std::string again = format(m, reason), reason2;
       Message n = parse(again.data(), again.size(), &reason2);
       assert(n.type == m.type && format(n, reason2) == again);
@@ -984,8 +990,8 @@ int main() {
     h.receive(msg("SBF25 on"), 0, w);
     step(h, w, 1, 0);
     const std::string first = w.lines();
-    assert(first.rfind("SBF25 world 1\nSBF25 aggro 1 host\nSBF25 bosses 1 200\nSBF25 up 1 102 5002 0 15005100 1600\n"
-                       "SBF25 up 1 101 5001 0 900 1600\n",
+    assert(first.rfind("SBF25 world 1\nSBF25 aggro 1 host\nSBF25 bosses 1 200 host\n"
+                       "SBF25 up 1 102 5002 0 15005100 1600\nSBF25 up 1 101 5001 0 900 1600\n",
                        0) == 0 &&
            !has(first, " hp "));
     uint32_t guids[kMaxTracked];
@@ -1002,7 +1008,7 @@ int main() {
     flat.set_bosses(100);
     flat.receive(msg("SBF25 on"), 0, u);
     step(flat, u, 1, 0);
-    assert(has(u.lines(), "SBF25 world 1\nSBF25 bosses 1 100\nSBF25 up 1 102 ") && !flat.scaled(guids));
+    assert(has(u.lines(), "SBF25 world 1\nSBF25 bosses 1 100 host\nSBF25 up 1 102 ") && !flat.scaled(guids));
     Host off; // Bosses off: no line.
     off.receive(msg("SBF25 on"), 0, u);
     step(off, u, 1, 0);
@@ -2597,6 +2603,43 @@ int main() {
       assert(!valid(bad));
   }
 
+  { // Phase 3: the boss fight lines.
+    auto P = [](const std::string &s) { return parse(s.data(), s.size()); };
+    auto rt = [&](const std::string &s) { Message m = P(s); assert(m.type != Type::invalid); return format(m) == s; };
+    const std::string t = coop::fight_tag() + " ";
+    assert(rt(t + "bosses 3 200 first") && rt(t + "bosses 3 200 host") && rt(t + "fin 3 77 1"));
+    assert(rt(t + "qte-own 3 77 1410024156 1 0") && rt(t + "spec 1 0") && rt(t + "spec 0 -"));
+    assert(rt(t + "fin 4294967295 4294967295 7") && rt(t + "qte-own 4294967295 4294967295 4294967295 7 255"));
+    Message b = P(t + "bosses 3 200");
+    assert(b.type == Type::bosses && b.boss == 200 && !b.finish_first); // a host from before this phase
+    assert(P(t + "bosses 3 200 first").finish_first && format(b) == t + "bosses 3 200 host");
+    assert(P(t + "bosses 3 200 maybe").type == Type::invalid);
+    for (const char *bad : {"bosses 3 200 First", "bosses 3 200 first x", "bosses 3 200  first", "bosses 3 200 host "})
+      assert(P(t + bad).type == Type::invalid);
+    assert(P(t + "fin 3 77 8").type == Type::invalid && P(t + "fin 3 77 -").type == Type::invalid);
+    for (const char *bad : {"fin 3 77", "fin 0 77 1", "fin 3 0 1", "fin 3 77 1 1", "fin 3 77 -1", "fin 3 77 01x"})
+      assert(P(t + bad).type == Type::invalid);
+    Message f = P(t + "fin 3 77 1");
+    assert(f.type == Type::fin && f.gen == 3 && f.guid == 77 && f.member == kPairMember);
+    assert(P(t + "qte-own 3 77 1410024156 1 256").type == Type::invalid);
+    for (const char *bad : {"qte-own 3 77 1410024156 1", "qte-own 3 77 0 1 0", "qte-own 3 77 1410024156 8 0",
+                            "qte-own 3 77 1410024156 - 0", "qte-own 3 77 1410024156 1 0 0", "qte_own 3 77 1 1 0",
+                            "qte-own 0 77 1410024156 1 0", "qte-own 3 0 1410024156 1 0"})
+      assert(P(t + bad).type == Type::invalid);
+    assert(P(t + "spec 9 -").type == Type::invalid && P(t + "spec 1 1 x").type == Type::invalid);
+    for (const char *bad : {"spec 1", "spec - 0", "spec 8 0", "spec 1 8", "spec 1 --", "spec  1 0", "spec 1 +"})
+      assert(P(t + bad).type == Type::invalid);
+    Message q = P(t + "qte-own 3 77 1410024156 1 2");
+    assert(q.type == Type::qte_own && q.spawn == 1410024156 && q.member == 1 && q.tries == 2 && q.guid == 77);
+    Message s = P(t + "spec 1 0"), none = P(t + "spec 0 -");
+    assert(s.type == Type::spec && s.member == kPairMember && s.watched == kHostMember);
+    assert(none.type == Type::spec && none.member == kHostMember && none.watched == kNoMember);
+    assert(member_ok(0) && member_ok(7) && !member_ok(8) && !member_ok(kNoMember));
+    // None of the three is a line a recording keeps (world..cc).
+    for (Type k : {Type::fin, Type::qte_own, Type::spec})
+      assert(k > Type::cc && k < Type::mate);
+  }
+
   { // Phase 8: the cc line carries the hit's level (0-99) and the reaction's time in ms: 0 for the five crowd
     // controls (their rows' own time), 0 to 10000 for a flinch (HitStun 2003000; 0: its row's own time).
     Message m = msg("SBF25 cc 3 77 3000303 2 0");
@@ -2636,7 +2679,7 @@ int main() {
     h.set_stagger(true, true);
     h.receive(msg("SBF25 on"), 0, w);
     step(h, w, 1, 0);
-    assert(w.lines().find("SBF25 bosses 1 200\nSBF25 stagger 1 1 1\n") != std::string::npos);
+    assert(w.lines().find("SBF25 bosses 1 200 host\nSBF25 stagger 1 1 1\n") != std::string::npos);
     h.set_stagger(true, false);
     step(h, w, 2, 50);
     assert(w.lines().find("SBF25 stagger 1 1 0\n") != std::string::npos);

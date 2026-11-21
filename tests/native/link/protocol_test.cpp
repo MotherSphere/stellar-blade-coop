@@ -216,6 +216,20 @@ int main() {
       assert(solo_zone(t) == (t >= 2 && t <= 6));
     assert(wire_zone(6) == 6 && wire_zone(7) == 0 && wire_zone(255) == 0 && wire_zone(0) == 0);
   }
+  // A player's life from her vitals: life state 2 (Coma) reads coma before the HP-0 clause, since the game leaves a
+  // Coma EVE at HP 0; down in 3 to 5 or at HP 0, alive in 1 or 6, unknown otherwise.
+  {
+    auto vit = [](uint32_t life, uint32_t hp, uint32_t max_hp) {
+      Vitals x{};
+      x[vital::life] = life, x[vital::hp] = hp, x[vital::max_hp] = max_hp;
+      return x;
+    };
+    assert(life_of(vit(2, 0, 100)) == Life::coma); // Coma as the game leaves it: HP 0
+    assert(life_of(vit(2, 50, 100)) == Life::coma);
+    assert(life_of(vit(3, 80, 100)) == Life::down && life_of(vit(1, 0, 100)) == Life::down);
+    assert(life_of(vit(5, 80, 100)) == Life::down && life_of(vit(6, 80, 100)) == Life::alive);
+    assert(life_of(vit(1, 50, 100)) == Life::alive && life_of(vit(0, 50, 100)) == Life::unknown);
+  }
 
   // The paks line, reliable: how many .pak mods her game loads beyond the base game's, and their hash
   // (link/pak_list.h).
