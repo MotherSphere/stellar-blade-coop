@@ -16,8 +16,8 @@ local R={}
 -- table {[ItemTable ID]=points}, or nil and why: off with fishing=off, slot off a co-op save, table when its rows
 -- could not be read), start(t) (our tournament starts; t is round() below), stop(why) (it ended with no ranking: void,
 -- host_left, left, replaced, norank, out, or the reason stop() got), tell(key, ...) (a notice: starts with the host's
--- name and the minutes, out with fish()'s why, reloaded) and record(minutes, points, catches) (writes our best of that
--- length, true when it is a new best).
+-- name and the minutes, out with fish()'s why, reloaded), record(minutes, points, catches) (writes our best of that
+-- length, true when it is a new best) and pass() (the game side's work, after the link's, each pass).
 function R.new(o)
     local self={}
     local link,log=o.link,o.log or function() end
@@ -113,7 +113,7 @@ function R.new(o)
     -- ends when our online session does: on the host, once the status says it has none; on a guest, once her host's
     -- session is gone with no rejoin of hers under way, or another host's comes. A pass whose status was not read
     -- (link.chatting() nil) does nothing: it names no host and not our SteamID, so the fish lines wait in the link.
-    function self.tick()
+    local function link_pass()
         if link.chatting()==nil then return end
         local now,me,s=o.clock(),(link.saves() or {}).steamid,link.host()
         if cur and cur.phase=='play' and cur.go then
@@ -138,6 +138,11 @@ function R.new(o)
             local at,since=Fm.clock(cur.go,cur.minutes,now)
             if at=='up' and since>=Fm.WAIT then finish('norank') end
         end
+    end
+    -- Each 250 ms pass, after the inbox: the link's work, then the game side's (o.pass).
+    function self.tick()
+        link_pass()
+        if o.pass then o.pass() end
     end
     -- coop fish start [<minutes>] on the host: true, or false and why (usage: the minutes; session: no online session
     -- or a match lobby; guest; alone: nobody else past the handshake; on: one is on; fish()'s why).

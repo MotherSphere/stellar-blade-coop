@@ -4,7 +4,9 @@
 -- The fishing tournament's wiring through main.lua: its round on the link, with os.time as its clock, [FT] log lines,
 -- and its records file. coop-records.txt in the mod folder is read and written through core/link.lua's files: no
 -- file, the .tmp write, a tournament that beats the best or not, a failed write, a refused rename, the write in place,
--- a file that cannot be opened. The other lines of the file stay.
+-- a file that cannot be opened. The other lines of the file stay. Then its two runtime lines: the 250 ms loop ticks
+-- the round and its game side (the book asked once a second from GO); coop off ends the tournament with no line and no
+-- ask after it; the pass line is guarded.
 dofile('tests/lua/main/fixture.lua')
 local Round=require('online.modes.fishing.round')
 local new,o=Round.new,nil
@@ -47,4 +49,57 @@ disk.fail[P]='open'
 assert(not pcall(o.record,10,900,1),'It raises')
 disk.fail[P]=nil
 assert(disk.files[P]:find('\nbest_fish_10=500 1\n',1,true))
+
+-- The two runtime lines on a host's tournament over a fake clock and world: the 250 ms loop ticks the round, then its
+-- game side, which asks for the book once a second from GO; coop off ends the tournament with no line and no ask
+-- after it; the pass line is guarded.
+local T=1000
+local time=os.time
+os.time=function() return T end
+local round
+Round.new=function(opts) o=opts; round=new(opts); return round end
+load_main(true)
+require('online.modes.fishing.game').rows=function() return {[9220]=138} end -- SB's tables, read by row name.
+local Where=require('core.where')
+local world,me=Where.world,Where.me
+Where.world,Where.me=function() return true,false end,function() return {map='/game/art/bg/worldmap/level_p/e04'} end
+saves_info,chatting={steamid='1001'},true
+fake_link.host=function() return {id='1001'} end
+fake_link.members=function() return {{id='2002',linked=true,lost=false,name='P2'}} end
+status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\nslot=coop 2\nengine=v1 pad=xinput\n'
+coop('fish','start','1')
+assert(round.round().phase=='play' and fake_link.modes[#fake_link.modes]:find('^fish go %d+ 1 1001,2002$'),
+    tostring(fake_link.modes[#fake_link.modes]))
+local function books()
+    local n=0
+    for _,line in ipairs(asked) do if line:find('^fishbook %d+$') then n=n+1 end end
+    return n
+end
+loops[2].f() -- In the countdown: the round's first board, no ask.
+assert(fake_link.modes[#fake_link.modes]:find('^fish board %d+ 1001:0:0$') and books()==0)
+T=T+5 -- GO.
+loops[2].f()
+assert(books()==1,'The pass ticks the game side: its first ask at GO')
+-- The worker's answer in the engine line: an empty book, the baseline.
+status_text=status_text:gsub(' pad=',' fish='..asked[#asked]:match('%d+')..' - pad=')
+loops[2].f()
+T=T+1
+loops[2].f()
+assert(books()==2,'Once a second')
+local lines=#fake_link.modes
+coop('off')
+assert(round.round().phase=='over' and round.round().why=='coop off' and #fake_link.modes==lines,'No line')
+T=T+1
+loops[2].f()
+assert(books()==2,'No pass and no ask after coop off')
+-- Guarded: a tick that raises is logged once and the loop goes on.
+load_main(true)
+round.tick=function() error('boom',0) end
+loops[2].f()
+loops[2].f()
+local errors=0
+local ERROR='fishing: error (logged once until the mod reloads; the other modules go on): boom'
+for _,l in ipairs(printed) do if l:find(ERROR,1,true) then errors=errors+1 end end
+assert(errors==1,'Logged once')
+Where.world,Where.me,os.time=world,me,time
 print('main/fishing_test ok')
