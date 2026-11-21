@@ -262,7 +262,7 @@ a hall lobby has no official track yet. Record one inside the hall (`coop race r
 ### A racer is not ranked
 
 The host's `UE4SS.log` has `rank: refused <name>: <why>` for a split or an end its checks refused (`order`, `time`,
-`flags`, `why` or `twice`; see [The end and the ranking](../online/modes/race.md#the-end-and-the-ranking)). A racer is
+`flags` or `why`; see [The end and the ranking](../online/modes/race.md#the-end-and-the-ranking)). A racer is
 also left out when her end came after the ranking. The host stops waiting 65 s after the first finish. It does not
 wait at all for a racer whose countdown started more than 10 s after the round's start. A racer who left the lobby or
 lost her link is left out too.
@@ -806,7 +806,7 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 - `score lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
   [score attack](../online/modes/scoreattack.md) lines: the lines received, sent and dropped (see
   [The score line](../online/steam-link-internals.md#the-score-line)).
-- `dr lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried the lines of a
+- `dr lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried the lines of
   [Doro races in matches](../online/modes/race.md#races-in-a-match): the same counts (see
   [The dr line](../online/steam-link-internals.md#the-dr-line)).
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.

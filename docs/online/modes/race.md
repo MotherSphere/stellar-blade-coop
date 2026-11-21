@@ -2,7 +2,7 @@
 
 A Doro race is a run along a track of checkpoints that you record, for one player or two in an online session. In
 the SBO lobby it is also a match mode for 2 to 8 players (see [Races in a match](#races-in-a-match)). Each racer is
-drawn as a Doro (Dororong): your EVE on your screen, and your ghost on the other racers' screens. From GO, EVE drives
+drawn as a Doro (Dororong): your EVE on your screen and your ghost on the other racers' screens. From GO, EVE drives
 like a rally car (see [Driving](#driving)); her jumps, dodges and camera stay the game's. Doro races have not been
 tested in game yet.
 
@@ -108,7 +108,8 @@ During a drive, `UE4SS.log` has a line every 10 s, `[StellarCoop][DR] drive v=<c
 yaw=<degrees> heading=<degrees> air=0|1 root=0|1 drift=0|1 stumble=0|1`, and a line for each drift key pressed or
 released, each wall hit and each crest. `asked` is the speed the car gave the last frame, `yaw` EVE's facing as read
 one frame after the car turned her. `[StellarCoop][DR] drive hold applied` comes once the native part holds the four
-values. `drive hold not applied: her movement brakes, no impulse goes` comes while it does not.
+values. `drive hold not applied: her movement brakes, no impulse goes` comes when it stops holding them (a cutscene,
+photo mode).
 
 ## Rules
 
@@ -276,7 +277,7 @@ track:
 1. stands EVE up if she sits on a hall seat;
 2. moves her to her slot on the start line, facing the track's way. The slots stand in rows of two, 3 m apart across
    and 3 m back from row to row: slot 1 on the left of the start line's centre, slot 2 on its right, slots 3 and 4
-   behind them, and so on to slot 8. Her slot is her place in the round's player list: the host first, then the
+   behind them and so on to slot 8. Her slot is her place in the round's player list: the host first, then the
    others in Steam's member order;
 3. draws EVE and every other round player's ghost as a Doro;
 4. starts the 4 s countdown: 3, 2, 1, then GO.
@@ -326,8 +327,10 @@ host's log gets `rank: refused <name>: <why>`:
   split has a floor: the legs up to it, each the horizontal distance between two checkpoint centres (the start line's
   for the first) less both radii and 3 m, never under 0, driven at twice the default top speed (44 m/s);
 - `flags`: a finish whose flags are not 0 to 3;
-- `why`: a DNF with a reason the race never gives;
-- `twice`: a second end from the same player (the first counts).
+- `why`: a DNF with a reason the race never gives.
+
+A second end from the same player gets `rank: refused <name>: twice`. Her first end counts, so she stays in the
+ranking.
 
 Once the ranking comes, the panel lists each player's place, name and time, or `DNF`, your row in blue. Under the
 heading it reads `Not ranked.` when the ranking came without you, or `New personal best.` when your finish set your

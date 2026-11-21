@@ -492,8 +492,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   player's ghost as a Doro, `coop race start` refused in a match lobby, the round ticked from the 250 ms pass, the
   place notices with the kit off. `online/modes/race/drive_test` and `doro_test` cover the asks to the native part
   (`race hold`, `race tick`), the impulses only while the status says the hold is applied, a hold still applied with
-  no drive asked off again, nothing written to the four values or the tick option from Lua, and an older
-  `coop-look.txt` with a number in its tick field that writes nothing. `main/race_match_test` runs a round through
+  no drive asked off again, nothing written to the four values or the tick option from Lua. They also cover an
+  older `coop-look.txt` with a number in its tick field that writes nothing. `main/race_match_test` runs a round through
   `main.lua` and the wiring: the official track read from the Scripts folder, the host's lines one a pass, a hall's
   own tracks from `coop-tracks.txt`, `coop race save` and a pick by name adding to it, the sit-out notices, the host
   gone, the records file, `coop off`. `main/isolation.lua` checks with the race module off that the lobby menu holds no
@@ -732,7 +732,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   text the line cannot carry never goes; past 16 a second either way they are dropped with one log line a minute; the
   counts have a line of their own beside the 60 s line, only in a minute that had some. Outside a match lobby a score
   line never goes and is never taken, with no log line. The Doro race's dr lines get the same cases with their own
-  limit, drop lines and count line, which never touch the score line's, and a member with no handshake whose dr line
+  limit, drop lines and count line, which never touch the score line's. The dr line of a member with no handshake
   never reaches Lua;
 - `link_group_test`: online sessions of 3 and 4 players through the same fake Steam: the pair (the host and the guest in
   slot 0) with the host in slot 0 on every guest, the host's let line with its `max_players`, the `host=` (with `max=`),

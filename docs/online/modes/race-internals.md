@@ -190,14 +190,14 @@ These offsets and addresses were read in Ghidra on build 26123051.
 A part that applies keeps the values it finds once, then sets 0 each frame, counting each value the game wrote again
 (a stance push writes the four fields; SB's significance manager writes the tick option). A part that stops applying
 (the ask gone, EVE gone, a scene) writes the kept values back on the same live object at once. After a map change her
-component is another object: the kept values are dropped unwritten when the old object is gone, and taken again from
-the new one while the ask holds. A pause changes nothing. `coop off` (`block()` in `glue/tick/status.inc`) and a new Lua
+component is another object: the kept values are dropped unwritten when the old object is gone. They are taken again
+from the new one while the ask holds. A pause changes nothing. `coop off` (`block()` in `glue/tick/status.inc`) and a new Lua
 load (the `coop-session.txt` block of `glue/tick/worker.inc`) clear both asks. The game thread then puts back what it
-kept at its next frame, after `coop off` too, and holds nothing more until Lua asks again. An ask `on` is refused off
+kept at its next frame, after `coop off` too. It holds nothing more until Lua asks again. An ask `on` is refused off
 the pinned build, after `coop off` and after a fault. The first fault closes the part's latch for the game run after
 one try to put back what is kept, on live objects only.
 
-The status line's `engine=` line carries ` race_hold=<0|1> race_tick=<0|1> race_retick=<n>` (applied or not, and the
+The status line's `engine=` line carries ` race_hold=<0|1> race_tick=<0|1> race_retick=<n>` (applied or not, then the
 tick option's re-sets this game run), or ` race_hold=fault` after the latch. `coop-link.log` gets the asks' answers
 (`race hold on: applied at the game thread's next frame`, `race hold refused: coop off`), a line at each change of what
 applies (`race hold: fields 0 (none), tick option game's (none)`, the word in brackets `eve` or `scene` for an asked
@@ -263,7 +263,7 @@ line, which a match lobby refuses both ways.
 | `ui/hud.lua` | POS among up to 8 racers, the 8 result rows, the note before the ranking, `Not ranked.` and `New personal best.` |
 
 Lua cannot list a folder, so `match/tracks.lua` names each official track. The wiring finds the folder with
-`package.searchpath('online.modes.race.match.tracks', package.path)`, as `main/loader.lua` finds a `wiring.lua`, and
+`package.searchpath('online.modes.race.match.tracks', package.path)`, as `main/loader.lua` finds a `wiring.lua`. It
 reads each file with `io.open(path, 'rb')`, read only. The host's own tracks are the names in `coop-tracks.txt` in the
 mod folder (32 at most, the newest kept, under a comment line), each read from its `coop-track-<name>.txt`. A track is
 offered when its `map` line equals `core/where.lua`'s map of EVE and the 8 slots (`R.slot`, rows of two 3 m apart) and
@@ -273,7 +273,7 @@ The host draws the track at the start line: its pick when the room offers it, el
 room's official tracks, else among all offered. It sends the track as the session race's `track` and `cps` lines
 (without the `drive` line) and a `go` line, at most 8 lines. The round hands one of its lines or asks to the link each
 250 ms pass, in order: `core/link.lua`'s request queue keeps 8 and drops the oldest. The host's lines with its ready
-can be 9. Each game builds the track from the owner's lines of one seed, kept 10 s, and checks that its sum is
+can be 9. Each game builds the track from the owner's lines of one seed, kept 10 s. It checks that its sum is
 the go line's. A match race drives with `drive_model.lua`'s defaults, never the host's `coop race drive` values.
 
 Each dr line carries one text. The seed is the round's, from the start line, the same in every game:
@@ -298,8 +298,8 @@ of its go. For each split it computes a floor (`Mm.floors`): the horizontal legs
 the start line) and 3 m for a slot's side offset, never under 0, at twice the default top speed (4400 cm/s). A split
 must be the player's next, not under its floor, not under her split before, not over 900,000 ms. A finish must follow
 her last split with the same bounds and flags 0 to 3. A DNF must carry one of the race's reasons. A refused player
-leaves the ranking. Her later texts are taken with no further log line. `Mm.tick` waits for every member who sent a
-ready, is not refused and has no end, and for everyone during the first 10 s. It stops 65 s after the first finish it
+leaves the ranking. Her later texts are taken with no further log line. `Mm.tick` waits for everyone during the first 10 s.
+Then it waits for every member who sent a ready, is not refused and has no end. It stops 65 s after the first finish it
 took (60 s late rule and 5 s for lines on their way) or 930 s after its GO (the 15 min limit and 30 s). It sends `rank`
 and asks `match end` 10 s later. The ranking puts the finishers by time, equal times in SteamID order, then the DNFs
 in the round's order. `R.rank` gives finishers within 10 ms one place.
@@ -331,5 +331,5 @@ track read from the Scripts folder. `tests/lua/online/modes/race/ui/hud_test.lua
 for up to 8 racers. The native `link_protocol_test` and `link_match_test` cover the dr line.
 
 Not checked in game: everything in this section. In particular whether `xion_eight`'s loops drive well, the speed of
-EVE's own dashes against the host's floors, the 720-unit results panel and the lobby menu's four mode rows on screen,
-and the hall lobbies, which have no official track yet.
+EVE's own dashes against the host's floors, the 720-unit results panel and the lobby menu's four mode rows on screen.
+The hall lobbies have no official track to check yet.

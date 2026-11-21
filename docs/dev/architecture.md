@@ -57,7 +57,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `online/partner/commands.lua` | The ghost's `coop` commands: `puppet`, `basesuit`, `where`, `near`, `cns`, `look`, `loopback`, `record` and `replay` |
 | `online/photo/commands.lua` | `coop freeze` |
 | `online/modes/nightop/commands.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
-| `online/modes/race/commands.lua` | `coop race`: the Doro look and probe, `coop race match` ([Races in a match](../online/modes/race.md#races-in-a-match)), and the co-op save check before `online/modes/race/run.lua`'s command |
+| `online/modes/race/commands.lua` | `coop race`: the Doro look and probe, `coop race match` ([Races in a match](../online/modes/race.md#races-in-a-match)) and the co-op save check before `online/modes/race/run.lua`'s command |
 | `online/modes/scoreattack/commands.lua` | `coop scoreattack`: the round's state line and the host's challenge pick ([Score attack](../online/modes/scoreattack.md)) |
 | `fight/enemies/commands.lua` | `coop fight` (its pilot and spawn probe included) and `coop pvp`: their lines for the native part |
 | `story/quests/commands.lua` | `coop quests`: its lines for the native part |
@@ -115,7 +115,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `online/modes/nightop/guard_text.lua` | The recruiter's lines for the native part: the game language's seven lines as one `guardtext` request, sent again when the language changes, and the `[RC] text:` line |
 | `online/modes/race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation, made through `core/actors.lua`), the Doro look on your EVE, and `coop race probe doro` |
 | `online/modes/race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
-| `online/modes/race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its Doros and its notices, and a match round's race (the slot teleport, every round player's ghost as a Doro). `online/modes/race/ui/hud.lua` draws its panel, banners and results |
+| `online/modes/race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its Doros and its notices. It also runs a match round's race (the slot teleport, every round player's ghost as a Doro). `online/modes/race/ui/hud.lua` draws its panel, banners and results |
 | `online/modes/race/match/model.lua` | Doro races in matches with no engine call: the dr line's texts, the tracks a lobby room offers, the host's pick and its draw, the split floors, the host's checks and wait, the ranking, our race from the start line to the results, the best times and `coop-tracks.txt` |
 | `online/modes/race/match/round.lua` | Doro races in matches on the Steam link: the round from the link's start line, the dr lines sent and read, the host's draw and arbitration. `online/modes/race/match/game.lua` starts our race on its slot and sends its lines |
 | `online/modes/scoreattack/model.lua` | Score attack with no engine call: the challenges a lobby room offers, the host's pick and its draw, the score line's texts, the host's checks and wait, the ranking |

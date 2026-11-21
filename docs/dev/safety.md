@@ -147,16 +147,16 @@ feature or drops the input.
   lines](../online/modes/race-internals.md#race-lines)) and the dr lines of a race in a match (the same, 16 lines a
   second, then the sender and bound checks in [Races in a match](../online/modes/race-internals.md#races-in-a-match)).
 - The [Doro look](../online/modes/race-internals.md#the-doro-look) and a race's [driving](../online/modes/race-internals.md#driving) write to the player actor. The look
-  writes `bHiddenInGame` on EVE's mesh parts from Lua. It writes `coop-look.txt` before it changes them, and undoes
+  writes `bHiddenInGame` on EVE's mesh parts from Lua. It writes `coop-look.txt` before it changes them. It undoes
   them at the race's end, on `coop race look off` and `coop off`, after a map change and at its first error. It also
   sets `bHiddenInGame` on the main mesh of the drone that follows EVE, records the drone in the same file first, and
   clears it again on the same exits. The next Lua load undoes them from the file when this one could not. The driving
   gives her movement a velocity and her a yaw each frame. The two property writes, her movement component's four
   values at 0 and her main mesh's `VisibilityBasedAnimTickOption` at 0, are the native part's: on the game thread,
   on live objects only, behind the races' own SEH latch, put back at each end Lua asks, at `coop off`, at a new Lua
-  load, during a cutscene and photo mode, and at the first fault ([The native
+  load and at the first fault, also for as long as a cutscene or photo mode lasts ([The native
   hold](../online/modes/race-internals.md#the-native-hold)). A race in a match also teleports EVE onto her grid slot
-  with `K2_TeleportTo` at its start, and again at GO when she stands more than 3 m from it.
+  with `K2_TeleportTo` at its start and again at GO when she stands more than 3 m from it.
 - The [bike](../vehicles/bike-internals.md) writes to the player actor too. It adds one skeletal mesh component to EVE's
   actor, hung on her main mesh and hidden until she rides. While she rides it sets her main mesh's relative rotation for
   the lean and drives her with its own drive (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native
