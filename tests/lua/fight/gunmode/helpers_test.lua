@@ -28,6 +28,16 @@ do
     s,bad=Config.from(Link.parse_settings('gun_zoom=sideways\ngun_upper=yes\ngun_fire=both\ngun_aim_key=Left Mouse\n'))
     assert(not s.zoom_toggle and not s.upper and s.native and s.aim_key=='RightMouseButton' and #bad==4,
         table.concat(bad,'|'))
+    -- gun_spread: degrees from 0 to 10. Another value is refused with its line: the default spread stays.
+    for v,want in pairs({['0']=0,['2.5']=2.5,['10']=10}) do
+        s,bad=Config.from(Link.parse_settings('gun_spread='..v..'\n'))
+        assert(s.spread==want and #bad==0,'gun_spread='..v..': '..tostring(s.spread)..' '..table.concat(bad,'|'))
+    end
+    for _,v in ipairs({'-1','10.5','wide'}) do
+        s,bad=Config.from(Link.parse_settings('gun_spread='..v..'\n'))
+        assert(s.spread==nil and #bad==1 and bad[1]=='gun_spread: degrees from 0 to 10',
+            'gun_spread='..v..': '..tostring(s.spread)..' '..table.concat(bad,'|'))
+    end
 end
 
 -- 2. Keys: an edge on the press only; a tap is a short press, a hold is not.

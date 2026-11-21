@@ -65,7 +65,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   stop, the yaw rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp
   launch only after 0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
 - `fight/gunmode/helpers_test` covers gun mode's pure parts: its settings as `core/link.lua` parses them (the defaults
-  without them, `gun_key` with its modifier or none, its test lines with refusals), the polled keys' edges and D-pad
+  without them, `gun_key` with its modifier or none, `gun_spread` from 0 to 10, its test lines with refusals), the polled keys' edges and D-pad
   Right's tap (a hold is the bike's), the crosshair point in EVE's frame and the rifle's magazine (a round per cool
   time, the reload when empty and none when lowered part-spent, the HUD count, no round once the spares are spent, a
   refill). The reticle's round slot shows the round's name, the reload word and the empty word in the menu's language.
