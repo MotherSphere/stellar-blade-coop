@@ -237,6 +237,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'vehicles/bike/drive', 'vehicles/bike/drive_model', 'fight/bosses/enemy',
                               'online/partner/bike_part',
                               'online/partner/doro_pick',
+                              'online/partner/bench',
                               'online/modes/race/doro',
                               'online/modes/race/drive',
                               'online/modes/race/drive_model', 'online/modes/race/model', 'online/modes/race/run',
