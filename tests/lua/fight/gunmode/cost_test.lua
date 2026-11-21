@@ -493,10 +493,10 @@ do
     Keep.reset()
 end
 
--- 13. The game's aim drops bTPSMode for a frame on each shot's skill while RMB is held. Such a frame is no hip fire: her
---     movement's facing flags stay as they are and coop-gun.txt is not written. Each drop turned the flags over and
---     back, with two writes of the file (about 40 a second in a burst). Hip fire (LMB without RMB) still faces her to
---     the camera. The chest loop runs here on neutral math (no turn) with the rifle's muzzle on her root.
+-- 13. The game's aim drops bTPSMode for a frame on each shot's skill while RMB is held. Such a frame is no hip fire:
+--     her movement's facing flags stay as they are and coop-gun.txt is not written. Each drop turned the flags over
+--     and back, with two writes of the file (about 40 a second in a burst). Hip fire (LMB without RMB) still faces her
+--     to the camera. The chest loop runs here on neutral math (no turn) with the rifle's muzzle on her root.
 do
     local w=world()
     local ML={IsValid=function() return true end,GetForwardVector=function() return {X=1,Y=0,Z=0} end,
@@ -532,7 +532,8 @@ do
         :format(flips,saves))
     w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil; frames(gun,120) -- (a reload ends)
     w.down.LeftMouseButton=true; frames(gun,2)
-    assert(move.bOrientRotationToMovement==false and move.bUseControllerDesiredRotation==true,'hip fire faces the camera')
+    assert(move.bOrientRotationToMovement==false and move.bUseControllerDesiredRotation==true,
+        'hip fire faces the camera')
     w.down.LeftMouseButton=nil
     clock=clock+1; gun.toggle_now(); frames(gun,2)
     assert(move.bOrientRotationToMovement==true and move.bUseControllerDesiredRotation==false,'her own facing back')

@@ -554,8 +554,8 @@ end
 
 -- 17. The game's aim drops bTPSMode for a frame on each shot's skill while its key is held. An off on such a frame
 --     holds the aim key and SB's rows as an off in the aim does (8): here the last frame of the departure (F4 in the
---     aim). On a pad the hold lasts while LT is down, through a drop too. Put back there, TPSMode went to Ctrl under the
---     held RMB or SB's rows came back during the aim: the drone fired NIKKE rounds with no ammo (11-21 test).
+--     aim). On a pad the hold lasts while LT is down, through a drop too. Put back there, TPSMode went to Ctrl under
+--     the held RMB or SB's rows came back during the aim: the drone fired NIKKE rounds with no ammo (11-21 test).
 do
     local w=Fake.new(); w.install()
     local keys=w.keys()
@@ -607,7 +607,9 @@ do
     w.pawn.K2_GetActorRotation=function() return {Pitch=0,Yaw=0,Roll=0} end
     local falling=false
     w.pawn.CharacterMovement.IsFalling=function() return falling end
-    function w.mesh.GetSocketLocation(_,bone) return bone:ToString()=='Bip001-Spine1' and {X=10,Y=0,Z=0} or {X=0,Y=0,Z=0} end
+    function w.mesh.GetSocketLocation(_,bone)
+        return bone:ToString()=='Bip001-Spine1' and {X=10,Y=0,Z=0} or {X=0,Y=0,Z=0}
+    end
     toggle(gun,true); frames(gun,40)
     local rifle=gun.state.rifle
     rifle.GetSocketLocation=function() return {X=0,Y=0,Z=100} end
@@ -624,7 +626,8 @@ do
     w.down.LeftMouseButton=nil; falling=false; frames(gun,2)
     assert(not gun.state.flip,'landed')
     w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=true,true,true; frames(gun,2)
-    assert(dest.X>9000 and math.abs(dest.Y)<200,('a round in the aim to the reticle point: (%g, %g, %g)'):format(dest.X,dest.Y,dest.Z))
+    assert(dest.X>9000 and math.abs(dest.Y)<200,
+        ('a round in the aim to the reticle point: (%g, %g, %g)'):format(dest.X,dest.Y,dest.Z))
     w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil; frames(gun,1)
     toggle(gun,false)
 end

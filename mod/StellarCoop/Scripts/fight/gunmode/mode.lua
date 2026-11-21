@@ -852,7 +852,8 @@ function GunMode.new(env)
         s.mesh_rot,s.mesh_yaw,s.head_yaw=nil,0,nil
         if s.cmod and g.valid(s.cmod) then local m=s.cmod; pcall(function() g.pc().PlayerCameraManager:RemoveCameraModifier(m) end) end
         s.cmod,s.cmod_fail=nil,nil
-        s.layer,s.layer_clip,s.reload_until,s.turn,s.turnq,s.chest,s.move,s.flip=false,nil,nil,nil,nil,nil,nil,nil -- (no aim turn or flip left for next time)
+        -- (no aim turn or flip left for next time)
+        s.layer,s.layer_clip,s.reload_until,s.turn,s.turnq,s.chest,s.move,s.flip=false,nil,nil,nil,nil,nil,nil,nil
         s.ovr_row=nil
         show_others()
         show_drone()
@@ -881,8 +882,8 @@ function GunMode.new(env)
     -- aim key up, with no round to fire (the NIKKE shot's cool time 999, as with an empty magazine). The aim key stays on RMB, so
     -- letting it go ends the aim: SB binds TPSMode's press and release (0x1420473b0 hands both to 0x14209f660, command
     -- key 0x2b). Put back under a held RMB, the key moved to Ctrl, the release never came and the plain drone aim
-    -- stayed on, firing (2026-11-21 test). An off on a frame where the aim dropped with its key held (aim_dropped: about
-    -- one frame in three while firing) holds too.
+    -- stayed on, firing (2026-11-21 test). An off on a frame where the aim dropped with its key held (aim_dropped:
+    -- about one frame in three while firing) holds too.
     local function disable(why)
         if not s.on then return end
         local p=g.pawn()
@@ -1149,7 +1150,7 @@ function GunMode.new(env)
     end
 
     -- A round's destination in the double-jump flip: 30 m along the rifle's bore (its FX_Fire socket's forward), where
-    -- the laser points; the crosshair point without the rifle. Each shot and firing mode's write each frame both take it.
+    -- the laser points; the crosshair point without the rifle. Each shot and firing mode's write each frame take it.
     local function flip_point()
         return g.valid(s.rifle) and g.try(function()
             local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
@@ -1276,7 +1277,8 @@ function GunMode.new(env)
             return
         end
         dn_pc,dn_frame=pc,dn_frame+1
-        -- (the aim key and LT up too: bTPSMode drops for a frame on a shot's skill and through a jump while either is held)
+        -- (the aim key and LT up too: bTPSMode drops for a frame on a shot's skill and through a jump while either is
+        -- held)
         if s.aim_hold and not s.on then
             local p=g.pawn()
             if not (p and aim_on(p)) and not down(set.aim_key) and not down('Gamepad_LeftTrigger') then
@@ -1857,15 +1859,17 @@ function GunMode.new(env)
         if set.native and set.upper then pcall(hold_pose,p,inp.fire) end
         if s.prof then s.prof('pose') end
         -- In firing mode, every frame (SB reads the row when a round spawns): the NIKKE bullet's start on the rifle's
-        -- muzzle and its destination on this frame's crosshair point, moved at random within the spread. In the flip it
-        -- is the bore's point, as shoot wrote it this frame: the zone event queues the round (the CreateSBZoneEvent exec
-        -- 0x142669a50 pushes it under the lock at manager+0x50 through 0x14226f8a0 on 26123051), so it spawns after this.
+        -- muzzle and its destination on this frame's crosshair point, moved at random within the spread. In the flip
+        -- it is the bore's point, as shoot wrote it this frame: the zone event queues the round (the CreateSBZoneEvent
+        -- exec 0x142669a50 pushes it under the lock at manager+0x50 through 0x14226f8a0 on 26123051), so the round
+        -- spawns after this write.
         if s.zoom_held or inp.fire then
             local loc=g.try(function() return p:K2_GetActorLocation() end)
             local rot=g.try(function() return p:K2_GetActorRotation() end)
             local m=g.valid(s.rifle) and g.try(function() return s.rifle:GetSocketLocation(fx_fire()) end)
             aim.write_start(p,m or nil,cfg.start_min_forward,cfg.start_fallback,loc,rot)
-            aim.write(p,s.flip and flip_point() or Aim.spread(s.target,s.cam_loc,spread,math.random(),math.random()),loc,rot)
+            local to=s.flip and flip_point() or Aim.spread(s.target,s.cam_loc,spread,math.random(),math.random())
+            aim.write(p,to,loc,rot)
         end
         if not set.native then face(p,s.zoom_held) end
         -- Firing mode: fire once the rifle has had a moment to come up (Luke's raise eases in over ~12 frames).
