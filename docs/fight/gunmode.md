@@ -149,7 +149,8 @@ The rifle fires NIKKE RAPID rounds: about 20 a second.
 
 The magazine reloads when it runs dry or when you press the reload key (B, or Triangle on a pad). A press keeps the
 rounds left in the magazine and tops it up from the spares. With fewer spares than it lacks, every spare goes in.
-Lowering the rifle never reloads it. No round fires while it reloads.
+Lowering the rifle never reloads it. No round fires while it reloads. With `gun_fire=own` gun mode's own shots use
+the same magazine and reloads.
 
 The `[GM]` line `off (...), N shots` counts the rounds of the rifle out, the game's aim's included. For a shot sound
 that goes missing, two `[GM]` lines list EVE's audio components and the ones playing. `sounds while firing:` comes once

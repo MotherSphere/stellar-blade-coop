@@ -459,4 +459,34 @@ do
     assert(not gun.state.on,'put away by the key: no comeback')
 end
 
+-- 13. gun_fire=own spends the same magazine: the 60th round starts a reload. No round leaves while it runs. It ends
+--     after the reload time and the shots go on. The player's reload key ends the same way.
+do
+    local w=Fake.new(); w.install()
+    local gun,logs=new('gun_fire=own\n')
+    local function reloads()
+        local n=0
+        for _,l in ipairs(logs) do if l:find('ammo: reload (',1,true) then n=n+1 end end
+        return n
+    end
+    toggle(gun,true); frames(gun,40)
+    w.down.RightMouseButton,w.down.LeftMouseButton=true,true
+    for _=1,900 do if reloads()>0 then break end; frames(gun,1) end
+    local shots=gun.state.shots
+    assert(reloads()==1 and shots==60,'the 60th round starts the reload: '..shots..' shots, '..reloads()..' reloads')
+    frames(gun,90) -- 1.5 s of the 1.6 s reload
+    assert(gun.state.shots==shots,'no round while it reloads: '..(gun.state.shots-shots))
+    frames(gun,30)
+    assert(gun.state.shots>shots,'the reload ends and the shots go on')
+    w.down.LeftMouseButton=nil; frames(gun,2)
+    w.down.B=true; frames(gun,1); w.down.B=nil
+    assert(reloads()==2,'the player\'s reload: '..table.concat(logs,'|'))
+    frames(gun,120)
+    shots=gun.state.shots
+    w.down.LeftMouseButton=true; frames(gun,30)
+    assert(gun.state.shots>shots,'the player\'s reload ends')
+    w.down.RightMouseButton,w.down.LeftMouseButton=nil,nil
+    toggle(gun,false)
+end
+
 print('gunmode state: ok')

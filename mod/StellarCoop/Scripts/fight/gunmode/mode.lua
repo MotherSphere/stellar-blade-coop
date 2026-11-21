@@ -1096,7 +1096,7 @@ function GunMode.new(env)
     -- Each shot: the bullet's start on the muzzle and its destination on the crosshair point, then the shot's row.
     -- Only in the double-jump flip it goes along the bore, where the laser points.
     local function shoot(p,now)
-        if now<s.next_shot then return end
+        if now<s.next_shot or ammo.left<=0 or ammo.reload_until then return end -- (a round in the magazine, none while it reloads)
         s.next_shot=now+cfg.fire_interval
         if not data.armed then
             if not data.arm() then s.next_shot=now+cfg.arm_hold; return end -- Tried again a second later, not each shot.
@@ -1433,6 +1433,11 @@ function GunMode.new(env)
         elseif set.zoom_toggle then
             if inp.zoom_press then s.zoom_held=not s.zoom_held end
         else s.zoom_held=inp.zoom end
+        if not set.native then
+            -- gun_fire=own: its shots count themselves (shoot -> ammo.spend). The tick ends a reload.
+            local ok_a,err_a=pcall(ammo.tick,s.zoom_held or inp.fire,false,now)
+            if not ok_a and not s.ammo_err then s.ammo_err=true; g.log('ammo: '..tostring(err_a)) end
+        end
         if s.prof then s.prof('ammo') end
         -- The point under the screen centre only while she aims or fires (hip fire raises the rifle), the only time it
         -- is read (M13): two traces a frame.
