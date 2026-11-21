@@ -298,6 +298,14 @@ std::string ask_bike(const coop::Request &request);
 // gate on with each action's earlier state, off, refused; each ride play's clip in memory or not) and returns a line
 // for the player's screen (the fault's), or empty.
 std::string bike_pass();
+// Doro races' hold on EVE (online/modes/race/hold.h), worker thread. Lua's race hold or race tick, on or off
+// (Command::race): her movement's four fields, or her mesh's tick option, set from the game thread's next frame, or put
+// back; refused off the pinned build, after coop off and after its fault. A new Lua load and coop off put both back.
+// Returns the line for the log.
+std::string ask_race(const coop::Request &request);
+// Every pass: logs each change the game thread made (what is applied and why not, a field the game wrote again, kept
+// values dropped with their object) and returns a line for the player's screen (the fault's), or empty.
+std::string race_pass();
 // SB's HUD under the SBO lobby's screens (online/lobby/hud_game.inc), worker thread. Lua's hud hide on or off
 // (Command::hud): our key in the HUD's set of hiding keys from the game thread's next frame, or out of it; coop off
 // takes it out too.

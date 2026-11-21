@@ -403,12 +403,12 @@ package.loaded['online.modes.nightop.run']={new=function(o)
             if nr.raise then error(nr.raise,0) end
         end}
 end}
--- The Doro look and probe (online/modes/race/doro.lua; doro_test tests them): what doro.new got (log, store), its calls
--- as words, its restores and ticks, what a tick says, a stop that raises; and the ghost's Doro mode as puppet.doro was
--- last given it, with what it answers.
+-- The Doro look and probe (online/modes/race/doro.lua; doro_test tests them): what doro.new got (o, its log and store),
+-- its calls as words, its restores and ticks, what a tick says, a stop that raises; and the ghost's Doro mode as
+-- puppet.doro was last given it, with what it answers.
 dr={calls={},restores=0,ticks=0}
 package.loaded['online.modes.race.doro']={new=function(o)
-    dr.log,dr.store=o.log,o.store
+    dr.o,dr.log,dr.store=o,o.log,o.store
     return {log=o.log,
         on=function() dr.calls[#dr.calls+1]='on'; if dr.no_eve then return false,'no EVE in the world' end
             return true,'look on' end,

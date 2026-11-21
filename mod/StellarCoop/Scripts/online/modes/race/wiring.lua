@@ -11,18 +11,25 @@ local print,log=M.print,M.log
 local Loader=require('main.loader')
 local sbo=Loader.view(M,'sbo')
 local puppet=Loader.view(M,'puppet')
+-- The race's asks to its native part (online/modes/race/hold.h: race hold, race tick) and the engine line's fields it
+-- answers with (race_hold=, race_retick=); none without the native part.
+local function ask(text) return M.link.request(text) end
+local function engine() return ('\n'..(M.link.status() or '')):match('\nengine=([^\r\n]*)') or '' end
 -- The Doro look and probe (online/modes/race/doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load
--- restore EVE.
+-- show EVE's parts again; her tick option is the native part's (race tick).
 M.doro=require('online.modes.race.doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
-    store=M.link and M.link.store('coop-look.txt')})
+    store=M.link and M.link.store('coop-look.txt'),ask=M.link and ask,
+    retick=M.link and function() return tonumber(engine():match(' race_retick=(%d+)')) end})
 -- Whether EVE rides the bike (main/base.lua's riding, read at each call): the races' drive and the race refuse
 -- their probe, off and start while she does.
 local function riding() return M.riding() end
--- The races' driving (online/modes/race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's
--- movement back.
-M.drive=require('online.modes.race.drive').new({log=M.doro.log,store=M.link and M.link.store('coop-drive.txt'),
-    settings=M.settings,
-    riding=riding})
+-- The races' driving (online/modes/race/drive.lua), logging [DR] lines: the native part holds EVE's movement values
+-- while it drives (race hold) and puts them back at a new Lua load.
+M.drive=require('online.modes.race.drive').new({log=M.doro.log,settings=M.settings,riding=riding,ask=M.link and ask,
+    held=M.link and function()
+        local h=engine():match(' race_hold=(%w+)')
+        if h then return h=='1' end
+    end})
 -- The host's own tracks a match lobby may offer: coop-tracks.txt in the mod folder (match/model.lua's index), each
 -- name with its coop-track file. A name whose file is gone or broken is dropped from the file as it is read.
 local Mm=require('online.modes.race.match.model')

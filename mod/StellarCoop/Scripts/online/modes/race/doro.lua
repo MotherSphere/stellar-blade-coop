@@ -8,8 +8,10 @@
 -- The look (Doro.new): your EVE drawn as a Doro. Like coop wear (eve/wear.lua), it writes to the player actor:
 -- while it is on, EVE's mesh components carry bHiddenInGame (only those that did not already) and her main mesh's
 -- VisibilityBasedAnimTickOption is 0, so her pose, notifies and root-motion moves still run while she is not drawn.
--- Both are restored when it goes off (coop race look off, coop off, a map change, its first error), and by the next
--- Lua load from coop-look.txt when this one could not (Ctrl+R, a dead Lua state). Never a pawn spawned or possessed.
+-- The tick option is the native part's to keep, set and put back (online/modes/race/hold.h, on the game thread behind
+-- its fault guard): the look asks race tick on and race tick off. Both are restored when it goes off (coop race look
+-- off, coop off, a map change, its first error); the parts by the next Lua load from coop-look.txt when this one could
+-- not (Ctrl+R, a dead Lua state), the tick option by the native part at that load. Never a pawn spawned or possessed.
 -- The look also hides the drone that follows EVE (an SB character of the game's: bHiddenInGame on its main mesh only,
 -- when it does not have it) and shows it again on the same ways out; it writes nothing else on it.
 -- Each Doro carries hidden keepers that hold its clips, so the engine never unloads one in the middle of a race.
@@ -177,7 +179,10 @@ local PROBE={{name='turn_90l',asset='turn',loop=true,rate=1},{name='meet_01',ass
     {name='hold_0.75',asset='evade',loop=false,rate=0,at=0.75},{name='exhaust',asset='exhaust',loop=true,rate=1},
     {name='meet_03',asset='meet3',loop=false,rate=1,seconds=9.4}}
 
--- o: log (the [DR] lines), store (coop-look.txt through link.store; nil without the native part: no restore).
+-- o: log (the [DR] lines), store (coop-look.txt through link.store; nil without the native part: no restore), ask(text)
+-- (a request to the native part, core/link.lua's request: true, or false and why; nil without the native part: no look)
+-- and retick() (the status line's race_retick: how often the native part set the tick option back this run; nil when
+-- unread).
 function Doro.new(o)
     local log=o.log
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -186,17 +191,19 @@ function Doro.new(o)
     local failed -- Why the look stopped on an error: off for this Lua load.
     local restored,yaw_said=false,false
     local probe -- While the probe runs.
-    -- coop-look.txt's line: EVE's path, the old tick option, the Doro's path, the hidden parts' names, then the drone's
-    -- path once the look hides it (from the fourth field on, the one that starts with '/'), tab-separated.
+    -- coop-look.txt's line: EVE's path, a dash (the old tick option once, which the native part keeps now), the Doro's
+    -- path, the hidden parts' names, then the drone's path once the look hides it (from the fourth field on, the one
+    -- that starts with '/'), tab-separated.
     local function line(l)
-        local f={l.path,tostring(l.tick),l.doro.path}
+        local f={l.path,'-',l.doro.path}
         for _,p in ipairs(l.parts) do f[#f+1]=p.name end
         if l.drone_hid then f[#f+1]=l.drone_path end
         return table.concat(f,'\t')
     end
-    -- The file an earlier Lua load left (its look was on): its Doro destroyed, EVE's listed parts shown and her tick
-    -- option back, the drone it hid shown if it still is an SB character there whose main mesh is hidden, then the file
-    -- cleared. On the game thread (the first tick, or look on), never while the Lua state loads.
+    -- The file an earlier Lua load left (its look was on): its Doro destroyed, EVE's listed parts shown, the drone it
+    -- hid shown if it still is an SB character there whose main mesh is hidden, then the file cleared (her tick option
+    -- went back at that load, the native part's). On the game thread (the first tick, or look on), never while the Lua
+    -- state loads.
     function self.restore()
         if restored then return end
         restored=true
@@ -219,7 +226,6 @@ function Doro.new(o)
                     shown=shown+1
                 end
             end)
-            if tonumber(f[2]) then valid(eve.Mesh).VisibilityBasedAnimTickOption=tonumber(f[2]) end
         end)
         if not ok then errors[#errors+1]=tostring(why) end
         ok,why=pcall(function()
@@ -260,8 +266,8 @@ function Doro.new(o)
             end)
         end
         try(function()
-            local body=l.tick and same(l.body,l.body_path)
-            if body then body.VisibilityBasedAnimTickOption=l.tick end
+            local asked,ask_why=o.ask('race tick off')
+            if not asked then error('race tick off not asked: '..tostring(ask_why),0) end
         end)
         local also=''
         try(function()
@@ -273,8 +279,8 @@ function Doro.new(o)
             end
         end)
         if #errors==0 then store.clear() end
-        return #errors==0,string.format('Doro look off (%s): %d parts%s shown again, tick option %s back%s.',why,shown,
-            also,l.tick,#errors>0 and '; '..table.concat(errors,'; ') or '')
+        return #errors==0,string.format('Doro look off (%s): %d parts%s shown again, tick option %s asked back%s.',why,
+            shown,also,l.tick,#errors>0 and '; '..table.concat(errors,'; ') or '')
     end
     -- The drone that follows EVE hidden while the look is on. drone_near looks for it at look on, and once more each
     -- time the one held goes; none found, it is not looked for again this look (said once). The one held, shown or not,
@@ -315,6 +321,7 @@ function Doro.new(o)
             return false,'the Doro look stopped on an error ('..failed..'); it stays off until the mod reloads'
         end
         if look then return true,'The Doro look is on already.' end
+        if not o.ask then return false,'the Doro look needs the native part' end
         local eve=her(valid(UE.GetPlayer()))
         if not eve then return false,'no EVE in the world' end
         local body=valid(eve.Mesh)
@@ -323,8 +330,8 @@ function Doro.new(o)
         local d=Doro.spawn(eve:GetWorld(),{X=at.X,Y=at.Y,Z=at.Z},{Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll})
         Doro.reloads.n,Doro.reloads.ms=0,0 -- What its making loaded is no reload during the look.
         local now=os.clock()
-        look={eve=eve,body=body,doro=d,state={},parts={},rehid=0,retick=0,check_at=now+0.25,speed_at=now,
-            minute_at=now+60,drone_at=now+1}
+        look={eve=eve,body=body,doro=d,state={},parts={},rehid=0,retick=0,reticked=o.retick and o.retick() or 0,
+            check_at=now+0.25,speed_at=now,minute_at=now+60,drone_at=now+1}
         local l=look
         local ok,why=pcall(function()
             l.at,l.path,l.body_path=address(eve),path_of(eve),path_of(body)
@@ -343,7 +350,8 @@ function Doro.new(o)
                 p.c:SetHiddenInGame(true,false)
                 p.flags=flags(p.c)
             end
-            body.VisibilityBasedAnimTickOption=0
+            local asked,ask_why=o.ask('race tick on')
+            if not asked then error('race tick on not asked: '..tostring(ask_why),0) end
             drone(l)
         end)
         if not ok then
@@ -361,8 +369,9 @@ function Doro.new(o)
         return true,string.format('Doro look on: %d parts of EVE hidden; coop race look off shows her again.',#l.parts)
     end
     -- Every 250 ms: the same EVE on the same map (else the look goes off), each listed part the game showed hidden
-    -- again, the tick option set back; each flag change the game made logged, and both counts once a minute, with the
-    -- clips loaded again meanwhile (0 while the keepers hold them). Every second, the drone.
+    -- again; each flag change the game made logged; once a minute the parts hidden again with the native part's
+    -- tick option re-sets (race_retick) and the clips loaded again meanwhile (0 while the keepers hold them). Every
+    -- second, the drone.
     local function check(l,now)
         l.check_at=now+0.25
         local pawn=valid(UE.GetPlayer())
@@ -380,16 +389,13 @@ function Doro.new(o)
                 p.flags=seen
             end
         end
-        if value_of(l.body.VisibilityBasedAnimTickOption)~=0 then
-            l.body.VisibilityBasedAnimTickOption=0
-            l.retick=l.retick+1
-        end
         if now>=l.drone_at then
             l.drone_at=now+1
             drone(l)
         end
         if now>=l.minute_at then
-            local r=Doro.reloads
+            local r,n=Doro.reloads,o.retick and o.retick() or l.reticked
+            l.retick,l.reticked=math.max(0,n-l.reticked),n
             log(string.format('look hid=%d tick=%d->0 rehid=%d/min retick=%d/min reload=%d/min reload_ms=%.0f',
                 #l.parts,l.tick,l.rehid,l.retick,r.n,r.ms))
             l.minute_at,l.rehid,l.retick,r.n,r.ms=now+60,0,0,0,0

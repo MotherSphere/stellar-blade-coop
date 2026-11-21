@@ -18,12 +18,12 @@
 -- refused in a match lobby.
 -- What a race changes in the game: its own display Doros (online/modes/race/doro.lua's plain actors, collision off: one
 -- at the next checkpoint and one at the one after it, or one at the start line before GO), the look's two flags on EVE
--- and, while it drives, four values of her movement component, her velocity and her yaw. Never a pawn, a reward, an
--- achievement, an item, a quest or a save: a race gives nothing. It writes its track file only; in a match lobby a
--- match round also teleports EVE onto her slot, at its start and at GO. Its first Lua error ends the race and its look
--- for this Lua load. The display Doros' paths stay in coop-race-doros.txt while they
--- stand, so the next Lua load (Ctrl+R mid-race) destroys them at its first tick; the four values stay in coop-drive.txt
--- while it drives, for the same.
+-- and, while it drives, four values of her movement component (the native part's, online/modes/race/hold.h), her
+-- velocity and her yaw. Never a pawn, a reward, an achievement, an item, a quest or a save: a race gives nothing. It
+-- writes its track file only; in a match lobby a match round also teleports EVE onto her slot, at its start and at GO.
+-- Its first Lua error ends the race and its look for this Lua load. The display Doros' paths stay in
+-- coop-race-doros.txt while they stand, so the next Lua load (Ctrl+R mid-race) destroys them at its first tick; the
+-- native part puts her movement values and tick option back at that load.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Where=require('core.where')

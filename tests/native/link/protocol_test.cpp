@@ -995,6 +995,15 @@ int main() {
          !parse_request("popups off\n").on && parse_request("popups off\n").command == Command::popups);
   for (const char *bad : {"popups", "popups On", "popups 1", "popups  on", "popup on", "popups on now"})
     assert(parse_request(bad).command == Command::none);
+  // Doro races' hold on EVE: race hold or race tick, on or off, nothing else.
+  for (const char *word : {"hold", "tick"})
+    for (const bool on : {true, false}) {
+      const Request q = parse_request(std::string("race ") + word + (on ? " on" : " off") + "\r\n");
+      assert(q.command == Command::race && q.text == word && q.on == on);
+    }
+  for (const char *bad : {"race", "race hold", "race hold On", "race hold 1", "race  hold on", "race fields on",
+                          "race hold on now", "race tick off x", "racehold on"})
+    assert(parse_request(bad).command == Command::none);
   // The day/night cycle's asks: off, hold, cycle <hz> <heading>, hour <minute> <hz> <heading>, nothing else.
   Request k = parse_request("sky cycle 8 205\n");
   assert(k.command == Command::sky && k.sky == SkyAsk::cycle && k.horizon == 8 && k.heading == 205);

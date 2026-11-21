@@ -170,6 +170,14 @@
 // preload's state and the gate's in the engine line for vehicles/bike/ride.lua. The worker logs each change with the
 // load's time.
 //
+// Doro races' hold on EVE (online/modes/race/hold.h): the worker hands over Lua's race hold and race tick, on or off;
+// each frame the game thread finds our EVE as coop emote's clips do, keeps her movement component's four fields and her
+// main mesh's tick option and sets them to the race's values while each is asked and no scene stands still (a theater,
+// photo mode but the selfie's). It sets one the game wrote again back and counts it. It puts the kept values back on
+// the same live object once the ask goes, at a new Lua load and at coop off. All of it runs under its own SEH latch;
+// status() puts race_hold=, race_tick= and race_retick= in the engine line for online/modes/race/drive.lua and
+// doro.lua. The worker logs each change.
+//
 // The keep (game/keep.h): the worker adds the object paths Lua writes to coop-keep.txt to the keep's list. Every 250 ms
 // the game thread asks SB's own streamable manager for the paths added since its last look in one request, as the
 // bike's preload asks. It keeps the handle for the game run. Once the handle's loaded flag is set it finds each path
@@ -348,6 +356,10 @@
 #include "glue/tick/keep_game.inc" // After bike_game_shared.inc: its async load, names and finds.
 #include "glue/tick/theater_game.inc" // After fight_game_shared.inc: its game_function.
 #include "vehicles/bike/bike_game.inc"
+#include "online/modes/race/hold.h"
+// After anim_game_shared.inc, eve/anim_game.inc, freeze_game_shared.inc and theater_game.inc: its controller reach and
+// the theater's last read.
+#include "online/modes/race/hold_game.inc"
 #include "glue/tick/camp_text_game_shared.inc"
 // After anim_game_shared.inc and freeze_game_shared.inc: their FStringArg and MakeName.
 #include "world/maps/matrix13/camp_text_game.inc"
@@ -386,6 +398,7 @@
 #include "eve/debug_worker.inc"
 #include "eve/anim_worker.inc"
 #include "vehicles/bike/bike_worker.inc"
+#include "online/modes/race/hold_worker.inc" // After eve/anim_worker.inc and fight_worker_shared.inc: its fault_where.
 #include "online/lobby/hud_worker.inc" // After fight_worker_shared.inc: its fault_where.
 #include "online/lobby/loading_worker.inc" // Likewise.
 #include "world/daynight/sky_worker.inc" // Likewise.
@@ -512,6 +525,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
     bike_tick();
   else if (game_pinned && bike_gate_pending)
     bike_publish();
+  // Doro races' hold on EVE, its own latch: each frame while Lua asks it or something is kept; after coop off only to
+  // put the kept values back.
+  if (game_pinned && !race_faulted && (!blocked || race_holding_now))
+    race_tick();
   // The keep, its own latch: a look each 250 ms (new paths asked, loaded batches found); none after coop off or its
   // first fault. The handles stay held.
   if (game_pinned && !keep_faulted && !blocked)

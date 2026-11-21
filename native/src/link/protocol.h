@@ -883,12 +883,14 @@ inline std::string masked(std::string_view text) {
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
 // online/lobby/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, ui/pause_tab.h)
 // "pausetab on|off"; for the game's tutorial and record popups during online play (online/session/options.h) "popups
-// on|off"; for the day/night cycle (world/daynight/sky.h, world/daynight/daynight.lua) "sky off|hold",
-// "sky cycle <hz> <heading>" and "sky hour <minute> <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359,
-// minute 0 to 1439); for the SBO lobby arrival's black (online/lobby/arrival.lua,
-// online/lobby/loading_game.inc) "loading lift"; for the co-op saves (game/slot.h,
-// game/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
-// them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
+// on|off"; for Doro races' hold on EVE (online/modes/race/hold.h) "race hold on|off" (drive.lua: her movement's four
+// fields at 0) and "race tick on|off" (doro.lua: her mesh's tick option); for the day/night cycle
+// (world/daynight/sky.h, world/daynight/daynight.lua) "sky off|hold", "sky cycle <hz> <heading>" and "sky hour <minute>
+// <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359, minute 0 to 1439); for the SBO lobby arrival's black
+// (online/lobby/arrival.lua, online/lobby/loading_game.inc) "loading lift"; for the co-op saves (game/slot.h,
+// game/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies),
+// "saves coop" (make them, then switch to them), "saves main" (switch back to the player's own saves) and "saves
+// refresh <0-4>" (that
 // slot's copy replaced by a new copy of the player's save, the old one backed up first) and "saves export <0-4> <0-4>"
 // (that co-op slot's copy written over that save of the player's, the save backed up first); for the shared quests
 // (game/quests/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated
@@ -943,7 +945,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score, dr
+  pausetab, popups, teamshop, score, dr, race
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1024,8 +1026,8 @@ struct Request {
   uint8_t gate = 0;                      // gate: eve/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
-  bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on (true) or off;
-                                         // host ... ask.
+  bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on, race hold on and
+                                         // race tick on (true) or off (race: text holds hold or tick); host ... ask.
   bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
   uint8_t signal = 0;                    // signal: its word's index in kSignalWords.
   bool rule = false;                     // nightop rule.
@@ -1478,6 +1480,9 @@ inline Request parse_request(std::string text) {
   } else if (text == "popups on" || text == "popups off") {
     r.command = Command::popups;
     r.on = text.size() == 9;
+  } else if (split(text, f, 3, nullptr) && f[0] == "race" && (f[1] == "hold" || f[1] == "tick") &&
+             (f[2] == "on" || f[2] == "off")) {
+    r.command = Command::race, r.text = f[1], r.on = f[2] == "on";
   } else if (text == "sky off" || text == "sky hold") {
     r.command = Command::sky;
     r.sky = text[4] == 'o' ? SkyAsk::off : SkyAsk::hold;

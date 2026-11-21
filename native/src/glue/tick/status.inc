@@ -18,6 +18,7 @@ void block() {
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   filter_undo("coop off");
   hold_undo("coop off");
+  race_hold_undo("coop off"); // The game thread puts the race's kept values back at its next frame.
   region_tabs_undo("coop off");
   pause_tab_undo("coop off");
   options_block(); // The game thread puts a forced option back; options_pass gives the slots back after that.
@@ -68,6 +69,7 @@ std::string status() {
     s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
          " anim_id=" + std::to_string(a.id);
     s += bike_status(); // The bike (vehicles/bike/ride.lua): the preload's state and the gate's.
+    s += race_status(); // Doro races' hold on EVE (online/modes/race/drive.lua, doro.lua): applied or not, re-ticks.
     // The keep (core/keep.lua): the paths asked, those settled, those found in memory; fault once its latch ended it.
     if (keep_faulted) {
       s += " keep=fault";

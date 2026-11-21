@@ -775,6 +775,10 @@ bool step() {
       }
       request.clear();
       break;
+    case coop::Command::race: // Doro races' hold on EVE: the game thread's too.
+      event(coop::pose::ask_race(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::hud: // SB's HUD under the SBO lobby's screens: the game thread's; the change is logged.
       coop::pose::ask_hud(coop::parse_request(request).on);
       request.clear();
@@ -991,6 +995,9 @@ bool step() {
     if (loaded && !said.empty())
       link->notice(said);
     said = coop::pose::bike_pass();
+    if (loaded && !said.empty())
+      link->notice(said);
+    said = coop::pose::race_pass();
     if (loaded && !said.empty())
       link->notice(said);
     coop::pose::hud_pass();

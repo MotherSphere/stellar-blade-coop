@@ -202,9 +202,23 @@ assert(#ra.cmds==raced and last()=='[StellarCoop] STOP: coop race start runs onl
     ..'saves); now no slot status\n',last())
 assert(ra.o.log==dr.log and ra.o.link==fake_link and ra.o.look.log==dr.log and ra.o.settings.race_key.name=='F9')
 assert(ra.o.store=='store coop-race-doros.txt','coop-race-doros.txt through the link')
-assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store=='store coop-drive.txt'
+assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store==nil
     and dv.o.settings.drift_keys[1]=='Gamepad_RightTrigger',
-    'The driving: [DR] lines, coop-drive.txt through the link, the drift keys')
+    'The driving: [DR] lines, no coop-drive.txt (the native part holds her values), the drift keys')
+-- The race's asks to its native part (race hold, race tick) go through the link's request; the engine line's
+-- race_hold and race_retick answer them, read at each call.
+local was_asked=#asked
+assert(dv.o.ask('race hold on') and asked[was_asked+1]=='race hold on' and dr.o.ask==dv.o.ask)
+local was_status=status_text
+status_text='engine=on race_hold=1 race_tick=1 race_retick=7\n'
+assert(dv.o.held()==true and dr.o.retick()==7)
+status_text='engine=on race_hold=0 race_tick=0 race_retick=0\n'
+assert(dv.o.held()==false and dr.o.retick()==0)
+status_text='engine=on race_hold=fault\n'
+assert(dv.o.held()==false and dr.o.retick()==nil,'Its fault: not applied, no count')
+status_text='engine=on\n'
+assert(dv.o.held()==nil and dr.o.retick()==nil,'Unread')
+status_text=was_status
 assert(dv.o.riding==ra.o.riding and not ra.o.riding(),'The race and its drive read whether EVE rides')
 -- coop race drive reaches online/modes/race/run.lua on any slot; its probe on a co-op save only.
 coop('race','drive','top','2600')
