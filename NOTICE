@@ -124,8 +124,8 @@ ue4ss/builds/ holds the files that UE4SS v4.0.0 needs to run on a given
 Stellar Blade build, one folder per build. The release zip does not contain
 them.
 
-GNatives.lua and GUObjectArray.lua in ue4ss/builds/6ad8eff1-15fa3000/ come
-from Rev-OG-UwU's SB-UE4SS (https://github.com/Rev-OG-UwU/SB-UE4SS, commit
+GNatives.lua, GUObjectArray.lua and VTableLayout.ini in
+ue4ss/builds/6ad8eff1-15fa3000/ come from Rev-OG-UwU's SB-UE4SS (https://github.com/Rev-OG-UwU/SB-UE4SS, commit
 a63c3f8ecfc51c679082c30805d8af5c3514ba9a). They first appear in Chrisr0's
 RE-UE4SS (https://github.com/Chrisr0/RE-UE4SS, commit
 e6e59de93656ed3caf242233a0b6f63e073ba3df, June 2025), the repository that

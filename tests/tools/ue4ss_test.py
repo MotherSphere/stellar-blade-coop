@@ -115,6 +115,100 @@ if EXE.is_file():
 else:
     real = f'build 26123051 skipped: no {EXE}'
 
+
+
+def ordered_lists(path):
+    """Each section's lines in order, without comments: what UE4SS's get_ordered_list returns."""
+    sections, current = {}, None
+    for line in path.read_text(encoding='utf-8').splitlines():
+        line = line.strip()
+        if not line or line.startswith(';'):
+            continue
+        if line.startswith('['):
+            current = sections.setdefault(line[1:-1], [])
+        else:
+            current.append(line)
+    return sections
+
+
+# The classes before each section in its vtable, as UE4SSProgram.cpp (v4.0.0) adds them up for engine 4.26.
+BASES = {'UObject': ['UObjectBase', 'UObjectBaseUtility'], 'UField': ['UObjectBase', 'UObjectBaseUtility', 'UObject'],
+         'UStruct': ['UObjectBase', 'UObjectBaseUtility', 'UObject', 'UField'],
+         'UEngine': ['UObjectBase', 'UObjectBaseUtility', 'UObject'],
+         'AActor': ['UObjectBase', 'UObjectBaseUtility', 'UObject'],
+         'AGameModeBase': ['UObjectBase', 'UObjectBaseUtility', 'UObject', 'AActor']}
+
+
+def vtable_offset(sections, section, name):
+    """The offset UE4SS gives a virtual: (index + the sizes of the sections before it) * 8, where a section's size
+    is its line count less one (its first line is the destructor). Index 0 gives 0. A repeated name keeps its first
+    index (UE4SS emplaces)."""
+    index = sections[section].index(name)
+    return 0 if index == 0 else (index + sum(len(sections[b]) - 1 for b in BASES[section])) * 8
+
+
+# Offsets read in Ghidra on build 26123051 (2026-11-21). "thunk" is the exec function of that UFunction in the
+# natives table (AActor's at 0x1464ceee0, AGameModeBase's at 0x14655c340): it calls or jumps through this offset.
+# "vtable" is a slot of the vtable 0x1459535f0 (an AActor class that FUN_1411413f0 constructs).
+GHIDRA_VTABLE = {
+    ('UObject', 'ProcessEvent'): 0x218,  # AActor::BeginPlay (0x143f6cc00) calls ReceiveBeginPlay through it
+    ('UStruct', 'Link'): 0x280,  # 0x1429d82d0 at +0x280 of the vtable 0x145fa5e98
+    ('UEngine', 'Tick'): 0x2a8,  # UGameEngine::Tick 0x1441e28d0 at +0x2a8 of the vtable 0x1464184d0
+    ('AActor', 'OnRep_ReplicateMovement'): 0x268,  # thunk 0x1437d4a20
+    ('AActor', 'TearOff'): 0x270,  # thunk 0x1437d4a00
+    ('AActor', 'OnRep_Owner'): 0x2b0,  # thunk 0x1446be680
+    ('AActor', 'SetReplicateMovement'): 0x2b8,  # thunk 0x1446be4c0
+    ('AActor', 'OnRep_AttachmentReplication'): 0x2c0,  # thunk 0x1446be460
+    ('AActor', 'IsReplicationPausedForConnection'): 0x2d0,  # vtable: xor al, al; ret (returns false)
+    ('AActor', 'ReplicateSubobjects'): 0x2e8,  # vtable: 0x143f76610 calls each component's ReplicateSubobjects
+    ('AActor', 'OnSubobjectCreatedFromReplication'): 0x2f0,  # vtable: 0x143f76b70 registers the component
+    ('AActor', 'OnSubobjectDestroyFromReplication'): 0x2f8,  # vtable: 0x143f76bc0 destroys the component
+    ('AActor', 'PreReplication'): 0x300,  # vtable: 0x143f61e40 gathers movement, then ReplicatedMovement
+    ('AActor', 'OnRep_Instigator'): 0x318,  # thunk 0x1446be440
+    ('AActor', 'EnableInput'): 0x320,  # vtable: 0x143f6d150 makes the InputComponent, pushes it on the controller
+    ('AActor', 'DisableInput'): 0x328,  # thunk 0x1446be280
+    ('AActor', 'GetVelocity'): 0x330,  # thunk 0x1446bd2d0
+    ('AActor', 'SetActorHiddenInGame'): 0x338,  # thunk 0x1446b9920
+    ('AActor', 'K2_DestroyActor'): 0x340,  # thunk 0x1446b9770
+    # vtable: four wrappers on PrimaryActorTick (+0x28) that jump to AddPrerequisite (0x144612460) or
+    # RemovePrerequisite (0x1446124e0) with the other actor's tick (+0x28) or the component's (+0x30).
+    ('AActor', 'AddTickPrerequisiteActor'): 0x348,  # 0x143f60b90
+    ('AActor', 'AddTickPrerequisiteComponent'): 0x350,  # 0x143f60bb0
+    ('AActor', 'RemoveTickPrerequisiteActor'): 0x358,  # 0x143f60bd0
+    ('AActor', 'RemoveTickPrerequisiteComponent'): 0x360,  # 0x143f60bf0
+    ('AActor', 'BeginPlay'): 0x368,  # vtable: 0x143f6cc00 calls ReceiveBeginPlay (FName 0x147000aa0)
+    ('AActor', 'EndPlay'): 0x370,  # vtable: 0x143f66060 calls ReceiveEndPlay (FName 0x147000ab0)
+    ('AActor', 'SetLifeSpan'): 0x3d0,  # thunk 0x1446b6ec0; BeginPlay calls it with InitialLifeSpan
+    ('AActor', 'GetLifeSpan'): 0x3d8,  # thunk 0x1446b6e80
+    ('AActor', 'GatherCurrentMovement'): 0x3e0,  # PreReplication calls it
+    ('AActor', 'TickActor'): 0x450,  # vtable: 0x143f61ce0 calls Tick through +0x4a8
+    ('AActor', 'OnRep_ReplicatedMovement'): 0x478,  # thunk 0x1446b6c70
+    ('AActor', 'SetOwner'): 0x498,  # thunk 0x1446b6b90
+    ('AActor', 'Tick'): 0x4a8,  # vtable: 0x143f61d60 calls ReceiveTick (FName 0x147000ad0)
+    ('AActor', 'TeleportTo'): 0x548,  # K2_TeleportTo's thunk 0x1446b65a0
+    ('AActor', 'ForceNetUpdate'): 0x640,  # thunk 0x1446b6190
+    ('AActor', 'GetActorEyesViewPoint'): 0x650,  # thunk 0x1446b5e20
+    ('AGameModeBase', 'GetNumPlayers'): 0x6f8,  # thunk 0x144756760
+    ('AGameModeBase', 'GetNumSpectators'): 0x700,  # thunk 0x144756730
+    ('AGameModeBase', 'StartPlay'): 0x708,  # thunk 0x144756710
+    ('AGameModeBase', 'HasMatchStarted'): 0x710,  # thunk 0x144728f00
+    ('AGameModeBase', 'HasMatchEnded'): 0x718,  # thunk 0x1447566e0
+    ('AGameModeBase', 'ResetLevel'): 0x740,  # thunk 0x1447565d0
+    ('AGameModeBase', 'ReturnToMainMenuHost'): 0x748,  # thunk 0x14276be50
+}
+vtables = ordered_lists(SET / 'VTableLayout.ini')
+wrong = {f'{s}::{n}': f'{vtable_offset(vtables, s, n):#x}, Ghidra {o:#x}' for (s, n), o in GHIDRA_VTABLE.items()
+         if vtable_offset(vtables, s, n) != o}
+assert not wrong, wrong
+# AActor has 132 lines: AGameModeBase's offsets above count its 131 slots.
+assert len(vtables['AActor']) == 132, len(vtables['AActor'])
+# The sections UE4SS v4.0.0 reads (UE4SSProgram.cpp), less UClass, which neither the fork nor the 1.3 file has.
+need = {'UObjectBase', 'UObjectBaseUtility', 'UObject', 'UField', 'UEngine', 'UScriptStruct::ICppStructOps', 'FField',
+        'FProperty', 'FNumericProperty', 'FMulticastDelegateProperty', 'FObjectPropertyBase', 'UStruct',
+        'UGameViewportClient', 'FOutputDevice', 'FMalloc', 'AActor', 'AGameModeBase', 'AGameMode', 'UPlayer',
+        'ULocalPlayer', 'UDataTable'}
+assert need <= set(vtables), need - set(vtables)
+
 # NOTICE credits where the files come from and keeps the MIT notice.
 notice = (ROOT / 'NOTICE').read_text(encoding='utf-8')
 for word in ('https://github.com/Rev-OG-UwU/SB-UE4SS', 'a63c3f8ecfc51c679082c30805d8af5c3514ba9a',
