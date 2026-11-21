@@ -348,7 +348,7 @@ for word in ('https://github.com/Rev-OG-UwU/SB-UE4SS', 'a63c3f8ecfc51c679082c308
              'https://github.com/Chrisr0/RE-UE4SS', 'e6e59de93656ed3caf242233a0b6f63e073ba3df',
              'https://github.com/UE4SS-RE/RE-UE4SS', 'ue4ss/UE4SS-settings.ini',
              'Copyright (c) 2022 Narknon', 'Permission is hereby granted, free of charge', 'backup_saves()',
-             'FText_Constructor.lua'):
+             'FText_Constructor.lua', 'tools/ue4ss.py builds', "keep the release's MIT license"):
     assert word in notice, f'NOTICE lacks {word}'
 
 

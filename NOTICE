@@ -116,7 +116,11 @@ parts come close:
   steam_api64.dll. Stellar Blade Online ships no Steamworks file. Steamworks
   is Valve's.
 - UE4SS, which loads the mod, is installed by the player. The release zip
-  does not contain it.
+  does not contain it. tools/ue4ss.py builds SBO's UE4SS package apart
+  from the mod. Its dwmapi.dll and the ue4ss/ files that come from the
+  UE4SS v4.0.0 release keep the release's MIT license (ue4ss/LICENSE in
+  the package). SBO-NOTICE and SBO-LICENSE in that package are this file
+  and the SBO License.
 
 UE4SS FILES FOR STELLAR BLADE
 
