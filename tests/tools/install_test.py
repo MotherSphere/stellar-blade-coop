@@ -10,6 +10,7 @@ import hashlib
 import io
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -480,13 +481,18 @@ with tempfile.TemporaryDirectory() as tmp:
                                     + f'Installed 9 UE4SS files into {win64}\n'), out
     assert files_of(new / 'Win64') == old13
     assert files_of(win64) == {**kept, **{r: d for r, d in ue4ss_files.items() if r != 'ue4ss/Mods/mods.txt'}}
-    # A game folder without UE4SS gets the whole package, its mods.txt included, and backs up nothing.
+    # A game folder without UE4SS gets the whole package with its mods.txt. Nothing is backed up.
     win64b = tmp / 'game4/SB/Binaries/Win64'
     win64b.mkdir(parents=True)
     old = set(backups())
     assert run(install.install_ue4ss, win64b, ue4ss_files, False) == (
         None, f'Installed 10 UE4SS files into {win64b}\n')
     assert files_of(win64b) == ue4ss_files and set(backups()) == old
+    # python3 -I leaves the script's folder out of sys.path, as the gate runs install.py. install.py adds that folder
+    # itself, so it still finds tools/ue4ss.py.
+    done = subprocess.run([sys.executable, '-I', install.__file__, '--help'], capture_output=True, text=True,
+                          timeout=60)
+    assert done.returncode == 0 and '--ue4ss' in done.stdout, (done.returncode, done.stderr)
 
     # 21. main with --ue4ss: never with --zip or --uninstall. A game folder without the executable, an executable with
     # no build set in ue4ss/builds/ and a cached release zip of other bytes each stop it before the tests. Then its dry
