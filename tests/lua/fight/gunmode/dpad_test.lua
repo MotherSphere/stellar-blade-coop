@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's HUD entry (fight/gunmode/ui/dpad.lua). Its glyph: the Right twin of the pad glyph the game shows, or the
 -- gun mode key's keyboard icon. The real entry over a fake UMG (SB's HUD as the paks name its widgets): built with one
--- walk (the look for the HUD), placed and sized, the key's glyph on the key cell, none with gun_key=none; built anew in
+-- walk (the look for the HUD) and one name not found (the look for an earlier load's row), the crosshair with one
+-- name not found too; placed and sized, the key's glyph on the key cell, none with gun_key=none; built anew in
 -- a new HUD with nothing of the old one kept; a widget whose address another object took gets no write; after a Lua
 -- reload the earlier load's widgets are taken again, never made over; a HUD without the item column is tried once;
 -- the pad glyph walk once each time the pad layer comes up; the crosshair on the HUD's root without a walk; records
@@ -102,6 +103,7 @@ local function world()
         if outer==nil then return W.paths[a] or W.classes[a] end
         local o=outer.named and outer.named[name:lower()]
         if o and not o.dead and o:IsA(a) then return o end
+        W.misses=(W.misses or 0)+1 -- in UE4SS a name not found walks the object array (core/unreal.lua)
         return nil
     end
     StaticConstructObject=function(cls,outer,name)
@@ -191,6 +193,10 @@ do
         'the F4 glyph on the game\'s key cell')
     assert(box.named.gunmoderiflecount.text=='60 | 5')
     assert(e.records()[1][1]=='hud' and e.records()[1][2]==holder.full:match('^%S+ (.+)$'),'the holder recorded')
+    assert(W.misses==1,'one name not found (the look for an earlier load\'s row): '..tostring(W.misses))
+    e.crosshair(true)
+    assert(a.WidgetTree.RootWidget.named.gunmodecrosshair and W.misses==2,
+        'the crosshair: one name not found (the look for an earlier load\'s canvas): '..tostring(W.misses))
 end
 
 -- 2. gun_key=none on the keyboard: no glyph and no cell, never the marker's own key.

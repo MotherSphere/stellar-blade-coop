@@ -10,9 +10,11 @@
 -- game's own key cell (btn_PcEmpty), the way the marker shows Q and R. With no icon for the key (gun_key=none) the
 -- button shows nothing. Sizes come from the game's own widgets (the key icon from btn_up, the rifle icon from the heal
 -- item's icon), so the entry scales with the HUD. It is a child of the marker's own overlay, so it shows and hides with
--- the HUD. Each HUD gets the entry built anew, its parts found by name in the HUD's widget trees (Dpad.PARTS): the
--- only walk of the object array is the look for the HUD on screen. Every widget kept is checked by its path before it
--- is used, as a map change frees them and another object can then sit at a freed address and pass IsValid.
+-- the HUD. Each HUD gets the entry built anew, its parts found by name in the HUD's widget trees (Dpad.PARTS). The look
+-- for the HUD on screen walks the object array. A name that UE4SS's StaticFindObject does not find costs a walk too
+-- (core/unreal.lua), so gun mode's own widgets are looked for by name only when an earlier Lua load's are there. Every
+-- widget kept is checked by its path before it is used, as a map change frees them and another object can then sit at
+-- a freed address and pass IsValid.
 local Keep=require('core.keep')
 local Dpad={}
 
@@ -53,7 +55,7 @@ function Dpad.new(g)
     local self={}
     local ui={}  -- the entry in the HUD it was built in, made anew for each HUD: its widgets, their paths, what it shows
     local cr={}  -- the crosshair: its canvas, its path, its visibility
-    local hud,hud_at -- the HUD on screen as last looked for, and its path
+    local hud,hud_at -- the HUD on screen as last looked for; its path
     local look_at,cross_at,failed=0,0,nil -- the next look, the next crosshair try; a HUD whose column was not usable
     local said={}
     Keep.want({Dpad.ICON})
@@ -61,21 +63,21 @@ function Dpad.new(g)
     local function say(k,m) if not said[k] then said[k]=true; g.log(m) end end
     -- o while it is still the object recorded at path
     local function alive(o,path) return path~=nil and g.path(o)==path end
-    -- The widget named name in outer (a widget tree or a panel): the engine's StaticFindObject in that outer
-    -- (0x142b957b0 on 26123051 hands the outer and the name to StaticFindObjectFast, 0x142b956b0), which a miss leaves
-    -- at once. cls: its UMG class (its subclasses too), Widget unless said.
+    -- The widget named name in outer (a widget tree or a panel), through UE4SS's StaticFindObject. cls: its UMG class
+    -- (its subclasses too), Widget unless said. core/unreal.lua: an object in memory comes back at once, a name it
+    -- does not find costs 4 to 35 ms in game.
     local function inside(outer,name,cls)
         if not g.valid(outer) then return nil end
         local ok,o=pcall(StaticFindObject,g.find('/Script/UMG.'..(cls or 'Widget')),outer,name,false)
         return ok and g.valid(o) and o or nil
     end
     local function tree(w) return g.valid(w) and g.get(w,'WidgetTree') or nil end
-    -- One of our widgets, named: an earlier Lua load's of that name in outer is taken again (Ctrl+R), off its parent
-    -- until it is added back. Made again under the same name and outer, StaticAllocateObject (0x142b9bbf0 on 26123051,
-    -- the function of the message at 0x145fb7de0) would destroy the live widget in place and build a new one at its
-    -- address, under SB's panels that still hold it.
-    local function part(cls,outer,name)
-        local o=inside(outer,name,cls)
+    -- One of our widgets, named. again: an earlier Lua load's widgets may stand in this HUD (Ctrl+R). Its widget of
+    -- that name in outer is then taken again, off its parent until it is added back. Made again under the same name and
+    -- outer, StaticAllocateObject (0x142b9bbf0 on 26123051, the function of the message at 0x145fb7de0) would destroy
+    -- the live widget in place and build a new one at its address, under SB's panels that still hold it.
+    local function part(cls,outer,name,again)
+        local o=again and inside(outer,name,cls)
         if o then pcall(function() o:RemoveFromParent() end); return o end
         o=StaticConstructObject(g.find('/Script/UMG.'..cls),outer,FName(name))
         return assert(g.valid(o) and o,name..' not made')
@@ -108,13 +110,16 @@ function Dpad.new(g)
         local font_src=inside(tree(inside(tree(thumb),P.refill,'UserWidget')),P.count,'TextBlock')
         local icon=Keep.serves(Dpad.ICON) and Keep.get(Dpad.ICON) or g.asset(Dpad.ICON)
         assert(g.valid(icon),'no rifle icon '..Dpad.ICON)
-        local box=part('HorizontalBox',overlay,'GunModeRifleSlot')
-        local keyo=part('Overlay',box,'GunModeRifleKey')     -- the key cell (keyboard) under the glyph
-        local bg=part('Image',keyo,'GunModeRifleKeyCell')
-        local glyph=part('Image',keyo,'GunModeRifleKeyGlyph')
-        local img=part('Image',box,'GunModeRifleIcon')
-        local txt=part('TextBlock',box,'GunModeRifleCount')
-        local holder=part('SizeBox',overlay,'GunModeRifleHolder')
+        -- An earlier load's entry in this marker has its row, the first part every build makes: with no row, none of
+        -- its parts is there and none is looked for.
+        local again=inside(overlay,'GunModeRifleSlot','HorizontalBox')~=nil
+        local box=part('HorizontalBox',overlay,'GunModeRifleSlot',again)
+        local keyo=part('Overlay',box,'GunModeRifleKey',again)     -- the key cell (keyboard) under the glyph
+        local bg=part('Image',keyo,'GunModeRifleKeyCell',again)
+        local glyph=part('Image',keyo,'GunModeRifleKeyGlyph',again)
+        local img=part('Image',box,'GunModeRifleIcon',again)
+        local txt=part('TextBlock',box,'GunModeRifleCount',again)
+        local holder=part('SizeBox',overlay,'GunModeRifleHolder',again)
         if cell then pcall(function() bg:SetBrush(cell.Brush) end) end
         -- the glyph takes btn_up's look. follow gives it its texture and shows it: never the marker's own key
         pcall(function() glyph:SetBrush(up.Brush) end)
@@ -259,11 +264,13 @@ function Dpad.new(g)
                 assert(alive(hud,hud_at),'no HUD in the viewport')
                 local root=g.get(tree(hud),'RootWidget')
                 assert(g.valid(root) and root:IsA(g.find('/Script/UMG.CanvasPanel')),'the HUD root is not a canvas')
-                local cross=part('CanvasPanel',root,'GunModeCrosshair')
+                -- an earlier load's bars only under its canvas
+                local again=inside(root,'GunModeCrosshair','CanvasPanel')~=nil
+                local cross=part('CanvasPanel',root,'GunModeCrosshair',again)
                 local L,T,G=Dpad.CROSS_LEN,Dpad.CROSS_THICK,Dpad.CROSS_GAP
                 local bars={{0,-(G+L/2),T,L},{0,G+L/2,T,L},{-(G+L/2),0,L,T},{G+L/2,0,L,T},{0,0,T,T}}
                 for i,b in ipairs(bars) do
-                    local im=part('Image',cross,'GunModeCross'..i)
+                    local im=part('Image',cross,'GunModeCross'..i,again)
                     pcall(function() im:SetColorAndOpacity({R=1,G=1,B=1,A=0.9}) end)
                     local sl=cross:AddChildToCanvas(im)
                     sl:SetAnchors({Minimum={X=0.5,Y=0.5},Maximum={X=0.5,Y=0.5}})

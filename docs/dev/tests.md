@@ -71,10 +71,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   It reads the words once a second, not on each frame. It writes the slot on the aim's first frame, over the round the
   game writes when its aim starts. It keeps the slot found at the first aim. A block whose address another object took
   gets no write. Only that slot is looked for: the bottom-left count keeps the game's text. It also covers
-  `mode.lua`'s point along a camera's forward and its eased step, then the rifle layer's clip paths (object paths), a
-  clip looked up again once another object took its address, and its mesh records: an earlier load's record keeps the
-  first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to quaternion and back, a
-  vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
+  `mode.lua`'s point along a camera's forward and its eased step, then the rifle layer's clip paths (object paths). A
+  clip is looked up again once another object took its address. The layer's mesh records follow: an earlier load's
+  record keeps the first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to
+  quaternion and back, a vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
 - `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away (parked or
   not) 600 frames look up nothing but the HUD entry's look for the HUD (at most once in 10 s), never ask whether the
   game is paused and poll two keys a frame (`gun_key` and D-pad Right). A press while the game is paused does nothing. The dev facts probe still waits out a pause. With no player
@@ -98,7 +98,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `fight/gunmode/dpad_test` covers the HUD entry (`fight/gunmode/ui/dpad.lua`): its glyph is the Right twin of the
   pad glyph the game shows or the `gun_key` keyboard icon. Its icon is a game texture path that it wants from the
   keep. The real entry runs over a fake UMG whose HUD has the widget names of SB's paks. It is built with one walk,
-  the look for the HUD, then sized and placed beside the marker with the key's glyph on the key cell. `gun_key=none`
+  the look for the HUD. One name lookup finds nothing: the look for an earlier load's row. The crosshair adds one
+  more. It is then sized and placed beside the marker with the key's glyph on the key cell. `gun_key=none`
   shows no glyph. A new HUD gets the entry built anew, sized, placed and with its glyph. A widget whose address another
   object took gets no write. After a Lua reload nothing is made over a live widget and the marker's overlay holds the
   entry once, the crosshair too. A HUD without the item column is tried once with one log line. The pad glyph walk
