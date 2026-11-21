@@ -272,7 +272,7 @@ function Data.new(g,native,opts)
                 end
             end
             -- The NIKKE bullet starts from a point fight/gunmode/mode.lua keeps on the rifle's muzzle: its start the
-            -- same kind of point as its destination (EVE's base and an offset in her yaw frame), not the
+            -- same kind of point as its destination (EVE's base and an offset in her root's frame), not the
             -- SC_GunShoot socket of the NIKKE rifle the game attaches only in the NIKKE stance (outside it the
             -- shot left from the drone).
             local pt=tbl('ProjectileTable')

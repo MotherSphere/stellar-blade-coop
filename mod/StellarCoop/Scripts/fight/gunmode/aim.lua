@@ -115,8 +115,8 @@ function Aim.new(g)
         return loc and rot and Aim.world_point(self.dx,self.dy,self.dz,loc,rot)
     end
 
-    -- Native fire: the bullet's start (fight/gunmode/data.lua made it EVE's base and an offset in her yaw frame, like its
-    -- destination) put on the point muzzle (world), the rifle's FX_Fire socket.
+    -- Native fire: the bullet's start (fight/gunmode/data.lua made it EVE's base and an offset in her root's frame,
+    -- pitch and roll included, like its destination) put on the point muzzle (world), the rifle's FX_Fire socket.
     -- A muzzle less than min_forward ahead of her (the rifle not up yet, or posed wrong: the shot then started on
     -- her body) gives way to fallback, a point at her right shoulder in her frame.
     function self.write_start(p,muzzle,min_forward,fallback,loc,rot)

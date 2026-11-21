@@ -107,7 +107,8 @@ in frame. She runs, strafes and backpedals at the aim stance's speed times 1.4.
 Every round is the NIKKE shot, whatever drone round is selected. It spends no drone ammo. Each round flies from the
 muzzle to the point under the reticle in the frame it leaves. Gun mode writes that point every frame of firing mode.
 Rounds land at random within `gun_spread` degrees of it, seen from the camera: 0.5 unless set, 0 for none. The `[GM]`
-line `round #N` gives where the first three rounds of a rifle out and one in fifty went, against the reticle point.
+line `round #N` gives where SB sends the first three rounds of a rifle out and one in fifty, against the reticle point.
+That place is the destination SB computes from her root when the round spawns. It is not a measured impact.
 
 A reload in firing mode keeps her aimed. Only her arms and hands move: the rifle tilts and her left hand goes to the
 magazine.
