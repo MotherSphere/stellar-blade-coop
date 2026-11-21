@@ -159,6 +159,10 @@ The bike's riding model and its lean adapt code from [Eve On Wheels](https://www
 by dCharisma1 (Nexus Mods, Stellar Blade mod 4165). With his written consent, the code is distributed here under the
 SBO License (see [NOTICE](NOTICE)). No asset, sound or animation of Eve On Wheels ships with the mod.
 
+The bike's riding rig (`bike_pose=rig`) adapts the puppet ride of Eve Hoverbike by kwisatz (GitHub sarojratul). With
+his written permission, the code is distributed here under the SBO License (see [NOTICE](NOTICE)). No file of Eve
+Hoverbike ships with the mod.
+
 Mother Sphere illustration by timediffer24 (https://x.com/timediffer24), given to this project; not covered by the SBO
 License. It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run. The release
 zip does not contain it.

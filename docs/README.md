@@ -61,7 +61,7 @@ start with `coop`.
 
 | Page | What it covers |
 | --- | --- |
-| [The bike](vehicles/bike.md) | Getting on and off, the refusals, riding, `coop bike`, the settings, the ghosts, credits to Eve On Wheels |
+| [The bike](vehicles/bike.md) | Getting on and off, the refusals, riding, `coop bike`, the settings, the ghosts, credits to Eve On Wheels and Eve Hoverbike |
 
 ## EVE
 

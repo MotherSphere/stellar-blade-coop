@@ -69,6 +69,21 @@ mod/StellarCoop/Scripts/vehicles/bike/model.lua and vehicles/bike/ride.lua.
 Stellar Blade Online contains no file from Eve On Wheels: none of its
 assets, sounds or animations.
 
+EVE HOVERBIKE
+
+The bike's riding rig (bike_pose=rig) adapts the puppet ride of Eve
+Hoverbike by kwisatz (GitHub sarojratul): a hidden copy that plays the
+riding pose while EVE's body and outfit parts copy its bones.
+
+kwisatz gave his written permission on 2026-11-20 to adapt that code into
+Stellar Blade Online under the SBO License, version 1.0 or any later
+version that the Licensor publishes, in his comment on pull request 11:
+https://github.com/MotherSphere/stellar-blade-coop/pull/11#issuecomment-7047471384
+The adapted code is licensed here under those terms. It is
+mod/StellarCoop/Scripts/vehicles/bike/rig.lua (its header says so) and the
+rig way in vehicles/bike/ride.lua. Stellar Blade Online contains no file
+from Eve Hoverbike.
+
 GUN MODE
 
 Gun mode's rifle stance and laser sight
