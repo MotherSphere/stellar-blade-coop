@@ -120,7 +120,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
   and the layer's arms; with `gun_fire=own` too, where the fields stay changed after the rifle goes away. After it no
   key, toggle or new controller does anything. A second load over the same game and `coop-gun.txt` puts back what the
-  first left with the rifle out. Its own rifle then takes and gives back the shipped values. A start puts back what an
+  first left with the rifle out. Its own rifle then takes and gives back the shipped values. A load after one in the
+  morph's arrival, in the game's aim or in `gun_fire=own`'s firing mode destroys the cube and removes the aim camera's
+  modifier. It turns her mesh back and gives her movement its own facing flags. Each drone part gets its own
+  visibility back. A start puts back what an
   earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers, booleans, strings, FNames and
   vectors exactly. A start whose input mask or rifle fails gives back what it took, as does a start that raises once the
   rifle layer is on. A new controller clears the old pawn's state at once; its deferred reset shows the drone, puts her

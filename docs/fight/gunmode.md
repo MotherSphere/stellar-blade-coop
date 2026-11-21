@@ -93,9 +93,12 @@ than 15 m would cost the other player nothing.
 
 `coop off` puts the rifle away too. The table fields, the keys and her body's own post-process class go back. Gun
 mode then does nothing until the game restarts. Until everything is back, `coop-gun.txt` lists what gun mode changed.
-After a Lua reload (Ctrl+R) the next load puts those changes back at its first frame. It shows the drone and her
-hidden meshes to her camera again. It turns off the carry stance and removes the rifle or the posed copy it finds on
-her. It takes the HUD entry and the crosshair off SB's HUD, with gun mode on or off.
+After a Lua reload (Ctrl+R) the next load puts those changes back at its first frame. It shows her hidden meshes to
+her camera again. Each drone part gets the visibility it had before the rifle came out, so a part the game kept
+invisible stays invisible. It turns off the carry stance and removes the rifle, the morph's cube or the posed copy it
+finds on her. Her mesh gets the rotation it had before the game's aim turned it. The aim camera's modifier comes off
+the camera manager, so the next rifle out adds one modifier, not a second. Her movement gets its own facing flags back.
+It takes the HUD entry and the crosshair off SB's HUD, with gun mode on or off.
 
 ## Firing mode
 

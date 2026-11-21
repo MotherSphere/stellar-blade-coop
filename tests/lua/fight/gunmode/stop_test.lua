@@ -10,6 +10,8 @@
 -- byte, kept in coop-gun.txt as a number.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
+-- The laser sight needs Niagara's objects, which the fake lacks: here a laser that draws nothing.
+package.loaded['fight.gunmode.laser']=function() return function() end,function() end end
 local GunMode=require('fight.gunmode.mode')
 local clock=100
 os.clock=function() return clock end
@@ -123,6 +125,94 @@ do
     local d=new(store)
     out(d)
     clock=clock+1; d.toggle_now()
+    as_shipped(w,keys,store)
+end
+
+-- 3b. H4 with v4's writes on her and the camera. A Lua reload in the morph's arrival, in the game's aim and in
+--     gun_fire=own's firing mode: the next load destroys the morph's cube and takes the aim camera's modifier off the
+--     camera manager. It turns her mesh back to its rotation before the aim turned it and gives her movement its own
+--     facing flags. Each drone part goes back as it was: a part the game kept invisible stays invisible.
+do
+    local w=Fake.new(); w.install()
+    local keys,store=w.keys(),file()
+    local function thing(full,t)
+        t=t or {}
+        t.full=full; t.IsValid=function(o) return not o.gone end; t.GetFullName=function(o) return o.full end
+        w.paths[full:match('^%S+ (.+)$')]=t
+        return t
+    end
+    w.mesh.RelativeRotation={Pitch=0,Yaw=-90,Roll=0}
+    function w.mesh.K2_SetRelativeRotation(c,r) c.RelativeRotation={Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll} end
+    local move=w.pawn.CharacterMovement
+    move.bOrientRotationToMovement,move.bUseControllerDesiredRotation=true,false
+    w.paths['Test.Move']=move
+    local mods={}
+    local cam=thing('PlayerCameraManager Test.PC.Camera',{GetCameraLocation=function() return {X=-300,Y=40,Z=160} end,
+        GetCameraRotation=function() return {Pitch=-5,Yaw=0,Roll=0} end,GetFOVAngle=function() return 45 end})
+    function cam.AddNewCameraModifier()
+        mods[#mods+1]=thing('BP_NGM_CamMod_C Test.PC.Camera.Mod_'..(#mods+1),{Offset={X=0,Y=0,Z=0}})
+        return mods[#mods]
+    end
+    function cam.RemoveCameraModifier(_,m)
+        for i,x in ipairs(mods) do if x==m then table.remove(mods,i); return true end end
+        return false
+    end
+    w.pc.PlayerCameraManager=cam
+    thing('BlueprintGeneratedClass /Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C')
+    local cube_mesh=require('fight.gunmode.config').DEFAULTS.cube_mesh
+    thing('StaticMesh '..cube_mesh,{GetBoundingBox=function() return {Min={X=-50},Max={X=50}} end})
+    local add=w.pawn.AddComponentByClass
+    w.pawn.AddComponentByClass=function(o,...) local c=add(o,...); c.GetMaterial=function() end; return c end
+    -- the drone: one part shown, one the game keeps invisible
+    local _,shown=w.drone()
+    local dark=w.component(w.drones[1])
+    for _,c in ipairs({shown,dark}) do
+        c.visible=true; c.SetVisibility=function(o,v) o.visible=v end; c.IsVisible=function(o) return o.visible end
+    end
+    dark.visible=false
+    local function frames(gun,n) for _=1,n do clock=clock+1/60; gun.tick() end end
+    local function drone_as_before()
+        assert(not shown.bHiddenInGame and shown.visible and not dark.bHiddenInGame and not dark.visible,
+            ('drone parts: shown %s %s, dark %s %s'):format(tostring(shown.bHiddenInGame),tostring(shown.visible),
+                tostring(dark.bHiddenInGame),tostring(dark.visible)))
+    end
+    -- in the arrival: the cube in her hand, the modifier added, the drone hidden
+    local a=new(store)
+    out(a)
+    frames(a,6)
+    local cube=a.state.cube
+    assert(cube and not cube.dead and #mods==1 and dark.bHiddenInGame,'the cube, the modifier and the hidden drone')
+    new(store).restore() -- Ctrl+R
+    assert(cube.dead,'the cube destroyed')
+    assert(#mods==0,#mods..' camera modifiers left')
+    drone_as_before()
+    as_shipped(w,keys,store)
+    -- in the game's aim: her mesh turned toward it
+    local b=new(store)
+    out(b)
+    frames(b,60)
+    w.pawn.bTPSMode,w.down.RightMouseButton=true,true
+    frames(b,30)
+    assert(w.mesh.RelativeRotation.Yaw<-150,'her mesh turned: '..w.mesh.RelativeRotation.Yaw)
+    new(store).restore()
+    w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
+    local r=w.mesh.RelativeRotation
+    assert(r.Pitch==0 and r.Yaw==-90 and r.Roll==0,('her mesh at %s %s %s'):format(r.Pitch,r.Yaw,r.Roll))
+    assert(#mods==0,#mods..' camera modifiers left')
+    drone_as_before()
+    as_shipped(w,keys,store)
+    -- in gun_fire=own's firing mode: her movement turns her to the camera
+    local c=new(store,'gun_fire=own\n')
+    out(c)
+    frames(c,60)
+    w.down.RightMouseButton=true
+    frames(c,10)
+    assert(move.bOrientRotationToMovement==false and move.bUseControllerDesiredRotation==true,'facing the camera')
+    new(store).restore()
+    w.down.RightMouseButton=nil
+    assert(move.bOrientRotationToMovement==true and move.bUseControllerDesiredRotation==false,'her own facing')
+    assert(#mods==0,#mods..' camera modifiers left')
+    drone_as_before()
     as_shipped(w,keys,store)
 end
 

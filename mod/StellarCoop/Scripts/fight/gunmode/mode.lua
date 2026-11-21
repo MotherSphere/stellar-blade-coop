@@ -644,8 +644,11 @@ function GunMode.new(env)
         end
     end
 
+    local keep -- coop-gun.txt as gun mode's changes stand now (below)
     -- Firing mode (Luke's aim on her normal stance): the game itself keeps her facing the camera, through her
     -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch).
+    -- (UCharacterMovementComponent's bOrientRotationToMovement and bUseControllerDesiredRotation: bool params
+    -- 0x146517cc0 and 0x146517c88 on 26123051.) coop-gun.txt lists the flags as they were (keep).
     local function unface()
         local f=s.facing
         s.facing=nil
@@ -658,9 +661,10 @@ function GunMode.new(env)
         local cm=g.get(p,'CharacterMovement')
         if not g.valid(cm) then return end
         if on and not s.facing then
-            s.facing={cm=cm,orient=cm.bOrientRotationToMovement,desired=cm.bUseControllerDesiredRotation}
+            s.facing={cm=cm,orient=cm.bOrientRotationToMovement,desired=cm.bUseControllerDesiredRotation,at=g.path(cm)}
             pcall(function() cm.bOrientRotationToMovement=false; cm.bUseControllerDesiredRotation=true end)
         elseif not on and s.facing then unface() end
+        keep()
     end
 
     -- Firing mode on the game's aim: its camera's field of view eased to cfg.aim_fov (the game's 45 shows her from the
@@ -692,11 +696,12 @@ function GunMode.new(env)
 
     -- coop-gun.txt as gun mode's changes stand now (fight/gunmode/journal.lua): SB's rows (data.lua), the masked keys,
     -- the body meshes under the rifle layer (overlay.lua), her meshes hidden from her camera or following the posed
-    -- copy, the drone's hidden parts, the carry stance, the posed stance's own changes (stance.lua) and out while the
-    -- rifle is out; gone when nothing is changed. A line the file already holds is not written again. true when
-    -- written (or with no file at all), else false and why, logged.
+    -- copy, the drone's hidden parts as they were, the carry stance, the posed stance's own changes (stance.lua), her
+    -- mesh's rotation before the aim turned it, the aim camera's modifier, her movement's facing flags as they were,
+    -- the morph's cube and out while the rifle is out; gone when nothing is changed. A line the file already holds is
+    -- not written again. true when written (or with no file at all), else false and why, logged.
     local kept -- The line this load last wrote (false: cleared), so the same line is not written each second.
-    local function keep()
+    function keep()
         if not env.store then return true end
         local ok,why=pcall(function()
             local list=data.records()
@@ -712,10 +717,20 @@ function GunMode.new(env)
             end
             for _,e in ipairs(s.drone and s.drone.parts or {}) do
                 local at=g.path(e.c)
-                if at then list[#list+1]={'drone',at} end
+                if at then list[#list+1]={'drone',at,tostring(e.hidden),tostring(e.visible)} end
             end
             local her=s.ovr_row and g.path(g.pawn())
             if her then list[#list+1]={'carry',her} end
+            local mr=s.mesh_rot or s.mesh_back
+            if mr and s.mesh_at then
+                local f='%.17g'
+                list[#list+1]={'mesh',s.mesh_at,f:format(mr.Pitch),f:format(mr.Yaw),f:format(mr.Roll)}
+            end
+            if s.cmod and s.cmod_at then list[#list+1]={'cmod',s.cmod_at} end
+            if s.facing and s.facing.at then
+                list[#list+1]={'face',s.facing.at,tostring(s.facing.orient),tostring(s.facing.desired)}
+            end
+            if s.cube and s.cube_path then list[#list+1]={'part',s.cube_path} end
             for _,r in ipairs(stance.records and stance.records() or {}) do list[#list+1]=r end
             for _,r in ipairs(s.dpad and s.dpad.records() or {}) do list[#list+1]=r end
             if s.on then list[#list+1]={'out'} end
@@ -756,12 +771,12 @@ function GunMode.new(env)
             if g.valid(s.rifle) then local m=s.rifle:GetMaterial(0); if m then c:SetMaterial(0,m) end end
             return c
         end)
-        if ok then s.cube=c; return c end
+        if ok then s.cube,s.cube_path=c,g.path(c); keep(); return c end
         if not s.cube_err then s.cube_err=true; g.log('morph: no cube ('..tostring(c)..'), the rifle scales alone') end
     end
     local function cube_drop()
         if g.valid(s.cube) then local c=s.cube; pcall(function() c:K2_DestroyComponent(c) end) end
-        s.cube=nil
+        if s.cube then s.cube=nil; keep() end
     end
 
     -- hold: the input mask stays (disable, SB's aim still on).
@@ -1171,7 +1186,7 @@ function GunMode.new(env)
         -- left over by a new controller or a lost pawn: her mesh's turn put back (the layer goes at give_back)
         if s.mesh_back and not s.on then
             local p=g.pawn()
-            if p then local b=s.mesh_back; s.mesh_back=nil; pcall(function() p.Mesh:K2_SetRelativeRotation(b,false,{},false) end) end
+            if p then local b=s.mesh_back; s.mesh_back=nil; pcall(function() p.Mesh:K2_SetRelativeRotation(b,false,{},false) end); keep() end
         end
         local pc=g.pc(); if not pc then return end
         -- Paused (the pause menu and its options among others): the mask lifted until the game runs again. SB's
@@ -1594,8 +1609,10 @@ function GunMode.new(env)
                     if not g.valid(cls) then
                         cls=g.find('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
                     end
+                    -- (APlayerCameraManager's AddNewCameraModifier: exec 0x1448d37d0 on 26123051)
                     if g.valid(cls) then s.cmod=cm:AddNewCameraModifier(cls); s.cmod_k=0 end
-                    if not g.valid(s.cmod) then s.cmod=nil; g.log('camera: modifier not available') else s.cmod_fail=nil; g.log('camera: modifier added') end
+                    if not g.valid(s.cmod) then s.cmod=nil; g.log('camera: modifier not available')
+                    else s.cmod_fail=nil; s.cmod_at=g.path(s.cmod); keep(); g.log('camera: modifier added') end
                 end
                 if s.cmod then
                     -- the aim camera offset: full while the game's aim is on, half for hip fire (11-20: "less than in aim")
@@ -1614,7 +1631,8 @@ function GunMode.new(env)
             -- the game's aim stance turns her side-on; her mesh is turned back toward the aim (eased)
             pcall(function()
                 local m=mesh
-                if not s.mesh_rot then local r=m.RelativeRotation; s.mesh_rot={Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll}; s.mesh_yaw=0 end
+                if not s.mesh_rot then local r=m.RelativeRotation; s.mesh_rot={Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll}; s.mesh_yaw=0
+                    s.mesh_at=g.path(m); keep() end -- (coop-gun.txt: her mesh turned back at a Lua reload)
                 local C=require('fight.gunmode.ik').CFG
                 local target=(hold_aim and s.tps) and C.aim_mesh_yaw or 0
                 local dy=target-s.mesh_yaw
@@ -1834,12 +1852,16 @@ function GunMode.new(env)
     -- An earlier load's changes to objects that are still there, each found by its path (StaticFindObject, as
     -- online/modes/race/doro.lua's restore finds EVE and the drone). On 26123051: her meshes shown to her own camera as
     -- they were (SetOwnerNoSee, exec 0x1448f0d20, writes bOwnerNoSee, bit 0x20 of UPrimitiveComponent+0x28e) with
-    -- their tick option; the drone's parts shown (SetHiddenInGame, exec 0x14490b100); a mesh that followed the posed
-    -- copy on her body again (SetMasterPoseComponent, exec 0x144928a80); the carry stance off
-    -- (DeactiveCustomMovingStanceData: exec 0x14268c890 jumps to 0x1421287a0, which does nothing unless the flag at
-    -- +0xf40 that ActiveCustomMovingStanceData's 0x1421282d0 sets is on, then clears it). Then the posed copy's parts
-    -- and holder destroyed (K2_DestroyComponent 0x1446c1340, K2_DestroyActor 0x1446bf590), the HUD entry and the
-    -- crosshair taken off SB's HUD (UWidget's RemoveFromParent). How many were put back or removed.
+    -- their tick option; the drone's parts as they were (SetHiddenInGame, exec 0x14490b100; SetVisibility, exec
+    -- 0x14490b360; a line of an earlier build has no state: shown); a mesh that followed the posed copy on her body
+    -- again (SetMasterPoseComponent, exec 0x144928a80); the carry stance off (DeactiveCustomMovingStanceData: exec
+    -- 0x14268c890 jumps to 0x1421287a0, which does nothing unless the flag at +0xf40 that
+    -- ActiveCustomMovingStanceData's 0x1421282d0 sets is on, then clears it); her mesh's rotation before the aim turned
+    -- it (K2_SetRelativeRotation, exec 0x14490f950); the aim camera's modifier off the camera manager
+    -- (RemoveCameraModifier, exec 0x1448d35f0, which hands it to the manager's virtual at +0x708); her movement's
+    -- facing flags as they were. Then the posed copy's parts and the morph's cube destroyed (K2_DestroyComponent
+    -- 0x1446c1340), the posed copy's holder too (K2_DestroyActor 0x1446bf590), the HUD entry and the crosshair taken
+    -- off SB's HUD (UWidget's RemoveFromParent). How many were put back or removed.
     local function objects_back(list)
         local function at(path)
             local o=path and g.try(function() return StaticFindObject(path) end)
@@ -1847,20 +1869,28 @@ function GunMode.new(env)
         end
         local n=0
         local function done(ok) if ok then n=n+1 end end
+        local FIRST={see=true,drone=true,follow=true,carry=true,mesh=true,cmod=true,face=true}
         for _,r in ipairs(list) do
-            local o=(r[1]=='see' or r[1]=='drone' or r[1]=='follow' or r[1]=='carry') and at(r[2])
+            local o=FIRST[r[1]] and at(r[2])
             if o and r[1]=='see' then
                 done(pcall(function()
                     o:SetOwnerNoSee(r[3]=='true')
                     if tonumber(r[4]) then o.VisibilityBasedAnimTickOption=tonumber(r[4]) end
                 end))
             elseif o and r[1]=='drone' and g.try(function() return o.bHiddenInGame end)==true then
-                done(pcall(function() o:SetHiddenInGame(false,false); o:SetVisibility(true,false) end))
+                done(pcall(function() o:SetHiddenInGame(r[3]=='true',false); o:SetVisibility(r[4]~='false',false) end))
             elseif o and r[1]=='follow' then
                 local to=at(r[3])
                 done(to and pcall(function() o:SetMasterPoseComponent(to,true) end))
             elseif o and r[1]=='carry' then
                 done(pcall(function() o:DeactiveCustomMovingStanceData() end))
+            elseif o and r[1]=='mesh' then
+                local rot={Pitch=tonumber(r[3]),Yaw=tonumber(r[4]),Roll=tonumber(r[5])}
+                done(rot.Pitch and rot.Yaw and rot.Roll and pcall(function() o:K2_SetRelativeRotation(rot,false,{},false) end))
+            elseif o and r[1]=='cmod' then
+                done(pcall(function() g.pc().PlayerCameraManager:RemoveCameraModifier(o) end))
+            elseif o and r[1]=='face' then
+                done(pcall(function() o.bOrientRotationToMovement=r[3]=='true'; o.bUseControllerDesiredRotation=r[4]=='true' end))
             end
         end
         for _,r in ipairs(list) do
