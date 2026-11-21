@@ -17,7 +17,8 @@
 #include <utility>
 #include <vector>
 
-#include "game/core.h" // kTransformBytes, Effect
+#include "game/core.h"   // kTransformBytes, Effect, Free, kMaxParts
+#include "game/events.h" // Event, kEventSlots
 
 namespace coop::pose {
 
@@ -107,6 +108,9 @@ public:
     float root[10] = {};
     std::vector<uint8_t> bones;
     Effect fx[kEffectSlots];
+    Free free[kMaxParts]; // The free parts' blocks in table order; the rest stay hidden.
+    Event events[kEventSlots];
+    std::vector<uint8_t> morphs; // The table's morph weights, in table order.
   };
   // Counts since the last take(), for the counter line.
   struct Stats {
@@ -114,15 +118,24 @@ public:
     double lag_ms = 0, behind_ms = 0; // Sums over poses and over drawn frames.
   };
 
-  void reset(size_t bone_bytes) {
-    for (auto &f : frames_)
+  void reset(size_t bone_bytes, size_t morphs = 0) {
+    for (auto &f : frames_) {
       f.bones.assign(bone_bytes, 0);
+      std::fill(f.free, f.free + kMaxParts, Free());
+      std::fill(f.events, f.events + kEventSlots, Event());
+      f.morphs.assign(morphs, 0);
+    }
     scratch_.bones.assign(bone_bytes, 0);
+    scratch_.morphs.assign(morphs, 0);
+    std::fill(scratch_.free, scratch_.free + kMaxParts, Free());
+    std::fill(scratch_.events, scratch_.events + kEventSlots, Event());
     clear();
   }
-  // Forgets every pose and the clock (a new stream); keeps the memory.
+  // Forgets every pose and the clock (a new stream); keeps the memory. The next sample() passes no event.
   void clear() {
     count_ = newest_ = 0;
+    primed_ = false;
+    std::fill(played_, played_ + kEventSlots, uint8_t(0)); // The Outbox's serials start at 1.
     floor_ = std::numeric_limits<double>::quiet_NaN();
     interval_ = 50;
     gap_at_ = 0;
@@ -179,13 +192,25 @@ public:
     stats_.lag_ms += lag;
     return true;
   }
-  // The pose to draw at now into root (10 floats), bones (the scratch's size) and fx (kEffectSlots); false when there is
-  // none yet or the stream has been silent for kSilentMs. The effect slots are held, never blended: the older pose's.
-  bool sample(uint64_t now_us, float *root, uint8_t *bones, Effect *fx) {
+  // The pose to draw at now into root (10 floats), bones (the scratch's size), fx (kEffectSlots), free (kMaxParts,
+  // nullptr: none) and morphs (the table's, nullptr: none); false when there is none yet or the stream has been silent
+  // for kSilentMs. The effect slots are held, never blended: the older pose's. A free block is blended when both poses
+  // show it, with the newer one's state; else the newer one's is drawn as it is. A morph's weight is blended as the
+  // translation is, cut to a byte.
+  bool sample(uint64_t now_us, float *root, uint8_t *bones, Effect *fx, Free *free = nullptr,
+              uint8_t *morphs = nullptr) {
     double now = now_us / 1000.0;
     if (!count_ || now - last_arrival_ > kSilentMs)
       return false;
     double at = display_ms(now);
+    shown_ms_ = at;
+    if (!primed_) { // A new playback: the events standing in its buffered poses were played before it, or never.
+      for (size_t k = 0; k < count_; ++k)
+        for (size_t n = 0; n < kEventSlots; ++n)
+          played_[n] = frame(k).events[n].kind != Kind::none ? frame(k).events[n].serial : played_[n];
+      passed_ = frames_[newest_].sequence;
+      primed_ = true;
+    }
     size_t b = newest_, a = (newest_ + kFrames - 1) % kFrames;
     if (count_ == 1)
       a = b;
@@ -207,10 +232,43 @@ public:
       std::memcpy(bones + at_byte, out, sizeof out);
     }
     std::copy(fa.fx, fa.fx + kEffectSlots, fx);
+    for (size_t k = 0; free && k < kMaxParts; ++k) {
+      free[k] = fb.free[k];
+      if (fa.free[k].state & fb.free[k].state & 0x80)
+        blend_transform(fa.free[k].place, fb.free[k].place, alpha, free[k].place, 4, 7);
+    }
+    for (size_t k = 0; morphs && k < fa.morphs.size(); ++k)
+      morphs[k] = uint8_t(std::clamp(std::lround(fa.morphs[k] + alpha * (fb.morphs[k] - fa.morphs[k])), 0L, 255L));
     ++stats_.drawn;
     stats_.extrapolated += at > ms(newest_);
     stats_.behind_ms += ms(newest_) - at;
     return true;
+  }
+  // The events of the poses the last sample() reached (publication at or before its display time) that no earlier
+  // call passed, oldest pose first, into out (cap of them): each slot's serial once, so an event riding in several
+  // poses plays once (a serial equal to the slot's last played one is skipped). Past cap, the rest wait for the next
+  // call. Returns how many. The first sample() after reset() or clear() marks every buffered pose's events as played:
+  // a restarted playback does not play again the events still standing in her slots.
+  size_t passed(Event *out, size_t cap) {
+    size_t n = 0;
+    for (size_t k = 0; primed_ && k < count_; ++k) {
+      const Frame &f = frame(k);
+      if (f.sequence <= passed_)
+        continue;
+      if (f.publication / 1000.0 > shown_ms_)
+        break;
+      for (size_t s = 0; s < kEventSlots; ++s) {
+        const Event &e = f.events[s];
+        if (e.kind == Kind::none || e.serial == played_[s])
+          continue;
+        if (n == cap)
+          return n;
+        out[n++] = e;
+        played_[s] = e.serial;
+      }
+      passed_ = f.sequence;
+    }
+    return n;
   }
   Stats take() { return std::exchange(stats_, Stats{}); }
   // The sender's time drawn at now (both in ms).
@@ -218,6 +276,7 @@ public:
 
 private:
   double ms(size_t i) const { return frames_[i].publication / 1000.0; }
+  const Frame &frame(size_t k) const { return frames_[(newest_ + kFrames + 1 - count_ + k) % kFrames]; } // k: 0 oldest
   Frame frames_[kFrames], scratch_;
   size_t count_ = 0, newest_ = 0;
   double floor_ = std::numeric_limits<double>::quiet_NaN(), interval_ = 50, spread_ = 0, last_arrival_ = 0;
@@ -225,6 +284,12 @@ private:
   size_t gap_at_ = 0;
   bool above_ = false;
   double lowest_ = 0, above_since_ = 0;
+  // Events: the last sample()'s display time, the newest sequence passed, each slot's last serial played. primed_: the
+  // first sample of this playback marked what it found.
+  double shown_ms_ = 0;
+  uint32_t passed_ = 0;
+  uint8_t played_[kEventSlots] = {};
+  bool primed_ = false;
   Stats stats_;
 };
 

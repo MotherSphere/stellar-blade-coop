@@ -7,10 +7,12 @@
 #include "game/partner/engine.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <array>
+#include <deque>
 #include <vector>
 
 #include <sys/mman.h>
@@ -33,6 +35,9 @@ struct Objects {
   std::vector<uint8_t> array = std::vector<uint8_t>(0x40), chunks = std::vector<uint8_t>(8),
                        items = std::vector<uint8_t>(kItemBytes * 64);
   int32_t count = 0;
+  uintptr_t objects = addr(array);
+  std::deque<std::vector<uint8_t>> owned; // The memory raw() and make() hand out.
+  static constexpr uint64_t box_class = 0x5c0;
   Objects() {
     put(array, kChunkTable, addr(chunks));
     put(chunks, 0, addr(items));
@@ -44,7 +49,247 @@ struct Objects {
     put(items, kItemBytes * size_t(count) + kItemSerial, serial);
     put(array, kElementCount, ++count);
   }
+  uintptr_t raw(size_t bytes) { return addr(owned.emplace_back(bytes + 8)); }
+  uintptr_t make(size_t bytes) { // A live object.
+    add(owned.emplace_back(bytes));
+    return addr(owned.back());
+  }
 };
+
+// The free part tests' world: leaders of their own actors, a drone's SpotLight, Niagara children and scene boxes.
+template <class T> void poke(uintptr_t where, T value) {
+  std::memcpy(reinterpret_cast<void *>(where), &value, sizeof value);
+}
+using Vec = std::array<float, 3>;
+constexpr uint64_t kMeshClass = 0xc1, kMeshAsset = 0xae5, kNiagaraClass = 0x9a6a;
+constexpr uint32_t kSystemAt = 0x240;
+// A live published leader with bones, its main mesh world transform at (yaw 0) and room for 8 attached children.
+Part part(Objects &o, uint32_t bones, Vec where) {
+  const uintptr_t m = o.make(0x1200);
+  poke(m + kClass, kMeshClass);
+  poke(m + kMesh, kMeshAsset);
+  poke(m + kOuter, o.raw(0)); // Its own actor.
+  poke(m + kSourceArray, o.raw(bones * kTransformBytes));
+  poke(m + kSourceCount, int32_t(bones));
+  const float world[12] = {0, 0, 0, 1, where[0], where[1], where[2], 0, 1, 1, 1, 0};
+  std::memcpy(reinterpret_cast<void *>(m + kWorldTransform), world, sizeof world);
+  poke(m + kAttachChildren, o.raw(8 * 8));
+  return Part{m, kMeshClass, kMeshAsset, bones, true};
+}
+// A SpotLight of on's actor, other bits of its visible byte set.
+uint64_t light(Objects &o, const Part &on, float intensity, bool visible) {
+  const uintptr_t l = o.make(0x280);
+  poke(l + kOuter, at<uintptr_t>(on.object + kOuter));
+  poke(l + kLightIntensity, intensity);
+  poke(l + kLightVisibleByte, uint8_t(visible ? 0x41 | kLightVisibleMask : 0x41));
+  return l;
+}
+// An active Niagara child of on playing system, where on is.
+void niagara(Objects &o, const Part &on, uint64_t system) {
+  const uintptr_t n = o.make(0x260), leader = on.object;
+  poke(n + kClass, kNiagaraClass);
+  poke(n + kActiveFlags, kActive);
+  poke(n + kSystemAt, system);
+  std::memcpy(reinterpret_cast<void *>(n + kWorldTransform), reinterpret_cast<void *>(leader + kWorldTransform), 48);
+  const auto count = at<int32_t>(leader + kAttachCount);
+  poke(at<uintptr_t>(leader + kAttachChildren) + 8 * uintptr_t(count), n);
+  poke(leader + kAttachCount, count + 1);
+}
+void kill(Objects &o, uint64_t object) {
+  put(o.items, kItemBytes * size_t(at<int32_t>(object + kInternalIndex)) + kItemFlags, kPendingKill);
+}
+Table table_of(std::vector<Part> parts, std::initializer_list<size_t> free) {
+  Table t;
+  t.eve = std::move(parts);
+  t.look.resize(t.eve.size());
+  for (size_t i : free)
+    t.eve[i].free = true;
+  t.fx.cls = kNiagaraClass;
+  t.fx.asset = kSystemAt;
+  for (uint64_t k = 1; k <= kMaxEffectAssets; ++k)
+    t.fx.assets[k] = 0x5000 + k;
+  return t;
+}
+// A scene component of root's actor.
+uint64_t scene_box(Objects &o, const Part &root) {
+  const uintptr_t b = o.make(0x200);
+  poke(b + kClass, o.box_class);
+  poke(b + kOuter, at<uintptr_t>(root.object + kOuter));
+  return b;
+}
+Vec relative_scale(uint64_t box) { return at<Vec>(box + kRelativeScale); }
+
+void test_free_part_gone_keeps_her_pose() { // Review Focus 3
+  Objects o;
+  Table t = table_of({part(o, 2, {100, 0, 0}), part(o, 3, {100, 50, 180})}, {1});
+  kill(o, t.eve[1].object);
+  float root[10];
+  uint8_t bones[5 * kTransformBytes];
+  std::memset(bones, 0xee, sizeof bones);
+  Free f[1];
+  f[0].place[4] = 7;
+  std::atomic<int> reading{-1};
+  assert(read_pose(o.objects, t, root, bones, f, reading) == Io::ok && root[4] == 100 && reading == -1);
+  assert(bones[0] == 0 && bones[2 * kTransformBytes] == 0xee && bones[5 * kTransformBytes - 1] == 0xee);
+  assert(f[0].state == 0 && f[0].place[4] == 7); // Her pose is read; the drone shows hidden, its bones and place kept.
+  Free g;
+  g.place[4] = 7;
+  g.state = 0x8d;
+  assert(read_free(o.objects, t.eve[0], t.eve[1], 0, g) == Io::gone && g.state == 0 && g.place[4] == 7); // Alone too.
+}
+void test_free_relative_and_light() {
+  Objects o;
+  Table t = table_of({part(o, 2, {100, 0, 0}), part(o, 3, {100, 50, 180})}, {1});
+  Free f;
+  assert(read_free(o.objects, t.eve[0], t.eve[1], light(o, t.eve[1], 50, true), f) == Io::ok);
+  assert(f.place[4] == 0 && f.place[5] == 50 && f.place[6] == 180 && f.place[3] == 1 && f.place[7] == 1);
+  assert(f.state == (0x80 | 13));
+  assert(read_free(o.objects, t.eve[0], t.eve[1], light(o, t.eve[1], 50, false), f) == Io::ok && f.state == 0x80);
+  assert(read_free(o.objects, t.eve[0], t.eve[1], 0, f) == Io::ok && f.state == 0x80); // No light.
+  assert(read_free(o.objects, t.eve[0], t.eve[1], light(o, t.eve[1], 900, true), f) == Io::ok && f.state == 0xff);
+  assert(read_free(o.objects, t.eve[0], t.eve[1], light(o, t.eve[0], 50, true), f) == Io::ok && f.state == 0x80);
+  // Above: a light of another actor (a stale address) is no light.
+}
+void test_effect_on_drone_part() {
+  Objects o;
+  Table t = table_of({part(o, 2, {0, 0, 0}), part(o, 3, {0, 50, 180})}, {1});
+  niagara(o, t.eve[1], t.fx.assets[19]);
+  EffectState st;
+  EffectCounts c;
+  Effect out[kEffectSlots];
+  read_effects(o.objects, t, st, out, c);
+  assert(out[0].asset == 19 && out[0].part == 1 && c.started == 1);
+}
+void test_free_box_written() {
+  Objects o;
+  Part root = part(o, 2, {0, 0, 0});
+  uint64_t box = scene_box(o, root), other = scene_box(o, part(o, 1, {}));
+  Free f;
+  f.place[3] = 1;
+  f.place[5] = 50;
+  f.state = 0x8d;
+  assert(write_free_box(o.objects, box, o.box_class, root, f) == Io::ok && relative_scale(box) == Vec{2, 14, 1});
+  assert(at<Vec>(box + kRelativeLocation) == Vec{0, 50, 0});
+  assert(write_free_box(o.objects, other, o.box_class, root, f) == Io::gone); // Another actor's box.
+}
+
+// Her face and shape keys. A ghost part on a mesh of n MorphTargets (+0x198, count +0x1a0; target k at 0x7000 + k),
+// with its MorphTargetWeights (floats, +0x738) and ActiveMorphTargets (16-byte entries, +0x728) of these capacities.
+uintptr_t morph_mesh(Objects &o, int32_t n) {
+  const uintptr_t mesh = o.make(0x200), targets = o.raw(8 * size_t(n));
+  for (int32_t k = 0; k < n; ++k)
+    poke(targets + 8 * uintptr_t(k), uint64_t(0x7000 + k));
+  poke(mesh + kMorphTargets, targets);
+  poke(mesh + kMorphTargetCount, n);
+  return mesh;
+}
+Part morph_part(Objects &o, uintptr_t mesh, int32_t weights, int32_t active) {
+  Part p = part(o, 2, {0, 0, 0});
+  p.mesh = mesh;
+  poke(p.object + kMesh, uint64_t(mesh));
+  poke(p.object + kMorphWeights, weights ? o.raw(4 * size_t(weights)) : 0);
+  poke(p.object + kWeightMax, weights);
+  poke(p.object + kActiveMorphs, active ? o.raw(kActiveMorphBytes * size_t(active)) : 0);
+  poke(p.object + kActiveMax, active);
+  return p;
+}
+float weight(const Part &p, int k) { return at<float>(at<uintptr_t>(p.object + kMorphWeights) + 4 * uintptr_t(k)); }
+int32_t weights_count(const Part &p) { return at<int32_t>(p.object + kWeightCount); }
+int32_t active_count(const Part &p) { return at<int32_t>(p.object + kActiveCount); }
+uint64_t active_target(const Part &p, int n) {
+  return at<uint64_t>(at<uintptr_t>(p.object + kActiveMorphs) + kActiveMorphBytes * uintptr_t(n));
+}
+int32_t active_index(const Part &p, int n) {
+  return at<int32_t>(at<uintptr_t>(p.object + kActiveMorphs) + kActiveMorphBytes * uintptr_t(n) + 8);
+}
+void empty_active(const Part &p) { // As SB's FUN_144124660 leaves it: count 0, the array freed.
+  poke(p.object + kActiveMorphs, uint64_t(0));
+  poke(p.object + kActiveCount, int32_t(0));
+  poke(p.object + kActiveMax, int32_t(0));
+}
+// Her component's weights: n floats, count n.
+void set_weights(Objects &o, uintptr_t component, std::initializer_list<float> w) {
+  const uintptr_t data = o.raw(4 * w.size());
+  int k = 0;
+  for (float x : w)
+    poke(data + 4 * uintptr_t(k++), x);
+  poke(component + kMorphWeights, data);
+  poke(component + kWeightCount, int32_t(w.size()));
+  poke(component + kWeightMax, int32_t(w.size()));
+}
+
+void test_morphs_written() {
+  Objects o;
+  const uintptr_t mesh = morph_mesh(o, 8);
+  const Part ghost = morph_part(o, mesh, 8, 8), small = morph_part(o, mesh, 2, 8);
+  uint8_t w[3] = {0, 255, 51};
+  const int16_t map[3] = {2, 0, -1}; // her third morph is not on this mesh
+  bool changed = false;
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && changed);
+  assert(weight(ghost, 2) == 0.f && weight(ghost, 0) == 1.f && weights_count(ghost) == 8); // the mesh's count
+  assert(active_count(ghost) == 1 && active_target(ghost, 0) == 0x7000 && active_index(ghost, 0) == 0);
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && !changed); // the same: no dirty call
+  w[0] = 128; // her first morph moves: mesh morph 2 active too, in mesh order
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && changed);
+  assert(std::fabs(weight(ghost, 2) - 128 / 255.f) < 1e-6f && active_count(ghost) == 2);
+  assert(active_target(ghost, 0) == 0x7000 && active_target(ghost, 1) == 0x7002 && active_index(ghost, 1) == 2);
+  w[1] = 0; // her second back to 0: only mesh morph 2 stays active
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && changed && weight(ghost, 0) == 0.f);
+  assert(active_count(ghost) == 1 && active_target(ghost, 0) == 0x7002);
+  poke(at<uintptr_t>(ghost.object + kActiveMorphs), uint64_t(0x7777)); // the entry changed under us: rewritten
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::ok && changed &&
+         active_target(ghost, 0) == 0x7002);
+  // Refused, nothing written: SB emptied and freed ActiveMorphTargets, a capacity short, another morph count, another
+  // mesh, a part gone.
+  empty_active(ghost);
+  w[1] = 255;
+  assert(write_morphs(o.objects, ghost, w, map, 3, 8, changed) == Io::room && !changed && weight(ghost, 0) == 0.f);
+  assert(write_morphs(o.objects, small, w, map, 3, 8, changed) == Io::room && weight(small, 0) == 0.f &&
+         weights_count(small) == 0);
+  const Part other = morph_part(o, mesh, 8, 8);
+  assert(write_morphs(o.objects, other, w, map, 3, 7, changed) == Io::count && weights_count(other) == 0);
+  Part moved = other;
+  moved.mesh = morph_mesh(o, 8); // the display's mesh is no longer on it
+  assert(write_morphs(o.objects, moved, w, map, 3, 8, changed) == Io::gone);
+  kill(o, other.object);
+  assert(write_morphs(o.objects, other, w, map, 3, 8, changed) == Io::gone && weights_count(other) == 0);
+  // A null MorphTarget on the mesh: its weight is set, it is never active. Over 256 on the mesh: refused.
+  const uintptr_t holed = morph_mesh(o, 8);
+  poke(at<uintptr_t>(holed + kMorphTargets), uint64_t(0));
+  const Part on_holed = morph_part(o, holed, 8, 8);
+  const int16_t first[3] = {0, 1, -1};
+  assert(write_morphs(o.objects, on_holed, w, first, 3, 8, changed) == Io::ok && weight(on_holed, 0) > 0.5f);
+  assert(active_count(on_holed) == 1 && active_target(on_holed, 0) == 0x7001);
+  const uintptr_t many = morph_mesh(o, 257);
+  assert(write_morphs(o.objects, morph_part(o, many, 300, 300), w, first, 3, 257, changed) == Io::count);
+}
+
+void test_morphs_read() {
+  Objects o;
+  const Part her = part(o, 2, {0, 0, 0});
+  set_weights(o, her.object, {1.2f, -0.1f, 0.2f, std::nanf("")});
+  uint32_t clamped = 0;
+  uint8_t out[4] = {};
+  assert(read_morphs(o.objects, her, her.object, 4, out, clamped) == Io::ok);
+  assert(out[0] == 255 && out[1] == 0 && out[2] == 51 && out[3] == 0 && clamped == 3); // cut and counted
+  // A follower's own weights, through its morph_read component: a live one, read only.
+  const uintptr_t face = o.make(0x1200);
+  set_weights(o, face, {0.2f});
+  const Part follower{}; // no read line of its own
+  clamped = 0;
+  assert(read_morphs(o.objects, follower, face, 1, out, clamped) == Io::ok && out[0] == 51 && clamped == 0);
+  assert(read_morphs(o.objects, follower, face, 2, out, clamped) == Io::count); // more names than weights
+  poke(face + kAnimTask, uint64_t(1));
+  assert(read_morphs(o.objects, follower, face, 1, out, clamped) == Io::busy); // an anim task holds them
+  poke(face + kAnimTask, uint64_t(0));
+  poke(face + kMorphWeights, uint64_t(0));
+  assert(read_morphs(o.objects, follower, face, 1, out, clamped) == Io::null_array);
+  kill(o, face);
+  assert(read_morphs(o.objects, follower, face, 1, out, clamped) == Io::gone);
+  Part stale = her;
+  stale.mesh = 0xdead; // another mesh on her leader since the capture
+  assert(read_morphs(o.objects, stale, her.object, 1, out, clamped) == Io::gone);
+}
 } // namespace
 
 int main() {
@@ -289,7 +534,7 @@ int main() {
     assert(pyr[0] == 90.f);
   }
 
-  // EVE's effects: the active Niagara components on a leader whose system is listed, in 4 slots held by component.
+  // EVE's effects: the active Niagara components on a leader whose system is listed, in 6 slots held by component.
   {
     const uint64_t niagara = 0x9a6a;
     const uint32_t asset_at = 0x240;
@@ -301,7 +546,7 @@ int main() {
     t.eve = {Part{addr(leader), eve_class, mesh, 3, true}, Part{0, 0, 0, 0, false}}; // A follower is never walked.
     t.fx.cls = niagara;
     t.fx.asset = asset_at;
-    for (uint64_t k = 1; k <= 6; ++k)
+    for (uint64_t k = 1; k <= 8; ++k)
       t.fx.assets[k] = 0x5000 + k;
     auto world = [](std::vector<uint8_t> &object, std::array<float, 4> q, std::array<float, 3> t) {
       const float raw[12] = {q[0], q[1], q[2], q[3], t[0], t[1], t[2], 0, 1, 1, 1, 0};
@@ -310,13 +555,14 @@ int main() {
     const float s45 = std::sin(0.785398163f), c45 = std::cos(0.785398163f);
     world(leader, {0, 0, s45, c45}, {100, 200, 300}); // Yaw 90.
     // Children 0-3 are skipped: dead, another class, inactive (another bit set), and an unlisted system; so is 9, with
-    // no system, never matched with an unused list entry (also 0). 4-8 are good.
-    std::vector<std::vector<uint8_t>> kid(10, std::vector<uint8_t>(0x260));
+    // no system, never matched with an unused list entry (also 0). 4-8, 10 and 11 are good.
+    std::vector<std::vector<uint8_t>> kid(12, std::vector<uint8_t>(0x260));
     for (size_t k = 0; k < kid.size(); ++k) {
       objects.add(kid[k], k == 0 ? kPendingKill : 0);
       put<uint64_t>(kid[k], kClass, k == 1 ? 0x5c0 : niagara);
       put<uint8_t>(kid[k], kActiveFlags, k == 2 ? 0xfd : 0x02);
-      put<uint64_t>(kid[k], asset_at, k == 3 ? 0xdead : k == 9 ? 0 : k < 4 ? 0x5001 : 0x5000 + k - 2); // 4-8: 2-6.
+      put<uint64_t>(kid[k], asset_at, k == 3 ? 0xdead : k == 9 ? 0 : k < 4 ? 0x5001 : 0x5000 + k - (k < 9 ? 2 : 3));
+      // 4-8: 2-6, 10 and 11: 7 and 8.
     }
     world(kid[4], {0, 0, 1, 0}, {100, 210, 300}); // Yaw 180, 10 cm along the leader's own Y.
     std::vector<uintptr_t> attached;
@@ -391,25 +637,28 @@ int main() {
     read(c);
     assert(slot_is(0, 0, 0));
 
-    // Five listed and active: four kept, one over. Slot 0 was freed, so its new one takes serial 2.
-    attach({4, 5, 6, 7, 8});
+    // Seven listed and active: six kept, one over. Slot 0 was freed, so its new one takes serial 2.
+    auto six_kept = [&] {
+      return slot_is(0, 2, 2) && slot_is(1, 3, 1) && slot_is(2, 4, 1) && slot_is(3, 5, 1) && slot_is(4, 6, 1) &&
+             slot_is(5, 7, 1);
+    };
+    attach({4, 5, 6, 7, 8, 10, 11});
     read(c);
-    assert(slot_is(0, 2, 2) && slot_is(1, 3, 1) && slot_is(2, 4, 1) && slot_is(3, 5, 1));
-    assert(c.started == 4 && c.over == 1);
+    assert(six_kept() && c.started == 6 && c.over == 1);
     // Sticky: in another order each keeps its slot and serial.
-    attach({8, 7, 6, 5, 4});
+    attach({11, 10, 8, 7, 6, 5, 4});
     read(c);
-    assert(slot_is(0, 2, 2) && slot_is(1, 3, 1) && slot_is(2, 4, 1) && slot_is(3, 5, 1));
-    assert(c.started == 0 && c.over == 1);
+    assert(six_kept() && c.started == 0 && c.over == 1);
     // One goes inactive: its slot is freed, and the one over takes it with serial + 1.
     put<uint8_t>(kid[5], kActiveFlags, 0);
     read(c);
-    assert(slot_is(0, 2, 2) && slot_is(1, 6, 2) && slot_is(2, 4, 1) && slot_is(3, 5, 1));
-    assert(c.started == 1 && c.over == 0 && state.owner[1] == addr(kid[8]));
+    assert(slot_is(0, 2, 2) && slot_is(1, 8, 2) && slot_is(2, 4, 1) && slot_is(3, 5, 1) && slot_is(4, 6, 1) &&
+           slot_is(5, 7, 1));
+    assert(c.started == 1 && c.over == 0 && state.owner[1] == addr(kid[11]));
     // The same component with another system: a new instance in its slot.
     put<uint64_t>(kid[4], asset_at, 0x5001);
     read(c);
-    assert(slot_is(0, 1, 3) && slot_is(1, 6, 2) && c.started == 1);
+    assert(slot_is(0, 1, 3) && slot_is(1, 8, 2) && c.started == 1);
     // A dead leader, or none with a read address: nothing read, every slot freed.
     t.eve[0].mesh = 0x1;
     read(c);
@@ -439,6 +688,14 @@ int main() {
     munmap(page, 4096);
     safe_read = plain;
   }
+
+  // Her drone: a free part read relative to her main mesh with its light, its effects and its box on the ghost.
+  test_free_part_gone_keeps_her_pose();
+  test_free_relative_and_light();
+  test_effect_on_drone_part();
+  test_free_box_written();
+  test_morphs_written();
+  test_morphs_read();
 
   std::puts("pose_engine_test: ok");
 }

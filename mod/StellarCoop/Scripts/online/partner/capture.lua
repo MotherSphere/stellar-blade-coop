@@ -12,12 +12,15 @@
 -- animation. With dyes on (dyes=on in coop-settings.txt, or coop look), each part's overridden materials go too (her
 -- hair colour): a dynamic instance as the asset it was made from, so only a dye change is a new generation, with the
 -- values set on it (value lines: the colours CNS sets); and each part's material slots hidden at LOD 0 (hide lines:
--- CNS's toggles and hidden slots, read from the component, never from CNS). Shape keys are not read: no ghost part can
--- draw them (puppet.lua). A look reads one part's values, a new generation all of them; a change is published again
--- under the same generation, one such table per VALUE_WAIT seconds, geometry first and values only while the table has
--- room. With
--- effects on, it also names, for the native effect read, the NiagaraComponent class, its Asset field's offset and which
--- systems of Capture.EFFECTS are in memory: looked up one a tick on each new EVE and as effects turn on, and published
+-- CNS's toggles and hidden slots, read from the component, never from CNS). A look reads one part's values, a new
+-- generation all of them; a change is published again under the same generation, one such table per VALUE_WAIT
+-- seconds, geometry first and values only while the table has room. With faces on, each part whose mesh has morph
+-- targets (her face, her drone's skin) names them in the mesh's order (a morphs line; a follower's morph_read line
+-- names its component for the native read, which sends their weights in every pose): at most MAX_PART_MORPHS on a part
+-- and MAX_MORPHS in a table, the rest left out and named in the capture line. Their names go after the values, while
+-- the table has room. They stay as the generation's first table had them. With effects on, it also names, for the
+-- native effect read, the NiagaraComponent class, its Asset field's offset and which systems of Capture.EFFECTS are in
+-- memory: looked up one a tick on each new EVE and as effects turn on, and published
 -- only once all are looked up, so the list never changes under one generation. At each look it also reads which
 -- NiagaraSystems play on her leaders (their direct attach children, as the native read sees them): one outside the list
 -- from the game's FX folders (Capture.fx_path) or among the assets of a mod both players have in one version (assets()
@@ -26,8 +29,13 @@
 -- game's own folders, Capture.base_path) is tagged with the outfit it comes from (Capture.label) and sends its
 -- overridden materials, values and hidden slots with dyes off too; any part sends its cloth's collision
 -- asset (her ponytail's OverrideClothPhysicsAsset). Leaders whose bones would make a pose too big for the native part
--- go, the last first. The component leave_out() names at each look is no part (main.lua: SBO's bike while EVE does not
--- ride, vehicles/bike/ride.lua's idle_part), so getting on or off the bike is a new generation.
+-- go, the last first, once no part's morphs are left to go before them. The component leave_out() names at each look
+-- is no part (main.lua: SBO's bike while EVE does not ride, vehicles/bike/ride.lua's idle_part), so getting on or off
+-- the bike is a new generation.
+-- With the drone look on, her drone's meshes come after hers (and the bike's): the SBCharacter at the address the
+-- native part found (drone(), coop-drone.txt). Its main mesh is a free part (table.h's free line), placed by the pose's
+-- free block, with a light line naming its SpotLight for the native read. Its leader is the last, so it goes first when
+-- the pose is too big. Another drone actor has other component addresses, so it is a new generation.
 -- Read-only: nothing here changes EVE or any of her components.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
@@ -40,9 +48,23 @@ local MAX_VALUES,MAX_SLOT_VALUES,MAX_NUMBER=512,32,1e5 -- Its kMaxValues, kMaxSl
 local VALUES_ROOM=56000
 -- s between tables only a value changed: a value the game animates must not send the whole table at every look.
 local VALUE_WAIT=5
--- Its kMaxPose, then what pose_size() counts in every pose (the header, 4 effect slots of 15 bytes, her world
--- transform) and per bone of a leader: past MAX_POSE it refuses the whole table.
-local MAX_POSE,POSE_BASE,BONE_BYTES=16384,29+4*15+24,18
+-- Its kMaxPose, then what pose_size() counts in every pose (the header, 6 effect slots of 15 bytes, 4 event slots of
+-- 19 bytes, her world transform), per free part's block, per bone of a leader and per morph: past MAX_POSE it refuses
+-- the whole table.
+local MAX_POSE,BONE_BYTES=16384,18
+Capture.POSE_BASE,Capture.FREE_BYTES,Capture.MORPH_BYTES=29+6*15+4*19+24,25,1
+-- Its kMaxPartMorphs and kMaxMorphs: morph targets on a part and in a table.
+local MAX_PART_MORPHS,MAX_MORPHS=256,512
+-- The bytes a pose of these parts takes, as the native pose_size() counts them: parts of {bones=, free=, lead=,
+-- morphs=}, a follower (lead set) with no bones of its own.
+function Capture.pose_bytes(parts)
+    local size=Capture.POSE_BASE
+    for _,c in ipairs(parts) do
+        size=size+1+(c.free and Capture.FREE_BYTES or 0)+(c.lead==nil and BONE_BYTES*c.bones or 0)
+            +(c.morphs or 0)*Capture.MORPH_BYTES
+    end
+    return size
+end
 -- Its kMaxEffectAssets less the fixed list: the systems named by path for one EVE, at most; and the attach children read
 -- per leader, as its effect read does.
 local MAX_EFFECT_ASSETS,MAX_CHILDREN=64,256
@@ -216,11 +238,14 @@ local function effect_layout()
     return layout
 end
 -- publish(text) hands the capture to the native part, publish(nil) withdraws it; both return ok, why. looks: what the
--- ghost shows ({dyes=,effects=true|false}, read at each look; nil: nothing more). assets() gives our CNS packs' assets
--- and those of the mods both players have (core/link.lua's mod_assets(); none when nil). private (mod_names=off): no path outside the game's own folders goes,
--- so no mod's folder or outfit name reaches the friend: such a mesh goes as '-' (her ghost of you draws its fallback)
--- with no mod line, and such a material or cloth asset is left out.
-function Capture.new(publish,looks,assets,private)
+-- ghost shows ({dyes=,effects=,drone=,faces=true|false}, read at each look; nil: nothing more). assets() gives our CNS
+-- packs' assets and those of the mods both players have (core/link.lua's mod_assets(); none when nil). private
+-- (mod_names=off): no path outside the game's own folders goes, so no mod's folder or outfit name reaches the friend:
+-- such a mesh goes as '-' (her ghost of you draws its fallback) with no mod line. Such a material or cloth asset is
+-- left out.
+-- drone() gives her drone's address as the native part wrote it ('0x...'), or nil (core/link.lua's drone(); no drone
+-- when nil).
+function Capture.new(publish,looks,assets,private,drone)
     publish=publish or function() return false,'no native part' end
     looks=looks or {}
     assets=assets or function() return {} end
@@ -240,6 +265,9 @@ function Capture.new(publish,looks,assets,private)
     local fixed={}
     for k,path in ipairs(Capture.EFFECTS) do fixed[path]=k end
     local leave_out=nil -- f(her address): the address of a component of hers that is no part, or nil. Asked each look.
+    -- Each mesh's morph target names, by its address, for this EVE (a mesh's never change); why they could not be read,
+    -- until said (then false).
+    local morph_names,morphs_unread={},nil
     function self.leave_out(f) leave_out=f end
     local function withdraw()
         if published then publish(nil); published=nil end
@@ -287,46 +315,102 @@ function Capture.new(publish,looks,assets,private)
             end
         end
     end
+    -- Her drone's parts, for the end of the list: those of the SBCharacter at drone()'s address, of the drone's
+    -- Blueprint class (CH_Drone_BP_C, read in the paks: its SuperStruct is SBCharacter; the file may be a second old).
+    -- Its main mesh first, as the free part with its SpotLight. None without one.
+    local drone_unread -- Why her drone could not be read, until said (then false): once per Lua load.
+    local function drone_parts(eve)
+        local at=tonumber(drone and drone() or nil)
+        if not at then return {} end
+        for _,a in ipairs((U.actors_of(find('/Script/SB.SBCharacter'),'CH_Drone_BP_C',eve))) do
+            if address(a)==at and text(a:GetFullName()):match('^%S+')=='CH_Drone_BP_C' then
+                local list,light=parts_of(a),nil
+                if not (list[1] and list[1].main) then return {} end
+                each(a:K2_GetComponentsByClass(find('/Script/Engine.SpotLightComponent')),function(_,c)
+                    light=light or valid(c)
+                end)
+                for k,c in ipairs(list) do c.drone,c.free,c.main,c.light=true,k==1,false,k==1 and light or nil end
+                return list
+            end
+        end
+        return {}
+    end
+    -- A mesh's morph target names as words, in its order (none for a mesh without), read once for this EVE.
+    local function morphs_of(mesh)
+        local at=address(mesh)
+        if morph_names[at]==nil then
+            local read,names=pcall(function()
+                local list={}
+                each(mesh.MorphTargets,function(_,m)
+                    m=valid(m)
+                    list[#list+1]=m and word(text(m:GetFName())) or '-'
+                end)
+                return list
+            end)
+            if not read and morphs_unread==nil then morphs_unread=tostring(names) end
+            morph_names[at]=read and names or {}
+        end
+        return morph_names[at]
+    end
     local function look(eve,effects)
         local started=os.clock()
         local list=parts_of(eve,leave_out and leave_out(address(eve)))
         if not (list[1] and list[1].main) then return end
-        -- The parts the table can take: a follower of a part left out is left out too. While a pose of them would be
-        -- over MAX_POSE, the last leader goes, with its followers.
-        local parts,by_address,over,dropped
+        if looks.drone then -- A drone that cannot be read is left out: her own parts go on.
+            local read,of_drone=pcall(drone_parts,eve)
+            if not read and drone_unread==nil then drone_unread=tostring(of_drone) end
+            for _,c in ipairs(read and of_drone or {}) do list[#list+1]=c end
+        end
+        for _,c in ipairs(list) do c.morph_names=looks.faces and morphs_of(c.mesh) or nil end
+        -- The parts the table can take: a follower of a part left out is left out too, a part's morphs past
+        -- MAX_PART_MORPHS or the table's MAX_MORPHS too. While a pose of them would be over MAX_POSE, the last part's
+        -- morphs go, then the last leader, with its followers.
+        local parts,by_address,over,dropped,morphs_out,morphs_dropped
         local function take()
             parts,by_address={},{}
+            local total=0
             for _,c in ipairs(list) do
                 local lead=c.leader and by_address[c.leader]
                 local bones=not c.leader and c.handle:GetNumBones() or 0
                 if not (over and over[c]) and #parts<MAX_PARTS
                     and (c.leader==nil and bones>=1 and bones<=MAX_BONES or lead and lead.lead==nil) then
                     c.index,c.lead,c.bones=#parts,lead and lead.index or nil,bones
+                    local n=c.morph_names and #c.morph_names or 0
+                    c.morph_capped=n>MAX_PART_MORPHS and string.format('%d morphs',n) or n>0 and total+n>MAX_MORPHS
+                        and string.format('over %d in the table',MAX_MORPHS) or nil
+                    c.morphs=(c.morph_capped or morphs_out and morphs_out[c]) and 0 or n
+                    total=total+c.morphs
                     parts[#parts+1]=c
                     by_address[address(c.handle)]=c
                 end
             end
         end
         take()
-        while true do
-            local size=POSE_BASE
-            for _,c in ipairs(parts) do size=size+1+BONE_BYTES*c.bones end
-            if size<=MAX_POSE then break end
-            local last
-            for k=#parts,2,-1 do if parts[k].lead==nil then last=parts[k]; break end end
-            if not last then return end -- Her main mesh alone is over it: no table.
-            over,dropped=over or {},(dropped or 0)+1
-            over[last]=true
+        while Capture.pose_bytes(parts)>MAX_POSE do
+            local last,with_morphs
+            for k=#parts,1,-1 do if parts[k].morphs>0 then with_morphs=parts[k]; break end end
+            if with_morphs then
+                morphs_out,morphs_dropped=morphs_out or {},(morphs_dropped or 0)+1
+                morphs_out[with_morphs]=true
+            else
+                for k=#parts,2,-1 do if parts[k].lead==nil then last=parts[k]; break end end
+                if not last then return end -- Her main mesh alone is over it: no table.
+                over,dropped=over or {},(dropped or 0)+1
+                over[last]=true
+            end
             take()
         end
         if parts[1]~=list[1] then return end
         local key,dress={},{}
         local slots,dynamic=0,0
         local declared=assets()
+        local free_part -- The drone's main mesh once taken: its other parts not hung on a part are placed from it.
         for i,c in ipairs(parts) do
             local parent=c.parent and by_address[c.parent]
-            c.hung=i==1 or (parent~=nil and parent.index<c.index) -- Else at its offset from her main mesh.
-            c.parent_index=i==1 and '-' or c.hung and parent.index or 0
+            if c.free then free_part=c end
+            c.base=c.drone and free_part or parts[1]
+            c.hung=i==1 or not c.free and parent~=nil and parent.index<c.index -- Else at its offset from c.base.
+            c.parent_index=(i==1 or c.free) and '-' or c.hung and parent.index or c.base.index
             c.socket=c.hung and i>1 and text(c.handle:GetAttachSocketName()) or 'None'
             c.socket=c.socket=='None' and '-' or word(c.socket)
             c.shown=c.handle:IsVisible() and c.handle.bHiddenInGame~=true and 1 or 0
@@ -351,7 +435,8 @@ function Capture.new(publish,looks,assets,private)
                 slots=slots+#c.materials
             end
         end
-        key,dress=table.concat(key,' ')..(effects and ' fx' or ''),table.concat(dress,' ')
+        key=table.concat(key,' ')..(effects and ' fx' or '')..(looks.faces and ' faces' or '')
+        dress=table.concat(dress,' ')
         local fx_key=''
         if effects then
             local read,why=pcall(name_playing,parts,declared)
@@ -416,9 +501,11 @@ function Capture.new(publish,looks,assets,private)
             local path=sent(c.path)
             lines[#lines+1]=string.format('part %d %s %s %s %d %d %s %s',c.index,c.lead or '-',c.parent_index,c.socket,
                 c.shown,c.bones,word(text(c.handle:GetFName())),path and path:gsub('[^!-~]','_') or '-')
-            if i>1 then
+            if c.free then
+                lines[#lines+1]=string.format('free %d',c.index)
+            elseif i>1 then
                 local relative=c.hung and c.handle:GetRelativeTransform() or math_library:MakeRelativeTransform(
-                    value_of(c.handle:K2_GetComponentToWorld()),value_of(parts[1].handle:K2_GetComponentToWorld()))
+                    value_of(c.handle:K2_GetComponentToWorld()),value_of(c.base.handle:K2_GetComponentToWorld()))
                 lines[#lines+1]=string.format('place %d %s',c.index,place_of(relative))
             end
             for _,m in ipairs(c.materials) do
@@ -443,10 +530,19 @@ function Capture.new(publish,looks,assets,private)
             cloth=cloth and cloth:gsub('[^!-~]','_')
             if cloth and #cloth<=255 then lines[#lines+1]=string.format('cloth %d %s',c.index,cloth) end
             if c.label then lines[#lines+1]=string.format('mod %d %s',c.index,c.label) end
+            -- Its morph names, a line of their own placed below: after the part's last line, before a leader's read.
+            local morph=c.morphs>0 and {morph=c.index,
+                text=string.format('morphs %d %s',c.index,table.concat(c.morph_names,' ')),
+                read=c.lead and string.format('morph_read %d %s',c.index,hex(c.handle)) or nil} or nil
+            if morph then morph.bytes=#morph.text+1+(morph.read and #morph.read+1 or 0) end
             if not c.lead then
                 lines[#lines+1]=string.format('names %d %s',c.index,names[c.index])
+                if morph then lines[#lines+1]=morph end
                 lines[#lines+1]=string.format('read %d %s %s %s',c.index,hex(c.handle),hex(c.handle:GetClass()),hex(c.mesh))
+                if c.free and c.light then lines[#lines+1]=string.format('light %d %s',c.index,hex(c.light)) end
                 count=count+c.bones
+            elseif morph then
+                lines[#lines+1]=morph
             end
         end
         local found=0
@@ -460,24 +556,53 @@ function Capture.new(publish,looks,assets,private)
                 if e.found then lines[#lines+1]=string.format('effect %d %s',#Capture.EFFECTS+n,hex(e.found)) end
             end
         end
-        local size,left_out=0,0
-        for _,line in ipairs(lines) do size=size+(type(line)=='string' and #line+1 or 0) end
+        -- Geometry first, then the values while the table has room, then the morph lines in what is left. Under one
+        -- generation the morph lines stay as its first table had them (they size her poses), counted as geometry.
+        local frozen=not renewed and published.morphs or nil
+        local size,left_out,morph_room,morph_total,kept=0,0,0,0,{}
+        for _,line in ipairs(lines) do
+            size=size+(type(line)=='string' and #line+1 or line.morph and frozen and frozen[line.morph] and line.bytes
+                or 0)
+        end
+        for _,line in ipairs(lines) do
+            if type(line)=='table' and not line.morph then
+                line.go=value_count<MAX_VALUES and size+#line[1]+1<=VALUES_ROOM
+                if line.go then size,value_count=size+#line[1]+1,value_count+1 else left_out=left_out+1 end
+            end
+        end
+        for _,line in ipairs(lines) do
+            if type(line)=='table' and line.morph then
+                if frozen then
+                    line.go=frozen[line.morph]==true
+                else
+                    line.go=size+line.bytes<=VALUES_ROOM
+                    size=size+(line.go and line.bytes or 0)
+                    morph_room=morph_room+(line.go and 0 or 1)
+                end
+                kept[line.morph]=line.go or nil
+            end
+        end
         local final={}
         for _,line in ipairs(lines) do
             if type(line)=='string' then
                 final[#final+1]=line
-            elseif value_count<MAX_VALUES and size+#line[1]+1<=VALUES_ROOM then
+            elseif line.go and line.morph then
+                final[#final+1]=line.text
+                if line.read then final[#final+1]=line.read end
+            elseif line.go then
                 final[#final+1]=line[1]
-                size,value_count=size+#line[1]+1,value_count+1
-            else
-                left_out=left_out+1
             end
+        end
+        local capped={}
+        for _,c in ipairs(parts) do
+            morph_total=morph_total+(kept[c.index] and c.morphs or 0)
+            if c.morph_capped then capped[#capped+1]=word(text(c.handle:GetFName()))..' ('..c.morph_capped..')' end
         end
         local ok,why=publish(table.concat(final,'\n')..'\n')
         if not ok then return false,'Capture not published: '..tostring(why) end
         local named_new=published and effects and #named>(published.named or 0)
         published={generation=generation,key=key,dress=dress,tint=tint,names=names,map=map,at=started,fx=fx_key,
-            named=#named}
+            named=#named,morphs=kept}
         if renewed then
             local tail=(looks.dyes and string.format('; dyes: %d slots (%d dynamic)',slots,dynamic) or '')
                 ..(value_count>0 and string.format('; values: %d',value_count) or '')
@@ -486,6 +611,12 @@ function Capture.new(publish,looks,assets,private)
                 ..(effects and string.format('; effects: %d of %d found',found,#Capture.EFFECTS) or '')
                 ..(effects and #named>0 and string.format('; %d named by path',#named) or '')
                 ..(dropped and string.format('; %d leaders left out, over the pose size',dropped) or '')
+                ..(morph_total>0 and string.format('; morphs: %d',morph_total) or '')
+                ..(morphs_dropped and string.format('; morphs of %d parts left out, over the pose size',morphs_dropped)
+                    or '')
+                ..(morph_room>0 and string.format('; morphs of %d parts left out, over the table size',morph_room)
+                    or '')
+                ..(capped[1] and '; morphs left out: '..table.concat(capped,', ') or '')
             return true,string.format('Capture %d: %d parts, %d bone names, map %s, %.1f ms%s',generation,#parts,count,
                 map,(os.clock()-started)*1000,tail)
         end
@@ -504,7 +635,7 @@ function Capture.new(publish,looks,assets,private)
         end
         local at=address(eve)
         if at~=seen then -- A new EVE: the old addresses mean nothing, and the old world's systems may be freed.
-            seen,since,scan,systems,named,named_at=at,os.clock(),1,{},{},{}
+            seen,since,scan,systems,named,named_at,morph_names=at,os.clock(),1,{},{},{},{}
             withdraw()
         end
         if looks.effects and fx==nil then
@@ -522,6 +653,12 @@ function Capture.new(publish,looks,assets,private)
         if message==nil and unread then ok,message,unread=false,'Capture: materials not read: '..unread,false end
         if message==nil and named_unread then
             ok,message,named_unread=false,'Capture: playing effects not read: '..named_unread,false
+        end
+        if message==nil and drone_unread then
+            ok,message,drone_unread=false,'Capture: drone not read: '..drone_unread,false
+        end
+        if message==nil and morphs_unread then
+            ok,message,morphs_unread=false,'Capture: morphs not read: '..morphs_unread,false
         end
         return ok,message
     end

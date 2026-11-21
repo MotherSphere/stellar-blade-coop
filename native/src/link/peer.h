@@ -68,6 +68,7 @@ struct Peer {
   Window night_window;     // Her night lines.
   Window race_window;      // Her race lines.
   Window score_window;     // Her score attack lines.
+  Window dr_window;        // Her Doro race lines of a match round.
   Window mode_window;      // Her lines of the modes of online sessions.
   Window gift_window;      // Her gift lines.
   Window ping_window;      // Her pings.
@@ -102,6 +103,7 @@ struct Peer {
   bool mark_logged = false; // The same for her mark lines, which share her chat lines' window.
   bool race_logged = false; // The same for her race lines.
   bool score_logged = false; // The same for her score attack lines.
+  bool dr_logged = false;    // The same for her Doro race lines of a match round.
   bool mode_logged = false; // The same for her mode lines.
   bool round_logged = false; // The same for her round lines.
   // Counted for the 60 s line, then restarted.

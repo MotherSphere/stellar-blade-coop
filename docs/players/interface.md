@@ -307,15 +307,17 @@ Each row of the Options page is a setting of [coop-settings.txt](settings.md#coo
 The rows are in groups: Controls (the menu, status, leave, travel and race checkpoint keys, the [bike](../vehicles/bike.md) on or
 off and its key, [gun mode](../fight/gunmode.md) on or off and its key (read when the mod loads), the
 [Online tab in the pause menu](#pause-menu), then Reset all keys), Photo mode, Partner (the name
-tag and the [partner HUD](#partner-hud)), Ghost (the looks, the [solid partner](../online/partner.md#solid-partner-experimental)
-and the send rate), Session (who can join a session you host, whether your Steam friends join without asking, the
+tag and the [partner HUD](#partner-hud)), Ghost (the looks: cloth, dyes, effects, her drone, her sounds, her face and
+shape keys; the [solid partner](../online/partner.md#solid-partner-experimental) and the send rate), Session (who
+can join a session you host, whether your Steam friends join without asking, the
 players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
 [following the host](playing-with-a-friend.md#following-the-host), the [shared world](../world/objects.md),
 [story together](../story/together.md) and Hide popups online, which turns the game's tutorial and record popups off
 during online play), Modes ([score attack](../online/modes/scoreattack.md), the
-[fishing tournament](../online/modes/fishing.md) and the [photo hunt](../online/modes/photohunt.md), each on or
-off), Saves (the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
+[fishing tournament](../online/modes/fishing.md),
+[Doro races in matches](../online/modes/race.md#races-in-a-match) and the [photo hunt](../online/modes/photohunt.md),
+each on or off), Saves (the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, shared
 flinches, stagger resistance, who same-place enemies attack, same spawns, extra enemies, shared bosses, the host's
 enemy and boss scaling and your kill rewards), Display (the [status strip](#status-strip-above-the-card)
@@ -674,4 +676,5 @@ a Steam name or a chat line shows as `?`.
 | Night Operation: a partner's run starting, a partner who cannot join, the points a run gave | See [online/modes/nightop.md](../online/modes/nightop.md#the-co-op-run) and [the reward shop](../online/modes/nightop-shop.md) |
 | Score attack: a round you sit out, a round that ends with no ranking, your run's start, waves, end and place with the UI off | See [Score attack](../online/modes/scoreattack.md#what-you-see) |
 | Fishing tournament: a start, a tournament you sit out, one that ends with no ranking, a reloaded game; with the UI off GO, your place and points, your end, the first three and your place | See [Fishing tournament](../online/modes/fishing.md#what-you-see) |
+| Doro races in matches: a round you sit out, a room with no track, a round that ends with no ranking, your place and best time with the UI off | See [Races in a match](../online/modes/race.md#a-round) |
 | Photo hunt: a start and the Camera's notice, a round you sit out, each target taken, a photo's words once your selfie mode closes, the photo checks stopping, one that ends with no ranking, a reloaded game; with the UI off GO, your end, the first three and your place | See [Photo hunt](../online/modes/photohunt.md#what-you-see) |

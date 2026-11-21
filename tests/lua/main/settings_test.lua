@@ -11,7 +11,8 @@ dofile('tests/lua/main/fixture.lua')
 settings_text='host_key=F10\nleave_key=Ctrl+F8\nsend_rate=25\nname_tag=off\ncloth=off\ndyes=on\neffects=on\n'
 load_main(true)
 assert(name_tag==false,'name_tag=off reaches the ghost')
-assert(look.cloth==false and look.dyes==true and look.effects==true and logged('look: cloth=off dyes=on effects=on'),
+assert(look.cloth==false and look.dyes==true and look.effects==true
+    and logged('look: cloth=off dyes=on effects=on drone=on sounds=on faces=on'),
     'cloth=off (an old file\'s, or the menu\'s), dyes=on and effects=on reach the ghost')
 assert(logged("settings: line 1: 'F10' is not allowed for host_key (F10 opens the console); host_key stays none"))
 assert(logged('keys: menu=F5 host=none status=F6 leave=Ctrl+F8 race=F9, name tag off, 25 poses a second'),
@@ -24,7 +25,8 @@ press('F8','CONTROL'); flush(); assert(asked[1]=='leave' and logged('key Ctrl+F8
 -- named, so fixture.lua pins nothing, and the load logs them on.
 settings_text=Link.DEFAULT..'dyes=on\neffects=on\n'
 load_main(true)
-assert(logged('look: cloth=on dyes=on effects=on') and logged('shared enemies: on (experimental), fight_chars auto, '
+assert(logged('look: cloth=on dyes=on effects=on drone=on sounds=on faces=on')
+    and logged('shared enemies: on (experimental), fight_chars auto, '
     ..'same place on (experimental), same spawns on (experimental), extra enemies 0, bosses on (experimental), boss HP '
     ..'200 %, spawn filter on (experimental)')
     and logged('photo sync: both, longest pause 600 s, ghost in your photos on, its name tag on')
@@ -152,6 +154,16 @@ loops[2].f(); assert(state_names[#state_names]==false)
 settings_text=''
 load_main(true)
 loops[2].f(); assert(state_names[#state_names]==true)
+-- The sounds look reaches the state (sounds=0: the native part records and plays no sound), coop look's change at the
+-- next pass; on by default.
+assert(state_sounds[#state_sounds]==true)
+coop('look','sounds','off'); loops[2].f(); assert(state_sounds[#state_sounds]==false)
+settings_text='sounds=off\n'
+load_main(true)
+loops[2].f(); assert(state_sounds[#state_sounds]==false)
+coop('look','sounds','on'); loops[2].f(); assert(state_sounds[#state_sounds]==true)
+settings_text=''
+load_main(true)
 
 -- UE4SS-settings.ini, two folders above the mod's, through core/link.lua's files (fixture.lua's disk): each key UE4SS
 -- reads as on is logged at load, and its notice said once a load as soon as one can show (the feed with the UI up,

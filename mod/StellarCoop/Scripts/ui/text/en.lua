@@ -7,7 +7,8 @@ return {
     head={modes='MODES',
         session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
         ghost='GHOST',saves='SAVES',combat='COMBAT',display='DISPLAY',chat='CHAT',line='CO-OP LINE'},
-    row={scoreattack='Score attack',fishing='Fishing tournament',photohunt='Photo hunt',
+    row={scoreattack='Score attack',fishing='Fishing tournament',race_match='Doro race',
+        photohunt='Photo hunt',
         host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',find='Find a session',
         copy='Copy my code',remove='Remove %s',join_code='Join with a code',
         chat='Chat',options='Options',report='Write a bug report',close='Close',
@@ -16,6 +17,7 @@ return {
         photo_name_tag='Name tag in my photos',photo_pause='Photo mode pause (experimental)',name_tag='Name tag',
         cloth='Ponytail cloth',dyes='Outfit colours',
         effects='Attack effects',send_rate='Poses sent a second',shared_enemies='Shared enemies (experimental)',
+        drone='Her drone',sounds='Her sounds',faces='Face and shape keys',
         ui_scale='Menu size',ui_sounds='Menu sounds',ui_language='Menu language',partner_bar='HP marker',
         partner_arrow='Off-screen arrow',partner_card='Partner card',card_details='Ping and map on the card',
         who_can_join='Who can join',friends_ask='Friends join without asking',
@@ -305,10 +307,13 @@ return {
         stopped='Shared world stopped until the game restarts. coop-link.log says why.'},
     story={on='Story together on with %s.',
         stopped='Story together stopped until the game restarts. coop-link.log says why.'},
-    -- The Doro race's words (online/modes/race/run.lua): its panel, banners and results on the HUD, its notices (the
-    -- feed, or the line above EVE), and why a race ended early for you (why), was raced alone (refused: the host's, her
-    -- answer) or was not joined (declined: the guest's, the host's track); %s: her name, a track's name or a key's, in
-    -- order.
+    -- The Doro race's words (online/modes/race/run.lua, ui/hud.lua): its panel, banners and results on the HUD, its
+    -- notices (the feed, or the line above EVE), and why a race ended early for you (why), was raced alone (refused:
+    -- the host's, her answer) or was not joined (declined: the guest's, the host's track); %s: her name, a track's name
+    -- or a key's, in order. A match round's results note (still: the players still racing; best; unranked) and, with
+    -- the UI off, our place (placed: ours, of how many). match: the notices of a Doro race round in a match lobby
+    -- (online/modes/race/match/game.lua): why we sit out the round, the host's room with no track, the host who left
+    -- and a round cancelled before its ranking.
     race={title='DORO RACE',cp='CP %d/%d',lap='LAP %d/%d',pos='POS %d/%d',go='GO!',wrong_way='WRONG WAY',
         missed='MISSED CHECKPOINT %d',finished='FINISHED',dnf='DNF',slot='Your start',waiting='Waiting for %s',
         results='RESULTS',fast='fast run',pause='paused',why={teleport='Moved more than 20 m at once.',
@@ -323,7 +328,22 @@ return {
         recording='Recording %s: press %s at each checkpoint.',dropped='Checkpoint %d set.',
         too_close='Too close: 15 m at least between checkpoints.',full='64 checkpoints already: save the track.',
         other_map='This track is on another map.',
-        saved='Track %s saved, %d checkpoints.'},
+        saved='Track %s saved, %d checkpoints.',
+        still='Results still to come: %d.',best='New personal best.',unranked='Not ranked.',
+        placed='Doro race: you placed %d of %d.',
+        match={off='Doro races are off in Options: you sit out this round.',
+            bike='Get off the bike to race in the next round.',
+            seat='Get up from your seat to race in the next round.',
+            night='A Night Operation run is on: you sit out this round.',
+            save='Doro races need a co-op save: you sit out this round.',
+            room='You are not in the waiting room: you sit out this round.',
+            fence='The track runs outside this room: you sit out this round.',
+            map='The track is on another map: you sit out this round.',
+            busy='You are recording a track or testing the drive: you sit out this round.',
+            refused='Your game could not start the race: you sit out this round. UE4SS.log says why.',
+            track='The track did not arrive whole: you sit out this round.',
+            notrack='No track here: record one in this room with coop race record.',
+            host_left='The host left. This round has no ranking.',cancelled='The round was cancelled.'}},
     -- The SBO lobby's notices (online/lobby/sbo.lua): the co-op save before the entry, why an entry is refused (no),
     -- and what failed (fail). nightop and boss use the game's own name for each mode in each language, its
     -- StringTable_UI rows UI_Night and UI_BossRush_Title.
@@ -341,16 +361,20 @@ return {
     -- The lobby menu (mockup B, online/lobby/ui/lobby.lua): its sub and page lines, a mode's name and line (desc), the
     -- rows (more and its tag for the modes not built yet), the status line under them, the members box and the waiting
     -- room's notice (room, %s: the menu key); the settings (mockup C): tabs, each setting's title (set; arena waits for
-    -- stage 4) and value (val); the Leave question (pop). Outside English and French, Settings, Cancel, Difficulty,
-    -- Equipment and Change are the game's own StringTable_UI words (UI_Lobby_Options, UI_Cancel,
-    -- UI_Setting_GamePlay_Mode, UI_Equipment, UI_Setting_Rolling), and Search, Start and Normal Mode
-    -- (UI_Interaction_T_Search, UI_BossRush_Start, UI_NormalMode) where the game's word means the same thing there.
-    lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={scoreattack='Score attack',
+    -- stage 4) and value (val; race_ranking: the Doro race's ranking); the Leave question (pop). Outside English and
+    -- French, Settings, Cancel, Difficulty, Equipment and Change are the game's own StringTable_UI words
+    -- (UI_Lobby_Options, UI_Cancel, UI_Setting_GamePlay_Mode, UI_Equipment, UI_Setting_Rolling), and Search, Start and
+    -- Normal Mode (UI_Interaction_T_Search, UI_BossRush_Start, UI_NormalMode) where the game's word means the same thing
+    -- there.
+    lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={race='Doro race',
+            scoreattack='Score attack',
             ffa='Free-for-all'},
         desc={
+            race='2 to 8 players race as Doros on the same track. The shortest time wins.',
             scoreattack='2 to 8 players play the same challenge at once. The best score wins, then the shortest time.',
             ffa='2 to 8 players. First to 20 kills, or the best score after 10 minutes. You respawn after 4 s.',
-            more='More modes come in later versions.'},row={challenge='Challenge',
+            more='More modes come in later versions.'},row={track='Track',
+            challenge='Challenge',
             search='Search',cancel='Cancel',private='Private match',
             code='Code %s',join_code='Join with a code',room='Waiting room',settings='Settings',leave='Leave',
             more='More modes'},tag={picked='picked',
@@ -360,11 +384,13 @@ return {
         members='Members',count='%d of %d',you='you',host='host',connecting='connecting…',lost='lost',
         empty='No lobby yet. Search finds one or opens one.',empty_search='Looking for a public lobby of this mode.',
         hint={change='Change',tabs='Tabs'},room='Lobby menu: %s, or hold View',tab={match='MATCH',sbo='SBO'},
-        head={lobby='LOBBY'},set={challenge='Challenge',ranking='Ranking',
+        head={lobby='LOBBY'},set={track='Track',
+            challenge='Challenge',ranking='Ranking',
             damage='Damage between players',
             room='Map',players='Players',finish='End',tie='Tie',respawn='Respawn',
             protection='Spawn protection',difficulty='Difficulty',equipment='Equipment',arena='Arena',start='Start',
             lobby='Lobby',version='Version',mute='Mute %s'},val={
+            race_ranking='Shortest time, ties within 0.01 s',
             ranking='Best score, then shortest time',
             damage='None',host_pick="Host's pick",
             random='Random',

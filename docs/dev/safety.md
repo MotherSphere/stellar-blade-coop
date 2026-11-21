@@ -142,20 +142,24 @@ feature or drops the input.
   frame. Nothing is allocated under the lock: the worker sizes the pose buffers beforehand and the game thread only
   swaps them. Every 60 s the log gives the tick's cost and, while poses flow, the stream's counts.
 - Everything from your friend's game is checked before use: the table parser and the pose decoder (both fuzzed by the
-  tests), the mesh path rule, the channel 1 size and rate limits, at most 8 effect starts a second, and race lines
+  tests), the mesh path rule, the channel 1 size and rate limits, at most 8 effect starts a second, race lines
   (printable ASCII, 512 bytes and 40 lines a second at most, then the bounds in [Race
-  lines](../online/modes/race-internals.md#race-lines)).
+  lines](../online/modes/race-internals.md#race-lines)) and the dr lines of a race in a match (the same, 16 lines a
+  second, then the sender and bound checks in [Races in a match](../online/modes/race-internals.md#races-in-a-match)).
 - The [Doro look](../online/modes/race-internals.md#the-doro-look) and a race's [driving](../online/modes/race-internals.md#driving) write to the player actor. The look
-  writes `bHiddenInGame` on EVE's mesh parts and `VisibilityBasedAnimTickOption` on her main mesh. It writes
-  `coop-look.txt` before it changes either, and undoes both at the race's end, on `coop race look off` and `coop off`,
-  after a map change and at its first error. It also sets `bHiddenInGame` on the main mesh of the drone that follows
-  EVE, records the drone in the same file first, and clears it again on the same exits. The driving sets four values of
-  her movement component to 0 and gives it a velocity and her a yaw each frame. It writes `coop-drive.txt` before it
-  changes the values, and puts them back on the same exits. The next Lua load undoes either from its file when this one
-  could not.
+  writes `bHiddenInGame` on EVE's mesh parts from Lua. It writes `coop-look.txt` before it changes them. It undoes
+  them at the race's end, on `coop race look off` and `coop off`, after a map change and at its first error. It also
+  sets `bHiddenInGame` on the main mesh of the drone that follows EVE, records the drone in the same file first, and
+  clears it again on the same exits. The next Lua load undoes them from the file when this one could not. The driving
+  gives her movement a velocity and her a yaw each frame. The two property writes, her movement component's four
+  values at 0 and her main mesh's `VisibilityBasedAnimTickOption` at 0, are the native part's: on the game thread,
+  on live objects only, behind the races' own SEH latch, put back at each end Lua asks, at `coop off`, at a new Lua
+  load and at the first fault, also for as long as a cutscene or photo mode lasts ([The native
+  hold](../online/modes/race-internals.md#the-native-hold)). A race in a match also teleports EVE onto her grid slot
+  with `K2_TeleportTo` at its start and again at GO when she stands more than 3 m from it.
 - The [bike](../vehicles/bike-internals.md) writes to the player actor too. It adds one skeletal mesh component to EVE's
   actor, hung on her main mesh and hidden until she rides. While she rides it sets her main mesh's relative rotation for
-  the lean and drives her as a race does (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native
+  the lean and drives her with its own drive (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native
   part it turns 54 of SB's actions off in the player controller's `InputActionStateMap` (each one's state kept) and
   plays the riding pose in her custom animation slot. It writes `coop-bike.txt` (her main mesh's relative rotation and
   location) before any of it. A dismount, `coop off`, `bike=off`, a new EVE and the ride's first error put it all back:
@@ -201,7 +205,7 @@ feature or drops the input.
     back; only then does it remove the oldest copies there past the 10 newest, by a name check that passes only those
     copies' names, and never the two copies an open SBO session's record names
     ([players/saves.md](../players/saves.md#copies-before-each-save)).
-- Five slots in the game's image, rather than in memory the game allocated, can hold the mod's value, for four hooks.
+- These slots in the game's image, rather than in memory the game allocated, can hold the mod's value for its hooks.
   Each one is an 8-byte pointer in `.rdata`. Each swap is a compare-and-swap from the game's own value only, with the
   page writable for that store alone. A slot that holds another value is never written.
   - The [spawn filter](../fight/enemies-internals.md#the-spawn-filter)'s slot, `0x145c15ea0`, is swapped when the
@@ -216,6 +220,17 @@ feature or drops the input.
   - The recruiter's Join slot, `0x145bfece8`, is swapped at the first `sbo arm`, which Lua sends once the recruiter
     stands in Xion, only with `sbo_lobby=on`; with it off, the slot is never written. Its hook counts the recruiter's
     Join and always calls the game's own function, and the slot is swapped back from the mod's value at `coop off`.
+  - [Her sounds](../online/partner-internals.md#her-sounds-sent) and [her world
+    effects](../online/partner-internals.md#her-world-effects) use eleven slots in three sets. Each set is swapped all
+    or none. The context set (`0x145c51bb0`, `0x145c525f0`, `0x145c60d60`, `0x145cf6398`, `0x145cf5a40`, `0x145cf5cb0`,
+    `0x1463c3358`) is swapped while the sounds look or the effects look is on. The audio starts (`0x1463db320`,
+    `0x145d07e48`) are swapped while the sounds look is on. The world-effect starts are swapped while the effects look
+    is on: `0x145952d08` (UNiagaraComponent's Activate) with `0x14645f648` (UParticleSystemComponent's ActivateSystem).
+    If one slot of a set holds another value, the slots of that set already swapped go back. That set then stays as it
+    is for the run. A set goes back when none of the looks it serves is on, until one is on again. At `coop off` every
+    set goes back for the run. After a sounds fault the context and audio sets go back for the run. After a world
+    effects fault the world-effect set does. A slot that will not swap back keeps a hook that only runs the game's
+    function.
 - Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only for
   a Night Operation shop buy (`coop nightop buy`, co-op saves only) and for `coop gift` (a take, or a gift coming back,
   co-op saves only), through the game's own request (`ServerRequest_ItemBucketItemAdd`) with an item of its list and 1

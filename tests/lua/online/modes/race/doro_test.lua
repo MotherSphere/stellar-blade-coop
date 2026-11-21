@@ -7,7 +7,9 @@
 -- faster play rate, the stumble, the lean and the landing pitch), Doro.apply's calls, Doro.remove (only the actor spawn
 -- made); the look (only parts not already hidden are hidden, listed and written to coop-look.txt before EVE changes;
 -- the Doro placed at her main mesh each frame; the 250 ms check hides again and counts, and logs the flags the game
--- changed; off clears only those parts and restores the tick option, and keeps the file when a step fails; a map change
+-- changed; her tick option asked of the native part, race tick on at look on and off at each way out, its re-sets as
+-- the native part counts them on the minute line; off clears only those parts and keeps the file when a step fails;
+-- no look without the native part or when the ask is refused; a map change
 -- turns it off, with no call on an object that took the place of one it met; its first error turns it off until the mod
 -- reloads; a restore from an earlier Lua load's file; a stale path only clears the file; the race's emote while she
 -- stands) and the probe's steps and lines. Each Doro's keepers (one hidden, non-ticking component a clip, which holds
@@ -417,8 +419,17 @@ do
     assert(not other.actor.destroyed,'Another object: left alone')
     other.actor.destroyed=true
 end
+-- The native part: the asks it got, whether it refuses them, its tick option re-sets this run (race_retick).
+local asks,refuse,reticks={},nil,0
+local function ask(text)
+    if refuse then return false,refuse end
+    asks[#asks+1]=text
+    return true,'asked the native part: '..text
+end
+local native={ask=ask,retick=function() return reticks end}
+local function new_look(st) return Doro.new({log=log,store=st or store,ask=native.ask,retick=native.retick}) end
 -- The look.
-local look=Doro.new({log=log,store=store})
+local look=new_look()
 assert(look.log==log and not look.active())
 assert(look.tick()==nil,'Off: nothing')
 clock=100
@@ -433,8 +444,9 @@ assert(root.at.X==10 and root.at.Y==20 and root.at.Z==-87 and root.rot.Yaw==0,'A
 local body,face,hair,pony,blade=table.unpack(eve.parts)
 for _,p in ipairs({body,face,hair,blade}) do assert(p.bHiddenInGame==true and p.writes==1,p.name) end
 assert(pony.writes==0,'Hidden by the game: never touched, never listed')
-assert(body.VisibilityBasedAnimTickOption==0,'Her pose ticks while she is not drawn')
-assert(stored=='/Game/Map.Map:PersistentLevel.EVE_1\t3\t/Game/Map.Map:PersistentLevel.Actor_'..#spawned
+assert(asks[1]=='race tick on' and #asks==1 and body.VisibilityBasedAnimTickOption==3,
+    'Her pose ticks while she is not drawn: the native part sets it')
+assert(stored=='/Game/Map.Map:PersistentLevel.EVE_1\t-\t/Game/Map.Map:PersistentLevel.Actor_'..#spawned
     ..'\tCharacterMesh0\tMesh_Face\tSBHair\tBlade',stored)
 assert(logs[1]=='look drone none within 30 m (0 in the world)' and
     logs[2]=='look hid=4 tick=3->0 rehid=0/min' and logs[3]=='look yaw_delta=90.0',table.concat(logs,'|'))
@@ -473,13 +485,14 @@ assert(table.concat(root.calls,'|')=='play evade false|rate 0|at 0.5',table.conc
 assert(Doro.reloads.n==1)
 eve.falling=false
 -- The 250 ms check: a part the game showed is hidden again and counted; a flag the game changed is logged once; the
--- tick option the game set back is set to 0 again.
+-- tick option the game set back is the native part's (one re-set counted there), never written here.
 face.bHiddenInGame=false
 blade.bVisible=true
 body.VisibilityBasedAnimTickOption=3
+reticks=reticks+1
 clock=101.3
 look.tick()
-assert(face.bHiddenInGame==true and face.writes==2 and body.VisibilityBasedAnimTickOption==0)
+assert(face.bHiddenInGame==true and face.writes==2 and body.VisibilityBasedAnimTickOption==3)
 assert(logs[#logs-1]=='flag Mesh_Face visible=1 hidden=0' and last()=='flag Blade visible=1 hidden=1',
     table.concat(logs,'|',#logs-1))
 lines=#logs
@@ -526,9 +539,10 @@ clock=162.3
 look.tick()
 assert(root.rot.Pitch==0 and root.rot.Roll==0,'No tilt once the drive is gone')
 eve.Mesh.K2_GetComponentRotation=function() return {Pitch=0,Yaw=0,Roll=0} end
--- Off: only the listed parts are shown again, the tick option is back, the file and the Doro are gone.
+-- Off: only the listed parts are shown again, the tick option asked back, the file and the Doro are gone.
 ok,why=look.off('coop race look off')
-assert(ok and why=='Doro look off (coop race look off): 4 parts shown again, tick option 3 back.',why)
+assert(ok and why=='Doro look off (coop race look off): 4 parts shown again, tick option 3 asked back.',why)
+assert(asks[#asks]=='race tick off')
 for _,p in ipairs({body,face,hair,blade}) do assert(p.bHiddenInGame==false,p.name) end
 assert(pony.bHiddenInGame==true and pony.writes==0,'The game\'s own hidden part stays hidden')
 assert(body.VisibilityBasedAnimTickOption==3 and stored==nil and doro.destroyed)
@@ -553,7 +567,7 @@ for _,o in ipairs({other,foreign,table.unpack(other.parts)}) do
 end
 ok,why=look.tick()
 assert(ok and why:find('^Doro look off %(map change%): 0 parts shown again'),why)
-assert(not foreign.destroyed and other.Mesh.VisibilityBasedAnimTickOption==0 and stored==nil)
+assert(not foreign.destroyed and asks[#asks]=='race tick off' and stored==nil)
 for _,p in ipairs(other.parts) do assert(p.writes==(p.name=='SBPonytail' and 0 or 1),p.name) end
 player=eve
 -- A map change (another EVE, or none): off by itself, EVE's flags restored where she still is.
@@ -580,15 +594,26 @@ eve.broken=false
 ok,why=look.on()
 assert(not ok and why:find('stays off until the mod reloads',1,true),why)
 -- A file that cannot be written: EVE is never changed.
-local look2=Doro.new({log=log,store={save=function() return false,'cannot write coop-look.txt' end,
-    load=function() end,clear=function() end}})
+local look2=new_look({save=function() return false,'cannot write coop-look.txt' end,load=function() end,
+    clear=function() end})
 local writes=body.writes
 ok,why=look2.on()
 assert(not ok and why:find('^Doro look not turned on: cannot write coop%-look%.txt%. Doro look off %(error%): 0 '),why)
 assert(body.writes==writes and body.bHiddenInGame==false and body.VisibilityBasedAnimTickOption==3,'Never written')
 assert(spawned[#spawned].destroyed,'Its Doro gone')
+-- No native part: no look, EVE never written. An ask the link refuses: the look goes off again, its parts shown.
+local bare=Doro.new({log=log,store=store})
+writes=body.writes
+ok,why=bare.on()
+assert(not ok and why=='the Doro look needs the native part' and body.writes==writes and not bare.active())
+refuse='coop-request.txt unwritable'
+local refused=new_look()
+ok,why=refused.on()
+refuse=nil
+assert(not ok and why:find('^Doro look not turned on: race tick on not asked: coop%-request%.txt unwritable%.'),why)
+assert(body.bHiddenInGame==false and not refused.active() and spawned[#spawned].destroyed)
 -- Her rotation unreadable for the yaw line, a log line only: the look stays on.
-local look3=Doro.new({log=log,store=store})
+local look3=new_look()
 local rotation=eve.K2_GetActorRotation
 eve.K2_GetActorRotation=function() error('no rotation') end
 ok,why=look3.on()
@@ -596,7 +621,7 @@ eve.K2_GetActorRotation=rotation
 assert(ok and look3.active(),why)
 look3.off('test')
 -- One speed line every 10 s, not every second (players post UE4SS.log in public): 12 s at 60 fps give two.
-local look4=Doro.new({log=log,store=store})
+local look4=new_look()
 clock=200
 assert(look4.on())
 local said=#logs
@@ -609,32 +634,39 @@ for k=said+1,#logs do if logs[k]:find('^speed v=') then speeds=speeds+1 end end
 assert(speeds==2,speeds)
 look4.off('test')
 
--- An earlier Lua load left its look on (Ctrl+R): the next load's first tick shows the listed parts, sets the tick
--- option back, destroys that load's Doro and clears the file. Once.
-local earlier=Doro.new({log=log,store=store})
+-- An earlier Lua load left its look on (Ctrl+R): the next load's first tick shows the listed parts, destroys that
+-- load's Doro and clears the file, once; her tick option is the native part's (put back at that load), so a file of an
+-- older version with a number in its place writes nothing.
+local earlier=new_look()
 assert(earlier.on())
 local left=spawned[#spawned]
 by_path['/Game/Map.Map:PersistentLevel.EVE_1']=eve
 by_path['/Game/Map.Map:PersistentLevel.Actor_'..#spawned]=left
 local line=stored
-local fresh=Doro.new({log=log,store=store})
+local fresh=new_look()
 fresh.restore()
 assert(last()=='look restored 4 parts from coop-look.txt' and stored==nil,last())
-assert(body.bHiddenInGame==false and face.bHiddenInGame==false and pony.bHiddenInGame==true
-    and body.VisibilityBasedAnimTickOption==3 and left.destroyed)
+assert(body.bHiddenInGame==false and face.bHiddenInGame==false and pony.bHiddenInGame==true and left.destroyed)
 lines=#logs
 stored=line
 fresh.restore()
 assert(#logs==lines and stored==line,'Once a Lua load')
 -- Look on runs it first too.
-fresh=Doro.new({log=log,store=store})
+fresh=new_look()
 eve.parts[2].bHiddenInGame=true
 assert(fresh.on() and logs[lines+1]=='look restored 1 parts from coop-look.txt',logs[lines+1])
 fresh.off('test')
+-- A file an older version left, her tick option's number in its second field: nothing written to her mesh.
+by_path['/Game/Map.Map:PersistentLevel.EVE_1']=eve
+body.VisibilityBasedAnimTickOption=0
+stored='/Game/Map.Map:PersistentLevel.EVE_1\t3\t/Game/Map.Map:PersistentLevel.Actor_98'
+new_look().restore()
+assert(body.VisibilityBasedAnimTickOption==0 and stored==nil)
+body.VisibilityBasedAnimTickOption=3
 -- A stale path (EVE gone, the Doro gone): the file is cleared, nothing written.
 stored='/Game/Map.Map:PersistentLevel.EVE_9\t3\t/Game/Map.Map:PersistentLevel.Actor_99\tCharacterMesh0'
 writes=body.writes
-fresh=Doro.new({log=log,store=store})
+fresh=new_look()
 fresh.restore()
 assert(stored==nil and body.writes==writes and last()=='look restored 0 parts from coop-look.txt',last())
 -- An actor at the saved path whose root shows another mesh is no Doro of ours: left standing.
@@ -643,7 +675,7 @@ stranger:AddComponentByClass(class('/Script/Engine.SkeletalMeshComponent'),false
     :SetSkeletalMesh(assets[Doro.ASSETS.idle])
 by_path['/Game/Map.Map:PersistentLevel.Actor_77']=stranger
 stored='/Game/Map.Map:PersistentLevel.EVE_9\t3\t/Game/Map.Map:PersistentLevel.Actor_77\tCharacterMesh0'
-Doro.new({log=log,store=store}).restore()
+new_look().restore()
 assert(not stranger.destroyed and stored==nil)
 -- Doro.sweep alone (online/modes/race/run.lua's display Doros after a reload): true only for a Doro it destroyed.
 local shown=Doro.spawn(world,{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0})
@@ -653,7 +685,7 @@ assert(not Doro.sweep('/Game/Map.Map:PersistentLevel.Actor_77') and not stranger
 
 -- The probe: a Doro 3 m ahead of her, facing her; each step logged as it starts, the held frames read back, one line
 -- at the end with both clocks; its Doro gone after.
-local probe=Doro.new({log=log,store=store})
+local probe=new_look()
 clock=200
 ok,why=probe.probe()
 assert(ok and why:find('^Doro probe: '),why)
@@ -676,7 +708,7 @@ assert(last():find('^probe anim=AnimSingleNodeInstance bs=ok rate=ok hold=0%.25/
     ..'phase=meet_03 clock=4[56]%.%d time=%d+$'),last())
 assert(p.destroyed and probe.tick()==nil)
 -- A step that fails is logged and skipped; the rest goes on.
-probe=Doro.new({log=log,store=store})
+probe=new_look()
 assert(probe.probe())
 p=spawned[#spawned]
 p.components[1].GetAnimInstance=function() error('no instance') end
@@ -691,7 +723,7 @@ for k=lines+1,#logs do if logs[k]:find('^probe phase=two_legs_%d+ failed: .*no i
 assert(failed==3 and last():find('^probe anim=%? bs=failed rate=ok '),last())
 -- Another object where its Doro was (a map change): the probe ends at its next step with no call on it, and coop off
 -- destroys nothing.
-probe=Doro.new({log=log,store=store})
+probe=new_look()
 assert(probe.probe())
 probe.tick()
 p=spawned[#spawned]
@@ -701,7 +733,7 @@ clock=clock+3
 probe.tick()
 assert(last()=='probe ended at phase=turn_90l: its Doro is gone' and #p.components[1].calls==0,last())
 assert(probe.tick()==nil and not p.destroyed)
-probe=Doro.new({log=log,store=store})
+probe=new_look()
 assert(probe.probe())
 p=spawned[#spawned]
 p.GetFullName=function() return 'Other /Game/Other.Other:PersistentLevel.Other' end
@@ -709,7 +741,7 @@ probe.stop()
 assert(not p.destroyed)
 
 -- coop off: the look off (logged), the probe's Doro gone.
-local all=Doro.new({log=log,store=store})
+local all=new_look()
 assert(all.on() and all.probe())
 p=spawned[#spawned]
 all.stop()
@@ -743,7 +775,7 @@ drones={sub,drone,other,away}
 local function untouched()
     for _,c in ipairs({sub,other,away}) do assert(c.Mesh.writes==0,c:GetFName():ToString()) end
 end
-local flyer=Doro.new({log=log,store=store})
+local flyer=new_look()
 local function seconds(n) for _=1,n do clock=clock+1; flyer.tick() end end
 -- Look on: the drone's mesh hidden, its path in coop-look.txt after the parts'; the game showing it again: hidden again
 -- at the next second and counted; a minute with one search only; look off: shown again.
@@ -762,7 +794,7 @@ seconds(58)
 assert(last()=='look hid=4 tick=3->0 rehid=1/min retick=0/min reload=0/min reload_ms=0',last())
 assert(finds==searched+1,'One search a look: '..finds-searched)
 ok,why=flyer.off('test')
-assert(ok and why=='Doro look off (test): 4 parts and the drone shown again, tick option 3 back.',why)
+assert(ok and why=='Doro look off (test): 4 parts and the drone shown again, tick option 3 asked back.',why)
 assert(dm.bHiddenInGame==false and dm.writes==3 and stored==nil)
 untouched()
 -- Hidden by the game at look on: held, said once and left alone, never another drone in its place, no search again;
@@ -788,7 +820,7 @@ dm.bHiddenInGame=true
 assert(flyer.on())
 ok,why=flyer.off('test')
 assert(dm.bHiddenInGame==true and dm.writes==5,'Never written')
-assert(why=='Doro look off (test): 4 parts shown again, tick option 3 back.',why)
+assert(why=='Doro look off (test): 4 parts shown again, tick option 3 asked back.',why)
 dm.bHiddenInGame=false
 -- The drone held goes: looked for once more, the next one within 30 m hidden; that one goes too: looked for once more,
 -- none within 30 m, said, and never looked for again this look. Off: no call on either.
@@ -804,7 +836,7 @@ assert(finds==searched+2 and last()=='look drone none within 30 m (1 in the worl
 seconds(60)
 assert(finds==searched+2,'Never on a timer: '..finds-searched)
 ok,why=flyer.off('test')
-assert(ok and why=='Doro look off (test): 4 parts shown again, tick option 3 back.',why)
+assert(ok and why=='Doro look off (test): 4 parts shown again, tick option 3 asked back.',why)
 drone.destroyed,other.destroyed,dm.bHiddenInGame=nil,nil,false
 other.Mesh.bHiddenInGame,other.Mesh.writes=false,0
 untouched()
@@ -827,7 +859,7 @@ flyer.off('map change')
 assert(dm.writes==writes,'No call on another object')
 drone.GetFullName,dm.bHiddenInGame=full,false
 -- Its first error.
-local broken=Doro.new({log=log,store=store})
+local broken=new_look()
 assert(broken.on() and dm.bHiddenInGame==true)
 eve.broken=true
 clock=clock+1
@@ -836,21 +868,21 @@ eve.broken=false
 assert(ok==false and why:find('Doro look off %(error%): 4 parts and the drone') and dm.bHiddenInGame==false,why)
 -- The next Lua load (Ctrl+R with the look on): the drone shown from coop-look.txt; only an SB character there whose
 -- main mesh is still hidden.
-local left_on=Doro.new({log=log,store=store})
+local left_on=new_look()
 assert(left_on.on() and dm.bHiddenInGame==true)
 by_path['/Game/Map.Map:PersistentLevel.Drone']=drone
-Doro.new({log=log,store=store}).restore()
+new_look().restore()
 assert(dm.bHiddenInGame==false and stored==nil and last()=='look restored 4 parts and the drone from coop-look.txt',
     last())
 local line_left='/Game/Map.Map:PersistentLevel.EVE_1\t3\t/Game/Map.Map:PersistentLevel.Actor_98\tCharacterMesh0'
     ..'\t/Game/Map.Map:PersistentLevel.Drone'
 stored,writes=line_left,dm.writes
-Doro.new({log=log,store=store}).restore()
+new_look().restore()
 assert(dm.writes==writes and stored==nil and last()=='look restored 0 parts from coop-look.txt',last())
 local plain=object({bHidden=true,IsA=function() return false end,Mesh=part('CharacterMesh0',true)})
 by_path['/Game/Map.Map:PersistentLevel.Drone']=plain
 stored=line_left
-Doro.new({log=log,store=store}).restore()
+new_look().restore()
 assert(plain.Mesh.writes==0 and stored==nil and last()=='look restored 0 parts from coop-look.txt',last())
 by_path['/Game/Map.Map:PersistentLevel.Drone']=nil
 untouched()
@@ -890,7 +922,7 @@ for _,a in ipairs(spawned) do a.destroyed=true end
 collect()
 for _,path in pairs(Doro.ASSETS) do assert(unloaded[path],path) end
 local loaded=#loads
-local racer=Doro.new({log=log,store=store})
+local racer=new_look()
 assert(racer.on())
 assert(#loads==loaded+10 and Doro.reloads.n==0,#loads-loaded)
 loaded=#loads

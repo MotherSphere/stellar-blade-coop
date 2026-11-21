@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The native pose path's shared pieces, free of Windows: its limits, one skeletal mesh component as Lua names it, one
-// effect slot, the hex addresses Lua writes, the ghost slots' file names and the native tick's gap line. The component
-// table is in game/table.h, engine memory access in game/partner/engine.h.
+// effect slot, one free part's block, the hex addresses Lua writes, the ghost slots' file names and the native tick's
+// gap line. The component table is in game/table.h, engine memory access in game/partner/engine.h.
 #pragma once
 
 #include <cstddef>
@@ -17,10 +17,12 @@
 namespace coop::pose {
 
 constexpr size_t kMaxParts = 16, kMaxBones = 1024, kTransformBytes = 48; // FTransform: rotation, translation, scale.
-// A pose carries 4 effect slots of 15 bytes (game/codec.h); an asset is an index into Lua's list of systems, 1 to
+// A pose carries 6 effect slots of 15 bytes (game/codec.h); an asset is an index into Lua's list of systems, 1 to
 // kMaxEffectAssets: the first kFixedEffects are online/partner/capture.lua's Capture.EFFECTS, which both sides compile
 // in, and the rest the table's fx lines name by path (game/table.h).
-constexpr size_t kEffectSlots = 4, kEffectBytes = 15, kFixedEffects = 19, kMaxEffectAssets = 64;
+constexpr size_t kEffectSlots = 6, kEffectBytes = 15, kFixedEffects = 19, kMaxEffectAssets = 64;
+// A free part's block in a pose: the world transform's 24 bytes (game/codec.h) and the state byte.
+constexpr size_t kFreeBytes = 25;
 
 // One effect slot, asset 0 for none: the table part it hangs on, a serial the sender bumps for each new instance in the
 // slot, and its transform relative to that part (rotation xyzw, translation xyz). Here, not in game/codec.h: the
@@ -30,11 +32,19 @@ struct Effect {
   float place[7] = {};
 };
 
+// A free part's block (her drone): its place relative to part 0 (rotation xyzw, translation xyz, scale xyz) and its
+// state, bit 7 shown this pose and bits 0-6 the light step (intensity = step x 4, 0 off). Hidden travels as zeros.
+struct Free {
+  float place[10] = {};
+  uint8_t state = 0;
+};
+
 // One skeletal mesh component, as Lua saw it when it published its table.
 struct Part {
   uint64_t object = 0, cls = 0, mesh = 0;
   uint32_t bones = 0;
   bool leader = false; // Leaders own their pose; followers copy a leader (SetMasterPoseComponent).
+  bool free = false;   // A leader after part 0 hung from nothing, placed by the pose's free block.
 };
 
 // One ghost slot per other member of a match lobby, 0 to kMaxRemote - 1 (link/peer.h's Peer::slot). Each has its own

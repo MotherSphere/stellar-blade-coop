@@ -14,7 +14,7 @@ The code is split as for the [shared world](../world/objects-internals.md):
   latch that other modules' parts read in `native/src/glue/tick/story_game_shared.inc`;
 - `native/src/story/together/story_worker.inc`: Lua's request, the slot swaps, channel 2 and the status line on the
   worker;
-- `native/src/game/quests/sync.h` and `game/quests/engine.h`: the guest's quest steps the host makes (`SBQ26 step`);
+- `native/src/game/quests/sync.h` and `game/quests/engine.h`: the guest's quest steps the host makes (`SBQ28 step`);
 - `mod/StellarCoop/Scripts/story/together/commands.lua` and `story/together/wiring.lua`: the setting, `coop scenes` and
   the notices.
 
@@ -96,25 +96,25 @@ Another game build needs the block written again from that build's tables.
 
 ## Wire
 
-The lines go on Steam channel 2, reliable, after the tag `SBS26`. Names are FName text, found with FName's find on the
+The lines go on Steam channel 2, reliable, after the tag `SBS28`. Names are FName text, found with FName's find on the
 receiving side and never made. `scene` is the host's own number for one play of a scene. `take` is a TakeUID. `n` is
 the ordinal of a widget's block within its take, the same in both games since both build the blocks from one
 sequence.
 
 | Line | Meaning |
 | --- | --- |
-| `SBS26 play <seq> <scene> <zone> <row> <take>` | a zone-event scene: its ZoneEventTable row and first take |
-| `SBS26 talk <seq> <scene> <zone> <path> <priority> <x> <y> <z> <pitch> <yaw> <roll> <take>` | a talk: its theater path, priority, place (whole centimetres, hundredths of a degree) and first take |
-| `SBS26 pos <seq> <scene> <take> <sequence> <frame> <0\|1>` | the host's place; 1 while his player plays |
-| `SBS26 sel <seq> <scene> <take> <n> <alias\|-> <exec\|->` | an InteractionSelect: the line's TakeAlias and graph exec, `-` for None, never both |
-| `SBS26 pch <seq> <scene> <take> <n> <index>` | a PlayerChoice: the index chosen |
-| `SBS26 qte <seq> <scene> <take> <n> <count> <0\|1>` | a QTE: the presses counted, 1 for a forced success |
-| `SBS26 cnt <seq> <scene> <take> <n> <count> <0\|1> <bits> <0\|1>` | an InputCounter: the same, its Flow results, then 1 when his take skip had run |
-| `SBS26 skip <seq> <scene> <take> seek <frame>` | a skip that moved him within the take |
-| `SBS26 skip <seq> <scene> <take> take <next>` | a skip that finished the take: the next take, -1 for the end |
-| `SBS26 end <seq> <scene>` | his scene ended |
-| `SBS26 trip <seq> <zone> <row>` | a story trip a graph ran |
-| `SBS26 on <hooks>`, `SBS26 on reply <hooks>`, `SBS26 off <reason>` | the sender's state, as the shared world's; hooks: 1, 2 and 4 added for hooks 1 to 3 in |
+| `SBS28 play <seq> <scene> <zone> <row> <take>` | a zone-event scene: its ZoneEventTable row and first take |
+| `SBS28 talk <seq> <scene> <zone> <path> <priority> <x> <y> <z> <pitch> <yaw> <roll> <take>` | a talk: its theater path, priority, place (whole centimetres, hundredths of a degree) and first take |
+| `SBS28 pos <seq> <scene> <take> <sequence> <frame> <0\|1>` | the host's place; 1 while his player plays |
+| `SBS28 sel <seq> <scene> <take> <n> <alias\|-> <exec\|->` | an InteractionSelect: the line's TakeAlias and graph exec, `-` for None, never both |
+| `SBS28 pch <seq> <scene> <take> <n> <index>` | a PlayerChoice: the index chosen |
+| `SBS28 qte <seq> <scene> <take> <n> <count> <0\|1>` | a QTE: the presses counted, 1 for a forced success |
+| `SBS28 cnt <seq> <scene> <take> <n> <count> <0\|1> <bits> <0\|1>` | an InputCounter: the same, its Flow results, then 1 when his take skip had run |
+| `SBS28 skip <seq> <scene> <take> seek <frame>` | a skip that moved him within the take |
+| `SBS28 skip <seq> <scene> <take> take <next>` | a skip that finished the take: the next take, -1 for the end |
+| `SBS28 end <seq> <scene>` | his scene ended |
+| `SBS28 trip <seq> <zone> <row>` | a story trip a graph ran |
+| `SBS28 on <hooks>`, `SBS28 on reply <hooks>`, `SBS28 off <reason>` | the sender's state, as the shared world's; hooks: 1, 2 and 4 added for hooks 1 to 3 in |
 
 `seq` is 1 for the first line after each `on` and one more for each later one. The guest takes them in order: an old one
 is counted as bad and a gap is logged once, so the leash never steps back. Before a line is sent, the sender writes it,
@@ -202,7 +202,7 @@ this line when her quest moved one SB step past the host's line it equalled, his
 his zone:
 
 ```
-SBQ26 step <gen> <seq> <id> <state> <acq> <groups> <tasks> <done> <zone>
+SBQ28 step <gen> <seq> <id> <state> <acq> <groups> <tasks> <done> <zone>
 ```
 
 The fields after `<id>` are her quest's whole state after the step, as a `q` line has it, then the zone alias she made

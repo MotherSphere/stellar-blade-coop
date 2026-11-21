@@ -57,7 +57,8 @@ assert(said[#said]=='Kaanta is in b07, you are in e04.','No UI root yet: on the 
 assert(chat_new[1]==nil and chat_new[2]==true,'The chat on, as the settings say; 50 lines')
 for k,line in ipairs(printed) do
     if line:find('keys: menu=',1,true) then
-        assert(printed[k+1]=='[StellarCoop] look: cloth=on dyes=off effects=off\n','Right after the keys')
+        assert(printed[k+1]=='[StellarCoop] look: cloth=on dyes=off effects=off drone=on sounds=on faces=on\n',
+            'Right after the keys')
         assert(printed[k+2]=='[StellarCoop] shared enemies: on (experimental), fight_chars auto, same place off '
             ..'(experimental), same spawns off (experimental), extra enemies 0, bosses off (experimental), boss HP '
             ..'200 %, spawn filter off (experimental)\n',printed[k+2])
@@ -65,8 +66,9 @@ for k,line in ipairs(printed) do
             ..'tag off\n',printed[k+3])
     end
 end
-assert(look.cloth==true and look.dyes==false and look.effects==false,
-    'Cloth on unless the settings say off, dyes and effects as fixture.lua reads them (off)')
+assert(look.cloth==true and look.dyes==false and look.effects==false and look.drone==true and look.sounds==true
+    and look.faces==true,'Cloth, drone, sounds and faces on unless the settings say off, dyes and effects as fixture.lua '
+    ..'reads them (off)')
 assert(capture_look==look,'The capture holds the same table: dyes and effects off stop sending them')
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
@@ -206,9 +208,23 @@ assert(#ra.cmds==raced and last()=='[StellarCoop] STOP: coop race start runs onl
     ..'saves); now no slot status\n',last())
 assert(ra.o.log==dr.log and ra.o.link==fake_link and ra.o.look.log==dr.log and ra.o.settings.race_key.name=='F9')
 assert(ra.o.store=='store coop-race-doros.txt','coop-race-doros.txt through the link')
-assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store=='store coop-drive.txt'
+assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store==nil
     and dv.o.settings.drift_keys[1]=='Gamepad_RightTrigger',
-    'The driving: [DR] lines, coop-drive.txt through the link, the drift keys')
+    'The driving: [DR] lines, no coop-drive.txt (the native part holds her values), the drift keys')
+-- The race's asks to its native part (race hold, race tick) go through the link's request; the engine line's
+-- race_hold and race_retick answer them, read at each call.
+local was_asked=#asked
+assert(dv.o.ask('race hold on') and asked[was_asked+1]=='race hold on' and dr.o.ask==dv.o.ask)
+local was_status=status_text
+status_text='engine=on race_hold=1 race_tick=1 race_retick=7\n'
+assert(dv.o.held()==true and dr.o.retick()==7)
+status_text='engine=on race_hold=0 race_tick=0 race_retick=0\n'
+assert(dv.o.held()==false and dr.o.retick()==0)
+status_text='engine=on race_hold=fault\n'
+assert(dv.o.held()==false and dr.o.retick()==nil,'Its fault: not applied, no count')
+status_text='engine=on\n'
+assert(dv.o.held()==nil and dr.o.retick()==nil,'Unread')
+status_text=was_status
 assert(dv.o.riding==ra.o.riding and not ra.o.riding(),'The race and its drive read whether EVE rides')
 -- coop race drive reaches online/modes/race/run.lua on any slot; its probe on a co-op save only.
 coop('race','drive','top','2600')
@@ -224,6 +240,14 @@ kit_paused=true; assert(ra.o.paused()==true); kit_paused=false
 ra.o.tell(function(w) return w.race.armed end)
 assert(said[#said]=='Race ready: walk to your start.' and said_en[#said]=='Race ready: walk to your start.')
 assert(ra.hud and ra.hud.kit and ra.hud.theme and ra.hud.settings and ra.hud.settings.ui_language,'race.hud')
+-- coop race match reads race_match from the settings at each call (ra.o.settings is main.lua's table).
+coop('race','match')
+assert(last()=='[StellarCoop] OK: Doro races in matches: race_match=on, official tracks: 1; pick random; offered: '
+    ..'none; no round yet\n',last())
+ra.o.settings.race_match=false
+coop('race','match','status')
+assert(last():find('race_match=off',1,true),last())
+ra.o.settings.race_match=true
 end
 -- A tick's error is reported.
 ra.says={false,'the race stopped on an error until the mod reloads: x'}
@@ -396,17 +420,19 @@ coop('basesuit'); assert(basesuits==1 and last():find('OK: base suit',1,true),la
 coop('where'); assert(wheres==1 and last():find('OK: where map=/game/e04',1,true),last())
 coop('cns','reset'); assert(cns_args=='reset' and last():find('OK: cns reset',1,true),last())
 -- coop look: what the ghost shows, changed in the table the ghost holds until the mod reloads, and the ghost built again.
-local LOOK_USE='[StellarCoop] STOP: Use: coop look [cloth|dyes|effects on|off]\n'
+local LOOK_USE='[StellarCoop] STOP: Use: coop look [cloth|dyes|effects|drone|sounds|faces on|off]\n'
 coop('look')
-assert(last()=='[StellarCoop] OK: look: cloth=on dyes=off effects=off (coop look <cloth|dyes|effects> <on|off> changes '
-    ..'one until the mod reloads: game start or Ctrl+R)\n',last())
+assert(last()=='[StellarCoop] OK: look: cloth=on dyes=off effects=off drone=on sounds=on faces=on (coop look '
+    ..'<cloth|dyes|effects|drone|sounds|faces> <on|off> changes one until the mod reloads: game start or Ctrl+R)\n',
+    last())
 assert(#rebuilds==0,'Only said')
 coop('look','cloth','off')
 assert(last()=='[StellarCoop] OK: Cloth off until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
     last())
 assert(look.cloth==false and #rebuilds==1 and rebuilds[1]=='look','The ghost is removed, to be built without cloth')
-coop('look'); assert(last():find('OK: look: cloth=off dyes=off effects=off (',1,true),last())
+coop('look'); assert(last():find('OK: look: cloth=off dyes=off effects=off drone=on sounds=on faces=on (',1,true),
+    last())
 coop('look','cloth','on')
 assert(last()=='[StellarCoop] OK: Cloth on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
@@ -417,14 +443,14 @@ assert(last()=='[StellarCoop] OK: Dyes on until the mod reloads (game start or C
     ..'the ghost is built again.\n',
     last())
 assert(look.dyes==true and look.cloth==true and #rebuilds==3)
-coop('look'); assert(last():find('OK: look: cloth=on dyes=on effects=off (',1,true),last())
+coop('look'); assert(last():find('OK: look: cloth=on dyes=on effects=off drone=on sounds=on faces=on (',1,true),last())
 coop('look','dyes','off'); assert(look.dyes==false and #rebuilds==4,last())
 coop('look','effects','on')
 assert(last()=='[StellarCoop] OK: Effects on until the mod reloads (game start or Ctrl+R; coop-settings.txt unchanged); '
     ..'the ghost is built again.\n',
     last())
 assert(look.effects==true and look.cloth==true and look.dyes==false and #rebuilds==5)
-coop('look'); assert(last():find('OK: look: cloth=on dyes=off effects=on (',1,true),last())
+coop('look'); assert(last():find('OK: look: cloth=on dyes=off effects=on drone=on sounds=on faces=on (',1,true),last())
 coop('look','effects','off'); assert(look.effects==false and #rebuilds==6,last())
 for _,bad in ipairs({{'cloth'},{'cloth','maybe'},{'cloth','ON'},{'dyes'},{'effects'},{'face','on'},{'on'}}) do
     coop('look',table.unpack(bad))
@@ -1295,6 +1321,7 @@ assert(rt.ticks==1 and rt.o.ready()==false,'The teleport tabs tick and stay off 
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
 coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())
+coop('race','match'); assert(last():find('OK: Doro races in matches: race_match=off',1,true),'No settings: '..last())
 -- The crash sentinel (online/partner/sentinel.lua): a marker the last Lua load left full is logged at the next load,
 -- emptied, and its asset set aside under this version.
 local MARKED='/Game/OutfitMods/Foo/SK_Foo.SK_Foo'

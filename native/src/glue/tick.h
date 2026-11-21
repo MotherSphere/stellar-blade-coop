@@ -22,6 +22,16 @@ namespace coop::pose {
 // 60 s) through event; while the Night Operation poller is on, samples it every 100 ms into nightop-probe.txt (it
 // stops on coop off).
 void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::function<void(const std::string &)> &event);
+// Her asset names (game/events.h's SBA lines), worker thread. asset_lines(): the lines the game thread named since the
+// last call, for glue/steam.cpp's NameBook (while coop loopback runs and no link session is on, slot 0's table takes
+// them too: in a link session slot 0 holds a member's names). asset_line_in(): a member's SBA line with her ghost slot
+// (kMaxRemote or more: none), into the slot's table and its coop-names file. asset_keys_clear(): a link session starts
+// or ends, the game thread's asset keys start again from 1. asset_slot_reset(): the slot's member changed, its names,
+// its coop-names and coop-loaded files and its loaded objects go.
+std::vector<std::string> asset_lines(bool linked);
+void asset_line_in(size_t slot, const std::string &line);
+void asset_keys_clear();
+void asset_slot_reset(size_t slot);
 // Worker thread: coop-state.txt as last read (every 250 ms): whether a save is loaded, the send rate, the synced photo
 // mode's fields (ours, photo_sync and photo_freeze_max); its defaults until Lua wrote one.
 coop::State lua_state();
@@ -313,6 +323,14 @@ std::string ask_bike(const coop::Request &request);
 // gate on with each action's earlier state, off, refused; each ride play's clip in memory or not) and returns a line
 // for the player's screen (the fault's), or empty.
 std::string bike_pass();
+// Doro races' hold on EVE (online/modes/race/hold.h), worker thread. Lua's race hold or race tick, on or off
+// (Command::race): her movement's four fields, or her mesh's tick option, set from the game thread's next frame, or put
+// back; refused off the pinned build, after coop off and after its fault. A new Lua load and coop off put both back.
+// Returns the line for the log.
+std::string ask_race(const coop::Request &request);
+// Every pass: logs each change the game thread made (what is applied and why not, a field the game wrote again, kept
+// values dropped with their object) and returns a line for the player's screen (the fault's), or empty.
+std::string race_pass();
 // SB's HUD under the SBO lobby's screens (online/lobby/hud_game.inc), worker thread. Lua's hud hide on or off
 // (Command::hud): our key in the HUD's set of hiding keys from the game thread's next frame, or out of it; coop off
 // takes it out too.

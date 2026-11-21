@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Doro race without a game call: the track file and its recording, the runner's rules, the two start slots, the host's
+-- Doro race without a game call: the track file and its recording, the runner's rules, the 8 start slots, the host's
 -- and the guest's race over the race lines, the live order and the ranking. online/modes/race/run.lua feeds it EVE's
 -- feet, its clock and the race lines that came; tests/lua/online/modes/race/model_test.lua covers it with lua5.4 alone.
 -- Centimetres, milliseconds and degrees, as the game's; every number in a track file or on a line is a whole one. A
@@ -9,7 +9,7 @@
 local Dm=require('online.modes.race.drive_model')
 local R={}
 -- Bounds: |x| and |y|, |z|, a time in ms, a race id; checkpoints in a track, laps; a checkpoint's radius and its
--- default; a track file's and a line's bytes (the link's 512 less "SBC26 race "). 12 checkpoints on one cps line make
+-- default; a track file's and a line's bytes (the link's 512 less "SBC28 race "). 12 checkpoints on one cps line make
 -- 400 bytes on the link at the bounds.
 R.XY,R.Z,R.MS,R.ID=2000000,500000,3600000,0xFFFFFFFF
 R.MIN_CPS,R.MAX_CPS,R.PER_LINE,R.MAX_LAPS=2,64,12,9
@@ -22,7 +22,7 @@ R.GAP,R.CIRCUIT,R.UP,R.JUMP=1500,3000,600,2000
 -- Wrong way: the distance to the next checkpoint 20 m over its lowest since the last pass, once the runner moved 25 m
 -- since; it clears once that distance falls 10 m from its highest.
 R.WRONG,R.WRONG_MOVED,R.WRONG_BACK=2000,2500,1000
--- The two slots on the start line, 3 m apart: in within 2.5 m, out past 3 m.
+-- The start slots, 3 m apart across and back: in within 2.5 m, out past 3 m.
 R.SLOT_GAP,R.SLOT_IN,R.SLOT_OUT=300,250,300
 -- Both ready this long before the go line; the countdown it carries; the late rule after the first finisher; the
 -- race's limit after GO; the results on screen; the host's wait for the guest's have line; the margin for a line still
@@ -119,11 +119,12 @@ function R.sum(t)
     return s&0xFFFFFFFF
 end
 
--- Slot k's centre: 0, the host's, on the left of the grid's facing, 1, the guest's, on its right.
+-- Slot k's centre, k 0 to 7: rows of two, the first on the grid, each next one 3 m behind it; an even slot on the left
+-- of the grid's facing, an odd one on its right. In a session 0 is the host's, 1 the guest's.
 function R.slot(t,k)
     local g,a=t.grid,math.rad(t.grid.yaw)
-    local side=(k==0 and -0.5 or 0.5)*R.SLOT_GAP
-    return {x=g.x-math.sin(a)*side,y=g.y+math.cos(a)*side,z=g.z}
+    local side,back=(k%2==0 and -0.5 or 0.5)*R.SLOT_GAP,k//2*R.SLOT_GAP
+    return {x=g.x-math.sin(a)*side-math.cos(a)*back,y=g.y+math.cos(a)*side-math.sin(a)*back,z=g.z}
 end
 -- Whether a player stands in slot k, horizontally: in within 2.5 m; was in: until past 3 m.
 function R.in_slot(t,k,pos,was) return flat(pos,R.slot(t,k))<=(was and R.SLOT_OUT or R.SLOT_IN) end
@@ -191,7 +192,7 @@ function R.run(r,a,b,ms,dt)
     return ev
 end
 
--- The race lines, without the link's "SBC26 race " (id: the host's race number):
+-- The race lines, without the link's "SBC28 race " (id: the host's race number):
 --   track <id> <n> <laps> <grid x y z yaw> <map>   host: a race is armed, n checkpoints follow
 --   cps <id> <first> <x y z r>...                  host: 1 to 12 checkpoints, from the first'th
 --   drive <id> <top> <accel> <brake> <coast> <grip> <drift_grip> <turn_slow> <turn_fast> <drift_angle>
@@ -547,12 +548,24 @@ local function ahead(a,b)
     if a.passed~=b.passed then return a.passed>b.passed end
     return a.dist<b.dist
 end
+-- The live order of any number of racers on track t, each {ms=, why=, passed=, pos=} (pos: her feet, nil when not
+-- known): each one's place, 1 plus the racers ahead of her, so two racers level share a place.
+function R.places(t,list)
+    local w,out={},{}
+    for k,r in ipairs(list) do
+        w[k]={ms=r.ms,why=r.why,passed=r.passed,dist=r.pos and flat(r.pos,t.cps[r.passed%#t.cps+1]) or math.huge}
+    end
+    for k,a in ipairs(w) do
+        out[k]=1
+        for _,b in ipairs(w) do if ahead(b,a) then out[k]=out[k]+1 end end
+    end
+    return out
+end
 function R.place(m,her_pos)
     local t=m.track
     if not t or m.her.out or not m.her.joined then return 1,1 end
-    local function where(r,pos)
-        return {ms=r.ms,why=r.why,passed=r.passed,dist=pos and flat(pos,t.cps[r.passed%#t.cps+1]) or math.huge}
-    end
-    return ahead(where(m.her,her_pos),where(m.me,m.pos)) and 2 or 1,2
+    local me,her=m.me,m.her
+    return R.places(t,{{ms=me.ms,why=me.why,passed=me.passed,pos=m.pos},
+        {ms=her.ms,why=her.why,passed=her.passed,pos=her_pos}})[1],2
 end
 return R

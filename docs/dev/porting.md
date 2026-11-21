@@ -231,8 +231,8 @@ The match is the address where the pattern matches. Each entry gives its address
 Ghidra. The tool checks that each signature matches once and gives its address back. It exits with 1 when one does
 not.
 
-On build 26123051, 145 entries have a run of their own and 85 go through an instruction: 67 directly, 15 with an
-`add`, 2 with `then` and 1 with `read`. 4 story vtables get `holder`: only code in `.edata`, the protected code
+On build 26123051, 166 entries have a run of their own and 102 go through an instruction: 67 directly, 29 with an
+`add`, 3 with `then` and 3 with `read`. 4 story vtables get `holder`: only code in `.edata`, the protected code
 section, loads them. The tool reads no code there.
 
 ## Running it
@@ -276,7 +276,7 @@ moved, the ambiguous ones and the missing ones:
 
 ```
 0x141ce8050  function  kSave                     found 0x141ce8050
-238 found (0 moved), 0 ambiguous, 0 missing
+275 found (0 moved), 0 ambiguous, 0 missing
 ```
 
 The exit code is 0 only when every entry is found once. On build 26123051 itself, every entry is found at its own

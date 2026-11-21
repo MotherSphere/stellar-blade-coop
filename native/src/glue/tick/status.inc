@@ -18,10 +18,13 @@ void block() {
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   filter_undo("coop off");
   hold_undo("coop off");
+  race_hold_undo("coop off"); // The game thread puts the race's kept values back at its next frame.
   region_tabs_undo("coop off");
   pause_tab_undo("coop off");
   options_block(); // The game thread puts a forced option back; options_pass gives the slots back after that.
   pad_hook_undo("coop off");
+  sound_undo("coop off"); // Her sounds' slots back; nothing recorded after it.
+  worldfx_undo("coop off"); // Her world effects' slots back, the same way.
   world_off("coop off"); // Before sbo_off, which swaps back the ZoneEvent slot they share.
   story_off("coop off");
   sbo_off();
@@ -75,6 +78,7 @@ std::string status() {
     s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
          " anim_id=" + std::to_string(a.id);
     s += bike_status(); // The bike (vehicles/bike/ride.lua): the preload's state and the gate's.
+    s += race_status(); // Doro races' hold on EVE (online/modes/race/drive.lua, doro.lua): applied or not, re-ticks.
     // The keep (core/keep.lua): the paths asked, those settled, those found in memory; fault once its latch ended it.
     if (keep_faulted) {
       s += " keep=fault";
@@ -90,6 +94,9 @@ std::string status() {
       std::lock_guard<std::mutex> lock(theater_m);
       s += " " + theater_text;
     }
+    // Her sounds for the ghost (online/partner/sound_worker.inc): on, off, refused (another mod holds a slot) or fault.
+    // Her world effects the same way.
+    s += " sounds=" + sound_status() + " world_effects=" + worldfx_status();
   }
   // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)

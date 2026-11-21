@@ -135,6 +135,25 @@ public:
     ++(ok ? score_out_ : score_dropped_);
     return ok;
   }
+  // A Doro race line of a match round from Lua (a dr request, online/modes/race/match/round.lua's), the same way as a
+  // score attack line: dr_line(), kDrPerSecond and its own counts.
+  bool dr(const std::string &text) {
+    if (!match() || !linked())
+      return false;
+    const std::string line = dr_line(text);
+    bool ok = parse(line.data(), line.size()).kind == Kind::dr;
+    if (ok && over_rate(dr_window_, 1, kDrPerSecond, kDrPerSecond * kMaxMessage)) {
+      ok = false;
+      if (!std::exchange(dr_logged_, true))
+        event("dropped our dr lines: over the rate limit");
+    }
+    if (ok)
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+          ok = false;
+    ++(ok ? dr_out_ : dr_dropped_);
+    return ok;
+  }
   // A line of a mode of online sessions from Lua (a mode request, "<word> <text>", online/modes/fishing/round.lua's),
   // as it is, reliable to every member past the handshake: the host and each guest. False when it cannot go: in a
   // match lobby or with nobody linked, or, counted as dropped, a text mode_line() would not carry, past kModePerSecond
@@ -251,8 +270,9 @@ public:
   // For coop-chat.txt (glue/steam.cpp), oldest first: "in <SteamID> <text>" (a member's, chat_clean(); ours in the
   // loopback), "fail" (ours could not go), "race <text>" (her race line), "score <SteamID> <text>" (a member's score
   // attack line, with her SteamID from Steam), "mode <SteamID> <word> <text>" (a member's mode line, the same way),
-  // "gift <payload>" (her gift line, or our gift that could not go) and "rest <zone> <SteamID>" (a member's camp
-  // rest, by her SteamID: her name may be empty).
+  // "dr <SteamID> <text>" (a member's Doro race line of a match round, the same way), "gift <payload>" (her gift line,
+  // or our gift that could not go) and "rest <zone> <SteamID>" (a member's camp rest, by her SteamID: her name may be
+  // empty).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
   // Whether online play pauses toward the pair (glue/steam.cpp keeps story together and the shared fight off): our

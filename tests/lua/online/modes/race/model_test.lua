@@ -126,6 +126,13 @@ assert(math.abs(s0.x-150)<1e-9 and math.abs(s0.y)<1e-9,'Facing +Y: the left is +
 assert(R.in_slot(LINE,1,{x=250,y=150,z=0},false) and not R.in_slot(LINE,1,{x=251,y=150,z=0},false))
 assert(R.in_slot(LINE,1,{x=300,y=150,z=0},true) and not R.in_slot(LINE,1,{x=301,y=150,z=0},true))
 assert(not R.in_slot(LINE,0,{x=0,y=150,z=0},false),'The other slot is not ours')
+-- A match's 8 slots: rows of two, each 3 m behind the one before, even on the left; turned with the grid.
+for k=0,7 do
+    local s=R.slot(LINE,k)
+    assert(math.abs(s.x+k//2*300)<1e-9 and s.y==(k%2==0 and -150 or 150) and s.z==0,'slot '..k)
+    s=R.slot(turned,k)
+    assert(math.abs(s.x-(k%2==0 and 150 or -150))<1e-9 and math.abs(s.y+k//2*300)<1e-9,'turned slot '..k)
+end
 
 -- The runner. A path through points at a speed and a frame rate; each frame's events, flattened.
 local function walk(r,points,speed,fps)
@@ -307,10 +314,10 @@ local lines=R.track_lines(huge,0xFFFFFFFF)
 assert(#lines==8 and lines[1]:find('^track ') and lines[7]:find('^cps 4294967295 61 '),'One track line, 6 cps')
 assert(lines[8]=='drive 4294967295 2200 950 2400 250 80 15 220 75 45','The driving values last')
 for _,line in ipairs(lines) do
-    assert(#('SBC26 race '..line)<=512 and #line<=R.MAX_LINE,#line)
+    assert(#('SBC28 race '..line)<=512 and #line<=R.MAX_LINE,#line)
     assert(R.decode(line),line)
 end
-assert(#('SBC26 race '..lines[3])==400,'The longest: a 10-digit id, a 2-digit first, 12 checkpoints at the bounds')
+assert(#('SBC28 race '..lines[3])==400,'The longest: a 10-digit id, a 2-digit first, 12 checkpoints at the bounds')
 
 -- The machines, through a fake link. Each side stands in its slot until its GO, then runs the track's centres at its
 -- speed on its own clock. Lines to each side arrive in order, each 30 to 300 ms after it was sent (o.delay), unless
@@ -413,7 +420,7 @@ assert(said.host[#said.host]=='end 7' and host.phase=='over' and guest.phase=='o
 assert(find(log.host,'over') and find(log.guest,'over') and host.dropped==0 and guest.dropped==0)
 for _,side in ipairs({'host','guest'}) do
     for _,text in ipairs(said[side]) do
-        assert(#('SBC26 race '..text)<=512 and R.decode(text),text)
+        assert(#('SBC28 race '..text)<=512 and R.decode(text),text)
     end
 end
 for _,what in ipairs({'missed','wrong_way','dnf','false_start','refused'}) do assert(not find(log.host,what),what) end
@@ -722,6 +729,15 @@ do
     m.her.joined=true
     m.me.passed,m.her.passed,m.pos=5,5,{x=4000,y=3000,z=0}
     assert(R.place(m,{x=1000,y=1000,z=0})==1)
+end
+-- The live order of 8 racers: finishers by time, then checkpoints passed, then the distance left; level racers
+-- share a place; a DNF last.
+do
+    local cps=LINE.cps
+    local list={{ms=30000,passed=4},{ms=29000,passed=4},{passed=2,pos=cps[3]},{passed=2,pos={x=0,y=0,z=0}},
+        {passed=3},{why='map',passed=3},{passed=2,pos=cps[3]},{passed=0}}
+    assert(table.concat(R.places(LINE,list),',')=='2,1,4,6,3,8,4,7')
+    assert(#R.places(LINE,{})==0 and R.places(LINE,{{passed=0}})[1]==1)
 end
 
 -- Together only: the model and the driving model read and write nothing outside their tables (no io, os, require but

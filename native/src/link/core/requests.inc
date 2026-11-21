@@ -206,6 +206,9 @@ private:
     case Command::mode:
       mode(r.text);
       break;
+    case Command::dr:
+      dr(r.text);
+      break;
     case Command::mark: { // A test tool: unlike chat, its text goes to both logs and statuses on purpose.
       const std::string n = std::to_string(++marks_), said = r.text.empty() ? "" : ": " + r.text;
       event("mark " + n + said);
@@ -225,7 +228,7 @@ private:
       }
       break;
     // The pose path's, the shared fight's, the photo pause's, the saves', the shared quests', the rows', coop emote's,
-    // the bike's and coop shortcut's: the caller's.
+    // the bike's, coop shortcut's and the race's hold: the caller's.
     case Command::off:
     case Command::loopback:
     case Command::record:
@@ -258,6 +261,7 @@ private:
     case Command::popups:
     case Command::loading:
     case Command::sky:
+    case Command::race:
       break;
     case Command::match:
       ask_match(r);

@@ -211,7 +211,8 @@ private:
   // Every 60 s from the first pass, per friend past the handshake: channel 1 both ways, drops, send failures, RTT, ping
   // loss and Steam's view of the session; T1 and T4 read their exit criteria here. Then our passes and the receive
   // batches that came back full on any channel (more may have waited: design 7.4's pass rate), and the score attack
-  // lines and the mode lines when any went or came. Then the counts start over.
+  // lines, the mode lines and the Doro race lines of a match round (dr) when any went or came. Then the counts start
+  // over.
   void log_peers() {
     if (now_ < next_peers_line_)
       return;
@@ -235,7 +236,7 @@ private:
       p.rtt_sum = p.rtt_max = 0;
       p.last_result = kResultOk;
       p.drop_logged = p.fight_logged = p.say_logged = p.night_logged = p.mark_logged = p.race_logged =
-          p.round_logged = p.score_logged = p.mode_logged = false;
+          p.round_logged = p.score_logged = p.mode_logged = p.dr_logged = false;
     }
     event("link, last 60 s: " + std::to_string(passes_) + " passes, " + std::to_string(full_batches_) +
           " full receive batches (16 messages)");
@@ -245,9 +246,12 @@ private:
     if (mode_in_ || mode_out_ || mode_dropped_) // A minute with a fishing tournament.
       event("mode lines, last 60 s: " + std::to_string(mode_in_) + " in, " + std::to_string(mode_out_) + " out, " +
             std::to_string(mode_dropped_) + " dropped");
+    if (dr_in_ || dr_out_ || dr_dropped_) // A minute with a Doro race round of a match.
+      event("dr lines, last 60 s: " + std::to_string(dr_in_) + " in, " + std::to_string(dr_out_) + " out, " +
+            std::to_string(dr_dropped_) + " dropped");
     passes_ = full_batches_ = 0;
-    score_in_ = score_out_ = score_dropped_ = mode_in_ = mode_out_ = mode_dropped_ = 0;
-    night_logged_ = score_logged_ = mode_logged_ = false;
+    score_in_ = score_out_ = score_dropped_ = mode_in_ = mode_out_ = mode_dropped_ = dr_in_ = dr_out_ = dr_dropped_ = 0;
+    night_logged_ = score_logged_ = mode_logged_ = dr_logged_ = false;
   }
 
   // Relay availability: every second in a lobby, every 5 s outside, "unknown" until the first reading.

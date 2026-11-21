@@ -183,7 +183,7 @@ with tempfile.TemporaryDirectory() as tmp:
     files = install.package('v', dll)
     docs = {'INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md', 'CHANGELOG.md', 'SHA256SUMS.txt'}
     shipped = {'enabled.txt', 'StellarCoop.dll', *docs,
-               'Assets/MotherSphere.png',
+               'Assets/MotherSphere.png', 'Scripts/online/modes/race/match/tracks/xion_eight.txt',
                *(f'Scripts/{name}.lua' for name in ('ui/kit/commands', 'ui/kit/guide', 'ui/text/guide')),
                *(f'Scripts/{name}.lua'
                  for name in ('vehicles/bike/fetch', 'vehicles/bike/model', 'vehicles/bike/others',
@@ -232,14 +232,17 @@ with tempfile.TemporaryDirectory() as tmp:
                               'online/modes/nightop/roxanne', 'online/modes/nightop/roxanne_text',
                               'online/modes/nightop/run', 'online/modes/nightop/shop',
                               'online/modes/nightop/waves',
-                              'online/partner/capture', 'online/partner/ghosts', 'online/partner/hud',
-                              'online/partner/puppet', 'online/partner/sentinel',
+                              'online/partner/assets', 'online/partner/capture', 'online/partner/ghosts',
+                              'online/partner/hud', 'online/partner/puppet', 'online/partner/sentinel',
                               'vehicles/bike/drive', 'vehicles/bike/drive_model', 'fight/bosses/enemy',
                               'online/partner/bike_part',
                               'online/partner/doro_pick',
                               'online/modes/race/doro',
                               'online/modes/race/drive',
                               'online/modes/race/drive_model', 'online/modes/race/model', 'online/modes/race/run',
+                              'online/modes/race/match/model', 'online/modes/race/match/round',
+                              'online/modes/race/match/tracks', 'online/modes/race/match/game',
+                              'online/modes/race/ui/hud',
                               'online/session/booth', 'online/session/chat',
                               'online/group/group', 'online/lobby/halls_rows', 'world/teamshop/rows',
                               'online/session/join',

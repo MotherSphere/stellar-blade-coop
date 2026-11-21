@@ -207,7 +207,8 @@ mod/StellarCoop/            the UE4SS mod folder
       saves/                the co-op saves and their question, coop shortcut
       photo/                the synced photo mode's pause setting
       modes/nightop/        Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
-      modes/race/           Doro races: the run, the track model, the Doro look, the driving
+      modes/race/           Doro races: the run, the track model, the Doro look, the driving, its HUD in ui/, races
+                            in a match in match/ (the round, its model, the official tracks)
     fight/
       enemies/              shared enemies: coop fight and their notices
       bosses/               the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
@@ -301,6 +302,7 @@ Platform-free headers, tested on the build machine:
 | `game/partner/engine.h` | Engine memory reads and writes, and the build pin |
 | `game/codec.h` | The pose's wire format: keyframes and deltas |
 | `game/stream.h` | The loopback's delay line, the receiving clock and interpolation |
+| `game/events.h` | When the ghost's features may call the game, a pose's events, the sender's `Outbox` and asset keys, the SBA lines |
 | `online/partner/record.h` | The recording, its check and its replay |
 | `online/modes/nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
 | `online/modes/nightop/roxanne.h` | Roxanne's Night Operation choices and Lily's signal choice: a choice list's entry in SB's select cache pointed at rows of ours followed by the list's own, and put back; the checks and the `roxanne=` and `lily=` lines |
@@ -327,6 +329,7 @@ Platform-free headers, tested on the build machine:
 | `game/quests/sync.h` | The shared quests' line format, the quest table built from the game's tables, and the host's and the guest's rules |
 | `game/quests/engine.h` | The shared quests' side on the game's quest data (reads, guards and calls), and the worker's side |
 | `story/quests/own.h` | Lily's signal's two quests in the quest unit: the read, the request words, the acquire by ID, a fixed group's first task's Complete, the answer word and the `signalquest=` line |
+| `fight/enemies/push.h` | Enemies at her ghost: SB's step out of a shown ghost's body, the ghost's body from the drawn root, the frame's gates and SB's rule of who moves |
 | `game/pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
 | `game/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
 | `online/photo/photo_freeze.h` | The synced photo mode's pause |
