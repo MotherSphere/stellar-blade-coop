@@ -346,6 +346,7 @@ return {
         reloaded='أُعيد تحميل لعبتك: لم تعد صورك تُحتسب في صيد الصور هذا.',
         shot={counts='%s يُحتسب: نقطة واحدة.',yours='%s لك بالفعل.',taken='%s أخذه %s بالفعل.',
             close='ظهر %s في صورتك: اقترب منه وضعه في الوسط وقف أمامه.'},
+        one={card='النقاط: 1 · المركز %d',points='النقاط: 1',end_notice='انتهى صيد الصور، النقاط: 1.'},
         go='صيد الصور: التقط صورك. الدقائق المتبقية: %d.',end_notice='انتهى صيد الصور، النقاط: %d.',
         top='صيد الصور: %s.',entry='%d. %s %d',sep='، ',placed='مركزك: %d من %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

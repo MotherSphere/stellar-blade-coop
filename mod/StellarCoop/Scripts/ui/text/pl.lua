@@ -363,6 +363,7 @@ return {
         reloaded='Gra została wczytana ponownie: twoje zdjęcia nie liczą się już w tym polowaniu.',
         shot={counts='Cel %s się liczy: 1 punkt.',yours='Cel %s jest już twój.',taken='Cel %s ma już %s.',
             close='Cel %s był na twoim zdjęciu: podejdź bliżej, wyśrodkuj go i stań do niego przodem.'},
+        one={card='Punkty: 1 · miejsce %d',points='Punkty: 1',end_notice='Polowanie na zdjęcia zakończone, punkty: 1.'},
         go='Polowanie na zdjęcia: rób zdjęcia. Czas: %d min.',end_notice='Polowanie na zdjęcia zakończone, punkty: %d.',
         top='Polowanie na zdjęcia: %s.',entry='%d. %s %d',sep=', ',placed='Twoje miejsce: %d z %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

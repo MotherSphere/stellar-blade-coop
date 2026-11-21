@@ -358,7 +358,7 @@ return {
         places={Xion='em Xion',WasteLandA='no Ermo',WasteLandB='no Grande Deserto',other='em %s'},
         title='Caça fotográfica',points='%d pontos',waiting='Aguardando a classificação do anfitrião.',
         unranked='Sem classificação.',best='Novo recorde pessoal.',norank='Nenhuma classificação chegou do anfitrião.',
-        start='%s inicia uma caça fotográfica %s: %s. %d minutos.',camera='Use a Câmera para tirar as fotos.',
+        start='%s inicia uma caça fotográfica %s: %s. %d min.',camera='Use a Câmera para tirar as fotos.',
         took='%s fica com %s.',you_took='Você fica com %s.',
         out={off='A caça fotográfica está desligada nas Opções.',
             slot='Carregue um jogo salvo co-op para jogar a caça fotográfica.',
@@ -371,6 +371,7 @@ return {
         reloaded='Seu jogo recarregou: suas fotos não contam mais nesta caça fotográfica.',
         shot={counts='%s conta: 1 ponto.',yours='%s já conta para você.',taken='%s já é de %s.',
             close='%s estava na sua foto: chegue mais perto, centralize o alvo e fique de frente para ele.'},
+        one={card='1 ponto · posição %d',points='1 ponto',end_notice='Caça fotográfica encerrada: 1 ponto.'},
         go='Caça fotográfica: tire suas fotos. Faltam %d min.',end_notice='Caça fotográfica encerrada: %d pontos.',
         top='Caça fotográfica: %s.',entry='%d. %s %d',sep=', ',placed='Sua posição: %d de %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

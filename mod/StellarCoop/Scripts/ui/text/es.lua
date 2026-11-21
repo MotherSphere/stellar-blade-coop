@@ -360,7 +360,7 @@ return {
         places={Xion='en Xion',WasteLandA='en el Páramo',WasteLandB='en el Gran Desierto',other='en %s'},
         title='Caza de fotos',points='%d puntos',waiting='Esperando la clasificación del anfitrión.',
         unranked='Sin clasificar.',best='Nuevo récord personal.',norank='No llegó ninguna clasificación del anfitrión.',
-        start='%s inicia una caza de fotos %s: %s. %d minutos.',camera='Usa la Cámara para tomar las fotos.',
+        start='%s inicia una caza de fotos %s: %s. %d min.',camera='Usa la Cámara para tomar las fotos.',
         took='%s se lleva %s.',you_took='Te llevas %s.',
         out={off='La caza de fotos está desactivada en Opciones.',
             slot='Carga una partida co-op para jugar a la caza de fotos.',
@@ -372,6 +372,7 @@ return {
         reloaded='Tu juego se recargó: tus fotos ya no cuentan en esta caza de fotos.',
         shot={counts='%s cuenta: 1 punto.',yours='%s ya cuenta para ti.',taken='%s ya es de %s.',
             close='%s salió en tu foto: acércate, centra el objetivo y ponte de frente.'},
+        one={card='1 punto · puesto %d',points='1 punto',end_notice='Caza de fotos terminada: 1 punto.'},
         go='Caza de fotos: a por las fotos. Quedan %d min.',end_notice='Caza de fotos terminada: %d puntos.',
         top='Caza de fotos: %s.',entry='%d. %s %d',sep=', ',placed='Tu puesto: %d de %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

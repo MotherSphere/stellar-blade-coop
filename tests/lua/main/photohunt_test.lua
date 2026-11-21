@@ -9,6 +9,9 @@ dofile('tests/lua/main/fixture.lua')
 local Round=require('online.modes.photohunt.round')
 local new,o=Round.new,nil
 Round.new=function(opts) o=opts; return new(opts) end -- The round main.lua's loader makes.
+local Board=require('online.modes.photohunt.ui.board')
+local board_new,b=Board.new,nil
+Board.new=function(opts) b=opts; return board_new(opts) end -- The screens main.lua's loader makes.
 load_main(true)
 assert(o and o.clock==os.time and o.link==fake_link,'Built on the link')
 o.log('hello')
@@ -56,7 +59,8 @@ assert(disk.files[P]:find('\nbest_photohunt_xion=3 100\n',1,true))
 -- hidden on the title screen); a valid photo in the engine line makes the host's own claim and its board line, with
 -- the shot's words once the selfie mode closes; coop off ends the round with no line and no ask after it: it takes the
 -- ask back and hides the card; the pass line is guarded; photohunt=off and a save that is not a co-op one refuse the
--- host's start.
+-- host's start. The screens name us by our Steam name and a member by hers. The game side's notices reach the screen:
+-- a fault answer to the round's ask says the photo checks stopped.
 local T=1000
 local time=os.time
 os.time=function() return T end
@@ -77,6 +81,10 @@ saves_info,chatting={steamid='1001'},true
 fake_link.host=function() return {id='1001'} end
 fake_link.members=function() return {{id='2002',linked=true,lost=false,name='P2'}} end
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\nslot=coop 2\nengine=v1 pad=xinput\n'
+local member=fake_link.member
+link_me,fake_link.member='Me',function(id) return id=='2002' and {id='2002',name='P2'} or nil end
+assert(b.name('1001')=='Me' and b.name('2002')=='P2' and b.name('3003')==nil,'Our Steam name, then a member\'s')
+link_me,fake_link.member=nil,member
 coop('photohunt','start','1')
 assert(round.round().phase=='play' and fake_link.modes[#fake_link.modes]:find('^photohunt go %d+ 1 Xion %w+,%w+,%w+ 1001,2002$'),
     tostring(fake_link.modes[#fake_link.modes]))
@@ -86,7 +94,7 @@ local function told(text)
     for _,call in ipairs(chat_calls) do if call:match('^system (.-) [%d.]+$')==text then return true end end
     return false
 end
-assert(said[#said-1]:find('^.+ starts a photo hunt in Xion: .+%. 1 minutes%.$'),'The start notice: '..said[#said-1])
+assert(said[#said-1]:find('^.+ starts a photo hunt in Xion: .+%. 1 min%.$'),'The start notice: '..said[#said-1])
 assert(said[#said]=='Use the Camera to take the photos.',said[#said])
 kit_ready=true
 local function arms()
@@ -154,6 +162,12 @@ status_text=status_text:gsub('slot=coop ','slot=normal ')
 assert(select(2,round.start('1'))=='slot','Off a co-op save')
 status_text=status_text:gsub('slot=normal ','slot=coop ')
 assert(round.start('1'),'Both hold: it starts')
+T=T+5 -- GO: the ask, then a fault answer to it.
+loops[2].f()
+local _,last=arms()
+status_text=status_text:gsub('photohunt=[^\n]-pad=','photohunt='..last:match('^photohunt (%d+) ')..' none fault pad=')
+loops[2].f()
+assert(told(require('ui.text').en.photohunt.stopped.fault),'The game side tells through the screens')
 Where.world,Where.me,os.time=world,me,time
 Game.read,Game.new=read,game_new
 print('main/photohunt_test ok')

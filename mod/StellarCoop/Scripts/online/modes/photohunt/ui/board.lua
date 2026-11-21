@@ -34,6 +34,11 @@ local GROUPS={'photohunt','photohunt_result'}
 local STRONG={counts=4,taken=3,yours=2,close=1}
 -- Whole seconds as m:ss.
 local function clock_text(s) return string.format('%d:%02d',s//60,s%60) end
+-- Words p[key] with n points, then the other arguments: p.one[key] (1 point, no number) when n is 1.
+local function counted(p,key,n,...)
+    if n==1 then return p.one[key]:format(...) end
+    return p[key]:format(n,...)
+end
 -- Target k's name on screen in words w (targets.lua's name).
 function Board.target(cur,k,w) return Tg.name(cur.rows[k],w.photohunt) end
 -- The world on screen in words w: its words with the preposition, else its alias.
@@ -64,7 +69,8 @@ function Board.card(cur,now,w,name)
         rows[k]={label=Board.target(cur,k,w),value=not t and p.open or t.id==cur.me and p.you or name(t.id),
             ours=t~=nil and t.id==cur.me}
     end
-    return p.head..'  '..clock,rows,p.card:format(Board.standing(cur))
+    local points,place=Board.standing(cur)
+    return p.head..'  '..clock,rows,counted(p,'card',points,place)
 end
 -- The result panel of cur in words w: its heading, the line under it (our points, from our row in the ranking or else
 -- the board; '' once a ranking without us came), the note (Waiting for the host's ranking. before it, Not ranked. once
@@ -83,7 +89,7 @@ function Board.result(cur,w,name)
     local note=p.waiting
     if cur.list then note=not mine and p.unranked or cur.best and p.best or ''
     elseif cur.why=='norank' then note=p.norank end
-    return p.title,mine and p.points:format(mine) or '',note,rows
+    return p.title,mine and counted(p,'points',mine) or '',note,rows
 end
 -- o: round() (round.lua's round(): our last photo hunt, or nil), name(id) (her Steam name, ours for our SteamID; nil
 -- for one no longer in the session), tell(build) (main.lua's notice: build(words) gives its text), clock() (round.lua's
@@ -204,7 +210,7 @@ function Board.new(o)
             once('go',false,function(w) return w.photohunt.go:format(cur.minutes) end)
         end
         if over and (playing or cur.phase=='ranked') then
-            once('end',false,function(w) return w.photohunt.end_notice:format((Ph.score(cur.board,cur.me))) end)
+            once('end',false,function(w) return counted(w.photohunt,'end_notice',(Ph.score(cur.board,cur.me))) end)
         end
         if cur.list then
             local list=cur.list

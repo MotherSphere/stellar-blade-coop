@@ -321,6 +321,7 @@ return {
         reloaded='ゲームが再読み込みされました：このフォトハントではあなたの写真はもう数えられません。',
         shot={counts='%sが認められました：1ポイント。',yours='%sはすでにあなたのものです。',taken='%sはすでに%sが獲得しています。',
             close='%sが写っていました：もっと近づき、中央に収めて、正面から撮ってください。'},
+        one={card='1ポイント · %d位',points='1ポイント',end_notice='フォトハント終了：1ポイント。'},
         go='フォトハント：写真を撮ろう。残り%d分。',end_notice='フォトハント終了：%dポイント。',top='フォトハント：%s。',
         entry='%d位 %s %d',sep='、',placed='あなたの順位：%d位（%d人中）。'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

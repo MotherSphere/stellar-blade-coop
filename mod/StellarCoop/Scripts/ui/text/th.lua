@@ -333,6 +333,7 @@ return {
         reloaded='เกมของคุณโหลดใหม่แล้ว ภาพของคุณไม่นับในการล่าภาพครั้งนี้อีกต่อไป',
         shot={counts='%s นับแล้ว: 1 คะแนน',yours='%s เป็นของคุณแล้ว',taken='%s ถูก %s ได้ไปแล้ว',
             close='%s ติดอยู่ในภาพ เข้าใกล้ จัดกลางภาพ และหันหน้าเข้าหา'},
+        one={card='1 คะแนน · อันดับ %d',points='1 คะแนน',end_notice='ล่าภาพถ่ายจบแล้ว: 1 คะแนน'},
         go='ล่าภาพถ่าย: ถ่ายภาพได้เลย เหลือ %d นาที',end_notice='ล่าภาพถ่ายจบแล้ว: %d คะแนน',top='ล่าภาพถ่าย: %s',
         entry='%d. %s %d',sep=', ',placed='อันดับของคุณ: %d จาก %d'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

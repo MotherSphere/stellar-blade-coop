@@ -362,6 +362,7 @@ return {
         reloaded='Ваша игра перезагрузилась: ваши снимки больше не идут в зачёт этой фотоохоты.',
         shot={counts='Цель «%s» засчитана: 1 очко.',yours='Цель «%s» уже ваша.',taken='Цель «%s» уже у игрока %s.',
             close='Цель «%s» в кадре: подойдите ближе, возьмите её в центр и встаньте к ней лицом.'},
+        one={card='Очки: 1 · место %d',points='Очки: 1',end_notice='Фотоохота окончена, очки: 1.'},
         go='Фотоохота: делайте снимки. Осталось %d мин.',end_notice='Фотоохота окончена, очки: %d.',
         top='Фотоохота: %s.',entry='%d. %s %d',sep=', ',placed='Ваше место: %d из %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

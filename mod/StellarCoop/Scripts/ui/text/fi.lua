@@ -359,7 +359,7 @@ return {
         places={Xion='Xionissa',WasteLandA='Joutomaalla',WasteLandB='Suurella aavikolla',other='paikassa %s'},
         title='Valokuvajahti',points='%d pistettä',waiting='Odotetaan isännän sijoituksia.',unranked='Ei sijoitusta.',
         best='Uusi henkilökohtainen ennätys.',norank='Isännältä ei tullut sijoituksia.',
-        start='%s aloittaa valokuvajahdin %s: %s. %d minuuttia.',camera='Ota kuvat Kameralla.',
+        start='%s aloittaa valokuvajahdin %s: %s. %d min.',camera='Ota kuvat Kameralla.',
         took='%s nappaa kohteen %s.',you_took='Nappaat kohteen %s.',
         out={off='Valokuvajahti on pois päältä asetuksissa.',
             slot='Lataa co-op-tallennus, niin voit pelata valokuvajahtia.',
@@ -371,6 +371,7 @@ return {
         reloaded='Pelisi latautui uudelleen: kuviasi ei enää lasketa tässä valokuvajahdissa.',
         shot={counts='%s lasketaan: 1 piste.',yours='%s on jo sinun.',taken='Kohteen %s on jo napannut %s.',
             close='%s oli kuvassasi: mene lähemmäs, keskitä kohde ja käänny sitä kohti.'},
+        one={card='1 piste · sija %d',points='1 piste',end_notice='Valokuvajahti päättyi: 1 piste.'},
         go='Valokuvajahti: ota kuvasi. %d min jäljellä.',end_notice='Valokuvajahti päättyi: %d pistettä.',
         top='Valokuvajahti: %s.',entry='%d. %s %d',sep=', ',placed='Sijoituksesi: %d/%d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

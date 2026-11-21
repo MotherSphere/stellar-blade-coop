@@ -320,6 +320,7 @@ return {
         reloaded='게임이 다시 로드되었습니다: 이 포토 헌트에서 더 이상 내 사진이 집계되지 않습니다.',
         shot={counts='%s 대상 인정: 1점.',yours='%s 대상은 이미 내 것입니다.',taken='%s 대상은 이미 %s 님이 차지했습니다.',
             close='%s 대상이 사진에 찍혔습니다: 더 가까이 가서 가운데에 두고 정면에서 찍으세요.'},
+        one={card='1점 · %d위',points='1점',end_notice='포토 헌트 종료: 1점.'},
         go='포토 헌트: 사진을 찍으세요. %d분 남았습니다.',end_notice='포토 헌트 종료: %d점.',top='포토 헌트: %s.',
         entry='%d위 %s %d',sep=', ',placed='내 순위: %d위 (%d명 중).'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

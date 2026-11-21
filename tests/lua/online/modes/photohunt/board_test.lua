@@ -23,6 +23,7 @@ local function row(id,points,s,place) return {id=id,points=points,s=s,place=plac
 local ROWS={'Cat4','MemoryOfXion','Butterfly12'}
 
 -- The card: PHOTO HUNT over the countdown, the time left, then Time up; Time up too once every target has a taker.
+-- Its last line says 1 point, 0 points and 2 points.
 local cur={seed=7,minutes=10,ids={'1001','2002','3003','4004'},me='4004',go=100,phase='play',rows=ROWS,board={}}
 local title,rows,line=Board.card(cur,101,en,name)
 assert(title=='PHOTO HUNT  Starts in 4',title)
@@ -35,10 +36,12 @@ assert(Board.card(cur,105+600,en,name)=='PHOTO HUNT  Time up')
 cur.board={[1]={id='4004',s=40},[3]={id='1001',s=90}}
 title,rows,line=Board.card(cur,200,en,name)
 assert(title=='PHOTO HUNT  8:25' and rows[1].value=='you' and rows[1].ours and rows[2].value=='open')
-assert(rows[3].value=='Ann' and not rows[3].ours and line=='1 points · place 1',line)
+assert(rows[3].value=='Ann' and not rows[3].ours and line=='1 point · place 1',line)
 cur.board[2]={id='1001',s=120}
 title,rows,line=Board.card(cur,200,en,name)
-assert(title=='PHOTO HUNT  Time up' and line=='1 points · place 2',title)
+assert(title=='PHOTO HUNT  Time up' and line=='1 point · place 2',title)
+assert(select(3,Board.card({go=100,minutes=10,ids={'1','2'},me='1',rows=ROWS,
+    board={[1]={id='1',s=5},[2]={id='1',s=6}}},200,en,name))=='2 points · place 1','2 points')
 -- The place as the host ranks: more points first, then the earlier last point; 0 points share the last place.
 assert(select(2,Board.standing({ids={'1','2','3'},me='2',board={[1]={id='1',s=50},[2]={id='2',s=60}}}))==2)
 assert(select(2,Board.standing({ids={'1','2','3'},me='2',board={[1]={id='1',s=70},[2]={id='2',s=60}}}))==1)
@@ -52,7 +55,7 @@ assert(Board.where('WasteLandB',en)=='in the Great Desert' and Board.where('Moon
 -- The result panel: our points from the board before the ranking, with the wait; Not ranked. once a ranking without
 -- us came; New personal best. when ours wrote one; nothing else then; the note that none came.
 local head,sub,note,list=Board.result(cur,en,name)
-assert(head=='Photo hunt' and sub=='1 points' and note=="Waiting for the host's ranking." and #list==0,sub)
+assert(head=='Photo hunt' and sub=='1 point' and note=="Waiting for the host's ranking." and #list==0,sub)
 cur.list={row('1001',2,120,1),row('3003',0,0,2)}
 _,sub,note,list=Board.result(cur,en,name)
 assert(sub=='' and note=='Not ranked.' and #list==2 and list[1].label=='1  Ann' and list[1].time=='2:00'
@@ -60,13 +63,13 @@ assert(sub=='' and note=='Not ranked.' and #list==2 and list[1].label=='1  Ann' 
 cur.list={row('1001',2,120,1),row('4004',1,40,2),row('3003',0,0,3)}
 cur.best=true
 _,sub,note,list=Board.result(cur,en,name)
-assert(sub=='1 points' and note=='New personal best.' and list[2].ours and list[2].time=='0:40'
+assert(sub=='1 point' and note=='New personal best.' and list[2].ours and list[2].time=='0:40'
     and list[3].label=='3  ABCDEFGHIJKLMNOPQRS',sub)
 cur.best=false
 _,_,note=Board.result(cur,en,name)
 assert(note=='',note)
 _,sub,note=Board.result({me='2002',phase='over',why='norank',rows=ROWS,board={[2]={id='2002',s=5}}},en,name)
-assert(sub=='1 points' and note=='No ranking came from the host.',note)
+assert(sub=='1 point' and note=='No ranking came from the host.',note)
 _,sub=Board.result({me='2002',phase='ranked',board={},list={row('2002',3,700,1)}},en,name)
 assert(sub=='3 points','A ranking heard after a reload: our row in it')
 
@@ -129,7 +132,7 @@ round.board={[1]={id='2002',s=10},[3]={id='3003',s=20}}
 board.tick(); board.tick()
 assert(card.title.text=='PHOTO HUNT  1:00' and card.rows[1].value.text=='you' and card.rows[1].value.c=='teal')
 assert(card.rows[1].label.c=='teal' and card.rows[3].value.text=='ABCDEFGHIJKLMNOP...' and card.rows[3].value.c=='text')
-assert(card.rows[4].label.text=='1 points · place 1',card.rows[4].label.text)
+assert(card.rows[4].label.text=='1 point · place 1',card.rows[4].label.text)
 assert(#told==2 and told[1]=='You took Cat 4.' and told[2]=='ABCDEFGHIJKLMNOP... took Butterfly 12.',told[2])
 -- A pause hides it.
 kit.away=true; board.tick()
@@ -164,7 +167,7 @@ assert(#told==6 and told[6]=='Memory of Xion was in your photo: get closer, cent
 clock=165
 board.tick()
 assert(kit.shown.photohunt and kit.shown.photohunt_result and card.title.text=='PHOTO HUNT  Time up')
-assert(res.head.text=='Photo hunt' and res.sub.text=='1 points' and res.note.text=="Waiting for the host's ranking.")
+assert(res.head.text=='Photo hunt' and res.sub.text=='1 point' and res.note.text=="Waiting for the host's ranking.")
 assert(res.rows[1].label.text=='',res.sub.text)
 -- A pause hides the panel too; the title screen only the card.
 kit.away=true; board.tick()
@@ -202,7 +205,7 @@ told={}
 round={seed=8,world='Xion',ids={},me='2002',phase='ranked',board={},list={row('1001',2,30,1),row('2002',1,50,2)}}
 board.tick()
 assert(not kit.shown.photohunt and kit.shown.photohunt_result and res.head.text==T.fr.photohunt.title)
-assert(res.sub.text==T.fr.photohunt.points:format(1) and res.rows[2].time.text=='0:50' and #told==0,res.sub.text)
+assert(res.sub.text==T.fr.photohunt.one.points and res.rows[2].time.text=='0:50' and #told==0,res.sub.text)
 kit.lang='en-US'
 kit.rebuild()
 card,res=kit.groups.photohunt.view,kit.groups.photohunt_result.view
@@ -233,10 +236,10 @@ assert(#told==2 and not kit.shown.photohunt_result,'Those say nothing')
 -- sit-out, each stop of the photo checks, a reloaded game.
 told={}
 board.notice('starts','ABCDEFGHIJKLMNOPQRS',10,'Xion','Cat4','Cat9','MemoryOfXion')
-assert(told[1]=='ABCDEFGHIJKLMNOP... starts a photo hunt in Xion: Cat 4, Cat 9, Memory of Xion. 10 minutes.',told[1])
+assert(told[1]=='ABCDEFGHIJKLMNOP... starts a photo hunt in Xion: Cat 4, Cat 9, Memory of Xion. 10 min.',told[1])
 assert(told[2]=='Use the Camera to take the photos.' and #told==2)
 board.notice('starts','Ann',15,'WasteLandB','Fish7','Butterfly2','Odd_Row')
-assert(told[3]=='Ann starts a photo hunt in the Great Desert: Fish 7, Butterfly 2, Odd_Row. 15 minutes.',told[3])
+assert(told[3]=='Ann starts a photo hunt in the Great Desert: Fish 7, Butterfly 2, Odd_Row. 15 min.',told[3])
 board.notice('out','off'); board.notice('out','slot'); board.notice('out','checks')
 assert(told[5]=='Photo hunt is off in Options.' and told[6]=='Load a co-op save to play the photo hunt.')
 assert(told[7]=='Photo checks are off in this game.')
@@ -261,7 +264,7 @@ board.tick()
 assert(#told==2 and told[2]=='You took Memory of Xion.',told[2])
 clock=225
 board.tick(); board.tick()
-assert(#told==3 and told[3]=='Photo hunt over: 1 points.',told[3])
+assert(#told==3 and told[3]=='Photo hunt over: 1 point.',told[3])
 round.phase,round.list,round.best='ranked',{row('1001',2,90,1),row('2002',1,30,2),row('3003',0,0,3),
     row('4004',0,0,3)},true
 board.tick(); board.tick()

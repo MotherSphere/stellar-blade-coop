@@ -292,6 +292,7 @@ return {
         reloaded='你的遊戲已重新載入：你的照片不再計入本次拍照尋寶。',
         shot={counts='%s計分：1分。',yours='%s已經是你的了。',taken='%s已被%s拿下。',
             close='%s在你的照片中：請靠近一些，把它放在中央並正對它。'},
+        one={card='1分 · 第%d名',points='1分',end_notice='拍照尋寶結束：1分。'},
         go='拍照尋寶：開始拍照。剩餘%d分鐘。',end_notice='拍照尋寶結束：%d分。',top='拍照尋寶：%s。',
         entry='第%d名 %s %d分',sep='，',placed='你的名次：第%d名，共%d人。'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

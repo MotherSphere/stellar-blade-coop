@@ -355,7 +355,7 @@ return {
         places={Xion='in Xion',WasteLandA='in de Woestenij',WasteLandB='in de Grote Woestijn',other='in %s'},
         title='Fotojacht',points='%d punten',waiting='Wachten op de ranglijst van de host.',unranked='Niet gerangschikt.',
         best='Nieuw persoonlijk record.',norank='Er kwam geen ranglijst van de host.',
-        start='%s start een fotojacht %s: %s. %d minuten.',camera="Gebruik de Camera om de foto's te maken.",
+        start='%s start een fotojacht %s: %s. %d min.',camera="Gebruik de Camera om de foto's te maken.",
         took='%s pakt %s.',you_took='Jij pakt %s.',
         out={off='De fotojacht staat uit in Opties.',
             slot='Laad een opgeslagen co-opgame om mee te doen aan de fotojacht.',
@@ -367,6 +367,7 @@ return {
         reloaded="Je game is herladen: je foto's tellen niet meer mee in deze fotojacht.",
         shot={counts='%s telt: 1 punt.',yours='%s is al van jou.',taken='%s is al van %s.',
             close='%s stond op je foto: kom dichterbij, zet het doel in het midden en kijk het recht aan.'},
+        one={card='1 punt · plaats %d',points='1 punt',end_notice='Fotojacht voorbij: 1 punt.'},
         go="Fotojacht: maak je foto's. Nog %d min.",end_notice='Fotojacht voorbij: %d punten.',top='Fotojacht: %s.',
         entry='%d. %s %d',sep=', ',placed='Je plaats: %d van %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

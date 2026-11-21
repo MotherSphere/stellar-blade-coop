@@ -369,6 +369,7 @@ return {
         reloaded='Oyunun yeniden yüklendi: fotoğrafların artık bu fotoğraf avında sayılmıyor.',
         shot={counts='%s sayıldı: 1 puan.',yours='%s zaten senin.',taken='%s hedefini %s zaten aldı.',
             close='%s fotoğrafındaydı: yaklaş, hedefi ortala ve yüzünü ona dön.'},
+        one={card='1 puan · %d. sıra',points='1 puan',end_notice='Fotoğraf avı bitti: 1 puan.'},
         go='Fotoğraf avı: fotoğraflarını çek. %d dk kaldı.',end_notice='Fotoğraf avı bitti: %d puan.',
         top='Fotoğraf avı: %s.',entry='%d. %s %d',sep=', ',placed='Sıran: %d / %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

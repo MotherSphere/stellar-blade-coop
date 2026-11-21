@@ -181,8 +181,8 @@ local function notices(w)
     -- (another world's among them: the longest alias of core/worlds.lua, as targets.lua takes a world from there only),
     -- the three longest target names with two-digit numbers and 60 minutes; the Camera's; a target taken by a 32-byte
     -- name or by us; each sit-out and each stop of the photo checks; a photo hunt without a ranking; a reloaded game;
-    -- each shot's words with the longest target (taken with a 32-byte name); with the UI off GO, our end, the first
-    -- three with 32-byte names, our place, Not ranked, the no-ranking note and a new personal best.
+    -- each shot's words with the longest target (taken with a 32-byte name); with the UI off GO, our end (3 points or
+    -- 1), the first three with 32-byte names, our place, Not ranked, the no-ranking note and a new personal best.
     local ph=w.photohunt
     local targets,place,alias={},'',''
     for _,k in ipairs({'memory','cat','butterfly','fish'}) do targets[#targets+1]=ph[k]:format(99) end
@@ -198,7 +198,7 @@ local function notices(w)
     local pentry=ph.entry:format(8,NAME,3)
     for _,text in ipairs({ph.start:format(NAME,place,table.concat({targets[1],targets[2],targets[3]},ph.sep),60),
         ph.camera,ph.took:format(NAME,targets[1]),ph.you_took:format(targets[1]),ph.host_left,ph.cancelled,
-        ph.reloaded,ph.norank,ph.unranked,ph.best,ph.go:format(60),ph.end_notice:format(3),
+        ph.reloaded,ph.norank,ph.unranked,ph.best,ph.go:format(60),ph.end_notice:format(3),ph.one.end_notice,
         ph.top:format(table.concat({pentry,pentry,pentry},ph.sep)),ph.placed:format(8,8)}) do
         lines[#lines+1]=text
     end
@@ -380,8 +380,8 @@ for name in pairs(R.TEXT) do
     -- title line as the corner board's (31 columns) with the countdown, the longest time left (60:00) or Time up; a
     -- target row (Mideum 34, 18 units a column, 32 units in from each side of its 720: 36 columns), the target's name
     -- with two-digit numbers at the left, then a column, then open, you or a name cut by Join.name (19 columns) at the
-    -- right; the last line with 3 points and place 8 within the 36; the result panel's heading within 31, the line
-    -- under it with 3 points and each note within 54.
+    -- right; the last line with 3 points or 1 and place 8 within the 36; the result panel's heading within 31, the
+    -- line under it with 3 points or 1 and each note within 54.
     local pc=w.photohunt
     for _,clock in ipairs({pc.count:format(5),'60:00',pc.up}) do
         fits(name..'.photohunt.head',pc.head..'  '..clock,31)
@@ -390,8 +390,10 @@ for name in pairs(R.TEXT) do
     fits(name..'.photohunt.open',pc.open,19)
     fits(name..'.photohunt.you',pc.you,19)
     fits(name..'.photohunt.card',pc.card:format(3,8),36)
+    fits(name..'.photohunt.one.card',pc.one.card:format(8),36)
     fits(name..'.photohunt.title',pc.title,31)
     fits(name..'.photohunt.points',pc.points:format(3),54)
+    fits(name..'.photohunt.one.points',pc.one.points,54)
     for _,k in ipairs({'waiting','unranked','best','norank'}) do fits(name..'.photohunt.'..k,pc[k],54) end
     local room=w.lobby.room:format('F5')
     assert(Chat.clean(room)==room,name..'.lobby.room: '..#room..' bytes or a control')

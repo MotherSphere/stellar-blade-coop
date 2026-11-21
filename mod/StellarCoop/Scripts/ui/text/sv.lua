@@ -344,7 +344,7 @@ return {
         places={Xion='i Xion',WasteLandA='i Ödemarken',WasteLandB='i Stora öknen',other='i %s'},
         title='Fotojakt',points='%d poäng',waiting='Väntar på värdens rankning.',unranked='Inte rankad.',
         best='Nytt personbästa.',norank='Ingen rankning kom från värden.',
-        start='%s startar en fotojakt %s: %s. %d minuter.',camera='Använd Kameran för att ta bilderna.',
+        start='%s startar en fotojakt %s: %s. %d min.',camera='Använd Kameran för att ta bilderna.',
         took='%s tar %s.',you_took='Du tar %s.',
         out={off='Fotojakt är avstängd i Alternativ.',
             slot='Ladda en co-op-sparfil för att vara med i fotojakten.',
@@ -356,6 +356,7 @@ return {
         reloaded='Ditt spel laddades om: dina bilder räknas inte längre i den här fotojakten.',
         shot={counts='%s räknas: 1 poäng.',yours='%s är redan din.',taken='%s är redan tagen av %s.',
             close='%s var med på din bild: gå närmare, centrera målet och vänd dig mot det.'},
+        one={card='1 poäng · plats %d',points='1 poäng',end_notice='Fotojakten är slut: 1 poäng.'},
         go='Fotojakt: ta dina bilder. %d min kvar.',end_notice='Fotojakten är slut: %d poäng.',top='Fotojakt: %s.',
         entry='%d. %s %d',sep=', ',placed='Du kom på plats %d av %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

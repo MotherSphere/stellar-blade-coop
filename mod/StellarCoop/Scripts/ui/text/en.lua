@@ -438,13 +438,13 @@ return {
     -- reloaded game (reloaded), a shot's words for a drawn target once the selfie mode closes (shot: counts, yours,
     -- close with the target; taken with the target and the taker's name). With the UI off: GO (go: the minutes), our
     -- end (end_notice: our points), the first three (top: their entries, each place, name and points, joined by sep)
-    -- and our place (placed: ours, of how many).
+    -- and our place (placed: ours, of how many). one: card, points and end_notice for 1 point, with no number.
     photohunt={head='PHOTO HUNT',count='Starts in %d',up='Time up',open='open',you='you',card='%d points · place %d',
         cat='Cat %d',butterfly='Butterfly %d',fish='Fish %d',memory='Memory of Xion',
         places={Xion='in Xion',WasteLandA='in the Wasteland',WasteLandB='in the Great Desert',other='in %s'},
         title='Photo hunt',points='%d points',waiting="Waiting for the host's ranking.",unranked='Not ranked.',
         best='New personal best.',norank='No ranking came from the host.',
-        start='%s starts a photo hunt %s: %s. %d minutes.',camera='Use the Camera to take the photos.',
+        start='%s starts a photo hunt %s: %s. %d min.',camera='Use the Camera to take the photos.',
         took='%s took %s.',you_took='You took %s.',
         out={off='Photo hunt is off in Options.',
             slot='Load a co-op save to play the photo hunt.',
@@ -456,6 +456,7 @@ return {
         reloaded='Your game reloaded: your photos no longer count in this photo hunt.',
         shot={counts='%s counts: 1 point.',yours='%s is yours already.',taken='%s was taken by %s.',
             close='%s was in your photo: get closer, centre it and face it.'},
+        one={card='1 point · place %d',points='1 point',end_notice='Photo hunt over: 1 point.'},
         go='Photo hunt: take your photos. %d min left.',end_notice='Photo hunt over: %d points.',
         top='Photo hunt: %s.',entry='%d. %s %d',sep=', ',placed='You placed %d of %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.

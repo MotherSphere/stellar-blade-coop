@@ -361,7 +361,7 @@ return {
         places={Xion='à Xion',WasteLandA='dans les Terres désolées',WasteLandB='dans le Grand Désert',other='à %s'},
         title='Chasse aux photos',points='%d points',waiting="En attente du classement de l'hôte.",
         unranked='Hors classement.',best='Nouveau record personnel.',norank="Aucun classement n'est venu de l'hôte.",
-        start='%s lance une chasse aux photos %s : %s. %d minutes.',
+        start='%s lance une chasse aux photos %s : %s. %d min.',
         camera="Utilisez l'Appareil photo pour prendre les photos.",took='%s remporte %s.',you_took='Vous remportez %s.',
         out={off='La chasse aux photos est désactivée dans les Options.',
             slot='Chargez une sauvegarde co-op pour jouer à la chasse aux photos.',
@@ -374,6 +374,7 @@ return {
         reloaded='Votre jeu a été rechargé : vos photos ne comptent plus dans cette chasse aux photos.',
         shot={counts='%s compte : 1 point.',yours='%s est déjà à vous.',taken='%s a déjà été remporté par %s.',
             close='%s était sur votre photo : rapprochez-vous, centrez la cible et faites-lui face.'},
+        one={card='1 point · place %d',points='1 point',end_notice='Chasse aux photos terminée : 1 point.'},
         go='Chasse aux photos : à vos appareils. Encore %d min.',end_notice='Chasse aux photos terminée : %d points.',
         top='Chasse aux photos : %s.',entry='%d. %s %d',sep=', ',placed='Votre place : %d sur %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
