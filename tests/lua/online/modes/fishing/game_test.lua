@@ -2,19 +2,20 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The game side of a fishing tournament (online/modes/fishing/game.lua) on a fake round, status, clock and world: the
--- fish table read from SB's two tables by row name (a missing row, a bad value, a shared ID refused) and fish()'s sit
--- outs (fishing=off, off a co-op save, a table that cannot be read, read once a Lua load); the engine line's book
--- answers; the asks once a second from GO, never with the number the engine line shows, again after a lost answer, one
--- last ask at our end (after G.LOST when an answer is lost), then none; a catch before GO; the baseline taken again
--- after a map change, a loading screen, a slot change and each none answer but unread, which keeps it, the answer of an
--- ask sent before the event dropped; no ask while the world is not loaded; a fall or a missing fish counting nothing; a
--- jump of 3; a fish not in the table logged once and never sent; coop off, a round replaced and a round that ended.
+-- fish table read from SB's two tables by row name (a missing row, a bad value, an ID of 0, points below 0, a shared ID
+-- refused) and fish()'s sit outs (fishing=off, off a co-op save, a table that cannot be read, read once a Lua load);
+-- the engine line's book answers; the asks once a second from GO, never with the number the engine line shows, again
+-- after a lost answer, one last ask at our end (after G.LOST when an answer is lost), then none; a catch before GO; the
+-- baseline taken again after a map change, a loading screen, a slot change and each none answer but unread, which keeps
+-- it, the answer of an ask sent before the event dropped; no ask while the world is not loaded; a fall or a missing
+-- fish counting nothing; a jump of 3; a fish not in the table logged once and never sent; coop off, a round replaced
+-- and a round that ended.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local G=require('online.modes.fishing.game')
 local rows=require('online.modes.fishing.rows')
 
--- G.rows on two fake DataTables: each row's ID and points by its name.
-local function tables(skip,bad,twice)
+-- G.rows on two fake DataTables: each row's ID and points by its name. edit(items, fish) changes rows after.
+local function tables(skip,bad,twice,edit)
     local items,fish={},{}
     for k,name in ipairs(rows) do
         if name~=skip then
@@ -22,6 +23,7 @@ local function tables(skip,bad,twice)
             fish[name]={RewardItemCount=bad==name and 'x' or k*10}
         end
     end
+    if edit then edit(items,fish) end
     local function dt(t) return {FindRow=function(_,name) return t[name] end} end
     local by={['/Game/Local/Data/ItemTable.ItemTable']=dt(items),
         ['/Game/Local/Data/ItemFishTable.ItemFishTable']=dt(fish)}
@@ -35,6 +37,11 @@ assert(n==40)
 assert(not pcall(G.rows,tables('Fish_Tuna'),plain),'A missing row raises')
 assert(not pcall(G.rows,tables(nil,'Fish_Tuna'),plain),'A value that is no number raises')
 assert(not pcall(G.rows,tables(nil,nil,'Fish_Tuna'),plain),'Two rows of one ID raise')
+assert(not pcall(G.rows,tables(nil,nil,nil,function(items) items.Fish_Tuna.ID=0 end),plain),'An ID of 0 raises')
+assert(not pcall(G.rows,tables(nil,nil,nil,function(_,fish) fish.Fish_Tuna.RewardItemCount=-1 end),plain),
+    'Points below 0 raise')
+assert(G.rows(tables(nil,nil,nil,function(_,fish) fish.Fish_Tuna.RewardItemCount=0 end),plain)[9200+19]==0,
+    'A row of 0 points is read')
 
 -- The engine line's book answers.
 local b=G.book('9201:3,9220:1')
