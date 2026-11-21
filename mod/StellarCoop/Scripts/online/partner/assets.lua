@@ -29,7 +29,9 @@ function Assets.new(sentinel,allowed)
     -- By ghost slot: files, from (bytes read), read_at, keys ({k, kind, paths}) in order, sent (k: line), kinds, on
     -- (watched now). A slot unwatched keeps its place, so watching it again appends no line it already has.
     local slots={}
-    local cache={} -- By class and path: {object=}, or false after a failed load (never tried again).
+    -- By class and path: {object=, hex=, class=}, or false after a failed load (never tried again). Its address and
+    -- class are read at the load: lines() may run after the game collected it, before the check finds it.
+    local cache={}
     local order,check={},0 -- The cache keys holding an object, in their load's order; the last one checked.
     local load_at,dirty=-math.huge,false
     local function wants(s,kind) return s.on and (not s.kinds or s.kinds[kind]) end
@@ -82,7 +84,7 @@ function Assets.new(sentinel,allowed)
             if object and not (checked and is) then object=false end
         end
         if own(path) then get() else sentinel.call(path,get) end
-        cache[c]=object and {object=object} or false
+        cache[c]=object and {object=object,hex=hex(object),class=hex(object:GetClass())} or false
         if not object then
             return 'Ghost asset not loaded: '..path..(object==false and ' (not a '..class_path..')' or '')
         end
@@ -97,11 +99,11 @@ function Assets.new(sentinel,allowed)
                 for i=1,3 do
                     local c=key.paths[i]
                     if c and not cache[c] then got=nil; break end
-                    got[i]=c and hex(cache[c].object) or '0x0'
+                    got[i]=c and cache[c].hex or '0x0'
                 end
                 if got and wants(s,key.kind) then
-                    local o=cache[key.paths[1]].object
-                    local line=string.format('loaded %d %s %s %s %s',key.k,got[1],hex(o:GetClass()),got[2],got[3])
+                    local class=cache[key.paths[1]].class
+                    local line=string.format('loaded %d %s %s %s %s',key.k,got[1],class,got[2],got[3])
                     if s.sent[key.k]~=line and s.files.loaded(line) then s.sent[key.k]=line end
                 end
             end

@@ -18,7 +18,7 @@ local function object(name,class)
     function o.type() return 'UObject' end
     function o.IsValid(self) return not self.dead end
     function o.GetAddress() return at end
-    function o.GetClass(self) return self.class end
+    function o.GetClass(self) assert(not self.dead,'GetClass on a collected object') return self.class end
     function o.IsA(self,c) return self.class==c or self.class.super==c end
     return o
 end
@@ -161,4 +161,24 @@ local before=loads
 at(8)
 at(9)
 assert(loads==before,'nothing watched: nothing loaded')
+-- Collected while still cached: a later load writes the lines again without asking the dead object its class. The
+-- check finds it a tick later and it is loaded again with a new line.
+for i=1,3 do kinds['/Game/Sound/F'..i..'.F'..i]=classes.cue end
+local fresh=Assets.new(sentinel,function() return false end)
+local fifth=slot_files()
+fifth.text='name 1 sound /Game/Sound/F1.F1 - - -\nname 2 sound /Game/Sound/F2.F2 - - -\n'
+fresh.watch(5,fifth)
+local function at_fresh(t) clock=t; fresh.tick() end
+at_fresh(10)
+at_fresh(10.25)
+assert(#fifth.appended==2,'both keys in')
+local first=fifth.appended[1]
+objects['/Game/Sound/F1.F1'].dead=true
+fifth.text=fifth.text..'name 3 sound /Game/Sound/F3.F3 - - -\n'
+at_fresh(10.5) -- checks F2, loads F3, writes the lines with F1 still cached
+assert(#fifth.appended==3 and fifth.appended[3]:match('^loaded 3 '),'the new key only')
+at_fresh(10.75)
+at_fresh(11) -- finds F1 collected, loads it again
+assert(loads_of['/Game/Sound/F1.F1']==2 and #fifth.appended==4 and fifth.appended[4]:match('^loaded 1 ') and
+    fifth.appended[4]~=first,'collected: loaded again, a new line')
 print('assets_test: ok')
