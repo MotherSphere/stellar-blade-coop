@@ -106,7 +106,9 @@ function Rifle.new(laser,trace,grip,loaded)
         if math.abs(q.X*t.X+q.Y*t.Y+q.Z*t.Z+q.W*t.W)>0.9999999 and math.abs(a.X-b.X)+math.abs(a.Y-b.Y)+math.abs(a.Z-b.Z)<1e-3 then eased=nil end
     end
 
-    -- The rifle on her hand at the grip (eased), with the morph's scale and spin.
+    -- The rifle on her hand at the grip (eased), with the morph's scale and spin. The grip held as it is goes out once:
+    -- again only once the frame turned or tilted the rifle (st.moved), as each call of a game function makes a UE4SS
+    -- object that the collector frees late (fight/gunmode/mode.lua's perf).
     function self.send(gun,now)
         if eased then ease(now) end
         st.before,st.at=st.at,now
@@ -115,8 +117,10 @@ function Rifle.new(laser,trace,grip,loaded)
             -- a fresh transform each frame: GRIP tables are shared between clips and must never be scaled in place
             gun:K2_SetRelativeTransform({Translation=G.Translation,Rotation=G.Rotation,Scale3D={X=mk,Y=mk,Z=mk}},false,{},true)
             if st.mspin and st.mspin~=0 then gun:K2_AddLocalRotation({Pitch=0,Yaw=st.mspin,Roll=0},false,{},true) end
-        else
+            st.sent=nil
+        elseif eased or st.moved or st.sent~=G then -- (eased: its table changes in place)
             gun:K2_SetRelativeTransform(G,false,{},true)
+            st.sent,st.moved=G,false
         end
     end
     function self.owns(c) return st~=nil and valid(c) and valid(st.gun) and c:GetAddress()==st.gun:GetAddress() end
@@ -131,10 +135,11 @@ function Rifle.new(laser,trace,grip,loaded)
         return true
     end
 
-    function self.frame()
+    -- cur: the controller's pawn as the caller read it this frame (fight/gunmode/mode.lua's tick), else read here.
+    function self.frame(cur)
         if not st then return end
         local pc,pawn,gun=st.pc,st.pawn,st.gun
-        local cur=valid(pc) and pc.Pawn
+        cur=valid(pc) and (cur or pc.Pawn)
         if not valid(pawn) or not valid(gun) or not valid(cur) or cur:GetAddress()~=st.addr then self.stop(); return end
         -- (paused: fight/gunmode/mode.lua's tick returns before any call of frame, its own and facts.lua's)
         local mk=st.mk
@@ -145,6 +150,7 @@ function Rifle.new(laser,trace,grip,loaded)
             local k=math.max(0,math.min(1,(now-st.reloadAt)/st.reloadLen))
             local w=math.sin(math.pi*k)
             gun:K2_AddLocalRotation({Pitch=-14*w,Yaw=6*w,Roll=40*w},false,{},true)
+            st.moved=true
         end
         if held then
             if not st.aimAt then st.aimAt=now; crumb('aim') end
@@ -178,6 +184,7 @@ function Rifle.new(laser,trace,grip,loaded)
                 local q=qmul({cx*k,cy*k,cz*k,math.cos(a/2)},{r.X,r.Y,r.Z,r.W})
                 gt.Rotation={X=q[1],Y=q[2],Z=q[3],W=q[4]}
                 gun:K2_SetWorldTransform(gt,false,{},true)
+                st.moved=true
             end) end
             -- the laser once the rifle is up (the aim blends in over ~0.2 s), then it stays on until aim is let go
             if st.beam or (onTarget and now-st.aimAt>=0.12) or now-st.aimAt>=0.6 then

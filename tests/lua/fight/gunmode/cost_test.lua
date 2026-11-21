@@ -504,6 +504,70 @@ do
     assert(logs[#logs-1]:match('^off %(command%), %d+ shots, Lua %d+ KB$'),logs[#logs-1])
 end
 
+-- 11b. The Lua heap's lowest point rose from 18 MB to 124 MB in 6 minutes with the rifle out (2026-11-21 test, gun
+--      mode allocating 20.6 KB a tick carried). UE4SS makes a new object with a finalizer at each read of a game object
+--      and at each call of a game function (Fake.ue4ss). Lua 5.4's collector frees such garbage one cycle after it finds
+--      it, so the more a frame makes, the higher the floor climbs. A carried frame reads at most 4 objects and calls at
+--      most 17 game functions. Over 2 minutes carried, aiming and firing, gun mode keeps none of those objects: the heap
+--      after a full collection stays within 8 KB.
+do
+    local w=world()
+    -- The frame's engine calls the fake lacks, with neutral values.
+    local function xf() return {Translation={X=0,Y=0,Z=0},Rotation={X=0,Y=0,Z=0,W=1},Scale3D={X=1,Y=1,Z=1}} end
+    local valid=function() return true end
+    local ML={IsValid=valid,GetForwardVector=function() return {X=1,Y=0,Z=0} end,
+        InverseTransformDirection=function(_,_,v) return {X=v.X,Y=v.Y,Z=v.Z} end,
+        InverseTransformLocation=function(_,_,v) return {X=v.X,Y=v.Y,Z=v.Z} end}
+    local find=w.find
+    function w.find(path) if path=='/Script/Engine.Default__KismetMathLibrary' then return ML end return find(path) end
+    local montage={IsValid=valid,GetFName=function() return Fake.name('Test_Idle') end}
+    local ai={IsValid=valid,GetCurrentActiveMontage=function() return montage end,Montage_IsPlaying=function() return true end}
+    local m=w.mesh
+    m.GetSocketTransform=function() return xf() end
+    m.GetSocketLocation=function() return {X=0,Y=0,Z=100} end
+    m.K2_GetComponentToWorld=function() return xf() end
+    m.GetAnimInstance=function() return ai end
+    m.RelativeRotation={Pitch=0,Yaw=-90,Roll=0}
+    m.K2_SetRelativeRotation=function() end
+    w.pawn.GetVelocity=function() return {X=0,Y=0,Z=0} end
+    w.pawn.K2_GetActorRotation=function() return {Pitch=0,Yaw=0,Roll=0} end
+    local n,back=Fake.ue4ss()
+    local gun=GunMode.new({log=function() end,
+        store={save=function() return true end,clear=function() end,load=function() return '' end}})
+    out(w,gun)
+    for _,c in ipairs(w.pawn.comps) do
+        c.GetSocketLocation=function() return {X=50,Y=0,Z=100} end
+        c.GetSocketRotation=function() return {Pitch=0,Yaw=0,Roll=0} end
+        c.K2_GetComponentToWorld=function() return xf() end
+        c.IsVisible=valid
+    end
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil
+    frames(gun,120)
+    n.made,n.calls=0,0
+    frames(gun,600)
+    -- (6.8 objects and 19 calls before: the pawn read again in the rifle's frame, her mesh again in the IK, her movement
+    -- each frame, the jump keys polled out of firing mode and the rifle's unchanged grip sent each frame)
+    assert(n.made<=4*600,('%.2f objects read a carried frame'):format(n.made/600))
+    assert(n.calls<=17*600,('%.2f game functions called a carried frame'):format(n.calls/600))
+    local function live()
+        w.fovs={}
+        for k in pairs(Fake.events) do Fake.events[k]=nil end
+        collectgarbage('collect'); collectgarbage('collect')
+        return collectgarbage('count')
+    end
+    local function phases(t)
+        w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil; frames(gun,t)
+        w.pawn.bTPSMode,w.down.RightMouseButton=true,true; frames(gun,t)
+        w.down.LeftMouseButton=true; frames(gun,t)
+    end
+    phases(600)
+    local before=live()
+    for _=1,4 do phases(600) end
+    local grew=live()-before
+    assert(grew<8,('the heap grew %.1f KB in 2 minutes with the rifle out'):format(grew))
+    back()
+end
+
 -- 12. A raise in the keep's lookup (core/keep.lua's get) falls through to the engine's name hash: the rifle still
 --     comes out with its mesh and the layer found in memory, neither loaded on the frame, with no tick error.
 do

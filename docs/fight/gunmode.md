@@ -334,11 +334,15 @@ of its class, `CH_Drone_BP_C`, found by its path. A walk of the game's objects f
 test (36 ms).
 
 While the rifle is out, `UE4SS.log` has a `[GM]` line every 10 s: `perf: tick <average> ms average, <worst> ms worst,
-<n> ticks, Lua <heap> KB (lowest <low> KB), gun mode allocated at least <k> KB a tick; ms a tick:` and the six
-costliest parts of the tick, then `; KB a tick:` and the six parts that allocate the most. The heap is the Lua heap of
-the whole mod. Its lowest point over the 10 s goes up when
-something keeps memory. The heap went from 33 MB to 223 MB in 8 minutes with the rifle out in the 2026-11-21 test. The
-`on` and `off` lines end with the heap at that moment, so a rise while the rifle is away shows too.
+<n> ticks, Lua <heap> KB (lowest <low> KB), gun mode allocated at least <k> KB a tick; ms a tick:` and the six costliest
+parts of the tick, then `; KB a tick:` and the six parts that allocate the most. The heap is the Lua heap of the whole
+mod. Its lowest point over the 10 s goes up when something keeps memory. It also goes up when most of the garbage is
+UE4SS's objects. UE4SS makes one at each read of a game object and at each call of a game function. Lua frees such
+garbage one collection after it finds it, so each collection ends higher. In the second 2026-11-21 test the lowest point
+went from 18 MB to 124 MB in 6 minutes, while the tests' fake game shows no table of gun mode growing. A carried frame
+now reads 4 such objects and calls 16 game functions on that fake game (7 and 19 before). The heap went from 33 MB to
+223 MB in 8 minutes with the rifle out in the first 2026-11-21 test. The `on` and `off` lines end with the heap at that
+moment, so a rise while the rifle is away shows too.
 
 ## coop gun
 

@@ -56,8 +56,12 @@ do
     assert(turned and math.abs(deg(turned)-3)<1e-3 and turned.Z>0,'the whole 3 degrees')
     target=at(10); turned=nil; a.frame()
     assert(turned and math.abs(deg(turned)-Rifle.TURN_MAX)<1e-3,'10 degrees off: the most it turns')
-    target=at(30); turned=nil; a.frame()
+    sent=nil; target=at(30); turned=nil; a.frame()
     assert(turned==nil,'far off: no turn')
+    -- The grip goes out again after a turned frame, then not while it stays as it is.
+    assert(sent~=nil,'the grip sent again after a turned frame')
+    sent=nil; a.frame()
+    assert(sent==nil,'an unchanged grip sent again')
     os.clock=clock
 end
 print('gunmode rifle_frame_test ok')

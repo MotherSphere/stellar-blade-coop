@@ -359,9 +359,10 @@ function IK.new(g)
         return st.last
     end
 
-    -- mode: 'aim' | 'carry' | 'off'; returns a table of numbers for the log
-    function self.tick(pc,p,rifle,mode,pp)
-        local mesh=p.Mesh
+    -- mode: 'aim' | 'carry' | 'off'; returns a table of numbers for the log. mesh: her body mesh as the caller read it
+    -- this frame (fight/gunmode/mode.lua's tick), else read here.
+    function self.tick(pc,p,rifle,mode,pp,mesh)
+        mesh=mesh or p.Mesh
         if not valid(pp) then return end
         if mode=='off' then
             if st.alpha~=0 then pcall(function() pp.ArmsAlpha=0 end); st.alpha=0 end

@@ -263,7 +263,7 @@ function GunMode.new(env)
     -- What belongs to one pawn and its controller, cleared on a new controller with no game call (new_controller).
     local PER_PAWN={'ovr_row','flash_fx','rifle','pose_m','pose_on','ik','layer_clip','reload_until','turn','turnq',
         'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','drone_wait','drone_keep','morph',
-        'move_block','resume','free_at','resume_n'}
+        'move_block','resume','free_at','resume_n','cmove','cmove_of'}
     local restored=false -- coop-gun.txt read this Lua load (self.restore).
 
     -- The reload: the NIKKE squad's reload animation on the rifle stance with its sounds at their times.
@@ -1231,6 +1231,16 @@ function GunMode.new(env)
     local function paused(gs,pc) return gs:IsGamePaused(pc) end
     local function is_paused(pc) local ok,pz=pcall(paused,g.find(STATICS),pc); return ok and pz==true end -- (made once)
     local PELVIS,SPINE1 -- FName('Bip001-Pelvis') and FName('Bip001-Spine1'), made once (the flip test while falling)
+    -- Her movement component, read once for each pawn (by its address): UE4SS makes a new object at each read, which the
+    -- collector frees late (perf below).
+    local function address(o) return o:GetAddress() end
+    local function movement(p)
+        local ok,at=pcall(address,p)
+        if not (ok and at==s.cmove_of and g.valid(s.cmove)) then
+            s.cmove,s.cmove_of=g.get(p,'CharacterMovement'),ok and at or nil
+        end
+        return s.cmove
+    end
 
     local function tick()
         local now=os.clock()
@@ -1404,7 +1414,7 @@ function GunMode.new(env)
             if tps then s.aim_seen=now end
             local key_held=down(set.aim_key) or down('Gamepad_LeftTrigger')
             s.key_held,s.tps=key_held,tps
-            falling_n=g.try(function() return p.CharacterMovement:IsFalling() end)==true
+            falling_n=g.try(function() return movement(p):IsFalling() end)==true
             -- a dodge drops the game's aim like a jump: bridged the same way
             s.air_aim=Input.bridge(s.air_aim,tps,key_held,s.aim_seen and now-s.aim_seen)
             s.zoom_held=tps or s.air_aim
@@ -1430,7 +1440,8 @@ function GunMode.new(env)
             pcall(fov,pc,s.zoom_held)
             -- Jumping in firing mode: the game's aim takes no jump input, so a press of the jump key (Space / pad A)
             -- makes her jump (her movement's jump speed, launched); the aim stance stays through the jump (fight/gunmode/data.lua).
-            local jump=down('SpaceBar') or down('Gamepad_FaceButton_Bottom')
+            -- (the jump keys polled in firing mode only; out of it they count as held, so a jump needs a press in it)
+            local jump=not s.zoom_held or down('SpaceBar') or down('Gamepad_FaceButton_Bottom')
             if jump and not s.jump_down and s.zoom_held then
                 -- SB's movement refuses ACharacter::Jump in its aim: the jump's own launch instead, on the ground only.
                 local ok,err=pcall(function()
@@ -1509,7 +1520,7 @@ function GunMode.new(env)
         -- is read (M13): two traces a frame.
         s.target=(s.zoom_held or s.key_held==true or inp.fire or s.want=='aim') and crosshair(pc,p) or nil
         if s.prof then s.prof('crosshair') end
-        local ok,err=pcall(stance.frame)
+        local ok,err=pcall(stance.frame,p) -- (this frame's pawn: the rifle's frame reads it no second time)
         if not ok then g.log('stance: '..tostring(err)); disable('stance error'); return end
         if not stance.running() then disable('the stance stopped'); return end
         if not set.native then camera(p) end
@@ -1552,7 +1563,7 @@ function GunMode.new(env)
             end
             -- a move keeps the rifle held (the carry follows her body through it) instead of handing her arms back
             local falling0
-            if set.native then falling0=falling_n else falling0=g.try(function() return p.CharacterMovement:IsFalling() end)==true end
+            if set.native then falling0=falling_n else falling0=g.try(function() return movement(p):IsFalling() end)==true end
             local want=GunMode.want(s.reload_until,s.zoom_held,inp.fire,s.move,falling0)
             if s.morph then
                 local m=Morph.at(s.morph.dir,now-s.morph.t0)
@@ -1681,7 +1692,7 @@ function GunMode.new(env)
             s.ik.want=pose -- the v4 pin follows the layer clip (aim, carry, reload)
             s.ik.reload_k=(want=='reload' and s.reload_until) and 1-(s.reload_until-now)/(s.reload_len or 1) or nil
             single.no_laser=want=='reload'
-            if not s.g1_hold then ok_i,err_i=pcall(s.ik.tick,pc,p,s.rifle,mode_ik,ppi) end -- g1's AimRot test freezes the IK writes
+            if not s.g1_hold then ok_i,err_i=pcall(s.ik.tick,pc,p,s.rifle,mode_ik,ppi,mesh) end -- g1's AimRot test freezes the IK writes
             if not ok_i and not s.ik_err then s.ik_err=true; g.log('ik: '..tostring(err_i)) end
             -- the aim camera over her right shoulder (the native TPS camera ignores the boom): gunmode's camera
             -- modifier (BP_NGM_CamMod in the layer pak) adds Offset (camera space: forward, right, up), eased
@@ -1892,7 +1903,13 @@ function GunMode.new(env)
     -- least that much), then that allocation split by section, the six largest. The heap grew from 33 MB to 223 MB in
     -- 8 minutes with the rifle out (2026-11-21 test), with no figure from the rifle away or for gun mode's share: the
     -- on and off lines give the heap too. Its lowest point rose from 18 MB to 124 MB in 6 minutes in the next test,
-    -- with gun mode allocating 20.6 KB a tick carried: the split names the sections that make that garbage.
+    -- with gun mode allocating 20.6 KB a tick carried: the split names the sections that make that garbage. No table
+    -- of gun mode grew over thousands of ticks on the fake game, with a new object at each read as UE4SS makes one
+    -- (tests/lua/fight/gunmode/cost_test.lua 11b). The rise matches Lua 5.4's collector at its default pause (200)
+    -- when nearly all the garbage has a finalizer, as UE4SS's objects have: such garbage outlives the cycle that finds
+    -- it, so each cycle's floor holds the last cycle's garbage. A model of that climbs as the square root of time (114
+    -- MB at 6 minutes for that test's figures). A frame that makes fewer objects slows the climb. A lower pause would
+    -- stop it, for the whole mod: not set here (a changed collector crashed UE4SS once, above).
     local sec,smax,mem,last,last_kb={},{},{},0,0
     s.prof=function(name)
         local t,kb=os.clock(),collectgarbage('count')

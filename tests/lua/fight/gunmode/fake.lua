@@ -304,4 +304,54 @@ function Fake.new()
     return w
 end
 Fake.name=name
+
+-- UE4SS's way with objects over the installed globals: each read of an object (a property, a game function's result,
+-- StaticFindObject, FindFirstOf, FindAllOf, LoadAsset) gives a new wrapper with a finalizer, as UE4SS makes a new
+-- userdata at each read. Wrappers of one object compare equal. A table keyed by such objects grows with each read. The
+-- counts: n.made (wrappers made), n.calls (calls of the game's functions; UE4SS's own methods below make none).
+-- Returns n and a function that puts the globals back.
+local OWN={IsValid=true,GetAddress=true,GetFullName=true,GetFName=true,GetClass=true,IsA=true,type=true,ToString=true}
+function Fake.ue4ss()
+    local n={made=0,calls=0}
+    local MT,OF={},{} -- OF: the key under which a wrapper holds its object (no table of wrappers to grow)
+    local function unwrap(v) return type(v)=='table' and rawget(v,OF) or v end
+    local function object(v) return type(v)=='table' and rawget(v,OF)==nil and rawget(v,'IsValid')~=nil end
+    local function wrap(v)
+        if not object(v) then return v end
+        n.made=n.made+1
+        return setmetatable({[OF]=v},MT)
+    end
+    local function results(...)
+        local c=select('#',...); local t={...}
+        for i=1,c do t[i]=wrap(t[i]) end
+        return table.unpack(t,1,c)
+    end
+    MT.__index=function(p,k)
+        local v=rawget(p,OF)[k]
+        if type(v)=='function' then
+            return function(self,...)
+                if not OWN[k] then n.calls=n.calls+1 end
+                local c=select('#',...); local args={...}
+                for i=1,c do args[i]=unwrap(args[i]) end
+                if k=='GetAddress' then return v(unwrap(self),table.unpack(args,1,c)) end -- (a number in UE4SS)
+                return results(v(unwrap(self),table.unpack(args,1,c)))
+            end
+        end
+        return wrap(v)
+    end
+    MT.__newindex=function(p,k,v) rawget(p,OF)[k]=unwrap(v) end
+    MT.__eq=function(a,b) return unwrap(a)==unwrap(b) end
+    MT.__gc=function() end
+    local sfo,ffo,fao,la=StaticFindObject,FindFirstOf,FindAllOf,LoadAsset
+    StaticFindObject=function(...) return wrap(sfo(...)) end
+    FindFirstOf=function(c) return wrap(ffo(c)) end
+    FindAllOf=function(c)
+        local list=fao(c); if type(list)~='table' then return list end
+        local out={}
+        for i,o in ipairs(list) do out[i]=wrap(o) end
+        return out
+    end
+    LoadAsset=function(path) return wrap(la(path)) end
+    return n,function() StaticFindObject,FindFirstOf,FindAllOf,LoadAsset=sfo,ffo,fao,la end
+end
 return Fake
