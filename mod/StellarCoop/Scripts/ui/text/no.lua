@@ -255,6 +255,8 @@ return {
         too_close='For nært: minst 15 m mellom sjekkpunktene.',full='Allerede 64 sjekkpunkter: lagre løypa.',
         other_map='Denne løypa er på et annet kart.',
         saved='Løypa %s er lagret, %d sjekkpunkter.',
+        still='Resultater som gjenstår: %d.',best='Ny personlig rekord.',unranked='Ikke rangert.',
+        placed='Doro-løp: plass %d av %d.',
         match={off='Doro-løp er slått av i Alternativer: du står over denne runden.',
             bike='Gå av motorsykkelen for å kjøre i neste runde.',
             night='En Nattoperasjon pågår: du står over denne runden.',

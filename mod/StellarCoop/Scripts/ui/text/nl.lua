@@ -258,6 +258,8 @@ return {
         too_close='Te dichtbij: minstens 15 m tussen checkpoints.',full='Al 64 checkpoints: sla de route op.',
         other_map='Deze route ligt op een andere kaart.',
         saved='Route %s opgeslagen, %d checkpoints.',
+        still='Uitslagen nog onderweg: %d.',best='Nieuw persoonlijk record.',unranked='Niet gerangschikt.',
+        placed='Dororace: plaats %d van %d.',
         match={off='Dororace staat uit in Opties: je slaat deze ronde over.',
             bike='Stap van de motor om de volgende ronde mee te racen.',
             night='Er loopt een Nachtelijke missie: je slaat deze ronde over.',

@@ -227,6 +227,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'online/modes/race/drive_model', 'online/modes/race/model', 'online/modes/race/run',
                               'online/modes/race/match/model', 'online/modes/race/match/round',
                               'online/modes/race/match/tracks', 'online/modes/race/match/game',
+                              'online/modes/race/ui/hud',
                               'online/session/booth', 'online/session/chat',
                               'online/group/group', 'online/lobby/halls_rows', 'world/teamshop/rows',
                               'online/session/join',

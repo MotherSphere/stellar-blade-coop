@@ -263,6 +263,8 @@ return {
         too_close='Liian lähellä: rastipisteiden väli vähintään 15 m.',full='Jo 64 rastipistettä: tallenna rata.',
         other_map='Tämä rata on toisella kartalla.',
         saved='Rata %s tallennettu, %d rastipistettä.',
+        still='Tuloksia vielä tulossa: %d.',best='Uusi henkilökohtainen ennätys.',unranked='Ei sijoitusta.',
+        placed='Doro-kilpa: sija %d/%d.',
         match={off='Doro-kilpa on pois päältä asetuksissa: jäät pois tältä kierrokselta.',
             bike='Nouse moottoripyörän selästä ajaaksesi seuraavalla kierroksella.',
             night='Yöoperaatio on käynnissä: jäät pois tältä kierrokselta.',

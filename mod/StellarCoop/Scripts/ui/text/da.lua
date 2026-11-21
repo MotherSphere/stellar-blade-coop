@@ -253,6 +253,8 @@ return {
         too_close='For tæt: mindst 15 m mellem checkpoints.',full='Allerede 64 checkpoints: gem ruten.',
         other_map='Ruten er på et andet kort.',
         saved='Ruten %s er gemt, %d checkpoints.',
+        still='Resultater, der mangler: %d.',best='Ny personlig rekord.',unranked='Ikke rangeret.',
+        placed='Doro-løb: nummer %d af %d.',
         match={off='Doro-løb er slået fra i Indstillinger: du står over i denne runde.',
             bike='Stig af motorcyklen for at køre med i næste runde.',
             night='En Natmission er i gang: du står over i denne runde.',

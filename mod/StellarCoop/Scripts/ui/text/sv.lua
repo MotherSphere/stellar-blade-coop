@@ -251,6 +251,8 @@ return {
         too_close='För nära: minst 15 m mellan checkpoints.',full='Redan 64 checkpoints: spara banan.',
         other_map='Banan ligger på en annan karta.',
         saved='Banan %s sparad, %d checkpoints.',
+        still='Resultat som återstår: %d.',best='Nytt personbästa.',unranked='Inte rankad.',
+        placed='Dorolopp: plats %d av %d.',
         match={off='Dorolopp är avstängt i Alternativ: du står över den här rundan.',
             bike='Kliv av motorcykeln för att köra i nästa runda.',
             night='En Nattinsats pågår: du står över den här rundan.',

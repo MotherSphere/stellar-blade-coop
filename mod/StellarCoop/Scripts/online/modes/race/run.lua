@@ -30,12 +30,10 @@ local Where=require('core.where')
 local R=require('online.modes.race.model')
 local Mm=require('online.modes.race.match.model')
 local Doro=require('online.modes.race.doro')
-local P=require('ui.kit.hud_parts')
-local T=require('ui.text')
+local Hud=require('online.modes.race.ui.hud')
 local clean=require('core.line').clean
 local valid,value_of,find=U.valid,U.value_of,U.find
 local Race={}
-local ABOVE=220 -- cm over a checkpoint's centre (EVE's feet there) for its marker: about her head.
 -- A skeletal mesh faces its +Y, so a Doro turned to face a yaw gets this much less, as EVE's own mesh does (a starting
 -- value until the game shows it).
 local MESH_YAW=-90
@@ -46,28 +44,12 @@ local FAST,FAST_FOR,PAUSE_FOR=550,1,2
 local GONE_FOR=2 -- s with no EVE (a load, the title): she left the map.
 local GO_SHOW,MISSED_SHOW=1,2 -- s a banner stays: GO, a missed checkpoint.
 local NAME=20 -- Characters of her name shown, as the partner card.
--- The HUD in the kit's layout units (3840 by 2160). The panel and, in its place once the race ends, the results at the
--- top centre, where Night Operation's card goes (a race never arms during a run); the banner over the middle; the
--- marker and the edge arrow as the partner's (online/partner/hud.lua), in Beta blue.
-local HUD_W,PANEL_H,RESULT_H,HUD_Y=1040,160,330,96
-local BANNER_W,BANNER_H,BANNER_Y=1600,160,520
-local MW,MH,AW,AH,AC=320,120,160,180,80
-local MIDDLE,LEFT,RIGHT={X=0.5,Y=0.5},{X=0,Y=0.5},{X=1,Y=0.5}
-local GROUPS={'race_panel','race_results','race_banner','race_marker','race_arrow'}
 local USE='Use: coop race record <name> | cp | save [laps] | cancel | start <name> | quit'
 -- coop race drive is a test and tuning tool, left out of USE (online/modes/race/drive.lua's command).
 local NAMES='a track name is 1 to 24 of a-z, 0-9, _ and -'
 
--- A race time as the panel shows it: 1:23.45.
-function Race.clock(ms)
-    local cs=math.max(0,math.floor(ms/10))
-    return string.format('%d:%02d.%02d',cs//6000,cs//100%60,cs%100)
-end
--- The panel's line in words w: the time, then CP, LAP and POS, two spaces apart.
-function Race.line(w,ms,cp,cps,lap,laps,pos,of)
-    local r=w.race
-    return Race.clock(ms)..'  '..r.cp:format(cp,cps)..'  '..r.lap:format(lap,laps)..'  '..r.pos:format(pos,of)
-end
+-- A race time as the panel shows it: 1:23.45 (online/modes/race/ui/hud.lua's).
+Race.clock=Hud.clock
 local function eve()
     local pawn=valid(UE.GetPlayer())
     return pawn and pawn:IsA(find('/Script/SB.SBCharacter')) and pawn or nil
@@ -106,18 +88,17 @@ function Race.new(o)
     local race=nil
     local failed=nil -- Why the race stopped on an error: none again until the mod reloads.
     local last_id=0
-    local hud=nil -- self.hud's {kit, theme, settings}.
     local away=false -- Paused or on a game screen, as of the last 250 ms read: the HUD hides.
-    local picked,lang,words,was_on=nil,nil,T.en,false
     local function clock() return os.clock()*1000 end
-    local function shown() return hud~=nil and not hud.kit.off() end
-    local function sound(name) if hud then hud.kit.sound(name) end end
     local function her_name(w)
         local name=clean((link and link.friend()) or '')
         if name=='' then return w.chat.partner end
         if (utf8.len(name) or 0)>NAME then name=name:sub(1,utf8.offset(name,NAME+1)-1)..'…' end
         return name
     end
+    -- The HUD (online/modes/race/ui/hud.lua): its groups once self.hud adds them.
+    local H=Hud.new({clock=clock,name=her_name,anchor=function() return puppet.anchor() end})
+    local shown,sound=H.shown,H.sound
     -- A command closes the race here (coop race quit, coop off): its reply says it, so no notice. A map change does
     -- not: its DNF or the cancel is told, as the HUD goes with the race that frame.
     local function quiet(r) return r.ending=='quit' or r.ending=='coop off' end
@@ -169,7 +150,7 @@ function Race.new(o)
             local ok,_,message=pcall(look.off,'race '..why)
             if ok and message then log(message) end
         end
-        if hud then pcall(function() for _,g in ipairs(GROUPS) do hud.kit.show(g,false) end end) end
+        pcall(H.hide)
         log(string.format('race %s closed (%s)',tostring(r.m.id or '-'),why))
     end
     -- The race gone on an error: our quit line (an abort before GO, else our DNF) goes out first, so the other side
@@ -186,7 +167,7 @@ function Race.new(o)
         end
         return false,'the race stopped on an error until the mod reloads: '..failed
     end
-    local function mine(r) return r.role=='host' and 'host' or r.role=='match' and 'me' or 'guest' end
+    local mine=Hud.mine
     -- The race_model events of one frame: notices, banners, sounds, the look and her ghost, the results.
     local function event(r,e)
         local w,m=e.what,r.m
@@ -270,6 +251,12 @@ function Race.new(o)
                     if r.by_id[entry.who] then r.by_id[entry.who].emote(emote(entry)) end
                 end
             elseif r.ghost and hers then puppet.emote(emote(hers)) end
+            -- A match round's place as notices while the kit is off (a DNF said its own): ours, or not ranked, then a
+            -- new best.
+            if r.role=='match' and not shown() and not (ours and not ours.pos) then
+                tell(function(t) return ours and t.race.placed:format(ours.pos,#e.list) or t.race.unranked end)
+                if r.heard and r.heard.best then tell(function(t) return t.race.best end) end
+            end
             local now,t=os.clock(),os.time()
             log(string.format('result id=%d track=%s ms=%s clock=%.3f time=%d flags=%d rank=%s',m.id,r.name or '-',
                 m.me.ms and tostring(m.me.ms) or '-',(r.end_clock or now)-(r.go_clock or now),
@@ -318,97 +305,6 @@ function Race.new(o)
         end
         if changed then keep(r) end
     end
-    -- The HUD each frame: the panel (the time, CP, LAP and POS, or the wait for her) or the results in its place, the
-    -- banner, and the marker on our start before GO, then on the next checkpoint (the edge arrow when it is off screen
-    -- or behind). All hidden while the game is paused or on one of its screens. Its words follow the game's language
-    -- unless ui_language=english, picked again at each build of the kit's root.
-    local function draw(r)
-        if not hud or hud.kit.off() then return end
-        local kit=hud.kit
-        local panel=kit.view('race_panel')
-        if panel and (panel~=picked or hud.settings.ui_language~=lang) then
-            picked,lang=panel,hud.settings.ui_language
-            words=T.pick(kit.language(),lang)
-        end
-        local w,m=words,r.m
-        local t=m.track
-        local up=t~=nil and not away
-        local results=up and m.phase=='results'
-        kit.show('race_panel',up and not results)
-        kit.show('race_results',results)
-        local b=r.banner
-        if b and b.til and os.clock()>=b.til then r.banner,b=nil,nil end
-        kit.show('race_banner',up and b~=nil)
-        local bv=kit.view('race_banner')
-        if bv and b then
-            bv.text.set(b.build(w))
-            bv.text.color(hud.theme[b.color] or hud.theme.text)
-        end
-        if panel and up and not results then
-            local n,run,me,her=#t.cps,m.runner,m.me,m.her
-            local ms=me.ms or r.stop_ms or (m.phase=='race' and clock()-m.t_go) or 0
-            local cp=me.ms and n or run and run.next-1 or 0
-            local lap=math.min(run and run.lap or 1,t.laps)
-            local _,her_feet=puppet.anchor()
-            local pos,of=R.place(m,her_feet and {x=her_feet.X,y=her_feet.Y,z=her_feet.Z})
-            panel.title.set(w.race.title)
-            if m.phase=='ready' and me.ready and her.joined and not her.ready and not her.out then
-                panel.line.set(w.race.waiting:format(her_name(w)))
-            else
-                panel.line.set(Race.line(w,ms,cp,n,lap,t.laps,pos,of))
-            end
-        end
-        if results then
-            local res=kit.view('race_results')
-            if res then
-                local f,flags=m.me.flags,{}
-                if f&1~=0 then flags[#flags+1]=w.race.fast end
-                if f&2~=0 then flags[#flags+1]=w.race.pause end
-                res.head.set(w.race.results)
-                res.sub.set(table.concat(flags,' · '))
-                local list={}
-                for _,entry in ipairs(m.results) do list[#list+1]=entry end
-                table.sort(list,function(a,c) return (a.pos or 99)<(c.pos or 99) end)
-                for i=1,2 do
-                    local entry,row=list[i],res.rows[i]
-                    row.label.set(entry and (entry.pos and tostring(entry.pos) or '-')..'  '
-                        ..(entry.who==mine(r) and w.chat.you or entry.name or her_name(w)) or '')
-                    row.value.set(entry and (entry.ms and Race.clock(entry.ms) or w.race.dnf) or '')
-                end
-            end
-        end
-        local target,label
-        if up and (m.phase=='ready' or m.phase=='countdown') then
-            local s=R.slot(t,m.slot or (r.role=='host' and 0 or 1))
-            target,label={X=s.x,Y=s.y,Z=s.z},w.race.slot
-        elseif up and m.phase=='race' and m.runner and not m.runner.done then
-            local c=t.cps[m.runner.next]
-            target,label={X=c.x,Y=c.y,Z=c.z},''
-        end
-        local mk,ar=kit.view('race_marker'),kit.view('race_arrow')
-        local v=target and mk and ar and kit.project({X=target.X,Y=target.Y,Z=target.Z+ABOVE},os.clock())
-        if not v then
-            kit.show('race_marker',false)
-            kit.show('race_arrow',false)
-            return
-        end
-        local on,x,y,angle=P.place(v,was_on)
-        was_on=on
-        local far=r.pos and P.distance({X=r.pos.x,Y=r.pos.y,Z=r.pos.z},target,on) or ''
-        if on then
-            kit.show('race_arrow',false)
-            kit.move('race_marker',x-MW/2,y-MH)
-            mk.label.set(label)
-            mk.far.set(far)
-            kit.show('race_marker',true)
-        else
-            kit.show('race_marker',false)
-            kit.move('race_arrow',x-AC,y-AC)
-            ar.chevron.turn(angle+90) -- Its art points up.
-            ar.far.set(far)
-            kit.show('race_arrow',true)
-        end
-    end
     -- The driving: on at GO with the race's values (the host's, from his drive line), off once our own result is in or
     -- the race left the race phase (a false start); self.steer drives each frame meanwhile. Once it went off by itself
     -- (her EVE gone), not again in this start.
@@ -439,6 +335,7 @@ function Race.new(o)
         local out,ev
         if r.role=='match' then
             local news=r.news()
+            r.heard=news -- For the HUD: the racers' places, the results still to come, a new best.
             out,ev=Mm.frame(r.m,{pos=pos,flags=flags,dnf=dnf,fin=news.fin,list=news.list},now)
             for _,l in ipairs(out) do r.line(l) end
         else
@@ -460,7 +357,7 @@ function Race.new(o)
         if r.ending or r.m.phase=='over' then return close(r,r.ending or 'over') end
         sync_drive(r)
         place_doros(r,e)
-        draw(r)
+        H.draw(r,away)
     end
     -- Every 250 ms: the session's end (a DNF left), a third player in it (a DNF crowd: Doro races are for 2), a map
     -- change or EVE gone 2 s (a DNF map, then the race closes here). Then the fin flags.
@@ -766,43 +663,9 @@ function Race.new(o)
         end
         if o.round_stop then pcall(o.round_stop,'coop off') end -- After our race's DNF went to the round.
     end
-    -- The HUD's groups on the Uplink kit, before its first build (main.lua, after Night Operation's): o is {kit,
+    -- The HUD's groups on the Uplink kit, before its first build (main.lua, after Night Operation's): h is {kit,
     -- theme=ui.THEME, settings=main.lua's}.
-    function self.hud(h)
-        hud=h
-        local kit,theme=h.kit,h.theme
-        local x=(3840-HUD_W)/2
-        kit.add('race_panel',{x=x,y=HUD_Y,w=HUD_W,h=PANEL_H,pivot={X=0.5,Y=0}},function(b)
-            b.panel(0,0,HUD_W,PANEL_H)
-            return {title=b.text(HUD_W/2,48,'','name',theme.beta,MIDDLE),
-                line=b.text(HUD_W/2,104,'','item',theme.text,MIDDLE)}
-        end)
-        kit.add('race_results',{x=x,y=HUD_Y,w=HUD_W,h=RESULT_H,pivot={X=0.5,Y=0}},function(b)
-            b.panel(0,0,HUD_W,RESULT_H)
-            local v={head=b.text(HUD_W/2,70,'','title',theme.beta,MIDDLE),
-                sub=b.text(HUD_W/2,136,'','body',theme.grey,MIDDLE),rows={}}
-            for i=1,2 do
-                local y=200+(i-1)*56
-                v.rows[i]={label=b.text(96,y,'','body',theme.text,LEFT),
-                    value=b.text(HUD_W-96,y,'','item',theme.text,RIGHT)}
-            end
-            return v
-        end)
-        kit.add('race_banner',{x=(3840-BANNER_W)/2,y=BANNER_Y,w=BANNER_W,h=BANNER_H,pivot={X=0.5,Y=0.5}},function(b)
-            b.panel(0,0,BANNER_W,BANNER_H)
-            return {text=b.text(BANNER_W/2,BANNER_H/2,'','title',theme.beta,MIDDLE)}
-        end)
-        -- Scaled from its bottom centre, over the checkpoint.
-        kit.add('race_marker',{x=0,y=0,w=MW,h=MH,pivot={X=0.5,Y=1},inside=true},function(b)
-            return {label=b.text(MW/2,22,'','hint',theme.beta,MIDDLE),
-                diamond=b.image(MW/2-16,40,32,32,'diamond',theme.beta),far=b.text(MW/2,96,'','num',nil,MIDDLE)}
-        end)
-        -- The chevron turns around the diamond, at the group's (80, 80): the point on the edge.
-        kit.add('race_arrow',{x=0,y=0,w=AW,h=AH,pivot={X=0.5,Y=AC/AH},inside=true},function(b)
-            return {chevron=b.image(64,16,32,32,'chevron',theme.beta,{X=0.5,Y=2}),
-                diamond=b.image(64,64,32,32,'diamond',theme.beta),far=b.text(52,116,'','num')}
-        end)
-    end
+    function self.hud(h) H.add(h) end
     return self
 end
 return Race

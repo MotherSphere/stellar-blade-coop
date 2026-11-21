@@ -22,12 +22,13 @@ local G={}
 function G.new(o)
     local self={}
     local playing=false -- Our race started in the round under way.
+    local best=false -- Our finish in this round wrote a new best.
     local function sit(key,why)
         o.log('sit out: '..why)
         o.tell(key)
         return false,why
     end
-    -- Our best on the track of sum: written when ms beats it. A file that cannot be read or written is logged.
+    -- Our best on the track of sum: written when ms beats it (true). A file that cannot be read or written is logged.
     local function record(sum,ms,name)
         if not o.records then return end
         local ok,text=pcall(o.records.read)
@@ -39,10 +40,11 @@ function G.new(o)
             return o.log('records: not written: '..tostring(why or 'the file write failed'))
         end
         o.log(string.format('best on %s: %d ms (was %s)',name,ms,best and tostring(best) or 'none'))
+        return true
     end
     -- The round's track is known: our race on slot k (our place in the round's players, from 0).
     function self.start(t,name,seed,k)
-        playing=false
+        playing,best=false,false
         if not o.on() then return sit('off','race_match=off') end
         if o.riding() then return sit('bike','EVE rides the bike') end
         if o.night() then return sit('night','a Night Operation run is on') end
@@ -63,13 +65,29 @@ function G.new(o)
         local function line(l)
             if l.word=='cp' then o.round.cp(l.lap,l.i,l.ms) return end
             o.round.done(l)
-            if l.ending=='fin' then record(sum,l.ms,name) end
+            if l.ending=='fin' then best=record(sum,l.ms,name)==true end
         end
-        -- What the round says each frame: a finish came (the late rule), the host's ranking once it came, with names.
+        -- What the round says each frame: a finish came (the late rule), the host's ranking once it came, with names;
+        -- for the HUD, the round's players still racing (ready, no end yet), whether our finish wrote a new best and
+        -- each other racer's place in the race ({ms= at her finish, why= at her DNF, passed= checkpoints by her last
+        -- split, pos= her ghost's feet or nil}).
+        local n=#t.cps
         local function news()
             local now=o.round.round()
-            local fin=false
-            for _,b in pairs(now and now.board or {}) do fin=fin or b.ending=='fin' end
+            local fin,waiting,racers=false,0,{}
+            for _,id in ipairs(now and now.ids or {}) do
+                local b=now.board[id]
+                if b then
+                    fin=fin or b.ending=='fin'
+                    if b.ready and not b.ending then waiting=waiting+1 end
+                    if b.ready and id~=me then
+                        local g=by_id[id]
+                        local f=g and g.anchor and select(2,g.anchor())
+                        racers[#racers+1]={ms=b.ending=='fin' and b.ms or nil,why=b.ending=='dnf' and (b.why or 'dnf')
+                            or nil,passed=b.lap and (b.lap-1)*n+b.i or 0,pos=f and {x=f.X,y=f.Y,z=f.Z} or nil}
+                    end
+                end
+            end
             local list
             if now and now.list then
                 list={}
@@ -77,7 +95,7 @@ function G.new(o)
                     list[i]={who=r.id==me and 'me' or r.id,ms=r.ms,pos=r.pos,name=r.id~=me and o.name(r.id) or nil}
                 end
             end
-            return {fin=fin,list=list}
+            return {fin=fin,list=list,waiting=waiting,best=best,racers=racers}
         end
         local ok,key,why=o.run.match(t,name,seed,k,by_id,line,news)
         if not ok then return sit(key,why) end

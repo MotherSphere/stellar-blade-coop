@@ -1057,6 +1057,21 @@ do
     S.news.list={}
     run({S},function() return not S.race.armed() end,30*30)
     assert(find(S.logs,'^race 7 closed %(over%)$'))
+    -- With no kit (coop ui off) the ranking comes as notices: our place of the list's length, then a new best when our
+    -- finish wrote one; Not ranked. without us in it; nothing more for our DNF, which said its own.
+    for _,c in ipairs({{list={{who='3003',ms=1,pos=1},{who='me',ms=2,pos=2},{who='2002'}},best=true,
+            said='Doro race: you placed 2 of 3.|New personal best.'},
+        {list={{who='3003',ms=1,pos=1}},said='Not ranked.'},
+        {list={{who='3003',ms=1,pos=1},{who='me'}},said=''}}) do
+        S=match()
+        S.move=racer(3)
+        run({S},function() return #S.lines>=4 end)
+        S.told={}
+        S.news.list,S.news.best=c.list,c.best
+        run({S},function() return find(S.logs,'^result ') end)
+        assert(table.concat(S.told,'|')==c.said,table.concat(S.told,'|'))
+        S.race.match_stop('host')
+    end
     -- The late rule: a finish in the round 60 s ago ends ours as a DNF late.
     S=match({speed=1})
     S.move=racer(3)

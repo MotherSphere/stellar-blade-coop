@@ -269,6 +269,8 @@ return {
         too_close='Zu nah: mindestens 15 m zwischen Checkpoints.',full='Schon 64 Checkpoints: Speichere die Strecke.',
         other_map='Diese Strecke liegt auf einer anderen Karte.',
         saved='Strecke %s gespeichert, %d Checkpoints.',
+        still='Ausstehende Ergebnisse: %d.',best='Neue persönliche Bestleistung.',unranked='Nicht gewertet.',
+        placed='Doro-Rennen: Platz %d von %d.',
         match={off='Doro-Rennen ist in den Optionen aus: Du setzt diese Runde aus.',
             bike='Steig vom Motorrad ab, um in der nächsten Runde mitzufahren.',
             night='Ein Nächtlicher Einsatz läuft: Du setzt diese Runde aus.',

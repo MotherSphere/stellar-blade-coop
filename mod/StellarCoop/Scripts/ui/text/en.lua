@@ -289,11 +289,13 @@ return {
         stopped='Shared world stopped until the game restarts. coop-link.log says why.'},
     story={on='Story together on with %s.',
         stopped='Story together stopped until the game restarts. coop-link.log says why.'},
-    -- The Doro race's words (online/modes/race/run.lua): its panel, banners and results on the HUD, its notices (the
-    -- feed, or the line above EVE), and why a race ended early for you (why), was raced alone (refused: the host's, her
-    -- answer) or was not joined (declined: the guest's, the host's track); %s: her name, a track's name or a key's, in
-    -- order. match: the notices of a Doro race round in a match lobby (online/modes/race/match/game.lua): why we sit out
-    -- the round, the host's room with no track, the host who left and a round cancelled before its ranking.
+    -- The Doro race's words (online/modes/race/run.lua, ui/hud.lua): its panel, banners and results on the HUD, its
+    -- notices (the feed, or the line above EVE), and why a race ended early for you (why), was raced alone (refused:
+    -- the host's, her answer) or was not joined (declined: the guest's, the host's track); %s: her name, a track's name
+    -- or a key's, in order. A match round's results note (still: the players still racing; best; unranked) and, with
+    -- the UI off, our place (placed: ours, of how many). match: the notices of a Doro race round in a match lobby
+    -- (online/modes/race/match/game.lua): why we sit out the round, the host's room with no track, the host who left
+    -- and a round cancelled before its ranking.
     race={title='DORO RACE',cp='CP %d/%d',lap='LAP %d/%d',pos='POS %d/%d',go='GO!',wrong_way='WRONG WAY',
         missed='MISSED CHECKPOINT %d',finished='FINISHED',dnf='DNF',slot='Your start',waiting='Waiting for %s',
         results='RESULTS',fast='fast run',pause='paused',why={teleport='Moved more than 20 m at once.',
@@ -309,6 +311,8 @@ return {
         too_close='Too close: 15 m at least between checkpoints.',full='64 checkpoints already: save the track.',
         other_map='This track is on another map.',
         saved='Track %s saved, %d checkpoints.',
+        still='Results still to come: %d.',best='New personal best.',unranked='Not ranked.',
+        placed='Doro race: you placed %d of %d.',
         match={off='Doro races are off in Options: you sit out this round.',
             bike='Get off the bike to race in the next round.',
             night='A Night Operation run is on: you sit out this round.',

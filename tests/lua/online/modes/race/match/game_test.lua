@@ -6,7 +6,8 @@
 -- not a co-op save, out of the lobby room, the track on another map, the track outside the room's fence, our race's
 -- own refusal); EVE up from a hall seat first; the other players' ghosts by SteamID; ready after our race started;
 -- our splits and end to the round; the late rule's first finish and the host's ranking with names, as our race reads
--- them; the records written only for a better finish; the round's end: a host who left, a round cancelled or voided
+-- them; for the HUD the players still racing, each other racer's place in the race and whether our finish wrote a new
+-- best; the records written only for a better finish; the round's end: a host who left, a round cancelled or voided
 -- before its ranking, none after it or for a player who sat out, the host's room with no track and a guest's track
 -- that did not come whole.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -113,7 +114,32 @@ f.list={{id='3003',ms=9000,pos=1},{id='1001',ms=9500,pos=2},{id='2002'}}
 local list=m.news().list
 assert(list[1].who=='3003' and list[1].name=='P3003' and list[1].ms==9000 and list[1].pos==1)
 assert(list[2].who=='me' and list[2].name==nil and list[2].pos==2 and list[3].who=='2002' and list[3].ms==nil)
--- The records: a first finish is written; a slower one is not; a faster one is.
+-- For the HUD: the round's players still racing (ready, no end; ours counts), and each other ready racer's place in
+-- the race: checkpoints passed by her last split (lap 2, checkpoint 1 of 2: 3), her finish time or DNF, her ghost's
+-- feet (none for a ghost not built). A player with no ready is no racer.
+reset()
+f.ghosts['2002'].anchor=function() return {X=0,Y=0,Z=220},{X=10,Y=20,Z=0} end
+f.ghosts['3003'].anchor=function() end
+game.start(track(),'eight',7,0)
+m=f.matches[1]
+assert(m.news().waiting==0 and #m.news().racers==0 and m.news().best==false,'Nobody ready yet')
+f.board={['1001']={ready=true},['2002']={ready=true,lap=2,i=1,ms=8000},['3003']={ready=true}}
+local news=m.news()
+assert(news.waiting==3 and #news.racers==2,news.waiting)
+local r2,r3=news.racers[1],news.racers[2]
+assert(r2.passed==3 and r2.ms==nil and r2.why==nil and r2.pos.x==10 and r2.pos.y==20 and r2.pos.z==0)
+assert(r3.passed==0 and r3.pos==nil)
+f.board['2002'].ending,f.board['2002'].ms='fin',12000
+f.board['3003'].ending='dnf'
+f.board['1001'].ending='fin'
+news=m.news()
+assert(news.waiting==0 and news.racers[1].ms==12000 and news.racers[2].why=='dnf' and news.racers[2].ms==nil)
+f.board['3003'].why='map'
+assert(m.news().racers[2].why=='map')
+f.board['3003']=nil
+assert(#m.news().racers==1,'No line from her: no racer')
+-- The records: a first finish is written; a slower one is not; a faster one is. The news says whether our finish in
+-- this round wrote a new best; a new round starts without one.
 reset()
 t=track()
 game.start(t,'eight',7,0)
@@ -121,10 +147,15 @@ m=f.matches[1]
 local sum=Mm.sum(t)
 m.line({word='done',ending='fin',ms=30000,flags=0})
 assert(f.dones[1].ms==30000 and #f.writes==1 and Mm.best(f.records,sum)==30000,tostring(f.records))
+assert(m.news().best==true,'A first finish is a new best')
 m.line({word='done',ending='fin',ms=31000,flags=0})
 assert(#f.writes==1,'Slower: not written')
+assert(m.news().best==false,'Slower: no new best')
 m.line({word='done',ending='fin',ms=29000,flags=0})
 assert(#f.writes==2 and select(2,Mm.best(f.records,sum))=='eight' and Mm.best(f.records,sum)==29000)
+assert(m.news().best==true)
+game.start(t,'eight',8,0)
+assert(f.matches[2].news().best==false,'A new round: no best yet')
 -- A file that cannot be read is logged; nothing is written over it.
 f.logs={}
 local g2=G.new({run=run,round=round,log=function(x) f.logs[#f.logs+1]=x end,on=function() return true end,

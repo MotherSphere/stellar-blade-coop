@@ -261,6 +261,8 @@ return {
         too_close='Perto demais: pelo menos 15 m entre checkpoints.',full='Já são 64 checkpoints: salve o percurso.',
         other_map='Este percurso está em outro mapa.',
         saved='Percurso %s salvo, %d checkpoints.',
+        still='Resultados ainda pendentes: %d.',best='Novo recorde pessoal.',unranked='Sem classificação.',
+        placed='Corrida de Doro: posição %d de %d.',
         match={off='A Corrida de Doro está desligada nas Opções: você fica fora desta rodada.',
             bike='Desça da moto para correr na próxima rodada.',
             night='Uma Operação noturna está em andamento: você fica fora desta rodada.',

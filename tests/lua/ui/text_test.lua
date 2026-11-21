@@ -173,9 +173,10 @@ local function notices(w)
         for _,text in pairs(r[group]) do lines[#lines+1]=fill(text) end
     end
     for _,k in ipairs({'armed','armed_guest','false_start','cancelled','out','recording','dropped','too_close','full',
-        'other_map','saved','go','wrong_way','missed','finished','dnf'}) do
+        'other_map','saved','go','wrong_way','missed','finished','dnf','best','unranked'}) do
         lines[#lines+1]=fill(r[k])
     end
+    lines[#lines+1]=r.placed:format(8,8) -- A match round's place with the UI off.
     local s=w.summary
     for _,k in ipairs({'stopped','waiting','held','rejoin','none','alone','connecting','hosting','guest'}) do
         lines[#lines+1]=fill(s[k])..fill(s.paused)..s.lost -- Paused and lost added to each, beyond what can happen.
@@ -287,17 +288,19 @@ for name in pairs(R.TEXT) do
     -- The race (online/modes/race/run.lua): its panel as the night card (title, then the time, CP, LAP and POS two
     -- spaces apart, or the wait for her name of 20 characters and an ellipsis); the marker's label over your start
     -- (Bold 30, 17 units a column in 320); a banner (Bold 56, 32 units a column, in 1600 less 24 a side); the results
-    -- as the night panel, the heading, the flags line under it, and two rows: the place and a name of 21 columns at the
-    -- left (Mideum 34), the time or DNF at the right (Bold 40) in 14 columns.
+    -- as the night panel, the heading, the flags line under it, a match round's note under them (Mideum 34, 54 columns
+    -- as score attack's) and 8 rows: the place and a name of 21 columns at the left (Mideum 34), the time or DNF at the
+    -- right (Bold 40) in 14 columns. POS counts up to 8 racers.
     local r=w.race
     fits(name..'.race.title',r.title,43)
-    fits(name..'.race line','9:59.99  '..r.cp:format(64,64)..'  '..r.lap:format(9,9)..'  '..r.pos:format(2,2),43)
+    fits(name..'.race line','9:59.99  '..r.cp:format(64,64)..'  '..r.lap:format(9,9)..'  '..r.pos:format(8,8),43)
     fits(name..'.race.waiting',r.waiting:format(('W'):rep(20)..'…'),43)
     fits(name..'.race.slot',r.slot,18)
     for _,k in ipairs({'go','wrong_way','finished','dnf'}) do fits(name..'.race.'..k,r[k],48) end
     fits(name..'.race.missed',r.missed:format(64),48)
     fits(name..'.race.results',r.results,31)
     fits(name..'.race flags',r.fast..' · '..r.pause,54)
+    for _,k in ipairs({'still','best','unranked'}) do fits(name..'.race.'..k,r[k]:format(7),54) end
     for _,who in ipairs({w.chat.you,w.chat.partner,('W'):rep(20)..'…'}) do fits(name..'.race row: '..who,'2  '..who,27) end
     fits(name..'.race.dnf value',r.dnf,14)
     -- The lobby menu (mockup B, online/lobby/ui/lobby.lua): a row and the mode's name within B's row box (Bold 55 in

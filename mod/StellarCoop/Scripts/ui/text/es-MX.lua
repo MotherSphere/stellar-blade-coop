@@ -262,6 +262,8 @@ return {
         too_close='Demasiado cerca: al menos 15 m entre puntos de control.',
         full='Ya hay 64 puntos de control: guarda el circuito.',
         other_map='Este circuito está en otro mapa.',saved='Circuito %s guardado, %d puntos de control.',
+        still='Resultados pendientes: %d.',best='Nuevo récord personal.',unranked='Sin clasificar.',
+        placed='Carrera de Doro: puesto %d de %d.',
         match={off='La carrera de Doro está desactivada en Opciones: no juegas esta ronda.',
             bike='Bájate de la moto para correr la próxima ronda.',
             night='Hay una Operación nocturna en curso: no juegas esta ronda.',

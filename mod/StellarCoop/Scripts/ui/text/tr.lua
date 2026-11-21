@@ -260,6 +260,8 @@ return {
         too_close='Çok yakın: kontrol noktaları arasında en az 15 m olmalı.',
         full='Zaten 64 kontrol noktası var: parkuru kaydet.',
         other_map='Bu parkur başka bir haritada.',saved='%s parkuru kaydedildi, %d kontrol noktası.',
+        still='Beklenen sonuç: %d.',best='Yeni kişisel rekor.',unranked='Sıralama dışı.',
+        placed='Doro yarışı: sıra %d / %d.',
         match={off='Doro yarışı Seçeneklerde kapalı: bu turda oynamıyorsun.',
             bike='Sonraki turda yarışmak için motosikletten in.',
             night='Bir Gece Operasyonu sürüyor: bu turda oynamıyorsun.',

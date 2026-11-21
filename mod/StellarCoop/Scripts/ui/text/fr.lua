@@ -265,6 +265,8 @@ return {
         full='Déjà 64 points de contrôle : enregistrez le circuit.',
         other_map='Ce circuit est sur une autre carte.',
         saved='Circuit %s enregistré, %d points de contrôle.',
+        still='Résultats encore attendus : %d.',best='Nouveau record personnel.',unranked='Hors classement.',
+        placed='Course de Doro : place %d sur %d.',
         match={off='La course de Doro est désactivée dans les Options : vous ne jouez pas cette manche.',
             bike='Descendez de la moto pour courir la prochaine manche.',
             night='Une Opération nocturne est en cours : vous ne jouez pas cette manche.',

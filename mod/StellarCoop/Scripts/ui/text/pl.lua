@@ -253,6 +253,8 @@ return {
         dropped='Punkt kontrolny %d ustawiony.',too_close='Za blisko: co najmniej 15 m między punktami kontrolnymi.',
         full='Już 64 punkty kontrolne: zapisz trasę.',
         other_map='Ta trasa jest na innej mapie.',saved='Trasa %s zapisana, punkty kontrolne: %d.',
+        still='Brakujące wyniki: %d.',best='Nowy rekord osobisty.',unranked='Poza rankingiem.',
+        placed='Wyścig Doro: miejsce %d z %d.',
         match={off='Wyścig Doro jest wyłączony w Opcjach: pomijasz tę rundę.',
             bike='Zsiądź z motocykla, aby ścigać się w następnej rundzie.',
             night='Trwa Nocna operacja: pomijasz tę rundę.',save='Wyścig wymaga zapisu co-op: pomijasz tę rundę.',

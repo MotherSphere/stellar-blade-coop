@@ -259,6 +259,8 @@ return {
         too_close='Demasiado perto: pelo menos 15 m entre pontos de controlo.',
         full='Já há 64 pontos de controlo: guarda o percurso.',
         other_map='Este percurso está noutro mapa.',saved='Percurso %s guardado, %d pontos de controlo.',
+        still='Resultados ainda por chegar: %d.',best='Novo recorde pessoal.',unranked='Sem classificação.',
+        placed='Corrida de Doro: lugar %d de %d.',
         match={off='A Corrida de Doro está desligada nas Opções: ficas de fora desta ronda.',
             bike='Sai da mota para correr na próxima ronda.',
             night='Está a decorrer uma Operação noturna: ficas de fora desta ronda.',

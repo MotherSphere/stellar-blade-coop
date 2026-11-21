@@ -264,6 +264,8 @@ return {
         too_close='Troppo vicino: almeno 15 m tra due checkpoint.',full='Già 64 checkpoint: salva il percorso.',
         other_map="Questo percorso è su un'altra mappa.",
         saved='Percorso %s salvato, %d checkpoint.',
+        still='Risultati ancora attesi: %d.',best='Nuovo record personale.',unranked='Fuori classifica.',
+        placed='Gara di Doro: posto %d su %d.',
         match={off='La Gara di Doro è disattivata nelle Opzioni: salti questo round.',
             bike='Scendi dalla moto per correre il prossimo round.',
             night="È in corso un'Operazione notturna: salti questo round.",
