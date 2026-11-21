@@ -31,7 +31,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
   `ask` after the word (`host public ask`, from `friends_ask=on`) makes the host's Steam friends wait for her answer
   too (see [Players who are not Steam friends](#players-who-are-not-steam-friends)). The lobby carries a tag under the
-  key `stellarcoop`: the protocol and the game's Steam build (`24:<build>`). A lobby from another protocol or game
+  key `stellarcoop`: the protocol and the game's Steam build (`26:<build>`). A lobby from another protocol or game
   build is refused on joining, with both versions in the joiner's log and on screen. A lobby with no tag is another
   game's. It is refused as such.
 - Anyone who has an invisible lobby's id can join it. The host's friends do not see it. Steamworks documents that a
@@ -202,7 +202,7 @@ host answers with native requests, which Lua writes to `coop-request.txt` like t
   without a new question for as long as the lobby lasts.
 - `deny <SteamID>`, or 60 s with no answer, refuses the player. So does leaving before the answer. The host's
   questions come one at a time, in the order the players joined: a player's minute starts when her question is the
-  first one waiting. The host's game sends each waiting player `SBC24 wait <seconds>`, reliable, at the start and after
+  first one waiting. The host's game sends each waiting player `SBC26 wait <seconds>`, reliable, at the start and after
   each change: what is left of the minute of the player asked now, plus a minute for each player after that one, hers
   included.
   `remove <SteamID>` refuses any player already in (friends included) and puts them on the block list.
@@ -238,7 +238,7 @@ Apart from the wait line, this uses the hello's timing, the ping and the reject.
 
 An online session holds up to 4 players (`max_players`). The host leads every guest:
 
-- The host's game sends each guest past its handshake `SBC24 let <pair> <id>,<id>,... <max>`, reliable, again after
+- The host's game sends each guest past its handshake `SBC26 let <pair> <id>,<id>,... <max>`, reliable, again after
   each change and after each hello of hers. It names the pair, then the guests past the host's handshake in the order
   they came, then the host's `max_players` (2 to 4). A guest greets, reads and accepts a session from the host and the members this line names only. A joiner who
   waits for the host's answer gets nothing from the guests and sends them nothing. A member the line no longer names
@@ -264,7 +264,7 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   Same-place enemies' `SBE` on channel 1 goes to the pair only. The shared quests run with every member: the host's game
   runs one quest side per guest past the handshake, all fed by one read of its quests each pass. Each guest gets her own
   lines (see [Group play: how it works](group-internals.md#shared-quests)). A guest sends her `SBQ` lines to the host
-  only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ24
+  only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ25
   step`) is story together's: the host's game takes it from the pair only and logs any other guest's as `a step line
   from guest <SteamID> not taken: her game is not the pair`. A guest out of the pair sends none.
 - A new pair, or none, empties channel 2's queues both ways of all but the shared quests' lines, so a snapshot on its
@@ -274,7 +274,7 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   `players=<n>`: the host and each member past the handshake with it, the reader included. On a guest that is the let
   line's members plus the host (0 before the let line came), whether her own link with each is made or not. Night
   Operation and Doro races read it (`Link.crowd()`): the pair ends a run as soon as the host's let line names a third
-  player, even while her own link with that player is still being made. Then `vit=<SteamID> <12 numbers>` for each
+  player, even while her own link with that player is still being made. Then `vit=<SteamID> <13 numbers>` for each
   member past the handshake whose vit line is under 3 s old. `mate=` is the slot-0 member's: the host's on a guest,
   the pair's on the host. A match lobby has neither.
 - A member who comes in while the lobby holds more than 2 players starts at 30 poses a second, as in a match lobby.
@@ -309,6 +309,8 @@ there:
   says `dropped fight data from <name>: shared quests are off in a match lobby`, `...: the shared world is off in a
   match lobby` or `...: story together is off in a match lobby` at most once a minute. `coop gift` gets its items back
   at once (`gift n <id> nolink`), and a camps request ends with `camps line not sent: a match lobby` in the log.
+  The spot lines and the rest line go neither way either (`spot line not sent: a match lobby`, `rest line not sent:
+  a match lobby`).
 - Chat stays on, with a mute per player. `mute <SteamID>` drops that player's chat lines and `unmute <SteamID>` lets
   them through again. The notices read `Muted <name>.` and `Unmuted <name>.` A dropped line counts in the chat totals
   and gives `dropped chat lines from <name>: muted` in the log at most once a minute, never with its text. A mute
@@ -351,35 +353,39 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC24 ping <seq> <ms>
-SBC24 pong <seq> <ms>
-SBC24 photo <0|1|s|c> <both|notice>
-SBC24 say <text>
-SBC24 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC24 pak <hash> <name>
-SBC24 paks <count> <hash>
-SBC24 dlc <app id> <name>
-SBC24 dlcs
-SBC24 cycle <count> <difficulty>
-SBC24 camps? <id>
-SBC24 camps <id> <world> <camp>:<m> ...
-SBC24 camps <id> none <title|loading|nocamp|busy>
-SBC24 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
-SBC24 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
-SBC24 mark <n> [<text>]
-SBC24 race <text>
-SBC24 score <text>
-SBC24 mode <word> <text>
-SBC24 gift s <id> <item> <count>
-SBC24 gift a <id>
-SBC24 gift n <id> <why>
-SBC24 bike park <map> <x> <y> <z> <pitch> <yaw> <roll>
-SBC24 bike none
-SBC24 start <mode> <map> <seed> <id>,<id>,...
-SBC24 count <1-10|stop>
-SBC24 end
-SBC24 let <pair> <id>,<id>,... <max>
-SBC24 wait <seconds>
+SBC26 ping <seq> <ms>
+SBC26 pong <seq> <ms>
+SBC26 photo <0|1|s|c> <both|notice>
+SBC26 say <text>
+SBC26 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life> <zone type>
+SBC26 pak <hash> <name>
+SBC26 paks <count> <hash>
+SBC26 dlc <app id> <name>
+SBC26 dlcs
+SBC26 cycle <count> <difficulty>
+SBC26 camps? <id>
+SBC26 camps <id> <world> <camp>:<m> ...
+SBC26 camps <id> none <title|loading|nocamp|busy>
+SBC26 spot? <id>
+SBC26 spot <id> <x> <y> <z> <yaw>
+SBC26 spot <id> none <title|loading|air|busy|solo|boss>
+SBC26 rest <zone> <SteamID>
+SBC26 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC26 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
+SBC26 mark <n> [<text>]
+SBC26 race <text>
+SBC26 score <text>
+SBC26 mode <word> <text>
+SBC26 gift s <id> <item> <count>
+SBC26 gift a <id>
+SBC26 gift n <id> <why>
+SBC26 bike park <map> <x> <y> <z> <pitch> <yaw> <roll>
+SBC26 bike none
+SBC26 start <mode> <map> <seed> <id>,<id>,...
+SBC26 count <1-10|stop>
+SBC26 end
+SBC26 let <pair> <id>,<id>,... <max>
+SBC26 wait <seconds>
 ```
 
 ### The photo line
@@ -411,6 +417,11 @@ every 100 ms, or 500 ms after a read that took over 1 ms (game build 26123051 on
 local player. A vit line is invalid if a value is over 10,000,000, HP is over its maximum, there are more than 64 shield
 blocks or the life state is over 255. The last line of the member in ghost slot 0 shows in `coop status` as `mate=`
 for 3 s. Each member's shows as `vit=<SteamID> ...`.
+
+The 13th number is the type of the zone the sender's EVE stands in, from the game's ZoneTable (0 to 6, see
+[Solo areas](group-internals.md#solo-areas)). The game thread reads it on the sender's side. A type above 6 goes out
+as 0. A line whose type is above 6 is invalid. A vit line of 12 numbers is invalid too. A protocol-24 build sends
+12 numbers. It is refused at the hello.
 
 ### The pak and paks lines
 
@@ -483,7 +494,7 @@ pass 200 bytes, the notice cuts that name. Nothing is refused.
 
 ### The cycle line
 
-The cycle line gives your game's New Game+ count and difficulty: `SBC24 cycle 1 2` is New Game+ 1 on Hard. The count
+The cycle line gives your game's New Game+ count and difficulty: `SBC26 cycle 1 2` is New Game+ 1 on Hard. The count
 is 0 on a first playthrough and goes up to 99; the difficulty is 0 for Normal, 1 for Story and 2 for Hard. Any other
 value makes the line invalid. The game thread reads both once a second while you are in game: the count is the int32 at
 `+0xe4` of the game object at 0x1470373c8 (the value SB's IsPlayNewGamePlus tests); the difficulty is the one SB gives
@@ -509,6 +520,29 @@ for the last one taken. His Lua answers each number once. The answer goes to the
 number, alone, with her own number in place of the host's. A guest's link keeps only the answer to her last number. A
 world or camp name is letters, digits and `_`, at most 64 characters. Both lines show in `coop status` until the
 session ends: `camps=` on the guest, `camps?=` on the host.
+
+### The spot lines
+
+The spot lines carry [the spot warp](group-internals.md#the-spot-warp), both reliable: a member's `spot?` with a number
+from 0 to 65535, then the answer of the member asked: her last ground point (x, y and z in whole centimetres, each
+within 10,000,000 either way, then her yaw in whole degrees within 360 either way) or `none` and why (`title`,
+`loading`, `air`, `busy`, `solo`, `boss`). A guest asks the host only. The host may ask any guest past the handshake.
+A guest takes a `spot?` from the host only. Each game takes one `spot?` each 2 s from each asker and gives it a number
+of its own, 1 to 65535 in turn. Its status shows that number (`spot?=`) for the oldest request still waiting for an
+answer, else for the last one taken. Its Lua answers each number once. The answer goes to the member whose request
+had that number, with her own number in place. An answer counts only from the member asked, with the number of the
+last request: `spot=<id> <answer>` in the asker's status. A new request forgets the answer to the one before. The
+session's end drops both lines. `coop-link.log` has one line for each line sent, taken or dropped
+(`dropped a spot line from <name>: <why>`).
+
+### The rest line
+
+The rest line carries a member's [camp rest](group-internals.md#rests-between-members), reliable: the zone's alias
+(letters, digits and `_`, at most 64 characters), then the resting member's SteamID, never 0. A guest sends hers to
+the host. The host sends his to every guest past the handshake. The host takes a guest's rest only when its SteamID
+is hers, one each 2 s from each guest, then sends it on to every other guest past the handshake. A guest takes rest
+lines from the host only, with no limit of her own. Lua gets each one in `coop-chat.txt` as `rest <zone> <SteamID>`.
+`coop-link.log` has one line for each rest line sent, taken or dropped (`dropped a rest line from <name>: <why>`).
 
 ### The night line
 
@@ -659,7 +693,7 @@ from the owner.
 
 ### Unlinked peers, pings and session requests
 
-Say, vit, pak, paks, camps, night, mark, race, score, mode, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
+Say, vit, pak, paks, camps, spot, rest, night, mark, race, score, mode, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A game answers at most 4 pings a second from one player and sends no pong for the
 rest. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
@@ -672,7 +706,7 @@ is ignored.
 
 ## Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 24` (sent reliable) and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 25` (sent reliable) and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
@@ -729,7 +763,9 @@ is refused instead of misread:
 | 21 | Never released: development builds of the shared world's `SBW` lines on channel 2 and of the dlc and dlcs lines on channel 0 used it (see [Shared world: how it works](../world/objects-internals.md)) |
 | 22 | Never released: development builds of story together's `SBS` lines on channel 2 (the host's story scenes and story trips, followed in the guest's game; see [Story together: how it works](../story/together-internals.md)) and of the guest's `SBQ22 step` line (a quest step she made first, made in the host's game) used it |
 | 23 | Online sessions of up to 4 players: the host's `let` and `wait` lines on channel 0, which a protocol-22 peer would count invalid; a protocol-22 game would also leave a lobby of 3. The cycle line (each game's New Game+ count and difficulty) and the bike line (where each player's parked bike stands) on channel 0. 23 also adds the shared world's catch-up lines (`c ask`, `c`, `c end`) on channel 2, which an earlier protocol-23 development build counts malformed. On channel 2, shared flinches and stagger resistance: the cc line with the hit's level and the reaction's time (`SBF23 cc <gen> <hguid> <effect> <level> <ms>`), the host's `SBF23 stagger <gen> <0\|1> <0\|1>` and the owner's `SBF23 poise <gen> <hguid> <oe> <k> <ms>` (see [Shared enemies: how they work](../fight/enemies-internals.md#lines-and-counters)), which an earlier protocol-23 build drops as malformed lines. Never released |
-| 24 | The score attack: the `scoreattack` match mode under `sbo_mode` and its score line (`SBC24 score <text>`) on channel 0 (see [The score line](#the-score-line)), which a protocol-23 peer would count invalid (this version) |
+| 24 | The score attack: the `scoreattack` match mode under `sbo_mode` and its score line (`SBC24 score <text>`) on channel 0 (see [The score line](#the-score-line)), which a protocol-23 peer would count invalid. Never released |
+| 25 | The [spot lines](#the-spot-lines) (`spot?`, `spot`) and the [rest line](#the-rest-line) on channel 0, with the zone type as the [vit line](#the-vit-line)'s 13th number, which a protocol-24 peer would count invalid. Never released |
+| 26 | The [mode line](#the-mode-line) on channel 0 in online sessions, first for the fishing tournament (go, ready, catch, board, rank and void), which a protocol-25 peer would count invalid (this version) |
 
 ## Link health in the log
 

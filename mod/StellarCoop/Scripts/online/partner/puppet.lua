@@ -264,8 +264,9 @@ end
 -- offset. say(text,en) puts a line on screen (en: the same in English); name_tag: the tag. look: what else the ghost
 -- shows ({cloth=,dyes=,effects=true|false}, read at each build; nil: nothing more). words: the words for the screen now
 -- (ui/text.lua's T.en or T.fr; English when nil). sentinel: online/partner/sentinel.lua's (none: nothing marked or set
--- aside).
-function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
+-- aside). solo: true while her vitals' zone type is a solo area (core/link.lua's Link.solo): her ghost stays hidden, as
+-- a Boss Challenge can sit on a story map (nil: never).
+function Puppet.new(link,capture,say,name_tag,look,words,sentinel,solo)
     look=look or {}
     sentinel=sentinel or require('online.partner.sentinel').new(nil)
     words=words or function() return T.en end
@@ -279,6 +280,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     local back_since,hidden_pair,her_at=nil,nil,nil
     local failed,tries=nil,0 -- After a failure: when her table may be built again (os.clock; math.huge: not by itself).
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
+    local solo_said -- Her stay in a solo area is said: until she leaves it.
     local mods_said -- The generation whose parts from mods not shown were said on screen.
     -- Meshes and materials by class and path, for one EVE; false: none this Lua load (a missing DLC stays missing).
     local cache={}
@@ -1278,7 +1280,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     -- shows, the root moves without the teleport flag: the flag reaches a cloth part through the attachment and clears
     -- its inertia, so the strands would hang and never trail. Hidden, or a step over TELEPORT, it teleports. A new
     -- effects stamp in the mailbox is a slot box just written: only then are the boxes read. Our photo mode's veils
-    -- (self.photo) keep the ghost or its tag out of the shot.
+    -- (self.photo) keep the ghost or its tag out of the shot, as her stay in a solo area keeps the ghost out.
     function self.place()
         local g=ghost
         if not (wanted and g and g.built) then return end
@@ -1292,7 +1294,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                 g.tag:SetVisibility(not veiled,false)
                 g.tag_veiled=veiled
             end
-            if veil_ghost and not g.hidden then
+            local unseen=veil_ghost or solo and solo()
+            if unseen and not g.hidden then
                 g.actor:SetActorHiddenInGame(true)
                 g.hidden=true
             end
@@ -1319,7 +1322,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                         said[#said+1]='Doro mode off on the ghost: '..tostring(doro_why)
                     end
                 end
-                if g.hidden and not veil_ghost then
+                if g.hidden and not unseen then
                     g.actor:SetActorHiddenInGame(false)
                     g.hidden=false
                     local reset,reset_why=pcall(function()
@@ -1486,6 +1489,11 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         elseif ghost and not valid(ghost.actor) then
             clear('level changed')
             back_since=nil
+        end
+        if not (solo and solo()) then solo_said=nil
+        elseif not solo_said then -- place() hides her ghost: said once a stay.
+            solo_said=true
+            return true,'Ghost hidden: she is in a solo area.'
         end
         if ghost and ghost.steps then return step() end
         if ghost and ghost.slots then -- A system an fx line named since the build: one a tick.

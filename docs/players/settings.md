@@ -123,7 +123,8 @@ quest_deny=
 # play a co-op save and both have it on, a door, lever, switch, crane, lift or shortcut that one of you works through
 # the game changes in the other's game too, at once or, for most of them, when that zone next loads. Chests, supply
 # boxes, collectibles and anything that gives an item stay each player's own, and the doors the main story opens move
-# with quest steps only. Off, your changes are not sent and your friend's are not made in your game.
+# with quest steps only. A camp rest also brings the enemies of its area back in each other player's game there.
+# Off, your changes and rests are not sent and other players' are not made in your game.
 shared_world=on
 # Story together, experimental: on or off, on by default, not tested in game yet. On, while you and your friend both
 # play a co-op save and both have it on, a story scene the host plays (a cutscene or a talk) plays in the guest's game
@@ -152,9 +153,11 @@ photo_pause=full
 # are both on one map, with the same pause as photo sync and for at most photo_freeze_max.
 cutscene_wait=on
 # Follow the host, as the guest, on a co-op save: ask, always or off. When the host is on another map, or more than
-# 150 m from you on yours, ask shows a notice once and follow_key then takes you to the camp nearest them through the
-# game's own fast travel (one of the camps you have found); always starts that travel by itself 5 s later, and
-# follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
+# 150 m from you on yours, ask shows a notice once. follow_key then takes you to where the host last stood on solid
+# ground: at once on his map, from another map through the game's own fast travel to the camp nearest him first (one
+# of the camps you have found). always starts that travel by itself 5 s later unless you press follow_key; off does
+# neither. On the death screen, with revive=on and a friend alive on your map, follow_key takes you back to that
+# friend (always: by itself after 5 s). With follow_key=none, only the console command coop travel host travels.
 follow_host=ask
 # Solid partner, experimental: on or off, on by default. Yours: on, your EVE cannot walk through your friend's ghost
 # while she walks, runs or falls. The ghost lets her through while it overlaps her, while your feet are 60 cm or more
@@ -218,7 +221,7 @@ fishing=on
 | `host_key` | same, or `none`: a key that hosts at once, without the menu | `none` |
 | `status_key` | same as `menu_key` | `F6` |
 | `leave_key` | same as `menu_key` | `F8` |
-| `follow_key` | same as `menu_key`, or `none`: as the guest, travel to the host ([Following the host](playing-with-a-friend.md#following-the-host)) | `F7` |
+| `follow_key` | same as `menu_key`, or `none`: as the guest, travel to where the host last stood on solid ground ([Following the host](playing-with-a-friend.md#following-the-host)); on the death screen, go back to a living friend on your map ([Back to a friend after a death](playing-with-a-friend.md#back-to-a-friend-after-a-death)) | `F7` |
 | `race_key` | same, or `none`: a key that sets a [Doro race](../online/modes/race.md) checkpoint while you record a track | `F9` |
 | `bike_key` | same, or `none`: a key that puts EVE on the [bike](../vehicles/bike.md) or takes her off it | `F3` |
 | `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](../online/modes/race.md#driving) in a race or on the [bike](../vehicles/bike.md#riding) | `Gamepad_RightTrigger B` |
@@ -252,17 +255,17 @@ fishing=on
 | `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
 | `shared_quests` | `on` or `off`: [shared quests](playing-with-a-friend.md#shared-quests-experimental), experimental; both players need it on | `on` |
 | `quest_deny` | quest names or numbers separated by spaces or commas, at most 200 characters: quests never shared; the host's value counts | empty |
-| `shared_world` | `on` or `off`: the [shared world](../world/objects.md), experimental; doors, levers, lifts and shortcuts one player works change in the other's game too; each player's own, and both need it on | `on` |
+| `shared_world` | `on` or `off`: the [shared world](../world/objects.md), experimental; doors, levers, lifts and shortcuts one player works change in the other's game too; a member's camp rest resets that area in the game of each other member there ([Camp rests in a shared area](playing-with-a-friend.md#camp-rests-in-a-shared-area)); each player's own. Both need it on | `on` |
 | `shared_story` | `on` or `off`: [story together](../story/together.md), experimental; a cutscene or a talk the host plays plays in the guest's game too, with his choices, QTE results and skips; each player's own; both need it on | `on` |
 | `hide_popups` | `on` or `off`: the game's Tutorial and Record popups (its own Settings rows) are Off while at least one other player is linked with you. Only a value that was On is turned off. Your values come back when the last player leaves, when you set it off or at `coop off`. The game's settings file keeps your values the whole time. Turn one on in the game's Settings during online play and it stays on until you leave. Each player's own. Options, Session, Hide popups online; it applies at once | `on` |
-| `revive` | `on` or `off`: your friend may [revive](playing-with-a-friend.md#revive-by-your-friend-experimental) your EVE where she fell, experimental; in a co-op Night Operation run, your death is a [down](../online/modes/nightop.md#down-and-revive) | `on` |
+| `revive` | `on` or `off`: your friend may [revive](playing-with-a-friend.md#revive-by-your-friend-experimental) your EVE where she fell, experimental; `follow_key` on the death screen takes you [back to a living friend](playing-with-a-friend.md#back-to-a-friend-after-a-death); in a co-op Night Operation run, your death is a [down](../online/modes/nightop.md#down-and-revive) | `on` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](playing-with-a-friend.md#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
 | `photo_name_tag` | `on` or `off`: its name tag in your own photos | `on` |
 | `photo_pause` | `full` or `scenery`: how your own photo mode [pauses your game](playing-with-a-friend.md#photo-mode-pause-experimental), experimental, from your next photo mode | `full` |
 | `cutscene_wait` | `on` or `off`: as the guest, your game [waits](playing-with-a-friend.md#cutscene-wait) while a cutscene plays in the host's game | `on` |
-| `follow_host` | `ask`, `always` or `off`: as the guest, the offer to [travel to the host](playing-with-a-friend.md#following-the-host) | `ask` |
+| `follow_host` | `ask`, `always` or `off`: as the guest, the offer to [travel to the host](playing-with-a-friend.md#following-the-host); `always` starts the travel or the way back after a death by itself 5 s after its notice; `off` shows neither offer | `ask` |
 | `collide` | `on` or `off`: the [solid partner](../online/partner.md#solid-partner-experimental), experimental | `on` |
 | `ui_scale` | `75` to `150`: the size of the menu, the chat and the partner HUD, in percent | `100` |
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
@@ -362,7 +365,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
 | `coop-ui.txt` | Lua | The co-op UI's on-screen root, so the next Lua load (Ctrl+R) can remove it and, if the menu was open, give the game its keys back |
 | `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at its next pass |
-| `coop-chat.txt` | native | Your friend's chat lines and race lines, for a moment: Lua takes and deletes the file within 250 ms, or within a frame while a race is armed |
+| `coop-chat.txt` | native | Your friend's chat, race and gift lines and the camp rests of the other players, for a moment: Lua takes and deletes the file within 250 ms, or within a frame while a race is armed |
 | `StellarCoopStory.txt` | Lua, on `coop story` | The [story dump](../dev/story-dump.md#the-file), replaced at each run |
 | `coop-story.txt` | you | A [story dump request](../dev/story-dump.md#the-request-file-coop-storytxt): the mod removes it and runs the dump once a world is loaded |
 | `coop-night.txt` | Lua | Your side of a Night Operation run, for a moment: the native part takes and deletes it at its next pass and sends it to your friend |

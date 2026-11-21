@@ -300,6 +300,11 @@ private:
   uint64_t camps_asked_ = 0;
   uint64_t camps_n_ = 0; // The host's last number for a guest's camps? (Peer::camps_n), 1 to kMaxCampId.
   std::string camps_answer_;
+  // The spot lines in this session: whether we asked, the member asked, our last spot? id and her answer to it (without
+  // its tag; empty until one came); our last number for a spot? of a member's (Peer::spot_n), 1 to kMaxCampId.
+  bool asked_spot_ = false;
+  uint64_t spot_to_ = 0, spot_asked_ = 0, spot_n_ = 0;
+  std::string spot_answer_;
   // The synced photo mode: photo() called yet, ours, our photo_sync as sent, the cap in s, whether our Lua asks for
   // the host's cutscene pause; as of the last pass, hers ('0' with no friend or a lost one) and ours, whether our game
   // holds its pause and since when, whether the cap ended this photo session of hers.

@@ -229,6 +229,8 @@ file is written in full beside its final name and then renamed over it, so the r
 - `coop gift` sends its lines as requests (`gift <payload>` in `coop-request.txt`), and asks the inventory read the
   same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
   go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](../cutmenus/menus-internals.md#cut-mailbox)).
+- Another member's camp rest comes in `coop-chat.txt` as `rest <zone> <SteamID>`. `main/input.lua` hands it to the
+  group module ([Rests between members](../online/group-internals.md#rests-between-members)).
 - The SBO lobby's screens (the lobby menu, its settings and the Leave question) hide Stellar Blade's HUD. Every 250 ms
   `online/lobby/wiring.lua` asks `hud hide on` when one of them has opened and `hud hide off` when the last one has
   closed, and `hud hide off` once after each Lua load. On the game thread the native part passes its own key,

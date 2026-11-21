@@ -678,6 +678,13 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
   another travel under way, the game paused, in photo mode or in a menu (the co-op menu too), a Night Operation run, a
   cutscene, a boss fight or an enemy in battle near you, the host's game loading or busy, or less than 10 s since the
   last travel. The log line names which.
+  On the host's map it also covers `the host is in a solo area`, `we are in a solo area`, an answer from the host's
+  game that says it is busy (`no spot from the host: none <loading|busy|solo|boss>`), no answer in 10 s
+  (`no answer from the host in 10 s`) and a host who left your map before his answer came
+  (`refused at the call: the host left this map`). The native part's refusals of the warp to his place are in
+  `coop-link.log` as `travel spot refused: <why>` (`solo` while your own zone is a solo area).
+- `<host> is not on solid ground. Try again in a moment.`: the host's EVE had not walked on a floor in the last 10 s
+  (`no spot from the host: none air`). Wait until he stands on the ground, then press F7 again.
 - `No camp you have found is near <host>.`: the host's game found no travel camp on its map (`none nocamp`), none of
   the camps it sent could be used (`travel: <camp> is not activated in this save` for a camp you have not found), or
   the game refused each one (`travel: SB refused <camp>`).
@@ -689,6 +696,17 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
 - No notice at all: `follow_host=off`, `follow_key=none` (use `coop travel host`), you are the host, your own save is
   loaded, or the host is within 150 m of you on your map. Press F7 and read the `travel refused:` line.
 - A second F7 within 2.5 s is refused in the log only (`one request to the host each 2.5 s`).
+- F7 within 5 m of the host is refused in the log only (`the host is within 5 m`). With his ghost hidden or not yet
+  placed, the log says `the host's place on this map is unknown`.
+- After a camp travel to the host's map you stay at the camp: `travel: no second hop: <why>` means a guard held for
+  30 s after the arrival. Press F7 again.
+
+The way back after a death (`<name> is alive. Press F7 to go back to them.`) writes `[StellarCoop][GR] return: ...`
+lines. No notice shows with `follow_key=none` or `follow_host=off` (`return: no notice (follow_key=none)`), with
+`revive=off`, during a boss fight, in a solo area on either side, with your friend down or on another map, or within
+10 s of the last respawn the mod asked for. `return refused: <why>` names the guard that stopped the respawn call.
+`return: no warp, <why>` means you got up where you fell with no warp: your friend left, went down or entered a solo
+area, the respawn did not take, or you went down again before the warp.
 
 ### A revive is not offered
 

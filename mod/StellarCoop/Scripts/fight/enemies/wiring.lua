@@ -72,8 +72,9 @@ if M.link then
     -- the host's rest brings its enemies back for both. Said when the host's epoch n moves in the same zone while their
     -- vitals read alive and they were not down in the last REST_CALM seconds (a respawn of theirs has host_down), and
     -- when our own resets move while spawns= reads on and our life= read alive for the REST_CALM seconds before (our
-    -- own respawn says nothing). rest: the line's last zone, n and resets, when the host last read down, and since when
-    -- ours reads alive. Forgotten with fight_maxhp.
+    -- own respawn says nothing). Only with shared_world=off: with it on, the group module's rested notice says it. rest:
+    -- the line's last zone, n and resets, when the host last read down, and since when ours reads alive. Forgotten with
+    -- fight_maxhp.
     local REST_CALM,rest=10,{}
     function M.fight_notices()
         if M.link.mode()=='none' then fight_told=nil end
@@ -110,11 +111,12 @@ if M.link then
             rest.alive_since=alive and (rest.alive_since or M.chat_clock) or nil
             local zone,n,resets=line:match(' epoch=(%d+)/(%d+)/(%d+)')
             if zone and guest then
-                if rest.zone==zone and rest.n~=n and m and (m.life==1 or m.life==6) and not down
+                local say=not M.settings.shared_world
+                if say and rest.zone==zone and rest.n~=n and m and (m.life==1 or m.life==6) and not down
                     and (not rest.down_at or M.chat_clock-rest.down_at>=REST_CALM) then
                     M.tell(function(w) return w.group.rest:format(M.her_name(w)) end)
                 end
-                if rest.resets and resets~=rest.resets and line:find(' spawns=on ') and rest.alive_since
+                if say and rest.resets and resets~=rest.resets and line:find(' spawns=on ') and rest.alive_since
                     and M.chat_clock-rest.alive_since>=REST_CALM then
                     M.tell(function(w) return w.group.rest_guest:format(M.her_name(w)) end)
                 end

@@ -4,9 +4,10 @@
 // Online sessions of 3 and 4 players (phase 7b1) against the shared fake Steam (fake_steam.h), several Links through
 // its Mesh: the host's let line and the pair, the host in slot 0 on every guest, a joiner every guest holds until the
 // host lets her in, refused and removed members, the host's questions one at a time with each joiner's wait line, the
-// host leaving, a guest leaving, the follow's camps answers to the asker only, the features kept to 2 players (gifts,
-// Doro races, Night Operation, a guest's photo pause), the pair rule on channels 1 and 2 with its notice, max_players,
-// the pose rate past 2, each member's vitals and parked bike, the mode lines with their rate and 60 s line.
+// host leaving, a guest leaving, the follow's camps answers to the asker only, the spot answers to the asker only, the
+// camp rests the host relays to every other guest, the features kept to 2 players (gifts, Doro races, Night Operation,
+// a guest's photo pause), the pair rule on channels 1 and 2 with its notice, max_players, the pose rate past 2, each
+// member's vitals and parked bike, the mode lines with their rate and 60 s line.
 #include "fake_steam.h"
 
 namespace {
@@ -101,7 +102,7 @@ int main() {
            saw("P2: pose rate cap 30 a second for P1: 3 players in the lobby"));
     assert(peer_of(m[2], kMe)->cap.cap() == 30 && peer_of(m[2], kFriend)->cap.cap() == 30);
     for (int i = 0; i < 3; ++i)
-      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
+      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0});
     m.round();
     const std::string s0 = m.status(0), s2 = m.status(2);
     assert(s0.find("\nmate=101 500 ") != npos && s0.find("\nvit=2002 101 500 ") != npos &&
@@ -413,6 +414,94 @@ int main() {
     assert(m.status(1).find("\ncamps=12 Xion C:3\n") != npos);
     m.tick(0, "camps 4 Xion B:2");
     assert(saw("P1: camps line not sent: no guest asked for it") && sent_from(kMe, kPlayer[2], v("camps 9")) == 1);
+  }
+
+  // The spot lines: a guest asks the host only; the host's answer goes to her alone; the host asks one guest. A
+  // session's end forgets every spot line, as the camps lines.
+  reset();
+  {
+    Mesh m(3);
+    group(m, 3);
+    m.tick(1, "spot? 5 " + id(kMe));
+    m.round();
+    assert(sent_from(kFriend, kMe, v("spot? 5")) == 1 && sent_from(kFriend, kPlayer[2], v("spot?")) == 0);
+    assert(m.status(0).find("\nspot?=1\n") != npos);
+    m.tick(0, "spot 1 100 -200 300 90");
+    m.round();
+    assert(sent_from(kMe, kFriend, v("spot 5 100 -200 300 90")) == 1 && sent_from(kMe, kPlayer[2], v("spot")) == 0);
+    assert(m.status(1).find("\nspot=5 100 -200 300 90\n") != npos && m.status(2).find("\nspot=") == npos);
+    m.tick(0, "spot 1 100 -200 300 90"); // Answered already: her spot? no longer waits.
+    m.round();
+    assert(saw("P1: spot line not sent: nobody asked for it") && sent_from(kMe, kFriend, v("spot 5")) == 1);
+    m.tick(0, "spot? 9 " + id(kPlayer[2]));
+    m.round();
+    assert(sent_from(kMe, kPlayer[2], v("spot? 9")) == 1 && sent_from(kMe, kFriend, v("spot? 9")) == 0);
+    m.tick(1, "spot? 6 " + id(kPlayer[2])); // A guest asks the host only.
+    m.round();
+    assert(sent_from(kFriend, kPlayer[2], v("spot?")) == 0 && saw("spot line not sent: a guest asks the host only"));
+    m.tick(1, "spot? 7 " + id(kMe)); // Within 2 s of her last: dropped by the host.
+    m.round();
+    assert(saw("dropped a spot line from P2"));
+    // A guest takes a spot? from the host only, an answer only from the member she asked with her last id.
+    inbox(2, kChannel).push_back({kFriend, v("spot? 3")});
+    inbox(1, kChannel).push_back({kMe, v("spot 6 1 2 3 4")});
+    inbox(1, kChannel).push_back({kPlayer[2], v("spot 7 1 2 3 4")}); // Her last id, from a member she did not ask.
+    m.round();
+    assert(saw("P3: dropped a spot line from P2: a request not from the host") &&
+           saw("P2: dropped a spot line from P1: not the id of our last request") &&
+           saw("P2: dropped a spot line from P3: an answer from a member we did not ask") &&
+           m.status(1).find("\nspot=") == npos);
+    m.tick(1, "leave");
+    rounds(m, 2000);
+    assert(m.status(0).find("\nspot?=") == npos && m.status(1).find("\nspot=") == npos);
+  }
+  // The rest line: a guest sends hers to the host only. He relays it to every other guest once, never back to her. His
+  // own goes to every guest. Lua's chat line names the resting member by SteamID. A rest line naming another member is
+  // dropped by the host, a guest takes one from the host only.
+  reset();
+  {
+    Mesh m(3);
+    group(m, 3);
+    m.tick(1, "rest Zone_Xion_10");
+    rounds(m, 100);
+    const std::string line = v("rest Zone_Xion_10 " + id(kFriend));
+    assert(sent_from(kFriend, kMe, line) == 1 && sent_from(kMe, kPlayer[2], line) == 1 &&
+           sent_from(kMe, kFriend, v("rest")) == 0 && sent_from(kFriend, kPlayer[2], v("rest")) == 0);
+    const std::string lua = "rest Zone_Xion_10 " + id(kFriend);
+    for (int i : {0, 2}) {
+      const auto chat = m[i].take_chat();
+      assert(std::count(chat.begin(), chat.end(), lua) == 1);
+    }
+    assert(m[1].take_chat().empty());
+    m.tick(0, "rest Zone_Xion_10");
+    rounds(m, 100);
+    assert(sent_from(kMe, kFriend, v("rest Zone_Xion_10 " + id(kMe))) == 1 &&
+           sent_from(kMe, kPlayer[2], v("rest Zone_Xion_10 " + id(kMe))) == 1);
+    F.inbox.push_back({kPlayer[2], v("rest Zone_B " + id(kFriend))});
+    inbox(2, kChannel).push_back({kFriend, v("rest Zone_C " + id(kFriend))});
+    rounds(m, 100);
+    assert(saw("P1: dropped a rest line from P3: not her own") && sent_from(kMe, kFriend, v("rest Zone_B")) == 0 &&
+           saw("P3: dropped a rest line from P2: not from the host"));
+    for (int i : {0, 2})
+      for (auto &chat : m[i].take_chat())
+        assert(chat.rfind("rest Zone_B", 0) != 0 && chat.rfind("rest Zone_C", 0) != 0);
+  }
+  // Four players: guests 1 and 2 rest 100 ms apart; guest 3 sends nothing and gets both (the host limits each sender,
+  // a guest takes the host's relays with no limit of its own).
+  reset();
+  {
+    Mesh m(4);
+    group(m, 4);
+    m.tick(1, "rest Zone_A");
+    m.round(100);
+    m.tick(2, "rest Zone_A");
+    rounds(m, 200);
+    const auto chat = m[3].take_chat();
+    assert(std::count(chat.begin(), chat.end(), "rest Zone_A " + id(kFriend)) == 1 &&
+           std::count(chat.begin(), chat.end(), "rest Zone_A " + id(kPlayer[2])) == 1);
+    m.tick(1, "rest Zone_A"); // Within 2 s of her last: the host drops it.
+    rounds(m, 200);
+    assert(saw("dropped a rest line from P2") && sent_from(kMe, kPlayer[3], v("rest Zone_A " + id(kFriend))) == 1);
   }
 
   // Past 2 players: a gift is refused at once (nolink, with a notice) and nothing goes; an answer to a gift sent before

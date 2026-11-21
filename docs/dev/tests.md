@@ -265,6 +265,25 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   on the pair too while her own link with that player is not made; `ui/kit/guide_test` the first page's player count,
   the default `max_players`, in every language; `story/quests/wiring_test` the host's quest notices naming the guest
   whose side came on first and the guest whose ahead line it is;
+- the travel to the host, the return after death, camp rests and solo areas: `core/link_test` reads the `mate=` and
+  `vit=` lines with 13 numbers (the zone type last; the 12 numbers of before read as no vitals), `Link.solo` (types 2
+  to 6), `zone()` from the engine line's `zonetype=` and `area=` (type 0 and no area without that line), `spots()` from
+  the `spot?=` and `spot=` lines (none once they are gone) and the `rest <zone> <SteamID>` lines of `coop-chat.txt`;
+  `online/group/travel_test` the press on the host's map asking his spot (refused within 5 m or with his ghost
+  hidden), his answers with their notices, the guards again at his answer, each member's spot answer (whole numbers,
+  its reasons in order, a ground point older than 10 s read as air, a map change dropping it), the second hop 10 s
+  after a camp travel to his map, `always` on his map, a solo area on either side refused, `go(id)` with its refusals
+  and `coop travel spot`; `online/group/group_test` the return after death (the offer once per death, `back()` with
+  the in-place respawn then the warp, `always` and its 5 s, the host's own death, the warp waiting while paused, no
+  offer for each refusal, a solo area on our side or hers included), the solo notices for the others only, the
+  revive, her down notice and the guest's cutscene pause leaving out a solo area on either side, then the camp rests
+  sent and applied (one ResetZone call per zone each 30 s, SB's echo of our own call, the wait while busy, 60 s at
+  most, the stop after 4 starts within 30 s of a call, each refusal with its log line); `online/partner/ghosts_test`
+  each ghost knowing from her zone type whether the member in its slot is in a solo area;
+  `online/partner/puppet_test` her ghost hidden in a solo area with one line a stay, back at the next stamp;
+  `main/boot_test` her zone type reaching the ghost, a rest line reaching the group module once, `coop travel spot`
+  and the return's press; `fight/enemies/wiring_notices_test` the same place and same spawns notices silent with
+  `shared_world=on`, where the group module's rested notice says it;
 - `online/session/commands_test` covers `coop host` with each of the four words (`ask` added under `public` and
   `invitation` with `friends_ask=on`), `coop host` alone (the Create a session screen when it opens, else
   `who_can_join`), `coop list` (a search by tab; alone, the last list numbered or a Public search) and `coop join
@@ -667,8 +686,11 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   public|friends|stop`, `where`, `rules` and the row cleaner, the match lines (start, count, end) with their bounds, the
   host's let and wait lines with theirs, the dlc and dlcs lines with their bounds, the DLC comparison by app id, the
   cycle line with its bounds (count 0 to 99, difficulty 0 to 2) and a fuzz seed, the bike line (`none`, or `park` with
-  the map rule, three places within 10,000,000 and three angles within 36,000 as signed whole numbers), then protocol 24
-  refusing a protocol-23 lobby and line;
+  the map rule, three places within 10,000,000 and three angles within 36,000 as signed whole numbers), the vit line's
+  13 numbers (the zone type last, 0 to 6; the 12-number line of before refused), the `spot?` and `spot` lines (places
+  within 10,000,000 cm, a yaw within 360, the six reasons) and the `rest` line (a zone alias, a SteamID other than 0)
+  with a fuzz seed each, Lua's `spot?`, `spot`, `rest` and `travel spot` requests, then protocol 26 refusing a
+  protocol-25 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, a
   mode line before the handshake that never reaches Lua, an
@@ -691,7 +713,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   each change on either side. The bike line: nothing before Lua's first payload, a payload `bike_ok()` refuses not
   kept, ours sent once to each member past the handshake and once at each change, a send Steam refuses sent at the
   next pass, ours sent again after her hello and her return from lost, hers as her `bike_of=` line after the
-  `member=` lines (the latest only), gone when she leaves the lobby;
+  `member=` lines (the latest only), gone when she leaves the lobby. `solo_pair()`: our zone type or the pair's last
+  one in a solo area, hers kept through 4 s with no vit line, forgotten at the session's end. The spot lines belong to
+  one session: neither status shows one after a leave and a new join;
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/pose_cap.h`), one reading a second: a calm link and a
   lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30, 20,
   to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up undone
@@ -723,17 +747,17 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   new owner reopens the lobby and counts down; a silent owner's countdown stopped on each guest once the owner is lost;
   a guest who drops out of a match lobby leaves without a rejoin), the stranger rules of a match lobby (a reject from
   the owner only, a mismatched hello refused by the owner who keeps the lobby and ignored by a guest, no photo or
-  cutscene pause, gift, race, follow, night or shared quest line either way), floods (no pong past 4 pings a second; a
-  member over channel 0's 128 lines a second for 5 s refused by the owner and by a guest, who both stay, her session
-  closed and no reject every 10 s; 200 lines at once not refused; pose data before any hello, over channel 1's limit for
-  5 s, refused; a guest leaving an owner who floods), the owner's round lines on a guest (a count line logged only when
-  it moves her countdown, one notice for a start without her, past 8 a second dropped and logged once), the per-player
-  chat mute kept for the run, per-peer pose caps (30 a second for a member of a match lobby, one peer's cap stepping
-  down alone, one second of poses reaching peers at 20, 30 and 60 a second, tables always sent, an `SBE` sent to nobody
-  as a match lobby has no pair) and the 60 s line of passes and full receive batches. Each of eight members' bike lines
-  reaches the seven others, one state per sender. Score attack's lines in a match lobby of three go reliable to every
-  member past the handshake. Each member's reaches Lua as `score <SteamID> <text>` with the SteamID from Steam; a
-  text the line cannot carry never goes; past 16 a second either way they are dropped with one log line a minute; the
+  cutscene pause, gift, race, follow, spot, rest, night or shared quest line either way), floods (no pong past 4 pings a
+  second; a member over channel 0's 128 lines a second for 5 s refused by the owner and by a guest, who both stay, her
+  session closed and no reject every 10 s; 200 lines at once not refused; pose data before any hello, over channel 1's
+  limit for 5 s, refused; a guest leaving an owner who floods), the owner's round lines on a guest (a count line logged
+  only when it moves her countdown, one notice for a start without her, past 8 a second dropped and logged once), the
+  per-player chat mute kept for the run, per-peer pose caps (30 a second for a member of a match lobby, one peer's cap
+  stepping down alone, one second of poses reaching peers at 20, 30 and 60 a second, tables always sent, an `SBE` sent
+  to nobody as a match lobby has no pair) and the 60 s line of passes and full receive batches. Each of eight members'
+  bike lines reaches the seven others, one state per sender. Score attack's lines in a match lobby of three go reliable
+  to every member past the handshake. Each member's reaches Lua as `score <SteamID> <text>` with the SteamID from Steam;
+  a text the line cannot carry never goes; past 16 a second either way they are dropped with one log line a minute; the
   counts have a line of their own beside the 60 s line, only in a minute that had some. Outside a match lobby a score
   line never goes and is never taken, with no log line. A match lobby carries no mode line either way, with no log
   line;
@@ -753,6 +777,12 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   friend who got in while she waited); Steam refusing relay only on a guest for another guest, which ends that link
   alone with its notice while the host's count (`players=`) still names her; the camps answers to the asker only, by the
   host's own number for each request (two guests' ids that meet, at once or one after the other, each answered once);
+  the spot lines (a guest asks the host only, who drops her next ask within 2 s; his answer goes to her alone; the
+  host asks one guest; a guest takes a `spot?` from the host only and an answer only from the member she asked, with
+  her last id; the session's end forgets them); the rest lines (a guest sends hers to the host only; he takes one each
+  2 s from each guest, drops one naming another member and relays the others once to every other guest, never back
+  to the sender; his own goes to every guest; a guest takes rest lines from the host only, with no limit of her own
+  in a session of 4);
   gifts (an answer to an earlier gift still going), Doro races, Night Operation and a guest's photo pause refused past 2
   players, the guest told so, while the host's cutscene still pauses each guest; the pair rule (the notice once on each
   guest who is not the pair and never on the pair, an `SBE` to the pair only and none from another guest, a channel-2
@@ -1189,7 +1219,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `game_travel_test`: the follow's fast travel request, its bytes at each offset, each guard refusing with its own
   reason (a respawn in flight included), the call count (three calls in 10 s, a 10 s wait after an accepted call, none
   after a refused one) and the watch over the warp block (pending, warping, arrived, a block cleared before it ran, and
-  one that never ran: stuck);
+  one that never ran: stuck). Then the spot warp's record and its bytes (our GUID, the fade, the place and the yaw; a
+  world's FName only from `coop travel spot <world>`), the spot guard (no camp name; `Why::solo` refused after every
+  other guard, never for a camp travel) and `Rests`, the count of zone reset starts (one per start of type 1 or 2 held
+  over several reads, ours by our GUID, type 0 not counted, SB's echo with GUID 0 never ours);
 - `game_sbo_test`: the SBO lobby's Join match, record states, why words and status line; the entry's guard in order, one
   entry at a time (`busy`, also while this run's warp still loads) and none while the slot's record is open (`record`),
   the save wait and its 30 s limit, the saved-file checks, the warp's guard, the arrival watch and its 60 s limit; the
@@ -1413,4 +1446,41 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `story_lines_test.py`: `tools/story_lines.py` on an invented 29-line example with a known digest, on
   `story_case.json` against `story_case.txt`, on what must leave the digest alone, and its commands on saves and dump
   files in a temporary folder. It also checks `float_repr.txt`, Python's `repr` of 2,331 doubles for the Lua side;
-  `python3 tests/tools/story_lines_test.py --write` writes it again.
+  `python3 tests/tools/story_lines_test.py --write` writes it again;
+- `windows_test.py`: `install_test.py`, `save_guard_test.py` and `story_lines_test.py` in a Python set up as on Windows:
+  text files and subprocess text in cp1252, `\n` written as CRLF and no `signal.alarm`. Symbolic links are first
+  refused with WinError 1314 (Windows without Developer Mode), then allowed where this machine can make links. Without
+  them, `install_test.py` and `save_guard_test.py` print a `not tested` line for each check they skip. Paths keep the
+  separators of the machine that runs it.
+
+## Grouped game test: travel, camp rests and solo areas
+
+These rows need the game on two or more PCs. Every PC runs this build (protocol 26). A PC on a protocol-25 build is
+refused at the hello. Read `UE4SS.log` and `coop-link.log` on every PC after each row. None of these rows has run yet.
+
+1. Same map, over 150 m apart: the offer shows. F7 puts the guest on the host's last ground point after the game's
+   fade. Her `activated=` line's `rested=` stays the same.
+2. Same map, 20 m apart: F7 works. Within 5 m: refused, one log line (`the host is within 5 m`).
+3. The host jumps, climbs or swims at the press: she lands on his last ground point. No ground read for 10 s: the
+   `air` notice.
+4. The host on another map: the camp travel, then the spot warp with no second key press.
+5. The host rests in the zone they share: the guest's zone resets once (`area=`, `rest=` and `starts=` on her engine
+   line before and after). Same spawns follows. The guest rests there: the host's zone resets once. On the receiver,
+   note the screen and the controls during the reset: a fade, a load screen, input blocked or none of these.
+6. A member in another zone of that map: no reset (`rest: our area is <zone> (... dropped)`).
+7. The guest in a fight during the host's rest: her reset after the fight, or the skipped notice after 60 s.
+8. One `ServerRequest_ResetZone` call: count the `zone reset start` lines in the receiver's `coop-link.log` in the
+   next 30 s. Expected per call: one `zone reset start: type 2 guid 0 another in <zone>` line. More than 3 trip the
+   stop latch. Note the receiver's screen and controls as in row 5.
+9. The host enters a Boss Challenge (Xion's Raven Beast), later the training room: the notices; F7, the revive and
+   the way back refused; no shared enemies or scenes with him (`online play paused toward the pair: a solo area` on
+   both PCs); his EVE hidden; `is back` when he leaves.
+10. The guest dies with the host alive on her map: the notice, F7, up in place, then next to the host. No zone reset.
+    Recovery items refilled. The host dies with the guest alive: the same toward her.
+11. A death in a kill volume: a second death within 10 s gives the game's own respawn only.
+12. `coop travel spot <world> <x> <y> <z>` across worlds, solo: where she lands, which zone, the respawn camp
+    unchanged.
+13. A spot warp onto a lift or a train the host stands on: where she lands.
+14. Three players: guest 2 follows the host. Guest 1 rests: the host's zone resets. Guest 2's zone resets only when
+    she is the pair. Outside the pair she has no shared fight yet: she logs `rest: no fight read in this game (...)`
+    and keeps her area. Then four players rest at one camp together: one reset in each game, no stop notice.

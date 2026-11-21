@@ -19,7 +19,7 @@ The keys work with or without the console. They need the native part (`StellarCo
 | RB or E on the Settings tab of the game's pause menu, or a click on its Online tab | Close the pause menu and open the co-op menu ([Pause menu](players/interface.md#pause-menu)) | (none) |
 | Y, on a controller | Refresh the Sessions screen's list, or stop the search that runs | `coop list public\|friends` |
 | F6 | Show the status: one line on screen (see [Notices](players/interface.md#notices)) and in `UE4SS.log` | (a short form of `coop status`) |
-| F7 | As the guest, travel to the camp nearest the host, or cancel the travel that `follow_host=always` is about to start ([Following the host](players/playing-with-a-friend.md#following-the-host)) | `coop travel host` |
+| F7 | As the guest, travel to where the host last stood on solid ground (from another map, through the camp nearest him first), or cancel the travel that `follow_host=always` is about to start ([Following the host](players/playing-with-a-friend.md#following-the-host)). On the death screen, while its offer shows, get up in place and go back to a living friend on your map, or cancel `always`'s way back ([Back to a friend after a death](players/playing-with-a-friend.md#back-to-a-friend-after-a-death)) | `coop travel host` |
 | F8 | Leave the session | `coop leave` |
 | F9 | While you record a [Doro race](online/modes/race.md) track, set a checkpoint where EVE stands; nothing otherwise | `coop race cp` |
 | F3 | Put EVE on the [bike](vehicles/bike.md) or take her off it; a refusal shows its reason on screen | `coop bike` |
@@ -64,7 +64,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop leave` | Leave the session (F8) |
 | `coop match search\|create <mode>`, `coop match cancel`, `coop match end`, `coop match join <code>`, `coop match leave` | A [match lobby](online/lobby.md#search) of up to 8 players (experimental). The modes are `scoreattack` and `ffa`. A `scoreattack` round plays a challenge in the lobby room ([Score attack](online/modes/scoreattack.md)). An `ffa` round's start does not take anyone to an arena yet. `search` joins an open public lobby of that mode, or hosts one when none is open; `create` hosts a private one that players join with its [join code](players/playing-with-a-friend.md#join-codes); `cancel` stops a search; `end` ends the round you host; `join <code>` and `leave` work like `coop join <code>` and `coop leave`. `search` and `create` are refused while you are in a lobby. They run from the console anywhere and on any save, not only in the SBO lobby; outside it they have not been tested in game |
 | `coop mute <SteamID>` / `coop unmute <SteamID>` | Drop that player's chat lines, or show them again, in any lobby until the game closes (experimental). The `member=` lines of `coop status` start with each member's SteamID, masked to its last 4 digits, which these commands take too |
-| `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](players/playing-with-a-friend.md#following-the-host)) |
+| `coop travel host` | As the guest, travel to where the host last stood on solid ground (F7), or cancel the travel that `follow_host=always` is about to start ([Following the host](players/playing-with-a-friend.md#following-the-host)). On the death screen it does what F7 does there |
+| `coop travel spot [<world>] <x> <y> <z>` | Solo test of the spot warp: the game's own position warp to that place in whole centimetres, yaw 0, with no camp and no session; with a world of the game's story worlds (`core/worlds.lua`), that world's name goes into the warp's record. The result is in `UE4SS.log` and `coop-link.log` ([The spot warp](online/group-internals.md#the-spot-warp)) (test command, co-op save only) |
 | `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps that your save has activated (the `activated=` line of `coop status`), with no session and no host's answer; any other camp is refused, see [Following the host](players/playing-with-a-friend.md#following-the-host) (test command, co-op save only) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
@@ -261,7 +262,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 24). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 26). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -394,7 +395,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 `***` and its last 4 digits, the join code and the lobby id as the code's first 3 characters and `****`, as in every
 line the mod writes to its logs. `coop-status.txt` in the mod folder holds the same state with them whole.
 
-- Steam: `mod=<version> proto=24 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=25 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts, your Steam name on a `me=` line, then `blocked=<n>`: the players on your
   [block list](players/playing-with-a-friend.md#block-list). A `block=<SteamID> <name>` line follows for each player you
   blocked in this game run.
@@ -410,20 +411,28 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   guest heard it>` ([Sessions of more than 2 players](online/steam-link-internals.md#sessions-of-more-than-2-players)).
   Then a `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line,
   after a [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a
-  mark with no text), a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner
-  card (while their last reading is under 3 s old; your own during `coop loopback`), a `vit=<SteamID> <12 numbers>` line
-  for each member linked whose last reading is under 3 s old (neither line in a match lobby), a `life=<state> <hp>` line
+  mark with no text), a `mate=<13 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner
+  card, then her zone type (while their last reading is under 3 s old; your own during `coop loopback`), a
+  `vit=<SteamID> <13 numbers>` line for each member linked whose last reading is under 3 s old (neither line in a match
+  lobby), a `life=<state> <hp>` line
   with your own EVE's life state (1 or 6 alive, 3 to 5 dying or dead) and HP for the revive, a `night=<line>` line with
   your friend's last Night Operation line while a session holds, and the last 8 notices as `notice=<n> <text>`. While
   you host, `camps?=<n>` is your game's number for the oldest request for the camps nearest you still waiting for an
   answer, else for the last one (your answer to that number goes to that guest alone, with her own id); as the guest,
   `camps=<id> <answer>` is the host's last answer ([Following the
   host](players/playing-with-a-friend.md#following-the-host)).
+  While linked, `spot?=<n>` is your game's number for the oldest request for your last ground point still waiting for
+  an answer, else for the last one taken. `spot=<id> <answer>` is the answer to your own last request
+  ([The spot lines](online/steam-link-internals.md#the-spot-lines)).
 - Pose path: `engine=on` (then `loopback=on <delay> <jitter> <loss>` or `loopback=waiting` until EVE's capture comes,
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`, then in a match lobby or an online
   session of more than 2 players `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to 6), or
   `engine=off reason=<why>`; then `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the
-  revive), `travel=<state> travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or
+  revive) with `zonetype=<0-6> area=<zone|none> rest=<n>:<zone>:<type> starts=<n>` (your zone's type, 2 to 6 a
+  [solo area](players/playing-with-a-friend.md#solo-areas); the zone a rest resets, `none` while the world and the
+  game's logic name different zones; your own zone resets with the zone and type of the last one; every start of
+  one, see [Rests between members](online/group-internals.md#rests-between-members)),
+  `travel=<state> travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or
   `refused:<why>`, and the travel requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip or
   bike pose the native part took and what became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`,
   `refused:<why>` or `fault`, see [Emotes](eve/eve.md#emotes-coop-emote)), `bike=<off|loading|ready|failed:<why>|fault>

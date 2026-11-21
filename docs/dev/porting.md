@@ -276,7 +276,7 @@ moved, the ambiguous ones and the missing ones:
 
 ```
 0x141ce8050  function  kSave                     found 0x141ce8050
-237 found (0 moved), 0 ambiguous, 0 missing
+238 found (0 moved), 0 ambiguous, 0 missing
 ```
 
 The exit code is 0 only when every entry is found once. On build 26123051 itself, every entry is found at its own
