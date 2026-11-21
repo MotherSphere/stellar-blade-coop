@@ -5,10 +5,10 @@
 -- at the NIKKE shot's cool time. A reload (cfg.reload_time, the NIKKE squad's reload animation) comes when the
 -- magazine runs dry or at the player's reload key (manual), never because the rifle is lowered. The reticle's round
 -- slot (WB_Tps_Bullet3, under the drone's reticle) shows the round's name and the rounds in the magazine while
--- firing mode is held. Its own text goes back when the rifle goes away. The drone's round count at the bottom left
--- keeps the game's own text: gun mode's HUD entry beside the D-pad marker shows the rifle's rounds (0fb38c0c, 11-18).
--- dpad: a D-pad slot that shows the rounds, or nil (gun mode passes none: its HUD entry, fight/gunmode/ui/dpad.lua,
--- shows them from fight/gunmode/mode.lua's tick).
+-- firing mode is held, from the aim's first frame. Its own text goes back when the rifle goes away. The drone's
+-- round count at the bottom left keeps the game's own text: gun mode's HUD entry beside the D-pad marker shows the
+-- rifle's rounds (0fb38c0c, 11-18). dpad: a D-pad slot that shows the rounds, or nil (gun mode passes none: its HUD
+-- entry, fight/gunmode/ui/dpad.lua, shows them from fight/gunmode/mode.lua's tick).
 -- Where the rounds come from: with stock (fight/gunmode/nikke.lua) once its rows are in, EVE's inventory of SB's own
 -- round Bullet_Nikke, while a co-op save is loaded. The magazine then starts empty. Each reload takes the rounds it
 -- loads out of the inventory (stock.take), at most what she carries. The spares are what she carries (stock.count).
@@ -23,6 +23,9 @@ Ammo.RETRY=5 -- s: after a refused take, before a stocked magazine reloads again
 
 Ammo.SLOT='WB_Tps_Bullet3'
 Ammo.NAME_TEXT,Ammo.COUNT_TEXT='TextBlock_bullet_name','TextBlock_ItemCount'
+-- s from the aim's start during which the slot's text is written each frame: the game writes its own round's name
+-- when its aim starts, in the aim's first frames.
+Ammo.FRESH=0.25
 
 -- The HUD entry's text: rounds in the magazine | magazines left (a part-spent one counted).
 function Ammo.lower_text(left,reserve,mag)
@@ -47,9 +50,17 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
     on_reload=on_reload or function() end
     local ui={} -- name, count: the slot's text blocks; saved: their own text and colour.
 
+    -- The slot's text blocks while they are the ones found: IsValid each frame, their paths every 0.25 s and before
+    -- a restore. A map change frees them. Another object can then sit at a freed address and pass IsValid.
+    local function ours(now)
+        if not (g.valid(ui.name) and g.valid(ui.count)) then return false end
+        if not now and (ui.seen_at or 0)>os.clock() then return true end
+        ui.seen_at=os.clock()+0.25
+        return g.path(ui.name)==ui.name_at and g.path(ui.count)==ui.count_at
+    end
     local function find()
-        if g.valid(ui.name) and g.valid(ui.count) then return true end
-        ui.name,ui.count=nil,nil
+        if ours() then return true end
+        ui.name,ui.count,ui.seen_at=nil,nil,nil
         -- FindAllOf walks every object: only after an event (ui.look: the rifle out, firing mode entered), once a
         -- second at most (L1).
         if not ui.look or (ui.retry or 0)>os.clock() then return false end
@@ -63,11 +74,12 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
                 end
             end
         end)
+        ui.name_at,ui.count_at=ui.name and g.path(ui.name),ui.count and g.path(ui.count)
         if not ui.logged then
             ui.logged=true
             g.log('ammo: reticle round slot '..((ui.name and ui.count) and 'found' or 'not found'))
         end
-        return ui.name~=nil and ui.count~=nil
+        return ui.name~=nil and ui.count~=nil and ui.name_at~=nil and ui.count_at~=nil
     end
 
     local function colour(c) return {SpecifiedColor={R=c[1],G=c[2],B=c[3],A=1},ColorUseRule=0} end
@@ -99,7 +111,8 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
         local w=ui.words
         local name=self.reload_until and w.reload or empty and w.empty or w.round
         local count=tostring(math.max(0,math.floor(self.left)))
-        if ui.shown_name~=name or (ui.check or 0)<os.clock() then
+        -- (the aim's first frames: each frame, as the game writes its own round's name when its aim starts)
+        if ui.shown_name~=name or (ui.check or 0)<os.clock() or os.clock()<(ui.fresh_until or 0) then
             if set_text(ui.name,name) then ui.shown_name=name end
             pcall(function() ui.name:SetColorAndOpacity(colour((self.reload_until or empty) and cfg.reload_color or cfg.round_color)) end)
             pcall(function() ui.count:SetColorAndOpacity(colour(cfg.round_color)) end)
@@ -114,13 +127,11 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
     -- The game's own text and colour back in the slot.
     function self.restore()
         if dpad then pcall(dpad.hide) end
-        if ui.saved then
+        if ui.saved and ours(true) then
             for _,k in ipairs({'name','count'}) do
                 local t,sv=ui[k],ui.saved[k]
-                if g.valid(t) and sv then
-                    if sv.text then set_text(t,sv.text) end
-                    if sv.col then pcall(function() t:SetColorAndOpacity(colour(sv.col)) end) end
-                end
+                if sv.text then set_text(t,sv.text) end
+                if sv.col then pcall(function() t:SetColorAndOpacity(colour(sv.col)) end) end
             end
         end
         ui.saved,ui.shown_name,ui.shown_count=nil,nil,nil
@@ -177,7 +188,8 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
                 self.reserve=stock.count() or 0
             end
         end
-        if aiming and not was_aiming then ui.look=true end -- Firing mode entered: the reticle's slot looked for.
+        -- Firing mode entered: the slot looked for if not found yet. Its text is written each frame for FRESH s.
+        if aiming and not was_aiming then ui.look,ui.fresh_until=true,os.clock()+Ammo.FRESH end
         was_aiming=aiming
         local dt=now-(self.last or now)
         self.last=now
