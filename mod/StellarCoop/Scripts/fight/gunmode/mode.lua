@@ -717,6 +717,7 @@ function GunMode.new(env)
             local her=s.ovr_row and g.path(g.pawn())
             if her then list[#list+1]={'carry',her} end
             for _,r in ipairs(stance.records and stance.records() or {}) do list[#list+1]=r end
+            for _,r in ipairs(s.dpad and s.dpad.records() or {}) do list[#list+1]=r end
             if s.on then list[#list+1]={'out'} end
             local line=#list>0 and Journal.line(list)
             if line==kept then return end
@@ -1042,7 +1043,7 @@ function GunMode.new(env)
         local was=s.on
         s.dead=true
         give_all_back()
-        if s.dpad then pcall(s.dpad.hide) end -- The HUD entry and the crosshair off the HUD: no tick runs from now on.
+        if s.dpad then pcall(s.dpad.hide); keep() end -- The HUD entry and the crosshair off the HUD: no tick runs from now on.
         g.log('stopped ('..tostring(why)..')'..(was and ', '..s.shots..' shots' or ''))
     end
 
@@ -1244,9 +1245,10 @@ function GunMode.new(env)
             s.hud_at=now
             s.dpad=s.dpad or Dpad.new(g)
             local txt=s.on and Ammo.lower_text(ammo.left,ammo.reserve,cfg.mag_size) or nil
-            pcall(s.dpad.tick,set.key.key,txt,{1,1,1})
+            local ok_e,entry=pcall(s.dpad.tick,set.key.key,txt,{1,1,1})
             -- hip fire (the rifle up, the game's own aim and its reticle off): a crosshair at the screen's centre
-            pcall(s.dpad.crosshair,s.on and s.want=='aim' and not s.tps and not s.air_aim)
+            local ok_c,cross=pcall(s.dpad.crosshair,s.on and s.want=='aim' and not s.tps and not s.air_aim)
+            if (ok_e and entry) or (ok_c and cross) then keep() end -- built: coop-gun.txt names it for a Lua reload
         end
         -- camps, seats, rests, doors and cutscenes: gun mode steps aside (rifle away, layer off, her own pose) while
         -- the game holds EVE in an interaction or a level sequence, and comes back 1 s after she is free (SBCharacter's
@@ -1836,8 +1838,8 @@ function GunMode.new(env)
     -- copy on her body again (SetMasterPoseComponent, exec 0x144928a80); the carry stance off
     -- (DeactiveCustomMovingStanceData: exec 0x14268c890 jumps to 0x1421287a0, which does nothing unless the flag at
     -- +0xf40 that ActiveCustomMovingStanceData's 0x1421282d0 sets is on, then clears it). Then the posed copy's parts
-    -- and holder destroyed (K2_DestroyComponent 0x1446c1340, K2_DestroyActor 0x1446bf590). How many were put back or
-    -- removed.
+    -- and holder destroyed (K2_DestroyComponent 0x1446c1340, K2_DestroyActor 0x1446bf590), the HUD entry and the
+    -- crosshair taken off SB's HUD (UWidget's RemoveFromParent). How many were put back or removed.
     local function objects_back(list)
         local function at(path)
             local o=path and g.try(function() return StaticFindObject(path) end)
@@ -1862,8 +1864,9 @@ function GunMode.new(env)
             end
         end
         for _,r in ipairs(list) do
-            local o=(r[1]=='part' or r[1]=='holder') and at(r[2])
+            local o=(r[1]=='part' or r[1]=='holder' or r[1]=='hud') and at(r[2])
             if o and r[1]=='part' then done(pcall(function() o:K2_DestroyComponent(o) end))
+            elseif o and r[1]=='hud' then done(pcall(function() o:RemoveFromParent() end))
             elseif o then done(pcall(function() o:K2_DestroyActor() end)) end
         end
         return n

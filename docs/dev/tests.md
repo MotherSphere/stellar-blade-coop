@@ -96,10 +96,16 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   once in 3 s. A match that starts with the rifle out puts it away within 0.25 s with everything back;
 - `fight/gunmode/dpad_test` covers the HUD entry (`fight/gunmode/ui/dpad.lua`): its glyph is the Right twin of the
   pad glyph the game shows or the `gun_key` keyboard icon. Its icon is a game texture path that it wants from the
-  keep. Through gun mode over `fight/gunmode/fake.lua` with a stub entry: it is ticked ten times a second with the
-  configured key (nil with `gun_key=none`). It gets `rounds | magazines` while the rifle is out and no text while it
-  is away. The crosshair is off while the rifle is away. `coop off` takes it off the HUD. There is none with
-  `gun_mode=off` or `hud_entry=false`;
+  keep. The real entry runs over a fake UMG whose HUD has the widget names of SB's paks. It is built with one walk,
+  the look for the HUD, then sized and placed beside the marker with the key's glyph on the key cell. `gun_key=none`
+  shows no glyph. A new HUD gets the entry built anew, sized, placed and with its glyph. A widget whose address another
+  object took gets no write. After a Lua reload nothing is made over a live widget and the marker's overlay holds the
+  entry once, the crosshair too. A HUD without the item column is tried once with one log line. The pad glyph walk
+  runs once each time the pad layer comes up. `hide` takes both off the HUD. Through gun mode over
+  `fight/gunmode/fake.lua` with a stub entry: it is ticked ten times a second with the configured key (nil with
+  `gun_key=none`). It gets `rounds | magazines` while the rifle is out and no text while it is away. The crosshair is
+  off while the rifle is away. `coop off` takes it off the HUD. There is none with `gun_mode=off` or
+  `hud_entry=false`. A built entry is named in `coop-gun.txt` and the next load takes it off, gun mode on or off;
 - `fight/gunmode/v4_rules_test` covers the layer clip choice (hip fire raises the rifle, a ground move carries it,
   the flip keeps the aim), the aim bridge through a dodge, her body tilt, the aim clip by rifle pitch, the recoil,
   the hip-fire turn, the comeback after an interaction and gun mode's own shots, one round each, with the player's

@@ -13,6 +13,7 @@
 --   carry|<EVE>                               the carry stance may be on (fight/gunmode/mode.lua's carry)
 --   part|<component>                          a part of the posed stance (stance.lua), destroyed
 --   holder|<actor>                            the actor the posed stance's donor stands on, destroyed
+--   hud|<widget>                              the HUD entry or the crosshair in SB's HUD (ui/dpad.lua), taken off it
 --   out                                       the rifle is out (its tagged rifle, the FOV lock)
 -- Components and actors are named by their paths (their full names without the class), which StaticFindObject finds.
 local Journal={}

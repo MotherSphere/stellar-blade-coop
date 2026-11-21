@@ -95,7 +95,7 @@ than 15 m would cost the other player nothing.
 mode then does nothing until the game restarts. Until everything is back, `coop-gun.txt` lists what gun mode changed.
 After a Lua reload (Ctrl+R) the next load puts those changes back at its first frame. It shows the drone and her
 hidden meshes to her camera again. It turns off the carry stance and removes the rifle or the posed copy it finds on
-her.
+her. It takes the HUD entry and the crosshair off SB's HUD, with gun mode on or off.
 
 ## Firing mode
 
@@ -151,13 +151,16 @@ in the co-op menu's language; NIKKE RAPID stays as it is.
 
 A gun mode entry sits in SB's HUD to the right of the D-pad marker, below the SH bar. It shows the button that brings
 the rifle out: on a pad the D-pad Right glyph of the pad the game shows, on the keyboard the `gun_key` icon on the
-game's own key cell. Then comes the NIKKE rifle icon. While the rifle is out it also reads `rounds | magazines`: the
+game's own key cell. With `gun_key=none` the keyboard button stays empty. Then comes the NIKKE rifle icon. While the rifle is out it also reads `rounds | magazines`: the
 rounds in the magazine, then the magazines left (a part-spent one counted). The icon is the game's NIKKE rifle texture,
 `Icon_Nikke_LostItem_AssaultRifle`, the icon of the item table's `Nikke_AR` row. Gun mode loads it from the game.
 While the native part runs, SBO's keep holds it across map changes. No image file ships with SBO. The entry is a child
 of the HUD's own D-pad marker, so it shows and hides with the HUD. A box the marker's size holds it, so the item column
-never grows. While no HUD is on screen gun mode looks for it once every 10 s. In hip fire (the rifle up without the
-game's aim) a small crosshair shows at the screen's centre. `hud_entry=false` in `fight/gunmode/config.lua` turns the
+never grows. While no HUD is on screen gun mode looks for it once every 10 s. That look is its only walk of the game's
+objects: the entry's parts are found by their names in the HUD. A new HUD (a map change, a death, a camp warp) gets
+the entry built anew. A HUD without the D-pad marker is tried once. After a Lua reload the new load takes the earlier
+load's entry again instead of building a second one over it. In hip fire (the rifle up without the game's aim) a small
+crosshair shows at the screen's centre. `hud_entry=false` in `fight/gunmode/config.lua` turns the
 entry off.
 
 The rounds below have not run in game yet. The rest of this section is written from the code and the game's tables.
