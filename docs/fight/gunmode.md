@@ -103,6 +103,9 @@ in frame. She runs, strafes and backpedals at the aim stance's speed times 1.4.
 Every round is the NIKKE shot, whatever drone round is selected. It spends no drone ammo. Each round flies from the
 muzzle to the point under the reticle.
 
+When the rifle goes away while the game's aim is still on (F4 in firing mode, a cutscene), the aim stays on RMB and
+the trigger fires nothing until the aim ends. Letting RMB / LT go ends it. The keys and SB's rows then go back.
+
 A jump drops the game's aim stance in the air. Gun mode keeps the rifle up, keeps her turned to the camera and fires
 the NIKKE shot itself until the aim button is let go, after landing as well. Press RMB / LT again to get the game's
 strafing aim back.

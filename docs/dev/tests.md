@@ -127,7 +127,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   refuses the rifle or puts it away the same way; `out()` says whether it is out. A refused toggle (no EVE, the drone
   aim held, a state that holds her, a failed start) gives its notice. F4 toggles the rifle by default, G does not; a
   key with a modifier needs it held; `gun_key=none` has no key. Once `menu_key` is Shift+F4, also from a rebind
-  after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the rifle;
+  after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the rifle. An off during the
+  game's aim keeps TPSMode on RMB and SB's rows taken with the NIKKE shot's cool time at 999 until the aim ends. Then
+  everything goes back, as it does at a new controller or a Lua reload in between;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
   layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.

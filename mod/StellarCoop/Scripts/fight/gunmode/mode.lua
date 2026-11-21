@@ -722,13 +722,16 @@ function GunMode.new(env)
         s.cube=nil
     end
 
-    local function put_away()
+    -- hold: the input mask stays (disable, SB's aim still on).
+    local function put_away(hold)
         s.morph=nil; cube_drop(); require('fight.gunmode.ik').fade=1
         if single.morph then pcall(single.morph,nil) end
         s.on=false
         pcall(stance.stop)
-        if s.mask then pcall(s.mask) end
-        s.mask,s.keys=nil,nil
+        if not hold then
+            if s.mask then pcall(s.mask) end
+            s.mask,s.keys=nil,nil
+        end
         camera_back()
         unface()
         local pw=g.pawn()
@@ -748,17 +751,38 @@ function GunMode.new(env)
         local pc=g.pc()
         if pc then pcall(fov,pc,false) end
     end
-    local function disable(why)
-        if not s.on then return end
-        put_away()
+    -- The game's own aim is on: its drone aim (bTPSMode, a byte at SBCharacter+0x1528: its SetBit 0x142691e80 on
+    -- 26123051) or a TPS mode other than the drone's (TPSModeType at +0x1531, ESBTPSModeType: 0 Default, 1 MiniGame,
+    -- 2 Nikke; enumerators at 0x145e2e370).
+    local function aim_on(p) return g.try(function() return p.TPSModeType~=0 or p.bTPSMode==true end)==true end
+    -- The held input mask and SB's rows back once the game's aim has ended (disable's hold).
+    local function release_hold(why)
+        s.aim_hold=false
+        if s.mask then pcall(s.mask) end
+        s.mask,s.keys=nil,nil
         if s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
         keep()
-        g.log('off ('..why..'), '..s.shots..' shots')
+        g.log('drone aim hold over ('..why..')')
+    end
+    -- An off while the game's aim runs (gun_fire=native) holds the input mask and SB's rows until that aim ends, with
+    -- no round to fire (the NIKKE shot's cool time 999, as with an empty magazine). The aim key stays on RMB, so
+    -- letting it go ends the aim: SB binds TPSMode's press and release (0x1420473b0 hands both to 0x14209f660, command
+    -- key 0x2b). Put back under a held RMB, the key moved to Ctrl, the release never came and the plain drone aim
+    -- stayed on, firing (2026-11-21 test).
+    local function disable(why)
+        if not s.on then return end
+        local p=g.pawn()
+        local hold=s.native_taken==true and p~=nil and aim_on(p)
+        put_away(hold)
+        if hold then s.aim_hold=true; data.cool(999)
+        elseif s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
+        keep()
+        g.log('off ('..why..'), '..s.shots..' shots'..(hold and '; the drone aim is on: its key and SB\'s rows wait for its end' or ''))
     end
     -- Everything back, SB's rows too, coop-gun.txt with it: a start that failed (L2), or stop.
     local function give_all_back()
         put_away()
-        pcall(data.put_back); s.native_taken=false; aim.row=nil
+        pcall(data.put_back); s.native_taken=false; aim.row=nil; s.aim_hold=false
         keep()
     end
 
@@ -789,9 +813,10 @@ function GunMode.new(env)
         local pc,p=g.pc(),g.pawn()
         -- Each refusal says why on screen too (L4), in a word of ui/text.lua's gun; the log keeps the reason.
         if not (pc and p) then g.log('not now: no EVE'); notice(os.clock(),'eve'); return end
-        if g.try(function() return p.TPSModeType~=0 or p.bTPSMode end) then
+        if aim_on(p) then
             g.log('not now: release the drone aim first'); notice(os.clock(),'aim'); return
         end
+        if s.aim_hold then release_hold('the rifle comes out') end
         local busy=held(p)
         if busy then
             g.log('not now: '..busy)
@@ -1126,9 +1151,16 @@ function GunMode.new(env)
             if s.armed_until then s.armed_until=math.max(s.armed_until,now+cfg.arm_hold) end -- SB's events wait too
             return
         end
-        if s.on and not s.mask then
+        if s.aim_hold and not s.on then
+            local p=g.pawn()
+            if not (p and aim_on(p)) then release_hold('the drone aim ended') end
+        end
+        if (s.on or s.aim_hold) and not s.mask then
             local ok,err=pcall(function() s.mask,s.keys=mask() end)
-            if not ok then disable('the input mask failed ('..tostring(err)..')'); return end
+            if not ok then
+                if s.on then disable('the input mask failed ('..tostring(err)..')') else release_hold('the input mask failed') end
+                return
+            end
             keep()
         end
         -- The shot's borrowed rows back once its last zone event has had its time (M4).
@@ -1697,6 +1729,11 @@ function GunMode.new(env)
             s.ammo_reset=true
             s.stop_stance=true
             s.show_back=true
+        end
+        if s.aim_hold then -- disable's hold: its mask back now, SB's rows at the deferred reset (give_back)
+            s.aim_hold=false
+            if s.mask then pcall(s.mask); s.mask=nil end
+            s.keys=nil
         end
         -- The old pawn's state goes with it (L3): the next start begins clean on the new one. Its drone parts and her
         -- facing go back at the deferred reset (show_back); its layer comes off there (give_back).

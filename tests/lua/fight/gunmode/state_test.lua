@@ -281,4 +281,51 @@ do
     assert(not gun.state.on,'Ctrl+F4 puts it away')
 end
 
+-- 8. An off while the game's aim is on (gun_fire=native) holds the aim key on RMB and SB's rows taken, with the NIKKE
+--    shot's cool time at 999 (no round), until the aim ends: letting RMB go reaches the game's TPSMode release. Then
+--    everything goes back. A new controller or a Lua reload in between puts it all back too.
+do
+    local w=Fake.new(); w.install()
+    local keys,store=w.keys(),file()
+    local gun,logs=new(nil,store)
+    local cool=w.tables.SkillTable.P_Eve_GunNikke_ShootSlug1_1
+    local drone=w.tables.SkillCommandTable.P_Eve_Gun_ShootSlug1_1
+    local function said(text)
+        for _,l in ipairs(logs) do if l:find(text,1,true) then return true end end
+        return false
+    end
+    local function aim_off()
+        toggle(gun,true); frames(gun,40)
+        w.down.RightMouseButton=true; w.pawn.bTPSMode=true; frames(gun,5)
+        toggle(gun,false)
+    end
+    aim_off()
+    assert(cool.CoolTime==999 and drone.SkillAlias:ToString()=='P_Eve_GunNikke_ShootSlug1_1','rows held, no round')
+    assert(w.keys():find('TPSMode=RightMouseButton',1,true) and said('wait for its end'),w.keys())
+    frames(gun,30)
+    assert(not gun.state.on and cool.CoolTime==999,'held while the aim lasts')
+    clock=clock+1; gun.toggle_now()
+    assert(not gun.state.on and said('not now: release the drone aim first'),'no rifle while the aim lasts')
+    w.down.RightMouseButton=nil; w.pawn.bTPSMode=false
+    frames(gun,1)
+    assert(#w.changed()==0 and w.keys()==keys and said('drone aim hold over (the drone aim ended)'),
+        table.concat(w.changed(),'; ')..' / '..w.keys())
+    assert(store.peek()=='','coop-gun.txt empty: '..store.peek())
+    toggle(gun,true); frames(gun,40); toggle(gun,false)
+    assert(#w.changed()==0 and w.keys()==keys,'out and away again')
+    -- a new controller (a map load, a death) while held: the keys back at once, the rows at its deferred reset
+    aim_off()
+    gun.new_controller(w.pc)
+    assert(w.keys()==keys,'keys back at the new controller: '..w.keys())
+    w.pawn.bTPSMode=false; w.down.RightMouseButton=nil
+    clock=clock+5; frames(gun,2)
+    assert(#w.changed()==0,table.concat(w.changed(),'; '))
+    -- a Lua reload while held: the next load's restore puts the rows and keys back
+    clock=clock+1
+    aim_off()
+    new(nil,store).restore()
+    assert(#w.changed()==0 and w.keys()==keys,table.concat(w.changed(),'; ')..' / '..w.keys())
+    w.pawn.bTPSMode=false; w.down.RightMouseButton=nil
+end
+
 print('gunmode state: ok')
