@@ -215,6 +215,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     return her == Life::alive || her == Life::coma;
   };
   host.set_down(down, her_up());
+  host.set_spectating(spectating_), guest.set_spectating(spectating_);
   Message m;
   while (g.receive(m)) {
     if (m.type == Type::mate) { // The worker's, never hers: her life. Her lines after it are judged on it.

@@ -100,6 +100,7 @@
 #include <utility>
 #include <vector>
 
+#include "game/boss_rows.h" // kTriggers, crosses
 #include "game/poise.h"     // kHitStun, kMaxLevel, kMaxReactionMs, kMaxWindowMs, kGuessLevel
 #include "link/protocol.h" // split, number, clean, fight_tag, kMaxMessage, kMaxReason
 
@@ -140,6 +141,15 @@ constexpr uint64_t kHoldMs = 6000;
 // guest_kills=confirmed (F4's fallback): the floor the engine holds on the guest's copies (MinimumHP, PHASE11-STAGE2-RE
 // 3), so the guest's own lethal hit leaves a copy at this HP until the host's dead.
 constexpr int32_t kFloorHp = 1;
+// Phase 3: while our EVE watches a fight (spectate), a change that would take an enemy across one of its spawn's HP
+// triggers with a scene waits until she is up, this long at most. A scene binds the player of the game that plays it.
+constexpr uint64_t kSceneHoldMs = 2000;
+inline bool scene_crossed(uint32_t spawn, int32_t before, int32_t after, int32_t max_hp) {
+  for (const boss_rows::Trigger &t : boss_rows::kTriggers)
+    if (t.spawn == spawn && *t.scene && boss_rows::crosses(t, before, after, max_hp))
+      return true;
+  return false;
+}
 inline bool cc_effect(uint64_t id) { return std::find(kCcEffects, kCcEffects + kCc, int64_t(id)) != kCcEffects + kCc; }
 // The light flinch (phase 8): HitStun, told and mirrored on the cc line beside the five crowd controls.
 constexpr int32_t kFlinch = poise::kHitStun;
@@ -878,7 +888,28 @@ struct Counts {
   uint64_t execs = 0;                // Host: her exec 1 taken. Guest: our exec 1 sent (stage 3c, the engine's).
   uint64_t exec_refused = 0;         // Host: her exec 1 refused (no Groggy or marker on ours, too soon, one runs).
   uint64_t finish_held = 0;          // Host: kills of hers held at 1 HP, our copy in its Finish stance (stage 5).
+  uint64_t scene_held = 0, scene_expired = 0; // Changes held for an HP scene while our EVE watched (phase 3); those
+                                              // that went after kSceneHoldMs anyway.
 };
+
+// One pair's scene hold (phase 3): true while its change waits. until is the hold's end, 0 for none; crossed: the
+// change runs one of its spawn's scene triggers. It ends when our EVE stops watching, or at until (logged).
+template <class Io>
+bool scene_wait(uint64_t &until, bool watching, bool crossed, uint64_t now, Event at, Counts &c, Io &io) {
+  if (until) {
+    if (watching && now < until)
+      return true;
+    if (watching)
+      ++c.scene_expired, at.what = "scene-held expired", io.event(at);
+    until = 0;
+    return false;
+  }
+  if (!watching || !crossed)
+    return false;
+  until = now + kSceneHoldMs;
+  ++c.scene_held, at.what = "scene-held", io.event(at);
+  return true;
+}
 
 // A copy's crowd control (kCcEffects and the stunned states) as our last pass saw it, and the other side's to start.
 // A crowd control is told when it starts on a copy that was in none: one that starts inside another is its chain, or
@@ -1112,6 +1143,17 @@ public:
         enemies_[i].down_said = false;
     down_ = down, member_up_ = member_up;
   }
+  // Each turn before her lines: our EVE watches the fight (spectate, phase 3). Meanwhile a claim of hers that would
+  // take our copy across one of its HP scene triggers waits with every later claim of that enemy, kSceneHoldMs at
+  // most. Our values of that enemy wait with them, so her copy keeps her hits.
+  void set_spectating(bool on) { spectating_ = on; }
+  // The host GUID whose change waits for its scene, else 0.
+  uint32_t scene_held() const {
+    for (size_t i = 0; spectating_ && i < count_; ++i)
+      if (enemies_[i].scene_until && !enemies_[i].died)
+        return enemies_[i].guid;
+    return 0;
+  }
   // The enemies whose scaling the engine holds after this step: every one followed while her on held, until it leaves
   // our list (her off changes nothing, so a pause on her side never heals an enemy). None without scaling; with a
   // boss's alone, every one too (the engine picks each one's percent by its type).
@@ -1329,9 +1371,17 @@ public:
       told_reactions_ = reactions_, told_resist_ = resist_;
       io.send(staggered());
     }
-    for (size_t c = 0; c < claims_; ++c)
-      apply(claim_[c], now, io);
-    claims_ = 0;
+    size_t kept = 0; // Those of an enemy whose scene waits stay, in order, ahead of the next turn's.
+    for (size_t c = 0; c < claims_; ++c) {
+      Enemy *e = claim_[c].exec < 0 ? find(claim_[c].guid) : nullptr;
+      if (e && !e->died &&
+          scene_wait(e->scene_until, spectating_, crosses(*e, claim_[c]), now,
+                     Event{"", "", e->guid, e->spawn, e->index}, counts, io))
+        claim_[kept++] = claim_[c];
+      else
+        apply(claim_[c], now, io);
+    }
+    claims_ = kept;
     // The kills that wait: once NoDamageNoHit and her takedown end, or kHoldMs after the claim came.
     for (size_t i = 0; i < count_;) {
       Enemy &e = enemies_[i];
@@ -1364,6 +1414,7 @@ private:
     bool boss = false;                      // Seen::boss: never a common enemy's place to take (stage 5).
     bool finish = false;                    // Seen::finish: only our own finisher ends it (stage 5).
     bool down_said = false;                 // A claim of hers dropped in this down of ours, logged (set_down()).
+    uint64_t scene_until = 0;               // Its claims wait for an HP scene until then (scene_wait()); 0: none.
     uint64_t exec_ms = 0, exec_last = 0; // Her takedown's exec 1 (0: none runs), and her last exec 1 (the rate).
     bool struck_ours = false, struck_hers = false; // This step: a drop no claim made; a claim with a drop, taken.
     uint64_t hold_ms = 0;
@@ -1396,7 +1447,7 @@ private:
   void forget() { // Her claims not applied yet, her takedowns and her reactions: she restarted, or stopped.
     claims_ = 0;
     for (size_t i = 0; i < count_; ++i)
-      enemies_[i].exec_ms = 0;
+      enemies_[i].exec_ms = enemies_[i].scene_until = 0;
     recent_.clear();
   }
   // A reaction that rose on our copy e (seen as s): told to her (Rule A) unless it is our echo. Then Rule B's window
@@ -1510,6 +1561,16 @@ private:
     c.lethal = m.lethal;
   }
 
+  // A lethal claim kills when our HP is not far above the HP her copy had (R33).
+  static bool lethal(const Enemy &e, const Claim &k) {
+    return k.lethal && double(e.value[kHp]) <= double(k.pre_hp) + kLethalShare * double(e.max[kHp]);
+  }
+  // The claim k would take e's HP across one of its spawn's scene triggers, as apply() would write it.
+  static bool crosses(const Enemy &e, const Claim &k) {
+    const int32_t hp = e.value[kHp];
+    return scene_crossed(e.spawn, hp, k.delta[kHp] >= hp || lethal(e, k) ? 0 : hp - k.delta[kHp], whole(e.max[kHp]));
+  }
+
   template <class Io> bool write(Enemy &e, int stat, int32_t delta, bool kill, Io &io) {
     return io.apply(Write{e.guid, stat, delta, kill, kill, true}, e.value[stat]);
   }
@@ -1537,7 +1598,7 @@ private:
     if (e->holding) // Its kill waits already.
       return;
     int32_t hp = e->value[kHp];
-    bool lethal_ok = k.lethal && double(hp) <= double(k.pre_hp) + kLethalShare * double(e->max[kHp]);
+    bool lethal_ok = lethal(*e, k);
     if (k.delta[kHp] < hp && !lethal_ok) {
       if (k.delta[kHp])
         write(*e, kHp, -k.delta[kHp], false, io);
@@ -1637,7 +1698,8 @@ private:
   }
 
   // hp: the enemies whose values changed or took a claim, at most each kHpMs; all of them each kRefreshMs. None that
-  // is due: its first values go at the next step, scaled.
+  // is due: its first values go at the next step, scaled. None whose claims wait for a scene: an ack of them with our
+  // values would take her hits back off her copy.
   template <class Io> void values(uint64_t now, Io &io) {
     if (!peer_on_ || now < next_hp_)
       return;
@@ -1655,7 +1717,7 @@ private:
       std::copy(e.value, e.value + kStats, value);
       if (e.holding || e.died) // It dies once the state or her takedown ends.
         value[kHp] = 0;
-      if (e.due || (!all && !e.claimed && std::equal(value, value + kStats, e.sent)))
+      if (e.due || (e.scene_until && !e.died) || (!all && !e.claimed && std::equal(value, value + kStats, e.sent)))
         continue;
       Values &v = m.entries[m.count++];
       v.guid = e.guid;
@@ -1691,6 +1753,7 @@ private:
   bool reactions_ = false, resist_ = false;      // Our hit_reactions and stagger_resist.
   bool told_reactions_ = false, told_resist_ = false; // Both as the guest last heard them.
   bool down_ = false, member_up_ = false;        // set_down(): our EVE is down; a member of the fight is up.
+  bool spectating_ = false;                      // set_spectating(): our EVE watches the fight.
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   bool full_said_ = false; // "full" logged in this world.
   Fence fence_;
@@ -1717,6 +1780,17 @@ public:
   }
   // guest_kills=confirmed (F4's fallback) for this side, before its first step.
   void confirm(bool on) { confirm_ = on; }
+  // Each turn before the host's lines: our EVE watches the fight (spectate, phase 3). Meanwhile a value of the host's
+  // that would take our copy across one of its HP scene triggers waits on the copy, kSceneHoldMs at most; the copy
+  // then takes the host's latest.
+  void set_spectating(bool on) { spectating_ = on; }
+  // The host GUID whose change waits for its scene on our copy, else 0.
+  uint32_t scene_held() const {
+    for (size_t i = 0; spectating_ && i < count_; ++i)
+      if (pairs_[i].scene_until && pairs_[i].local && !pairs_[i].dead)
+        return pairs_[i].hguid;
+    return 0;
+  }
   // The host's scaling from its scale line (kMinScale: none), until its next world, on or off.
   uint16_t scale(int which) const { return scale_[which]; }
   // The host's same_place from its place line, until its next world, on or off: false before one.
@@ -2051,6 +2125,7 @@ private:
     uint32_t lethal = 0;         // Our lethal claim's number while the host decides.
     bool held = false;           // Our copy lives at the floor meanwhile (confirm()).
     bool quiet = false;          // Paired since our last correction: the next one shows no damage number.
+    uint64_t scene_until = 0;    // Its HP correction waits for a scene until then (scene_wait()); 0: none.
     int32_t seen[kStats] = {};   // The copy's values after our last pass or write (R35).
     int32_t unsent[kStats] = {}; // Drops not claimed yet.
     int32_t host[kStats] = {};   // The host's values from its last hp.
@@ -2090,6 +2165,7 @@ private:
     p.test_hp = 0;
     p.held = p.fought = p.started = p.phased = p.retry = false;
     p.phases = 0;
+    p.scene_until = 0;
     p.pendings = 0;
     std::fill(p.unsent, p.unsent + kStats, 0);
     p.logged = false;
@@ -2143,7 +2219,7 @@ private:
     if (owed && now >= p.next_claim && now >= next_claim_)
       claim(p, s, now, false, io);
     if (p.have_host)
-      correct(p, s, io);
+      correct(p, s, now, io);
     const int32_t id = p.cc.want;
     const char *why = "";
     const Took took = p.cc.apply(p.local, s, now, reactions_, place_ && io.drawn(p.hguid), counts, io);
@@ -2211,8 +2287,9 @@ private:
   // Toward the host's value less what it has not taken yet, within [0, max] and never below 1 HP while the host says
   // alive: deaths come only from dead or our own lethal hit. The first correction after a pair catches up on what came
   // before it (the host's hits before we paired, or a fresh copy after our death or a pause), so its drop shows no
-  // damage number; the bar still moves.
-  template <class Io> void correct(Pair &p, const Seen &s, Io &io) {
+  // damage number; the bar still moves. While our EVE watches the fight, an HP correction across one of the copy's
+  // scene triggers waits (scene_wait()).
+  template <class Io> void correct(Pair &p, const Seen &s, uint64_t now, Io &io) {
     const bool quiet = std::exchange(p.quiet, false);
     for (int k : {kShield, kStamina, kHp}) {
       int32_t owed = p.unsent[k];
@@ -2222,7 +2299,12 @@ private:
       if (k == kHp)
         target = std::max(p.test_hp ? std::min(p.test_hp, whole(s.max[k])) : target, 1);
       int32_t gap = target - p.seen[k];
-      if (target == p.stuck[k] || std::abs(gap) < std::max(1.0, kCorrectShare * double(s.max[k])))
+      const bool writes = target != p.stuck[k] && std::abs(gap) >= std::max(1.0, kCorrectShare * double(s.max[k]));
+      if (k == kHp && scene_wait(p.scene_until, spectating_,
+                                 writes && scene_crossed(p.spawn, p.seen[k], target, whole(s.max[k])), now,
+                                 Event{"", "", p.hguid, p.spawn, p.index}, counts, io))
+        continue;
+      if (!writes)
         continue;
       int32_t after = p.seen[k];
       if (!io.apply(Write{p.local, k, gap, false, false, gap < 0 && !quiet}, after))
@@ -2294,6 +2376,7 @@ private:
   uint16_t boss_ = 0;      // The host's boss_hp_scale (its bosses line); 0: bosses off.
   bool reactions_ = false, resist_ = false; // The host's hit_reactions and stagger_resist (its stagger line).
   bool confirm_ = false;
+  bool spectating_ = false; // set_spectating(): our EVE watches the fight.
   struct Key {
     uint32_t spawn = 0;
     uint8_t index = 0;

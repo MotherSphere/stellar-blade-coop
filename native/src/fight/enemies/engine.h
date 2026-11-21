@@ -848,6 +848,7 @@ private:
   int32_t eve_life_ = 0;
   bool boss_ = false;
   uint32_t battle_ = 0, zone_ = 0, resets_ = 0;
+  bool spectating_ = false; // Our EVE watches the fight (spectate): a boss's HP scenes wait. Nothing sets it yet.
 };
 
 } // namespace coop::fight

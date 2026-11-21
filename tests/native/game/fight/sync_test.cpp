@@ -2682,6 +2682,106 @@ int main() {
     }
   }
 
+  { // Phase 3: while our EVE watches the fight, a change that would take an enemy across one of its HP triggers with a
+    // scene (game/boss_rows.h) waits until she is up, kSceneHoldMs at most. A scene binds the player of its game.
+    // Raven (spawn 1410024156, MaxHP 100000): a scene at HP <= 60 %, its QTE at HP <= 1. HedgeBoarBrute (spawn
+    // 1710024026): an HP <= 1 trigger with no scene.
+    const auto raven = [](World &w) {
+      World::Actor &a = w.add(201, 1410024156, 0, 900, 100000);
+      a.s.boss = true, a.s.value[kHp] = 61000;
+      w.add(202, 1710024026, 0).s.value[kHp] = 2;
+    };
+    const auto host = [&](World &w, Host &h) {
+      raven(w);
+      h.receive(msg("SBF25 on"), 0, w);
+      step(h, w, 1, 0);
+      w.lines();
+    };
+    { // scene_hold_host: the claim waits with every later claim of its pair, in order. Its values wait too, so her
+      // copy keeps her hits. Another pair's claims go on. Our EVE up: every one goes, in order.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.set_spectating(true);
+      h.receive(msg("SBF25 hit 1 1 201 2000 0 0 61000 0"), 10, hw);
+      step(h, hw, 2, 10);
+      assert(hw.hp(201) == 61000 && h.scene_held() == 201 && hw.count("scene-held") == 1 && h.counts.scene_held == 1);
+      h.receive(msg("SBF25 hit 1 2 201 100 0 0 59000 0"), 20, hw);
+      h.receive(msg("SBF25 hit 1 3 202 1 0 0 2 0"), 20, hw);
+      step(h, hw, 3, 20);
+      assert(hw.hp(201) == 61000 && hw.hp(202) == 1);
+      step(h, hw, 4, 1000); // The whole list's values: none of 201 while it waits.
+      assert(hw.hp(201) == 61000 && !has(hw.lines(), " 201:"));
+      h.set_spectating(false);
+      step(h, hw, 5, 1100);
+      assert(hw.hp(201) == 58900 && h.scene_held() == 0 && hw.count("scene-held") == 1);
+      assert(hw.count("scene-held expired") == 0 && h.counts.claims == 3 && has(hw.lines(), " 3 201:58900:"));
+    }
+    { // scene_hold_cap: a revive that never comes. The change goes kSceneHoldMs after it was held, logged.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.set_spectating(true);
+      h.receive(msg("SBF25 hit 1 1 201 2000 0 0 61000 0"), 10, hw);
+      step(h, hw, 2, 10);
+      step(h, hw, 3, 2009);
+      assert(hw.hp(201) == 61000 && h.scene_held() == 201);
+      step(h, hw, 4, 2010);
+      assert(hw.hp(201) == 59000 && h.scene_held() == 0 && hw.count("scene-held expired") == 1);
+      assert(h.counts.scene_expired == 1);
+      h.receive(msg("SBF25 hit 1 2 201 58999 0 0 59000 0"), 2020, hw); // Its QTE next: a hold of its own.
+      step(h, hw, 5, 2020);
+      assert(hw.hp(201) == 59000 && hw.count("scene-held") == 2 && h.counts.scene_held == 2);
+    }
+    { // scene_hold_off: not watching, the same claim goes at once.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.receive(msg("SBF25 hit 1 1 201 2000 0 0 61000 0"), 10, hw);
+      step(h, hw, 2, 10);
+      assert(hw.hp(201) == 59000 && h.scene_held() == 0 && hw.count("scene-held") == 0);
+    }
+    { // scene_hold_effect_only: a trigger with no scene never holds.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.set_spectating(true);
+      h.receive(msg("SBF25 hit 1 1 202 1 0 0 2 0"), 10, hw);
+      step(h, hw, 2, 10);
+      assert(hw.hp(202) == 1 && h.scene_held() == 0 && hw.count("scene-held") == 0);
+    }
+    { // scene_hold_guest: the host's values that would take our copy across wait on our copy. Up again, or
+      // kSceneHoldMs after the hold, the copy takes the host's latest.
+      for (const bool up : {false, true}) {
+        World gw;
+        Guest g;
+        raven(gw);
+        g.receive(msg("SBF25 world 1"), gw);
+        g.receive(msg("SBF25 up 1 201 1410024156 0 900 100000"), gw);
+        step(g, gw, 1, 0);
+        assert(g.linked() == 1);
+        g.set_spectating(true);
+        g.receive(msg("SBF25 hp 1 2 0 201:59000:0:0"), gw);
+        step(g, gw, 2, 10);
+        assert(gw.hp(201) == 61000 && g.scene_held() == 201 && gw.count("scene-held") == 1 && g.counts.scene_held == 1);
+        if (up) {
+          g.receive(msg("SBF25 hp 1 3 0 201:58000:0:0"), gw);
+          step(g, gw, 3, 200);
+          assert(gw.hp(201) == 61000);
+          g.set_spectating(false);
+          step(g, gw, 4, 500);
+          assert(gw.hp(201) == 58000 && g.scene_held() == 0 && gw.count("scene-held expired") == 0);
+          continue;
+        }
+        step(g, gw, 3, 2009);
+        assert(gw.hp(201) == 61000 && g.scene_held() == 201);
+        step(g, gw, 4, 2010);
+        assert(gw.hp(201) == 59000 && g.scene_held() == 0 && gw.count("scene-held expired") == 1);
+        assert(g.counts.scene_expired == 1);
+      }
+    }
+  }
+
   { // Phase 8: the cc line carries the hit's level (0-99) and the reaction's time in ms: 0 for the five crowd
     // controls (their rows' own time), 0 to 10000 for a flinch (HitStun 2003000; 0: its row's own time).
     Message m = msg("SBF25 cc 3 77 3000303 2 0");
