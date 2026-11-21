@@ -45,6 +45,7 @@ local GONE_FOR=2 -- s with no EVE (a load, the title): she left the map.
 local GO_SHOW,MISSED_SHOW=1,2 -- s a banner stays: GO, a missed checkpoint.
 local NAME=20 -- Characters of her name shown, as the partner card.
 local USE='Use: coop race record <name> | cp | save [laps] | cancel | start <name> | quit'
+    ..' | match [status | pick <name>|<number>|random]' -- match: online/modes/race/commands.lua's.
 -- coop race drive is a test and tuning tool, left out of USE (online/modes/race/drive.lua's command).
 local NAMES='a track name is 1 to 24 of a-z, 0-9, _ and -'
 

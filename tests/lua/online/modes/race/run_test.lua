@@ -293,6 +293,7 @@ end
 local A=side()
 player=A.eve
 local USE='Use: coop race record <name> | cp | save [laps] | cancel | start <name> | quit'
+    ..' | match [status | pick <name>|<number>|random]'
 for _,args in ipairs({{},{'go'},{'record'},{'cp','x'},{'cancel','x'},{'quit','x'},{'record','a','b'},{'start'}}) do
     ok,message=A.race.command(table.unpack(args,1,3))
     assert(not ok and message==USE,tostring(message))

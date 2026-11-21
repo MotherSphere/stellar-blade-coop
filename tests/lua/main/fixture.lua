@@ -972,8 +972,9 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'scoreattack [status|pick <challenge>] | '
     ..'recruiter [off] | '
     ..'gift [send <item> [count]|take [n]] | '
-    ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
-    ..'spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | '
+    ..'race record <name>|cp|save [laps]|cancel|start <name>|quit|match [status|pick <track>] | '
+    ..'fight on|off|status|probe|test|record|replay|pilot|spawn | '
+    ..'quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | '
     ..'keys reset [<name>|all] | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 
