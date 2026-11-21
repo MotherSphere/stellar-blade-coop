@@ -262,9 +262,11 @@ fake_link.take_mode=function() return {} end
 fake_link.mode_line=function(word,text) fake_link.modes[#fake_link.modes+1]=word..' '..text; return true end
 native_ok=nil
 captured,remoted={},nil
--- capture_leave_out: what main.lua gave the capture's leave_out (the bike's idle_part).
+-- capture_leave_out and capture_pose_source: what main.lua gave the capture's leave_out (the bike's idle_part) and
+-- pose_source (the bike's).
 fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,
-    yaw_delta=function() return 0 end,leave_out=function(f) capture_leave_out=f end}
+    yaw_delta=function() return 0 end,leave_out=function(f) capture_leave_out=f end,
+    pose_source=function(f) capture_pose_source=f end}
 capture_look=nil
 package.loaded['online.partner.capture']={new=function(publish,looks)
     assert(publish==(native_ok and fake_link.components or nil),'The capture publishes through the link, if any')
@@ -586,12 +588,14 @@ end}
 -- The bike (vehicles/bike/ride.lua; vehicles/bike/ride_test tests it): what new got (o), the why of each toggle and
 -- stop, its steers, slows and restores, its tunes; whether she rides, what a toggle answers (answer: ok and a line;
 -- raise: an error), what a steer or a slow says (an end of the ride); what idle_part answers (idle_part), with the
--- address it got (idle_part_at); the last stop's why at its leave (left).
+-- address it got (idle_part_at); what pose_source answers (pose_source), with its address (pose_source_at); the last
+-- stop's why at its leave (left).
 bk={}
 package.loaded['vehicles.bike.ride']={new=function(o)
     bk.o=o
     return {riding=function() return bk.riding==true end,
         idle_part=function(at) bk.idle_part_at=at; return bk.idle_part end,
+        pose_source=function(at) bk.pose_source_at=at; return bk.pose_source end,
         toggle=function(why)
             bk.toggles[#bk.toggles+1]=why
             if bk.raise then error(bk.raise,0) end
@@ -1068,6 +1072,7 @@ function load_main(with_native,no_folder,source)
     em.o,em.cmds,em.restores,em.ticks,em.stops,em.says,em.active=nil,{},0,0,0,nil,nil
     bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes,bk.left=nil,false,{},{},0,0,0,{},nil
     bk.answer,bk.raise,bk.says,bk.slow_says,bk.idle_part,bk.idle_part_at=nil,nil,nil,nil,nil,nil
+    bk.pose_source,bk.pose_source_at=nil,nil
     bo.o,bo.slows,bo.restores,bo.cleared=nil,0,0,nil
     dr.active,gl.active=nil,nil
     dn.o,dn.slows,dn.words=nil,{},{}

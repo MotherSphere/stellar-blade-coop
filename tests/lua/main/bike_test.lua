@@ -6,11 +6,11 @@
 -- checks it reads), coop bike and its words, bike_key (F3) and the pad's D-pad Right held 1 s with a refusal on screen,
 -- the first tick's restore, its frame before the native tick, its 250 ms pass, coop off (the stop, then the parked bike
 -- out of the world), the Options rows; riding() as coop emote, the race, the hall seats, coop fly on and coop glide on
--- read it; its idle_part as the capture's leave_out; the menu's words, a notice, SB's text (game_text) and the travel
--- worlds for the parked bike; its bike line through link.bike; its paid fetch at a Xion camp (a fake
--- vehicles/bike/fetch.lua: what it is built with, coop gift's FName and pause rules) and the follow's camp_near. Other
--- players' parked bikes (fixture.lua's fake vehicles/bike/others.lua): what they are built with, their restore at the
--- first tick, their pass after the ride's, their clear at coop off.
+-- read it; its idle_part as the capture's leave_out, its pose_source as the capture's; the menu's words, a notice, SB's
+-- text (game_text) and the travel worlds for the parked bike; its bike line through link.bike; its paid fetch at a Xion
+-- camp (a fake vehicles/bike/fetch.lua: what it is built with, coop gift's FName and pause rules) and the follow's
+-- camp_near. Other players' parked bikes (fixture.lua's fake vehicles/bike/others.lua): what they are built with, their
+-- restore at the first tick, their pass after the ride's, their clear at coop off.
 dofile('tests/lua/main/fixture.lua')
 -- coop fly's keys: eve/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
 local Flight,fly_on=require('eve.flight'),nil
@@ -110,6 +110,11 @@ assert(capture_leave_out(0x40)==nil and bk.idle_part_at==0x40)
 bk.idle_part=0x7100
 assert(capture_leave_out(0x40)==0x7100)
 bk.idle_part=nil
+-- And which component her body copies its bones from: the bike's pose_source (the rig while she rides it).
+assert(capture_pose_source(0x48)==nil and bk.pose_source_at==0x48)
+bk.pose_source='the rig'
+assert(capture_pose_source(0x48)=='the rig')
+bk.pose_source=nil
 -- coop fly on and coop glide on are refused while she rides (on a co-op save, where both would start); off is not.
 status_text=COOP
 local n_asked,n_glide=#asked,#gl.cmds

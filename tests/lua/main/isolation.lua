@@ -208,6 +208,7 @@ return function(name)
         assert(M.off_modules['vehicles.bike'] and capture_leave_out,'bike off, partner gave the capture its leave_out')
         assert(capture_leave_out(0x100)==0x203,'With bike off, the capture leaves out the bike part on EVE')
         assert(capture_leave_out(0x999)==nil,'Another EVE: nothing left out')
+        assert(capture_pose_source and capture_pose_source(0x100)==nil,'With bike off, no rig: no pose source')
         package.preload[wiring],package.loaded[wiring]=nil,real
         StaticFindObject,UE.GetPlayer=find,nil
     end

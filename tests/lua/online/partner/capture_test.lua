@@ -8,8 +8,9 @@
 -- materials (a dynamic one as its parent); with effects on, the Niagara layout by reflection and the listed systems in
 -- memory, looked up one a tick; the game's own folders against a mod's, a mod's mesh tagged with its outfit and sending
 -- its materials with dyes off, her cloth's collision line, a dynamic material's value lines, and the hide lines
--- (hidden material slots); SBO's bike left out while she does not ride (leave_out); her drone; with faces on, her
--- morph target names within their caps, the pose size and the table's room.
+-- (hidden material slots); SBO's bike left out while she does not ride (leave_out); her body on the bike's rig read
+-- through the rig (pose_source); her drone; with faces on, her morph target names within their caps, the pose size and
+-- the table's room.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -767,6 +768,81 @@ ok,message=step(2)
 t=published[#published]
 assert(ok and message:find('^Capture %d+: 2 parts, ') and t:find('\npart 1 - 0 - 1 37 Bike2 '..BIKE..'\n',1,true),t)
 assert(not t:find(' Bike '..BIKE,1,true),t)
+
+-- The bike's rig (vehicles/bike/rig.lua, bike_pose=rig): her main mesh and the parts that followed it copy the bones of
+-- a component of another actor, which wears her main mesh's mesh. pose_source, asked once a look with her address,
+-- names it while she rides. Her main mesh then has no leader and its read line names the rig's component. A part that
+-- copies the rig follows her main mesh. The table equals the one without the rig, except the main read line's object
+-- (a new generation). A nil pose source (the bike off, the hold way) gives today's table.
+local NAMES={'Root','Pelvis','Spine'}
+local rig_body=her('CharacterMesh0',BODY,{parent=capsule,bones=3,names=NAMES})
+local rig=read_only(part('RigMesh',BODY,{bones=3,names=NAMES}),'the rig')
+raw[rig].SkeletalMesh=raw[rig_body].SkeletalMesh -- The same mesh object as hers.
+local sleeve=her('Sleeve',X..'Sleeve.Sleeve',{leader=rig_body,parent=rig_body})
+local boots=her('Boots',X..'Boots.Boots',{leader=rig_body,parent=rig_body,x=2})
+local source,source_asked=nil,{}
+local function on_rig(on)
+    local lead={Get=function() return on and rig or rig_body end}
+    raw[rig_body].MasterPoseComponent=on and lead or none
+    raw[sleeve].MasterPoseComponent,raw[boots].MasterPoseComponent=lead,lead
+    source=on and rig or nil
+end
+local rig_looks={}
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,rig_looks)
+capture.pose_source(function(at) source_asked[#source_asked+1]=at; return source end)
+player=eve_of('EVE22b',{boots,rig_body,sleeve})
+raw[player].Mesh=rig_body
+tick()
+ok,message=step(2)
+local alone=published[#published]
+first=tonumber(alone:match('^generation (%d+)\n'))
+assert(ok and message:find('^Capture %d+: 3 parts, 3 bone names, ') and #source_asked==1 and
+    source_asked[1]==raw[player].GetAddress(),tostring(message))
+local mesh_hex=string.format('0x%x',raw[rig_body].SkeletalMesh.GetAddress())
+local function read_of(o) return string.format('\nread 0 0x%x 0xc1 %s\n',raw[o].GetAddress(),mesh_hex) end
+assert(alone:find(plain('\npart 0 - - - 1 3 CharacterMesh0 '..BODY..'\nnames 0 Root Pelvis Spine'..read_of(rig_body)
+    ..'part 1 0 0 - 1 0 Boots '..X..'Boots.Boots\nplace 1 0 0 0 1 2 0.1 0 1 1 1\npart 2 0 0 - 1 0 Sleeve ')),alone)
+on_rig(true)
+ok,message=step(1)
+local ridden=published[#published]
+assert(ok and message:find('^Capture '..(first+1)..': 3 parts, 3 bone names, '),tostring(message))
+assert(ridden==alone:gsub('^generation %d+','generation '..(first+1)):gsub(plain(read_of(rig_body)),read_of(rig)),
+    ridden)
+assert(step(1)==nil and #published==2,'Riding on: nothing new')
+-- On another mesh (Ride.SPARE, her body on another skeleton): a new generation, the rig's mesh, bones, bone names and,
+-- with faces on, morph names. The native part reads the rig's bone array, whose count must be the table's. It reads the
+-- rig's morph weights too.
+raw[rig].SkeletalMesh=mesh('/Game/Art/Character/PC/CH_P_EVE_InnerSuit/CH_P_EVE_InnerSuit.CH_P_EVE_InnerSuit')
+raw[rig].SkeletalMesh.MorphTargets={object('Smile')}
+raw[rig_body].SkeletalMesh.MorphTargets={object('Frown')}
+raw[rig].state.bones,raw[rig].state.names=4,{'Root','Pelvis','Spine','Neck'}
+rig_looks.faces=true
+ok,message=step(1)
+t=published[#published]
+assert(ok and message:find('^Capture '..(first+2)..': 3 parts, 4 bone names, '),tostring(message))
+assert(t:find(plain(string.format('\npart 0 - - - 1 4 CharacterMesh0 %s\nnames 0 Root Pelvis Spine Neck\n'
+    ..'morphs 0 Smile\nread 0 0x%x 0xc1 0x%x\n',BODY,raw[rig].GetAddress(),raw[rig].SkeletalMesh.GetAddress()))),t)
+raw[rig].SkeletalMesh,raw[rig].state.bones,raw[rig].state.names=raw[rig_body].SkeletalMesh,3,NAMES
+raw[rig_body].SkeletalMesh.MorphTargets,rig_looks.faces=nil,nil
+-- Off the bike: today's table again, under a new generation.
+on_rig(false)
+ok,message=step(1)
+assert(ok and message:find('^Capture '..(first+3)..': 3 parts, ') and
+    published[#published]==alone:gsub('^generation %d+','generation '..(first+3)),published[#published])
+-- Her body still on a rig that pose_source does not name (after Ctrl+R, before the release): no table, as before.
+on_rig(true)
+source=nil
+local count_rigged=#published
+step(1); step(1)
+assert(#published==count_rigged,'A leader outside her parts: no table')
+-- A rig without a mesh is no pose source either.
+source,raw[rig].SkeletalMesh=rig,nil
+step(1)
+assert(#published==count_rigged,'A rig without a mesh: no table')
+raw[rig].SkeletalMesh=raw[rig_body].SkeletalMesh
+step(1)
+assert(#published==count_rigged+1 and published[#published]:find(plain(read_of(rig))),published[#published])
 
 -- Her drone: drone() gives the address the native part found (coop-drone.txt). With looks.drone, the SBCharacter at
 -- that address (here a walk for CH_Drone_BP_C: the class hash is not proven) adds its meshes after hers and the bike's.

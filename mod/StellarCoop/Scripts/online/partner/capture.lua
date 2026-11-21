@@ -31,7 +31,10 @@
 -- asset (her ponytail's OverrideClothPhysicsAsset). Leaders whose bones would make a pose too big for the native part
 -- go, the last first, once no part's morphs are left to go before them. The component leave_out() names at each look
 -- is no part (main.lua: SBO's bike while EVE does not ride, vehicles/bike/ride.lua's idle_part), so getting on or off
--- the bike is a new generation.
+-- the bike is a new generation. While she rides the bike's rig (pose_source(), vehicles/bike/ride.lua's), her main mesh
+-- and the parts that followed it copy the bones of the rig's component. Her main mesh then takes no leader. Its read
+-- line, its bone count and its bone names are the rig's, which the native part reads. A part that copies the rig
+-- follows her main mesh.
 -- With the drone look on, her drone's meshes come after hers (and the bike's): the SBCharacter at the address the
 -- native part found (drone(), coop-drone.txt). Its main mesh is a free part (table.h's free line), placed by the pose's
 -- free block, with a light line naming its SpotLight for the native read. Its leader is the last, so it goes first when
@@ -112,8 +115,12 @@ function Capture.label(path,assets)
 end
 -- EVE's skeletal mesh components that have a mesh: her main mesh first, then leaders, then followers; each with the
 -- component it follows and the one it hangs from, by address. skip: the address of a component left out, or nil.
-local function parts_of(eve,skip)
+-- source: the component her body copies its bones from (the bike's rig), or nil; one without a mesh is none. Her main
+-- mesh following it has no leader and reads it (read: its handle and mesh). A part following it follows her main mesh.
+local function parts_of(eve,skip,source)
     local main=valid(eve.Mesh)
+    local from_mesh=source and valid(source.SkeletalMesh)
+    local from=from_mesh and address(source)
     local list={}
     each(eve:K2_GetComponentsByClass(find('/Script/Engine.SkeletalMeshComponent')),function(_,component)
         component=valid(component)
@@ -121,8 +128,12 @@ local function parts_of(eve,skip)
         if not mesh or skip and address(component)==skip then return end
         local found,leader=pcall(function() return valid(value_of(component.MasterPoseComponent):Get()) end)
         local parent=valid(component:GetAttachParent())
-        list[#list+1]={handle=component,mesh=mesh,leader=found and leader and address(leader) or nil,
-            main=main~=nil and address(component)==address(main),parent=parent and address(parent) or nil,order=#list}
+        local lead=found and leader and address(leader) or nil
+        local is_main=main~=nil and address(component)==address(main)
+        local rigged=from~=nil and lead==from
+        if rigged then lead=not is_main and main and address(main) or nil end
+        list[#list+1]={handle=component,mesh=mesh,leader=lead,main=is_main,parent=parent and address(parent) or nil,
+            read=rigged and is_main and {handle=source,mesh=from_mesh} or nil,order=#list}
     end)
     local function rank(c) return c.main and 0 or (c.leader==nil and 1 or 2) end
     table.sort(list,function(a,b) return rank(a)<rank(b) or rank(a)==rank(b) and a.order<b.order end) -- Stable.
@@ -265,10 +276,13 @@ function Capture.new(publish,looks,assets,private,drone)
     local fixed={}
     for k,path in ipairs(Capture.EFFECTS) do fixed[path]=k end
     local leave_out=nil -- f(her address): the address of a component of hers that is no part, or nil. Asked each look.
+    -- f(her address): the component her body copies its bones from (the bike's rig), or nil. Asked each look.
+    local pose_source=nil
     -- Each mesh's morph target names, by its address, for this EVE (a mesh's never change); why they could not be read,
     -- until said (then false).
     local morph_names,morphs_unread={},nil
     function self.leave_out(f) leave_out=f end
+    function self.pose_source(f) pose_source=f end
     local function withdraw()
         if published then publish(nil); published=nil end
     end
@@ -354,14 +368,15 @@ function Capture.new(publish,looks,assets,private,drone)
     end
     local function look(eve,effects)
         local started=os.clock()
-        local list=parts_of(eve,leave_out and leave_out(address(eve)))
+        local list=parts_of(eve,leave_out and leave_out(address(eve)),pose_source and valid(pose_source(address(eve))))
         if not (list[1] and list[1].main) then return end
         if looks.drone then -- A drone that cannot be read is left out: her own parts go on.
             local read,of_drone=pcall(drone_parts,eve)
             if not read and drone_unread==nil then drone_unread=tostring(of_drone) end
             for _,c in ipairs(read and of_drone or {}) do list[#list+1]=c end
         end
-        for _,c in ipairs(list) do c.morph_names=looks.faces and morphs_of(c.mesh) or nil end
+        -- On the rig her main mesh's weights are read from the rig: its mesh names them.
+        for _,c in ipairs(list) do c.morph_names=looks.faces and morphs_of((c.read or c).mesh) or nil end
         -- The parts the table can take: a follower of a part left out is left out too, a part's morphs past
         -- MAX_PART_MORPHS or the table's MAX_MORPHS too. While a pose of them would be over MAX_POSE, the last part's
         -- morphs go, then the last leader, with its followers.
@@ -371,7 +386,7 @@ function Capture.new(publish,looks,assets,private,drone)
             local total=0
             for _,c in ipairs(list) do
                 local lead=c.leader and by_address[c.leader]
-                local bones=not c.leader and c.handle:GetNumBones() or 0
+                local bones=not c.leader and (c.read or c).handle:GetNumBones() or 0
                 if not (over and over[c]) and #parts<MAX_PARTS
                     and (c.leader==nil and bones>=1 and bones<=MAX_BONES or lead and lead.lead==nil) then
                     c.index,c.lead,c.bones=#parts,lead and lead.index or nil,bones
@@ -415,6 +430,7 @@ function Capture.new(publish,looks,assets,private,drone)
             c.socket=c.socket=='None' and '-' or word(c.socket)
             c.shown=c.handle:IsVisible() and c.handle.bHiddenInGame~=true and 1 or 0
             key[i]=address(c.handle)..':'..address(c.mesh)
+            if c.read then key[i]=key[i]..'@'..address(c.read.handle)..':'..address(c.read.mesh) end
             dress[i]=c.parent_index..' '..c.socket..' '..c.shown
             c.path=c.mesh:GetFullName():match('^%S+ (.+)$')
             c.label=not private and Capture.label(c.path,declared) or nil
@@ -488,7 +504,7 @@ function Capture.new(publish,looks,assets,private,drone)
             for _,c in ipairs(parts) do
                 if not c.lead then
                     local list_of={}
-                    for b=0,c.bones-1 do list_of[#list_of+1]=word(text(c.handle:GetBoneName(b))) end
+                    for b=0,c.bones-1 do list_of[#list_of+1]=word(text((c.read or c).handle:GetBoneName(b))) end
                     names[c.index]=table.concat(list_of,' ')
                 end
             end
@@ -538,7 +554,9 @@ function Capture.new(publish,looks,assets,private,drone)
             if not c.lead then
                 lines[#lines+1]=string.format('names %d %s',c.index,names[c.index])
                 if morph then lines[#lines+1]=morph end
-                lines[#lines+1]=string.format('read %d %s %s %s',c.index,hex(c.handle),hex(c.handle:GetClass()),hex(c.mesh))
+                local r=c.read or c -- The native part reads its bones and, for part 0, its world transform.
+                lines[#lines+1]=string.format('read %d %s %s %s',c.index,hex(r.handle),hex(r.handle:GetClass()),
+                    hex(r.mesh))
                 if c.free and c.light then lines[#lines+1]=string.format('light %d %s',c.index,hex(c.light)) end
                 count=count+c.bones
             elseif morph then

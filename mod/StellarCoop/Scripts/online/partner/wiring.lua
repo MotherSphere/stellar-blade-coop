@@ -54,6 +54,9 @@ M.capture.leave_out(function(at)
     if M.off_modules['vehicles.bike'] then return BikePart.idle(at) end
     return M.bike.idle_part(at)
 end)
+-- While she rides the bike's rig, her body copies its bones: the capture reads the rig in place of her main mesh. The
+-- bike's pose_source is read at each look. While the bike module is off its stub answers nothing: no ride, no rig.
+M.capture.pose_source(function(at) return M.bike.pose_source(at) end)
 if M.link then
     -- The ghost turns on when a session starts (main/pass.lua calls this then): once, so coop puppet off holds
     -- until the next.
