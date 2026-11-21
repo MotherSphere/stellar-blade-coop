@@ -30,6 +30,11 @@ Data.FIRE_SKILL='P_Eve_GunNikke_ShootSlug1_1'
 -- SB's own NIKKE reload: about 1 s after its last shot the effect P_Eve_GunNikke_ReloadCompleted adds 60 Bullet_Nikke
 -- (its Action1). Nothing while the rifle is out (take below).
 Data.REFILL_EFFECT='P_Eve_GunNikke_ReloadCompleted'
+-- s of play (paused time not counted) between put_back() and that Action1 back as shipped. ReloadCompleted reads it
+-- when it starts, about 1.07 s after SB's last NIKKE shot: the shot's steps (Cast1 0.01, Hit1 0.01, Finish1 0.05 s in
+-- the base pak's SkillActiveStepTable), then Reload's LifeTime of 1.0 s (EffectTable 10093). Put back at once, an off
+-- inside that time gave 60 free rounds. 3 s: that and a margin.
+Data.REFILL_HOLD=3
 Data.FIRE_COMMANDS={'P_Eve_GunNikke_ShootSlug1_1','P_Eve_GunNikke_ShootSlug1_2'}
 Data.BURST_COMMAND='P_Eve_GunNikke_ShootSlug2_1'
 -- Every drone fire command, of every round (the game loads the round the player picked each time she aims), the empty
@@ -380,12 +385,13 @@ function Data.new(g,native,opts)
             -- 26123051, enum params 0x146d33c30): EffectAction_None 0 (entry 0x145e27d30), EffectAction_ItemRefill 22
             -- (entry 0x145e27e90). The effect start (0x141bc8d40) reads the live row's +0x2fc at each start. Its switch
             -- has no case 0. Its case 0x16 adds AddCount to bucket 1 (0x141bdbc20). Last here: nothing after it can
-            -- fail, so a refused take never leaves it changed.
+            -- fail, so a refused take never leaves it changed. During put_back's hold (self.late) it reads 0: the
+            -- shipped value is the hold's.
             local eff=g.try(function() return tbl('EffectTable') end)
             local rc=eff and find(eff,Data.REFILL_EFFECT)
             if rc then
-                refill={rc,'Action1',rc.Action1}
-                g.log('data: '..Data.REFILL_EFFECT..' Action1 '..tostring(rc.Action1)..' -> 0: SB\'s NIKKE reload adds no rounds')
+                refill={rc,'Action1',self.late and self.late[3] or rc.Action1}
+                g.log('data: '..Data.REFILL_EFFECT..' Action1 '..tostring(refill[3])..' -> 0: SB\'s NIKKE reload adds no rounds')
                 rc.Action1=0
             else g.log('data: no EffectTable row '..Data.REFILL_EFFECT..': SB\'s NIKKE reload still adds rounds') end
         end)
@@ -395,6 +401,7 @@ function Data.new(g,native,opts)
             return false,err
         end
         self.saved,self.refill=saved,refill
+        if refill then self.late=nil end
         quiet()
         g.log('data: '..#saved..' fields of SB\'s rows taken for gun mode')
         return true
@@ -405,16 +412,37 @@ function Data.new(g,native,opts)
         if self.saved and self.cool_row then self.cool_row.CoolTime=v end
     end
 
-    function self.put_back()
+    -- SB's refill field goes back Data.REFILL_HOLD s of play later (tick below), the rest at once. now: that one at once
+    -- too (coop off: no tick runs after it).
+    function self.put_back(now)
         self.disarm()
         loud()
         self.cool_row=nil
         local saved=self.saved
         self.saved=nil
-        if self.refill then undo({self.refill}); self.refill=nil end
+        if self.refill then
+            local r=self.refill
+            self.refill,self.late=nil,{r[1],r[2],r[3],left=Data.REFILL_HOLD}
+        end
+        if now and self.late then self.late.left=0; self.tick(0,false) end
         if not saved then return end
         undo(saved)
         g.log('data: SB\'s rows put back')
+    end
+
+    -- Each frame while the refill field waits (fight/gunmode/mode.lua's tick, gun mode on or off): its hold counts down
+    -- while the game is not paused. now: os.clock(). true when the shipped value went back (coop-gun.txt drops it).
+    function self.tick(now,paused)
+        local l=self.late
+        if not l then return false end
+        local dt=now-(l.at or now)
+        l.at=now
+        if not paused then l.left=l.left-dt end
+        if l.left>0 then return false end
+        self.late=nil
+        undo({l})
+        g.log('data: '..Data.REFILL_EFFECT..' Action1 back to '..tostring(l[3])..': SB\'s NIKKE reload adds rounds again')
+        return true
     end
 
     -- coop-gun.txt's row records (fight/gunmode/journal.lua) for what take() and arm() changed, with an obj record for
@@ -422,7 +450,7 @@ function Data.new(g,native,opts)
     -- A field that read nil has nothing to put back. Raises on a value it cannot keep.
     function self.records()
         local out={}
-        for _,list in ipairs({self.saved or {},self.armed or {},{self.refill}}) do
+        for _,list in ipairs({self.saved or {},self.armed or {},{self.refill or self.late}}) do
             for _,e in ipairs(list) do
                 if e[3]~=nil then
                     local at=assert(names[e[1]],'a row with no name')

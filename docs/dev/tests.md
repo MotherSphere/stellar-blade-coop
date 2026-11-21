@@ -193,8 +193,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   again. A new controller while the rifle is away fills them again. Without the rifle layer the jump or dodge bridge fires gun mode's own shot. Hip fire then fires nothing.
   A round fired in the double-jump flip keeps the bore's destination to the frame's end. In the game's aim the
   destination is the reticle point. While the rifle is out SB's NIKKE reload adds no rounds in either fire mode: the
-  `Action1` of `P_Eve_GunNikke_ReloadCompleted` is 0. `coop-gun.txt` lists it. It goes back with SB's other rows.
-  Without the row the rifle still comes out;
+  `Action1` of `P_Eve_GunNikke_ReloadCompleted` is 0. `coop-gun.txt` lists it. It goes back 3 s of play after SB's
+  other rows (a pause does not count), at once at `coop off`. A rifle out during that wait keeps the 0 and the shipped
+  value. Without the row the rifle still comes out;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
   layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.

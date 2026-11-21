@@ -914,10 +914,11 @@ function GunMode.new(env)
             hold and '; the drone aim is on: its key and SB\'s rows wait for its end' or ''))
         g.log('sounds at the off: '..sounds(p))
     end
-    -- Everything back, SB's rows too, coop-gun.txt with it: a start that failed (L2), or stop.
-    local function give_all_back()
+    -- Everything back, SB's rows too, coop-gun.txt with it: a start that failed (L2), or stop (now: SB's refill field
+    -- at once too, as no tick runs after it).
+    local function give_all_back(now)
         put_away()
-        pcall(data.put_back); s.native_taken=false; aim.row=nil; s.aim_hold=false
+        pcall(data.put_back,now); s.native_taken=false; aim.row=nil; s.aim_hold=false
         keep()
     end
 
@@ -1137,7 +1138,7 @@ function GunMode.new(env)
     function self.stop(why)
         local was=s.on
         s.dead=true
-        give_all_back()
+        give_all_back(true)
         if s.dpad then pcall(s.dpad.hide); keep() end -- The HUD entry and the crosshair off the HUD: no tick runs from now on.
         g.log('stopped ('..tostring(why)..')'..(was and ', '..s.shots..' shots' or ''))
     end
@@ -1281,6 +1282,9 @@ function GunMode.new(env)
             if p then local b=s.mesh_back; s.mesh_back=nil; pcall(function() p.Mesh:K2_SetRelativeRotation(b,false,{},false) end); keep() end
         end
         local pc=g.pc(); if not pc then return end
+        -- SB's NIKKE refill field back once its hold after put_back is over (fight/gunmode/data.lua tick): a pause
+        -- check a frame for those 3 s only.
+        if data.late and data.tick(now,is_paused(pc)) then keep() end
         -- Paused (the pause menu and its options among others): the mask lifted until the game runs again. SB's
         -- KeyMapping option (its save 0x14222dec0 on 26123051) writes the player input's mappings (+0x140 and +0x150,
         -- through 0x1423d04d0) into its settings. ForceRebuildKeymaps (0x144664bb0) copies them there from the input

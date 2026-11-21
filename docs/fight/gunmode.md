@@ -72,8 +72,11 @@ rifle changes:
   shipped, its `Action1` adds 60 `Bullet_Nikke` about 1 s after the last NIKKE shot while EVE carries fewer than 60.
   Each reload of gun mode leaves her with fewer than 60, so every pause in the fire gave a free magazine (4 of them in
   the 2026-11-21 test). While the rifle is out the action is `EffectAction_None`. The magazine then loads only the rounds
-  she buys or picks up. `UE4SS.log` has the line
-  `data: P_Eve_GunNikke_ReloadCompleted Action1 22 -> 0: SB's NIKKE reload adds no rounds`.
+  she buys or picks up. The action goes back 3 s of play after the other rows (paused time not counted). SB reads it
+  when the effect starts, about 1.07 s after its last NIKKE shot. Put back at once, an off right after a shot gave 60
+  free rounds. `coop off` and a Lua reload put it back at once. `UE4SS.log` has the lines
+  `data: P_Eve_GunNikke_ReloadCompleted Action1 22 -> 0: SB's NIKKE reload adds no rounds` and
+  `data: P_Eve_GunNikke_ReloadCompleted Action1 back to 22: SB's NIKKE reload adds rounds again`.
 - `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its destination is an offset from
   EVE's root in her root's frame (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own
   target line and sent the rounds to the side. Its own spread (a random range of 300 cm) is off. Its destination is

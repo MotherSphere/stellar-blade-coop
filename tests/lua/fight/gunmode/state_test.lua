@@ -705,8 +705,9 @@ end
 
 -- 19. SB's own NIKKE reload adds no rounds while the rifle is out (the user's call, 11-21), in both fire modes:
 --     EffectTable P_Eve_GunNikke_ReloadCompleted's Action1 (ItemRefill, 22 here as a test value) is 0 (None). It
---     goes back with SB's other rows: at the off (native fire) or at a new world. coop-gun.txt lists its shipped
---     value, so a Lua reload puts it back. Without the row the rifle still comes out and the log says so.
+--     goes back 3 s of play after SB's other rows: after the off (native fire) or after a new world. coop-gun.txt
+--     lists its shipped value, so a Lua reload puts it back. Without the row the rifle still comes out and the log
+--     says so.
 local REFILL='\trow|EffectTable|P_Eve_GunNikke_ReloadCompleted|Action1|d|22\t'
 do
     for _,settings in ipairs({'','gun_fire=own\n'}) do
@@ -718,10 +719,10 @@ do
         toggle(gun,true)
         assert(rc.Action1==0,settings..'SB\'s refill on while the rifle is out: '..tostring(rc.Action1))
         assert(('\t'..store.peek()..'\t'):find(REFILL,1,true),'coop-gun.txt: '..store.peek())
-        toggle(gun,false)
+        toggle(gun,false); frames(gun,200)
         -- (gun_fire=own keeps SB's rows taken with the rifle away until a new world)
         assert(settings~='' or rc.Action1==22,'back with the rifle away: '..tostring(rc.Action1))
-        gun.new_controller(w.pc); clock=clock+5; frames(gun,2)
+        gun.new_controller(w.pc); clock=clock+5; frames(gun,200)
         assert(rc.Action1==22 and #w.changed()==0,settings..'back at a new world: '..tostring(rc.Action1))
         toggle(gun,true)
         new(settings,store).restore()
@@ -734,6 +735,44 @@ do
     for _,l in ipairs(logs) do if l:find('no EffectTable row P_Eve_GunNikke_ReloadCompleted',1,true) then said=true end end
     assert(said,'the missing row is logged')
     toggle(gun,false)
+end
+
+-- 20. SB's refill field goes back 3 s of play after the off, not with the other rows: a ReloadCompleted already on its
+--     way (about 1.07 s after SB's last NIKKE shot) reads it when it starts. A pause does not count. coop-gun.txt keeps
+--     its shipped value until then. A rifle out during the hold keeps the 0 and the shipped value. A Lua reload during
+--     the hold puts it back. coop off puts it back at once (no tick runs after it).
+do
+    local w=Fake.new(); w.install()
+    local rc={Action1=22}
+    w.tables.EffectTable.P_Eve_GunNikke_ReloadCompleted=rc
+    local store=file()
+    local gun,logs=new(nil,store)
+    local function kept() return ('\t'..store.peek()..'\t'):find(REFILL,1,true)~=nil end
+    toggle(gun,true); frames(gun,10); toggle(gun,false)
+    assert(rc.Action1==0 and kept(),'held after the off: '..tostring(rc.Action1)..' / '..store.peek())
+    assert(w.tables.SkillTable.P_Eve_GunNikke_ShootSlug1_1.CoolTime==0.11,'the other rows back at once')
+    frames(gun,150)
+    assert(rc.Action1==0,'still held 2.5 s after the off')
+    w.paused=true; frames(gun,300); w.paused=false
+    assert(rc.Action1==0,'a pause does not count')
+    frames(gun,40)
+    assert(rc.Action1==22 and not kept() and #w.changed()==0,'back after 3 s of play: '..tostring(rc.Action1)..' / '
+        ..store.peek())
+    local said=false
+    for _,l in ipairs(logs) do if l:find('Action1 back to 22',1,true) then said=true end end
+    assert(said,'the log says it is back')
+    toggle(gun,true); frames(gun,10); toggle(gun,false); frames(gun,60)
+    toggle(gun,true)
+    assert(rc.Action1==0 and kept(),'out again during the hold: '..store.peek())
+    toggle(gun,false); frames(gun,200)
+    assert(rc.Action1==22 and not kept(),'the shipped value after the second hold: '..tostring(rc.Action1))
+    toggle(gun,true); toggle(gun,false)
+    new(nil,store).restore()
+    assert(rc.Action1==22,'a Lua reload during the hold')
+    toggle(gun,true); toggle(gun,false)
+    assert(rc.Action1==0,'held after the off')
+    gun.stop('coop off')
+    assert(rc.Action1==22 and not kept(),'coop off: back at once: '..tostring(rc.Action1)..' / '..store.peek())
 end
 
 print('gunmode state: ok')
