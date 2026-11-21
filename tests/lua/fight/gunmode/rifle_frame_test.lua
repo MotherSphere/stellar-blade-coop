@@ -33,4 +33,31 @@ assert(sent.Scale3D.X==0.5 and spun.Yaw==90,'morph scale and spin')
 assert(Rifle.GRIP.Scale3D.X==1 and Rifle.GRIPS.aim.Scale3D.X==1,'GRIP not scaled in place')
 r.morph(nil); spun=nil; r.frame()
 assert(sent==Rifle.GRIP and spun==nil,'back to GRIP')
+-- In aim: the barrel turned onto the line to the reticle's point every frame, the whole error up to Rifle.TURN_MAX
+-- (an error past it turned nothing before, so the rifle jumped as it crossed the limit), eased in at the aim's start.
+do
+    local T=50; local clock=os.clock; os.clock=function() return T end
+    local have={X=1,Y=0,Z=0}
+    local turned
+    gun.GetSocketLocation=function() return {X=0,Y=0,Z=0} end
+    gun.GetSocketRotation=function() return {} end
+    gun.K2_GetComponentToWorld=function() return {Translation={X=0,Y=0,Z=0},Rotation={X=0,Y=0,Z=0,W=1},Scale3D={X=1,Y=1,Z=1}} end
+    gun.K2_SetWorldTransform=function(_,t) turned=t.Rotation end
+    StaticFindObject=function() return obj({GetForwardVector=function() return have end}) end
+    local target
+    local a=require('fight.gunmode.rifle').new(function() return function() end,function() end end,nil)
+    pc.Pawn=pawn(1); a.start(pc,function() return true end,function() return target end)
+    local function deg(q) return math.deg(2*math.acos(math.min(1,math.abs(q.W)))) end
+    local function at(d) local r=math.rad(d); return {X=1000*math.cos(r),Y=1000*math.sin(r),Z=0} end
+    target=at(3); turned=nil; a.frame() -- the aim's first frame: the turn eases in
+    assert(turned==nil or deg(turned)<0.5,'eased in')
+    T=T+1
+    target=at(3); turned=nil; a.frame()
+    assert(turned and math.abs(deg(turned)-3)<1e-3 and turned.Z>0,'the whole 3 degrees')
+    target=at(10); turned=nil; a.frame()
+    assert(turned and math.abs(deg(turned)-Rifle.TURN_MAX)<1e-3,'10 degrees off: the most it turns')
+    target=at(30); turned=nil; a.frame()
+    assert(turned==nil,'far off: no turn')
+    os.clock=clock
+end
 print('gunmode rifle_frame_test ok')

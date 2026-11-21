@@ -1873,7 +1873,7 @@ function GunMode.new(env)
         layer_off(g.pawn())
         if out then
             local swept,count=pcall(Rifle.sweep,g.pawn())
-            said[#said+1]=swept and count..' rifles removed' or 'rifle not removed ('..tostring(count)..')'
+            said[#said+1]=swept and count..' rifle parts removed' or 'rifle not removed ('..tostring(count)..')'
             local pc=g.pc()
             said[#said+1]=pc and pcall(function() pc:FOV(0) end) and 'FOV lock off' or 'FOV lock not reached'
         end

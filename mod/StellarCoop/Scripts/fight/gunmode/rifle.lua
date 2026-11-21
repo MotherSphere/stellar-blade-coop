@@ -28,6 +28,10 @@ Rifle.GRIPS.reload=Rifle.GRIPS.carry -- the reload plays the carry pose (fight/g
 -- the aim-up and aim-down clips give her head and shoulders only: the rifle stays placed as in AimLevel (fight/gunmode/ik.lua)
 Rifle.GRIPS.aimup=Rifle.GRIPS.aim
 Rifle.GRIPS.aimdown=Rifle.GRIPS.aim
+-- In aim: TURN_MAX, the most the rifle turns in her hands onto the reticle's line (degrees). EASE_IN: that turn's
+-- ease-in (s).
+Rifle.TURN_MAX,Rifle.EASE_IN=6,0.15
+local function qmul(a,b) return require('fight.gunmode.ik').math.qmul(a,b) end
 
 -- laser: fight/gunmode/laser.lua's function (pawn, rifle, mathlib) -> beam(target), finish().
 function Rifle.new(laser,trace,grip)
@@ -142,8 +146,10 @@ function Rifle.new(laser,trace,grip)
         if held then
             if not st.aimAt then st.aimAt=now; crumb('aim') end
             local t=st.target()
-            -- the barrel on the line to where the rounds go (the reticle's point): a small turn of the rifle in her hands
-            -- (at most 6 degrees; the pak's aim already holds it on the camera's line, this takes up the shoulder offset)
+            -- the barrel on the line to where the rounds go (the reticle's point), every frame: the rifle turned in her
+            -- hands by the whole error up to Rifle.TURN_MAX degrees (the aim and its chest loop hold it within that;
+            -- this takes up the rest). The turn eases in over the aim's first Rifle.EASE_IN s and fades out between 19
+            -- and 25 degrees of error. It stopped dead past 6 degrees: the rifle jumped whenever the error crossed it.
             local onTarget=false
             if t and not st.reloading and not self.no_turn then pcall(function()
                 st.fire=st.fire or FName('FX_Fire') -- made once per rifle, not each frame
@@ -155,16 +161,19 @@ function Rifle.new(laser,trace,grip)
                 if len<80 then return end
                 local want={X=dx/len,Y=dy/len,Z=dz/len}
                 local dot=have.X*want.X+have.Y*want.Y+have.Z*want.Z
-                if dot<math.cos(math.rad(25)) then return end
+                local err=math.deg(math.acos(math.max(-1,math.min(1,dot))))
+                if err>=25 then return end
                 onTarget=true
-                if dot>0.99999 or dot<math.cos(math.rad(6)) then return end
-                local one={X=1,Y=1,Z=1}
-                local th=mathlib:MakeTransform({X=0,Y=0,Z=0},mathlib:Conv_VectorToRotator(have),one)
-                local tw=mathlib:MakeTransform({X=0,Y=0,Z=0},mathlib:Conv_VectorToRotator(want),one)
-                local turn=mathlib:ComposeTransforms(mathlib:InvertTransform(th),tw)
+                local a=math.rad(math.min(err,Rifle.TURN_MAX))*math.min(1,(now-st.aimAt)/Rifle.EASE_IN)*math.min(1,(25-err)/6)
+                -- the turn about have x want in the world frame, put before the rifle's own rotation
+                local cx,cy,cz=have.Y*want.Z-have.Z*want.Y,have.Z*want.X-have.X*want.Z,have.X*want.Y-have.Y*want.X
+                local cl=math.sqrt(cx*cx+cy*cy+cz*cz)
+                if a<1e-5 or cl<1e-9 then return end
+                local k=math.sin(a/2)/cl
                 local gt=gun:K2_GetComponentToWorld()
-                local r=mathlib:ComposeTransforms({Translation={X=0,Y=0,Z=0},Rotation=gt.Rotation,Scale3D=one},turn)
-                gt.Rotation=r.Rotation
+                local r=gt.Rotation
+                local q=qmul({cx*k,cy*k,cz*k,math.cos(a/2)},{r.X,r.Y,r.Z,r.W})
+                gt.Rotation={X=q[1],Y=q[2],Z=q[3],W=q[4]}
                 gun:K2_SetWorldTransform(gt,false,{},true)
             end) end
             -- the laser once the rifle is up (the aim blends in over ~0.2 s), then it stays on until aim is let go
@@ -180,11 +189,12 @@ function Rifle.new(laser,trace,grip)
     return self
 end
 
--- The rifles an earlier Lua load left on her pawn (skeletal mesh components tagged Rifle.TAG), destroyed: how many.
+-- The rifles an earlier Lua load left on her pawn (components tagged Rifle.TAG: the rifle, the laser's holder and
+-- beam, fight/gunmode/laser.lua), destroyed: how many.
 function Rifle.sweep(pawn)
     if not valid(pawn) then return 0 end
     local n,tag=0,FName(Rifle.TAG)
-    U.each(pawn:K2_GetComponentsByClass(StaticFindObject('/Script/Engine.SkeletalMeshComponent')),function(_,c)
+    U.each(pawn:K2_GetComponentsByClass(StaticFindObject('/Script/Engine.SceneComponent')),function(_,c)
         if valid(c) and c:ComponentHasTag(tag)==true then c:K2_DestroyComponent(c); n=n+1 end
     end)
     return n
