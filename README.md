@@ -54,7 +54,7 @@ return to Xion have not run in game, nor has the restore at the title after a fa
 Stellar Blade's `Preset_Eve_Max` build, and only that return or restore gives the co-op save its own skills and
 equipment back ([SBO lobby: Leaving](docs/online/lobby.md#leaving)).
 
-This version uses link protocol 24 and does not link with 0.11.0 or older, so every player has to update. Every on/off
+This version uses link protocol 25 and does not link with 0.11.0 or older, so every player has to update. Every on/off
 setting is now on by default, the experimental ones included; most of them have not been tested in game
 ([Settings](docs/players/settings.md#coop-settingstxt)).
 
@@ -91,8 +91,8 @@ setting is now on by default, the experimental ones included; most of them have 
   them only. Nothing goes back to your own saves unless you export it. See
   [Co-op saves](docs/players/playing-with-a-friend.md#co-op-saves).
 - Group play adds the friend's revive and shared quests (both experimental and on by default), a pause while a
-  cutscene plays in the host's game, and travel to the camp nearest the host (F7, not tested in game yet). See
-  [Playing with a friend](docs/players/playing-with-a-friend.md).
+  cutscene plays in the host's game and travel to where the host stands (F7, not tested in game yet). On the death
+  screen F7 takes you back to a living friend. See [Playing with a friend](docs/players/playing-with-a-friend.md).
 - In Doro races you record a track with F9 checkpoints, then race it alone or against your friend, each racer drawn
   as a Doro. See [Doro races](docs/online/modes/race.md).
 - The bike (not tested in game yet): F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's
@@ -123,7 +123,7 @@ features; Matrix XIII and Lily's signal have their own pages.
 | UE4SS | v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3". |
 | System | Windows, or Linux with Proton (Steam Deck included). |
 | Console | Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it. |
-| Playing together | The same game build and the same link protocol: 23 in this version, which does not link with 0.11.0 (protocol 20) or older versions. |
+| Playing together | The same game build and the same link protocol: 25 in this version, which does not link with 0.11.0 (protocol 20) or older versions. |
 
 ## Documentation
 

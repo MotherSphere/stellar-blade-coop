@@ -290,11 +290,12 @@ end
 -- Whether a save is loaded and the title shown (core/where.lua's world; core/where_test tests it): in_world, at_title.
 -- Where EVE stands (its me): bt.me.
 package.loaded['core.where']={world=function() return in_world,at_title end,me=function() return bt.me end}
-package.loaded['online.partner.puppet']={new=function(link,capture,say,tag,looks)
+package.loaded['online.partner.puppet']={new=function(link,capture,say,tag,looks,_,_,solo)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
     assert(the_notice and type(say)=='function','The map notice goes on screen')
     puppet_say=say
+    puppet_solo=solo -- Whether her vitals put her in a solo area (nil without the link).
     name_tag,look,rebuilds=tag,looks,{}
     return {rebuild=function(why) rebuilds[#rebuilds+1]=why end,toggle=function()
         if toggle_raise then error(toggle_raise,0) end
@@ -333,6 +334,7 @@ package.loaded['core.link']={new=function() return fake_link end,parse_settings=
         disk.files[to],disk.files[from]=disk.files[from],nil
         return true
     end}}
+package.loaded['core.link'].solo=Link.solo -- The real rule: which zone types are solo areas.
 said,said_en,notice_ticks,notice_result,notice_stops={},{},0,nil,0 -- said_en: the English given with each.
 package.loaded['ui.kit.notice']={new=function()
     the_notice={say=function(text,en) said[#said+1]=text; said_en[#said]=en end,stop=function() notice_stops=notice_stops+1 end,
@@ -370,23 +372,28 @@ end}
 nr={o=nil,runs={},chs={},ticks=0,stops={},raise=nil}
 -- The friend's revive and the cutscene wait (online/group/group.lua): what group.new got (o), its ticks' clocks, coop
 -- revive test's answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its
--- cut, and the cut each state write got (cuts).
-gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0}
+-- cut, the cut each state write got (cuts), its back() calls (backs) and the camp rests the inbox gave it (rests:
+-- {zone, from} each).
+gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0,rests={}}
 package.loaded['online.group.group']={new=function(o)
     gr.o=o
     return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,stop=function() gr.stops=gr.stops+1 end,
+        back=function() gr.backs=(gr.backs or 0)+1; return true,'going back to Kaanta' end,
         test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
         photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end,
+        rest=function(zone,from) gr.rests[#gr.rests+1]={zone,from} end,
         cutscene_playing=function() return gr.playing==true end}
 end}
--- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses and coop
--- travel probe's camps.
-tv={o=nil,ticks={},presses=0,probes={}}
+-- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses, coop
+-- travel probe's camps, coop travel spot's words and the member its go(id) got last (gone).
+tv={o=nil,ticks={},presses=0,probes={},spots={}}
 package.loaded['online.group.travel']={new=function(o)
     tv.o=o
     return {tick=function(t) tv.ticks[#tv.ticks+1]=t end,
         press=function() tv.presses=tv.presses+1; return true,'asked the host for camps' end,
-        probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end}
+        go=function(id) tv.gone=id; return true,'asked' end,
+        probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end,
+        spot=function(a,b,c,d) tv.spots[#tv.spots+1]={a,b,c,d}; return true,'travel spot asked' end}
 end}
 package.loaded['online.modes.nightop.run']={new=function(o)
     nr.o=o

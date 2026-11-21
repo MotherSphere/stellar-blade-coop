@@ -28,8 +28,8 @@
 -- here; its shared_world world/objects/commands.lua's coop world (main.lua's loop asks it on or off and reads world()
 -- here); its shared_story story/together/commands.lua's coop scenes (main.lua's loop asks it on or off and reads
 -- story() here); its revive and cutscene_wait online/group/group.lua's (the friend's revive, the wait during the host's
--- cutscene); its follow_host and follow_key online/group/travel.lua's and main.lua's (the guest's travel to the camp
--- nearest the host), which reads camps() here; its collide online/partner/puppet.lua's (the solid partner); its
+-- cutscene); its follow_host and follow_key online/group/travel.lua's and main.lua's (the guest's travel to the
+-- host), which reads camps() and spots() here; its collide online/partner/puppet.lua's (the solid partner); its
 -- drift_keys the Doro races' driving (online/modes/race/drive.lua); its mod_names the native part's (through
 -- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load
 -- online/saves/commands.lua's (coop shortcut load, a test tool with no menu row); its pvp_spike
@@ -156,7 +156,8 @@ quest_deny=
 # play a co-op save and both have it on, a door, lever, switch, crane, lift or shortcut that one of you works through
 # the game changes in the other's game too, at once or, for most of them, when that zone next loads. Chests, supply
 # boxes, collectibles and anything that gives an item stay each player's own, and the doors the main story opens move
-# with quest steps only. Off, your changes are not sent and your friend's are not made in your game.
+# with quest steps only. A camp rest also brings the enemies of its area back in each other player's game there.
+# Off, your changes and rests are not sent and other players' are not made in your game.
 shared_world=on
 # Story together, experimental: on or off, on by default, not tested in game yet. On, while you and your friend both
 # play a co-op save and both have it on, a story scene the host plays (a cutscene or a talk) plays in the guest's game
@@ -185,9 +186,11 @@ photo_pause=full
 # are both on one map, with the same pause as photo sync and for at most photo_freeze_max.
 cutscene_wait=on
 # Follow the host, as the guest, on a co-op save: ask, always or off. When the host is on another map, or more than
-# 150 m from you on yours, ask shows a notice once and follow_key then takes you to the camp nearest them through the
-# game's own fast travel (one of the camps you have found); always starts that travel by itself 5 s later, and
-# follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
+# 150 m from you on yours, ask shows a notice once. follow_key then takes you to where the host last stood on solid
+# ground: at once on his map, from another map through the game's own fast travel to the camp nearest him first (one
+# of the camps you have found). always starts that travel by itself 5 s later unless you press follow_key; off does
+# neither. On the death screen, with revive=on and a friend alive on your map, follow_key takes you back to that
+# friend (always: by itself after 5 s). With follow_key=none, only the console command coop travel host travels.
 follow_host=ask
 # Solid partner, experimental: on or off, on by default. Yours: on, your EVE cannot walk through your friend's ghost
 # while she walks, runs or falls. The ghost lets her through while it overlaps her, while your feet are 60 cm or more
@@ -302,16 +305,19 @@ function Link.read_rules(word)
     if at<=#letters then return nil end
     return rules
 end
--- The mate= line's twelve numbers, in the native part's order (link/protocol.h's vital).
+-- The mate= line's thirteen numbers, in the native part's order (link/protocol.h's vital); zone: her zone's type.
 local VITALS={'hp','max_hp','shield','max_shield','blocks','beta','max_beta','burst','max_burst','tachy','max_tachy',
-    'life'}
-local MATE='^mate='..('(%d+) '):rep(11)..'(%d+)$'
-local VIT='^vit=(%d+) '..('(%d+) '):rep(11)..'(%d+)$' -- A member's: her SteamID, then the same twelve.
+    'life','zone'}
+local MATE='^mate='..('(%d+) '):rep(12)..'(%d+)$'
+local VIT='^vit=(%d+) '..('(%d+) '):rep(12)..'(%d+)$' -- A member's: her SteamID, then the same thirteen.
 local function vitals_of(v,from)
     local out={}
     for i,key in ipairs(VITALS) do out[key]=tonumber(v[from+i]) end
     return out
 end
+-- Whether a zone type (ZoneTable's, as the vitals and zone() carry it) is a solo area: 2 TrainningRoom, 3 SpiritRoom,
+-- 4 TestZone, 5 BossChallenge, 6 Nikke (link/protocol.h's solo_zone). Anything else, nil included, is not.
+function Link.solo(type) return math.type(type)=='integer' and type>=2 and type<=6 end
 -- A setting's value from its text, or nil and why it is refused. A key is core/keybind.lua's ({key='F7', mod='SHIFT' or
 -- nil, name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16,
 -- each from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a
@@ -612,6 +618,7 @@ function Link.new(folder,fs)
     local quests,noted,noted_shown,sbo,world,story=nil,nil,nil,nil,nil,nil
     local shared_version=0 -- The status's shared= line's version (shared_assets()); kept across changes().
     local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
+    local spot_asked,spot_answer=nil,nil -- The travel's spot lines (spots()).
     local match,round=nil,nil -- The match line and our last round's line (match(), round()).
     local uidev,my_name,owner=nil,nil,nil -- uidev(), me(), owner(): SB's input device, our name, the lobby's owner.
     local room,hall=nil,nil -- room(), hall(): the match lobby's map and lobby pak version words.
@@ -776,8 +783,9 @@ function Link.new(folder,fs)
     end
     -- The native part's coop-chat.txt, taken and deleted at once: {text=,from=} for each member's line (from: her
     -- SteamID as digits; ours in the loopback), {fail=true} when one of ours could not go, {race=} for each of her race
-    -- lines, {gift=} for each of her gift lines (or a gift of ours that could not go, as her refusal), oldest first;
-    -- a score line goes to take_score(); anything else is ignored.
+    -- lines, {gift=} for each of her gift lines (or a gift of ours that could not go, as her refusal), {rest=,from=} for
+    -- each member's camp rest (the zone's alias, her SteamID as digits), oldest first; a score line goes to
+    -- take_score(); anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
@@ -785,11 +793,13 @@ function Link.new(folder,fs)
         for line in text:gmatch('[^\n]+') do
             local from,said=line:match('^in (%d+) (.+)$')
             local raced,gifted=line:match('^race (.+)$'),line:match('^gift (.+)$')
+            local rested,by=line:match('^rest ([%w_]+) (%d+)$')
             local scorer,scored=line:match('^score (%d+) (.+)$')
             if scorer then
                 if #scores>=64 then table.remove(scores,1) end
                 scores[#scores+1]={from=scorer,text=scored}
             elseif said then lines[#lines+1]={text=said,from=from}
+            elseif rested then lines[#lines+1]={rest=rested,from=by}
             elseif raced then lines[#lines+1]={race=raced}
             elseif gifted then lines[#lines+1]={gift=gifted}
             elseif line=='fail' then lines[#lines+1]={fail=true} end
@@ -810,6 +820,7 @@ function Link.new(folder,fs)
         dlcs,cycle,cycles=nil,nil,{}
         quests,noted,sbo,world,story=nil,nil,nil,nil,nil
         camps_asked,camps_answer,match,round=nil,nil,nil,nil
+        spot_asked,spot_answer=nil,nil
         uidev,my_name,owner,room,hall=nil,nil,nil,nil,nil
         local waited=wait~=nil
         search,found,wait=nil,{},nil
@@ -842,11 +853,11 @@ function Link.new(folder,fs)
             end
             if line:find('^mate=') then
                 local v={line:match(MATE)}
-                if v[12] then mate=vitals_of(v,0) end
+                if v[13] then mate=vitals_of(v,0) end
             end
             if line:find('^vit=') then
                 local v={line:match(VIT)}
-                if v[13] then vits[v[1]]=vitals_of(v,1) end
+                if v[14] then vits[v[1]]=vitals_of(v,1) end
             end
             local host_id,pair_id,most=line:match('^host=(%d+) pair=(%d+) max=(%d+)$')
             if host_id then
@@ -918,6 +929,8 @@ function Link.new(folder,fs)
             end
             camps_asked=tonumber(line:match('^camps%?=(%d+)$')) or camps_asked
             camps_answer=line:match('^camps=(%d+ %S.*)$') or camps_answer
+            spot_asked=tonumber(line:match('^spot%?=(%d+)$')) or spot_asked
+            spot_answer=line:match('^spot=(%d+ %S.*)$') or spot_answer
             local qn,kind,id,alias,zone,from=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+) (%d+)$')
             if not qn then qn,kind,id,alias,zone=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+)$') end
             if qn then
@@ -979,7 +992,8 @@ function Link.new(folder,fs)
     -- 'none', 'host' or 'guest'; nil before Steam is ready.
     function self.mode() return mode end
     -- Her vitals for the partner card ({hp=, max_hp=, shield=, max_shield=, blocks=, beta=, max_beta=, burst=,
-    -- max_burst=, tachy=, max_tachy=, life=}, whole units; your own during coop loopback), or nil: none for 3 s.
+    -- max_burst=, tachy=, max_tachy=, life=, zone= her zone's type}, whole units; your own during coop loopback), or
+    -- nil: none for 3 s.
     function self.mate() return mate end
     -- Our life state (1 Spawn, 6 Spawning; 3-5 dying or dead) and HP from our last vitals read ({state=, hp=}), or nil:
     -- no session, or no read for 3 s.
@@ -1104,6 +1118,16 @@ function Link.new(folder,fs)
     -- part's number for the oldest camps? still waiting, else for the last one (the answer goes by that number); as
     -- the guest, the host's answer to ours ('<id> <world> <alias>:<m> ...' or '<id> none <why>'); nil without them.
     function self.camps() return camps_asked,camps_answer end
+    -- The travel's spot lines as of the last changes(), the same way: the native part's number for the oldest spot?
+    -- still waiting for our answer, else for the last one taken; the answer to our last spot? ('<id> <x> <y> <z> <yaw>'
+    -- in whole cm and degrees, or '<id> none <why>'); nil without them (a session's end drops both).
+    function self.spots() return spot_asked,spot_answer end
+    -- Our zone's type from the engine line (0 unknown: no line yet, or the zone row's fault) and its area (the zone's
+    -- alias), nil for none: no engine line, or the world and SB's logic name different zones.
+    function self.zone()
+        local area=engine:match(' area=([%w_]+)')
+        return tonumber(engine:match(' zonetype=(%d+)')) or 0,area~='none' and area or nil
+    end
     -- The slot-0 member: her Steam name, linked (hello accepted, compatible), lost; nil without one. On a guest of an
     -- online session that is the host; on the host, the pair (the guest who shares the fight, world and story).
     function self.friend() if friend then return friend[1],friend[2],friend[3] end end

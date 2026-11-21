@@ -10,7 +10,8 @@
 //   SBC<protocol> ping <seq> <ms>, SBC<protocol> pong <seq> <ms>,
 //   SBC<protocol> photo <0|1|s|c> <both|notice> (the synced photo mode: ours, and whether she may pause our game for
 //   it; c: the host's cutscene plays),
-//   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <12 whole numbers> (her partner card),
+//   SBC<protocol> say <text> (a chat line, chat_clean()), SBC<protocol> vit <13 whole numbers> (her partner card,
+//   then her zone type),
 //   SBC<protocol> pak <hash> <name> (link/pak_list.h: one mod container her game loads, by name, with its hash in 16
 //   hex digits; up to kMaxMods of them, unless her mod_names=off), then SBC<protocol> paks <count> <hash> (the .pak
 //   mods her game loads, for a warning when they differ; it ends her list of pak lines),
@@ -20,6 +21,9 @@
 //   SBC<protocol> camps? <id> (the guest's follow: the camps nearest the host, please), SBC<protocol> camps <id>
 //   <world> <alias>:<m> ... (the host's answer: his world and up to 8 camps by distance) or SBC<protocol> camps <id>
 //   none <why>.
+//   SBC<protocol> spot? <id> (online/group/travel.lua: a member's last ground point, please), SBC<protocol> spot <id>
+//   <x> <y> <z> <yaw> (her answer: whole centimetres and degrees) or SBC<protocol> spot <id> none <why>.
+//   SBC<protocol> rest <zone> <SteamID> (a member rested at a camp of that zone, which resets it in her game).
 //   SBC<protocol> night <payload> (Night Operation's run, online/modes/nightop/run.lua: "h ..." from the host, "g ..."
 //   from the guest, night_ok()).
 //   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
@@ -65,7 +69,7 @@
 #include "link/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 24; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 25; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -114,11 +118,13 @@ constexpr int kProtocol = 24; // Bump on any wire change. 1 was the first link (
                               // line, with the new stagger and poise lines there, which an earlier protocol-23 build
                               // drops as malformed lines (said once a session); 24 adds the score attack: the
                               // scoreattack match mode under sbo_mode and its score line on channel 0, which a
-                              // protocol-23 peer would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0,
-                              // 10: stage 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to
-                              // beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0,
-                              // 20: v0.11.0; 15, 16, 21, 22 and 23 were never released) is told why: the lobby tag,
-                              // then the hello's reject, name both.
+                              // protocol-23 peer would count invalid; 25 adds the spot?, spot and rest lines on channel
+                              // 0 and the zone type in the vitals (a vit line of 13 numbers), which a protocol-24 peer
+                              // would count invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's
+                              // builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14:
+                              // v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0;
+                              // 15, 16, 21, 22, 23 and 24 were never released) is told why: the lobby tag, then the
+                              // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -244,18 +250,30 @@ inline std::string chat_clean(std::string_view text, size_t max = kMaxChat) {
 
 // The partner card's numbers (UI-DESIGN 4.3), in whole units, by these indexes: SB's stats HP, MaxHP, Shield,
 // MaxShield, ShieldBlock, Beta, MaxBeta, Burst, MaxBurst, Tachy and MaxTachy, then the life state (1 Spawn, 6
-// Spawning; 3-5 dying or dead).
+// Spawning; 3-5 dying or dead), then the zone type of the zone the player stands in (wire_zone()).
 namespace vital {
-enum : size_t { hp, max_hp, shield, max_shield, blocks, beta, max_beta, burst, max_burst, tachy, max_tachy, life };
+enum : size_t {
+  hp, max_hp, shield, max_shield, blocks, beta, max_beta, burst, max_burst, tachy, max_tachy, life, zone
+};
 }
-using Vitals = std::array<uint32_t, vital::life + 1>;
+using Vitals = std::array<uint32_t, vital::zone + 1>;
 constexpr uint32_t kMaxVital = 10'000'000; // game/fight/sync.h's kMaxStat.
-// Every value at most kMaxVital, HP at most MaxHP, at most 64 shield blocks, a life state that fits a byte.
+// SB's ESBZoneType (its value table at 0x145e29730): 0 Zone_None, 1 Zone_Public, 2 Zone_TrainningRoom, 3
+// Zone_SpiritRoom, 4 Zone_TestZone, 5 Zone_BossChallenge, 6 Zone_Nikke; nothing above 6.
+constexpr uint32_t kMaxZoneType = 6;
+// A zone of one player: online play pauses toward a member who stands in one (TrainningRoom to Nikke).
+inline bool solo_zone(uint32_t type) { return type >= 2 && type <= kMaxZoneType; }
+// The type as the vit line carries it: 0 above kMaxZoneType, so a value this build does not know never makes our vit
+// lines invalid on every peer.
+constexpr uint32_t wire_zone(uint32_t type) { return type <= kMaxZoneType ? type : 0; }
+// Every value at most kMaxVital, HP at most MaxHP, at most 64 shield blocks, a life state that fits a byte, a zone
+// type at most kMaxZoneType.
 inline bool plausible_vitals(const Vitals &v) {
   for (uint32_t x : v)
     if (x > kMaxVital)
       return false;
-  return v[vital::hp] <= v[vital::max_hp] && v[vital::blocks] <= 64 && v[vital::life] <= 255;
+  return v[vital::hp] <= v[vital::max_hp] && v[vital::blocks] <= 64 && v[vital::life] <= 255 &&
+         v[vital::zone] <= kMaxZoneType;
 }
 // Her vitals count this long after her last line (link/core.h).
 constexpr uint64_t kMateMs = 3000;
@@ -273,7 +291,7 @@ inline Life life_of(const Vitals &v) {
 
 enum class Kind {
   invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, dlc, dlcs, camps_ask, camps, night, mark,
-  race, gift, bike, start, count, end, let, wait, cycle, score
+  race, gift, bike, start, count, end, let, wait, cycle, score, spot_ask, spot, rest
 };
 // The follow's camps lines (online/group/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers
 // that id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in
@@ -305,11 +323,21 @@ inline std::string row_word(const std::string &text, size_t max) {
 }
 // Why the host has no camps for her: at the title, in a load (no EVE), no travel camp near him, a warp of his own.
 inline bool camps_why(std::string_view w) { return w == "title" || w == "loading" || w == "nocamp" || w == "busy"; }
+// The spot lines (online/group/travel.lua): a member asks another with an id from 0 to kMaxCampId, which answers that
+// id with her last ground point (x, y and z in whole centimetres, each within kMaxSpotAt, then her yaw in whole
+// degrees within kMaxSpotYaw), or with none and why (spot_why()).
+using Spot = std::array<int32_t, 4>;
+constexpr int64_t kMaxSpotAt = 10'000'000, kMaxSpotYaw = 360;
+// Why she has no spot: at the title, in a load, in the air, a warp of her own, in a solo zone, in a boss fight.
+inline bool spot_why(std::string_view w) {
+  return w == "title" || w == "loading" || w == "air" || w == "busy" || w == "solo" || w == "boss";
+}
 struct Message {
   Kind kind = Kind::invalid;
   uint64_t a = 0, b = 0; // hello: protocol, game build. ping/pong: sequence, sender's clock in ms. photo: '0', '1',
                          // 's' or 'c', then 1 for both. pak: the container's hash. paks: the count of .pak mods,
-                         // their hash. dlc: the DLC's app id. camps?, camps: id. mark: its number, from 1. start:
+                         // their hash. dlc: the DLC's app id. camps?, camps, spot?, spot: id. rest: the resting
+                         // member's SteamID, not 0. mark: its number, from 1. start:
                          // the seed. count: the seconds, 0 for stop. let: the pair's SteamID, 0 for none, then
                          // max_players (2 to kMaxMembers). wait: the seconds, 1 to kMaxWait. cycle: the New Game+
                          // count (0 to kMaxCycle), then the difficulty (0 to kMaxDifficulty).
@@ -319,9 +347,10 @@ struct Message {
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
                          // "race ", printable ASCII. score: the text after "score ", the same way. gift: the payload,
                          // gift_ok(). bike: the payload, bike_ok().
-                         // start: the mode.
+                         // start: the mode. spot: "none" when she has no spot. rest: the zone, alias_word().
   Vitals vitals{};       // vitals: hers, plausible_vitals().
-  std::string why;         // camps none: why.
+  Spot at{};             // spot: her ground point and yaw.
+  std::string why;         // camps none, spot none: why.
   std::vector<Camp> camps; // camps: nearest first.
   std::string map;           // start: the map.
   std::vector<uint64_t> ids; // start: the players' SteamIDs, 1 to kMatchMembers, distinct, none 0, host first. let:
@@ -422,6 +451,30 @@ inline std::string camps_line(const Message &m) {
          : m.text == "none"        ? camps_none_line(m.a, m.why)
                                    : camps_line(m.a, m.text, m.camps);
 }
+// The spot lines, reliable (link/core.h relays them between Lua and the member asked).
+inline std::string spot_ask_line(uint64_t id) {
+  return "SBC" + std::to_string(kProtocol) + " spot? " + std::to_string(id);
+}
+inline std::string spot_line(uint64_t id, const Spot &at) {
+  std::string line = "SBC" + std::to_string(kProtocol) + " spot " + std::to_string(id);
+  for (int32_t x : at)
+    line += " " + std::to_string(x);
+  return line;
+}
+inline std::string spot_none_line(uint64_t id, const std::string &why) {
+  return "SBC" + std::to_string(kProtocol) + " spot " + std::to_string(id) + " none " + why;
+}
+// A parsed spot? or spot message as its line again.
+inline std::string spot_line(const Message &m) {
+  return m.kind == Kind::spot_ask ? spot_ask_line(m.a)
+         : m.text == "none"       ? spot_none_line(m.a, m.why)
+                                  : spot_line(m.a, m.at);
+}
+// A camp rest of ours (online/group/group.lua), reliable: the zone we rested in, then our SteamID; the host relays a
+// guest's to the other guests.
+inline std::string rest_line(const std::string &zone, uint64_t from) {
+  return "SBC" + std::to_string(kProtocol) + " rest " + zone + " " + std::to_string(from);
+}
 // Night Operation's line (online/modes/nightop/run.lua), reliable: the whole state of a run, "h ..." from the lobby
 // owner, "g ..." from the guest. Lua checks every field; here only 1 to kMaxNight bytes of 0-9, a-z, '/', '_', ':' and
 // '-' with single spaces between words, the first word "h" or "g". A night line carries no other byte, so it cannot
@@ -479,8 +532,8 @@ inline std::string let_line(uint64_t pair, const std::vector<uint64_t> &ids, int
 inline std::string wait_line(uint64_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " wait " + std::to_string(seconds);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF24" for the shared fight, "SBQ24" for the shared quests, "SBW24"
-// for the shared world, "SBS24" for story together.
+// Channel 2's tags, versioned like channel 0's: "SBF25" for the shared fight, "SBQ25" for the shared quests, "SBW25"
+// for the shared world, "SBS25" for story together.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
@@ -515,6 +568,16 @@ inline bool number(std::string_view text, uint64_t &out) {
     value = value * 10 + digit;
   }
   out = value;
+  return true;
+}
+
+// An optional '-' then digits, within max either way (bike_ok()'s rule).
+inline bool signed_number(std::string_view text, int64_t max, int32_t &out) {
+  const bool minus = !text.empty() && text[0] == '-';
+  uint64_t v = 0;
+  if (!number(text.substr(minus), v) || v > uint64_t(max))
+    return false;
+  out = minus ? -int32_t(v) : int32_t(v);
   return true;
 }
 
@@ -756,6 +819,22 @@ inline Message parse(const char *data, size_t size) {
       }
     }
     m.kind = Kind::camps;
+  } else if (split(text, f, 3, nullptr) && f[0] == versioned_tag && f[1] == "spot?") {
+    if (number(f[2], m.a) && m.a <= kMaxCampId)
+      m.kind = Kind::spot_ask;
+  } else if (split(text, f, 7, nullptr) && f[0] == versioned_tag && f[1] == "spot") {
+    if (!number(f[2], m.a) || m.a > kMaxCampId)
+      return Message();
+    for (size_t i = 0; i < m.at.size(); ++i)
+      if (!signed_number(f[3 + i], i < 3 ? kMaxSpotAt : kMaxSpotYaw, m.at[i]))
+        return Message();
+    m.kind = Kind::spot;
+  } else if (split(text, f, 5, nullptr) && f[0] == versioned_tag && f[1] == "spot") {
+    if (number(f[2], m.a) && m.a <= kMaxCampId && f[3] == "none" && spot_why(f[4]))
+      m.kind = Kind::spot, m.text = f[3], m.why = f[4];
+  } else if (split(text, f, 4, nullptr) && f[0] == versioned_tag && f[1] == "rest") {
+    if (alias_word(f[2]) && number(f[3], m.a) && m.a)
+      m.kind = Kind::rest, m.text = f[2];
   } else if (const bool more = split(text, f, 3, &rest);
              (more || split(text, f, 3, nullptr)) && f[0] == versioned_tag && f[1] == "mark") {
     if (number(f[2], m.a) && m.a && m.a <= UINT32_MAX) {
@@ -894,7 +973,12 @@ inline std::string masked(std::string_view text) {
 // story/together/story_worker.inc) "scenes on" and "scenes off" (shared_story, until the next ask) and "scenes status"
 // (its line in the log); for the follow (online/group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m>
 // ..." or "camps <id> none <why>" (the camps lines, relayed to the friend by link/core.h), and "travel <alias> <FName
-// index> <FName number>" (the call on the game thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or
+// index> <FName number>" (the call on the game thread, glue/tick.cpp: an index above 0, both within 32 bits); for the
+// travel to a member (online/group/travel.lua) "spot? <id> <SteamID>" (the spot? line to that member, not 0), "spot
+// <id> <x> <y> <z> <yaw>" or "spot <id> none <why>" (our answer; the spot lines, relayed by link/core.h) and "travel
+// spot <x> <y> <z> <yaw>" or "travel spot <x> <y> <z> <yaw> <world> <FName index> <FName number>" (SB's position warp
+// on the game thread, the place as the spot line carries it, with the world's FName when it is another world: an index
+// above 0, both within 32 bits); for camp rests (online/group/group.lua) "rest <zone>" (the rest line); "mark" or
 // "mark <text>" (a numbered line in both players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop
 // gift (cutmenus/mailbox.lua) "gift <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName
 // index> <FName number>" (how many of that item our EVE carries, read by the worker, cutmenus/items.h: ask 1 to 65535,
@@ -939,7 +1023,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score
+  pausetab, popups, teamshop, score, spot, rest
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1028,6 +1112,7 @@ struct Request {
   int players = kMaxMembers;             // host: the session's players at most (max_players), 2 to kMaxMembers.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
   uint64_t player = 0;                   // allow, deny, remove, mute, unmute, block, unblock: her SteamID (0: all).
+                                         // spot?: the member asked, not 0.
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
   int slot = -1;                    // saves refresh: the slot; saves export: the co-op slot; 0 to 4. shortcut load:
@@ -1053,10 +1138,13 @@ struct Request {
   uint16_t quest = 0;           // quests force: the QuestTable ID.
   std::string deny;             // quests on, probe, record: quest_deny's list, or empty.
   WorldAsk world = WorldAsk::status; // world, scenes: what.
-  std::string line;             // camps: the wire line (link/protocol.h's camps_line), as the link sends it.
-  std::string alias;            // travel, items: the camp's or item's alias (for the log), and its FName.
-  uint32_t index = 0, number = 0; // travel, items: the FName. sbo arm: the Join's alias; sbo warp: the zone; sbo
-                                  // seq: the sequence's alias.
+  std::string line;             // camps, spot: the wire line (camps_line(), spot_line()), as the link sends it.
+  std::string alias;            // travel, items: the camp's or item's alias (for the log), and its FName. travel
+                                // spot: the world's, or empty. rest: the zone.
+  uint32_t index = 0, number = 0; // travel, items: the FName (travel spot: index 0 without a world). sbo arm: the
+                                  // Join's alias; sbo warp: the zone; sbo seq: the sequence's alias.
+  bool spot = false;            // travel spot: SB's position warp to at, no camp.
+  Spot at{};                    // travel spot: the place in whole centimetres and the yaw in whole degrees.
   uint32_t ask = 0;             // items: Lua's number for its answer.
   std::string text;             // mark: its text, or empty. gift: the payload. guardtext: what follows the word.
                                 // rules: the word.
@@ -1404,6 +1492,31 @@ inline Request parse_request(std::string text) {
     const Message m = parse(line.data(), line.size());
     if (m.kind == Kind::camps_ask || m.kind == Kind::camps)
       r.command = Command::camps, r.line = camps_line(m);
+  } else if (split(text, f, 3, nullptr) && f[0] == "spot?") {
+    const std::string line = "SBC" + std::to_string(kProtocol) + " spot? " + f[1];
+    const Message m = parse(line.data(), line.size());
+    if (m.kind == Kind::spot_ask && number(f[2], r.player) && r.player)
+      r.command = Command::spot, r.line = spot_line(m);
+  } else if (text.rfind("spot ", 0) == 0) {
+    const std::string line = "SBC" + std::to_string(kProtocol) + " " + text;
+    const Message m = parse(line.data(), line.size());
+    if (m.kind == Kind::spot)
+      r.command = Command::spot, r.line = spot_line(m);
+  } else if (split(text, f, 2, nullptr) && f[0] == "rest" && alias_word(f[1])) {
+    r.command = Command::rest, r.alias = f[1];
+  } else if (text.rfind("travel spot ", 0) == 0) {
+    std::string w[9];
+    const bool world = split(text, w, 9, nullptr);
+    uint64_t index = 0, number_ = 0;
+    bool ok = world || split(text, w, 6, nullptr);
+    for (size_t i = 0; ok && i < r.at.size(); ++i)
+      ok = signed_number(w[2 + i], i < 3 ? kMaxSpotAt : kMaxSpotYaw, r.at[i]);
+    if (ok && world)
+      ok = alias_word(w[6]) && number(w[7], index) && index && index <= UINT32_MAX && number(w[8], number_) &&
+           number_ <= UINT32_MAX;
+    if (ok)
+      r.command = Command::travel, r.spot = true, r.alias = w[6], r.index = static_cast<uint32_t>(index),
+      r.number = static_cast<uint32_t>(number_);
   } else if (uint64_t index = 0, number_ = 0; split(text, f, 4, nullptr) && f[0] == "travel" && alias_word(f[1]) &&
                                               number(f[2], index) && index && index <= UINT32_MAX &&
                                               number(f[3], number_) && number_ <= UINT32_MAX) {

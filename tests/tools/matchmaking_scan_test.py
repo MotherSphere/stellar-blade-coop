@@ -27,8 +27,9 @@ ADD_ROWS = {'online/modes/nightop/probe.lua': 1}
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
 # coop nightop's one CreateActor (its spawn choke point), the shop's one ItemBucketItemAdd (its grant choke point, in
 # core/items.lua) and the Beta Seeds' ItemBucketItemAdd and ItemBucketItemRemove (the shop screen's one seed choke
-# point), and the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the
-# probe's answer and the header). coop lion, coop gardener fight and coop tendril fight: fight/bosses/enemy.lua's one
+# point), the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the
+# probe's answer and the header) and the camp rest's one ResetZone on our own EVE and our own current zone (its call,
+# its log line and the header). coop lion, coop gardener fight and coop tendril fight: fight/bosses/enemy.lua's one
 # CreateActor (their spawn choke point) and its header, which also names SB's AddRow (the native part calls it) and
 # UE4SS's (never called); core/enemy.lua, which the row batches keep, holds the same lines.
 # fight/bosses/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two
@@ -66,7 +67,7 @@ RATIONED = {'MultiplayTest_ZoneE_059': {'online/modes/nightop/recruiter.lua': 1}
                        'fight/bosses/lion.lua': 1},
             'ServerRequest_': {'online/modes/nightop/probe.lua': 10, 'online/modes/nightop/run.lua': 1,
                                'online/modes/nightop/shop.lua': 2,
-                               'core/items.lua': 1, 'online/group/group.lua': 7, 'core/enemy.lua': 2,
+                               'core/items.lua': 1, 'online/group/group.lua': 10, 'core/enemy.lua': 2,
                                'fight/bosses/enemy.lua': 2, 'eve/chainspin.lua': 1, 'core/effect.lua': 1,
                                'cutmenus/mailbox.lua': 2, 'vehicles/bike/fetch.lua': 1,
                                'fight/gunmode/probe.lua': 5, 'fight/gunmode/nikke.lua': 2,
@@ -199,7 +200,8 @@ RECRUITER = padded('online/modes/nightop/recruiter.lua',
 RUN = padded('online/modes/nightop/run.lua',
              "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,key,key&0xFF,n,false)\n")
 GROUP = padded('online/group/group.lua',
-               'pc:ServerRequest_ActorRespawn(me,false)\npc:ServerRequest_ActorRevival(me,false)\n')
+               'pc:ServerRequest_ActorRespawn(me,false)\npc:ServerRequest_ActorRevival(me,false)\n'
+               'pc:ServerRequest_ResetZone(me,FName(zone,EFindName.FNAME_Find))\n')
 SHOP = padded('online/modes/nightop/shop.lua',
               "pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(alias),count,0,true,false,false,{})\n")
 ENEMY = padded('core/enemy.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n")

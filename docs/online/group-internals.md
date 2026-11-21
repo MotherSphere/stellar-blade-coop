@@ -15,7 +15,7 @@ player's quest unit (the quest manager at `0x147037428`, its unit from `FUN_141c
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
 it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470683b0`) and that the save
-is still the co-op save it started on: another save ends the side with `SBQ24 off slot` (the worker starts a new one
+is still the co-op save it started on: another save ends the side with `SBQ25 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
 - In an online session of more than 2 players, the host's side runs one `quest::Host` per guest linked past the
@@ -26,10 +26,10 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   next read brings it to the others. Any other guest sends none. Her quest stays ahead of the host's until his game
   makes that step. The host's ahead notice names her (`quest_note=` carries her SteamID).
 - The host reads his quests. Each quest whose state changed goes to the guest as one reliable line on channel 2 with
-  the whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ24 q <gen> <seq> <id> <state>
+  the whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ25 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
   position), which the game builds the same on both PCs from the same tables. He also makes a step the guest made
-  first. Her `SBQ24 step <gen> <seq> <id> <state> <acquire mark> <finished groups> <tasks done> <done mark> <zone>`
+  first. Her `SBQ25 step <gen> <seq> <id> <state> <acquire mark> <finished groups> <tasks done> <done mark> <zone>`
   line holds her quest's state after the step and the zone she made it in. His pass judges it with `accept()`, then
   `apply()` makes it on his own unit (see
   [Story together: how it works](../story/together-internals.md#quest-steps-the-guest-makes-first)).
@@ -70,12 +70,14 @@ one. A bad line only loses that quest's marks; her live quests always decide wha
 
 ## Following the host
 
-The guest's travel to the host (`online/group/travel.lua`, the camps lines, `game/travel.h` and the native call) moves
-only the guest's EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested
-in game yet.
+The guest's travel to the host (`online/group/travel.lua`, the camps and spot lines, `game/travel.h` and the native
+call) moves only the guest's EVE and changes nothing in the host's game. It has not been tested in game yet. On the
+host's map it is [the spot warp](#the-spot-warp). On another map it is the camp travel below, then the spot warp once
+she stands on his map.
 
-- The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host`, and with
-  `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
+- The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host` while the host is
+  on another map. With `follow_host=always` it sends one 5 s after the host arrived somewhere new. It sends one at
+  most each 2.5 s. A camp travel whose host came to her map before the call asks his spot instead.
 - In an online session of more than 2 players, each guest asks the host only and reads the host's map and place from the
   ghost in the slot of the host's `member=` line (slot 0, `online/partner/wiring.lua`'s puppet, on every guest). The
   host's Lua answers while any guest is linked, by the number its native part gave each request. That part sends the
@@ -128,8 +130,45 @@ in game yet.
   engine line, and `coop-link.log` has one line per call and per state.
 - The guards, read before the request and again before each call: a guest in a session, on a co-op save, her EVE
   alive, no warp or respawn under way, the game not paused and not in photo mode or a menu, no Night Operation run, no
-  cutscene in her game, and while shared enemies run no boss fight and no enemy in battle within 30 m on her side (the
-  `fight=` line's `boss=` and `battle=`), and 10 s since the last accepted travel.
+  cutscene in her game. While shared enemies run, no boss fight and no enemy in battle within 30 m on her side (the
+  `fight=` line's `boss=` and `battle=`). No [solo area](#solo-areas) on her side (`zonetype=` on her engine line) or
+  on the host's (his vitals' zone type). 10 s since the last accepted travel.
+
+### The spot warp
+
+The spot warp puts EVE on another member's last ground point through the game's own position warp, with no camp. It
+serves the follow on the host's map, the second hop after a camp travel and the
+[way back after a death](#back-to-a-friend-after-a-death).
+
+- Every member's Lua keeps its last ground point while linked: each 250 ms tick, while its EVE's
+  `CharacterMovement.MovementMode` is Walking (1) or NavWalking (2), her `K2_GetActorLocation` and the yaw of her
+  `K2_GetActorRotation` in whole centimetres and degrees. A map change or a new EVE drops it.
+- The guest's Lua asks on the host's map when F7 comes more than 5 m from his ghost. A camp travel to his map asks by
+  itself once it reads `arrived` there and the guards pass (the 10 s after the accepted call among them), for up to
+  30 s after the arrival, with no notice. Either sends `spot? <id> <SteamID>` to its native part, which sends
+  `SBC25 spot? <id>` to that member (see [The spot lines](steam-link-internals.md#the-spot-lines)).
+- The member asked answers each new number of its status's `spot?=` line once: `spot <n> <x> <y> <z> <yaw>` when its
+  point is at most 10 s old and on its current map, else `spot <n> none <why>` with the first of `title`, `loading`
+  (no EVE), `busy` (a cutscene in its game), `solo`, `boss` (a `boss=` other than 0 on its `fight=` line), `busy` (no
+  `warp=idle`) and `air`. A guest outside the pair has no `boss=`, since her shared fight never runs, so her answer
+  skips that check.
+- The asker reads the answer from its `spot=` status line. `air` gives its own notice, `title` the failed one, any
+  other `none` and no answer within 10 s the busy one. A point passes the guards again and the check that the target
+  still stands on her map. Then Lua asks `travel spot <x> <y> <z> <yaw>`.
+- The game thread makes the call under the camp travel's latch, count and watch: 3 calls in 10 s at most, none for
+  10 s after an accepted one, the same reads before it. It refuses with `refused:solo` while its own zone type is 2 to
+  6. It builds the 0x78-byte record that the game's WarpSBActor message (`FUN_141ac3d80`) builds: zero but `+0x18` our
+  EVE's GUID, `+0x38` -1.0, `+0x54` the location and `+0x60` the rotation (pitch 0, the yaw, roll 0). It then calls
+  the position warp `FUN_141cdfe70(client, record)`. That function returns 1 once it wrote the warp block at client
+  `+0xa20`, 0 when our EVE is not in the world's actor map or when `FUN_141cf7630` reads a Boss Challenge zone. It
+  copies the record's `+0x09` to the camp arrival flag (client `+0xa22`). The record keeps 0 there, so the arrival
+  leaves the respawn camp alone. `ServerRequest_WarpPosition` is never called.
+- `coop-link.log` has `travel spot call <x> <y> <z> <yaw> ret=<0|1> other=<0|1>` or `travel spot refused: <why>`, then
+  the watch's states as for a camp travel.
+- `coop travel spot [<world>] <x> <y> <z>` makes the same call alone, with yaw 0, under `coop travel probe`'s guards
+  (solo, a co-op save). With a world of `core/worlds.lua`, found with `FNAME_Find`, its FName goes to the record's
+  `+0x00`. `FUN_141cdfe70` copies that to client `+0xa6c` and sets `+0xa26` when it is not None and differs from the
+  client's world at `+0x60`. Where EVE lands then is a question for the in-game test.
 
 ## The teleport screen's extra tabs
 
@@ -236,6 +275,9 @@ none is near enough.
   game shows them for the host and the pair only (`host=` line's `id` and `pair`): a guest outside the pair has no
   `boss=0` on her `fight=` line, as her shared fight never runs, so her game never makes the call. Her own game logs
   `revive waits: no shared fight` and shows no wait notice. It shows no down notice either, for the same reason.
+- A [solo area](#solo-areas) stops the revive: on her side it waits (`revive waits: solo area`). A friend in one does
+  not count as near (`friend in a solo area` when no other friend is). The friend's down notice waits while either
+  side stands in one.
 - `coop revive test` makes the same call alone, at the death screen of a co-op save outside a session, for the first
   in-game check.
 - With both players down, nobody can revive. Each respawns at a camp in their own game, each world resets on its own,
@@ -249,10 +291,35 @@ none is near enough.
   rule), none of the friend's distance or the shared fight, and the same fallback, result line and hidden death screen.
   See [Down and revive](modes/nightop.md#down-and-revive).
 
+### Back to a friend after a death
+
+The way back runs on the dead player's side (`online/group/group.lua`), with the revive's call and the
+[spot warp](#the-spot-warp). It sends nothing but the spot warp's `spot?`.
+
+- The target: on a guest the host (his `host=` line's member, else slot 0's); on the host the living guest on his map
+  nearest his EVE (her ghost's feet), leaving out a guest whose ghost is not placed.
+- The offer comes once per death while all of these hold: her life state 3 under the playing death screen, a co-op
+  save (`slot=coop`), `revive=on`, no Night Operation run, `boss=0` on the `fight=` line, the target alive by her
+  vitals on her map, no solo area on either side, no respawn call of hers in this death yet and none in the 10 s
+  before it started. With `follow_key=none` or `follow_host=off` a log line takes the notice's place. With
+  `follow_host=always` the notice says the 5 s. The call follows unless `follow_key` comes first.
+- `follow_key` reaches it through `online/group/travel.lua`'s press, which asks the group first: while the offer
+  shows, the key is the way back (or cancels `always`'s 5 s). At any other time the key is the follow.
+- The call runs `coop revive test`'s guards held to life 3, then the revive's `ServerRequest_ActorRespawn(<her EVE's
+  id>, false)` with its fallback, result line and hidden death screen. No `Revived by` notice follows: nobody revived
+  her.
+- Once her life reads 1 or 6 with `warp=idle` and the game not paused (10 s at most), her Lua asks the spot warp next
+  to the target if the target is still linked, alive, on her map and outside a solo area. Otherwise one log line
+  (`return: no warp, <why>`) and no warp. A respawn whose result line reads her EVE still down drops the warp
+  (`return: no warp, the respawn did not take`). So does a new death before it (`down again before it`).
+- The friend's 3 s revive marks nothing for the warp. A death has one respawn call, whichever of the friend's revive
+  and `follow_key` comes first.
+
 ## Camp rests in a shared area
 
-Either player may rest. Nothing blocks the guest's rest, since a block would need a hook on the camp interaction. A
-rest resets only the resting player's own game.
+Any member may rest. Nothing blocks a guest's rest, since a block would need a hook on the camp interaction. With
+`shared_world=on`, [a rest reaches the other members](#rests-between-members). With it off, a rest resets only the
+resting player's own game, as below.
 
 - The host's rest resets his zone. Same spawns sees the spawn manager's reset states and moves its epoch, and the
   guest's game follows the host's enemy set: full HP and the host's positions for her pairs, and the rows of his that
@@ -264,7 +331,44 @@ rest resets only the resting player's own game.
   while his vitals read alive and he was not down in the last 10 s, gives
   `Enemies are back: the area reset in <host>'s game.` Her own `resets` moving while same spawns run, after her EVE
   was alive for 10 s, gives `Shared area: only <host>'s camp rest brings its enemies back.` On the guest a reset counts
-  only in the host's zone while his ghost stands within 100 m. A respawn after a death gives neither notice.
+  only in the host's zone while his ghost stands within 100 m. A respawn after a death gives neither notice. These two
+  notices show only with `shared_world=off`: with it on, the rested notice below takes their place.
+
+### Rests between members
+
+Each game reads the starts of the game's own camp process. Its Lua sends its own rests. Each receiver standing in that
+zone makes the game's zone reset for its own EVE. This has not been tested in game yet.
+
+- The game's camp process starts in `FUN_141ca7040`. That function refuses while world `+0x34` is 1. Otherwise it
+  copies the camp request to world `+0x1a0` (its `+0x18` GUID to `+0x1b8`, its `+0x24` type to `+0x1c4`) and sets
+  `+0x1a0` to 1. Type 0 (Interact) clears both in the same call. Types 1 (InteractWithResetZone) and 2
+  (OnlyResetZone) keep them while the process runs.
+- The game thread reads `+0x1a0` at each frame under the warp read's latch (`game/travel.h`'s `Rests`). A 0 to 1 edge
+  with type 1 or 2 is a start. With our EVE's GUID (client `+0x58`, never 0) it is ours, with its type and area. The
+  engine line shows `zonetype=<n> area=<zone|none> rest=<ours>:<area>:<type> starts=<n>`. `area=` is world `+0x90`
+  only while the logic's zone (`+0x598` of the object at `0x1470373e0`) is the same, else `none`. `coop-link.log` has
+  `zone reset start: type <t> guid <g> ours|another in <zone>` for each start.
+- A start of ours sends `rest <area>` while linked with `shared_world=on`, on a co-op save, outside a solo area, with
+  an area read: type 1 at once, type 2 only after our EVE read alive for 10 s (else it is a death's camp respawn).
+  None goes within 10 s of our own `ServerRequest_ResetZone` call. The link adds our SteamID: a guest sends it to the
+  host, the host to every guest. The host relays a guest's rest to the other guests, one each 2 s from each guest,
+  only when it names her (see [The rest line](steam-link-internals.md#the-rest-line)).
+- A received rest waits in a queue, one per zone. A zone reset in our game in the last 30 s (our own rest, a call
+  already made) drops it. Each second the queue is read again. A rest is dropped with one log line
+  (`rest: <why> (<zone> of member <SteamID> dropped)`) once the session ended, with `shared_world=off`, off a co-op
+  save, outside its zone (`area=`), with no life read, in a solo area of ours, with no `boss=` and `battle=` on the
+  `fight=` line (no shared fight in this game), in a game that is not standalone, or for a zone `FNAME_Find` does not
+  know. It waits through a fight, a cutscene, a pause, no EVE, a respawn or warp, our EVE down, a GUID read as 0 or no
+  controller, 60 s at most. Then the skipped notice.
+- The call is `ServerRequest_ResetZone(<our EVE's GUID>, <the zone's FName>)` on our player controller, with the
+  rested notice. Its exec (`0x14275eae0`) reads a uint32 GUID then an FName. The game then runs `FSBResetZone`: its Simulate
+  (`FUN_141b128a0`, then `FUN_141ace080`) resets the zone only while the logic's `+0x598` names it. Its Execute
+  (`FUN_141b2f470`) writes a type-2 camp request with GUID 0, which starts the camp process in our world. That start
+  reads as another actor's, so it sends no rest line back.
+- The stop latch: more than 3 starts within 30 s after one call end the calls for the Lua load, with one log line and
+  the stop notice.
+- `ServerRequest_ResetZone` and the other RPCs here are standalone only: in net mode 3 the call would go to a
+  server.
 
 ## Cutscene wait
 
@@ -289,3 +393,31 @@ starts or plays in her game or a scene line of the host's waits for her next pas
 how it works](../story/together-internals.md#the-guests-side)). The native part shows no notice for it, and her Lua
 shows one in her language, once per pause. A cutscene in the guest's game pauses nothing on the host's side. Whether
 every story scene, dialogue and boss intro runs through a theater observer has not been checked in game yet.
+
+## Solo areas
+
+A zone of one player is a zone whose ZoneTable type is 2 to 6. The game's ESBZoneType (its value table at
+`0x145e29730`) names them `Zone_TrainningRoom` (2), `Zone_SpiritRoom` (3), `Zone_TestZone` (4), `Zone_BossChallenge`
+(5) and `Zone_Nikke` (6). 0 is `Zone_None` and 1 `Zone_Public`. `Link.solo()` in `core/link.lua` and `solo_zone()` in
+`link/protocol.h` hold that rule. This has not been tested in game yet.
+
+- The game thread reads our zone's type every 250 ms (`online/group/warp_game.inc`). It calls `FUN_141d01910`
+  (`sbo::kCurrentZoneRow`) on a local copy of client `+0x68`, the zone's FName, as the game's `FUN_141cf7630` reads it
+  before its Boss Challenge test. The call runs only in game (client `+0xa00` 2, `+0xb9c` 0xe), with the tables'
+  global set, when those 8 bytes changed since its last call. It returns the zone's row after the row's first use
+  (row `+8`, vfunc `+0x20`). Row `+0x25` is the type. The call has its own SEH latch: a fault gives `zonetype=0` for
+  the run with one `coop-link.log` line and leaves the warp read on. A type above 6 goes out as 0, logged once per
+  zone. The engine line shows `zonetype=<n>`. The log has `zone <alias>: type <n>` at each change.
+- The type is the vit line's 13th number. Each game reads the others' types from their vitals.
+- `online/group/group.lua` says each other member's stay once (`<name> is in <place>. Online play waits until they are
+  back.`), then `<name> is back.` once her type reads 1. No vitals and type 0 keep the last state. The travel, the
+  spot answer (`none solo`), the revive, the way back and the rests refuse a solo area on either side, as above. The
+  guest asks no cutscene pause while the host or she stands in one.
+- `online/partner/puppet.lua` hides the ghost of a member whose vitals read a solo type, the slot-0 puppet and the
+  ghosts of `online/partner/ghosts.lua` alike. `UE4SS.log` says `Ghost hidden: she is in a solo area.` once a stay.
+- `glue/steam.cpp` checks `Link::solo_pair()` each pass: our type, or the pair's last vit line's type, is a solo
+  area. Story together and the shared fight then read the pair as unlinked, as on another map: the pair's `SBS` and
+  fight lines are dropped and ours are not sent. A stay ends the shared fight (floors and scaling restored). A return
+  starts it again. The shared world and the shared quests go on. `coop-link.log` says `online play paused toward the
+  pair: a solo area` and `online play resumed toward the pair`. The pair's type counts whatever its age while the
+  session holds, so a load or a few lost vit lines never resume the shared fight for a moment.

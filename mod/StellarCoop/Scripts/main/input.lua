@@ -48,8 +48,8 @@ function M.gap_line(began)
     end
 end
 -- coop-chat.txt, taken and deleted at once: her chat lines to the chat (on the line above EVE while the feed cannot
--- show them: the UI off or failed, or still warming), her race lines to the race, a line of ours that could not go to
--- the chat's fail. Every 250 ms, and each frame while a race is armed.
+-- show them: the UI off or failed, or still warming), her race lines to the race, her camp rests to the group module, a
+-- line of ours that could not go to the chat's fail. Every 250 ms, and each frame while a race is armed.
 function M.inbox()
     for _,line in ipairs(M.link.take_chat()) do
         if line.fail then M.chat.fail()
@@ -58,6 +58,10 @@ function M.inbox()
             local ok,e=true,nil
             if not M.off then ok,e=pcall(M.mailbox.receive,line.gift) end
             if not ok then log('gift: '..tostring(e)) end
+        elseif line.rest then
+            local ok,e=true,nil
+            if not M.off then ok,e=pcall(M.group.rest,line.rest,line.from) end
+            if not ok then log('rest: '..tostring(e)) end
         elseif line.text then
             local m=line.from and M.link.member(line.from)
             local got=M.chat.receive((m and m.name) or (M.link.friend()) or '',line.text,M.chat_clock)

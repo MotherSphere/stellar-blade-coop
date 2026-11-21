@@ -188,20 +188,35 @@ return {
     -- Camp rests in a shared area, as the guest (main.lua): the host's rest reset the area in their game, or ours
     -- reset our own only. The revive by the friend (online/group/group.lua): she is down near us, we are down and she
     -- can revive us, she revived us, we revived her; and our game waiting while the host watches a cutscene. (%s: her
-    -- name, or fight.friend.)
+    -- name, or fight.friend.) The return after our death: the offer and always's notice (her name, follow_key). A
+    -- member in a solo area (her name, then one of places by the zone type) and back from it (her name). A member's
+    -- camp rest (online/group/group.lua, %s: her name, or someone): it reset this area in our game, or did not while we
+    -- were busy for a minute; then the stop after too many resets.
     group={rest="Enemies are back: the area reset in %s's game.",
         rest_guest="Shared area: only %s's camp rest brings its enemies back.",
         down='%s is down. Stand next to them for 3 s to revive them.',
         wait='%s can revive you: wait, or respawn at a camp.',
         revived='Revived by %s.',
         you_revived='You revived %s.',
-        cutscene='%s is watching a cutscene. Your game waits until it ends.'},
+        cutscene='%s is watching a cutscene. Your game waits until it ends.',
+        back='%s is alive. Press %s to go back to them.',
+        back_auto='Going back to %s in 5 s. Press %s to stay.',
+        solo='%s is in %s. Online play waits until they are back.',
+        places={training='the training room',spirit='the Matrix 11 demo room',test='a test zone',
+            boss='a Boss Challenge',nikke='a NIKKE stage'},
+        solo_back='%s is back.',
+        rested='%s rested at a camp. The enemies of this area are back.',
+        rest_skipped='%s rested at a camp. This area did not reset in your game: you were busy for a minute.',
+        rest_stopped="Other players' camp rests no longer reset your area until the game restarts. UE4SS.log says why.",
+        someone='A player'},
     -- The follow (online/group/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s:
     -- her name, her map, follow_key), always's notice (her name, follow_key), the travel taken, no camp found, a
-    -- guard of the moment, and the native part's refusal or a warp that never started.
-    travel={offer='%s is in %s. Press %s to travel to the camp nearest them.',
+    -- guard of the moment, the host's last ground point missing or too old (her name), and the native part's refusal
+    -- or a warp that never started.
+    travel={offer='%s is in %s. Press %s to travel to them.',
         auto='Following %s in 5 s. Press %s to stay.',going='Travelling to %s.',
         none='No camp you have found is near %s.',busy='You cannot travel now. Try again in a moment.',
+        air='%s is not on solid ground. Try again in a moment.',
         failed='The travel did not start. UE4SS.log says why.'},
     -- The parked bike (vehicles/bike/ride.lua): a mount refused with the bike's distance and side from her camera (%d
     -- metres, then one of the four side words), refused before it is back on her map (2 s after her arrival) or while

@@ -2,22 +2,33 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Follow the host's fast travel, on the game thread: main.lua ticks it every 250 ms with the Steam link; follow_key,
--- coop travel host and coop travel probe reach it.
+-- coop travel host, coop travel probe and coop travel spot reach it, the group's return through go().
 -- The guest. When the host's map changes to another than hers, or he stands more than 150 m from her EVE on hers, an
 -- offer comes once (follow_host=ask, the default) and follow_key starts the travel; always starts it by itself 5 s
 -- later, after a notice, and follow_key then cancels it; off does neither, and follow_key does nothing. With
 -- follow_key=none neither ask nor always shows or starts anything (a log line only): coop travel host still travels.
--- No offer comes for the place a travel brought her to. The travel: the guards (check), then camps? <id> to
--- the host's game, whose answer names his world and up to 8 camps nearest his EVE. She takes the first that is in this
--- table under that world, that her save has activated and that this game knows as a name (FName with FNAME_Find, which
--- never makes one), checks the guards again, and asks the native part to call SB's own fast travel with it; after SB's
--- refusal (a return of 0) the next one, 3 calls at most. SB's fast travel does not check activation (game/travel.h),
+-- No offer comes for the place a travel brought her to. On his map the travel is the spot warp: the guards (check:
+-- refused within 5 m of him, or with no distance when his ghost does not show), then spot? <id> <his SteamID> to his
+-- game, whose answer is his last ground point (whole cm, whole degrees of yaw) or none and why; the guards again, then
+-- the native part's call of SB's own position warp there (travel spot, no camp). On another map it is the camp travel:
+-- the guards (check), then camps? <id> to the host's game, whose answer names his world and up to 8 camps nearest his
+-- EVE. She takes the first that is in this table under that world, that her save has activated and that this game
+-- knows as a name (FName with FNAME_Find, which never makes one), checks the guards again, and asks the native part to
+-- call SB's own fast travel with it; after SB's refusal (a return of 0) the next one, 3 calls at most. SB's fast travel
+-- does not check activation (game/travel.h),
 -- and a travel that activated a camp would count toward its achievements, so a camp counts only when the native part's
 -- read of SB's own camp list (game/camps.h, the activated status line) lists it; no read, no travel. main.lua passes
--- o.follow=true; without it a guard refuses every travel and no offer shows.
--- Notices: going (the call was taken), none (no camp passed, or SB refused each), busy (a guard of the moment, or the
--- host's game busy or loading), failed (the native part refused, no answer came, the warp never started, no read of
--- the activated camps, or the follow off; UE4SS.log says why).
+-- o.follow=true; without it a guard refuses every travel and no offer shows. A camp travel whose host came to her map
+-- before the call asks his spot instead. Once a camp travel to his map arrived, his spot is asked by itself (the second
+-- hop, no notice) as soon as the guards pass, the native 10 s after the accepted call among them, for 30 s at most.
+-- Notices: going (the call was taken), none (no camp passed, or SB refused each), busy (a guard of the moment, a solo
+-- area on either side, the host's game busy, loading or in a solo area, no spot answer in 10 s), air (his last ground
+-- point is missing or too old), failed (the native part refused, no camps answer came, the warp never started, no read
+-- of the activated camps, or the follow off; UE4SS.log says why).
+-- Every member, host or guest, while linked: her last ground point (EVE walking on a floor, read each tick, dropped on
+-- a map change or a new EVE) and an answer to each new spot? from the status, at most 10 s old, else none and the
+-- first reason of title, loading, busy (a cutscene), solo, boss, busy (a warp), air.
+-- go(id), the group's return: the spot warp next to member id on our map, its refusals and answers in the log only.
 -- The guest reads the host's map and feet from the host's ghost: the slot the host's member line names (the native
 -- part gives the host slot 0, main.lua's puppet, on every guest), through o.ghost(k) for another slot.
 -- The host. While any guest is linked, its game answers each new camps? from the link's status (the native part
@@ -36,7 +47,10 @@
 -- only named ZoneEnvSpawn rows turned On, and none names its row. coop mxiii leave takes camps() (the read's travel
 -- camps and the camp EVE respawns at) and probes one of them as coop travel probe does. A Lua error turns the follow
 -- off for the run.
+-- coop travel spot [<world>] <x> <y> <z> (a test tool): the spot warp alone, under coop travel probe's guards; a world
+-- of core/worlds.lua puts its FName in the warp's record.
 local U=require('core.unreal')
+local P=require('core.player')
 local Where=require('core.where')
 local Link=require('core.link')
 local Line=require('core.line')
@@ -113,18 +127,24 @@ for _,row in ipairs(Travel.CAMPS) do CAMP[row[1]]={type=row[2],world=row[3]} end
 local WORLD={} -- Map to world.
 for world,map in pairs(Travel.WORLDS) do WORLD[map]=world end
 local FAR,NEAR=150,100 -- m: the host this far on her map starts an offer, which ends once he is back within NEAR.
+-- m: the host this close refuses the follow's spot warp; s: a ground point this old at most in a spot answer; s after
+-- the arrival that the second hop keeps trying.
+local NEAR_SPOT,FRESH,HOP=5,10,30
+local GROUND={[1]=true,[2]=true} -- online/modes/nightop/run.lua's copy. EMovementMode: Walking, NavWalking.
+local MAX_AT,MAX_YAW=10000000,360 -- cm, degrees: link/protocol.h's kMaxSpotAt and kMaxSpotYaw.
 -- s: always's delay; after an accepted call; for an answer; for a result; between two camps? (the host's game takes one
 -- each 2 s, and the network can bring two closer together).
 local AUTO,WAIT,ANSWER,RESULT,ASK=5,10,10,5,2.5
 local PLACE=60 -- s: the host's camp for the session list, chosen again at most this often on one map.
 local CALLS,SENT=3,8 -- Calls a travel at most; camps an answer sends at most.
 -- The native part's refusals that pass by themselves (busy); any other is failed.
-local BUSY={wait=true,calls=true,warp=true,camp=true,respawn=true,flow=true,phase=true}
+local BUSY={wait=true,calls=true,warp=true,camp=true,respawn=true,flow=true,phase=true,solo=true}
 Travel.number=Line.number
 local why=U.why
 -- o: {link=, puppet=, settings= (follow_host, follow_key), tell(build), name(words) (her name, or the words' friend),
 -- log(text), paused() (the game paused, photo mode or a menu), night() (a Night Operation run), cutscene() (one plays
 -- in our game), follow (true: the follow may travel; main.lua passes it), ghost(k) (ghost slot k's puppet, 1 to 6, or
+-- nil), back() (the group's return on the death screen: true or false and its text when it took follow_key, else
 -- nil)}.
 function Travel.new(o)
     local link,puppet,settings,log=o.link,o.puppet,o.settings,o.log
@@ -161,6 +181,9 @@ function Travel.new(o)
     local id=os.time()%65536 -- The guest's last camps? (a new Lua load starts elsewhere, so the host answers again).
     local req=nil -- The travel under way: {id=, at=, probe=, list=, i=, calls=, handled=, call_at=}.
     local accepted,watch,stuck=-math.huge,nil,nil -- The last accepted call; its warp, until it ran; a map it stuck on.
+    local hop=nil -- After an accepted camp travel of the follow: {n=its ask, at=the arrival on his map}.
+    -- Our last ground point ({x=,y=,z=,yaw=,at=,map=,pawn=}, whole cm and degrees) and the last spot? answered.
+    local point,spotted=nil,nil
     local asked_at=-math.huge -- Our last camps?: one each ASK s.
     -- The offer: key, the place offered (the host's map, or far on ours); due, always's start; quiet, no offer for the
     -- next place (the one a travel brought her to).
@@ -174,14 +197,23 @@ function Travel.new(o)
         local h=link.host()
         return h and link.member(h.id)
     end
-    local function host_ghost()
-        local m=host_member()
+    -- A member's ghost: slot 0 main.lua's puppet, else slot k's.
+    local function ghost_of(m)
         if not m or m.slot==0 then return puppet end
         return o.ghost and o.ghost(m.slot) or NONE
     end
-    -- The host's map, ours, and the metres between his ghost and our EVE when both are on one map and it shows.
-    local function where()
-        local ghost=host_ghost()
+    local function host_ghost() return ghost_of(host_member()) end
+    -- The host's SteamID: his host line's, else slot 0's member (guest()'s rule).
+    local function host_id()
+        local h=link.host()
+        if h then return h.id end
+        for _,m in ipairs(link.members() or {}) do if m.slot==0 then return m.id end end
+    end
+    -- The target's map (target nil: the host's, else member target's), ours, and the metres between her ghost and our
+    -- EVE when both are on one map and it shows.
+    local function where(target)
+        local m=target and link.member(target)
+        local ghost=not target and host_ghost() or m and ghost_of(m) or NONE
         local me,host=Where.me(),ghost.her_map()
         local mine=me and me.map
         if not (host and mine) or host~=mine then return host,mine,nil end
@@ -196,23 +228,48 @@ function Travel.new(o)
         local _,linked=link.friend()
         return linked==true
     end
+    -- Whether the travel's target holds: the host for the follow (target nil, a guest), else member target linked.
+    local function linked(target)
+        if not target then return guest() end
+        local mode,m=link.mode(),link.member(target)
+        return (mode=='host' or mode=='guest') and m~=nil and m.linked==true
+    end
+    -- The target's vitals (target nil: the host's): slot 0's from the mate= line, another's from her vit= line.
+    local function vitals(target)
+        local m=host_member()
+        if target then
+            m=link.member(target)
+            if not m then return nil end
+        end
+        if not m or m.slot==0 then return link.mate() end
+        return link.vitals(m.id)
+    end
     -- Why a travel cannot start now, and the notice for it (nil: the log only), or nil when it can. calling: again
-    -- right before a call, inside the travel under way.
-    local function check(calling)
-        if not guest() then return 'not a guest in a session' end
+    -- right before a call, inside the travel under way. target: nil for the follow (a guest toward the host), else
+    -- go()'s member, on our map only.
+    local function check(calling,target)
+        if not linked(target) then return target and 'not a linked member of a session' or 'not a guest in a session' end
         if settings.follow_host=='off' then return 'follow_host=off' end
         if not o.follow then return 'the follow is off (no o.follow)','failed' end
-        local list,unread=read()
-        if not list then return 'no read of the camps this save has activated ('..unread..')','failed' end
+        local host,mine,m=where(target)
+        if not target and not (host and host==mine) then -- A camp travel: the camps this save has activated.
+            local list,unread=read()
+            if not list then return 'no read of the camps this save has activated ('..unread..')','failed' end
+        end
         if not line('slot'):find('^slot=coop ') then return 'not on a co-op save' end
         local state=native()
         if not state then return 'no travel in the native part (engine off, or coop off)' end
         if state=='refused:fault' then return 'the native travel stopped by a fault (coop-link.log)','failed' end
-        local host,mine,m=where()
         if stuck and stuck==mine then return 'the last warp never started on this map','failed' end
-        if not host then return "the host's map is unknown" end
+        if not host then return target and 'their map is unknown' or "the host's map is unknown" end
         if not mine then return 'no EVE (a load)' end
-        if host==mine and not (m and m>FAR) then return 'the host is within 150 m' end
+        if target and host~=mine then return 'they are on another map' end
+        if host==mine and not m then return (target and 'their' or "the host's")..' place on this map is unknown' end
+        if not target and host==mine and m<=NEAR_SPOT then return 'the host is within 5 m' end
+        local v=vitals(target)
+        if Link.solo(v and v.zone) then return (target and 'they are' or 'the host is')..' in a solo area','busy' end
+        if Link.solo(link.zone()) then return 'we are in a solo area','busy' end
+        if target and not (v and (v.life==1 or v.life==6) and v.hp>0) then return 'they are down','busy' end
         if req and not calling then return 'a travel is under way' end
         if now-asked_at<ASK and not calling then return 'one request to the host each 2.5 s' end
         local life=link.life()
@@ -230,13 +287,45 @@ function Travel.new(o)
         end
         if now-accepted<WAIT then return 'the last travel was under 10 s ago','busy' end
     end
-    local function finish(key,text) -- key nil: the log only.
+    local function finish(key,text) -- key nil: the log only, as for a probe and a quiet travel (go, the second hop).
         log('travel'..(req and req.alias and ' '..req.alias or '')..': '..text)
-        if key and not req.probe then tell(key,named) end
+        if key and not req.probe and not req.quiet then tell(key,named) end
         req=nil
     end
+    -- spot? to the target's game (nil: the host's); on success the spot travel under way replaces any other.
+    local function ask(target,quiet)
+        local to=target or host_id()
+        if not to then return false,'no member to ask' end
+        id=(id+1)%65536
+        local ok,e=link.request('spot? '..id..' '..to)
+        if not ok then return false,e end
+        req,asked_at={spot=true,id=id,at=now,target=target,quiet=quiet},now
+        return true,"asked the game of "..(target and 'member '..target or 'the host')..' for its place (spot? '..id..')'
+    end
+    -- The native call of the spot warp: '<x> <y> <z> <yaw>[ <world> <index> <number>]'.
+    local function call_spot(text)
+        local _,n=native()
+        req.handled,req.call_at,req.alias=n or 0,now,'spot'
+        local ok,e=link.request('travel spot '..text)
+        if not ok then finish('failed',e) end
+    end
+    -- The target's answer to our spot?: '<x> <y> <z> <yaw>' or 'none <why>'. The guards again first, then her map.
+    local function landed(rest)
+        local none=rest:match('^none (%S+)$')
+        if none then
+            local who=req.target and 'member '..req.target or 'the host'
+            return finish(({air='air',title='failed'})[none] or 'busy','no spot from '..who..': none '..none)
+        end
+        local x,y,z,yaw=rest:match('^(%-?%d+) (%-?%d+) (%-?%d+) (%-?%d+)$')
+        if not x then return finish('failed','an answer that is no spot: '..rest) end
+        local text,kind=check(true,req.target)
+        if text then return finish(kind,'refused at the call: '..text) end
+        local host,mine=where(req.target)
+        if host~=mine then return finish('busy','refused at the call: the host left this map') end
+        call_spot(x..' '..y..' '..z..' '..yaw)
+    end
     -- The next camp of the list, or none once the list or the 3 calls ran out. The guards again first: the host's
-    -- answer can come seconds after the press.
+    -- answer can come seconds after the press. The host on her map now: his spot asked instead.
     local function call_next()
         req.i=req.i+1
         local c=req.list[req.i]
@@ -244,6 +333,13 @@ function Travel.new(o)
         if not req.probe then
             local text,kind=check(true)
             if text then return finish(kind,'refused at the call: '..text) end
+            local host,mine=where()
+            if host==mine then
+                log('travel: the host is on this map now: his spot asked')
+                local ok,e=ask()
+                if not ok then finish('failed',e) end
+                return
+            end
         end
         local _,n=native()
         req.handled,req.calls,req.call_at,req.alias=n or 0,req.calls+1,now,c.alias
@@ -283,23 +379,31 @@ function Travel.new(o)
     -- cleared follows only an accepted call (the block went before it started: a quick warp, or SB dropped it).
     local function result(state,n)
         if state=='pending' or state=='warping' or state=='arrived' or state=='refused:cleared' then
-            accepted,watch,offer.quiet=now,{n=n,map=(Where.me() or {}).map,probe=req.probe},true
+            accepted,watch,offer.quiet=now,{n=n,map=(Where.me() or {}).map,quiet=req.probe or req.quiet},true
+            hop=not req.probe and not req.spot and {n=n} or nil
             log('travel accepted: '..req.alias..(state=='refused:cleared' and ', its warp block already gone' or ''))
             return finish('going','SB took the travel')
         end
         local reason=state:match('^refused:(.+)$') or state
-        if reason=='game' then -- SB's refusal: the next camp.
+        if reason=='game' and req.list then -- SB's refusal of a camp: the next camp.
             log('travel: SB refused '..req.alias)
             return call_next()
         end
         finish(BUSY[reason] and 'busy' or 'failed','the native part refused: '..reason)
     end
     local function pump()
-        if req and not req.probe and not guest() then -- The session ended: the travel with it, without a notice.
+        if req and not req.probe and not linked(req.target) then -- The session ended: the travel with it, no notice.
             log('travel'..(req.alias and ' '..req.alias or '')..': dropped, the session ended')
             req=nil
         end
-        if req and not req.list then
+        if req and req.spot and not req.call_at then
+            local _,answer=link.spots()
+            local got,rest=(answer or ''):match('^(%d+) (.+)$')
+            if tonumber(got)==req.id then landed(rest)
+            elseif now-req.at>=ANSWER then
+                finish('busy','no answer from '..(req.target and 'member '..req.target or 'the host')..' in 10 s')
+            end
+        elseif req and not req.spot and not req.list then
             local _,answer=link.camps()
             local got,rest=(answer or ''):match('^(%d+) (.+)$')
             if tonumber(got)==req.id then choose(rest)
@@ -313,7 +417,7 @@ function Travel.new(o)
             local state,n=native()
             if n==watch.n and state=='refused:stuck' then
                 log('travel: the warp never started (refused:stuck)')
-                if not watch.probe then tell('failed') end
+                if not watch.quiet then tell('failed') end
                 stuck,watch=watch.map,nil
             elseif n~=watch.n or state~='pending' and state~='warping' then watch=nil end
         end
@@ -327,6 +431,8 @@ function Travel.new(o)
             if kind then tell(kind) end
             return false,text
         end
+        local host,mine=where()
+        if host==mine then return ask() end
         id=(id+1)%65536
         local ok,e=link.request('camps? '..id)
         if not ok then return false,e end
@@ -438,6 +544,67 @@ function Travel.new(o)
         local camp=world and nearest(me,world)[1]
         said('where',link.where(me.map:match('([^/]+)$') or '',camp and camp.alias))
     end
+    -- A whole number within most (a coordinate or a yaw), or nil: one not finite or past most is none.
+    local function whole(v,most)
+        local r=math.floor(v+0.5)
+        if math.abs(r)<=most then return r end
+    end
+    local function linked_any()
+        local mode=link.mode()
+        return (mode=='host' or mode=='guest') and link.others()>0
+    end
+    -- Every member while linked: our last ground point, kept while EVE walks on a floor; another map or EVE drops it.
+    local function ground()
+        if not linked_any() then return end
+        local eve,me=P.her(),Where.me()
+        local pawn=eve and U.address(eve)
+        if point and (me and me.map~=point.map or pawn and pawn~=point.pawn) then point=nil end
+        local move=eve and me and U.valid(eve.CharacterMovement)
+        if not (move and GROUND[move.MovementMode]) then return end
+        local at,turn=U.value_of(eve:K2_GetActorLocation()),U.value_of(eve:K2_GetActorRotation())
+        local x,y,z,yaw=whole(at.X,MAX_AT),whole(at.Y,MAX_AT),whole(at.Z,MAX_AT),whole(turn.Yaw,MAX_YAW)
+        if x and y and z and yaw then point={x=x,y=y,z=z,yaw=yaw,at=now,map=me.map,pawn=pawn} end
+    end
+    -- Every member while linked: each new spot? of the status answered once (the native part sends it to the asker).
+    local function answer()
+        if not linked_any() then spotted=nil; return end
+        local asked=link.spots()
+        if not asked or asked==spotted then return end
+        spotted=asked
+        local _,title=Where.world()
+        local me=Where.me()
+        local fight=link.fight() or ''
+        local reason=title and 'title' or not (me and P.her()) and 'loading' or o.cutscene() and 'busy'
+            or Link.solo(link.zone()) and 'solo'
+            or fight:find(' boss=',1,true) and not fight:find(' boss=0',1,true) and 'boss'
+            or not line('engine'):find(' warp=idle',1,true) and 'busy'
+            or not (point and point.map==me.map and now-point.at<FRESH) and 'air' or nil
+        local text='spot '..asked..' '..(reason and 'none '..reason or point.x..' '..point.y..' '..point.z..' '..point.yaw)
+        link.request(text)
+        log('travel: answered '..text)
+    end
+    -- The second hop: once a camp travel of the follow arrived on the host's map, his spot asked by itself as soon as
+    -- the guards pass, until HOP s after the arrival.
+    local function second_hop()
+        if not hop then return end
+        if not hop.at then
+            local state,n=native()
+            if n~=hop.n or state~='pending' and state~='warping' and state~='arrived' then hop=nil; return end
+            local host,mine=where()
+            if state~='arrived' or not (host and mine) then return end -- Not there yet, or a load on either side.
+            if host~=mine then hop=nil; return end
+            hop.at=now
+        end
+        local text=check()
+        if not text then
+            hop=nil
+            local ok,e=ask(nil,true)
+            if not ok then log('travel: no second hop: '..e) end
+        elseif now-hop.at>=HOP then
+            hop=nil
+            log('travel: no second hop: '..text)
+        end
+    end
     -- One part's Lua error turns the follow off for the run, with one line.
     local function guard(f,...)
         if off then return false,'the follow is off for this run (see the log)' end
@@ -450,10 +617,15 @@ function Travel.new(o)
     -- Every 250 ms (main.lua's loop); t: its clock in seconds.
     function self.tick(t)
         now=t
-        guard(function() host(); rows(); follow(); pump() end)
+        guard(function() ground(); answer(); host(); rows(); follow(); second_hop(); pump() end)
     end
-    -- follow_key and coop travel host: always's start cancelled, or the travel started.
+    -- follow_key and coop travel host: the group's return first (o.back), then always's start cancelled, or the travel
+    -- started.
     function self.press()
+        if o.back then
+            local ok,text=o.back()
+            if ok~=nil then return ok,text end
+        end
         return guard(function()
             if offer.due then
                 offer.due=nil
@@ -488,6 +660,46 @@ function Travel.new(o)
         if state=='refused:fault' then return 'the native travel stopped by a fault (coop-link.log)' end
         if req or state=='pending' or state=='warping' then return 'a travel is under way' end
         if now-accepted<WAIT then return 'the last travel was under 10 s ago' end
+    end
+    -- The group's return (online/group/group.lua): the spot warp next to member id on our map. true and what was asked,
+    -- or false and why; refusals, none answers and silence go to the log only (the return says its own notices).
+    function self.go(target)
+        return guard(function()
+            local text=check(false,target)
+            if text then
+                log('travel refused: '..text)
+                return false,text
+            end
+            return ask(target,true)
+        end)
+    end
+    -- coop travel spot [<world>] <x> <y> <z>: the spot warp alone (yaw 0), under coop travel probe's guards; a world of
+    -- core/worlds.lua goes as its FName, which FNAME_Find must know.
+    function self.spot(a,b,c,d)
+        return guard(function()
+            local text=refusal(nil,true)
+            if text then return false,text end
+            local world,words=nil,{a,b,c}
+            if d~=nil then world,words=a,{b,c,d} end
+            local at={}
+            for i,w in ipairs(words) do
+                local v=tonumber(w)
+                at[i]=v and math.tointeger(v)
+                if not at[i] or math.abs(at[i])>MAX_AT then
+                    return false,'x, y and z are whole centimetres within 10000000: '..tostring(w)
+                end
+            end
+            local tail=''
+            if world then
+                if not Travel.WORLDS[world] then return false,world..' is not a world of core/worlds.lua' end
+                local n=name_of(world)
+                if not n then return false,world..' is not a name in this game yet (FNAME_Find)' end
+                tail=' '..world..' '..n.index..' '..n.number
+            end
+            req={probe=true,spot=true,at=now}
+            call_spot(table.concat(at,' ')..' 0'..tail)
+            return true,'travel spot asked: the result follows in this log and in coop-link.log'
+        end)
     end
     -- coop mxiii leave's choice: the travel camps the read lists as activated, in its order, and the camp EVE respawns
     -- at (any alias, nil when unknown); or nil and why without a read.

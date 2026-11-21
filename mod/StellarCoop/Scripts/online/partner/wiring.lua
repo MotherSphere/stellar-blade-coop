@@ -19,13 +19,15 @@ if crashed then
         ..'). It is set aside: the ghost draws it as missing until coop cns reset or another mod version.')
     M.aside_note=(crashed.path:match('([^./]+)$') or crashed.path):sub(1,32)
 end
+-- The ghost hides while her vitals' zone type is a solo area (a Boss Challenge can sit on a story map).
+local Link=require('core.link')
 M.puppet=require('online.partner.puppet').new(M.link,M.capture,M.say,M.settings and M.settings.name_tag,M.look,M.words,
-    sentinel)
+    sentinel,M.link and function() return Link.solo((M.link.mate() or {}).zone) end)
 -- With the Steam link, a ghost for each other member of a lobby in ghost slots 1 to 6 (a match lobby, or an online
 -- session of more than 2 players), each on its slot's files.
-M.ghosts=M.link and require('online.partner.ghosts').new(M.link,function(files)
+M.ghosts=M.link and require('online.partner.ghosts').new(M.link,function(files,_,solo)
     return require('online.partner.puppet').new(files,M.capture,M.say,M.settings and M.settings.name_tag,M.look,M.words,
-        sentinel)
+        sentinel,solo)
 end)
 -- Ghost slot k's puppet past slot 0 (the HUD rows, the revive, the follow), nil before a member held it.
 function M.ghost_of(k) return M.ghosts and M.ghosts.get(k) end

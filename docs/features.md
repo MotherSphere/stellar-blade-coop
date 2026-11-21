@@ -28,7 +28,7 @@ with a local pak. No match lobby has held two players in game yet (see
 0.6.0-beta.1 to beta.3 use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses
 protocol 18 and does not link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). Builds after it, 0.8.0
 to 0.10.0, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5. 0.11.0 uses protocol 20, for the
-PvP test and the match lobbies. It does not link with 0.10.0 or older. This version uses protocol 24, for the shared
+PvP test and the match lobbies. It does not link with 0.10.0 or older. This version uses protocol 25, for the shared
 world, story together, sessions of up to 4 players and the score attack. It does not link with 0.11.0 or older: every
 player has to update.
 
@@ -72,15 +72,19 @@ achievements, which cannot be taken back.
   marker over their ghost shows their name and HP, and an arrow at the edge of the screen points to them when they are
   out of view. The card, marker and arrow stay inside the screen at any resolution and menu size.
 - Group play, not tested in game yet:
-  - as the guest, F7 takes you to the camp nearest the host through the game's own fast travel when the host is on
-    another map or more than 150 m away. The game's fast travel does not check whether your save has activated a camp,
-    so the mod reads the activated camps itself and travels only to one of them; `coop travel probe` and
-    `coop mxiii leave` use the same read;
+  - as the guest, F7 puts you where the host last stood on solid ground, through the game's own position warp on his
+    map. From another map it first travels to the camp nearest him through the game's own fast travel. The game's
+    fast travel does not check whether your save has activated a camp, so the mod reads the activated camps itself
+    and travels only to one of them; `coop travel probe` and `coop mxiii leave` use the same read;
   - when one EVE is down, the shared enemies near the other one fight it, and a down EVE gets no kill by standing near
     one; with the experimental revive (on by default), a friend who stands next to the downed EVE for 3 s revives it
     where it fell;
+  - on the death screen, F7 gets you up in place and takes you back to a living friend on your map;
   - the guest's game pauses while a cutscene plays in the host's game;
-  - in a shared area only the host's camp rest brings the enemies back, and a notice tells the guest so;
+  - with the shared world on, a camp rest brings the enemies of that area back in the game of each other member who
+    stands there;
+  - a member in a Boss Challenge, a NIKKE stage, the training room or another place for one player pauses online play
+    toward her until she is back, with a notice;
   - the experimental solid partner option (on by default) stops your EVE at your friend's ghost.
 - Doro races: record a track by setting checkpoints with F9, then race it alone against the clock or against your
   friend, each racer drawn as a Doro (Dororong). The race has a countdown, a timer, checkpoint markers and a ranking.

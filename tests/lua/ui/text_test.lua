@@ -102,8 +102,10 @@ local function notices(w)
     local lines={}
     for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','story','travel','ue4ss',
         'join_refused','bike','gun'}) do
-        for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
+        for _,text in pairs(w[group]) do if text~=w.group.places then lines[#lines+1]=fill(text) end end
     end
+    -- A member in a solo area (online/group/group.lua): each place with a 32-byte name.
+    for _,place in pairs(w.group.places) do lines[#lines+1]=w.group.solo:format(NAME,place) end
     -- The bike's refusals (vehicles/bike/ride.lua) with the paid fetch's offer after them, as its mount joins them:
     -- each side word with a six-digit distance (positions reach 10,000,000 cm), another map with a 32-byte name; the
     -- offer with the longest key name (Shift+F12, as long as coop bike when bike_key is none) and betacrystal, the word

@@ -49,6 +49,11 @@ struct Peer {
   // number for it (camps_n_), which the status gives Lua: two guests' ids may meet, ours never do.
   bool camps_asked = false, camps_waiting = false;
   uint64_t camps_id = 0, camps_at = 0, camps_n = 0;
+  // The travel to a member (online/group/travel.lua), as the camps lines: her last spot? (on a guest, the host's only),
+  // when it came, whether it still waits for our answer, our number for it (spot_n_). On the host, when her last rest
+  // line came (0: none yet), for the limit of one each kCampsEveryMs.
+  bool spot_asked = false, spot_waiting = false;
+  uint64_t spot_id = 0, spot_at = 0, spot_n = 0, rest_at = 0;
   // The synced photo mode: her state and whether her photo mode may pause our game, from her last photo line ('0' and
   // no before one); our line as she last got it (sent again after each hello of hers, so a rejoin heals); whether
   // "does not pause for photos" was said for her; her photo lines' window.

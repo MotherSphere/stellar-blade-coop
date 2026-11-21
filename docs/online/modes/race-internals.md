@@ -164,7 +164,7 @@ race are the ones to put back; the 250 ms check catches a write the search misse
 
 The host owns a race. Its game sends the track and the start, each game times its own racer from its own GO, and the
 host's game sends the ranking. The guest's game checks each line against fixed bounds before using it, and sends only
-its own racer's lines. Each line travels as `SBC24 race <text>` on channel 0 (see [Channel 0: text](../steam-link-internals.md#channel-0-text)),
+its own racer's lines. Each line travels as `SBC25 race <text>` on channel 0 (see [Channel 0: text](../steam-link-internals.md#channel-0-text)),
 with whole numbers only, in centimetres and milliseconds. `<id>` is the host's race number:
 
 | Line | From | Meaning |
