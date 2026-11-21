@@ -130,6 +130,14 @@ function GunMode.want(reload,zoom,fire,move,falling)
     return (zoom or fire) and 'aim' or 'carry'
 end
 
+-- The pose the layer plays and the IK stands on for want: a reload in firing mode (aimed: hold_aim) keeps the aim's,
+-- so her torso and head stay aimed and only her arms and hands reload (fight/gunmode/ik.lua's pin_reload). The carry
+-- pose there turned her chest to the right.
+function GunMode.pose(want,aimed)
+    if want=='reload' and aimed then return 'aim' end
+    return want
+end
+
 -- env: {log, settings (main.lua's, as core/link.lua parses coop-settings.txt; nil: the defaults), words (the menu's
 -- words, ui/text.lua's table in the player's language; English unless given), notice (a notice on screen, by its key
 -- in ui/text.lua's gun: rebuilding when nil), store (coop-gun.txt through core/link.lua's store: save, load, clear; nil
@@ -1555,7 +1563,8 @@ function GunMode.new(env)
             end
             local ok_i,err_i=true,nil
             if s.prof then s.prof('layer_misc') end
-            s.ik.want=want -- the v4 pin follows the layer clip (aim, carry, reload)
+            local pose=GunMode.pose(want,hold_aim)
+            s.ik.want=pose -- the v4 pin follows the layer clip (aim, carry, reload)
             s.ik.reload_k=(want=='reload' and s.reload_until) and 1-(s.reload_until-now)/(s.reload_len or 1) or nil
             single.no_laser=want=='reload'
             if not s.g1_hold then ok_i,err_i=pcall(s.ik.tick,pc,p,s.rifle,mode_ik,ppi) end -- g1's AimRot test freezes the IK writes
@@ -1701,9 +1710,9 @@ function GunMode.new(env)
                     s.layer_clip=nil
                 end
             end
-            -- the layer clip: want, with the aim split by the rifle's pitch (the hands are pinned by IK either way)
-            local clip=want
-            if want=='aim' then
+            -- the layer clip: the pose, with the aim split by the rifle's pitch (the hands are pinned by IK either way)
+            local clip=pose
+            if pose=='aim' then
                 local C=require('fight.gunmode.ik').CFG
                 clip=GunMode.aim_clip(s.layer_clip,s.rpitch,C.aim_clip_up,C.aim_clip_back)
             end

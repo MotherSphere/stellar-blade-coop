@@ -256,7 +256,7 @@ function IK.new(g)
             local Rp=add(np,qrot(nq,rel.r.t))
             local nd=(IK.CFG.pin_nudge or {})[self.want]
             if nd then Rp=add(Rp,qrot(Rq,nd)) end
-            local rk=self.want=='reload' and self.reload_k
+            local rk=self.reload_k -- (a reload on the carry pose, or in firing mode on the aim's)
             local w=rk and math.sin(math.pi*math.max(0,math.min(1,rk))) or 0
             if w>0 then
                 -- reload tilt: roll about the bore (rifle X), then muzzle down about its right (Y), both through the butt
@@ -289,7 +289,7 @@ function IK.new(g)
         end
         local lq=qmul(rq,rel.q)
         local lloc=add(rp,qrot(rq,rel.t))
-        local rk=self.want=='reload' and self.reload_k
+        local rk=self.reload_k
         if rk and G and self.rifle_now then
             -- the left hand's trip: handguard -> magazine (k 0..0.3), pull down (0.3..0.5), push up (0.5..0.7), back (0.7..1)
             local RL=IK.CFG.pin_reload; local R=self.rifle_now

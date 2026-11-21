@@ -92,6 +92,16 @@ IK.reload_k=1; IK.tick(nil,p,nil,'carry',pp)
 assert(dist(l0,pp.LHandLoc_RH)<1e-3,'hand not back '..dist(l0,pp.LHandLoc_RH))
 IK.reload_k=nil
 
+-- 7b. A reload in firing mode stands on the aim entry (fight/gunmode/mode.lua's GunMode.pose): the rifle tilts and the
+-- left hand goes to the magazine all the same, the aim's grip and torso kept.
+IK.want='aim'; IK.reload_k=nil; IK.tick(nil,p,nil,'carry',pp)
+local _,ma=hand2rifle(); local la={X=pp.LHandLoc_RH.X,Y=pp.LHandLoc_RH.Y,Z=pp.LHandLoc_RH.Z}
+IK.reload_k=0.5; IK.tick(nil,p,nil,'carry',pp)
+local _,mr=hand2rifle()
+assert(dist(ma,mr)>5,'the rifle did not tilt in an aimed reload '..dist(ma,mr))
+assert(dist(la,pp.LHandLoc_RH)>5,'the left hand stayed on the handguard '..dist(la,pp.LHandLoc_RH))
+IK.reload_k=nil
+
 -- 8. Bone space: the left target sent in the anchor's frame (anchor turned 90 deg about Z at 0,0,146).
 IK.want='aim'; IK.tick(nil,p,nil,'aim',pp); local lc={X=pp.LHandLoc_RH.X,Y=pp.LHandLoc_RH.Y,Z=pp.LHandLoc_RH.Z}
 IKm.CFG.pin_space='bone'; IK.tick(nil,p,nil,'aim',pp); local lb=pp.LHandLoc_RH

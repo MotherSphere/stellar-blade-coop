@@ -16,6 +16,8 @@ assert(GunMode.want(nil,true,true,'Evade',false)=='carry')    -- a dodge on the 
 assert(GunMode.want(nil,true,true,'Flip',true)=='aim')        -- the double-jump flip keeps the aim
 assert(GunMode.want(5,true,true,nil,false)=='reload')
 assert(GunMode.want(5,false,false,'Evade',false)=='reload')
+assert(GunMode.pose('reload',true)=='aim' and GunMode.pose('reload',false)=='reload') -- an aimed reload keeps the aim's pose
+assert(GunMode.pose('aim',true)=='aim' and GunMode.pose('carry',false)=='carry')
 
 -- 2. The aim bridge: a dodge with the key held keeps the aim; the game's aim back or the key let go ends it.
 assert(Input.bridge(nil,false,true,0.2)==true)     -- aim dropped 0.2 s ago, key held
