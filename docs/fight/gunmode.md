@@ -16,7 +16,9 @@ When the rifle comes out, `fight/gunmode/overlay.lua` swaps her body mesh's post
 `ABP_NGM_Spike`. The layer works on her finished pose. It plays one of the pak's poses (`Mods/NGM/Poses`) on her arms,
 hands and head (from `Bip001-Neck` down): `CarryLowReady` while she carries the rifle or reloads it out of firing mode,
 `AimLevel` in firing mode, a reload included (`AimUp45` or `AimDown45` past 22 degrees of rifle pitch). It also runs
-her outfit's own post-process graph. Her main animation, springs and outfit physics are left as they are.
+her outfit's own post-process graph. Her main animation, springs and outfit physics are left as they are. A pose that
+the installed pak lacks (an older `zNGMSpike_P` without `Mods/NGM/Poses`) is looked for once per Lua load. The layer
+then keeps the pose it plays. `UE4SS.log` has one line such as `layer clip aimup: clip not found aimup`.
 
 Each frame `fight/gunmode/ik.lua` places the rifle in her mesh's component space: on the camera's line in firing mode,
 at low ready otherwise. It puts her right hand on the rifle's grip and her left palm on the handguard. The rifle is

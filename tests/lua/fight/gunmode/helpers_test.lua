@@ -247,6 +247,31 @@ do
     StaticFindObject=find
 end
 
+-- 7c. A rifle clip the installed pak lacks (an older zNGMSpike_P without the v4 poses) is looked up once a Lua load. A
+--     miss walks the object array twice and tries a load (50 to 70 ms): the tick asks for the clip each frame.
+do
+    local Overlay=require('fight.gunmode.overlay')
+    local path=Overlay.CLIPS.aimup
+    local lookups=0
+    local find,load=StaticFindObject,LoadAsset
+    local registry={IsValid=function() return true end,GetAsset=function() return nil end}
+    StaticFindObject=function(p)
+        if p=='/Script/AssetRegistry.Default__AssetRegistryHelpers' then return registry end
+        if p==path then lookups=lookups+1 end
+    end
+    LoadAsset=function(p) if p==path then lookups=lookups+1 end end
+    local g={log=function() end,try=function(f) local ok,r=pcall(f); if ok then return r end end}
+    local layer=Overlay.new(g)
+    local pp={IsValid=function() return true end}
+    local her={Mesh={GetPostProcessInstance=function() return pp end}}
+    for _=1,60 do
+        local m,e=layer.play(her,'aimup')
+        assert(m==nil and tostring(e):find('clip not found',1,true),tostring(e))
+    end
+    assert(lookups==3,'a missing clip looked up '..lookups..' times in 60 frames')
+    StaticFindObject,LoadAsset=find,load
+end
+
 -- 8. ik.lua's math (UE's conventions): a rotator to a quaternion and back, a vector turned by a quaternion, the
 --    rotation of an orthonormal frame and the frame made orthonormal.
 do

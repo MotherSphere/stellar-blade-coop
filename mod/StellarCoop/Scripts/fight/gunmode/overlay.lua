@@ -66,6 +66,17 @@ function Overlay.new(g)
         if valid(o) then found[path]=o; return o end
         return nil
     end
+    -- One of Overlay.CLIPS (or a full object path). A clip missed once is not in the installed pak (an older
+    -- zNGMSpike_P without the v4 poses): it is not looked up again this Lua load. Each miss walks the object array twice
+    -- and tries a load (50 to 70 ms), while the tick asks for the clip each frame.
+    local no_clip={}
+    local function clip_of(clip)
+        local path=Overlay.CLIPS[clip] or clip
+        if no_clip[path] then return nil end
+        local seq=find(path)
+        if not seq then no_clip[path]=true end
+        return seq
+    end
     local function pp_of(mesh) local pp=g.try(function() return mesh:GetPostProcessInstance() end); return valid(pp) and pp or nil end
     local function rebuild(mesh,sk,cls)
         local mine=path_of(sk); local base
@@ -148,8 +159,8 @@ function Overlay.new(g)
 
     -- play one of Overlay.CLIPS (or a full object path) on the layer's DefaultSlot; loops<=0 holds it indefinitely
     function self.play(p,clip,rate,loops,blend_in,blend_out)
+        local seq=clip_of(clip); if not seq then return nil,'clip not found '..tostring(clip) end
         local pp=pp_of(p.Mesh); if not pp then return nil,'layer not installed' end
-        local seq=find(Overlay.CLIPS[clip] or clip); if not seq then return nil,'clip not found '..tostring(clip) end
         local ok,m=pcall(function()
             slot=slot or FName('DefaultSlot')
             return pp:PlaySlotAnimationAsDynamicMontage(seq,slot,blend_in or 0.15,blend_out or 0.15,
@@ -172,14 +183,14 @@ function Overlay.new(g)
     end
     -- a clip's length in seconds, or nil (the reload clip is fitted to the reload time with it)
     function self.length(clip)
-        local seq=find(Overlay.CLIPS[clip] or clip)
+        local seq=clip_of(clip)
         return seq and g.try(function() return seq:GetPlayLength() end)
     end
     -- whether one of Overlay.CLIPS is still playing on the layer's DefaultSlot (the asset is a loaded clip, never a
     -- montage object that the game may already have freed)
     function self.playing(p,clip)
         local pp=pp_of(p.Mesh); if not pp then return false end
-        local seq=find(Overlay.CLIPS[clip] or clip); if not seq then return false end
+        local seq=clip_of(clip); if not seq then return false end
         slot=slot or FName('DefaultSlot')
         return g.try(function() return pp:IsPlayingSlotAnimation(seq,slot) end)==true
     end

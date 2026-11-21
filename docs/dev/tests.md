@@ -72,7 +72,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   game writes when its aim starts. It keeps the slot found at the first aim. A block whose address another object took
   gets no write. Only that slot is looked for: the bottom-left count keeps the game's text. It also covers
   `mode.lua`'s point along a camera's forward and its eased step, then the rifle layer's clip paths (object paths). A
-  clip is looked up again once another object took its address. The layer's mesh records follow: an earlier load's
+  clip is looked up again once another object took its address. A clip the pak lacks is looked up once a Lua load,
+  not at each frame that asks for it. The layer's mesh records follow: an earlier load's
   record keeps the first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to
   quaternion and back, a vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
 - `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away (parked or
