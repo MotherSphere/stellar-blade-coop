@@ -529,4 +529,27 @@ do
     toggle(gun,false)
 end
 
+-- 16. A new world while the rifle is away fills the free magazines again: 10 rounds, F4, a map load, F4, 10 rounds
+--     leave 50 in the magazine (the player's reload logs it).
+do
+    local w=Fake.new(); w.install()
+    local gun,logs=new('gun_fire=own\n')
+    local function ten()
+        w.down.RightMouseButton,w.down.LeftMouseButton=true,true
+        for _=1,300 do if gun.state.shots>=10 then break end; frames(gun,1) end
+        w.down.RightMouseButton,w.down.LeftMouseButton=nil,nil
+        assert(gun.state.shots==10,gun.state.shots..' shots')
+        frames(gun,2)
+    end
+    toggle(gun,true); frames(gun,40); ten()
+    toggle(gun,false)
+    w.new_pawn(); gun.new_controller(w.pc); frames(gun,60*6)
+    toggle(gun,true); frames(gun,40); ten()
+    w.down.B=true; frames(gun,1); w.down.B=nil
+    local line
+    for _,l in ipairs(logs) do if l:find('ammo: reload (manual)',1,true) then line=l end end
+    assert(line and line:find('50 in the magazine, 300 spare',1,true),'a new world with the rifle away: '..tostring(line))
+    toggle(gun,false)
+end
+
 print('gunmode state: ok')

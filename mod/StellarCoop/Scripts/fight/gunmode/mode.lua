@@ -1848,6 +1848,7 @@ function GunMode.new(env)
         cached=pc
         s.pause=os.clock()+4.0
         s.give_back=true
+        s.ammo_reset=true -- a new world fills the free magazines again, the rifle out or away (fight/gunmode/ammo.lua refill)
         if s.on then
             s.on=false
             if s.mask then pcall(s.mask); s.mask=nil end
@@ -1856,7 +1857,6 @@ function GunMode.new(env)
             s.mesh_back=(s.mesh_yaw or 0)~=0 and s.mesh_rot or nil -- (her mesh's turn, if this pawn lives on)
             s.mesh_rot,s.mesh_yaw,s.cmod,s.cmod_fail,s.head_yaw,s.chest=nil,0,nil,nil,nil,nil
             s.fov,s.fov_locked=nil,false
-            s.ammo_reset=true
             s.stop_stance=true
             s.show_back=true
         end
