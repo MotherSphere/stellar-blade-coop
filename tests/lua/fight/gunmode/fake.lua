@@ -59,7 +59,7 @@ local function rows()
                 LockOnRunBlendSpace='Test_LockOn_BS',AimOffsetBlendSpace='Test_Aim_BS'}},
         ProjectileTable={P_Eve_GunNikke_ShootSlug1_Projectile1={StartTargetTransformType=1,
                 StartTargetRelativeAxisType=1,DestTargetTransformType=2,DestTargetRelativeAxisType=2,
-                DestTargetRelativeLocation={X=1,Y=2,Z=3},DestTargetRandomRange={X=300,Y=300,Z=300},
+                DestTargetRelativeLocation={X=1,Y=2,Z=3},DestTargetRandomRange={X=300,Y=300,Z=300},DestTargetUpdate=1,
                 StartTargetRelativeLocation={X=4,Y=5,Z=6.25}},
             P_Eve_Gun_ShootSlug1_Projectile1={DestTargetTransformType=5,DestTargetRelativeAxisType=6}},
         SkillActiveStepTable={P_Eve_GunNikke_ShootSlug1_1_Hit1={Type=1},

@@ -285,10 +285,20 @@ function Data.new(g,native,opts)
             local dl=nr.DestTargetRelativeLocation
             saved[#saved+1]={nr,'DestTargetRelativeLocation',{X=dl.X,Y=dl.Y,Z=dl.Z}}
             -- The NIKKE bullet's spread: its destination is shipped with a random range of 300 cm on each axis
-            -- (the drone's has none); zero while the rifle is out, so every round lands on the reticle.
+            -- (the drone's has none); zero while the rifle is out. Gun mode's own spread is an angle around the
+            -- reticle point (gun_spread, fight/gunmode/aim.lua's Aim.spread).
             local rr=nr.DestTargetRandomRange
             saved[#saved+1]={nr,'DestTargetRandomRange',{X=rr.X,Y=rr.Y,Z=rr.Z}}
             nr.DestTargetRandomRange={X=0,Y=0,Z=0}
+            -- The destination is placed once, at the round's spawn: DestTargetUpdate (a byte at 0x1df,
+            -- ESBMovementTargetUpdate, enum params 0x146d33670 on 26123051: FirstTime 0, Following 1). With Following
+            -- the target's update (0x142431530) places it again each tick from EVE's root as it is then, so a turn
+            -- while the round flies swung it off the reticle point.
+            local up=nr.DestTargetUpdate
+            saved[#saved+1]={nr,'DestTargetUpdate',up}
+            nr.DestTargetUpdate=0
+            g.log(('data: NIKKE round: dest target %s, update %s -> 0, movement %s'):format(tostring(nr.DestTarget),
+                tostring(up),tostring(nr.MovementType)))
             local sl=nr.StartTargetRelativeLocation
             saved[#saved+1]={nr,'StartTargetRelativeLocation',{X=sl.X,Y=sl.Y,Z=sl.Z}}
             nr.StartTargetTransformType=dr.DestTargetTransformType

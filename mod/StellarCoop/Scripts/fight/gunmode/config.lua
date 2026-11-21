@@ -12,6 +12,8 @@
 --   gun_upper=nikke|off   test: firing mode shows the game's aim with the NIKKE rifle's upper-body animations
 --                         (nikke) instead of Luke's aim on her normal stance's spine (off, the default)
 --   gun_zoom=hold|toggle  firing mode while RMB / LT is held (default), or turned on and off by a press
+--   gun_spread=<degrees>  how far a round may land off the reticle point, seen from the camera (0 to 10; spread
+--                         below unless set; 0: every round on the point)
 -- On a pad, a tap of D-pad Right (released within pad_tap s) toggles: a hold of it is the bike's (bike/ride.lua).
 local Config={}
 
@@ -63,6 +65,7 @@ Config.DEFAULTS={
     zoom_offset={X=95,Y=55,Z=10},zoom_ease=0.18,
     zoom_arm=0.55, -- Firing mode on her normal stance: the camera arm this share of the game's, SocketOffset +Y/+Z above.
     trace_range=10000, -- How far the crosshair's trace looks for what the rounds hit.
+    spread=0.5, -- Degrees: each round lands at random within this angle of the reticle point (gun_spread). 0: none.
     -- Masked while the rifle is out (in memory only, lifted while the game is paused, put back when it goes away; SB's
     -- key options save the mappings, see fight/gunmode/mode.lua's tick): the sword's attacks and the drone's aim, fire
     -- and pad combat keys on the fire and zoom keys (mask_keys). The drone's aim and fire go on any key too (Luke
@@ -153,6 +156,11 @@ function Config.from(settings)
     if v then
         local l=v:lower()
         if l=='native' or l=='own' then out.native=l=='native' else bad[#bad+1]='gun_fire: use native or own' end
+    end
+    v=get('gun_spread')
+    if v then
+        local n=tonumber(v)
+        if n and n>=0 and n<=10 then out.spread=n else bad[#bad+1]='gun_spread: degrees from 0 to 10' end
     end
     v=get('gun_zoom')
     if v then

@@ -140,6 +140,7 @@ end
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local set,bad=Config.from(env.settings)
+    local spread=set.spread or cfg.spread -- degrees around the reticle point (gun_spread)
     local g={}
     function g.log(m) env.log(m) end
     function g.words() return (env.words and env.words() or require('ui.text').en).gun end
@@ -1088,7 +1089,7 @@ function GunMode.new(env)
                 tgt={X=mz.X+f.X*3000,Y=mz.Y+f.Y*3000,Z=mz.Z+f.Z*3000}
             end)
         end
-        aim.write(p,tgt)
+        aim.write(p,s.flip and tgt or Aim.spread(tgt,s.cam_loc,spread,math.random(),math.random()))
         if fire_row(Data.row('Fire')) then
             s.shots=s.shots+1
             pcall(ammo.spend,now)
@@ -1353,7 +1354,17 @@ function GunMode.new(env)
             -- s.shots takes both: the 'off' line counted only gun mode's own shots ('0 shots' after a burst, 11-21).
             local fired=ammo.fired
             local ok_a,err_a=pcall(ammo.tick,s.zoom_held or inp.fire,inp.fire and tps,now)
+            local was=s.shots
             s.shots=s.shots+(ammo.fired-fired)
+            -- The game's rounds: where the first three and one in fifty went (the destination SB reads, placed from
+            -- her root as it is now) against the reticle point the write took, as seen from the camera.
+            if s.shots>was and (was<3 or s.shots//50>was//50) and s.target and s.cam_loc then pcall(function()
+                local to=aim.went(p)
+                if not to then return end
+                local function v(a) return ('(%.0f, %.0f, %.0f)'):format(a.X,a.Y,a.Z) end
+                g.log(('round #%d: to %s, reticle point %s, %.2f deg apart from the camera (spread %.1f)'):format(
+                    s.shots,v(to),v(s.target),Aim.apart(to,s.target,s.cam_loc),spread))
+            end) end
             if s.shots>=30 and not s.snd_logged then -- (every owner's for the first 6 outs of a Lua load: a walk, 60-90 ms)
                 s.snd_logged=true; s.snd_walks=(s.snd_walks or 0)+1
                 g.log('sounds while firing: hers '..sounds(p)..(s.snd_walks<=6 and '; every owner '..sounds(nil,true) or ''))
@@ -1722,11 +1733,14 @@ function GunMode.new(env)
         -- In firing mode, ten times a second: the NIKKE bullet's start put on the rifle's muzzle and its destination
         -- on the crosshair point (each shot writes the destination again).
         if s.prof then s.prof('pose') end
-        if (s.zoom_held or inp.fire) and now-(s.aim_w or 0)>=0.1 then
-            s.aim_w=now
+        -- In firing mode, every frame (SB reads the row when a round spawns): the NIKKE bullet's start on the rifle's
+        -- muzzle and its destination on this frame's crosshair point, moved at random within the spread.
+        if s.zoom_held or inp.fire then
+            local loc=g.try(function() return p:K2_GetActorLocation() end)
+            local rot=g.try(function() return p:K2_GetActorRotation() end)
             local m=g.valid(s.rifle) and g.try(function() return s.rifle:GetSocketLocation(fx_fire()) end)
-            aim.write_start(p,m or nil,cfg.start_min_forward,cfg.start_fallback)
-            aim.write(p,s.target)
+            aim.write_start(p,m or nil,cfg.start_min_forward,cfg.start_fallback,loc,rot)
+            aim.write(p,Aim.spread(s.target,s.cam_loc,spread,math.random(),math.random()),loc,rot)
         end
         if not set.native then face(p,s.zoom_held) end
         -- Firing mode: fire once the rifle has had a moment to come up (Luke's raise eases in over ~12 frames).
