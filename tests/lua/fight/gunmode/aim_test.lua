@@ -94,6 +94,17 @@ for _,spread in ipairs({0,0.5}) do
         if spread==0 then assert(off<1e-3,('frame %d: the destination is %.2f deg off this frame\'s reticle point'):format(i,off)) end
     end
     if spread>0 then assert(most<=spread+1e-6 and most>0,'spread '..most) end
+    -- The game's montage on her while she fires is named in the log once (what bends her as she fires).
+    local montage={IsValid=function() return true end,GetFName=function() return {ToString=function() return 'Test_Shot_Montage' end} end}
+    w.mesh.GetAnimInstance=function() return {GetCurrentActiveMontage=function() return montage end,
+        Montage_IsPlaying=function() return true end} end
+    w.down.LeftMouseButton=true
+    for _=1,30 do clock=clock+1/60; gun.tick() end
+    w.down.LeftMouseButton=nil
+    local named=0
+    for _,l in ipairs(logs) do if l:find('layer: montage Test_Shot_Montage while firing',1,true) then named=named+1 end end
+    assert(named==1,'montage named '..named..' times')
+    w.mesh.GetAnimInstance=nil
     assert(row.DestTargetUpdate==0,'the destination is placed at the spawn only')
     w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
     for _=1,10 do clock=clock+1/60; gun.tick() end

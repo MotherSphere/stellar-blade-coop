@@ -1435,6 +1435,16 @@ function GunMode.new(env)
                     or nm:find('[Dd]amage') or nm:find('[Dd]own') or nm:find('[Kk]nock') or nm:find('[Ss]tun') or nm:find('[Rr]oll')
                     or nm:find('[Ff]lip') or nm:find('[Dd]ash') or nm:find('[Pp]arry') or nm:find('[Gg]uard') or nm:find('[Ss]lide')) and nm or nil
                 if set.trace and nm~=s.last_montage then s.last_montage=nm; g.log('layer: montage '..tostring(nm)..(s.move and ' (layer steps aside)' or '')) end
+                -- Each new montage name the game plays on her while the rifle is out, the first 12 of a Lua load: which
+                -- of the game's moves bends her while she fires (11-21: she seemed to crouch as if dodging).
+                if nm and not set.trace then
+                    s.montages=s.montages or {n=0}
+                    if not s.montages[nm] and s.montages.n<12 then
+                        s.montages[nm]=true; s.montages.n=s.montages.n+1
+                        g.log(('layer: montage %s while %s%s'):format(nm,inp.fire and 'firing' or (s.zoom_held and 'aiming' or 'carrying'),
+                            s.move and ' (layer steps aside)' or ''))
+                    end
+                end
             end
             -- a move keeps the rifle held (the carry follows her body through it) instead of handing her arms back
             local falling0
@@ -1667,6 +1677,8 @@ function GunMode.new(env)
                             local seq=g.asset(path)
                             s.slot_name=s.slot_name or FName('DefaultSlot')
                             if seq then p.Mesh:GetAnimInstance():PlaySlotAnimationAsDynamicMontage(seq,s.slot_name,0.1,0.15,1.0,1,-1,0)
+                                s.shuffles=(s.shuffles or 0)+1
+                                if s.shuffles<=3 then g.log(('turn: %s played (chest yaw %.0f)'):format(nm,s.chest.Yaw or 0)) end
                             elseif not s.shuffle_err then s.shuffle_err=true; g.log('turn: no '..nm) end
                         end)
                     end
