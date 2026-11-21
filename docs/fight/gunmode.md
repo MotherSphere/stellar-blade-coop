@@ -61,10 +61,10 @@ rifle changes:
 - `SkillTable`: the NIKKE shot's cool time (the rate of fire).
 - `SkillActiveStepTable`: the shot's `Hit1` step takes the `Type` of its `Cast1` step. It fires its projectile and
   spends no round.
-- `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its destination is set on EVE
-  (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own target line and sent the rounds to
-  the side. Its own spread (a random range of 300 cm) is off. Its destination is placed once, when the round spawns,
-  not again while it flies.
+- `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its destination is an offset from
+  EVE's root in her root's frame (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own
+  target line and sent the rounds to the side. Its own spread (a random range of 300 cm) is off. Its destination is
+  placed once, when the round spawns, not again while it flies.
 - `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it.
 - `CharacterAnimSetTable`: not on the rifle layer. With the rifle clips alone, the aim stance's animation set points at
   the rifle's blend spaces. A spare NPC row takes EVE's peaceful set with the rifle clips for the carry. The test line

@@ -337,7 +337,7 @@ function Data.new(g,native,opts)
             local up=nr.DestTargetUpdate
             saved[#saved+1]={nr,'DestTargetUpdate',up}
             nr.DestTargetUpdate=0
-            -- The destination is placed on EVE: DestTarget (a byte at 0x1dd, property params 0x145e00000;
+            -- The destination is placed from EVE's root: DestTarget (a byte at 0x1dd, property params 0x145e00000;
             -- ESBProjectileTarget, enum params 0x146d34f70 on 26123051: MainActor 0, OtherActor 1, SetLocation 2,
             -- StartToDestDirection 3, SkillTargetLocation 4, InputTransform 5). The row ships StartToDestDirection.
             -- With it the shot (0x141c4be30) puts the destination StartToDestDirectionDistance (a float at 0x238,
