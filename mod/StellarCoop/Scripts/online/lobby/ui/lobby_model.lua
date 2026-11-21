@@ -132,9 +132,8 @@ function M.move(rows,at,step) return (at-1+step)%#rows+1 end
 -- values=, action=, name=, shown=, pick=}. Tab match, all locked: headers are the mode's id (view.mode) and 'lobby',
 -- values keys of the lobby table (args when they format), the score attack's challenge and the Doro race's track their
 -- pick (pick: 'random', a challenge id or a track's name, or 'host', as the row's value on B); idle with the hall
--- lobbies in use, the room row is not
--- locked: the map of a Private match, 'random' or a hall's key, shown by its word (shown: a key of the lobby table, or
--- the hall's name). Tab sbo: headers 'chat', 'display', 'help'; values the setting's own ('on', 'off', 'game',
+-- lobbies in use, the room row is not locked: the map of a Private match, 'random' or a hall's key, shown by its word
+-- (shown: a key of the lobby table, or the hall's name). Tab sbo: headers 'chat', 'display', 'help'; values the setting's own ('on', 'off', 'game',
 -- 'english') with the values a change cycles through; one mute row per other member, its action the link request.
 -- o: M.view's, plus settings=
 -- (main.lua's: chat, ui_language, ui_sounds), halls= (true: the hall lobbies are in use) and room= (the map picked).

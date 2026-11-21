@@ -342,10 +342,11 @@ return {
     -- The lobby menu (mockup B, online/lobby/ui/lobby.lua): its sub and page lines, a mode's name and line (desc), the
     -- rows (more and its tag for the modes not built yet), the status line under them, the members box and the waiting
     -- room's notice (room, %s: the menu key); the settings (mockup C): tabs, each setting's title (set; arena waits for
-    -- stage 4) and value (val; race_ranking: the Doro race's ranking); the Leave question (pop). Outside English and French, Settings, Cancel, Difficulty,
-    -- Equipment and Change are the game's own StringTable_UI words (UI_Lobby_Options, UI_Cancel,
-    -- UI_Setting_GamePlay_Mode, UI_Equipment, UI_Setting_Rolling), and Search, Start and Normal Mode
-    -- (UI_Interaction_T_Search, UI_BossRush_Start, UI_NormalMode) where the game's word means the same thing there.
+    -- stage 4) and value (val; race_ranking: the Doro race's ranking); the Leave question (pop). Outside English and
+    -- French, Settings, Cancel, Difficulty, Equipment and Change are the game's own StringTable_UI words
+    -- (UI_Lobby_Options, UI_Cancel, UI_Setting_GamePlay_Mode, UI_Equipment, UI_Setting_Rolling), and Search, Start and
+    -- Normal Mode (UI_Interaction_T_Search, UI_BossRush_Start, UI_NormalMode) where the game's word means the same thing
+    -- there.
     lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={race='Doro race',
             scoreattack='Score attack',
             ffa='Free-for-all'},

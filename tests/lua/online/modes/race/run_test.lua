@@ -1027,7 +1027,9 @@ do
     assert(words(S)=='cp,cp,cp,done fin',words(S))
     assert(S.lines[1].lap==1 and S.lines[1].i==1 and S.lines[3].i==3 and S.lines[4].ms>S.lines[3].ms)
     assert(not S.drive.on and S.drive.why=='race fin','The drive off at her finish')
-    -- The host's ranking: the results panel with places and names; each ghost's emote by its place.
+    -- The host's ranking: the results panel with places and names; each ghost's emote by its place. With the kit up
+    -- the panel says the place: no notice of it.
+    S.told={}
     S.news.list={{who='3003',name='Cee',ms=S.lines[4].ms-500,pos=1},{who='me',ms=S.lines[4].ms,pos=2},
         {who='2002',name='Bee'}}
     run({S},function() return kit.shown.race_results end)
@@ -1035,6 +1037,7 @@ do
     assert(res.rows[1].label.text=='1  Cee' and res.rows[2].label.text=='2  You',res.rows[1].label.text)
     assert(S.look.emote=='lose' and S.by['3003'].emote_=='win' and S.by['2002'].emote_=='lose')
     assert(find(S.logs,'^result id=7 track=quest ms=%d+ .* rank=2$'),'The result line with our place')
+    assert(#S.told==0,table.concat(S.told,'|'))
     -- The round ends: our race closes here, the look and every ghost's Doro mode off, no line.
     S.race.match_stop('host')
     assert(not S.race.armed() and not S.look.on and not S.by['2002'].on and not S.by['3003'].on and #S.lines==4)

@@ -87,7 +87,7 @@ assert(M.act(sa_guest,'challenge')==nil)
 local sa_off=sa_lobby('host',nil)
 assert(ids(sa_off)=='scoreattack*,challenge*,more*,cancel,room,settings,leave' and sa_off.rows[2].value=='random')
 -- The Doro race (online.modes.race): its row locked without dr (module off or race_match=off), a pick of it then the
--- default; with dr its Select picks it, marked, and Search and Private ask for it. Score attack stays the default.
+-- default; with dr its Select picks it, marked. Search and Private then ask for it. Score attack stays the default.
 assert(M.act(sa_idle,'race')==nil and sa_idle.rows[3].locked)
 local dr_idle=M.view({role='none',me=me,now=0,sa={pick='random'},dr={pick='random'}})
 assert(ids(dr_idle)=='ffa,scoreattack,race,more*,search,private,join_code,room,settings,leave'

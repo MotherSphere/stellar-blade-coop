@@ -621,6 +621,9 @@ assert(top_tag(2)=='xion_eight',top_tag(2))
 dr_input.dr.pick='a_very_long_track_name_x' -- 24 characters: 17 and an ellipsis.
 lobby5.slow(clock)
 assert(top_tag(2)=='a_very_long_track…',top_tag(2))
+dr_input.dr.pick='eighteen_chars_xyz' -- 18 characters: whole.
+lobby5.slow(clock)
+assert(top_tag(2)=='eighteen_chars_xyz',top_tag(2))
 dr_input.dr.pick='targets' -- A track named as a challenge: its own name, not the challenge's.
 lobby5.slow(clock)
 assert(top_tag(2)=='targets',top_tag(2))
