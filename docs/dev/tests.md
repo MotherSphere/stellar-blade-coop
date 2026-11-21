@@ -1366,6 +1366,6 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `python3 tests/tools/story_lines_test.py --write` writes it again;
 - `windows_test.py`: `install_test.py`, `save_guard_test.py` and `story_lines_test.py` in a Python set up as on Windows:
   text files and subprocess text in cp1252, `\n` written as CRLF and no `signal.alarm`. Symbolic links are first
-  refused with WinError 1314 (Windows without Developer Mode), then allowed. Without them, `install_test.py` and
-  `save_guard_test.py` print a `not tested` line for each check they skip. Paths keep the separators of the machine
-  that runs it.
+  refused with WinError 1314 (Windows without Developer Mode), then allowed where this machine can make links. Without
+  them, `install_test.py` and `save_guard_test.py` print a `not tested` line for each check they skip. Paths keep the
+  separators of the machine that runs it.

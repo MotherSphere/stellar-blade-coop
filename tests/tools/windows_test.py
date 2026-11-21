@@ -4,8 +4,8 @@
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """install_test, save_guard_test and story_lines_test as Python runs them on Windows, simulated here: text files and
 subprocess text in cp1252, '\\n' written as CRLF and no signal.alarm. Symbolic links are first refused with WinError
-1314 (Windows without Developer Mode), then allowed. Without them install_test and save_guard_test print a 'not tested'
-line for each check they skip. Paths keep this machine's separators.
+1314 (Windows without Developer Mode), then allowed where this machine can make links. Without them install_test and
+save_guard_test print a 'not tested' line for each check they skip. Paths keep this machine's separators.
 Run: python3 tests/tools/windows_test.py"""
 import subprocess
 import sys
