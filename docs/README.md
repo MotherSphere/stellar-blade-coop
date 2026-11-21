@@ -29,8 +29,10 @@ start with `coop`.
 | [Reward shop](online/modes/nightop-shop.md) | The points, the seven items, the shop screen, Roxanne's choices, the cut Shock Bolt |
 | [Challenges](online/modes/challenges.md) | `coop challenge`, Target Practice, the Shooting Range alone and for two, score, best runs |
 | [Score attack](online/modes/scoreattack.md) | The SBO lobby's match mode where every player plays the same challenge: starting a round, the host's pick, the ranking and its checks, the screens, best match runs, `coop scoreattack`, the score line |
+| [Fishing tournament](online/modes/fishing.md) | The online session's mode where every player fishes for the same minutes: `coop fish start`, the points, the host's checks and their limits, the corner board and the result panel, best tournaments, the book read, the mode line |
+| [Photo hunt](online/modes/photohunt.md) | The online session's mode where every player photographs three of SB's photo targets: `coop photohunt start`, which maps have targets, SB's photo check, the host's checks and their limits, the card and the result panel, best photo hunts, the mode line |
 | [Night Operation previews](online/modes/nightop-previews.md) | The probe (`coop no`), the recruiter (`coop recruiter`), how the original matchmaking is blocked |
-| [Doro races](online/modes/race.md) | Recording a track, starting a race, driving, rules, results, the Doro look, track files |
+| [Doro races](online/modes/race.md) | Recording a track, starting a race, driving, rules, results, the Doro look, races in a match of the SBO lobby (the Track row, the tracks a room offers, the ranking and its checks, best times, `coop race match`), track files |
 
 ## Fight
 
@@ -60,7 +62,7 @@ start with `coop`.
 
 | Page | What it covers |
 | --- | --- |
-| [The bike](vehicles/bike.md) | Getting on and off, the refusals, riding, `coop bike`, the settings, the ghosts, credits to Eve On Wheels |
+| [The bike](vehicles/bike.md) | Getting on and off, the refusals, riding, `coop bike`, the settings, the ghosts, credits to Eve On Wheels and Eve Hoverbike |
 
 ## EVE
 
@@ -92,7 +94,7 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [The Steam link](online/steam-link-internals.md) | Lobby and invites, the handshake, channels 0 and 1, protocol versions, link health |
 | [The ghost pipeline](online/partner-internals.md) | The ghost in seven steps, looks, the CNS guard and crash sentinel, the solid partner |
 | [Group play: how it works](online/group-internals.md) | Shared quests, following the host, the teleport screen, the revive, camp rests, the cutscene wait |
-| [Doro races: how they work](online/modes/race-internals.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, race lines |
+| [Doro races: how they work](online/modes/race-internals.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, the native hold, race lines, races in a match and their dr lines |
 | [Night Operation's shop: how it works](online/modes/nightop-shop-internals.md) | The shop screen and its wallet, Roxanne's choices, the cut stimpacks, the cut Shock Bolt |
 | [Shared enemies: how they work](fight/enemies-internals.md) | Same-place enemies, same spawns and the spawn filter, extra enemies, shared bosses |
 | [Cut enemies: how they are added](fight/bosses-internals.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
@@ -135,7 +137,7 @@ body reads its state and how the game reuses Lion bodies, which is in
 | [online/group-internals.md](online/group-internals.md) | Shared quests, following the host, the teleport screen's extra tabs, a player down and the revive, camp rests, the cutscene wait |
 | [world/objects-internals.md](world/objects-internals.md) | The shared world's roots and hooks, its filter, its lines, how the partner's changes are made, its status line and addresses |
 | [story/together-internals.md](story/together-internals.md) | Story together's theater reads and hooks, its tables, its lines, the guest's gate, leash and results, the guest's quest steps, its status line and addresses |
-| [online/modes/race-internals.md](online/modes/race-internals.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, race lines |
+| [online/modes/race-internals.md](online/modes/race-internals.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, the native hold, race lines, races in a match and their dr lines |
 | [world/daynight-internals.md](world/daynight-internals.md) | The day and night cycle: the shared clock, the sun and moon, the map table, the rules, the env fields written, the request and status line, the cost |
 | [vehicles/bike-internals.md](vehicles/bike-internals.md) | The bike: the preload, the part on EVE, mount and dismount, the gate, the riding pose, the riding model, the lean |
 | [fight/bosses-internals.md](fight/bosses-internals.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
@@ -194,7 +196,9 @@ body reads its state and how the game reuses Lion bodies, which is in
 | Doro races: The Doro look | [online/modes/race-internals.md](online/modes/race-internals.md#the-doro-look) |
 | Doro races: The ghost's Doro mode | [online/modes/race-internals.md](online/modes/race-internals.md#the-ghosts-doro-mode) |
 | Doro races: Driving | [online/modes/race-internals.md](online/modes/race-internals.md#driving) |
+| Doro races: The native hold | [online/modes/race-internals.md](online/modes/race-internals.md#the-native-hold) |
 | Doro races: Race lines | [online/modes/race-internals.md](online/modes/race-internals.md#race-lines) |
+| Doro races: Races in a match | [online/modes/race-internals.md](online/modes/race-internals.md#races-in-a-match) |
 | The cut Lion | [fight/bosses-internals.md](fight/bosses-internals.md#the-cut-lion) |
 | The cut Lion: The rows | [fight/bosses-internals.md](fight/bosses-internals.md#the-rows) |
 | The cut Lion: The cut stimpacks | [online/modes/nightop-shop-internals.md](online/modes/nightop-shop-internals.md#the-cut-stimpacks) |

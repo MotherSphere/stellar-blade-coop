@@ -228,12 +228,12 @@ int main() {
     assert(rec.add(u8(p), p.size()));
   }
   assert(!rec.add(u8(p1), p1.size()) && rec.rules().entries == kMaxEntries && !parse(rec.bytes()));
-  // Full at kMaxRecording: the largest poses (16370 bytes, the effect slots' 60 among them) at 20 a second, 80 s of
-  // them. One bone more and the table has no pose size.
-  const std::string big_table = table_text(7, 901);
+  // Full at kMaxRecording: the largest poses (16368 bytes, the effect slots' 90 and the event slots' 76 among them) at
+  // 20 a second, 80 s of them. One bone more and the table has no pose size.
+  const std::string big_table = table_text(7, 895);
   const Table big = table_of(big_table);
   std::string big_pose = pose(big, 1, 1);
-  assert(big_pose.size() == 16370 && rec.start(big_table) && !parse_table(table_text(7, 902), false));
+  assert(big_pose.size() == 16368 && rec.start(big_table) && !parse_table(table_text(7, 896), false));
   uint64_t publication = 0;
   for (bool room = true; room;) {
     uint8_t *at = reinterpret_cast<uint8_t *>(&big_pose[16]);
@@ -256,7 +256,7 @@ int main() {
               protocol_8 = good, protocol_9 = good, protocol_10 = good, protocol_12 = good,
               protocol_13 = good, protocol_14 = good, d_age_0 = d1;
   bad_protocol[3] = char(coop::kProtocol + 1);
-  assert(kHead == "SBR\x19");
+  assert(kHead == "SBR\x1c");
   protocol_5[3] = 5; // Before the effect slots: its poses are 60 bytes short.
   protocol_6[3] = 6; // v0.1.1's: the same bytes, made before channel 2.
   protocol_7[3] = 7; // v0.2.0's: the same bytes, made before chat.

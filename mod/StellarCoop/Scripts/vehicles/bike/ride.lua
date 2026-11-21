@@ -15,11 +15,21 @@
 -- A mount (self.toggle) checks EVE first and refuses with its reason; then, in this order: coop-bike.txt (her object
 -- path, her main mesh's relative rotation and location, or those of a file this Lua load kept for her),
 -- vehicles/bike/drive.lua's drive with vehicles/bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her
--- controller, Jump left on), "anim play <id> <clip> ride" (the riding clip looped, her foot IK off) and the part shown.
--- A dismount runs it backward: the part hidden, "anim stop", "bike gate off", the drive off, her mesh's rotation and
--- location back, the file cleared. A dismount comes from the key, the pad, coop bike, coop off, bike=off, a new EVE, a
--- check every 250 ms (self.slow) and a failure; the next Lua load replays the file at its first tick (self.restore)
--- when this one could not (Ctrl+R). The native part turns the gate off and stops the clip itself at a new Lua load.
+-- controller, Jump left on), her riding pose and the part shown. The pose comes one of two ways, which bike_pose picks
+-- at each mount (a change during a ride counts from the next mount; a word other than rig or hold is the rig, logged
+-- once):
+-- - rig, the default: vehicles/bike/rig.lua's hidden actor plays the riding clip in her body mesh (Ride.SPARE when that
+--   mesh is on another skeleton than the clip's). Its actor's path and its mesh's path go to coop-bike.txt as fields 8
+--   and 9. Then her main mesh and her outfit parts copy its bones. No custom animation slot of hers is used.
+--   self.pose_source names the rig's component while she rides this way, for the capture.
+-- - hold: "anim play <id> <clip> ride", the riding clip looped on EVE herself, her foot IK off, held in her custom
+--   animation slot 0 above SB's own plays there (native/src/game/anim.h).
+-- A dismount runs it backward: the part hidden, the rig unhooked (each part pointed back at her main mesh) then gone,
+-- or "anim stop"; "bike gate off", the drive off, her mesh's rotation and location back, the file cleared. A rig
+-- unhooked while photo mode holds the world goes at the first 250 ms pass with it closed. A dismount comes from the
+-- key, the pad, coop bike, coop off, bike=off, a new EVE, a check every 250 ms (self.slow) and a failure; the next Lua
+-- load replays the file at its first tick (self.restore) when this one could not (Ctrl+R), the rig of fields 8 and 9
+-- first. The native part turns the gate off and stops the clip itself at a new Lua load.
 -- The parked bike is a second actor (vehicles/bike/stand.lua), one per EVE, made hidden after her part under the same 2
 -- s gate.
 -- A dismount by the key, the pad or coop bike leaves it where she stands when her floor counts (walkable, its base not
@@ -48,14 +58,17 @@
 -- Each frame (self.steer, before the native tick): the drive's frame, then her lean and pitch on her main mesh's
 -- relative rotation, the base rotation then a turn about her actor's forward axis (lean) and side axis (pitch), through
 -- KismetMathLibrary's ComposeRotators, written with teleport off (a teleport clears cloth inertia). The ghosts get it
--- through her mesh's transform. Every 250 ms (self.slow) the anim answer from that pass's status text: the clip played
--- again when SB ended it, unless the photo mode, a skill or a root-motion move holds her; three ends within 1 s take
--- her off the bike (SB uses the slot).
+-- through her mesh's transform. Every 250 ms (self.slow), on the rig way: a rig gone ends the ride. A new body mesh (an
+-- outfit changed from SB's inventory, which a ride does not block) goes on the rig when it is on the clip's skeleton,
+-- else Ride.SPARE does (field 9 written again), else she gets off; then her body and every part are hooked again. Her
+-- main mesh found off the rig is hooked again; a second time within LOST_IN s ends the ride. On the hold way: the anim
+-- answer from that pass's status text: the clip played again when SB ended it, unless the photo mode, a skill or a
+-- root-motion move holds her; three ends within 1 s take her off the bike (SB uses the slot).
 -- Once a second the part and the parked bike take the paint vehicles/bike/paint.lua lists for EVE's body mesh (the
 -- outfit she wears); coop off puts the part's own materials back.
 -- What it writes on the player's own EVE: the part, her main mesh's relative rotation (and its location back at the
--- end), what vehicles/bike/drive.lua writes; through the native part SB's per-action switches and the custom animation
--- slot.
+-- end), what vehicles/bike/drive.lua writes, the rig's leader on her main mesh and her outfit parts (rig way); through
+-- the native part SB's per-action switches and the custom animation slot (hold way).
 -- Parts of this file adapt Eve On Wheels 1.2.1 by dCharisma1 (nexusmods.com/stellarblade/mods/4165), used with his
 -- written consent given on 2026-11-16. They are licensed here under the SBO License 1.0 or any later version the
 -- Licensor publishes (NOTICE). No file of Eve On Wheels ships with Stellar Blade Online.
@@ -67,6 +80,7 @@ local Park=require('vehicles.bike.park')
 local Stand=require('vehicles.bike.stand')
 local Fetch=require('vehicles.bike.fetch')
 local Paint=require('vehicles.bike.paint')
+local Rig=require('vehicles.bike.rig')
 local T=require('ui.text')
 local valid,value_of,each,find,address,why_of=U.valid,U.value_of,U.each,U.find,U.address,U.why
 local Ride={}
@@ -79,11 +93,16 @@ Ride.TAG='SBO_Bike'
 -- it.
 Ride.CLIP='/Game/Art/Character/PC/CH_P_EVE_01/Animation/event/G03/MV_SD20_AfterBruteBattle_Main/eve/'
     ..'eve_bikeSleepPose.eve_bikeSleepPose'
+-- The rig's body for an outfit whose body mesh is on another skeleton than the clip's: SB's inner suit, on
+-- CH_P_EVE_01_Skeleton as the clip is (both read in the paks). kwisatz's CopyMesh takes the same.
+Ride.SPARE='/Game/Art/Character/PC/CH_P_EVE_InnerSuit/CH_P_EVE_InnerSuit.CH_P_EVE_InnerSuit'
+Ride.POSES={rig=true,hold=true} -- bike_pose's words: the two ways to show her riding pose.
 -- The bike relative to her main mesh, cm and degrees: SD20's attach tracks (riders on its bone Base).
 local SEAT,SEAT_PITCH={X=1.53,Y=0.52,Z=2.95},0.69
 local SETTLE=2 -- s an EVE has been in the world before her part is made (the capture's own wait).
 local ANSWER=5 -- s with no answer for our play.
 local ENDS,ENDS_IN=3,1 -- SB's ends of the riding clip within ENDS_IN s that take her off the bike.
+local LOST_IN=1 -- s: her main mesh found off the rig again within it takes her off the bike.
 local GATE_WAIT=1 -- s after the mount by which the gate must read on.
 local LOAD_AGAIN=5 -- s with bike=off after the bike load before it is asked again.
 -- A right turn (the yaw growing) leans her right, a climb lifts the nose. Signs to check in the first ride.
@@ -91,7 +110,7 @@ local LEAN_SIGN,PITCH_SIGN=1,1
 local TILT_STEP=0.05 -- degrees: a smaller change of the lean or the pitch is not written.
 local WALKING,NAV_WALKING,FALLING,SWIMMING,CUSTOM=1,2,3,4,6 -- EMovementMode.
 local MOVABLE=2 -- EComponentMobility: a base she stands on that moves (a lift, a train, a pawn) is no floor.
-local SKINNED='/Script/Engine.SkeletalMeshComponent'
+local SKINNED,MESH_CLASS='/Script/Engine.SkeletalMeshComponent','/Script/Engine.SkeletalMesh'
 local MAX_ID=4294967295
 local CAMP=10 -- m from an activated Xion camp's spawn point for the paid fetch.
 local FEED=200 -- Bytes a line of the chat's feed holds (online/session/chat.lua's MAX).
@@ -121,6 +140,27 @@ local function her() return U.her(valid(UE.GetPlayer())) end
 local function math_lib() return find('/Script/Engine.Default__KismetMathLibrary') end
 -- EVE's body mesh as an object path (the paint's key). Raises when it does not read.
 local function body_of(e) return path_of(valid(valid(e.Mesh).SkeletalMesh)) end
+local function body_now(e) -- The same, nil when it does not read.
+    local read,body=pcall(body_of,e)
+    return read and body or nil
+end
+-- The riding clip, which the native bike load keeps in memory (never loaded from here). Raises when it is not there.
+local function clip_of() return assert(valid(StaticFindObject(Ride.CLIP)),'the riding clip is not in memory') end
+-- The mesh the rig wears for EVE e to play clip, and its path: her body mesh while it is on the clip's skeleton
+-- (the Skeleton properties: USkeletalMesh +0x88, params 0x146650d80; UAnimationAsset +0x38, params 0x1464d5380), else
+-- Ride.SPARE when it is. nil and why when neither is.
+local function rig_body(e,clip)
+    local skeleton=address(assert(valid(clip.Skeleton),'the riding clip has no skeleton'))
+    local function fits(mesh)
+        local s=mesh and valid(mesh.Skeleton)
+        return s~=nil and address(s)==skeleton
+    end
+    local body=valid(valid(e.Mesh).SkeletalMesh)
+    if fits(body) then return body,path_of(body) end
+    local spare=Doro.resolve(Ride.SPARE,MESH_CLASS)
+    if fits(spare) then return spare,Ride.SPARE end
+    return nil,"her outfit's body and the spare body are on another skeleton than the riding clip"
+end
 -- The bike part an earlier Lua load made on EVE: her skeletal mesh component that shows Ride.MESH and carries
 -- Ride.TAG, else nil.
 local function find_part(e)
@@ -202,10 +242,18 @@ function Ride.new(o)
     local ground=nil -- The last ground pose of this ride, kept every 250 ms.
     local floor_told=false
     -- While she rides: eve, path, at, mesh, part, part_path, base and base_at (her mesh's relative rotation and
-    -- location before), lean and pitch (as written), math (KismetMathLibrary, looked up once a ride), since, what the
-    -- mount did (drove, gated, shown), id (the play's), asked (os.clock of its ask), playing, ended (this id's end
-    -- counted), ends (os.clock of each end).
+    -- location before), line (coop-bike.txt's first seven fields), lean and pitch (as written), math
+    -- (KismetMathLibrary, looked up once a ride), since, pose (bike_pose's way at the mount), what the mount did
+    -- (drove, gated, shown). The rig way: rig (vehicles/bike/rig.lua's display), rig_mesh (the path it wears), body
+    -- (her body mesh's path at the last hook), followers (the last hook's list), lost (os.clock of the last loss). The
+    -- hold way: id (the play's), asked (os.clock of its ask), playing, ended (this id's end counted), ends (os.clock
+    -- of each end).
     local ride=nil
+    -- Rigs a dismount unhooked while photo mode held the world, removed at the first 250 ms pass with it closed.
+    -- shortcut: a Ctrl+R before that pass leaves one hidden and unhooked until the map changes (coop off too, as it
+    -- stops the passes until the game restarts); keep its path for the next Lua load if the log shows it.
+    local left={}
+    local pose_told=nil -- The last bike_pose word that is neither rig nor hold, logged once.
     local preload=nil -- What the setting last asked of the native part: true (bike load), false (bike free).
     local load_asked=0 -- os.clock of the last bike load.
     local restored=false
@@ -333,8 +381,10 @@ function Ride.new(o)
     end
     -- The floor under her as its normal when it counts: walkable, its base not Movable; else nil. A CurrentFloor that
     -- does not read (said once) counts as flat ground.
+    -- Her base is her movement component's GetMovementBase (the only reflected one in build 26123051: native entry
+    -- 0x14651a6d0, thunk 0x144720090, BasedMovement.MovementBase); her actor class has none.
     local function floor_normal(e)
-        local base=valid(e:GetMovementBase())
+        local base=valid(valid(e.CharacterMovement):GetMovementBase())
         if base and value_of(base.Mobility)==MOVABLE then return nil end
         local ok,f=pcall(function()
             local floor=value_of(valid(e.CharacterMovement).CurrentFloor)
@@ -412,6 +462,40 @@ function Ride.new(o)
         r.id,r.asked,r.playing,r.ended=serial,os.clock(),false,false
         log(('bike ride clip asked (anim %d)'):format(serial))
     end
+    -- bike_pose's way for this mount: rig or hold; any other word is the rig, logged once a word.
+    local function pose_way()
+        local word=o.settings and o.settings.bike_pose or 'rig'
+        if Ride.POSES[word] then return word end
+        if word~=pose_told then
+            pose_told=word
+            log(('bike_pose=%s is neither rig nor hold: the rig'):format(tostring(word)))
+        end
+        return 'rig'
+    end
+    -- coop-bike.txt with the rig's fields 8 and 9 (its actor's path, the mesh it wears) after the mount's seven. Raises
+    -- when it is not written.
+    local function save_rig(r)
+        local saved,why=store.save(r.line..'\t'..r.rig.path..'\t'..r.rig_mesh)
+        if saved==false then error('coop-bike.txt could not be written: '..tostring(why),0) end
+    end
+    -- Her body and every follower set to copy the rig's bones; the list kept for the unhook. Returns the log's words.
+    local function hook(r,e)
+        local list,n=Rig.hook(e,r.rig)
+        r.followers=list
+        return ('her body and %d of %d part(s) follow it'):format(n,#list)
+    end
+    -- The rig way's step of the mount: the rig made at her wearing rig_body's mesh, written down, then hooked. Raises;
+    -- stop() then unhooks and removes what was made.
+    local function rig_on(r,e)
+        local began,clip=os.clock(),clip_of()
+        local mesh,path=rig_body(e,clip)
+        if not mesh then error(path,0) end
+        r.rig=Rig.make(e,path,clip,address(r.part))
+        r.rig_mesh,r.body=path,body_now(e)
+        save_rig(r)
+        local said=hook(r,e)
+        log(('bike rig made in %.1f ms wearing %s: %s'):format((os.clock()-began)*1000,path,said))
+    end
 
     -- Her bike line to the link when it changed: none while she rides, with bike=off or without a place, else its
     -- place. Remembered only once the link took it, so a failed write goes again at the next pass.
@@ -484,6 +568,23 @@ function Ride.new(o)
                 local p=Doro.same(r.part,r.part_path)
                 if p then p:SetVisibility(false,false) end
             end)
+        end
+        if r.rig then
+            -- Unhooked before the rig goes: a part still following a destroyed leader is a null read (kwisatz's note).
+            -- With her EVE gone (a map change) Rig.unhook calls nothing; Rig.remove only the actor it made.
+            try('the rig not unhooked',function()
+                local back,failed=Rig.unhook(Doro.same(r.eve,r.path),r.rig,r.followers)
+                log(('bike rig unhooked: %d part(s) back to her body%s'):format(back,
+                    failed>0 and (', %d call(s) failed'):format(failed) or ''))
+            end)
+            -- Photo mode may pause the world, where a part still reading a destroyed leader stays broken until it
+            -- runs again (kwisatz's note): our photo or selfie mode, or the friend's photo mode that holds our game.
+            if o.photo()~='0' or o.frozen() then
+                left[#left+1]=r.rig
+                log('bike rig kept until photo mode closes')
+            else
+                try('the rig not removed',function() Rig.remove(r.rig) end)
+            end
         end
         if r.id then try('anim stop',function() asked('anim stop') end) end
         if r.gated then try('bike gate off',function() asked('bike gate off') end) end
@@ -630,9 +731,10 @@ function Ride.new(o)
         at={X=base(5,at.X),Y=base(6,at.Y),Z=base(7,at.Z)}
         local r={eve=e,path=path,at=address(e),mesh=mesh,part=part,part_path=here.part_path,
             base={Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll},base_at={X=at.X,Y=at.Y,Z=at.Z},lean=0,pitch=0,
-            math=math_lib(),since=began,ends={}}
-        local saved,save_why=store.save(table.concat({r.path,number(rot.Pitch),number(rot.Yaw),number(rot.Roll),
-            number(at.X),number(at.Y),number(at.Z)},'\t'))
+            math=math_lib(),since=began,ends={},pose=pose_way()}
+        r.line=table.concat({r.path,number(rot.Pitch),number(rot.Yaw),number(rot.Roll),number(at.X),number(at.Y),
+            number(at.Z)},'\t')
+        local saved,save_why=store.save(r.line)
         if saved==false then
             if stand then pcall(sync,e,os.clock()) end
             log('bike refused: coop-bike.txt could not be written ('..tostring(save_why)..')')
@@ -646,8 +748,12 @@ function Ride.new(o)
             local gated,gate_why=ask('bike gate on')
             if not gated then error("SB's actions could not be turned off: "..tostring(gate_why),0) end
             r.gated=true
-            local played=play(r)
-            if played then error(played,0) end
+            if r.pose=='hold' then
+                local played=play(r)
+                if played then error(played,0) end
+            else
+                rig_on(r,e)
+            end
             r.shown=true
             part:SetVisibility(true,false)
         end)
@@ -704,6 +810,35 @@ function Ride.new(o)
         if w.anim=='stopped' or w.anim=='fault' then return 'the native part stopped the riding clip ('..w.anim..')' end
         return nil -- idle: our play not taken yet.
     end
+    -- The rig way's check: nil while it holds, else why she gets off. A rig gone ends the ride. A new body mesh: the
+    -- rig takes rig_body's mesh when that changed (field 9 written again), then her body and every part are hooked
+    -- again; with no mesh that fits she gets off. Her main mesh off the rig: hooked again, unless it was within
+    -- LOST_IN s of the last time.
+    local function keep_rig(r,e,now)
+        local d=r.rig
+        if not Doro.same(d.actor,d.path) then return 'the riding rig is gone' end
+        local body=body_now(e)
+        if body~=r.body then
+            local clip=clip_of()
+            local mesh,path=rig_body(e,clip)
+            if not mesh then return path end
+            r.body=body
+            if path~=r.rig_mesh then
+                d.mesh:SetSkeletalMesh(mesh,true)
+                d.mesh:PlayAnimation(clip,true) -- Whether SetSkeletalMesh keeps the single node's clip was not read.
+                r.rig_mesh=path
+                save_rig(r)
+            end
+            log(('bike rig: her outfit changed to %s: the rig wears %s, %s'):format(tostring(body),path,hook(r,e)))
+            return nil
+        end
+        if Rig.hooked(e,d) then return nil end
+        if r.lost and now-r.lost<LOST_IN then
+            return ('her body left the riding rig twice within %d s'):format(LOST_IN)
+        end
+        r.lost=now
+        log('bike rig: her body had left it: hooked again, '..hook(r,e))
+    end
     -- One frame of the ride: why she gets off, or nil.
     local function frame(r)
         local look=drive.tick() -- nil on its first frame (no look yet), or once it went off with her EVE.
@@ -712,7 +847,8 @@ function Ride.new(o)
         end
         if look then tilt(r,look) end
     end
-    -- Every 250 ms while she rides: why she gets off, or nil. The anim answer comes from this pass's status text.
+    -- Every 250 ms while she rides: why she gets off, or nil. The rig's check, or on the hold way the anim answer from
+    -- this pass's status text.
     local function check(r,e,w,now)
         if not e or address(e)~=r.at then return 'her EVE changed' end
         local why=blocked(e,w,false)
@@ -723,6 +859,7 @@ function Ride.new(o)
         end
         ground=pose_of(e,r.part) or ground
         drive.slow()
+        if r.rig then return keep_rig(r,e,now) end
         return keep(r,e,w,now)
     end
     local function off_line(why)
@@ -738,6 +875,13 @@ function Ride.new(o)
     function self.idle_part(at)
         local h=here
         return not ride and h and h.at==at and h.part and address(h.part) or nil
+    end
+    -- online/partner/capture.lua's pose source: the rig's SkeletalMeshComponent while the EVE at at rides the rig way
+    -- (her body copies its bones), else nil: off the bike, on the hold way, before the mount made the rig. No engine
+    -- call.
+    function self.pose_source(at)
+        local r=ride
+        return r and r.at==at and r.rig and r.rig.mesh or nil
     end
     -- The key, the pad gesture and coop bike: on the bike, or off it. ok and a line for the screen.
     function self.toggle(why)
@@ -821,20 +965,29 @@ function Ride.new(o)
         end
         if why then return off_line(why) end
     end
-    -- The paid fetch's step first, so a paid place is shown by the pass and sent. Then her bike line, whatever the
-    -- pass did.
+    -- The paid fetch's step first, so a paid place is shown by the pass and sent. Then the rigs a dismount left in
+    -- photo mode, once it is closed (here: the pass returns early at bike=off). Then her bike line, whatever the pass
+    -- did.
     function self.slow()
         fetched()
+        if left[1] and o.photo()=='0' and not o.frozen() then
+            for _,d in ipairs(left) do
+                local gone,why=pcall(Rig.remove,d)
+                log(gone and 'bike rig removed: photo mode closed' or 'bike rig not removed: '..why_of(why))
+            end
+            left={}
+        end
         local off,why=pass()
         send()
         return off,why
     end
     -- At the first tick of a Lua load, once: the parked bike an earlier load left in the world swept by its path. The
     -- part an earlier load made on her EVE (its tag), hidden and kept as this load's, so idle_part names it and
-    -- bike=off removes it with no bike= word read. Then an earlier load's coop-bike.txt (it left EVE on the bike) puts
-    -- her main mesh's rotation and location back on that EVE if she still is one and hides the bike part, then the file
-    -- is cleared unless that mesh write failed; once her mesh is back the bike parks where she stands when her floor
-    -- counts. Its drive comes back first, through coop-drive.txt (its own vehicles/bike/drive.lua's restore).
+    -- bike=off removes it with no bike= word read. Then an earlier load's coop-bike.txt (it left EVE on the bike) takes
+    -- her body and parts off the rig its fields 8 and 9 name and sweeps that rig (Rig.release), puts her main mesh's
+    -- rotation and location back on that EVE if she still is one and hides the bike part, then the file is cleared
+    -- unless that mesh write failed; once her mesh is back the bike parks where she stands when her floor counts. Its
+    -- drive comes back first, through coop-drive.txt (its own vehicles/bike/drive.lua's restore).
     function self.restore()
         if restored then return end
         restored=true
@@ -858,6 +1011,19 @@ function Ride.new(o)
         local line=store.load()
         if not line then return end
         local f=fields(line)
+        -- After a rig ride (fields 8 and 9; a hold ride and builds before the rig write seven): her body and parts off
+        -- the rig, then the rig swept, before her mesh goes back.
+        if (f[8] or '')~='' and (f[9] or '')~='' then
+            local done,back,failed,swept=pcall(function()
+                local e=U.her(valid(StaticFindObject(f[1])))
+                local h=here
+                local skip=e and h and h.at==address(e) and address(h.part) or nil
+                return Rig.release(e,f[8],f[9],skip)
+            end)
+            log(done and ('bike rig from coop-bike.txt: %d part(s) back to her body%s, %s'):format(back,
+                failed>0 and (', %d call(s) failed'):format(failed) or '',swept and 'swept' or 'no rig at its path')
+                or 'bike rig from coop-bike.txt not released: '..why_of(back))
+        end
         -- A mesh write that fails keeps the file: her mesh may still lean, the next mount takes her base from it.
         local kept,e,p=false,nil,nil
         local ok,said=pcall(function()
@@ -880,8 +1046,9 @@ function Ride.new(o)
         log('bike restored from coop-bike.txt: '..(ok and said or 'failed ('..why_of(said)..')')
             ..(kept and ', coop-bike.txt kept' or ''))
     end
-    -- coop bike status: the preload, the part, the ride, the values, where the bike is (its distance only from her feet
-    -- on its map) and the paint for her body mesh, named by its whole path (the key a modder copies).
+    -- coop bike status: the preload, the part, the ride (with its way), the values, where the bike is (its distance
+    -- only from her feet on its map) and the paint for her body mesh, named by its whole path (the key a modder
+    -- copies).
     function self.status()
         local w=Ride.native(status())
         local h=here
@@ -904,7 +1071,8 @@ function Ride.new(o)
         local paint_word=mesh and ('paint %s for %s'):format(paint.on(mesh) and 'on' or 'off',mesh)
             or 'paint off (no body mesh read)'
         return ('bike: preload %s, part %s, %s; %s; %s; %s'):format(w and w.load or 'none (no native part)',part,
-            ride and ('riding for %.0f s'):format(os.clock()-ride.since) or 'not riding',table.concat(list,' '),at,
+            ride and ('riding for %.0f s (%s)'):format(os.clock()-ride.since,ride.pose) or 'not riding',
+            table.concat(list,' '),at,
             paint_word)
     end
     -- coop bike tune [<name> <value>]: the values, or one changed (clamped) for the next rides of this Lua load.

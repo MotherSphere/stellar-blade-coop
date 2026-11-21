@@ -15,7 +15,7 @@ player's quest unit (the quest manager at `0x147037428`, its unit from `FUN_141c
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
 it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470683b0`) and that the save
-is still the co-op save it started on: another save ends the side with `SBQ25 off slot` (the worker starts a new one
+is still the co-op save it started on: another save ends the side with `SBQ28 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
 - In an online session of more than 2 players, the host's side runs one `quest::Host` per guest linked past the
@@ -26,10 +26,10 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   next read brings it to the others. Any other guest sends none. Her quest stays ahead of the host's until his game
   makes that step. The host's ahead notice names her (`quest_note=` carries her SteamID).
 - The host reads his quests. Each quest whose state changed goes to the guest as one reliable line on channel 2 with
-  the whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ25 q <gen> <seq> <id> <state>
+  the whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ28 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
   position), which the game builds the same on both PCs from the same tables. He also makes a step the guest made
-  first. Her `SBQ25 step <gen> <seq> <id> <state> <acquire mark> <finished groups> <tasks done> <done mark> <zone>`
+  first. Her `SBQ28 step <gen> <seq> <id> <state> <acquire mark> <finished groups> <tasks done> <done mark> <zone>`
   line holds her quest's state after the step and the zone she made it in. His pass judges it with `accept()`, then
   `apply()` makes it on his own unit (see
   [Story together: how it works](../story/together-internals.md#quest-steps-the-guest-makes-first)).
@@ -146,7 +146,7 @@ serves the follow on the host's map, the second hop after a camp travel and the
 - The guest's Lua asks on the host's map when F7 comes more than 5 m from his ghost. A camp travel to his map asks by
   itself once it reads `arrived` there and the guards pass (the 10 s after the accepted call among them), for up to
   30 s after the arrival, with no notice. Either sends `spot? <id> <SteamID>` to its native part, which sends
-  `SBC25 spot? <id>` to that member (see [The spot lines](steam-link-internals.md#the-spot-lines)).
+  `SBC28 spot? <id>` to that member (see [The spot lines](steam-link-internals.md#the-spot-lines)).
 - The member asked answers each new number of its status's `spot?=` line once: `spot <n> <x> <y> <z> <yaw>` when its
   point is at most 10 s old and on its current map, else `spot <n> none <why>` with the first of `title`, `loading`
   (no EVE), `busy` (a cutscene in its game), `solo`, `boss` (a `boss=` other than 0 on its `fight=` line), `busy` (no

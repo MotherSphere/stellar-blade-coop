@@ -28,14 +28,15 @@ with a local pak. No match lobby has held two players in game yet (see
 0.6.0-beta.1 to beta.3 use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses
 protocol 18 and does not link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). Builds after it, 0.8.0
 to 0.10.0, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5. 0.11.0 uses protocol 20, for the
-PvP test and the match lobbies. It does not link with 0.10.0 or older. This version uses protocol 25, for the shared
-world, story together, sessions of up to 4 players and the score attack. It does not link with 0.11.0 or older: every
+PvP test and the match lobbies. It does not link with 0.10.0 or older. This version uses protocol 28, for the shared
+world, story together, sessions of up to 4 players, the score attack, the travel to the host, the fishing tournament,
+Doro races in matches and the ghost's drone, sounds, effects and faces. It does not link with 0.11.0 or older: every
 player has to update.
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
-revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, score attack, the bike and the day and
-night cycle.
+revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, score attack, the fishing tournament,
+Doro races in matches, the photo hunt, the bike and the day and night cycle.
 The status strip shows its
 compact form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the
 old off values is changed once at the next load (see [Settings](players/settings.md#coop-settingstxt)). Most of these features
@@ -88,8 +89,23 @@ achievements, which cannot be taken back.
   - the experimental solid partner option (on by default) stops your EVE at your friend's ghost.
 - Doro races: record a track by setting checkpoints with F9, then race it alone against the clock or against your
   friend, each racer drawn as a Doro (Dororong). The race has a countdown, a timer, checkpoint markers and a ranking.
-  It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
-  [online/modes/race.md](online/modes/race.md)).
+  It gives no reward or achievement and writes nothing to a save. In the SBO lobby a Doro race is also a match mode
+  for 2 to 8 players (see [SBO lobby and matches](#sbo-lobby-and-matches)). Doro races are not tested in game yet
+  (see [online/modes/race.md](online/modes/race.md)).
+- The fishing tournament: in an online session the host types `coop fish start` (10 minutes, or 1 to 60). Every player
+  then fishes where she wants with the game's own fishing. Each catch scores the Fishing Points SB pays for it, 0 for
+  trash and boxes. A corner board shows the top three and your place. The host's game checks each catch and sends the
+  ranking, which a result panel shows. Your best of each length goes in `coop-records.txt`. The fish stays in your
+  co-op save's inventory. It writes no game memory: each game reads its catches from SB's fishing log book. Not tested
+  in game yet (see [online/modes/fishing.md](online/modes/fishing.md)).
+- The photo hunt: in an online session on Xion, the Wasteland or the Great Desert, the host types
+  `coop photohunt start` (15 minutes, or 1 to 60). The host's game draws three photo targets of its map from SB's
+  photo challenges. Every player then looks for them and photographs them with the Camera. SB's own photo check judges
+  each selfie photo: close enough, in the centre, faced and not hidden. The first valid photo of a target that reaches
+  the host takes its point. A card shows the three targets and who took each. The host's game sends the ranking,
+  which a result panel shows. Your best of each world goes in `coop-records.txt`. The native part calls SB's check on
+  the game thread. Its one write to game memory is the setup byte SB itself sets on a photo challenge row before it
+  checks it. Not tested in game yet (see [online/modes/photohunt.md](online/modes/photohunt.md)).
 - The bike: F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's files, on any save. She
   rides it with the left stick, leans into turns, drifts with R2 or B and jumps with the game's Jump; her attacks and
   items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. It stays where she
@@ -206,7 +222,12 @@ host's answer, and the link goes through Steam's relays only. When 2 players hav
 (5 s when the lobby is full). Score attack is the first mode built. At 0 every player of a score attack lobby plays the
 same challenge from her spot in the lobby room, picked by the host or drawn at random. Each game sends its score and
 time. The host's game checks them and sends the ranking, which the result panel shows; each player's best match run is
-kept in `coop-records.txt` (see [Score attack](online/modes/scoreattack.md)). The free-for-all is not built: at 0
+kept in `coop-records.txt` (see [Score attack](online/modes/scoreattack.md)). In a Doro race lobby every player
+races the same track at once as a Doro, from her slot on its start line: the host's pick, or one drawn at random among
+the tracks the room offers. Xion's training room has an official track, `xion_eight`; a host can also offer a track
+she recorded in the room. Each game sends its splits and its time. The host's game checks them against the track and
+sends the ranking, the shortest time first. Each player's best time on a track goes in `coop-records.txt` (see
+[Races in a match](online/modes/race.md#races-in-a-match)). The free-for-all is not built: at 0
 nobody travels to an arena and nothing is scored. Leave reloads the save made at Join, next to the recruiter. Five hall
 lobbies replace the training room when the hall lobby pak is installed; the code is in this version, but the pak is not published yet. `coop pvp`
 tests PvP damage between two linked friends: hits on a stand-in at the friend's ghost take HP off her EVE, never below
@@ -215,7 +236,7 @@ tests PvP damage between two linked friends: hits on a stand-in at the friend's 
 Tested in game, on one PC only: the Join and the travel to Xion's training room (2026-11-12) and to a hall lobby with a
 local pak (2026-11-14), each time with a Search that found nobody and hosted a lobby. Not tested in game: Leave and the
 return, any match lobby with two or more players, private matches, the countdown and the round's start, score attack,
-the PvP test and the black screen held over each arrival.
+Doro races in matches, the PvP test and the black screen held over each arrival.
 
 ## Night Operation
 

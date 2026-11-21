@@ -1917,7 +1917,8 @@ int main() {
 
   // coop mark, one Link: numbered from 1 by this game alone, logged and shown as the status's mark= line with or
   // without a text, with no lobby too; a held invite stays held, as a mark is no choice of lobby. Her mark line before
-  // the handshake is ignored with no log line; past it, logged with her name and shown as the last mark.
+  // the handshake is ignored with no log line; past it, logged with her name and shown as the last mark. Her mode line
+  // (the modes of online sessions') before the handshake is ignored the same way: it never reaches Lua.
   reset();
   {
     World w;
@@ -1940,9 +1941,11 @@ int main() {
     w.tick("mark pre"); // She is in the lobby but not past the handshake: counted and logged, sent to no one.
     assert(has("mark 3: pre") && sent_to(kFriend, "SBC" + std::to_string(kProtocol) + " mark ") == 0);
     F.inbox.push_back({kFriend, mark_line(4, "early")});
+    F.inbox.push_back({kFriend, mode_line("fish go 7 10 1001,2002")});
     const size_t logged = events.size();
     w.tick();
-    assert(events.size() == logged && w.status().find("\nmark=3 ours: pre\n") != std::string::npos);
+    assert(events.size() == logged && w.status().find("\nmark=3 ours: pre\n") != std::string::npos &&
+           w.link.take_chat().empty());
     F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
     F.inbox.push_back({kFriend, accept()});
     F.inbox.push_back({kFriend, mark_line(5, "hers")});

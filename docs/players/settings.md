@@ -35,8 +35,11 @@ drift_keys=Gamepad_RightTrigger B
 # The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
 # on a pad or the console command coop bike puts EVE on it or takes her off, on any save. The bike stays where she gets
 # off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
-# every world (its place stays), hides the other players' parked bikes and frees the bike's files.
+# every world (its place stays), hides the other players' parked bikes and frees the bike's files. bike_pose, a test
+# of two ways to show EVE's riding pose, read at each mount: rig (a hidden copy of her plays the pose, her body
+# follows it) or hold (the pose plays on EVE herself, kept above the game's own animations). rig by default.
 bike=on
+bike_pose=rig
 # Gun mode: on or off, on by default. On, gun_key or a tap of D-pad Right gives EVE the NIKKE rifle on any save, or
 # puts it away. Off, gun mode does nothing. Both are read when the mod loads.
 gun_mode=on
@@ -58,8 +61,9 @@ name_tag=on
 # Poses sent to your friend a second: 10 to 60.
 send_rate=60
 # What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends
-# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and effects off
-# also stop sending yours.
+# nothing), dyes (hair colours and material variants), effects (her attack and skill effects), drone (her drone),
+# sounds (her steps, voice, swings and hits) and faces (her eyes, face and shape keys). Each one but cloth also stops
+# sending yours when off.
 # For example: dyes=off
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
@@ -210,6 +214,15 @@ hide_popups=on
 # Score attack: on or off, on by default. On, you play each round of a score attack match in the SBO lobby. Off, you
 # sit out its rounds.
 scoreattack=on
+# Fishing tournament: on or off, on by default. On, you fish in each tournament the host of your online session starts
+# with coop fish start. Off, you sit out its tournaments. As the host you cannot start one.
+fishing=on
+# Doro races in matches: on or off, on by default. On, you race each round of a Doro race match in the SBO lobby.
+# Off, you sit out its rounds. Doro races in an online session do not read it.
+race_match=on
+# Photo hunt: on or off, on by default. On, you photograph the targets of each photo hunt the host of your
+# online session starts with coop photohunt start. Off, you sit out its rounds. As the host you cannot start one.
+photohunt=on
 ```
 
 | Setting | Values | Default |
@@ -223,6 +236,7 @@ scoreattack=on
 | `bike_key` | same, or `none`: a key that puts EVE on the [bike](../vehicles/bike.md) or takes her off it | `F3` |
 | `drift_keys` | up to 4 Unreal key names separated by spaces, or `none`: the keys held to [drift](../online/modes/race.md#driving) in a race or on the [bike](../vehicles/bike.md#riding) | `Gamepad_RightTrigger B` |
 | `bike` | `on` or `off`: the [bike](../vehicles/bike.md), on any save; off takes EVE off the bike, removes it from her, takes her parked bike out of every world (its place is kept), hides the other players' parked bikes and frees its loaded files | `on` |
+| `bike_pose` | `rig` or `hold`: how EVE's riding pose shows on the [bike](../vehicles/bike.md), a test of two ways until one is kept. `rig`: a hidden copy of her plays the pose and her body follows it. `hold`: the pose plays on EVE herself, kept above the game's own animations. Read at each mount. Options, Controls, Riding pose (test): Hidden copy or On EVE | `rig` |
 | `gun_key` | same, or `none`: a key that brings the [gun mode](../fight/gunmode.md) rifle out or puts it away; read when the mod loads | `F4` |
 | `gun_mode` | `on` or `off`: [gun mode](../fight/gunmode.md); off, its key and D-pad Right tap do nothing; read when the mod loads. Its other `gun_` lines are test lines, listed on its page | `on` |
 | `pause_tab` | `on` or `off`: the [Online tab](interface.md#pause-menu) after Settings in the game's pause menu, which opens the co-op menu. Off, RB on Settings goes to Equipment as in the game. Options, Controls, Online tab in the pause menu; it applies from the next pause menu | `on` |
@@ -235,6 +249,9 @@ scoreattack=on
 | `cloth` | `on` or `off`: her ponytail as cloth on the ghost you see | `on` |
 | `dyes` | `on` or `off` | `on` |
 | `effects` | `on` or `off` | `on` |
+| `drone` | `on` or `off`: her drone beside the ghost you see. Off also stops sending yours | `on` |
+| `sounds` | `on` or `off`: her steps, voice, swings and hits played where her game played them. Off also stops sending yours | `on` |
+| `faces` | `on` or `off`: her eyes, face and shape keys move on the ghost you see. Off also stops sending yours | `on` |
 | `shared_enemies` | `on` or `off`: [shared enemies](../fight/enemies.md#shared-enemies-experimental), experimental | `on` |
 | `fight_chars` | `auto` (every common enemy), or at most 16 enemy character ids, whole numbers separated by spaces | `auto` |
 | `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](../fight/enemies.md#shared-enemies-experimental)) | `at_once` |
@@ -263,7 +280,7 @@ scoreattack=on
 | `photo_pause` | `full` or `scenery`: how your own photo mode [pauses your game](playing-with-a-friend.md#photo-mode-pause-experimental), experimental, from your next photo mode | `full` |
 | `cutscene_wait` | `on` or `off`: as the guest, your game [waits](playing-with-a-friend.md#cutscene-wait) while a cutscene plays in the host's game | `on` |
 | `follow_host` | `ask`, `always` or `off`: as the guest, the offer to [travel to the host](playing-with-a-friend.md#following-the-host); `always` starts the travel or the way back after a death by itself 5 s after its notice; `off` shows neither offer | `ask` |
-| `collide` | `on` or `off`: the [solid partner](../online/partner.md#solid-partner-experimental), experimental | `on` |
+| `collide` | `on` or `off`: the [solid partner](../online/partner.md#solid-partner-experimental), experimental. Also moves the enemies your game runs out of the ghost when the game's weight rule would move them out of your EVE (never in an SBO session) | `on` |
 | `ui_scale` | `75` to `150`: the size of the menu, the chat and the partner HUD, in percent | `100` |
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
 | `ui_language` | `game` (the game's text language) or `english` | `game` |
@@ -279,6 +296,9 @@ scoreattack=on
 | `pvp_spike` | `on` or `off`: lets `coop pvp on` start the [PvP test](../online/lobby.md#the-pvp-test) with your friend: a stand-in enemy at their ghost takes your hits for their game, down to 1 HP; needs `shared_enemies=off`; no menu row | `on` |
 | `sbo_lobby` | `on` or `off`: the [SBO lobby](../online/lobby.md), a test. On, the recruiter's Join saves the co-op game and takes you to the lobby in Xion's training room (a hall lobby with the hall lobby pak), and each co-op save is copied before the game rewrites it (10 copies kept per slot). At each arrival in the lobby the screen stays black until the lobby menu is ready, 8 s at most, then fades onto the open menu. No menu row | `on` |
 | `scoreattack` | `on` or `off`: [score attack](../online/modes/scoreattack.md), a match mode of the SBO lobby. On, you play each round of a score attack lobby you are in. Off locks the lobby menu's Score attack row. You then sit out its rounds, with a notice. Options, Modes, Score attack; read at each round's start | `on` |
+| `fishing` | `on` or `off`: the [fishing tournament](../online/modes/fishing.md), a mode of online sessions. On, you fish in each tournament the host of your online session starts with `coop fish start`. Off refuses your own start as the host. A guest with it off sits out each tournament, with a notice. Options, Modes, Fishing tournament; read at each start | `on` |
+| `race_match` | `on` or `off`: [Doro races in matches](../online/modes/race.md#races-in-a-match) of the SBO lobby. On, you race each round of a race lobby you are in. Off locks the lobby menu's Doro race row. You then sit out its rounds, with a notice. Options, Modes, Doro race; read at each round's start. Doro races in an online session do not read it | `on` |
+| `photohunt` | `on` or `off`: the [photo hunt](../online/modes/photohunt.md), a mode of online sessions. On, you photograph the targets of each photo hunt the host of your online session starts with `coop photohunt start`. Off refuses your own start as the host. A guest with it off sits out each round, with a notice. Options, Modes, Photo hunt; read at each start | `on` |
 
 Rules:
 
@@ -317,6 +337,9 @@ Rules:
   comment, which the same versions wrote: `on` and `compact`. The old ghost comment, which said `dyes` and `effects`
   are off unless set, is replaced too. The mod keeps the file as it was as `coop-settings.old.txt` and logs a
   `[StellarCoop] settings:` line. An `off` set after that stays.
+- A file written by 0.11.0 has a ghost comment that does not name `drone`, `sounds` and `faces`. The mod writes the new
+  comment once, keeps the file as it was as `coop-settings.old.txt` and logs `[StellarCoop] settings: the comments in
+  coop-settings.txt now read as this version writes them; no setting changed`.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: menu=F5 host=none status=F6 leave=F8 race=F9, name tag on, 60 poses a second`. Another line says when a mod
   loaded earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo
@@ -333,7 +356,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-settings.txt` | Lua, once, then the co-op menu | Your settings (see above) |
 | `coop-settings.old.txt` | Lua, at the menu's first change since the mod loaded | `coop-settings.txt` as it was before that change |
 | `coop-guide.txt` | Lua, on the guide's Don't show again or a close on its last page | One line. While it exists, the [guide](interface.md#guide) does not open by itself |
-| `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept | Your best runs, one `best_<name>=<score> <seconds>` line each (see [online/modes/challenges.md](../online/modes/challenges.md#best-runs-coop-recordstxt)). Written to `coop-records.txt.tmp` first, then renamed |
+| `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept or a Doro race finish in a match that beats your best time on its track | Your best runs, one `best_<name>=<score> <seconds>` line each (see [online/modes/challenges.md](../online/modes/challenges.md#best-runs-coop-recordstxt)). Your best race times, one `best_race_<sum>=<ms> <track>` line each (see [Best times](../online/modes/race.md#best-times)). Written to `coop-records.txt.tmp` first, then renamed |
 | `coop-blocked.txt` | native, after `coop remove`, `coop block` or `coop unblock` | Your [block list](playing-with-a-friend.md#block-list): two comment lines, then a salted hash of each blocked SteamID, one a line |
 | `coop-status.txt` | native | The current state, as `coop status` shows it |
 | `coop-link.log` | native | This run's header and numbered events, in UTC like `UE4SS.log`, repeats counted, capped at 1 MB |
@@ -370,10 +393,11 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-gift-toast.txt` | Lua | While a gift's toast shows: its object path, so the next Lua load (Ctrl+R) can take it off |
 | `coop-race.txt` | Lua | Your [Doro race](../online/modes/race.md) lines, for a moment: the native part takes and deletes the file at its next pass |
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
-| `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
+| `coop-tracks.txt` | Lua, on `coop race save` and `coop race match pick <name>` | The names of your tracks that a [match lobby](../online/modes/race.md#tracks-a-room-offers) may offer, one a line, the newest 32 |
+| `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, a dash (older versions wrote her main mesh's animation option there; the native part now keeps it and puts it back at a new Lua load), the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
-| `coop-drive.txt` | Lua | While a race, the drive probe or the [bike](../vehicles/bike.md) drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
-| `coop-bike.txt` | Lua | While EVE rides the [bike](../vehicles/bike.md): her object path and her main mesh's relative rotation and location from before, so the next Lua load (Ctrl+R) can put her mesh back and hide the bike |
+| `coop-drive.txt` | Lua | While the [bike](../vehicles/bike.md) drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
+| `coop-bike.txt` | Lua | While EVE rides the [bike](../vehicles/bike.md): her object path and her main mesh's relative rotation and location from before, then on a `bike_pose=rig` ride the hidden copy's actor path and the mesh it wears, so the next Lua load (Ctrl+R) can free her body from the copy, remove the copy, put her mesh back and hide the bike |
 | `coop-bike-<steamid>-<saves><index>.txt` | Lua, each time the bike is parked at a new place, never in the SBO lobby | Where your [bike](../vehicles/bike.md#where-the-bike-stays) stands for that Steam account and save, one line: version 1, the map, its position and its rotation (see [The place per save](../vehicles/bike-internals.md#the-place-per-save)) |
 | `coop-bike-stand.txt` | Lua | While your parked bike stands in the world: its actor path, so the next Lua load (Ctrl+R) can remove it |
 | `coop-bike-copies.txt` | Lua | While the other players' parked bikes show: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |

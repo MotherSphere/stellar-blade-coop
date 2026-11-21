@@ -2,7 +2,8 @@
 
 The bike puts EVE on a motorbike that Stellar Blade has in its files, `Adam_Vehicle_02`. You ride it where she can walk.
 When she gets off, the bike stays where she left it. To ride again she walks back to it. It works on any save. Its
-riding model comes from dCharisma1's Eve On Wheels (see [Credits](#credits)). The bike has not been tested in game yet.
+riding model comes from dCharisma1's Eve On Wheels. The hidden copy that can show her riding pose comes from kwisatz's
+Eve Hoverbike (see [Credits](#credits)). The bike has not been tested in game yet.
 
 How the mod loads the bike, puts it on EVE, parks it and turns the game's actions off is in
 [vehicles/bike-internals.md](bike-internals.md).
@@ -52,16 +53,17 @@ At a camp of Xion the first two add an offer to bring the bike there (see
 
 She gets off by herself, with `Off the bike: <reason>` on screen, on a load or warp, a cutscene, an interaction, the
 game's hold on her movement, water, a ladder, rope or other special move, a lift or train, fishing, when she goes down,
-in selfie mode, when her EVE changes (a map change) and when the game takes over her animation slot (it ends her riding
-pose 3 times within 1 s). `coop off` and `bike=off` take her off too. Combat does not. While she rides, `coop fly on`
-and `coop glide on` are refused. Each of these leaves the bike on the ground (see
-[Where the bike stays](#where-the-bike-stays)).
+in selfie mode, when her EVE changes (a map change) and when her riding pose fails (see [Riding pose](#riding-pose)).
+`coop off` and `bike=off` take her off too. Combat does not. While she rides, `coop fly on` and `coop glide on` are
+refused. Each of these leaves the bike on the ground (see [Where the bike stays](#where-the-bike-stays)).
 
 While she rides, 54 of the game's actions are off: attacks, dodge, guard, the Beta and Burst skills, scan, aiming,
 sprint, the D-pad's own actions and the others listed in [vehicles/bike-internals.md](bike-internals.md#the-gate). She
 cannot fight from the saddle. Jump stays the game's. A few keys still work. D-pad Up and Down still use items. R2, also
 a drift key, still picks up an item in reach. The interaction key still starts a talk, a box or a pickup in reach, which
-takes her off the bike. Photo mode works while she rides; her riding pose comes back when it closes.
+takes her off the bike. Photo mode works while she rides. With `bike_pose=rig` she keeps her riding pose there and the
+photo menu's poses do not show on her. With `bike_pose=hold`, when the game ends her riding pose in photo mode, the
+mod plays it again once photo mode closes.
 
 ## Where the bike stays
 
@@ -148,6 +150,23 @@ ground the model reaches 90% of its top speed in about 3.9 s and stops from the 
 The game has no riding pose for EVE. The mod plays `eve_bikeSleepPose`, EVE's pose asleep on the back of a bike in a
 story scene, looped, until a better pose exists. No animation or other game file ships with the mod.
 
+## Riding pose
+
+The mod has two ways of showing the riding pose, for a test in game. The one that does worse will be removed.
+`bike_pose` in `coop-settings.txt` picks the way at each mount (in the co-op menu: Options, Controls, Riding pose
+(test)). A change during a ride counts from the next mount. `coop bike status` names the way: `riding for 12 s (rig)`.
+
+- `rig` (Hidden copy), the default: a hidden copy of EVE plays the pose. Her body and her outfit parts copy its bones,
+  so the game's own animations of hers do not show while she rides. An outfit changed during the ride takes the pose
+  within 250 ms. When her new outfit's body is built on another skeleton than the pose, the copy wears EVE's inner suit
+  to play it. She gets off when the copy is gone, when her body leaves it twice within 1 s or when neither body fits
+  the pose. A Ctrl+R during a ride frees her body from the copy and removes it.
+- `hold` (On EVE): the pose plays on EVE herself, in the game's own animation slot, kept above the game's lower
+  animations there. Some of the game's moves still end it. The mod plays it again within 250 ms. Three ends within 1 s
+  take her off the bike.
+
+How each way works is in [vehicles/bike-internals.md](bike-internals.md#the-riding-pose).
+
 ## Paint
 
 The bike takes a paint while EVE wears an outfit listed in the bike's paint table. The table holds one example today: in
@@ -168,7 +187,7 @@ mesh, the key of an entry in the table. How to add an entry is in
 | Command | What it does |
 | --- | --- |
 | `coop bike` | EVE on the bike, or off it |
-| `coop bike status` | The preload's state, whether the bike is on EVE, whether she rides, the four riding values, where the bike is parked (`parked on <map>`, with `<n> m away` on her map, or `no place yet`), the paint for EVE's body mesh (`paint on for <mesh>` or `paint off for <mesh>`) |
+| `coop bike status` | The preload's state, whether the bike is on EVE, whether she rides (with the way of her riding pose: `riding for 12 s (rig)`), the four riding values, where the bike is parked (`parked on <map>`, with `<n> m away` on her map, or `no place yet`), the paint for EVE's body mesh (`paint on for <mesh>` or `paint off for <mesh>`) |
 | `coop bike tune` | The four riding values |
 | `coop bike tune <name> <value>` | One value changed for your next rides, until the mod reloads |
 
@@ -185,10 +204,11 @@ The riding values are whole numbers, kept within these bounds:
 
 `bike` (on or off, on by default) and `bike_key` (F1 to F12 but F10, with at most one of Shift+, Ctrl+, Alt+, or `none`;
 F3 by default) are in `coop-settings.txt` and in the co-op menu under Options, Controls: the Bike and Get on or off the
-bike rows. Bike off takes EVE off the bike, removes the bike from her, takes her parked bike out of every world (its
-place is kept), hides the other players' parked bikes on your screen and frees the loaded files. On loads them again and
-puts her parked bike back. A `coop-settings.txt` written before the bike, whose own keys already use F3, gets no bike
-key. `UE4SS.log` then says `[StellarCoop] settings: F3 is <setting>: bike_key has no key`.
+bike rows. `bike_pose` (`rig` or `hold`, `rig` by default) is the Riding pose (test) row below them (see [Riding
+pose](#riding-pose)). Bike off takes EVE off the bike, removes the bike from her, takes her parked bike out of every
+world (its place is kept), hides the other players' parked bikes on your screen and frees the loaded files. On loads
+them again and puts her parked bike back. A `coop-settings.txt` written before the bike, whose own keys already use F3,
+gets no bike key. `UE4SS.log` then says `[StellarCoop] settings: F3 is <setting>: bike_key has no key`.
 
 ## Your friend and match lobbies
 
@@ -204,6 +224,10 @@ another. Their copy goes when you get back on, when your bike moves to another m
 player who joins later gets every member's bike at the handshake. Nobody rides another player's bike: F3 only reaches
 your own. With `bike=off`, your bike leaves every world and your game shows nobody else's parked bike, since that
 setting frees the bike's files.
+
+With `bike_pose=rig` your ghost takes her pose from the hidden copy, so the other players see her on the bike as with
+`bike_pose=hold`. Most of EVE's sounds and effects while she rides this way do not reach your ghost. This has not
+been checked in game yet.
 
 Getting on or off may show two bikes or none for about 2 s in your friend's game: the copy changes at once while your
 ghost is built again with or without the bike.
@@ -221,3 +245,9 @@ Blade mod 4165](https://www.nexusmods.com/stellarblade/mods/4165)). dCharisma1 g
 for his code to be used in Stellar Blade Online under the SBO License 1.0 or any later version (see
 [NOTICE](../../NOTICE)). No file of Eve On Wheels ships with Stellar Blade Online: none of its assets, sounds or
 animations.
+
+The hidden copy of `bike_pose=rig` (`vehicles/bike/rig.lua`) adapts the puppet ride of Eve Hoverbike by kwisatz
+(GitHub sarojratul). He gave his written permission on 2026-11-20 to adapt that code into Stellar Blade Online under
+the SBO License 1.0 or any later version
+([his comment on pull request 11](https://github.com/MotherSphere/stellar-blade-coop/pull/11#issuecomment-7047471384)).
+No file of Eve Hoverbike ships with Stellar Blade Online.

@@ -159,6 +159,7 @@ local s=Link.parse_settings('')
 local values=M.read('')
 assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.name and values.send_rate=='60'
     and values.name_tag=='on' and values.cloth=='on' and values.dyes=='on' and values.effects=='on'
+    and values.drone=='on' and values.sounds=='on' and values.faces=='on'
     and values.shared_enemies=='on' and values.menu_key=='F5' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
@@ -168,7 +169,7 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='on' and values.race_key=='F9'
     and values.photo_name_tag=='on' and values.status_overlay=='compact' and values.bike=='on'
     and values.bike_key=='F3' and values.hit_reactions=='on' and values.stagger_resist=='on' and values.gun_mode=='on'
-    and values.gun_key=='F4')
+    and values.gun_key=='F4' and values.bike_pose=='rig')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -209,15 +210,17 @@ assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
 -- Every setting shows, under its header.
-assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key gun_mode gun_key '
+assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key bike_pose '
+    ..'gun_mode gun_key '
     ..'pause_tab reset_keys '
     ..'head:photo '
     ..'photo_sync '
     ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
-    ..'effects collide send_rate head:session who_can_join max_players revive cutscene_wait follow_host shared_world '
+    ..'effects drone sounds faces collide send_rate head:session who_can_join max_players revive cutscene_wait '
+    ..'follow_host shared_world '
     ..'shared_story hide_popups '
-    ..'head:modes scoreattack '
+    ..'head:modes scoreattack fishing race_match photohunt '
     ..'head:saves '
     ..'auto_coop_save '
     ..'shared_quests '
@@ -441,6 +444,8 @@ action,key,text=M.rebind(values,'bike_key',K.text('F2','CONTROL'))
 assert(action=='set' and key=='bike_key' and text=='Ctrl+F2')
 assert(M.read('status_key=F3\n').bike_key=='none' and M.read('bike_key=none\n').bike_key=='none')
 assert(M.read('bike=OFF\n').bike=='off' and M.read('bike=maybe\n').bike=='on')
+-- Its pose row (a test of the two ways): rig or hold, rig for any other word.
+assert(M.read('bike_pose=hold\n').bike_pose=='hold' and M.read('bike_pose=puppet\n').bike_pose=='rig')
 -- Gun mode's key (Controls): F4 by default, rebound and checked like the others, both ways; none in a file whose keys
 -- held F4. Gun mode's row: on or off.
 action,why,other=M.rebind(values,'bike_key','F4')
@@ -479,15 +484,16 @@ assert(s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name==
 assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n'
     ..'bike_key=F3\ngun_key=F4\n')
 
--- docs/players/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, gun
--- mode's, the Online tab, then Reset all keys.
+-- docs/players/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, its
+-- riding pose, gun mode's key, the Online tab, then Reset all keys.
 local f=assert(io.open('docs/players/interface.md','rb'))
 local doc=f:read('a'):gsub('\r\n','\n'):match('### Options\n(.-)\n### ') -- LF ends: a Windows checkout may have CRLF.
 f:close()
-local bike,tab=doc:find('off and its key',1,true),doc:find(require('ui.text').en.row.pause_tab,1,true)
+local bike,tab=doc:find('off, its key',1,true),doc:find(require('ui.text').en.row.pause_tab,1,true)
+local pose=doc:find('its riding pose test',1,true)
 local gun=doc:find('[gun mode](../fight/gunmode.md) on or off and its key',1,true)
 local reset=doc:find('then Reset all keys)',1,true)
-assert(bike and gun and tab and reset and bike<gun and gun<tab and tab<reset,
+assert(bike and pose and gun and tab and reset and bike<pose and pose<gun and gun<tab and tab<reset,
     'docs/players/interface.md: the Options Controls rows out of order')
 
 print('ui_model_test ok')

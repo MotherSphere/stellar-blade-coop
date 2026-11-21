@@ -109,14 +109,19 @@ int main() {
     assert(p.chars[i] == char16_t(kClap[i]));
   assert(widen("/Game/Other.Other").num == 0);
 
-  // The scalars: the whole clip at rate 1, 0.25 s blends, SB's stop at input left to its -1, priority 0; a loop
-  // forever or none. The bike's ride: a loop forever with foot-IK type 2; the others leave foot IK alone.
+  // The scalars: the whole clip at rate 1, 0.25 s blends, SB's stop at input left to its -1, priority 0, not held; a
+  // loop forever or none. The bike's ride: a loop forever with foot-IK type 2, held at kRidePriority (above SB's 100.0
+  // plays, below the 101.0 that SB's stop of any slot-0 clip needs); the others leave foot IK alone and hold nothing.
   const Play once = play(false), loop = play(true), ride = play(false, true);
   assert(once.start == 0 && once.end == -1 && once.rate == 1 && once.blend_in == 0.25f && once.blend_out == 0.25f &&
-         once.input_blend == -1 && once.priority == 0 && once.loops == -1);
-  assert(once.loop == 0 && loop.loop == 1 && loop.loops == -1);
+         once.input_blend == -1 && once.priority == 0 && once.loops == -1 && once.hold == 0);
+  assert(once.loop == 0 && loop.loop == 1 && loop.loops == -1 && loop.priority == 0 && loop.hold == 0);
   assert(once.foot_ik == 0 && loop.foot_ik == 0 && ride.loop == 1 && ride.loops == -1 && ride.foot_ik == 2 &&
-         ride.priority == 0 && play(true, true).foot_ik == 2);
+         play(true, true).foot_ik == 2);
+  static_assert(kRidePriority > 100.0f && kRidePriority < 101.0f,
+                "above SB's 100.0 plays (0x146750350), below its stop at 101.0 (0x146750358, 0x142063b32)");
+  assert(ride.priority == kRidePriority && ride.hold == 1 && play(true, true).priority == kRidePriority &&
+         play(true, true).hold == 1);
 
   // Slot 0 as read from +0x14: the weight, the playing byte at +0x18, the FGuid at +0x20.
   static_assert(kSlotRead == 0x1c, "+0x14 to +0x30");

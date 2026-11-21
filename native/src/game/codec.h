@@ -12,28 +12,37 @@
 //   publication (u64): the sender's monotonic clock in microseconds when it read the pose
 //   map (u32): a hash of the sender's map name, 0 when unknown (Phase 3b)
 //   count (u8): the table's components; then per component a status byte (kWorld on component 0 only, kBones on the
-//   leaders only), the world transform when kWorld (3 f32 translation, 6 B rotation, 3 i16 scale) and 18 bytes per
-//   bone when kBones (6 B rotation, 3 i16 translation, 3 i16 scale)
-//   then kEffectSlots effect slots (protocol 6) of 15 bytes: asset (u8, 0 none, else 1 to kMaxEffectAssets: an entry of
-//   Lua's list of systems: the fixed ones, then those the table's fx lines name), part (u8, the table part it hangs on), serial (u8, a new instance in the
-//   slot), its rotation (6 B) and translation (3 i16) relative to the part; an empty slot is 15 zero bytes
+//   leaders only, kFree on the free parts only), the world transform when kWorld (3 f32 translation, 6 B rotation, 3
+//   i16 scale) and right after it each free part's block in table order (kFreeBytes: its place relative to component 0
+//   in the world transform's form, then its state byte; a hidden one is 25 zero bytes), and 18 bytes per bone when
+//   kBones (6 B rotation, 3 i16 translation, 3 i16 scale)
+//   then kEffectSlots effect slots (protocol 6, 6 of them since protocol 28) of 15 bytes: asset (u8, 0 none, else 1 to
+//   kMaxEffectAssets: an entry of Lua's list of systems: the fixed ones, then those the table's fx lines name), part
+//   (u8, the table part it hangs on), serial (u8, a new instance in the slot), its rotation (6 B) and translation (3
+//   i16) relative to the part; an empty slot is 15 zero bytes
+//   then kEventSlots event slots (game/events.h) of 19 bytes: kind (u8), serial (u8), asset key (u16), part (u8,
+//   kNoPart: placed relative to component 0), two value bytes, translation (3 i16 in cm) and rotation (6 B) relative to
+//   the part; an empty slot is 19 zero bytes
+//   then a byte per morph target of the table (its morphs lines, in table order): its weight in 1/255 steps
 // A bone travels in local space (N3), as the engine holds it: FTransform's 48 bytes, rotation xyzw, translation xyz and
 // a pad, scale xyz and a pad.
 //
 // A delta (protocol 9): the units of a pose that differ from the sender's latest keyframe. A unit is one 6-byte field
-// of a leader bone (its rotation, translation or scale) or one effect slot. Little-endian:
+// of a leader bone (its rotation, translation or scale), one effect slot, one event slot or one morph's byte.
+// Little-endian:
 //   "SBD" (3 bytes), protocol (u8), then generation, sequence, publication and map as in a pose (the same offsets)
 //   age (u32): its publication minus its keyframe's, in microseconds, 1 or more (the keyframe's sequence would not
 //   survive the replay's re-stamping; this does, as the replay moves every publication of a loop alike)
-//   world (24 bytes): the world transform, as in the pose
+//   world (24 bytes): the world transform, as in the pose, then the free blocks, as in the pose
 //   mask: a bit per unit (byte u / 8, bit u % 8), in pose order: per leader bone its rotation, translation and scale,
-//   then the kEffectSlots slots; padding bits 0
+//   then the kEffectSlots effect slots, then the kEventSlots event slots, then the morphs; padding bits 0
 //   then each unit the mask names, its exact bytes in the pose
 // The receiver rebuilds the pose's bytes from its held keyframe and decodes them with decode_pose, so a delta passes
 // every check a pose does. A delta is always smaller than its pose: the sender sends the keyframe when it would not be.
 // A bone's field counts as changed only past kTolerance (in quantized steps) from the keyframe: a delta comes back as
 // the keyframe path would give it within that (rotation 0.035 degrees, translation 1/32 cm, scale 1/4096), and the
 // keyframe's value holds until the next keyframe, 250 ms at most. The wire is the same: the receiver does not know.
+// Every other unit (an effect or event slot, a morph) counts as changed when any of its bytes differs.
 #pragma once
 
 #include <algorithm>
@@ -46,11 +55,12 @@
 #include <vector>
 
 #include "link/protocol.h" // kProtocol
+#include "game/events.h"   // Event, Kind, kEventSlots, kEventBytes, kNoPart, kMaxAssetKeys
 #include "game/table.h"    // Table, pose_size, kMaxPose, kTransformBytes
 
 namespace coop::pose {
 
-constexpr uint8_t kWorld = 1, kBones = 2;
+constexpr uint8_t kWorld = 1, kBones = 2, kFree = 4;
 constexpr float kMaxWorld = 1e7f; // cm: UE4's world is ±1048576; a farther (or non-finite) position is refused.
 
 struct PoseHeader {
@@ -141,11 +151,140 @@ inline void get_rotation(const uint8_t *&in, float *q) {
 }
 } // namespace codec
 
+// A world transform (10 floats) in its 24 bytes: 3 f32 translation (a non-finite one sent as 0 and counted), the
+// rotation, 3 i16 scale. And back: false when a translation is past kMaxWorld or not finite.
+inline void put_world(uint8_t *&at, const float *place, uint32_t &clamped) {
+  using namespace codec;
+  for (int k = 4; k < 7; ++k)
+    put_float(at, std::isfinite(place[k]) ? place[k] : (++clamped, 0.f));
+  put_rotation(at, place);
+  for (int k = 7; k < 10; ++k)
+    put_fixed(at, place[k], kScale, clamped);
+}
+inline bool get_world(const uint8_t *&in, float *place) {
+  using namespace codec;
+  for (int k = 4; k < 7; ++k) {
+    place[k] = get_float(in);
+    if (!(std::fabs(place[k]) <= kMaxWorld)) // NaN fails too; interpolation could overflow far beyond.
+      return false;
+  }
+  get_rotation(in, place);
+  for (int k = 7; k < 10; ++k)
+    place[k] = get_fixed(in, kScale);
+  return true;
+}
+
+// An event's value byte: v in 1/steps steps, cut to 0 to 255 (NaN to 0) and counted in clamped.
+inline uint8_t value_byte(float v, double steps, uint32_t &clamped) {
+  double x = std::nearbyint(double(v) * steps);
+  if (!(x >= 0 && x <= 255)) {
+    ++clamped;
+    x = x > 0 ? 255 : 0;
+  }
+  return static_cast<uint8_t>(x);
+}
+// Whether 6 rotation bytes are the one form put_rotation gives their own rotation, so get_event can refuse any other
+// (a stray top bit, a "largest" component that is not the largest, a sum past 1).
+inline bool rotation_canonical(const uint8_t *bytes) {
+  using namespace codec;
+  float q[4];
+  uint8_t again[6], *w = again;
+  const uint8_t *r = bytes;
+  get_rotation(r, q);
+  put_rotation(w, q);
+  return std::memcmp(bytes, again, 6) == 0;
+}
+// put_rotation's 6 bytes at rot moved into their one form (rotation_canonical). Near a tie between the two largest
+// components the largest one, rebuilt from the other three, can come out a hair below one of them: that one moves a
+// step toward 0 until it no longer does (0.04 degrees at most in 2 million draws). One that never settles becomes
+// identity.
+inline void settle_rotation(uint8_t *rot) {
+  using namespace codec;
+  for (int pass = 0; pass < 8 && !rotation_canonical(rot); ++pass) {
+    const uint8_t *r = rot;
+    float q[4];
+    get_rotation(r, q);
+    r = rot;
+    uint64_t bits = get(r, 6);
+    const int largest = int(bits >> 45 & 3);
+    for (int k = 3, shift = 0; k >= 0; --k) { // get_rotation's order.
+      if (k == largest)
+        continue;
+      if (std::fabs(q[k]) >= q[largest]) {
+        uint64_t c = bits >> shift & 0x7fff;
+        c = c < kRotation / 2 ? c + 1 : c > kRotation / 2 ? c - 1 : c; // kRotation / 2 is 0.
+        bits = (bits & ~(uint64_t(0x7fff) << shift)) | c << shift;
+      }
+      shift += 15;
+    }
+    uint8_t *w = rot;
+    put(w, bits, 6);
+  }
+  if (!rotation_canonical(rot)) {
+    const float identity[4] = {0, 0, 0, 1};
+    put_rotation(rot, identity);
+  }
+}
+// One event slot (game/events.h's layout, kEventBytes): an event of Kind::none as 19 zero bytes, whatever else it
+// holds. The translation is cut to the i16 range in cm and counted in clamped. The rotation goes in its one form
+// (settle_rotation).
+inline void put_event(uint8_t *&out, const Event &e, uint32_t &clamped) {
+  using namespace codec;
+  if (e.kind == Kind::none) {
+    std::memset(out, 0, kEventBytes);
+    out += kEventBytes;
+    return;
+  }
+  *out++ = static_cast<uint8_t>(e.kind);
+  *out++ = e.serial;
+  put(out, e.asset, 2);
+  *out++ = e.part;
+  *out++ = e.value[0];
+  *out++ = e.value[1];
+  for (int k = 4; k < 7; ++k)
+    put_fixed(out, e.place[k], 1, clamped);
+  uint8_t *rot = out;
+  put_rotation(out, e.place);
+  settle_rotation(rot);
+}
+// One event slot of a pose whose table has parts parts into e (Event() when empty). Returns null when it is good, else
+// "event": an unknown kind, an asset key of 0 or past kMaxAssetKeys, a part past the table (but kNoPart), a rotation
+// not in its one form, or an empty slot with any byte set.
+inline const char *get_event(const uint8_t *&in, Event &e, size_t parts) {
+  using namespace codec;
+  e = Event();
+  if (!*in) { // Empty: every byte 0, so a peer cannot hide anything in it.
+    for (size_t k = 0; k < kEventBytes; ++k)
+      if (*in++)
+        return "event";
+    return nullptr;
+  }
+  const uint8_t *at = in;
+  in += kEventBytes;
+  const uint8_t kind = *at++;
+  e.serial = *at++;
+  e.asset = static_cast<uint16_t>(get(at, 2));
+  e.part = *at++;
+  e.value[0] = *at++;
+  e.value[1] = *at++;
+  if (kind > static_cast<uint8_t>(Kind::trail_off) || !e.asset || e.asset > kMaxAssetKeys ||
+      (e.part != kNoPart && e.part >= parts) || !rotation_canonical(at + 6))
+    return "event";
+  e.kind = static_cast<Kind>(kind);
+  for (int k = 4; k < 7; ++k)
+    e.place[k] = get_fixed(at, 1);
+  get_rotation(at, e.place);
+  return nullptr;
+}
+
 // One pose into out (at least pose_size(t) bytes): root is the main mesh's world transform (10 floats: rotation xyzw,
 // translation xyz, scale xyz), bones the leaders' local transforms back to back in table order, fx the kEffectSlots
-// slots. Returns the size, 0 when the table is too large. clamped counts values cut to the fixed-point ranges.
+// slots, free one block per free part in table order (nullptr: each hidden), events the kEventSlots event slots
+// (nullptr: each empty), morphs morph_count(t) weights in table order (nullptr: each 0). Returns the size, 0 when the
+// table is too large. clamped counts values cut to the fixed-point ranges.
 inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root, const uint8_t *bones,
-                          const Effect *fx, uint8_t *out, uint32_t &clamped) {
+                          const Effect *fx, uint8_t *out, uint32_t &clamped, const Free *free = nullptr,
+                          const Event *events = nullptr, const uint8_t *morphs = nullptr) {
   using namespace codec;
   size_t size = pose_size(t);
   if (!size)
@@ -161,13 +300,18 @@ inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root
   put(at, h.map, 4);
   *at++ = static_cast<uint8_t>(t.eve.size());
   for (size_t i = 0; i < t.eve.size(); ++i) {
-    *at++ = static_cast<uint8_t>((i == 0 ? kWorld : 0) | (t.eve[i].leader ? kBones : 0));
+    *at++ = static_cast<uint8_t>((i == 0 ? kWorld : 0) | (t.eve[i].leader ? kBones : 0) | (t.eve[i].free ? kFree : 0));
     if (i == 0) {
-      for (int k = 4; k < 7; ++k)
-        put_float(at, std::isfinite(root[k]) ? root[k] : (++clamped, 0.f));
-      put_rotation(at, root);
-      for (int k = 7; k < 10; ++k)
-        put_fixed(at, root[k], kScale, clamped);
+      put_world(at, root, clamped);
+      for (size_t k = 0, n = free_count(t); k < n; ++k) {
+        if (!free || !(free[k].state & 0x80)) { // The one form of a hidden block.
+          std::memset(at, 0, kFreeBytes);
+          at += kFreeBytes;
+          continue;
+        }
+        put_world(at, free[k].place, clamped);
+        *at++ = free[k].state;
+      }
     }
     if (!t.eve[i].leader)
       continue;
@@ -195,13 +339,22 @@ inline size_t encode_pose(const Table &t, const PoseHeader &h, const float *root
     for (int k = 4; k < 7; ++k)
       put_fixed(at, e.place[k], kTranslation, clamped);
   }
-  return size_t(at - out);
+  for (size_t n = 0; n < kEventSlots; ++n)
+    put_event(at, events ? events[n] : Event(), clamped);
+  const size_t n = morph_count(t);
+  if (morphs)
+    std::memcpy(at, morphs, n);
+  else
+    std::memset(at, 0, n);
+  return size_t(at + n - out);
 }
 
-// Reads a pose of this table into root, bones and fx (the layouts encode_pose takes; pads written as 0). Returns null
-// when it is good, else why not; on a refusal root, bones and fx may hold part of it and must not be used.
+// Reads a pose of this table into root, bones, fx, free, events and morphs (the layouts encode_pose takes; pads written
+// as 0; free, events or morphs nullptr: checked, not stored; a hidden block stored as Free(), an empty slot as
+// Event()). Returns null when it is good, else why not; on a refusal they may hold part of it and must not be used.
 inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size, PoseHeader &h, float *root,
-                               uint8_t *bones, Effect *fx) {
+                               uint8_t *bones, Effect *fx, Free *free = nullptr, Event *events = nullptr,
+                               uint8_t *morphs = nullptr) {
   using namespace codec;
   if (size < kPoseHeader || size > kMaxPose)
     return "size";
@@ -221,17 +374,25 @@ inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size,
   if (*in++ != t.eve.size() || size != pose_size(t))
     return "layout";
   for (size_t i = 0; i < t.eve.size(); ++i) {
-    if (*in++ != ((i == 0 ? kWorld : 0) | (t.eve[i].leader ? kBones : 0)))
+    if (*in++ != ((i == 0 ? kWorld : 0) | (t.eve[i].leader ? kBones : 0) | (t.eve[i].free ? kFree : 0)))
       return "status";
     if (i == 0) {
-      for (int k = 4; k < 7; ++k) {
-        root[k] = get_float(in);
-        if (!(std::fabs(root[k]) <= kMaxWorld)) // NaN fails too; interpolation could overflow far beyond.
-          return "translation";
+      if (!get_world(in, root))
+        return "translation";
+      for (size_t k = 0, n = free_count(t); k < n; ++k) {
+        Free f;
+        if (!(in[kFreeBytes - 1] & 0x80)) { // Hidden: every byte 0, so a peer cannot hide anything in it.
+          for (size_t b = 0; b < kFreeBytes; ++b)
+            if (*in++)
+              return "free";
+        } else {
+          if (!get_world(in, f.place))
+            return "free";
+          f.state = *in++;
+        }
+        if (free)
+          free[k] = f;
       }
-      get_rotation(in, root);
-      for (int k = 7; k < 10; ++k)
-        root[k] = get_fixed(in, kScale);
     }
     if (!t.eve[i].leader)
       continue;
@@ -263,7 +424,16 @@ inline const char *decode_pose(const Table &t, const uint8_t *data, size_t size,
     for (int k = 4; k < 7; ++k)
       e.place[k] = get_fixed(in, kTranslation);
   }
-  return nullptr; // in == data + size: pose_size(t) matched and every field above has a fixed width.
+  for (size_t n = 0; n < kEventSlots; ++n) {
+    Event e;
+    if (get_event(in, e, t.eve.size()))
+      return "event";
+    if (events)
+      events[n] = e;
+  }
+  if (morphs) // Any byte is a weight.
+    std::memcpy(morphs, in, morph_count(t));
+  return nullptr; // in + morph_count(t) == data + size: pose_size(t) matched and every field has a fixed width.
 }
 
 // ---- Codec v2: deltas against a keyframe ----
@@ -276,29 +446,40 @@ constexpr uint64_t kKeyEveryUs = 250'000;
 constexpr int64_t kPoseBytesPerSecond = 196'608, kPoseBurst = 2 * kMaxPose, kSbeBytesPerSecond = 16'384;
 constexpr size_t kWorldAt = kPoseHeader + 1; // The world transform in a pose: after component 0's status.
 
-// Each unit of a pose of t, in order, as f(offset in the pose, bytes); stops when f returns false.
+// A unit's kind: a bone's rotation, translation or scale (compared within the tolerance), or exact (an effect or event
+// slot, a morph: compared byte for byte).
+enum class Unit : uint8_t { rotation, translation, scale, exact };
+// Each unit of a pose of t, in order, as f(offset in the pose, bytes, Unit); stops when f returns false.
 template <class F> void each_unit(const Table &t, F &&f) {
   size_t at = kPoseHeader; // kPoseHeader counts the component count byte.
   for (size_t i = 0; i < t.eve.size(); ++i) {
-    at += 1 + (i == 0 ? kWorldBytes : 0);
+    at += 1 + (i == 0 ? kWorldBytes + free_count(t) * kFreeBytes : 0);
     if (!t.eve[i].leader)
       continue;
     for (size_t k = 0; k < size_t(t.eve[i].bones) * 3; ++k, at += kBoneBytes / 3)
-      if (!f(at, kBoneBytes / 3))
+      if (!f(at, kBoneBytes / 3, static_cast<Unit>(k % 3)))
         return;
   }
   for (size_t n = 0; n < kEffectSlots; ++n, at += kEffectBytes)
-    if (!f(at, kEffectBytes))
+    if (!f(at, kEffectBytes, Unit::exact))
+      return;
+  for (size_t n = 0; n < kEventSlots; ++n, at += kEventBytes)
+    if (!f(at, kEventBytes, Unit::exact))
+      return;
+  for (size_t n = 0, morphs = morph_count(t); n < morphs; ++n, ++at)
+    if (!f(at, 1, Unit::exact))
       return;
 }
 inline size_t delta_units(const Table &t) {
-  size_t units = kEffectSlots;
+  size_t units = kEffectSlots + kEventSlots + morph_count(t);
   for (const Part &p : t.eve)
     units += p.leader ? size_t(p.bones) * 3 : 0;
   return units;
 }
-// A delta's bytes before its units: header, age, world and mask.
-inline size_t delta_fixed(const Table &t) { return kPoseHeader + 4 + kWorldBytes + (delta_units(t) + 7) / 8; }
+// A delta's bytes before its units: header, age, world, free blocks and mask.
+inline size_t delta_fixed(const Table &t) {
+  return kPoseHeader + 4 + kWorldBytes + free_count(t) * kFreeBytes + (delta_units(t) + 7) / 8;
+}
 
 // How far a bone's rotation (each of its three 15-bit components, the same largest one), translation and scale (each
 // i16 component) may be from the keyframe's and still count as unchanged, in quantized steps. A rotation step moves
@@ -331,8 +512,8 @@ inline bool strays(const uint8_t *a, const uint8_t *b, int kind, const Tolerance
 }
 
 // The delta of full (a pose of t that encode_pose wrote) against key (an earlier one, age µs before) into out, which
-// holds limit bytes: the bone fields that stray past tol and the effect slots that differ at all. Returns its size, or
-// 0 when it would not be smaller than limit (send the pose then).
+// holds limit bytes: the bone fields that stray past tol and the effect and event slots and morphs that differ at all.
+// Returns its size, or 0 when it would not be smaller than limit (send the pose then).
 inline size_t encode_delta(const Table &t, const uint8_t *key, const uint8_t *full, uint32_t age, uint8_t *out,
                            size_t limit, const Tolerance &tol = kTolerance) {
   const size_t fixed = delta_fixed(t);
@@ -342,14 +523,14 @@ inline size_t encode_delta(const Table &t, const uint8_t *key, const uint8_t *fu
   out[2] = 'D';
   uint8_t *at = out + kPoseHeader;
   codec::put(at, age, 4);
-  std::memcpy(at, full + kWorldAt, kWorldBytes);
-  uint8_t *mask = at + kWorldBytes;
+  const size_t world = kWorldBytes + free_count(t) * kFreeBytes; // The free blocks follow the world transform.
+  std::memcpy(at, full + kWorldAt, world);
+  uint8_t *mask = at + world;
   std::memset(mask, 0, size_t(out + fixed - mask));
   size_t size = fixed, u = 0;
   bool fits = true;
-  each_unit(t, [&](size_t o, size_t n) {
-    // The bone fields come first, three to a bone (each leader's count a multiple of 3), the effect slots last.
-    if (n == kEffectBytes ? std::memcmp(key + o, full + o, n) != 0 : strays(key + o, full + o, int(u % 3), tol)) {
+  each_unit(t, [&](size_t o, size_t n, Unit kind) {
+    if (kind == Unit::exact ? std::memcmp(key + o, full + o, n) != 0 : strays(key + o, full + o, int(kind), tol)) {
       if (size + n >= limit)
         return fits = false;
       mask[u / 8] |= uint8_t(1u << (u % 8));
@@ -385,13 +566,14 @@ inline const char *apply_delta(const Table &t, const uint8_t *key, uint64_t key_
     return "generation";
   if (!key_publication || !age || age > publication || publication - age != key_publication)
     return "key";
-  const uint8_t *mask = in + kWorldBytes;
+  const size_t world = kWorldBytes + free_count(t) * kFreeBytes; // The free blocks follow the world transform.
+  const uint8_t *mask = in + world;
   const size_t units = delta_units(t);
   for (size_t u = units; u < (units + 7) / 8 * 8; ++u)
     if (mask[u / 8] >> (u % 8) & 1)
       return "mask";
   size_t need = fixed, u = 0;
-  each_unit(t, [&](size_t, size_t n) {
+  each_unit(t, [&](size_t, size_t n, Unit) {
     need += (mask[u / 8] >> (u % 8) & 1) ? n : 0;
     ++u;
     return true;
@@ -401,10 +583,10 @@ inline const char *apply_delta(const Table &t, const uint8_t *key, uint64_t key_
   std::memcpy(rebuilt, key, full);
   std::memcpy(rebuilt, data, kPoseHeader);
   rebuilt[2] = 'P';
-  std::memcpy(rebuilt + kWorldAt, in, kWorldBytes);
+  std::memcpy(rebuilt + kWorldAt, in, world);
   const uint8_t *next = data + fixed;
   u = 0;
-  each_unit(t, [&](size_t o, size_t n) {
+  each_unit(t, [&](size_t o, size_t n, Unit) {
     if (mask[u / 8] >> (u % 8) & 1) {
       std::memcpy(rebuilt + o, next, n);
       next += n;
@@ -510,19 +692,19 @@ public:
     key_publication_ = 0;
     key_sequence_ = 0;
   }
-  // A keyframe or a delta of t into root, bones and fx, as decode_pose: null when good, else why not ("key": a delta
-  // whose keyframe is not the one held). A keyframe that decodes is held when it was sent after the one held (its
-  // sequence, which never restarts in the sender's run, unlike its clock after a step).
+  // A keyframe or a delta of t into root, bones, fx, free, events and morphs, as decode_pose: null when good, else why
+  // not ("key": a delta whose keyframe is not the one held). A keyframe that decodes is held when it was sent after the
+  // one held (its sequence, which never restarts in the sender's run, unlike its clock after a step).
   const char *decode(const Table &t, const uint8_t *data, size_t size, PoseHeader &h, float *root, uint8_t *bones,
-                     Effect *fx) {
+                     Effect *fx, Free *free = nullptr, Event *events = nullptr, uint8_t *morphs = nullptr) {
     if (size >= 3 && data[2] == 'D') {
       if (key_.size() != pose_size(t))
         return "key";
       if (const char *why = apply_delta(t, key_.data(), key_publication_, data, size, rebuilt_.data()))
         return why;
-      return decode_pose(t, rebuilt_.data(), key_.size(), h, root, bones, fx);
+      return decode_pose(t, rebuilt_.data(), key_.size(), h, root, bones, fx, free, events, morphs);
     }
-    const char *why = decode_pose(t, data, size, h, root, bones, fx);
+    const char *why = decode_pose(t, data, size, h, root, bones, fx, free, events, morphs);
     if (!why && size == key_.size() && (!key_publication_ || h.sequence > key_sequence_)) {
       std::memcpy(key_.data(), data, size);
       key_publication_ = h.publication;

@@ -8,7 +8,9 @@
 -- materials (a dynamic one as its parent); with effects on, the Niagara layout by reflection and the listed systems in
 -- memory, looked up one a tick; the game's own folders against a mod's, a mod's mesh tagged with its outfit and sending
 -- its materials with dyes off, her cloth's collision line, a dynamic material's value lines, and the hide lines
--- (hidden material slots), with no shape key read; SBO's bike left out while she does not ride (leave_out).
+-- (hidden material slots); SBO's bike left out while she does not ride (leave_out); her body on the bike's rig read
+-- through the rig (pose_source); her drone; with faces on, her morph target names within their caps, the pose size and
+-- the table's room.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -95,6 +97,7 @@ StaticFindObject=function(path)
     if path=='/Script/Engine.Default__KismetMathLibrary' then
         c.MakeRelativeTransform=function(_,a,b)
             relative_calls=relative_calls+1
+            if a=='world of DroneArm' then assert(b=='world of her drone',b); return transform(3) end -- Drone parts.
             assert(a=='world of SBHair' and b=='world of CharacterMesh0',a)
             return transform(7)
         end
@@ -177,8 +180,9 @@ tick(); step(2)
 assert(published[#published]:find('^generation 100004\n'))
 
 -- The native part's caps: at most 16 parts, the rest left out; a leader of 1 to 1024 bones, one of 0 or more left out
--- with its followers, and the last leaders while a pose would pass 16384 bytes (one of 1024 bones would: 113 bytes of
--- header, effect slots and world transform, 1 a part, 18 a bone); her main mesh outside them, no table at all.
+-- with its followers, and the last leaders while a pose would pass 16384 bytes (one of 1024 bones would: 219 bytes of
+-- header, 6 effect slots, 4 event slots and world transform, 1 a part, 18 a bone); her main mesh outside them, no table
+-- at all.
 local X='/Game/Art/Character/X/'
 local many={body}
 for k=1,20 do many[#many+1]=her('Extra'..k,X..'X'..k..'.X'..k,{parent=body,bones=1}) end
@@ -190,14 +194,14 @@ assert(ok and message:find('^Capture %d+: 16 parts, ') and select(2,t:gsub('\npa
 assert(t:find(' Extra15 ',1,true) and not t:find(' Extra16 ',1,true),t)
 local zero=her('Zero',X..'Zero.Zero',{parent=body})
 local huge=her('Huge',X..'Huge.Huge',{parent=body,bones=1025})
-local full=her('Full',X..'Full.Full',{parent=body,bones=900}) -- 903 bones with hers: 113 + 2 + 16254 bytes.
+local full=her('Full',X..'Full.Full',{parent=body,bones=894}) -- 897 bones with hers: 219 + 2 + 16146 bytes.
 local on_zero=her('OnZero',X..'OnZero.OnZero',{leader=zero,parent=zero})
 player=eve_of('EVE4',{body,zero,huge,full,on_zero})
 tick()
 ok,message=step(2)
 t=published[#published]
-assert(ok and message:find('^Capture %d+: 2 parts, 903 bone names, .* ms$'),tostring(message))
-assert(t:find('\npart 1 - 0 - 1 900 Full ',1,true) and not t:find('Zero',1,true) and not t:find('Huge',1,true),t)
+assert(ok and message:find('^Capture %d+: 2 parts, 897 bone names, .* ms$'),tostring(message))
+assert(t:find('\npart 1 - 0 - 1 894 Full ',1,true) and not t:find('Zero',1,true) and not t:find('Huge',1,true),t)
 -- One bone more is over: the last leader goes with its follower, and the leader before it, if a pose is still over.
 local tail=her('Tail',X..'Tail.Tail',{parent=body,bones=1})
 local on_tail=her('OnTail',X..'OnTail.OnTail',{leader=tail,parent=tail})
@@ -206,7 +210,7 @@ player=eve_of('EVE4b',{body,full,tail,on_full,on_tail})
 tick()
 ok,message=step(2)
 t=published[#published]
-assert(ok and message:find('^Capture %d+: 3 parts, 903 bone names, .*; 1 leaders left out, over the pose size$'),
+assert(ok and message:find('^Capture %d+: 3 parts, 897 bone names, .*; 1 leaders left out, over the pose size$'),
     tostring(message))
 assert(t:find('\npart 2 1 1 - 1 0 OnFull ',1,true) and not t:find('Tail',1,true),t)
 full.state.bones=1024
@@ -217,7 +221,7 @@ t=published[#published]
 assert(ok and message:find('^Capture %d+: 3 parts, 4 bone names, .*; 1 leaders left out, over the pose size$'),
     tostring(message))
 assert(t:find(' Tail ',1,true) and t:find(' OnTail ',1,true) and not t:find('Full',1,true),t)
-body.state.bones=904 -- Her main mesh alone is over: no table.
+body.state.bones=899 -- Her main mesh alone is over (219 + 1 + 16182 bytes): no table.
 player=eve_of('EVE4d',{body,tail})
 tick()
 local count_before=#published
@@ -230,6 +234,13 @@ tick()
 local before=#published
 step(2); step(1)
 assert(#published==before,'Her main mesh without bones: no table')
+-- Pose size: Capture.pose_bytes counts as the native pose_size() does, with 6 effect slots, 4 event slots and a free
+-- part's block.
+assert(Capture.POSE_BASE==29+6*15+4*19+24,'the native pose_size with the event slots')
+assert(Capture.FREE_BYTES==25,'the native pose_size: free blocks')
+assert(Capture.pose_bytes({{bones=2},{bones=3,free=true}})==336,'test_free_part\'s table: the same 336 bytes')
+assert(Capture.pose_bytes({{bones=90},{bones=3,free=true}})==1920)
+assert(Capture.pose_bytes({{bones=3},{bones=0,lead=0},{bones=2}})==219+1+54+1+1+36,'a follower: its status byte')
 body.state.bones=3
 
 -- Dyes off (every capture above): her overridden materials are never read, so no material lines and the key as before.
@@ -639,8 +650,8 @@ step(2)
 assert(not reads.VectorParameterValues and not published[1]:find('\nvalue '),published[1])
 -- A table with no room: the geometry goes whole, the values stay home, said in the line.
 local long_bones={}
-for b=1,900 do long_bones[b]=('b'):rep(61)..b end
-local big=her('Big',BODY,{parent=capsule,bones=900,names=long_bones})
+for b=1,897 do long_bones[b]=('b'):rep(61)..b end -- 897: her main mesh's pose alone holds 898 at most
+local big=her('Big',BODY,{parent=capsule,bones=897,names=long_bones})
 raw[big].OverrideMaterials=slots(1,{mid})
 local big_eve=eve_of('EVE16',{big})
 raw[big_eve].Mesh=big
@@ -654,7 +665,6 @@ assert(ok and message:find('; %d+ values left out, over the table size$') and no
     and published[1]:find('\nmaterial 0 0 ') and #published[1]>56000,tostring(message))
 -- Hidden slots (CNS's toggles and hidden slots, read from the component): a hide line with the slots hidden at LOD 0,
 -- any slot, after the values. A change waits as a value does; with dyes off on the game's own mesh nothing is read.
--- Shape keys are never read: no ghost part can draw them.
 raw[body].state.slots,raw[body].state.hidden=4,{[1]=true,[3]=true}
 raw[body].OverrideMaterials=slots(1,{skin})
 published={}
@@ -758,4 +768,333 @@ ok,message=step(2)
 t=published[#published]
 assert(ok and message:find('^Capture %d+: 2 parts, ') and t:find('\npart 1 - 0 - 1 37 Bike2 '..BIKE..'\n',1,true),t)
 assert(not t:find(' Bike '..BIKE,1,true),t)
+
+-- The bike's rig (vehicles/bike/rig.lua, bike_pose=rig): her main mesh and the parts that followed it copy the bones of
+-- a component of another actor, which wears her main mesh's mesh. pose_source, asked once a look with her address,
+-- names it while she rides. Her main mesh then has no leader and its read line names the rig's component. A part that
+-- copies the rig follows her main mesh. A part with a leader of its own (her ponytail, its own anim instance) keeps it.
+-- The table equals the one without the rig, except the main read line's object (a new generation). A nil pose source
+-- (the bike off, the hold way) gives today's table.
+local NAMES={'Root','Pelvis','Spine'}
+local rig_body=her('CharacterMesh0',BODY,{parent=capsule,bones=3,names=NAMES})
+local rig=read_only(part('RigMesh',BODY,{bones=3,names=NAMES}),'the rig')
+raw[rig].SkeletalMesh=raw[rig_body].SkeletalMesh -- The same mesh object as hers.
+local sleeve=her('Sleeve',X..'Sleeve.Sleeve',{leader=rig_body,parent=rig_body})
+local boots=her('Boots',X..'Boots.Boots',{leader=rig_body,parent=rig_body,x=2})
+local ponytail=her('Ponytail',HAIR,{parent=rig_body,socket='Bip001-Head',bones=2}) -- Not on the rig: no leader.
+local source,source_asked=nil,{}
+local function on_rig(on)
+    local lead={Get=function() return on and rig or rig_body end}
+    raw[rig_body].MasterPoseComponent=on and lead or none
+    raw[sleeve].MasterPoseComponent,raw[boots].MasterPoseComponent=lead,lead
+    source=on and rig or nil
+end
+local rig_looks={}
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,rig_looks)
+capture.pose_source(function(at) source_asked[#source_asked+1]=at; return source end)
+player=eve_of('EVE22b',{boots,ponytail,rig_body,sleeve})
+raw[player].Mesh=rig_body
+tick()
+ok,message=step(2)
+local alone=published[#published]
+first=tonumber(alone:match('^generation (%d+)\n'))
+assert(ok and message:find('^Capture %d+: 4 parts, 5 bone names, ') and #source_asked==1 and
+    source_asked[1]==raw[player].GetAddress(),tostring(message))
+local mesh_hex=string.format('0x%x',raw[rig_body].SkeletalMesh.GetAddress())
+local function read_of(o) return string.format('\nread 0 0x%x 0xc1 %s\n',raw[o].GetAddress(),mesh_hex) end
+assert(alone:find(plain('\npart 0 - - - 1 3 CharacterMesh0 '..BODY..'\nnames 0 Root Pelvis Spine'..read_of(rig_body)
+    ..'part 1 - 0 Bip001-Head 1 2 Ponytail '..HAIR..'\n')) and alone:find(plain('\npart 2 0 0 - 1 0 Boots '..X
+    ..'Boots.Boots\nplace 2 0 0 0 1 2 0.1 0 1 1 1\npart 3 0 0 - 1 0 Sleeve ')),alone)
+on_rig(true)
+ok,message=step(1)
+local ridden=published[#published]
+assert(ok and message:find('^Capture '..(first+1)..': 4 parts, 5 bone names, '),tostring(message))
+assert(ridden==alone:gsub('^generation %d+','generation '..(first+1)):gsub(plain(read_of(rig_body)),read_of(rig)),
+    ridden)
+assert(step(1)==nil and #published==2,'Riding on: nothing new')
+-- On another mesh (Ride.SPARE, her body on another skeleton): a new generation, the rig's mesh, bones, bone names and,
+-- with faces on, morph names. The native part reads the rig's bone array, whose count must be the table's. It reads the
+-- rig's morph weights too.
+raw[rig].SkeletalMesh=mesh('/Game/Art/Character/PC/CH_P_EVE_InnerSuit/CH_P_EVE_InnerSuit.CH_P_EVE_InnerSuit')
+raw[rig].SkeletalMesh.MorphTargets={object('Smile')}
+raw[rig_body].SkeletalMesh.MorphTargets={object('Frown')}
+raw[rig].state.bones,raw[rig].state.names=4,{'Root','Pelvis','Spine','Neck'}
+rig_looks.faces=true
+ok,message=step(1)
+t=published[#published]
+assert(ok and message:find('^Capture '..(first+2)..': 4 parts, 6 bone names, '),tostring(message))
+assert(t:find(plain(string.format('\npart 0 - - - 1 4 CharacterMesh0 %s\nnames 0 Root Pelvis Spine Neck\n'
+    ..'morphs 0 Smile\nread 0 0x%x 0xc1 0x%x\n',BODY,raw[rig].GetAddress(),raw[rig].SkeletalMesh.GetAddress()))),t)
+raw[rig].SkeletalMesh,raw[rig].state.bones,raw[rig].state.names=raw[rig_body].SkeletalMesh,3,NAMES
+raw[rig_body].SkeletalMesh.MorphTargets,rig_looks.faces=nil,nil
+-- Off the bike: today's table again, under a new generation.
+on_rig(false)
+ok,message=step(1)
+assert(ok and message:find('^Capture '..(first+3)..': 4 parts, ') and
+    published[#published]==alone:gsub('^generation %d+','generation '..(first+3)),published[#published])
+-- Her body still on a rig that pose_source does not name (after Ctrl+R, before the release): no table, as before.
+on_rig(true)
+source=nil
+local count_rigged=#published
+step(1); step(1)
+assert(#published==count_rigged,'A leader outside her parts: no table')
+-- A rig without a mesh is no pose source either.
+source,raw[rig].SkeletalMesh=rig,nil
+step(1)
+assert(#published==count_rigged,'A rig without a mesh: no table')
+raw[rig].SkeletalMesh=raw[rig_body].SkeletalMesh
+step(1)
+assert(#published==count_rigged+1 and published[#published]:find(plain(read_of(rig))),published[#published])
+
+-- Her drone: drone() gives the address the native part found (coop-drone.txt). With looks.drone, the SBCharacter at
+-- that address (here a walk for CH_Drone_BP_C: the class hash is not proven) adds its meshes after hers and the bike's.
+-- Its main mesh is a free part: a free line in place of a place line, its SpotLight on a light line after its read
+-- line. Hidden in game (the Doro look), it goes with shown 0 under the same generation. Off, no drone() address, an
+-- address no drone has, or a pose over 16384 bytes with it (the drone's leader goes first): no free part.
+local DRONE='/Game/Art/Character/NPC/CH_NPC_Drone/CH_NPC_Drone.CH_NPC_Drone'
+local drones,drone_at={},nil
+FindAllOf=function(name) return name=='CH_Drone_BP_C' and drones or {} end
+local function drone_actor(at,bones)
+    local mesh_of=her('CharacterMesh0',DRONE,{bones=bones,names={'Root','DM_Center','BN_BODY'}})
+    local spot=object('SpotLight')
+    local d=object('CH_Drone_BP_C',{Mesh=mesh_of})
+    d.GetAddress=function() return at end
+    d.GetFullName=function() return 'CH_Drone_BP_C /Game/Map.Map:PersistentLevel.CH_Drone_BP_C_1' end
+    function d:K2_GetComponentsByClass(class)
+        if class.path=='/Script/Engine.SpotLightComponent' then return {spot} end
+        assert(class.path=='/Script/Engine.SkeletalMeshComponent')
+        return {mesh_of}
+    end
+    drones={read_only(d,'her drone')}
+    return mesh_of,spot
+end
+local drone_mesh,spot=drone_actor(0x50000000,3)
+drone_at='0x50000000'
+looks={drone=true}
+riding=false
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looks,nil,false,
+    function() return drone_at end)
+capture.leave_out(function() return not riding and bike:GetAddress() or nil end)
+player=eve_of('EVE23',{body,bike})
+tick()
+ok,message=step(2)
+t=published[#published]
+assert(ok and message:find('^Capture 100001: 2 parts, 6 bone names, '),tostring(message))
+assert(t:find(plain('\npart 1 - - - 1 3 CharacterMesh0 '..DRONE..'\nfree 1\nnames 1 Root DM_Center BN_BODY\n'
+    ..string.format('read 1 0x%x 0xc1 0x%x\nlight 1 0x%x\n',drone_mesh:GetAddress(),
+    raw[drone_mesh].SkeletalMesh.GetAddress(),spot.GetAddress()))..'$'),t)
+assert(not t:find('\nplace 1 ',1,true),t)
+-- On the bike: the bike is part 1 as before, the drone part 2.
+riding,raw[bike].state.visible=true,true
+ok,message=step(1)
+t=published[#published]
+assert(ok and message:find('^Capture 100002: 3 parts, ') and t:find('\npart 1 - 0 - 1 37 Bike ',1,true),
+    tostring(message))
+assert(t:find('\npart 2 - - - 1 3 CharacterMesh0 '..DRONE..'\nfree 2\n',1,true) and t:find('\nlight 2 0x'),t)
+riding,raw[bike].state.visible=false,false
+step(1)
+-- Hidden in game: the same generation, shown 0.
+raw[drone_mesh].bHiddenInGame=true
+assert(step(1)==nil and published[#published]:find('^generation 100003\n') and
+    published[#published]:find('\npart 1 - - - 0 3 CharacterMesh0 ',1,true),published[#published])
+raw[drone_mesh].bHiddenInGame=false
+step(1)
+-- Another drone actor: a new generation.
+drone_mesh=drone_actor(0x60000000,3)
+drone_at='0x60000000'
+ok,message=step(1)
+assert(ok and message:find('^Capture 100004: 2 parts, ') and published[#published]:find('\nfree 1\n'),tostring(message))
+looks.drone=false
+ok,message=step(1)
+assert(ok and message:find('^Capture 100005: 1 parts, ') and not published[#published]:find('\nfree '),
+    tostring(message))
+looks.drone=true
+drone_at=nil
+assert(step(1)==nil and not published[#published]:find('\nfree '),'No address: the same parts as off')
+drone_at='0x70000000'
+assert(step(1)==nil and not published[#published]:find('\nfree '),'An address no drone has')
+-- Another SBCharacter at the drone's address (the native file a second old): not taken.
+drone_at='0x60000000'
+raw[drones[1]].GetFullName=function() return 'CH_Enemy_C /Game/Map.Map:PersistentLevel.CH_Enemy_C_1' end
+assert(step(1)==nil and not published[#published]:find('\nfree '),'Not a drone')
+raw[drones[1]].GetFullName=function() return 'CH_Drone_BP_C /Game/Map.Map:PersistentLevel.CH_Drone_BP_C_1' end
+-- A drone whose components cannot be read: left out, her parts go on, said once.
+local components_of=raw[drones[1]].K2_GetComponentsByClass
+raw[drones[1]].K2_GetComponentsByClass=function() error('no components') end
+ok,message=step(1)
+assert(ok==false and message:find('^Capture: drone not read: .*no components$'),tostring(message))
+assert(step(1)==nil and not published[#published]:find('\nfree '),'Said once, left out')
+raw[drones[1]].K2_GetComponentsByClass=components_of
+-- Her parts at 16367 bytes (219 + 1 + 54 + 1 + 18 x 894): the drone's 80 more pass 16384, so its leader goes first.
+assert(Capture.pose_bytes({{bones=3},{bones=894}})==16367 and Capture.pose_bytes({{bones=3},{bones=894},
+    {bones=3,free=true}})==16447)
+full.state.bones=894
+player=eve_of('EVE24',{body,full})
+tick()
+ok,message=step(2)
+assert(ok and message:find('^Capture %d+: 2 parts, 897 bone names, .*; 1 leaders left out, over the pose size$'),
+    tostring(message))
+assert(not published[#published]:find('\nfree '),published[#published])
+-- A drone mesh hung on no part (here on the drone's capsule) hangs from the free part: its parent is the drone's main
+-- mesh and its place is relative to that mesh, never to hers.
+local drone_main=drone_actor(0x80000000,3)
+raw[drone_main].K2_GetComponentToWorld=function() return 'world of her drone' end
+local ARM='/Game/Art/Character/NPC/CH_NPC_Drone/Arm.Arm'
+local arm=her('DroneArm',ARM,{parent=object('DroneCapsule'),bones=2,x=4})
+local drone_raw=raw[drones[1]]
+local meshes_of=drone_raw.K2_GetComponentsByClass
+function drone_raw:K2_GetComponentsByClass(class)
+    if class.path=='/Script/Engine.SkeletalMeshComponent' then return {arm,drone_main} end
+    return meshes_of(self,class)
+end
+drone_at='0x80000000'
+player=eve_of('EVE25',{body})
+tick()
+ok,message=step(2)
+t=published[#published]
+assert(ok and message:find('^Capture %d+: 3 parts, '),tostring(message))
+assert(t:find('\npart 1 - - - 1 3 CharacterMesh0 '..DRONE..'\nfree 1\n',1,true),t)
+assert(t:find('\npart 2 - 1 - 1 2 DroneArm '..ARM..'\nplace 2 0 0 0 1 3 0.1 0 1 1 1\n',1,true),t)
+-- Her face and shape keys (looks.faces): each part whose mesh has morph targets names them, in the mesh's order, on a
+-- morphs line after its last line (before a leader's read line); a follower's morph_read line after it names its
+-- component for the native read. Each morph is a byte of every pose (Capture.MORPH_BYTES). At most 256 on a part and
+-- 512 in a table, the rest left out and named in the capture line. Over the pose size the morph lines go before any
+-- leader does, the last part's first; past the table's room, after the values. Faces off or on again: a new
+-- generation.
+assert(Capture.MORPH_BYTES==1 and Capture.pose_bytes({{bones=2,morphs=3},{bones=3,free=true}})==339)
+local FACE_MESH='/Game/Art/Character/PC/CH_P_EVE_Head/CH_P_EVE_Face_Jali3.CH_P_EVE_Face_Jali3'
+local function targets(n,stem)
+    if type(n)=='table' then
+        local list={}
+        for k,name in ipairs(n) do list[k]=object(name) end
+        return list
+    end
+    local list={}
+    for k=1,n do list[k]=object((stem or 'Morph')..(k-1)) end
+    return list
+end
+local function lines_of(text)
+    local list={}
+    for line in text:gmatch('([^\n]*)\n') do list[#list+1]=line end
+    return list
+end
+local function line_of(lines,prefix)
+    for _,line in ipairs(lines) do if line:sub(1,#prefix)==prefix then return line end end
+end
+local function has_prefix(lines,prefix) return line_of(lines,prefix)~=nil end
+local function words(line)
+    local list={}
+    for w in (line or ''):gmatch('%S+') do list[#list+1]=w end
+    return list
+end
+local function look_lines() return lines_of(published[#published]) end
+looks={faces=true}
+local faces_eve=0
+-- Her face with n morph targets (or these names), a leader of two bones or a follower of her body, after her body and
+-- before the parts given, captured on a new EVE. Returns the capture's ok and line, and her face.
+local function face_with(n,follower,more)
+    local f=her('Mesh_Face',FACE_MESH,follower and {leader=body,parent=body} or {parent=body,bones=2})
+    raw[f].SkeletalMesh.MorphTargets=targets(n)
+    local list={body,f}
+    for _,c in ipairs(more or {}) do list[#list+1]=c end
+    published={}
+    capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looks)
+    faces_eve=faces_eve+1
+    player=eve_of('Faces'..faces_eve,list)
+    tick()
+    local ok_of,said_of=step(2)
+    return ok_of,said_of,f
+end
+local said_of,face_of
+ok,said_of,face_of=face_with(40)
+local lines=look_lines()
+assert(ok and said_of:find('^Capture 100001: 2 parts, .*; morphs: 40$'),tostring(said_of))
+assert(#words(line_of(lines,'morphs 1 '))==42 and
+    line_of(lines,'morphs 1 '):find('^morphs 1 Morph0 Morph1 .* Morph39$'),'morphs, the part, 40 names')
+assert(published[1]:find('\nnames 1 b0 b1\nmorphs 1 Morph0 [^\n]*\nread 1 0x'),'After its names, before its read line')
+assert(not has_prefix(lines,'morph_read ') and not has_prefix(lines,'morphs 0 '),
+    'A leader: its read line; her body none')
+assert(step(1)==nil,'Nothing new')
+looks.faces=false
+ok,said_of=step(1)
+assert(ok and said_of:find('^Capture 100002: ') and not has_prefix(look_lines(),'morphs '),tostring(said_of))
+looks.faces=true
+ok,said_of=step(1)
+assert(ok and said_of:find('^Capture 100003: ') and has_prefix(look_lines(),'morphs 1 '),tostring(said_of))
+-- The same face as a follower: its morph_read line too, naming its component, after its morphs line.
+ok,said_of,face_of=face_with(40,true)
+lines=look_lines()
+assert(ok and #words(line_of(lines,'morphs 1 '))==42,tostring(said_of))
+assert(line_of(lines,'morph_read 1 0x')==string.format('morph_read 1 0x%x',face_of:GetAddress()))
+assert(published[1]:find('\nplace 1 [^\n]*\nmorphs 1 [^\n]*\nmorph_read 1 0x%x+\n$'),published[1])
+-- Caps: over 256 on a part, none of them; 512 in a table, the rest left out; both named in the line.
+ok,said_of=face_with(257)
+assert(ok and not has_prefix(look_lines(),'morphs ') and said_of:find('; morphs left out: Mesh_Face %(257 morphs%)$'),
+    tostring(said_of))
+local hair_of=her('SBHair',HAIR,{parent=body,bones=2})
+raw[hair_of].SkeletalMesh.MorphTargets=targets(256,'H')
+local tail_of=her('Tail',X..'Tail2.Tail2',{parent=body,bones=1})
+raw[tail_of].SkeletalMesh.MorphTargets=targets(1,'T')
+ok,said_of=face_with(256,false,{hair_of,tail_of})
+lines=look_lines()
+assert(ok and #words(line_of(lines,'morphs 1 '))==258 and #words(line_of(lines,'morphs 2 '))==258 and
+    not has_prefix(lines,'morphs 3 '),tostring(said_of))
+assert(said_of:find('; morphs: 512; morphs left out: Tail %(over 512 in the table%)$'),said_of)
+-- Over the pose size: her face's 40 and a 892-bone part are 16408 bytes, 16368 without the morphs. The morph lines go
+-- and every leader stays.
+local heavy=her('Heavy',X..'Heavy.Heavy',{parent=body,bones=892})
+assert(Capture.pose_bytes({{bones=3},{bones=2,morphs=40},{bones=892}})==16408)
+ok,said_of=face_with(40,false,{heavy})
+lines=look_lines()
+assert(ok and not has_prefix(lines,'morphs ') and has_prefix(lines,'part 2 ') and
+    said_of:find('; morphs of 1 parts left out, over the pose size',1,true),tostring(said_of))
+-- With 30 on the heavy part too (890 bones): the last part's go first, her face's stay.
+heavy.state.bones=890
+raw[heavy].SkeletalMesh.MorphTargets=targets(30,'W')
+ok,said_of=face_with(40,false,{heavy})
+lines=look_lines()
+assert(ok and has_prefix(lines,'morphs 1 ') and not has_prefix(lines,'morphs 2 ') and
+    said_of:find('; morphs: 40; morphs of 1 parts left out, over the pose size',1,true),tostring(said_of))
+-- Past the table's room the values keep it: the morph lines stay home. Under one generation they stay as its first
+-- table had them, so her poses keep their size: past the room once, they stay home when the values go.
+local roomy_values={}
+for k=1,16 do roomy_values[k]=scalar('RoomValue'..k,k) end
+local roomy=dynamic(skin,{ScalarParameterValues=roomy_values})
+raw[body].OverrideMaterials=slots(1,{roomy})
+local wordy_names={}
+for b=1,640 do wordy_names[b]=('w'):rep(60)..b end
+local wordy=her('Wordy',X..'Wordy.Wordy',{parent=body,bones=640,names=wordy_names})
+looks={faces=true,dyes=true}
+face_with(1,false,{wordy}) -- Measured: the table without its morph line, the value lines.
+local text_of=published[#published]
+local value_bytes=0
+for line in text_of:gmatch('\nvalue [^\n]*') do value_bytes=value_bytes+#line end
+assert(value_bytes>300,'the values fit')
+local geometry=#text_of-value_bytes-#text_of:match('\nmorphs 1 [^\n]*')
+local want=56000-geometry-value_bytes//2 -- A morph line with the values over the room, without them within it.
+local long,count=nil,(want-11)//64
+long={}
+for k=1,count do long[k]=string.format('m%062d',k) end
+long[#long+1]=('z'):rep(want-9-64*count-1)
+assert(9+64*count+#long[#long]+1==want and #long<=256)
+ok,said_of=face_with(long,false,{wordy})
+lines=look_lines()
+assert(ok and not has_prefix(lines,'morphs ') and has_prefix(lines,'value 0 0 s RoomValue16 ') and
+    said_of:find('; morphs of 1 parts left out, over the table size',1,true),tostring(said_of))
+raw[roomy].ScalarParameterValues={}
+for _=1,8 do step(1) end -- One part's values a look, a table at most each 5 s.
+lines=look_lines()
+assert(#published==2 and published[2]:find('^generation 100001\n') and not has_prefix(lines,'value ') and
+    not has_prefix(lines,'morphs '),'The same generation: still none')
+looks.faces=false
+step(1)
+looks.faces=true
+ok,said_of=step(1)
+assert(ok and said_of:find('^Capture 100003: ') and #words(line_of(look_lines(),'morphs 1 '))==#long+2,
+    tostring(said_of))
+raw[body].OverrideMaterials=slots(1,{skin})
+looks={}
+
 print('capture_test ok')

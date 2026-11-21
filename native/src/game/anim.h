@@ -113,15 +113,33 @@ template <class Live> bool alive(Live &&live, uint64_t ch, int32_t index, int32_
 // over the blend-in through FUN_1421119c0 under the key "ASBCharacter::PlayCustomAnim_29770", at priority 100. SB's
 // stop turns it back on only while the slot's +0x68 still reads 1 or 2 (feet() below covers the other ends). 0
 // leaves her foot IK alone.
+// The ride is also held (vehicles/bike/ride.lua's hold way, bike_pose=hold): hold 1 and kRidePriority. The by-path
+// call passes its 17th argument on as PlayCustomAnim's 17th (0x1420b7dea), which writes it to the slot's byte +0x34
+// (0x1420b36e0). PlayCustomAnim compares priorities only while the slot is held that way or its clip has time left
+// (0x1420b3041..0x1420b3050). It refuses a new play only when its priority is strictly lower than the slot's +0x30
+// (COMISS, JC at 0x1420b3052). A loop with count -1 has no time left (+0x04 is -1), so without hold any play of SB's
+// replaces the ride. The by-path entry refuses too while +0x34 is set (FUN_1420b39b0 is then false).
+// kRidePriority sits between 100.0 (0x146750350) and 101.0 (0x146750358). It refuses SB's fixed slot-0 plays at 0, 90.0
+// (0x146750338) and 99.0 (0x14675034c, the FixedTargetRotation turn 0x142037f0e). It refuses the player tick block
+// 0x14206947a in its 100.0 branch (0x1420692f5). The 101.0 plays still replace the ride: CancelEventMove's play
+// 0x142094ff3, the slide slip end 0x14208303b, 0x14206947a in its 101.0 branch. It stays below 101.0 for SB's stop at
+// 0x142063b6d (in FUN_1420634f0). That stop runs when slot 0's priority is 101.0 or more (COMISS, JA at 0x142063b32)
+// and her state passes the tests at 0x142063a3e..0x142063b25, among them +0x2051 set, +0xa94 below 0, +0x204c at
+// most 0, +0x2050 and +0x2052 clear. It passes the FName None: index 0 from FUN_140e4abf0 (0x142063b40), number 0.
+// StopCustomAnim compares the slot's clip name (+0x3c, 0x1420b24ba) only for a name other than None (0x1420b24a2:
+// 0x147017b00 is the name pool's entry of "None"), so it would end any clip.
+constexpr float kRidePriority = 100.5f;
 struct Play {
   float start = 0, end = -1, rate = 1, blend_in = 0.25f, blend_out = 0.25f, input_blend = -1, priority = 0;
-  uint8_t loop = 0;
+  uint8_t loop = 0, hold = 0;
   int32_t loops = -1, foot_ik = 0;
 };
 inline Play play(bool loop, bool ride = false) {
   Play p;
   p.loop = loop || ride ? 1 : 0;
   p.foot_ik = ride ? 2 : 0;
+  p.priority = ride ? kRidePriority : 0;
+  p.hold = ride ? 1 : 0;
   return p;
 }
 

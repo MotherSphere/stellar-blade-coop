@@ -49,11 +49,13 @@ if M.link then
 end
 -- What the ghost shows: the settings', changed by coop look until the mod reloads (game start or Ctrl+R: the settings
 -- again). The ghost holds this same table.
-M.look={cloth=M.settings~=nil and M.settings.cloth,dyes=M.settings~=nil and M.settings.dyes,
-    effects=M.settings~=nil and M.settings.effects}
+local LOOKS={'cloth','dyes','effects','drone','sounds','faces'}
+M.look={}
+for _,name in ipairs(LOOKS) do M.look[name]=M.settings~=nil and M.settings[name] end
 function M.looks()
-    return 'look: cloth='..(M.look.cloth and 'on' or 'off')..' dyes='..(M.look.dyes and 'on' or 'off')..' effects='
-        ..(M.look.effects and 'on' or 'off')
+    local words={}
+    for _,name in ipairs(LOOKS) do words[#words+1]=name..'='..(M.look[name] and 'on' or 'off') end
+    return 'look: '..table.concat(words,' ')
 end
 if M.settings then
     log(M.looks())

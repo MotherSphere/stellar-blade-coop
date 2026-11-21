@@ -22,6 +22,16 @@ namespace coop::pose {
 // 60 s) through event; while the Night Operation poller is on, samples it every 100 ms into nightop-probe.txt (it
 // stops on coop off).
 void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::function<void(const std::string &)> &event);
+// Her asset names (game/events.h's SBA lines), worker thread. asset_lines(): the lines the game thread named since the
+// last call, for glue/steam.cpp's NameBook (while coop loopback runs and no link session is on, slot 0's table takes
+// them too: in a link session slot 0 holds a member's names). asset_line_in(): a member's SBA line with her ghost slot
+// (kMaxRemote or more: none), into the slot's table and its coop-names file. asset_keys_clear(): a link session starts
+// or ends, the game thread's asset keys start again from 1. asset_slot_reset(): the slot's member changed, its names,
+// its coop-names and coop-loaded files and its loaded objects go.
+std::vector<std::string> asset_lines(bool linked);
+void asset_line_in(size_t slot, const std::string &line);
+void asset_keys_clear();
+void asset_slot_reset(size_t slot);
 // Worker thread: coop-state.txt as last read (every 250 ms): whether a save is loaded, the send rate, the synced photo
 // mode's fields (ours, photo_sync and photo_freeze_max); its defaults until Lua wrote one.
 coop::State lua_state();
@@ -198,6 +208,16 @@ bool shortcut_load_pass(std::string &save, std::string &line);
 // through ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build,
 // after coop off and with no EVE read. Returns the line for the log.
 std::string ask_items(const coop::Request &request);
+// Worker thread, the fishing tournament (online/modes/fishing/fishing.h): Lua's fishbook request, our EVE's fishing log
+// book, read now through ReadProcessMemory; the answer goes in the engine line's fish= (status()). Refused off the
+// pinned build and after coop off. Returns the line for the log, empty while the answer's kind (read, or none and why)
+// stays the same: Lua asks once a second.
+std::string ask_fishbook(const coop::Request &request);
+// Worker thread, the photo hunt (online/modes/photohunt/photohunt.h): Lua's photohunt request, SB's photo check of 1 to
+// 3 rows at each photo of the selfie mode, from the game thread's next frame, or photohunt off; the answer goes in the
+// engine line's photohunt= (status()). Refused off the pinned build, after coop off and after its latch's fault, with a
+// none answer. Returns the line for the log.
+std::string ask_photohunt(const coop::Request &request);
 // Worker thread, the Night Operation shop's screen (online/modes/nightop/shop_ui.h): Lua's nightshop request, SB's shop
 // screen opened on Shop_NightOperation_Coop or _CoopBolt, or closed, at the game thread's next frame. Refused off the
 // pinned build and after its latch's fault; after coop off, only a close. Returns the line for the log; fight_pass logs
@@ -303,6 +323,14 @@ std::string ask_bike(const coop::Request &request);
 // gate on with each action's earlier state, off, refused; each ride play's clip in memory or not) and returns a line
 // for the player's screen (the fault's), or empty.
 std::string bike_pass();
+// Doro races' hold on EVE (online/modes/race/hold.h), worker thread. Lua's race hold or race tick, on or off
+// (Command::race): her movement's four fields, or her mesh's tick option, set from the game thread's next frame, or put
+// back; refused off the pinned build, after coop off and after its fault. A new Lua load and coop off put both back.
+// Returns the line for the log.
+std::string ask_race(const coop::Request &request);
+// Every pass: logs each change the game thread made (what is applied and why not, a field the game wrote again, kept
+// values dropped with their object) and returns a line for the player's screen (the fault's), or empty.
+std::string race_pass();
 // SB's HUD under the SBO lobby's screens (online/lobby/hud_game.inc), worker thread. Lua's hud hide on or off
 // (Command::hud): our key in the HUD's set of hiding keys from the game thread's next frame, or out of it; coop off
 // takes it out too.
@@ -311,6 +339,8 @@ void ask_hud(bool hide);
 void hud_pass();
 // Every pass: logs each answer of the team shop's screen (world/teamshop/shop_ui.h's describe) and its fault once.
 void teamshop_pass();
+// Every pass: logs the photo hunt's fault once (online/modes/photohunt/photohunt_worker.inc).
+void photohunt_pass();
 // The pause menu's Online tab (ui/pause_tab_game.inc, ui/pause_tab.h), worker thread. Lua's pausetab on or off
 // (Command::pausetab): RB on the pause menu's last tab opens the Online tab only while on (on until Lua says off). A
 // change is logged.

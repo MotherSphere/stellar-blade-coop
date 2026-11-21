@@ -180,6 +180,8 @@ reads only in photo mode.
 
 So the native part plays the clip (`game/anim.h`, `eve/anim_game.inc`). Lua asks `anim play <id> <path> once|loop`
 (the id counts up from the load's start time; the path must start with `/Game/Art/Character/PC/CH_P_EVE_01/Animation/`).
+The bike's hold way asks `anim play <id> <path> ride`: the same call, with her foot IK off, held in slot 0 at priority
+100.5 ([The hold](../vehicles/bike-internals.md#the-hold)).
 
 On its next frame the game thread takes our EVE as the pawn (`AController::Pawn`, `+0x2f8`) of the player controller
 SB's getter `0x142321ee0` gives, the actor `UEHelpers.GetPlayer` gives Lua, once it checked she is a live
