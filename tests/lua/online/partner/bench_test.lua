@@ -277,6 +277,35 @@ assert(files[Bench.FILE]=='bench off\n' and files[Bench.LIST]=='')
 count=#writes
 reloaded.tick()
 assert(#writes==count,'once a Lua load')
+-- A lost bench off: under Wine the worker's open handle keeps a removed file's name, so the rename fails and no file
+-- is left. The next pass writes it again. A new Lua load writes it when no file is there while the worker's window or
+-- her table still is (the bench may still run); with none of them nothing is written.
+do
+    local own,lose={},false
+    local disk={read_file=function(name) return own[name] end,
+        write_file=function(name,t)
+            if lose and name==Bench.FILE then own[name],lose=nil,false; return false end
+            own[name]=t; return true
+        end}
+    local c=new_bench(disk)
+    c.ghosts('2')
+    c.sync()
+    assert(own[Bench.FILE]=='bench 0\n')
+    lose=true
+    c.off('test')
+    assert(own[Bench.FILE]==nil,'lost')
+    c.sync()
+    assert(own[Bench.FILE]=='bench off\n','written again at the next pass')
+    for _,left in ipairs({Bench.OUT,Bench.TABLE}) do
+        own[Bench.FILE],own[Bench.OUT],own[Bench.TABLE]=nil,nil,nil
+        own[left]='left by the worker\n'
+        new_bench(disk).tick()
+        assert(own[Bench.FILE]=='bench off\n','a new load with '..left)
+    end
+    own[Bench.FILE],own[Bench.OUT],own[Bench.TABLE]=nil,nil,nil
+    new_bench(disk).sync()
+    assert(own[Bench.FILE]==nil,'never run: no file')
+end
 
 -- The wiring: with the native part, the bench's ghosts tick, place and sync with the members' ghosts; coop bench
 -- reaches it; coop off ends it. A fake ghost and capture stand for the module's own files.

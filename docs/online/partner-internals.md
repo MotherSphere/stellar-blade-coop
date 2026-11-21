@@ -614,7 +614,10 @@ Lua sends a list built on the new table. A block whose display does not parse on
 the file's blocks, not in those taken. A stride other than 1, 2 or 4, an offset past 30000 cm (300 m), a 65th block or
 a bad head makes the whole file malformed. The writes then stop until a good file, with `bench file refused: malformed`
 in `coop-link.log`. Lua writes a file by removing the old one before it renames the new one in. A missing file during a
-run is therefore no change. Before a run it reads as off.
+run is therefore no change. Before a run it reads as off. Under Wine a removed file keeps its name while the worker has
+it open, so a write that lands during the worker's read fails and leaves no file. Lua writes it again at its next pass,
+`bench off` included. A new Lua load that finds no `coop-bench.txt` while `coop-bench-out.txt` or
+`coop-bench-table.txt` is there writes `bench off`.
 
 ### Each frame
 
@@ -697,9 +700,9 @@ shadow passes (not read in this build), so a ghost seen only through its shadow 
 
 - A map change: each bench ghost goes and is built again on her new table, as any ghost is. The native part records
   her loop again on the new capture.
-- A Lua reload ends the bench. The next load's first tick destroys the actors `coop-bench-ghosts.txt` lists that still
-  have a PoseableMeshComponent root, then writes `bench off`. It logs `Bench: <n> ghosts of an earlier Lua load
-  removed.` when it destroyed any.
+- A Lua reload ends the bench. The next load's first tick or pass destroys the actors `coop-bench-ghosts.txt` lists that
+  still have a PoseableMeshComponent root, then writes `bench off`. It logs `Bench: <n> ghosts of an earlier Lua
+  load removed.` when it destroyed any.
 - `coop off` removes the bench ghosts and writes `bench off` (`online/partner/wiring.lua`'s `M.ghosts_off`). The worker
   then removes the out and table files.
 - Photo mode, the pause and cutscenes change nothing for the bench. Its writes keep the alive, class, mesh and owner

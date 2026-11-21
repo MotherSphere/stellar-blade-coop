@@ -18,7 +18,7 @@
 -- tick() each frame before the native tick, place() after it, sync() every 250 ms (online/partner/wiring.lua runs them
 -- with M.ghosts'); each returns a list of {ok, message}. off(why) at coop bench off and coop off. A map change needs
 -- nothing here: each ghost goes and is built again on the new table, as any ghost is. A Lua reload ends the bench: the
--- next load's first tick destroys the actors coop-bench-ghosts.txt lists and writes "bench off".
+-- next load's first tick or pass destroys the actors coop-bench-ghosts.txt lists and writes "bench off".
 local U=require('core.unreal')
 local Bench={}
 Bench.MAX,Bench.FIRST_SLOT=64,101
@@ -140,7 +140,11 @@ function Bench.new(o)
             end
         end
         listed=put(Bench.LIST,'',list or '')
-        written=put(Bench.FILE,'bench off\n',link.read_file(Bench.FILE) or 'bench off\n')
+        -- No file reads as off, unless the worker's window or her table is still there: an earlier load's write was
+        -- lost (see sync) and the native part may still run that bench.
+        local now=link.read_file(Bench.FILE)
+        if not now and not link.read_file(Bench.OUT) and not link.read_file(Bench.TABLE) then now='bench off\n' end
+        written=put(Bench.FILE,'bench off\n',now)
         if n>0 then
             out[#out+1]={true,string.format('Bench: %d ghost%s of an earlier Lua load removed.',n,n==1 and '' or 's')}
         end
@@ -263,7 +267,13 @@ function Bench.new(o)
     -- Every 250 ms: the native part's table to each ghost, the files when they changed, a line for a new window.
     function self.sync()
         local out={}
-        if not on then return out end
+        if not on then
+            -- bench off again when its write was lost: under Wine a file the worker has open keeps its name once
+            -- removed, so the rename fails and no file is left. The native part keeps a run while the file is missing.
+            sweep(out)
+            written,listed=put(Bench.FILE,'bench off\n',written),put(Bench.LIST,'',listed)
+            return out
+        end
         local w=Bench.parse_out(link.read_file(Bench.OUT))
         if w then
             generation=w.generation
