@@ -1386,7 +1386,9 @@ function GunMode.new(env)
             -- outside the game's aim (a jump or a dodge out of it, or hip fire) its TPSFire fires nothing: gun mode fires
             -- in hip fire the shot waits until the rifle points at the target (she turns first): bore error under
             -- cfg.hip_aligned degrees, measured this frame or the last (gunmode's chest loop); the flip shoots along the bore
-            local aligned=s.flip or ((s.bore_err or 180)<(cfg.hip_aligned or 10) and now-(s.bore_at or 0)<0.1)
+            -- without the rifle layer no bore is measured: the jump or dodge bridge fires at once, hip fire not at all
+            local aligned=s.flip or (not s.layer and s.air_aim)
+                or ((s.bore_err or 180)<(cfg.hip_aligned or 10) and now-(s.bore_at or 0)<0.1)
             local before=ammo.left
             if not tps and inp.fire and aligned and not s.morph and ammo.left>0 and not ammo.reload_until then pcall(shoot,p,now) end
             if s.prof then s.prof('native') end

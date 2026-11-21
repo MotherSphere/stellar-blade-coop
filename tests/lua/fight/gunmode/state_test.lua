@@ -508,4 +508,25 @@ do
     toggle(gun,false)
 end
 
+-- 15. Without the rifle layer no bore is measured: the jump or dodge bridge (the game's aim dropped with RMB still held)
+--     fires gun mode's own shot at once, as it did before v4. Hip fire without the layer fires nothing.
+do
+    local w=Fake.new(); w.install()
+    -- The layer's install fails ('no other body to rebuild with'): the rifle clips alone (zNGMSpike_P), with her own
+    -- walk (the fake has no P_Eve_Peaceful row for the carry set).
+    w.no_base,w.pak=true,true
+    local gun,logs=new('gun_carry_ovr=off\n')
+    toggle(gun,true); frames(gun,40)
+    assert(not gun.state.layer,'no layer: '..table.concat(logs,'|'))
+    w.down.LeftMouseButton=true; frames(gun,30); w.down.LeftMouseButton=nil
+    assert(gun.state.shots==0,'no hip fire without the layer: '..gun.state.shots)
+    w.down.RightMouseButton,w.pawn.bTPSMode=true,true; frames(gun,5)
+    w.pawn.bTPSMode=false; frames(gun,2) -- a jump drops the game's aim
+    assert(gun.state.air_aim,'the bridge holds firing mode')
+    w.down.LeftMouseButton=true; frames(gun,30)
+    assert(gun.state.shots>0,'the bridge fires without the layer: '..table.concat(logs,'|'))
+    w.down.RightMouseButton,w.down.LeftMouseButton=nil,nil; frames(gun,2)
+    toggle(gun,false)
+end
+
 print('gunmode state: ok')
