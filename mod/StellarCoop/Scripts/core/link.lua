@@ -320,9 +320,9 @@ end
 -- nil, name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16,
 -- each from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a
 -- file written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
--- auto_coop_save, aggro, photo_pause, follow_host, status_overlay, bike_pose) one of its words; photo_freeze_max a whole number of
--- seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the scales a number from 1 to 4, digits
--- with a decimal point or none
+-- auto_coop_save, aggro, photo_pause, follow_host, status_overlay, bike_pose) one of its words; photo_freeze_max a
+-- whole number of seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the scales a number from
+-- 1 to 4, digits with a decimal point or none
 -- (fight/enemies/commands.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and
 -- commas only, at most 200 bytes (the native part's request limit; it names the entries that are no shared quest);
 -- drift_keys a list of Unreal key names (online/modes/race/drive.lua reads them with IsInputKeyDown), at most 4, empty

@@ -116,7 +116,7 @@ template <class Live> bool alive(Live &&live, uint64_t ch, int32_t index, int32_
 // The ride is also held (vehicles/bike/ride.lua's hold way, bike_pose=hold): hold 1 and kRidePriority. The by-path
 // call passes its 17th argument on as PlayCustomAnim's 17th (0x1420b7dea), which writes it to the slot's byte +0x34
 // (0x1420b36e0). PlayCustomAnim compares priorities only while the slot is held that way or its clip has time left
-// (0x1420b3041..0x1420b3050), and refuses a new play only when its priority is strictly lower than the slot's +0x30
+// (0x1420b3041..0x1420b3050). It refuses a new play only when its priority is strictly lower than the slot's +0x30
 // (COMISS, JC at 0x1420b3052). A loop with count -1 has no time left (+0x04 is -1), so without hold any play of SB's
 // replaces the ride. The by-path entry refuses too while +0x34 is set (FUN_1420b39b0 is then false).
 // kRidePriority is above 101.0 (0x146750358), the highest fixed priority SB plays into slot 0 with (CancelEventMove's

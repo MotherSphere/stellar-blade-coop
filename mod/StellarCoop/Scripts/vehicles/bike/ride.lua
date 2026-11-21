@@ -19,8 +19,8 @@
 -- at each mount (a change during a ride counts from the next mount; a word other than rig or hold is the rig, logged
 -- once):
 -- - rig, the default: vehicles/bike/rig.lua's hidden actor plays the riding clip in her body mesh (Ride.SPARE when that
---   mesh is on another skeleton than the clip's), its path and its mesh's written to coop-bike.txt as fields 8 and 9,
---   then her main mesh and her outfit parts copy its bones. No custom animation slot of hers is used.
+--   mesh is on another skeleton than the clip's). Its actor's path and its mesh's path go to coop-bike.txt as fields 8
+--   and 9. Then her main mesh and her outfit parts copy its bones. No custom animation slot of hers is used.
 -- - hold: "anim play <id> <clip> ride", the riding clip looped on EVE herself, her foot IK off, held in her custom
 --   animation slot 0 above SB's own plays there (native/src/game/anim.h).
 -- A dismount runs it backward: the part hidden, the rig unhooked (each part pointed back at her main mesh) then gone,
@@ -1004,8 +1004,9 @@ function Ride.new(o)
         log('bike restored from coop-bike.txt: '..(ok and said or 'failed ('..why_of(said)..')')
             ..(kept and ', coop-bike.txt kept' or ''))
     end
-    -- coop bike status: the preload, the part, the ride (with its way), the values, where the bike is (its distance only
-    -- from her feet on its map) and the paint for her body mesh, named by its whole path (the key a modder copies).
+    -- coop bike status: the preload, the part, the ride (with its way), the values, where the bike is (its distance
+    -- only from her feet on its map) and the paint for her body mesh, named by its whole path (the key a modder
+    -- copies).
     function self.status()
         local w=Ride.native(status())
         local h=here
