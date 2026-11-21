@@ -65,7 +65,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   stop, the yaw rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp
   launch only after 0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
 - `fight/gunmode/helpers_test` covers gun mode's pure parts: its settings as `core/link.lua` parses them (the defaults
-  without them, `gun_key` with its modifier or none, `gun_spread` from 0 to 10, its test lines with refusals), the polled keys' edges and D-pad
+  without them, `gun_key` with its modifier or none, `gun_spread` from 0 to 10, its test lines with refusals), the
+  polled keys' edges and D-pad
   Right's tap (a hold is the bike's), the crosshair point in EVE's frame and the rifle's magazine (a round per cool
   time, the reload when empty and none when lowered part-spent, the HUD count, no round once the spares are spent, a
   refill). The reticle's round slot shows the round's name, the reload word and the empty word in the menu's language.
@@ -88,7 +89,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   map the drones come from the engine's class hash with no walk. A frame of the posed stance reads no bone name and
   makes no FName. The rifle out, its arrival, the aim, the rounds through a reload and the departure look for no asset
   with `StaticFindObject` and load none of the assets the keep holds. The layer's rebuild takes a body already in
-  memory. The keep holds the laser sight's two assets. Over 30 s carried, aiming and firing, the Lua heap after a full collection grows less than 8 KB.
+  memory. The keep holds the laser sight's two assets. Over 30 s carried, aiming and firing, the Lua heap after a full
+  collection grows less than 8 KB.
   `coop-gun.txt`'s line is not built again while nothing changes. The perf line gives the heap's lowest point and the
   `on` and `off` lines the heap. A keep lookup that raises falls through to the engine's name hash: the rifle comes out
   with no tick error. A frame where the game's aim drops with RMB held (one on each shot) leaves her facing flags as
@@ -116,7 +118,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   shows no glyph. A new HUD gets the entry built anew, sized, placed and with its glyph. A widget whose address another
   object took gets no write. After a Lua reload nothing is made over a live widget and the marker's overlay holds the
   entry once, the crosshair too. A HUD without the item column is tried once with one log line. The pad glyph walk
-  runs once each time the pad layer comes up until it finds the glyph, which the HUD's entry then keeps. `hide` takes both off the HUD. Through gun mode over
+  runs once each time the pad layer comes up until it finds the glyph, which the HUD's entry then keeps. `hide` takes
+  both off the HUD. Through gun mode over
   `fight/gunmode/fake.lua` with a stub entry: it is ticked ten times a second with the configured key (nil with
   `gun_key=none`). It gets `rounds | magazines` while the rifle is out and no text while it is away. The crosshair is
   off while the rifle is away. `coop off` takes it off the HUD. There is none with `gun_mode=off` or
@@ -152,7 +155,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   modifier. It turns her mesh back and gives her movement its own facing flags. Each drone part gets its own visibility
   back. A start puts back what an earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers,
   booleans, strings, FNames and vectors exactly. A frame writes it once at most, the press of F4 twice: the rifle out,
-  its arrival, the aim and the departure wrote it 9 times on four frames, now 5 times. A start whose input mask or rifle fails gives back what it took, as
+  its arrival, the aim and the departure wrote it 9 times on four frames, now 5 times. A start whose input mask or rifle
+  fails gives back what it took, as
   does a start that raises once the rifle layer is on. A new controller clears the old pawn's state at once; its
   deferred reset shows the drone, puts her facing back and takes the layer off her new body. Her facing flags go back
   only to the movement they were taken from: another object at its address after a map change gets no write;
@@ -179,7 +183,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   During the rifle's arrival TPSMode
   has no key (RMB and LT included). A pause keeps it so. Once the arrival is over it moves to RMB. The 'off' line
   counts the rounds the game's aim fired. Her audio components and the ones playing are logged after 30 rounds and at
-  each off, with no walk of every audio component. With `gun_fire=own` the 60th shot starts a reload, no shot leaves while it runs and the shots go on after
+  each off, with no walk of every audio component. With `gun_fire=own` the 60th shot starts a reload, no shot leaves
+  while it runs and the shots go on after
   it, also after the player's reload. The free magazines keep their count when the rifle goes away and comes out
   again. A new controller while the rifle is away fills them again. Without the rifle layer the jump or dodge bridge fires gun mode's own shot. Hip fire then fires nothing.
   A round fired in the double-jump flip keeps the bore's destination to the frame's end. In the game's aim the
@@ -201,7 +206,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   The page has no ", and" or ", but", no bold-label bullet and no
   "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
   The same holds for each run of comment lines in `input.lua`, `ik.lua`, `mode.lua`, `aimrot.lua`, `ui/dpad.lua`,
-  `rifle.lua`, `ik_pin_test`, `input_memo_test`, `rifle_frame_test`, `morph_test` and `cost_test`. No sentence ends inside a parenthesis in those runs.
+  `rifle.lua`, `ik_pin_test`, `input_memo_test`, `rifle_frame_test`, `morph_test` and `cost_test`. No sentence ends
+  inside a parenthesis in those runs.
   Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
 - `fight/gunmode/release_test` runs `fight/gunmode/release_check.lua` on gun mode's shipped defaults: no debug flag
   of `Config.DEFAULTS` is on. It first sees the check refuse a test-only line (`gun_facts=on`), a changed release

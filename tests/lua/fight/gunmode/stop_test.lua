@@ -313,7 +313,8 @@ do
     out(gun)
     local s=gun.state
     local part=w.component(w.pawn); part.bHiddenInGame=true
-    local move={IsValid=function() return true end,GetFullName=function() return 'CharacterMovementComponent Old.Move' end,
+    local move={IsValid=function() return true end,
+        GetFullName=function() return 'CharacterMovementComponent Old.Move' end,
         bOrientRotationToMovement=false,bUseControllerDesiredRotation=true}
     s.drone={actor=w.pawn,parts={{c=part,hidden=false,visible=true}}}
     s.facing={cm=move,orient=true,desired=false,at='Old.Move'}

@@ -143,7 +143,8 @@ mode fires no round of its own on such a frame: the game's aim fires its own. He
 through it.
 
 A jump drops the game's aim stance in the air. Gun mode keeps the rifle up, keeps her turned to the camera and fires
-the NIKKE shot itself from the jump's second frame until the aim button is let go, after landing as well. Press RMB / LT again to get the game's
+the NIKKE shot itself from the jump's second frame until the aim button is let go, after landing as well. Press RMB / LT
+again to get the game's
 strafing aim back. On the rifle layer each of these shots waits until the rifle points within 10 degrees of the
 reticle point. Without the layer nothing measures the rifle's line, so the shots leave at once.
 

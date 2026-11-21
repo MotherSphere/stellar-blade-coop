@@ -251,8 +251,8 @@ function GunMode.new(env)
     -- or loaded on the frame of a press. Nothing with gun_mode=off. The NIKKE shot's show too: held, the anim key
     -- fight/gunmode/data.lua empties at a rifle out stays the one each round plays. The layer's rebuild bodies
     -- (Overlay.BASES) too: neither was in memory at the first rifle out of the 2026-11-21 test, so one loaded on that
-    -- frame (layer 49 ms, 11 ms at the next rifle outs). Both are held: she may wear one of them. The laser's two assets
-    -- too (LASER): after a collection the aim start loaded its system on the frame.
+    -- frame (layer 49 ms, 11 ms at the next rifle outs). Both are held: she may wear one of them. The laser's two
+    -- assets too (LASER): after a collection the aim start loaded its system on the frame.
     if set.on then
         local want={Overlay.CLASS,Overlay.CLIPS.carry,Overlay.CLIPS.aim,Overlay.CLIPS.aimup,Overlay.CLIPS.aimdown,
             Rifle.WEAPON,CAMMOD,cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx,turn_clip('P_Eve_Gun_RotateLw'),
@@ -760,9 +760,9 @@ function GunMode.new(env)
     -- copy, the drone's hidden parts as they were, the carry stance, the posed stance's own changes (stance.lua), her
     -- mesh's rotation before the aim turned it, the aim camera's modifier, her movement's facing flags as they were,
     -- the morph's cube and out while the rifle is out; gone when nothing is changed. A line the file already holds is
-    -- not written again. true when written (or with no file at all), else false and why, logged. Inside a tick (in_tick)
-    -- the write waits for the tick's end, so a frame writes the file once: each write makes, removes and renames a
-    -- file on the game thread (four on the frame of F4). now: write at once (a start checks its write).
+    -- not written again. true when written (or with no file at all), else false and why, logged. Inside a tick
+    -- (in_tick) the write waits for the tick's end, so a frame writes the file once: each write makes, removes and
+    -- renames a file on the game thread (four on the frame of F4). now: write at once (a start checks its write).
     local kept -- The line this load last wrote (false: cleared), so the same line is not written each second.
     local in_tick,owed=false,false
     function keep(now)
@@ -1098,7 +1098,9 @@ function GunMode.new(env)
         pcall(ammo.sync)
         -- the arrival: a cube in her hand turns into the rifle (fight/gunmode/morph.lua); the tick runs it. Made before
         -- the write, which then lists the cube too (give_all_back drops it when the write fails).
-        if cfg.morph~=false and s.layer then s.morph={dir='in',t0=os.clock()}; pcall(cube_make,p); pcall(single.morph,0,0) end
+        if cfg.morph~=false and s.layer then
+            s.morph={dir='in',t0=os.clock()}; pcall(cube_make,p); pcall(single.morph,0,0)
+        end
         lap('cube')
         if not keep(true) then
             give_all_back(); g.log('off: coop-gun.txt could not be written (see above)'); notice(os.clock(),'failed')
@@ -1476,12 +1478,12 @@ function GunMode.new(env)
             -- without the rifle layer no bore is measured: the jump or dodge bridge fires at once, hip fire not at all
             local aligned=s.flip or (not s.layer and s.air_aim)
                 or ((s.bore_err or 180)<(cfg.hip_aligned or 10) and now-(s.bore_at or 0)<0.1)
-            -- A frame where the game's aim dropped after a frame in it (each shot's skill drops it for a frame) fires no
-            -- round of gun mode's own: the game's aim fires its own. A jump or a dodge has gun mode fire from its second frame.
+            -- A frame where the game's aim dropped after a frame in it (each shot's skill drops it for a frame) fires
+            -- no round of gun mode's own: the game's aim fires its own. A jump or a dodge has gun mode fire from its
+            -- second frame.
             local before=ammo.left
-            if not (tps or s.tps_was) and inp.fire and aligned and not s.morph and ammo.left>0 and not ammo.reload_until then
-                pcall(shoot,p,now)
-            end
+            local own=not (tps or s.tps_was) and inp.fire and aligned and not s.morph
+            if own and ammo.left>0 and not ammo.reload_until then pcall(shoot,p,now) end
             if s.prof then s.prof('native') end
             -- the timer counts the game's own rounds (its aim); gun mode's own shots count themselves (shoot -> ammo.spend).
             -- s.shots takes both: the 'off' line counted only gun mode's own shots ('0 shots' after a burst, 11-21).
@@ -1740,9 +1742,9 @@ function GunMode.new(env)
                     end
                 end
             end)
-            -- the game's aim stance turns her side-on; her mesh is turned back toward the aim (eased). A frame where the
-            -- aim dropped after a frame in it (each shot's skill) keeps the turn: each drop eased it a quarter of the way
-            -- back.
+            -- the game's aim stance turns her side-on; her mesh is turned back toward the aim (eased). A frame where
+            -- the aim dropped after a frame in it (each shot's skill) keeps the turn: each drop eased it a quarter of
+            -- the way back.
             pcall(function()
                 local m=mesh
                 if not s.mesh_rot then local r=m.RelativeRotation; s.mesh_rot={Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll}; s.mesh_yaw=0
