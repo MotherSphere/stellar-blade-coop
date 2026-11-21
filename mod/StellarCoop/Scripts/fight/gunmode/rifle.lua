@@ -94,7 +94,7 @@ function Rifle.new(laser,trace,grip,loaded)
         eased_at=st and st.before or os.clock() -- (the frame before this tick's: one tick's step, as the IK's)
         if st and valid(st.gun) then pcall(self.send,st.gun,os.clock()) end
     end
-    -- eased one step toward GRIP (lerp, and the short-way nlerp for the rotation); nil once there
+    -- eased one step toward GRIP (a lerp, with the short-way nlerp for the rotation); nil once there
     local function ease(now)
         local k=1-math.exp(-math.max(0,now-eased_at)/require('fight.gunmode.ik').CFG.pin_blend); eased_at=now
         local a,b=eased.Translation,GRIP.Translation

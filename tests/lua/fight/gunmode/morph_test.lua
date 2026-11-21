@@ -22,8 +22,8 @@ for _,f in ipairs({0.1,0.4,0.7,0.95}) do
     assert(close(o.cube,i.cube) and close(o.rifle,i.rifle),'out vs in at '..f)
 end
 assert(M.at('out',M.OUT).done and close(M.at('out',M.OUT).rifle,0) and close(M.at('out',M.OUT).cube,0))
--- 5. The spin: no jump at a phase change (the full-size rifle snapped 90 deg at the end of the fold), and a whole
--- number of turns once the rifle is out, so it lands in her hand as the grip holds it.
+-- 5. The spin: no jump at a phase change (the full-size rifle snapped 90 deg at the end of the fold). It ends on a
+-- whole number of turns once the rifle is out, so it lands in her hand as the grip holds it.
 for _,dir in ipairs({'in','out'}) do
     local T=dir=='in' and M.IN or M.OUT
     local prev

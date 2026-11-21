@@ -407,7 +407,7 @@ do
             PostProcessAnimBlueprint=w.own_class}
     end
     local seen=w.find
-    function w.find(path) if bodies[path] then return nil end return seen(path) end -- not in memory, but kept
+    function w.find(path) if bodies[path] then return nil end return seen(path) end -- not in memory: the keep holds it
     local loads={}
     local load=LoadAsset
     LoadAsset=function(path) loads[path]=(loads[path] or 0)+1; return load(path) end
