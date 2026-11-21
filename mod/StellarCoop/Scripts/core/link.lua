@@ -134,7 +134,7 @@ enemy_extra=0
 # removed.
 spawn_filter=on
 # Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
-# hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
+# hold shares one HP bar and one death, as a common enemy does. With same_place=on, aggro decides whom it fights.
 # boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
 # to 4.0.
 bosses=on
