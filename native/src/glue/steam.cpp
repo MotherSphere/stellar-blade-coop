@@ -736,6 +736,10 @@ bool step() {
       event(coop::pose::ask_scenes(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::spectate: // Spectate's setting, status and test: the game thread's step reads them.
+      event(coop::pose::ask_spectate(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::travel: // The follow's call: the game thread's.
       event(coop::pose::ask_travel(coop::parse_request(request)));
       request.clear();

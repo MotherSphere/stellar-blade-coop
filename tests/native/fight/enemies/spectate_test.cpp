@@ -18,7 +18,7 @@ namespace {
 Facts fighting() {
   Facts f;
   f.life = 3, f.hud = 1, f.setting = true, f.paired = true, f.running = true, f.boss = true;
-  f.me = 0, f.near = 1, f.up = 1, f.zone_type = 1;
+  f.me = 0, f.nearby = 1, f.up = 1, f.zone_type = 1;
   return f;
 }
 
@@ -48,7 +48,7 @@ int main() {
     stays_off([](Facts &f) { f.paired = false; });
     stays_off([](Facts &f) { f.running = false; });
     stays_off([](Facts &f) { f.boss = false; });
-    stays_off([](Facts &f) { f.near = kNoMember; });
+    stays_off([](Facts &f) { f.nearby = kNoMember; });
     stays_off([](Facts &f) { f.zone_type = 2; });
     stays_off([](Facts &f) { f.zone_type = 5; });
     stays_off([](Facts &f) { f.zone_type = 6; });
@@ -174,7 +174,7 @@ int main() {
     Facts f = fighting();
     Spectate s;
     s.step(f, 0);
-    f.near = kNoMember;
+    f.nearby = kNoMember;
     s.step(f, 250);
     assert(s.on() && s.out() == Out::none);
   }

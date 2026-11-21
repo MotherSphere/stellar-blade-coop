@@ -336,6 +336,18 @@ private:
   // the guest's side the host's bstart for a pair of ours in the last kBattleEndMs, taken or not; and the enemies of
   // this pass in BattleMode (state 30, as marks() read it) within kPartCm of our EVE.
   template <class Game> void battles(Game &g, size_t n, uint64_t now);
+  // Spectate's facts (phase 3) into the table each turn, after the bosses' pass: the fight= line's boss, our member,
+  // the other member up by her vitals (unknown kMateMs after the last), an HP scene held. While our EVE's life reads 2
+  // or 3 also our boss copy (the first BossMonster of this pass not dying, one in battle mode first, kept until we
+  // stand), whether it died since, its phase rows (Boss::ids it holds, as a set) hashed, the other member's ghost
+  // within spectate::kNearCm of it and our zone's type; at the turn it reads 3, whether an LV_Dead effect is on our
+  // EVE. Then the pit relocation: our EVE back up (1 or 6) from 3 after such a death, spectate and her ghost on at the
+  // last publish, moved once 200 cm from her ghost toward where our EVE stands, at her capsule centre's height
+  // (pvp::kLiftCm over her feet), through SB's relocation thunk, logged. A camp respawn (spectate off) moves nobody.
+  template <class Game> void spectate_turn(Game &g, uint64_t logic, size_t n, uint64_t now);
+  // Our zone's ESBZoneType (ZoneTable row +0x25) through SB's ZoneTable lookup, kept for its alias; 0 while unread.
+  // Plain reads: a failed one never latches.
+  template <class Game> uint8_t zone_type(Game &g, uint64_t logic);
   // A copy whose +0x638 our own effect call made our EVE (cast()): the other side's crowd control, not her part.
   bool lent(uint32_t guid) const;
   // A copy the host gave up (Io::unshare): its kill was hers alone. Never taken in again, nor same spawns' Monster.
@@ -848,7 +860,14 @@ private:
   int32_t eve_life_ = 0;
   bool boss_ = false;
   uint32_t battle_ = 0, zone_ = 0, resets_ = 0;
-  bool spectating_ = false; // Our EVE watches the fight (spectate): a boss's HP scenes wait. Nothing sets it yet.
+  // Spectate (phase 3, spectate_turn()): our boss copy since our EVE went down (0: none yet), whether it died, its
+  // phase signature, our EVE's life at the last turn, an LV_Dead death and whether it was read, and our zone's type by
+  // alias.
+  uint32_t spec_boss_ = 0, spec_sig_ = 0;
+  bool spec_died_ = false, spec_pit_ = false, spec_pit_read_ = false;
+  int32_t spec_life_ = 0;
+  uint64_t spec_alias_ = 0;
+  uint8_t spec_zone_type_ = 0;
 };
 
 } // namespace coop::fight

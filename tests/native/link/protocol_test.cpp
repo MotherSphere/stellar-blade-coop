@@ -1061,6 +1061,16 @@ int main() {
          parse_request("scenes status").command == Command::scenes);
   for (const char *bad : {"scenes", "scenes On", "scenes on now", "scenes  off", "scenesoff", "scene on", "scenes stat"})
     assert(parse_request(bad).command == Command::none);
+  // Spectate (phase 3, fight/enemies/spectate.h): spectate on, off, status or test, nothing else.
+  assert(parse_request("spectate on\n").command == Command::spectate &&
+         parse_request("spectate on").spectate == Spectate::on &&
+         parse_request("spectate off\r\n").spectate == Spectate::off &&
+         parse_request("spectate status").spectate == Spectate::status &&
+         parse_request("spectate test").spectate == Spectate::test &&
+         parse_request("spectate test").command == Command::spectate);
+  for (const char *bad : {"spectate", "spectate maybe", "spectate On", "spectate on now", "spectate  off",
+                          "spectateoff", "spectate stat", "spectate tests"})
+    assert(parse_request(bad).command == Command::none && parse_request(bad).spectate == Spectate::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");

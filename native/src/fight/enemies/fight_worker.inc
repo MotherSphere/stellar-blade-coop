@@ -481,6 +481,7 @@ void region_tabs_pass(); // region_tabs_worker.inc's, after this part.
 void sbo_pass();         // sbo_worker.inc's, after this part.
 void pad_hook_pass();    // pad_worker.inc's, after this part.
 void pause_tab_pass();   // pause_tab_worker.inc's, after this part.
+void spectate_pass(bool paired, bool running); // spectate_worker.inc's, after this part.
 uint32_t rows_logged[kRowWordCount] = {};
 bool lion_fault_logged = false, shock_logged = false;
 void lion_pass() {
@@ -562,6 +563,9 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   }
   fight_worker.pass(now_ms, linked, hosting, lua.world, lines, [marker] { return fight_gate(marker); }, io, photo,
                     mate, paused, partner);
+  // Spectate's pair: the shared fight asked on with her linked and not stopped for the run (turned off or stopped, she
+  // gets the death screen back); its running: with her, no pause on either side (spectate then holds and waits).
+  spectate_pass(linked && fight_worker.mode() == Fight::on && !fight_engine.latched(), fight_worker.both());
   filter_pass();
   pilot_pass(now_ms, linked, lines, send);
   return fight_engine.on();

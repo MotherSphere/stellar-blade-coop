@@ -143,6 +143,10 @@ std::string world_status();
 // and off set shared_story until the next ask (on until the first one); status returns coop-status.txt's story line.
 // Refused off the pinned build and after coop off. Returns the line for the log.
 std::string ask_scenes(const coop::Request &request);
+// Worker thread, spectate (fight/enemies/spectate.h): Lua's spectate request (Command::spectate). on and off set the
+// setting until the next ask (on until the first one); status returns its words; test hides the death screen at life
+// 3 while nobody is paired, until our EVE is up or 14 s passed. Returns the line for the log.
+std::string ask_spectate(const coop::Request &request);
 // Worker, every pass after world_pass and before fight_pass, story together (game/story/sync.h, game/story/engine.h):
 // takes her SBS lines out of lines and hands them to the game thread with the gates (shared_story, on while Lua sets
 // nothing; partner: her SteamID while she is linked, else 0; host: we own the lobby and lead; match: a match lobby, the

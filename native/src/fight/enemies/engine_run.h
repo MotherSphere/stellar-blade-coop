@@ -176,6 +176,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     probe_fence_.clear();
     next_probe_ = 0;
     mate_ = Life::unknown, mate_ms_ = 0, bstart_ms_ = 0, boss_ = false, battle_ = zone_ = 0;
+    spec_boss_ = spec_sig_ = 0, spec_died_ = spec_pit_ = spec_pit_read_ = false, spec_life_ = 0;
     proxy_ = pvp::Proxy(), pvp_counts_ = pvp::Counts(), gate_ = pvp::HitGate(), skill_ = 0, skill_ms_ = 0, seq_ = 0;
     // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
     // from it (a late claim number would make the new guest's claims look like lies, and 16 of them ignore her).
@@ -215,7 +216,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     return her == Life::alive || her == Life::coma;
   };
   host.set_down(down, her_up());
-  host.set_spectating(spectating_), guest.set_spectating(spectating_);
+  host.set_spectating(flags_.spectating), guest.set_spectating(flags_.spectating); // As the game thread last said.
   Message m;
   while (g.receive(m)) {
     if (m.type == Type::mate) { // The worker's, never hers: her life. Her lines after it are judged on it.
@@ -278,6 +279,8 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     pilot_turn(g, logic, n, census, now_ms);
   if (!latched_)
     bosses(g, logic, n, census, now_ms);
+  if (!latched_)
+    spectate_turn(g, logic, n, now_ms);
   // Read once: a latch from the game thread after this read still gets the push, and that last run lifts.
   const bool stop = latched_;
   if (stop) // Stopped in this turn: no other run comes, so our overrides come off now.

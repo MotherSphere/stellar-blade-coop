@@ -253,6 +253,7 @@ private:
     case Command::popups:
     case Command::loading:
     case Command::sky:
+    case Command::spectate:
       break;
     case Command::match:
       ask_match(r);

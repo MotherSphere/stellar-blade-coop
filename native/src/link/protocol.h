@@ -973,7 +973,10 @@ inline std::string masked(std::string_view text) {
 // shared world (game/objects/sync.h, world/objects/world_worker.inc) "world on" and "world off" (shared_world, until
 // the next ask) and "world status" (its line in the log); for story together (game/story/sync.h,
 // story/together/story_worker.inc) "scenes on" and "scenes off" (shared_story, until the next ask) and "scenes status"
-// (its line in the log); for the follow (online/group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m>
+// (its line in the log); for spectate (fight/enemies/spectate.h, fight/enemies/spectate_worker.inc) "spectate on" and
+// "spectate off" (the spectate setting, until the next ask), "spectate status" (its line in the log) and "spectate
+// test" (the death screen held at life 3, alone);
+// for the follow (online/group/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m>
 // ..." or "camps <id> none <why>" (the camps lines, relayed to the friend by link/core.h), and "travel <alias> <FName
 // index> <FName number>" (the call on the game thread, glue/tick.cpp: an index above 0, both within 32 bits); for the
 // travel to a member (online/group/travel.lua) "spot? <id> <SteamID>" (the spot? line to that member, not 0), "spot
@@ -1025,7 +1028,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score, spot, rest
+  pausetab, popups, teamshop, score, spot, rest, spectate
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1089,6 +1092,7 @@ enum class BikeAsk : uint8_t { load, free, gate_on, gate_off };
 // sky: SB's light back, the minute shown kept (photo mode), the shared clock, or a pinned minute
 // (world/daynight/sky.h's Mode).
 enum class SkyAsk : uint8_t { off, cycle, hour, hold };
+enum class Spectate : uint8_t { none, on, off, status, test }; // spectate: what.
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
 constexpr uint64_t kMaxFightChange = 10'000'000; // game/fight/sync.h's kMaxStat.
@@ -1164,6 +1168,7 @@ struct Request {
   uint32_t point_index = 0, point_number = 0; // sbo warp: the start point's FName.
   std::string why;              // sbo abort: Lua's word.
   SkyAsk sky = SkyAsk::off;     // sky: what.
+  Spectate spectate = Spectate::none; // spectate: what.
   uint16_t minute = 0;          // sky hour: the minute of the game day, 0 to 1439.
   uint8_t horizon = 0;          // sky cycle, sky hour: the map's horizon in degrees, 0 to 30.
   uint16_t heading = 0;         // sky cycle, sky hour: the map's noon heading in degrees, 0 to 359.
@@ -1609,6 +1614,13 @@ inline Request parse_request(std::string text) {
   } else if (text == "scenes on" || text == "scenes off" || text == "scenes status") {
     r.command = Command::scenes;
     r.world = text[8] == 'n' ? WorldAsk::on : text[8] == 'f' ? WorldAsk::off : WorldAsk::status;
+  } else if (text == "spectate on" || text == "spectate off" || text == "spectate status" ||
+             text == "spectate test") {
+    r.command = Command::spectate;
+    r.spectate = text[10] == 'n'   ? Spectate::on
+                 : text[10] == 'f' ? Spectate::off
+                 : text[9] == 's'  ? Spectate::status
+                                   : Spectate::test;
   } else if (text == "loopback off" || text == "freeze off") {
     r.command = text[0] == 'l' ? Command::loopback : Command::freeze;
     r.off = true;

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "fight/enemies/engine.h"
+#include "fight/enemies/spectate.h" // kNearCm
 
 namespace coop::fight {
 
@@ -454,6 +455,91 @@ template <class Game> void Engine::battles(Game &g, size_t n, uint64_t now) {
     battle_ += (marks_[i] & kRowBattle) && eve_ok && g.read(fsbs_[i] + kLocation, at, sizeof at) &&
                within(at, eve, kPartCm);
   }
+}
+
+template <class Game> void Engine::spectate_turn(Game &g, uint64_t logic, size_t n, uint64_t now) {
+  constexpr float kPitCm = 200; // The pit relocation: this far from her ghost.
+  SpectateFacts &f = table_.spec;
+  const Life her = now - mate_ms_ < kMateMs ? mate_ : Life::unknown;
+  const uint8_t other = hosting_seen_ ? kPairMember : kHostMember;
+  const int32_t life = eve_life_;
+  f = SpectateFacts();
+  f.boss = boss_, f.me = hosting_seen_ ? kHostMember : kPairMember;
+  f.up = her == Life::alive || her == Life::coma ? other : kNoMember;
+  f.scene_hold = (hosting_seen_ ? host.scene_held() : guest.scene_held()) != 0;
+  if (!life) // Unread: nothing of the down kept or dropped.
+    return;
+  if ((life == 1 || life == 6) && spec_life_ == 3 && spec_pit_ && flags_.spectating && flags_.her_ok) {
+    const uint64_t fsb = local_fsb(g);
+    float eve[3];
+    if (plausible(fsb) && g.read(fsb + kLocation, eve, sizeof eve) && std::isfinite(eve[0]) && std::isfinite(eve[1])) {
+      const float dx = eve[0] - flags_.her[0], dy = eve[1] - flags_.her[1], d = std::hypot(dx, dy);
+      const float at[3] = {flags_.her[0] + (d > 0 ? dx / d * kPitCm : 0), flags_.her[1] + (d > 0 ? dy / d * kPitCm : 0),
+                           flags_.her[2] + pvp::kLiftCm};
+      g.relocate(fsb, at);
+      g.event(Event{"pit relocate", ""});
+    }
+  }
+  spec_life_ = life;
+  if (life != 2 && life != 3) { // Standing (or leaving the map): the next down starts afresh.
+    spec_boss_ = spec_sig_ = 0, spec_died_ = spec_pit_ = spec_pit_read_ = false;
+    return;
+  }
+  if (life == 3 && !spec_pit_read_) // The turn it reads 3, or the first after with our EVE found.
+    if (const uint64_t la = eve(g, logic)) {
+      spec_pit_read_ = true;
+      each_effect(g, la, [&](uint64_t, int32_t id) { spec_pit_ = spec_pit_ || boss_rows::lv_dead(id); });
+    }
+  const Seen *b = spec_boss_ ? fight::find(seen_, n, spec_boss_) : nullptr;
+  for (int pass = 0; !spec_boss_ && pass < 2 && !b; ++pass) // One in battle mode first, then any.
+    for (size_t i = 0; i < n && !b; ++i) {
+      uint8_t battle = 0;
+      if (seen_[i].boss && !dying(seen_[i]) && (pass || (g.read(fsbs_[i] + kBattleFlag, &battle, 1) && battle)))
+        b = &seen_[i];
+    }
+  if (b && !spec_boss_)
+    spec_boss_ = b->guid;
+  spec_died_ = spec_died_ || (b && dying(*b));
+  const Boss *row = b ? boss_row(b->chr) : nullptr;
+  int32_t held[kMaxEffects];
+  const uint64_t la = row ? g.find(logic, b->guid) : 0;
+  const int32_t hn = la ? effect_ids(g, la, held) : -1;
+  if (hn >= 0) { // Its phase rows as a set (sorted, each once), FNV-1a over their bytes; a copy unread keeps the last.
+    int32_t ids[kMaxEffects];
+    size_t k = 0;
+    for (int32_t i = 0; i < hn; ++i)
+      if (mirrored(*row, held[i]) && std::find(ids, ids + k, held[i]) == ids + k)
+        ids[k++] = held[i];
+    std::sort(ids, ids + k);
+    uint32_t h = 2166136261u;
+    for (size_t i = 0; i < k; ++i)
+      for (int bit = 0; bit < 32; bit += 8)
+        h = (h ^ (uint32_t(ids[i]) >> bit & 0xff)) * 16777619u;
+    spec_sig_ = h;
+  }
+  float at[3];
+  if (b && f.up != kNoMember && flags_.her_ok && g.read(fsbs_[b - seen_] + kLocation, at, sizeof at) &&
+      within(at, flags_.her, float(spectate::kNearCm)))
+    f.nearby = other;
+  f.copy_died = spec_died_, f.phase_sig = spec_sig_, f.pit = spec_pit_;
+  f.zone_type = zone_type(g, logic);
+}
+
+template <class Game> uint8_t Engine::zone_type(Game &g, uint64_t logic) {
+  uint64_t alias = 0, holder = 0, tables = 0;
+  if (!g.read(logic + kZoneAlias, &alias, sizeof alias) || !alias)
+    return 0;
+  if (alias == spec_alias_)
+    return spec_zone_type_;
+  uint8_t type = 0;
+  if (!g.read(base_ + (kTables - kImageBase), &holder, sizeof holder) || !plausible(holder) ||
+      !g.read(holder + kTablesAt, &tables, sizeof tables) || !plausible(tables))
+    return 0;
+  const uint64_t row = g.zone_row(tables, alias);
+  if (!plausible(row) || !g.read(row + kZoneTypeAt, &type, 1))
+    return 0;
+  spec_alias_ = alias, spec_zone_type_ = type;
+  return type;
 }
 
 inline bool Engine::lent(uint32_t guid) const {

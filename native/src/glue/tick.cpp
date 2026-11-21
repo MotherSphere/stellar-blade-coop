@@ -199,6 +199,17 @@
 // under its own SEH latch, on the game thread. It swaps back at coop off and after a fault, and logs the first screen
 // once.
 //
+// Spectate (phase 3, fight/enemies/spectate.h): a player down in a shared boss fight watches the other member. Each
+// frame in game coop_tick reads our EVE's life, the death screen's state (HUDDead, found through SB's UI manager the
+// way the death path reaches it) and, while our EVE is down, SB's MultiPlay rule row through SB's own lookup; with the
+// job's facts (the pair table's spec) spectate decides, and SB's death screen setter keeps the screen hidden while it
+// watches, then gives it back once with SB's own value. The worker swaps HUDDead's press handler slot once a run for a
+// filter on the game thread that swallows Left and Right while spectate holds or would enter, so no press starts the
+// camp respawn; the WB Pump's button always passes. A leave, coop off and a fault each give the screen back once; the
+// worker swaps the slot back at coop off and after a fault. All of it runs under its own SEH latches (the tick, the
+// filter, the swap); status() gives the setting and the screen's state in the engine line, and the fight= line carries
+// spectate's state.
+//
 // The SBO lobby's Join (game/sbo.h): on Lua's sbo arm the worker swaps one pointer of the game's image once a run, the
 // ZoneEvent action's vtable +0x88, for a hook on the game thread that counts the action whose alias is the recruiter's
 // Join and always runs the game's function; the worker logs the first Join, swaps back at coop off and puts the count
@@ -341,6 +352,7 @@
 #include "online/group/travel_game.inc"
 #include "online/group/camps_game.inc"
 #include "rows/rows_game.inc"
+#include "fight/enemies/spectate_game.inc" // After rows_game.inc and pilot_game.inc: its lion_gate, pilot_stream.
 #include "glue/tick/debug_game_shared.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "eve/debug_game.inc"
 #include "ui/pause_tab_game.inc" // After debug_game_shared.inc: its UI calls and ui_reads.
@@ -372,6 +384,7 @@
 #include "online/saves/saves_worker.inc"
 #include "glue/tick/fight_worker_shared.inc"
 #include "fight/enemies/fight_worker.inc"
+#include "fight/enemies/spectate_worker.inc" // After fight_worker_shared.inc: its swap_slot, slot_value and Filter.
 #include "online/group/region_tabs_worker.inc"
 #include "ui/pause_tab_worker.inc" // After pause_tab_game.inc: its hook and flags.
 #include "glue/tick/sbo_worker_shared.inc"
@@ -465,6 +478,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // back.
   if (game_pinned && !pilot_faulted && (!blocked || driver.holding()))
     guarded_pilot();
+  // Spectate's death screen hold, its own latch: a step each frame in game; after coop off only while its hold is on
+  // the screen, to give it back once; after a fault one release, then nothing.
+  if (game_pinned && (!blocked || spectate_holding()))
+    spectate_tick(clock_us() / 1000);
   // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
   if (game_pinned && !quest_faulted && !blocked)
     quest_tick();

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "fight/enemies/engine.h"
+#include "fight/enemies/spectate.h"
 
 namespace coop::fight {
 
@@ -120,6 +121,10 @@ private:
   std::mutex pilot_;
   PilotTable table_;
   StreamFlags flags_;
+
+public:
+  // The game thread's spectate word (spectate.h's Spectate::word()), stored each tick; the worker reads it each pass.
+  std::atomic<uint64_t> spectate{0};
 };
 
 // The worker's side, on our own thread, which never calls SB: the user's coop fight requests, the gates, channel 2's
@@ -169,14 +174,16 @@ public:
   // stats. photo: our player in photo mode (photo_mode()). mate: her life (link/core.h's mate_life()), which the job
   // gets while the mode runs with her as a local mate message: at each change, and while it is down or alive each
   // kMateEveryMs and at each new session (the job reads unknown at its start, and kMateMs after the last). paused: SB
-  // holds a pause tag (world_paused()). partner: the linked friend's SteamID (0: none), for the PvP test.
+  // holds a pause tag (world_paused()). partner: the linked friend's SteamID (0: none), for the PvP test. Spectate
+  // (phase 3): the game thread's word read from Mail, her spec line kept for the fight= line, ours sent (spectated()).
   template <class Gate, class Io>
   void pass(uint64_t now_ms, bool linked, bool hosting, bool world, const std::vector<std::string> &lines, Gate &&gate,
             Io &io, bool photo = false, Life mate = Life::unknown, bool paused = false, uint64_t partner = 0) {
     now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world, photo_ = photo;
+    spec_ = mail_.spectate;
     e_.pvp_peer(partner);
     if (!linked)
-      her_ = "?", her_said_ = 0;
+      her_ = "?", her_said_ = 0, her_spec_ = kNoMember;
     last_ = mail_.take(
         [&](const Message &m) { // A stopped session's last lines go nowhere: she dropped it.
           if (running_ && ran_ == Fight::record)
@@ -203,6 +210,11 @@ public:
           io.say("fight: a malformed line from her dropped (said once a session)");
         continue;
       }
+      if (m.type == Type::spec) { // Her spectate (phase 3): for the fight= line, never the job's; her state stays.
+        her_spec_ = m.watched;
+        continue;
+      }
+      spec_again_ = spec_again_ || m.type == Type::on; // Ours again after her on (a pair back mid-fight).
       // Her off said when her state changes, kHerSaid times a link at most: repeats cannot fill the log.
       const char *state = her_state(m, reason);
       if (std::strcmp(state, her_) != 0 && m.type == Type::off && her_said_ < kHerSaid) {
@@ -244,6 +256,7 @@ public:
     if (!said.empty())
       io.say(said);
     tell(now_ms, io);
+    spectated(linked, hosting, io);
     const bool again = mate_session_ != e_.session() || now_ms >= mate_at_ + kMateEveryMs; // Unknown needs none.
     if (running_ && ran_ == Fight::on && (mate != mate_ || (mate != Life::unknown && again))) {
       Message m;
@@ -259,6 +272,8 @@ public:
 
   // The mode on runs with her: our lines go to her (same-place enemies' too).
   bool sharing() const { return running_ && ran_ == Fight::on; }
+  // Spectate's running fact (phase 3): we share and her last line is no off (her photo mode, a pause tag, her save).
+  bool both() const { return sharing() && std::strcmp(her_, "on") == 0; }
   // A replay runs: stage 5's solo probes may act on its copies.
   bool replaying() const { return running_ && ran_ == Fight::replay; }
   // Same-place enemies as of the last second, for coop-status.txt's pilot line (glue/tick.cpp adds the rest): "on
@@ -292,7 +307,7 @@ public:
   // " why=<why it last stopped>" once it ran; while she is linked, " her=<on|own-save|off|stopped|waiting|?>" before
   // the why. The why last: it has spaces.
   std::string detail() const {
-    const std::string her = linked_ ? std::string(" her=") + her_ : std::string();
+    const std::string her = (linked_ ? std::string(" her=") + her_ : std::string()) + spectate_words();
     if (e_.latched())
       return "fight=stopped" + her + " why=" + e_.why();
     if (running_)
@@ -301,10 +316,46 @@ public:
       const char *why = waits();
       return std::string("fight=waiting mode=") + name(mode_) + her + " why=" + (why ? why : "starting");
     }
-    return "fight=off" + her + (last_why_.empty() ? std::string() : " why=" + last_why_);
+    return std::string("fight=off") + (linked_ ? std::string(" her=") + her_ : std::string()) +
+           (last_why_.empty() ? std::string() : " why=" + last_why_);
   }
 
 private:
+  // Spectate's words on the fight= line (phase 3): ours from the game thread's word, the member she watches as her
+  // last spec line said it (- for none), and our member number (0 the host or alone, 1 the pair).
+  std::string spectate_words() const {
+    return spectate::words(spec_) + " her_spec=" + spectate::member(her_spec_) + " mem=" +
+           (linked_ && !hosting_ ? "1" : "0");
+  }
+  // Each pass: our spec line to her at each change of the member we watch and again after her on (none before we
+  // first watch), and a log line at each enter, reason to get up and leave of the game thread's spectate.
+  template <class Io> void spectated(bool linked, bool hosting, Io &io) {
+    const bool on = spec_ & 1;
+    const uint8_t watched = on ? uint8_t(spec_ >> 8) : kNoMember, up = uint8_t(spec_ >> 16), out = uint8_t(spec_ >> 40);
+    const uint32_t upn = uint32_t(spec_ >> 24 & 0xFFFF);
+    if (on && !said_on_)
+      io.say("spectate on: watching member " + spectate::member(watched));
+    if (on && upn != said_upn_)
+      io.say(std::string("spectate: up (") + spectate::up_name(up) + "), reason " + std::to_string(upn));
+    if (!on && said_on_)
+      io.say(std::string("spectate off: ") + (out ? std::string(spectate::out_name(out)) + ", the death screen back"
+                                                  : std::string("our EVE is up")));
+    said_on_ = on, said_upn_ = upn;
+    if (!linked) {
+      spec_told_ = kSpecNever, spec_again_ = false;
+      return;
+    }
+    if (watched == spec_told_ && !spec_again_)
+      return;
+    if (spec_told_ == kSpecNever && watched == kNoMember) { // Nothing told yet, nothing to tell.
+      spec_again_ = false;
+      return;
+    }
+    Message m;
+    m.type = Type::spec, m.member = hosting ? kHostMember : kPairMember, m.watched = watched;
+    if (io.send(format(m), true))
+      spec_told_ = watched, spec_again_ = false;
+  }
   // ask()'s answer. On and pvp wait for a co-op save (the gate's kNoCoopSave); the solo tools need one now, and any
   // other refusal of the gate refuses them all. fight pvp off ends a pvp mode, waiting or running, and nothing else.
   template <class Gate, class Io> std::string asked(const Request &r, Gate &&gate, Io &io) {
@@ -820,6 +871,14 @@ private:
   Replay replay_;
   bool replay_said_ = false;
   std::map<uint32_t, std::string> shown_; // probe: each actor's last line said.
+  // Spectate (phase 3): the game thread's word as of this pass, the member she watches by her last spec line, the
+  // member we last told her we watch (kSpecNever: nothing since the link came), our spec due again after her on, and
+  // what the log last said of ours.
+  static constexpr uint8_t kSpecNever = 0xFE;
+  uint64_t spec_ = 0;
+  uint8_t her_spec_ = kNoMember, spec_told_ = kSpecNever;
+  bool spec_again_ = false, said_on_ = false;
+  uint32_t said_upn_ = 0;
 };
 
 } // namespace coop::fight

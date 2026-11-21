@@ -176,6 +176,20 @@ struct PilotPair {
   uint8_t oe = 0;                   // The owner epoch, one up at each hand-over.
   uint16_t bits = 0;                // kRow*.
 };
+// Spectate's facts (phase 3, fight/enemies/spectate.h's Facts), the engine's reads for the game thread each turn:
+// boss: the fight= line's boss=1; copy_died: our boss copy died since our EVE went down; phase_sig: that copy's phase
+// rows hashed (0: not computed); scene_hold: an HP scene of ours waits (Host or Guest::scene_held); me: our member
+// number (0 the host, 1 the pair); nearby: the other member alive or in Coma by her vitals, her ghost within 100 m of
+// our boss copy (not "near", a macro in Windows headers); up: the other member alive or in Coma by her vitals, any
+// distance; zone_type: our zone's ZoneTable row +0x25; pit: an LV_Dead effect was on our EVE when its life went to 3.
+// phase_sig and nearby only while our EVE's life reads 2 or 3.
+struct SpectateFacts {
+  bool boss = false, copy_died = false;
+  uint32_t phase_sig = 0;
+  bool scene_hold = false;
+  uint8_t me = kHostMember, nearby = kNoMember, up = kNoMember, zone_type = 0;
+  bool pit = false;
+};
 // The pair table the job hands the game thread after each turn (Mail::publish): the side's pairs, at most kMaxPairs.
 struct PilotTable {
   bool on = false; // same_place on, no pilot latch, and on the host her on: owners capture, drawn copies follow.
@@ -187,6 +201,7 @@ struct PilotTable {
   uint64_t ms = 0;
   uint8_t count = 0;
   PilotPair pairs[kMaxPairs];
+  SpectateFacts spec; // Spectate's facts as of this turn, whatever on says.
 };
 // What the game thread says back, by the host's GUID: the drawn pairs whose owner's stream says BattleMode, those whose
 // copy it refused to drive (its movement component is not the game's), which the job lets go as if their freeze were
@@ -194,7 +209,8 @@ struct PilotTable {
 // stage 3c: frozen despite their release flag), and the pairs this side owns whose take-over it refused
 // at that epoch (game/pilot.h's Taker: SB's force target needs net mode 0 and no logic task in flight), which the
 // guest gives back with own-no target; and on the host's side where her EVE stands (her ghost, in our world), for stage
-// 3b's nearer rule.
+// 3b's nearer rule; on both sides whether our EVE watches the fight (spectate, phase 3: the game thread's
+// Spectate::on()), which the engine hands Host and Guest each turn and the pit relocation reads.
 struct StreamFlags {
   uint32_t battle[kMaxPairs] = {};
   uint8_t count = 0;
@@ -209,6 +225,7 @@ struct StreamFlags {
   uint8_t untaken_count = 0;
   float her[3] = {};
   bool her_ok = false; // her holds where her ghost was drawn this frame.
+  bool spectating = false;
 };
 // The rows the game thread captures (game/pilot.h's Capturer) into out, at most kMaxPairs: the pairs this side owns
 // and does not draw, with their SBE flags (kRowExec as game/pilot.h's kExec) and kRowTaken (the Taker's). Never a
@@ -268,6 +285,9 @@ struct Told {
 constexpr uint64_t kTables = 0x1470373b0, kSpawnManager = 0x147037438, kJobSender = 0x1470373c0;
 constexpr size_t kTablesAt = 0x20, kZoneAlias = 0x598, kSpawnState = 0x1c;
 constexpr size_t kRowSpawnType = 0x30, kRowZone = 0x34, kRowSaveType = 0x44, kRowKeep = 0x46, kZoneId = 0x10;
+// A ZoneTable row's ESBZoneType (FUN_141cf7630 compares it with 5, Zone_BossChallenge; the enumerator table
+// 0x145e29730 gives 2 Zone_TrainningRoom, 6 Zone_Nikke): spectate's enter rule (phase 3).
+constexpr size_t kZoneTypeAt = 0x25;
 constexpr size_t kFsbRotation = 0x4e4;
 constexpr size_t kMaxRows = 512, kMaxZones = 16; // Rows and zones kept for a session (the tables never change in one).
 

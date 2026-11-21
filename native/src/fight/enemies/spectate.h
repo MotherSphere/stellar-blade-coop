@@ -65,7 +65,7 @@ struct Facts {
   uint32_t phase_sig = 0;     // our boss copy's phase row set, hashed by the engine
   bool scene_hold = false;    // Task 4's hold on our boss pair
   uint8_t me = 0;             // our member number
-  uint8_t near = kNoMember;   // enter: a fight member alive or in Coma, drawn on our map within kNearCm
+  uint8_t nearby = kNoMember; // enter: a fight member alive or in Coma, drawn on our map within kNearCm
   uint8_t up = kNoMember;     // leave: a fight member alive or in Coma by her vitals, any distance
   uint8_t zone_type = 0;      // ZoneTable +0x25 of our zone (the engine's read)
   bool rule = false;          // a MultiPlay rule row is set (SB's own read, Task 6)
@@ -156,11 +156,11 @@ public:
 
 private:
   bool enter_ok(const Facts &f) const {
-    return !spent_ && f.setting && f.paired && f.running && f.boss && f.near != kNoMember && f.zone_type != 2 &&
+    return !spent_ && f.setting && f.paired && f.running && f.boss && f.nearby != kNoMember && f.zone_type != 2 &&
            f.zone_type != 5 && f.zone_type != 6 && !f.rule && f.standalone;
   }
   void enter(const Facts &f) {
-    on_ = true, watched_ = f.near, up_ = Up::none, out_ = Out::none, release_ = kNoRelease;
+    on_ = true, watched_ = f.nearby, up_ = Up::none, out_ = Out::none, release_ = kNoRelease;
     sig_ = f.phase_sig, boss_gone_ = false;
   }
   void leave(Out why, int32_t life) {
@@ -177,16 +177,24 @@ private:
   uint64_t clock_ = 0, prev_now_ = 0, up_at_ = 0, gone_at_ = 0;
 };
 
+// A word's names for the log and the fight= line: a member ("-" for none), an Up, an Out (each "-" when unknown).
+inline std::string member(uint8_t m) { return m == kNoMember ? std::string("-") : std::to_string(m); }
+inline const char *up_name(uint8_t up) {
+  static const char *const kUp[] = {"-", "boss", "phase", "scene"};
+  return up < 4 ? kUp[up] : "-";
+}
+inline const char *out_name(uint8_t out) {
+  static const char *const kOut[] = {"-", "nobody", "ended", "link", "off", "revive"};
+  return out < 6 ? kOut[out] : "-";
+}
+
 // " spec=1 watch=1 up=phase upn=2"; off: " spec=0 watch=- up=- upn=<n>".
 inline std::string words(uint64_t word) {
-  static const char *const kUp[] = {"-", "boss", "phase", "scene"};
   const bool on = word & 1;
-  const uint8_t watched = uint8_t(word >> 8), up = uint8_t(word >> 16);
   const std::string upn = std::to_string(uint32_t(word >> 24 & 0xFFFF));
   if (!on)
     return " spec=0 watch=- up=- upn=" + upn;
-  return " spec=1 watch=" + (watched == kNoMember ? std::string("-") : std::to_string(watched)) +
-         " up=" + (up < 4 ? kUp[up] : "-") + " upn=" + upn;
+  return " spec=1 watch=" + member(uint8_t(word >> 8)) + " up=" + up_name(uint8_t(word >> 16)) + " upn=" + upn;
 }
 
 } // namespace coop::fight::spectate

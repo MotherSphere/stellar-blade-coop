@@ -24,6 +24,7 @@ void block() {
   pad_hook_undo("coop off");
   world_off("coop off"); // Before sbo_off, which swaps back the ZoneEvent slot they share.
   story_off("coop off");
+  spectate_undo("coop off"); // The game thread's next step gives the death screen back (spectate's Out::off).
   sbo_off();
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.
@@ -94,6 +95,9 @@ std::string status() {
   // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)
     s += items_line;
+  // Spectate (fight/enemies/spectate.lua): the setting or the latch, and the death screen's state as last read.
+  if (game_pinned && !blocked)
+    s += spectate_status();
   s += pad_slate ? " pad=slate" : " pad=xinput"; // coop_pad's source: the game's controller events, or XInput.
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";

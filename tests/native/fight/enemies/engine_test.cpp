@@ -324,6 +324,8 @@ struct Game {
     for (const Summon &m : kSummons)
       if (m.effect == id || std::count(m.list, m.list + kMaxSummonEffects, id))
         return Row{id, 1 << 30, 0, 0};
+    if (coop::boss_rows::lv_dead(id)) // A death's LV_Dead rows on our EVE (phase 3's pit relocation).
+      return Row{id, 1 << 30, 0, 0};
     assert(false);
     return rows[0];
   }
@@ -2741,6 +2743,181 @@ int main() {
     hers(100);
     frame(g, *e, t += 16);
     assert(g.hp(130) == 1200 && count(g, "claim dropped") == 1 && e->host.counts.bad == 0 && !e->latched());
+  }
+  // ---- Phase 3: spectate's facts, the engine's reads for the game thread each turn ----
+  // The host with Marionette (130) in battle mode, our EVE at life 3, her vitals alive: the fight= line's boss, her as
+  // the member up and near (her ghost 50 m from the boss), our member 0 and our zone's type. Her ghost 150 m away: up,
+  // not near; her down: neither; her Coma: both; no vitals for kMateMs: nobody up. Our EVE standing: near and the phase
+  // signature not computed.
+  {
+    Game g;
+    g.spawns();
+    g.zone(0x5a0e, 77);
+    g.mem.put<uint8_t>(g.zone_rows[0x5a0e] + kZoneTypeAt, 1); // Zone_Public.
+    g.enter(0x5a0e);
+    auto e = engine(false, true);
+    e->allow(nullptr, 0);
+    e->bosses(100);
+    e->set(true, true);
+    g.spawn(130, 30, 0, 35026001, 1600, kTypeBoss); // Marionette.
+    g.mem.put<uint8_t>(g.fsb(130) + kBattleFlag, 1);
+    g.place(130, 0, 0);
+    g.inbox.push_back(msg("SBF25 on"));
+    const auto mate = [&](coop::Life state) {
+      Message m;
+      m.type = Type::mate, m.life = state;
+      g.inbox.push_back(m);
+    };
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(g, *e, t);
+    };
+    const SpectateFacts &f = g.table.spec;
+    g.flags.her_ok = true, g.flags.her[0] = 5000;
+    mate(coop::Life::alive);
+    run(500);
+    assert(f.boss && f.up == 1 && f.me == 0 && f.nearby == kNoMember && f.phase_sig == 0 && !f.copy_died);
+    g.mem.put<int32_t>(g.fsb(1) + kLife, 3); // Our EVE dead.
+    run(1000);
+    assert(f.boss && f.nearby == 1 && f.up == 1 && f.me == 0 && f.zone_type == 1 && f.phase_sig && !f.copy_died);
+    assert(!f.pit && !f.scene_hold && !e->latched());
+    g.flags.her[0] = 15000;
+    run(1500);
+    assert(f.nearby == kNoMember && f.up == 1);
+    g.flags.her[0] = 5000;
+    mate(coop::Life::down);
+    run(2000);
+    assert(f.nearby == kNoMember && f.up == kNoMember);
+    mate(coop::Life::coma);
+    run(2500);
+    assert(f.nearby == 1 && f.up == 1);
+    run(2500 + coop::kMateMs);
+    assert(f.nearby == kNoMember && f.up == kNoMember);
+    mate(coop::Life::alive);
+    run(6000);
+    assert(f.nearby == 1 && f.up == 1);
+    // spectate_phase_sig: a phase row added on our boss copy changes the signature; the same set again (the row twice,
+    // then once) gives the same value, and without it the first value again. The copy's death counts from then on.
+    const uint32_t first = f.phase_sig;
+    g.knock(130, 5026013);
+    run(6100);
+    const uint32_t second = f.phase_sig;
+    assert(second && second != first);
+    g.knock(130, 5026013);
+    run(6200);
+    assert(f.phase_sig == second);
+    g.end(130, 5026013);
+    run(6300);
+    assert(f.phase_sig == second);
+    g.end(130, 5026013);
+    run(6400);
+    assert(f.phase_sig == first && !f.copy_died);
+    g.hit(130, kHp, 1600);
+    run(6500);
+    assert(f.copy_died);
+    g.mem.put<int32_t>(g.fsb(1) + kLife, 1); // Up: a new down starts afresh.
+    run(7000);
+    assert(f.nearby == kNoMember && f.phase_sig == 0 && !f.copy_died && f.up == 1 && !e->latched());
+    // The guest's member number is 1.
+    Game h;
+    auto eg = engine(false, false);
+    eg->set(true, false);
+    for (uint64_t at = 0; at <= 200; at += 16)
+      frame(h, *eg, at);
+    assert(h.table.spec.me == 1 && h.table.spec.up == kNoMember && !h.table.spec.boss);
+  }
+  // ---- Phase 3: the pit relocation after a spectate revive ----
+  // An LV_Dead effect on our EVE when its life goes to 3, spectate on and her ghost drawn at (1000, 0, 0), our EVE at
+  // (0, 0, 0): back up, our EVE is moved once 200 cm from her ghost toward us, at her capsule centre's height. No
+  // LV_Dead row at death: no move. LV_Dead at death with spectate off (the camp respawn): no move.
+  {
+    Game g;
+    auto e = engine(false, true);
+    e->set(true, true);
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t <= until; t += 16)
+        frame(g, *e, t);
+    };
+    const auto life = [&](int32_t v) { g.mem.put<int32_t>(g.fsb(1) + kLife, v); };
+    g.flags.her_ok = true, g.flags.her[0] = 1000;
+    g.flags.spectating = true;
+    g.place(1, 0, 0);
+    run(500);
+    g.knock(1, 7000007); // LV_Dead.
+    life(3);
+    run(1000);
+    assert(g.table.spec.pit && g.relocated.empty());
+    life(1);
+    run(1016);
+    assert(g.relocated.size() == 1 && g.relocated[0].first == g.fsb(1) && count(g, "pit relocate") == 1);
+    assert((g.relocated[0].second == std::array<float, 3>{800, 0, pvp::kLiftCm}));
+    run(1500);
+    assert(g.relocated.size() == 1 && !g.table.spec.pit);
+    g.end(1, 7000007);
+    life(3);
+    run(2000);
+    assert(!g.table.spec.pit);
+    life(1);
+    run(2500);
+    assert(g.relocated.size() == 1);
+    g.knock(1, 7000007);
+    g.flags.spectating = false;
+    life(3);
+    run(3000);
+    assert(g.table.spec.pit);
+    life(1);
+    run(3500);
+    assert(g.relocated.size() == 1 && count(g, "pit relocate") == 1 && !e->latched());
+  }
+  // ---- Phase 3: spectate on the fight= line, live, and the spec lines both ways ----
+  // The game thread's word goes on the fight= line at the worker's next pass, with no stats second between, beside the
+  // member she watches by her spec line and our member number. Our spec line goes to her at each change of the member
+  // we watch and again after her on; the log says each enter, reason and leave once. Her spec line never reaches the
+  // job and leaves her state as it was. The running fact needs her last line not to be an off.
+  {
+    Desk io;
+    auto e = engine(false, true);
+    Mail mail;
+    Worker w(*e, mail);
+    const auto gate = [] { return std::string(); };
+    const std::vector<std::string> none;
+    uint64_t t = 0;
+    w.ask(coop::parse_request("fight on 900"), gate, io);
+    w.pass(t, true, true, true, none, gate, io);
+    assert(w.sharing() && !w.both() && io.lines() == "SBF25 on\n");
+    assert(has(w.detail(), " her=? spec=0 watch=- up=- upn=0 her_spec=- mem=0"));
+    w.pass(t += 16, true, true, true, {"SBF25 on"}, gate, io);
+    assert(w.both() && io.lines().empty());
+    io.said.clear();
+    mail.spectate = 1 | 1ull << 8 | 2ull << 16 | 2ull << 24; // On, watching 1, up for a phase, the second reason.
+    w.pass(t += 16, true, true, true, none, gate, io);
+    assert(has(w.detail(), " her=on spec=1 watch=1 up=phase upn=2 her_spec=- mem=0"));
+    assert(io.lines() == "SBF25 spec 0 1\n");
+    assert((io.said == std::vector<std::string>{"spectate on: watching member 1", "spectate: up (phase), reason 2"}));
+    w.pass(t += 16, true, true, true, none, gate, io);
+    assert(io.lines().empty() && io.said.size() == 2);
+    Snapshot s;
+    Message m;
+    assert(mail.exchange(s));
+    while (mail.receive(m))
+      ;
+    w.pass(t += 16, true, true, true, {"SBF25 spec 1 0", "SBF25 off photo mode", "SBF25 spec 1 0"}, gate, io);
+    assert(has(w.detail(), " her=waiting spec=1 watch=1 up=phase upn=2 her_spec=0 mem=0") && !w.both());
+    assert(mail.exchange(s) && mail.receive(m) && m.type == Type::off && !mail.receive(m));
+    w.pass(t += 16, true, true, true, {"SBF25 on"}, gate, io);
+    assert(io.lines() == "SBF25 spec 0 1\n" && w.both());
+    io.said.clear();
+    mail.spectate = 2ull << 24 | uint64_t(spectate::Out::nobody) << 40; // Left to the game's screen: nobody up.
+    w.pass(t += 16, true, true, true, none, gate, io);
+    assert(has(w.detail(), " spec=0 watch=- up=- upn=2 her_spec=0") && io.lines() == "SBF25 spec 0 -\n");
+    assert((io.said == std::vector<std::string>{"spectate off: nobody, the death screen back"}));
+    w.pass(t += 16, false, false, true, none, gate, io);
+    assert(has(w.detail(), " spec=0 watch=- up=- upn=2 her_spec=- mem=0 why=") && io.lines().empty());
+    // The guest says 1; after the link came back, nothing is sent until it watches.
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(has(w.detail(), " mem=1") && !has(io.lines(), " spec "));
   }
   // ---- Stage 3b, the guest's side ----
   // An own G at her epoch plus one, for a paired copy in life state 1 while same-place enemies run here: hers, her
@@ -6149,7 +6326,7 @@ int main() {
     // On with no friend linked: it waits. Her link with a save loaded starts it as the guest, the gate asked first.
     assert(ask("fight on 900") == "shared fight on: waiting for a linked friend" && !e->on());
     assert(w.status() == " fight=waiting" && ask("fight on 900") == "shared fight is already on (on)");
-    assert(w.detail() == "fight=waiting mode=on why=no friend linked");
+    assert(w.detail() == "fight=waiting mode=on spec=0 watch=- up=- upn=0 her_spec=- mem=0 why=no friend linked");
     asked = 0;
     // A same-place enemies' show line (game/pilot.h) from her is neither malformed nor the job's.
     w.pass(t, true, false, true, {"SBF25 show-stop 1 101 0 1 1000"}, gate, io);
@@ -6252,7 +6429,8 @@ int main() {
     const uint32_t before = e->session();
     w.pass(t += 16, true, false, true, {"SBF25 world 8"}, gate, io, true);
     assert(!e->on() && io.lines() == "SBF25 off photo mode\n" && io.said.back() == "shared fight paused: photo mode");
-    assert(w.detail() == "fight=waiting mode=on her=on why=photo mode" && mail.exchange(s) && !mail.receive(m));
+    assert(w.detail() == "fight=waiting mode=on her=on spec=0 watch=- up=- upn=0 her_spec=- mem=1 why=photo mode" &&
+           mail.exchange(s) && !mail.receive(m));
     assert(ask("fight off") == "shared fight off: coop fight off" && io.lines() == "SBF25 off coop fight off\n");
     assert(ask("fight on 900") == "shared fight on: waiting for the end of photo mode" && !e->on());
     assert(io.lines() == "SBF25 off photo mode\n");
@@ -6282,7 +6460,8 @@ int main() {
     for (const uint64_t end = t + 20000; t < end;)
       w.pass(t += 16, true, false, true, {"SBF25 dead 8 132", "SBF25 world 9"}, gate, io, false, coop::Life::unknown,
              true);
-    assert(w.detail() == "fight=waiting mode=on her=on why=world paused" && mail.exchange(s) && !mail.receive(m));
+    assert(w.detail() == "fight=waiting mode=on her=on spec=0 watch=- up=- upn=0 her_spec=- mem=1 why=world paused" &&
+           mail.exchange(s) && !mail.receive(m));
     assert(ask("fight off") == "shared fight off: coop fight off");
     assert(ask("fight on 900") == "shared fight on: waiting for the end of the game's pause" && !e->on());
     io.lines();
@@ -6302,7 +6481,8 @@ int main() {
     why = std::string(kNoCoopSave) + " (slot=main index=0 marker=4 saves=main)";
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(!e->on() && io.lines() == "SBF25 off not on a co-op save\n" && w.status() == " fight=waiting");
-    assert(w.detail() == "fight=waiting mode=on her=on why=not on a co-op save");
+    assert(w.detail() == "fight=waiting mode=on her=on spec=0 watch=- up=- upn=0 her_spec=- mem=1 why=not on a "
+                         "co-op save");
     asked = 0;
     for (const uint64_t end = t + 1000; t < end;)
       w.pass(t += 16, true, false, true, none, gate, io);
@@ -6392,7 +6572,8 @@ int main() {
     io.traced.clear();
     w.pass(t = 1000, true, false, true, {}, gate, io, false, coop::Life::unknown, false, kHer);
     assert(w.detail() == "fight=on mode=pvp proxy=50000 sent=3 unnamed=0 lines=2 applied=2 capped=0 refused=1 "
-                         "game_refused=0 floor=on sim_us=0/0 threads=0/0/0 her=on");
+                         "game_refused=0 floor=on sim_us=0/0 threads=0/0/0 her=on spec=0 watch=- up=- upn=0 "
+                         "her_spec=- mem=1");
     assert(io.traced.size() == 1 &&
            io.traced[0].rfind("fight stats: pvp, proxy guid=50000, made 0, refused 0, gone 0, 3 hits sent, 0 unnamed, "
                               "shield emptied 0, moved 0; her lines 2, applied 2, capped 0, refused by the game 0, "
@@ -6403,7 +6584,8 @@ int main() {
     w.pass(t += 16, true, true, true, {}, gate, io, false, coop::Life::unknown, false, kHer);
     assert(e->session() == session && e->on());
     w.pass(t += 16, false, false, true, {}, gate, io);
-    assert(!e->on() && w.detail() == "fight=waiting mode=pvp why=no friend linked");
+    assert(!e->on() &&
+           w.detail() == "fight=waiting mode=pvp spec=0 watch=- up=- upn=0 her_spec=- mem=0 why=no friend linked");
     w.pass(t += 16, true, false, true, {}, gate, io, false, coop::Life::unknown, false, kHer);
     assert(e->on() && e->session() == session + 1);
     assert(ask("fight pvp off") == "shared fight off: coop pvp off" && !e->on() && !e->pvp());
@@ -6795,7 +6977,7 @@ int main() {
     assert(ask("fight on") == "shared fight on: as guest" && e->on() && io.lines() == "SBF25 on\n");
     w.pass(t += 16, true, false, true, none, gate, io, true);
     assert(!e->on() && io.lines() == "SBF25 off photo mode\n");
-    assert(w.detail() == "fight=waiting mode=on her=waiting why=photo mode");
+    assert(w.detail() == "fight=waiting mode=on her=waiting spec=0 watch=- up=- upn=0 her_spec=- mem=1 why=photo mode");
     // As the guest, our own scaling is not used: said once a run, before the start line.
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(ask("fight off").rfind("shared fight off", 0) == 0);
@@ -6928,7 +7110,8 @@ int main() {
     g.state(101, 27, 1); // Immortal: the probe's line names the states it holds among those read.
     assert(ask("fight test hp -10") == "shared fight test refused: only while coop fight probe runs");
     assert(ask("fight probe 900") == "shared fight probe: waiting for a loaded save" && !e->on());
-    assert(w.detail() == "fight=waiting mode=probe why=no save loaded" && w.status() == " fight=waiting");
+    assert(w.detail() == "fight=waiting mode=probe spec=0 watch=- up=- upn=0 her_spec=- mem=0 why=no save loaded" &&
+           w.status() == " fight=waiting");
     w.pass(t, false, false, true, none, gate, io);
     assert(e->on() && io.said.back() == "shared fight probe: read only, a census each second (coop fight test once "
                                         "fight writes=armed)");
