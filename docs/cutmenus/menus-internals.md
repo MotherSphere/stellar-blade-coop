@@ -266,6 +266,9 @@ asks `items <ask> <alias> <FName index> <FName number>`; the worker reads at onc
 GUID (client `+0x58`) included, apart from the revive guard and its latch, and the engine line of `coop-status.txt` gets
 `items=<ask> <count>` or `items=<ask> none <why>` (`unpinned`, `noeve`, `nomanager`, `nobucket`, `unread`; after
 `coop off` the status leaves `items=` out and only the worker's log line has `none off`).
+The worker's log line, `items <alias> (ask <n>): <answer>`, comes only when that alias's answer changes: gun mode reads
+its rounds once a second while the rifle is out. For the same reason core/link.lua logs the engine line again only when
+more than the ask's number changed.
 The read follows the game's own lookups on build 26123051:
 
 - the item bucket manager, a lazy singleton at `0x1470373e0` (its getter `FUN_141a98a30` makes it when null; the read

@@ -794,8 +794,9 @@ bool step() {
       event(coop::pose::ask_travel(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::items: // coop gift's inventory read: the worker's, now.
-      event(coop::pose::ask_items(coop::parse_request(request)));
+    case coop::Command::items: // coop gift's inventory read: the worker's, now; logged as an alias's answer changes.
+      if (const std::string said = coop::pose::ask_items(coop::parse_request(request)); !said.empty())
+        event(said);
       request.clear();
       break;
     case coop::Command::fishbook: // The fishing tournament's book read: the worker's, now; logged as its kind changes.

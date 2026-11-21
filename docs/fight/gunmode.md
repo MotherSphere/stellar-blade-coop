@@ -291,7 +291,7 @@ to free magazines (`mag_size` in the magazine, `spare_mags` spares).
   start at 1. The bike's paid fetch's start at 32768. An answer for another number is left to its owner. Rounds taken
   that no read shows yet count as gone until a read shows them, 10 s of play at most (paused time not counted). A take
   that no read shows in that time is logged. On your own save or another co-op save the count is dropped and read
-  again.
+  again. `coop-link.log` and `UE4SS.log` get a read's line only when the count changes.
 - The take: SB's own `ServerRequest_ItemBucketItemRemove` (bucket 1, EVE's GUID, `Bullet_Nikke`, the count, no
   pocket), once a reload, for the rounds the magazine loads. That is at most `mag_size` and at most the count she
   carries then (the last read less the takes it does not show yet). A take is refused while SB's logic is paused, with

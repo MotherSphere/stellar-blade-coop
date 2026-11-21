@@ -24,6 +24,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <map>
+#include <string>
 
 #include "game/memory.h" // kImageBase, plausible, get
 
@@ -159,6 +161,18 @@ template <class Read> Count count(uint64_t base, uint32_t owner, uint64_t name, 
   }
   c.count = total > UINT32_MAX ? UINT32_MAX : uint32_t(total);
   return c;
+}
+
+// Each alias's answer as last logged. Gun mode reads its rounds once a second while the rifle is out (a log line a
+// second in the 2026-11-21 test), so a read is logged only when its alias's answer changes. said_anew: true when answer
+// is new for alias, which then keeps it.
+using Said = std::map<std::string, std::string>;
+inline bool said_anew(Said &said, const std::string &alias, const std::string &answer) {
+  const auto [at, added] = said.try_emplace(alias, answer);
+  if (!added && at->second == answer)
+    return false;
+  at->second = answer;
+  return true;
 }
 
 } // namespace coop::items

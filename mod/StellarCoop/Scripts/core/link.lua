@@ -936,8 +936,11 @@ function Link.new(folder,fs)
         if not text then return new end
         listed,noted={},{}
         for line in text:gmatch('[^\r\n]+') do
-            now[line]=true
-            if not seen[line] and not line:find('^peer=') and not line:find('^member=') and not line:find('^fight=')
+            -- The engine line's items= carries the ask's number, new at each read: gun mode reads its rounds once a
+            -- second while the rifle is out. The line is logged when anything else in it changes, the count included.
+            local key=line:find('^engine=') and line:gsub(' items=%d+ ',' items=# ',1) or line
+            now[key]=true
+            if not seen[key] and not line:find('^peer=') and not line:find('^member=') and not line:find('^fight=')
                 and not line:find('^mate=') and not line:find('^vit=')
                 and not line:find('^match=') -- Its countdown changes each second.
                 and not (waited and line:find('^wait=')) -- Likewise: the first of a wait only.

@@ -197,6 +197,16 @@ int main() {
     m.put(kAliasData + 1 * kAliasElement + kAliasGuidCount, int32_t(kMaxInstances + 1));
     assert(m.count(kMe, kPotion).why == Why::unread);
   }
+  { // The log line of a read only when its alias's answer changes (gun mode asks once a second).
+    Said said;
+    assert(said_anew(said, "Bullet_Nikke", "60"));
+    assert(!said_anew(said, "Bullet_Nikke", "60"));
+    assert(said_anew(said, "Potion", "60"));
+    assert(!said_anew(said, "Bullet_Nikke", "60"));
+    assert(said_anew(said, "Bullet_Nikke", "59"));
+    assert(said_anew(said, "Bullet_Nikke", "none noeve"));
+    assert(said_anew(said, "Bullet_Nikke", "59"));
+  }
   std::puts("items_test: ok");
   return 0;
 }
