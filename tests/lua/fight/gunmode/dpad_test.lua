@@ -285,7 +285,8 @@ do
 end
 
 -- 7. The pad: its layer up, the loaded pad glyph looked for once (none loaded: still once), again when the layer
---    comes up again. Its Right twin then shows, without the key cell.
+--    comes up again. Its Right twin then shows, without the key cell. Once found it is kept for the HUD: a switch to
+--    the keyboard and back walks no more.
 do
     world(); logs={}
     local a=hud(1)
@@ -302,6 +303,9 @@ do
     assert(W.walks.Texture2D==2,'again when the layer comes up again: '..tostring(W.walks.Texture2D))
     local key=ours(a,'GunModeRifleSlot').named.gunmoderiflekey
     assert(key.named.gunmoderiflekeyglyph.tex==xb_right and key.named.gunmoderiflekeycell.vis==1,'the pad\'s D-pad Right')
+    for _=1,3 do a.pad.vis=1; ticks(e,10,'F4',nil); a.pad.vis=4; ticks(e,10,'F4',nil) end
+    assert(W.walks.Texture2D==2,'a walk at each switch to the pad: '..tostring(W.walks.Texture2D))
+    assert(key.named.gunmoderiflekeyglyph.tex==xb_right,'the pad\'s D-pad Right kept')
 end
 
 -- 8. hide: the entry and the crosshair off the HUD, nothing recorded after.

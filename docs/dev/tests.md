@@ -114,7 +114,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   shows no glyph. A new HUD gets the entry built anew, sized, placed and with its glyph. A widget whose address another
   object took gets no write. After a Lua reload nothing is made over a live widget and the marker's overlay holds the
   entry once, the crosshair too. A HUD without the item column is tried once with one log line. The pad glyph walk
-  runs once each time the pad layer comes up. `hide` takes both off the HUD. Through gun mode over
+  runs once each time the pad layer comes up until it finds the glyph, which the HUD's entry then keeps. `hide` takes both off the HUD. Through gun mode over
   `fight/gunmode/fake.lua` with a stub entry: it is ticked ten times a second with the configured key (nil with
   `gun_key=none`). It gets `rounds | magazines` while the rifle is out and no text while it is away. The crosshair is
   off while the rifle is away. `coop off` takes it off the HUD. There is none with `gun_mode=off` or

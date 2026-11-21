@@ -189,11 +189,12 @@ function Dpad.new(g)
         end
         -- the glyph: the Right twin of what the game's marker shows. The marker's keyboard icons stay set while a
         -- gamepad is used (its gamepad layer, Overlay_ps, is shown instead), so a shown gamepad layer picks the pad
-        -- glyph: a loaded pad DPad_Up, looked for once each time the layer comes up.
+        -- glyph: a loaded pad DPad_Up, looked for each time the layer comes up until one is found. The one found is
+        -- kept for this HUD (ui is made anew for each HUD).
         local up=g.try(function() local r=ui.up.Brush.ResourceObject; return r and r:GetFullName():match('^%S+ (.+)$') end)
         local vis=ui.pad_layer and g.try(function() return ui.pad_layer:GetVisibility() end)
         local pad=vis~=nil and vis~=COLLAPSED and vis~=2 -- not Collapsed or Hidden: the gamepad layer is up
-        if pad and not ui.pad then ui.pad_up=pad_glyph() end
+        if pad and not ui.pad and not ui.pad_up then ui.pad_up=pad_glyph() end
         ui.pad=pad
         if pad then up=ui.pad_up or up end
         if not ui.drawn or up~=ui.up_path or key~=ui.key then
