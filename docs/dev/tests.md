@@ -72,10 +72,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   game writes when its aim starts. It keeps the slot found at the first aim. A block whose address another object took
   gets no write. Only that slot is looked for: the bottom-left count keeps the game's text. It also covers
   `mode.lua`'s point along a camera's forward and its eased step, then the rifle layer's clip paths (object paths). A
-  clip is looked up again once another object took its address. A clip the pak lacks is looked up once a Lua load,
-  not at each frame that asks for it. The layer's mesh records follow: an earlier load's
-  record keeps the first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to
-  quaternion and back, a vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
+  clip is looked up again once another object took its address. A clip the pak lacks is looked up once a Lua load, not
+  at each frame that asks for it. The layer's mesh records follow: an earlier load's record keeps the first class
+  listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to quaternion and back, a vector turned,
+  two turns in order, a frame's rotation and a frame made orthonormal;
 - `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away (parked or
   not) 600 frames look up nothing but the HUD entry's look for the HUD (at most once in 10 s), never ask whether the
   game is paused and poll two keys a frame (`gun_key` and D-pad Right). A press while the game is paused does nothing. The dev facts probe still waits out a pause. With no player
@@ -123,12 +123,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   key, toggle or new controller does anything. A second load over the same game and `coop-gun.txt` puts back what the
   first left with the rifle out. Its own rifle then takes and gives back the shipped values. A load after one in the
   morph's arrival, in the game's aim or in `gun_fire=own`'s firing mode destroys the cube and removes the aim camera's
-  modifier. It turns her mesh back and gives her movement its own facing flags. Each drone part gets its own
-  visibility back. A start puts back what an
-  earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers, booleans, strings, FNames and
-  vectors exactly. A start whose input mask or rifle fails gives back what it took, as does a start that raises once the
-  rifle layer is on. A new controller clears the old pawn's state at once; its deferred reset shows the drone, puts her
-  facing back and takes the layer off her new body;
+  modifier. It turns her mesh back and gives her movement its own facing flags. Each drone part gets its own visibility
+  back. A start puts back what an earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers,
+  booleans, strings, FNames and vectors exactly. A start whose input mask or rifle fails gives back what it took, as
+  does a start that raises once the rifle layer is on. A new controller clears the old pawn's state at once; its
+  deferred reset shows the drone, puts her facing back and takes the layer off her new body;
 - `fight/gunmode/state_test` runs gun mode over the same fake against the game's state. While the rifle is out the
   shot's Hit1 step has its Cast1 step's `Type`. The shipped value comes back when the rifle goes away. The shot's two
   borrowed fields keep their shipped values while the rifle is only out. They change at the first shot through the zone
@@ -139,12 +138,13 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   these puts it away within 0.25 s with everything back, except the hold of her movement: the rifle stays out. The log
   names the game's actions and axes on the keys held, with each row of the AZERTY layout marked
   (`Q: Item_UseHeal MoveRight(-1)[AZERTY]`), as it does at an off. A jump keeps it out. Another module's hold on EVE
-  (`busy`) refuses the rifle or puts it away the same way; `out()` says whether it is out. A refused toggle (no EVE,
-  the drone aim held, a state that holds her, a failed start) gives its notice. After an interaction the rifle comes
-  back 1 s after she is free. A refused comeback (the drone aim held) is tried four times in all, then given up. It
-  waits through a pause. A new map, a ride on the bike or the gun mode key during the departure ends it. F4 toggles the rifle by default, G does not; a
-  key with a modifier needs it held; `gun_key=none` has no key. Once `menu_key` is Shift+F4, also from a rebind
-  after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the rifle. An off during the
+  (`busy`) refuses the rifle or puts it away the same way; `out()` says whether it is out. A refused toggle (no EVE, the
+  drone aim held, a state that holds her, a failed start) gives its notice. After an interaction the rifle comes back
+  1 s after she is free. A refused comeback (the drone aim held) is tried again 2, 4 and 8 s later, then given up. It
+  waits through a pause. A new map, a ride on the bike or the gun mode key during the departure ends it. F4 toggles the
+  rifle by default, G does not; a key with a modifier needs it held; `gun_key=none` has no key. Once `menu_key` is
+  Shift+F4, also from a rebind after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the
+  rifle. An off during the
   game's aim keeps TPSMode on RMB and SB's rows taken with the NIKKE shot's cool time at 999 until the aim ends with
   RMB up. A drop of the aim while RMB is held keeps them. Then everything goes back, as it does at a new controller or a Lua reload in between. During the rifle's arrival TPSMode
   has no key (RMB and LT included). A pause keeps it so. Once the arrival is over it moves to RMB. The 'off' line

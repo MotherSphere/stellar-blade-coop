@@ -1874,7 +1874,8 @@ function GunMode.new(env)
     -- 0x14268c890 jumps to 0x1421287a0, which does nothing unless the flag at +0xf40 that
     -- ActiveCustomMovingStanceData's 0x1421282d0 sets is on, then clears it); her mesh's rotation before the aim turned
     -- it (K2_SetRelativeRotation, exec 0x14490f950); the aim camera's modifier off the camera manager
-    -- (RemoveCameraModifier, exec 0x1448d35f0, which hands it to the manager's virtual at +0x708); her movement's
+    -- (RemoveCameraModifier, exec 0x1448d35f0, which hands it to the manager's virtual at +0x708: APlayerCameraManager's
+    -- 0x14446feb0 takes it out of ModifierList at +0x2970 if it is there, else changes nothing); her movement's
     -- facing flags as they were. Then the posed copy's parts and the morph's cube destroyed (K2_DestroyComponent
     -- 0x1446c1340), the posed copy's holder too (K2_DestroyActor 0x1446bf590), the HUD entry and the crosshair taken
     -- off SB's HUD (UWidget's RemoveFromParent). How many were put back or removed.

@@ -430,7 +430,11 @@ do
     toggle(gun,false)
     -- the drone aim held as she gets free
     talk(); w.pawn.bTPSMode=true; logs={}
-    frames(gun,60*20)
+    frames(gun,150) -- 2.5 s: refused at 1 s, the next try 2 s after it
+    assert(count('not now: release the drone aim first')==1,table.concat(logs,'|'))
+    frames(gun,300) -- 7.5 s: refused again at 3 s and 7 s
+    assert(count('not now: release the drone aim first')==3,table.concat(logs,'|'))
+    frames(gun,60*20-450)
     assert(count('not now: release the drone aim first')==4 and count('no comeback')==1,table.concat(logs,'|'))
     w.pawn.bTPSMode=false; frames(gun,120)
     assert(not gun.state.on,'given up: the rifle stays away')
