@@ -74,6 +74,7 @@ M.OPTIONS={
     end},
     range('max_players',2,4,1,4), -- At the next host: the players the session holds, the host included.
     toggle('revive','on'), -- Yours, at once: the friend's revive of your EVE (online/group/group.lua).
+    toggle('spectate','on'), -- Yours: watch a living member while you are down in a shared boss fight.
     toggle('cutscene_wait','on'), -- Yours as the guest, at once: the pause during the host's cutscene.
     -- Yours as the guest, at once: the travel to the camp nearest the host (online/group/travel.lua), offered (ask),
     -- started by itself (always) or neither (off).
@@ -99,8 +100,10 @@ M.OPTIONS={
     {key='aggro',values={'game','host'},default='game'},
     -- Same spawns (stage 4): where both players stand within 100 m in one zone, the guest's game holds the host's
     -- common enemies there. enemy_extra (stage 4b): that many more of each, used with same spawns only. bosses (stage
-    -- 5): bosses and Alpha Naytibas shared too, their maximum HP times boss_hp_scale.
+    -- 5): bosses and Alpha Naytibas shared too, their maximum HP times boss_hp_scale. boss_finish: whose finisher
+    -- press counts on a shared boss (first: the first one on any screen; host: the host's only).
     toggle('same_spawns','on'),range('enemy_extra',0,3,1,0),toggle('bosses','on'),
+    {key='boss_finish',values={'first','host'},default='first'},
     range('enemy_hp_scale',1,4,0.05,1.35),range('enemy_balance_scale',1,4,0.05,1.15),range('boss_hp_scale',1,4,0.05,2),
     {key='kill_credit',values={'together','fought'},default='together'},
     {head='display'},

@@ -361,7 +361,8 @@ key('RETURN'); quarter(); assert(pausetabs[#pausetabs]=='pausetab on' and select
 kit_language='fr-FR'
 to('Menu language'); key('RIGHT_ARROW')
 assert(focus()=='Menu language' and select(2,focus())=='English','ui_language=english: English whatever the game')
-assert(screen():find('^Stagger resistance %(experimental%)|') and screen():find('\nDay and night|On|normal$')
+assert(screen():find("^Enemies attack %(host's%)|") and screen():find('\nDay and night|On|normal$')
+    and screen():find("\nBoss finisher %(host's%)|First press|normal\n")
     and select(2,screen():gsub('\n',''))==14,'Scrolled: 15 rows, the one below the cursor in view')
 key('RIGHT_ARROW')
 assert(focus()=='Langue du menu' and select(2,focus())=='Langue du jeu' and menu_view.hints[1].s=='Déplacer')

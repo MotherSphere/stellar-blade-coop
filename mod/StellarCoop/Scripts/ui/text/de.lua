@@ -40,6 +40,8 @@ return {
         gun_mode='Gewehrmodus',gun_key='Gewehr ziehen oder wegstecken',daynight='Tag und Nacht',
         pause_tab='Online-Tab im Pausenmenü',
         hide_popups='Popups online ausblenden',
+        spectate='Freund zuschauen, wenn ich falle',
+        boss_finish='Gnadenstoß der Bosse (Host)',
         reset_keys='Alle Tasten zurücksetzen'},
     value={on='An',off='Aus',both='Beide',notice='Nur Hinweis',game='Spielsprache',english='Englisch',
         ask='Fragen',always='Immer',
@@ -47,6 +49,8 @@ return {
         fought='Nur bekämpfte Gegner',aggro_game='Beide Spieler',aggro_host='Nur der Host',
         photo_pause_full='Vollständig',photo_pause_scenery='Umgebung läuft weiter',
         compact='Kompakt',detailed='Ausführlich',
+        boss_finish_first='Erste Eingabe',
+        boss_finish_host='Nur der Host',
         who_can_join_public='Öffentlich',who_can_join_friends='Nur Freunde',who_can_join_invitation='Einladung',
         who_can_join_closed='Privat',friends_ask_on='Aus',friends_ask_off='An'},
     no_limit='Unbegrenzt',minutes='%d Min.',seconds='%d Sek.',percent='%d %%',press='Taste drücken',
@@ -155,6 +159,13 @@ return {
         map='Gemeinsame Gegner warten, bis du und %s im selben Gebiet seid.',
         maxhp='Gemeinsame Gegner: %s hat bei manchen Gegnern andere max. LP (andere Schwierigkeitsstufe oder Neues '
             ..'Spiel +). Diese werden nicht geteilt.',
+        spectate='Du bist am Boden. Du schaust %s zu. Du stehst auf, wenn der Boss fällt oder seine nächste Phase '
+            ..'erreicht.',
+        watching='%s ist am Boden und schaut zu.',
+        qte_you='QTE für dich.',
+        qte_other='QTE für %s.',
+        qte_missed='%s hat das QTE verpasst. QTE für dich.',
+        finisher='%s gibt dem Boss den Gnadenstoß.',
         host_down='Gemeinsame Gegner: %s ist am Boden. Nach der Wiederbelebung haben eure gemeinsamen Gegner '
             ..'wieder volle LP.',
         paks='%s lädt andere .pak-Mods als du (%d dort, %d hier). Abweichende Gegner werden nicht geteilt.',

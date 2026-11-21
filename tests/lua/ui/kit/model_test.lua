@@ -168,7 +168,7 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='on' and values.race_key=='F9'
     and values.photo_name_tag=='on' and values.status_overlay=='compact' and values.bike=='on'
     and values.bike_key=='F3' and values.hit_reactions=='on' and values.stagger_resist=='on' and values.gun_mode=='on'
-    and values.gun_key=='F4')
+    and values.gun_key=='F4' and values.spectate=='on' and values.boss_finish=='first')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -215,7 +215,8 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key r
     ..'photo_sync '
     ..'photo_freeze_max photo_ghost '
     ..'photo_name_tag photo_pause head:partner name_tag partner_bar partner_arrow partner_card card_details head:ghost cloth dyes '
-    ..'effects collide send_rate head:session who_can_join max_players revive cutscene_wait follow_host shared_world '
+    ..'effects collide send_rate head:session who_can_join max_players revive spectate cutscene_wait follow_host '
+    ..'shared_world '
     ..'shared_story hide_popups '
     ..'head:modes scoreattack '
     ..'head:saves '
@@ -224,7 +225,8 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key r
     ..'head:combat '
     ..'shared_enemies '
     ..'same_place hit_reactions stagger_resist '
-    ..'aggro same_spawns enemy_extra bosses enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit head:display '
+    ..'aggro same_spawns enemy_extra bosses boss_finish enemy_hp_scale enemy_balance_scale boss_hp_scale kill_credit '
+    ..'head:display '
     ..'status_overlay ui_scale ui_sounds ui_language daynight head:chat chat',
     ids(menu,NONE))
 -- The ones the mod takes at its next load only: the name tag is part of the ghost's build; gun mode reads gun_mode and
@@ -267,6 +269,10 @@ assert(M.read('shared_quests=OFF\n').shared_quests=='off' and M.read('shared_que
 on('revive')
 assert(values.revive=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
 assert(M.read('revive=OFF\n').revive=='off' and M.read('revive=x\n').revive=='on')
+-- Spectate (yours): on by default, a toggle in effect at once.
+on('spectate')
+assert(values.spectate=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
+assert(M.read('spectate=OFF\n').spectate=='off' and M.read('spectate=x\n').spectate=='on')
 -- The wait during the host's cutscene: on by default, a toggle in effect at once.
 on('cutscene_wait')
 assert(values.cutscene_wait=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
@@ -366,6 +372,14 @@ file=assert(SF.set(Link.DEFAULT,'boss_hp_scale',select(3,menu.change(NONE,values
 assert(M.read(file).boss_hp_scale=='2.05' and Link.parse_settings(file).boss_hp_scale==2.05)
 on('bosses')
 assert(select(3,menu.change(NONE,values,1))=='off')
+-- The boss finisher (the host's): first (the default) or host, wrapping, shown as First press and The host only.
+on('boss_finish')
+local finish=menu.current(NONE)
+assert(values.boss_finish=='first' and finish.default=='first' and table.concat(finish.values,' ')=='first host'
+    and select(3,menu.change(NONE,values,1))=='host' and select(3,menu.change(NONE,values,-1))=='host')
+assert(M.read('boss_finish=HOST\n').boss_finish=='host' and M.read('boss_finish=last\n').boss_finish=='first')
+local EN=require('ui.text').en
+assert(M.shown(EN,finish,'host')=='The host only' and M.shown(EN,finish,'first')=='First press')
 on('kill_credit')
 assert(select(3,menu.change(NONE,values,1))=='fought' and select(3,menu.change(NONE,values,-1))=='fought')
 on('ui_scale')

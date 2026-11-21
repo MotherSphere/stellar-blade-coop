@@ -825,11 +825,25 @@ s,notes=Link.parse_settings('bosses=yes\nboss_hp_scale=4.5')
 assert(#notes==2 and notes[1]=="settings: line 1: 'yes' is not allowed for bosses (use on or off); bosses stays on"
     and notes[2]=="settings: line 2: '4.5' is not allowed for boss_hp_scale (use 1.0 to 4.0); boss_hp_scale stays 2.0"
     and s.bosses==true and s.boss_hp_scale==2,table.concat(notes,'|'))
+-- boss_finish (phase 3, the host's): first or host in any case, first by default and in a file written before it. A
+-- new file names it right after boss_hp_scale, under one comment line; a bad value keeps first, with a line.
+assert(Link.DEFAULT:find('\nboss_hp_scale=2.0\n#[^\n]*\nboss_finish=first\n'))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.boss_finish=='first')
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.boss_finish=='first')
+for _,case in ipairs({{'first','first'},{'HOST','host'},{'First','first'}}) do
+    s,notes=Link.parse_settings('boss_finish='..case[1])
+    assert(#notes==0 and s.boss_finish==case[2],case[1])
+end
+s,notes=Link.parse_settings('boss_finish=last')
+assert(#notes==1 and notes[1]=="settings: line 1: 'last' is not allowed for boss_finish (use first or host); "
+    .."boss_finish stays first" and s.boss_finish=='first',notes[1])
 -- hit_reactions and stagger_resist (phase 8, experimental, the host's): on or off, on by default and in a file written
--- before them; the template names them right after boss_hp_scale.
+-- before them; the template names them right after boss_finish.
 s,notes=Link.parse_settings('')
 assert(#notes==0 and s.hit_reactions==true and s.stagger_resist==true)
-assert(Link.DEFAULT:find('\nboss_hp_scale=2.0\n#[^\n]*\n#[^\n]*\n#[^\n]*\n#[^\n]*\n'
+assert(Link.DEFAULT:find('\nboss_finish=first\n#[^\n]*\n#[^\n]*\n#[^\n]*\n#[^\n]*\n'
     ..'hit_reactions=on\nstagger_resist=on\n'))
 s,notes=Link.parse_settings('hit_reactions=off\nstagger_resist=OFF')
 assert(#notes==0 and s.hit_reactions==false and s.stagger_resist==false)
@@ -910,6 +924,20 @@ end
 s,notes=Link.parse_settings('revive=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for revive (use on or off); revive stays on"
     and s.revive==true,notes[1])
+-- spectate (phase 3, your own): on or off in any case, on by default and in a file written before it. A new file names
+-- it right after revive, under one comment line; a bad value keeps on, with a line.
+assert(Link.DEFAULT:find('\nrevive=on\n#[^\n]*\nspectate=on\n'))
+s,notes=Link.parse_settings(older)
+assert(#notes==0 and s.spectate==true)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.spectate==true)
+for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
+    s,notes=Link.parse_settings('spectate='..case[1])
+    assert(#notes==0 and s.spectate==case[2],case[1])
+end
+s,notes=Link.parse_settings('spectate=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for spectate (use on or off); spectate stays "
+    .."on" and s.spectate==true,notes[1])
 -- cutscene_wait (yours, as the guest): on or off in any case, on by default and in a file written before it, named
 -- right after photo_pause with its comment (it takes photo sync's pause and its cap).
 assert(Link.DEFAULT:find('\nphoto_pause=full\n# Cutscene wait: on or off.',1,true)

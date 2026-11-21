@@ -38,12 +38,16 @@ return {
         gun_mode='Mode fusil',gun_key='Sortir ou ranger le fusil',daynight='Jour et nuit',
         pause_tab='Onglet En ligne du menu pause',
         hide_popups='Masquer les popups en ligne',
+        spectate='Regarder un ami quand je tombe',
+        boss_finish='Coup de grâce du boss (hôte)',
         reset_keys='Réinitialiser les touches'},
     value={on='Oui',off='Non',both='Les deux',notice='Avis seul',game='Langue du jeu',english='Anglais',
         ask='Demander',always='Toujours',
         together='Combat ou moins de 30 m',
         fought='Ceux que je combats',aggro_game='Les deux joueurs',aggro_host="L'hôte seulement",
         photo_pause_full='Complète',photo_pause_scenery='Décor animé',compact='Compacte',detailed='Détaillée',
+        boss_finish_first='Premier appui',
+        boss_finish_host="L'hôte seulement",
         who_can_join_public='Public',who_can_join_friends='Amis seulement',who_can_join_invitation='Sur invitation',
         who_can_join_closed='Privé',friends_ask_on='Non',friends_ask_off='Oui'},
     no_limit='Sans limite',minutes='%d min',seconds='%d s',percent='%d %%',press='Appuyez sur une touche',
@@ -151,6 +155,13 @@ return {
         map="Ennemis partagés en attente : vous et %s n'êtes pas sur la même zone.",
         maxhp="Ennemis partagés : certains ennemis ont d'autres PV max dans la partie de %s (autre difficulté ou New "
             ..'Game+). Ils ne sont pas partagés.',
+        spectate='Vous êtes à terre. Vous regardez %s. Vous vous relevez quand le boss tombe ou passe à sa phase '
+            ..'suivante.',
+        watching='%s est à terre et regarde le combat.',
+        qte_you='QTE pour vous.',
+        qte_other='QTE pour %s.',
+        qte_missed='%s a raté le QTE. QTE pour vous.',
+        finisher='%s achève le boss.',
         host_down='Ennemis partagés : %s est à terre. Après sa réapparition, vos ennemis partagés reviennent à pleine '
             ..'santé.',
         paks="%s n'a pas les mêmes mods .pak que vous (%d en face, %d ici). Les ennemis qui diffèrent ne sont pas "

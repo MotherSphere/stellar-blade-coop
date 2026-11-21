@@ -137,6 +137,8 @@ spawn_filter=on
 # to 4.0.
 bosses=on
 boss_hp_scale=2.0
+# boss_finish, the host's: first (the first finisher press on any screen counts) or host (the host's press only).
+boss_finish=first
 # Shared flinches and stagger resistance, experimental, the host's for every game: on or off, on by default, not
 # tested in game yet. hit_reactions: a light hit that makes a shared enemy flinch on one screen makes it flinch on the
 # other screens too. stagger_resist: after a shared enemy reacts to hits from two or more players, light hits stop
@@ -171,6 +173,8 @@ shared_story=on
 # never happens during a boss fight on your side. In a co-op Night Operation run, on also turns your death into a 30 s
 # down: your friend revives you by holding the interact key next to your EVE, or you type coop nightop revive.
 revive=on
+# Spectate, yours: on or off. Down in a shared boss fight, you watch a friend until the boss falls or changes phase.
+spectate=on
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
@@ -252,7 +256,7 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     send_rate='60',cloth='on',dyes='on',effects='on',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
     enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
     same_spawns='on',enemy_extra='0',spawn_filter='on',bosses='on',boss_hp_scale='2.0',hit_reactions='on',
-    stagger_resist='on',
+    stagger_resist='on',boss_finish='first',spectate='on',
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='on',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     status_overlay='compact',who_can_join='public',friends_ask='off',max_players='4',auto_coop_save='ask',
@@ -272,13 +276,13 @@ local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=tr
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
     card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
     pvp_spike=true,sbo_lobby=true,shared_world=true,shared_story=true,friends_ask=true,bike=true,daynight=true,
-    pause_tab=true,hide_popups=true,gun_mode=true,scoreattack=true}
+    pause_tab=true,hide_popups=true,gun_mode=true,scoreattack=true,spectate=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (online/partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','gun_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
-    follow_host={'ask','always','off'},status_overlay={'off','compact','detailed'}}
+    follow_host={'ask','always','off'},status_overlay={'off','compact','detailed'},boss_finish={'first','host'}}
 -- The session list's rules word (the rules request, the sbo_rules lobby key the native part writes): a letter for each
 -- session rule on in the host's settings, in this order: e shared enemies, b shared bosses (with shared enemies only),
 -- w shared world, s shared story, q shared quests, r revive; then the boss HP scale in whole percent. ebwqr200: all
@@ -322,9 +326,9 @@ function Link.solo(type) return math.type(type)=='integer' and type>=2 and type<
 -- nil, name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16,
 -- each from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a
 -- file written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
--- auto_coop_save, aggro, photo_pause, follow_host, status_overlay) one of its words; photo_freeze_max a whole number of
--- seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the scales a number from 1 to 4, digits
--- with a decimal point or none
+-- auto_coop_save, aggro, photo_pause, follow_host, status_overlay, boss_finish) one of its words; photo_freeze_max a
+-- whole number of seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the scales a number from
+-- 1 to 4, digits with a decimal point or none
 -- (fight/enemies/commands.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and
 -- commas only, at most 200 bytes (the native part's request limit; it names the entries that are no shared quest);
 -- drift_keys a list of Unreal key names (online/modes/race/drive.lua reads them with IsInputKeyDown), at most 4, empty
