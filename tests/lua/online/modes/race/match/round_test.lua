@@ -129,6 +129,7 @@ assert(last(o.stopped)=='host' and r.round().phase=='over' and r.round().why=='h
 assert(r.pick('2') and r.pick()=='mine' and not r.pick('3') and not r.pick('0') and not r.pick('Bad') and
     not r.pick('a b') and r.pick()=='mine')
 assert(r.pick('old_track') and r.pick()=='old_track')
+assert(r.pick('random') and r.pick()=='random')
 assert(r.cycle()=='straight' and r.cycle()=='mine' and r.cycle()=='random' and r.cycle()=='straight')
 assert(r.pick('mine'))
 L.start(2,56,{HOST,P2})
@@ -216,6 +217,19 @@ assert(not last(L.sent):find('^rank'))
 t=R.COUNT+R.LIMIT+Mm.LAST
 r.tick()
 assert(last(L.sent)=='rank 9 -','The deadline: nobody ended')
+-- The link ends the round while the host waits (coop match end): no rank goes and no end is asked after it.
+L=fake(HOST)
+L.mode,t='host',0
+r,o=make(L,OFFERED)
+r.tick()
+L.start(1,9,{HOST,P2})
+ticks(r,4)
+L.r={n=1,kind='end',why='host'}
+r.tick()
+local before=#L.sent
+t=R.COUNT+R.LIMIT+Mm.LAST+Mm.END
+ticks(r,4)
+assert(o.stopped[1]=='host' and #L.sent==before and #L.asked==0,'Over: no rank, no end asked')
 
 -- A room that offers nothing: the host voids the round, then asks its end, in that order; nothing starts.
 L=fake(HOST)
@@ -340,6 +354,25 @@ for _,text in ipairs(sixty) do L.from(HOST,text) end
 L.start(12,61,{HOST,P2})
 r.tick()
 assert(r.round().phase=='wait' and #o.started==4)
+-- A start line read late: the owner's lines that came before it stay past Round.KEPT while it waits for the rest of
+-- its track.
+L=fake(P2)
+L.mode,t='guest',0
+r,o=make(L,nil)
+r.tick()
+local late=Mm.lines(LINE,70,'straight')
+L.from(HOST,late[1])
+L.from(HOST,late[2])
+r.tick()
+t=Round.KEPT-1000
+L.start(13,70,{HOST,P2})
+r.tick()
+t=Round.KEPT+500
+r.tick()
+assert(r.round().phase=='wait' and #o.started==0)
+L.from(HOST,late[3])
+r.tick()
+assert(o.started[1]=='straight 70 1','Kept while its start line waits')
 
 -- A Lua reload in a round still playing: its first tick finds it. A host voids it, then asks its end; a guest sends a
 -- DNF, which the host lists unplaced. Neither starts a race.

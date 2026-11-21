@@ -1243,6 +1243,20 @@ int main() {
     assert(count("P1: dr lines, last 60 s: 17 in, 17 out, 9 dropped") == 1 && !saw("P1: score lines, last 60 s: "));
     advance(m, 60000);
     assert(count("P1: dr lines, last 60 s: ") == 1); // A minute without one has no line.
+    // Each drop line comes once a minute, not once a game run: a drop after the 60 s line logs again, both ways.
+    for (int i = 0; i < 17; ++i)
+      m[0].dr("cp 7 1 1 " + std::to_string(i));
+    for (int i = 0; i < 17; ++i)
+      inbox(0, kChannel).push_back({kFriend, dr_line("cp 7 1 1 " + std::to_string(i))});
+    m.round();
+    m.round();
+    assert(count("P1: dropped our dr lines") == 2 && count("P1: dropped dr lines from P2: over the rate limit") == 2);
+    // A member with no handshake yet (no hello): her dr line never reaches Lua.
+    F.members[m[0].lobby()].push_back(kOther);
+    m.round();
+    inbox(0, kChannel).push_back({kOther, dr_line("ready 7")});
+    m.round();
+    assert(!contains(m[0].take_chat(), "dr " + std::to_string(kOther) + " ready 7"));
   }
   // Outside a match lobby a dr line never goes and is never taken, with no log line.
   reset();
