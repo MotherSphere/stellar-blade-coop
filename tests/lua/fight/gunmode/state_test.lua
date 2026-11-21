@@ -349,4 +349,19 @@ do
     assert(w.keys()==keys and #w.changed()==0,'away during the arrival: '..w.keys())
 end
 
+-- 10. The 'off' line counts the rounds fired, the game's aim's too (fight/gunmode/ammo.lua's timer): it read 0 shots
+--     after a burst in the game's aim.
+do
+    local w=Fake.new(); w.install()
+    local gun,logs=new()
+    toggle(gun,true); frames(gun,40)
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=true,true,true
+    frames(gun,60)
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil
+    frames(gun,1)
+    toggle(gun,false)
+    local n=tonumber(logs[#logs]:match('^off %(command%), (%d+) shots'))
+    assert(n and n>=15 and n<=30,logs[#logs])
+end
+
 print('gunmode state: ok')

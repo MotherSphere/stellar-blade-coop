@@ -1312,8 +1312,11 @@ function GunMode.new(env)
             local before=ammo.left
             if not tps and inp.fire and aligned and not s.morph and ammo.left>0 and not ammo.reload_until then pcall(shoot,p,now) end
             if s.prof then s.prof('native') end
-            -- the timer counts the game's own rounds (its aim); gun mode's own shots count themselves (shoot -> ammo.spend)
+            -- the timer counts the game's own rounds (its aim); gun mode's own shots count themselves (shoot -> ammo.spend).
+            -- s.shots takes both: the 'off' line counted only gun mode's own shots ('0 shots' after a burst, 11-21).
+            local fired=ammo.fired
             local ok_a,err_a=pcall(ammo.tick,s.zoom_held or inp.fire,inp.fire and tps,now)
+            s.shots=s.shots+(ammo.fired-fired)
             -- The muzzle flash on Luke's rifle, once a frame that rounds went out: the NIKKE shot's own flash is on
             -- the NIKKE rifle of her hidden real body (the fire round her waist), which the pak's show drops.
             -- recoil, once a frame that rounds went out: the rifle kicks in her hands (fight/gunmode/ik.lua kick) and the camera

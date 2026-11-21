@@ -42,7 +42,8 @@ end
 -- dpad: the D-pad slot, show(text, color, rounds in the magazine) each frame and hide(); nil for none.
 -- stock: fight/gunmode/nikke.lua's object (ready, count, take, watch), or nil.
 function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
-    local self={left=cfg.mag_size,reserve=cfg.mag_size*cfg.spare_mags,reload_until=nil,acc=0,dt=1/60,held=false}
+    -- fired: the rounds the game's aim fired, as tick counts them (gun mode's own shots count themselves).
+    local self={left=cfg.mag_size,reserve=cfg.mag_size*cfg.spare_mags,reload_until=nil,acc=0,dt=1/60,held=false,fired=0}
     on_reload=on_reload or function() end
     local ui={} -- name, count: the slot's text blocks; saved: their own text and colour.
 
@@ -253,12 +254,14 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
                 self.held=true
                 self.acc=0
                 self.left=self.left-1
+                self.fired=self.fired+1
             else
                 self.acc=self.acc+dt
                 local step=Ammo.step(cfg.fire_interval,self.dt)
                 while self.acc>=step and self.left>0 do
                     self.acc=self.acc-step
                     self.left=self.left-1
+                    self.fired=self.fired+1
                 end
             end
             if self.left<=0 then
