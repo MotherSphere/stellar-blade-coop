@@ -30,6 +30,7 @@ start with `coop`.
 | [Challenges](online/modes/challenges.md) | `coop challenge`, Target Practice, the Shooting Range alone and for two, score, best runs |
 | [Score attack](online/modes/scoreattack.md) | The SBO lobby's match mode where every player plays the same challenge: starting a round, the host's pick, the ranking and its checks, the screens, best match runs, `coop scoreattack`, the score line |
 | [Fishing tournament](online/modes/fishing.md) | The online session's mode where every player fishes for the same minutes: `coop fish start`, the points, the host's checks and their limits, the corner board and the result panel, best tournaments, the book read, the mode line |
+| [Photo hunt](online/modes/photohunt.md) | The online session's mode where every player photographs three of SB's photo targets: `coop photohunt start`, which maps have targets, SB's photo check, the host's checks and their limits, the card and the result panel, best photo hunts, the mode line |
 | [Night Operation previews](online/modes/nightop-previews.md) | The probe (`coop no`), the recruiter (`coop recruiter`), how the original matchmaking is blocked |
 | [Doro races](online/modes/race.md) | Recording a track, starting a race, driving, rules, results, the Doro look, track files |
 

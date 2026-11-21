@@ -27,7 +27,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`fishing`, `guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `scoreattack`, `session_ui`, `settings`;
+`fishing`, `guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `photohunt`, `scoreattack`, `session_ui`,
+`settings`;
 `world/maps/matrix13/`:
 `off`, `words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
@@ -37,6 +38,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `off`; `story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`, `drive`, `drive_model`, `model`,
 `off`, `run`; `online/modes/scoreattack/`: `board`, `challenges`, `game`, `model`, `off`, `round`, `run`,
 `scoreattack`, `waves`; `online/modes/fishing/`: `board`, `fishing`, `game`, `model`, `off`, `records`, `round`;
+`online/modes/photohunt/`: `board`, `game`, `model`, `off`, `photohunt`, `records`, `round`, `targets`;
 `online/saves/`: `off`, `saves`; `online/session/`: `booth`, `chat`, `commands`, `join`, `off`,
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
@@ -221,7 +223,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   settings (the `sky=` line kept out of the `link:` lines); `bike` and `bike_key` (an older
   file whose keys hold F3 gets no bike key); `gun_mode` and `gun_key` (F4 by default, G refused, an older file whose
   keys hold F4 gets no gun key, a clash both ways) with gun mode's test lines, kept as written with no note; `fishing`
-  (on by default, its template line after `scoreattack`); the mode lines (`mode_line()` a mode request, each member's
+  (on by default, its template line after `scoreattack`); `photohunt` (on by default, its template line after
+  `fishing`); the mode lines (`mode_line()` a mode request, each member's
   line kept under its word with her SteamID apart from the chat and the other words, oldest first, 64 at most a word).
   It also reads the `dlcs=` line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the `mycycle=` and `cycle=` lines (a value out of range dropped), the session list's
@@ -517,6 +520,36 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `main.lua` (no file, a write that fails, a refused rename, a file that cannot be opened), the pass line with the book
   asked once a second from GO, the corner board built on the kit's hud step, the `coop off` stop with no line and no ask
   after it and the guard on the pass line;
+- `online/modes/photohunt/model_test` covers the photo hunt without the game: the start's length (15 minutes by
+  default, 1 to 60), the clock, the host's draw of three distinct targets, each photohunt text's round trip and every
+  malformed one refused whole, who a game takes each text from, the host's checks of each claim (sender, seed, row,
+  taken, again, time), the first claim winning, the board, the ranking with shared places (0 points sharing the last
+  place), leavers and a link that comes back, the end at the third point and at the time for 2, 4 and 8 players, the
+  native part's answer, what a new answer brings (valid photos, the last shot's answers) and the words of a shot.
+  `online/modes/photohunt/round_test` covers the round on a fake link and clock: `coop photohunt start` and its
+  refusals, the host's go, board, each refusal of a claim with one log line a sender and reason, two claims of one
+  target in one pass, the rank at the third point or at the time and its record, a guest's go, ready, claim, board,
+  rank and record, her sit-out, her end at a full board and the lines she drops, a guest who is lost and comes back, a
+  guest lost at the rank, the host leaving, a guest who leaves or whose rejoin gives up then comes back,
+  `coop photohunt stop`, a guest's and the host's Lua reload, a pass whose status was not read and 2, 4, 8 and 9
+  members. `online/modes/photohunt/game_test` covers the targets walk on fake tables (a row of the map, of another
+  map, with no ZoneEnvSpawnTable row, with two zones, fewer than three rows, a read error, no world loaded), each
+  sit-out, the ask at GO only with a number the engine line never shows, a lost answer asked again after 3 s,
+  `M.fname` nil for one row and for all, the answer's valid photo rising (a claim) or jumping by 2, the shot's words
+  given before the host's own claim, each `none` answer, a map change with the ask kept armed and no target read
+  again, the end at the time, at a full board and at a ranked round, `coop off` and `coop photohunt try`.
+  `online/modes/photohunt/targets_test` covers which rows of a fake walk lead to a map and a row's name on screen.
+  `online/modes/photohunt/board_test` covers the card and the result panel on a fake kit (their places, the countdown,
+  ours in teal, a pause, the title screen, the ranking, the panel closed 20 s after it), their words in the game's
+  language, each target taken said once, the photo words queued until the selfie mode closes, each notice with the kit
+  up and with the kit off and the HUD's STOP line. `online/modes/photohunt/records_test` holds the cases of score
+  attack's records for the copy under `best_photohunt_`. `online/modes/photohunt/photohunt_test` covers
+  `coop photohunt` with each refusal and `try`. `main/photohunt_test` covers `coop-records.txt` through `main.lua` (no
+  file, a write that fails, a refused rename, a file that cannot be opened), then a host's round over a fake clock: the
+  ask at GO with the targets' FNames, the screens built on the kit's hud step (the start and Camera notices, the card
+  each pass, hidden on the title screen), a valid photo in the engine line making the host's claim and board, the photo
+  words after the selfie mode, a fault answer's notice, the `coop off` stop with no line and the ask taken back, the
+  guard on the pass line, `photohunt=off` and a save that is not a co-op one refusing the start;
 - `online/modes/nightop/recruiter_test` also covers the auto spawn at each Xion load (waits while the spawn point is not
   loaded or EVE is too far, one spawn a load, a guard kept after a Lua reload, none after `coop recruiter off`). It
   checks the arm call right after the spawn and at a guard already there, before any check. It runs the looks every 3 s
@@ -578,7 +611,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   The fishing tournament's notices stay within 200 bytes with 32-byte names (the start of 60 minutes, each sit-out,
   an end with no ranking, a reloaded game; with the UI off GO, the place, the end, the first three with 6-digit points
   and a new best). Its corner board's title line, the result panel's heading, its line, its notes and a ranking row's
-  fish stay within their columns;
+  fish stay within their columns. The photo hunt's notices stay within 200 bytes with 32-byte names (the start with
+  the longest place and target names for 60 minutes, a target taken, each sit-out and each stop of the photo checks, a
+  photo's words with the longest target; with the UI off GO, the end, the first three, the place and a new best). Its
+  card's title line and target rows (the longest target name with two-digit numbers, a taker's name cut to 19
+  columns), its last line and the result panel's heading, line and notes stay within their columns;
 - `online/lobby/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
   controller; SB's black up and the kit veiled at the next pass; held while anything is missing, then lifted once with
   one line; the 8 s cap, which lifts whatever is missing and names it, also when the missing items cannot be read; a
@@ -671,8 +708,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `popups on` and `popups off`; `loading lift`; `sky off`, `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz>
   <H>` with their ranges; `world` and `scenes` with `on`, `off` or `status`; `nightshop`, `roxanne`, `lily`, `guardtext`
   and the 8 `signal` words, in `story/quests/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`, `abort`,
-  `leave`, `seq`) and their refusals, the score request, the mode request (`mode <word> <text>`) and `fishbook <ask>` (1
-  to 65535, 0 and 65536 refused)), Night Operation's night line (its round trip, its refusals
+  `leave`, `seq`) and their refusals, the score request, the mode request (`mode <word> <text>`), `fishbook <ask>` (1
+  to 65535, 0 and 65536 refused) and `photohunt <ask> <index> <number> ...` with 1 to 3 rows or `photohunt off` (an
+  ask of 0 or 65536, an index of 0, a value over 32 bits, 0 or 4 rows and a doubled space refused)), Night Operation's night line (its round trip, its refusals
   and a fuzz seed), the score line (Lua's text after `score`, printable ASCII up to the 512-byte message, never read as
   a race line, another protocol's refused, a fuzz seed), the mode line (its word of 1 to 16 lowercase letters, then
   Lua's text as it went, never read as a score or race line), and
@@ -1191,6 +1229,12 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   array, a book of another vtable, a bad hash size, an inline hash of more than one bucket, a chain that loops or runs
   longer than the count, an index past the array, an ID outside its bucket, not above 0 or found twice, a torn count,
   unreadable elements);
+- `online_modes_photohunt_photohunt_test`: the photo hunt's photo check over a fake game: no ask, not the selfie
+  camera, no photo UI node, a node of another vtable, a shot byte of 3 on a new object (only recorded), 0 to 3, 3 held,
+  3 to 0 to 3, a null row, the row's lazy init made once and never for a row SB set up, the answers in order, a map
+  change (another photo UI object and a row that reads null, then the next shot counting again), a result outside 0,
+  1 and 3, a new ask starting at no shot, the answer's text and the engine line's field (`none unpinned`, `none off`,
+  `none fault`, an ask not taken yet);
 - `ui_pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
   diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
   stick's thresholds, View held 1 s, D-pad Right held 1 s for the bike, LB, RB and Y once a press and in event order

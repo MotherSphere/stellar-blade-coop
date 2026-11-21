@@ -307,6 +307,45 @@ then has `void <seed>: a catch from <name> of a tournament we do not run`). `The
 ranking.` means the host left the online session, or typed `coop off`. `No ranking came from the host.` comes 30 s
 after your end with no ranking line, for example after a Lua reload on the host's PC with no catch after it.
 
+## Photo hunt
+
+### A photo does not count
+
+Take the photo in selfie mode, with the Camera. SB's free photo mode (Esc, Photo Mode) checks nothing. Your
+`UE4SS.log` has `[StellarCoop][PH] claim: <k> <row>` for each target your game claimed. With no such line:
+
+- the notice after your selfie mode closed says why: `was in your photo: get closer, centre it and face it.` means SB
+  saw the target outside the centre box or not faced. No notice means SB answered 0 for each drawn target in every
+  photo of that selfie session (too far, off screen or hidden behind something), or the mod saw no photo;
+- the photo came during the countdown or after your end;
+- the target was taken before your photo (`<name> took ...`): your game claims only an open target;
+- the log has `row <row> has no FName in this game: not checked`, `photo checks stopped in this game: <why>` or
+  `no target of this round has an FName in this game: no photo checks`;
+- `coop-link.log` has no `photohunt (ask <n>): 3 rows checked at each selfie photo` line after GO, or has
+  `photohunt (ask <n>) refused: <why>`. `unpinned` means another game build. `fault` comes after
+  `photohunt fault ...`: the photo checks stopped until the game restarts.
+
+To see what SB answers for each photo, try the check alone: `coop photohunt try` near a target, then a selfie photo.
+Each photo logs `try: shot <n>: <row>=<answer> ...`. With no `try: shot` line for a photo, the mod does not see that
+photo: send `UE4SS.log` and `coop-link.log` (see [Which logs to send](#which-logs-to-send)).
+
+With the claim line, the host's `UE4SS.log` may have `rank: refused <name>: <why>` (`sender`, `row`, `taken`, `again`
+or `time`, see [The host's checks](../online/modes/photohunt.md#the-hosts-checks)). `taken` means another player's
+claim of that target reached the host first. `sender` means the host did not count that player: her ready line came
+more than 10 s after the start line.
+
+### `This map has fewer than 3 photo targets.`
+
+Only Xion, the Wasteland and the Great Desert have photo targets. `coop photohunt status` lists the targets of your
+map after `targets here:`.
+
+### `The photo hunt was cancelled.`, `The host left. This photo hunt has no ranking.` or `No ranking came from the host.`
+
+`The photo hunt was cancelled.` follows the host's `coop photohunt stop`, or a Lua reload on the host's PC (the host's
+log then has `void <seed>: a claim from <name> of a round we do not run`). `The host left. This photo hunt has no
+ranking.` means the host left the online session, or typed `coop off`. `No ranking came from the host.` comes 30 s
+after your end with no ranking line, for example after a Lua reload on the host's PC with no claim after it.
+
 ## Menu, chat, controller and screen
 
 ### The game ignores its keys after the co-op menu or the chat
@@ -828,7 +867,8 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
   [score attack](../online/modes/scoreattack.md) lines: the lines received, sent and dropped (see
   [The score line](../online/steam-link-internals.md#the-score-line)).
 - `mode lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
-  [fishing tournament](../online/modes/fishing.md) lines: the lines received, sent and dropped (see
+  [fishing tournament](../online/modes/fishing.md) or [photo hunt](../online/modes/photohunt.md) lines: the lines
+  received, sent and dropped (see
   [The mode line](../online/steam-link-internals.md#the-mode-line)).
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
