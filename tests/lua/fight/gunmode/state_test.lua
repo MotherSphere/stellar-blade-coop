@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode and the game's state, over a fake UE4SS (fake.lua) on the rifle layer's path: the shot step's Type, the
 -- shot's borrowed rows armed only around its shots, the input mask lifted while the game is paused, the game's own
--- states and the other modules' holds on EVE that keep the rifle away.
+-- states and the other modules' holds on EVE that keep the rifle away, the comeback after an interaction.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 -- The laser sight needs Niagara's objects, which the fake lacks: here a laser that draws nothing.
@@ -403,6 +403,56 @@ do
     assert(logs[#logs]:match('^sounds at the off: %d+ audio components, 1 playing'),logs[#logs])
     assert(count('every owner 1 audio components, 1 playing (P_Test_Shot_Cue)')==1,table.concat(logs,'|'))
     FindAllOf=find
+end
+
+-- 12. The comeback after an interaction: the rifle comes back 1 s after she is free. A refused comeback (the drone aim
+--     held) is tried again 2, 4 and 8 s later, then given up: four tries in all. It waits while the game is paused. A
+--     new map, another module's hold on EVE (the bike) or a put-away press during the departure ends it.
+do
+    local w=Fake.new(); w.install()
+    local busy,logs=nil,{}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,busy=function() return busy end})
+    local function count(text)
+        local n=0
+        for _,l in ipairs(logs) do if l:find(text,1,true) then n=n+1 end end
+        return n
+    end
+    local function talk() -- a talk with the rifle out: it goes away, then she is free again
+        toggle(gun,true); frames(gun,60)
+        w.pawn.talk=true; frames(gun,12)
+        assert(not gun.state.on,'away for the talk')
+        w.pawn.talk=false
+    end
+    talk(); frames(gun,50)
+    assert(not gun.state.on,'not before 1 s')
+    frames(gun,20)
+    assert(gun.state.on,'back 1 s after the talk')
+    toggle(gun,false)
+    -- the drone aim held as she gets free
+    talk(); w.pawn.bTPSMode=true; logs={}
+    frames(gun,60*20)
+    assert(count('not now: release the drone aim first')==4 and count('no comeback')==1,table.concat(logs,'|'))
+    w.pawn.bTPSMode=false; frames(gun,120)
+    assert(not gun.state.on,'given up: the rifle stays away')
+    -- paused as she gets free
+    talk(); w.paused=true; frames(gun,120)
+    assert(not gun.state.on,'no comeback while the game is paused')
+    w.paused=false; frames(gun,10)
+    assert(gun.state.on,'back once the game runs')
+    toggle(gun,false)
+    -- a new map
+    talk(); w.new_pawn(); gun.new_controller(w.pc); frames(gun,60*6)
+    assert(not gun.state.on,'a new map ends the comeback')
+    -- a ride on the bike
+    talk(); busy='EVE rides the bike'; frames(gun,30); busy=nil; frames(gun,120)
+    assert(not gun.state.on,'a ride ends the comeback')
+    -- the gun mode key during the departure, then a talk
+    toggle(gun,true); frames(gun,60)
+    w.down.F4=true; frames(gun,1); w.down.F4=nil; frames(gun,2)
+    assert(gun.state.on and gun.state.morph and gun.state.morph.dir=='out','the departure plays')
+    w.pawn.talk=true; frames(gun,12); w.pawn.talk=false
+    frames(gun,120)
+    assert(not gun.state.on,'put away by the key: no comeback')
 end
 
 print('gunmode state: ok')

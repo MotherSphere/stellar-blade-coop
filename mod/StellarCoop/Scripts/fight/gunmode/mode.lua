@@ -121,8 +121,10 @@ function GunMode.turn(was,yaw,on_deg,off_deg)
     return was==true
 end
 
--- Back after an interaction (a camp seat, a rest, a door): once she has been free for settle seconds.
-function GunMode.resume_due(free_at,now,settle) return free_at~=nil and now-free_at>=settle end
+-- Back after an interaction (a camp seat, a rest, a door): once she has been free for settle seconds. After n refused
+-- tries, settle*2^n seconds after the last one (free_at is then its time).
+function GunMode.resume_due(free_at,now,settle,n) return free_at~=nil and now-free_at>=settle*2^(n or 0) end
+local RESUME_TRIES=4 -- tries of the comeback after an interaction: at 1 s, then 2, 4 and 8 s after each refusal
 
 function GunMode.want(reload,zoom,fire,move,falling)
     if reload then return 'reload' end
@@ -225,7 +227,7 @@ function GunMode.new(env)
     -- What belongs to one pawn and its controller, cleared on a new controller with no game call (new_controller).
     local PER_PAWN={'ovr_row','flash_fx','rifle','pose_m','pose_on','ik','layer_clip','reload_until','turn','turnq',
         'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','drone_wait','drone_keep','morph',
-        'move_block'}
+        'move_block','resume','free_at','resume_n'}
     local restored=false -- coop-gun.txt read this Lua load (self.restore).
 
     -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
@@ -1267,22 +1269,36 @@ function GunMode.new(env)
         end
         -- camps, seats, rests, doors and cutscenes: gun mode steps aside (rifle away, layer off, her own pose) while
         -- the game holds EVE in an interaction or a level sequence, and comes back 1 s after she is free (SBCharacter's
-        -- reflected calls, as bike/ride.lua uses them). A press of the gun mode key cancels the comeback.
+        -- reflected calls, as bike/ride.lua uses them). A press of the gun mode key cancels the comeback, as does one
+        -- that started the departure. So do a new map (new_controller) and another module's hold on EVE (env.busy: the
+        -- bike, an emote...). The comeback waits while the game is paused. A refused one is tried again 2, 4 and 8 s
+        -- later, then given up (RESUME_TRIES tries in all).
         if (s.on or s.resume) and now-(s.held_at or 0)>=0.1 then -- (no game call for it while the rifle is simply away)
             s.held_at=now
             local p0=g.pawn()
             s.is_held=p0~=nil and g.try(function() return p0:IsAttachedToLevelSequenceWithoutPlayable()==true
                 or p0:IsRunningInteraction()==true or p0.bEnableInteractionBlock==true end)==true
-            if s.on and s.is_held then s.resume=true; s.free_at=nil; g.log('keys held at the off: '..held_actions()); disable(g.try(function() return GunMode.blocked(p0,'0') end) or 'EVE is in an interaction or a cutscene'); return end
+            if s.on and s.is_held then
+                s.resume,s.free_at,s.resume_n=not (s.morph and s.morph.dir=='out'),nil,nil
+                g.log('keys held at the off: '..held_actions())
+                disable(g.try(function() return GunMode.blocked(p0,'0') end) or 'EVE is in an interaction or a cutscene')
+                return
+            end
             if not s.on and s.resume then
-                if p0 and not s.is_held then
+                local other=env.busy and g.try(env.busy)
+                if other then s.resume=false; g.log('no comeback: '..other)
+                elseif p0 and not s.is_held then
                     s.free_at=s.free_at or now
                     -- (quiet while anything else still holds her: enable would show its refusal each time)
-                    if GunMode.resume_due(s.free_at,now,1.0) and not held(p0) then
+                    if GunMode.resume_due(s.free_at,now,1.0,s.resume_n) and not held(p0) and not is_paused() then
                         if not pcall(enable,'back after the interaction') then give_all_back() end
-                        if s.on then s.resume,s.free_at=false,nil end
+                        if s.on then s.resume,s.free_at,s.resume_n=false,nil,nil
+                        else
+                            s.free_at,s.resume_n=now,(s.resume_n or 0)+1
+                            if s.resume_n>=RESUME_TRIES then s.resume=false; g.log('no comeback: refused '..s.resume_n..' times') end
+                        end
                     end
-                else s.free_at=nil end
+                else s.free_at,s.resume_n=nil,nil end
             end
         end
         if not s.on then return end

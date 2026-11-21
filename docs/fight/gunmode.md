@@ -87,6 +87,12 @@ held at that moment, with `[AZERTY]` after a mapping of the AZERTY keyboard layo
 or D-pad tap that the rifle refuses also shows a notice on screen: release the drone aim, EVE is not in the game world,
 EVE cannot take the rifle now, or the start failed.
 
+After a cutscene, a talk or another interaction that put the rifle away, the rifle comes back 1 s after EVE is free,
+once the game is not paused. A press of the gun mode key cancels this, also during the 0.4 s the rifle takes to go
+away. A new map, the bike or another module's hold on EVE cancels it too. A comeback that the rifle refuses (the drone
+aim held, for example) is tried again 2, 4 and 8 s later. After the fourth refusal the rifle stays away and
+`UE4SS.log` has the line `no comeback: refused 4 times`.
+
 During an SBO match (a round in play, or the PvP test of `coop pvp`) the rifle stays away too, with a notice. SBO's
 PvP rule counts a hit only from 15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther
 than 15 m would cost the other player nothing.

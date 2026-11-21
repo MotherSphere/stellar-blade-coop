@@ -139,7 +139,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   names the game's actions and axes on the keys held, with each row of the AZERTY layout marked
   (`Q: Item_UseHeal MoveRight(-1)[AZERTY]`), as it does at an off. A jump keeps it out. Another module's hold on EVE
   (`busy`) refuses the rifle or puts it away the same way; `out()` says whether it is out. A refused toggle (no EVE,
-  the drone aim held, a state that holds her, a failed start) gives its notice. F4 toggles the rifle by default, G does not; a
+  the drone aim held, a state that holds her, a failed start) gives its notice. After an interaction the rifle comes
+  back 1 s after she is free. A refused comeback (the drone aim held) is tried four times in all, then given up. It
+  waits through a pause. A new map, a ride on the bike or the gun mode key during the departure ends it. F4 toggles the rifle by default, G does not; a
   key with a modifier needs it held; `gun_key=none` has no key. Once `menu_key` is Shift+F4, also from a rebind
   after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the rifle. An off during the
   game's aim keeps TPSMode on RMB and SB's rows taken with the NIKKE shot's cool time at 999 until the aim ends with
