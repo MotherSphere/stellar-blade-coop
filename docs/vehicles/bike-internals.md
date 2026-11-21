@@ -134,8 +134,9 @@ will be removed.
 counts from the next mount. `core/link.lua` refuses any other word with its usual note and keeps `rig`. If another word
 still reaches the ride, it rides the rig and logs `bike_pose=<word> is neither rig nor hold: the rig` once. The co-op
 menu shows the setting under Options, Controls, after the bike's key: Riding pose (test), with Hidden copy (`rig`) and
-On EVE (`hold`). `coop bike status` names the way of the ride: `riding for <n> s (rig)`. The log lines quoted in this
-section are in `UE4SS.log` after `[StellarCoop][BK] `.
+On EVE (`hold`). `coop bike status` names the way of the ride: `riding for <n> s (rig)`. The ride's log lines quoted
+in this section are in `UE4SS.log` after `[StellarCoop][BK] `. The native part's (`anim: ...`, `bike ride clip ...
+before ride play <n>`) are in `coop-link.log`.
 
 ### The slot 0 bug
 
@@ -203,7 +204,8 @@ With `photo_pause=full`, photo mode pauses the world, so the rig holds its frame
 poses do not show on her while she rides the rig: her body copies the rig, not her animation blueprint. A dismount
 while a photo mode holds the world (ours, the selfie mode or the friend's photo mode that holds our game) unhooks at
 once. The rig stays until the first 250 ms pass with that mode closed (`bike rig kept until photo mode closes`, then
-`bike rig removed: photo mode closed`), at `bike=off` too. After `coop off` it goes at the first pass after `coop on`.
+`bike rig removed: photo mode closed`), at `bike=off` too. `coop off` stops the passes until the game restarts: a rig
+kept then stays hidden and unhooked until the map changes.
 A part that still follows a destroyed leader in a paused world stays broken until the world runs again (kwisatz's
 note). kwisatz's notes also say photo mode crashed his build once, on 2026-11-13, when it opened with her body on his
 copy. They give that crash two causes: a copy already destroyed, or a body with no bones of its own. A dismount never

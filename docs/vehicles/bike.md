@@ -62,7 +62,8 @@ sprint, the D-pad's own actions and the others listed in [vehicles/bike-internal
 cannot fight from the saddle. Jump stays the game's. A few keys still work. D-pad Up and Down still use items. R2, also
 a drift key, still picks up an item in reach. The interaction key still starts a talk, a box or a pickup in reach, which
 takes her off the bike. Photo mode works while she rides. With `bike_pose=rig` she keeps her riding pose there and the
-photo menu's poses do not show on her. With `bike_pose=hold` her riding pose comes back when photo mode closes.
+photo menu's poses do not show on her. With `bike_pose=hold`, when the game ends her riding pose in photo mode, the
+mod plays it again once photo mode closes.
 
 ## Where the bike stays
 

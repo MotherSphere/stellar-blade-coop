@@ -250,8 +250,8 @@ function Ride.new(o)
     -- of each end).
     local ride=nil
     -- Rigs a dismount unhooked while photo mode held the world, removed at the first 250 ms pass with it closed.
-    -- shortcut: a Ctrl+R before that pass leaves one hidden and unhooked until the map changes (coop off: until coop
-    -- on); keep its path for the next Lua load if the log shows it.
+    -- shortcut: a Ctrl+R before that pass leaves one hidden and unhooked until the map changes (coop off too, as it
+    -- stops the passes until the game restarts); keep its path for the next Lua load if the log shows it.
     local left={}
     local pose_told=nil -- The last bike_pose word that is neither rig nor hold, logged once.
     local preload=nil -- What the setting last asked of the native part: true (bike load), false (bike free).
