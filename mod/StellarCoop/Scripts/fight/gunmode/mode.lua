@@ -239,7 +239,9 @@ function GunMode.new(env)
         if g.valid(p) then return p end
     end
     if set.fire_key then Input.FIRE[#Input.FIRE+1]=set.fire_key end
-    local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=cfg.fire_interval,bs=set.bs})
+    -- cool=0: the rifle out clears SB's own copy of a longer cool time (an earlier rifle out, the off's hold). The first
+    -- round puts the rate of fire back (fight/gunmode/ammo.lua open).
+    local aim,data=Aim.new(g),Data.new(g,set.native,{speed=cfg.native_speed,upper=set.upper and 'P_Eve_GunNikke' or nil,cool=0,bs=set.bs})
     -- The rifle: with the rifle layer or the rifle clips alone (zNGMSpike_P), fight/gunmode/rifle.lua (the rifle in her
     -- real hand; the rifle clips play on her real body); without them, Luke's posed stance (fight/gunmode/stance.lua).
     local posed=Stance.new(Laser,set.trace and g.log or nil)
