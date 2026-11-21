@@ -772,14 +772,16 @@ assert(not t:find(' Bike '..BIKE,1,true),t)
 -- The bike's rig (vehicles/bike/rig.lua, bike_pose=rig): her main mesh and the parts that followed it copy the bones of
 -- a component of another actor, which wears her main mesh's mesh. pose_source, asked once a look with her address,
 -- names it while she rides. Her main mesh then has no leader and its read line names the rig's component. A part that
--- copies the rig follows her main mesh. The table equals the one without the rig, except the main read line's object
--- (a new generation). A nil pose source (the bike off, the hold way) gives today's table.
+-- copies the rig follows her main mesh. A part with a leader of its own (her ponytail, its own anim instance) keeps it.
+-- The table equals the one without the rig, except the main read line's object (a new generation). A nil pose source
+-- (the bike off, the hold way) gives today's table.
 local NAMES={'Root','Pelvis','Spine'}
 local rig_body=her('CharacterMesh0',BODY,{parent=capsule,bones=3,names=NAMES})
 local rig=read_only(part('RigMesh',BODY,{bones=3,names=NAMES}),'the rig')
 raw[rig].SkeletalMesh=raw[rig_body].SkeletalMesh -- The same mesh object as hers.
 local sleeve=her('Sleeve',X..'Sleeve.Sleeve',{leader=rig_body,parent=rig_body})
 local boots=her('Boots',X..'Boots.Boots',{leader=rig_body,parent=rig_body,x=2})
+local ponytail=her('Ponytail',HAIR,{parent=rig_body,socket='Bip001-Head',bones=2}) -- Not on the rig: no leader.
 local source,source_asked=nil,{}
 local function on_rig(on)
     local lead={Get=function() return on and rig or rig_body end}
@@ -791,22 +793,23 @@ local rig_looks={}
 published={}
 capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,rig_looks)
 capture.pose_source(function(at) source_asked[#source_asked+1]=at; return source end)
-player=eve_of('EVE22b',{boots,rig_body,sleeve})
+player=eve_of('EVE22b',{boots,ponytail,rig_body,sleeve})
 raw[player].Mesh=rig_body
 tick()
 ok,message=step(2)
 local alone=published[#published]
 first=tonumber(alone:match('^generation (%d+)\n'))
-assert(ok and message:find('^Capture %d+: 3 parts, 3 bone names, ') and #source_asked==1 and
+assert(ok and message:find('^Capture %d+: 4 parts, 5 bone names, ') and #source_asked==1 and
     source_asked[1]==raw[player].GetAddress(),tostring(message))
 local mesh_hex=string.format('0x%x',raw[rig_body].SkeletalMesh.GetAddress())
 local function read_of(o) return string.format('\nread 0 0x%x 0xc1 %s\n',raw[o].GetAddress(),mesh_hex) end
 assert(alone:find(plain('\npart 0 - - - 1 3 CharacterMesh0 '..BODY..'\nnames 0 Root Pelvis Spine'..read_of(rig_body)
-    ..'part 1 0 0 - 1 0 Boots '..X..'Boots.Boots\nplace 1 0 0 0 1 2 0.1 0 1 1 1\npart 2 0 0 - 1 0 Sleeve ')),alone)
+    ..'part 1 - 0 Bip001-Head 1 2 Ponytail '..HAIR..'\n')) and alone:find(plain('\npart 2 0 0 - 1 0 Boots '..X
+    ..'Boots.Boots\nplace 2 0 0 0 1 2 0.1 0 1 1 1\npart 3 0 0 - 1 0 Sleeve ')),alone)
 on_rig(true)
 ok,message=step(1)
 local ridden=published[#published]
-assert(ok and message:find('^Capture '..(first+1)..': 3 parts, 3 bone names, '),tostring(message))
+assert(ok and message:find('^Capture '..(first+1)..': 4 parts, 5 bone names, '),tostring(message))
 assert(ridden==alone:gsub('^generation %d+','generation '..(first+1)):gsub(plain(read_of(rig_body)),read_of(rig)),
     ridden)
 assert(step(1)==nil and #published==2,'Riding on: nothing new')
@@ -820,7 +823,7 @@ raw[rig].state.bones,raw[rig].state.names=4,{'Root','Pelvis','Spine','Neck'}
 rig_looks.faces=true
 ok,message=step(1)
 t=published[#published]
-assert(ok and message:find('^Capture '..(first+2)..': 3 parts, 4 bone names, '),tostring(message))
+assert(ok and message:find('^Capture '..(first+2)..': 4 parts, 6 bone names, '),tostring(message))
 assert(t:find(plain(string.format('\npart 0 - - - 1 4 CharacterMesh0 %s\nnames 0 Root Pelvis Spine Neck\n'
     ..'morphs 0 Smile\nread 0 0x%x 0xc1 0x%x\n',BODY,raw[rig].GetAddress(),raw[rig].SkeletalMesh.GetAddress()))),t)
 raw[rig].SkeletalMesh,raw[rig].state.bones,raw[rig].state.names=raw[rig_body].SkeletalMesh,3,NAMES
@@ -828,7 +831,7 @@ raw[rig_body].SkeletalMesh.MorphTargets,rig_looks.faces=nil,nil
 -- Off the bike: today's table again, under a new generation.
 on_rig(false)
 ok,message=step(1)
-assert(ok and message:find('^Capture '..(first+3)..': 3 parts, ') and
+assert(ok and message:find('^Capture '..(first+3)..': 4 parts, ') and
     published[#published]==alone:gsub('^generation %d+','generation '..(first+3)),published[#published])
 -- Her body still on a rig that pose_source does not name (after Ctrl+R, before the release): no table, as before.
 on_rig(true)
