@@ -210,6 +210,7 @@ do
     local a=new(store)
     out(a)
     assert(sword.bOwnerNoSee==true and part.bHiddenInGame==true,'the rifle out hides her sword and the drone')
+    clock=clock+0.6; a.tick() -- the arrival's end moves the game's aim to RMB: its keys change the line once
     local later=w.sword()
     saves=0
     for _=1,10 do clock=clock+0.6; a.tick() end

@@ -328,4 +328,25 @@ do
     w.pawn.bTPSMode=false; w.down.RightMouseButton=nil
 end
 
+-- 9. During the rifle's arrival (fight/gunmode/morph.lua's IN) the game's aim is masked on every key, RMB and LT
+--    included: a press there started the drone aim before the rifle was in her hands. Once the arrival is over it moves
+--    to RMB and stays on LT. A pause in between keeps the arrival's mask. A toggle during it puts the keys back.
+do
+    local w=Fake.new(); w.install()
+    local keys=w.keys()
+    local gun=new()
+    local function has(k) return w.keys():find(k,1,true)~=nil end
+    toggle(gun,true); frames(gun,3)
+    assert(not has('TPSMode=RightMouseButton') and not has('TPSMode=Gamepad_LeftTrigger')
+        and not has('TPSMode=LeftControl'),'no aim key in the arrival: '..w.keys())
+    w.paused=true; frames(gun,2); w.paused=false; frames(gun,1)
+    assert(not has('TPSMode=RightMouseButton') and not has('TPSMode=Gamepad_LeftTrigger'),'after a pause: '..w.keys())
+    frames(gun,30)
+    assert(has('TPSMode=RightMouseButton') and has('TPSMode=Gamepad_LeftTrigger'),'after the arrival: '..w.keys())
+    toggle(gun,false)
+    assert(w.keys()==keys)
+    toggle(gun,true); frames(gun,3); toggle(gun,false)
+    assert(w.keys()==keys and #w.changed()==0,'away during the arrival: '..w.keys())
+end
+
 print('gunmode state: ok')

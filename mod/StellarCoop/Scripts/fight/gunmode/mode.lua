@@ -284,8 +284,11 @@ function GunMode.new(env)
     end
     -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys, and cfg.mask_actions on any key,
     -- set to key None and the keymaps rebuilt; restore() puts each one back. Axis mappings on those keys are only
-    -- logged (the first time) so a later build can mask them if the game reads one.
-    local function mask()
+    -- logged (the first time) so a later build can mask them if the game reads one. arriving (native fire): the
+    -- rifle's arrival runs, so the game's aim (TPSMode) is masked on every key, RMB / LT included, instead of moved to
+    -- the aim key. A press then started the drone aim before the rifle was in her hands (2026-11-21 test). The tick
+    -- masks again with the move once the arrival ends.
+    local function mask(arriving)
         local settings=StaticFindObject(SETTINGS)
         assert(g.valid(settings),'input settings unavailable')
         local masked_key,on_keys,masked_name={},{},{}
@@ -294,6 +297,8 @@ function GunMode.new(env)
         for _,k in ipairs(cfg.mask_keys) do masked_key[k]=true end
         for _,n in ipairs(set.native and cfg.native_mask_on_keys or cfg.mask_on_keys) do on_keys[n]=true end
         if not set.native then for _,n in ipairs(cfg.mask_actions) do masked_name[n]=true end end
+        if arriving and set.native then masked_name.TPSMode=true end
+        s.mask_arrival=arriving==true
         local saved,names,rows={},{},{} -- rows: the mappings to mask, written in this call only (keys_back)
         settings.ActionMappings:ForEach(function(at,wrapped)
             local row=wrapped:get()
@@ -852,7 +857,7 @@ function GunMode.new(env)
         lap('rows')
         aim.setup()
         lap('aim')
-        local ok,err=pcall(function() s.mask,s.keys=mask() end)
+        local ok,err=pcall(function() s.mask,s.keys=mask(cfg.morph~=false and s.layer) end)
         lap('mask')
         if not ok then
             give_all_back(); g.log('off: the input mask failed ('..tostring(err)..')'); notice(os.clock(),'failed')
@@ -1156,7 +1161,7 @@ function GunMode.new(env)
             if not (p and aim_on(p)) then release_hold('the drone aim ended') end
         end
         if (s.on or s.aim_hold) and not s.mask then
-            local ok,err=pcall(function() s.mask,s.keys=mask() end)
+            local ok,err=pcall(function() s.mask,s.keys=mask(s.morph~=nil and s.morph.dir=='in') end)
             if not ok then
                 if s.on then disable('the input mask failed ('..tostring(err)..')') else release_hold('the input mask failed') end
                 return
@@ -1399,6 +1404,12 @@ function GunMode.new(env)
                 if m.done then
                     if s.morph.dir=='out' then local w=s.morph.why or 'press'; disable(w); return end
                     s.morph=nil; cube_drop(); pcall(single.morph,nil); require('fight.gunmode.ik').fade=1
+                    if s.mask and s.mask_arrival then -- the arrival is over: the game's aim moves to the aim key
+                        local back=s.mask; s.mask,s.keys=nil,nil; pcall(back)
+                        local ok,err=pcall(function() s.mask,s.keys=mask(false) end)
+                        if not ok then disable('the input mask failed ('..tostring(err)..')'); return end
+                        keep()
+                    end
                 end
             end
             s.want=want

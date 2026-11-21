@@ -69,9 +69,10 @@ stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the rif
 | Space | A | In firing mode: jump, still firing |
 | B | Triangle | Reload: the rounds left in the magazine are thrown away and a full magazine goes in |
 
-With the rifle out and no button held, EVE moves as usual with the rifle at low ready (luke77's rifle carry on the
-posed stance). The sword's attacks are off until the rifle is put away. Their keys come back while the game is paused,
-so the game's key options never save them off. A new map, a death or a camp warp puts the rifle away.
+While the rifle arrives in her hand (0.45 s after F4 or the D-pad tap) RMB and LT do nothing. A press after that
+starts firing mode. With the rifle out and no button held, EVE moves as usual with the rifle at low ready (luke77's
+rifle carry on the posed stance). The sword's attacks are off until the rifle is put away. Their keys come back while
+the game is paused, so the game's key options never save them off. A new map, a death or a camp warp puts the rifle away.
 
 The rifle does not come out during a cutscene, a talk or another interaction, while the game holds her movement, in the
 photo and selfie modes, or while her movement mode is other than walking or falling (swimming, flying, a custom movement
