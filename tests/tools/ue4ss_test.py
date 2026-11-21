@@ -452,14 +452,17 @@ with tempfile.TemporaryDirectory() as tmp:
         tool.URL = (tmp / 'no-such.zip').as_uri()
         assert tool.package(known) == expected
         # zip: the package under SB/Binaries/Win64/, to unpack into the Stellar Blade folder. The same files give the
-        # same bytes.
+        # same bytes. It has no mods.txt: unpacked over a UE4SS install, it would replace the player's list of mods
+        # (ConsoleEnablerMod's line with it). install.py --ue4ss keeps that file too.
+        zipped_files = {f'SB/Binaries/Win64/{r}': d for r, d in expected.items() if r != 'ue4ss/Mods/mods.txt'}
         for name in ('a', 'b'):
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
                 tool.main(['ue4ss.py', 'zip', str(known), str(tmp / name / 'SBO-UE4SS.zip')])
-            assert out.getvalue() == f'Wrote {tmp / name / "SBO-UE4SS.zip"} ({len(expected)} files)\n', out.getvalue()
+            assert out.getvalue() == f'Wrote {tmp / name / "SBO-UE4SS.zip"} ({len(zipped_files)} files)\n', \
+                out.getvalue()
         made = zipfile.ZipFile(tmp / 'a/SBO-UE4SS.zip')
-        assert {n: made.read(n) for n in made.namelist()} == {f'SB/Binaries/Win64/{r}': d for r, d in expected.items()}
+        assert {n: made.read(n) for n in made.namelist()} == zipped_files, sorted(set(made.namelist()) ^ set(zipped_files))
         assert (tmp / 'a/SBO-UE4SS.zip').read_bytes() == (tmp / 'b/SBO-UE4SS.zip').read_bytes()
         assert {i.date_time for i in made.infolist()} == {(1980, 1, 1, 0, 0, 0)}
         out = io.StringIO()

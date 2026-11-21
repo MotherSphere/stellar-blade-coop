@@ -13,6 +13,9 @@ ue4ss/builds/<TimeDateStamp>-<SizeOfImage>/ for the executable's PE header (the 
 NOTICE and LICENSE as ue4ss/SBO-NOTICE and ue4ss/SBO-LICENSE. An executable with no set gets nothing at all, not even
 a download: UE4SS v4.0.0 without the set's MemberVariableLayout.ini writes past the end of the game's FUObjectArray.
 
+The zip leaves ue4ss/Mods/mods.txt out. On a game with no UE4SS yet, the release's BPML_GenericFunctions,
+BPModLoaderMod and Keybinds then do not start: they have no enabled.txt. SBO needs none of them.
+
 Run: python3 tools/ue4ss.py fetch
      python3 tools/ue4ss.py zip <SB-Win64-Shipping.exe> <out.zip>   (paths under SB/Binaries/Win64/, to unpack into
                                                                      the Stellar Blade folder)"""
@@ -110,7 +113,8 @@ def main(argv):
         fetch()
         return print(f'{CACHE}: UE4SS v4.0.0, SHA-256 checked')
     if len(argv) == 4 and argv[1] == 'zip':
-        files = package(argv[2])
+        # Unpacked over a UE4SS install, a mods.txt would replace the player's list of mods: install.py keeps it too.
+        files = {rel: data for rel, data in package(argv[2]).items() if rel != 'ue4ss/Mods/mods.txt'}
         write_zip(files, Path(argv[3]))
         return print(f'Wrote {argv[3]} ({len(files)} files)')
     sys.exit(__doc__.rsplit('Run: ', 1)[1])
