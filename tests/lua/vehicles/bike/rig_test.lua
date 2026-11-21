@@ -8,8 +8,8 @@
 -- looped; a rig that cannot be made raises with no actor left; the hook (her main mesh first, then each follower; a
 -- refusal of her main mesh raises, a follower's is counted out); hooked; the unhook (her main mesh to none, each part
 -- back once, her main mesh never pointed at itself, a part no longer hers never called, a failing call counted while
--- the others go on, nothing called once her EVE is gone); remove and sweep; the release after Ctrl+R (the rig found by
--- its path and mesh, each part it leads sent back, then swept).
+-- the others go on, nothing called once her EVE is gone, a part on a socket that the hook moved sent back); remove and
+-- sweep; the release after Ctrl+R (the rig found by its path and mesh, each part it leads sent back, then swept).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local next_address=0x1000
@@ -42,12 +42,19 @@ LoadAsset=function(path) return assets[path] or invalid end
 package.loaded.UEHelpers={GetPlayer=function() end}
 local function weak(o) return {type=function() return 'TWeakObjectPtr' end,Get=function() return o end} end
 
--- Every SetMasterPoseComponent call, in order: {part=, leader=}.
-local calls={}
+-- Every SetMasterPoseComponent call, in order: {part=, leader=}. made: every part, for the engine's cascade.
+local calls,made={},{}
 local function count(part)
     local n=0
     for _,c in ipairs(calls) do if c.part==part then n=n+1 end end
     return n
+end
+-- FUN_144129240 (SetMasterPoseComponent, build 26123051): a leader that is not null moves the part's own followers
+-- (the parts whose leader it is) to that leader, then theirs. Not a call of ours: not in calls.
+local function cascade(from,to)
+    for _,p in ipairs(made) do
+        if p.MasterPoseComponent:Get()==from then p.MasterPoseComponent=weak(to); cascade(p,to) end
+    end
 end
 -- One of EVE's skeletal mesh components: f.mesh, f.parent, f.socket (default None), f.anim, f.fail (its
 -- SetMasterPoseComponent raises), f.raise (its GetAttachParent raises). c.read: its GetAttachParent was called.
@@ -75,7 +82,9 @@ local function part(f)
         calls[#calls+1]={part=self,leader=leader}
         if self.fail then error('refused') end
         self.MasterPoseComponent=weak(leader)
+        if leader then cascade(self,leader) end
     end
+    made[#made+1]=c
     return c
 end
 local body=assets[BODY]
@@ -216,6 +225,17 @@ calls,eve.destroyed={},true
 back,failed=Rig.unhook(eve,d,{hair,suit})
 assert(back==0 and failed==0 and #calls==0)
 eve.destroyed=nil
+-- A part SB hangs on a socket while it follows her main mesh (SBPonytailShort on Bip001-Head): the hook's call on her
+-- main mesh moves it to the rig, the rule does not take it, the unhook still sends it back.
+local ponytail=part({mesh=body,parent=main,socket='Bip001-Head'})
+ponytail.MasterPoseComponent=weak(main)
+eve.parts[#eve.parts+1]=ponytail
+calls={}
+list=Rig.hook(eve,d)
+assert(ponytail.MasterPoseComponent:Get()==rc and count(ponytail)==0,'moved with her main mesh only')
+back,failed=Rig.unhook(eve,d,list)
+assert(back==4 and failed==0,('%d back, %d failed'):format(back,failed))
+assert(count(ponytail)==1 and ponytail.MasterPoseComponent:Get()==main,'the ponytail back at her main mesh')
 
 -- Removed only while its actor is the one made; an earlier Lua load's rig swept only while its root shows the mesh.
 Rig.remove(d)
@@ -226,9 +246,9 @@ assert(Rig.sweep(old.path,OTHER)==nil and not old.actor.destroyed,'another mesh:
 assert(Rig.sweep(old.path,BODY)==true and old.actor.destroyed)
 
 -- The release after Ctrl+R: an earlier load's rig found by its path and mesh. Her main mesh to none; each part whose
--- leader is the rig back at her main mesh (the bangs too, which the rule does not take), each follower back, the bike
--- part and the sword (another leader) never called; then the rig swept. Another mesh at that path or no actor there:
--- nothing called, nothing swept. Her EVE gone: nothing called on her, the rig still swept.
+-- leader is the rig back at her main mesh (the bangs and the ponytail too, which the rule does not take), each
+-- follower back, the bike part and the sword (another leader) never called; then the rig swept. Another mesh at that
+-- path or no actor there: nothing called, nothing swept. Her EVE gone: nothing called on her, the rig still swept.
 local function earlier()
     local r=Rig.make(eve,BODY,clip,bike:GetAddress())
     by_path[r.path]=r.actor
@@ -246,8 +266,9 @@ back,failed,swept=Rig.release(eve,'/Game/Map.Map:PersistentLevel.Gone',BODY,bike
 assert(back==0 and failed==0 and swept==false and #calls==0)
 back,failed,swept=Rig.release(eve,r.path,BODY,bike:GetAddress())
 assert(calls[1].part==main and calls[1].leader==nil,'her main mesh first, to none')
-assert(back==4 and failed==0 and swept==true and r.actor.destroyed,('%d back, %d failed'):format(back,failed))
-assert(bangs.MasterPoseComponent:Get()==main and hair.MasterPoseComponent:Get()==main
+assert(back==5 and failed==0 and swept==true and r.actor.destroyed,('%d back, %d failed'):format(back,failed))
+assert(bangs.MasterPoseComponent:Get()==main and ponytail.MasterPoseComponent:Get()==main
+    and hair.MasterPoseComponent:Get()==main
     and suit.MasterPoseComponent:Get()==main and coat.MasterPoseComponent:Get()==main)
 assert(count(bike)==0 and count(sword)==0 and count(face)==0 and count(main)==1)
 r=earlier()

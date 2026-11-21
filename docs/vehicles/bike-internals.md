@@ -183,10 +183,15 @@ That function keeps the leader as a weak pointer at component `+0x570` (the refl
 `0x14665ddd8`). For a leader that is not null it walks up to the top of the leader's chain. It also moves the
 component's own followers to that leader. A null leader moves no follower back.
 
+The hook's call on her main mesh moves all its followers to the rig, also those the rule does not take. In
+`CH_P_EVE_01_Blueprint`, `SBPonytailShort` hangs on `CharacterMesh0` at socket `Bip001-Head`. SB's body slot code
+(`0x1424c12e0`) calls `0x144129240(part, body, 1)` on each slot part whose attach type is `Root` (0, value table
+`0x145e29840`; the part's `MeshSlotAttachType` at `+0x1341`). That call leaves the part on its socket.
 So the unhook first calls `SetMasterPoseComponent(nil, true)` on her main mesh. Then it points back at her main mesh
-each part of the hook's list that is still hers and each follower she has now: each part once, each call in its own
-`pcall`. The log says `bike rig unhooked: <n> part(s) back to her body`, with the failed calls when there are any.
-Then the rig goes. With her EVE gone (a map change) nothing is called on her, since the world took the rig with it.
+each part of the hook's list that is still hers, each part of hers whose `MasterPoseComponent` is the rig and each
+follower she has now: each part once, each call in its own `pcall`. The log says `bike rig unhooked: <n> part(s) back
+to her body`, with the failed calls when there are any. Then the rig goes. With her EVE gone (a map change) nothing
+is called on her, since the world took the rig with it.
 
 Every 250 ms on the rig way, after the checks of every ride:
 
@@ -219,11 +224,11 @@ nil. It makes no engine call. The capture in `online/partner` asks it at each lo
 
 A rig stays in the world across a Lua load, with her body still on it. The next load's first tick reads fields 8 and 9
 of `coop-bike.txt`. `Rig.release` acts only while the actor at field 8's path has a `SkeletalMeshComponent` root that
-shows field 9's mesh (the test of `core/actors.lua`'s `sweep`). It unhooks her, with every part of hers whose
-`MasterPoseComponent` is that root as the hook's list, then sweeps the rig: `bike rig from coop-bike.txt: <n> part(s)
-back to her body, swept`. Her mesh restore follows as for any ride. A file of seven fields, from a hold ride
-or an older build, releases nothing. One case is left: a dismount in photo mode, then Ctrl+R before photo mode closes,
-leaves that rig hidden and unhooked until the map changes.
+shows field 9's mesh (the test of `core/actors.lua`'s `sweep`). It unhooks her as a dismount does, with that root as
+the rig, then sweeps the rig: `bike rig from coop-bike.txt: <n> part(s) back to her body, swept`. Her mesh restore
+follows as for any ride. A file of seven fields, from a hold ride or an older build, releases nothing. One case is
+left: a dismount in photo mode, then Ctrl+R before photo mode closes, leaves that rig hidden and unhooked until the map
+changes.
 
 ### The hold
 

@@ -8,11 +8,11 @@
 -- posing while hidden, its cloth off, snapped to her main mesh, the clip looped in single-node mode. The rig is not
 -- online/partner/puppet.lua's puppet (the other player's EVE model).
 -- The engine's SetMasterPoseComponent (FUN_144129240, build 26123051; its leader a weak pointer at component +0x570)
--- moves the followers of her main mesh with it on a hook. An unhook (a null leader) moves none back, so each part gets
--- its own call back to her main mesh. A follower is a part of hers hung on her main mesh with no socket, no anim
--- instance of its own and a mesh (kwisatz's rule); the bike part is left out by its address. No log line here: the
--- callers log the counts. After Ctrl+R the next Lua load releases the rig it finds by the path coop-bike.txt keeps.
--- tests/lua/vehicles/bike/rig_test.lua covers it.
+-- moves the followers of her main mesh with it on a hook, a part SB hangs on a socket among them. An unhook (a null
+-- leader) moves none back, so each part the rig leads gets its own call back to her main mesh. A follower is a part of
+-- hers hung on her main mesh with no socket, no anim instance of its own and a mesh (kwisatz's rule); the bike part is
+-- left out by its address. No log line here: the callers log the counts. After Ctrl+R the next Lua load releases the
+-- rig it finds by the path coop-bike.txt keeps. tests/lua/vehicles/bike/rig_test.lua covers it.
 local U=require('core.unreal')
 local Doro=require('core.actors')
 local valid,value_of,each,find,address,text=U.valid,U.value_of,U.each,U.find,U.address,U.text
@@ -94,9 +94,9 @@ function Rig.hook(e,d)
     end
     return list,n
 end
--- Her main mesh set to copy nothing, then each part of list (hook's) that is still hers and each follower she has now
--- pointed back at her main mesh: each address once, each call in its own pcall. Returns how many went back and how
--- many calls failed. Without her main mesh (her EVE gone) it calls nothing.
+-- Her main mesh set to copy nothing, then each part of list (hook's) that is still hers, each part of hers the rig d
+-- leads and each follower she has now pointed back at her main mesh: each address once, each call in its own pcall.
+-- Returns how many went back and how many calls failed. Without her main mesh (her EVE gone) it calls nothing.
 function Rig.unhook(e,d,list)
     local main=valid(e) and valid(e.Mesh)
     if not main then return 0,0 end
@@ -112,6 +112,14 @@ function Rig.unhook(e,d,list)
     for _,c in ipairs(list or {}) do
         local ok,a=pcall(address,c)
         if ok and parts[a] then add(parts[a]) end
+    end
+    -- The hook's call on her main mesh moved all its followers, the ones the rule does not take too (SBPonytailShort
+    -- hangs on Bip001-Head): each part the rig leads goes back.
+    local rig=valid(d.mesh)
+    for _,c in pairs(rig and parts or {}) do
+        -- MasterPoseComponent: a weak pointer at +0x570 (params 0x14665ddd8).
+        local read,leader=pcall(function() return U.weak(c.MasterPoseComponent) end)
+        if read and leader and address(leader)==address(rig) then add(c) end
     end
     for _,c in ipairs(pick(parts,at,d.skip)) do add(c) end
     for _,c in ipairs(todo) do
@@ -132,24 +140,16 @@ Rig.remove=Doro.remove
 -- at mesh_path.
 Rig.sweep=Doro.sweep
 -- A rig an earlier Lua load left EVE e on (Ctrl+R), by its actor's path and the mesh it wears (fields 8 and 9 of
--- coop-bike.txt): unhook with every part of hers whose leader is its mesh as the list, then sweep. Nothing is called on
--- her unless that actor's root shows the mesh at mesh_path. skip: the bike part's address. Returns how many parts went
--- back, how many calls failed and whether the rig was swept.
+-- coop-bike.txt): unhook, then sweep. Nothing is called on her unless that actor's root shows the mesh at mesh_path.
+-- skip: the bike part's address. Returns how many parts went back, how many calls failed and whether the rig was
+-- swept.
 function Rig.release(e,path,mesh_path,skip)
     local actor=valid(StaticFindObject(path))
     local root=actor and valid(actor:K2_GetRootComponent())
     local shows=root and root:IsA(find(SKINNED)) and valid(root.SkeletalMesh)
     if not (shows and shows:GetFullName():match('^%S+ (.+)$')==mesh_path) then return 0,0,false end
     local back,failed=0,0
-    if valid(e) and valid(e.Mesh) then
-        local at,led=address(root),{}
-        for _,c in pairs(parts_of(e)) do
-            -- MasterPoseComponent: a weak pointer at +0x570 (params 0x14665ddd8).
-            local read,leader=pcall(function() return U.weak(c.MasterPoseComponent) end)
-            if read and leader and address(leader)==at then led[#led+1]=c end
-        end
-        back,failed=Rig.unhook(e,{mesh=root,skip=skip},led)
-    end
+    if valid(e) and valid(e.Mesh) then back,failed=Rig.unhook(e,{mesh=root,skip=skip}) end
     return back,failed,Rig.sweep(path,mesh_path)==true
 end
 return Rig
