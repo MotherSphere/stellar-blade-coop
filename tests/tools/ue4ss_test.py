@@ -96,7 +96,7 @@ pattern, _ = run(GUOBJECTARRAY, [])
 _, got = run(GUOBJECTARRAY, [(base, fill(pattern, 2, 0x4250d57)), (base, fill(pattern, 2, -0x40))])
 assert got == [base + 6 + 0x4250d57, base + 6 - 0x40], [hex(g) for g in got]
 
-# Build 26123051 itself (Ghidra, 2026-11-21): GUObjectArray's pattern matches once, at 0x142b8c4e3, and gives
+# Build 26123051 itself (Ghidra, 2026-11-21): GUObjectArray's pattern matches once (0x142b8c4e3) and gives
 # 0x146ddd240. GNatives' pattern matches 83 times; every match gives 0x146f17900. Both are UE4SS.log's values.
 if EXE.is_file():
     image = ms.Image(EXE.read_bytes())
@@ -148,7 +148,7 @@ def vtable_offset(sections, section, name):
 
 
 # Offsets read in Ghidra on build 26123051 (2026-11-21). "thunk" is the exec function of that UFunction in the
-# natives table (AActor's at 0x1464ceee0, AGameModeBase's at 0x14655c340): it calls or jumps through this offset.
+# natives table (AActor's at 0x1464ceee0, AGameModeBase's at 0x14655c210): it calls or jumps through this offset.
 # "vtable" is a slot of the vtable 0x1459535f0 (an AActor class that FUN_1411413f0 constructs).
 GHIDRA_VTABLE = {
     ('UObject', 'ProcessEvent'): 0x218,  # AActor::BeginPlay (0x143f6cc00) calls ReceiveBeginPlay through it
@@ -214,7 +214,8 @@ assert need <= set(vtables), need - set(vtables)
 # v4.0.0 always adds a delete listener (UnrealInitializer.cpp:468). Read in Ghidra on 26123051, GUObjectArray at
 # 0x146ddd240: AllocateUObjectIndex (FUN_142b890d0) reads the first five and calls the create listeners;
 # AddUObjectDeleteListener (FUN_142b89390) appends at +0x78 under the lock at +0x88; FUObjectArray's constructor
-# (FUN_140969fd0) sets +0xB0 to 1000; AllocateSerialNumber (FUN_1427f9330) increments it.
+# (FUN_140969fd0) sets +0xB0 to 1000; AllocateSerialNumber, inlined in FWeakObjectPtr's assignment (FUN_142ba93c0)
+# and in FUN_1427f9330, increments it.
 FUOBJECTARRAY = {'ObjFirstGCIndex': 0x0, 'ObjLastNonGCIndex': 0x4, 'MaxObjectsNotConsideredByGC': 0x8,
                  'OpenForDisregardForGC': 0xC, 'ObjObjects': 0x10, 'UObjectCreateListeners': 0x68,
                  'UObjectDeleteListeners': 0x78, 'MasterSerialNumber': 0xB0, 'UEP_TotalSize': 0xB8}
