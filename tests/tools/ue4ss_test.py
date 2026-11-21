@@ -217,8 +217,9 @@ need = {'UObjectBase', 'UObjectBaseUtility', 'UObject', 'UField', 'UEngine', 'US
         'ULocalPlayer', 'UDataTable'}
 assert need <= set(vtables), need - set(vtables)
 
-# MemberVariableLayout.ini holds only FUObjectArray, the one struct where build 26123051 differs from UE 4.26's
-# layout that UE4SS v4.0.0 has built in (listeners at 0xE0 and 0xF0, MasterSerialNumber at 0x128, size 0x130).
+# MemberVariableLayout.ini holds only FUObjectArray, the one struct whose offsets in the 1.3 package's file differ
+# from the UE 4.26 layout that UE4SS v4.0.0 has built in (listeners at 0xE0 and 0xF0, MasterSerialNumber at 0x128,
+# size 0x130). The other structs keep that built-in layout. Of them only FUObjectHashTables was read in Ghidra.
 # v4.0.0 always adds a delete listener (UnrealInitializer.cpp:468). Read in Ghidra on 26123051, GUObjectArray at
 # 0x146ddd240: AllocateUObjectIndex (FUN_142b890d0) reads the first five and calls the create listeners;
 # AddUObjectDeleteListener (FUN_142b89390) appends at +0x78 under the lock at +0x88; FUObjectArray's constructor

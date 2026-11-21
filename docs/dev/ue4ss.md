@@ -89,7 +89,8 @@ Every value in the set is a game fact: read it in Ghidra on the new build first.
 5. Copy `VTableLayout.ini` and `MemberVariableLayout.ini` from the previous set. Read every value again on the new
    build: the AActor and AGameModeBase slots, `ProcessEvent`, `UStruct::Link`, `UGameEngine::Tick` and the nine
    FUObjectArray offsets. The comments in both files name the function each value was read in. Write the new
-   addresses there.
+   addresses there. The other structs keep the UE 4.26 layout built into UE4SS. On build 26123051 only
+   FUObjectHashTables was read among them, in FUN_142ba30c0.
 6. Read the game facts of the shared settings on the new build: the engine branch string, FUObjectItem's size
    (0x18 bytes means `Stats = false`) and the offset of ULocalPlayer's FExec vtable (0x28). If one of them differs,
    one settings file cannot serve both builds. `tools/ue4ss.py` then needs a change first. Otherwise add the set's
