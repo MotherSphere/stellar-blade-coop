@@ -1090,6 +1090,7 @@ function GunMode.new(env)
             g.log('carry override '..s.ovr_row..': '..(s.ovr and 'on' or 'failed')..', active='..tostring(g.try(function() return p:IsActiveCustomMovingStanceData() end)))
         end
         s.on,s.shots,s.next_shot,s.zoom_held,s.held_since,s.snd_logged=true,0,0,false,nil,false
+        s.perf_new() -- the perf line's window starts here: the last rifle out and the time away stay out of it
         lap('carry')
         pcall(hide_others,p,true)
         lap('hide')
@@ -1327,7 +1328,7 @@ function GunMode.new(env)
             s.armed_until=nil
             if data.armed then data.disarm(); keep() end
         end
-        if s.prof then s.prof('head') end
+        if s.on and s.prof then s.prof('head') end -- (the rifle away marks nothing: the perf line is the rifle out's)
         -- The rifle away: the toggle keys only. The game's own aim (gun_fire=native) reads its zoom keys itself (M2).
         local inp=Input.read(keys,down,now,cfg,set.key,not s.on,set.native,inp_buf)
         -- the player's reload: a press of a reload key while the rifle is out (rising edge)
@@ -1935,6 +1936,8 @@ function GunMode.new(env)
     -- MB at 6 minutes for that test's figures). A frame that makes fewer objects slows the climb. A lower pause would
     -- stop it, for the whole mod: not set here (a changed collector crashed UE4SS once, above).
     local sec,smax,mem,last,last_kb={},{},{},0,0
+    -- A new window: after each perf line and at each rifle out (enable).
+    s.perf_new=function() s.perf=nil; sec={}; smax={}; mem={} end
     s.prof=function(name)
         local t,kb=os.clock(),collectgarbage('count')
         local d,a=t-last,kb-last_kb
@@ -1960,7 +1963,7 @@ function GunMode.new(env)
         local kbs=top(mem,1/pf.n,function(name,v) return ('%s %.1f'):format(name,v) end)
         g.log(('perf: tick %.2f ms average, %.2f ms worst, %d ticks, Lua %.0f KB (lowest %.0f KB), gun mode allocated at least %.1f KB a tick; ms a tick: %s; KB a tick: %s'):format(
             pf.sum/pf.n*1000,pf.max*1000,pf.n,heap,pf.low,pf.kb/pf.n,ms,kbs))
-        s.perf=nil; sec={}; smax={}; mem={}
+        s.perf_new()
     end
 
     -- The tick main/frame.lua runs each frame. Nothing at all with gun_mode=off.

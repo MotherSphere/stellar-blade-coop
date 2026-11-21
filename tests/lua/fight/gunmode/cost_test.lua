@@ -594,6 +594,33 @@ do
     back()
 end
 
+-- 11c. The perf line covers one rifle out. In the 2026-11-21 test a perf line came 5 ms after F4 brought the rifle out:
+--      its 358 ticks mixed the last rifle out with the time away. Here the rifle is out 5 s, away 20 s and out again:
+--      no tick away marks a section, no perf line comes in the first 10 s of the new rifle out and the next one counts
+--      that rifle out's ticks only.
+do
+    local w=world()
+    local logs={}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,
+        store={save=function() return true end,clear=function() end,load=function() return '' end}})
+    out(w,gun)
+    frames(gun,300)
+    clock=clock+1; gun.toggle_now()
+    assert(not gun.state.on,'the rifle is away')
+    local prof,heads=gun.state.prof,0
+    gun.state.prof=function(name) if name=='head' then heads=heads+1 end return prof(name) end
+    frames(gun,1200)
+    assert(heads==0,heads..' ticks away marked the head section')
+    local from=#logs
+    out(w,gun)
+    frames(gun,590)
+    for i=from+1,#logs do assert(not logs[i]:match('^perf: '),'a perf line in the first 10 s: '..logs[i]) end
+    frames(gun,20)
+    local ticks
+    for i=from+1,#logs do ticks=ticks or tonumber(logs[i]:match('^perf: .-, (%d+) ticks, ')) end
+    assert(ticks and ticks>=600 and ticks<=602,'the perf line after the rifle out counts '..tostring(ticks)..' ticks')
+end
+
 -- 12. A raise in the keep's lookup (core/keep.lua's get) falls through to the engine's name hash: the rifle still
 --     comes out with its mesh and the layer found in memory, neither loaded on the frame, with no tick error.
 do

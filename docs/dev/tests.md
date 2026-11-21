@@ -92,11 +92,12 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   memory. The keep holds the laser sight's two assets. Over 30 s carried, aiming and firing, the Lua heap after a full
   collection grows less than 8 KB.
   `coop-gun.txt`'s line is not built again while nothing changes. The perf line gives the heap's lowest point and the
-  `on` and `off` lines the heap. A keep lookup that raises falls through to the engine's name hash: the rifle comes out
-  with no tick error. A frame where the game's aim drops with RMB held (one on each shot) leaves her facing flags as
-  they are and writes no `coop-gun.txt` line. Hip fire still sets the flags. Gun mode fires no round of its own on
-  such a frame. A drop two frames long (a jump) has it fire from the second frame. Her mesh keeps its turn toward the
-  aim through the drops;
+  `on` and `off` lines the heap. After 5 s out and 20 s away, no tick away marks a section and the next perf line comes
+  10 s into the new rifle out with its ticks only. A keep lookup that raises falls through to the engine's name hash:
+  the rifle comes out with no tick error. A frame where the game's aim drops with RMB held (one on each shot) leaves her
+  facing flags as they are and writes no `coop-gun.txt` line. Hip fire still sets the flags. Gun mode fires no round of
+  its own on such a frame. A drop two frames long (a jump) has it fire from the second frame. Her mesh keeps its turn
+  toward the aim through the drops;
 - `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames, over `fight/gunmode/fake.lua`.
   Masked keys go back into the action mappings as they are when the rifle goes away, after coop fly's mappings moved
   the array to a new buffer; nothing is written into the old one. The muzzle flash's asset is found by its path or
