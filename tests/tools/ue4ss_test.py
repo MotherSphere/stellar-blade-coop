@@ -5,11 +5,15 @@
 """ue4ss/builds/: one folder of UE4SS files per Stellar Blade build, named <TimeDateStamp>-<SizeOfImage> of the game's
 executable in lower-case hex. The set of the pinned build (26123051): its README names every file; its two signature
 scripts run under lua5.4 on made-up matches and on Ghidra's copy of the executable when this PC has it. No
-FText_Constructor.lua anywhere under ue4ss/. NOTICE credits the scripts' sources.
+FText_Constructor.lua anywhere under ue4ss/. ue4ss/UE4SS-settings.ini has every key of UE4SS v4.0.0's file, with
+HookBeginPlay off and bUseUObjectArrayCache false. NOTICE credits the sources.
 Run: python3 tests/tools/ue4ss_test.py"""
+import hashlib
+import io
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -233,12 +237,106 @@ for line in (SET / 'MemberVariableLayout.ini').read_text(encoding='utf-8').split
         section[key], comment = int(value, 16), ''
 assert layout == {'FUObjectArray': FUOBJECTARRAY}, layout
 
+# UE4SS-settings.ini: the settings file of the UE4SS v4.0.0 release zip with SBO's values. OFFICIAL holds that file's
+# keys and values, plus EnableDebugKeyBindings, which SettingsManager.cpp reads although the file lacks it.
+OFFICIAL = {
+    'Overrides': {'ModsFolderPath': '', 'ControllingModsTxt': ''},
+    'General': {'EnableHotReloadSystem': '0', 'HotReloadKey': 'R', 'EnableAutoReloadingLuaMods': '0', 'UseCache': '1',
+                'InvalidateCacheIfDLLDiffers': '1', 'EnableDebugKeyBindings': None,
+                'SecondsToScanBeforeGivingUp': '120', 'bUseUObjectArrayCache': 'false',
+                'bForceGUObjectArrayForIteration': 'false', 'DoEarlyScan': '0', 'bEnableSeachByMemoryAddress': 'false',
+                'DefaultExecuteInGameThreadMethod': 'EngineTick', 'DefaultFNameToStringMethod': 'Scan'},
+    'EngineVersionOverride': {'MajorVersion': '', 'MinorVersion': '', 'DebugBuild': '', 'Stats': '',
+                              'PointerHash': 'Auto'},
+    'ObjectDumper': {'LoadAllAssetsBeforeDumpingObjects': '0', 'UseModuleOffsets': '0'},
+    'CXXHeaderGenerator': {'DumpOffsetsAndSizes': '1', 'KeepMemoryLayout': '0',
+                           'LoadAllAssetsBeforeGeneratingCXXHeaders': '0'},
+    'UHTHeaderGenerator': {'IgnoreAllCoreEngineModules': '0', 'IgnoreEngineAndCoreUObject': '0',
+                           'MakeAllFunctionsBlueprintCallable': '1', 'MakeAllPropertyBlueprintsReadWrite': '1',
+                           'MakeEnumClassesBlueprintType': '1', 'MakeAllConfigsEngineConfig': '1'},
+    'SDKGenerator': {'OutputPath': ''},
+    'Debug': {'ConsoleEnabled': '0', 'GuiConsoleEnabled': '0', 'GuiConsoleVisible': '0', 'GuiConsoleFontScaling': '1',
+              'GuiConsoleMonospaceTextEditors': '0', 'GraphicsAPI': 'opengl', 'RenderMode': 'ExternalThread',
+              'ToggleGuiKey': 'O'},
+    'Threads': {'SigScannerNumThreads': '8', 'SigScannerMultithreadingModuleSizeThreshold': '16777216'},
+    'Memory': {'MaxMemoryUsageDuringAssetLoading': '80'},
+    'Hooks': {'HookProcessInternal': '1', 'HookProcessLocalScriptFunction': '1', 'HookInitGameState': '1',
+              'HookLoadMap': '1', 'HookCallFunctionByNameWithArguments': '1', 'HookBeginPlay': '1', 'HookEndPlay': '1',
+              'HookLocalPlayerExec': '1', 'HookAActorTick': '1', 'HookEngineTick': '1',
+              'EngineTickResolveMethod': 'Scan', 'HookGameViewportClientTick': '1', 'HookUObjectProcessEvent': '1',
+              'HookProcessConsoleExec': '1', 'HookUStructLink': '1', 'FExecVTableOffsetInLocalPlayer': '0x28'},
+    'CrashDump': {'EnableDumping': '1', 'FullMemoryDump': '0'},
+    'ExperimentalFeatures': {},
+}
+# SBO's values. Each has a line starting '; SBO:' right above it that says why. The game facts among them name the
+# address they were read at in Ghidra on build 26123051.
+SBO = {('General', 'bUseUObjectArrayCache'): 'false', ('Hooks', 'HookBeginPlay'): '0',
+       ('General', 'EnableHotReloadSystem'): '1', ('General', 'EnableDebugKeyBindings'): '0',
+       ('EngineVersionOverride', 'MajorVersion'): '4', ('EngineVersionOverride', 'MinorVersion'): '26',
+       ('EngineVersionOverride', 'DebugBuild'): 'false', ('EngineVersionOverride', 'Stats'): 'false',
+       ('Debug', 'ConsoleEnabled'): '0', ('Debug', 'GuiConsoleEnabled'): '0', ('Debug', 'GuiConsoleVisible'): '0',
+       ('Hooks', 'FExecVTableOffsetInLocalPlayer'): '0x28'}
+FACTS = {('EngineVersionOverride', 'MajorVersion'), ('EngineVersionOverride', 'Stats'),
+         ('Hooks', 'FExecVTableOffsetInLocalPlayer')}
+
+
+def settings(text):
+    """{section: {key: (value, the comment lines right above it)}}, read as UE4SS's IniParser does: ';' opens a
+    comment only at the start of a line, a value runs to the end of its line."""
+    sections, section, above = {}, None, []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith(';'):
+            above.append(line)
+            continue
+        if line.startswith('['):
+            section = sections.setdefault(line[1:-1], {})
+        elif line:
+            key, eq, value = line.partition('=')
+            assert eq and section is not None, f'not a key = value line: {line}'
+            section[key.strip()] = (value.strip(), above)
+        above = []
+    return sections
+
+
+SETTINGS = UE4SS / 'UE4SS-settings.ini'
+text = SETTINGS.read_text(encoding='utf-8')
+# UE4SS reads a comment line up to its line end: a comment on the last line without one would never end.
+assert text.endswith('\n'), f'{SETTINGS} lacks a line end at its end'
+got = settings(text)
+want = {s: {k: SBO.get((s, k), v) for k, v in keys.items()} for s, keys in OFFICIAL.items()}
+assert {s: {k: v for k, (v, _) in keys.items()} for s, keys in got.items()} == want, \
+    {f'{s}.{k}': (got.get(s, {}).get(k, ('missing',))[0], v) for s, keys in want.items() for k, v in keys.items()
+     if got.get(s, {}).get(k, (None,))[0] != v}
+for (s, k) in SBO:
+    why = [c for c in got[s][k][1] if c.startswith('; SBO:')]
+    assert why, f'{s}.{k} has no "; SBO:" line above it'
+    assert (s, k) not in FACTS or re.search(r'0x14[0-9a-f]{7}', ' '.join(why)), f'{s}.{k}: no Ghidra address'
+assert not [k for keys in got.values() for k, (v, _) in keys.items() if ';' in v or '#' in v], 'a comment after a value'
+# SBO's own check at each load (core/ue4ss_settings.lua) finds no key that makes Stellar Blade unstable.
+CHECK = "local S=dofile(arg[1]); local f=assert(io.open(arg[2],'rb')); print(#S.check(f:read('a')))"
+out = subprocess.run(['lua5.4', '-', str(ROOT / 'mod/StellarCoop/Scripts/core/ue4ss_settings.lua'), str(SETTINGS)],
+                     input=CHECK, capture_output=True, text=True, timeout=60)
+assert out.returncode == 0 and out.stdout.strip() == '0', (out.stdout, out.stderr)
+# The pinned release zip, when this PC has it: OFFICIAL is its file.
+ZIP = Path.home() / '.cache/sbo-ue4ss/official-v4.0.0/UE4SS_v4.0.0.zip'
+if ZIP.is_file():
+    blob = ZIP.read_bytes()
+    assert hashlib.sha256(blob).hexdigest() == '251ad0d1381a241750e036f5918cbf2b5d7ec58ebc608cb2dd09d459d0c81e45', ZIP
+    shipped = settings(zipfile.ZipFile(io.BytesIO(blob)).read('ue4ss/UE4SS-settings.ini').decode('utf-8'))
+    assert {s: {k: v for k, (v, _) in keys.items()} for s, keys in shipped.items()} == \
+        {s: {k: v for k, v in keys.items() if v is not None} for s, keys in OFFICIAL.items()}, shipped
+    zipped = 'settings checked against the v4.0.0 zip'
+else:
+    zipped = f'v4.0.0 zip skipped: no {ZIP}'
+
 # NOTICE credits where the files come from and keeps the MIT notice.
 notice = (ROOT / 'NOTICE').read_text(encoding='utf-8')
 for word in ('https://github.com/Rev-OG-UwU/SB-UE4SS', 'a63c3f8ecfc51c679082c30805d8af5c3514ba9a',
              'https://github.com/Chrisr0/RE-UE4SS', 'e6e59de93656ed3caf242233a0b6f63e073ba3df',
+             'https://github.com/UE4SS-RE/RE-UE4SS', 'ue4ss/UE4SS-settings.ini',
              'Copyright (c) 2022 Narknon', 'Permission is hereby granted, free of charge', 'backup_saves()',
              'FText_Constructor.lua'):
     assert word in notice, f'NOTICE lacks {word}'
 
-print(f'ue4ss_test: ok ({len(builds)} build set; {real})')
+print(f'ue4ss_test: ok ({len(builds)} build set; {real}; {zipped})')

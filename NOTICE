@@ -124,6 +124,11 @@ ue4ss/builds/ holds the files that UE4SS v4.0.0 needs to run on a given
 Stellar Blade build, one folder per build. The release zip does not contain
 them.
 
+ue4ss/UE4SS-settings.ini is the settings file of the UE4SS v4.0.0 release
+(https://github.com/UE4SS-RE/RE-UE4SS, tag v4.0.0). Its header says what
+was changed here. The lines that start with "; SBO:" are Stellar Blade
+Online's.
+
 GNatives.lua, GUObjectArray.lua and VTableLayout.ini in
 ue4ss/builds/6ad8eff1-15fa3000/ come from Rev-OG-UwU's SB-UE4SS (https://github.com/Rev-OG-UwU/SB-UE4SS, commit
 a63c3f8ecfc51c679082c30805d8af5c3514ba9a). They first appear in Chrisr0's
