@@ -36,6 +36,9 @@ function Rifle.new(laser,trace,grip)
     local st -- the running state: {pawn, src, gun, held, target, beam, finish, reload...}
     local mathlib=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
     local GRIP=grip or Rifle.GRIP
+    -- The grip sent while it eases from the last clip's grip toward GRIP (nil once there): the IK eases her hands
+    -- toward the new clip at pin_blend (fight/gunmode/ik.lua), so the grip does too and the rifle never jumps.
+    local eased,eased_at
 
     function self.start(pc,held_fn,beam_target)
         assert(valid(pc) and valid(pc.Pawn),'Load a campaign save first')
@@ -73,7 +76,42 @@ function Rifle.new(laser,trace,grip)
     -- nil puts it back to normal. While k<1 the laser stays off.
     function self.morph(k,spin) if st then st.mk,st.mspin=k,spin end end
     -- the grip of the clip on the layer (Rifle.GRIPS name); unknown names keep the current grip
-    function self.grip(name) GRIP=Rifle.GRIPS[name] or GRIP end
+    function self.grip(name)
+        local G=Rifle.GRIPS[name]
+        if not G or G==GRIP then return end
+        local f=eased or GRIP
+        eased={Translation={X=f.Translation.X,Y=f.Translation.Y,Z=f.Translation.Z},
+            Rotation={X=f.Rotation.X,Y=f.Rotation.Y,Z=f.Rotation.Z,W=f.Rotation.W},Scale3D={X=1,Y=1,Z=1}}
+        GRIP=G
+        -- The IK has eased her hands one step toward the new clip this tick: the grip takes its first step now too.
+        eased_at=st and st.before or os.clock() -- (the frame before this tick's: one tick's step, as the IK's)
+        if st and valid(st.gun) then pcall(self.send,st.gun,os.clock()) end
+    end
+    -- eased one step toward GRIP (lerp, and the short-way nlerp for the rotation); nil once there
+    local function ease(now)
+        local k=1-math.exp(-math.max(0,now-eased_at)/require('fight.gunmode.ik').CFG.pin_blend); eased_at=now
+        local a,b=eased.Translation,GRIP.Translation
+        a.X,a.Y,a.Z=a.X+(b.X-a.X)*k,a.Y+(b.Y-a.Y)*k,a.Z+(b.Z-a.Z)*k
+        local q,t=eased.Rotation,GRIP.Rotation
+        local s=(q.X*t.X+q.Y*t.Y+q.Z*t.Z+q.W*t.W)<0 and -1 or 1
+        local x,y,z,w=q.X+(s*t.X-q.X)*k,q.Y+(s*t.Y-q.Y)*k,q.Z+(s*t.Z-q.Z)*k,q.W+(s*t.W-q.W)*k
+        local l=math.sqrt(x*x+y*y+z*z+w*w); q.X,q.Y,q.Z,q.W=x/l,y/l,z/l,w/l
+        if math.abs(q.X*t.X+q.Y*t.Y+q.Z*t.Z+q.W*t.W)>0.9999999 and math.abs(a.X-b.X)+math.abs(a.Y-b.Y)+math.abs(a.Z-b.Z)<1e-3 then eased=nil end
+    end
+
+    -- The rifle on her hand at the grip (eased), with the morph's scale and spin.
+    function self.send(gun,now)
+        if eased then ease(now) end
+        st.before,st.at=st.at,now
+        local G,mk=eased or GRIP,st.mk
+        if mk then
+            -- a fresh transform each frame: GRIP tables are shared between clips and must never be scaled in place
+            gun:K2_SetRelativeTransform({Translation=G.Translation,Rotation=G.Rotation,Scale3D={X=mk,Y=mk,Z=mk}},false,{},true)
+            if st.mspin and st.mspin~=0 then gun:K2_AddLocalRotation({Pitch=0,Yaw=st.mspin,Roll=0},false,{},true) end
+        else
+            gun:K2_SetRelativeTransform(G,false,{},true)
+        end
+    end
     function self.owns(c) return st~=nil and valid(c) and valid(st.gun) and c:GetAddress()==st.gun:GetAddress() end
     function self.copy() return true end
     function self.body() return nil end
@@ -93,15 +131,9 @@ function Rifle.new(laser,trace,grip)
         if not valid(pawn) or not valid(gun) or not valid(cur) or cur:GetAddress()~=st.addr then self.stop(); return end
         -- (paused: fight/gunmode/mode.lua's tick returns before any call of frame, its own and facts.lua's)
         local mk=st.mk
-        if mk then
-            -- a fresh transform each frame: GRIP tables are shared between clips and must never be scaled in place
-            gun:K2_SetRelativeTransform({Translation=GRIP.Translation,Rotation=GRIP.Rotation,Scale3D={X=mk,Y=mk,Z=mk}},false,{},true)
-            if st.mspin and st.mspin~=0 then gun:K2_AddLocalRotation({Pitch=0,Yaw=st.mspin,Roll=0},false,{},true) end
-        else
-            gun:K2_SetRelativeTransform(GRIP,false,{},true)
-        end
-        local held=st.held() and not self.no_laser and not (mk and mk<1) -- (no laser while the morph runs)
         local now=os.clock()
+        self.send(gun,now)
+        local held=st.held() and not self.no_laser and not (mk and mk<1) -- (no laser while the morph runs)
         if st.reloading then
             local k=math.max(0,math.min(1,(now-st.reloadAt)/st.reloadLen))
             local w=math.sin(math.pi*k)
