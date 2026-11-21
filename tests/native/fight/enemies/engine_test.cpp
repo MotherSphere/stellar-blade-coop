@@ -3086,7 +3086,7 @@ int main() {
     assert(turn("SBF27 aggro 1 game") == "SBF27 exec 1 102 1\n");
     const uint64_t told = t;
     e->pilot_off(true);
-    assert(turn() == "SBF27 own-no 1 101 1 off\nSBF26 exec 1 102 0\n");
+    assert(turn() == "SBF27 own-no 1 101 1 off\nSBF27 exec 1 102 0\n");
     e->pilot_off(false);
     for (int k = 0; t + 16 < told + coop::pilot::kExecSpaceMs; ++k) { // Marked all along: told again 2.25 s after.
       if (k % 40 == 0)
@@ -4944,7 +4944,7 @@ int main() {
     g.inbox.push_back(msg("SBF27 on"));
     frame(g, *e, 16);
     const std::string first = lines(g); // Their values wait for the next turn, which reads them scaled.
-    assert(has(first, "SBF27 world 1\nSBF26 scale 1 135 115\nSBF26 stagger 1 1 1\nSBF26 up 1 101 5001 0 900 1600\n") &&
+    assert(has(first, "SBF27 world 1\nSBF27 scale 1 135 115\nSBF27 stagger 1 1 1\nSBF27 up 1 101 5001 0 900 1600\n") &&
            !has(first, " hp "));
     assert(made(0, 101, {{3, 560}, {1, 560}, {13, 30}, {12, 30}}));
     assert(made(0, 102, {{3, 560}, {1, 280}, {13, 30}, {12, 15}}));
@@ -5196,8 +5196,8 @@ int main() {
     g.inbox.push_back(msg("SBF27 on"));
     frame(g, *e, 0);
     assert(e->host.linked() == 2 && e->host.bosses() == 200 && boss(202) && !boss(201));
-    assert(has(lines(g), "SBF27 world 1\nSBF26 scale 1 135 115\nSBF26 bosses 1 200\nSBF26 stagger 1 1 1\n"
-                         "SBF27 up 1 202 5202 0 15005100 1600\nSBF26 up 1 201 5201 0 7001 1600\n"));
+    assert(has(lines(g), "SBF27 world 1\nSBF27 scale 1 135 115\nSBF27 bosses 1 200\nSBF27 stagger 1 1 1\n"
+                         "SBF27 up 1 202 5202 0 15005100 1600\nSBF27 up 1 201 5201 0 7001 1600\n"));
     assert(stat(201, 2) == 2160 && stat(201, 1) == 2160 && stat(201, 13) == 230);
     assert(stat(202, 3) == 3200 && stat(202, 2) == 3200 && stat(202, 1) == 3200 && stat(202, 13) == 230);
     assert(e->snapshot().scaled == 2 && e->snapshot().bosses == 200);
@@ -5277,8 +5277,8 @@ int main() {
       g.spawn(101 + i, 5001 + i, 0);
     g.inbox.push_back(msg("SBF27 on")); // The guest's on: the host's whole list.
     frame(g, *e, 0);
-    assert(lines(g) == "SBF27 on\nSBF26 world 1\nSBF26 stagger 1 1 1\nSBF26 up 1 101 5001 0 900 1600\n"
-                       "SBF27 up 1 102 5002 0 900 1600\nSBF26 up 1 103 5003 0 900 1600\n"
+    assert(lines(g) == "SBF27 on\nSBF27 world 1\nSBF27 stagger 1 1 1\nSBF27 up 1 101 5001 0 900 1600\n"
+                       "SBF27 up 1 102 5002 0 900 1600\nSBF27 up 1 103 5003 0 900 1600\n"
                        "SBF27 hp 1 1 0 101:1600:100:200 102:1600:100:200 "
                        "103:1600:100:200\n");
     for (const char *hit : {"SBF27 hit 1 1 101 100 0 0 1600 0", "SBF27 hit 1 2 102 100 0 0 1600 0",
@@ -6115,7 +6115,7 @@ int main() {
     s.paired = 1, s.session = e->session(); // The session's first turn ran.
     assert(mail.exchange(s));
     w.pass(t += 16, true, false, true, none, gate, io);
-    assert(io.lines() == "SBF27 hit 2 1 101 100 0 0 1600 0\nSBF26 hp 1 1 0 101:1500:100:200 (unreliable)\n");
+    assert(io.lines() == "SBF27 hit 2 1 101 100 0 0 1600 0\nSBF27 hp 1 1 0 101:1500:100:200 (unreliable)\n");
     assert((io.said == std::vector<std::string>{"fight paired 5001:0 hguid=101"}) && w.status() == " fight=on 1");
     // A stats line traced in the second its side's counts moved, then none until they move again or a minute passed.
     io.said.clear(), io.traced.clear();
@@ -6281,7 +6281,7 @@ int main() {
     assert(mail.exchange(s));
     w.pass(t += 16, true, true, true, none, gate, io);
     assert(!e->on() && io.said.back() == "shared fight off: stopped for this run (fault)");
-    assert(io.lines() == "SBF27 world 7\nSBF26 off stopped for this run (fault)\n" && w.status() == " fight=stopped");
+    assert(io.lines() == "SBF27 world 7\nSBF27 off stopped for this run (fault)\n" && w.status() == " fight=stopped");
     assert(ask("fight on 900") == "shared fight off: stopped for this run (fault)");
     io.said.clear();
     mail.send(msg("SBF27 world 8"));
