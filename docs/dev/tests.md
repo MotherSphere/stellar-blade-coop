@@ -88,7 +88,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   map the drones come from the engine's class hash with no walk. A frame of the posed stance reads no bone name and
   makes no FName. The rifle out, its arrival, the aim, the rounds through a reload and the departure look for no asset
   with `StaticFindObject` and load none of the assets the keep holds. The layer's rebuild takes a body already in
-  memory. Over 30 s carried, aiming and firing, the Lua heap after a full collection grows less than 8 KB.
+  memory. The keep holds the laser sight's two assets. Over 30 s carried, aiming and firing, the Lua heap after a full collection grows less than 8 KB.
   `coop-gun.txt`'s line is not built again while nothing changes. The perf line gives the heap's lowest point and the
   `on` and `off` lines the heap. A keep lookup that raises falls through to the engine's name hash: the rifle comes out
   with no tick error. A frame where the game's aim drops with RMB held (one on each shot) leaves her facing flags as

@@ -46,6 +46,10 @@ GunMode.DRONE_CLASS='/Game/Art/Character/NPC/CH_NPC_Drone/BluePrints/CH_Drone_BP
 -- The aim camera's modifier class (BP_NGM_CamMod in the layer pak) and the aim stance's turn clips (a big turn from
 -- standing in hip fire): kept for the game run with the other assets (GunMode.new).
 local CAMMOD='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
+-- The laser sight's Niagara system and the NIKKE minigame's parameter collection (fight/gunmode/laser.lua's two
+-- resources): packages of pakchunk0 on 26123051. Nothing else holds them between two aims.
+local LASER={'/Game/DLC_2/Art/FX/MiniGame/NS_A_GuideLaser.NS_A_GuideLaser',
+    '/Game/DLC_2/Art/FX/MiniGame/NC_NikkeMinigame.NC_NikkeMinigame'}
 local function turn_clip(nm) return '/Game/Art/Character/PC/CH_P_EVE_01/Animation/'..nm..'.'..nm end
 function GunMode.allowed(kind,name) return kind==ATTACH_ACTOR_EFFECT and name~=nil and name==Data.row('Fire') end
 local function find_name(t) return FName(t,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
@@ -247,13 +251,15 @@ function GunMode.new(env)
     -- or loaded on the frame of a press. Nothing with gun_mode=off. The NIKKE shot's show too: held, the anim key
     -- fight/gunmode/data.lua empties at a rifle out stays the one each round plays. The layer's rebuild bodies
     -- (Overlay.BASES) too: neither was in memory at the first rifle out of the 2026-11-21 test, so one loaded on that
-    -- frame (layer 49 ms, 11 ms at the next rifle outs). Both are held: she may wear one of them.
+    -- frame (layer 49 ms, 11 ms at the next rifle outs). Both are held: she may wear one of them. The laser's two assets
+    -- too (LASER): after a collection the aim start loaded its system on the frame.
     if set.on then
         local want={Overlay.CLASS,Overlay.CLIPS.carry,Overlay.CLIPS.aim,Overlay.CLIPS.aimup,Overlay.CLIPS.aimdown,
             Rifle.WEAPON,CAMMOD,cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx,turn_clip('P_Eve_Gun_RotateLw'),
             turn_clip('P_Eve_Gun_RotateRw'),Data.SHOT_SHOW}
         for _,e in ipairs(cfg.reload_sounds) do want[#want+1]=e[1] end
         for _,b in ipairs(Overlay.BASES) do want[#want+1]=b end
+        for _,l in ipairs(LASER) do want[#want+1]=l end
         Keep.want(want)
     end
     local keys=Input.state()

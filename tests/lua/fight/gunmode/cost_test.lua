@@ -432,6 +432,26 @@ do
     Keep.reset()
 end
 
+-- 9c. The laser sight's assets (fight/gunmode/laser.lua's Niagara system and parameter collection) are asked of the
+--     keep with the others. Nothing held them between two aims: after a collection each aim start loaded the system
+--     on its frame (laser.lua's find falls back to LoadAsset).
+do
+    local Keep=require('core.keep')
+    local src=assert(io.open('mod/StellarCoop/Scripts/fight/gunmode/laser.lua')):read('a')
+    local base=assert(src:match("local base='([^']+)'"),'laser.lua names its assets\' folder')
+    local want,wanted=Keep.want,{}
+    Keep.want=function(paths) for _,p in ipairs(paths) do wanted[p]=true end end
+    world()
+    GunMode.new({log=function() end})
+    Keep.want=want
+    local n=0
+    for name in src:gmatch("resource%('([%w_]+)'%)") do
+        n=n+1
+        assert(wanted[base..name..'.'..name],'the keep does not hold the laser\'s '..name)
+    end
+    assert(n==2,n..' laser assets')
+end
+
 -- 10. The drone's class by its path (GunMode.DRONE_CLASS, in the base paks of 26123051): the first rifle out of a Lua
 --     load lists the drones through the engine's class hash (core/unreal.lua's class_at and actors_of) with no FindAllOf
 --     walk (36 ms at the first F4 of the 2026-11-21 test), as does a rifle out on a new map. Each drone is hidden.
