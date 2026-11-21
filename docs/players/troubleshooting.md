@@ -281,7 +281,7 @@ within 10 s of the death. When it does not, `UE4SS.log` has `respawn waits: <rea
 Your `UE4SS.log` has `[StellarCoop][FT] catch: <ID> <points>` for each catch your game counted and sent. With no such
 line for a catch:
 
-- it came during the countdown or after your end;
+- it came during the countdown, or after your game's last read of the book, a second or so after your end;
 - your game took its baseline again in that second, after a map change, a fast travel, a load, a respawn or a loading
   screen (see [What stops a tournament](../online/modes/fishing.md#what-stops-a-tournament));
 - the log has `book jumped by <n>: baseline again` or `book fell: baseline again`: that read of the book changed by

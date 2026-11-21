@@ -46,9 +46,10 @@ session during a tournament plays the next one. Her game hears nothing of the cu
 ## Catches and points
 
 Every catch of the game's fishing counts once from GO to the end: a fish, a trash catch or a box. A catch made during
-the countdown or after the end does not count. The fish, its Fishing Points and a box's items go to your inventory
-through SB's own catch, as in normal play. Which fish bites depends on where you cast and which bait you have, as in
-normal play. The mode has no part in it.
+the countdown does not count. Neither does one made after your game's last read of the book, a second or so after the
+end (see [The end and the ranking](#the-end-and-the-ranking)). The fish, its Fishing Points and a box's items go to
+your inventory through SB's own catch, as in normal play. Which fish bites depends on where you cast and which bait
+you have, as in normal play. The mode has no part in it.
 
 ### Points
 
@@ -128,7 +129,7 @@ There is no notice for your own catches: SB's result popup shows each one.
 | Event | What happens |
 | --- | --- |
 | A guest leaves the online session, or her link is lost | The host drops her from the board at its next pass. Still lost at the ranking, she is not ranked |
-| A guest's link comes back (the 60 s rejoin) | The host kept her counted catches. She is back on the board at its next pass and ranked if linked at the ranking. A catch she made while her link was down is lost: its line had no link to go on |
+| A guest's link comes back (the 60 s rejoin) | The host kept her counted catches. She is back on the board at its next pass and ranked if linked at the ranking. A catch she made while her link was down may be lost: its line may have had no link to go on |
 | The host leaves | The online session ends for every guest, so the tournament cannot pass to a guest. Each game says `The host left. This tournament has no ranking.` No record. A guest's tournament goes on while her own rejoin runs |
 | `coop fish stop` on the host | Every game ends the tournament with `The tournament was cancelled.` No record |
 | `coop off` | Your tournament stops with no line. The book reads stop and the screens hide. Your link goes with the mod, so the host counts you as a player who left. A host's `coop off` is a host who leaves |
@@ -189,7 +190,7 @@ own online session ended), `norank` (no ranking came), `out` (you sat out), `rep
 | `void <seed>: a catch from <name> of a tournament we do not run` | The host's game after its Lua reload, at the first catch line of the old tournament |
 | `book jumped by <n>: baseline again` | More than 2 catches in one book read |
 | `book fell: baseline again` | A fish's count fell, or a fish of the baseline was gone |
-| `book fish <ID> is not in the fish table: not sent` | A book key that is not one of the 40 rows, once a book |
+| `book fish <ID> is not in the fish table: not sent` | A book key that is not one of the 40 rows, once a tournament |
 | `fish table not read: <error>` | SB's fish rows could not be read |
 | `record not written: <why>` | `coop-records.txt` could not be written |
 | `STOP: HUD: <error>` | The screens stopped after an error; notices from then on |
@@ -221,8 +222,9 @@ matchmaking or Shift Up's servers: it makes no `ServerRequest_` call and starts 
 
 The wiring reads no other module. It exports `fishing` (the round) and `fishing_board` (the screens). `main/pass.lua`
 ticks the round every 250 ms after the inbox, then the game side and the screens. `coop off` stops it from
-`main/commands.lua`. `main/ui.lua` builds the screens after score attack's. It reads the shared pieces only:
-`core/where.lua` (a loaded world, EVE's map), `core/unreal.lua` (SB's tables), `M.coop_slot` and the `fishing` setting.
+`main/commands.lua`. `main/ui.lua` builds the screens after score attack's. It reads shared pieces only, among them
+`core/where.lua` (a loaded world, EVE's map), `core/unreal.lua` (SB's tables), `core/link.lua`'s files (the records),
+`M.coop_slot` and the `fishing` setting.
 
 ### The fish table
 
@@ -277,8 +279,8 @@ gives d catches. A fish new in the book gives its count. Then:
 - the baseline is taken again, as the next good answer, which counts nothing: after a `none` answer other than
   `unread`, a pass with no loaded world (a loading screen, the title), a change of EVE's map, or the slot verdict
   leaving `coop`. The answer to an ask sent before such a pass is dropped. No ask goes in that pass;
-- `none unread`, or an answer that is no book, keeps the baseline. A first catch of a fish (a new element) is when a
-  read most often tears, so a new baseline there would lose that catch;
+- `none unread`, or an answer that cannot be read as a book, keeps the baseline. A first catch of a fish (a new
+  element) is when a read most often tears, so a new baseline there would lose that catch;
 - a count that fell, or a fish of the baseline missing, counts nothing (`book fell: baseline again`). The next good
   answer is the baseline: outside a load or a rebuild only a catch writes the book. A catch only adds;
 - more than 2 catches in one answer counts nothing (`book jumped by <n>: baseline again`). The next good answer is the
