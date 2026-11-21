@@ -351,6 +351,9 @@ for word in ('https://github.com/Rev-OG-UwU/SB-UE4SS', 'a63c3f8ecfc51c679082c308
              'Copyright (c) 2022 Narknon', 'Permission is hereby granted, free of charge', 'backup_saves()',
              'FText_Constructor.lua', 'tools/ue4ss.py builds', "keep the release's MIT license"):
     assert word in notice, f'NOTICE lacks {word}'
+# The [EngineVersionOverride] 4.26 setting is the fork's: NOTICE credits it there, not among SBO's lines.
+settings_part = notice[notice.index('ue4ss/UE4SS-settings.ini is'):notice.index('GNatives.lua, GUObjectArray.lua')]
+assert "[EngineVersionOverride]" in settings_part and "Rev-OG-UwU's SB-UE4SS" in settings_part, settings_part
 
 
 # tools/ue4ss.py on made-up executables and a made-up release zip in a temporary folder, with no network: a download

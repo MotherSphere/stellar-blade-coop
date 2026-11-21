@@ -131,7 +131,10 @@ them.
 ue4ss/UE4SS-settings.ini is the settings file of the UE4SS v4.0.0 release
 (https://github.com/UE4SS-RE/RE-UE4SS, tag v4.0.0). Its header says what
 was changed here. The lines that start with "; SBO:" are Stellar Blade
-Online's.
+Online's. The [EngineVersionOverride] setting MajorVersion = 4 and
+MinorVersion = 26 comes from Rev-OG-UwU's SB-UE4SS (below). With both
+numbers set, UE4SS skips its engine version scan. Stellar Blade Online
+checked the version in the game's executable.
 
 GNatives.lua, GUObjectArray.lua and VTableLayout.ini in
 ue4ss/builds/6ad8eff1-15fa3000/ come from Rev-OG-UwU's SB-UE4SS

@@ -14,7 +14,7 @@ The paths are under the game's `SB/Binaries/Win64/`.
 | Path | Source | License |
 | --- | --- | --- |
 | `dwmapi.dll`, `ue4ss/UE4SS.dll`, `ue4ss/LICENSE`, `ue4ss/UE4SS_SDK_Backends/UE4SS.json`, `ue4ss/Mods/` | The UE4SS v4.0.0 release zip (https://github.com/UE4SS-RE/RE-UE4SS, tag `v4.0.0`, commit 30afe5ff, `UE4SS_v4.0.0.zip`). `tools/ue4ss.py` checks the zip's SHA-256. `Mods/mods.txt` loses the lines of the four mods left out. `install.py --ue4ss` writes it only where the player has none. The zip of `tools/ue4ss.py` leaves it out. The rest is unchanged | MIT, Copyright (c) 2022 Narknon |
-| `ue4ss/UE4SS-settings.ini` | The release's settings file with SBO's values, kept in this repository at `ue4ss/UE4SS-settings.ini`. Its header lists what changed | MIT. The lines that start with `; SBO:` are SBO's |
+| `ue4ss/UE4SS-settings.ini` | The release's settings file with SBO's values, kept in this repository at `ue4ss/UE4SS-settings.ini`. Its header lists what changed | MIT. The lines that start with `; SBO:` are SBO's. The `[EngineVersionOverride]` 4.26 setting comes from Rev-OG-UwU's SB-UE4SS |
 | `ue4ss/UE4SS_Signatures/GNatives.lua`, `ue4ss/UE4SS_Signatures/GUObjectArray.lua`, `ue4ss/VTableLayout.ini` | The build's set. For build 26123051: Rev-OG-UwU's SB-UE4SS (https://github.com/Rev-OG-UwU/SB-UE4SS, commit a63c3f8e). The three files first appear in Chrisr0's RE-UE4SS (https://github.com/Chrisr0/RE-UE4SS, commit e6e59de9). Each file's header says what changed here | MIT, Copyright (c) 2022 Narknon |
 | `ue4ss/MemberVariableLayout.ini` | The build's set. SBO's own file: each value was read in Ghidra | SBO License |
 | `ue4ss/SBO-NOTICE`, `ue4ss/SBO-LICENSE` | This repository's `NOTICE` and `LICENSE` | |
@@ -38,8 +38,9 @@ These values differ from the release file:
 - `EnableHotReloadSystem = 1`, as in the 1.3 package. SBO's docs use Ctrl+R to reload the Lua mods.
 - `EnableDebugKeyBindings = 0`. UE4SS reads this key. The release file lacks it.
 - `MajorVersion = 4`, `MinorVersion = 26`, `DebugBuild = false` and `Stats = false` in `[EngineVersionOverride]`. With
-  both version numbers set, UE4SS skips its engine version scan. On build 26123051 the engine branch string at
-  0x145f536f8 reads `++UE4+Release-4.26`. FUObjectItem is 0x18 bytes there, with no stats field.
+  both version numbers set, UE4SS skips its engine version scan. The two numbers are Rev-OG-UwU's setting. On build
+  26123051 the engine branch string at 0x145f536f8 reads `++UE4+Release-4.26`. FUObjectItem is 0x18 bytes there,
+  with no stats field.
 - `HookBeginPlay = 0`. With it on, the game can crash when EVE lets go of a movable crate.
 
 The release's values stay for `bUseUObjectArrayCache = false` (on, it can cause stutter and crashes at startup), for the

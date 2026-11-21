@@ -1573,12 +1573,13 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 - `ue4ss_test.py`: the files under `ue4ss/`. Each build set is named after its executable. The set's signature scripts
   run under `lua5.4` on made-up matches and, when this PC has Ghidra's copy of build 26123051, on its executable. Its
   `VTableLayout.ini` gives the offsets read in Ghidra. Its `MemberVariableLayout.ini` holds only values read there.
-  `UE4SS-settings.ini` holds every key of the v4.0.0 file with SBO's values. `NOTICE` credits the sources and keeps the
-  release files' MIT license for the package. Then `tools/ue4ss.py` on made-up executables and a made-up release zip (a
-  download reads a `file://` URL): the set picked by the PE header, a file that is no 64-bit executable refused, an
-  unknown build stopped before any download, a download or a cache file of other bytes refused and never cached, the
-  package's files and the zip's paths with no `mods.txt`, written twice with the same bytes. When this PC has the pinned
-  release zip, the settings and the package are checked against it;
+  `UE4SS-settings.ini` holds every key of the v4.0.0 file with SBO's values. `NOTICE` credits the sources, the fork's
+  `[EngineVersionOverride]` setting among them. It keeps the release files' MIT license for the package. Then
+  `tools/ue4ss.py` on made-up executables and a made-up release zip (a download reads a `file://` URL): the set picked
+  by the PE header, a file that is no 64-bit executable refused, an unknown build stopped before any download, a
+  download or a cache file of other bytes refused and never cached, the package's files and the zip's paths with no
+  `mods.txt`, written twice with the same bytes. When this PC has the pinned release zip, the settings and the package
+  are checked against it;
 - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
   and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the
   names of every new door, EnvC and ZoneEvent row chained. After a change to the data file, run
