@@ -56,6 +56,20 @@ It reads her again once a second. A new mesh (her outfit) starts a new generatio
 part hung elsewhere (the blade drawn or sheathed), shown or hidden is published again under the same generation. The log
 gives a `Capture` line per generation.
 
+While she rides SBO's bike with `bike_pose=rig`, her main mesh and the parts that followed it copy the bones of the
+bike's hidden rig through `SetMasterPoseComponent` ([The rig](../vehicles/bike-internals.md#the-rig)). That component
+belongs to another actor. `online/partner/wiring.lua` gives `capture.pose_source` the bike's `pose_source`, which the
+capture asks once a look with her actor's address: the rig's `SkeletalMeshComponent` during such a ride, else nil. A
+part whose leader is that component is mapped. Her main mesh then has no leader. Any other part follows her main mesh.
+Part 0's `read` line names the rig's component, its class and its mesh. Its bone count, bone names and morph names come
+from the rig's mesh, so the native part reads part 0's world transform, bones and morph weights from the rig. The rig's
+component and mesh are in the generation key: a new rig or a new rig mesh starts a new generation. A pose source without
+a mesh counts as none. Her main mesh then follows a component outside her parts, so no table goes out and the other
+players keep the one published before. On the hold way, off the bike and while the bike module is off, `pose_source`
+answers nil and the capture works as above. The native sound and world effect hooks take the owner of part 0's `read`
+object as her actor. During a rig ride that is the rig's actor, so most of her sounds and world effects do not reach the
+ghost ([Ghosts](../vehicles/bike-internals.md#ghosts)).
+
 ## 2. The component table
 
 The capture becomes the component table: one plain-ASCII grammar used for the capture file, the wire and the remote
