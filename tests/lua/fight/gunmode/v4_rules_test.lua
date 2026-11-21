@@ -67,14 +67,19 @@ do
     assert(a.spend(0)==true and a.left==2)
     assert(a.spend(0.1)==true and a.spend(0.2)==true and a.left==0 and reloads==1)
     assert(a.spend(0.3)==false and a.left==0)
-    -- the player's reload: the rest of the magazine is thrown away; no reload when lowered
+    -- the player's reload tops the magazine up from the spares; no reload when lowered
     local b=Ammo.new(g,cfg,function() end,function() end,nil)
     b.spend(0) -- 2 left, 6 spare
     for i=1,600 do b.tick(false,false,1+i/60) end -- 10 s lowered with a part-spent magazine
     assert(b.left==2 and not b.reload_until,'no reload when lowered')
-    assert(b.manual(20)==true and b.left==0)
+    assert(b.manual(20)==true and b.left==2,'the magazine keeps its rounds at the press: '..b.left)
     for i=1,120 do b.tick(false,false,20+i/60) end -- the reload runs out
-    assert(b.left==3 and b.reserve==3,'manual reload: left '..b.left..' reserve '..b.reserve)
+    assert(b.left==3 and b.reserve==5,'manual reload: left '..b.left..' reserve '..b.reserve)
     assert(b.manual(30)==false,'full magazine: no reload')
+    -- fewer spares than the magazine lacks: every spare goes in, never fewer rounds than before the press
+    b.spend(31); b.reserve=1 -- 2 left, 1 spare
+    assert(b.manual(40)==true)
+    for i=1,120 do b.tick(false,false,40+i/60) end
+    assert(b.left==3 and b.reserve==0,'one spare: left '..b.left..' reserve '..b.reserve)
 end
 print('gunmode v4_rules_test ok')

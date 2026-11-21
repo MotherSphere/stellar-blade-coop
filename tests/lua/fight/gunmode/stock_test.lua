@@ -9,8 +9,9 @@
 -- too); rounds carried later reload an empty magazine by itself; ready() turning false gives the free magazines back;
 -- refill() keeps the magazine with stock; stop() ends the watch and loads a magazine put away mid-reload through
 -- take(). A part-spent magazine never reloads by itself (the rifle lowered or not): the player's reload (manual)
--- throws its rounds away and loads a magazine through take(), never while a refused take waits Ammo.RETRY s. A
--- part-filled magazine fired empty after a refused take waits Ammo.RETRY s too.
+-- keeps its rounds and tops it up through take() with at most what she carries, never while a refused take waits
+-- Ammo.RETRY s. A refused take at the player's reload keeps the magazine as it was. Fired empty after it, the magazine
+-- waits Ammo.RETRY s too.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -84,8 +85,9 @@ frame(a)
 while a.reload_until do frame(a) end
 assert(#st.takes==1 and st.takes[1]==12 and a.left==12 and a.reserve==0,'All 12 taken')
 
--- A part-spent magazine, lowered for 10 s: no reload by itself. The player's reload throws the 25 rounds away; the
--- count drops during the reload: the take is the count now.
+-- A part-spent magazine, lowered for 10 s: no reload by itself. The player's reload keeps the 25 rounds and tops the
+-- magazine up. The count drops below the 5 it lacks during the reload: the take is the count now, never fewer rounds
+-- than before the press.
 st=stock(40)
 st.rows=true
 a=new(st)
@@ -96,12 +98,12 @@ for _=1,5 do frame(a,true,true); frame(a,true,false) end
 assert(a.left==25,'Five presses, five rounds: '..a.left)
 frames(a,600)
 assert(a.left==25 and not a.reload_until and #st.takes==1,'No reload when lowered')
-assert(a.manual(clock)==true and a.left==0,'The player\'s reload empties the magazine')
-assert(a.reload_from==0 and a.reload_to==10)
+assert(a.manual(clock)==true and a.left==25,'The player\'s reload keeps the magazine\'s rounds: '..a.left)
+assert(a.reload_from==25 and a.reload_to==30)
 st.carried=3 -- Spent elsewhere while the reload runs.
 while a.reload_until do frame(a) end
 assert(#st.takes==2 and st.takes[2]==3,'Only the 3 carried taken: '..tostring(st.takes[2]))
-assert(a.left==3,'3 loaded: '..a.left)
+assert(a.left==28,'25 kept, 3 loaded: '..a.left)
 
 -- ready() turns false (your own save loaded) mid-reload: the free magazines back, the reload and the watch ended.
 st.carried=5; frame(a)
@@ -210,9 +212,9 @@ st.refuse=nil
 frames(a,10)
 assert(count('ammo: reload (')==reloaded+1 and a.reload_until,'The empty magazine reloads after Ammo.RETRY s')
 
--- A refused take at the player's reload of a part-filled magazine: its 20 rounds thrown away, nothing loaded. With
--- the trigger held, no reload (and no take) before Ammo.RETRY s. v4 reloads a part-filled magazine only at the
--- player's reload, so a refused take always leaves it empty. Each wait is bounded: a fault fails here instead of looping.
+-- A refused take at the player's reload of a part-filled magazine: its 20 rounds stay, nothing loaded. Fired empty
+-- with the trigger held, no reload (and no take) before Ammo.RETRY s. Each wait is bounded: a fault fails here instead
+-- of looping.
 st=stock(40)
 st.rows=true
 a=new(st)
@@ -223,12 +225,13 @@ for _=1,10 do frame(a,true,true); frame(a,true,false) end
 assert(a.left==20 and a.reserve==10,'Ten presses: '..a.left..' '..a.reserve)
 st.refuse='no EVE'
 local refused=count('rounds not taken')
-assert(a.manual(clock)==true and a.left==0,'The player\'s reload throws the 20 rounds away')
+assert(a.manual(clock)==true and a.left==20,'The player\'s reload keeps the 20 rounds: '..a.left)
 for _=1,600 do if count('rounds not taken')>refused then break end; frame(a) end
 assert(count('rounds not taken')==refused+1,'The take was refused once')
 retry=assert(a.retry_at)
 for _=1,600 do if not a.reload_until then break end; frame(a) end
-assert(not a.reload_until and a.left==0,'The refused take loaded nothing: '..a.left)
+assert(not a.reload_until and a.left==20,'The refused take loaded nothing, the 20 rounds stay: '..a.left)
+assert(cool()==CFG.fire_interval,'The 20 rounds fire: '..tostring(cool()))
 reloaded,takes=count('ammo: reload ('),#st.takes
 for _=1,math.ceil((retry-0.05-clock)*60) do frame(a,true,true) end
 assert(clock<retry and count('ammo: reload (')==reloaded and #st.takes==takes and not a.reload_until and a.left==0,

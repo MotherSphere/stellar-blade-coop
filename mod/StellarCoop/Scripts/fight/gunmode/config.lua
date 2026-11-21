@@ -75,7 +75,7 @@ Config.DEFAULTS={
         'LeftTriggerKey','RightTriggerKey','Item_UseBullet'},
     mask_actions={'TPSMode','TPSFire'},
     -- The rifle's reload keys (keyboard B, gamepad Triangle): every game action on them is masked while the rifle is
-    -- out; a press throws the rest of the magazine away and loads a full one (fight/gunmode/ammo.lua manual). B is free in
+    -- out; a press tops the magazine up from the spares (fight/gunmode/ammo.lua manual). B is free in
     -- the game's own bindings (11-20 log: R throws grenades; B, N, O, Y and 5-0 are unbound).
     reload_keys={'B','Gamepad_FaceButton_Top'},
     -- gun_fire=native (a test): firing mode is the game's own aim (TPSMode on its own keys, Ctrl / LT, and TPSFire,

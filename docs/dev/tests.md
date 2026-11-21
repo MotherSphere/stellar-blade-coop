@@ -186,8 +186,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   part-filled magazine fired empty), an empty magazine
   that reloads once rounds come, no round while none are carried (`out of rounds` logged once), free magazines again
   once the stock stops being ready, a new world that keeps the magazine and the rifle put away mid-reload that takes
-  once. A part-spent magazine never reloads by itself. The player's reload throws its rounds away and takes through
-  the stock. It is refused while a refused take waits;
+  once. A part-spent magazine never reloads by itself. The player's reload keeps its rounds and tops it up through the
+  stock with at most what she carries. A refused take there keeps the magazine as it was. The player's reload is
+  refused while a refused take waits;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

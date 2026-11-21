@@ -72,7 +72,7 @@ stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the rif
 | RMB (held) | LT (held) | Firing mode: the camera comes over her shoulder, the laser sight and the reticle come up |
 | LMB | RT | In firing mode: full auto |
 | Space | A | In firing mode: jump, still firing |
-| B | Triangle | Reload: the rounds left in the magazine are thrown away and a full magazine goes in |
+| B | Triangle | Reload: the magazine is topped up from the spares |
 
 While the rifle arrives in her hand (0.45 s after F4 or the D-pad tap) RMB and LT do nothing. A press after that
 starts firing mode. With the rifle out and no button held, EVE moves as usual with the rifle at low ready (luke77's
@@ -147,8 +147,9 @@ The rifle fires NIKKE RAPID rounds: about 20 a second.
 | Magazine | 60 rounds |
 | Reload | 1.6 s, with the NIKKE squad's reload sounds |
 
-The magazine reloads when it runs dry or when you press the reload key (B, or Triangle on a pad). A press throws away
-the rounds left in the magazine. Lowering the rifle never reloads it. No round fires while it reloads.
+The magazine reloads when it runs dry or when you press the reload key (B, or Triangle on a pad). A press keeps the
+rounds left in the magazine and tops it up from the spares. With fewer spares than it lacks, every spare goes in.
+Lowering the rifle never reloads it. No round fires while it reloads.
 
 The `[GM]` line `off (...), N shots` counts the rounds of the rifle out, the game's aim's included. For a shot sound
 that goes missing, two `[GM]` lines list EVE's audio components and the ones playing. `sounds while firing:` comes once

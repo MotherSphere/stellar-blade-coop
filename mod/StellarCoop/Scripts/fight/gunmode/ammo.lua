@@ -241,13 +241,13 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
         show()
     end
 
-    -- The player's reload (fight/gunmode/mode.lua: B / Triangle): the rest of the magazine is thrown away and a full one
-    -- goes in from the spares (with stock: taken out of EVE's inventory by load, as any reload). Nothing while
-    -- reloading, with a full magazine, with no spares or while a refused take waits (retry_at).
+    -- The player's reload (fight/gunmode/mode.lua: B / Triangle): the magazine is topped up from the spares (with stock:
+    -- taken out of EVE's inventory by load, as any reload). Its rounds stay in it, so a press never leaves fewer rounds
+    -- and never loses a round taken from the inventory. Nothing while reloading, with a full magazine, with no spares or
+    -- while a refused take waits (retry_at).
     function self.manual(now)
         if self.reload_until or self.reserve<=0 or self.left>=cfg.mag_size then return false end
         if self.stocked and now<(self.retry_at or 0) then return false end
-        self.left=0
         start_reload(now,'manual')
         return self.reload_until~=nil
     end
