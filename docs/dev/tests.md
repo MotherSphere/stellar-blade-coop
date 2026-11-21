@@ -45,8 +45,9 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
-`fight/gunmode/`: `aimrot`, `cost`, `dpad`, `engine`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`,
-`morph`, `nikke`, `off`, `online`, `release`, `rifle_frame`, `state`, `stock`, `stop`, `texts`, `v4_rules`)
+`fight/gunmode/`: `aim`, `aimrot`, `cost`, `dpad`, `engine`, `g1_gates`, `grip_ease`, `helpers`, `ik_pin`,
+`input_memo`, `laser`, `morph`, `nikke`, `off`, `online`, `release`, `rifle_frame`, `state`, `stock`, `stop`, `texts`,
+`v4_rules`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -83,7 +84,14 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   rifle-first solver (`ik.lua`) included. The crosshair is traced only while she aims. The zoom keys go unpolled in the
   game's own aim. The drone and the reticle's text are walked for (`FindAllOf`) once at the rifle out. The text is
   walked for again at each firing mode entry. The drone is walked for again when the one held goes, or 10 s after a miss
-  at the next rifle out. A frame of the posed stance reads no bone name and makes no FName;
+  at the next rifle out. A rifle out again finds the held drone with no walk unless it is now far from her. On a new
+  map the drones come from the engine's class hash with no walk. A frame of the posed stance reads no bone name and
+  makes no FName. The rifle out, its arrival, the aim, the rounds through a reload and the departure look for no asset
+  with `StaticFindObject` and load none of the assets the keep holds. The layer's rebuild takes a body already in
+  memory. Over 30 s carried, aiming and firing, the Lua heap after a full collection grows less than 8 KB.
+  `coop-gun.txt`'s line is not built again while nothing changes. The perf line gives the heap's lowest point and the
+  `on` and `off` lines the heap. A keep lookup that raises falls through to the engine's name hash: the rifle comes out
+  with no tick error;
 - `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames, over `fight/gunmode/fake.lua`.
   Masked keys go back into the action mappings as they are when the rifle goes away, after coop fly's mappings moved
   the array to a new buffer; nothing is written into the old one. The muzzle flash's asset is found by its path or
@@ -92,9 +100,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   donor plays the reload;
 - `fight/gunmode/online_test` covers what other players get of gun mode, over fake UE4SS objects. The posed stance
   adds no skeletal mesh component to EVE. Its donor and the keeper of its hide clip stand on an actor of their own,
-  removed at stop, so the ghost's capture never sends them. The laser sight is spawned at the rifle's muzzle with no
-  parent (the capture sends the rifle's attached effects). Each frame of aim moves it to the muzzle, on the rifle
-  layer too when it has no point to end at. While an SBO match runs the rifle does not come out, with the match notice
+  removed at stop, so the ghost's capture never sends them. The laser sight hangs from a plain scene component snapped
+  to the rifle's muzzle socket, never right on the rifle (the capture sends the effects hung right on a part). The
+  engine carries it with the muzzle. The rifle layer updates its end at each frame of aim, also when it has no point
+  to end at. While an SBO match runs the rifle does not come out, with the match notice
   once in 3 s. A match that starts with the rifle out puts it away within 0.25 s with everything back;
 - `fight/gunmode/dpad_test` covers the HUD entry (`fight/gunmode/ui/dpad.lua`): its glyph is the Right twin of the
   pad glyph the game shows or the `gun_key` keyboard icon. Its icon is a game texture path that it wants from the
@@ -110,12 +119,26 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   off while the rifle is away. `coop off` takes it off the HUD. There is none with `gun_mode=off` or
   `hud_entry=false`. A built entry is named in `coop-gun.txt` and the next load takes it off, gun mode on or off;
 - `fight/gunmode/v4_rules_test` covers the layer clip choice (hip fire raises the rifle, a ground move carries it,
-  the flip keeps the aim), the aim bridge through a dodge, her body tilt, the aim clip by rifle pitch, the recoil,
-  the hip-fire turn, the comeback after an interaction and gun mode's own shots, one round each, with the player's
-  reload;
+  the flip keeps the aim), the aimed reload on the aim's pose, the aim bridge through a dodge, her body tilt, the aim
+  clip by rifle pitch, the recoil, the hip-fire turn, the comeback after an interaction, the chest turn's ease back (a
+  zero turn given back as the same table) and gun mode's own shots, one round each. The player's reload keeps the
+  magazine's rounds and tops it up from the spares;
+- `fight/gunmode/aim_test` covers where the rounds go. The round's destination is written in EVE's root frame with
+  its pitch and roll. The spread keeps each round within `gun_spread` degrees of the reticle point, seen from the
+  camera; 0 puts every round on it. Over `fight/gunmode/fake.lua` firing mode writes the destination every frame from
+  that frame's crosshair point. The row places it at the spawn only while the rifle is out and gets its shipped value
+  back after. An aimed reload keeps the aim entry for the IK and an aim clip on the layer. The round line names the
+  first three rounds, within the spread. The game's montage on her while she fires is named in the log once;
+- `fight/gunmode/grip_ease_test` changes the layer clip from carry to aim and back at 60 frames a second in
+  `mode.lua`'s order. The grip eases with her hands: no frame turns the rifle 12 degrees or more. Once eased the grip
+  is the clip's own;
 - `fight/gunmode/aimrot_test`, `ik_pin_test`, `morph_test`, `rifle_frame_test`, `laser_test`, `input_memo_test` and
-  `g1_gates_test` cover the chest-turn loop, the v4 left-hand pin, the rifle's arrival and departure timing, the
-  rifle's frame and its morph scale, the laser end sent only when it moved, one key read a frame and the G1 gates;
+  `g1_gates_test` cover the chest-turn loop, the v4 left-hand pin (a reload in firing mode on the aim's entry), the
+  rifle's arrival and departure timing, the rifle's frame and its morph scale, the laser end sent only when it moved,
+  one key read a frame and the G1 gates. The morph's spin has no jump at a phase change and ends on a whole turn. In
+  aim the rifle's frame turns the barrel onto the reticle's line by the whole error up to `Rifle.TURN_MAX`, eased in
+  at the aim's start, with no turn when it is far off. The laser hangs from a holder snapped to the rifle's `FX_Fire`
+  socket, never right on the rifle. Both carry the rifle's tag for the sweep after a Lua reload;
 - `fight/gunmode/stop_test` runs gun mode over a fake UE4SS (`fight/gunmode/fake.lua`) on the rifle layer's path. The
   fake's row fields have the kinds read in Ghidra on 26123051: the shot's Hit1 step has a byte `Type` and no `StepType`.
   `stop` (coop off) gives back the table fields, the keys, the rifle, her body's own post-process class, the FOV lock
@@ -158,7 +181,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   Each script in `tools/gunmode` starts with the SBO license lines. Its comments name no script that is not there and
   hold no session notes. The Blender and Unreal scripts stop without `NGM_TOOLS` and import into no shipped game folder.
   `export_stand.py` opens by default the `.blend` that `retarget_mixamo_stand.py` writes. The tools' README names each
-  script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`. Gun mode's code, tests, tools and page hold no
+  script, the rifle layer, the `NGM_R_` clips and `SBOutfitProject`. The README and the page name the poses' folder
+  that `fight/gunmode/overlay.lua` plays from (`Mods/NGM/Poses`) and the aim camera's modifier `mode.lua` adds
+  (`BP_NGM_CamMod`). Gun mode's code, tests, tools and page hold no
   clock time of a play session unless it names its log (`UE4SS.log 2026-11-12 21:49`). They cite neither
   `NGM_FACTS.md` nor the rebuild's plan, which are not in this repository. The gun mode page names every table
   `fight/gunmode/data.lua` changes and the notice the parked key shows. While `mode.lua` ticks no HUD entry, neither
@@ -166,6 +191,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   entry shows and names its icon (`Icon_Nikke_LostItem_AssaultRifle`, row `Nikke_AR`). The page, its docs index row and `coop gun`'s comment speak of no crouching.
   The page has no ", and" or ", but", no bold-label bullet and no
   "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
+  The same holds for each run of comment lines in `input.lua`, `ik.lua`, `mode.lua`, `aimrot.lua`, `ui/dpad.lua`,
+  `ik_pin_test`, `input_memo_test` and `rifle_frame_test`.
   Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
 - `fight/gunmode/release_test` runs `fight/gunmode/release_check.lua` on gun mode's shipped defaults: no debug flag
   of `Config.DEFAULTS` is on. It first sees the check refuse a test-only line (`gun_facts=on`), a changed release
@@ -308,7 +335,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   taken in any case with no note, another word refused with its note and `rig` kept); `gun_mode` and `gun_key` (F4 by
   default, G refused, an older file whose keys hold F4 gets no gun key, a clash both ways) with gun mode's test lines,
   kept as written with no note; `fishing` (on by default, its template line after `scoreattack`); `photohunt` (on by
-  default, its template line after `fishing`); the mode lines (`mode_line()` a mode request, each member's
+  default, its template line after `fishing`); the engine line logged again only when more than the items read's ask
+  number changed (gun mode reads its rounds once a second); the mode lines (`mode_line()` a mode request, each member's
   line kept under its word with her SteamID apart from the chat and the other words, oldest first, 64 at most a word).
   It also reads the `dlcs=` line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the `mycycle=` and `cycle=` lines (a value out of range dropped), the session list's
@@ -1396,7 +1424,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
   chain that loops, an index past the array, a hash size that is no power of two, an unreadable item) ending in
-  `unread`, never in a hang;
+  `unread`, never in a hang. A read's log line comes only when its alias's answer changes;
 - `online_modes_fishing_fishing_test`: the fishing tournament's book read against a fake image laid out like the pinned
   build (the logic singleton, its actor map, the logic actor, its FSBActor and the book's set with its hash chains):
   every fish IDs ascending over chains with collisions and the engine line's answer, an empty book, `noeve` (no logic,
