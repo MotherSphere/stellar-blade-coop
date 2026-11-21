@@ -4,11 +4,11 @@
 -- One ghost per remote member of a match lobby, slots 1 to 6: made the first time her slot shows, toggled on once, fed
 -- her slot's remote table every 250 ms, ticked and placed each frame, toggled off at coop off. Slot 0 is main.lua's.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
-local members,remotes,made={},{},{}
+local members,remotes,made,vits={},{},{},{}
 local link={members=function() return members end,remote=function(k) return table.unpack(remotes[k] or {}) end,
-    slot=function(k) return {k=k} end}
-local function make(files,k)
-    local g={k=files.k,on=false,calls={}}
+    slot=function(k) return {k=k} end,vitals=function(id) return vits[id] end}
+local function make(files,k,solo)
+    local g={k=files.k,on=false,calls={},solo=solo}
     function g.toggle() g.on=not g.on; return true,'toggled' end
     function g.active() return g.on end
     function g.remote(...) g.calls[#g.calls+1]={...} end
@@ -45,4 +45,13 @@ do
     assert(#H.place()==0,'nothing to say')
     assert(H.get(2)==made[2] and H.get(4)==made[4] and H.get(1)==nil and H.get(0)==nil,'get(k): slot k\'s ghost')
 end
+-- Each ghost knows whether the member in its slot is in a solo area, from her vitals' zone type.
+members,remotes,made={{id='5',slot=2,linked=true}},{},{}
+vits={['5']={zone=6}}
+require('online.partner.ghosts').new(link,make).sync()
+assert(made[2].solo()==true)
+vits['5'].zone=1
+assert(made[2].solo()==false)
+vits['5']=nil
+assert(made[2].solo()==false,'No vitals: not solo')
 print('ghosts_test ok')

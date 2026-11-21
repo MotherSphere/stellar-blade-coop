@@ -32,6 +32,7 @@ It first runs on planted trees, one violation each, so no rule passes vacuously,
 be clean.
 Run: python3 tests/tools/modules_test.py"""
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -116,7 +117,7 @@ def strip_c(code):
 def lua_modules(root):
     """{dotted module name: its path} for each folder of Scripts with a wiring.lua."""
     base = root / SCRIPTS
-    return {str(p.parent.relative_to(base)).replace('/', '.'): str(p.parent.relative_to(base))
+    return {p.parent.relative_to(base).as_posix().replace('/', '.'): p.parent.relative_to(base).as_posix()
             for p in base.rglob('wiring.lua')}
 
 
@@ -180,7 +181,7 @@ def check_lua(root, out):
     # R3: what each Lua file of the tree reads of a module's files.
     files = sorted((root / SCRIPTS).rglob('*.lua')) + sorted((root / 'tests/lua').rglob('*.lua'))
     for p in files:
-        rel = str(p.relative_to(root))
+        rel = p.relative_to(root).as_posix()
         under = rel[len(SCRIPTS) + 1:] if rel.startswith(SCRIPTS) else rel[len('tests/lua/'):]
         mine = owner(under[:-4].replace('/', '.'), mods)
         if mine is None and (rel.startswith(SHARED_LUA_TESTS) or not under.startswith(SHARED_LUA)): continue
@@ -248,7 +249,8 @@ def check_lua(root, out):
            "for name,t in pairs(T) do if type(t)=='table' and next(t) then local ks={} "
            "for k in pairs(rawget(t,'modules') or {}) do ks[#ks+1]=k end table.sort(ks) "
            "print(name..'='..table.concat(ks,' ')) end end")
-    run = subprocess.run(['lua5.4', '-e', lua], cwd=root, capture_output=True, text=True)
+    # shutil.which: Windows adds .exe only to a program name with no dot.
+    run = subprocess.run([shutil.which('lua5.4') or 'lua5.4', '-e', lua], cwd=root, capture_output=True, text=True)
     if run.returncode: out.append(f'R9 {SCRIPTS}/ui/text.lua:1: does not load: {run.stderr.strip()}')
     for row in run.stdout.split('\n'):
         if not row: continue
@@ -360,9 +362,9 @@ def check_native(root, out):
 
     files = []
     for p in sorted((root / SRC).rglob('*')):
-        if p.suffix in ('.h', '.inc', '.cpp'): files.append((p, str(p.relative_to(root / SRC))))
+        if p.suffix in ('.h', '.inc', '.cpp'): files.append((p, p.relative_to(root / SRC).as_posix()))
     for p in sorted((root / 'tests/native').rglob('*.cpp')):
-        files.append((p, str(p.relative_to(root / 'tests/native'))))
+        files.append((p, p.relative_to(root / 'tests/native').as_posix()))
     folders = {of(r) for p, r in files if p.is_relative_to(root / SRC) and '/' in r} - SHARED_NATIVE
     heads, spaces = {}, set()
     for p, rel in files:
@@ -375,7 +377,7 @@ def check_native(root, out):
             last.add(parts[-1])
         heads[rel] = (last, declared(code))
     for p, rel in files:
-        mine, name = of(rel), str(p.relative_to(root))
+        mine, name = of(rel), p.relative_to(root).as_posix()
         if name.startswith(NATIVE_HUB) or name.startswith(NATIVE_TESTS_READING): continue
         raw = p.read_text(encoding='utf-8')
         code = strip_c(raw)

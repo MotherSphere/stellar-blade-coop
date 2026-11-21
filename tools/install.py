@@ -75,7 +75,7 @@ def package(ver, dll):
 def stale(target, files):
     """Files of the previous install that this one no longer ships, plus known obsolete ones. Logs always stay."""
     manifest = target / MANIFEST
-    old = set(manifest.read_text().splitlines()) if manifest.is_file() else set()
+    old = set(manifest.read_text(encoding='utf-8').splitlines()) if manifest.is_file() else set()
     for rel in sorted((old | OBSOLETE) - set(files)):
         path = target / rel
         if (path.is_file() and not any(fnmatch(path.name, keep) for keep in RUNTIME)
@@ -119,7 +119,8 @@ def install_files(target, files):
     for rel, data in files.items():
         (target / rel).parent.mkdir(parents=True, exist_ok=True)
         (target / rel).write_bytes(data)
-    (target / MANIFEST).write_text(''.join(f'{rel}\n' for rel in sorted(files)))
+    # UTF-8 with LF ends on every system: Windows would write its code page and CRLF.
+    (target / MANIFEST).write_text(''.join(f'{rel}\n' for rel in sorted(files)), encoding='utf-8', newline='\n')
     print(f'Installed {len(files)} files into {target}')
 
 

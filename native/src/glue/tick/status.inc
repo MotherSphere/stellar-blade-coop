@@ -18,6 +18,7 @@ void block() {
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   filter_undo("coop off");
   hold_undo("coop off");
+  race_hold_undo("coop off"); // The game thread puts the race's kept values back at its next frame.
   region_tabs_undo("coop off");
   pause_tab_undo("coop off");
   options_block(); // The game thread puts a forced option back; options_pass gives the slots back after that.
@@ -53,9 +54,16 @@ std::string status() {
            std::to_string(r.count) + (k ? std::string() : std::string(" ") + r.source);
   s += fight_worker.status();
   // The revive's guard (online/group/group.lua): a respawn or a warp in flight, and our EVE's GUID, as of the game
-  // thread's last read; none before the first one, after coop off or after its fault.
-  if (const int warp = warp_state; warp >= 0 && !blocked)
+  // thread's last read; none before the first one, after coop off or after its fault. With it, for online/group/ and
+  // core/link.lua: our zone's type (0 after the zone row's fault), the area (none while the world and the logic name
+  // different zones), our zone resets (count, area, type) and every start of one.
+  if (const int warp = warp_state; warp >= 0 && !blocked) {
     s += std::string(warp ? " warp=busy" : " warp=idle") + " me=" + std::to_string(warp_me.load());
+    std::lock_guard<std::mutex> lock(warp_text_m);
+    s += " zonetype=" + std::to_string(warp_zonetype.load()) + " area=" + warp_text.area +
+         " rest=" + std::to_string(warp_text.ours) + ":" + warp_text.rest + ":" + std::to_string(warp_text.type) +
+         " starts=" + std::to_string(warp_text.starts);
+  }
   // The follow's travel (online/group/travel.lua): the watch's state and the asks the game thread handled so far, so
   // Lua knows a new answer from an old one; refused:fault once its latch ended it.
   if (const uint64_t w = travel_watched; game_pinned && !blocked)
@@ -70,6 +78,7 @@ std::string status() {
     s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
          " anim_id=" + std::to_string(a.id);
     s += bike_status(); // The bike (vehicles/bike/ride.lua): the preload's state and the gate's.
+    s += race_status(); // Doro races' hold on EVE (online/modes/race/drive.lua, doro.lua): applied or not, re-ticks.
     // The keep (core/keep.lua): the paths asked, those settled, those found in memory; fault once its latch ended it.
     if (keep_faulted) {
       s += " keep=fault";
@@ -92,6 +101,9 @@ std::string status() {
   // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)
     s += items_line;
+  // The fishing tournament's book read (online/modes/fishing/game.lua): the last ask's answer, by its number.
+  if (!fishbook_line.empty() && !blocked)
+    s += fishbook_line;
   s += pad_slate ? " pad=slate" : " pad=xinput"; // coop_pad's source: the game's controller events, or XInput.
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";

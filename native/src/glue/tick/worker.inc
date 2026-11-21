@@ -29,7 +29,7 @@ namespace {
 std::function<void(const std::string &)> say = [](const std::string &) {}; // worker_poll's event, once it ran.
 std::wstring dir;                                                            // The mod folder.
 bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false,
-     warp_fault_logged = false;
+     warp_fault_logged = false, zone_fault_logged = false;
 int pad_logged = kPadUnread; // pad_seen as last logged.
 int front_logged = -1; // Whether the game's window was in front, as last logged; -1 before the first pass.
 // The follow's travel: its fault, the last ask, watch and globals logged, and the alias of the last ask (with its
@@ -673,6 +673,26 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(warp_fault_address.load()));
     event(text);
   }
+  if (zone_faulted && !zone_fault_logged) {
+    zone_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "zone row read off for this run: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; the "
+                  "vitals carry zone type 0",
+                  static_cast<unsigned long long>(zone_fault_code.load()),
+                  static_cast<unsigned long long>(zone_fault_rva.load()),
+                  static_cast<unsigned long long>(zone_fault_address.load()));
+    event(text);
+  }
+  { // The warp read's lines: the zone type's changes, the area's disagreements, each start of a zone reset.
+    std::vector<std::string> lines;
+    {
+      std::lock_guard<std::mutex> lock(warp_text_m);
+      lines.swap(warp_text.lines);
+    }
+    for (const std::string &line : lines)
+      event(line);
+  }
   if (travel_faulted && !travel_fault_logged) {
     travel_fault_logged = true;
     char text[200];
@@ -807,10 +827,15 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     travel_logged = uint32_t(done >> 32);
     const auto why = travel::Why((done >> 16) & 0xff);
     const std::string alias = travel_logged == travel_alias_ask ? travel_alias : std::string("?");
-    event(why == travel::Why::none
-              ? "travel call " + alias + " ret=" + std::to_string(done & 0xff) +
-                    " other_world=" + std::to_string((done >> 8) & 0xff)
-              : "travel refused " + alias + ": " + travel::why_name(why));
+    if ((done >> 24) & 1) // A spot warp: alias holds the place.
+      event(why == travel::Why::none ? "travel spot call " + alias + " ret=" + std::to_string(done & 0xff) +
+                                           " other=" + std::to_string((done >> 8) & 0xff)
+                                     : std::string("travel spot refused: ") + travel::why_name(why));
+    else
+      event(why == travel::Why::none
+                ? "travel call " + alias + " ret=" + std::to_string(done & 0xff) +
+                      " other_world=" + std::to_string((done >> 8) & 0xff)
+                : "travel refused " + alias + ": " + travel::why_name(why));
   }
   if (const uint32_t w = uint32_t(travel_watched); w != travel_watch_logged) { // And one per state the watch reaches.
     travel_watch_logged = w;
@@ -840,6 +865,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     debug_asks.asked = 0; // And SB's developer gates go back to the game's values.
     anim_drop = true;     // And a clip an earlier load played on EVE stops.
     bike_want(false);     // And SB's actions an earlier load turned off for the bike come back.
+    race_want_fields = race_want_tick = false; // And the race's kept values on EVE go back (online/modes/race/).
     event("new Lua session: capture and ghost dropped");
   }
   take_capture(now_ms);

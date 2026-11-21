@@ -1,16 +1,19 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The lobby screens' model: the lobby menu's rows, actions, status and members by state, the cursor, the settings
--- rows of both tabs and the countdown's resync.
+-- The lobby screens' model: the lobby menu's rows, actions, status and members by state, the mode rows, the score
+-- attack's Challenge row and the Doro race's Track row, the cursor, the settings rows of both tabs and the countdown's
+-- resync.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local M=require('online.lobby.ui.lobby_model')
 local function ids(v) local t={} for i,r in ipairs(v.rows) do t[i]=r.id..(r.locked and '*' or '') end return table.concat(t,',') end
 local me={id='76561198000000002',name='Eve'}
 local idle=M.view({role='none',me=me,now=0})
-assert(idle.state=='idle' and ids(idle)=='ffa,more*,search,private,join_code,room,settings,leave' and idle.status.key=='status.idle')
+assert(idle.state=='idle' and ids(idle)=='ffa,scoreattack*,race*,more*,search,private,join_code,room,settings,leave'
+    and idle.status.key=='status.idle')
 local s=M.view({match={state='searching',mode='ffa'},role='none',me=me,last='search',now=0})
-assert(s.state=='public' and ids(s)=='ffa*,more*,cancel,room,settings,leave' and s.status.key=='status.searching')
+assert(s.state=='public' and ids(s)=='ffa*,scoreattack*,race*,more*,cancel,room,settings,leave'
+    and s.status.key=='status.searching')
 assert(M.act(s,'cancel').request=='match cancel')
 local mem={{id='76561198000000001',linked=true,lost=false,muted=false,rtt=90,name='Ann'},
     {id='76561198000000003',linked=true,lost=false,muted=false,rtt=180,name='Bo'},
@@ -31,9 +34,10 @@ assert(play.status.key=='status.open' and play.status.args[1]==3)
 local made=M.view({match={state='open',mode='ffa',members=1,limit=8},role='host',me=me,last='search',now=0})
 assert(made.status.key=='status.created')
 local code=M.view({match={state='open',mode='ffa',members=2,limit=8},role='host',code='ABC-1234',me=me,last='create',now=0})
-assert(ids(code)=='ffa*,more*,code,cancel,room,settings,leave' and code.status.key=='status.private' and M.act(code,'code').copy)
+assert(ids(code)=='ffa*,scoreattack*,race*,more*,code,cancel,room,settings,leave' and code.status.key=='status.private'
+    and M.act(code,'code').copy)
 local joined=M.view({match={state='open',mode='ffa',members=2,limit=8},role='guest',me=me,last='join',now=0})
-assert(ids(joined)=='ffa*,more*,cancel,room,settings,leave')
+assert(ids(joined)=='ffa*,scoreattack*,race*,more*,cancel,room,settings,leave')
 -- An online session: its member count over its host's max_players (limit), over 4 (the most) while it is not known.
 local coop=M.view({role='guest',me=me,now=0})
 assert(coop.state=='code' and coop.status.key=='status.private' and coop.status.args[1]==1 and coop.status.args[2]==4)
@@ -51,7 +55,64 @@ assert(M.act(idle,'search').request=='match search ffa' and M.act(idle,'private'
 assert(M.act(idle,'search').lobby and M.act(idle,'private').lobby and not M.act(s,'cancel').lobby)
 assert(M.act(idle,'join_code').open=='join' and M.act(idle,'room').close=='room' and M.act(idle,'settings').open=='settings')
 assert(M.act(idle,'leave').popup=='leave' and M.act(idle,'more')==nil and M.act(s,'ffa')==nil)
-assert(M.move(idle.rows,1,1)==2 and M.move(idle.rows,8,1)==1 and M.move(idle.rows,1,-1)==8)
+assert(M.move(idle.rows,1,1)==2 and M.move(idle.rows,10,1)==1 and M.move(idle.rows,1,-1)==10)
+-- Score attack (online.modes.scoreattack): picked by default while it can play (sa); a mode row's Select picks its
+-- mode and marks it; Search and Private ask for the mode picked. Without sa (module off or scoreattack=off) its row is
+-- locked and free-for-all is the mode, a pick of score attack too.
+local sa_idle=M.view({role='none',me=me,now=0,sa={pick='random'}})
+assert(ids(sa_idle)=='ffa,scoreattack,race*,more*,search,private,join_code,room,settings,leave'
+    and sa_idle.mode=='scoreattack')
+assert(sa_idle.rows[2].picked and not sa_idle.rows[1].picked and not sa_idle.rows[3].picked
+    and not sa_idle.rows[4].picked)
+assert(M.act(sa_idle,'search').request=='match search scoreattack' and M.act(sa_idle,'search').lobby)
+assert(M.act(sa_idle,'private').request=='match create scoreattack' and M.act(sa_idle,'private').lobby)
+assert(M.act(sa_idle,'ffa').mode=='ffa' and M.act(sa_idle,'scoreattack').mode=='scoreattack')
+local ffa_pick=M.view({role='none',me=me,now=0,sa={pick='random'},pick='ffa'})
+assert(ffa_pick.mode=='ffa' and ffa_pick.rows[1].picked and not ffa_pick.rows[2].picked)
+assert(M.act(ffa_pick,'search').request=='match search ffa')
+assert(idle.mode=='ffa' and idle.rows[1].picked and M.act(idle,'scoreattack')==nil,'No sa: locked, free-for-all')
+assert(M.view({role='none',me=me,now=0,pick='scoreattack'}).mode=='ffa','A pick that cannot play')
+assert(s.mode=='ffa' and s.rows[1].picked and M.act(s,'scoreattack')==nil,'A lobby keeps its mode')
+-- In a score attack match lobby: its row locked and marked, then Challenge with the host's pick, which Select cycles
+-- (online.modes.scoreattack's cycle); a guest's Challenge is locked and reads the host's pick; without sa it is locked.
+local function sa_lobby(role,sa)
+    return M.view({match={state='open',mode='scoreattack',members=2,limit=8},role=role,me=me,last='search',now=0,sa=sa})
+end
+local sa_host=sa_lobby('host',{pick='targets'})
+assert(ids(sa_host)=='scoreattack*,challenge,more*,cancel,room,settings,leave' and sa_host.mode=='scoreattack')
+assert(sa_host.rows[1].picked and sa_host.rows[2].value=='targets' and M.act(sa_host,'challenge').cycle)
+local sa_guest=sa_lobby('guest',{pick='random'})
+assert(ids(sa_guest)=='scoreattack*,challenge*,more*,cancel,room,settings,leave' and sa_guest.rows[2].value=='host')
+assert(M.act(sa_guest,'challenge')==nil)
+local sa_off=sa_lobby('host',nil)
+assert(ids(sa_off)=='scoreattack*,challenge*,more*,cancel,room,settings,leave' and sa_off.rows[2].value=='random')
+-- The Doro race (online.modes.race): its row locked without dr (module off or race_match=off), a pick of it then the
+-- default; with dr its Select picks it, marked. Search and Private then ask for it. Score attack stays the default.
+assert(M.act(sa_idle,'race')==nil and sa_idle.rows[3].locked)
+local dr_idle=M.view({role='none',me=me,now=0,sa={pick='random'},dr={pick='random'}})
+assert(ids(dr_idle)=='ffa,scoreattack,race,more*,search,private,join_code,room,settings,leave'
+    and dr_idle.mode=='scoreattack' and M.act(dr_idle,'race').mode=='race')
+local dr_pick=M.view({role='none',me=me,now=0,sa={pick='random'},dr={pick='random'},pick='race'})
+assert(dr_pick.mode=='race' and dr_pick.rows[3].picked and not dr_pick.rows[2].picked)
+assert(M.act(dr_pick,'search').request=='match search race' and M.act(dr_pick,'private').request=='match create race')
+assert(M.view({role='none',me=me,now=0,sa={pick='random'},pick='race'}).mode=='scoreattack','A pick that cannot play')
+assert(M.view({role='none',me=me,now=0,dr={pick='random'},pick='race'}).mode=='race','Without score attack')
+assert(M.view({role='none',me=me,now=0,pick='race'}).mode=='ffa')
+-- In a Doro race match lobby: its row locked and marked, then Track with the host's pick, which Select cycles
+-- (online.modes.race's cycle); a guest's Track is locked and reads the host's pick; without dr it is locked.
+local function dr_lobby(role,dr)
+    return M.view({match={state='open',mode='race',members=2,limit=8},role=role,me=me,last='search',now=0,dr=dr,
+        sa={pick='swarm'}})
+end
+local dr_host=dr_lobby('host',{pick='xion_eight'})
+assert(ids(dr_host)=='race*,track,more*,cancel,room,settings,leave' and dr_host.mode=='race')
+assert(dr_host.rows[1].picked and dr_host.rows[2].value=='xion_eight' and M.act(dr_host,'track').cycle=='race')
+assert(M.act(dr_host,'challenge')==nil,'No Challenge row here')
+local dr_guest=dr_lobby('guest',{pick='random'})
+assert(ids(dr_guest)=='race*,track*,more*,cancel,room,settings,leave' and dr_guest.rows[2].value=='host')
+assert(M.act(dr_guest,'track')==nil)
+local dr_off=dr_lobby('host',nil)
+assert(ids(dr_off)=='race*,track*,more*,cancel,room,settings,leave' and dr_off.rows[2].value=='random')
 local c=M.count(nil,10,0)
 assert(c.total==10 and c.start==0)
 assert(M.count(c,8,2.5)==c)                       -- shown 7.5, off by 0.5
@@ -70,7 +131,7 @@ local blank=M.view({match={state='open',mode='ffa',members=2,limit=8},members={{
     lost=false,muted=false,rtt=20,name=''}},role='guest',me={id=me.id},last='search',now=0})
 assert(blank.members[2].name=='' and blank.members[1].name==nil and blank.members[1].you)
 -- The code row carries the code; tones (my call 11).
-assert(code.rows[3].args[1]=='ABC-1234' and not code.rows[3].locked)
+assert(code.rows[5].args[1]=='ABC-1234' and not code.rows[5].locked)
 assert(idle.status.tone=='grey' and made.status.tone=='grey' and s.status.tone=='warn' and o.status.tone=='teal'
     and code.status.tone=='teal' and cd.status.tone=='teal' and copied.status.tone=='teal')
 -- The copied word lasts 3 s.
@@ -118,6 +179,36 @@ assert(room_row.value=='station' and room_row.shown=='Station',room_row.shown)
 assert(not find(M.settings(M.view(idle_o),'match',idle_o),'room'))
 made_o.halls=true
 assert(not find(M.settings(M.view(made_o),'match',made_o),'room'))
+-- Tab match of a score attack lobby: its rules, the challenge as the Challenge row reads it (the host's pick, or the
+-- host's for a guest); idle with score attack picked, its rules with our pick.
+local sa_o={match={state='open',mode='scoreattack',members=2,limit=8},role='host',me=me,last='search',now=0,
+    sa={pick='range'},version='0.9.0',proto=24}
+local sa_rows=M.settings(M.view(sa_o),'match',sa_o)
+assert(keys(sa_rows)=='head:scoreattack,players,challenge,ranking,damage,equipment,start,head:lobby,lobby,version',
+    keys(sa_rows))
+for _,row in ipairs(sa_rows) do assert(row.head or row.locked,row.id) end
+assert(find(sa_rows,'challenge').pick=='range' and find(sa_rows,'ranking').value=='val.ranking')
+assert(find(sa_rows,'damage').value=='val.damage')
+sa_o.role='guest'
+assert(find(M.settings(M.view(sa_o),'match',sa_o),'challenge').pick=='host')
+local sa_idle_o={role='none',me=me,now=0,sa={pick='swarm'}}
+local sa_idle_rows=M.settings(M.view(sa_idle_o),'match',sa_idle_o)
+assert(sa_idle_rows[1].head=='scoreattack' and find(sa_idle_rows,'challenge').pick=='swarm')
+-- Tab match of a Doro race lobby: its rules (its own ranking words), the track as the Track row reads it (the host's
+-- pick, or the host's for a guest); idle with the race picked, its rules with our pick.
+local dr_o={match={state='open',mode='race',members=2,limit=8},role='host',me=me,last='search',now=0,
+    dr={pick='xion_eight'},sa={pick='range'}}
+local dr_rows=M.settings(M.view(dr_o),'match',dr_o)
+assert(keys(dr_rows)=='head:race,players,track,ranking,damage,start,head:lobby,lobby,version',keys(dr_rows))
+for _,row in ipairs(dr_rows) do assert(row.head or row.locked,row.id) end
+assert(find(dr_rows,'track').pick=='xion_eight' and find(dr_rows,'ranking').value=='val.race_ranking')
+assert(find(dr_rows,'players').value=='val.players' and find(dr_rows,'start').value=='val.start')
+assert(not find(dr_rows,'challenge'),'No challenge in a race')
+dr_o.role='guest'
+assert(find(M.settings(M.view(dr_o),'match',dr_o),'track').pick=='host')
+local dr_idle_o={role='none',me=me,now=0,dr={pick='random'},pick='race'}
+local dr_idle_rows=M.settings(M.view(dr_idle_o),'match',dr_idle_o)
+assert(dr_idle_rows[1].head=='race' and find(dr_idle_rows,'track').pick=='random')
 -- Tab sbo: chat, one mute row per other member, the display rows and the bug report.
 mem[2].muted=true
 in_o.members={mem[1],mem[2],mem[3],mem[4],{id=me.id,linked=true,lost=false,muted=false,rtt=0,name='Eve'}}

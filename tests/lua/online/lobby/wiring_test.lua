@@ -336,6 +336,44 @@ local n_asked=#asked
 lb.o.act({request='match create ffa',lobby=true})
 assert(sb.created=='match create ffa random' and #asked==n_asked and lb.o.view().last=='create',sb.created)
 assert(lb.o.view().room=='random' and lb.o.view().halls==false)
+-- Score attack's rows (online.modes.scoreattack): the view holds its round's pick while it can play (scoreattack=on),
+-- none with scoreattack=off; the mode picked on B stays for the Lua load, out of coop-settings.txt; Select on
+-- Challenge cycles the host's pick over what the lobby room offers (sb.target, a room that offers them all).
+local v0=lb.o.view()
+assert(v0.sa and v0.sa.pick=='random' and v0.pick==nil,'Score attack can play')
+v0.settings.scoreattack=false
+assert(lb.o.view().sa==nil,'scoreattack=off: it cannot play')
+v0.settings.scoreattack=true
+local text_before=settings_text
+lb.o.act({mode='ffa'})
+assert(lb.o.view().pick=='ffa' and settings_text==text_before)
+lb.o.act({mode='scoreattack'})
+assert(lb.o.view().pick=='scoreattack')
+sb.target={key='xion',spots={{X=0,Y=0,Z=0,Yaw=0}},fence={X=0,Y=0,R=100000}}
+lb.o.act({cycle=true})
+local picked=lb.o.view().sa.pick
+assert(picked~='random' and T.en.challenge.names[picked],picked)
+lb.o.act({cycle=true})
+assert(lb.o.view().sa.pick~=picked,'The next one')
+-- The Doro race's rows (online.modes.race): the view holds its match round's pick while it can play
+-- (race_match=on), none with race_match=off; the mode picked on B; Select on Track cycles the host's pick over what the
+-- lobby room offers (Xion's training room on Xion's map offers xion_eight), then Random again. Score attack's pick
+-- does not move.
+assert(v0.dr and v0.dr.pick=='random','The Doro race can play')
+v0.settings.race_match=false
+assert(lb.o.view().dr==nil,'race_match=off: it cannot play')
+v0.settings.race_match=true
+lb.o.act({mode='race'})
+assert(lb.o.view().pick=='race' and settings_text==text_before)
+local map_before,sa_before=bt.me.map,lb.o.view().sa.pick
+bt.me.map='/game/art/bg/worldmap/level_p/e04'
+sb.target={key='xion',spots={},fence={X=-64028.5,Y=151213.6,R=3000,zmin=-16100,zmax=-14700}}
+lb.o.act({cycle='race'})
+assert(lb.o.view().dr.pick=='xion_eight' and lb.o.view().sa.pick==sa_before,lb.o.view().dr.pick)
+lb.o.act({cycle='race'})
+assert(lb.o.view().dr.pick=='random')
+bt.me.map=map_before
+sb.target=nil
 sb.hall='47101_5096'
 assert(lb.o.view().halls==true)
 local settings_before=settings_text
@@ -375,6 +413,28 @@ quarter(); quarter()
 assert(table.concat(lb.calls,',')=='close,stop_count' and lb.ask==nil and lb.screen==nil
     and sb.to_rooms==to_rooms+1,table.concat(lb.calls,','))
 assert(logged('round start: stage 4 not built'))
+-- Its end line opens B again over the menu camera, once (any mode's round of ours).
+local to_menus=sb.to_menus
+link_round={n=1,kind='end',why='host'}
+quarter()
+assert(lb.screen=='menu' and sb.to_menus==to_menus+1,table.concat(lb.calls,','))
+lb.o.act({close='room'})
+quarter()
+assert(lb.screen==nil and sb.to_menus==to_menus+1,'Once')
+-- A score attack round's start logs its mode.
+link_round={n=5,kind='start',mode='scoreattack',map='lobby',seed=3,ids={ME,HER}}
+quarter()
+assert(logged('round start: score attack'))
+link_round={n=5,kind='end',why='host'}
+quarter()
+lb.o.act({close='room'})
+-- A Doro race round's start logs its mode too.
+link_round={n=6,kind='start',mode='race',map='lobby',seed=4,ids={ME,HER}}
+quarter()
+assert(logged('round start: Doro race'))
+link_round={n=6,kind='end',why='host'}
+quarter()
+lb.o.act({close='room'})
 -- A start line without us changes nothing.
 link_round={n=2,kind='start',mode='ffa',map='NK_Boss_Scarlet',seed=7,ids={HER}}
 key('F5'); lb.calls,to_rooms={},sb.to_rooms

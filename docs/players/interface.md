@@ -314,7 +314,10 @@ players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
 [following the host](playing-with-a-friend.md#following-the-host), the [shared world](../world/objects.md),
 [story together](../story/together.md) and Hide popups online, which turns the game's tutorial and record popups off
-during online play), Saves (the [co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
+during online play), Modes ([score attack](../online/modes/scoreattack.md), the
+[fishing tournament](../online/modes/fishing.md) and
+[Doro races in matches](../online/modes/race.md#races-in-a-match), each on or off), Saves (the
+[co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, shared
 flinches, stagger resistance, who same-place enemies attack, same spawns, extra enemies, shared bosses, the host's
 enemy and boss scaling and your kill rewards), Display (the [status strip](#status-strip-above-the-card)
@@ -350,10 +353,11 @@ checkpoints, `F3` for the bike and `none` for `host_key`, which has no row. The 
 
 The menu, the Sessions and Create a session screens, the guide, the chat, the partner HUD, the code box, the join
 popups, the co-op saves' question and notices, the shared enemies', same place, same spawns and shared quests notices,
-Night Operation's card, result panel and notices as well as the Doro race's panel, banners, results and notices use the
-game's text language, any of the 23 that the game ships. So do the status line (under the menu and on F6), the ghost's
-notices and the notices of a join Steam refused (`Could not join: ...`). `ui_language=english` keeps them all in
-English. Without it, a player who joined or left shows in the feed in the game's own words
+Night Operation's card, result panel and notices, score attack's card, board, result panel and notices, the fishing
+tournament's corner board, result panel and notices as well as the Doro race's panel, banners, results and notices use
+the game's text language, any of the 23 that the game ships. So do the status line (under the menu and on F6), the
+ghost's notices and the notices of a join Steam refused
+(`Could not join: ...`). `ui_language=english` keeps them all in English. Without it, a player who joined or left shows in the feed in the game's own words
 (`<name> has joined the game.`, `<name> has left the game.`). The other notices of the Steam link (your join code, for
 example) and `UE4SS.log` stay in English. So do the error messages from the coop commands, shown in the menu or the code
 box.
@@ -363,8 +367,9 @@ If the menu or the chat box ever leaves the game without its own keys, open the 
 [host's question](playing-with-a-friend.md#asking-to-join) is answered with Deny, a joiner's wait popup hides (the
 player still waits in the lobby) and the game gets its keys back. `coop ui off` removes the co-op menu, the Sessions and
 Create a session screens, the chat box, the code box, the join popups, the feed, the partner HUD, Night Operation's card
-and result panel and the co-op saves' question until the mod reloads (game start or Ctrl+R). Notices then go back to the
-line above your EVE. Your friend's name goes back to the name tag above their ghost. With the UI off,
+and result panel, score attack's card, board and result panel, the fishing tournament's corner board and result panel
+and the co-op saves' question until the mod reloads
+(game start or Ctrl+R). Notices then go back to the line above your EVE. Your friend's name goes back to the name tag above their ghost. With the UI off,
 `auto_coop_save=ask` plays your own saves and `always` still switches to the copies.
 
 ### Focus watchdog
@@ -642,10 +647,13 @@ a Steam name or a chat line shows as `?`.
 | Steam refused relay only 3 times, 1 s apart (needed in a match and with a player who is not your Steam friend) | `<name> was refused: Steam would not set relay only.` (co-op host), `Left <host>'s game: Steam would not set relay only.` (co-op guest, with the host), `No link with <name>: Steam would not set relay only.` (co-op guest, with another guest) or `Left the match: Steam would not set relay only.` |
 | The match host stays over a channel's rate limit for 5 s; you leave | `Left the match: <name> sent too many messages.` |
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
-| [Following the host](playing-with-a-friend.md#following-the-host) (guest) | `<host> is in <map>. Press F7 to travel to the camp nearest them.`, `Following <host> in 5 s. Press F7 to stay.`, `Travelling to <host>.`, `No camp you have found is near <host>.`, `You cannot travel now. Try again in a moment.` or `The travel did not start. UE4SS.log says why.` |
+| [Following the host](playing-with-a-friend.md#following-the-host) (guest) | `<host> is in <map>. Press F7 to travel to them.`, `Following <host> in 5 s. Press F7 to stay.`, `Travelling to <host>.`, `<host> is not on solid ground. Try again in a moment.`, `No camp you have found is near <host>.`, `You cannot travel now. Try again in a moment.` or `The travel did not start. UE4SS.log says why.` |
 | Your friend down | `<name> is down. Stand next to them for 3 s to revive them.`, then `You revived <name>.` when they get up next to you |
 | You down, with your friend alive on your map | `<name> can revive you: wait, or respawn at a camp.`, then `Revived by <name>.` ([revive](playing-with-a-friend.md#revive-by-your-friend-experimental)) |
-| A camp rest in a shared area (guest) | `Enemies are back: the area reset in <host>'s game.` or `Shared area: only <host>'s camp rest brings its enemies back.` |
+| You down, with your follow target alive on your map | `<name> is alive. Press F7 to go back to them.` or, with `follow_host=always`, `Going back to <name> in 5 s. Press F7 to stay.` ([Back to a friend after a death](playing-with-a-friend.md#back-to-a-friend-after-a-death)) |
+| A member's camp rest in your area, with `shared_world=on` | `<name> rested at a camp. The enemies of this area are back.`, `<name> rested at a camp. This area did not reset in your game: you were busy for a minute.` or, after more than 3 resets in 30 s, `Other players' camp rests no longer reset your area until the game restarts. UE4SS.log says why.` ([Camp rests in a shared area](playing-with-a-friend.md#camp-rests-in-a-shared-area)) |
+| A camp rest in a shared area (guest), with `shared_world=off` | `Enemies are back: the area reset in <host>'s game.` or `Shared area: only <host>'s camp rest brings its enemies back.` |
+| A member in a [solo area](playing-with-a-friend.md#solo-areas) | `<name> is in <place>. Online play waits until they are back.`, then `<name> is back.` |
 | The host's cutscene (guest) | `<host> is watching a cutscene. Your game waits until it ends.` |
 | Ghost failed 3 times on one table | `Ghost failed 3 times: the reason is in UE4SS.log.` |
 | Your friend's photo mode pauses you | `<name> is taking photos: game paused. Esc > Photo Mode to join in.`, then `Game resumed.` or `Paused for <n> min: game resumed.` (`photo_freeze_max`) |
@@ -665,3 +673,6 @@ a Steam name or a chat line shows as `?`.
 | Shared world on with your friend, or stopped after an error | `Shared world on with <name>.` or `Shared world stopped until the game restarts. coop-link.log says why.` ([shared world](../world/objects.md)) |
 | Story together on with your friend, or stopped after an error | `Story together on with <name>.` or `Story together stopped until the game restarts. coop-link.log says why.` ([story together](../story/together.md)) |
 | Night Operation: a partner's run starting, a partner who cannot join, the points a run gave | See [online/modes/nightop.md](../online/modes/nightop.md#the-co-op-run) and [the reward shop](../online/modes/nightop-shop.md) |
+| Score attack: a round you sit out, a round that ends with no ranking, your run's start, waves, end and place with the UI off | See [Score attack](../online/modes/scoreattack.md#what-you-see) |
+| Fishing tournament: a start, a tournament you sit out, one that ends with no ranking, a reloaded game; with the UI off GO, your place and points, your end, the first three and your place | See [Fishing tournament](../online/modes/fishing.md#what-you-see) |
+| Doro races in matches: a round you sit out, a room with no track, a round that ends with no ranking, your place and best time with the UI off | See [Races in a match](../online/modes/race.md#a-round) |

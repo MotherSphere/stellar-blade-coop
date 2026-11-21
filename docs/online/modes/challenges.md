@@ -8,7 +8,8 @@ solo run does. Target Practice stands the game's target dummies in front of her,
 Each run ends on the result panel with the time, the score and the best run kept on this PC. The challenges run on the
 solo run's code, on a co-op save, and log `[StellarCoop][NR]` lines. Four of them need no Steam session; the Shooting
 Range also runs for two linked players (see [The Shooting Range for two](#the-shooting-range-for-two)). They give no
-shop points. They have not been tested in game yet.
+shop points. They have not been tested in game yet. In the SBO lobby, [score attack](scoreattack.md) plays the same five
+for 2 to 8 players at once, each in her own game.
 
 | Command | What it does |
 | --- | --- |
@@ -200,7 +201,9 @@ a `New personal best.` notice.
 
 Best runs are kept in `Mods/StellarCoop/coop-records.txt`, one line per challenge in the form
 `best_<name>=<score> <seconds>`. Night Operation's lines are `best_night` for the normal level, `best_night_easy`,
-`best_night_hard` and `best_night_nightmare`. After a first Target Practice best, the file reads:
+`best_night_hard` and `best_night_nightmare`. Score attack adds its `best_match_<name>` lines and Doro races in matches
+their `best_race_<sum>` lines (see [Best times](race.md#best-times)). After a first Target Practice best, the file
+reads:
 
 ```
 # StellarCoop: your best challenge runs on this PC (score and seconds).

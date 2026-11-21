@@ -207,7 +207,8 @@ mod/StellarCoop/            the UE4SS mod folder
       saves/                the co-op saves and their question, coop shortcut
       photo/                the synced photo mode's pause setting
       modes/nightop/        Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
-      modes/race/           Doro races: the run, the track model, the Doro look, the driving
+      modes/race/           Doro races: the run, the track model, the Doro look, the driving, its HUD in ui/, races
+                            in a match in match/ (the round, its model, the official tracks)
     fight/
       enemies/              shared enemies: coop fight and their notices
       bosses/               the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
@@ -257,6 +258,9 @@ tools/
   mxiii_climb.py            places Matrix XIII's ladders on the editor's in data/mxiii-world.json, and checks them
   mxiii_rows.py             writes native/src/world/maps/matrix13/mxiii_rows.h and world/maps/matrix13/level/rows.lua
                             from data/mxiii-world.json
+  port/                     addresses.py lists the game addresses native/src uses; make_signatures.py writes a
+                            byte signature for each into signatures.json, one entry per address with what Ghidra
+                            shows there; find.py finds them in another build (see porting.md)
   release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
   save_read.py              every value of a .sav file, and the values two saves differ in (see story-dump.md)
@@ -331,6 +335,7 @@ Platform-free headers, tested on the build machine:
 | `online/photo/photo_freeze.h` | The synced photo mode's pause |
 | `eve/debug_keys.h` | `coop fly` and `coop slowmo`: the lookup of SB's two developer gates in its settings map and the passes that set them and put them back; the level flight's hold of the flight key |
 | `cutmenus/items.h` | `coop gift`'s inventory read: how many of one item EVE carries, through `ReadProcessMemory` along SB's item bucket manager and its hash sets |
+| `online/modes/fishing/fishing.h` | The fishing tournament's read of SB's fishing log book: each fish's catch count, through `ReadProcessMemory` along SB's logic actor map and the book's hash set |
 | `ui/pad.h` | The controller's events for the co-op menu, the game's controller key events as one read (`PadKeys`), Slate's handler slots and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |

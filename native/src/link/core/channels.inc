@@ -223,8 +223,8 @@ private:
   }
 
   // linked() and partner() change only before this point of a pass (requests, calls, members, channel 0): a session
-  // that starts or ends empties channel 2's queues both ways, then forgets her night line and the follow's camps lines;
-  // a new pair (or none) empties them of all but the shared quests' and the asset names' lines.
+  // that starts or ends empties channel 2's queues both ways, then forgets her night line, the follow's camps lines and
+  // the spot lines; a new pair (or none) empties them of all but the shared quests' and the asset names' lines.
   void fight_session() {
     const bool now_linked = linked();
     const uint64_t pair = partner();
@@ -234,8 +234,11 @@ private:
       night_.clear();
       asked_camps_ = false; // The follow's camps lines belong to one session too.
       camps_answer_.clear();
+      asked_spot_ = false; // The spot lines too.
+      spot_to_ = spot_asked_ = 0;
+      spot_answer_.clear();
       for (auto &p : peers_)
-        p.camps_asked = p.camps_waiting = false;
+        p.camps_asked = p.camps_waiting = p.spot_asked = p.spot_waiting = false;
     }
     // A new pair while linked: the shared quests' and the asset names' lines go on, as both run with every member.
     const std::string tag = quest_tag() + " ", names = asset_tag() + " ";

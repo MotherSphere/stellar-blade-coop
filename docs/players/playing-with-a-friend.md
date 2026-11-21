@@ -43,7 +43,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (23) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (26) and game build. A mismatch shows a notice on screen (see
   [Notices](interface.md#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
@@ -225,32 +225,43 @@ lobbies and after the game restarts. Deny only refuses them for the current lobb
 
 ## Following the host
 
-As the guest on a co-op save, you can go where the host plays through the game's own fast travel. When the host is on
-another map, or more than 150 m from you on yours, one notice offers it:
-`<host> is in <map>. Press F7 to travel to the camp nearest them.` F7 (`follow_key`) asks the host's game for the 8
-camps nearest their EVE, and your game travels to the first of them that it can use (`Travelling to <host>.`). Nothing
-changes in the host's game. This has not been tested in game yet.
+As the guest on a co-op save, you can go where the host plays. When the host is on another map, or more than 150 m
+from you on yours, one notice offers it: `<host> is in <map>. Press F7 to travel to them.` On your map the offer ends
+once he is back within 100 m. Nothing changes in the host's game. This has not been tested in game yet.
+
+- On the host's map, F7 (`follow_key`) puts your EVE where the host last stood on solid ground, facing his way, after
+  the game's own fade. His game sends that point: where his EVE last walked on a floor, at most 10 s ago. F7 works at
+  any distance past 5 m. Within 5 m it does nothing (a log line only). Your respawn camp stays the one you had.
+- On another map, F7 asks the host's game for the 8 camps nearest his EVE. Your game travels to the first of them that
+  it can use (`Travelling to <host>.`) through the game's own fast travel. Once you stand on his map, your game puts
+  you where he last stood on solid ground, with no second key press and no notice. It tries for 30 s after the
+  arrival.
 
 The game's fast travel does not check whether your save has activated a camp, and activating a camp counts toward the
-game's camp trophies, so the travel takes only a camp the mod reads as activated in your save: one the game's own camp
-list would show. `coop status` lists them on its `activated=` line.
+game's camp trophies, so the camp travel takes only a camp the mod reads as activated in your save: one the game's own
+camp list would show. `coop status` lists them on its `activated=` line.
 
 - `follow_host=ask` (the default) shows that notice. With `always`, it reads
   `Following <host> in 5 s. Press F7 to stay.` and the travel starts 5 s later unless you press F7. With `off`, nothing
   shows and F7 does nothing.
 - With `follow_key=none`, no notice shows and `always` starts nothing. `coop travel host` still travels.
-- The travel reaches only camps your save has activated, as the game's camp menu does. If the game refuses a camp, the
-  mod tries the next camp of the list, 3 calls at most.
+- The camp travel reaches only camps your save has activated, as the game's camp menu does. If the game refuses a
+  camp, the mod tries the next camp of the list, 3 calls at most.
 - Only the 120 camps, phone booths and tetrapods of the game's camp table that lead to one story map can be used.
   Autosave points and the camps of the developer test maps are never sent or taken.
 - The travel waits while your EVE is down, while a respawn or another travel is under way, while the game is paused,
   in photo mode or in a menu (the co-op menu included), during a Night Operation run or a cutscene, during a boss fight
-  on your side, while an enemy near you is in battle, and for 10 s after the last travel. F7 then shows
-  `You cannot travel now. Try again in a moment.`
+  on your side or while an enemy near you is in battle. It also waits for 10 s after the last travel, while you or the
+  host stand in a [solo area](#solo-areas) or while the host's game loads, plays a cutscene, warps or fights a boss.
+  F7 then shows `You cannot travel now. Try again in a moment.` On his map, so does no answer from his game in 10 s.
+- `<host> is not on solid ground. Try again in a moment.`: his EVE jumps, climbs, swims or falls, or has not walked on
+  a floor in the last 10 s.
 - `No camp you have found is near <host>.` means that no camp of the host's answer could be used.
   `The travel did not start. UE4SS.log says why.` covers the other failures (see
   [troubleshooting.md](troubleshooting.md#travel-to-the-host-does-not-start)).
 - The place a travel brought you to shows no notice. The host's next map change does.
+- The host's F7 does not travel to a guest. After his own death it can take him back to a guest on his map
+  ([Back to a friend after a death](#back-to-a-friend-after-a-death)).
 
 ## A player down
 
@@ -266,6 +277,29 @@ When one EVE dies, the other player keeps playing (see [online/group-internals.m
   enemy's record of fighting it still count.
 - With both players down, nobody can revive: each respawns at a camp in their own game.
 
+### Back to a friend after a death
+
+When your EVE dies while your follow target is alive on your map, the death screen shows
+`<name> is alive. Press F7 to go back to them.` A guest's follow target is the host. The host's is the living guest
+on his map nearest his EVE. F7 calls the game's own in-place respawn, as the revive does: you get up where you fell
+with full health and your recovery items refilled. The zone does not reset. Once your EVE stands, your game puts her
+where your friend last stood on solid ground, as F7 does on one map. This has not been tested in game yet.
+
+- The offer needs your own `revive=on`, a co-op save, shared enemies running with no boss fight on your side, no Night
+  Operation run and no [solo area](#solo-areas) on either side. It comes once per death. While it shows, F7 is the way
+  back. At any other time F7 is the follow.
+- With `follow_host=always` it reads `Going back to <name> in 5 s. Press F7 to stay.` The way back then starts by
+  itself 5 s later unless you press F7. With `follow_host=off` or `follow_key=none`, no notice shows (a log line only).
+- If your friend leaves, goes down or enters a solo area between your respawn and the warp, you stay up where you fell
+  with no warp. `UE4SS.log` says why.
+- A death within 10 s of the last respawn the mod asked for gets no offer, so a death inside a kill volume does not
+  loop. The death screen's respawn then works as usual.
+- Your friend's revive and F7 in the same death call the respawn once. After your friend's revive there is no warp.
+- Without F7, the death screen's respawn takes you to a camp as usual, with its zone reset. As the guest, F7 then
+  follows the host from there.
+- In a session of more than 2 players, only the host and the pair get the offer: it needs the shared fight, which
+  runs between them alone.
+
 ## Revive by your friend (experimental)
 
 With `revive=on` (Options > Session > Friend can revive me; on by default, not tested in game yet), your friend can
@@ -277,7 +311,8 @@ You see `Revived by <name>.` and your friend sees `You revived <name>.` Until th
 usual.
 
 The revive also needs shared enemies running (`shared_enemies=on`, both on co-op saves), your friend alive on your map,
-no boss fight on your side and no respawn under way. Only the downed player's setting counts.
+no boss fight on your side and no respawn under way. It does not run while you or your friend stand in a
+[solo area](#solo-areas). Your friend's down notice waits then too. Only the downed player's setting counts.
 
 During a co-op Night Operation run this revive and its notices stand aside: with `revive=on` the run has its own
 revive, with the interact key and a 30 s limit (see [Down and revive](../online/modes/nightop.md#down-and-revive)). With
@@ -285,8 +320,27 @@ revive, with the interact key and a 30 s limit (see [Down and revive](../online/
 
 ## Camp rests in a shared area
 
-Either player can rest at a camp. While both play in one zone within 100 m of each other with same spawns on, only the
-host's rest brings the enemies back for both: the host's game resets the zone, and same spawns makes the guest's
+Any member can rest at a camp. With the [shared world](../world/objects.md) on (the default), a rest brings the enemies
+of its zone back in the game of every other member who stands in that zone. Each of those games makes the game's own
+zone reset there, for its own EVE. Those members read `<name> rested at a camp. The enemies of this area are back.` A
+member in another zone gets nothing. This has not been tested in game yet.
+
+- A member who is fighting, in a cutscene, paused, in photo mode or a menu, loading, warping or down gets the reset
+  once free, within 60 s. Past that she reads
+  `<name> rested at a camp. This area did not reset in your game: you were busy for a minute.`
+- A respawn after a death sends nothing. It resets the zone in the dead player's own game only.
+- Two rests of one zone within 30 s reset it once in each game, your own rest included. Four players who rest at one
+  camp together get one reset each.
+- If your game counts more than 3 zone resets within 30 s after one reset the mod asked for, the mod asks for no more
+  until the game restarts: `Other players' camp rests no longer reset your area until the game restarts. UE4SS.log
+  says why.`
+- Each player's own `shared_world` counts. Off, your rests are not sent and other players' rests leave your area as it
+  is. Rests go between co-op saves only. Nothing is sent or reset in a [solo area](#solo-areas).
+- In a session of more than 2 players, a guest outside the pair has no shared fight in her game. Other players' rests
+  do not reset her area yet.
+
+With the shared world off, only the host's rest brings the enemies back for both. That needs both players in one zone
+within 100 m of each other with same spawns on. The host's game resets the zone. Same spawns makes the guest's
 enemies follow. The guest's own rest heals her and resets her own game, then same spawns removes again each enemy the
 host's game does not have. Two notices on the guest's screen say which case applied:
 
@@ -296,6 +350,23 @@ host's game does not have. Two notices on the guest's screen say which case appl
 
 A respawn after a death shows neither. Away from the host (another zone, more than 100 m, or same spawns off), the
 guest's rest works as in solo play.
+
+## Solo areas
+
+The game's zone table marks some zones as places for one player: a Boss Challenge, a NIKKE stage, the training room,
+the Matrix 11 demo room and the game's test zones. When a member enters one, the others read
+`<name> is in <place>. Online play waits until they are back.`, for example
+`Alex is in a Boss Challenge. Online play waits until they are back.` Until she stands outside it again:
+
+- no travel goes to her or starts from her game (`You cannot travel now. Try again in a moment.`);
+- no revive and no way back after a death go toward her or start from her game;
+- her camp rests reset no other game. Other players' rests leave her area as it is;
+- when she is the host or the pair, shared enemies, shared bosses and story together stop between the host and the
+  pair, as when they stand on different maps. The shared world and shared quests go on;
+- her EVE is hidden in the other games;
+- a guest's game does not pause for the host's cutscenes while either of them stands in one.
+
+Once her zone reads public again, the others read `<name> is back.`
 
 ## Known limits
 
@@ -311,6 +382,17 @@ guest's rest works as in solo play.
   about the host; the host gets one about each member who differs, for example `Kaanta is on New Game+ 1 (Hard); you
   are on your first playthrough (Normal). Enemies with another max HP stay unshared.` A change of either value gives
   one more. No such notice shows in a match lobby or in the SBO lobby.
+- F7 never warps you straight into another world. From another map it goes through a camp first.
+- The host's F7 does not take him to a guest. Only the way back after his own death on her map does.
+- No way back after a death goes toward a member on another map: respawn at a camp, then follow.
+- A travel to the host while he stands on a lift or a train lands on his last ground point, which the lift or the
+  train may have left.
+- When the guest rests in the zone she shares with the host while he is busy (a fight, a cutscene, a menu), same
+  spawns removes the enemies her rest brought back in her game. They come back in both games once his reset comes, up
+  to 60 s later.
+- In a session of more than 2 players, a guest outside the pair has no shared fight in her game. Other players' camp
+  rests do not reset her area. She gets no offer to go back after a death either.
+- Two rests of one zone within 30 s reset it once in each game.
 
 ## Co-op saves
 

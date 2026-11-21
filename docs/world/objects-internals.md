@@ -143,19 +143,19 @@ matchmaking from some row types (see `tests/tools/matchmaking_scan_test.py` in [
 
 ## Wire
 
-The lines go on Steam channel 2, reliable, after the tag `SBW23`:
+The lines go on Steam channel 2, reliable, after the tag `SBW28`:
 
 | Line | Meaning |
 | --- | --- |
-| `SBW23 s <seq> <zone> <alias> <tag>` | an env put in a state (R1) |
-| `SBW23 a <seq> <zone> <alias> <1\|2>` | an env enabled or disabled (R2) |
-| `SBW23 e <seq> <zone> <row>` | a ZoneEventTable row run (R3) |
-| `SBW23 l <seq> <zone> <alias> <tag> <objectState> <progress>` | a linked env: its state (`None` for none), ObjectState 0 to 2 and a progress to add (R4) |
-| `SBW23 on`, `SBW23 off <reason>` | the sender's own state; the reason is `setting`, `match`, `save` or `fault` |
-| `SBW23 on reply` | `on`, as the answer to her `on` |
-| `SBW23 c ask <zone>` | send me what you changed in this zone (no `seq`) |
-| `SBW23 c <seq> <zone> <alias> <tag> <objectState>` | one changed env of that zone: its state and ObjectState 0 to 2 (0: not carried) |
-| `SBW23 c end <zone> <count>` | the answer is complete, `count` `c` lines sent (no `seq`) |
+| `SBW28 s <seq> <zone> <alias> <tag>` | an env put in a state (R1) |
+| `SBW28 a <seq> <zone> <alias> <1\|2>` | an env enabled or disabled (R2) |
+| `SBW28 e <seq> <zone> <row>` | a ZoneEventTable row run (R3) |
+| `SBW28 l <seq> <zone> <alias> <tag> <objectState> <progress>` | a linked env: its state (`None` for none), ObjectState 0 to 2 and a progress to add (R4) |
+| `SBW28 on`, `SBW28 off <reason>` | the sender's own state; the reason is `setting`, `match`, `save` or `fault` |
+| `SBW28 on reply` | `on`, as the answer to her `on` |
+| `SBW28 c ask <zone>` | send me what you changed in this zone (no `seq`) |
+| `SBW28 c <seq> <zone> <alias> <tag> <objectState>` | one changed env of that zone: its state and ObjectState 0 to 2 (0: not carried) |
+| `SBW28 c end <zone> <count>` | the answer is complete, `count` `c` lines sent (no `seq`) |
 
 Each line is at most `kMaxMessage` bytes. Zone, alias, tag and row are FName text: letters, digits and `_`, at most 64
 bytes. `seq` starts at 1 after each `on` and goes up by one per line, `c` lines included; the receiver counts an old one
@@ -255,7 +255,7 @@ Each side asks the other for the saved envs of the zone it stands in, then takes
 
 While the feature is open and we are in game, each pass reads the client's current zone with `zone()`: the FName at
 client `+0x68`, refused when there is no client, when it is None or when it has no text. A zone that held `kAskHoldMs`
-(2 s) of open in-game passes goes out once as `SBW23 c ask <zone>`, counted in `asked=`. The hold lets the zone's envs
+(2 s) of open in-game passes goes out once as `SBW28 c ask <zone>`, counted in `asked=`. The hold lets the zone's envs
 stream in after a zone change or a load. The opening (both sides ready, her `on` heard), a new partner and her `on`
 (not her `on reply`: a rejoin we did not see may hide changes made apart) let the current zone be asked again. So does
 a load, read as more than 2 s without an open in-game pass (a map, the title). The load dropped what was applied since

@@ -142,20 +142,24 @@ feature or drops the input.
   frame. Nothing is allocated under the lock: the worker sizes the pose buffers beforehand and the game thread only
   swaps them. Every 60 s the log gives the tick's cost and, while poses flow, the stream's counts.
 - Everything from your friend's game is checked before use: the table parser and the pose decoder (both fuzzed by the
-  tests), the mesh path rule, the channel 1 size and rate limits, at most 8 effect starts a second, and race lines
+  tests), the mesh path rule, the channel 1 size and rate limits, at most 8 effect starts a second, race lines
   (printable ASCII, 512 bytes and 40 lines a second at most, then the bounds in [Race
-  lines](../online/modes/race-internals.md#race-lines)).
+  lines](../online/modes/race-internals.md#race-lines)) and the dr lines of a race in a match (the same, 16 lines a
+  second, then the sender and bound checks in [Races in a match](../online/modes/race-internals.md#races-in-a-match)).
 - The [Doro look](../online/modes/race-internals.md#the-doro-look) and a race's [driving](../online/modes/race-internals.md#driving) write to the player actor. The look
-  writes `bHiddenInGame` on EVE's mesh parts and `VisibilityBasedAnimTickOption` on her main mesh. It writes
-  `coop-look.txt` before it changes either, and undoes both at the race's end, on `coop race look off` and `coop off`,
-  after a map change and at its first error. It also sets `bHiddenInGame` on the main mesh of the drone that follows
-  EVE, records the drone in the same file first, and clears it again on the same exits. The driving sets four values of
-  her movement component to 0 and gives it a velocity and her a yaw each frame. It writes `coop-drive.txt` before it
-  changes the values, and puts them back on the same exits. The next Lua load undoes either from its file when this one
-  could not.
+  writes `bHiddenInGame` on EVE's mesh parts from Lua. It writes `coop-look.txt` before it changes them. It undoes
+  them at the race's end, on `coop race look off` and `coop off`, after a map change and at its first error. It also
+  sets `bHiddenInGame` on the main mesh of the drone that follows EVE, records the drone in the same file first, and
+  clears it again on the same exits. The next Lua load undoes them from the file when this one could not. The driving
+  gives her movement a velocity and her a yaw each frame. The two property writes, her movement component's four
+  values at 0 and her main mesh's `VisibilityBasedAnimTickOption` at 0, are the native part's: on the game thread,
+  on live objects only, behind the races' own SEH latch, put back at each end Lua asks, at `coop off`, at a new Lua
+  load and at the first fault, also for as long as a cutscene or photo mode lasts ([The native
+  hold](../online/modes/race-internals.md#the-native-hold)). A race in a match also teleports EVE onto her grid slot
+  with `K2_TeleportTo` at its start and again at GO when she stands more than 3 m from it.
 - The [bike](../vehicles/bike-internals.md) writes to the player actor too. It adds one skeletal mesh component to EVE's
   actor, hung on her main mesh and hidden until she rides. While she rides it sets her main mesh's relative rotation for
-  the lean and drives her as a race does (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native
+  the lean and drives her with its own drive (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native
   part it turns 54 of SB's actions off in the player controller's `InputActionStateMap` (each one's state kept) and
   plays the riding pose in her custom animation slot. It writes `coop-bike.txt` (her main mesh's relative rotation and
   location) before any of it. A dismount, `coop off`, `bike=off`, a new EVE and the ride's first error put it all back:

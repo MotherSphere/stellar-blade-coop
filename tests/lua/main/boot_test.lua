@@ -48,6 +48,10 @@ assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdr
 assert(logged('keys: menu=F5 host=none status=F6 leave=F8 race=F9, name tag on, 60 poses a second'),
     table.concat(printed,'|'))
 assert(name_tag==true,'The name tag setting reaches the ghost')
+-- Her zone type from her vitals reaches the ghost: a solo area hides it (core/link.lua's Link.solo).
+mate_v={zone=5}; assert(puppet_solo()==true,'A Boss Challenge hides her ghost')
+mate_v={zone=1}; assert(puppet_solo()==false,'A public zone shows it')
+mate_v=nil; assert(puppet_solo()==false,'No vitals: shown')
 puppet_say('Kaanta is in b07, you are in e04.')
 assert(said[#said]=='Kaanta is in b07, you are in e04.','No UI root yet: on the line above EVE')
 assert(chat_new[1]==nil and chat_new[2]==true,'The chat on, as the settings say; 50 lines')
@@ -204,9 +208,23 @@ assert(#ra.cmds==raced and last()=='[StellarCoop] STOP: coop race start runs onl
     ..'saves); now no slot status\n',last())
 assert(ra.o.log==dr.log and ra.o.link==fake_link and ra.o.look.log==dr.log and ra.o.settings.race_key.name=='F9')
 assert(ra.o.store=='store coop-race-doros.txt','coop-race-doros.txt through the link')
-assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store=='store coop-drive.txt'
+assert(ra.o.drive.name=='drive' and dv.o.log==dr.log and dv.o.store==nil
     and dv.o.settings.drift_keys[1]=='Gamepad_RightTrigger',
-    'The driving: [DR] lines, coop-drive.txt through the link, the drift keys')
+    'The driving: [DR] lines, no coop-drive.txt (the native part holds her values), the drift keys')
+-- The race's asks to its native part (race hold, race tick) go through the link's request; the engine line's
+-- race_hold and race_retick answer them, read at each call.
+local was_asked=#asked
+assert(dv.o.ask('race hold on') and asked[was_asked+1]=='race hold on' and dr.o.ask==dv.o.ask)
+local was_status=status_text
+status_text='engine=on race_hold=1 race_tick=1 race_retick=7\n'
+assert(dv.o.held()==true and dr.o.retick()==7)
+status_text='engine=on race_hold=0 race_tick=0 race_retick=0\n'
+assert(dv.o.held()==false and dr.o.retick()==0)
+status_text='engine=on race_hold=fault\n'
+assert(dv.o.held()==false and dr.o.retick()==nil,'Its fault: not applied, no count')
+status_text='engine=on\n'
+assert(dv.o.held()==nil and dr.o.retick()==nil,'Unread')
+status_text=was_status
 assert(dv.o.riding==ra.o.riding and not ra.o.riding(),'The race and its drive read whether EVE rides')
 -- coop race drive reaches online/modes/race/run.lua on any slot; its probe on a co-op save only.
 coop('race','drive','top','2600')
@@ -222,6 +240,14 @@ kit_paused=true; assert(ra.o.paused()==true); kit_paused=false
 ra.o.tell(function(w) return w.race.armed end)
 assert(said[#said]=='Race ready: walk to your start.' and said_en[#said]=='Race ready: walk to your start.')
 assert(ra.hud and ra.hud.kit and ra.hud.theme and ra.hud.settings and ra.hud.settings.ui_language,'race.hud')
+-- coop race match reads race_match from the settings at each call (ra.o.settings is main.lua's table).
+coop('race','match')
+assert(last()=='[StellarCoop] OK: Doro races in matches: race_match=on, official tracks: 1; pick random; offered: '
+    ..'none; no round yet\n',last())
+ra.o.settings.race_match=false
+coop('race','match','status')
+assert(last():find('race_match=off',1,true),last())
+ra.o.settings.race_match=true
 end
 -- A tick's error is reported.
 ra.says={false,'the race stopped on an error until the mod reloads: x'}
@@ -817,6 +843,10 @@ chat_lines={{gift='s 17 HP_Potion 3'},{gift='a 9'}}
 loops[2].f()
 assert(gf.received[1]=='s 17 HP_Potion 3' and gf.received[2]=='a 9' and gf.ticks==gift_ticks+1,
     'Her gift lines to it, and its tick every 250 ms')
+-- A member's camp rest goes to the group module, once.
+chat_lines={{rest='Zone_A',from='2'}}
+loops[2].f()
+assert(#gr.rests==1 and gr.rests[1][1]=='Zone_A' and gr.rests[1][2]=='2','Her rest line to the group module')
 -- coop mxiii: out of the usage line too, on a co-op save only. Its status and requests are the link's, its follow the
 -- one main.lua builds with the link (read at each call), its Paks folder from the mod folder, its file reads
 -- core/link.lua's, its lines [MX] lines; ticked every frame.
@@ -1041,8 +1071,9 @@ for _,bad in ipairs({{},{'TEST'},{'test','x'},{'on'}}) do
 end
 -- The follow: built on (follow=true) with the link, the ghost, the settings and her name; ticked every 250 ms on the
 -- chat's clock; it waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run
--- and during a cutscene. coop travel host is follow_key; coop travel probe <camp> its solo test; anything else its
--- usage line.
+-- and during a cutscene. coop travel host is follow_key; coop travel probe <camp> its solo test; coop travel spot
+-- [<world>] <x> <y> <z> the spot warp's solo test (three numbers, or a world and three numbers); anything else its usage
+-- line.
 assert(tv.o.follow==true and tv.o.link==fake_link and tv.o.settings.follow_host=='ask'
     and tv.o.settings.follow_key.name=='F7' and tv.o.name(require('ui.text').en)=='Kaanta'
     and type(tv.o.tell)=='function'
@@ -1052,14 +1083,24 @@ assert(tv.o.paused()==false and tv.o.night()==false and tv.o.cutscene()==false)
 kit_paused=true; assert(tv.o.paused()==true); kit_paused=false
 nr.running=true; assert(tv.o.night()==true); nr.running=nil
 gr.playing=true; assert(tv.o.cutscene()==true); gr.playing=nil
+-- The return after death: follow_key on the death screen asks the group first; its warp is the follow's go(id); both
+-- wait on the follow's pause read.
+assert(tv.o.back()==true and gr.backs==1 and gr.o.go('3')==true and tv.gone=='3' and gr.o.paused==tv.o.paused)
 tv.count=#tv.ticks
 loops[2].f(); assert(#tv.ticks==tv.count+1 and tv.ticks[#tv.ticks]==gr.ticks[#gr.ticks])
 coop('travel','host'); assert(tv.presses==2 and last()=='[StellarCoop] OK: asked the host for camps\n',last())
 coop('travel','probe','DED10_Camp_07')
 assert(tv.probes[1]=='DED10_Camp_07' and last()=='[StellarCoop] OK: travel DED10_Camp_07 asked\n',last())
-for _,bad in ipairs({{},{'HOST'},{'host','x'},{'probe'},{'probe','a','b'},{'go'}}) do
+coop('travel','spot','1','2','3')
+assert(#tv.spots==1 and tv.spots[1][1]=='1' and tv.spots[1][2]=='2' and tv.spots[1][3]=='3' and tv.spots[1][4]==nil
+    and last()=='[StellarCoop] OK: travel spot asked\n',last())
+coop('travel','spot','Xion','1','2','3')
+assert(#tv.spots==2 and table.concat(tv.spots[2],' ')=='Xion 1 2 3',table.concat(tv.spots[2],' '))
+for _,bad in ipairs({{},{'HOST'},{'host','x'},{'probe'},{'probe','a','b'},{'go'},{'spot','1','2'},
+    {'spot','a','1','2','3','4'}}) do
     coop('travel',table.unpack(bad))
-    assert(tv.presses==2 and #tv.probes==1 and last()=='[StellarCoop] STOP: Use: coop travel host\n',last())
+    assert(tv.presses==2 and #tv.probes==1 and #tv.spots==2
+        and last()=='[StellarCoop] STOP: Use: coop travel host | probe <camp> | spot [<world>] <x> <y> <z>\n',last())
 end
 nr.ticked=nr.ticks
 rx.ticked,gt.ticked=rx.ticks,gt.ticks
@@ -1120,8 +1161,9 @@ assert(dm.stops==1 and asked[dm.asked_at_stop+1]=='devinfo off' and asked[dm.ask
 local written=#states
 takes=chat_takes
 ra.s=ra.slows
-chat_lines={{gift='s 18 HP_Potion 1'}}
+chat_lines={{gift='s 18 HP_Potion 1'},{rest='Zone_A',from='2'}}
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
+assert(#gr.rests==1,'No rest line to the group module after coop off')
 assert(ra.slows==ra.s,'No race check after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
 assert(rx.ticks==rx.ticked+1 and rx.stopped==true,"Roxanne's tick goes on after coop off, as stopped")
@@ -1279,6 +1321,7 @@ assert(rt.ticks==1 and rt.o.ready()==false,'The teleport tabs tick and stay off 
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
 coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())
+coop('race','match'); assert(last():find('OK: Doro races in matches: race_match=off',1,true),'No settings: '..last())
 -- The crash sentinel (online/partner/sentinel.lua): a marker the last Lua load left full is logged at the next load,
 -- emptied, and its asset set aside under this version.
 local MARKED='/Game/OutfitMods/Foo/SK_Foo.SK_Foo'

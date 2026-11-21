@@ -560,6 +560,8 @@ std::map<uint64_t, NamesSent> names_sent;
 uint64_t names_at = 0;
 bool names_linked = false;
 coop::pose::SlotWatch names_slots;
+// Link::solo_pair() at the last pass: story together and the shared fight send nothing to the pair while it holds.
+bool pair_paused = false;
 uint64_t next_vitals = 0; // Our vitals are read every 100 ms in a chat session (500 after a read over 1 ms).
 bool switched_off = false; // coop off: until the game restarts, only coop status and coop report get an answer.
 std::wstring command_line;
@@ -796,6 +798,11 @@ bool step() {
       event(coop::pose::ask_items(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::fishbook: // The fishing tournament's book read: the worker's, now; logged as its kind changes.
+      if (const std::string said = coop::pose::ask_fishbook(coop::parse_request(request)); !said.empty())
+        event(said);
+      request.clear();
+      break;
     case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii's four, the
                               // shop, Lily's signal: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
@@ -827,6 +834,10 @@ bool step() {
         const std::string why = coop_saves.plant_refusal(account.get(), game);
         event(why.empty() ? coop::pose::ask_shortcut_load(ask.slot) : "shortcut load refused: " + why);
       }
+      request.clear();
+      break;
+    case coop::Command::race: // Doro races' hold on EVE: the game thread's too.
+      event(coop::pose::ask_race(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::hud: // SB's HUD under the SBO lobby's screens: the game thread's; the change is logged.
@@ -949,6 +960,7 @@ bool step() {
       link->pose_rate(lua.rate);
       link->loopback(coop::pose::loopback());
     }
+    const uint32_t ours = coop::pose::zone_type(); // Our zone's type, once a pass: the vitals and the solo pause.
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
     if (ready == coop::Link::Ready::no && !request.empty()) {
       // Before Steam is ready: a report still helps (it tells why); anything else is said, never silently dropped.
@@ -1014,8 +1026,10 @@ bool step() {
           coop::Vitals mine;
           if (const uint64_t now = GetTickCount64(); chatting && now >= next_vitals) {
             uint64_t took_us = 0;
-            if (coop::pose::local_vitals(mine, took_us))
+            if (coop::pose::local_vitals(mine, took_us)) {
+              mine[coop::vital::zone] = ours;
               link->vitals(mine);
+            }
             next_vitals = now + (took_us > 1000 ? 500 : 100); // 10 Hz; 2 Hz after a read over 1 ms (UI-DESIGN 7.3).
           }
           const std::wstring chat = folder + L"coop-chat.txt";
@@ -1047,6 +1061,9 @@ bool step() {
     said = coop::pose::bike_pass();
     if (loaded && !said.empty())
       link->notice(said);
+    said = coop::pose::race_pass();
+    if (loaded && !said.empty())
+      link->notice(said);
     coop::pose::hud_pass();
     coop::pose::teamshop_pass();
     coop::pose::loading_pass();
@@ -1061,7 +1078,10 @@ bool step() {
     // guest in ghost slot 0): they read the pair's lines and send theirs to the pair alone. Every other guest's game
     // keeps those three off (its partner() is 0). The lobby owner hosts the quests, the world's catch-up (its values
     // win a conflict), the story and the fight. Ours are queued for the next tick. Lines from any other member are
-    // dropped.
+    // dropped. While our zone or the pair's is a solo area (Link::solo_pair: a Boss Challenge, a NIKKE stage, a
+    // training room, the Matrix 11 demo room, a test zone), story together and the shared fight read the pair as
+    // unlinked, as on another map: the pair's SBS and fight lines are dropped and theirs send nothing. The world and
+    // the quests go on.
     names_watch(linked);
     std::vector<coop::FightLine> fights = loaded ? link->take_fight() : std::vector<coop::FightLine>();
     // Asset names (SBA lines) come from every member: each goes to its sender's ghost slot, out of what the shared
@@ -1078,6 +1098,8 @@ bool step() {
                  fights.end());
     const uint64_t partner = linked ? link->partner() : 0;
     const bool shared = partner != 0;
+    const bool solo = linked && link->solo_pair(ours);
+    const uint64_t pair_now = solo ? 0 : partner;
     // A guest the let line names the pair: once the pair before her left, the host moved her ghost to slot 0, which
     // holds no table of hers yet, so ours goes to every member at once (at a session's start, one table more). Our
     // asset names go to every member again from the first: the other members drop the lines they already have.
@@ -1086,6 +1108,9 @@ bool step() {
       names_sent.clear(); // Our asset names too: the host's slot 0 forgot them (names_watch()).
     }
     was_pair = partner;
+    if (solo != pair_paused)
+      event(solo ? "online play paused toward the pair: a solo area" : "online play resumed toward the pair");
+    pair_paused = solo;
     std::vector<uint64_t> mates;
     if (linked && !link->match())
       mates = link->host() ? link->members() : std::vector<uint64_t>(link->leader() ? 1 : 0, link->leader());
@@ -1099,18 +1124,20 @@ bool step() {
                              const uint64_t pair = link ? link->partner() : 0;
                              return pair && link->send_fight(line, true, pair);
                            });
-    coop::pose::story_pass(partner, shared && link->host(), link && link->match(), channel2,
+    if (solo) // world_pass took its SBW lines out: the rest are the pair's SBS and fight lines.
+      channel2.clear();
+    coop::pose::story_pass(pair_now, pair_now && link->host(), link && link->match(), channel2,
                            [](const std::string &line) {
                              const uint64_t pair = link ? link->partner() : 0;
-                             return pair && link->send_fight(line, true, pair);
+                             return !pair_paused && pair && link->send_fight(line, true, pair);
                            });
     bool fighting = coop::pose::fight_pass(
-        GetTickCount64(), shared, shared && link->host(), coop_marker, channel2,
+        GetTickCount64(), pair_now != 0, pair_now && link->host(), coop_marker, channel2,
         [](const std::string &line, bool reliable) {
           const uint64_t pair = link ? link->partner() : 0;
-          return pair && link->send_fight(line, reliable, pair);
+          return !pair_paused && pair && link->send_fight(line, reliable, pair);
         },
-        shared ? link->mate_life() : coop::Life::unknown, partner);
+        pair_now ? link->mate_life() : coop::Life::unknown, pair_now);
     streaming = streaming || fighting;
     names_pass(linked);
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.

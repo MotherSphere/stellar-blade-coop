@@ -4,9 +4,11 @@
 -- T.en of ui/text.lua (see there).
 return {
     title='CO-OP',
-    head={session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
+    head={modes='MODES',
+        session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
         ghost='GHOST',saves='SAVES',combat='COMBAT',display='DISPLAY',chat='CHAT',line='CO-OP LINE'},
-    row={host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',find='Find a session',
+    row={scoreattack='Score attack',fishing='Fishing tournament',race_match='Doro race',
+        host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',find='Find a session',
         copy='Copy my code',remove='Remove %s',join_code='Join with a code',
         chat='Chat',options='Options',report='Write a bug report',close='Close',
         menu_key='Open this menu',host_key='Host at once',status_key='Show the status',leave_key='Leave the session',
@@ -141,7 +143,8 @@ return {
         ['world.objects']='Shared world',['story.together']='Story together',['online.lobby']='The SBO lobby',
         ['vehicles.bike']='The bike',['world.daynight']='Day and night',['cutmenus']='Cut menus',
         ['online.saves']='Co-op saves',
-        ['world.teamshop']='Team shop',['fight.gunmode']='Gun mode'},
+        ['world.teamshop']='Team shop',['fight.gunmode']='Gun mode',['online.modes.scoreattack']='Score attack',
+        ['online.modes.fishing']='Fishing tournament'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
@@ -187,20 +190,35 @@ return {
     -- Camp rests in a shared area, as the guest (main.lua): the host's rest reset the area in their game, or ours
     -- reset our own only. The revive by the friend (online/group/group.lua): she is down near us, we are down and she
     -- can revive us, she revived us, we revived her; and our game waiting while the host watches a cutscene. (%s: her
-    -- name, or fight.friend.)
+    -- name, or fight.friend.) The return after our death: the offer and always's notice (her name, follow_key). A
+    -- member in a solo area (her name, then one of places by the zone type) and back from it (her name). A member's
+    -- camp rest (online/group/group.lua, %s: her name, or someone): it reset this area in our game, or did not while we
+    -- were busy for a minute; then the stop after too many resets.
     group={rest="Enemies are back: the area reset in %s's game.",
         rest_guest="Shared area: only %s's camp rest brings its enemies back.",
         down='%s is down. Stand next to them for 3 s to revive them.',
         wait='%s can revive you: wait, or respawn at a camp.',
         revived='Revived by %s.',
         you_revived='You revived %s.',
-        cutscene='%s is watching a cutscene. Your game waits until it ends.'},
+        cutscene='%s is watching a cutscene. Your game waits until it ends.',
+        back='%s is alive. Press %s to go back to them.',
+        back_auto='Going back to %s in 5 s. Press %s to stay.',
+        solo='%s is in %s. Online play waits until they are back.',
+        places={training='the training room',spirit='the Matrix 11 demo room',test='a test zone',
+            boss='a Boss Challenge',nikke='a NIKKE stage'},
+        solo_back='%s is back.',
+        rested='%s rested at a camp. The enemies of this area are back.',
+        rest_skipped='%s rested at a camp. This area did not reset in your game: you were busy for a minute.',
+        rest_stopped="Other players' camp rests no longer reset your area until the game restarts. UE4SS.log says why.",
+        someone='A player'},
     -- The follow (online/group/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s:
     -- her name, her map, follow_key), always's notice (her name, follow_key), the travel taken, no camp found, a
-    -- guard of the moment, and the native part's refusal or a warp that never started.
-    travel={offer='%s is in %s. Press %s to travel to the camp nearest them.',
+    -- guard of the moment, the host's last ground point missing or too old (her name), and the native part's refusal
+    -- or a warp that never started.
+    travel={offer='%s is in %s. Press %s to travel to them.',
         auto='Following %s in 5 s. Press %s to stay.',going='Travelling to %s.',
         none='No camp you have found is near %s.',busy='You cannot travel now. Try again in a moment.',
+        air='%s is not on solid ground. Try again in a moment.',
         failed='The travel did not start. UE4SS.log says why.'},
     -- The parked bike (vehicles/bike/ride.lua): a mount refused with the bike's distance and side from her camera (%d
     -- metres, then one of the four side words), refused before it is back on her map (2 s after her arrival) or while
@@ -288,10 +306,13 @@ return {
         stopped='Shared world stopped until the game restarts. coop-link.log says why.'},
     story={on='Story together on with %s.',
         stopped='Story together stopped until the game restarts. coop-link.log says why.'},
-    -- The Doro race's words (online/modes/race/run.lua): its panel, banners and results on the HUD, its notices (the
-    -- feed, or the line above EVE), and why a race ended early for you (why), was raced alone (refused: the host's, her
-    -- answer) or was not joined (declined: the guest's, the host's track); %s: her name, a track's name or a key's, in
-    -- order.
+    -- The Doro race's words (online/modes/race/run.lua, ui/hud.lua): its panel, banners and results on the HUD, its
+    -- notices (the feed, or the line above EVE), and why a race ended early for you (why), was raced alone (refused:
+    -- the host's, her answer) or was not joined (declined: the guest's, the host's track); %s: her name, a track's name
+    -- or a key's, in order. A match round's results note (still: the players still racing; best; unranked) and, with
+    -- the UI off, our place (placed: ours, of how many). match: the notices of a Doro race round in a match lobby
+    -- (online/modes/race/match/game.lua): why we sit out the round, the host's room with no track, the host who left
+    -- and a round cancelled before its ranking.
     race={title='DORO RACE',cp='CP %d/%d',lap='LAP %d/%d',pos='POS %d/%d',go='GO!',wrong_way='WRONG WAY',
         missed='MISSED CHECKPOINT %d',finished='FINISHED',dnf='DNF',slot='Your start',waiting='Waiting for %s',
         results='RESULTS',fast='fast run',pause='paused',why={teleport='Moved more than 20 m at once.',
@@ -306,7 +327,22 @@ return {
         recording='Recording %s: press %s at each checkpoint.',dropped='Checkpoint %d set.',
         too_close='Too close: 15 m at least between checkpoints.',full='64 checkpoints already: save the track.',
         other_map='This track is on another map.',
-        saved='Track %s saved, %d checkpoints.'},
+        saved='Track %s saved, %d checkpoints.',
+        still='Results still to come: %d.',best='New personal best.',unranked='Not ranked.',
+        placed='Doro race: you placed %d of %d.',
+        match={off='Doro races are off in Options: you sit out this round.',
+            bike='Get off the bike to race in the next round.',
+            seat='Get up from your seat to race in the next round.',
+            night='A Night Operation run is on: you sit out this round.',
+            save='Doro races need a co-op save: you sit out this round.',
+            room='You are not in the waiting room: you sit out this round.',
+            fence='The track runs outside this room: you sit out this round.',
+            map='The track is on another map: you sit out this round.',
+            busy='You are recording a track or testing the drive: you sit out this round.',
+            refused='Your game could not start the race: you sit out this round. UE4SS.log says why.',
+            track='The track did not arrive whole: you sit out this round.',
+            notrack='No track here: record one in this room with coop race record.',
+            host_left='The host left. This round has no ranking.',cancelled='The round was cancelled.'}},
     -- The SBO lobby's notices (online/lobby/sbo.lua): the co-op save before the entry, why an entry is refused (no),
     -- and what failed (fail). nightop and boss use the game's own name for each mode in each language, its
     -- StringTable_UI rows UI_Night and UI_BossRush_Title.
@@ -324,23 +360,39 @@ return {
     -- The lobby menu (mockup B, online/lobby/ui/lobby.lua): its sub and page lines, a mode's name and line (desc), the
     -- rows (more and its tag for the modes not built yet), the status line under them, the members box and the waiting
     -- room's notice (room, %s: the menu key); the settings (mockup C): tabs, each setting's title (set; arena waits for
-    -- stage 4) and value (val); the Leave question (pop). Outside English and French, Settings, Cancel, Difficulty,
-    -- Equipment and Change are the game's own StringTable_UI words (UI_Lobby_Options, UI_Cancel,
-    -- UI_Setting_GamePlay_Mode, UI_Equipment, UI_Setting_Rolling), and Search, Start and Normal Mode
-    -- (UI_Interaction_T_Search, UI_BossRush_Start, UI_NormalMode) where the game's word means the same thing there.
-    lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={ffa='Free-for-all'},
-        desc={ffa='2 to 8 players. First to 20 kills, or the best score after 10 minutes. You respawn after 4 s.',
-            more='More modes come in later versions.'},row={search='Search',cancel='Cancel',private='Private match',
+    -- stage 4) and value (val; race_ranking: the Doro race's ranking); the Leave question (pop). Outside English and
+    -- French, Settings, Cancel, Difficulty, Equipment and Change are the game's own StringTable_UI words
+    -- (UI_Lobby_Options, UI_Cancel, UI_Setting_GamePlay_Mode, UI_Equipment, UI_Setting_Rolling), and Search, Start and
+    -- Normal Mode (UI_Interaction_T_Search, UI_BossRush_Start, UI_NormalMode) where the game's word means the same thing
+    -- there.
+    lobby={sub='PvP LOBBY · SBO',page='LOBBY · SBO',mode={race='Doro race',
+            scoreattack='Score attack',
+            ffa='Free-for-all'},
+        desc={
+            race='2 to 8 players race as Doros on the same track. The shortest time wins.',
+            scoreattack='2 to 8 players play the same challenge at once. The best score wins, then the shortest time.',
+            ffa='2 to 8 players. First to 20 kills, or the best score after 10 minutes. You respawn after 4 s.',
+            more='More modes come in later versions.'},row={track='Track',
+            challenge='Challenge',
+            search='Search',cancel='Cancel',private='Private match',
             code='Code %s',join_code='Join with a code',room='Waiting room',settings='Settings',leave='Leave',
-            more='More modes'},tag={soon='soon'},status={idle='Pick a mode, then Search.',searching='Searching…',
+            more='More modes'},tag={picked='picked',
+            soon='soon'},status={idle='Pick a mode, then Search.',searching='Searching…',
             open='In the lobby, %d of %d',full='Lobby full, %d of %d',start='Starting in %d s',
             private='Private match, %d of %d',created='No lobby found. Yours is open.',copied='Code copied.'},
         members='Members',count='%d of %d',you='you',host='host',connecting='connecting…',lost='lost',
         empty='No lobby yet. Search finds one or opens one.',empty_search='Looking for a public lobby of this mode.',
         hint={change='Change',tabs='Tabs'},room='Lobby menu: %s, or hold View',tab={match='MATCH',sbo='SBO'},
-        head={lobby='LOBBY'},set={room='Map',players='Players',finish='End',tie='Tie',respawn='Respawn',
+        head={lobby='LOBBY'},set={track='Track',
+            challenge='Challenge',ranking='Ranking',
+            damage='Damage between players',
+            room='Map',players='Players',finish='End',tie='Tie',respawn='Respawn',
             protection='Spawn protection',difficulty='Difficulty',equipment='Equipment',arena='Arena',start='Start',
-            lobby='Lobby',version='Version',mute='Mute %s'},val={random='Random',
+            lobby='Lobby',version='Version',mute='Mute %s'},val={
+            race_ranking='Shortest time, ties within 0.01 s',
+            ranking='Best score, then shortest time',
+            damage='None',host_pick="Host's pick",
+            random='Random',
             players='2 to 8',finish='20 kills or 10 min',
             tie='Sudden death, 60 s at most',respawn='4 s',protection='6 s, ends when you attack',
             difficulty='Normal for everyone',equipment='The same for everyone',
@@ -364,6 +416,42 @@ return {
             friends='Only your Steam friends can join. They find it in Find a session or in Steam.',
             invitation='Not listed. Players join with a Steam invite or your join code.',
             closed='Nobody can join, not even with an invite or a code.'}},
+    -- Score attack (online/modes/scoreattack/ui/board.lua, game.lua): the in-round board's wave and end words (ending:
+    -- win, time, dead, stop); the result panel's line under its heading (mine: the end word, the score, the time); its
+    -- note (waiting, unranked; the record line is challenge.record); why a round ends without a ranking (host_left,
+    -- cancelled); why a player sits out a round (out: off, bike, night, room, refused). With the UI off: her run's end
+    -- (end_notice: the challenge, the end word, the score, the time) and her place (placed: hers, of how many).
+    scoreattack={wave='Wave %d/%d',ending={win='Cleared',time='Time up',dead='Died',stop='Stopped'},
+        mine='%s · score %d · %s',
+        waiting='Results still to come: %d.',
+        unranked='Not ranked.',
+        host_left='The host left. This round has no ranking.',
+        cancelled='The round was cancelled.',
+        out={off='Score attack is off in Options: you sit out this round.',
+            bike='Get off the bike to play the next round.',
+            night='A Night Operation run is on: you sit out this round.',
+            room='You are not in the waiting room: you sit out this round.',
+            refused='Your game could not start the challenge: you sit out this round. UE4SS.log says why.'},
+        end_notice='%s: %s, score %d, time %s.',
+        placed='Score attack: you placed %d of %d.'},
+    -- The fishing tournament (online/modes/fishing/ui/board.lua): the corner board's title line (head, then the
+    -- countdown, the time left or up); the result panel's heading (title), the line under it (mine: our points and
+    -- fish), a ranking row's fish and its notes (waiting, unranked, best, norank); the notices: the start (start: the
+    -- host's name, the minutes), why a player sits out (out: off, slot, table), why a tournament ends with no ranking
+    -- (host_left, cancelled), a reloaded game (reloaded). With the UI off: GO (go: the minutes), each change of our
+    -- place and points (standing), our end (end_notice: points, fish), the first three (top: their entries, each
+    -- place, name and points, joined by sep) and our place (placed: ours, of how many).
+    fishing={head='FISHING',count='Starts in %d',up='Time up',title='Fishing tournament',mine='%d points · %d fish',
+        fish='%d fish',waiting="Waiting for the host's ranking.",unranked='Not ranked.',best='New personal best.',
+        norank='No ranking came from the host.',start='%s starts a fishing tournament: %d min.',
+        out={off='Fishing tournament is off in Options.',
+            slot='Load a co-op save to fish in the tournament.',
+            table='Could not read the fish table.'},
+        host_left='The host left. This tournament has no ranking.',cancelled='The tournament was cancelled.',
+        reloaded='Your game reloaded: your catches no longer count in this tournament.',
+        go='Fishing tournament: start fishing. %d min left.',standing='Fishing tournament: place %d, %d points.',
+        end_notice='Fishing tournament: time up, %d points, %d fish.',top='Fishing tournament: %s.',entry='%d. %s %d',
+        sep=', ',placed='You placed %d of %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='The game stayed paused, so the co-op menu did not open.'},
 }

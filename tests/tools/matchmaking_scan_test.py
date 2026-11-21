@@ -21,14 +21,15 @@ SCRIPTS = 'mod/StellarCoop/Scripts'
 NATIVE = ('native/src', 'tests/wine')
 # The one guarded CreateSBZoneEvent per file that has one, and what each file may hold of the rationed calls and names.
 SITES = {'story/scenes/scene.lua', 'world/maps/matrix13/level/boss.lua', 'online/modes/nightop/probe.lua',
-         'online/modes/nightop/recruiter.lua', 'fight/gunmode/mode.lua'}
+         'online/modes/nightop/recruiter.lua', 'fight/gunmode/mode.lua', 'online/modes/scoreattack/run.lua'}
 ADD_ROWS = {'online/modes/nightop/probe.lua': 1}
 # Raw counts, comments and strings included, so a call no pattern below sees (obj['AddRow'](obj,...)) still shows. A
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
 # coop nightop's one CreateActor (its spawn choke point), the shop's one ItemBucketItemAdd (its grant choke point, in
 # core/items.lua) and the Beta Seeds' ItemBucketItemAdd and ItemBucketItemRemove (the shop screen's one seed choke
-# point), and the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the
-# probe's answer and the header). coop lion, coop gardener fight and coop tendril fight: fight/bosses/enemy.lua's one
+# point), the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the
+# probe's answer and the header) and the camp rest's one ResetZone on our own EVE and our own current zone (its call,
+# its log line and the header). coop lion, coop gardener fight and coop tendril fight: fight/bosses/enemy.lua's one
 # CreateActor (their spawn choke point) and its header, which also names SB's AddRow (the native part calls it) and
 # UE4SS's (never called); core/enemy.lua, which the row batches keep, holds the same lines.
 # fight/bosses/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two
@@ -51,18 +52,26 @@ ADD_ROWS = {'online/modes/nightop/probe.lua': 1}
 # host (only a client net mode sends it, 0x1423b8700). The job (0x141b15b90 -> 0x141a8da30) sets the drone's current
 # round in EVE's character data and on her pawn. SB's own round switch (0x141a8d9c0) sends the same request. Whether a
 # save keeps that round was not traced, so the probe stays behind its setting.
+# Score attack (online/modes/scoreattack/run.lua, a copy of Night Operation's run with its heal and group play's
+# respawn): its guarded call (kind 2, the heal row SE_10_E_ActorEff_011 only) and its header; its one CreateActor
+# (its spawn choke point), its one ActorRespawn on our own EVE after a death, that call's log line and the header's two
+# mentions. On 26123051 CreateActor (0x1423bdd20) queues its job on SB's local logic queue (0x141af4b70) and sends it
+# only in the UE client net mode 3; RunEvent hands kind 2 to 0x141c9e690 (its call at 0x141ca627d); the respawn's job
+# (0x141b10b30) finds EVE by her GUID and refills her recovery items, reading no zone type.
 RATIONED = {'MultiplayTest_ZoneE_059': {'online/modes/nightop/recruiter.lua': 1},
             'CreateSBZoneEvent': {'online/modes/nightop/probe.lua': 3, 'online/modes/nightop/recruiter.lua': 4,
                                   'story/scenes/scene.lua': 6,
-                                  'world/maps/matrix13/level/boss.lua': 2, 'fight/gunmode/mode.lua': 1},
+                                  'world/maps/matrix13/level/boss.lua': 2, 'fight/gunmode/mode.lua': 1,
+                                  'online/modes/scoreattack/run.lua': 2},
             'AddRow': {'online/modes/nightop/probe.lua': 3, 'core/enemy.lua': 2, 'fight/bosses/enemy.lua': 2,
                        'fight/bosses/lion.lua': 1},
             'ServerRequest_': {'online/modes/nightop/probe.lua': 10, 'online/modes/nightop/run.lua': 1,
                                'online/modes/nightop/shop.lua': 2,
-                               'core/items.lua': 1, 'online/group/group.lua': 7, 'core/enemy.lua': 2,
+                               'core/items.lua': 1, 'online/group/group.lua': 10, 'core/enemy.lua': 2,
                                'fight/bosses/enemy.lua': 2, 'eve/chainspin.lua': 1, 'core/effect.lua': 1,
                                'cutmenus/mailbox.lua': 2, 'vehicles/bike/fetch.lua': 1,
-                               'fight/gunmode/probe.lua': 5, 'fight/gunmode/nikke.lua': 2}}
+                               'fight/gunmode/probe.lua': 5, 'fight/gunmode/nikke.lua': 2,
+                               'online/modes/scoreattack/run.lua': 5}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -164,6 +173,7 @@ NS, LI, SC = (f'{SCRIPTS}/online/modes/nightop/shop.lua', f'{SCRIPTS}/fight/boss
               f'{SCRIPTS}/story/scenes/scene.lua')
 BO = f'{SCRIPTS}/world/maps/matrix13/level/boss.lua'
 GM, GP = f'{SCRIPTS}/fight/gunmode/mode.lua', f'{SCRIPTS}/fight/gunmode/probe.lua'
+SA = f'{SCRIPTS}/online/modes/scoreattack/run.lua'
 SH, SG, WG = ('native/src/game/sbo.h', 'native/src/online/lobby/sbo_game.inc',
               'native/src/glue/tick/world_game_shared.inc')
 SEQ_CONST, SEQ_CALL = ('constexpr uint64_t kRunZoneEvent = 0x141ca5790;\n',
@@ -190,7 +200,8 @@ RECRUITER = padded('online/modes/nightop/recruiter.lua',
 RUN = padded('online/modes/nightop/run.lua',
              "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,key,key&0xFF,n,false)\n")
 GROUP = padded('online/group/group.lua',
-               'pc:ServerRequest_ActorRespawn(me,false)\npc:ServerRequest_ActorRevival(me,false)\n')
+               'pc:ServerRequest_ActorRespawn(me,false)\npc:ServerRequest_ActorRevival(me,false)\n'
+               'pc:ServerRequest_ResetZone(me,FName(zone,EFindName.FNAME_Find))\n')
 SHOP = padded('online/modes/nightop/shop.lua',
               "pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(alias),count,0,true,false,false,{})\n")
 ENEMY = padded('core/enemy.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n")
@@ -198,6 +209,9 @@ LION = padded('fight/bosses/lion.lua', '')
 SCENE = padded('story/scenes/scene.lua', GUARDED.replace('NightOp', 'Scene'))
 BOSS = padded('world/maps/matrix13/level/boss.lua', GUARDED.replace('NightOp', 'Boss'))
 GUN = padded('fight/gunmode/mode.lua', GUARDED.replace('NightOp', 'GunMode'))
+SCORE = padded('online/modes/scoreattack/run.lua', GUARDED.replace('NightOp', 'Run')
+               + "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,key,key&0xFF,n,false)\n"
+               + 'pc:ServerRequest_ActorRespawn(me,false)\n')
 GUN_PROBE = padded('fight/gunmode/probe.lua', "pc:ServerRequest_ChangeBulletItem(pawn,FName('Bullet_Nikke'))\n")
 CHAINSPIN = padded('eve/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(ChainSpin.ID))\n")
 MAILBOX = padded('cutmenus/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
@@ -209,7 +223,7 @@ CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: E
          MB: MAILBOX, BF: FETCH, NK: NIKKE, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n',
          SH: SEQ_CONST, SG: SEQ_CALL, WG: WORLD_CALL,
-         IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', ''), GM: GUN, GP: GUN_PROBE}
+         IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', ''), GM: GUN, GP: GUN_PROBE, SA: SCORE}
 CE = f'{SCRIPTS}/fight/bosses/enemy.lua'
 CLEAN[CE] = padded('fight/bosses/enemy.lua', '')  # fight.bosses' copy of core/enemy.lua (November 2026).
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
@@ -245,6 +259,9 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L1', 'L5'}, {BO: None}),
           ({'L1'}, {GM: GUN.replace('GunMode.allowed(kind,name)', 'GunMode.allowed(15,name)')}),
           ({'L1', 'L5'}, {GM: None}),
+          ({'L1'}, {SA: SCORE.replace('Run.allowed(kind,name)', 'Run.allowed(15,name)')}),
+          ({'L1', 'L5'}, {SA: None}),
+          ({'L5'}, {SA: SCORE + 'pc:ServerRequest_ActorRevival(me,false)\n'}),
           ({'L1'}, {R: RECRUITER.replace('Recruiter.allowed(kind,name)', 'Recruiter.allowed(15,name)')}),
           ({'L1', 'L5'}, {M: 'bpl.CreateSBZoneEvent(bpl,15,n)\n'}),
           ({'L1', 'L5'}, {M: 'bpl: CreateSBZoneEvent(15,n)\n'}),

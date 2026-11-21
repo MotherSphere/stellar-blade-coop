@@ -1,9 +1,12 @@
 # SBO lobby and matches
 
 The SBO lobby is a waiting room for matches of up to 8 players. From it you search for a public match, host a private
-one or join one with a code. The mod's notices and menu call it the PvP lobby. It is a test in this version: the
-lobby, the search and the countdown run, but no match mode is built yet, so when a countdown ends nobody travels to an
-arena and nothing is scored. What has been tried in game is listed under [Test status](#test-status).
+one or join one with a code. The mod's notices and menu call it the PvP lobby. It is a test in this version. The
+lobby, the search and the countdown run. Two modes play their round in the lobby room. In
+[score attack](modes/scoreattack.md) every player plays the same challenge at once. In a
+[Doro race](modes/race.md#races-in-a-match) every player races the same track at once. The free-for-all is not built:
+when its countdown ends, nobody travels to an arena and nothing is scored. What has been tried in game is listed under
+[Test status](#test-status).
 
 An online session with friends holds 2 to 4 players (see [Playing with a friend](../players/playing-with-a-friend.md)). Join
 refuses while you are in one.
@@ -58,7 +61,9 @@ The menu opens by itself at each arrival. Waiting room closes it so you can walk
 
 | Row | What it does |
 | --- | --- |
-| Free-for-all | The mode, the only one so far. Its line gives the rules planned for it: 2 to 8 players, first to 20 kills or the best score after 10 minutes, a respawn after 4 s. No round plays them yet |
+| Free-for-all | A mode. Its line gives the rules planned for it: 2 to 8 players, first to 20 kills or the best score after 10 minutes, a respawn after 4 s. No round plays them yet |
+| Score attack | A mode: every player plays the same challenge at once, the best score first (see [Score attack](modes/scoreattack.md)). Locked while `scoreattack=off` |
+| Doro race | A mode: every player races the same track at once as a Doro, the shortest time first (see [Races in a match](modes/race.md#races-in-a-match)). Locked while `race_match=off` |
 | More modes | Locked, marked soon |
 | Search | A quick match: see [Search](#search) |
 | Private match | Host a match lobby that only a join code opens: see [Private match](#private-match) |
@@ -67,24 +72,32 @@ The menu opens by itself at each arrival. Waiting room closes it so you can walk
 | Settings | The match's rules and the lobby's settings |
 | Leave | `Go back to Xion? You return where you talked to the recruiter.` |
 
+Select on Free-for-all, Score attack or Doro race picks that mode for Search and Private match, marked `picked`, until
+the mod reloads. Score attack is picked at first while it can play. In a score attack match lobby the mode rows are
+Score attack (locked), Challenge and More modes. The host's Challenge row picks the round's challenge or Random. A
+guest's reads `Host's pick` (see [Starting a round](modes/scoreattack.md#starting-a-round)). In a Doro race match lobby
+they are Doro race (locked), Track and More modes, with the host's track on the Track row the same way (see
+[Starting a round](modes/race.md#starting-a-round)).
+
 While a search runs, or once you are in a match lobby, Cancel takes the place of Search, Private match and Join with a
 code: it stops the search or leaves the match lobby, and you stay in the SBO lobby. The host of a private match also
 gets a Code row, which copies the join code. Under the rows, the members box lists each member with her ping, or
 `connecting…` and `lost`, and marks you and the host.
 
-Settings has two tabs; LB and RB change the tab on a controller. MATCH shows the free-for-all rules (locked), whether
+Settings has two tabs; LB and RB change the tab on a controller. MATCH shows the rules of the lobby's mode, or of the mode picked (locked), whether
 the lobby is public or private with its code, the Map row of a private match (only with the hall lobby pak) and the
 mod version with its link protocol. SBO has Chat on or off, a Mute row for each other member, Menu language, Menu
 sounds and Write a bug report (`coop report`).
 
 ### Search
 
-Search asks Steam for an open public free-for-all lobby with a free place, made by a game on the same Stellar Blade
+Search asks Steam for an open public lobby of the mode picked with a free place, made by a game on the same Stellar Blade
 Online protocol and game build and with the same lobby maps: players without the hall lobby pak only find lobbies made
 without it. Steam limits the search to your region and the regions near it. Search joins the first lobby found, and
 tries the next one if that join fails.
 
-When no lobby is open, you host a public one: `No ffa match found (SBO protocol 23, build 26123051): hosting one.` A
+When no lobby is open, you host a public one: `No scoreattack match found (SBO protocol 28, build 26123051): hosting
+one.` A
 host alone in a public lobby searches again every 5 s and moves to an open lobby with a lower Steam lobby id, so two
 players who searched in the same second are in one lobby within about 5 s.
 
@@ -95,7 +108,7 @@ and skips that lobby for the rest of the game run.
 ### Private match
 
 Private match hosts a match lobby that Search never returns, with a 7-character
-[join code](../players/playing-with-a-friend.md#join-codes): `Hosting a private ffa match. Your join code is <code>.` The other
+[join code](../players/playing-with-a-friend.md#join-codes): `Hosting a private scoreattack match. Your join code is <code>.` The other
 players choose Join with a code and type it. With the hall lobby pak, the Map row of Settings picks the hall first, or
 Random.
 
@@ -114,17 +127,22 @@ for 5 s is refused too (`<name> sent too many messages and was refused.`).
   match with `Left the match: Steam would not set relay only.`
 - Chat stays on with players who are not your Steam friends. Mute a player in Settings > SBO, or with
   `coop mute <SteamID>`. A mute lasts until the game closes, in every lobby.
-- Gifts, Doro races, the photo pause, the cutscene wait, the travel to the host, Night Operation and shared quests do
-  not run in a match lobby.
+- Gifts, the Doro races of an online session (`coop race start`), the photo pause, the cutscene wait, the travel to
+  the host, Night Operation and shared quests do not run in a match lobby.
 - The host leads. A host who leaves from the menu first hands the lobby to the member who joined first.
 
 ### The countdown and the round
 
 Once 2 players have linked, the host's game starts a 10 s countdown (`Starting in <n> s`). With 8 players it drops to
 5 s, and under 2 it stops. At 0 the round starts: the lobby takes no new player, and a member whose link to the host was
-not ready stays out of the round (`A round started without you.`). Nothing else happens, since the free-for-all is not
-built. The lobby opens again when the host types `coop match end`, or when the host leaves and the next member becomes
-the host.
+not ready stays out of the round (`A round started without you.`). In a score attack lobby each player then plays the
+round's challenge from her spot. In a Doro race lobby each player races the round's track from her slot on its start
+line. The host's game ends either round 10 s after its ranking (see
+[The end and the ranking](modes/scoreattack.md#the-end-and-the-ranking) and
+[The end and the ranking](modes/race.md#the-end-and-the-ranking)). In a free-for-all lobby nothing else happens, since that mode is not built:
+its round ends when the host types `coop match end`. A round of either mode also ends when the host leaves and the next
+member becomes the host. The lobby takes players again once the round ends. Its menu then opens again for each player
+of that round.
 
 ## Leaving
 
@@ -169,7 +187,7 @@ parry or dodge does not stop it. `coop pvp status` prints the test's counts and 
 
 ## Link protocol
 
-The match lobbies and the PvP test added lines to the Steam link in protocol 20 (0.11.0). This version uses protocol 23
+The match lobbies and the PvP test added lines to the Steam link in protocol 20 (0.11.0). This version uses protocol 28
 and does not link with 0.11.0 or older versions, with a friend or in a match lobby. Search never finds their
 lobbies. Every player has to update (see [INSTALL.md: Update](../../INSTALL.md#update)).
 
@@ -187,5 +205,7 @@ lobbies. Every player has to update (see [INSTALL.md: Update](../../INSTALL.md#u
   matches, join codes for match lobbies, the countdown, the round's start, ghosts of several members, mutes and the
   rules for players who are not Steam friends are checked only by the tests, which run the link against a fake Steam
   with up to 8 games (see [Tests](../dev/tests.md)).
+- Score attack has never run in game.
+- Doro races in matches have never run in game.
 - The PvP test has not run in game, on one PC or on two. Its limits are checked by the native tests `game_pvp_test`
   and `fight_enemies_engine_test`.

@@ -98,11 +98,16 @@
 //
 // The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
 // and our EVE's GUID, straight from two globals; status() puts them in the engine line for online/group/group.lua.
+// Under the same latch it reads the area (the world's zone, when the logic's agrees) every 250 ms and the starts of
+// SB's camp process at each frame (game/travel.h's Rests: the zone resets, ours counted apart). Every 250 ms in game,
+// under a latch of its own, it reads our zone's type through SB's own ZoneTable row lookup when the client's zone
+// changed. status() puts the type, the area and the rest counts in the engine line; the vitals carry the type. The
+// worker logs each change. glue/tick/camps_game_shared.inc comes before online/group/warp_game.inc for camps_name.
 //
-// The follow's travel (game/travel.h): the worker hands over a camp's FName from Lua's travel request; the game thread
-// calls SB's own fast travel with it once game/travel.h's guard passes, under its own SEH latch, and watches the warp
-// block every 250 ms; status() puts the watch's state in the engine line for online/group/travel.lua, and the worker
-// logs each call.
+// The follow's travel (game/travel.h): the worker hands over a camp's FName from Lua's travel request, or a place and a
+// yaw from its travel spot request; the game thread calls SB's own fast travel to the camp, or SB's position warp to
+// the place, once game/travel.h's guard passes, under its own SEH latch, and watches the warp block every 250 ms;
+// status() puts the watch's state in the engine line for online/group/travel.lua. The worker logs each call.
 //
 // The camps this save has activated (game/camps.h): every 250 ms, once the client is in game and no warp, respawn or
 // logic task is in flight, the game thread asks SB's own camp list for each travel type at most every 2 s, and reads
@@ -170,6 +175,14 @@
 // preload's state and the gate's in the engine line for vehicles/bike/ride.lua. The worker logs each change with the
 // load's time.
 //
+// Doro races' hold on EVE (online/modes/race/hold.h): the worker hands over Lua's race hold and race tick, on or off;
+// each frame the game thread finds our EVE as coop emote's clips do, keeps her movement component's four fields and her
+// main mesh's tick option and sets them to the race's values while each is asked and no scene stands still (a theater,
+// photo mode but the selfie's). It sets one the game wrote again back and counts it. It puts the kept values back on
+// the same live object once the ask goes, at a new Lua load and at coop off. All of it runs under its own SEH latch;
+// status() puts race_hold=, race_tick= and race_retick= in the engine line for online/modes/race/drive.lua and
+// doro.lua. The worker logs each change.
+//
 // The keep (game/keep.h): the worker adds the object paths Lua writes to coop-keep.txt to the keep's list. Every 250 ms
 // the game thread asks SB's own streamable manager for the paths added since its last look in one request, as the
 // bike's preload asks. It keeps the handle for the game run. Once the handle's loaded flag is set it finds each path
@@ -219,6 +232,10 @@
 // coop gift's inventory read (cutmenus/items.h) is the worker's alone: on Lua's items request it reads how many of one
 // item our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cutmenus/mailbox.lua.
+//
+// The fishing tournament's book read (online/modes/fishing/fishing.h) is the worker's alone too: on Lua's fishbook
+// request it reads our EVE's fishing log book through ReadProcessMemory, her GUID too. status() puts the answer in the
+// engine line's fish= for online/modes/fishing/game.lua. It never writes and calls no game function.
 //
 // The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
@@ -276,6 +293,7 @@
 #include "eve/debug_keys.h"
 #include "game/dev_panels.h"
 #include "cutmenus/items.h"
+#include "online/modes/fishing/fishing.h"
 #include "online/lobby/loading.h"
 #include "game/memory.h"
 #include "online/session/options.h"
@@ -335,11 +353,11 @@
 #include "online/lobby/loading_game.inc"
 #include "glue/tick/quests_game_shared.inc"
 #include "story/quests/quests_game.inc"
+#include "glue/tick/camps_game_shared.inc" // Before warp_game.inc: its camps_name.
 #include "online/group/warp_game.inc"
 #include "glue/tick/pilot_game_shared.inc"
 #include "fight/enemies/pilot_game.inc"
 #include "online/group/travel_game.inc"
-#include "glue/tick/camps_game_shared.inc"
 #include "online/group/camps_game.inc"
 #include "rows/rows_game.inc"
 // After rows_game.inc, fight_game_shared.inc and pilot_game_shared.inc: lion_gate, game_function and kFindCharacter.
@@ -360,6 +378,10 @@
 #include "glue/tick/keep_game.inc" // After bike_game_shared.inc: its async load, names and finds.
 #include "glue/tick/theater_game.inc" // After fight_game_shared.inc: its game_function.
 #include "vehicles/bike/bike_game.inc"
+#include "online/modes/race/hold.h"
+// After anim_game_shared.inc, eve/anim_game.inc, freeze_game_shared.inc and theater_game.inc: its controller reach and
+// the theater's last read.
+#include "online/modes/race/hold_game.inc"
 #include "glue/tick/camp_text_game_shared.inc"
 // After anim_game_shared.inc and freeze_game_shared.inc: their FStringArg and MakeName.
 #include "world/maps/matrix13/camp_text_game.inc"
@@ -390,6 +412,7 @@
 #include "online/group/travel_worker.inc"
 #include "online/saves/shortcut_worker.inc"
 #include "cutmenus/items_worker.inc"
+#include "online/modes/fishing/fishing_worker.inc"
 #include "glue/tick/quests_worker_shared.inc"
 #include "story/quests/quests_worker.inc"
 #include "glue/tick/world_worker_shared.inc"
@@ -400,6 +423,7 @@
 #include "eve/debug_worker.inc"
 #include "eve/anim_worker.inc"
 #include "vehicles/bike/bike_worker.inc"
+#include "online/modes/race/hold_worker.inc" // After eve/anim_worker.inc and fight_worker_shared.inc: its fault_where.
 #include "online/lobby/hud_worker.inc" // After fight_worker_shared.inc: its fault_where.
 #include "online/lobby/loading_worker.inc" // Likewise.
 #include "world/daynight/sky_worker.inc" // Likewise.
@@ -537,6 +561,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
     bike_tick();
   else if (game_pinned && bike_gate_pending)
     bike_publish();
+  // Doro races' hold on EVE, its own latch: each frame while Lua asks it or something is kept; after coop off only to
+  // put the kept values back.
+  if (game_pinned && !race_faulted && (!blocked || race_holding_now))
+    race_tick();
   // The keep, its own latch: a look each 250 ms (new paths asked, loaded batches found); none after coop off or its
   // first fault. The handles stay held.
   if (game_pinned && !keep_faulted && !blocked)

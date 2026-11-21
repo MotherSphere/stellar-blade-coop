@@ -16,7 +16,7 @@
 //   i16 scale) and right after it each free part's block in table order (kFreeBytes: its place relative to component 0
 //   in the world transform's form, then its state byte; a hidden one is 25 zero bytes), and 18 bytes per bone when
 //   kBones (6 B rotation, 3 i16 translation, 3 i16 scale)
-//   then kEffectSlots effect slots (protocol 6, 6 of them since protocol 23) of 15 bytes: asset (u8, 0 none, else 1 to
+//   then kEffectSlots effect slots (protocol 6, 6 of them since protocol 28) of 15 bytes: asset (u8, 0 none, else 1 to
 //   kMaxEffectAssets: an entry of Lua's list of systems: the fixed ones, then those the table's fx lines name), part
 //   (u8, the table part it hangs on), serial (u8, a new instance in the slot), its rotation (6 B) and translation (3
 //   i16) relative to the part; an empty slot is 15 zero bytes

@@ -28,7 +28,12 @@ assert(L.top==1002 and L.rows[1]==1002 and L.rows[2]==1108 and L.text_y==1234 an
 assert(L.logo_y==375 and L.rows[8]+106==2000)
 L=Lobby.layout(2,4)
 assert(L.top==1214 and L.logo_y==587)
-L=Lobby.layout(2,6)
+-- B's three mode rows (lobby_model.lua's): the same text and action rows, the mode rows one row higher.
+L=Lobby.layout(3,6)
+assert(L.top==896 and L.rows[1]==896 and L.rows[3]==1108 and L.text_y==1234 and L.rows[4]==1364 and L.logo_y==269)
+-- Idle's four mode rows (the Doro race's added): one row higher again, the logo still on screen.
+L=Lobby.layout(4,6)
+assert(L.top==790 and L.rows[1]==790 and L.rows[4]==1108 and L.text_y==1234 and L.rows[5]==1364 and L.logo_y==163)
 
 -- Fake SB parts: every method call and property write recorded in order, with AddChild and RemoveFromParent from the
 -- fake kit.
@@ -173,13 +178,13 @@ assert(#warmed==6 and warmed[1]=='/Game/Art/UI/Widget/Lobby/WB_Lobby_Menu_Slot.W
 assert(warmed[6]=='/Game/Art/UI/Widget/HUD/WB_MainHUD_CountDown.WB_MainHUD_CountDown',warmed[6])
 assert(lobby.is_open()==nil and #parts==0)
 
--- B opens (idle): 8 rows at x 172 on the layout, three hints right to left from x 3700, 420 apart, at y 1990.
+-- B opens (idle): 10 rows at x 172 on the layout, three hints right to left from x 3700, 420 apart, at y 1990.
 assert(lobby.open('menu')==true and lobby.is_open()=='menu')
 assert(states_since(0)=='lobby: open menu',states_since(0))
 assert(shown.lobby and shown.lobby_top and not shown.lobby_settings)
 assert(inputs[1].on==true and inputs[1].who=='lobby' and inputs[1].mouse==true and sounds[1]=='open')
 local rows=live(ROW)
-assert(#rows==8,#rows)
+assert(#rows==10,#rows)
 for i,p in ipairs(rows) do assert(p.x==172 and p.y==L.rows[i] and p.group=='lobby',i) end
 local hints=live(HINT)
 assert(#hints==3 and hints[1].x==3280 and hints[2].x==2860 and hints[3].x==2440)
@@ -187,19 +192,23 @@ for _,p in ipairs(hints) do assert(p.y==1990 and has(p,'SetButtonClickable',fals
 assert(hints[1].calls[2][2].text=='Back' and hints[1].calls[3][2].name=='Negative')
 assert(hints[1].calls[4][2].name=='None')
 assert(hints[3].calls[3][2].name=='UI_DPad_Up' and hints[3].calls[4][2].name=='UI_DPad_Down')
--- Labels (R24): mode.ffa, row.more with tag.soon beside it, row.<id> for the others.
+-- Labels (R24): mode.<id>, row.more with tag.soon beside it, row.<id> for the others. Score attack and the Doro race
+-- cannot play here (no sa or dr in the view): their rows locked, free-for-all picked, with tag.picked beside it.
 local labels={}
 for i,p in ipairs(rows) do labels[i]=p.props.Text_Value.text end
 local joined=table.concat(labels,',')
-assert(joined=='Free-for-all,More modes,Search,Private match,Join with a code,Waiting room,Settings,Leave',joined)
-assert(text_at('lobby_top',772,L.rows[2]+32).s=='soon' and text_at('lobby_top',772,L.rows[1]+32).s=='')
+assert(joined=='Free-for-all,Score attack,Doro race,More modes,Search,Private match,Join with a code,Waiting room,'
+    ..'Settings,Leave',joined)
+assert(text_at('lobby_top',772,L.rows[4]+32).s=='soon' and text_at('lobby_top',772,L.rows[2]+32).s==''
+    and text_at('lobby_top',772,L.rows[3]+32).s=='')
+assert(text_at('lobby_top',772,L.rows[1]+32).s=='picked')
 -- A locked row is disabled before it enters the canvas; an open one is not.
-assert(names(rows[2])=='SetVisibility =Text_Value SetIsEnabled AddChild' and rows[2].calls[3][2]==false,names(rows[2]))
-assert(not has(rows[1],'SetIsEnabled'))
+assert(names(rows[4])=='SetVisibility =Text_Value SetIsEnabled AddChild' and rows[4].calls[3][2]==false,names(rows[4]))
+assert(has(rows[2],'SetIsEnabled',false) and has(rows[3],'SetIsEnabled',false) and not has(rows[1],'SetIsEnabled'))
 -- The cursor starts on the first action row (Search): its select look; the status beside it.
-assert(count_of(rows[3],'SelectAnimation')==1 and not has(rows[1],'SelectAnimation'))
+assert(count_of(rows[5],'SelectAnimation')==1 and not has(rows[1],'SelectAnimation'))
 assert(text_at('lobby',772,1364+32).s=='Pick a mode, then Search.' and text_at('lobby',772,1470+32).s=='')
--- The top block is drawn at the 8-row layout: not moved; the English logo only; the FFA text.
+-- The top block is drawn at the 10-row layout: not moved; the English logo only; the FFA text.
 assert(moved.lobby_top.y==0)
 local logos={}
 for _,i in ipairs(groups.lobby_top.images) do if i.shown then logos[#logos+1]=i.tex end end
@@ -211,33 +220,45 @@ assert(text_at('lobby',2660,1040).s==T.en.lobby.empty)
 -- Down: the row left gets NormalAnimation, the new one SelectAnimation; kit's move sound, no select sound.
 sounds={}
 lobby.nav('down')
-assert(count_of(rows[3],'NormalAnimation')==1 and count_of(rows[4],'SelectAnimation')==1 and sounds[1]=='move')
+assert(count_of(rows[5],'NormalAnimation')==1 and count_of(rows[6],'SelectAnimation')==1 and sounds[1]=='move')
 -- Select on Search: act gets the request, the row its PressAccept; kit plays nothing.
 lobby.nav('up')
 sounds={}
 lobby.nav('select')
 assert(#acts==1 and acts[1].request=='match search ffa',#acts)
-assert(count_of(rows[3],'EventNotification','PressAccept')==1 and #sounds==0)
+assert(count_of(rows[5],'EventNotification','PressAccept')==1 and #sounds==0)
 -- Up to More (locked): no look on a locked row, the mode text says more modes come later; Select there does nothing.
 lobby.nav('up')
-assert(count_of(rows[3],'NormalAnimation')==2 and not has(rows[2],'SelectAnimation'))
+assert(count_of(rows[5],'NormalAnimation')==2 and not has(rows[4],'SelectAnimation'))
 assert(text_at('lobby_top',233,1234).s==T.en.lobby.desc.more)
 sounds={}
 lobby.nav('select')
-assert(#acts==1 and not has(rows[2],'EventNotification') and #sounds==0)
+assert(#acts==1 and not has(rows[4],'EventNotification') and #sounds==0)
+-- Up to the Doro race and Score attack (locked here): their mode texts; up again to Free-for-all: its text, Select
+-- picks it.
+lobby.nav('up')
+assert(text_at('lobby_top',233,1234).s==T.en.lobby.desc.race)
+lobby.nav('up')
+assert(text_at('lobby_top',233,1234).s==T.en.lobby.desc.scoreattack)
+lobby.nav('up')
+assert(text_at('lobby_top',233,1234).s==T.en.lobby.desc.ffa)
+lobby.nav('select')
+assert(#acts==2 and acts[2].mode=='ffa',#acts)
+for _=1,4 do lobby.nav('down') end
+acts,sounds={acts[1]},{}
 -- Back is the waiting room (main.lua's act closes B, which logs it).
 lobby.nav('back')
 assert(acts[2].close=='room' and sounds[1]=='back' and #states==1)
 acts={}
 
--- Searching: six rows made again (FFA locked now), the status beside Cancel in warn, the block moved down 212.
+-- Searching: eight rows made again (FFA locked now), the status beside Cancel in warn, the block moved down 212.
 input.match,input.last={state='searching',mode='ffa'},'search'
 lobby.slow(clock)
 for _,p in ipairs(rows) do assert(not p.alive) end
 rows=live(ROW)
-local L4=Lobby.layout(2,4)
-assert(#rows==6 and rows[1].y==L4.rows[1] and rows[3].y==1576 and has(rows[1],'SetIsEnabled',false))
-assert(rows[3].props.Text_Value.text=='Cancel' and moved.lobby_top.y==212)
+local L4=Lobby.layout(4,4)
+assert(#rows==8 and rows[1].y==L4.rows[1] and rows[5].y==1576 and has(rows[1],'SetIsEnabled',false))
+assert(rows[5].props.Text_Value.text=='Cancel' and moved.lobby_top.y==212)
 local status=text_at('lobby',772,1576+32)
 assert(status.s=='Searching…' and status.color==require('ui.kit.kit').THEME.warn and text_at('lobby',772,1364+32).s=='')
 assert(text_at('lobby',2660,1040).s==T.en.lobby.empty_search)
@@ -258,22 +279,22 @@ input.me=me
 -- selects the row under it.
 groups.lobby.zones[5].hover=true -- Action zone 5 of 6: the 4th action row of 4 is zone 6, so zone 5 is Settings.
 lobby.tick(clock)
-local before=count_of(rows[5],'SelectAnimation')
+local before=count_of(rows[7],'SelectAnimation')
 assert(before==0)
 groups.lobby.zones[5].hover,groups.lobby.zones[4].hover=false,true
 clock=clock+0.2
 sounds={}
 lobby.tick(clock)
-assert(count_of(rows[4],'SelectAnimation')==1 and sounds[1]=='move',names(rows[4]))
+assert(count_of(rows[6],'SelectAnimation')==1 and sounds[1]=='move',names(rows[6]))
 lobby.nav('click')
-assert(acts[1].close=='room' and count_of(rows[4],'EventNotification','PressAccept')==1)
+assert(acts[1].close=='room' and count_of(rows[6],'EventNotification','PressAccept')==1)
 groups.lobby.zones[4].hover=false
 acts={}
 
 -- A root build (map change): the parts are gone; the next draw makes them again.
 for _,p in ipairs(parts) do p.alive=false end
 lobby.slow(clock)
-assert(#live(ROW)==6 and #live(HINT)==3)
+assert(#live(ROW)==8 and #live(HINT)==3)
 rows=live(ROW)
 
 -- C: tab match, read-only, SB's locked look; the first item focused; the right pane's headers.
@@ -518,4 +539,109 @@ assert(groups.lobby_count.texts[1].s=='7')
 lobby3.stop_count()
 assert(groups.lobby_count.texts[1].s=='')
 fail_class=nil
+-- Score attack (lobby_model.lua's rows): idle while it can play, its row picked and marked, its mode text, Search asks
+-- for it; in its match lobby the host's Challenge row with the pick beside it (Random, then a challenge's name) and
+-- Select asks the cycle; a guest's Challenge locked, reading the host's pick, in tab match too.
+for _,p in ipairs(parts) do p.alive=false end
+local sa_input={role='none',me=me,now=0,settings={menu_key={name='F5'}},sa={pick='random'}}
+local acts4={}
+local lobby4=Lobby.new({kit=kit,words=function() return T.en end,view=function() return sa_input end,
+    act=function(a) acts4[#acts4+1]=a end,log=function() end})
+assert(lobby4.open('menu'))
+local function top_tag(i) return text_at('lobby_top',772,L.rows[i]+32).s end
+local function row_labels()
+    local t={}
+    for i,p in ipairs(live(ROW)) do t[i]=p.props.Text_Value.text end
+    return table.concat(t,',')
+end
+assert(top_tag(1)=='' and top_tag(2)=='picked' and top_tag(3)=='' and top_tag(4)=='soon',top_tag(2))
+assert(text_at('lobby_top',233,1234).s==T.en.lobby.desc.scoreattack,'The mode picked: its text')
+lobby4.nav('select') -- Search, the first action row.
+assert(acts4[1].request=='match search scoreattack' and acts4[1].lobby)
+sa_input.match,sa_input.role,sa_input.last={state='open',mode='scoreattack',members=2,limit=8},'host','search'
+lobby4.slow(clock)
+assert(row_labels()=='Score attack,Challenge,More modes,Cancel,Waiting room,Settings,Leave',row_labels())
+assert(top_tag(1)=='picked' and top_tag(2)=='Random' and top_tag(3)=='soon',top_tag(2))
+lobby4.nav('up'); lobby4.nav('up')
+lobby4.nav('select')
+assert(acts4[2] and acts4[2].cycle==true,'Select on Challenge cycles the pick')
+assert(text_at('lobby_top',233,1234).s==T.en.lobby.desc.scoreattack)
+sa_input.sa.pick='targets'
+lobby4.slow(clock)
+assert(top_tag(2)=='Target Practice',top_tag(2))
+sa_input.role='guest'
+lobby4.slow(clock)
+assert(top_tag(2)=="Host's pick" and has(live(ROW)[2],'SetIsEnabled',false),top_tag(2))
+lobby4.nav('select')
+assert(#acts4==2,'A guest: nothing')
+assert(lobby4.open('settings'))
+local found=false
+for _,o in ipairs(in_list(OPTION)) do
+    if o.props.Text_TitleValue.text=='Challenge' then found=o.props.Text_ItemValue.text end
+end
+assert(found=="Host's pick",tostring(found))
+local pane_head=false
+for _,h in ipairs(live(HEADER)) do
+    if h.x==2600 and h.props.Category_Name.text=='Score attack' then pane_head=true end
+end
+assert(pane_head,'The right pane names the mode')
+-- The Doro race (lobby_model.lua's rows): idle with dr, its row open; picked, its mark and its mode text, Search asks
+-- for it; in its match lobby the host's Track row with the pick beside it (Random, then a track's name, cut to B's 18
+-- columns) and Select asks the race's cycle; the cursor on Search before stays on the first action row, Cancel; a
+-- guest's Track locked, reading the host's pick; in tab match the whole name.
+for _,p in ipairs(parts) do p.alive=false end
+local dr_input={role='none',me=me,now=0,settings={menu_key={name='F5'}},sa={pick='random'},dr={pick='random'}}
+local acts5={}
+local lobby5=Lobby.new({kit=kit,words=function() return T.en end,view=function() return dr_input end,
+    act=function(a) acts5[#acts5+1]=a end,log=function() end})
+assert(lobby5.open('menu'))
+assert(top_tag(2)=='picked' and top_tag(3)=='' and not has(live(ROW)[3],'SetIsEnabled',false),'Open, not picked')
+lobby5.nav('up'); lobby5.nav('up') -- From Search: More, then the Doro race.
+assert(text_at('lobby_top',233,1234).s==T.en.lobby.desc.race)
+lobby5.nav('select')
+assert(acts5[1] and acts5[1].mode=='race',tostring(acts5[1] and acts5[1].mode))
+dr_input.pick='race'
+lobby5.nav('down'); lobby5.nav('down')
+lobby5.slow(clock)
+assert(top_tag(3)=='picked' and top_tag(2)=='',top_tag(3))
+lobby5.nav('select') -- Search.
+assert(acts5[2].request=='match search race' and acts5[2].lobby)
+dr_input.match,dr_input.role,dr_input.last={state='open',mode='race',members=2,limit=8},'host','search'
+lobby5.slow(clock)
+assert(row_labels()=='Doro race,Track,More modes,Cancel,Waiting room,Settings,Leave',row_labels())
+assert(top_tag(1)=='picked' and top_tag(2)=='Random' and top_tag(3)=='soon',top_tag(2))
+assert(count_of(live(ROW)[4],'SelectAnimation')==1,'The cursor stays on the first action row: Cancel')
+lobby5.nav('up'); lobby5.nav('up')
+lobby5.nav('select')
+assert(acts5[3] and acts5[3].cycle=='race','Select on Track cycles the race\'s pick')
+assert(text_at('lobby_top',233,1234).s==T.en.lobby.desc.race)
+dr_input.dr.pick='xion_eight'
+lobby5.slow(clock)
+assert(top_tag(2)=='xion_eight',top_tag(2))
+dr_input.dr.pick='a_very_long_track_name_x' -- 24 characters: 17 and an ellipsis.
+lobby5.slow(clock)
+assert(top_tag(2)=='a_very_long_track…',top_tag(2))
+dr_input.dr.pick='eighteen_chars_xyz' -- 18 characters: whole.
+lobby5.slow(clock)
+assert(top_tag(2)=='eighteen_chars_xyz',top_tag(2))
+dr_input.dr.pick='targets' -- A track named as a challenge: its own name, not the challenge's.
+lobby5.slow(clock)
+assert(top_tag(2)=='targets',top_tag(2))
+dr_input.dr.pick='a_very_long_track_name_x'
+assert(lobby5.open('settings'))
+local track_value=false
+for _,o in ipairs(in_list(OPTION)) do
+    if o.props.Text_TitleValue.text=='Track' then track_value=o.props.Text_ItemValue.text end
+    if o.props.Text_TitleValue.text=='Ranking' then assert(o.props.Text_ItemValue.text==T.en.lobby.val.race_ranking) end
+end
+assert(track_value=='a_very_long_track_name_x',tostring(track_value))
+pane_head=false
+for _,h in ipairs(live(HEADER)) do
+    if h.x==2600 and h.props.Category_Name.text=='Doro race' then pane_head=true end
+end
+assert(pane_head,'The right pane names the race')
+lobby5.close()
+dr_input.role='guest'
+assert(lobby5.open('menu'))
+assert(top_tag(2)=="Host's pick" and has(live(ROW)[2],'SetIsEnabled',false),top_tag(2))
 print('lobby_test ok')
