@@ -24,10 +24,11 @@
 -- - hold: "anim play <id> <clip> ride", the riding clip looped on EVE herself, her foot IK off, held in her custom
 --   animation slot 0 above SB's own plays there (native/src/game/anim.h).
 -- A dismount runs it backward: the part hidden, the rig unhooked (each part pointed back at her main mesh) then gone,
--- or "anim stop"; "bike gate off", the drive off, her mesh's rotation and location back, the file cleared. A dismount
--- comes from the key, the pad, coop bike, coop off, bike=off, a new EVE, a check every 250 ms (self.slow) and a
--- failure; the next Lua load replays the file at its first tick (self.restore) when this one could not (Ctrl+R). The
--- native part turns the gate off and stops the clip itself at a new Lua load.
+-- or "anim stop"; "bike gate off", the drive off, her mesh's rotation and location back, the file cleared. A rig
+-- unhooked while photo mode holds the world goes at the first 250 ms pass with it closed. A dismount comes from the
+-- key, the pad, coop bike, coop off, bike=off, a new EVE, a check every 250 ms (self.slow) and a failure; the next Lua
+-- load replays the file at its first tick (self.restore) when this one could not (Ctrl+R), the rig of fields 8 and 9
+-- first. The native part turns the gate off and stops the clip itself at a new Lua load.
 -- The parked bike is a second actor (vehicles/bike/stand.lua), one per EVE, made hidden after her part under the same 2
 -- s gate.
 -- A dismount by the key, the pad or coop bike leaves it where she stands when her floor counts (walkable, its base not
@@ -247,6 +248,10 @@ function Ride.new(o)
     -- hold way: id (the play's), asked (os.clock of its ask), playing, ended (this id's end counted), ends (os.clock
     -- of each end).
     local ride=nil
+    -- Rigs a dismount unhooked while photo mode held the world, removed at the first 250 ms pass with it closed.
+    -- shortcut: a Ctrl+R before that pass leaves one hidden and unhooked until the map changes (coop off: until coop
+    -- on); keep its path for the next Lua load if the log shows it.
+    local left={}
     local pose_told=nil -- The last bike_pose word that is neither rig nor hold, logged once.
     local preload=nil -- What the setting last asked of the native part: true (bike load), false (bike free).
     local load_asked=0 -- os.clock of the last bike load.
@@ -571,7 +576,14 @@ function Ride.new(o)
                 log(('bike rig unhooked: %d part(s) back to her body%s'):format(back,
                     failed>0 and (', %d call(s) failed'):format(failed) or ''))
             end)
-            try('the rig not removed',function() Rig.remove(r.rig) end)
+            -- Photo mode may pause the world, where a part still reading a destroyed leader stays broken until it
+            -- runs again (kwisatz's note): our photo or selfie mode, or the friend's photo mode that holds our game.
+            if o.photo()~='0' or o.frozen() then
+                left[#left+1]=r.rig
+                log('bike rig kept until photo mode closes')
+            else
+                try('the rig not removed',function() Rig.remove(r.rig) end)
+            end
         end
         if r.id then try('anim stop',function() asked('anim stop') end) end
         if r.gated then try('bike gate off',function() asked('bike gate off') end) end
@@ -945,20 +957,29 @@ function Ride.new(o)
         end
         if why then return off_line(why) end
     end
-    -- The paid fetch's step first, so a paid place is shown by the pass and sent. Then her bike line, whatever the
-    -- pass did.
+    -- The paid fetch's step first, so a paid place is shown by the pass and sent. Then the rigs a dismount left in
+    -- photo mode, once it is closed (here: the pass returns early at bike=off). Then her bike line, whatever the pass
+    -- did.
     function self.slow()
         fetched()
+        if left[1] and o.photo()=='0' and not o.frozen() then
+            for _,d in ipairs(left) do
+                local gone,why=pcall(Rig.remove,d)
+                log(gone and 'bike rig removed: photo mode closed' or 'bike rig not removed: '..why_of(why))
+            end
+            left={}
+        end
         local off,why=pass()
         send()
         return off,why
     end
     -- At the first tick of a Lua load, once: the parked bike an earlier load left in the world swept by its path. The
     -- part an earlier load made on her EVE (its tag), hidden and kept as this load's, so idle_part names it and
-    -- bike=off removes it with no bike= word read. Then an earlier load's coop-bike.txt (it left EVE on the bike) puts
-    -- her main mesh's rotation and location back on that EVE if she still is one and hides the bike part, then the file
-    -- is cleared unless that mesh write failed; once her mesh is back the bike parks where she stands when her floor
-    -- counts. Its drive comes back first, through coop-drive.txt (its own vehicles/bike/drive.lua's restore).
+    -- bike=off removes it with no bike= word read. Then an earlier load's coop-bike.txt (it left EVE on the bike) takes
+    -- her body and parts off the rig its fields 8 and 9 name and sweeps that rig (Rig.release), puts her main mesh's
+    -- rotation and location back on that EVE if she still is one and hides the bike part, then the file is cleared
+    -- unless that mesh write failed; once her mesh is back the bike parks where she stands when her floor counts. Its
+    -- drive comes back first, through coop-drive.txt (its own vehicles/bike/drive.lua's restore).
     function self.restore()
         if restored then return end
         restored=true
@@ -982,6 +1003,19 @@ function Ride.new(o)
         local line=store.load()
         if not line then return end
         local f=fields(line)
+        -- After a rig ride (fields 8 and 9; a hold ride and builds before the rig write seven): her body and parts off
+        -- the rig, then the rig swept, before her mesh goes back.
+        if (f[8] or '')~='' and (f[9] or '')~='' then
+            local done,back,failed,swept=pcall(function()
+                local e=U.her(valid(StaticFindObject(f[1])))
+                local h=here
+                local skip=e and h and h.at==address(e) and address(h.part) or nil
+                return Rig.release(e,f[8],f[9],skip)
+            end)
+            log(done and ('bike rig from coop-bike.txt: %d part(s) back to her body%s, %s'):format(back,
+                failed>0 and (', %d call(s) failed'):format(failed) or '',swept and 'swept' or 'no rig at its path')
+                or 'bike rig from coop-bike.txt not released: '..why_of(back))
+        end
         -- A mesh write that fails keeps the file: her mesh may still lean, the next mount takes her base from it.
         local kept,e,p=false,nil,nil
         local ok,said=pcall(function()

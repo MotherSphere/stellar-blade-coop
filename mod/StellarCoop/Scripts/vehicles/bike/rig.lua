@@ -11,7 +11,8 @@
 -- moves the followers of her main mesh with it on a hook. An unhook (a null leader) moves none back, so each part gets
 -- its own call back to her main mesh. A follower is a part of hers hung on her main mesh with no socket, no anim
 -- instance of its own and a mesh (kwisatz's rule); the bike part is left out by its address. No log line here: the
--- callers log the counts. tests/lua/vehicles/bike/rig_test.lua covers it.
+-- callers log the counts. After Ctrl+R the next Lua load releases the rig it finds by the path coop-bike.txt keeps.
+-- tests/lua/vehicles/bike/rig_test.lua covers it.
 local U=require('core.unreal')
 local Doro=require('core.actors')
 local valid,value_of,each,find,address,text=U.valid,U.value_of,U.each,U.find,U.address,U.text
@@ -130,4 +131,25 @@ Rig.remove=Doro.remove
 -- A rig an earlier Lua load made (Ctrl+R), by its actor's path: destroyed with true only while its root shows the mesh
 -- at mesh_path.
 Rig.sweep=Doro.sweep
+-- A rig an earlier Lua load left EVE e on (Ctrl+R), by its actor's path and the mesh it wears (fields 8 and 9 of
+-- coop-bike.txt): unhook with every part of hers whose leader is its mesh as the list, then sweep. Nothing is called on
+-- her unless that actor's root shows the mesh at mesh_path. skip: the bike part's address. Returns how many parts went
+-- back, how many calls failed and whether the rig was swept.
+function Rig.release(e,path,mesh_path,skip)
+    local actor=valid(StaticFindObject(path))
+    local root=actor and valid(actor:K2_GetRootComponent())
+    local shows=root and root:IsA(find(SKINNED)) and valid(root.SkeletalMesh)
+    if not (shows and shows:GetFullName():match('^%S+ (.+)$')==mesh_path) then return 0,0,false end
+    local back,failed=0,0
+    if valid(e) and valid(e.Mesh) then
+        local at,led=address(root),{}
+        for _,c in pairs(parts_of(e)) do
+            -- MasterPoseComponent: a weak pointer at +0x570 (params 0x14665ddd8).
+            local read,leader=pcall(function() return U.weak(c.MasterPoseComponent) end)
+            if read and leader and address(leader)==at then led[#led+1]=c end
+        end
+        back,failed=Rig.unhook(e,{mesh=root,skip=skip},led)
+    end
+    return back,failed,Rig.sweep(path,mesh_path)==true
+end
 return Rig

@@ -8,7 +8,8 @@
 -- looped; a rig that cannot be made raises with no actor left; the hook (her main mesh first, then each follower; a
 -- refusal of her main mesh raises, a follower's is counted out); hooked; the unhook (her main mesh to none, each part
 -- back once, her main mesh never pointed at itself, a part no longer hers never called, a failing call counted while
--- the others go on, nothing called once her EVE is gone); remove and sweep.
+-- the others go on, nothing called once her EVE is gone); remove and sweep; the release after Ctrl+R (the rig found by
+-- its path and mesh, each part it leads sent back, then swept).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local next_address=0x1000
@@ -223,4 +224,34 @@ local old=Rig.make(eve,BODY,clip)
 by_path[old.path]=old.actor
 assert(Rig.sweep(old.path,OTHER)==nil and not old.actor.destroyed,'another mesh: left')
 assert(Rig.sweep(old.path,BODY)==true and old.actor.destroyed)
+
+-- The release after Ctrl+R: an earlier load's rig found by its path and mesh. Her main mesh to none; each part whose
+-- leader is the rig back at her main mesh (the bangs too, which the rule does not take), each follower back, the bike
+-- part and the sword (another leader) never called; then the rig swept. Another mesh at that path or no actor there:
+-- nothing called, nothing swept. Her EVE gone: nothing called on her, the rig still swept.
+local function earlier()
+    local r=Rig.make(eve,BODY,clip,bike:GetAddress())
+    by_path[r.path]=r.actor
+    Rig.hook(eve,r)
+    bangs.MasterPoseComponent=weak(r.mesh)
+    return r
+end
+local r=earlier()
+sword.MasterPoseComponent=weak(face)
+calls={}
+back,failed=Rig.release(eve,r.path,OTHER,bike:GetAddress())
+assert(back==0 and failed==0 and #calls==0 and not r.actor.destroyed,'another mesh: nothing called')
+local swept
+back,failed,swept=Rig.release(eve,'/Game/Map.Map:PersistentLevel.Gone',BODY,bike:GetAddress())
+assert(back==0 and failed==0 and swept==false and #calls==0)
+back,failed,swept=Rig.release(eve,r.path,BODY,bike:GetAddress())
+assert(calls[1].part==main and calls[1].leader==nil,'her main mesh first, to none')
+assert(back==4 and failed==0 and swept==true and r.actor.destroyed,('%d back, %d failed'):format(back,failed))
+assert(bangs.MasterPoseComponent:Get()==main and hair.MasterPoseComponent:Get()==main
+    and suit.MasterPoseComponent:Get()==main and coat.MasterPoseComponent:Get()==main)
+assert(count(bike)==0 and count(sword)==0 and count(face)==0 and count(main)==1)
+r=earlier()
+calls={}
+back,failed,swept=Rig.release(nil,r.path,BODY,bike:GetAddress())
+assert(back==0 and failed==0 and swept==true and #calls==0 and r.actor.destroyed)
 print('rig_test ok')
