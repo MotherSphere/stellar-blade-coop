@@ -20,6 +20,9 @@ story::Gates story_gates;
 std::string story_line = "story=off";
 bool story_leading = false;  // We read our theater for her: hook 3 reads a block before its widget's next start.
 bool story_holding = false;  // Her copy follows his: hooks 2 and 3 take her presses on each new block.
+// Story together runs on both sides (phase 3's boss QTE): our gates ready and her on line heard, as of the last pass.
+// story_together() reads it for the hub.
+std::atomic<bool> story_together_on{false};
 std::vector<std::string> story_pending_out, story_pending_said; // Not handed over yet (the lock was busy).
 constexpr uint64_t kStoryTripKeepMs = 60000;
 
@@ -221,6 +224,7 @@ __declspec(noinline) void story_body(std::vector<std::string> &in, story::Gates 
     story_applying = true;
     story_sync.pass(gates, now);
     story_holding = gates.in_game && story_sync.sharing();
+    story_together_on = gates.setting && gates.partner && !gates.match && gates.coop_save && story_sync.partner_on();
     if (story_holding)
       story_engine.block_skip(), story_engine.hold_widgets();
     story_applying = false;

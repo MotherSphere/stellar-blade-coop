@@ -1059,7 +1059,7 @@ bool step() {
           const uint64_t pair = link ? link->partner() : 0;
           return !pair_paused && pair && link->send_fight(line, reliable, pair);
         },
-        pair_now ? link->mate_life() : coop::Life::unknown, pair_now);
+        pair_now ? link->mate_life() : coop::Life::unknown, pair_now, {}, coop::pose::story_together());
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
     coop::pose::peer(

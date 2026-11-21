@@ -310,11 +310,11 @@ inline bool floor_row(int32_t id) { return id >= kFirstFloor && id <= kLastFloor
 
 // world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn, drop,
 // bstart and phase: the host's, never recorded; poise: a copy's owner's, never recorded; pvp: either side's, never
-// recorded; fin and qte-own: the host's, never recorded; spec: either side's, never recorded. mate: the worker's own
-// to the job (fight/enemies/engine.h), never a line.
+// recorded; fin and qte-own: the host's, never recorded; spec: either side's, never recorded. mate, qte_end and
+// qte_on: the worker's own to the job (fight/enemies/engine.h), never a line.
 enum class Type : uint8_t {
   invalid, on, off, world, scale, place, aggro, bosses, stagger, up, down, dead, hp, cc, hit, own, own_no, exec, have,
-  spawn, drop, epoch, bstart, phase, poise, pvp, fin, qte_own, spec, mate
+  spawn, drop, epoch, bstart, phase, poise, pvp, fin, qte_own, spec, mate, qte_end, qte_on
 };
 // The members of a fight on channel 2's lines (phase 3): 0 the host, 1 the pair; kNoMember for none ("-" in spec).
 constexpr uint8_t kHostMember = 0, kPairMember = 1, kNoMember = 0xFF;
@@ -331,7 +331,7 @@ struct Message {
                                // summon's spawn: its owner's.
   uint32_t seq = 0;            // hit: the claim's number, from 1. hp: the ack, the last claim the host took. pvp:
                                // the line's number, from 1.
-  uint32_t spawn = 0, chr = 0; // up, spawn: EventSpawnId and charId (drop, qte-own: the EventSpawnId).
+  uint32_t spawn = 0, chr = 0; // up, spawn: EventSpawnId and charId (drop, qte-own, qte_end: the EventSpawnId).
   uint8_t index = 0;           // up, spawn, drop: SpawnIndex.
   int32_t max_hp = 0;          // up: MaxHP, rounded.
   uint32_t batch = 0;          // hp: the host's turn of values, from 1; its lines share it.
@@ -366,6 +366,7 @@ struct Message {
   Values entries[kHpPerMessage];
   uint8_t count = 0;         // hp: entries used, 1..kHpPerMessage.
   Life life = Life::unknown; // mate: her life as her vitals say it (link/core.h's mate_life()).
+  bool on = false;           // qte_on: story together runs on both sides (Host::set_qte).
   int32_t skill = 0;         // pvp: the attacker's running skill, its SkillTable ID, 1..INT32_MAX.
   uint64_t from = 0;         // pvp: the sender's SteamID, set by the worker, never on the wire.
 };
@@ -433,6 +434,8 @@ inline std::string format(const Message &m, const std::string &reason = std::str
   case Type::qte_own: return t + "qte-own" + n(m.gen) + n(m.guid) + n(m.spawn) + n(m.member) + n(m.tries);
   case Type::spec: return t + "spec" + n(m.member) + (m.watched == kNoMember ? " -" : n(m.watched));
   case Type::mate: // Never on the wire.
+  case Type::qte_end:
+  case Type::qte_on:
   case Type::invalid: break;
   }
   return std::string();
@@ -1222,6 +1225,26 @@ public:
         return enemies_[i].winner;
     return kNoMember;
   }
+  // Phase 3's boss QTE, the engine's, each turn before her lines: story together runs on both sides (the worker's
+  // qte_on message). While it is off no QTE gets an owner and each game plays its own, logged once an off.
+  void set_qte(bool on) {
+    qte_off_due_ = !on && (qte_ || !qte_set_ || qte_off_due_);
+    qte_ = on, qte_set_ = true;
+  }
+  // Each turn: whether a member of the fight can press a QTE. 0: our EVE alive (life 1 or 6); 1: her vitals alive. A
+  // member in Coma is not up here.
+  void set_member_up(uint8_t member, bool up) {
+    if (member_ok(member))
+      up_[member] = up;
+  }
+  // A scene of one of spawn's QTE rows ended in our game with its pair alive (the worker's qte_end message): a miss.
+  // Each pair of that spawn whose QTE came goes to the next member up after its owner, one try more. She hears it.
+  // Nothing while story together is off.
+  template <class Io> void qte_missed(uint32_t spawn, Io &io) {
+    for (size_t i = 0; qte_ && i < count_; ++i)
+      if (Enemy &e = enemies_[i]; e.spawn == spawn && e.qte && !e.died)
+        qte_name(e, after(e.qte_owner), uint8_t(std::min(e.qte_try + 1, 255)), io);
+  }
   // A line no honest guest sends (R33): counted and logged once; after kMaxBad of them her lines are ignored.
   template <class Io> void bad(const char *why, Io &io) {
     if (++counts.bad == 1)
@@ -1389,6 +1412,9 @@ public:
       for (size_t i = 0; i < count_; ++i) // The winners after every up (phase 3).
         if (enemies_[i].winner != kNoMember)
           io.send(fin(enemies_[i]));
+      for (size_t i = 0; i < count_; ++i) // Then the QTE owners, at their try (phase 3).
+        if (enemies_[i].qte_owner != kNoMember && !enemies_[i].died)
+          io.send(qte_own(enemies_[i]));
       next_hp_ = next_refresh_ = now; // Every value at once.
     }
     if (peer_on_ && place_ != told_place_) {
@@ -1430,6 +1456,7 @@ public:
       if (!e.holding || wait || !kill(e, io))
         ++i;
     }
+    qte_check(io);
     values(now, io);
   }
 
@@ -1453,6 +1480,8 @@ private:
     uint8_t winner = kNoMember;             // The member whose finisher ends it (phase 3; finisher()).
     bool fin_said = false;                  // Our press refused after another member won, logged (own_press()).
     uint64_t fin_until = 0;                 // Her finisher press waits for our Finish stance until then; 0: none.
+    bool qte = false;                       // Its QTE came: HP 1 or less with story together on (qte_check()).
+    uint8_t qte_owner = kNoMember, qte_try = 0; // The member who plays its QTE at that try (qte_name()).
     bool down_said = false;                 // A claim of hers dropped in this down of ours, logged (set_down()).
     uint64_t scene_until = 0;               // Its claims wait for an HP scene until then (scene_wait()); 0: none.
     uint64_t exec_ms = 0, exec_last = 0; // Her takedown's exec 1 (0: none runs), and her last exec 1 (the rate).
@@ -1561,6 +1590,42 @@ private:
     Message m = note(Type::fin, e.guid);
     m.member = e.winner;
     return m;
+  }
+  Message qte_own(const Enemy &e) const {
+    Message m = note(Type::qte_own, e.guid);
+    m.spawn = e.spawn, m.member = e.qte_owner, m.tries = e.qte_try;
+    return m;
+  }
+  // The next member up after from, from itself last; kNoMember when nobody is up.
+  uint8_t after(uint8_t from) const {
+    for (size_t k = 1; k <= size_t(kMatchMembers); ++k)
+      if (const size_t m = (size_t(from) + k) % size_t(kMatchMembers); up_[m])
+        return uint8_t(m);
+    return kNoMember;
+  }
+  // After the turn's claims (phase 3), once a pair: one whose spawn has a QTE row (game/boss_rows.h) and whose HP is 1
+  // or less with story together on gets its QTE's owner. That is the member whose hit took it there: hers when one of
+  // her claims in this turn did, ours otherwise; the next member up when that one is not.
+  template <class Io> void qte_check(Io &io) {
+    if (std::exchange(qte_off_due_, false))
+      io.event(Event{"qte off", "story together does not run on both sides; each game plays its own QTE"});
+    const boss_rows::Trigger *row[1];
+    for (size_t i = 0; qte_ && i < count_; ++i)
+      if (Enemy &e = enemies_[i]; !e.qte && !e.died && e.value[kHp] <= 1 && boss_rows::qte_rows(e.spawn, row, 1)) {
+        const uint8_t hit = e.struck_hers ? kPairMember : kHostMember;
+        qte_name(e, up_[hit] ? hit : after(hit), 0, io);
+      }
+  }
+  // e's QTE goes to member (kNoMember: nobody up) at that try, logged. She hears it now unless our whole list goes to
+  // her first (it carries the owners).
+  template <class Io> void qte_name(Enemy &e, uint8_t member, uint8_t tries, Io &io) {
+    e.qte = true, e.qte_owner = member, e.qte_try = tries;
+    if (member == kNoMember)
+      return io.event(Event{"qte none", "nobody up", e.guid, e.spawn, e.index});
+    static const char *const kWhy[2][2] = {{"ours", "ours after a miss"}, {"hers", "hers after a miss"}};
+    io.event(Event{"qte owner", kWhy[member != kHostMember][tries > 0], e.guid, e.spawn, e.index});
+    if (peer_on_ && !announce_)
+      io.send(qte_own(e));
   }
   Message up(const Enemy &e) const {
     Message m = note(Type::up, e.guid);
@@ -1848,6 +1913,9 @@ private:
   bool told_reactions_ = false, told_resist_ = false; // Both as the guest last heard them.
   bool down_ = false, member_up_ = false;        // set_down(): our EVE is down; a member of the fight is up.
   bool spectating_ = false;                      // set_spectating(): our EVE watches the fight.
+  bool qte_ = false, qte_set_ = false;           // set_qte(): story together on both sides; asked once.
+  bool qte_off_due_ = false;                     // An off of it to log at the next step.
+  bool up_[kMatchMembers] = {};                  // set_member_up(): who can press a QTE.
   bool peer_on_ = false, announce_ = true, ignored_ = false;
   bool full_said_ = false; // "full" logged in this world.
   Fence fence_;

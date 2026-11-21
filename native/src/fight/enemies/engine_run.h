@@ -225,6 +225,15 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
       host.set_down(down, her_up());
       continue;
     }
+    if (m.type == Type::qte_on) { // The worker's (phase 3): story together runs on both sides.
+      host.set_qte(m.on);
+      continue;
+    }
+    if (m.type == Type::qte_end) { // The worker's (phase 3): a QTE scene of that spawn ended in our game.
+      if (hosting)
+        host.qte_missed(m.spawn, io);
+      continue;
+    }
     // The host takes only her on, off and world (R33): a place, down or dead from her is a bad line, and from an
     // ignored peer nothing counts. Each of the three also ends the hand-over pause after her own-no off.
     if (!hosting)
@@ -245,6 +254,9 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     else
       hosting ? host.receive(m, now_ms, io) : guest.receive(m, io);
   }
+  // Who can press a boss QTE (phase 3): our EVE alive, her vitals alive (in Coma she cannot).
+  host.set_member_up(kHostMember, eve_life_ == 1 || eve_life_ == 6);
+  host.set_member_up(kPairMember, now_ms - mate_ms_ < kMateMs && mate_ == Life::alive);
   spawning_ = hosting ? same_spawns_ && host.peer_on() && !host.ignored() : spawn_guest_.on();
   bool census = census_turn_ == kNever || turn < census_turn_ || turn - census_turn_ >= kCensusTurns;
   if (census)

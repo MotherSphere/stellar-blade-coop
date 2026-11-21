@@ -100,6 +100,8 @@ std::string story_status() {
          " elsewhere=" + std::to_string(story_elsewhere.load());
 }
 
+bool story_together() { return pinned && !blocked && !story_faulted && story_together_on; }
+
 std::string ask_scenes(const coop::Request &request) {
   if (!pinned || blocked)
     return "scenes refused: " + (blocked ? std::string("coop off") : engine_reason);

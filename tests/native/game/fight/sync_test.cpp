@@ -3504,6 +3504,147 @@ int main() {
       assert(fin == l.rfind("SBF25 fin ") && fin > l.rfind("SBF25 up "));
     }
   }
+  { // Phase 3: the boss QTE's owner. Raven (guid 201, spawn 1410024156: its QTE at HP <= 1) at HP 3 of 100000 on a
+    // fresh host with story together on both sides and both members up; HedgeBoarBrute (202, spawn 1710024026) has an
+    // HP <= 1 trigger with no QTE.
+    const auto host = [](World &hw, Host &h) {
+      World::Actor &a = hw.add(201, 1410024156, 0, 900, 100000);
+      a.s.boss = true, a.s.value[kHp] = 3;
+      hw.add(202, 1710024026, 0).s.value[kHp] = 3;
+      h.set_qte(true);
+      h.set_member_up(0, true);
+      h.set_member_up(1, true);
+      h.receive(msg("SBF25 on"), 0, hw);
+      step(h, hw, 1, 0);
+      hw.lines();
+    };
+    { // qte_owner_claimant: her claim takes it to HP 1.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.receive(msg("SBF25 hit 1 1 201 2 0 0 3 0"), 100, hw);
+      step(h, hw, 2, 100);
+      assert(has(hw.lines(), "SBF25 qte-own 1 201 1410024156 1 0\n") && hw.count("qte owner") == 1);
+    }
+    { // qte_owner_own_hit: our copy dropped to 1 by our own hit.
+      World hw;
+      Host h;
+      host(hw, h);
+      hw.hit(201, kHp, 2);
+      step(h, hw, 2, 100);
+      assert(has(hw.lines(), "SBF25 qte-own 1 201 1410024156 0 0\n") && hw.count("qte owner") == 1);
+    }
+    { // qte_owner_same_turn: our hit and her claim in one step: hers.
+      World hw;
+      Host h;
+      host(hw, h);
+      hw.hit(201, kHp, 1);
+      h.receive(msg("SBF25 hit 1 1 201 1 0 0 3 0"), 100, hw);
+      step(h, hw, 2, 100);
+      const std::string l = hw.lines();
+      assert(hw.hp(201) == 1 && has(l, "SBF25 qte-own 1 201 1410024156 1 0\n") && !has(l, "1410024156 0 0"));
+    }
+    { // qte_owner_down_passes: her claim while she is down: the next member up.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.set_member_up(1, false);
+      h.receive(msg("SBF25 hit 1 1 201 2 0 0 3 0"), 100, hw);
+      step(h, hw, 2, 100);
+      assert(has(hw.lines(), "SBF25 qte-own 1 201 1410024156 0 0\n"));
+    }
+    { // qte_nobody_up: nobody up, no owner, logged.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.set_member_up(0, false);
+      h.set_member_up(1, false);
+      h.receive(msg("SBF25 hit 1 1 201 2 0 0 3 0"), 100, hw);
+      step(h, hw, 2, 100);
+      assert(!has(hw.lines(), " qte-own ") && hw.count("qte none", "nobody up") == 1 && hw.count("qte owner") == 0);
+    }
+    { // qte_missed_next: each miss goes to the next member up after the owner, one try more.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.qte_missed(1410024156, hw); // No owner yet: nothing.
+      assert(hw.lines().empty());
+      h.receive(msg("SBF25 hit 1 1 201 2 0 0 3 0"), 100, hw);
+      step(h, hw, 2, 100);
+      assert(has(hw.lines(), "SBF25 qte-own 1 201 1410024156 1 0\n"));
+      h.qte_missed(1410024156, hw);
+      assert(hw.lines() == "SBF25 qte-own 1 201 1410024156 0 1\n");
+      h.qte_missed(1410024156, hw);
+      assert(hw.lines() == "SBF25 qte-own 1 201 1410024156 1 2\n");
+      h.set_member_up(0, false);
+      h.qte_missed(1410024156, hw);
+      assert(hw.lines() == "SBF25 qte-own 1 201 1410024156 1 3\n");
+      h.qte_missed(1710024026, hw); // Not a QTE spawn.
+      assert(hw.lines().empty() && hw.count("qte owner") == 4);
+      step(h, hw, 3, 200);
+      assert(!has(hw.lines(), " qte-own "));
+      h.set_qte(false); // Story together stopped: no hand-over.
+      h.qte_missed(1410024156, hw);
+      assert(hw.lines().empty() && hw.count("qte owner") == 4);
+    }
+    { // qte_owner_her_off: named while she is off, she hears it in our whole list at her on, once, with a miss that
+      // came before it.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.receive(msg("SBF25 off coop fight off"), 50, hw);
+      hw.hit(201, kHp, 2);
+      step(h, hw, 2, 100);
+      assert(!has(hw.lines(), " qte-own ") && hw.count("qte owner") == 1);
+      h.receive(msg("SBF25 on"), 200, hw);
+      h.qte_missed(1410024156, hw);
+      step(h, hw, 3, 200);
+      const std::string l = hw.lines();
+      assert(has(l, "SBF25 qte-own 1 201 1410024156 1 1\n") && l.find(" qte-own ") == l.rfind(" qte-own "));
+    }
+    { // qte_none: a trigger with no QTE names nobody; neither does story together off, logged once.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.receive(msg("SBF25 hit 1 1 202 2 0 0 3 0"), 100, hw);
+      step(h, hw, 2, 100);
+      assert(hw.hp(202) == 1 && !has(hw.lines(), " qte-own ") && hw.count("qte off") == 0);
+      h.set_qte(false);
+      h.receive(msg("SBF25 hit 1 2 201 2 0 0 3 0"), 200, hw);
+      step(h, hw, 3, 200);
+      h.set_qte(false);
+      step(h, hw, 4, 300);
+      assert(hw.hp(201) == 1 && !has(hw.lines(), " qte-own ") && hw.count("qte off") == 1);
+      h.qte_missed(1410024156, hw); // Off: no hand-over.
+      assert(hw.lines().empty() && hw.count("qte owner") == 0);
+    }
+    { // qte_once: HP 1, then 2 (a heal), then 1 again: one qte-own line in all.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.receive(msg("SBF25 hit 1 1 201 2 0 0 3 0"), 100, hw);
+      step(h, hw, 2, 100);
+      hw.actor(201)->s.value[kHp] = 2;
+      step(h, hw, 3, 200);
+      hw.hit(201, kHp, 1);
+      step(h, hw, 4, 300);
+      const std::string l = hw.lines();
+      assert(l.find(" qte-own ") != std::string::npos && l.find(" qte-own ") == l.rfind(" qte-own "));
+    }
+    { // qte_resend: her on brings the live owner again, after every up line.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.receive(msg("SBF25 hit 1 1 201 2 0 0 3 0"), 100, hw);
+      step(h, hw, 2, 100);
+      hw.lines();
+      h.receive(msg("SBF25 on"), 300, hw);
+      step(h, hw, 3, 300);
+      const std::string l = hw.lines();
+      const size_t own = l.find("SBF25 qte-own 1 201 1410024156 1 0\n");
+      assert(own != std::string::npos && l.rfind(" qte-own ") == own + 5 && own > l.rfind("SBF25 up "));
+    }
+  }
   { // Phase 3, the guest: the host's boss_finish from its bosses line and its fin for a pair it announced, at its
     // generation, until its next world, on or off.
     World w;

@@ -337,6 +337,32 @@ do
     fight_step('fight=off why=coop fight off')
     friend_name='Kaanta'
 end
+-- The boss QTE (phase 3), from the line's qte=<member>:<try> and mem=: told at each change. Ours at try 0: for us;
+-- ours at a later try: the previous owner missed (named when it was her); hers: for her.
+do
+    friend_name,link_mode='Ana','host'
+    local function line(mem,qte)
+        return 'fight=on mode=on role='..(mem==0 and 'host' or 'guest')..' enemies=1 claims=0 refused=0 kills=0 '
+            ..'floored=0 sim_us=9/20 threads=1/1/2 her=on spec=0 watch=- up=- upn=0 her_spec=- mem='..mem..' fin=- qte='
+            ..qte
+    end
+    local function qte_tick(mem,qte)
+        fight_text=line(mem,qte)
+        local n,out=#said,{}
+        loops[2].f()
+        for i=n+1,#said do if said[i]:find('QTE',1,true) then out[#out+1]=said[i] end end
+        return table.concat(out,'|')
+    end
+    for _,step in ipairs({{1,'-',''},{1,'1:0','QTE for you.'},{1,'1:0',''},{0,'-',''},{0,'1:0','QTE for Ana.'},
+            {0,'0:1','Ana failed the QTE. QTE for you.'},{0,'1:2','QTE for Ana.'},
+            {0,'0:3','Ana failed the QTE. QTE for you.'},{0,'0:4','QTE for you.'},{0,'-',''},
+            {0,'0:5','Ana failed the QTE. QTE for you.'}}) do
+        local got=qte_tick(step[1],step[2])
+        assert(got==step[3],'mem='..step[1]..' qte='..step[2]..': '..got)
+    end
+    fight_step('fight=off why=coop fight off')
+    friend_name='Kaanta'
+end
 link_mode,saves_info,settings_text='none',{},''
 fight_text=nil
 status_text=plain

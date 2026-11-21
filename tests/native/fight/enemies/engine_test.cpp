@@ -4458,6 +4458,170 @@ int main() {
     w.ask(coop::parse_request("fight off"), gate, io);
     assert(!has(w.detail(), " fin="));
   }
+  // ---- Phase 3: the boss QTE's owner on the host's side ----
+  // Raven (131, spawn 1410024156: its QTE at HP <= 1) at HP 3 of 100000, our EVE standing. Story together's flag comes
+  // as a local qte_on message, her life as a mate message.
+  {
+    const auto raven = [](Game &g, Engine &e, uint64_t &t, coop::Life her, bool together) {
+      e.allow(nullptr, 0);
+      e.bosses(100);
+      e.set(true, true);
+      g.spawn(131, 1410024156, 0, 35026001, 100000, kTypeBoss);
+      g.mem.put(g.stat_at(131, kHp), 3.f);
+      g.inbox.push_back(msg("SBF25 on"));
+      Message m;
+      m.type = Type::mate, m.life = her;
+      g.inbox.push_back(m);
+      Message q;
+      q.type = Type::qte_on, q.on = together;
+      g.inbox.push_back(q);
+      frame(g, e, t);
+      frame(g, e, t += 16);
+      lines(g);
+    };
+    const auto hers = [](Game &g, Engine &e, uint32_t seq, int32_t hp) {
+      g.inbox.push_back(msg("SBF25 hit " + std::to_string(e.host.gen()) + " " + std::to_string(seq) + " 131 " +
+                            std::to_string(hp) + " 0 0 " + std::to_string(g.hp(131)) + " 0"));
+    };
+    { // qte_owner_coma_passes: her claim takes it to HP 1 while her vitals read Coma: she cannot press, so ours.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      raven(g, *e, t, coop::Life::coma, true);
+      hers(g, *e, 1, 2);
+      frame(g, *e, t += 16);
+      const std::string gen = std::to_string(e->host.gen());
+      assert(g.hp(131) == 1 && has(lines(g), "SBF25 qte-own " + gen + " 131 1410024156 0 0\n"));
+      assert(count(g, "qte owner") == 1 && !e->latched());
+    }
+    { // qte_owner_alive: the same with her vitals alive: hers. A local qte_end for its spawn is a miss: ours, try 1.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      raven(g, *e, t, coop::Life::alive, true);
+      hers(g, *e, 1, 2);
+      frame(g, *e, t += 16);
+      const std::string gen = std::to_string(e->host.gen());
+      assert(has(lines(g), "SBF25 qte-own " + gen + " 131 1410024156 1 0\n"));
+      Message end;
+      end.type = Type::qte_end, end.spawn = 1410024156;
+      g.inbox.push_back(end);
+      frame(g, *e, t += 16);
+      assert(lines(g) == "SBF25 qte-own " + gen + " 131 1410024156 0 1\n" && count(g, "qte owner") == 2);
+      g.mem.put<int32_t>(g.fsb(1) + kLife, 3); // Our EVE dead: the next miss passes us by.
+      frame(g, *e, t += 16);
+      g.inbox.push_back(end);
+      frame(g, *e, t += 16);
+      assert(has(lines(g), "SBF25 qte-own " + gen + " 131 1410024156 1 2\n"));
+      g.inbox.push_back(end);
+      frame(g, *e, t += 16);
+      assert(has(lines(g), "SBF25 qte-own " + gen + " 131 1410024156 1 3\n") && !e->latched());
+    }
+    { // qte_on_message: off said once, off again nothing more; on, then her claim to HP 1: one qte-own line.
+      Game g;
+      auto e = engine(false, true);
+      uint64_t t = 0;
+      raven(g, *e, t, coop::Life::alive, false);
+      assert(count(g, "qte off") == 1);
+      Message q;
+      q.type = Type::qte_on, q.on = false;
+      g.inbox.push_back(q);
+      frame(g, *e, t += 16);
+      assert(count(g, "qte off") == 1);
+      q.on = true;
+      g.inbox.push_back(q);
+      frame(g, *e, t += 16);
+      hers(g, *e, 1, 2);
+      frame(g, *e, t += 16);
+      frame(g, *e, t += 16);
+      const std::string l = lines(g);
+      assert(has(l, " qte-own ") && l.find(" qte-own ") == l.rfind(" qte-own ") && count(g, "qte off") == 1);
+    }
+  }
+  // qte_on_the_line: the worker gives the job story together's flag at each change and, while it is on, at each new
+  // session (off needs none: the job starts off); on the host, the QTE scenes that ended in our game. The fight= line
+  // shows the latest qte-own while the mode on runs; qte_owners() keeps the latest per spawn through her world (the
+  // whole list sends it again) until the mode ends.
+  {
+    Game H;
+    auto mail = std::make_unique<Mail>();
+    H.mail = mail.get();
+    auto e = engine(false, true);
+    Worker w(*e, *mail);
+    Desk io;
+    const auto gate = [] { return std::string(); };
+    std::vector<std::string> hers;
+    std::vector<uint32_t> ended;
+    bool together = false;
+    uint64_t t = 0;
+    const auto run = [&](uint64_t until) {
+      for (; t < until; t += 16) {
+        frame(H, *e, t);
+        w.pass(t, true, true, true, hers, gate, io, false, coop::Life::alive, false, 0, ended, together);
+        hers.clear(), ended.clear();
+      }
+    };
+    H.spawn(131, 1410024156, 0, 35026001, 100000, kTypeBoss);
+    H.mem.put(H.stat_at(131, kHp), 3.f);
+    w.ask(coop::parse_request("fight on bosses 100"), gate, io);
+    run(32);
+    hers = {"SBF25 on"};
+    run(500);
+    assert(e->host.linked() == 1 && has(w.detail(), " qte=-") && io.saying("fight qte off ") == 0);
+    ended = {1410024156}; // Off: no hand-over.
+    run(t + 100);
+    together = true;
+    run(t + 100);
+    hers = {"SBF25 hit " + std::to_string(e->host.gen()) + " 1 131 2 0 0 3 0"};
+    run(t + 100);
+    assert(has(w.detail(), " qte=1:0") && w.qte_owners().size() == 1 && io.saying("fight qte off ") == 0);
+    assert(w.qte_owners()[0].spawn == 1410024156 && w.qte_owners()[0].member == 1 && w.qte_owners()[0].tries == 0);
+    ended = {1410024156};
+    run(t + 100);
+    assert(has(w.detail(), " qte=0:1") && w.qte_owners().size() == 1 && w.qte_owners()[0].tries == 1);
+    io.lines();
+    hers = {"SBF25 world 1"};
+    run(t + 100);
+    assert(has(io.lines(), " qte-own ") && has(w.detail(), " qte=0:1") && w.qte_owners().size() == 1);
+    together = false; // Story together stops: said once.
+    run(t + 100);
+    assert(io.saying("fight qte off ") == 1 && w.qte_owners().size() == 1);
+    w.pass(t, true, false, true, hers, gate, io); // The lobby changes hands: a new session as the guest.
+    assert(w.sharing() && w.qte_owners().empty() && has(w.detail(), " qte=-"));
+    w.ask(coop::parse_request("fight off"), gate, io);
+    assert(!has(w.detail(), " qte=") && w.qte_owners().empty() && !e->latched());
+  }
+  // qte_owners_guest: as the guest, the host's qte-own lines feed the line and the list, never the job; its world
+  // empties the list. No QTE scene is handed to the job.
+  {
+    Desk io;
+    auto e = engine(false, false);
+    Mail mail;
+    Worker w(*e, mail);
+    const auto gate = [] { return std::string(); };
+    const std::vector<std::string> none;
+    const std::vector<uint32_t> ended = {1410024156};
+    uint64_t t = 0;
+    w.ask(coop::parse_request("fight on 900"), gate, io);
+    w.pass(t, true, false, true, none, gate, io, false, coop::Life::alive, false, 0, ended, true);
+    Snapshot s;
+    Message m;
+    assert(w.sharing() && mail.exchange(s));
+    std::vector<Type> given;
+    while (mail.receive(m))
+      given.push_back(m.type);
+    assert((given == std::vector<Type>{Type::mate, Type::qte_on}));
+    w.pass(t += 16, true, false, true, {"SBF25 world 1", "SBF25 qte-own 1 77 1410024156 1 0"}, gate, io, false,
+           coop::Life::alive, false, 0, ended, true);
+    assert(has(w.detail(), " mem=1 fin=- qte=1:0") && w.qte_owners().size() == 1 && w.qte_owners()[0].member == 1);
+    given.clear();
+    assert(mail.exchange(s));
+    while (mail.receive(m))
+      given.push_back(m.type);
+    assert((given == std::vector<Type>{Type::world}));
+    w.pass(t += 16, true, false, true, {"SBF25 world 2"}, gate, io);
+    assert(has(w.detail(), " qte=-") && w.qte_owners().empty());
+  }
 
   // ---- Bosses (stage 5), the guest's side: our battle mode undone. Her copies 930 to 933 take the host's bstart, so
   // SetBattleMode (1, 0, 0, 0, 1) puts each in battle mode. Each way out puts it back through SetBattleMode (0, 0, 0,

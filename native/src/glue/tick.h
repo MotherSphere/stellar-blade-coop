@@ -10,7 +10,8 @@
 #include <string>
 #include <vector>
 
-#include "link/protocol.h" // Request, State, Vitals, Life
+#include "game/boss_rows.h" // Owner
+#include "link/protocol.h"   // Request, State, Vitals, Life
 #include "game/slot.h"     // Saves
 #include "game/twins.h"    // Stat
 
@@ -94,10 +95,17 @@ std::string ask_fight(const coop::Request &request, int marker);
 // its events, its probe census, a fault and a stats line each second its counts move; starts, pauses or stops it for
 // the gates (on waits for a co-op save; the solo tools stop off one), tells her our state while we do not share, and
 // leaves it off until asked again once it latched. mate: her life (Link::mate_life()), for the job's group rules.
-// partner: her SteamID (Link::partner(), 0 while not linked), which the PvP test's lines carry. True while the job runs
-// (the worker then passes every 5 ms, not 50). Also logs the rows' answers (ask_rows').
+// partner: her SteamID (Link::partner(), 0 while not linked), which the PvP test's lines carry. qte_ended: the spawns
+// whose boss QTE scene ended in our game (phase 3; story together's, through the hub), a miss for the host's job;
+// together: story_together(), so the host names QTE owners only while it runs. True while the job runs (the
+// worker then passes every 5 ms, not 50). Also logs the rows' answers (ask_rows').
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
-                bool (*send)(const std::string &, bool), coop::Life mate, uint64_t partner);
+                bool (*send)(const std::string &, bool), coop::Life mate, uint64_t partner,
+                const std::vector<uint32_t> &qte_ended, bool together);
+// Worker: each boss QTE's owner as the latest qte-own line named it, sent as the host or heard as the guest (phase 3;
+// fight/enemies/worker.h's Worker::qte_owners), for story together through the hub. Empty after a world change or the
+// end of the shared fight's session.
+std::vector<coop::boss_rows::Owner> fight_qte_owners();
 // Worker: coop-status.txt's fight line (fight/enemies/engine.h's Worker::detail).
 std::string fight_status();
 // The shared quests' record beside each co-op slot, in this account's save folder (glue/steam.cpp's, through
@@ -161,6 +169,10 @@ void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string
 // unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or story=off why=build|coop_off, or
 // story=stopped after a fault.
 std::string story_status();
+// Worker: story together runs on both sides (phase 3, for the shared fight's QTE owner through the hub): our gates
+// ready (shared_story on, a partner, no match lobby, a co-op save) and her on line heard, as of the game thread's last
+// pass; false off the pinned build, after coop off and after a fault.
+bool story_together();
 // Worker thread, the follow's travel (game/travel.h): Lua's travel request, the camp's FName for the game thread's next
 // frame, which calls SB's fast travel once game/travel.h's guard passes; or its travel spot request, a place and a yaw
 // for SB's position warp under the same guard (refused in a solo zone too). Refused off the pinned build, after coop

@@ -535,7 +535,8 @@ void lion_pass() {
 } // namespace
 
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
-                bool (*send)(const std::string &, bool), coop::Life mate, uint64_t partner) {
+                bool (*send)(const std::string &, bool), coop::Life mate, uint64_t partner,
+                const std::vector<uint32_t> &qte_ended, bool together) {
   fight_send = send;
   lion_pass(); // The rows' answers, logged here at every pass whatever the fight does.
   if (fight_faulted && !fight_fault_logged) {
@@ -562,7 +563,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     paused = pinned && !blocked && fight::world_paused(base, rpm);
   }
   fight_worker.pass(now_ms, linked, hosting, lua.world, lines, [marker] { return fight_gate(marker); }, io, photo,
-                    mate, paused, partner);
+                    mate, paused, partner, qte_ended, together);
   // Spectate's pair: the shared fight asked on with her linked and not stopped for the run (turned off or stopped, she
   // gets the death screen back); its running: with her, no pause on either side (spectate then holds and waits).
   spectate_pass(linked && fight_worker.mode() == Fight::on && !fight_engine.latched(), fight_worker.both());
@@ -570,5 +571,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
   pilot_pass(now_ms, linked, lines, send);
   return fight_engine.on();
 }
+
+std::vector<coop::boss_rows::Owner> fight_qte_owners() { return fight_worker.qte_owners(); }
 
 } // namespace coop::pose

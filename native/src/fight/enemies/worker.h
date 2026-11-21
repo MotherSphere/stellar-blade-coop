@@ -176,9 +176,14 @@ public:
   // kMateEveryMs and at each new session (the job reads unknown at its start, and kMateMs after the last). paused: SB
   // holds a pause tag (world_paused()). partner: the linked friend's SteamID (0: none), for the PvP test. Spectate
   // (phase 3): the game thread's word read from Mail, her spec line kept for the fight= line, ours sent (spectated()).
+  // The boss QTE (phase 3): qte_ended, the spawns whose QTE scene ended in our game, the job's as local qte_end
+  // messages on the host (ignored on a guest); together, story together runs on both sides, the job's as a local
+  // qte_on message at each change and, while on, at each new session (off needs none: the job starts off); the latest
+  // qte-own per spawn, ours or the host's, kept for qte_owners() and the fight= line.
   template <class Gate, class Io>
   void pass(uint64_t now_ms, bool linked, bool hosting, bool world, const std::vector<std::string> &lines, Gate &&gate,
-            Io &io, bool photo = false, Life mate = Life::unknown, bool paused = false, uint64_t partner = 0) {
+            Io &io, bool photo = false, Life mate = Life::unknown, bool paused = false, uint64_t partner = 0,
+            const std::vector<uint32_t> &qte_ended = {}, bool together = false) {
     now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world, photo_ = photo;
     spec_ = mail_.spectate;
     e_.pvp_peer(partner);
@@ -190,6 +195,8 @@ public:
             record(m);
           else if (running_ && with_her(ran_) && linked && !io.send(format(m), m.type != Type::hp))
             ++unsent_;
+          if (sharing())
+            qte_heard(m);
         },
         [&](const Event &ev) { io.say("fight " + line(ev)); },
         [&](const Actor &a) {
@@ -214,6 +221,10 @@ public:
         her_spec_ = m.watched;
         continue;
       }
+      if (sharing() && !side_)
+        qte_heard(m);
+      if (m.type == Type::qte_own && !side_) // The host's QTE owner (phase 3): kept here, never the guest job's.
+        continue;
       spec_again_ = spec_again_ || m.type == Type::on; // Ours again after her on (a pair back mid-fight).
       // Her off said when her state changes, kHerSaid times a link at most: repeats cannot fill the log.
       const char *state = her_state(m, reason);
@@ -266,6 +277,19 @@ public:
       else
         ++dropped_;
     }
+    if (running_ && ran_ == Fight::on && (together != together_ || (together && together_session_ != e_.session()))) {
+      Message m;
+      m.type = Type::qte_on, m.on = together;
+      if (mail_.give(m))
+        together_ = together, together_session_ = e_.session();
+      else
+        ++dropped_;
+    }
+    for (size_t i = 0; running_ && ran_ == Fight::on && side_ && i < qte_ended.size(); ++i) {
+      Message m;
+      m.type = Type::qte_end, m.spawn = qte_ended[i];
+      dropped_ += !mail_.give(m);
+    }
     if (running_ && now_ms >= next_stats_)
       stats(now_ms, io);
   }
@@ -274,6 +298,9 @@ public:
   bool sharing() const { return running_ && ran_ == Fight::on; }
   // Spectate's running fact (phase 3): we share and her last line is no off (her photo mode, a pause tag, her save).
   bool both() const { return sharing() && std::strcmp(her_, "on") == 0; }
+  // The latest qte-own per spawn (phase 3), sent as the host or heard as the guest while the mode on runs, the newest
+  // last; none after a world line, the host's off or the mode's end.
+  const std::vector<boss_rows::Owner> &qte_owners() const { return qte_owners_; }
   // A replay runs: stage 5's solo probes may act on its copies.
   bool replaying() const { return running_ && ran_ == Fight::replay; }
   // Same-place enemies as of the last second, for coop-status.txt's pilot line (glue/tick.cpp adds the rest): "on
@@ -323,10 +350,27 @@ public:
 private:
   // Spectate's words on the fight= line (phase 3): ours from the game thread's word, the member she watches as her
   // last spec line said it (- for none) and our member number (0 the host or alone, 1 the pair). While the mode on
-  // runs, the member whose finisher ends a boss (the job's, live; - for none).
+  // runs, the member whose finisher ends a boss (the job's, live; - for none) and the latest QTE owner with its try
+  // (<member>:<try>, - for none).
   std::string spectate_words() const {
+    const std::string qte = qte_owners_.empty() ? "-"
+                                                : std::to_string(qte_owners_.back().member) + ":" +
+                                                      std::to_string(qte_owners_.back().tries);
     return spectate::words(spec_) + " her_spec=" + spectate::member(her_spec_) + " mem=" +
-           (linked_ && !hosting_ ? "1" : "0") + (sharing() ? " fin=" + spectate::member(e_.finisher()) : "");
+           (linked_ && !hosting_ ? "1" : "0") +
+           (sharing() ? " fin=" + spectate::member(e_.finisher()) + " qte=" + qte : "");
+  }
+  // A line of the mode on, ours or the host's: a qte-own becomes its spawn's latest owner; a world line or an off
+  // empties the list (the host's whole list sends the live ones again).
+  void qte_heard(const Message &m) {
+    if (m.type == Type::world || m.type == Type::off)
+      return qte_owners_.clear();
+    if (m.type != Type::qte_own)
+      return;
+    qte_owners_.erase(std::remove_if(qte_owners_.begin(), qte_owners_.end(),
+                                     [&](const boss_rows::Owner &o) { return o.spawn == m.spawn; }),
+                      qte_owners_.end());
+    qte_owners_.push_back(boss_rows::Owner{m.spawn, m.member, m.tries});
   }
   // Each pass: our spec line to her at each change of the member we watch and again after her on (none before we
   // first watch). A log line at each enter, reason to get up and leave of the game thread's spectate.
@@ -506,6 +550,7 @@ private:
     mail_.clear();
     e_.set(true, host, mode_ == Fight::probe, mode_ == Fight::pvp);
     own_session();
+    qte_owners_.clear();
     running_ = true, side_ = host, ran_ = mode_;
     malformed_ = 0;
     next_gate_ = now_ + kGateMs;
@@ -551,6 +596,7 @@ private:
     e_.set(false, side_);
     running_ = false;
     mail_.clear();
+    qte_owners_.clear();
     last_why_ = why;
     return std::string("shared fight ") + how + ": " + why;
   }
@@ -880,6 +926,11 @@ private:
   uint8_t her_spec_ = kNoMember, spec_told_ = kSpecNever;
   bool spec_again_ = false, said_on_ = false;
   uint32_t said_upn_ = 0;
+  // The boss QTE (phase 3): story together's flag as last given the job and in which session; the owners
+  // (qte_owners()).
+  bool together_ = false;
+  uint32_t together_session_ = 0;
+  std::vector<boss_rows::Owner> qte_owners_;
 };
 
 } // namespace coop::fight

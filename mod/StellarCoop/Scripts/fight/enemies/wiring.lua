@@ -94,6 +94,10 @@ if M.link then
     -- once a winner, never when the winner is us. fin_was: the last fin= read, nil for none.
     -- shortcut: any member but us is named as her (M.her_name), right for the pair only; 7b2 maps members to names.
     local fin_was
+    -- The boss QTE (phase 3), from the line's qte=<member>:<try> (its owner and try, live) and mem=: told at each
+    -- change. Ours at try 0: for us; ours at a later try: the previous owner missed, named unless that was us; another
+    -- member's: for her. qte_was: the last qte= read, nil for none. The same shortcut as fin_was names her.
+    local qte_was
     function M.fight_notices()
         M.guarded('spectate',M.spectate.tick,M.chat_clock)
         if M.link.mode()=='none' then fight_told=nil end
@@ -104,6 +108,16 @@ if M.link then
             M.tell(function(w) return w.fight.finisher:format(M.her_name(w)) end)
         end
         fin_was=fin
+        local qte=line:match(' qte=(%d+:%d+)')
+        if qte and qte~=qte_was then
+            local owner,try,mem=qte:match('^(%d+)'),qte:match(':(%d+)$'),line:match(' mem=(%d+)')
+            local missed=try~='0' and (qte_was and qte_was:match('^(%d+)'))~=mem
+            M.tell(function(w)
+                if owner~=mem then return w.fight.qte_other:format(M.her_name(w)) end
+                return missed and w.fight.qte_missed:format(M.her_name(w)) or w.fight.qte_you
+            end)
+        end
+        qte_was=qte
         local state,mode,her=line:match('^fight=(%a+)'),line:match(' mode=(%a+)'),line:match(' her=(%S+)')
         local why=line:match(' why=(.*)$')
         local now=state=='on' and 'on '..tostring(mode) or state
