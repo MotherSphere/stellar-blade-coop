@@ -1763,8 +1763,10 @@ function GunMode.new(env)
                     ppi.AimRot=s.chest
                     -- hip fire (the game's own aim off): she faces the camera through her own movement (the game turns
                     -- her, standing or strafing: one writer, gunmode's face). Shots wait until the bore is on target
-                    -- (hip_aligned). A big turn from standing plays the game's aim-stance turn clip as the shuffle
-                    local hip=want=='aim' and not s.tps and not falling
+                    -- (hip_aligned). A big turn from standing plays the game's aim-stance turn clip as the shuffle.
+                    -- A frame where the game's aim dropped with its key held (aim_dropped: each shot's skill) is no hip
+                    -- fire: her facing flags turned over and back each round, with coop-gun.txt written each time.
+                    local hip=want=='aim' and not (s.tps or aim_dropped(now)) and not falling
                     face(p,hip)
                     local was=s.turning
                     s.turning=hip and GunMode.turn(s.turning,s.chest.Yaw,C.turn_start or 40,C.turn_stop or 12)

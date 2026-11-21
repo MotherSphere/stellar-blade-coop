@@ -493,4 +493,49 @@ do
     Keep.reset()
 end
 
+-- 13. The game's aim drops bTPSMode for a frame on each shot's skill while RMB is held. Such a frame is no hip fire: her
+--     movement's facing flags stay as they are and coop-gun.txt is not written. Each drop turned the flags over and
+--     back, with two writes of the file (about 40 a second in a burst). Hip fire (LMB without RMB) still faces her to
+--     the camera. The chest loop runs here on neutral math (no turn) with the rifle's muzzle on her root.
+do
+    local w=world()
+    local ML={IsValid=function() return true end,GetForwardVector=function() return {X=1,Y=0,Z=0} end,
+        InverseTransformDirection=function(_,_,v) return v end}
+    local find=w.find
+    function w.find(path) if path=='/Script/Engine.Default__KismetMathLibrary' then return ML end return find(path) end
+    w.mesh.K2_GetComponentToWorld=function()
+        return {Translation={X=0,Y=0,Z=0},Rotation={X=0,Y=0,Z=0,W=1},Scale3D={X=1,Y=1,Z=1}}
+    end
+    w.mesh.RelativeRotation={Pitch=0,Yaw=-90,Roll=0}
+    function w.mesh.K2_SetRelativeRotation(c,r) c.RelativeRotation={Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll} end
+    local move=w.pawn.CharacterMovement
+    move.bOrientRotationToMovement,move.bUseControllerDesiredRotation=true,false
+    local saves=0
+    local gun=GunMode.new({log=function() end,
+        store={save=function() saves=saves+1; return true end,clear=function() end,load=function() return '' end}})
+    out(w,gun)
+    local r=gun.state.rifle
+    r.GetSocketLocation=function() return {X=0,Y=0,Z=0} end
+    r.GetSocketRotation=function() return {Pitch=0,Yaw=0,Roll=0} end
+    frames(gun,60)
+    w.pawn.bTPSMode,w.down.RightMouseButton=true,true; frames(gun,30)
+    w.down.LeftMouseButton=true
+    local flips=0
+    for i=1,90 do -- (the first 0.5 s arms the shot's rows: one write)
+        if i==31 then saves,flips=0,0 end
+        w.pawn.bTPSMode=i%3~=0
+        local was=move.bOrientRotationToMovement
+        frames(gun,1)
+        if move.bOrientRotationToMovement~=was then flips=flips+1 end
+    end
+    assert(flips==0 and saves==0,('20 drops in 1 s: her facing turned over %d times, coop-gun.txt written %d times')
+        :format(flips,saves))
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil; frames(gun,120) -- (a reload ends)
+    w.down.LeftMouseButton=true; frames(gun,2)
+    assert(move.bOrientRotationToMovement==false and move.bUseControllerDesiredRotation==true,'hip fire faces the camera')
+    w.down.LeftMouseButton=nil
+    clock=clock+1; gun.toggle_now(); frames(gun,2)
+    assert(move.bOrientRotationToMovement==true and move.bUseControllerDesiredRotation==false,'her own facing back')
+end
+
 print('gunmode cost: ok')
