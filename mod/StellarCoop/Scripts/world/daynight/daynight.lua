@@ -260,11 +260,13 @@ function Daynight.new(o)
             if s.role=='day' or s.role=='night' then w[s.role]=s.part end
         end
     end
-    -- The star layer on the first dome's actor: an earlier load's, found by its tag, or none yet.
+    -- The star layer on the first dome's actor: an earlier load's, found by its tag, or none yet. w.host is that dome's
+    -- part, not its actor. UE4SS 4.0.0 compares two objects by address: a dome looked up again after its sublevel came
+    -- back may sit at the freed one's address.
     local function host_layer()
-        w.layer,w.mid,w.fade,w.host=nil,nil,nil,w.domes[1] and w.domes[1].actor
+        w.layer,w.mid,w.fade,w.host=nil,nil,nil,w.domes[1]
         if w.row.stars~='layer' or not w.host then return end
-        local ok,layer=pcall(find_layer,w.host)
+        local ok,layer=pcall(find_layer,w.host.actor)
         if ok then w.layer=layer else o.log('daynight: the star layer is not looked for: '..U.why(layer)) end
     end
     -- The domes' count for the log: found, wanted and waiting for their sublevel.
@@ -293,7 +295,7 @@ function Daynight.new(o)
         end
         if not moved then return end
         sync()
-        if (w.domes[1] and w.domes[1].actor)~=w.host then host_layer() end
+        if w.domes[1]~=w.host then host_layer() end
         if w.row.stars=='creator' then list_creators() end
         if unsaved and where then save_kept() end
         o.log(string.format('daynight: a sublevel came or went: %s, %d SkyCreators, %.1f ms',count(),#w.creators,

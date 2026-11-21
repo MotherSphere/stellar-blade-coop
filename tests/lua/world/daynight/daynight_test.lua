@@ -489,4 +489,25 @@ do
     D4.slow(false)
     assert(calls.load==loads+1)
 end
+-- 25. A star-layer map whose dome's sublevel goes and comes back between two looks, the new dome actor at the freed
+--     one's address: its star layer is looked for again and, gone with the old actor, made again. UE4SS 4.0.0 compares
+--     two objects by address (its UObject __eq), as these fakes do.
+do
+    local adds=calls.add_component
+    local root=new_root(false)
+    local actor=uobj({RootComponent=root,components={},AddComponentByClass=dome_actor.AddComponentByClass,
+        K2_GetComponentsByClass=dome_actor.K2_GetComponentsByClass})
+    objects[DOME],streamed[package(DOME)]=actor,level(true)
+    eve,st.el=new_eve(0xA00,W),-10
+    local D5=Daynight.new(o)
+    D5.slow(false); D5.slow(false)
+    local first=actor.components[1]
+    assert(calls.add_component==adds+1 and first.visible==true)
+    root.gone,first.gone=true,true -- Its components die with the old actor.
+    actor.RootComponent,actor.components=new_root(false),{}
+    for _=1,8 do D5.slow(false) end
+    assert(calls.add_component==adds+2 and actor.components[1].visible==true,
+        'The dome found again at the same address gets a star layer again')
+    objects[DOME],streamed[package(DOME)]=dome_actor,nil
+end
 print('daynight_test ok')
