@@ -126,7 +126,8 @@ end
 
 -- 4. M6: the rifle does not come out while a cutscene holds EVE, in an interaction or its block, while the game holds
 --    her movement, while she swims, flies or is in one of SB's moves (a custom movement mode), in the photo or selfie
---    mode. Once it is out, the first of these puts it away within 0.25 s. A jump (falling) is no reason.
+--    mode. Once it is out, the first of these puts it away within 0.25 s, except the hold of her movement: the game
+--    raises it when its aim starts, which is firing mode. A jump (falling) is no reason.
 do
     local w=Fake.new(); w.install()
     local keys=w.keys()
@@ -141,7 +142,7 @@ do
             {function(e,on) e.cutscene=on end,'a cutscene holds EVE'},
             {function(e,on) e.talk=on end,'EVE is in an interaction'},
             {function(e,on) e.bEnableInteractionBlock=on end,'EVE is in an interaction'},
-            {function(e,on) e.held=on end,'the game holds her movement'},
+            {function(e,on) e.held=on end,'the game holds her movement','stays'},
             {mode(4),'EVE is swimming'},{mode(5),"EVE is in one of SB's moves (movement mode 5)"},
             {mode(6),"EVE is in one of SB's moves (movement mode 6)"},
             {function(_,on) photo=on and '1' or '0' end,'the photo mode is open'},
@@ -156,7 +157,10 @@ do
         toggle(gun,true)
         set(w.pawn,true)
         frames(gun,20)
-        assert(not gun.state.on and said('off ('..why),why..': '..table.concat(logs,'|'))
+        local out=case[3]=='stays'
+        assert(gun.state.on==out and said(out and 'the game holds her movement (1), the rifle stays out' or 'off ('..why),
+            why..': '..table.concat(logs,'|'))
+        if out then toggle(gun,false) end
         assert(#w.changed()==0 and w.keys()==keys,why..': everything back')
         set(w.pawn,false)
     end
@@ -165,6 +169,17 @@ do
     frames(gun,20)
     assert(gun.state.on,'a jump keeps the rifle out')
     toggle(gun,false)
+    -- The hold's start and an off name the game's actions on the keys held then (Q: the heal on SB's keyboard layout).
+    w.mappings[#w.mappings+1]={ActionName=Fake.name('Item_UseHeal'),Key={KeyName=Fake.name('Q')}}
+    toggle(gun,true)
+    logs={}
+    w.down.Q=true; w.pawn.held=true
+    frames(gun,20)
+    assert(gun.state.on and said('keys held: Q: Item_UseHeal'),table.concat(logs,'|'))
+    w.pawn.talk=true
+    frames(gun,20)
+    assert(not gun.state.on and said('keys held at the off: Q: Item_UseHeal'),table.concat(logs,'|'))
+    w.down.Q,w.pawn.held,w.pawn.talk=nil,false,false
 end
 
 -- 5. M7: what another module holds EVE in (env.busy: the bike, the Doro look, an emote, a hall seat, coop fly or

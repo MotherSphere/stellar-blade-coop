@@ -122,7 +122,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   while they are changed, so a Lua reload puts them back. A pause gives the masked keys back (`coop-gun.txt` drops
   them); the first frame after it masks them again. The rifle does not come out in a cutscene, an interaction or its
   block, with her movement held, in a swim, a flight or a custom movement mode, or in the photo or selfie mode. Each of
-  these puts it away within 0.25 s with everything back. A jump keeps it out. Another module's hold on EVE (`busy`)
+  these puts it away within 0.25 s with everything back, except the hold of her movement: the rifle stays out and the
+  log names the game's actions on the keys held (Q: `Item_UseHeal`), as it does at an off. A jump keeps it out. Another module's hold on EVE (`busy`)
   refuses the rifle or puts it away the same way; `out()` says whether it is out. A refused toggle (no EVE, the drone
   aim held, a state that holds her, a failed start) gives its notice. F4 toggles the rifle by default, G does not; a
   key with a modifier needs it held; `gun_key=none` has no key. Once `menu_key` is Shift+F4, also from a rebind

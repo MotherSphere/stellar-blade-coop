@@ -53,13 +53,18 @@ end
 -- registered by 0x14cef8000 with its other 233), bEnableInteractionBlock an SBCharacter bool (params 0x145d77b78).
 -- EMovementMode (enumerators at 0x146548c80): 1 walking, 2 nav walking, 3 falling, 4 swimming, 5 flying, 6 custom
 -- (a move of SB's own).
+-- out: the rifle is already out. The game's hold of her movement then is no reason: IsMoveInputBlock's exec
+-- (0x14268bc60) is true while MoveInputBlockCount (+0xa84) is above 0 or RemainMoveInputBlockDuraion (+0xa70) is above
+-- 0 or -1.0 (0x146750838). The game raises it for a moment when the drone aim starts, which is gun mode's firing mode
+-- (2026-11-21 test: every 'off' named it, the first one before any aim write), and for an item's use. The rifle
+-- going away under a held aim key left the plain drone aim on.
 local WALKING,NAV_WALKING,FALLING,SWIMMING=1,2,3,4
-function GunMode.blocked(e,photo)
+function GunMode.blocked(e,photo,out)
     if photo=='s' then return 'the selfie mode is open' end
     if photo=='1' then return 'the photo mode is open' end
     if e:IsAttachedToLevelSequenceWithoutPlayable()==true then return 'a cutscene holds EVE' end
     if e:IsRunningInteraction()==true or e.bEnableInteractionBlock==true then return 'EVE is in an interaction' end
-    if e:IsMoveInputBlock()==true then return 'the game holds her movement' end
+    if not out and e:IsMoveInputBlock()==true then return 'the game holds her movement' end
     local mode=U.value_of(e.CharacterMovement.MovementMode)
     if mode==SWIMMING then return 'EVE is swimming' end
     if mode~=WALKING and mode~=NAV_WALKING and mode~=FALLING then
@@ -210,7 +215,8 @@ function GunMode.new(env)
         toggle_at=-1,hooked=false,errors=0}
     -- What belongs to one pawn and its controller, cleared on a new controller with no game call (new_controller).
     local PER_PAWN={'ovr_row','flash_fx','rifle','pose_m','pose_on','ik','layer_clip','reload_until','turn','turnq',
-        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','drone_wait','drone_keep','morph'}
+        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','drone_wait','drone_keep','morph',
+        'move_block'}
     local restored=false -- coop-gun.txt read this Lua load (self.restore).
 
     -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
@@ -765,10 +771,10 @@ function GunMode.new(env)
         if not (s.notice_at and now-s.notice_at<3) and env.notice and pcall(env.notice,key) then s.notice_at=now end
     end
     -- Why EVE cannot hold the rifle now (GunMode.blocked, env.busy, then env.match), or nil. A state it cannot read is
-    -- a reason too.
-    local function held(p)
+    -- a reason too. out: the rifle is out (GunMode.blocked's out).
+    local function held(p,out)
         local ok,why=pcall(function()
-            return GunMode.blocked(p,env.photo and env.photo() or '0') or (env.busy and env.busy())
+            return GunMode.blocked(p,env.photo and env.photo() or '0',out) or (env.busy and env.busy())
                 or (env.match and env.match() and MATCH) or nil
         end)
         if not ok then return 'her state is unreadable ('..tostring(why)..')' end
@@ -1048,6 +1054,23 @@ function GunMode.new(env)
         dn_t[name],dn_v[name]=dn_frame,v
         return v
     end
+    -- The game's actions on the keys held now, as the input settings map them ('Q: Item_UseHeal UI_LeftShoulder'), for
+    -- the log: which action came with a hold of her movement or an off. One walk of the mappings: called on those
+    -- events only.
+    local function held_actions()
+        local by,order={},{}
+        pcall(function() StaticFindObject(SETTINGS).ActionMappings:ForEach(function(_,wrapped)
+            local row=wrapped:get()
+            local k,n=row.Key.KeyName:ToString(),row.ActionName:ToString()
+            if k~='None' then
+                if not by[k] then by[k]={}; order[#order+1]=k end
+                if not by[k][n] then by[k][n]=true; by[k][#by[k]+1]=n end
+            end
+        end) end)
+        local out={}
+        for _,k in ipairs(order) do if down(k) then out[#out+1]=k..': '..table.concat(by[k],' ') end end
+        return #out>0 and table.concat(out,'; ') or 'none'
+    end
     local inp_buf={}
     local RECOIL_CAM={X=5,Y=0.8,Z=1.4} -- the camera's recoil when cfg.recoil_cam is not set
     local function is_vis(o) return o:IsVisible() end
@@ -1150,7 +1173,7 @@ function GunMode.new(env)
             local p0=g.pawn()
             s.is_held=p0~=nil and g.try(function() return p0:IsAttachedToLevelSequenceWithoutPlayable()==true
                 or p0:IsRunningInteraction()==true or p0.bEnableInteractionBlock==true end)==true
-            if s.on and s.is_held then s.resume=true; s.free_at=nil; disable(g.try(function() return GunMode.blocked(p0,'0') end) or 'EVE is in an interaction or a cutscene'); return end
+            if s.on and s.is_held then s.resume=true; s.free_at=nil; g.log('keys held at the off: '..held_actions()); disable(g.try(function() return GunMode.blocked(p0,'0') end) or 'EVE is in an interaction or a cutscene'); return end
             if not s.on and s.resume then
                 if p0 and not s.is_held then
                     s.free_at=s.free_at or now
@@ -1171,15 +1194,25 @@ function GunMode.new(env)
         end
         if not p then disable('no EVE'); return end
         -- A cutscene, a talk, a swim or another of the game's own states that starts puts the rifle away (M6), as does
-        -- another module that takes EVE (M7: the Doro look, an emote...).
+        -- another module that takes EVE (M7: the Doro look, an emote...). The game's hold of her movement does not
+        -- (GunMode.blocked's out): its start is logged with the game's actions on the keys held then.
         if now-(s.busy_at or 0)>=0.25 then
             s.busy_at=now
-            local busy=held(p)
+            local busy=held(p,true)
             if busy then
+                g.log('keys held at the off: '..held_actions())
                 disable(busy)
                 if busy==MATCH then notice(now,'match') end
                 return
             end
+            local mb=g.try(function() return p:IsMoveInputBlock()==true end)==true
+            if mb and not s.move_block then
+                s.move_blocks=(s.move_blocks or 0)+1
+                if s.move_blocks<=5 or s.move_blocks%25==0 then
+                    g.log(('the game holds her movement (%d), the rifle stays out; keys held: %s'):format(s.move_blocks,held_actions()))
+                end
+            end
+            s.move_block=mb
         end
         if s.prof then s.prof('input') end
         local falling_n -- IsFalling read once a frame in native mode (a launch takes effect at the next movement update)
