@@ -14,12 +14,14 @@
 // log that hundreds of scenes do not use up, lines from the wrong side, the host's reader and the status line.
 #include "game/story/sync.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <iterator>
 #include <map>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace coop::story;
@@ -266,31 +268,20 @@ struct Game : Engine {
   void wake() override { ++wakes; }
   void release() override { ++releases; }
 };
-// The host's side never calls its engine.
-struct Null : Engine {
-  Her her() override { return assert(false), Her(); }
-  Here here() override { return assert(false), Here(); }
-  const char *start(const Message &) override { return assert(false), nullptr; }
-  const char *trip(const Message &) override { return assert(false), nullptr; }
-  Did apply(const Message &, const char *&) override { return assert(false), Did::done; }
-  void hold(bool) override { assert(false); }
-  void wake() override { assert(false); }
-  void release() override { assert(false); }
-};
-
 constexpr uint64_t kHim = 76561198000000001ull, kHer = 76561198000000002ull;
 Gates on(uint64_t partner, bool host) {
   Gates g;
   g.setting = true, g.partner = partner, g.host = host, g.match = false, g.coop_save = true, g.in_game = true;
   g.hooks = kHooks;
+  g.me = host ? kHostMember : 1; // 7b1: the host is member 0, the pair 1.
   return g;
 }
 
-// A host and a guest: each side's out goes to the other's receive.
+// A host and a guest, each with a game (the host follows a boss QTE scene the guest leads): each side's out goes to the
+// other's receive.
 struct Pair {
-  Null null;
-  Game game;
-  Sync host{null}, guest{game};
+  Game hostgame, game;
+  Sync host{hostgame}, guest{game};
   Gates hg = on(kHer, true), gg = on(kHim, false);
   uint64_t now = 1000;
   Pair() {
@@ -348,9 +339,35 @@ struct Pair {
     m.type = Type::trip, m.zone = zone, m.name = row;
     return send(m);
   }
-  // Her theater plays path at take and frame.
+  // A game's theater plays path at take and frame. Another path is another player: nothing of it stays paused.
+  static void at(Game &g, const std::string &path, int32_t take, int32_t frame, const char *seq) {
+    if (path != g.now.path)
+      g.paused = false, g.now.block = false;
+    g.now.path = path, g.now.pos = Pos{take, seq, frame, !g.paused};
+  }
   void her(const std::string &path, int32_t take = 100, int32_t frame = 0, const char *seq = "Seq_A") {
-    game.now.path = path, game.now.pos = Pos{take, seq, frame, !game.paused};
+    at(game, path, take, frame, seq);
+  }
+  void his(const std::string &path, int32_t take = 100, int32_t frame = 0, const char *seq = "Seq_A") {
+    at(hostgame, path, take, frame, seq);
+  }
+  // Both stand in zone.
+  void zone(const std::string &zone) { game.now.zone = hostgame.now.zone = zone; }
+  // A side's root, position and end for a scene of its own numbering.
+  static Message root(uint32_t scene, const Scene &row, int32_t take = 100) {
+    Message m;
+    m.type = Type::play, m.scene = scene, m.zone = row.zone, m.name = row.row, m.take = take;
+    return m;
+  }
+  static Message place(uint32_t scene, int32_t take, int32_t frame) {
+    Message m;
+    m.type = Type::pos, m.scene = scene, m.take = take, m.name = "Seq_A", m.frame = frame, m.flag = true;
+    return m;
+  }
+  static Message ended(uint32_t scene) {
+    Message m;
+    m.type = Type::end, m.scene = scene;
+    return m;
   }
 };
 
@@ -368,7 +385,7 @@ void test_on_off() {
   p.gg.setting = true;
   p.step();
   assert(p.host.partner_on() && p.play(1, plain_row()));
-  // The guest sends no scene line: send() is the host's.
+  // The guest sends no line of a scene she does not lead: with no boss QTE owner named, the host leads every scene.
   Message m;
   m.type = Type::end, m.scene = 1;
   assert(!p.guest.send(m, p.now) && p.guest.counters.skipped == 1);
@@ -690,9 +707,14 @@ void test_seq_and_sides() {
   // A row off the lists from the host is dropped.
   p.guest.receive(T + "play 5 7 Z Nowhere_E_Theater_999 1", p.gg);
   assert(p.guest.queued() == 2 && saw(p.guest.log, "Nowhere_E_Theater_999 from the host is not on the lists"));
-  // The host takes no scene line.
-  p.host.receive(T + "end 1 7", p.hg);
-  assert(p.host.counters.bad == 1);
+  // The host takes from her no play line of a scene she does not lead. No trip line either.
+  p.host.receive(T + "play 1 7 " + plain_row().zone + " " + row + " 100", p.hg);
+  p.host.receive(T + "trip 2 Zone_Xion_10 " + kTripSent, p.hg);
+  assert(p.host.counters.bad == 2 && p.host.queued() == 0);
+  // Her later lines go by scene number: an end with no copy of that scene here is dropped.
+  p.host.receive(T + "end 3 7", p.hg);
+  p.step();
+  assert(p.host.counters.bad == 2 && p.host.counters.dropped == 1 && saw(p.host.log, "scene 7: its later lines"));
   // Her on starts the seq again.
   p.guest.receive(T + "on 7", p.gg);
   p.guest.receive(T + "end 1 7", p.gg);
@@ -942,6 +964,275 @@ void test_lead_results() {
   assert(l.size() == 2 && l[0] == T + "pch 8 1 200 0 2" && l[1] == T + "end 9 1");
 }
 
+// Phase 3: a leader per scene. R is the Raven's QTE scene (WLA_10_E_Theater_007's theater, a boss QTE row of
+// game/boss_rows.h); the hub names its leader from the fight's qte-own.
+const Scene &raven_qte() {
+  const Scene *s = scene_row("WLA_10_E_Theater_007");
+  assert(s && qte_scene(s->path));
+  return *s;
+}
+size_t count(const std::vector<std::string> &log, const std::string &part) {
+  return size_t(std::count_if(log.begin(), log.end(), [&](const std::string &l) {
+    return l.find(part) != std::string::npos;
+  }));
+}
+
+void test_leaders() {
+  const Scene &r = raven_qte();
+  const std::string R = r.path;
+  { // guest_leads_qte: she leads R. Her root goes, the host attaches his own copy and follows her place and result;
+    // his own root for R is not sent.
+    Pair p;
+    p.zone(r.zone);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.step();
+    assert(p.guest.leads(R) && !p.host.leads(R) && p.host.leader_of(R) == 1 && p.guest.leader_of(R) == 1);
+    p.his(R, 100, 0), p.her(R, 100, 0);
+    const uint64_t skipped = p.host.counters.skipped;
+    assert(!p.host.send(Pair::root(1, r), p.now) && p.host.counters.skipped == skipped + 1);
+    assert(p.guest.send(Pair::root(1, r), p.now) && p.guest.counters.sent == 1);
+    assert(p.guest.send(Pair::place(1, 100, 30), p.now));
+    p.step(), p.step();
+    assert(p.host.counters.received == 2 && p.host.counters.attached == 1 && p.host.sharing());
+    assert(p.hostgame.starts.empty() && p.host.counters.bad == 0);
+    p.his(R, 100, 30); // His copy reaches her place: the leash holds it there.
+    p.step();
+    assert(p.hostgame.holds == 1 && p.hostgame.paused);
+    Message q;
+    q.type = Type::qte, q.scene = 1, q.take = 100, q.value = 9;
+    assert(p.guest.send(q, p.now));
+    p.step(), p.step();
+    assert(p.hostgame.applied.size() == 1 && p.hostgame.applied[0].value == 9);
+    // The rest of her scene goes by its number, past the leader check.
+    p.now += kPosMs;
+    assert(p.guest.send(Pair::place(1, 100, 60), p.now) && p.guest.send(Pair::ended(1), p.now));
+    p.step(), p.step();
+    assert(p.hostgame.plays == 1 && p.host.counters.bad == 0 && !p.host.sharing() && p.host.active());
+  }
+  { // host_keeps_others: a play line from her for a scene no Leader names is refused.
+    Pair p;
+    const Scene &row = plain_row();
+    p.host.receive(T + "play 1 4 " + row.zone + " " + row.row + " 100", p.hg);
+    assert(p.host.counters.bad == 1 && p.host.queued() == 0);
+    assert(saw(p.host.log, "a scene line from a member who does not lead it at try 0"));
+    assert(!p.guest.send(Pair::root(1, row), p.now) && p.guest.counters.sent == 0);
+  }
+  { // hold_before_owner: his copy of R holds at its first QTE block while no Leader is named; a Leader naming her
+    // keeps it held (a follower) until her lines come.
+    Pair p;
+    p.zone(r.zone);
+    p.his(R, 100, 0);
+    p.step();
+    assert(p.hostgame.holds == 0); // No QTE block yet.
+    p.hostgame.now.block = true;
+    p.step();
+    assert(p.hostgame.holds == 1 && p.hostgame.paused && p.host.leads(R)); // The host by default, not named.
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.step(), p.step();
+    assert(p.hostgame.plays == 0 && p.hostgame.paused && !p.host.leads(R));
+    p.her(R, 100, 60);
+    assert(p.guest.send(Pair::root(1, r), p.now) && p.guest.send(Pair::place(1, 100, 60), p.now));
+    p.step(), p.step(), p.step();
+    assert(p.host.sharing() && p.hostgame.plays == 1 && !p.hostgame.paused && p.hostgame.holds == 1);
+    assert(p.game.holds == 0); // She leads: no hold on her side.
+  }
+  { // hold_before_owner, named the host instead: his copy plays on at once.
+    Pair p;
+    p.zone(r.zone);
+    p.his(R, 100, 0), p.hostgame.now.block = true;
+    p.step();
+    assert(p.hostgame.holds == 1);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 0, 0}};
+    p.step();
+    assert(p.hostgame.plays == 1 && !p.hostgame.paused && p.host.leads(R));
+  }
+  { // hold_cap: no Leader and no line for kStartMs, then his own presses count; said once, held once a play.
+    Pair p;
+    p.zone(r.zone);
+    p.his(R, 100, 0), p.hostgame.now.block = true;
+    p.step();
+    assert(p.hostgame.holds == 1);
+    p.step(kStartMs - 1);
+    assert(p.hostgame.plays == 0);
+    p.step(1);
+    assert(p.hostgame.plays == 1 && !p.hostgame.paused && count(p.host.log, "our own presses count") == 1);
+    p.step(), p.step();
+    assert(p.hostgame.holds == 1 && count(p.host.log, "our own presses count") == 1);
+  }
+  { // stale_leader_refused (Review Focus 5): the host named the next member; her play line for R from the old try
+    // is refused and nothing starts.
+    Pair p;
+    p.zone(r.zone);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.step();
+    p.hg.leaders = {Leader{R, 0, 1}};
+    p.step();
+    p.her(R);
+    assert(p.guest.send(Pair::root(1, r), p.now));
+    p.step(), p.step();
+    assert(p.host.counters.bad == 1 && saw(p.host.log, "a scene line from a member who does not lead it at try 1"));
+    assert(p.hostgame.starts.empty() && !p.host.active());
+  }
+  { // miss_clears_leader: R ends on both sides; its next try waits at its first QTE block on both sides for the
+    // host's new owner instead of following the old one.
+    Pair p;
+    p.zone(r.zone);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.his(R), p.her(R);
+    p.step();
+    assert(p.guest.send(Pair::root(1, r), p.now));
+    p.step(), p.step();
+    assert(p.host.sharing());
+    p.his(""), p.her("");
+    assert(p.guest.send(Pair::ended(1), p.now));
+    p.step(), p.step();
+    assert(p.host.qte_ended == std::vector<std::string>{R} && p.guest.qte_ended == std::vector<std::string>{R});
+    p.host.qte_ended.clear(), p.guest.qte_ended.clear();
+    const uint64_t sent = p.guest.counters.sent;
+    p.his(R), p.her(R);
+    p.hostgame.now.block = p.game.now.block = true;
+    p.step();
+    assert(!p.guest.leads(R) && p.host.leads(R) && p.guest.leader_of(R) == kHostMember);
+    assert(!p.guest.send(Pair::root(2, r), p.now) && p.guest.counters.sent == sent);
+    assert(p.hostgame.holds == 1 && p.game.holds == 1 && p.hostgame.paused && p.game.paused);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 0, 1}};
+    p.step();
+    assert(p.host.leads(R) && p.hostgame.plays == 1 && !p.hostgame.paused);
+    assert(p.game.paused && p.game.plays == 0); // She follows him now: held until his lines come.
+    // A new fight (the fight forgets its owners at a world change): a try 0 counts again.
+    p.hg.leaders = p.gg.leaders = {};
+    p.step();
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.step();
+    assert(p.guest.leads(R) && !p.game.paused);
+  }
+  { // The lead comes to her while she follows his copy of R (no Leader yet, so her presses stay hers): a Leader
+    // naming him makes it shared; one naming her gives her copy back to her and his root no longer goes.
+    Pair p;
+    p.zone(r.zone);
+    p.his(R), p.her(R);
+    assert(p.host.send(Pair::root(1, r), p.now) && p.host.send(Pair::place(1, 100, 40), p.now));
+    p.step();
+    assert(p.guest.active() && !p.guest.sharing());
+    p.her(R, 100, 40);
+    p.step();
+    assert(p.game.paused && p.game.holds == 1);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 0, 0}};
+    p.step();
+    assert(p.guest.sharing() && p.game.paused);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.step();
+    assert(!p.guest.active() && !p.game.paused && p.game.releases == 1 && saw(p.guest.log, "we lead it now"));
+    assert(!p.host.send(Pair::root(2, r), p.now));
+  }
+  { // His hold at the first QTE block goes when story together goes off on her side.
+    Pair p;
+    p.zone(r.zone);
+    p.his(R), p.hostgame.now.block = true;
+    p.step();
+    assert(p.hostgame.paused);
+    p.gg.setting = false;
+    p.step(), p.step();
+    assert(!p.hostgame.paused && p.hostgame.plays == 1);
+  }
+  { // exosuit_two_paths: the hub's mapping names one Leader for each QTE scene of the owner's spawn.
+    const std::vector<Leader> l = leaders_of({coop::boss_rows::Owner{1810024004, 1, 0}});
+    assert(l.size() == 2 && l[0].path.find("Lily_QTE_Save.") != std::string::npos);
+    assert(l[1].path.find("Lily_QTE_Die.") != std::string::npos);
+    for (const Leader &x : l)
+      assert(x.member == 1 && x.tries == 0 && qte_scene(x.path));
+    assert(leaders_of({coop::boss_rows::Owner{1710024026, 1, 0}}).empty()); // HedgeBoarBrute: no QTE.
+    // Back: the ended QTE scenes' spawns; a scene that is no boss QTE gives none.
+    const std::vector<uint32_t> s = spawns_of({l[1].path, R, plain_row().path, "/Game/x.x"});
+    assert(s == (std::vector<uint32_t>{1810024004, 1410024156}));
+  }
+  { // play_waits_while_spectating: the host's boss trigger scene waits on her side while she watches the fight.
+    const Scene &b = *scene_row("WLA_10_E_Theater_006"); // MV_Nest_RavenBattle, the Raven's 60 % scene.
+    assert(coop::boss_rows::by_scene(b.path) && !coop::boss_rows::by_scene(plain_row().path));
+    for (int run = 0; run < 3; ++run) {
+      Pair p;
+      p.zone(b.zone);
+      p.gg.spectating = true;
+      if (run == 2)
+        p.game.reads.alive = false; // Still down at the end of the wait: today's gate refuses it.
+      assert(p.play(1, b));
+      p.flow();
+      const uint64_t t0 = p.now;
+      p.now = t0 + 500;
+      if (run == 1) { // She gets up within the wait: it starts at once.
+        p.gg.spectating = false;
+        p.flow();
+        assert(p.game.starts.size() == 1 && count(p.guest.log, "watched the fight") == 0);
+        continue;
+      }
+      p.flow();
+      p.now = t0 + kSpectateWaitMs - 1;
+      p.flow();
+      assert(p.game.starts.empty() && p.guest.queued() == 1);
+      p.now = t0 + kSpectateWaitMs;
+      p.flow();
+      assert(count(p.guest.log, "watched the fight") == 1 && p.guest.queued() == 0);
+      assert(run == 0 ? p.game.starts.size() == 1 : p.game.starts.empty() && saw(p.guest.log, "(dead)"));
+    }
+    Pair p; // A scene no boss trigger names starts at once.
+    p.gg.spectating = true;
+    assert(p.play(1, plain_row()));
+    p.flow();
+    assert(p.game.starts.size() == 1);
+  }
+  { // qte_ended_reported: the leader's end line with our copy gone gives R once; a scene that is no QTE gives none.
+    Pair p;
+    p.zone(r.zone);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.his(R), p.her(R);
+    p.step();
+    assert(p.guest.send(Pair::root(1, r), p.now));
+    p.step(), p.step();
+    assert(p.guest.send(Pair::ended(1), p.now));
+    p.his("");
+    p.step(), p.step();
+    assert(p.host.qte_ended == std::vector<std::string>{R} && p.guest.qte_ended.empty());
+    Pair o;
+    const Scene &row = plain_row();
+    assert(o.play(1, row));
+    o.flow();
+    o.her(row.path), o.his(row.path);
+    o.step();
+    assert(o.end(1));
+    o.her(""), o.his("");
+    o.step(), o.step();
+    assert(o.guest.counters.shared == 1 && o.guest.qte_ended.empty() && o.host.qte_ended.empty());
+  }
+  { // hooks_follow_leader: our QTE result goes out only while we lead the playing scene.
+    Pair p;
+    p.zone(r.zone);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.step();
+    Lead lead;
+    Theater t;
+    t.present = t.ready = true, t.id = 40, t.path = R, t.priority = r.priority, t.finish = r.finish;
+    t.pos = Pos{100, "Seq_A", 0, true};
+    Outcome q;
+    q.play = 40, q.m.type = Type::qte, q.m.take = 100, q.m.value = 6;
+    t.results = {q};
+    p.host.out.clear();
+    lead.pass(t, r.zone, p.host, p.now);
+    assert(p.host.out.empty() && saw(p.host.log, "results of play 40 are not sent"));
+    p.hg.leaders = {Leader{R, 0, 1}};
+    p.host.pass(p.hg, p.now += 16);
+    p.host.out.clear();
+    t.results.clear();
+    lead.pass(t, r.zone, p.host, p.now += 16);
+    std::vector<std::string> l = std::exchange(p.host.out, {});
+    assert(l.size() == 2 && l[0].find(" play ") != std::string::npos && l[0].find(" " + std::string(r.row) + " ") !=
+                                                                             std::string::npos);
+    t.results = {q}, t.pos.frame = 1;
+    lead.pass(t, r.zone, p.host, p.now += 16);
+    l = std::exchange(p.host.out, {});
+    assert(!l.empty() && l[0].find(" qte ") != std::string::npos);
+  }
+}
+
 void test_status() {
   Pair p;
   assert(p.guest.status() ==
@@ -973,6 +1264,7 @@ int main() {
   test_partner_and_off();
   test_lead();
   test_lead_results();
+  test_leaders();
   test_status();
   std::printf("story sync: ok\n");
 }

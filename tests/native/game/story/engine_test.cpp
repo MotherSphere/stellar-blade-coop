@@ -667,6 +667,36 @@ void test_guest_counts() {
   assert(w.g.calls.size() == before);
 }
 
+// Phase 3: her() tells a QTE or InputCounter block of the theater that plays still open (the first-QTE-block hold of a
+// boss QTE scene); while Lead reads our theater, her() leaves the menus to theater(), so a menu that closes still goes.
+void test_her_block() {
+  World w;
+  assert(!w.e.her().block);
+  const uint64_t qte = w.g.alloc(0x860);
+  w.g.put<int32_t>(qte + kBlockResult, -1); // The block start 0x1425498e0 opens it before OnStartBlock.
+  w.e.block_started(Type::qte, qte, true, false);
+  assert(w.e.her().block);
+  w.g.put<int32_t>(qte + kBlockResult, 0); // FinishBlock wrote its result.
+  assert(!w.e.her().block);
+  w.g.put<int32_t>(qte + kBlockResult, -1);
+  w.g.put<int32_t>(w.p + kPlayId, 42); // Another play: its block is not this one's.
+  assert(!w.e.her().block);
+  w.g.put<int32_t>(w.p + kPlayId, 41);
+  w.g.gone[qte] = true;
+  assert(!w.e.her().block);
+  w.g.gone.erase(qte);
+  w.g.put<uint64_t>(w.c + kTakeData, 0); // No take started: no path, no block.
+  assert(!w.e.her().block);
+  w.g.put(w.c + kTakeData, w.data);
+  // A PlayerChoice that closes between her() and theater() while Lead reads: still read.
+  w.e.reading = true;
+  open(w, w.choice), w.e.her(), w.e.theater();
+  w.g.put<int32_t>(w.choice + kBlockResult, 2);
+  w.e.her();
+  const std::vector<Outcome> r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.type == Type::pch && r[0].m.value == 2);
+}
+
 } // namespace
 
 int main() {
@@ -678,5 +708,6 @@ int main() {
   test_host_results();
   test_guest_choices();
   test_guest_counts();
+  test_her_block();
   std::printf("story engine: ok\n");
 }

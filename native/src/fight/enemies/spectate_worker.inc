@@ -107,6 +107,10 @@ std::string spectate_status() {
 }
 } // namespace
 
+// Our player watches a boss fight: the on bit of the word the game thread publishes (spectate.h's word()), for story
+// together's play wait through the hub.
+bool fight_spectating() { return pinned && !blocked && (fight_mail.spectate.load() & 1); }
+
 // Lua's spectate on, off, status or test (link/protocol.h). on and off: the setting, read by the game thread's next
 // step (off ends spectate with the death screen back). test: alone at life 3, the death screen hidden from the next
 // frame until our EVE is up or 14 s passed, so Lua's camera and respawn can be tried with nobody linked.

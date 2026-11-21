@@ -1048,18 +1048,22 @@ bool step() {
                            });
     if (solo) // world_pass took its SBW lines out: the rest are the pair's SBS and fight lines.
       channel2.clear();
-    coop::pose::story_pass(pair_now, pair_now && link->host(), link && link->match(), channel2,
-                           [](const std::string &line) {
-                             const uint64_t pair = link ? link->partner() : 0;
-                             return !pair_paused && pair && link->send_fight(line, true, pair);
-                           });
+    // Phase 3's boss QTE: the fight's owners and our spectating go to story; its ended QTE scenes to the fight.
+    std::vector<uint32_t> qte_ended;
+    coop::pose::story_pass(
+        pair_now, pair_now && link->host(), link && link->match(), channel2,
+        [](const std::string &line) {
+          const uint64_t pair = link ? link->partner() : 0;
+          return !pair_paused && pair && link->send_fight(line, true, pair);
+        },
+        coop::pose::fight_qte_owners(), coop::pose::fight_spectating(), qte_ended);
     bool fighting = coop::pose::fight_pass(
         GetTickCount64(), pair_now != 0, pair_now && link->host(), coop_marker, channel2,
         [](const std::string &line, bool reliable) {
           const uint64_t pair = link ? link->partner() : 0;
           return !pair_paused && pair && link->send_fight(line, reliable, pair);
         },
-        pair_now ? link->mate_life() : coop::Life::unknown, pair_now, {}, coop::pose::story_together());
+        pair_now ? link->mate_life() : coop::Life::unknown, pair_now, qte_ended, coop::pose::story_together());
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
     coop::pose::peer(

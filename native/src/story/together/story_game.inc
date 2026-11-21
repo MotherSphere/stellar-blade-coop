@@ -4,8 +4,9 @@
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // Story together (game/story/engine.h, game/story/sync.h) on the game thread: hook 1 in the ActionTheater node's slot,
 // hooks 2 and 3 in the QTE's and the InputCounter's OnStartBlock slots, hook 4 called by the SBO lobby's hook in the
-// ZoneEvent action's slot. Each frame's pass takes her lines in, follows her copy, then reads and sends our theater and
-// our story trips while we host. Also the shared quests' holds on a step of hers the host would make (quest_host_hold).
+// ZoneEvent action's slot. Each frame's pass takes her lines in, follows our copy of a scene she leads, then reads and
+// sends our theater while we lead a scene (phase 3: the host, or a guest a boss QTE Leader names) and our story trips
+// while we host. Also the shared quests' holds on a step of hers the host would make (quest_host_hold).
 
 namespace coop::pose {
 namespace {
@@ -18,12 +19,15 @@ std::mutex story_m;
 std::vector<std::string> story_in, story_out, story_said;
 story::Gates story_gates;
 std::string story_line = "story=off";
-bool story_leading = false;  // We read our theater for her: hook 3 reads a block before its widget's next start.
+bool story_leading = false;  // Lead reads our theater for her: hook 3 reads a block before its widget's next start.
 bool story_holding = false;  // Her copy follows his: hooks 2 and 3 take her presses on each new block.
 // Story together runs on both sides (phase 3's boss QTE): our gates ready and her on line heard, as of the last pass.
 // story_together() reads it for the hub.
 std::atomic<bool> story_together_on{false};
 std::vector<std::string> story_pending_out, story_pending_said; // Not handed over yet (the lock was busy).
+// Boss QTE scenes that ended here while followed or led (Sync::qte_ended), for the hub's fight: handed over under
+// story_m, pending while the lock was busy.
+std::vector<std::string> story_ended, story_pending_ended;
 constexpr uint64_t kStoryTripKeepMs = 60000;
 
 // game/story/engine.h's Game: the shared world's reads, writes and names, then SB's theater calls.
@@ -218,6 +222,13 @@ __declspec(noinline) void story_body(std::vector<std::string> &in, story::Gates 
     // Her start waits while our pause tag holds (freeze_game.inc): story_scene below lifts it first.
     gates.in_game = in_game && !freeze_held;
     story_engine.in_step = !gates.host && quest_engine.story_in_step();
+    // Lead reads our theater with a friend who can take it: on the host or on a guest a boss QTE Leader names. Its
+    // theater() then tracks our menus, so the pass's her() leaves them. A pass out of game keeps the scene as it stood.
+    const bool lead = gates.setting && gates.partner && !gates.match && gates.coop_save;
+    const bool named = std::any_of(gates.leaders.begin(), gates.leaders.end(),
+                                   [&](const story::Leader &l) { return l.member == gates.me; });
+    story_leading = lead && in_game && (gates.host || named);
+    story_engine.reading = story_leading;
     for (const std::string &l : in)
       story_sync.receive(l, gates);
     const uint64_t now = GetTickCount64();
@@ -228,20 +239,20 @@ __declspec(noinline) void story_body(std::vector<std::string> &in, story::Gates 
     if (story_holding)
       story_engine.block_skip(), story_engine.hold_widgets();
     story_applying = false;
-    // Read only with a friend who can take it; a pass out of game keeps the scene as it stood.
-    const bool lead = gates.host && gates.setting && gates.partner && !gates.match && gates.coop_save;
-    story_leading = lead && in_game, story_trip_lead = lead;
+    story_trip_lead = lead && gates.host; // Trips go only from the host.
     if (story_leading)
       story_lead.pass(story_engine.theater(), story_engine.zone(), story_sync, now);
     // After the scene's lines: a talk's end goes before the trip its graph ran.
-    story_trips_pass(lead ? nullptr : "we no longer lead", now);
+    story_trips_pass(story_trip_lead ? nullptr : "we no longer lead", now);
     story_scene = story_sync.active() || story_sync.pending();
     for (std::string &l : story_sync.out)
       story_pending_out.push_back(std::move(l));
     for (std::vector<std::string> *log : {&story_sync.log, &story_engine.log})
       for (std::string &l : *log)
         story_pending_said.push_back(std::move(l));
-    story_sync.out.clear(), story_sync.log.clear(), story_engine.log.clear();
+    for (std::string &p : story_sync.qte_ended)
+      story_pending_ended.push_back(std::move(p));
+    story_sync.out.clear(), story_sync.log.clear(), story_engine.log.clear(), story_sync.qte_ended.clear();
     line = story_sync.status();
   } catch (...) {
     story_faulted = true;
@@ -277,6 +288,8 @@ void story_tick() {
       story_out.swap(story_pending_out);
     if (story_said.empty())
       story_said.swap(story_pending_said);
+    if (story_ended.empty())
+      story_ended.swap(story_pending_ended);
     story_line.swap(line);
     story_m.unlock();
   }

@@ -155,6 +155,9 @@ std::string ask_scenes(const coop::Request &request);
 // setting until the next ask (on until the first one); status returns its words; test hides the death screen at life
 // 3 while nobody is paired, until our EVE is up or 14 s passed. Returns the line for the log.
 std::string ask_spectate(const coop::Request &request);
+// Worker: our player watches a boss fight (spectate's on bit, as the game thread last published it); false off the
+// pinned build and after coop off. The hub hands it to story_pass.
+bool fight_spectating();
 // Worker, every pass after world_pass and before fight_pass, story together (game/story/sync.h, game/story/engine.h):
 // takes her SBS lines out of lines and hands them to the game thread with the gates (shared_story, on while Lua sets
 // nothing; partner: her SteamID while she is linked, else 0; host: we own the lobby and lead; match: a match lobby, the
@@ -162,9 +165,13 @@ std::string ask_spectate(const coop::Request &request);
 // line).
 // It swaps hooks 1 to 3 in once those gates first open, then sends and logs what the game thread's passes made. send:
 // a line to her on channel 2, reliable (false when it cannot go: the line then waits for the next pass). After the
-// first fault: off to her once, the hooks out, nothing more.
+// first fault: off to her once, the hooks out, nothing more. Phase 3, through the hub: qte, the boss QTE owners
+// (fight_qte_owners()), each naming the leader of its spawn's QTE scenes; spectating, fight_spectating(), so a boss
+// scene of the host waits on our side while our player watches the fight; qte_ended, filled with the spawns whose
+// QTE scene ended in our game while followed or led, for fight_pass.
 void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
-                bool (*send)(const std::string &));
+                bool (*send)(const std::string &), const std::vector<coop::boss_rows::Owner> &qte, bool spectating,
+                std::vector<uint32_t> &qte_ended);
 // Worker: coop-status.txt's story line (game/story/sync.h's Sync::status, then hooks=<slots of 4> inbox_dropped=<n>
 // unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or story=off why=build|coop_off, or
 // story=stopped after a fault.

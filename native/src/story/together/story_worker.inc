@@ -115,7 +115,9 @@ std::string ask_scenes(const coop::Request &request) {
 }
 
 void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
-                bool (*send)(const std::string &)) {
+                bool (*send)(const std::string &), const std::vector<boss_rows::Owner> &qte, bool spectating,
+                std::vector<uint32_t> &qte_ended) {
+  qte_ended.clear();
   const std::string tag = story_tag() + " ";
   std::vector<std::string> hers;
   for (auto it = lines.begin(); it != lines.end();)
@@ -181,6 +183,9 @@ void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string
   g.host = host;
   g.match = match || sbo_run.record.state != sbo::Record::closed; // A match lobby, or the SBO lobby's session.
   g.coop_save = world::slot_coop(quest_slot_line, story_slot_coop);
+  g.me = host ? story::kHostMember : 1; // 7b1: the host is member 0, the pair 1.
+  g.spectating = spectating;
+  g.leaders = story::leaders_of(qte);
   if (!story_tried && g.setting && g.partner && !g.match && g.coop_save)
     story_install();
   for (const StorySlot &k : story_slots)
@@ -192,14 +197,16 @@ void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string
     else if (!story_dropped++)
       say("story: " + std::to_string(kStoryInbox) + " partner lines wait for the game thread, newer ones are dropped "
           "(said once, counted in inbox_dropped)");
-  std::vector<std::string> out;
+  std::vector<std::string> out, ended;
   {
     std::lock_guard<std::mutex> lock(story_m); // Swaps only: the game thread never waits for it.
     story_gates = g;
     if (story_in.empty())
       story_in.swap(story_waiting);
     out.swap(story_out);
+    ended.swap(story_ended);
   }
+  qte_ended = story::spawns_of(ended);
   flush(out);
 }
 

@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Story together: the host's story scenes and story trips, followed in the guest's game, as pure logic. The host leads
-// and never waits. For each scene he plays he sends its root (a ZoneEventTable row, or a talk's theater path), then his
-// place in it and every result that picks a branch (a choice, a QTE or InputCounter count, a skip), then its end. The
-// guest replays the root through the function SB used, with her own player as caster, so her game runs the scene's end
-// from its own tables. Each host result is written once into her copy for its take. It is dropped once her copy has
-// left that take. A leash pauses her copy where the host's last position stands and lets it play when he
-// moves on, so it never runs ahead of him. When his scene ends, the link drops or he starts another scene, the leash
-// goes and her copy plays out. A scene she cannot play keeps today's cutscene wait. Lead turns the host's theater, as
-// game/story/engine.h reads it, into his lines. Nothing here reads memory or calls the game: game/story/engine.h does,
-// behind Engine. tests/native/game/story/sync_test.cpp drives this file on the build machine with a fake one. No
-// Windows types.
+// and never waits. A boss QTE scene the shared fight gave to a member (its qte-own line, handed over by the hub as a
+// Leader) is led by that member at that try: the other side follows it as below, with the roles swapped. For each scene
+// he plays he sends its root (a ZoneEventTable row, or a talk's theater path), then his place in it and every result
+// that picks a branch (a choice, a QTE or InputCounter count, a skip), then its end. The guest replays the root through
+// the function SB used, with her own player as caster, so her game runs the scene's end from its own tables. Each host
+// result is written once into her copy for its take. It is dropped once her copy has left that take. A leash pauses her
+// copy where the host's last position stands and lets it play when he moves on, so it never runs ahead of him. When his
+// scene ends, the link drops or he starts another scene, the leash goes and her copy plays out. A scene she cannot play
+// keeps today's cutscene wait. Lead turns the host's theater, as game/story/engine.h reads it, into his lines. Nothing
+// here reads memory or calls the game: game/story/engine.h does, behind Engine. tests/native/game/story/sync_test.cpp
+// drives this file on the build machine with a fake one. No Windows types.
 //
 // Channel 2 (link/core.h), reliable, plain text after story_tag(), at most kMaxMessage bytes. Names are FName text
 // (alias_word()) and paths path_word(); the receiver finds them, never makes them. scene is the host's own number for
@@ -49,7 +50,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <iterator>
+#include <map>
 #include <set>
 #include <string>
 #include <string_view>
@@ -58,6 +61,7 @@
 #include <vector>
 
 #include "link/protocol.h" // alias_word, number, split, kMaxMessage, story_tag
+#include "game/boss_rows.h"   // by_scene, qte_rows, Owner
 #include "game/story/rows.h"
 
 namespace coop::story {
@@ -272,6 +276,7 @@ struct Her {
   std::string path;     // the path her theater manager plays, "" for none
   Pos pos;              // that theater's place
   bool waiting = false; // a dialogue line of it waits for a press
+  bool block = false;   // a QTE or InputCounter block of that theater started and is still open
 };
 // What the gate reads just before a start or a trip.
 struct Here {
@@ -337,17 +342,64 @@ private:
   std::deque<std::pair<std::string, uint64_t>> ends_;
 };
 
+// ---- Leaders (phase 3) ----
+
+// Member numbers as on channel 2: the host is 0, 7b1's pair is 1.
+constexpr uint8_t kHostMember = 0;
+// story's own copy of the fight's kSceneHoldMs: how long a boss scene of the host waits on our side while our player
+// watches the fight.
+constexpr uint64_t kSpectateWaitMs = 2000;
+// A boss QTE scene's leader as the hub names it from the fight's latest qte-own: the member who plays it, at which try.
+struct Leader {
+  std::string path;
+  uint8_t member = 0;
+  uint8_t tries = 0;
+};
+// A theater path of a boss QTE trigger (game/boss_rows.h).
+inline bool qte_scene(std::string_view path) {
+  for (const boss_rows::Trigger &t : boss_rows::kTriggers)
+    if (t.qte && path == t.scene)
+      return true;
+  return false;
+}
+// The hub's mapping: one Leader for every QTE scene of each owner's spawn (ExoSuit has two).
+inline std::vector<Leader> leaders_of(const std::vector<boss_rows::Owner> &owners) {
+  std::vector<Leader> out;
+  for (const boss_rows::Owner &o : owners) {
+    const boss_rows::Trigger *t[std::size(boss_rows::kTriggers)];
+    const size_t n = boss_rows::qte_rows(o.spawn, t, std::size(t));
+    for (size_t i = 0; i < n; ++i)
+      out.push_back(Leader{t[i]->scene, o.member, o.tries});
+  }
+  return out;
+}
+// The other way, for the fight's misses: the spawn of each boss QTE scene that ended here; a path that is none gives
+// nothing.
+inline std::vector<uint32_t> spawns_of(const std::vector<std::string> &paths) {
+  std::vector<uint32_t> out;
+  for (const std::string &p : paths)
+    for (const boss_rows::Trigger &t : boss_rows::kTriggers)
+      if (t.qte && p == t.scene) {
+        out.push_back(t.spawn);
+        break;
+      }
+  return out;
+}
+
 // ---- The two sides ----
 
 // What the glue knows each pass.
 struct Gates {
   bool setting = true;    // shared_story on (coop-settings.txt, or coop scenes on|off until reload)
   uint64_t partner = 0;   // her SteamID while she is linked, else 0
-  bool host = false;      // we lead: our scenes go to her, hers stay hers
+  bool host = false;      // we host: we lead every scene no Leader names, trips go only from us
   bool match = false;     // a match lobby or the SBO lobby, where nobody plays a co-op save
   bool coop_save = false; // we play a co-op save
   bool in_game = false;   // in game, not loading, not on the logic thread: her lines wait otherwise
   uint8_t hooks = 0;      // our hooks in (kHookTalk, kHookQte, kHookCounter), told to her on our on line
+  uint8_t me = kHostMember;    // our member number
+  bool spectating = false;     // our player watches a boss fight (the fight's spectate)
+  std::vector<Leader> leaders; // the boss QTE scenes' leaders, from the fight's qte-own lines
 };
 
 // The guest's game side, behind game/story/engine.h. Every call is on the game thread, in game.
@@ -397,11 +449,12 @@ class Sync {
 public:
   explicit Sync(Engine &e) : e_(e) {}
 
-  // Host: one line to her, its seq set here. A scene's results go before the position that passes them. False when not
-  // sent: the feature off on either side, off the lists, a value no line carries, or a position that changed only its
-  // frame within kPosMs of the last one sent.
+  // One line to her, its seq set here: the root of a scene we lead (ours()), then its later lines; a trip only from the
+  // host. A scene's results go before the position that passes them. False when not sent: the feature off on either
+  // side, a scene we do not lead, off the lists, a value no line carries, or a position that changed only its frame
+  // within kPosMs of the last one sent.
   bool send(Message m, uint64_t now_ms) {
-    if (!gates_.host || !ready(gates_) || !her_on_) {
+    if (!ready(gates_) || !her_on_ || !ours(m)) {
       ++counters.skipped;
       return false;
     }
@@ -429,6 +482,8 @@ public:
       last_pos_ = m, last_pos_ms_ = now_ms;
     else if (m.type == Type::play || m.type == Type::talk || m.type == Type::end)
       last_pos_ = Message();
+    if (m.type == Type::play || m.type == Type::talk)
+      sent_root_ = true, send_scene_ = m.scene, led_path_ = path_of(m);
     out.push_back(line);
     ++seq_, ++counters.sent;
     return true;
@@ -443,7 +498,7 @@ public:
     if (m.type == Type::on || m.type == Type::off) {
       const bool on = m.type == Type::on;
       if (on)
-        last_ = 0, her_hooks_ = m.hooks; // Her seq starts again after each on.
+        last_ = 0, her_hooks_ = m.hooks, wait_seq_ = 0; // Her seq starts again after each on.
       her_on_ = on;
       std::string said = on ? "story: partner on" : "story: partner off (" + m.reason + ")";
       // Her presses on a QTE or InputCounter are taken only when the host's hook for that class reads his results.
@@ -454,8 +509,8 @@ public:
       log.push_back(said);
       return;
     }
-    if (g.host)
-      return bad("a scene line from the guest");
+    if (g.host && m.type == Type::trip)
+      return bad("a trip line from the guest");
     if (m.seq <= last_)
       return bad("old seq");
     ++counters.received;
@@ -472,6 +527,9 @@ public:
       ++counters.dropped;
       return say("list " + m.name, m.name + " from the host is not on the lists, dropped");
     }
+    // A scene's root only from the member who leads it at its latest try; its later lines go by its scene number.
+    if ((m.type == Type::play || m.type == Type::talk) && leader_of(path_of(m)) != partner_member())
+      return bad("a scene line from a member who does not lead it at try " + std::to_string(tries_of(path_of(m))));
     // Only the last of positions in a row counts: take() keeps each one until the next.
     if (m.type == Type::pos && !queue_.empty() && queue_.back().type == Type::pos && queue_.back().scene == m.scene) {
       queue_.back() = m;
@@ -486,33 +544,42 @@ public:
     queue_.push_back(m);
   }
 
-  // Each game thread pass: our on or off when it changed, then on the guest, in game: her theater read, her lines in
-  // seq order (one start per pass), her copy followed, then a waiting trip once no shared copy plays.
+  // Each game thread pass: our on or off when it changed, then on either side, in game: our theater read, her lines in
+  // seq order (one start per pass), our copy of her scene followed, our hold at a boss QTE scene's first block, then a
+  // waiting trip once no shared copy plays.
   void pass(const Gates &g, uint64_t now_ms) {
     follow(g);
     if (g.in_game)
       settle();
     if (queue_.empty())
       overflowing_ = false;
-    if (!ready(g) || !her_on_ || g.host) {
+    forget_ended();
+    if (!ready(g) || !her_on_) {
       counters.gated += queue_.size() + trips_.size();
-      queue_.clear(), trips_.clear();
+      queue_.clear(), trips_.clear(), wait_seq_ = 0;
       if (copy_.state != State::none)
         drop_copy(g.in_game, "the feature is off on one side");
+      unhold(g.in_game);
       return;
     }
     if (!g.in_game)
       return;
     const Her her = e_.her(); // Each pass, so the replay guard sees her own scenes end too.
-    if (her.path != last_path_)
+    if (her.path != last_path_) {
+      ended_here(last_path_);
       played_.ended(last_path_, now_ms), last_path_ = her.path;
+    }
+    if (copy_.state != State::none && leads(copy_.path))
+      drop_copy(true, "we lead it now");
     bool called = false;
-    while (!queue_.empty() && !(called && (queue_.front().type == Type::play || queue_.front().type == Type::talk))) {
+    while (!queue_.empty() && !(called && (queue_.front().type == Type::play || queue_.front().type == Type::talk)) &&
+           !waits(queue_.front(), g, now_ms)) {
       const Message m = std::move(queue_.front());
       queue_.pop_front();
       take(m, her, now_ms, called);
     }
     follow_copy(her, now_ms);
+    qte_hold(her, now_ms);
     if (!called && copy_.state == State::none && !trips_.empty()) {
       const Message m = std::move(trips_.front());
       trips_.pop_front();
@@ -546,12 +613,21 @@ public:
     return std::any_of(queue_.begin(), queue_.end(),
                        [](const Message &m) { return m.type == Type::play || m.type == Type::talk; });
   }
-  // Her copy follows the host's: the holds on her input (her skip, her widgets' presses) apply.
-  bool sharing() const { return copy_.state == State::shared; }
+  // Her copy follows the host's: the holds on her input (her skip, her widgets' presses) apply. Not for a boss QTE
+  // scene whose leader is not named yet: the lead may still come to us.
+  bool sharing() const { return copy_.state == State::shared && !(qte_scene(copy_.path) && !named(copy_.path)); }
+  // The member who leads a scene: the one a Leader names at a try above the last try of that scene that ended here,
+  // else the host.
+  uint8_t leader_of(std::string_view path) const {
+    const Leader *l = named(path);
+    return l ? l->member : kHostMember;
+  }
+  bool leads(std::string_view path) const { return leader_of(path) == gates_.me; }
 
   Counters counters;
-  std::vector<std::string> out; // Lines to send her on channel 2, reliable, taken by the glue.
-  std::vector<std::string> log; // Lines for coop-*.log, taken by the glue.
+  std::vector<std::string> out;       // Lines to send her on channel 2, reliable, taken by the glue.
+  std::vector<std::string> log;       // Lines for coop-*.log, taken by the glue.
+  std::vector<std::string> qte_ended; // Boss QTE scenes that ended here while followed or led, taken by the glue.
 
 private:
   // none: no shared copy. starting: started or attached, her theater not seen yet. shared: her copy follows the host's.
@@ -576,7 +652,121 @@ private:
     std::set<Key> done;     // results applied in her current visit of a take
   };
 
+  // Our first-QTE-block hold of one play of a boss QTE scene.
+  struct Hold {
+    std::string path;
+    bool held = false, done = false;
+    uint64_t since = 0;
+  };
+
   static bool ready(const Gates &g) { return g.setting && g.partner && !g.match && g.coop_save; }
+
+  // The theater path a root names: a play's row's, a talk's own; "" for any other line.
+  static std::string path_of(const Message &m) {
+    if (m.type == Type::talk)
+      return m.name;
+    const Scene *s = m.type == Type::play ? scene_row(m.name) : nullptr;
+    return s ? s->path : std::string();
+  }
+  // shortcut: two members (7b1's pair), so the partner is the host or member 1; 7b2 needs each line's sender.
+  uint8_t partner_member() const { return gates_.me == kHostMember ? 1 : kHostMember; }
+  // The Leader that names path at a try above the last try of it that ended here; null for none.
+  const Leader *named(std::string_view path) const {
+    for (const Leader &l : gates_.leaders)
+      if (l.path == path) {
+        const auto e = ended_.find(path);
+        return e != ended_.end() && int(l.tries) <= e->second ? nullptr : &l;
+      }
+    return nullptr;
+  }
+  // The try a Leader names for path, 0 for none: the log's word for a refused root.
+  uint8_t tries_of(std::string_view path) const {
+    for (const Leader &l : gates_.leaders)
+      if (l.path == path)
+        return l.tries;
+    return 0;
+  }
+  // A line of ours goes: a root of a scene we lead, a later line of the last root we sent; a trip or any other line
+  // only from the host.
+  bool ours(const Message &m) const {
+    if (m.type == Type::play || m.type == Type::talk)
+      return leads(path_of(m));
+    if (m.type != Type::trip && sent_root_ && m.scene == send_scene_)
+      return true;
+    return gates_.host;
+  }
+  // The tries that ended here are kept only while a Leader still names their scene (the fight forgets its owners at a
+  // world change, so a new fight's try 0 counts again).
+  void forget_ended() {
+    for (auto it = ended_.begin(); it != ended_.end();)
+      it = std::any_of(gates_.leaders.begin(), gates_.leaders.end(),
+                       [&](const Leader &l) { return l.path == it->first; })
+               ? std::next(it)
+               : ended_.erase(it);
+  }
+  // Our theater's last path ended here: a boss QTE scene we followed or led goes to qte_ended. The Leader that named
+  // it at that try counts as none from now on.
+  void ended_here(const std::string &path) {
+    const bool led = !path.empty() && path == led_path_;
+    if (led)
+      led_path_.clear();
+    if (!qte_scene(path) || !(led || (copy_.state != State::none && copy_.path == path)))
+      return;
+    qte_ended.push_back(path);
+    for (const Leader &l : gates_.leaders)
+      if (l.path == path) {
+        int &e = ended_.emplace(path, -1).first->second;
+        e = std::max(e, int(l.tries));
+      }
+  }
+  // While our player watches a boss fight, a play line of a boss trigger scene waits for her to get up,
+  // kSpectateWaitMs at most, then goes to the gate, which refuses it while our EVE is still down.
+  bool waits(const Message &m, const Gates &g, uint64_t now_ms) {
+    if (m.type != Type::play || !boss_rows::by_scene(path_of(m)) || !g.spectating)
+      return wait_seq_ = 0, false;
+    if (wait_seq_ != m.seq)
+      wait_seq_ = m.seq, wait_since_ = now_ms;
+    if (now_ms < wait_since_ + kSpectateWaitMs)
+      return true;
+    wait_seq_ = 0;
+    log.push_back("story: scene " + std::to_string(m.scene) + " (" + m.name + ") waited " +
+                  std::to_string(kSpectateWaitMs / 1000) +
+                  " s while our player watched the fight: it goes to the gate");
+    return false;
+  }
+  // A boss QTE scene that plays here with no Leader named, or one another member leads whose lines have not come: our
+  // player waits at its first QTE block (the leash's pause) until a Leader names us, her copy is followed (the leash
+  // takes the pause over) or kStartMs passed. Then our own presses count. Once a play.
+  void qte_hold(const Her &her, uint64_t now_ms) {
+    if (her.path != hold_.path)
+      hold_ = Hold{her.path}; // Another play: the pause of the last one went with its player.
+    if (hold_.done || !qte_scene(her.path))
+      return;
+    const bool mine = named(her.path) && leads(her.path);
+    const bool followed = copy_.state == State::shared && copy_.path == her.path;
+    if (!hold_.held) {
+      if (mine || followed)
+        hold_.done = true;
+      else if (her.block && her.pos.playing)
+        e_.hold(true), hold_.held = true, hold_.since = now_ms, ++counters.holds;
+      return;
+    }
+    if (followed) {
+      copy_.held = true, hold_.held = false, hold_.done = true; // The leash plays it once her place is ahead.
+    } else if (mine || now_ms >= hold_.since + kStartMs) {
+      e_.hold(false), hold_.held = false, hold_.done = true;
+      if (!mine)
+        log.push_back("story: " + her.path + " waited " + std::to_string(kStartMs / 1000) +
+                      " s at its first QTE block with no leader's lines, our own presses count");
+    }
+  }
+  // Our first-QTE-block hold goes: now in game, else at the next pass in game.
+  void unhold(bool in_game) {
+    unhold_ |= std::exchange(hold_.held, false);
+    hold_.done = true;
+    if (in_game)
+      settle();
+  }
   static const char *mine(const Gates &g) {
     return !g.setting ? "setting" : g.match ? "match" : !g.coop_save ? "save" : nullptr;
   }
@@ -598,6 +788,8 @@ private:
       counters.gated += queue_.size() + trips_.size();
       if (copy_.state != State::none)
         drop_copy(g.in_game, "a new partner");
+      unhold(g.in_game);
+      wait_seq_ = 0;
       partner_ = g.partner, her_on_ = false, her_hooks_ = 0, last_ = 0, said_.clear(), queue_.clear(), trips_.clear();
       last_pos_ = Message();
     }
@@ -845,9 +1037,9 @@ private:
     say(key, text);
   }
   void drop(const std::string &text) { drop(text, text); }
-  void bad(const char *why) {
+  void bad(const std::string &why) {
     if (++counters.bad == 1)
-      log.push_back(std::string("story: bad partner line (") + why + "), said once");
+      log.push_back("story: bad partner line (" + why + "), said once");
   }
 
   Engine &e_;
@@ -865,6 +1057,13 @@ private:
   Played played_;
   std::string last_path_; // The path her theater manager played at the last pass.
   std::set<std::string> said_keys_;
+  bool sent_root_ = false;  // A root of ours went:
+  uint32_t send_scene_ = 0; // the scene number of the last one,
+  std::string led_path_;    // its path, until that path ends here (ended_here()).
+  std::map<std::string, int, std::less<>> ended_; // A boss QTE scene's last try that ended here.
+  Hold hold_;
+  uint32_t wait_seq_ = 0;  // The play line that waits while our player watches the fight (its seq), 0 for none,
+  uint64_t wait_since_ = 0; // and since when.
 };
 
 // ---- The host's reader ----
@@ -893,15 +1092,17 @@ struct Theater {
 constexpr int32_t kSeekFrames = 5; // A skip within a take moves at least this far (SB's can-skip test).
 constexpr size_t kTalks = 8;       // The last play ids hook 1 saw.
 
-// The host's side: each pass in game, his theater turned into lines through Sync::send, which drops them while the
-// feature is off on either side. A new theater sends its root once its first take started: talk when hook 1 saw an
-// ActionTheater node start it, else play with its ZoneEventTable row (game/story/rows.h scene()). A path neither one
-// names came from one of the other starts (an env state, a fight); it is logged once and not shared. While it plays:
-// the results its widgets committed (a choice, a QTE or InputCounter count), a skip that moved it (a rise of a skip
-// latch, then a new take or a forward jump of kSeekFrames or more), then its position. So each result goes before the
-// skip that leaves its take, before the position that passes it and before the end of a theater it ended. When it ends
-// or another one starts: end. A skip that ended it sends take -1 before the end. Results of a theater that is not
-// shared are logged once for each play and not sent.
+// The leader's side: each pass in game, our theater turned into lines through Sync::send, which drops them while the
+// feature is off on either side. Only a scene we lead is read (Sync::leads): on the host every scene no Leader names
+// another member for, on a guest a boss QTE scene a Leader names her for. A new theater sends its root once its first
+// take started: talk when hook 1 saw an ActionTheater node start it, else play with its ZoneEventTable row
+// (game/story/rows.h scene()). A path neither one names came from one of the other starts (an env state, a fight); it
+// is logged once and not shared. While it plays: the results its widgets committed (a choice, a QTE or InputCounter
+// count), a skip that moved it (a rise of a skip latch, then a new take or a forward jump of kSeekFrames or more), then
+// its position. So each result goes before the skip that leaves its take, before the position that passes it and
+// before the end of a theater it ended. When it ends or another one starts: end. A skip that ended it sends take -1
+// before the end. Results of a theater that is not shared, or that another member leads, are logged once for each
+// play and not sent.
 class Lead {
 public:
   // Hook 1: an ActionTheater node started a theater with this play id.
@@ -914,7 +1115,8 @@ public:
     for (const Outcome &o : t.results) {
       if (!live_ || !sent_ || o.play != id_) {
         note(s, "results " + std::to_string(o.play),
-             "the choice and QTE results of play " + std::to_string(o.play) + " are not sent, it is not shared");
+             "the choice and QTE results of play " + std::to_string(o.play) +
+                 " are not sent: it is not shared or another member leads it");
         continue;
       }
       Message m = o.m;
@@ -939,6 +1141,12 @@ public:
     }
     if (!t.present)
       return;
+    // A scene another member leads (a boss QTE the fight gave her): her lines go, ours do not. A lead that comes to us
+    // later starts it anew, from the take it plays then.
+    if (!s.leads(t.path)) {
+      live_ = false;
+      return;
+    }
     if (!live_)
       live_ = true, id_ = t.id, scene_ = ++scenes_, sent_ = started_ = have_last_ = false;
     if (!started_) {

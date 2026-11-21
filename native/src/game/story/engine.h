@@ -36,18 +36,21 @@
 // RunZoneEvent with the graph owner as caster, the host keeps that row and his zone (client +0x68); trip_line() turns a
 // story trip among them into a trip line.
 //
-// The host reads (theater()): P and its take, his place, the three skip latches, then the results his widgets
-// committed. A QTE or InputCounter result is final once its Result shows (QTE +0x7d8, InputCounter +0x820: presses and
-// counting stop there) or its block closed (+0x6a0 at 0 or more), whichever he sees first; a widget the next start
-// reuses gives its count just before that start. Its template (0x1422f31f0) runs Setup 0x14254a170 before that start,
-// which writes the next section's kind, forced success and Flow entries: those come from the last pass, where each
-// block not read yet is kept (snap()). QTE: its count +0x7d4 and the option's forced success +0x858 (both games
-// test it against the section's +0x700; 0x14c986680 reads it alone). InputCounter: its count +0x81c, forced
-// success +0x8a0, the Flow entries' results (+0x7f8, count +0x800, stride 0x38, result +0x2e). An InteractionSelect of
-// this play (+0x718 equal to P+0x1dc) or a PlayerChoice is read when its block closes: the line at SelectIndex +0x714
-// in its lines (+0x6c8, count +0x6d0, stride 0x50: TakeAlias +0x20, graph exec +0x28), the PlayerChoice's result
-// +0x6a0. The guest:
-//   her(): her zone, the path of her theater once its first take started, its place, her dialogue wait.
+// The side that leads (game/story/sync.h's Lead: the host, or a guest a boss QTE Leader names) reads (theater()): P and
+// its take, his place, the three skip latches, then the results his widgets committed. A QTE or InputCounter result is
+// final once its Result shows (QTE +0x7d8, InputCounter +0x820: presses and counting stop there) or its block closed
+// (+0x6a0 at 0 or more), whichever he sees first; a widget the next start reuses gives its count just before that
+// start. Its template (0x1422f31f0) runs Setup 0x14254a170 before that start, which writes the next section's kind,
+// forced success and Flow entries: those come from the last pass, where each block not read yet is kept (snap()). QTE:
+// its count +0x7d4 and the option's forced success +0x858 (both games test it against the section's +0x700; 0x14c986680
+// reads it alone). InputCounter: its count +0x81c, forced success +0x8a0, the Flow entries' results (+0x7f8, count
+// +0x800, stride 0x38, result +0x2e). An InteractionSelect of this play (+0x718 equal to P+0x1dc) or a PlayerChoice is
+// read when its block closes: the line at SelectIndex +0x714 in its lines (+0x6c8, count +0x6d0, stride 0x50: TakeAlias
+// +0x20, graph exec +0x28), the PlayerChoice's result +0x6a0. The guest:
+//   her(): her zone, the path of her theater once its first take started, its place, her dialogue wait, a QTE or
+//     InputCounter block of that play still open (a block hooks 2 and 3 kept, its +0x6a0 below 0: the block start
+//     0x1425498e0 writes -1 there, FinishBlock 0x142549a60 the result). Both sides follow now (phase 3), so the menus
+//     are tracked by theater() alone while Lead reads (reading).
 //   here(): her EVE alive (her actor's +0x2600 not 2 to 5, RunZoneEvent's own test), a warp written (client +0xa20),
 //     a camp asked (+0xb60 and +0xb61), a respawn (world +0x1c4 at 2 or more), a Boss Challenge (client +0x3688),
 //     her Epic quests in step (from the shared quests), her manager idle (no P, or P with C and finished).
@@ -192,6 +195,7 @@ public:
   int32_t caster = 0;         // Her player's actor ID for this pass, read by the glue; 0: none.
   uint64_t actor = 0;         // That actor; 0: none.
   bool in_step = false;       // Her Epic quests stand where the host's do (quest::Engine::story_in_step).
+  bool reading = false;       // Lead reads our theater this pass, after her(): her() leaves the menus to theater().
   std::vector<std::string> log; // Lines for coop-*.log, taken by the glue.
 
   // The host's zone alias (the client's +0x68), "" when it cannot be read.
@@ -231,10 +235,12 @@ public:
     h.zone = zone();
     const Cur c = cur();
     if (c.data) // Her path counts once its first take started: before that her first take is not known.
-      h.path = path(c.p), h.pos = pos(c);
+      h.path = path(c.p), h.pos = pos(c), h.block = block_open(c);
     h.waiting = waits(dialogue());
-    track(select_, Type::sel, root_widget(kSelect, kSelectVtable), c, nullptr);
-    track(choice_, Type::pch, root_widget(kChoice, kChoiceVtable), c, nullptr);
+    if (!reading) { // Else a menu that closed here would never reach Lead's theater().
+      track(select_, Type::sel, root_widget(kSelect, kSelectVtable), c, nullptr);
+      track(choice_, Type::pch, root_widget(kChoice, kChoiceVtable), c, nullptr);
+    }
     return h;
   }
 
@@ -481,6 +487,14 @@ private:
     if (k.data != data)
       k = Count{data, 0};
     return k.n++;
+  }
+  // A QTE or InputCounter block of the play that runs, kept by hooks 2 and 3, still open.
+  bool block_open(const Cur &c) {
+    const int32_t play = i32(c.p + kPlayId);
+    for (const Record &r : records_)
+      if (r.widget && r.play == play && g_.weak_get(r.weak) == r.widget && i32(r.widget + kBlockResult) < 0)
+        return true;
+    return false;
   }
   // Her newest block of that class, take data and ordinal; null when none started.
   const Record *record(Type t, uint64_t data, uint32_t n) const {
