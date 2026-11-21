@@ -126,7 +126,7 @@ inline const char *describe(Io r) {
   switch (r) {
   case Io::ok: return "ok";
   case Io::gone: return "not live, wrong class or mesh";
-  case Io::count: return "bone count differs";
+  case Io::count: return "bone or morph count differs"; // write_morphs: the mesh's morph count is not the one reserved.
   case Io::null_array: return "bone array null";
   case Io::busy: return "anim task busy";
   case Io::gate: return "write gate closed";
