@@ -7,9 +7,11 @@
 -- end, the result panel at the top centre in score attack's layout (online/modes/scoreattack/ui/board.lua: the
 -- heading, our points and fish, a note, then one row per ranked player). The panel closes SHOW seconds after the
 -- ranking or after the note that none came. Both are hidden while the game is paused or shows one of its screens. The
--- round's notices (the start, a sit-out, a reloaded game) and why a tournament ends with no ranking come as notices
--- whatever the kit shows. With the kit off or absent, GO, each change of our place or points, our end, the first
--- three and our place come as notices too. Its words follow the game's language unless ui_language=english.
+-- corner board is hidden on the title screen too, where the co-op saves' badge (online/saves/saves.lua) takes the same
+-- place. The round's notices (the start, a sit-out, a reloaded game) and why a tournament ends with no ranking come as
+-- notices whatever the kit shows. With the kit off or absent, GO, each change of our place or points, our end, the
+-- first three, our place and a new personal best come as notices too. Its words follow the game's language unless
+-- ui_language=english.
 -- tests/lua/online/modes/fishing/board_test.lua covers it on a fake kit.
 local T=require('ui.text')
 local Join=require('core.line')
@@ -59,7 +61,8 @@ function Board.result(cur,w,name)
     return f.title,mine and f.mine:format(mine.points,mine.catches) or '',note,rows
 end
 -- o: round() (round.lua's round(): our last tournament, or nil), name(id) (her Steam name, ours for our SteamID),
--- tell(build) (main.lua's notice: build(words) gives its text), clock() (round.lua's clock), log(line).
+-- tell(build) (main.lua's notice: build(words) gives its text), clock() (round.lua's clock), log(line), title()
+-- (optional: true on the title screen).
 function Board.new(o)
     local self={}
     local hud=nil -- self.hud's {kit, theme, settings}; nil without one, or after a HUD error.
@@ -86,7 +89,7 @@ function Board.new(o)
         local kit=hud.kit
         local away=kit.paused()
         local corner,res=kit.view('fishing'),kit.view('fishing_result')
-        kit.show('fishing',playing and not away)
+        kit.show('fishing',playing and not away and not (o.title and o.title()))
         kit.show('fishing_result',result and not away)
         if corner and (corner~=picked or hud.settings.ui_language~=lang) then
             picked,lang=corner,hud.settings.ui_language
@@ -168,6 +171,7 @@ function Board.new(o)
                 local r=ours(cur,list)
                 return r and w.fishing.placed:format(r.place,#list) or w.fishing.unranked
             end)
+            if cur.best then once('best',false,function(w) return w.fishing.best end) end -- The panel's note.
         end
         if not shown() then return end
         draw(cur,now,playing,result)

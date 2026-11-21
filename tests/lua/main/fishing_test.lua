@@ -6,8 +6,9 @@
 -- file, the .tmp write, a tournament that beats the best or not, a failed write, a refused rename, the write in place,
 -- a file that cannot be opened. The other lines of the file stay. Then its two runtime lines: the 250 ms loop ticks
 -- the round, its game side (the book asked once a second from GO) and its screens (online/modes/fishing/ui/board.lua,
--- built on the kit's hud step: the round's start notice in the menu's words, the corner board each pass); coop off ends
--- the tournament with no line and no ask after it and hides the board; the pass line is guarded.
+-- built on the kit's hud step: the round's start notice in the menu's words, the corner board each pass, hidden on the
+-- title screen); coop off ends the tournament with no line and no ask after it and hides the board; the pass line is
+-- guarded.
 dofile('tests/lua/main/fixture.lua')
 local Round=require('online.modes.fishing.round')
 local new,o=Round.new,nil
@@ -83,6 +84,12 @@ end
 loops[2].f() -- In the countdown: the round's first board, no ask.
 assert(fake_link.modes[#fake_link.modes]:find('^fish board %d+ 1001:0:0$') and books()==0)
 assert(kit_shown.fishing==true and not kit_shown.fishing_result,'The pass ticks the screens: the corner board')
+Where.world=function() return false,true end -- The title screen: the co-op saves' badge takes the corner's place.
+loops[2].f()
+assert(kit_shown.fishing==false,'Hidden on the title screen')
+Where.world=function() return true,false end
+loops[2].f()
+assert(kit_shown.fishing==true)
 T=T+5 -- GO.
 loops[2].f()
 assert(books()==1,'The pass ticks the game side: its first ask at GO')

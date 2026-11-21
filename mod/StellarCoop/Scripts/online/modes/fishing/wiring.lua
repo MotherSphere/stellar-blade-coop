@@ -45,14 +45,15 @@ if M.link then
             log(string.format('new best of %d minutes: %d points, %d fish',minutes,points,catches))
             return true
         end or nil})
+    local Where,U=require('core.where'),require('core.unreal')
     board=require('online.modes.fishing.ui.board').new({round=M.fishing.round,clock=os.time,log=log,tell=M.tell,
         name=function(id)
             if id==(M.link.saves() or {}).steamid then return M.link.me() end
             local m=M.link.member(id)
             return m and m.name
-        end})
+        end,
+        title=function() return select(2,Where.world())==true end})
     M.fishing_board=board
-    local Where,U=require('core.where'),require('core.unreal')
     game=Game.new({round=M.fishing,status=function() return M.link.status() end,
         request=function(line) return M.link.request(line) end,clock=os.time,log=log,
         on=function() return M.settings.fishing==true end,coop=function() return M.coop_slot('fishing')==true end,

@@ -6,9 +6,10 @@
 -- result panel's line, notes and ranking. Then on a fake kit and round: the two groups' places; the corner board
 -- from the countdown to Time up (ours in teal, hidden under a pause); the result panel from our end, with the ranking
 -- once it comes, closed SHOW seconds after it or after the no-ranking note; the words in the game's language; the
--- round's notices said with the kit up; a tournament without a ranking says why once; with the kit off GO, each change
--- of our place or points, our end, the first three and our place come as notices; an error in the HUD gives one STOP
--- line and notices from then on; stop hides every group.
+-- round's notices said with the kit up; a tournament without a ranking says why once; the corner hidden on the title
+-- screen (the panel stays); with the kit off GO, each change of our place or points, our end, the first three, our
+-- place and a new personal best come as notices; an error in the HUD gives one STOP line and notices from then on;
+-- stop hides every group.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Board=require('online.modes.fishing.ui.board')
 local T=require('ui.text')
@@ -90,9 +91,10 @@ function kit.language() return kit.lang end
 local theme={text='text',grey='grey',teal='teal',warn='warn',panel='panel'}
 local settings={ui_language='game'}
 local told,logs,clock={},{},100
-local round=nil
+local round,title_screen=nil,false
 local board=Board.new({round=function() return round end,name=name,tell=function(build) told[#told+1]=build(en) end,
-    clock=function() return clock end,log=function(line) logs[#logs+1]=line end})
+    clock=function() return clock end,log=function(line) logs[#logs+1]=line end,
+    title=function() return title_screen end})
 board.tick() -- No HUD, no round: nothing.
 assert(#told==0 and #logs==0)
 board.hud({kit=kit,theme=theme,settings=settings})
@@ -109,6 +111,11 @@ assert(kit.shown.fishing and not kit.shown.fishing_result and corner.title.text=
 assert(corner.title.c=='warn' and corner.rows[1].label.text=='1  Ann' and corner.rows[2].label.c=='teal')
 assert(corner.rows[3].label.text=='1  ABCDEFGHIJKLMNOP...' and corner.rows[3].back.on and not corner.rows[4].back.on)
 assert(corner.rows[4].label.text=='' and corner.rows[2].value.text=='0' and corner.rows[1].value.c=='text')
+-- The title screen: the co-op saves' badge takes the corner's place.
+title_screen=true; board.tick()
+assert(not kit.shown.fishing,'Hidden on the title screen')
+title_screen=false; board.tick()
+assert(kit.shown.fishing)
 -- GO, then the host's board.
 clock=105
 round.board={row('1001',138,1,1),row('2002',60,2,2),row('3003',0,0,3)}
@@ -126,6 +133,13 @@ board.tick()
 assert(kit.shown.fishing and kit.shown.fishing_result and corner.title.text=='FISHING  Time up')
 assert(res.head.text=='Fishing tournament' and res.sub.text=='60 points · 2 fish'
     and res.note.text=="Waiting for the host's ranking." and res.rows[1].label.text=='',res.sub.text)
+-- A pause hides the panel too; the title screen only the corner.
+kit.away=true; board.tick()
+assert(not kit.shown.fishing and not kit.shown.fishing_result)
+kit.away=false; title_screen=true; board.tick()
+assert(not kit.shown.fishing and kit.shown.fishing_result)
+title_screen=false; board.tick()
+assert(kit.shown.fishing and kit.shown.fishing_result)
 -- The ranking: the corner goes, its rows on the panel, ours in teal; the new best; closed 20 s after it.
 clock=175
 round.phase,round.list,round.best='ranked',{row('2002',198,3,1),row('1001',138,1,2)},true
@@ -178,7 +192,8 @@ board.notice('reloaded')
 assert(told[3]=='ABCDEFGHIJKLMNOP... starts a fishing tournament: 10 min.',told[3])
 assert(told[4]=='Fishing tournament is off in Options.' and told[5]=='Load a co-op save to fish in the tournament.')
 assert(told[6]=='Could not read the fish table.' and told[7]==en.fishing.reloaded and #told==7)
--- With the kit off: GO, each change of our place or points, our end, the first three and our place, each once.
+-- With the kit off: GO, each change of our place or points, our end, the first three, our place and a new personal
+-- best, each once.
 told={}
 kit.is_off=true
 clock=100
@@ -198,19 +213,20 @@ assert(#told==3 and told[3]=='Fishing tournament: place 2, 138 points.',told[3])
 clock=225
 board.tick(); board.tick()
 assert(#told==4 and told[4]=='Fishing tournament: time up, 138 points, 1 fish.',told[4])
-round.phase,round.list='ranked',{row('1001',180,1,1),row('2002',138,1,2),row('3003',0,0,3),row('4004',0,0,3)}
+round.phase,round.list,round.best='ranked',{row('1001',180,1,1),row('2002',138,1,2),row('3003',0,0,3),
+    row('4004',0,0,3)},true
 board.tick(); board.tick()
-assert(#told==6 and told[5]=='Fishing tournament: 1. Ann 180, 2. Eve 138, 3. ABCDEFGHIJKLMNOP... 0.',told[5])
-assert(told[6]=='You placed 2 of 4.',told[6])
+assert(#told==7 and told[5]=='Fishing tournament: 1. Ann 180, 2. Eve 138, 3. ABCDEFGHIJKLMNOP... 0.',told[5])
+assert(told[6]=='You placed 2 of 4.' and told[7]=='New personal best.',told[7])
 round={seed=21,minutes=2,ids={},me='2002',phase='ranked',list={row('1001',30,1,1)}}
 board.tick()
-assert(#told==8 and told[7]=='Fishing tournament: 1. Ann 30.' and told[8]=='Not ranked.',told[8])
+assert(#told==9 and told[8]=='Fishing tournament: 1. Ann 30.' and told[9]=='Not ranked.',told[9])
 round={seed=22,minutes=2,ids={},me='2002',phase='ranked',list={}}
 board.tick()
-assert(#told==9 and told[9]=='Not ranked.','An empty ranking: no first three')
+assert(#told==10 and told[10]=='Not ranked.','An empty ranking: no first three')
 round={seed=23,minutes=1,ids={'1001','2002'},me='2002',go=100,phase='over',why='norank'}
 board.tick(); board.tick()
-assert(#told==10 and told[10]=='No ranking came from the host.',told[10])
+assert(#told==11 and told[11]=='No ranking came from the host.',told[11])
 kit.is_off=false
 -- An error in the HUD: one STOP line, every group hidden, notices from then on.
 told={}

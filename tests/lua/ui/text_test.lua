@@ -165,11 +165,11 @@ local function notices(w)
     -- The fishing tournament's notices (online/modes/fishing/ui/board.lua): the start with a 32-byte name and 60
     -- minutes, each sit-out, a tournament without a ranking, a reloaded game; with the UI off GO, our place and points,
     -- our end, the first three with 32-byte names and 6-digit points (a catch scores 450 at most, one each 2 s for an
-    -- hour), our place and Not ranked.
+    -- hour), our place, Not ranked and a new personal best.
     local f=w.fishing
     for _,text in pairs(f.out) do lines[#lines+1]=text end
     local entry=f.entry:format(8,NAME,999999)
-    for _,text in ipairs({f.start:format(NAME,60),f.host_left,f.cancelled,f.reloaded,f.norank,f.unranked,
+    for _,text in ipairs({f.start:format(NAME,60),f.host_left,f.cancelled,f.reloaded,f.norank,f.unranked,f.best,
         f.go:format(60),f.standing:format(8,999999),f.end_notice:format(999999,9999),
         f.top:format(table.concat({entry,entry,entry},f.sep)),f.placed:format(8,8)}) do
         lines[#lines+1]=text
