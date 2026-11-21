@@ -313,6 +313,9 @@ for (s, k) in SBO:
     assert why, f'{s}.{k} has no "; SBO:" line above it'
     assert (s, k) not in FACTS or re.search(r'0x14[0-9a-f]{7}', ' '.join(why)), f'{s}.{k}: no Ghidra address'
 assert not [k for keys in got.values() for k, (v, _) in keys.items() if ';' in v or '#' in v], 'a comment after a value'
+# NOTICE sends readers to the header for what was changed: it names each value that differs from the release file.
+header = text.split('\n[', 1)[0]
+assert not [k for (s, k), v in SBO.items() if OFFICIAL[s][k] not in (v, None) and k not in header], header
 # SBO's own check at each load (core/ue4ss_settings.lua) finds no key that makes Stellar Blade unstable.
 CHECK = "local S=dofile(arg[1]); local f=assert(io.open(arg[2],'rb')); print(#S.check(f:read('a')))"
 out = subprocess.run(['lua5.4', '-', str(ROOT / 'mod/StellarCoop/Scripts/core/ue4ss_settings.lua'), str(SETTINGS)],
