@@ -209,6 +209,29 @@ need = {'UObjectBase', 'UObjectBaseUtility', 'UObject', 'UField', 'UEngine', 'US
         'ULocalPlayer', 'UDataTable'}
 assert need <= set(vtables), need - set(vtables)
 
+# MemberVariableLayout.ini holds only FUObjectArray, the one struct where build 26123051 differs from UE 4.26's
+# layout that UE4SS v4.0.0 has built in (listeners at 0xE0 and 0xF0, MasterSerialNumber at 0x128, size 0x130).
+# v4.0.0 always adds a delete listener (UnrealInitializer.cpp:468). Read in Ghidra on 26123051, GUObjectArray at
+# 0x146ddd240: AllocateUObjectIndex (FUN_142b890d0) reads the first five and calls the create listeners;
+# AddUObjectDeleteListener (FUN_142b89390) appends at +0x78 under the lock at +0x88; FUObjectArray's constructor
+# (FUN_140969fd0) sets +0xB0 to 1000; AllocateSerialNumber (FUN_1427f9330) increments it.
+FUOBJECTARRAY = {'ObjFirstGCIndex': 0x0, 'ObjLastNonGCIndex': 0x4, 'MaxObjectsNotConsideredByGC': 0x8,
+                 'OpenForDisregardForGC': 0xC, 'ObjObjects': 0x10, 'UObjectCreateListeners': 0x68,
+                 'UObjectDeleteListeners': 0x78, 'MasterSerialNumber': 0xB0, 'UEP_TotalSize': 0xB8}
+layout, section, comment = {}, None, ''
+for line in (SET / 'MemberVariableLayout.ini').read_text(encoding='utf-8').splitlines():
+    line = line.strip()
+    if line.startswith(';'):
+        comment += line
+    elif line.startswith('['):
+        section, comment = layout.setdefault(line[1:-1], {}), ''
+    elif line:
+        key, value = (x.strip() for x in line.split('='))
+        # Each value has comment lines right above it with the address it was read at.
+        assert re.search(r'0x14[0-9a-f]{7}', comment), f'no address above {key}'
+        section[key], comment = int(value, 16), ''
+assert layout == {'FUObjectArray': FUOBJECTARRAY}, layout
+
 # NOTICE credits where the files come from and keeps the MIT notice.
 notice = (ROOT / 'NOTICE').read_text(encoding='utf-8')
 for word in ('https://github.com/Rev-OG-UwU/SB-UE4SS', 'a63c3f8ecfc51c679082c30805d8af5c3514ba9a',
