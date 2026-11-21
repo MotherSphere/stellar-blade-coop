@@ -62,11 +62,14 @@ local function rows()
                 EndShowPathWhenPeaceful='',EndShowPathWhenBattle=''},P_Eve_Default={Condition_Jumping=0}},
         CharacterAnimSetTable={P_Eve_Gun_Battle={RunBlendSpace='Test_Run_BS',RunTiltBlendSpace='Test_Tilt_BS',
                 LockOnRunBlendSpace='Test_LockOn_BS',AimOffsetBlendSpace='Test_Aim_BS'}},
-        ProjectileTable={P_Eve_GunNikke_ShootSlug1_Projectile1={StartTargetTransformType=1,
-                StartTargetRelativeAxisType=1,DestTargetTransformType=2,DestTargetRelativeAxisType=2,
+        -- (The NIKKE row's StartTarget, DestTarget and StartToDestDirectionDistance as the base pak's export reads
+        -- them; the drone row's pair as the game reads it: Base and RootAxis.)
+        ProjectileTable={P_Eve_GunNikke_ShootSlug1_Projectile1={StartTarget=0,StartTargetTransformType=1,
+                StartTargetRelativeAxisType=1,DestTarget=3,StartToDestDirectionDistance=50000,
+                DestTargetTransformType=2,DestTargetRelativeAxisType=2,
                 DestTargetRelativeLocation={X=1,Y=2,Z=3},DestTargetRandomRange={X=300,Y=300,Z=300},DestTargetUpdate=1,
                 StartTargetRelativeLocation={X=4,Y=5,Z=6.25}},
-            P_Eve_Gun_ShootSlug1_Projectile1={DestTargetTransformType=5,DestTargetRelativeAxisType=6}},
+            P_Eve_Gun_ShootSlug1_Projectile1={DestTargetTransformType=0,DestTargetRelativeAxisType=2}},
         SkillActiveStepTable={P_Eve_GunNikke_ShootSlug1_1_Hit1={Type=1},
             P_Eve_GunNikke_ShootSlug1_1_Cast1={Type=2}},
     }

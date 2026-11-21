@@ -2,19 +2,23 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Where the rounds go and where the camera looks, standing.
--- * The NIKKE bullet's ProjectileTable row (P_Eve_GunNikke_ShootSlug1_Projectile1) is live data: its Dest takes the
---   drone shot's frame (TransformType and RelativeAxisType copied from P_Eve_Gun_ShootSlug1_Projectile1). In each
---   frame of firing mode DestTargetRelativeLocation becomes the crosshair point in that frame. Every round then flies to
---   the screen-centre point of the frame it spawns in, pitch included. Only FindRow(string) is used: another lookup
---   crashed.
--- * The frame, read in Ghidra on 26123051. The row's fields (property params of DestTargetTransformType at
---   0x145dfff80, DestTargetRelativeAxisType at 0x145dffdc0): DestTargetTransformType a byte at 0x1e0 (ESBTargetLocationTransformType, enum params 0x146d374f0: Base 0, Socket 1,
---   Component 2), DestTargetRelativeLocation an FVector at 0x1f8, DestTargetRelativeAxisType a byte at 0x228
---   (ESBMovementTargetRelativeAxisType, 0x146d336b0: World 0, ParentAxis 1, RootAxis 2, InputDirection 3). The drone
---   row's pair reads 0/2 in game: Base and RootAxis. The projectile's start (0x141c4ab60) builds its target through
---   0x14228c020; the target's update (0x142431530) takes, for Base, the actor's RootComponent (AActor+0x178, params
---   0x1464ca8f0) world location (ComponentToWorld translation, component+0x200) and, for RootAxis, turns the offset by
---   that component's world rotation (its quaternion, component+0x1f0). That is K2_GetActorLocation and
+-- * The NIKKE bullet's ProjectileTable row (P_Eve_GunNikke_ShootSlug1_Projectile1) is live data: its Dest is on EVE
+--   (DestTarget MainActor, set by fight/gunmode/data.lua) in the drone shot's frame (TransformType and
+--   RelativeAxisType copied from P_Eve_Gun_ShootSlug1_Projectile1). In each frame of firing mode
+--   DestTargetRelativeLocation becomes the crosshair point in that frame. Every round then flies to the screen-centre
+--   point of the frame it spawns in, pitch included. Only FindRow(string) is used: another lookup crashed.
+-- * The frame, read in Ghidra on 26123051. DestTarget is a byte at 0x1dd (ESBProjectileTarget, enum params
+--   0x146d34f70: MainActor 0, OtherActor 1, StartToDestDirection 3). The shot (0x141c4be30) builds an actor target
+--   through 0x14228c020 for 0 and 1 only. The shipped StartToDestDirection put the destination on the line to SB's own
+--   target location with the offset in world axes (the zero rotator 0x147112ca8). Its rounds went to the side.
+--   The row's fields (property params of DestTargetTransformType at 0x145dfff80, DestTargetRelativeAxisType at
+--   0x145dffdc0): DestTargetTransformType a byte at 0x1e0 (ESBTargetLocationTransformType, enum params 0x146d374f0:
+--   Base 0, Socket 1, Component 2), DestTargetRelativeLocation an FVector at 0x1f8, DestTargetRelativeAxisType a byte
+--   at 0x228 (ESBMovementTargetRelativeAxisType, 0x146d336b0: World 0, ParentAxis 1, RootAxis 2, InputDirection 3).
+--   The drone row's pair reads 0/2 in game: Base and RootAxis. The projectile's start (0x141c4ab60) builds its target
+--   through 0x14228c020; the target's update (0x142431530) takes, for Base, the actor's RootComponent (AActor+0x178,
+--   params 0x1464ca8f0) world location (ComponentToWorld translation, component+0x200) and, for RootAxis, turns the
+--   offset by that component's world rotation (its quaternion, component+0x1f0). That is K2_GetActorLocation and
 --   K2_GetActorRotation, pitch and roll included. Her mesh's own turn (gun mode's aim_mesh_yaw) is not in it.
 -- * TPS mode 2 (NIKKE: fixed camera, the mouse moves a reticle) becomes 0 (the drone aim's: the camera follows the
 --   mouse and the game turns EVE with it) while standing, and goes back to 2 crouched and at the exit. If mode 0 ever
@@ -106,13 +110,23 @@ function Aim.new(g)
         if self.writes<6 then self.writes=self.writes+1; g.log(('aim: shot at (%.0f, %.0f, %.0f) %s'):format(x,y,z,
             ok and 'written' or 'refused')) end
     end
-    -- Where a round that spawns now goes: the last destination written, placed from her root as it is now (SB does
-    -- the same at the round's spawn). nil before a write.
+    -- Where a round that spawns now goes: the row's destination as SB reads it, placed from her root as it is now
+    -- (SB does the same at the round's spawn). It reads the row back, not the last write: a row that does not put the
+    -- destination in her root frame (DestTarget MainActor 0, DestTargetTransformType Base 0, DestTargetRelativeAxisType
+    -- RootAxis 2) gives nil and the fields it holds. nil before a write.
     function self.went(p)
-        if not self.dx then return nil end
+        local r=self.row
+        if not (r and self.dx) then return nil end
+        local f=g.try(function() return {r.DestTarget,r.DestTargetTransformType,r.DestTargetRelativeAxisType} end)
+        if not (f and f[1]==0 and f[2]==0 and f[3]==2) then
+            f=f or {}
+            return nil,('dest target %s, transform %s, axis %s: not her root frame'):format(tostring(f[1]),
+                tostring(f[2]),tostring(f[3]))
+        end
+        local d=g.try(function() local v=r.DestTargetRelativeLocation; return {v.X,v.Y,v.Z} end)
         local loc=g.try(function() return p:K2_GetActorLocation() end)
         local rot=g.try(function() return p:K2_GetActorRotation() end)
-        return loc and rot and Aim.world_point(self.dx,self.dy,self.dz,loc,rot)
+        return d and loc and rot and Aim.world_point(d[1],d[2],d[3],loc,rot)
     end
 
     -- Native fire: the bullet's start (fight/gunmode/data.lua made it EVE's base and an offset in her root's frame,

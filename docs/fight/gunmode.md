@@ -62,8 +62,10 @@ rifle changes:
 - `SkillTable`: the NIKKE shot's cool time (the rate of fire).
 - `SkillActiveStepTable`: the shot's `Hit1` step takes the `Type` of its `Cast1` step. It fires its projectile and
   spends no round.
-- `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its own spread (a random range of
-  300 cm) is off. Its destination is placed once, when the round spawns, not again while it flies.
+- `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its destination is an offset from
+  EVE's root in her root's frame (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own
+  target line and sent the rounds to the side. Its own spread (a random range of 300 cm) is off. Its destination is
+  placed once, when the round spawns, not again while it flies.
 - `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it.
 - `CharacterAnimSetTable`: not on the rifle layer. With the rifle clips alone, the aim stance's animation set points at
   the rifle's blend spaces. A spare NPC row takes EVE's peaceful set with the rifle clips for the carry. The test line
@@ -130,8 +132,10 @@ muzzle to the point under the reticle in the frame it leaves. Gun mode writes th
 Rounds land at random within `gun_spread` degrees of it, seen from the camera: 0.5 unless set, 0 for none. The `[GM]`
 lines `round #N` and `shot #N` number the rounds of a rifle out in one count, the game's and gun mode's own. The first
 three and one in fifty get a line. `round #N` is a round of the game's aim. It gives where SB sends that round against
-the reticle point. That place is the destination SB computes from her root when the round spawns. It is not a measured
-impact. `shot #N` is a round gun mode fired itself (hip fire, a jump). It gives the camera, the target and EVE's place.
+the reticle point. That place is the destination SB computes from her root when the round spawns, read back from the
+row. It is not a measured impact. When the row does not place the destination in her root frame, the line names its
+`DestTarget`, transform and axis instead. `shot #N` is a round gun mode fired itself (hip fire, a jump). It gives the
+camera, the target and EVE's place.
 
 A reload in firing mode keeps her aimed. Only her arms and hands move: the rifle tilts and her left hand goes to the
 magazine.
