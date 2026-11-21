@@ -1565,18 +1565,19 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   uninstall without and with the mod folder (the pak first, each into its own backup folder), all of them leaving the
   rest of `~mods` and `LogicMods` alone. Its `--ue4ss` part: SBO's UE4SS package over a 1.3 install (the backup, the
   signature scripts the package lacks and `Changelog.md` removed, the player's `mods.txt` and other mods kept), into
-  a folder without UE4SS, the dry run, the refusal while the game runs. `main` with `--ue4ss` refuses `--zip` and
+  a folder without UE4SS, the dry run, the refusal while the game runs. `install.py --help` runs under `python3 -I`,
+  as the gate runs it, so `install.py` finds `tools/ue4ss.py` itself. `main` with `--ue4ss` refuses `--zip` and
   `--uninstall`. It stops before the tests on a missing executable, on a build with no set and on a cached zip of
   other bytes. Its dry run and its install say the mod's lines, then the UE4SS lines;
-- `ue4ss_test.py`: the files under `ue4ss/`. Each build set is named after its executable. The set's signature
-  scripts run under `lua5.4` on made-up matches and, when this PC has Ghidra's copy of build 26123051, on its
-  executable. Its `VTableLayout.ini` gives the offsets read in Ghidra. Its `MemberVariableLayout.ini` holds only
-  values read there. `UE4SS-settings.ini` holds every key of the v4.0.0 file with SBO's values. `NOTICE` credits the
-  sources. Then `tools/ue4ss.py` on made-up executables and a made-up release zip (a download reads a `file://`
-  URL): the set picked by the PE header, a file that is no 64-bit executable refused, an unknown build stopped before
-  any download, a download or a cache file of other bytes refused and never cached, the package's files and the zip's
-  paths, written twice with the same bytes. When this PC has the pinned release zip, the settings and the package are
-  checked against it;
+- `ue4ss_test.py`: the files under `ue4ss/`. Each build set is named after its executable. The set's signature scripts
+  run under `lua5.4` on made-up matches and, when this PC has Ghidra's copy of build 26123051, on its executable. Its
+  `VTableLayout.ini` gives the offsets read in Ghidra. Its `MemberVariableLayout.ini` holds only values read there.
+  `UE4SS-settings.ini` holds every key of the v4.0.0 file with SBO's values. `NOTICE` credits the sources and keeps the
+  release files' MIT license for the package. Then `tools/ue4ss.py` on made-up executables and a made-up release zip (a
+  download reads a `file://` URL): the set picked by the PE header, a file that is no 64-bit executable refused, an
+  unknown build stopped before any download, a download or a cache file of other bytes refused and never cached, the
+  package's files and the zip's paths, written twice with the same bytes. When this PC has the pinned release zip, the
+  settings and the package are checked against it;
 - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
   and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the
   names of every new door, EnvC and ZoneEvent row chained. After a change to the data file, run
