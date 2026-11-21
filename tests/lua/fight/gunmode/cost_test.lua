@@ -389,8 +389,14 @@ end
 
 -- 9b. The layer's rebuild swaps in a body other than hers (Overlay.BASES). Neither was in memory at the first rifle out
 --     of the 2026-11-21 test, whose layer step took 49 ms (11 ms at the next ones): one was loaded on the frame. The
---     keep now holds both bodies for the game run, so the first rifle out loads none.
+--     keep now holds both bodies for the game run, so the first rifle out loads none. Both are packages of the base
+--     paks of 26123051 (pakchunk0, SkeletalMesh on CH_P_EVE_01_Skeleton). Those paks have no CH_P_EVE_01/CH_P_EVE_01
+--     package: with that path the keep held one body only. In CH_P_EVE_29 the rifle came out without its layer.
 do
+    local IN_PAKS={['/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29.CH_P_EVE_29']=true,
+        ['/Game/Art/Character/PC/CH_P_EVE_01/CH_P_EVE_01_Body.CH_P_EVE_01_Body']=true}
+    assert(#Overlay.BASES==2,#Overlay.BASES..' bodies')
+    for _,b in ipairs(Overlay.BASES) do assert(IN_PAKS[b],b..' is no body of the base paks') end
     local U=require('core.unreal')
     local Keep=require('core.keep')
     local w=world()

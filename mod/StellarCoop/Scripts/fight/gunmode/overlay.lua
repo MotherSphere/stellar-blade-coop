@@ -13,8 +13,10 @@
 local Overlay={}
 
 Overlay.CLASS='/Game/Mods/NGM/ABP_NGM_Spike.ABP_NGM_Spike_C'
--- the body briefly swapped in to make the engine rebuild the post-process instance (any body but hers will do)
-Overlay.BASES={'/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29.CH_P_EVE_29','/Game/Art/Character/PC/CH_P_EVE_01/CH_P_EVE_01.CH_P_EVE_01'}
+-- the body briefly swapped in to make the engine rebuild the post-process instance (any body but hers will do). Both
+-- are SkeletalMesh packages of the base paks of 26123051 (pakchunk0), on CH_P_EVE_01_Skeleton.
+Overlay.BASES={'/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29.CH_P_EVE_29',
+    '/Game/Art/Character/PC/CH_P_EVE_01/CH_P_EVE_01_Body.CH_P_EVE_01_Body'}
 -- the two-handed rifle clips made on her skeleton for this rifle (Blender Rifle10: both hands on the rifle by IK, the
 -- sight at her right eye); only the arms are used, from the clavicles down
 local NGM='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/'

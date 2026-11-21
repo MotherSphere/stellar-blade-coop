@@ -324,8 +324,8 @@ Gun mode calls no item add, save, shop or drop function. SB's own buy and drops 
 With `gun_mode=on`, gun mode asks SBO's keep for the assets of the rifle out, the aim, the rounds and the reload when
 it loads: the rifle layer's class and its four poses, the camera modifier, the rifle mesh, the morph's cube and flash,
 the muzzle flash, the three reload sounds, the two turn clips and the two bodies the layer's rebuild swaps in for a
-moment (`CH_P_EVE_29` and `CH_P_EVE_01`). While the native part runs, the keep loads them off the frame and holds them
-for the game run. Any other asset, or one the keep does not hold, is found in memory through the engine's name hash
+moment (`CH_P_EVE_29` and `CH_P_EVE_01_Body`). While the native part runs, the keep loads them off the frame and holds
+them for the game run. Any other asset, or one the keep does not hold, is found in memory through the engine's name hash
 before it is loaded. UE4SS's own lookup walked the game's objects for each asset not in memory: the first rifle out on
 a map froze the game for 100 to 340 ms in the 2026-11-21 test. The layer's rebuild swaps in a body that is already in
 memory when there is one. The keep holds both bodies so that none loads on the frame of a press: the layer's step took
