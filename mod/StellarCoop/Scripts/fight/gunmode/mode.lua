@@ -760,9 +760,14 @@ function GunMode.new(env)
     -- copy, the drone's hidden parts as they were, the carry stance, the posed stance's own changes (stance.lua), her
     -- mesh's rotation before the aim turned it, the aim camera's modifier, her movement's facing flags as they were,
     -- the morph's cube and out while the rifle is out; gone when nothing is changed. A line the file already holds is
-    -- not written again. true when written (or with no file at all), else false and why, logged.
+    -- not written again. true when written (or with no file at all), else false and why, logged. Inside a tick (in_tick)
+    -- the write waits for the tick's end, so a frame writes the file once: each write makes, removes and renames a
+    -- file on the game thread (four on the frame of F4). now: write at once (a start checks its write).
     local kept -- The line this load last wrote (false: cleared), so the same line is not written each second.
-    function keep()
+    local in_tick,owed=false,false
+    function keep(now)
+        if in_tick and not now then owed=true; return true end
+        owed=false
         if not env.store then return true end
         local ok,why=pcall(function()
             local list=data.records()
@@ -1091,14 +1096,15 @@ function GunMode.new(env)
         if cfg.hide_drone~=false then pcall(hide_drone,p,os.clock()) end -- (the game's aim puts the drone on her arm: hidden, light and all)
         lap('drone')
         pcall(ammo.sync)
-        if not keep() then
+        -- the arrival: a cube in her hand turns into the rifle (fight/gunmode/morph.lua); the tick runs it. Made before
+        -- the write, which then lists the cube too (give_all_back drops it when the write fails).
+        if cfg.morph~=false and s.layer then s.morph={dir='in',t0=os.clock()}; pcall(cube_make,p); pcall(single.morph,0,0) end
+        lap('cube')
+        if not keep(true) then
             give_all_back(); g.log('off: coop-gun.txt could not be written (see above)'); notice(os.clock(),'failed')
             return
         end
-        -- the arrival: a cube in her hand turns into the rifle (fight/gunmode/morph.lua); the tick runs it
         lap('keep')
-        if cfg.morph~=false and s.layer then s.morph={dir='in',t0=os.clock()}; pcall(cube_make,p); pcall(single.morph,0,0) end
-        lap('cube')
         if set.trace then pcall(function() Dpad.new(g).dump() end)
             -- (dev) loaded key and pad icon textures (the HUD entry's pad and keyboard glyphs) and cube mesh candidates
             pcall(function()
@@ -1955,7 +1961,10 @@ function GunMode.new(env)
         if not set.on or s.dead then return end
         local t0=os.clock(); last=t0
         local kb=collectgarbage('count'); last_kb=kb
+        in_tick=true
         local ok,e=pcall(tick)
+        in_tick=false
+        if owed then keep() end -- the frame's changes in one write
         if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
         if s.on then perf(t0,os.clock()-t0,collectgarbage('count')-kb) end
     end

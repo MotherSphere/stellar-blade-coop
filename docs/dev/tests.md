@@ -151,7 +151,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   morph's arrival, in the game's aim or in `gun_fire=own`'s firing mode destroys the cube and removes the aim camera's
   modifier. It turns her mesh back and gives her movement its own facing flags. Each drone part gets its own visibility
   back. A start puts back what an earlier load left before it reads the rows. `coop-gun.txt` keeps floats, integers,
-  booleans, strings, FNames and vectors exactly. A start whose input mask or rifle fails gives back what it took, as
+  booleans, strings, FNames and vectors exactly. A frame writes it once at most, the press of F4 twice: the rifle out,
+  its arrival, the aim and the departure wrote it 9 times on four frames, now 5 times. A start whose input mask or rifle fails gives back what it took, as
   does a start that raises once the rifle layer is on. A new controller clears the old pawn's state at once; its
   deferred reset shows the drone, puts her facing back and takes the layer off her new body. Her facing flags go back
   only to the movement they were taken from: another object at its address after a map change gets no write;

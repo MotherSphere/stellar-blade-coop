@@ -128,13 +128,10 @@ do
     as_shipped(w,keys,store)
 end
 
--- 3b. H4 with v4's writes on her and the camera. A Lua reload in the morph's arrival, in the game's aim and in
---     gun_fire=own's firing mode: the next load destroys the morph's cube and takes the aim camera's modifier off the
---     camera manager. It turns her mesh back to its rotation before the aim turned it and gives her movement its own
---     facing flags. Each drone part goes back as it was: a part the game kept invisible stays invisible.
-do
+-- The fake with v4's writes on her and the camera: her mesh's turn, the aim camera's modifier (mods), the morph's cube
+-- and her movement's facing flags (move).
+local function v4_world()
     local w=Fake.new(); w.install()
-    local keys,store=w.keys(),file()
     local function thing(full,t)
         t=t or {}
         t.full=full; t.IsValid=function(o) return not o.gone end; t.GetFullName=function(o) return o.full end
@@ -163,6 +160,16 @@ do
     thing('StaticMesh '..cube_mesh,{GetBoundingBox=function() return {Min={X=-50},Max={X=50}} end})
     local add=w.pawn.AddComponentByClass
     w.pawn.AddComponentByClass=function(o,...) local c=add(o,...); c.GetMaterial=function() end; return c end
+    return w,mods,move
+end
+
+-- 3b. H4 with v4's writes on her and the camera. A Lua reload in the morph's arrival, in the game's aim and in
+--     gun_fire=own's firing mode: the next load destroys the morph's cube and takes the aim camera's modifier off the
+--     camera manager. It turns her mesh back to its rotation before the aim turned it and gives her movement its own
+--     facing flags. Each drone part goes back as it was: a part the game kept invisible stays invisible.
+do
+    local w,mods,move=v4_world()
+    local keys,store=w.keys(),file()
     -- the drone: one part shown, one the game keeps invisible
     local _,shown=w.drone()
     local dark=w.component(w.drones[1])
@@ -214,6 +221,43 @@ do
     assert(#mods==0,#mods..' camera modifiers left')
     drone_as_before()
     as_shipped(w,keys,store)
+end
+
+-- 3c. coop-gun.txt is written once a frame at most: each write makes, removes and renames a file on the game thread.
+--     The press of F4 wrote it four times on its frame: the rifle out, the morph's cube, her mesh's turn and the camera
+--     modifier. A frame's changes now go out in one write at its end. The start's own write comes first on the press
+--     frame, which writes twice at most: a start whose file cannot be written still gives everything back.
+do
+    local w=v4_world()
+    local saves,frame=0,{}
+    local store=file()
+    local save,clear=store.save,store.clear
+    store.save=function(text) saves=saves+1; return save(text) end
+    store.clear=function() saves=saves+1; return clear() end
+    local gun=new(store)
+    local function step(n) for _=1,n do saves=0; clock=clock+1/60; gun.tick(); frame[#frame+1]=saves end end
+    step(1)
+    w.down.F4=true; step(1); w.down.F4=nil
+    assert(gun.state.on and gun.state.cube,'F4 brings the rifle out with the morph\'s cube')
+    step(120)
+    w.pawn.bTPSMode,w.down.RightMouseButton=true,true; step(30)
+    w.pawn.bTPSMode,w.down.RightMouseButton=false,nil; step(30)
+    clock=clock+1
+    w.down.F4=true; step(1); w.down.F4=nil; step(120)
+    assert(not gun.state.on and store.peek()==nil,'F4 puts the rifle away, coop-gun.txt cleared')
+    for i,n in ipairs(frame) do
+        assert(n<=(i==2 and 2 or 1),('frame %d wrote coop-gun.txt %d times'):format(i,n))
+    end
+    -- a file that cannot be written: the press gives everything back
+    local w2=v4_world()
+    local keys2=w2.keys()
+    local gun2,logs=new({save=function() return false,'disk full' end,clear=function() end,load=function() end,
+        peek=function() end})
+    clock=clock+1; gun2.tick()
+    w2.down.F4=true; clock=clock+1/60; gun2.tick(); w2.down.F4=nil
+    assert(not gun2.state.on and not gun2.state.cube and w2.keys()==keys2 and #w2.rifles()==0,
+        'a start whose file is not written gives everything back')
+    assert(said(logs,'off: coop-gun.txt could not be written'),table.concat(logs,'|'))
 end
 
 -- 4. H4: values kept exactly: floats, integers, booleans, FNames, strings and vectors.
