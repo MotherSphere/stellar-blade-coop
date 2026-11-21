@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // What other modules' parts read of online/partner/pose_game.inc, cut from it whole and in order.
-// tick.cpp includes this file right before it.
+// tick.cpp includes this file right before it, with partner's sound_game.inc between them.
 namespace coop::pose {
 namespace {
 uintptr_t base = 0, objects = 0;

@@ -203,6 +203,12 @@ the ghost looks wrong with one on, turn it off: `cloth=off` (or `dyes=off`, `eff
 Options > Ghost in the co-op menu, or `coop look <look> off`. An `effects off: fault ...` line means a fault turned
 effects off until the game restarts; the ghost stays, without effects.
 
+Your EVE's sounds go to the others with the sounds look on (`sounds=on` in `coop status`). A line `sounds refused:
+0x<slot> holds <value>; nothing of that set swapped, the ghost goes on without sounds` in `coop-link.log` means
+another mod hooks the same function of the game. Stellar Blade Online leaves that mod's hook in place, so your sounds
+are not sent while it is loaded. `coop status` then shows `sounds=refused`. A `sounds off: fault ...` line means a
+fault turned them off until the game restarts. The ghost stays either way.
+
 ## Doro races
 
 ### EVE is invisible, or only a Doro shows
@@ -737,6 +743,9 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
   poses stream, every 50 ms otherwise) and the reads that returned 16 messages on one channel, so more may have waited
   for the next pass. The first of these lines in a run counts only its first pass.
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 6, unlisted reads and boxes written.
+- `sounds, last 60 s: ...`, with any sound of yours recorded: why each one counted as yours (mark, owner, attach, or a
+  start on another thread, which is not sent), sounds put in a pose, those dropped after 100 ms without a slot, paths
+  refused (outside the game's folders), parameters left out, sounds past the 4096 keys and starts lost to a full ring.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.
 

@@ -22,6 +22,7 @@ void block() {
   pause_tab_undo("coop off");
   options_block(); // The game thread puts a forced option back; options_pass gives the slots back after that.
   pad_hook_undo("coop off");
+  sound_undo("coop off"); // Her sounds' slots back; nothing recorded after it.
   world_off("coop off"); // Before sbo_off, which swaps back the ZoneEvent slot they share.
   story_off("coop off");
   sbo_off();
@@ -83,6 +84,8 @@ std::string status() {
       std::lock_guard<std::mutex> lock(theater_m);
       s += " " + theater_text;
     }
+    // Her sounds for the ghost (online/partner/sound_worker.inc): on, off, refused (another mod holds a slot) or fault.
+    s += " sounds=" + sound_status();
   }
   // coop gift's inventory read (cutmenus/mailbox.lua): the last ask's answer, by its number.
   if (!items_line.empty() && !blocked)

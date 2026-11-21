@@ -201,7 +201,7 @@ feature or drops the input.
     back; only then does it remove the oldest copies there past the 10 newest, by a name check that passes only those
     copies' names, and never the two copies an open SBO session's record names
     ([players/saves.md](../players/saves.md#copies-before-each-save)).
-- Five slots in the game's image, rather than in memory the game allocated, can hold the mod's value, for four hooks.
+- These slots in the game's image, rather than in memory the game allocated, can hold the mod's value for its hooks.
   Each one is an 8-byte pointer in `.rdata`. Each swap is a compare-and-swap from the game's own value only, with the
   page writable for that store alone. A slot that holds another value is never written.
   - The [spawn filter](../fight/enemies-internals.md#the-spawn-filter)'s slot, `0x145c15ea0`, is swapped when the
@@ -216,6 +216,12 @@ feature or drops the input.
   - The recruiter's Join slot, `0x145bfece8`, is swapped at the first `sbo arm`, which Lua sends once the recruiter
     stands in Xion, only with `sbo_lobby=on`; with it off, the slot is never written. Its hook counts the recruiter's
     Join and always calls the game's own function, and the slot is swapped back from the mod's value at `coop off`.
+  - [Her sounds](../online/partner-internals.md#her-sounds-sent) use nine slots in two sets: the context set
+    (`0x145c51bb0`, `0x145c525f0`, `0x145c60d60`, `0x145cf6398`, `0x145cf5a40`, `0x145cf5cb0`, `0x1463c3358`) and the
+    audio starts (`0x1463db320`, `0x145d07e48`). Each set is swapped all or none while the sounds look is on. If one
+    of its slots holds another value, the slots already swapped go back. Each set goes back when the look is turned
+    off, at `coop off` and after a fault. A slot that will not swap back keeps a hook that only runs the game's
+    function.
 - Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only for
   a Night Operation shop buy (`coop nightop buy`, co-op saves only) and for `coop gift` (a take, or a gift coming back,
   co-op saves only), through the game's own request (`ServerRequest_ItemBucketItemAdd`) with an item of its list and 1

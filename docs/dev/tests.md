@@ -731,6 +731,13 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   boxes and `free` box lines;
 - `online_partner_drone_test`: her drone's pick (the nearest within 3000 cm, a tie to the first) and when the lookup
   may run (both of SB's globals set, the world's manager and map found, game calls allowed);
+- `online_partner_sound_test`: her sounds' slots swapped all or none (another mod's hook in one slot or a page that
+  will not become writable gives back the ones taken; unrelocated originals never match) and back; the three sets
+  apart; why a sound is hers (mark, owner, attach, none); nothing recorded while the viewer plays or off the threads
+  with a ring; the ring of 64 (a later start of a component under one mark replaces its record, the 65th is lost and
+  counted); a show stage's main actor; the asset key's attenuation mixed with the int parameters; a record's SBA words
+  from a fake name pool (a class outside SB's folders goes as `-`, a parameter name that is not a word is left out, a
+  sound not at the top of its package or outside SB's folders is refused);
 - `game_events_test`: `game_calls_ok`, which allows a game call only with the lion gate open, the client in game and
   playing, off SB's logic thread; an event slot's 19 bytes with a fuzz (each slot it accepts encodes back to the same
   bytes); the `Outbox`, whose events wait at most 100 ms and hold a slot for 2 poses and 50 ms plus one send interval,

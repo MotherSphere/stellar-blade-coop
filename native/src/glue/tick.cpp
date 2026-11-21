@@ -308,6 +308,7 @@
 #include "game/partner/engine.h"
 #include "online/partner/record.h"
 #include "online/partner/drone.h"
+#include "online/partner/sound.h"
 #include "game/stream.h"
 #include "game/quests/engine.h"
 #include "story/quests/own.h"
@@ -320,6 +321,8 @@
 #include "game/objects/engine.h"
 
 #include "glue/tick/pose_game_shared.inc"
+// After pose_game_shared.inc (base, objects, fault_filter, Live) and before pose_game.inc, which drains its rings.
+#include "online/partner/sound_game.inc"
 #include "online/partner/pose_game.inc"
 #include "glue/tick/fight_game_shared.inc"
 #include "fight/enemies/fight_game.inc"
@@ -371,6 +374,8 @@
 #include "online/saves/saves_worker.inc"
 #include "glue/tick/fight_worker_shared.inc"
 #include "fight/enemies/fight_worker.inc"
+// After fight_worker_shared.inc and freeze_game_shared.inc: swap_slot, slot_value, Filter and story_scene.
+#include "online/partner/sound_worker.inc"
 #include "online/group/region_tabs_worker.inc"
 #include "ui/pause_tab_worker.inc" // After pause_tab_game.inc: its hook and flags.
 #include "glue/tick/sbo_worker_shared.inc"

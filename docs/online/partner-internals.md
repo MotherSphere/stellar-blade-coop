@@ -290,6 +290,58 @@ hang on (`AdditiveMasterBoneArray`), the collision asset as `OverrideClothPhysic
 the outfit's `<body mesh>_PonytailPhysicsAsset`), then its leader, then its mesh, which creates the cloth. Each asset is
 loaded in a build step of its own: the named one before its part's step, the outfit's after the body's.
 
+## Her sounds, sent
+
+With the sounds look on, your game records the sounds it plays for your EVE and sends each one in an event slot of the
+pose. The native part does it in `online/partner/sound.h`, `sound_game.inc` and `sound_worker.inc`.
+
+Seven context hooks mark her events. Each one sits in a vtable slot in `.rdata` and runs the game's own function with
+the same arguments:
+
+| Slot | Game function | What it plays |
+| --- | --- | --- |
+| `0x145c51bb0` | `0x142019370` | SB's footstep notify |
+| `0x145c525f0` | `0x1420173d0` | SB's character sound notify |
+| `0x145c60d60` | `0x1420286c0` | the start of SB's sound notify state (`USBAnimNotifyState_PlaySound`) |
+| `0x145cf6398`, `0x145cf5a40`, `0x145cf5cb0` | `0x1424679c0`, `0x142468d90`, `0x14245cdb0` | the show sound updaters |
+| `0x1463c3358` | `0x143fccef0` | the engine's `UAnimNotify_PlaySound` |
+
+A notify is hers when its mesh's owner is your EVE or her drone. A show updater is hers when its stage's main actor is
+your EVE, read the way the same-place capture reads a stage. No show updater counts while your game's theater holds a
+cutscene or a shared scene plays: scene dialogue is not sent.
+
+The sink sits in the audio component's start slot. `0x1463db320` (UAudioComponent) and `0x145d07e48`
+(USBSoundComponent) both hold Play, `0x1440925f0`. When the game starts a sound, the sink records it if one of three
+rules holds, checked in this order: one of her context hooks is running (mark), the component's owner is her EVE or her
+drone (owner), or the component hangs on one of her parts (attach). The record holds the sound, its class and
+attenuation, its volume and pitch, its first 8 int parameters and its place relative to the part it hangs on (her main
+mesh when none). A parameter with a float, bool or wave value is left out and counted. Under one mark a later start of
+the same component replaces its record: the game's pooled spawn starts a component once before its setup and again
+after it.
+
+Each record goes into a ring of 64 for its thread. The game thread has one. SB's logic thread, where the show updaters
+also run, has its own. A start on any other thread is only counted. The game thread empties its ring each frame and the
+logic thread's only while no logic task runs. Nothing is recorded while no capture goes to the loopback or a member, or
+while your game plays a ghost's sounds.
+
+A sound gets an asset key the first time its sound, class, attenuation and parameters come together in a link session.
+Its SBA line names them by their paths in the game's name pool: `sound <asset> <class|-> <attenuation|-> <params|->`.
+A sound outside the game's own folders is dropped and counted. A class or attenuation outside them goes as `-`. Then
+the event waits for a slot of the pose ([3. The pose codec](#3-the-pose-codec)) with its volume and pitch in 1/64
+steps, its part and its place.
+
+The worker swaps two sets apart, each all or none: the seven context slots and the two audio slots. Each swap is a
+compare-and-swap from the game's function, relocated to the loaded image. If one slot of a set holds another value, the
+slots of that set already swapped go back, with the line `sounds refused: 0x<slot> holds <value>; nothing of that set
+swapped, the ghost goes on without sounds (<set>)`. The other set stays. With the sounds look off both sets go back
+until it is on again. At `coop off` and after a fault they go back for the run. A fault in a hook or in the naming turns
+sounds off with one `sounds off: fault ...` line. The ghost goes on.
+
+`coop status` shows `sounds=on`, `off`, `refused` or `fault`. Every 60 s `coop-link.log` has `sounds, last 60 s:
+captured <n> (mark <n>, owner <n>, attach <n>, other thread <n>), sent <n>, <n> dropped waiting for a slot, <n> paths
+refused, <n> params left out, <n> over 4096 keys, <n> lost to a full ring`. The ghost does not play them yet. Not tested
+in game yet.
+
 ## CNS guard and crash sentinel
 
 The CNS part of the ghost is the work that touches a mod's assets or CNS data: the build step of a part whose mesh path

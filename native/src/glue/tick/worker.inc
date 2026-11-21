@@ -44,6 +44,9 @@ bool cycle_fault_logged = false, cycle_odd_logged = false;
 bool drone_fault_logged = false;
 uint64_t drone_written = ~uint64_t(0);
 std::string fault_where(uint64_t rva); // fight_worker_shared.inc's, after this part: the drone's fault line.
+// Her sounds (online/partner/sound_game.inc): their fault; sound_worker.inc's pass, after this part.
+bool sounds_fault_logged = false;
+void sound_pass(bool sounds);
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
 uint64_t next_poll = 0, next_counters = 0;
@@ -717,6 +720,16 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(drone_fault_address.load()));
     event(text);
   }
+  if (sounds_faulted && !sounds_fault_logged) {
+    sounds_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "sounds off: fault 0x%08llx in %s reading 0x%llx; her sounds' slots go back, the ghost goes on "
+                  "without them",
+                  static_cast<unsigned long long>(sounds_fault_code.load()), fault_where(sounds_fault_rva).c_str(),
+                  static_cast<unsigned long long>(sounds_fault_address.load()));
+    event(text);
+  }
   // coop-drone.txt for the capture, written only when the actor changes (none after coop off); a failed write is tried
   // again at the next pass.
   if (const uint64_t actor = blocked ? 0 : drone_actor.load(); actor != drone_written) {
@@ -798,6 +811,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     }
     lua = now;
   }
+  sound_pass(lua.sounds); // Her sounds' slots, by the sounds look; back after a fault.
   {
     std::vector<std::string> lines;
     std::array<Gap, 8> long_gaps;
@@ -833,6 +847,11 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     int64_t lag_us = window_lag_us.exchange(0), behind_us = window_behind_us.exchange(0);
     uint64_t fx_started = window_fx_started.exchange(0), fx_over = window_fx_over.exchange(0),
              fx_unlisted = window_fx_unlisted.exchange(0), fx_written = window_fx_written.exchange(0);
+    const uint64_t mark = window_sound_mark.exchange(0), owner = window_sound_owner.exchange(0),
+                   attach = window_sound_attach.exchange(0), other = window_sound_other.exchange(0),
+                   sound_sent = window_sound_sent.exchange(0), waited = window_sound_dropped.exchange(0),
+                   paths = window_sound_paths.exchange(0), left_out = window_sound_left_out.exchange(0),
+                   keys = window_sound_keys.exchange(0), ring = window_sound_ring.exchange(0);
     if (!first && vitals_reads) { // Eight ReadProcessMemory calls each; the cost under Proton is unmeasured.
       char line[96];
       std::snprintf(line, sizeof line, "vitals read, last 60 s: %llu reads, max %llu us",
@@ -883,6 +902,19 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                       static_cast<unsigned long long>(fx_started), static_cast<unsigned long long>(fx_over),
                       kEffectSlots, static_cast<unsigned long long>(fx_unlisted),
                       static_cast<unsigned long long>(fx_written));
+        event(line);
+      }
+      if (mark || owner || attach || other || sound_sent || waited || paths || left_out || keys || ring) {
+        std::snprintf(line, sizeof line,
+                      "sounds, last 60 s: captured %llu (mark %llu, owner %llu, attach %llu, other thread %llu), sent "
+                      "%llu, %llu dropped waiting for a slot, %llu paths refused, %llu params left out, %llu over %zu "
+                      "keys, %llu lost to a full ring",
+                      static_cast<unsigned long long>(mark + owner + attach), static_cast<unsigned long long>(mark),
+                      static_cast<unsigned long long>(owner), static_cast<unsigned long long>(attach),
+                      static_cast<unsigned long long>(other), static_cast<unsigned long long>(sound_sent),
+                      static_cast<unsigned long long>(waited), static_cast<unsigned long long>(paths),
+                      static_cast<unsigned long long>(left_out), static_cast<unsigned long long>(keys),
+                      kMaxAssetKeys, static_cast<unsigned long long>(ring));
         event(line);
       }
       if (names_in || names_refused || loaded_in || loaded_refused) {

@@ -38,12 +38,20 @@ uint64_t fx_incoming_generation = 0;
 bool fx_incoming_set = false;
 std::vector<std::string> outbox;
 // Her asset names (game/events.h's SBA lines), under m too: the lines the game thread named since the worker's last
-// asset_lines(); asset_keys_reset, set by asset_keys_clear() at a link session's start or end (the game thread clears
-// its AssetKeys before it names another asset, in the same hold of m as its next line); each ghost slot's loaded
+// asset_lines(); asset_keys_reset, set by asset_keys_clear() at a link session's start or end (the game thread takes it
+// in its next hold of m and drops its asset keys before it names another asset); each ghost slot's loaded
 // objects by key, from the slot's coop-loaded file (the worker writes them in place; asset_slot_reset() empties one).
 std::vector<std::string> asset_named;
 bool asset_keys_reset = false;
 std::array<std::unordered_map<uint16_t, Loaded>, kMaxRemote> asset_loaded;
+// The game thread's: our asset keys for this link session, our events on their way into the pose's event slots, the
+// fresh SBA lines not handed over yet. asset_keys_stale: a reset taken under m, carried out right after it (the keys,
+// lines and events of the session before are dropped).
+AssetKeys asset_keys;
+Outbox event_outbox;
+std::vector<std::string> asset_waiting;
+bool asset_keys_stale = false;
+uint64_t ring_over_seen[2] = {}, outbox_dropped_seen = 0; // For the sounds line's deltas.
 Message out_mid;
 bool out_fresh = false;
 std::array<Message, kInbox> inbox;
@@ -158,6 +166,31 @@ bool guarded_effects_write(Drawn &ghost) {
   return all;
 }
 
+// Her sounds the hooks recorded since the last frame (the logic thread's ring only while no logic task runs), into the
+// asset keys and the event outbox while her capture goes to the loopback or a member; else dropped. Each frame, before
+// the capture: an event waits for its slot from the frame SB played it in.
+void events_drain(uint64_t now_us) {
+  const auto read = [](uint64_t a, void *out, size_t n) {
+    std::memcpy(out, reinterpret_cast<const void *>(a), n);
+    return true;
+  };
+  window_sound_dropped += event_outbox.dropped() - outbox_dropped_seen;
+  outbox_dropped_seen = event_outbox.dropped();
+  sound::Record taken[sound::Records::kEntries];
+  uint32_t clamped = 0;
+  for (size_t ring = 0; ring < 2; ++ring) {
+    if (ring == 1 && pilot::logic_busy(read, base))
+      break;
+    sound::Records &records = ring ? sound_logic_records : sound_game_records;
+    const size_t n = records.take(taken, std::size(taken));
+    for (size_t i = 0; (loopback_on || peer_on) && !sounds_faulted && i < n; ++i)
+      sound_take(taken[i], asset_keys, event_outbox, asset_waiting, now_us, clamped);
+    window_sound_ring += records.over() - ring_over_seen[ring];
+    ring_over_seen[ring] = records.over();
+  }
+  window_clamped += clamped;
+}
+
 // The pose drawn this frame into the ghost: each remote leader Lua built a part for, as it came or through its remap,
 // with the box of a free part (her drone) Lua named, then its effect boxes and the mailbox. True when every write
 // passed its checks.
@@ -212,6 +245,7 @@ void stream(uint64_t now_us) {
     if (live.remotes[0]) // The loopback feeds slot 0 only.
       live.remotes[0]->playback.clear();
   }
+  events_drain(now_us);
   const bool capture_due = (loopback_on || record_on || peer_on) && live.capture.generation && now_us >= next_capture;
   if (capture_due && !live.encoder.due(now_us, pilot_sending)) {
     ++window_held; // The byte budget is spent: read again next frame.
@@ -233,8 +267,10 @@ void stream(uint64_t now_us) {
       uint32_t clamped = 0;
       if (lost_key(out_back, out_ready)) // A keyframe the worker never got: overwritten.
         live.encoder.lose();
+      Event events[kEventSlots];
+      event_outbox.fill(events, now_us, every);
       size_t size = encode_pose(live.capture, h, live.capture_root, live.capture_bones.data(), live.capture_fx,
-                                out_back.data.data(), clamped, live.capture_free);
+                                out_back.data.data(), clamped, live.capture_free, events);
       size = out_back.size = live.encoder.encode(live.capture, out_back.data.data(), size, now_us);
       if (out_back.data[2] == 'D')
         ++window_deltas, window_delta_bytes += size;
@@ -349,8 +385,20 @@ void game_tick() {
       gaps[gap_count++] = gap_waiting;
       gap_held = false;
     }
+    if (asset_keys_reset) // A link session started or ended: our lines named since are of the session before.
+      asset_keys_reset = false, asset_keys_stale = true;
+    else if (asset_named.empty())
+      asset_named.swap(asset_waiting);
     m.unlock();
   }
+  if (asset_keys_stale) {
+    asset_keys.clear();
+    asset_waiting.clear();
+    event_outbox = Outbox();
+    outbox_dropped_seen = 0;
+    asset_keys_stale = false;
+  }
+  sound_publish(session.get());
   if (session)
     stream(micros_now(now));
   else
