@@ -77,9 +77,9 @@ Every value in the set is a game fact: read it in Ghidra on the new build first.
 2. Read each target in Ghidra on the new build. On build 26123051, GNatives (0x146f17900) is the table that
    ProcessLocalScriptFunction (FUN_142b79420) calls through with each opcode until opcode 4. GUObjectArray
    (0x146ddd240) is the global that the object pool's allocation (FUN_142b8bc20) writes. The FText constructor
-   (FUN_142862fc0) builds an FText from an `FString&&`. Write the new addresses and what Ghidra shows into
-   `ue4ss.json`, as port step 4 does for `signatures.json`. Port step 7 (`make_signatures.py`) then writes their
-   signatures from the new build.
+   (FUN_142862fc0) builds an FText from an `FString&&`. Write the new addresses, what Ghidra shows and the new
+   `build` into `ue4ss.json`, as port step 4 does for `signatures.json`. Port step 7 (`make_signatures.py`) then
+   writes their signatures from the new build.
 3. Run `find.py` again. Search each script's pattern in Ghidra: it must match once in the whole program.
 4. Make `ue4ss/builds/<TimeDateStamp>-<SizeOfImage>/`. Each script's header gives both values. So does the line with
    which `make_signatures.py` refuses an executable that `engine.h` does not pin yet. Put the GNatives and

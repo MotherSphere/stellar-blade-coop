@@ -435,6 +435,9 @@ def main(argv):
         doc = json.load(f)
     with open(addresses.UE4SS, encoding='utf-8') as f:
         ue4ss = json.load(f)
+    if ue4ss['build'] != doc['build']:  # Its addresses would be another build's, signed on this executable.
+        sys.exit(f'{addresses.UE4SS} is for build {ue4ss["build"]}, {addresses.SIGNATURES} for build {doc["build"]}: '
+                 'write the new addresses and build into both (docs/dev/porting.md, step 4)')
     names = {}
     for u in addresses.scan():
         names.setdefault(f'{u.address:#x}', set()).add(u.name)

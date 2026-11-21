@@ -1662,9 +1662,11 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   section. A signature that matches twice gives no address. A holder whose code two places hold gives no address. An
   executable other than the pinned build is refused. `main`, on that file pinned in place of build 26123051, writes
   `signatures.json` and `tools/port/ue4ss.json` from one build. The first takes the code's names. The second keeps its
-  own. An address in both gets the same signature in each. Every entry of `tools/port/signatures.json` that needs a
-  signature has one in the form the tool writes, with the names the code gives its address. So has every entry of
-  `ue4ss.json`, whose names are FText_Constructor, GNatives and GUObjectArray. Then
+  own. An address in both gets the same signature in each. A `ue4ss.json` of another build than `signatures.json` is
+  refused before either is written. The two files in the tree name one build. Every entry of
+  `tools/port/signatures.json` that needs a signature has one in the form the tool writes, with the names the code
+  gives its address. So has every entry of `ue4ss.json`, whose names are FText_Constructor, GNatives and GUObjectArray.
+  Then
   `tools/port/find.py` on the same PE file: every entry is found, the image base and a section included. With a
   function added before the others, the code addresses move by 16 bytes and the data addresses stay. Three copies of
   a function give `ambiguous (3 matches)`. A holder's code held in two places gives `ambiguous (2 matches)`. A

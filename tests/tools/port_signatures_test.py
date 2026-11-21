@@ -215,6 +215,24 @@ def signature(e):
 
 
 assert sig_doc['build'] == ue4ss_doc['build'] == 'old', (sig_doc['build'], ue4ss_doc['build'])
+# Port step 4 writes the new addresses and build into both files. A ue4ss.json left at another build is refused
+# before anything is written: its addresses would be signed on the wrong executable. The two files in the tree agree.
+with tempfile.TemporaryDirectory() as tmp:
+    exe, sig_file, ue4ss_file = Path(tmp) / 'SB-Win64-Shipping.exe', Path(tmp) / 'sig.json', Path(tmp) / 'ue4ss.json'
+    exe.write_bytes(data)
+    sig_file.write_text(json.dumps({'build': 'new', 'addresses': {}}))
+    ue4ss_file.write_text(json.dumps({'build': 'old', 'addresses': {}}))
+    with mock.patch.object(addresses, 'SIGNATURES', sig_file), mock.patch.object(addresses, 'UE4SS', ue4ss_file), \
+            mock.patch.object(ms, 'pinned', lambda: (0x11223344, 0x4000)):
+        try:
+            ms.main(['make_signatures.py', str(exe)])
+            raise AssertionError('main took a ue4ss.json of another build')
+        except SystemExit as e:
+            assert e.code == (f'{ue4ss_file} is for build old, {sig_file} for build new: write the new addresses and '
+                              'build into both (docs/dev/porting.md, step 4)'), e.code
+    assert json.loads(ue4ss_file.read_text())['build'] == 'old' and json.loads(sig_file.read_text())['build'] == 'new'
+builds = [json.loads(f.read_text(encoding='utf-8'))['build'] for f in (addresses.SIGNATURES, addresses.UE4SS)]
+assert builds[0] == builds[1], builds
 assert sig_doc['addresses'] == {flag: {'kind': 'global', 'ghidra': 'flag', 'name': 'kFlag', **signature(out[flag])},
                                 unique: {'kind': 'function', 'ghidra': 'unique', 'name': 'kUnique',
                                          **signature(out[unique])}}, sig_doc

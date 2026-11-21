@@ -64,7 +64,10 @@ repository.
    matches the functions of two programs.
 4. Write the new addresses. In `native/src`, change each constant and the addresses its comment gives. In
    `signatures.json`, change each key to the new address, its `ghidra` text to what Ghidra shows on the new build and
-   `build` to the new build number. `python3 tools/port/addresses.py` then reports no address missing and none unused.
+   `build` to the new build number. Do the same in `ue4ss.json` for the three UE4SS targets
+   ([SBO UE4SS](ue4ss.md#adding-a-build), step 2): each key, its `ghidra` text and `build`. `make_signatures.py`
+   refuses the two files while their `build` differs. `python3 tools/port/addresses.py` then reports no address
+   missing and none unused.
 5. Pin the new build. These are the constants `check_build()` compares, in `native/src/game/partner/engine.h`:
    - `kTimeDateStamp` and `kSizeOfImage` are the new PE header's values. As long as `engine.h` pins build 26123051,
      `make_signatures.py` refuses the new executable with a line that gives both:
@@ -259,8 +262,9 @@ python3 tools/port/make_signatures.py <path to SB-Win64-Shipping.exe of build 26
 Then it prints the number of uses and addresses, each address the file lacks and each entry no code uses. It exits
 with 1 when there is one of either.
 
-`make_signatures.py` rewrites `signatures.json` in place. It keeps `kind` and `ghidra`. It writes `name` and the
-signature again. On build 26123051 it takes about 2 minutes and 1 GB of RAM. A second run writes the same file.
+`make_signatures.py` rewrites `signatures.json` and `ue4ss.json` in place. It refuses them when their `build`
+differs. It keeps `kind` and `ghidra`. It writes `name` and the signature again. On build 26123051 it takes about
+2 minutes and 1 GB of RAM. A second run writes the same files.
 
 ## Finding the addresses in a new build
 
