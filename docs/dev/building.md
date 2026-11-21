@@ -74,6 +74,36 @@ GPL-3.0-or-later; the repository's own `CHANGELOG.md` is the one Release Please 
 Commit subjects follow Conventional Commits. The zip's changelog lists the `feat` and `fix` subjects only, newest first,
 with their scope; a `!` marks a breaking change.
 
+## UE4SS
+
+SBO runs on the official UE4SS v4.0.0 release (https://github.com/UE4SS-RE/RE-UE4SS, tag `v4.0.0`, MIT) with its own
+settings and the files of the player's Stellar Blade build. `tools/ue4ss.py` builds that package:
+
+```
+python3 tools/ue4ss.py fetch
+python3 tools/ue4ss.py zip <SB-Win64-Shipping.exe> <out.zip>
+```
+
+`fetch` downloads `UE4SS_v4.0.0.zip` once into `~/.cache/sbo-ue4ss/official-v4.0.0/` and checks its SHA-256 against
+the pin in the script. It refuses any other bytes, from the cache or from the download. Nothing in the zip runs on the
+build machine: the tool reads it as data.
+
+`zip` writes the package for one executable, with paths under `SB/Binaries/Win64/` to unpack into the Stellar Blade
+folder. The package holds:
+
+- the release's `dwmapi.dll` and `ue4ss/` folder, without its settings file and without the four example mods that
+  change the game (CheatManagerEnablerMod, ConsoleCommandsMod, ConsoleEnablerMod and SplitScreenMod). Their lines
+  leave `Mods/mods.txt` too. The `coop` console commands need ConsoleEnablerMod: a player keeps or adds it
+  separately ([INSTALL.md](../../INSTALL.md#requirements));
+- `ue4ss/UE4SS-settings.ini` from this repository;
+- the files of `ue4ss/builds/<TimeDateStamp>-<SizeOfImage>/` for the executable's PE header, without the set's
+  `README.md`;
+- this repository's `NOTICE` and `LICENSE` as `ue4ss/SBO-NOTICE` and `ue4ss/SBO-LICENSE`.
+
+An executable with no set gets nothing. The tool names the build it read and the builds SBO has files for, then
+stops. UE4SS v4.0.0 without the set's `MemberVariableLayout.ini` would write past the end of the game's
+FUObjectArray.
+
 ## tools/wine_smoke.py
 
 `tools/wine_smoke.py` builds `StellarCoop.dll` exactly as the installer does, builds `tests/wine/smoke.cpp`, and loads
@@ -269,7 +299,12 @@ tools/
   story_lines.py            a save's story lines, their digest, and a save against an in-game dump (see story-dump.md)
   teamshop_rows.py          writes native/src/world/teamshop/teamshop_rows.h and world/teamshop/rows.lua from
                             data/teamshop/
+  ue4ss.py                  fetches the pinned UE4SS v4.0.0 release zip and assembles SBO's UE4SS package for one
+                            Stellar Blade build (see UE4SS)
   wine_smoke.py             loads the DLL under Wine
+ue4ss/
+  UE4SS-settings.ini        SBO's UE4SS settings, the v4.0.0 release file with SBO's values
+  builds/<stamp>-<size>/    the UE4SS files of one Stellar Blade build, named after its executable's PE header
 .github/workflows/
   release-please.yml        the release pull request, the tag and the draft release (see Releases)
   nexus-upload.yml          sends a published release's zip to Nexus Mods

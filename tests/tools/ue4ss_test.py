@@ -8,17 +8,21 @@ scripts run under lua5.4 on made-up matches and on Ghidra's copy of the executab
 FText_Constructor.lua anywhere under ue4ss/. ue4ss/UE4SS-settings.ini has every key of UE4SS v4.0.0's file, with
 HookBeginPlay off and bUseUObjectArrayCache false. NOTICE credits the sources.
 Run: python3 tests/tools/ue4ss_test.py"""
+import contextlib
 import hashlib
 import io
 import re
 import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools/port'))
+sys.path.insert(0, str(ROOT / 'tools'))
 import make_signatures as ms  # noqa: E402
+import ue4ss as tool  # noqa: E402
 
 UE4SS = ROOT / 'ue4ss'
 STAMP, SIZE = ms.pinned()
@@ -326,10 +330,11 @@ out = subprocess.run(['lua5.4', '-', str(ROOT / 'mod/StellarCoop/Scripts/core/ue
                      input=CHECK, capture_output=True, text=True, timeout=60)
 assert out.returncode == 0 and out.stdout.strip() == '0', (out.stdout, out.stderr)
 # The pinned release zip, when this PC has it: OFFICIAL is its file.
-ZIP = Path.home() / '.cache/sbo-ue4ss/official-v4.0.0/UE4SS_v4.0.0.zip'
+ZIP = tool.CACHE
+assert tool.SHA256 == '251ad0d1381a241750e036f5918cbf2b5d7ec58ebc608cb2dd09d459d0c81e45'  # GitHub's digest of the asset
 if ZIP.is_file():
     blob = ZIP.read_bytes()
-    assert hashlib.sha256(blob).hexdigest() == '251ad0d1381a241750e036f5918cbf2b5d7ec58ebc608cb2dd09d459d0c81e45', ZIP
+    assert hashlib.sha256(blob).hexdigest() == tool.SHA256, ZIP
     shipped = settings(zipfile.ZipFile(io.BytesIO(blob)).read('ue4ss/UE4SS-settings.ini').decode('utf-8'))
     assert {s: {k: v for k, (v, _) in keys.items()} for s, keys in shipped.items()} == \
         {s: {k: v for k, v in keys.items() if v is not None} for s, keys in OFFICIAL.items()}, shipped
@@ -346,4 +351,145 @@ for word in ('https://github.com/Rev-OG-UwU/SB-UE4SS', 'a63c3f8ecfc51c679082c308
              'FText_Constructor.lua'):
     assert word in notice, f'NOTICE lacks {word}'
 
-print(f'ue4ss_test: ok ({len(builds)} build set; {real}; {zipped})')
+
+# tools/ue4ss.py on made-up executables and a made-up release zip in a temporary folder, with no network: a download
+# reads a file:// URL.
+def exe(stamp, size, magic=0x20b):
+    """The first 0x100 bytes of a PE file with this TimeDateStamp, SizeOfImage and optional header magic."""
+    head = bytearray(0x100)
+    head[:2], head[0x3c:0x40], head[0x80:0x84] = b'MZ', (0x80).to_bytes(4, 'little'), b'PE\0\0'
+    head[0x88:0x8c], head[0x98:0x9a] = stamp.to_bytes(4, 'little'), magic.to_bytes(2, 'little')
+    head[0xd0:0xd4] = size.to_bytes(4, 'little')
+    return bytes(head)
+
+
+def stop(fn, *args):
+    """The message fn(*args) exits with and what it printed before."""
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        try:
+            fn(*args)
+        except SystemExit as error:
+            return str(error.code), out.getvalue()
+    raise AssertionError(f'{fn.__name__}{args} did not stop')
+
+
+def zip_of(files):
+    """A zip of these files with a folder entry first, as the release has."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, 'w') as archive:
+        archive.writestr('ue4ss/', b'')
+        for name, data in files.items():
+            archive.writestr(name, data)
+    return out.getvalue()
+
+
+# The example mods that change the game: a console, cheats, the console's set and summon commands, split screen.
+GONE = ('CheatManagerEnablerMod', 'ConsoleCommandsMod', 'ConsoleEnablerMod', 'SplitScreenMod')
+MODS_TXT = ('CheatManagerEnablerMod : 1\r\nConsoleCommandsMod : 1\r\nConsoleEnablerMod : 1\r\nSplitScreenMod : 0\r\n'
+            'LineTraceMod : 0\r\nBPML_GenericFunctions : 1\r\nBPModLoaderMod : 1\r\n\r\n\r\n\r\n\r\n'
+            '; Built-in keybinds, do not move up!\r\nKeybinds : 1\r\n')
+RELEASE = {'dwmapi.dll': b'proxy', 'ue4ss/UE4SS.dll': b'ue4ss', 'ue4ss/LICENSE': b'MIT',
+           'ue4ss/UE4SS-settings.ini': b'release settings', 'ue4ss/UE4SS_SDK_Backends/UE4SS.json': b'{}',
+           'ue4ss/Mods/mods.txt': MODS_TXT.encode(), 'ue4ss/Mods/BPModLoaderMod/load_order.txt': b'',
+           'ue4ss/Mods/ConsoleCommandsMod/Scripts/set.lua': b'set',
+           'ue4ss/Mods/shared/UEHelpers/UEHelpers.lua': b'help',
+           **{f'ue4ss/Mods/{mod}/Scripts/main.lua': mod.encode()
+              for mod in (*GONE, 'BPML_GenericFunctions', 'BPModLoaderMod', 'Keybinds', 'LineTraceMod')}}
+expected = {rel: data for rel, data in RELEASE.items()
+            if rel != 'ue4ss/UE4SS-settings.ini' and not rel.startswith(tuple(f'ue4ss/Mods/{mod}/' for mod in GONE))}
+expected['ue4ss/Mods/mods.txt'] = (b'LineTraceMod : 0\r\nBPML_GenericFunctions : 1\r\nBPModLoaderMod : 1\r\n'
+                                   b'\r\n\r\n\r\n\r\n; Built-in keybinds, do not move up!\r\nKeybinds : 1\r\n')
+expected['ue4ss/UE4SS-settings.ini'] = SETTINGS.read_bytes()
+expected.update({f'ue4ss/{p.relative_to(SET).as_posix()}': p.read_bytes() for p in SET.rglob('*')
+             if p.is_file() and p.name != 'README.md'})
+expected['ue4ss/SBO-NOTICE'] = (ROOT / 'NOTICE').read_bytes()
+expected['ue4ss/SBO-LICENSE'] = (ROOT / 'LICENSE').read_bytes()
+assert {'ue4ss/MemberVariableLayout.ini', 'ue4ss/VTableLayout.ini', 'ue4ss/UE4SS_Signatures/GNatives.lua',
+        'ue4ss/UE4SS_Signatures/GUObjectArray.lua'} <= set(expected), sorted(expected)
+
+pin = tool.URL, tool.SHA256, tool.CACHE
+with tempfile.TemporaryDirectory() as tmp:
+    tmp = Path(tmp)
+    release, other = zip_of(RELEASE), zip_of({'dwmapi.dll': b'another proxy'})
+    (tmp / 'release.zip').write_bytes(release)
+    (tmp / 'other.zip').write_bytes(other)
+    known, unknown, x86, text = (tmp / f'{n}.exe' for n in ('known', 'unknown', 'x86', 'text'))
+    known.write_bytes(exe(STAMP, SIZE))
+    unknown.write_bytes(exe(STAMP, SIZE + 0x1000))
+    x86.write_bytes(exe(STAMP, SIZE, magic=0x10b))
+    text.write_bytes(b'MZ is all it has')
+    try:
+        tool.URL, tool.SHA256 = (tmp / 'no-such.zip').as_uri(), hashlib.sha256(release).hexdigest()
+        tool.CACHE = tmp / 'cache/UE4SS_v4.0.0.zip'
+        # The set's name is the header's TimeDateStamp and SizeOfImage. A file that is no 64-bit PE file is refused.
+        assert tool.build(known) == SET.name and tool.build(unknown) == f'{STAMP:08x}-{SIZE + 0x1000:08x}'
+        for bad in (x86, text):
+            assert stop(tool.build, bad) == (f'{bad} is not a 64-bit Windows executable', ''), stop(tool.build, bad)
+        message, _ = stop(tool.build, tmp / 'missing.exe')
+        assert message.startswith(f'Cannot read {tmp / "missing.exe"}: '), message
+        # A build with no set gets nothing, not even a download: UE4SS v4.0.0 without the set's layout file writes
+        # past the end of the game's FUObjectArray.
+        assert stop(tool.package, unknown) == (
+            f'SBO has no UE4SS files for this Stellar Blade build ({STAMP:08x}-{SIZE + 0x1000:08x}), only for '
+            f'{", ".join(builds)}. SBO waits for an update. Nothing was written.', ''), stop(tool.package, unknown)
+        assert not tool.CACHE.parent.exists()
+        # A download of other bytes is refused and never cached.
+        tool.URL = (tmp / 'other.zip').as_uri()
+        assert stop(tool.package, known) == (
+            f'{tool.URL} is not the UE4SS v4.0.0 release zip (SHA-256 {hashlib.sha256(other).hexdigest()}, expected '
+            f'{tool.SHA256}): refused', f'Downloading {tool.URL}\n'), stop(tool.package, known)
+        assert not tool.CACHE.parent.exists() or not list(tool.CACHE.parent.iterdir())
+        # The first package downloads the release into the cache, the next one reads the cache.
+        tool.URL = (tmp / 'release.zip').as_uri()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            files = tool.package(known)
+        assert out.getvalue() == f'Downloading {tool.URL}\n', out.getvalue()
+        assert [p.name for p in tool.CACHE.parent.iterdir()] == [tool.CACHE.name], list(tool.CACHE.parent.iterdir())
+        assert tool.CACHE.read_bytes() == release
+        assert files == expected, sorted(set(files) ^ set(expected)) or [r for r in expected if files[r] != expected[r]]
+        tool.URL = (tmp / 'no-such.zip').as_uri()
+        assert tool.package(known) == expected
+        # zip: the package under SB/Binaries/Win64/, to unpack into the Stellar Blade folder. The same files give the
+        # same bytes.
+        for name in ('a', 'b'):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                tool.main(['ue4ss.py', 'zip', str(known), str(tmp / name / 'SBO-UE4SS.zip')])
+            assert out.getvalue() == f'Wrote {tmp / name / "SBO-UE4SS.zip"} ({len(expected)} files)\n', out.getvalue()
+        made = zipfile.ZipFile(tmp / 'a/SBO-UE4SS.zip')
+        assert {n: made.read(n) for n in made.namelist()} == {f'SB/Binaries/Win64/{r}': d for r, d in expected.items()}
+        assert (tmp / 'a/SBO-UE4SS.zip').read_bytes() == (tmp / 'b/SBO-UE4SS.zip').read_bytes()
+        assert {i.date_time for i in made.infolist()} == {(1980, 1, 1, 0, 0, 0)}
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            tool.main(['ue4ss.py', 'fetch'])
+        assert out.getvalue() == f'{tool.CACHE}: UE4SS v4.0.0, SHA-256 checked\n', out.getvalue()
+        # A cache file of other bytes is refused and left as it is.
+        tool.CACHE.write_bytes(other)
+        assert stop(tool.package, known) == (
+            f'{tool.CACHE} is not the UE4SS v4.0.0 release zip (SHA-256 {hashlib.sha256(other).hexdigest()}, '
+            f'expected {tool.SHA256}): refused', ''), stop(tool.package, known)
+        assert tool.CACHE.read_bytes() == other
+        assert stop(tool.main, ['ue4ss.py'])[0].startswith('python3 tools/ue4ss.py fetch')
+    finally:
+        tool.URL, tool.SHA256, tool.CACHE = pin
+    # The pinned release itself, when this PC has it: each left-out mod is a folder of it. The package keeps the
+    # release's proxy, UE4SS.dll, its license and the rest of mods.txt.
+    if ZIP.is_file():
+        names = zipfile.ZipFile(ZIP).namelist()
+        assert all(any(n.startswith(f'ue4ss/Mods/{mod}/') for n in names) for mod in GONE), names
+        files = tool.package(known)
+        ours = ['ue4ss/UE4SS-settings.ini', *(r for r in expected if r not in RELEASE)]
+        kept = {n for n in names if not n.endswith('/') and not n.startswith(tuple(f'ue4ss/Mods/{m}/' for m in GONE))}
+        assert set(files) == kept | set(ours), sorted(set(files) ^ (kept | set(ours)))
+        assert {'dwmapi.dll', 'ue4ss/UE4SS.dll', 'ue4ss/LICENSE', 'ue4ss/Mods/Keybinds/Scripts/main.lua',
+                'ue4ss/Mods/shared/UEHelpers/UEHelpers.lua'} <= kept, sorted(kept)
+        assert files['ue4ss/Mods/mods.txt'] == expected['ue4ss/Mods/mods.txt'], files['ue4ss/Mods/mods.txt']
+        assert {r: files[r] for r in ours} == {r: expected[r] for r in ours}
+        packaged = 'package checked against the v4.0.0 zip'
+    else:
+        packaged = f'package not checked against the v4.0.0 zip: no {ZIP}'
+
+print(f'ue4ss_test: ok ({len(builds)} build set; {real}; {zipped}; {packaged})')
