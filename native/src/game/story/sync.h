@@ -498,7 +498,7 @@ public:
     if (m.type == Type::on || m.type == Type::off) {
       const bool on = m.type == Type::on;
       if (on)
-        last_ = 0, her_hooks_ = m.hooks, wait_seq_ = 0; // Her seq starts again after each on.
+        last_ = 0, her_hooks_ = m.hooks; // Her seq starts again after each on.
       her_on_ = on;
       std::string said = on ? "story: partner on" : "story: partner off (" + m.reason + ")";
       // Her presses on a QTE or InputCounter are taken only when the host's hook for that class reads his results.
@@ -622,7 +622,10 @@ public:
     const Leader *l = named(path);
     return l ? l->member : kHostMember;
   }
-  bool leads(std::string_view path) const { return leader_of(path) == gates_.me; }
+  // Never our copy of a scene whose leader's end came: a Leader that came since names its next try.
+  bool leads(std::string_view path) const {
+    return leader_of(path) == gates_.me && !(copy_.path == path && (copy_.state == State::out || copy_.ended));
+  }
 
   Counters counters;
   std::vector<std::string> out;       // Lines to send her on channel 2, reliable, taken by the glue.
@@ -641,6 +644,7 @@ private:
     int32_t first = 0;      // the host's first take
     bool started = false;   // started here, so her first take must be the host's
     bool ended = false;     // the host's end came while it was starting
+    int end_try = -1;       // the try a Leader named for its path when the host's end came, -1 for none
     uint64_t since = 0;     // when it started or attached
     int32_t take = 0;       // her take, once shared
     Pos host;               // the host's last position
@@ -705,7 +709,8 @@ private:
                : ended_.erase(it);
   }
   // Our theater's last path ended here: a boss QTE scene we followed or led goes to qte_ended. The Leader that named
-  // it at that try counts as none from now on.
+  // it at that try counts as none from now on. On a copy whose leader's end came, that try is the one named then: the
+  // next try's Leader may come while our copy plays out.
   void ended_here(const std::string &path) {
     const bool led = !path.empty() && path == led_path_;
     if (led)
@@ -713,11 +718,17 @@ private:
     if (!qte_scene(path) || !(led || (copy_.state != State::none && copy_.path == path)))
       return;
     qte_ended.push_back(path);
-    for (const Leader &l : gates_.leaders)
-      if (l.path == path) {
-        int &e = ended_.emplace(path, -1).first->second;
-        e = std::max(e, int(l.tries));
-      }
+    int tries = -1;
+    if (!led && copy_.state == State::out)
+      tries = copy_.end_try;
+    else
+      for (const Leader &l : gates_.leaders)
+        if (l.path == path)
+          tries = std::max(tries, int(l.tries));
+    if (tries >= 0) {
+      int &e = ended_.emplace(path, -1).first->second;
+      e = std::max(e, tries);
+    }
   }
   // While our player watches a boss fight, a play line of a boss trigger scene waits for her to get up,
   // kSpectateWaitMs at most, then goes to the gate, which refuses it while our EVE is still down.
@@ -829,6 +840,8 @@ private:
     if (copy_.state == State::none || m.scene != copy_.scene)
       return drop(scene, scene + ": its later lines are dropped, no shared copy of it plays in her game");
     if (m.type == Type::end) {
+      if (const Leader *l = named(copy_.path))
+        copy_.end_try = l->tries;
       if (copy_.state == State::starting)
         copy_.ended = true;
       else if (copy_.state == State::shared)

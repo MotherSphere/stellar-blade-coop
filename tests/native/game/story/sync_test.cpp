@@ -991,6 +991,7 @@ void test_leaders() {
     const uint64_t skipped = p.host.counters.skipped;
     assert(!p.host.send(Pair::root(1, r), p.now) && p.host.counters.skipped == skipped + 1);
     assert(p.guest.send(Pair::root(1, r), p.now) && p.guest.counters.sent == 1);
+    assert(!p.guest.send(Pair::place(2, 100, 30), p.now)); // Her later lines go only for the root she sent.
     assert(p.guest.send(Pair::place(1, 100, 30), p.now));
     p.step(), p.step();
     assert(p.host.counters.received == 2 && p.host.counters.attached == 1 && p.host.sharing());
@@ -1045,6 +1046,30 @@ void test_leaders() {
     p.hg.leaders = p.gg.leaders = {Leader{R, 0, 0}};
     p.step();
     assert(p.hostgame.plays == 1 && !p.hostgame.paused && p.host.leads(R));
+  }
+  { // The hold hands its pause to the leash when her lines come behind his place: no play between.
+    Pair p;
+    p.zone(r.zone);
+    p.his(R, 100, 30), p.hostgame.now.block = true;
+    p.step();
+    assert(p.hostgame.holds == 1 && p.hostgame.paused);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.step();
+    p.her(R, 100, 10);
+    assert(p.guest.send(Pair::root(1, r), p.now) && p.guest.send(Pair::place(1, 100, 10), p.now));
+    p.step(), p.step(), p.step();
+    assert(p.host.sharing() && p.hostgame.paused && p.hostgame.plays == 0 && p.hostgame.holds == 1);
+  }
+  { // A new partner's on gives the hold back at once.
+    Pair p;
+    p.zone(r.zone);
+    p.her(R), p.game.now.block = true;
+    p.step();
+    assert(p.game.holds == 1 && p.game.paused);
+    p.gg.partner = 76561198000000003ull;
+    p.guest.receive(T + "on 7", p.gg);
+    p.guest.pass(p.gg, p.now += 16);
+    assert(!p.game.paused && p.game.plays == 1);
   }
   { // hold_cap: no Leader and no line for kStartMs, then his own presses count; said once, held once a play.
     Pair p;
@@ -1105,6 +1130,35 @@ void test_leaders() {
     p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
     p.step();
     assert(p.guest.leads(R) && !p.game.paused);
+  }
+  { // He missed try 0. His try 1 owner (her) reaches her before her copy played out: she does not lead that copy's
+    // rest. It records try 0 as ended, so she leads try 1.
+    Pair p;
+    p.zone(r.zone);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 0, 0}};
+    p.his(R, 100, 0), p.her(R, 100, 0);
+    p.step();
+    assert(p.send(Pair::root(1, r)) && p.send(Pair::place(1, 100, 50)));
+    p.step(), p.step();
+    assert(p.guest.sharing());
+    p.his("");
+    assert(p.send(Pair::ended(1)));
+    p.step(), p.step();
+    assert(p.host.qte_ended == std::vector<std::string>{R});
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 1}};
+    p.step();
+    assert(p.guest.active() && !p.guest.leads(R) && !saw(p.guest.log, "we lead it now"));
+    Lead lead;
+    Theater t;
+    t.present = t.ready = true, t.id = 40, t.path = R, t.priority = r.priority, t.finish = r.finish;
+    t.pos = Pos{100, "Seq_A", 60, true};
+    p.guest.out.clear();
+    lead.pass(t, r.zone, p.guest, p.now);
+    assert(p.guest.out.empty());
+    p.her("");
+    p.step();
+    assert(p.guest.qte_ended == std::vector<std::string>{R});
+    assert(p.guest.leads(R) && p.host.leader_of(R) == 1);
   }
   { // The lead comes to her while she follows his copy of R (no Leader yet, so her presses stay hers): a Leader
     // naming him makes it shared; one naming her gives her copy back to her and his root no longer goes.
@@ -1179,6 +1233,48 @@ void test_leaders() {
     assert(p.play(1, plain_row()));
     p.flow();
     assert(p.game.starts.size() == 1);
+    Pair q; // A new partner's seq starts again: her line with the same seq waits its own kSpectateWaitMs.
+    q.zone(b.zone);
+    q.gg.spectating = true;
+    assert(q.play(1, b));
+    q.flow();
+    q.now += 1500;
+    q.flow();
+    q.gg.partner = 76561198000000003ull;
+    q.guest.receive(T + "on 7", q.gg);
+    q.guest.receive(T + "play 1 1 " + b.zone + " " + b.row + " 100", q.gg);
+    q.now += 600;
+    q.flow();
+    assert(q.game.starts.empty() && q.guest.queued() == 1);
+  }
+  { // Her end came before his copy played out: his copy's end records her try, so the host leads R's next play.
+    Pair p;
+    p.zone(r.zone);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 0}};
+    p.his(R), p.her(R);
+    p.step();
+    assert(p.guest.send(Pair::root(1, r), p.now));
+    p.step(), p.step();
+    p.her("");
+    assert(p.guest.send(Pair::ended(1), p.now));
+    p.step(), p.step();
+    assert(p.host.active() && p.host.leader_of(R) == 1);
+    p.his("");
+    p.step();
+    assert(p.host.qte_ended == std::vector<std::string>{R} && p.host.leader_of(R) == kHostMember);
+  }
+  { // His end came while her copy was starting, then a Leader named her for try 1: she does not take that copy.
+    Pair p;
+    p.zone(r.zone);
+    p.hg.leaders = p.gg.leaders = {Leader{R, 0, 0}};
+    p.step();
+    assert(p.send(Pair::root(1, r)) && p.send(Pair::ended(1)));
+    p.flow();
+    assert(p.game.starts.size() == 1 && p.guest.active());
+    p.hg.leaders = p.gg.leaders = {Leader{R, 1, 1}};
+    p.her(R);
+    p.step();
+    assert(!saw(p.guest.log, "we lead it now") && saw(p.guest.log, "the host's ended already"));
   }
   { // qte_ended_reported: the leader's end line with our copy gone gives R once; a scene that is no QTE gives none.
     Pair p;
