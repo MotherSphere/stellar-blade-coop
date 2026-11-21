@@ -199,7 +199,8 @@ template <class Game> void Engine::hand_over(Game &g, const uint32_t *guids, siz
   // alive gives her the common pairs within kPartCm of her ghost once the guards let it, and keeps hers hers. A pair
   // further from the side that would take it stays as the rule has it (see f.closer).
   const Life her = now - mate_ms_ < kMateMs ? mate_ : Life::unknown;
-  const bool her_down = her == Life::down || her == Life::coma, give = eve_life_ >= 3 && eve_life_ <= 5 && her == Life::alive;
+  const bool her_down = her == Life::down || her == Life::coma;
+  const bool give = eve_life_ >= 3 && eve_life_ <= 5 && her == Life::alive;
   for (size_t i = 0; i < count && !latched_; ++i) {
     pilot::Own *o = owners_.find(guids[i]);
     const Seen *s = fight::find(seen_, n, guids[i]);

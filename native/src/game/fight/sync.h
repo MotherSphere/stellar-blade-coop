@@ -22,7 +22,7 @@
 //                                                                  its world (and scale) while on, and at each change
 //   SBF11 aggro <gen> <game|host>                                  host, reliable: its aggro (stage 3b), after its
 //                                                                  place while host, and at each change
-//   SBF11 bosses <gen> <boss %> <first|host>                       host, reliable: its bosses=on (stage 5), its
+//   SBF25 bosses <gen> <boss %> <first|host>                     host, reliable: its bosses=on (stage 5), its
 //                                                                  boss_hp_scale and its boss_finish (phase 3), after
 //                                                                  its aggro while on; read without the last word as
 //                                                                  host (a host from before phase 3)
