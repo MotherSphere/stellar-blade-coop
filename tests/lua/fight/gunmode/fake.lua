@@ -250,7 +250,7 @@ function Fake.new()
     local registry=object('AssetRegistryHelpers /Script/AssetRegistry.Default__AssetRegistryHelpers',
         {GetAsset=function() return nil end})
     local classes={}
-    for _,c in ipairs({'MeshComponent','StaticMeshComponent','PoseableMeshComponent','Actor'}) do
+    for _,c in ipairs({'MeshComponent','StaticMeshComponent','PoseableMeshComponent','Actor','AudioComponent'}) do
         classes['/Script/Engine.'..c]=object('Class /Script/Engine.'..c)
     end
     function w.find(path)

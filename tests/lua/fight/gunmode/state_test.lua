@@ -360,8 +360,31 @@ do
     w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil
     frames(gun,1)
     toggle(gun,false)
-    local n=tonumber(logs[#logs]:match('^off %(command%), (%d+) shots'))
-    assert(n and n>=15 and n<=30,logs[#logs])
+    local n=tonumber(logs[#logs-1]:match('^off %(command%), (%d+) shots'))
+    assert(n and n>=15 and n<=30,logs[#logs]..' / '..table.concat(logs,'|'))
+end
+
+-- 11. For the lost shot sound (fix list item 4): her audio components and the ones playing are logged once a rifle out
+--     after 30 rounds and at each off. The fake lists every component of hers for any class; one of them plays.
+do
+    local w=Fake.new(); w.install()
+    local gun,logs=new()
+    local cue=w.component(w.pawn)
+    cue.IsPlaying=function() return true end
+    cue.Sound={GetFName=function() return Fake.name('P_Test_Shot_Cue') end}
+    local function count(text)
+        local n=0
+        for _,l in ipairs(logs) do if l:find(text,1,true) then n=n+1 end end
+        return n
+    end
+    toggle(gun,true); frames(gun,40)
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=true,true,true
+    frames(gun,150)
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil
+    frames(gun,1)
+    toggle(gun,false)
+    assert(count('sounds while firing: ')==1 and count('1 playing (P_Test_Shot_Cue)')==2,table.concat(logs,'|'))
+    assert(logs[#logs]:match('^sounds at the off: %d+ audio components, 1 playing'),logs[#logs])
 end
 
 print('gunmode state: ok')

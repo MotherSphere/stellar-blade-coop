@@ -437,14 +437,10 @@ function GunMode.new(env)
     -- again every second (the sword comes out with a fight); each one put back as it was when the rifle goes away.
     local MESH,SKEL,STATIC='/Script/Engine.MeshComponent','/Script/Engine.SkeletalMeshComponent',
         '/Script/Engine.StaticMeshComponent'
-    local function hide_others(p,first)
-        local src=g.try(function() return p.Mesh end)
-        if not g.valid(src) then return end
-        local body=g.try(function() return src.SkeletalMesh:GetFullName() end)
-        local cls,skel,static=g.find(MESH),g.find(SKEL),g.find(STATIC)
-        if not g.valid(cls) then return end
+    -- Her components of class cls (K2_GetComponentsByClass) as a Lua list, or nil.
+    local function components(p,cls)
         local list=g.try(function() return p:K2_GetComponentsByClass(cls) end)
-        if not list then return end
+        if not list then return nil end
         local items={}
         local function unwrap(c) -- An element of the array: its object (wrapped, as the rifle scan found, 11-17).
             if c~=nil and not g.valid(c) then
@@ -458,6 +454,34 @@ function GunMode.new(env)
         else
             pcall(function() list:ForEach(function(_,e) items[#items+1]=unwrap(e) end) end)
         end
+        return items
+    end
+    -- For the log (fix list item 4: the shot sound gone after a few rifle outs): her audio components and how many of
+    -- them play (UAudioComponent's IsPlaying, exec 0x1446ef250 on 26123051; its Sound, params near 0x1464f8fb0). SB's
+    -- show sound keys spawn the shot's sound with EVE as its owner (0x142465a60): a sound that never ends or a refused
+    -- spawn shows here.
+    local AUDIO='/Script/Engine.AudioComponent'
+    local function sounds(p)
+        local cls=g.find(AUDIO)
+        local items=p and g.valid(cls) and components(p,cls)
+        if not items then return 'unreadable' end
+        local playing,names=0,{}
+        for _,c in ipairs(items) do
+            if g.try(function() return c:IsPlaying() end)==true then
+                playing=playing+1
+                if #names<4 then names[#names+1]=g.try(function() return c.Sound:GetFName():ToString() end) or '?' end
+            end
+        end
+        return ('%d audio components, %d playing%s'):format(#items,playing,#names>0 and ' ('..table.concat(names,' ')..')' or '')
+    end
+    local function hide_others(p,first)
+        local src=g.try(function() return p.Mesh end)
+        if not g.valid(src) then return end
+        local body=g.try(function() return src.SkeletalMesh:GetFullName() end)
+        local cls,skel,static=g.find(MESH),g.find(SKEL),g.find(STATIC)
+        if not g.valid(cls) then return end
+        local items=components(p,cls)
+        if not items then return end
         if first then g.log('hide: '..#items..' mesh components') end
         local seen={}
         for _,c in ipairs(items) do
@@ -783,6 +807,7 @@ function GunMode.new(env)
         elseif s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
         keep()
         g.log('off ('..why..'), '..s.shots..' shots'..(hold and '; the drone aim is on: its key and SB\'s rows wait for its end' or ''))
+        g.log('sounds at the off: '..sounds(p))
     end
     -- Everything back, SB's rows too, coop-gun.txt with it: a start that failed (L2), or stop.
     local function give_all_back()
@@ -962,7 +987,7 @@ function GunMode.new(env)
             carry(p,true)
             g.log('carry override '..s.ovr_row..': '..(s.ovr and 'on' or 'failed')..', active='..tostring(g.try(function() return p:IsActiveCustomMovingStanceData() end)))
         end
-        s.on,s.shots,s.next_shot,s.zoom_held,s.held_since=true,0,0,false,nil
+        s.on,s.shots,s.next_shot,s.zoom_held,s.held_since,s.snd_logged=true,0,0,false,nil,false
         lap('carry')
         pcall(hide_others,p,true)
         lap('hide')
@@ -1317,6 +1342,7 @@ function GunMode.new(env)
             local fired=ammo.fired
             local ok_a,err_a=pcall(ammo.tick,s.zoom_held or inp.fire,inp.fire and tps,now)
             s.shots=s.shots+(ammo.fired-fired)
+            if s.shots>=30 and not s.snd_logged then s.snd_logged=true; g.log('sounds while firing: '..sounds(p)) end
             -- The muzzle flash on Luke's rifle, once a frame that rounds went out: the NIKKE shot's own flash is on
             -- the NIKKE rifle of her hidden real body (the fire round her waist), which the pak's show drops.
             -- recoil, once a frame that rounds went out: the rifle kicks in her hands (fight/gunmode/ik.lua kick) and the camera

@@ -127,6 +127,10 @@ The rifle fires NIKKE RAPID rounds: about 20 a second.
 The magazine reloads when it runs dry or when you press the reload key (B, or Triangle on a pad). A press throws away
 the rounds left in the magazine. Lowering the rifle never reloads it. No round fires while it reloads.
 
+The `[GM]` line `off (...), N shots` counts the rounds of the rifle out, the game's aim's included. For a shot sound
+that goes missing, two `[GM]` lines list EVE's audio components and the ones playing. `sounds while firing:` comes once
+a rifle out, after 30 rounds. `sounds at the off:` comes each time the rifle goes away.
+
 In firing mode the reticle's round slot shows the round's name and the rounds left in the magazine. While the rifle
 reloads the name reads RELOADING. With the magazine and every spare empty it reads NO AMMO. RELOADING and NO AMMO show
 in the co-op menu's language; NIKKE RAPID stays as it is.

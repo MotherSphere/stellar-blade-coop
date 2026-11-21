@@ -131,7 +131,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   game's aim keeps TPSMode on RMB and SB's rows taken with the NIKKE shot's cool time at 999 until the aim ends. Then
   everything goes back, as it does at a new controller or a Lua reload in between. During the rifle's arrival TPSMode
   has no key (RMB and LT included). A pause keeps it so. Once the arrival is over it moves to RMB. The 'off' line
-  counts the rounds the game's aim fired;
+  counts the rounds the game's aim fired. Her audio components and the ones playing are logged after 30 rounds and at
+  each off;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
   layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.
