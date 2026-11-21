@@ -274,6 +274,39 @@ A button pressed on the death screen takes EVE out of the room. Press none: the 
 within 10 s of the death. When it does not, `UE4SS.log` has `respawn waits: <reason>`, then
 `respawn not asked in 10 s: <reason>`. Send that log (see [Which logs to send](#which-logs-to-send)).
 
+## Fishing tournament
+
+### A catch does not count
+
+Your `UE4SS.log` has `[StellarCoop][FT] catch: <ID> <points>` for each catch your game counted and sent. With no such
+line for a catch:
+
+- it came during the countdown or after your end;
+- your game took its baseline again in that second, after a map change, a fast travel, a load, a respawn or a loading
+  screen (see [What stops a tournament](../online/modes/fishing.md#what-stops-a-tournament));
+- the log has `book jumped by <n>: baseline again` or `book fell: baseline again`: that read of the book changed by
+  more than a catch, so it counted nothing;
+- `coop-link.log` has `fishbook (ask <n>): none <why>`. `noeve` means no EVE could be read (the title, a load).
+  `nobook` means SB made no fishing log book for this save. `unread` is a torn read, asked again a second later.
+  `unpinned` means another game build.
+
+With the line, the host's `UE4SS.log` may have `rank: refused <name>: <why>` for a catch its checks refused (`sender`,
+`fish`, `points`, `time` or `rate`, see [The host's checks](../online/modes/fishing.md#the-hosts-checks)). `sender`
+means the host did not count that player: her ready line came more than 10 s after the start line.
+
+### `Not ranked.`
+
+The ranking holds only the players the host counted who are still in the online session at its end plus 10 s. You are
+left out when you sat out (a notice said why), when your ready line came late, or when you had left or your link was
+lost at that time.
+
+### `The tournament was cancelled.`, `The host left. This tournament has no ranking.` or `No ranking came from the host.`
+
+`The tournament was cancelled.` follows the host's `coop fish stop`, or a Lua reload on the host's PC (the host's log
+then has `void <seed>: a catch from <name> of a tournament we do not run`). `The host left. This tournament has no
+ranking.` means the host left the online session, or typed `coop off`. `No ranking came from the host.` comes 30 s
+after your end with no ranking line, for example after a Lua reload on the host's PC with no catch after it.
+
 ## Menu, chat, controller and screen
 
 ### The game ignores its keys after the co-op menu or the chat
@@ -776,6 +809,9 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 - `score lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
   [score attack](../online/modes/scoreattack.md) lines: the lines received, sent and dropped (see
   [The score line](../online/steam-link-internals.md#the-score-line)).
+- `mode lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
+  [fishing tournament](../online/modes/fishing.md) lines: the lines received, sent and dropped (see
+  [The mode line](../online/steam-link-internals.md#the-mode-line)).
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.

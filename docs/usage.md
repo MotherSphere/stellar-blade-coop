@@ -93,6 +93,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop nightop shop` | Night Operation's [reward shop](online/modes/nightop-shop.md#the-shop-screen-coop-nightop-shop) in the game's own shop screen, your points as Beta Seeds, with its seven items (two cut stimpacks and the cut [Shock Bolt](online/modes/nightop-shop.md#cut-ammo-shock-bolt) ammo among them; the Shock Bolt only once EVE's gun can fire it) (the screen opened in game; buying from it is untested; co-op save only) |
 | `coop nightop buy [<n> [count]]` | The same shop from the console: your points and its seven items, or a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop scoreattack [status\|pick <challenge>]` | [Score attack](online/modes/scoreattack.md#settings-and-commands) (untested in game): alone or `status`, one line with the host's challenge pick, your last round, its state and its ranking; `pick random`, a challenge's name or its number (1 to 5) sets the pick as the lobby menu's Challenge row does. Only the host's pick counts. Needs the Steam link |
+| `coop fish [status\|start [<minutes>]\|stop]` | [Fishing tournament](online/modes/fishing.md#settings-and-commands) (untested in game): alone or `status`, one line with your last tournament, its state, its clock, the board and the ranking; `start` on the host of an online session starts one of 10 minutes, or of 1 to 60, for every player past the handshake; `stop` on the host cancels it in every game. Needs the Steam link |
 | `coop challenge [<name>\|stop]` | [Challenges](online/modes/challenges.md): the list with each best run, a start by name or number (1 to 5), or the end of the run that is on (untested in game, co-op save only; solo but the [Shooting Range](online/modes/challenges.md#shooting-range), which the host can start for both players; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only). He also appears by himself at each Xion load, on any save; `off` keeps him away until the next one |
@@ -335,6 +336,8 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 - a [score attack](online/modes/scoreattack.md#what-stops-a-round) round (your run ends as aborted and your game
   sends nothing more; the other players count you as a player who left) and a death screen its respawn hid (shown
   again);
+- a [fishing tournament](online/modes/fishing.md#what-stops-a-tournament) (your game sends nothing more and stops
+  its book reads; the host counts you as a player who left);
 - a Night Operation run or a challenge (it ends as aborted, and so does the partner's co-op run; your shop points stay
   as they are), the Night Operation poller, the Night Operation shop screen (closed, its seeds back in your wallet) and
   Roxanne's Night Operation choices (her own two back, and a run booked at her dropped);
@@ -432,7 +435,10 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   plays, or `-` while its first take loads or its name is not read), `items=<ask> <count>` or `items=<ask> none <why>`
   (the answer to [`coop
   gift`](cutmenus/menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`,
-  `nomanager`, `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
+  `nomanager`, `nobucket` or `unread`), `fish=<ask> <ID>:<count>,...`, `fish=<ask> -` or `fish=<ask> none <why>` (the
+  answer to the [fishing tournament](online/modes/fishing.md#the-book-read)'s last read of SB's fishing log book, by
+  its number; why is `unpinned`, `noeve`, `nobook` or `unread`), and `nightop=on` or `nightop=rule` while the probe's
+  poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,
   phone booths, tetrapods) that the game's own camp list would show for this save, read every 2 s while you play,
   followed by `rested=<camp>`, the camp where EVE respawns (that of her last rest or fast-travel arrival), when the

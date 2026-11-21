@@ -34,8 +34,8 @@ player has to update.
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
-revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, score attack, the bike and the day and
-night cycle.
+revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, score attack, the fishing tournament,
+the bike and the day and night cycle.
 The status strip shows its
 compact form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the
 old off values is changed once at the next load (see [Settings](players/settings.md#coop-settingstxt)). Most of these features
@@ -86,6 +86,12 @@ achievements, which cannot be taken back.
   friend, each racer drawn as a Doro (Dororong). The race has a countdown, a timer, checkpoint markers and a ranking.
   It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
   [online/modes/race.md](online/modes/race.md)).
+- The fishing tournament: in an online session the host types `coop fish start` (10 minutes, or 1 to 60). Every player
+  then fishes where she wants with the game's own fishing. Each catch scores the Fishing Points SB pays for it, 0 for
+  trash and boxes. A corner board shows the top three and your place. The host's game checks each catch and sends the
+  ranking, which a result panel shows. Your best of each length goes in `coop-records.txt`. The fish stays in your
+  co-op save's inventory. It writes no game memory: each game reads its catches from SB's fishing log book. Not tested
+  in game yet (see [online/modes/fishing.md](online/modes/fishing.md)).
 - The bike: F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's files, on any save. She
   rides it with the left stick, leans into turns, drifts with R2 or B and jumps with the game's Jump; her attacks and
   items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. It stays where she

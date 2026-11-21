@@ -279,7 +279,7 @@ fishing=on
 | `pvp_spike` | `on` or `off`: lets `coop pvp on` start the [PvP test](../online/lobby.md#the-pvp-test) with your friend: a stand-in enemy at their ghost takes your hits for their game, down to 1 HP; needs `shared_enemies=off`; no menu row | `on` |
 | `sbo_lobby` | `on` or `off`: the [SBO lobby](../online/lobby.md), a test. On, the recruiter's Join saves the co-op game and takes you to the lobby in Xion's training room (a hall lobby with the hall lobby pak), and each co-op save is copied before the game rewrites it (10 copies kept per slot). At each arrival in the lobby the screen stays black until the lobby menu is ready, 8 s at most, then fades onto the open menu. No menu row | `on` |
 | `scoreattack` | `on` or `off`: [score attack](../online/modes/scoreattack.md), a match mode of the SBO lobby. On, you play each round of a score attack lobby you are in. Off locks the lobby menu's Score attack row. You then sit out its rounds, with a notice. Options, Modes, Score attack; read at each round's start | `on` |
-| `fishing` | `on` or `off`: the [fishing tournament](../online/modes/fishing.md), a mode of online sessions. Not built yet: nothing reads it. Options, Modes, Fishing tournament | `on` |
+| `fishing` | `on` or `off`: the [fishing tournament](../online/modes/fishing.md), a mode of online sessions. On, you fish in each tournament the host of your online session starts with `coop fish start`. Off refuses your own start as the host. A guest with it off sits out each tournament, with a notice. Options, Modes, Fishing tournament; read at each start | `on` |
 
 Rules:
 

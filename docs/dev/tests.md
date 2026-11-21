@@ -27,7 +27,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `scoreattack`, `session_ui`, `settings`;
+`fishing`, `guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `scoreattack`, `session_ui`, `settings`;
 `world/maps/matrix13/`:
 `off`, `words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
@@ -36,7 +36,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `online/partner/`: `bike_part`, `capture`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`, `sentinel`; `online/photo/`:
 `off`; `story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`, `drive`, `drive_model`, `model`,
 `off`, `run`; `online/modes/scoreattack/`: `board`, `challenges`, `game`, `model`, `off`, `round`, `run`,
-`scoreattack`, `waves`; `online/saves/`: `off`, `saves`; `online/session/`: `booth`, `chat`, `commands`, `join`, `off`,
+`scoreattack`, `waves`; `online/modes/fishing/`: `board`, `fishing`, `game`, `model`, `off`, `records`, `round`;
+`online/saves/`: `off`, `saves`; `online/session/`: `booth`, `chat`, `commands`, `join`, `off`,
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
@@ -219,7 +220,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   and never from a player's name; the `shared_world`, `shared_story`, `daynight`, `pause_tab` and `hide_popups`
   settings (the `sky=` line kept out of the `link:` lines); `bike` and `bike_key` (an older
   file whose keys hold F3 gets no bike key); `gun_mode` and `gun_key` (F4 by default, G refused, an older file whose
-  keys hold F4 gets no gun key, a clash both ways) with gun mode's test lines, kept as written with no note. It also reads the `dlcs=` line with the `dlc_missing=` and
+  keys hold F4 gets no gun key, a clash both ways) with gun mode's test lines, kept as written with no note; `fishing`
+  (on by default, its template line after `scoreattack`); the mode lines (`mode_line()` a mode request, each member's
+  line kept under its word with her SteamID apart from the chat and the other words, oldest first, 64 at most a word).
+  It also reads the `dlcs=` line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the `mycycle=` and `cycle=` lines (a value out of range dropped), the session list's
   `list=` line with its `session=` rows (a row only after a `list=` line, `-` read as none) and a joiner's `wait=`
   line, logged once a wait. It covers `who_can_join` (`public` by default, the older `code` and `private` read as
@@ -468,6 +472,32 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `online/modes/scoreattack/board_test` covers the card, the in-round board and the result panel on a fake kit, their
   words in the game's language, the notices with the kit off and the HUD's STOP line. `main/scoreattack_test` covers
   the pass line and the `coop off` stop through `main.lua`, then the wiring on a fake run;
+- `online/modes/fishing/model_test` covers the fishing tournament without the game: the start's length (10 minutes by
+  default, 1 to 60), the clock, each fish text's round trip and every malformed one refused whole, who a game takes
+  each text from, the host's checks of each catch (sender, seed, fish, points, time and the rate bound, an honest
+  guest whose clock runs 0 to 3 s behind never refused, a flood cut at the bound), the standings with shared places, a
+  leaver and a link that comes back, the board at most once a second and the rank text with its minutes for 2, 4 and
+  8 players. It covers the catches from book reads too (the baseline, a rise, a fall, a fish gone, two catches in one
+  read, a jump of 3). It also checks the 40 row names of `rows.lua`. `online/modes/fishing/round_test` covers the
+  tournament
+  on a fake link and clock: `coop fish start` and its refusals, the host's go, board, each refusal with one log line a
+  sender and reason, the rank and its record, a guest's go, ready, catch, board, rank and record, her sit-out and the
+  lines she drops, a guest who is lost and comes back, the host leaving, another host's session, `coop fish stop`, a
+  guest's Lua reload (her notice at the first board that names her, her record from the rank's minutes), the host's
+  (a void at the first catch of the old seed, `No ranking came from the host.` 30 s after the end), a pass whose status
+  was not read and 2, 4 and 8 players. `online/modes/fishing/game_test` covers the fish table read from SB's two
+  tables by row name (a missing row, a bad value, a shared ID), each sit-out, the engine line's book answers, the asks
+  once a second from GO with a number the engine line never shows, a lost answer asked again after 3 s, the last ask at
+  the end, each event that takes the baseline again (a map change, a loading screen of several passes, a slot change,
+  each `none` but `unread`) with the answer of an earlier ask dropped, a fall, a jump and a fish not in the table.
+  `online/modes/fishing/board_test` covers the corner board and the result panel on a fake kit (their places, the
+  countdown, ours in teal, a pause, the title screen, the ranking, the panel closed 20 s after it), their words in the
+  game's language, each notice with the kit up and with the kit off and the HUD's STOP line.
+  `online/modes/fishing/records_test` holds the cases of score attack's records for the copy under `best_fish_`.
+  `online/modes/fishing/fishing_test` covers `coop fish`. `main/fishing_test` covers `coop-records.txt` through
+  `main.lua` (no file, a write that fails, a refused rename, a file that cannot be opened), the pass line with the book
+  asked once a second from GO, the corner board built on the kit's hud step, the `coop off` stop with no line and no ask
+  after it and the guard on the pass line;
 - `online/modes/nightop/recruiter_test` also covers the auto spawn at each Xion load (waits while the spawn point is not
   loaded or EVE is too far, one spawn a load, a guard kept after a Lua reload, none after `coop recruiter off`). It
   checks the arm call right after the spawn and at a guard already there, before any check. It runs the looks every 3 s
@@ -525,7 +555,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   offer after them, with each side word and a six-digit distance or another map's 32-byte name and the longest key
   name. Score attack's notices stay within 200 bytes too (each sit-out, a round without a ranking, the end and the
   place with the UI off). Its screens' words stay within their columns: a board row's name and its score with the wave
-  or end word, the result panel's heading, its line with the longest end word, its notes and the difficulty words;
+  or end word, the result panel's heading, its line with the longest end word, its notes and the difficulty words.
+  The fishing tournament's notices stay within 200 bytes with 32-byte names (the start of 60 minutes, each sit-out,
+  an end with no ranking, a reloaded game; with the UI off GO, the place, the end, the first three with 6-digit points
+  and a new best). Its corner board's title line, the result panel's heading, its line, its notes and a ranking row's
+  fish stay within their columns;
 - `online/lobby/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
   controller; SB's black up and the kit veiled at the next pass; held while anything is missing, then lifted once with
   one line; the 8 s cap, which lifts whatever is missing and names it, also when the missing items cannot be read; a
@@ -618,9 +652,11 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `popups on` and `popups off`; `loading lift`; `sky off`, `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz>
   <H>` with their ranges; `world` and `scenes` with `on`, `off` or `status`; `nightshop`, `roxanne`, `lily`, `guardtext`
   and the 8 `signal` words, in `story/quests/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`, `abort`,
-  `leave`, `seq`) and their refusals, the score request), Night Operation's night line (its round trip, its refusals
+  `leave`, `seq`) and their refusals, the score request, the mode request (`mode <word> <text>`) and `fishbook <ask>` (1
+  to 65535, 0 and 65536 refused)), Night Operation's night line (its round trip, its refusals
   and a fuzz seed), the score line (Lua's text after `score`, printable ASCII up to the 512-byte message, never read as
-  a race line, another protocol's refused, a fuzz seed), and
+  a race line, another protocol's refused, a fuzz seed), the mode line (its word of 1 to 16 lowercase letters, then
+  Lua's text as it went, never read as a score or race line), and
   the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check
   turns away), the masking of SteamIDs, lobby ids and join codes in the logs and the report (`masked`, with the numbers
   and words of the same shape it leaves whole), the match modes (`find_mode`: `ffa` and `scoreattack`, nothing
@@ -634,7 +670,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   the map rule, three places within 10,000,000 and three angles within 36,000 as signed whole numbers), then protocol 24
   refusing a protocol-23 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
-  channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
+  channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, a
+  mode line before the handshake that never reaches Lua, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the
   host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a flood while waiting),
   with relay only set on both games before their first session with each other. A player on another protocol or game
@@ -698,7 +735,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   member past the handshake. Each member's reaches Lua as `score <SteamID> <text>` with the SteamID from Steam; a
   text the line cannot carry never goes; past 16 a second either way they are dropped with one log line a minute; the
   counts have a line of their own beside the 60 s line, only in a minute that had some. Outside a match lobby a score
-  line never goes and is never taken, with no log line;
+  line never goes and is never taken, with no log line. A match lobby carries no mode line either way, with no log
+  line;
 - `link_group_test`: online sessions of 3 and 4 players through the same fake Steam: the pair (the host and the guest in
   slot 0) with the host in slot 0 on every guest, the host's let line with its `max_players`, the `host=` (with `max=`),
   `players=` and `vit=` status lines, 30 poses a second for a member who comes in past 2 players and for the pair's
@@ -721,7 +759,11 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   line to one member reaching her alone with its sender, the pair leaving dropping the shared fight's lines both ways
   while the shared quests' lines of the guest who stays go on); channel 2 per member (Steam refusing one guest's lines
   holds back hers alone, the pair's going on in order past `kFightQueue`, hers reaching her in order once Steam takes
-  them, each refused line counted once); `max_players` 3 on a guest's `host=` line and refusing a fourth player;
+  them, each refused line counted once); `max_players` 3 on a guest's `host=` line and refusing a fourth player; the
+  fishing tournament's mode lines in a session of three (reliable to every member past the handshake, guest to guest
+  included, each reaching Lua as `mode <SteamID> <word> <text>` with the SteamID from Steam, a text the line cannot
+  carry never sent, past 16 a second either way dropped with one log line a minute, the counts' own line beside the
+  60 s line in a minute that had some, nothing sent with nobody linked);
 - `link_list_test`: the session list through the same fake Steam, which follows Steamworks' read rules (no data for a
   lobby before a search returned it or `RequestLobbyData` was answered, `GetLobbyOwner` for members only, a result
   count, friends-only lobbies never in a search). A Public host's rows with `where` and `rules`, no relay only forced
@@ -1111,6 +1153,14 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
   chain that loops, an index past the array, a hash size that is no power of two, an unreadable item) ending in
   `unread`, never in a hang;
+- `online_modes_fishing_fishing_test`: the fishing tournament's book read against a fake image laid out like the pinned
+  build (the logic singleton, its actor map, the logic actor, its FSBActor and the book's set with its hash chains):
+  every fish IDs ascending over chains with collisions and the engine line's answer, an empty book, `noeve` (no logic,
+  a GUID of 0 or not in the map, an actor of another vtable or GUID, a 0 alive byte, no FSBActor), `nobook` and
+  hostile memory ending in `unread`, never in a hang or a wrong list (an actor map whose chain loops or leaves its
+  array, a book of another vtable, a bad hash size, an inline hash of more than one bucket, a chain that loops or runs
+  longer than the count, an index past the array, an ID outside its bucket, not above 0 or found twice, a torn count,
+  unreadable elements);
 - `ui_pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
   diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
   stick's thresholds, View held 1 s, D-pad Right held 1 s for the bike, LB, RB and Y once a press and in event order

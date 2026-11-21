@@ -303,7 +303,7 @@ there:
   `<name> runs another version and was refused.` That player then stays refused for the lobby, as above. A guest who
   gets such a hello from another guest marks that member incompatible, counts an invalid message, sends no reject and
   stays. A mismatched hello from the owner still makes the guest reject it and leave.
-- No photo line (and so no photo or cutscene pause), gift, race line, camps line, night line, shared quests' `SBQ` line,
+- No photo line (and so no photo or cutscene pause), gift, race line, mode line, camps line, night line, shared quests' `SBQ` line,
   shared world's `SBW` line or story together's `SBS` line goes either way. The game sends none. Such a line that
   arrives on channel 0 is dropped with no log line. An `SBQ`, `SBW` or `SBS` line on channel 2 is dropped too. The log
   says `dropped fight data from <name>: shared quests are off in a match lobby`, `...: the shared world is off in a
@@ -369,6 +369,7 @@ SBC24 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
 SBC24 mark <n> [<text>]
 SBC24 race <text>
 SBC24 score <text>
+SBC24 mode <word> <text>
 SBC24 gift s <id> <item> <count>
 SBC24 gift a <id>
 SBC24 gift n <id> <why>
@@ -396,7 +397,7 @@ released. A host's line says `c` while a cutscene plays in its game and its own 
 The say line is one chat line, sent reliable. Both games clean it the same way: they keep well-formed UTF-8 only, drop
 control, bidi and zero-width characters, trim spaces, and keep at most 200 bytes, never cutting inside a character.
 At most 3 lines a second are sent, and at most 10 a second are kept from a friend. The rest are dropped, with one log
-line a minute that holds no text. At most 64 received lines, chat, race and score lines together, wait for the Lua side. The
+line a minute that holds no text. At most 64 received lines, chat, race, score and mode lines together, wait for the Lua side. The
 text never goes into `coop-link.log`, `coop-status.txt`, `coop-report.txt` or the console. When the session ends, the
 log gets the counts only: `chat this session: <n> in, <n> out, <n> dropped; race lines: <n> in, <n> out, <n> dropped`.
 
@@ -576,6 +577,25 @@ the limit are dropped, with at most one line a minute in `coop-link.log`: `dropp
 limit`, or `dropped score lines from <name>: over the rate limit` (or `too many waiting`). In a minute that carried score
 lines, `score lines, last 60 s: <in> in, <out> out, <dropped> dropped` follows the 60 s link line.
 
+### The mode line
+
+The mode line carries one line of a mode of online sessions, sent reliable. The [fishing
+tournament](modes/fishing.md#the-mode-line) is the first such mode. Its word is `fish`. The line goes in an online
+session only: Lua's `mode <word> <text>` request sends it to every member past the handshake, the host and each guest
+the let line names (guests link with each other, see [Sessions of more than 2
+players](#sessions-of-more-than-2-players)). In a match lobby the request sends nothing. A mode line that arrives there
+is dropped with no log line. The word is 1 to 16 lowercase letters. The link reads no further: it passes the text on as
+it is and refuses only a byte outside printable ASCII (0x20 to 0x7e) or a line over 512 bytes. A member's line reaches
+Lua in `coop-chat.txt` as `mode <SteamID> <word> <text>`. The SteamID is the one Steam gives for the sender, never one
+from the text. `core/link.lua` keeps these lines apart from the chat under their word, 64 at most a word
+(`take_mode(word)`), so each mode takes its own lines only. The mode's module checks who may send which text.
+
+The rate is the score line's, for all modes together: at most 16 lines a second go out. At most 16 a second are
+kept from each member. Lines past the limit are dropped, with at most one line a minute in `coop-link.log`:
+`dropped our mode lines: over the rate limit`, or `dropped mode lines from <name>: over the rate limit` (or `too many
+waiting`). With nobody linked the request sends nothing. In a minute that carried mode lines,
+`mode lines, last 60 s: <in> in, <out> out, <dropped> dropped` follows the 60 s link line.
+
 ### The gift line
 
 The gift line carries a [cut mailbox](../cutmenus/menus-internals.md#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
@@ -639,7 +659,7 @@ from the owner.
 
 ### Unlinked peers, pings and session requests
 
-Say, vit, pak, paks, camps, night, mark, race, score, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
+Say, vit, pak, paks, camps, night, mark, race, score, mode, gift, bike, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A game answers at most 4 pings a second from one player and sends no pong for the
 rest. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
