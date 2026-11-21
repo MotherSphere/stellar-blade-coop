@@ -169,7 +169,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   Shift+F4, also from a rebind after the load, Shift+F4 is the menu's press only. F4 alone and Ctrl+F4 still toggle the
   rifle. An off during the
   game's aim keeps TPSMode on RMB and SB's rows taken with the NIKKE shot's cool time at 999 until the aim ends with
-  RMB up. A drop of the aim while RMB is held keeps them. Then everything goes back, as it does at a new controller or a Lua reload in between. During the rifle's arrival TPSMode
+  RMB and LT up. A drop of the aim while RMB or LT is held keeps them. An off on a drop's frame (the departure's last
+  frame) holds them too. Then everything goes back, as it does at a new controller or a Lua reload in between. During the rifle's arrival TPSMode
   has no key (RMB and LT included). A pause keeps it so. Once the arrival is over it moves to RMB. The 'off' line
   counts the rounds the game's aim fired. Her audio components and the ones playing are logged after 30 rounds and at
   each off. With `gun_fire=own` the 60th shot starts a reload, no shot leaves while it runs and the shots go on after

@@ -864,6 +864,10 @@ function GunMode.new(env)
     -- 26123051) or a TPS mode other than the drone's (TPSModeType at +0x1531, ESBTPSModeType: 0 Default, 1 MiniGame,
     -- 2 Nikke; enumerators at 0x145e2e370).
     local function aim_on(p) return g.try(function() return p.TPSModeType~=0 or p.bTPSMode==true end)==true end
+    -- The game's aim dropped for a moment with its key still held: bTPSMode seen in the last 0.4 s with the aim key or
+    -- LT down (the tick's s.aim_seen and s.key_held, gun_fire=native). It drops for a frame on each shot's skill and
+    -- through a jump while the key is held.
+    local function aim_dropped(now) return s.key_held==true and s.aim_seen~=nil and now-s.aim_seen<0.4 end
     -- The held input mask and SB's rows back once the game's aim has ended (disable's hold).
     local function release_hold(why)
         s.aim_hold=false
@@ -877,11 +881,12 @@ function GunMode.new(env)
     -- aim key up, with no round to fire (the NIKKE shot's cool time 999, as with an empty magazine). The aim key stays on RMB, so
     -- letting it go ends the aim: SB binds TPSMode's press and release (0x1420473b0 hands both to 0x14209f660, command
     -- key 0x2b). Put back under a held RMB, the key moved to Ctrl, the release never came and the plain drone aim
-    -- stayed on, firing (2026-11-21 test).
+    -- stayed on, firing (2026-11-21 test). An off on a frame where the aim dropped with its key held (aim_dropped: about
+    -- one frame in three while firing) holds too.
     local function disable(why)
         if not s.on then return end
         local p=g.pawn()
-        local hold=s.native_taken==true and p~=nil and aim_on(p)
+        local hold=s.native_taken==true and p~=nil and (aim_on(p) or aim_dropped(os.clock()))
         put_away(hold)
         if hold then s.aim_hold=true; data.cool(999)
         elseif s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
@@ -978,12 +983,12 @@ function GunMode.new(env)
                 -- with the layer the laser follows the aim pose (aiming or hip fire); in the flip it runs along the bore
                 s.rifle=stance.start(pc,function()
                         if s.layer then return s.want=='aim' end
-                        return s.zoom_held or (s.key_held==true and s.aim_seen~=nil and os.clock()-s.aim_seen<0.4) end,
+                        return s.zoom_held or aim_dropped(os.clock()) end,
                     function() if not s.flip then return s.target end end)
                 return
             end
             s.rifle=stance.start(pc,function()
-                    if s.pak then return s.zoom_held or (s.key_held==true and s.aim_seen~=nil and os.clock()-s.aim_seen<0.4) end
+                    if s.pak then return s.zoom_held or aim_dropped(os.clock()) end
                     return s.zoom_held or (s.on and s.key_held==true) end,function() return s.target end,
                 function() return s.air_aim==true or (s.key_held==true and not s.tps) end,
                 -- With the animation pak her body under the posed copy is the pak's rifle stance (upright, strafing),
@@ -1270,10 +1275,12 @@ function GunMode.new(env)
             return
         end
         dn_pc,dn_frame=pc,dn_frame+1
-        -- (the aim key up too: bTPSMode drops for a frame on a shot's skill and through a jump while RMB is held)
+        -- (the aim key and LT up too: bTPSMode drops for a frame on a shot's skill and through a jump while either is held)
         if s.aim_hold and not s.on then
             local p=g.pawn()
-            if not (p and aim_on(p)) and not down(set.aim_key) then release_hold('the drone aim ended') end
+            if not (p and aim_on(p)) and not down(set.aim_key) and not down('Gamepad_LeftTrigger') then
+                release_hold('the drone aim ended')
+            end
         end
         if (s.on or s.aim_hold) and not s.mask then
             local ok,err=pcall(function() s.mask,s.keys=mask(s.morph~=nil and s.morph.dir=='in') end)

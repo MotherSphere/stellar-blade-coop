@@ -552,4 +552,39 @@ do
     toggle(gun,false)
 end
 
+-- 17. The game's aim drops bTPSMode for a frame on each shot's skill while its key is held. An off on such a frame
+--     holds the aim key and SB's rows as an off in the aim does (8): here the last frame of the departure (F4 in the
+--     aim). On a pad the hold lasts while LT is down, through a drop too. Put back there, TPSMode went to Ctrl under the
+--     held RMB or SB's rows came back during the aim: the drone fired NIKKE rounds with no ammo (11-21 test).
+do
+    local w=Fake.new(); w.install()
+    local keys=w.keys()
+    local gun=new(nil,file())
+    local cool=w.tables.SkillTable.P_Eve_GunNikke_ShootSlug1_1
+    local Morph=require('fight.gunmode.morph')
+    local function held() return w.keys():find('TPSMode=RightMouseButton',1,true)~=nil and cool.CoolTime==999 end
+    toggle(gun,true); frames(gun,40)
+    w.down.RightMouseButton,w.pawn.bTPSMode=true,true; frames(gun,5)
+    w.down.F4=true; frames(gun,1); w.down.F4=nil
+    assert(gun.state.morph and gun.state.morph.dir=='out','the departure plays')
+    while gun.state.on do
+        local m=gun.state.morph
+        w.pawn.bTPSMode=not (m and clock+1/60-m.t0>=Morph.OUT) -- its last frame drops bTPSMode
+        frames(gun,1)
+    end
+    assert(gun.state.aim_hold and held(),'held at an off on a drop frame: '..w.keys()..', cool time '..cool.CoolTime)
+    w.pawn.bTPSMode=true; frames(gun,5)
+    assert(held(),'held in the aim: '..w.keys())
+    w.down.RightMouseButton,w.pawn.bTPSMode=nil,false; frames(gun,1)
+    assert(not gun.state.aim_hold and w.keys()==keys and #w.changed()==0,'back at the aim end: '..w.keys())
+    -- a pad: the off in the aim with LT held, then a drop frame with LT still down
+    toggle(gun,true); frames(gun,40)
+    w.down.Gamepad_LeftTrigger,w.pawn.bTPSMode=true,true; frames(gun,5)
+    toggle(gun,false)
+    w.pawn.bTPSMode=false; frames(gun,1); w.pawn.bTPSMode=true; frames(gun,3)
+    assert(gun.state.aim_hold and cool.CoolTime==999,'held through a drop with LT down, cool time '..cool.CoolTime)
+    w.down.Gamepad_LeftTrigger,w.pawn.bTPSMode=nil,false; frames(gun,1)
+    assert(not gun.state.aim_hold and #w.changed()==0,'back at the LT release: '..table.concat(w.changed(),'; '))
+end
+
 print('gunmode state: ok')
