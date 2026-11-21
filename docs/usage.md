@@ -395,7 +395,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 `***` and its last 4 digits, the join code and the lobby id as the code's first 3 characters and `****`, as in every
 line the mod writes to its logs. `coop-status.txt` in the mod folder holds the same state with them whole.
 
-- Steam: `mod=<version> proto=25 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=26 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts, your Steam name on a `me=` line, then `blocked=<n>`: the players on your
   [block list](players/playing-with-a-friend.md#block-list). A `block=<SteamID> <name>` line follows for each player you
   blocked in this game run.

@@ -264,7 +264,7 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   Same-place enemies' `SBE` on channel 1 goes to the pair only. The shared quests run with every member: the host's game
   runs one quest side per guest past the handshake, all fed by one read of its quests each pass. Each guest gets her own
   lines (see [Group play: how it works](group-internals.md#shared-quests)). A guest sends her `SBQ` lines to the host
-  only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ25
+  only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ26
   step`) is story together's: the host's game takes it from the pair only and logs any other guest's as `a step line
   from guest <SteamID> not taken: her game is not the pair`. A guest out of the pair sends none.
 - A new pair, or none, empties channel 2's queues both ways of all but the shared quests' lines, so a snapshot on its

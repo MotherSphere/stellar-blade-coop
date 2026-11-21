@@ -542,8 +542,8 @@ inline std::string let_line(uint64_t pair, const std::vector<uint64_t> &ids, int
 inline std::string wait_line(uint64_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " wait " + std::to_string(seconds);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF25" for the shared fight, "SBQ25" for the shared quests, "SBW25"
-// for the shared world, "SBS25" for story together.
+// Channel 2's tags, versioned like channel 0's: "SBF26" for the shared fight, "SBQ26" for the shared quests, "SBW26"
+// for the shared world, "SBS26" for story together.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
