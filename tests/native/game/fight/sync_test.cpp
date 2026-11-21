@@ -2713,6 +2713,7 @@ int main() {
       step(h, hw, 4, 1000); // The whole list's values: none of 201 while it waits.
       assert(hw.hp(201) == 61000 && !has(hw.lines(), " 201:"));
       h.set_spectating(false);
+      assert(h.scene_held() == 0); // At once, before the step that lets the claims go.
       step(h, hw, 5, 1100);
       assert(hw.hp(201) == 58900 && h.scene_held() == 0 && hw.count("scene-held") == 1);
       assert(hw.count("scene-held expired") == 0 && h.counts.claims == 3 && has(hw.lines(), " 3 201:58900:"));
@@ -2750,6 +2751,18 @@ int main() {
       step(h, hw, 2, 10);
       assert(hw.hp(202) == 1 && h.scene_held() == 0 && hw.count("scene-held") == 0);
     }
+    { // scene_hold_restart: her on drops her waiting claims with their hold. Her copy gets our values again.
+      World hw;
+      Host h;
+      host(hw, h);
+      h.set_spectating(true);
+      h.receive(msg("SBF25 hit 1 1 201 2000 0 0 61000 0"), 10, hw);
+      step(h, hw, 2, 10);
+      hw.lines();
+      h.receive(msg("SBF25 on"), 20, hw);
+      step(h, hw, 3, 20);
+      assert(hw.hp(201) == 61000 && h.scene_held() == 0 && has(hw.lines(), " 201:61000:"));
+    }
     { // scene_hold_guest: the host's values that would take our copy across wait on our copy. Up again, or
       // kSceneHoldMs after the hold, the copy takes the host's latest.
       for (const bool up : {false, true}) {
@@ -2769,6 +2782,7 @@ int main() {
           step(g, gw, 3, 200);
           assert(gw.hp(201) == 61000);
           g.set_spectating(false);
+          assert(g.scene_held() == 0);
           step(g, gw, 4, 500);
           assert(gw.hp(201) == 58000 && g.scene_held() == 0 && gw.count("scene-held expired") == 0);
           continue;
@@ -2779,6 +2793,26 @@ int main() {
         assert(gw.hp(201) == 59000 && g.scene_held() == 0 && gw.count("scene-held expired") == 1);
         assert(g.counts.scene_expired == 1);
       }
+    }
+    { // scene_hold_repaired: a copy that left while its correction waited holds for kSceneHoldMs of its own once
+      // paired again (here under a new GUID), not until the old hold's end.
+      World gw;
+      Guest g;
+      raven(gw);
+      g.receive(msg("SBF25 world 1"), gw);
+      g.receive(msg("SBF25 up 1 201 1410024156 0 900 100000"), gw);
+      step(g, gw, 1, 0);
+      g.set_spectating(true);
+      g.receive(msg("SBF25 hp 1 2 0 201:59000:0:0"), gw);
+      step(g, gw, 2, 10);
+      gw.remove(201);
+      World::Actor &a = gw.add(211, 1410024156, 0, 900, 100000);
+      a.s.boss = true, a.s.value[kHp] = 61000;
+      step(g, gw, 3, 1000);
+      assert(gw.count("unpaired", "gone") == 1 && gw.count("paired") == 2);
+      step(g, gw, 4, 2010);
+      assert(gw.hp(211) == 61000 && g.scene_held() == 201 && gw.count("scene-held") == 2);
+      assert(gw.count("scene-held expired") == 0);
     }
   }
 
