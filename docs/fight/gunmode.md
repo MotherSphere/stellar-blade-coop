@@ -389,8 +389,9 @@ floor only when a collection ends inside it. A window with no collection end giv
 floor plus garbage that nothing keeps. The floor goes up when something keeps memory. It also sits higher when most of
 the garbage is UE4SS's objects. UE4SS makes one at each read of a game object and at each call of a game function. Lua
 frees such garbage one collection after it finds it, so the heap at a collection's end still holds the garbage that
-collection found. In a 2026-11-21 test from 20:51 to 21:00 UTC, collections ended about every 40 s. The floor rose from
-about 31 MB to about 68 MB, then levelled: the last five collections ended at 67.4, 68.1, 68.2, 68.3 and 68.4 MB. The
+collection found. In the 9-minute test from UE4SS.log 2026-11-21 20:51 UTC, collections ended about every 40 s. The
+floor rose from about 31 MB to about 68 MB, then levelled: the last five collections ended at 67.4, 68.1, 68.2,
+68.3 and 68.4 MB. The
 windows with no collection end gave lowest points up to 109 MB. In the second 2026-11-21 test the lowest point went from
 18 MB to 124 MB in 6 minutes, while the tests' fake game shows no table of gun mode growing. A carried frame now reads 4
 such objects and calls 16 game functions on that fake game (7 and 19 before). The heap went from 33 MB to 223 MB in 8
