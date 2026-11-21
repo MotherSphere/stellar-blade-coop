@@ -188,7 +188,7 @@ With `collide=on` (Options > Ghost > Solid partner; on by default, not tested in
 through your friend's ghost, as with an NPC in town. It is your own setting and changes nothing in your friend's game.
 Only your EVE is stopped by its capsule: enemies, NPCs, the camera and attacks pass through it (enemies your game runs
 are moved out of the ghost instead, below). If a game update changes her capsule's collision, the mod falls back to a
-capsule that the enemies run by your PC meet too, and its build line in `UE4SS.log` says `ours type 1`.
+capsule that the enemies run by your PC meet too. Its build line in `UE4SS.log` then says `ours type 1`.
 
 The ghost lets your EVE through:
 
@@ -204,11 +204,12 @@ A dodge into the ghost stops at it, where it would pass through an enemy. Turn i
 way (see [players/troubleshooting.md](../players/troubleshooting.md#stuck-at-a-doorway-with-the-solid-partner)). `coop status` shows
 `collide=` on the ghost's line.
 
-Enemies your game runs stop at your friend's ghost as they stop at your EVE. An enemy her game runs meets her real EVE
-there. On a slow link a push can come from where she stood a moment ago. The game's own rule decides who moves: an
-enemy as heavy as EVE (weight Normal) is moved out of the ghost when its rank is lower, or the same while it moves or
-she stands still. A lighter one always moves. A heavier one (Medium, Large or SuperLarge: most enemies and every boss)
-stays where it is, as it does against your EVE, whom the game moves instead. The ghost itself never moves. Nothing
-moves while the game is paused, during a cutscene or while the ghost is hidden or not drawn for a second. It follows
-`collide`, never in an SBO session. The capsule above still blocks only your EVE; the enemy contact is a move of the
-enemy, made by the mod each frame. A minute's counts go to `UE4SS.log` as `enemy contact, last 60 s: ...`.
+Enemies your game runs are moved out of your friend's ghost by the rule the game uses between them and your EVE. An
+enemy her game runs meets her real EVE there. On a slow link a push can come from where she stood a moment ago. That
+rule decides who moves: an enemy as heavy as EVE (weight Normal) is moved out of the ghost when its rank is lower, or
+the same while it moves or she stands still. A lighter one always moves. A heavier one (Medium, Large or SuperLarge:
+most enemies and every boss) is never moved, so it walks through the ghost. Against your EVE the game moves EVE instead.
+The ghost itself never moves. Nothing moves while the game is paused, during a cutscene or while the ghost is hidden or
+not drawn for a second. It follows `collide`, never in an SBO session. The capsule above still blocks only your EVE; the
+enemy contact is a move of the enemy, made by the mod each frame. A minute's counts go to `UE4SS.log` as
+`enemy contact, last 60 s: ...`.

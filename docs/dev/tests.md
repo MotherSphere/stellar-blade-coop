@@ -429,7 +429,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   over one idle minute, each case from a fresh Lua load: 4 and 5 in a world with the UI up, 0 and 2 at the title, all in
   the first second;
 - `main/collide_test` covers the ghost's collision through `main/pass.lua`: as `collide` says, never solid during an SBO
-  session, and the state's `collide` the same (`collide=0` stops the enemy contact);
+  session. The state's `collide` follows the same rule (`collide=0` stops the enemy contact);
 - `main/loader_test` covers `main/loader.lua` alone with fake modules: every export the stub before any `new` runs (also
   the exports of a module whose require raises, read from its `wiring.lua`), the modules in list order, an on module's
   exports as its `new` left them, its words in `M.commands` (a word defined twice raises), a require, a `new` or a build

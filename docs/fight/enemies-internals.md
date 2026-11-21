@@ -115,7 +115,7 @@ game thread each frame (`push_tick()`, after `guarded_pilot()` in `coop_tick`), 
 - Gates (`fight::push_now`): game calls allowed (`game_calls_ok()`), not after `coop off`, not while SB's pause holds
   (a menu, our photo mode, our freeze tag: `FreezeGame::paused()`), no cutscene in our theater or shared scene, the
   ghost shown (`ghost_shows()`) and drawn in the last second. A logic task in flight holds the frame. Lua writes
-  `collide=0` into `coop-state.txt` when `collide` is off or an SBO session runs (the capsule's rule), and the pass
+  `collide=0` into `coop-state.txt` when `collide` is off or an SBO session runs (the capsule's rule). The pass then
   stops.
 - Enemies: SB's actor manager's FSBActors of type Monster or BossMonster within 5 m of a ghost's body (FSBActor
   `+0x4cc`), never a copy this side draws (same-place enemies' `pilot_table`: her game runs it, where her real EVE

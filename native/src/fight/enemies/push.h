@@ -102,8 +102,8 @@ struct Stand {
 };
 // SB's rule for the enemy m against her (FUN_1420ad3b0, the entry bytes FUN_142040da0 sets at the overlap's start:
 // +0xa0 the same weight, +0xa1 hers lower). The same weight: a lower rank is pushed, the same rank while it moves or
-// she stands still. Weights that differ: the lighter one moves (ESBActorWeightType: Smallest 1 to SuperLarge 6, EVE Normal
-// 3), so a heavier enemy stays where SB would move her EVE instead.
+// she stands still. Weights that differ: the lighter one moves (ESBActorWeightType: Smallest 1 to SuperLarge 6, EVE
+// Normal 3), so a heavier enemy is never moved where SB would move her EVE instead: it walks through the ghost.
 inline bool sb_lets_push(const Mover &m, const Stand &her) {
   if (m.held || !m.sb_movement || m.forced || m.tied || m.locks > 0 || m.custom || m.shove)
     return false;
