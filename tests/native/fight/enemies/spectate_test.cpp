@@ -71,6 +71,17 @@ int main() {
     s.step(f, 500);
     assert(s.on() && s.watched() == 1);
   }
+  { // coma_press: the next step takes the press; a step that cannot enter spends it
+    Facts f = fighting();
+    f.life = 2, f.hud = 5, f.running = false;
+    Spectate s;
+    s.pressed(Button::left, 5);
+    s.step(f, 0);
+    assert(!s.on());
+    f.running = true;
+    s.step(f, 250);
+    assert(!s.on());
+  }
   { // revive_once_per_reason (Review Focus 2)
     Facts f = fighting();
     f.phase_sig = 7;
@@ -119,8 +130,45 @@ int main() {
     s.step(f, 0);
     f.up = kNoMember;
     s.step(f, 250);
-    assert(!s.on() && s.out() == Out::nobody);
+    assert(!s.on() && s.out() == Out::nobody && s.watched() == kNoMember);
     assert(s.release() == 1 && s.release() == kNoRelease);
+  }
+  { // leave_rules: a leave at a life other than 2 or 3 gives the setter no value
+    Facts f = fighting();
+    Spectate s;
+    s.step(f, 0);
+    f.life = 4, f.up = kNoMember;
+    s.step(f, 250);
+    assert(!s.on() && s.out() == Out::nobody && s.release() == kNoRelease);
+  }
+  { // leave_rules: life 6 is up as 1 is (FUN_141a6efe0 kills only from 1 or 6): no release, the next down enters
+    Facts f = fighting();
+    Spectate s;
+    s.step(f, 0);
+    f.life = 6;
+    s.step(f, 250);
+    assert(!s.on() && s.up() == Up::none && s.release() == kNoRelease);
+    f.life = 3;
+    s.step(f, 500);
+    assert(s.on());
+  }
+  { // leave_rules: a new spectate counts the boss's absence from its own start, not from an earlier one
+    Facts f = fighting();
+    Spectate s;
+    s.step(f, 0);
+    f.boss = false;
+    s.step(f, 250);
+    f.life = 1;
+    s.step(f, 5000);
+    f.life = 3, f.boss = true;
+    s.step(f, 20000);
+    assert(s.on());
+    f.boss = false;
+    s.step(f, 20250);
+    s.step(f, 30249);
+    assert(s.on());
+    s.step(f, 30250);
+    assert(!s.on() && s.out() == Out::ended);
   }
   { // leave_rules: her ghost 150 m away or not drawn this tick ends nothing while her vitals read her up
     Facts f = fighting();
