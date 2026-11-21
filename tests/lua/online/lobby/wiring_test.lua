@@ -355,6 +355,24 @@ local picked=lb.o.view().sa.pick
 assert(picked~='random' and T.en.challenge.names[picked],picked)
 lb.o.act({cycle=true})
 assert(lb.o.view().sa.pick~=picked,'The next one')
+-- The Doro race's rows (online.modes.race): the view holds its match round's pick while it can play
+-- (race_match=on), none with race_match=off; the mode picked on B; Select on Track cycles the host's pick over what the
+-- lobby room offers (Xion's training room on Xion's map offers xion_eight), then Random again. Score attack's pick
+-- does not move.
+assert(v0.dr and v0.dr.pick=='random','The Doro race can play')
+v0.settings.race_match=false
+assert(lb.o.view().dr==nil,'race_match=off: it cannot play')
+v0.settings.race_match=true
+lb.o.act({mode='race'})
+assert(lb.o.view().pick=='race' and settings_text==text_before)
+local map_before,sa_before=bt.me.map,lb.o.view().sa.pick
+bt.me.map='/game/art/bg/worldmap/level_p/e04'
+sb.target={key='xion',spots={},fence={X=-64028.5,Y=151213.6,R=3000,zmin=-16100,zmax=-14700}}
+lb.o.act({cycle='race'})
+assert(lb.o.view().dr.pick=='xion_eight' and lb.o.view().sa.pick==sa_before,lb.o.view().dr.pick)
+lb.o.act({cycle='race'})
+assert(lb.o.view().dr.pick=='random')
+bt.me.map=map_before
 sb.target=nil
 sb.hall='47101_5096'
 assert(lb.o.view().halls==true)
@@ -408,6 +426,13 @@ link_round={n=5,kind='start',mode='scoreattack',map='lobby',seed=3,ids={ME,HER}}
 quarter()
 assert(logged('round start: score attack'))
 link_round={n=5,kind='end',why='host'}
+quarter()
+lb.o.act({close='room'})
+-- A Doro race round's start logs its mode too.
+link_round={n=6,kind='start',mode='race',map='lobby',seed=4,ids={ME,HER}}
+quarter()
+assert(logged('round start: Doro race'))
+link_round={n=6,kind='end',why='host'}
 quarter()
 lb.o.act({close='room'})
 -- A start line without us changes nothing.

@@ -6,14 +6,16 @@
 private:
 
   void on_message(Peer &peer, const Message &message) {
-    // A match lobby carries no photo or cutscene pause, gift, race, follow or night line, either way (decision 10):
-    // each is dropped with no log line. A score attack line counts in a match lobby only: elsewhere it is dropped too.
+    // A match lobby carries no photo or cutscene pause, gift, race, follow, spot, rest, night or mode line, either
+    // way (decision 10): each is dropped with no log line. A score attack line or a Doro race line of a match round
+    // (dr) counts in a match lobby only: elsewhere it is dropped too.
     const Kind k = message.kind;
     if (match() && (k == Kind::photo || k == Kind::gift || k == Kind::race || k == Kind::camps_ask ||
-                    k == Kind::camps ||
+                    k == Kind::camps || k == Kind::spot_ask || k == Kind::spot || k == Kind::rest ||
+                    k == Kind::mode ||
                     k == Kind::night)) // Stage 6 adds the night mode: then the owner's lines count in it.
       return;
-    if (!match() && k == Kind::score)
+    if (!match() && (k == Kind::score || k == Kind::dr))
       return;
     // The host's let and wait lines reach a guest of an online session only, from the host only: any other is junk.
     if ((k == Kind::let || k == Kind::wait) && (host_ || match() || peer.id != host_id_)) {
@@ -276,6 +278,31 @@ private:
         event("dropped score lines from " + peer.name + ": " + why);
       break;
     }
+    // Her Doro race line of a match round, the same way: online/modes/race/match/ checks who may send which.
+    case Kind::dr: {
+      if (!peer.compatible || !peer.accepted)
+        break;
+      const char *why = over_rate(peer.dr_window, 1, kDrPerSecond, kDrPerSecond * kMaxMessage) ? "over the rate limit"
+                        : !for_lua("dr " + std::to_string(peer.id) + " " + message.text)          ? "too many waiting"
+                                                                                                  : nullptr;
+      ++(why ? dr_dropped_ : dr_in_);
+      if (why && !std::exchange(peer.dr_logged, true))
+        event("dropped dr lines from " + peer.name + ": " + why);
+      break;
+    }
+    // Her line of a mode of online sessions, with her SteamID from Steam: the mode's module checks who may send which.
+    case Kind::mode: {
+      if (!peer.compatible || !peer.accepted)
+        break;
+      const char *why = over_rate(peer.mode_window, 1, kModePerSecond, kModePerSecond * kMaxMessage)
+                            ? "over the rate limit"
+                        : !for_lua("mode " + std::to_string(peer.id) + " " + message.text) ? "too many waiting"
+                                                                                             : nullptr;
+      ++(why ? mode_dropped_ : mode_in_);
+      if (why && !std::exchange(peer.mode_logged, true))
+        event("dropped mode lines from " + peer.name + ": " + why);
+      break;
+    }
     case Kind::gift: {
       if (!peer.compatible || !peer.accepted)
         break;
@@ -353,6 +380,60 @@ private:
       if (!peer.accepted)
         wait_until_ = now_ + message.a * 1000;
       break;
+    // The spot lines: a guest takes a spot? from the host only, each member at most one each kCampsEveryMs from each
+    // asker, which gets our next number (spot?= in our status, which Lua answers once). An answer counts only from the
+    // member we asked, with our last id: the status's spot= line.
+    case Kind::spot_ask:
+    case Kind::spot: {
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      const bool ask = message.kind == Kind::spot_ask;
+      const char *why = ask && !host_ && peer.id != host_id_ ? "a request not from the host"
+                        : ask && peer.spot_asked && now_ - peer.spot_at < kCampsEveryMs
+                            ? "over the rate limit (one each 2 s)"
+                        : !ask && (!asked_spot_ || peer.id != spot_to_) ? "an answer from a member we did not ask"
+                        : !ask && message.a != spot_asked_              ? "not the id of our last request"
+                                                                        : nullptr;
+      if (why) {
+        event("dropped a spot line from " + peer.name + ": " + why);
+        break;
+      }
+      const std::string line = spot_line(message);
+      event(line.substr(line.find(' ') + 1) + " from " + peer.name);
+      if (ask)
+        peer.spot_asked = peer.spot_waiting = true, peer.spot_id = message.a, peer.spot_at = now_,
+        peer.spot_n = spot_n_ = spot_n_ % kMaxCampId + 1;
+      else
+        spot_answer_ = line.substr(line.find(" spot ") + 6);
+      break;
+    }
+    // A member's camp rest: a guest takes it from the host only, with no limit of its own (the host limited each
+    // sender). The host takes a guest's only when it names her, at most one each kCampsEveryMs from her, then sends it
+    // to every other guest past the handshake. Either queues it for Lua with the resting member's SteamID.
+    case Kind::rest: {
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      const char *why = !host_ && peer.id != host_id_ ? "not from the host"
+                        : host_ && message.a != peer.id ? "not her own"
+                        : host_ && peer.rest_at && now_ - peer.rest_at < kCampsEveryMs
+                            ? "over the rate limit (one each 2 s)"
+                            : nullptr;
+      if (why) {
+        event("dropped a rest line from " + peer.name + ": " + why);
+        break;
+      }
+      const std::string line = rest_line(message.text, message.a);
+      event(line.substr(line.find(' ') + 1) + " from " + peer.name);
+      if (host_) {
+        peer.rest_at = now_;
+        for (auto &p : peers_)
+          if (p.compatible && p.accepted && p.id != peer.id)
+            send(p, line, kReliable);
+      }
+      if (!for_lua("rest " + message.text + " " + std::to_string(message.a)))
+        event("dropped a rest line from " + peer.name + ": too many waiting");
+      break;
+    }
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);

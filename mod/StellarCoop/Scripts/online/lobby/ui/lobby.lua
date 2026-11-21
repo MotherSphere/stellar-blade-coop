@@ -36,6 +36,7 @@ local hint,header=Parts.hint,Parts.header
 local PITCH,TEXT,DESC_GAP,ACTION_GAP,BOTTOM,LOGO,LOGO_GAP=106,94,20,36,2000,512,115
 local ROW_X,SIDE=172,600 -- B's rows; the status and the soon tag, that far right of a row.
 local ACTIONS=6 -- The most action rows (idle's); their slots are bottom-aligned, the same in every layout.
+local TOP=4 -- The most mode rows (idle's): B shows TOP+ACTIONS rows at most.
 local HINT_RIGHT,HINT_STEP,HINT_Y=3700,420,1990 -- Key hints, right to left.
 local LIST_X,LIST_Y,LIST_PITCH,WINDOW=192,384,130,10 -- C's list: a window of 10 slots.
 local PANE_X,PANE_W,PANE_MODE_Y=2600,1040,1010 -- C's right pane; its mode header.
@@ -43,7 +44,9 @@ local HOVER,BACK,GONE=0.1,0.15,0.25 -- Seconds: between mouse looks; to the inpu
 local SHADOW={2,2,0,0,0,0.8}
 local TONE={grey=THEME.grey,warn=THEME.warn,teal=THEME.teal,error=THEME.error}
 local MARK={ok=THEME.teal,warn=THEME.warn,error=THEME.error}
-local MODES={ffa=true,scoreattack=true,challenge=true,more=true} -- The top block's rows (lobby_model.lua's three).
+-- The top block's rows (lobby_model.lua's four at most).
+local MODES={ffa=true,scoreattack=true,race=true,challenge=true,track=true,more=true}
+local TAG=18 -- Columns of a track's name beside the Track row, as B's labels hold.
 local TABS={'match','sbo'}
 -- B's layout for n_mode mode rows and n_action action rows: {top, rows={y...}, text_y (the mode text), logo_y}.
 function Lobby.layout(n_mode,n_action)
@@ -56,7 +59,7 @@ function Lobby.layout(n_mode,n_action)
 end
 -- The block that moves with the row count (logo, sub-logo, mode rows' mouse zones, mode text) is drawn at idle's
 -- layout in its own group, which kit.move places for the others (kit texts and images have no place of their own).
-local BASE=Lobby.layout(3,ACTIONS)
+local BASE=Lobby.layout(TOP,ACTIONS)
 -- A word of a table by its dotted key ('status.open'), formatted with args when given; the key when there is none.
 local function word(t,key,args)
     local w=t
@@ -64,9 +67,13 @@ local function word(t,key,args)
     if type(w)~='string' then return key end
     return args and #args>0 and w:format(table.unpack(args)) or w
 end
--- The score attack's challenge pick in words t: Random, a challenge's name, or the host's pick (a guest's row).
-local function pick_word(t,v)
-    return v=='random' and t.lobby.val.random or v=='host' and t.lobby.val.host_pick or t.challenge.names[v] or v
+-- The host's pick of row id in words t: Random, the host's pick (a guest's row), the score attack's challenge by its
+-- name, or the Doro race's track by its name, cut to cols columns with … when cols is given (track names are ASCII).
+local function pick_word(t,v,id,cols)
+    if v=='random' then return t.lobby.val.random end
+    if v=='host' then return t.lobby.val.host_pick end
+    if id=='track' then return cols and #v>cols and v:sub(1,cols-1)..'…' or v end
+    return t.challenge.names[v] or v
 end
 -- o: {kit=ui.kit.kit's, words=function() the ui/text.lua table to show, view=function() Model.view's input
 -- (main.lua's), act=function(action) (Model.act's shapes, and C's {set=, value=}, {request=}, {run='report'}), log=}.
@@ -76,7 +83,7 @@ function Lobby.new(o)
     local screen,tab=nil,TABS[1] -- 'menu' (B), 'settings' (C) or nil; C's tab.
     -- B's cursor (a row index; nil: the first action row); C's (an item index); C's first item shown less one.
     local cur_b,cur_c,top=nil,0,0
-    local view,input,items,modes=nil,nil,{},3 -- As last drawn: what nav acts on.
+    local view,input,items,modes=nil,nil,{},TOP -- As last drawn: what nav acts on.
     local rows_b,hints_b,list_c,icons_c,pane_c,hints_c={},{},{},{},{},{} -- Parts by slot.
     -- The popup asking ({id, rec, on_answer, took}); one answered, removed at its time ({rec, at}).
     local ask,leaving=nil,nil
@@ -123,7 +130,7 @@ function Lobby.new(o)
         b.image(0,610,3840,1550,'shade_bottom')
         local v={slots={}}
         for k=1,ACTIONS do
-            local y=BASE.rows[3+k]
+            local y=BASE.rows[TOP+k]
             v.slots[k]={zone=b.row(ROW_X,y+15,624),
                 status=b.text(ROW_X+SIDE,y+32,'','body',THEME.grey,nil,{shadow=SHADOW})}
         end
@@ -141,7 +148,7 @@ function Lobby.new(o)
             v.logos[name]=b.image(170,BASE.logo_y,2048,LOGO,name)
         end
         v.sub=b.text(224,BASE.logo_y+LOGO-8,'','item',THEME.grey,{X=0,Y=1},{shadow=SHADOW})
-        for i=1,3 do
+        for i=1,TOP do
             local y=BASE.rows[i]
             v.slots[i]={zone=b.row(ROW_X,y+15,624),
                 tag=b.text(ROW_X+SIDE,y+32,'','status',THEME.dim,nil,{shadow=SHADOW})}
@@ -201,8 +208,11 @@ function Lobby.new(o)
         local t=words()
         read()
         local rows=view.rows
+        local was=modes
         modes=0
         for _,r in ipairs(rows) do if MODES[r.id] then modes=modes+1 end end
+        -- The cursor on an action row stays on it when the count of mode rows changes (idle's four, a lobby's three).
+        if cur_b and cur_b>was then cur_b=cur_b-was+modes end
         local L=Lobby.layout(modes,#rows-modes)
         cur_b=math.max(1,math.min(cur_b or modes+1,#rows))
         kit.move('lobby_top',0,L.top-BASE.top)
@@ -219,7 +229,7 @@ function Lobby.new(o)
                 if row.locked then w:SetIsEnabled(false) end -- Before the canvas: Construct plays Disable.
             end}
         end
-        sync(rows_b,'lobby',specs,modes+ACTIONS)
+        sync(rows_b,'lobby',specs,TOP+ACTIONS) -- Every slot, so a row past a shorter layout goes.
         for i,row in ipairs(rows) do look(rows_b[i],i==cur_b and not row.locked and 'select' or 'normal') end
         -- Ruling 5's fallback: a row with no SB part shows its label on the kit row under it.
         local function kit_row(zone,i)
@@ -231,13 +241,15 @@ function Lobby.new(o)
         for k,slot in ipairs(v.slots) do kit_row(slot.zone,slot_row(k)) end
         -- The mode text: the mode row under the cursor, more's, else the mode of the lobby or picked.
         local cur=rows[cur_b]
-        local id=cur and (cur.id=='more' or cur.id=='ffa' or cur.id=='scoreattack') and cur.id or view.mode
+        local id=cur and (cur.id=='more' or cur.id=='ffa' or cur.id=='scoreattack' or cur.id=='race') and cur.id
+            or view.mode
         tv.desc.set(t.lobby.desc[id] or '')
-        -- Beside a mode row: soon (more), the host's challenge pick (Challenge), picked (the mode Search asks for).
+        -- Beside a mode row: soon (more), the host's pick (Challenge, Track), picked (the mode Search asks for).
         for i,slot in ipairs(tv.slots) do
             local row=rows[i]
             if row and row.id=='more' then slot.tag.set(t.lobby.tag.soon); slot.tag.color(THEME.dim)
-            elseif row and row.id=='challenge' then slot.tag.set(pick_word(t,row.value)); slot.tag.color(THEME.text)
+            elseif row and (row.id=='challenge' or row.id=='track') then
+                slot.tag.set(pick_word(t,row.value,row.id,TAG)); slot.tag.color(THEME.text)
             elseif row and row.picked then slot.tag.set(t.lobby.tag.picked); slot.tag.color(THEME.teal)
             else slot.tag.set('') end
         end
@@ -269,7 +281,7 @@ function Lobby.new(o)
         return t.row[item.id] or item.id
     end
     local function value_of(t,item)
-        if item.pick then return pick_word(t,item.pick) end
+        if item.pick then return pick_word(t,item.pick,item.id) end
         if not item.value then return '' end
         if tab=='match' then return word(t.lobby,item.shown or item.value,item.args) end
         return t.value[item.value] or item.value

@@ -45,6 +45,15 @@ chain of WLB_20 stays each player's own too.
 The list of what can be shared comes from the game's own tables of build 26123051 and from the rows Matrix XIII adds:
 2,459 of the game's 4,430 objects and 95 of the 198 that Matrix XIII adds. The others stay each player's own.
 
+## Camp rests
+
+With the shared world on, one player's camp rest brings the enemies of that area back in the game of each other player
+who stands in the same area. Each of those games makes the game's own zone reset there, at once or once that player is
+free, within 60 s. A respawn after a death resets only the dead player's game. Each player's own setting counts: off,
+your rests are not sent and other players' rests leave your area as it is. The rules and notices are in
+[Camp rests in a shared area](../players/playing-with-a-friend.md#camp-rests-in-a-shared-area). This has not been tested
+in game yet.
+
 ## Story doors
 
 A door or gate that a quest step opens is not shared by the shared world. It opens in each game when that game's quest

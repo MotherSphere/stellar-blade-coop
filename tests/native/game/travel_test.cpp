@@ -4,6 +4,7 @@
 // game/travel.h on the build machine: the fast travel request's bytes at each offset, each guard refusing with its own
 // reason, the call count (three calls in 10 s, a 10 s wait after an accepted call, none after a refused one) and the
 // watch over the warp block (pending, warping, arrived, a block cleared before it ran, and one that never ran: stuck).
+// Then the spot warp's record, the spot guard (no camp name, solo refused last) and the count of zone reset starts.
 #include "game/travel.h"
 
 #include <cassert>
@@ -86,8 +87,8 @@ int main() {
   half.waits = 1;
   assert(refuse(half) == Why::none);
   // Every reason has its own word.
-  for (int a = 0; a <= int(Why::fault); ++a)
-    for (int b = a + 1; b <= int(Why::fault); ++b)
+  for (int a = 0; a <= int(Why::solo); ++a)
+    for (int b = a + 1; b <= int(Why::solo); ++b)
       assert(std::strcmp(why_name(Why(a)), why_name(Why(b))) != 0);
 
   // The call count: three calls in 10 s at most, a fourth refused until 10 s after the first; a refused call (a return
@@ -142,6 +143,49 @@ int main() {
   assert(state_text(w) == "refused:game");
   w.refused(Why::calls);
   assert(state_text(w) == "refused:calls");
+
+  // The spot warp's record, as WarpSBActor (FUN_141ac3d80) builds it: zero but the GUID, the fade, the place.
+  {
+    const Args a = args(4242, 100.f, -200.f, 300.f, 90.f);
+    const auto at = [&a](size_t o, auto v) { decltype(v) x; std::memcpy(&x, a.data() + o, sizeof x); return x; };
+    assert(at(0x18, uint32_t()) == 4242 && at(0x38, float()) == -1.0f);
+    assert(at(0x54, float()) == 100.f && at(0x58, float()) == -200.f && at(0x5c, float()) == 300.f);
+    assert(at(0x60, float()) == 0.f && at(0x64, float()) == 90.f && at(0x68, float()) == 0.f);
+    for (size_t i = 0; i < kArgsBytes; ++i)
+      assert((i >= 0x18 && i < 0x1c) || (i >= 0x38 && i < 0x3c) || (i >= 0x54 && i < 0x6c) || a[i] == 0);
+    const Args w = args(1, 0, 0, 0, 0, 0x0000000b00001234ull); // coop travel spot <world>: the world's FName.
+    assert(at(0x00, uint64_t()) == 0 && std::memcmp(w.data(), "\x34\x12\x00\x00\x0b\x00\x00\x00", 8) == 0);
+  }
+  // The spot guard: no camp name; solo refused after every other guard; the camp travel ignores solo.
+  {
+    Reads r = good();
+    r.index = 0;
+    assert(refuse(r) == Why::name && refuse(r, true) == Why::none);
+    r.solo = true;
+    assert(refuse(r, true) == Why::solo && std::string(why_name(Why::solo)) == "solo");
+    r.player = false;
+    assert(refuse(r, true) == Why::player);
+    Reads c = good();
+    c.solo = true;
+    assert(refuse(c) == Why::none);
+  }
+  // Zone resets: one start per edge of world +0x1a0 with type 1 or 2; ours when the GUID is ours.
+  {
+    Rests z;
+    const uint64_t A = 0x1111, Bz = 0x2222;
+    assert(!z.step(0, 1, 4242, 4242, A) && z.starts == 0);
+    assert(z.step(1, 1, 4242, 4242, A) && z.ours == 1 && z.starts == 1 && z.type == 1 && z.area == A);
+    assert(!z.step(1, 1, 4242, 4242, A) && z.ours == 1 && z.starts == 1); // Held over several reads: one edge.
+    z.step(0, 1, 0, 4242, 0);
+    assert(!z.step(1, 2, 777, 4242, Bz) && z.ours == 1 && z.starts == 2 && z.area == A); // Another actor's.
+    z.step(0, 1, 0, 4242, 0);
+    assert(!z.step(1, 0, 4242, 4242, A) && z.starts == 2); // Type 0: the camp arrival only, no reset.
+    z.step(0, 1, 0, 4242, 0);
+    assert(z.step(1, 2, 4242, 4242, Bz) && z.ours == 2 && z.type == 2 && z.area == Bz); // Lua judges type 2.
+    z.step(0, 1, 0, 4242, 0);
+    // SB's echo of a ResetZone carries GUID 0: never ours, even before our own GUID is read.
+    assert(!z.step(1, 2, 0, 0, A) && z.ours == 2 && z.starts == 4 && z.area == Bz);
+  }
 
   std::puts("travel_test ok");
   return 0;

@@ -49,6 +49,11 @@ struct Peer {
   // number for it (camps_n_), which the status gives Lua: two guests' ids may meet, ours never do.
   bool camps_asked = false, camps_waiting = false;
   uint64_t camps_id = 0, camps_at = 0, camps_n = 0;
+  // The travel to a member (online/group/travel.lua), as the camps lines: her last spot? (on a guest, the host's only),
+  // when it came, whether it still waits for our answer, our number for it (spot_n_). On the host, when her last rest
+  // line came (0: none yet), for the limit of one each kCampsEveryMs.
+  bool spot_asked = false, spot_waiting = false;
+  uint64_t spot_id = 0, spot_at = 0, spot_n = 0, rest_at = 0;
   // The synced photo mode: her state and whether her photo mode may pause our game, from her last photo line ('0' and
   // no before one); our line as she last got it (sent again after each hello of hers, so a rejoin heals); whether
   // "does not pause for photos" was said for her; her photo lines' window.
@@ -63,6 +68,8 @@ struct Peer {
   Window night_window;     // Her night lines.
   Window race_window;      // Her race lines.
   Window score_window;     // Her score attack lines.
+  Window dr_window;        // Her Doro race lines of a match round.
+  Window mode_window;      // Her lines of the modes of online sessions.
   Window gift_window;      // Her gift lines.
   Window ping_window;      // Her pings.
   Window line_window;      // All her channel-0 lines, for the flood rule only.
@@ -96,6 +103,8 @@ struct Peer {
   bool mark_logged = false; // The same for her mark lines, which share her chat lines' window.
   bool race_logged = false; // The same for her race lines.
   bool score_logged = false; // The same for her score attack lines.
+  bool dr_logged = false;    // The same for her Doro race lines of a match round.
+  bool mode_logged = false; // The same for her mode lines.
   bool round_logged = false; // The same for her round lines.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;

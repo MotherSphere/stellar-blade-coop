@@ -113,6 +113,12 @@ constexpr uint64_t kRacePerSecond = 40;
 // the most we keep a second from each member. A player sends about one a second. Reliable lines held up by a stall of
 // up to kLostAfterMs come in at once, her done line among them.
 constexpr uint64_t kScorePerSecond = 16;
+// Doro race lines of a match round (online/modes/race/match/model.lua's), the same way: a racer sends a split about
+// each second, the host's busiest moment its track, up to six cps lines and its go line at once (8 lines).
+constexpr uint64_t kDrPerSecond = 16;
+// Lines of the modes of online sessions (online/modes/fishing/round.lua's), all modes together: the most we send a
+// second, which is also the most we keep a second from each member. The score attack's value, for the same reason.
+constexpr uint64_t kModePerSecond = 16;
 constexpr size_t kChatInbox = 64;
 // Night Operation's lines a second, each way: Lua writes one a tick (4 a second) at most.
 constexpr uint64_t kNightPerSecond = 8;
@@ -297,6 +303,11 @@ private:
   uint64_t camps_asked_ = 0;
   uint64_t camps_n_ = 0; // The host's last number for a guest's camps? (Peer::camps_n), 1 to kMaxCampId.
   std::string camps_answer_;
+  // The spot lines in this session: whether we asked, the member asked, our last spot? id and her answer to it (without
+  // its tag; empty until one came); our last number for a spot? of a member's (Peer::spot_n), 1 to kMaxCampId.
+  bool asked_spot_ = false;
+  uint64_t spot_to_ = 0, spot_asked_ = 0, spot_n_ = 0;
+  std::string spot_answer_;
   // The synced photo mode: photo() called yet, ours, our photo_sync as sent, the cap in s, whether our Lua asks for
   // the host's cutscene pause; as of the last pass, hers ('0' with no friend or a lost one) and ours, whether our game
   // holds its pause and since when, whether the cap ended this photo session of hers.
@@ -333,6 +344,14 @@ private:
   uint64_t score_in_ = 0, score_out_ = 0, score_dropped_ = 0;
   Window score_window_;
   bool score_logged_ = false;
+  // Doro race lines of a match round: the same, for the dr line.
+  uint64_t dr_in_ = 0, dr_out_ = 0, dr_dropped_ = 0;
+  Window dr_window_;
+  bool dr_logged_ = false;
+  // Mode lines: the same counts, rate window and drop line.
+  uint64_t mode_in_ = 0, mode_out_ = 0, mode_dropped_ = 0;
+  Window mode_window_;
+  bool mode_logged_ = false;
   Window gift_window_; // Our gift lines.
   Vitals vitals_{}, mate_{}, own_{}; // own_: our last read, sent or not.
   // coop mark: our marks this run (one count a game process, never reset) and the last mark's status line, or empty.

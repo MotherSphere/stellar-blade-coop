@@ -2,9 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The SBO lobby's wiring (online/lobby/): the lobby, its hall rows, its arrivals, its passes and its screens. The lobby
--- menu's score attack rows read online.modes.scoreattack's round (its pick and cycle) while that module is on.
+-- menu's score attack rows read online.modes.scoreattack's round (its pick and cycle) while that module is on, its Doro
+-- race rows online.modes.race's match round the same way.
 return {
-uses={'online.modes.nightop','eve','online.session','online.modes.scoreattack'},
+uses={'online.modes.nightop','eve','online.session','online.modes.scoreattack','online.modes.race'},
 exports={'sbo','halls','lobby_room','lobby_key','seat_hint','arrival_pass','lobby_pass','hud_pass','lobby',
     'lobby_last'},
 new=function(M)
@@ -174,7 +175,8 @@ if M.link then
                 M.lobby.stop_count()
                 M.sbo.to_room()
                 played=true
-                log('round start: '..(r.mode=='scoreattack' and 'score attack' or 'stage 4 not built'))
+                log('round start: '..(r.mode=='scoreattack' and 'score attack' or r.mode=='race' and 'Doro race'
+                    or 'stage 4 not built'))
             end
         end
         if played and r and r.kind=='end' then played,due=false,true end -- B again at our round's end line.
@@ -238,10 +240,12 @@ build={
 screens=function(M,Ui)
     -- The lobby's view keeps our last match request ('search', 'create', or 'join' from the code box), when its Code
     -- row copied the code, and the map picked on C for a Private match ('random' or a hall's key, for this Lua load).
-    -- mode: the mode picked on B ('ffa' or 'scoreattack', nil: the model's default) for this Lua load.
+    -- mode: the mode picked on B ('ffa', 'scoreattack' or 'race', nil: the model's default) for this Lua load.
     local last,copied_at,room,mode=nil,nil,'random',nil
-    -- Score attack's round (online.modes.scoreattack) while that module is on, nil while it is off or has no link.
+    -- Score attack's round (online.modes.scoreattack) and the Doro race's match round (online.modes.race) while their
+    -- module is on, nil while it is off or has no link.
     local score=require('main.loader').get(M,'online.modes.scoreattack','scoreattack')
+    local race=require('main.loader').get(M,'online.modes.race','race_match')
     function M.lobby_last(v) last=v end -- The code box's Join sets it (online/session/wiring.lua).
     -- The SBO lobby's screens (online/lobby/ui/lobby.lua), over the rest: B and C, the leave question, the countdown
     -- and the room's overlay. view: Model.view's input, read fresh at each call (L15 R25, L12-R1); act: what a row asks
@@ -250,11 +254,12 @@ screens=function(M,Ui)
     local function view()
         local version,proto=('\n'..(M.link.status() or '')):match('\nmod=(%S+) proto=(%d+)')
         local sa=M.settings.scoreattack and score() or nil
+        local dr=M.settings.race_match and race() or nil
         return {match=M.link.match(),members=M.link.members(),role=M.link.mode() or 'none',limit=M.link.cap(),
             code=(M.link.code()),
             me={id=(M.link.saves() or {}).steamid,name=M.link.me()},owner=M.link.owner(),last=last,copied_at=copied_at,
             now=os.clock(),version=version,proto=tonumber(proto),settings=M.settings,halls=M.sbo.hall()~='xion',
-            room=room,pick=mode,sa=sa and {pick=sa.pick()} or nil}
+            room=room,pick=mode,sa=sa and {pick=sa.pick()} or nil,dr=dr and {pick=dr.pick()} or nil}
     end
     local function act(a)
         if a.request then -- Search (with the SBO lobby's room and hall words), Private, Cancel, and C's mute rows.
@@ -280,6 +285,9 @@ screens=function(M,Ui)
             if M.run('copy') then copied_at=os.clock() end
         elseif a.set=='room' then room=a.value -- Not a coop-settings.txt setting: menu.set knows no such key.
         elseif a.mode then mode=a.mode -- Not a coop-settings.txt setting either.
+        elseif a.cycle=='race' then -- The host's track pick: Random, then each track the room offers.
+            local r=race()
+            if r then r.cycle() else M.report(false,'Doro races are off until the mod reloads') end
         elseif a.cycle then -- The host's challenge pick: Random, then each challenge the room offers.
             local r=score()
             if r then r.cycle() else M.report(false,'score attack is off until the mod reloads') end

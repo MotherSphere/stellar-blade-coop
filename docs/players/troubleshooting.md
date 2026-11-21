@@ -203,6 +203,18 @@ the ghost looks wrong with one on, turn it off: `cloth=off` (or `dyes=off`, `eff
 Options > Ghost in the co-op menu, or `coop look <look> off`. An `effects off: fault ...` line means a fault turned
 effects off until the game restarts; the ghost stays, without effects.
 
+Your EVE's sounds go to the others with the sounds look on (`sounds=on` in `coop status`). A line `sounds refused:
+0x<slot> holds <value>; nothing of that set swapped, the ghost goes on without sounds` in `coop-link.log` means
+another mod hooks the same function of the game. Stellar Blade Online leaves that mod's hook in place, so your sounds
+are not sent while it is loaded. When the line ends with `(her events' context)`, only some of them are sent. `coop
+status` then shows `sounds=refused`. A `sounds off: fault ...` line means a fault turned them off until the game
+restarts. The ghost stays either way.
+
+Your EVE's world effects (her footstep dust, the effects her skills place in the world) go the same way with the
+effects look on (`world_effects=on` in `coop status`). A line `world effects refused: ...` means another mod hooks the
+game's Niagara or Cascade start. Those effects are not sent while it is loaded. `coop status` then shows
+`world_effects=refused`. A `world effects off: fault ...` line means a fault turned them off until the game restarts.
+
 ## Doro races
 
 ### EVE is invisible, or only a Doro shows
@@ -212,7 +224,7 @@ that follows her, and draws a Doro at her feet. The race's end, `coop race quit`
 again. If EVE or the drone stays hidden:
 
 - Type `coop race look off`. While the look is still on, it answers `OK: Doro look off (coop race look off): <n> parts
-  shown again, tick option <t> back.`, with `and the drone` after `parts` when it hid the drone. If it answers
+  shown again, tick option <t> asked back.`, with `and the drone` after `parts` when it hid the drone. If it answers
   `The Doro look is off already.`, go on to Ctrl+R.
 - Press Ctrl+R. The next Lua load reads `coop-look.txt`, which the look keeps while it is on, and shows EVE and the
   drone again at its first tick: `UE4SS.log` says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`, with
@@ -228,14 +240,46 @@ While your look is on, your friend sees your ghost with no body unless their gam
 
 ### EVE does not speed up or stop after a race
 
-During a [Doro race](../online/modes/race.md), the race sets four values of EVE's movement to 0 so it can drive her (see
-[Driving](../online/modes/race.md#driving)). Her result, `coop race quit`, `coop off` and a map change put them back. If she keeps
-sliding or does not move with the stick after a race or `coop race drive probe`:
+During a [Doro race](../online/modes/race.md), the native part sets four values of EVE's movement to 0 so the race can
+drive her (see [Driving](../online/modes/race.md#driving)). Her result, `coop race quit`, `coop off`, a map change and
+a new Lua load put them back. If she keeps sliding or does not move with the stick after a race or
+`coop race drive probe`:
 
 - Type `coop race drive off` if the probe still runs.
-- Press Ctrl+R. The next Lua load reads `coop-drive.txt`, which the race keeps while it drives, and writes the values
-  back at its first tick: `UE4SS.log` says `[StellarCoop][DR] drive restored from coop-drive.txt: MaxAcceleration=...`.
+- Press Ctrl+R. At the new Lua load the native part puts the values back at the game thread's next frame. When it held
+  them, `coop-link.log` then says `race hold: fields game's (none), tick option game's (none)`.
+- `race hold fault ...` in `coop-link.log` means the hold stopped for the game run after a fault, with the values put
+  back. Races then do not drive until the game restarts.
 - Restart the game if neither works. The values are in memory only, and no save holds them.
+
+### I sit out every Doro race round of a match
+
+The notice and the `[StellarCoop][DR] sit out: <why>` line in `UE4SS.log` say why (see
+[A round](../online/modes/race.md#a-round)):
+
+- `the track runs outside the room <key>`: the track does not fit this room's fence. Only a track recorded inside the
+  room fits: the host picks another, or Random.
+- `the track is on <map>; EVE is on <map>`: the host's track was recorded on another map.
+- `EVE is not in the lobby room`: your game does not see you in the SBO lobby's room.
+- `SB's chair seats EVE`: you rested on one of the game's chairs in a hall when the round started. Get up before
+  the countdown ends.
+- `a track is being recorded`, `the drive probe runs` or `a race is on`: type `coop race cancel`, `coop race drive off`
+  or `coop race quit`.
+- `the game refused the teleport to slot <k>` or `no EVE in the world`: the game would not move EVE to her slot.
+- `the track did not come whole`: the host's lines did not all arrive within 10 s. The log line before it gives the
+  reason (`match round <n>: ...`).
+
+`No track here: record one in this room with coop race record.` on the host's screen means the room offers no track:
+a hall lobby has no official track yet. Record one inside the hall (`coop race record <name>`, F9 at each checkpoint,
+`coop race save`), then pick it on the Track row.
+
+### A racer is not ranked
+
+The host's `UE4SS.log` has `rank: refused <name>: <why>` for a split or an end its checks refused (`order`, `time`,
+`flags` or `why`; see [The end and the ranking](../online/modes/race.md#the-end-and-the-ranking)). A racer is
+also left out when her end came after the ranking. The host stops waiting 65 s after the first finish. It does not
+wait at all for a racer whose countdown started more than 10 s after the round's start. A racer who left the lobby or
+lost her link is left out too.
 
 ## Score attack
 
@@ -273,6 +317,39 @@ ranking.` means the host left the lobby or was silent for 10 s. The next host co
 A button pressed on the death screen takes EVE out of the room. Press none: the mod asks the game's in-place respawn
 within 10 s of the death. When it does not, `UE4SS.log` has `respawn waits: <reason>`, then
 `respawn not asked in 10 s: <reason>`. Send that log (see [Which logs to send](#which-logs-to-send)).
+
+## Fishing tournament
+
+### A catch does not count
+
+Your `UE4SS.log` has `[StellarCoop][FT] catch: <ID> <points>` for each catch your game counted and sent. With no such
+line for a catch:
+
+- it came during the countdown, or after your game's last read of the book, a second or so after your end;
+- your game took its baseline again in that second, after a map change, a fast travel, a load, a respawn or a loading
+  screen (see [What stops a tournament](../online/modes/fishing.md#what-stops-a-tournament));
+- the log has `book jumped by <n>: baseline again` or `book fell: baseline again`: that read of the book changed by
+  more than a catch, so it counted nothing;
+- `coop-link.log` has `fishbook (ask <n>): none <why>`. `noeve` means no EVE could be read (the title, a load).
+  `nobook` means SB made no fishing log book for this save. `unread` is a torn read, asked again a second later.
+  `unpinned` means another game build.
+
+With the line, the host's `UE4SS.log` may have `rank: refused <name>: <why>` for a catch its checks refused (`sender`,
+`fish`, `points`, `time` or `rate`, see [The host's checks](../online/modes/fishing.md#the-hosts-checks)). `sender`
+means the host did not count that player: her ready line came more than 10 s after the start line.
+
+### `Not ranked.`
+
+The ranking holds only the players the host counted who are still in the online session at its end plus 10 s. You are
+left out when you sat out (a notice said why), when your ready line came late, or when you had left or your link was
+lost at that time.
+
+### `The tournament was cancelled.`, `The host left. This tournament has no ranking.` or `No ranking came from the host.`
+
+`The tournament was cancelled.` follows the host's `coop fish stop`, or a Lua reload on the host's PC (the host's log
+then has `void <seed>: a catch from <name> of a tournament we do not run`). `The host left. This tournament has no
+ranking.` means the host left the online session, or typed `coop off`. `No ranking came from the host.` comes 30 s
+after your end with no ranking line, for example after a Lua reload on the host's PC with no catch after it.
 
 ## Menu, chat, controller and screen
 
@@ -645,6 +722,13 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
   another travel under way, the game paused, in photo mode or in a menu (the co-op menu too), a Night Operation run, a
   cutscene, a boss fight or an enemy in battle near you, the host's game loading or busy, or less than 10 s since the
   last travel. The log line names which.
+  On the host's map it also covers `the host is in a solo area`, `we are in a solo area`, an answer from the host's
+  game that says it is busy (`no spot from the host: none <loading|busy|solo|boss>`), no answer in 10 s
+  (`no answer from the host in 10 s`) and a host who left your map before his answer came
+  (`refused at the call: the host left this map`). The native part's refusals of the warp to his place are in
+  `coop-link.log` as `travel spot refused: <why>` (`solo` while your own zone is a solo area).
+- `<host> is not on solid ground. Try again in a moment.`: the host's EVE had not walked on a floor in the last 10 s
+  (`no spot from the host: none air`). Wait until he stands on the ground, then press F7 again.
 - `No camp you have found is near <host>.`: the host's game found no travel camp on its map (`none nocamp`), none of
   the camps it sent could be used (`travel: <camp> is not activated in this save` for a camp you have not found), or
   the game refused each one (`travel: SB refused <camp>`).
@@ -656,6 +740,17 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
 - No notice at all: `follow_host=off`, `follow_key=none` (use `coop travel host`), you are the host, your own save is
   loaded, or the host is within 150 m of you on your map. Press F7 and read the `travel refused:` line.
 - A second F7 within 2.5 s is refused in the log only (`one request to the host each 2.5 s`).
+- F7 within 5 m of the host is refused in the log only (`the host is within 5 m`). With his ghost hidden or not yet
+  placed, the log says `the host's place on this map is unknown`.
+- After a camp travel to the host's map you stay at the camp: `travel: no second hop: <why>` means a guard held for
+  30 s after the arrival. Press F7 again.
+
+The way back after a death (`<name> is alive. Press F7 to go back to them.`) writes `[StellarCoop][GR] return: ...`
+lines. No notice shows with `follow_key=none` or `follow_host=off` (`return: no notice (follow_key=none)`), with
+`revive=off`, during a boss fight, in a solo area on either side, with your friend down or on another map, or within
+10 s of the last respawn the mod asked for. `return refused: <why>` names the guard that stopped the respawn call.
+`return: no warp, <why>` means you got up where you fell with no warp: your friend left, went down or entered a solo
+area, the respawn did not take, or you went down again before the warp.
 
 ### A revive is not offered
 
@@ -776,7 +871,16 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 - `score lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
   [score attack](../online/modes/scoreattack.md) lines: the lines received, sent and dropped (see
   [The score line](../online/steam-link-internals.md#the-score-line)).
-- `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
+- `mode lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
+  [fishing tournament](../online/modes/fishing.md) lines: the lines received, sent and dropped (see
+  [The mode line](../online/steam-link-internals.md#the-mode-line)).
+- `dr lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried the lines of
+  [Doro races in matches](../online/modes/race.md#races-in-a-match): the same counts (see
+  [The dr line](../online/steam-link-internals.md#the-dr-line)).
+- `effects, last 60 s: ...`, with any effect activity: effects started, over 6, unlisted reads and boxes written.
+- `sounds, last 60 s: ...`, with any sound of yours recorded: why each one counted as yours (mark, owner, attach, or a
+  start on another thread, which is not sent), sounds put in a pose, those dropped after 100 ms without a slot, paths
+  refused (outside the game's folders), parameters left out, sounds past the 4096 keys and starts lost to a full ring.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.
 

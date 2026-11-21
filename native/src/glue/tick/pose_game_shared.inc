@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // What other modules' parts read of online/partner/pose_game.inc, cut from it whole and in order.
-// tick.cpp includes this file right before it.
+// tick.cpp includes this file right before it, with partner's sound_game.inc between them.
 namespace coop::pose {
 namespace {
 uintptr_t base = 0, objects = 0;
@@ -45,29 +45,47 @@ struct Drawn {
   std::vector<uint8_t> draw;
   float draw_root[10] = {};
   Effect draw_fx[kEffectSlots], fx_drawn[kEffectSlots]; // Her effect slots drawn this frame, and as last written.
+  Free draw_free[kMaxParts]; // Her free parts' blocks drawn this frame, in table order.
   // Game thread: only the first refused write on this ghost is logged; Lua destroyed this ghost, so nothing is drawn
   // until its display is dropped.
   bool refusal_logged = false, ghost_gone = false;
+  // Game thread: her sounds and her world effects the playback passed, each waiting for their key's loaded objects
+  // (partner's play_game.inc plays them); the µs of the last frame a pose was drawn; the waits given up, as last
+  // counted.
+  NameWait waiting, fx_waiting;
+  uint64_t drawn_at = 0, waits_seen = 0, fx_waits_seen = 0;
+  // Her face and shape keys: her weights drawn this frame (table order). Partner's play_game.inc reserves the parts'
+  // morph arrays once (with each mesh's morph count) before pose_game.inc writes any. It makes the dirty call for the
+  // parts whose weights changed (a bit per remote part).
+  std::vector<uint8_t> draw_morphs;
+  bool morphs_reserved = false;
+  uint16_t mesh_morphs[kMaxParts] = {};
+  uint32_t morphs_dirty = 0;
   Drawn(Table r, Display d) : remote(std::move(r)), display(std::move(d)) {
     decoder.reset(pose_size(remote));
-    playback.reset(leader_bytes(remote));
+    playback.reset(leader_bytes(remote), morph_count(remote));
     draw.assign(leader_bytes(remote), 0);
+    draw_morphs.assign(morph_count(remote), 0);
     for (Effect &e : fx_drawn)
       e.asset = 0xff; // No slot's: the first frame drawn writes every box.
   }
   bool drawn() const { return display.generation && display.generation == remote.generation; }
 };
-// What the worker hands the game thread, all sized off the game thread: EVE's capture table with her pose and effect
-// slots as read for sending, and each ghost slot holding a remote table (null for an empty slot).
+// What the worker hands the game thread, all sized off the game thread: EVE's capture table with her pose, effect
+// slots, free parts' blocks and morph weights as read for sending, and each ghost slot holding a remote table (null
+// for an empty slot).
 struct Live {
   Table capture;
   std::vector<uint8_t> capture_bones;
   float capture_root[10] = {};
   Effect capture_fx[kEffectSlots];
+  Free capture_free[kMaxParts]; // In table order; a free part not read keeps its place, hidden.
+  std::vector<uint8_t> capture_morphs; // Her morph weights in table order; a part not read keeps its last.
   KeyedEncoder encoder; // Her keyframe and the byte budget: a new Live starts with a keyframe.
   std::array<std::unique_ptr<Drawn>, kMaxRemote> remotes;
   explicit Live(Table c) : capture(std::move(c)) {
     capture_bones.assign(leader_bytes(capture), 0);
+    capture_morphs.assign(morph_count(capture), 0);
     encoder.reset(pose_size(capture));
   }
 };
@@ -105,7 +123,8 @@ int fault_filter(EXCEPTION_POINTERS *info, std::atomic<uint64_t> &code, std::ato
     address = exception->ExceptionInformation[1];
   return EXCEPTION_EXECUTE_HANDLER;
 }
-// A write the gate refused: counted, and logged the first time on this ghost (part -1: the mailbox, -2: an effect box).
+// A write the gate refused: counted, and logged the first time on this ghost (part -1: the mailbox, -2: an effect box,
+// -3: a free part's box).
 void refused(Drawn &ghost, int part, Io r) {
   last_refusal = static_cast<int>(r);
   if (ghost.refusal_logged)
@@ -115,6 +134,8 @@ void refused(Drawn &ghost, int part, Io r) {
   char what[24] = "mailbox";
   if (part == -2)
     std::snprintf(what, sizeof what, "effect box");
+  else if (part == -3)
+    std::snprintf(what, sizeof what, "free part's box");
   else if (part >= 0)
     std::snprintf(what, sizeof what, "part %d", part);
   std::snprintf(line, sizeof line, "write refused: %s %s (table %llu)", what, describe(r),

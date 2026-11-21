@@ -15,7 +15,7 @@
 -- other bones is drawn on that mesh with the same remap (a head replacer this PC lacks still shows a head), and a part
 -- with no fallback is left out, with its followers. A part of a mod's outfit (its mod line) that is not drawn on its
 -- own mesh is named on screen once a generation. Parts hang as the table says (parent part, socket, placement) and
--- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (on unless
+-- followers follow their leader (SetMasterPoseComponent). With look.cloth (on unless
 -- coop-settings.txt says cloth=off, or coop look), a follower whose mesh has clothing assets (her ponytail) is a
 -- SkeletalMeshComponent whose cloth swings on its leader's bones, as hers does in solo: the bones only anchor the
 -- strands. Else it is a rigid Poseable like the rest, which draws her ponytail as one block. Its collision is the one
@@ -26,13 +26,18 @@
 -- MIN_TEXTURE seconds by the same rules as meshes. An instance or a setter that fails puts the plain material back for
 -- that ghost; a value gone from a later table puts it back too, and what is left goes on a new instance. By the same
 -- rule, such a part hides the material slots the table's hide line names (CNS's toggles and hidden slots: LOD 0, as
--- CNS), set again only when they change; a call that fails shows every slot, said once. No shape keys either: a leader
--- is a Poseable, which has no morph call, and UE 4.26's UpdateSlaveComponent zeroes a follower's SetMorphTarget weights
--- each tick when its master is not a SkeletalMeshComponent. With look.effects, her attack and
--- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
+-- CNS), set again only when they change; a call that fails shows every slot, said once. With look.faces, her face and
+-- shape keys: each part drawn whose table part has morphs gets a morphs line in the display file, naming the morph of
+-- the same name on this PC's mesh for each of hers (none: -1). The native part writes her weights into that
+-- Poseable's own morph arrays at each pose. Never on the cloth follower, a SkeletalMeshComponent whose
+-- UpdateSlaveComponent resets them each tick, nor on a mesh past MAX_MORPHS. With look.effects, her attack and skill
+-- effects: the native part writes her six effect slots into boxes beside the mailbox. place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, or past it one her table's fx lines name by path, loaded
 -- by fetch()'s rules in a build step or one a tick after it, never in place()) on the part it hangs on, moves it with
--- the slot and stops it when the slot changes, at most 8 starts a second.
+-- the slot and stops it when the slot changes, at most 8 starts a second. With look.drone, her drone: a free part of
+-- her table hangs on part 0. The native part writes its place and light into a box beside the mailbox at each pose.
+-- place() moves it there and shows it while the box and the table say so, with a SpotLight on its lens (no shadows).
+-- With the look off, the free part and the parts on it are not drawn.
 -- The CNS part (a mod's meshes and materials, the value and hide lines) runs under its own guard: a Lua error there
 -- turns it off until coop cns reset or the next Lua load, and the ghost is built again without it (the base suit where
 -- a part has one), with one log line, instead of failing. Each engine call with an asset your CNS packs declare goes
@@ -73,10 +78,15 @@ local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHa
 local Doro=require('core.actors')
 local Pick=require('online.partner.doro_pick')
 local Capture=require('online.partner.capture')
+local Assets=require('online.partner.assets')
+-- The assets her sounds name (online/partner/assets.lua): one loader for every ghost slot, made by the first ghost
+-- built with sounds or effects on.
+local assets
 local EFFECTS=Capture.EFFECTS -- What the wire's effect indexes name, for both players.
 local MAX_EFFECT_ASSETS=64 -- The native part's kMaxEffectAssets: past EFFECTS, the indexes the table's fx lines name.
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
 local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
+local MAX_MORPHS=256 -- The native part's kMaxPartMorphs: morphs on one part, hers or this PC's mesh's.
 -- What a peer's value lines may cost here. FNames are never freed, so a Lua load makes at most MAX_VALUE_NAMES; at most
 -- MAX_TEXTURES wait, one loaded each MIN_TEXTURE seconds.
 local MAX_VALUE_NAMES,MAX_TEXTURES,MIN_TEXTURE=1024,64,0.25
@@ -160,9 +170,10 @@ end
 -- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. fx: its fx lines,
 -- index to path. Parts are listed
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
--- bones, name, place (its 10 numbers as written), materials ({slot=, path=, values=}, slots rising), hidden (the hide
--- line's slots, rising), cloth (its cloth's collision asset) and label (the outfit a mod's mesh comes from), each nil
--- without its line, and a leader's names.
+-- bones, name, place (its 10 numbers as written; free instead for a free part, her drone), materials ({slot=, path=,
+-- values=}, slots rising), hidden (the hide line's slots, rising), cloth (its cloth's collision asset) and label (the
+-- outfit a mod's mesh comes from), each nil without its line, a leader's names and morphs (its morph targets' names,
+-- nil without).
 -- values: a material's value lines, each {kind=, name=, text= (the rest of its line), x= (its numbers)}.
 local function parse_remote(file)
     if type(file)~='string' then return nil end
@@ -182,7 +193,11 @@ local function parse_remote(file)
         local part={i=#t.parts,lead=tonumber(lead),parent=tonumber(parent),socket=socket~='-' and socket or nil,
             shown=shown=='1',bones=tonumber(bones),name=name,path=path~='-' and path or nil}
         if tonumber(i)~=part.i then return nil end
-        if part.i>0 then
+        if part.i>0 and parent=='-' then -- A free part (her drone): a leader placed by its box at each pose.
+            local index=take('^free (%d+)$')
+            if lead~='-' or tonumber(index)~=part.i then return nil end
+            part.free=true
+        elseif part.i>0 then
             local index,place=take('^place (%d+) (%S+ %S+ %S+ %S+ %S+ %S+ %S+ %S+ %S+ %S+)$')
             if tonumber(index)~=part.i then return nil end
             part.place=place
@@ -218,6 +233,12 @@ local function parse_remote(file)
             for name_of in names:gmatch('%S+') do part.names[#part.names+1]=name_of end
             if #part.names~=part.bones then return nil end
         end
+        local morph_index,morphs=take('^morphs (%d+) (%S.*)$')
+        if morph_index then
+            if tonumber(morph_index)~=part.i then return nil end
+            part.morphs={}
+            for name_of in morphs:gmatch('%S+') do part.morphs[#part.morphs+1]=name_of end
+        end
         t.parts[#t.parts+1]=part
     end
     t.fx={} -- The systems named by path: index to path.
@@ -230,10 +251,14 @@ local function parse_remote(file)
     end
     return #t.parts>0 and t or nil
 end
--- What must stay for a table to be applied to a ghost built from another under the same generation.
+-- What must stay for a table to be applied to a ghost built from another under the same generation: her poses' layout,
+-- her morphs among it.
 local function layout(t)
     local key={}
-    for _,part in ipairs(t.parts) do key[#key+1]=tostring(part.lead)..':'..part.bones..':'..(part.path or '-') end
+    for _,part in ipairs(t.parts) do
+        key[#key+1]=tostring(part.lead)..':'..part.bones..':'..(part.path or '-')..(part.free and ':free' or '')
+            ..':'..(part.morphs and #part.morphs or 0)
+    end
     return table.concat(key,' ')
 end
 local function transform(place)
@@ -245,6 +270,8 @@ end
 -- character past U+00FF shows as '?'. Of the names given (her Steam name, then the partner card's word for her in the
 -- player's language, then in English), the first that loses at most half its characters, or none for the words after
 -- her name; each cleaned as the card cleans her name. nil when none does.
+-- At coop off: every slot's coop-loaded file removed (online/partner/assets.lua's off()).
+function Puppet.assets_off() if assets then assets.off() end end
 function Puppet.tag_text(...)
     for i=1,select('#',...) do
         local lost,count=0,0
@@ -262,11 +289,13 @@ end
 -- Steam name, mod_assets() the assets our CNS packs declare and those of the mods both players have (path to
 -- outfit or container). capture gives yaw_delta(), the loopback's
 -- offset. say(text,en) puts a line on screen (en: the same in English); name_tag: the tag. look: what else the ghost
--- shows ({cloth=,dyes=,effects=true|false}, read at each build; nil: nothing more). words: the words for the screen now
--- (ui/text.lua's T.en or T.fr; English when nil). sentinel: online/partner/sentinel.lua's (none: nothing marked or set
--- aside).
-function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
-    look=look or {}
+-- shows ({cloth=,dyes=,effects=,drone=,faces=true|false}, read at each build; nil: nothing more). words: the words for
+-- the screen now (ui/text.lua's T.en or T.fr; English when nil). sentinel: online/partner/sentinel.lua's (none: nothing
+-- marked or set aside). solo: true while her vitals' zone type is a solo area (core/link.lua's Link.solo): her ghost
+-- stays hidden, as a Boss Challenge can sit on a story map (nil: never). slot: the ghost slot whose files link gives (0
+-- unless said).
+function Puppet.new(link,capture,say,name_tag,look,words,sentinel,solo,slot)
+    look,slot=look or {},slot or 0
     sentinel=sentinel or require('online.partner.sentinel').new(nil)
     words=words or function() return T.en end
     local files=link or {remote_table=function() end,display=function() return false,'no native part' end,
@@ -279,6 +308,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     local back_since,hidden_pair,her_at=nil,nil,nil
     local failed,tries=nil,0 -- After a failure: when her table may be built again (os.clock; math.huge: not by itself).
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
+    local solo_said -- Her stay in a solo area is said: until she leaves it.
     local mods_said -- The generation whose parts from mods not shown were said on screen.
     -- Meshes and materials by class and path, for one EVE; false: none this Lua load (a missing DLC stays missing).
     local cache={}
@@ -293,6 +323,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         local g=ghost
         ghost=nil
         if not g then return nil end
+        if assets then assets.unwatch(slot) end
         files.display(nil)
         store.clear()
         if valid(g.actor) then g.actor:K2_DestroyActor() end
@@ -523,10 +554,23 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
             end
         end
     end
+    -- A free part (her drone) shows while the table and its box say so, never in Doro mode; its light while it shows
+    -- with a light step above 0.
+    local function show_free(g,part)
+        local f=g.free[part.i]
+        local on=part.shown and not doro_on and f~=nil and f.on==true
+        g.parts[part.i].target:SetVisibility(on,false)
+        if f and f.light then f.light:SetVisibility(on and f.step>0,false) end
+    end
     -- Hangs a built part as the table says: its parent part (part 0 when that one was left out), socket and place;
-    -- then shown or hidden (hidden in Doro mode).
+    -- then shown or hidden (hidden in Doro mode). A free part hangs on part 0, where place() moves it.
     local function hang(g,part)
         local built=g.parts[part.i]
+        if part.free then
+            built.target:K2_AttachToComponent(g.parts[0].target,FName('None'),KEEP_RELATIVE,KEEP_RELATIVE,
+                KEEP_RELATIVE,false)
+            return show_free(g,part)
+        end
         if part.i>0 then
             local parent=g.parts[part.parent] or g.parts[0]
             built.target:K2_AttachToComponent(parent.target,FName(part.socket or 'None'),KEEP_RELATIVE,KEEP_RELATIVE,
@@ -547,7 +591,11 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         end
         for _,part in ipairs(remote.parts) do
             local built=g.parts[part.i]
-            if built then built.target:SetVisibility(part.shown and not doro_on,false) end
+            if built and part.free then
+                show_free(g,part)
+            elseif built then
+                built.target:SetVisibility(part.shown and not doro_on,false)
+            end
         end
     end
     -- The build's first frame: spawns the hidden actor and lists the steps, one per part (and per listed effect), each
@@ -566,7 +614,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         assert(actor,'the ghost actor could not be spawned')
         local g={actor=actor,generation=t.generation,eve=address(eve),parts={},count=0,leaders=0,base=0,left_out=0,
             hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={},missed={},tints={},textures={},
-            fx_tried={}}
+            fx_tried={},free={}}
         ghost=g
         actor:SetActorHiddenInGame(true) -- Until the first pose: never her reference pose at the spawn spot.
         actor:SetActorEnableCollision(false,false)
@@ -757,12 +805,20 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
             if part.path then notes[#notes+1]=string.format('%s: %s %s, left out',part.name,part.path,why) end
             left_out(part)
         end
+        -- With the drone look off, her drone is not drawn: its free part and the parts that follow or hang on it.
+        local off={}
         for _,part in ipairs(t.parts) do
-            -- The collision her cloth line names, in a step of its own before its part's.
-            if look.cloth and part.cloth then
-                g.steps[#g.steps+1]=function() fetch(part.cloth,counts,PHYSICS_ASSET) end
+            off[part.i]=part.free and not look.drone or part.lead~=nil and off[part.lead] or
+                part.parent~=nil and off[part.parent] or nil
+        end
+        for _,part in ipairs(t.parts) do
+            if not off[part.i] then
+                -- The collision her cloth line names, in a step of its own before its part's.
+                if look.cloth and part.cloth then
+                    g.steps[#g.steps+1]=function() fetch(part.cloth,counts,PHYSICS_ASSET) end
+                end
+                g.steps[#g.steps+1]=function() cns_if(modded(part.path),dress,part) end -- A mod's mesh: the CNS guard.
             end
-            g.steps[#g.steps+1]=function() cns_if(modded(part.path),dress,part) end -- A mod's mesh: the CNS guard.
         end
         -- Doro mode: its mesh and each clip its keepers hold found or loaded in a step of its own, never with another
         -- one (while the look is on, its own Doro's keepers hold them already).
@@ -818,7 +874,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
             -- The mailbox: unattached, never moved; only the native part writes its relative fields.
             g.mailbox=valid(actor:AddComponentByClass(find('/Script/Engine.SceneComponent'),true,identity,false))
             assert(g.mailbox,'the mailbox could not be added')
-            -- Her effects: the listed systems (resolved in the steps), the library that starts them, and four slot
+            -- Her effects: the listed systems (resolved in the steps), the library that starts them, and six slot
             -- boxes beside the mailbox that only the native part writes. Anything failing leaves the ghost without
             -- effects only.
             local effects
@@ -827,7 +883,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                     if fx_why then error(fx_why,0) end
                     g.fx_lib=find('/Script/Niagara.Default__NiagaraFunctionLibrary')
                     local slots,scene={},find('/Script/Engine.SceneComponent')
-                    for n=1,4 do
+                    for n=1,6 do -- The native kEffectSlots.
                         local box=valid(actor:AddComponentByClass(scene,true,identity,false))
                         assert(box,'an effect box could not be added')
                         slots[n]={box=box}
@@ -840,6 +896,37 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                     end
                 end)
                 if not made then effects='effects off ('..tostring(why)..')' end
+            end
+            -- Her drone: a box beside the mailbox for each free part drawn, which only the native part writes. Its
+            -- SpotLight hangs on the FX_Lens socket, as her drone's Blueprint hangs it (CH_Drone_BP, read in the paks).
+            -- A box that fails leaves the drone hidden (never placed). A light that fails leaves it unlit.
+            -- shortcut: the light shows on every ghost while kMaxRemote is 7 (the spec caps it at the 8 nearest);
+            -- rank by distance when zones hold more ghosts.
+            for _,part in ipairs(t.parts) do
+                local built=part.free and g.parts[part.i]
+                if built then
+                    local f={step=0}
+                    local made,why=pcall(function()
+                        local scene,spot=find('/Script/Engine.SceneComponent'),find('/Script/Engine.SpotLightComponent')
+                        f.box=valid(actor:AddComponentByClass(scene,true,identity,false))
+                        assert(f.box,'its box could not be added')
+                        g.free[part.i]=f
+                        f.light=valid(actor:AddComponentByClass(spot,false,identity,false))
+                        assert(f.light,'its light could not be added')
+                        f.light:K2_AttachToComponent(built.target,FName('FX_Lens'),KEEP_RELATIVE,KEEP_RELATIVE,
+                            KEEP_RELATIVE,false)
+                        f.light:SetMobility(2) -- Movable: the setters below change nothing on a static light.
+                        f.light:SetCastShadows(false)
+                        f.light:SetOuterConeAngle(40)
+                        f.light:SetVisibility(false,false)
+                    end)
+                    if not made then
+                        if f.light then pcall(function() f.light:K2_DestroyComponent(actor) end) end
+                        f.light=nil
+                        notes[#notes+1]=string.format('%s: drone %s (%s)',part.name,f.box and 'unlit' or 'not placed',
+                            tostring(why))
+                    end
+                end
             end
             -- Doro mode: a Doro that cannot be made leaves the ghost drawn as her, said in the build line.
             if doro_on then
@@ -863,6 +950,10 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                 lines[#lines+1]='effects '..table.concat(boxes,' ')
             end
             for _,part in ipairs(t.parts) do
+                local f=g.free[part.i]
+                if f then lines[#lines+1]=string.format('free %d %s',part.i,hex(f.box)) end
+            end
+            for _,part in ipairs(t.parts) do
                 local built=g.parts[part.i]
                 if built and not part.lead then
                     lines[#lines+1]=string.format('drive %d %s %s %s %d',part.i,hex(built.target),
@@ -870,8 +961,49 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                     if built.remap then lines[#lines+1]='remap '..part.i..' '..table.concat(built.remap,' ') end
                 end
             end
+            -- Her face and shape keys: per part drawn with morphs (never the cloth follower), each of hers named by
+            -- its index on the mesh drawn, the first of a name only. A mesh that cannot say gets none.
+            local cloth_of,faced={},0
+            for _,c in ipairs(g.cloth) do cloth_of[c]=true end
+            for _,part in ipairs(look.faces and t.parts or {}) do
+                local built=g.parts[part.i]
+                if built and part.morphs and not cloth_of[built.target] then
+                    local read,index=pcall(function()
+                        local of,n={},0
+                        each(built.mesh.MorphTargets,function(_,m)
+                            n=n+1
+                            m=valid(m)
+                            local name=m and word(text(m:GetFName()))
+                            if name and of[name]==nil then of[name]=n-1 end
+                        end)
+                        return {of=of,n=n}
+                    end)
+                    if not read then
+                        notes[#notes+1]=string.format('%s: morphs not drawn (%s)',part.name,tostring(index))
+                    elseif index.n>MAX_MORPHS then
+                        notes[#notes+1]=string.format('%s: morphs not drawn (%d on this mesh, over %d)',part.name,
+                            index.n,MAX_MORPHS)
+                    else
+                        local map,used={},{}
+                        for k,name in ipairs(part.morphs) do
+                            local j=index.of[name]
+                            map[k]=j and not used[j] and j or -1
+                            if j then used[j]=true end
+                        end
+                        lines[#lines+1]=string.format('morphs %d %s %s %s',part.i,hex(built.target),hex(built.mesh),
+                            table.concat(map,' '))
+                        faced=faced+1
+                    end
+                end
+            end
             local published,why=files.display(table.concat(lines,'\n')..'\n')
             g.built=true
+            -- Her sounds (and her effects' events): what her game names, loaded for the native part to play.
+            if files.names and (look.sounds or look.effects) then
+                assets=assets or Assets.new(sentinel,function(path) return files.mod_assets()[path]~=nil end)
+                assets.watch(slot,files,{sound=look.sounds==true,niagara=look.effects==true,
+                    cascade=look.effects==true})
+            end
             if #counts.mods>0 then notes[#notes+1]='mod assets: '..table.concat(counts.mods,', ') end
             if g.missed[1] then
                 notes[#notes+1]='mod parts not shown: '..table.concat(g.missed,', ')
@@ -889,6 +1021,12 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
             if look.cloth then looks[#looks+1]=string.format('cloth parts %d',#g.cloth) end
             if look.dyes then looks[#looks+1]=string.format('dyed slots %d',g.dyed) end
             if look.effects then looks[#looks+1]=effects end
+            if look.drone then
+                local n=0
+                for _ in pairs(g.free) do n=n+1 end
+                looks[#looks+1]=string.format('drone parts %d',n)
+            end
+            if look.faces then looks[#looks+1]=string.format('faces parts %d',faced) end
             if #looks>0 then line=line..'; look: '..table.concat(looks,', ') end
             if #notes>0 then line=line..'; '..table.concat(notes,'; ') end
             if value_note then line,value_note=line..' '..value_note,false end
@@ -1243,6 +1381,24 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         end
         return refused
     end
+    -- Her drone at each pose, as the native part wrote each free part's box: location and rotation relative to part 0,
+    -- scale (shown + 1, light step + 1, 1). Its light takes step x 4 as its intensity.
+    local function place_free(g)
+        for i,f in pairs(g.free) do
+            local s=value_of(f.box.RelativeScale3D)
+            local on,step=s.X>1.5,math.floor(s.Y+0.5)-1
+            if on then
+                local l,r=value_of(f.box.RelativeLocation),value_of(f.box.RelativeRotation)
+                g.parts[i].target:K2_SetRelativeLocationAndRotation({X=l.X,Y=l.Y,Z=l.Z},
+                    {Pitch=r.Pitch,Yaw=r.Yaw,Roll=r.Roll},false,{},true)
+            end
+            if f.light and step~=f.step then f.light:SetIntensity(step*4) end
+            if on~=f.on or step~=f.step then
+                f.on,f.step=on,step
+                show_free(g,remote.parts[i+1])
+            end
+        end
+    end
     -- Doro mode, at each pose: her speed and vertical speed from her feet over at least 50 ms (os.clock may step by
     -- whole ms), the same mapping as your own Doro's but with no sprint or falling flag; a teleport starts it again
     -- from standing. While a race drives, its lean and landing pitch from her yaw and feet, as a turn of the Doro on
@@ -1278,7 +1434,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     -- shows, the root moves without the teleport flag: the flag reaches a cloth part through the attachment and clears
     -- its inertia, so the strands would hang and never trail. Hidden, or a step over TELEPORT, it teleports. A new
     -- effects stamp in the mailbox is a slot box just written: only then are the boxes read. Our photo mode's veils
-    -- (self.photo) keep the ghost or its tag out of the shot.
+    -- (self.photo) keep the ghost or its tag out of the shot, as her stay in a solo area keeps the ghost out.
     function self.place()
         local g=ghost
         if not (wanted and g and g.built) then return end
@@ -1292,7 +1448,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                 g.tag:SetVisibility(not veiled,false)
                 g.tag_veiled=veiled
             end
-            if veil_ghost and not g.hidden then
+            local unseen=veil_ghost or solo and solo()
+            if unseen and not g.hidden then
                 g.actor:SetActorHiddenInGame(true)
                 g.hidden=true
             end
@@ -1319,7 +1476,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                         said[#said+1]='Doro mode off on the ghost: '..tostring(doro_why)
                     end
                 end
-                if g.hidden and not veil_ghost then
+                if g.hidden and not unseen then
                     g.actor:SetActorHiddenInGame(false)
                     g.hidden=false
                     local reset,reset_why=pcall(function()
@@ -1329,6 +1486,17 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                         g.cloth={}
                         said[#said+1]='Cloth reset failed: '..tostring(reset_why)..'; this ghost\'s cloth still '
                             ..'simulates but is never reset again (coop look cloth off removes it)'
+                    end
+                end
+                if next(g.free) then -- Its own pcall: a failure hides her drone on this ghost, never stops the ghost.
+                    local placed,free_why=pcall(place_free,g)
+                    if not placed then
+                        for i,f in pairs(g.free) do
+                            pcall(function() g.parts[i].target:SetVisibility(false,false) end)
+                            if f.light then pcall(function() f.light:SetVisibility(false,false) end) end
+                        end
+                        g.free={}
+                        said[#said+1]='Drone off on this ghost: '..tostring(free_why)
                     end
                 end
                 if g.tag and not g.tag_fixed then -- Its own pcall: a failure stops the turning only, for this ghost.
@@ -1472,7 +1640,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     end
     -- Once per game-thread tick: nothing while the ghost is off. A level change removes the ghost; it is built again
     -- (or for a new table) once EVE has been in the world 2 s and she is on the table's map.
-    function self.tick()
+    local function tick_ghost()
         sweep()
         if not wanted then return end
         local eve=her(valid(UE.GetPlayer()))
@@ -1486,6 +1654,11 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         elseif ghost and not valid(ghost.actor) then
             clear('level changed')
             back_since=nil
+        end
+        if not (solo and solo()) then solo_said=nil
+        elseif not solo_said then -- place() hides her ghost: said once a stay.
+            solo_said=true
+            return true,'Ghost hidden: she is in a solo area.'
         end
         if ghost and ghost.steps then return step() end
         if ghost and ghost.slots then -- A system an fx line named since the build: one a tick.
@@ -1519,6 +1692,14 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         end
         hidden_pair,said_pair=nil,nil
         return step(eve)
+    end
+    -- Each frame: the assets loader's turn (every ghost calls it, its clock paces it), then the ghost's. A failed load
+    -- is said when the ghost has nothing to say.
+    function self.tick()
+        local note=assets and assets.tick()
+        local ok,message=tick_ghost()
+        if message==nil and note then return true,note end
+        return ok,message
     end
     return self
 end

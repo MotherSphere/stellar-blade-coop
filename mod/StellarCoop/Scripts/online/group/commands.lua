@@ -17,14 +17,16 @@ function Group.new(o)
         if not ok then return false,why end
         return group.test()
     end
-    -- host: as follow_key (the travel to the camp nearest the host, or always's start cancelled); probe <camp>: its
-    -- solo test, the native call alone (online/group/travel.lua says why not).
-    function self.travel(sub,arg,extra)
+    -- host: as follow_key (the travel to the host, or always's start cancelled); probe <camp>: its solo test, the
+    -- native call alone (online/group/travel.lua says why not); spot [<world>] <x> <y> <z>: the spot warp's solo test.
+    -- main.lua passes up to 6 words after travel: extra refuses a sixth.
+    function self.travel(sub,a,b,c,d,extra)
         local travel=o.travel() -- Likewise.
         if not travel then return false,'the Steam link needs the native part' end
-        if sub=='host' and arg==nil then return travel.press() end
-        if sub=='probe' and arg~=nil and extra==nil then return travel.probe(arg) end
-        return false,'Use: coop travel host'
+        if sub=='host' and a==nil then return travel.press() end
+        if sub=='probe' and a~=nil and b==nil then return travel.probe(a) end
+        if sub=='spot' and c~=nil and extra==nil then return travel.spot(a,b,c,d) end
+        return false,'Use: coop travel host | probe <camp> | spot [<world>] <x> <y> <z>'
     end
     return self
 end

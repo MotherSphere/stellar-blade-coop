@@ -29,7 +29,7 @@ namespace {
 std::function<void(const std::string &)> say = [](const std::string &) {}; // worker_poll's event, once it ran.
 std::wstring dir;                                                            // The mod folder.
 bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false,
-     warp_fault_logged = false;
+     warp_fault_logged = false, zone_fault_logged = false;
 int pad_logged = kPadUnread; // pad_seen as last logged.
 int front_logged = -1; // Whether the game's window was in front, as last logged; -1 before the first pass.
 // The follow's travel: its fault, the last ask, watch and globals logged, and the alias of the last ask (with its
@@ -40,6 +40,15 @@ bool camp_text_fault_logged = false; // Matrix XIII's camp names (camp_text_game
 bool uidev_fault_logged = false;     // SB's input device read (pad_game.inc): its fault.
 // The New Game+ read (cycle_game.inc): its fault and its first read out of range.
 bool cycle_fault_logged = false, cycle_odd_logged = false;
+// Her drone (online/partner/drone_game.inc): its fault and the actor coop-drone.txt names (~0 before the first write).
+bool drone_fault_logged = false;
+uint64_t drone_written = ~uint64_t(0);
+std::string fault_where(uint64_t rva); // fight_worker_shared.inc's, after this part: the drone's fault line.
+// Her sounds and world effects (online/partner/sound_game.inc): their faults; sound_worker.inc's pass, after this part.
+bool sounds_fault_logged = false, worldfx_fault_logged = false;
+bool faces_fault_logged = false; // Her face and shape keys (online/partner/pose_game.inc): their fault.
+bool push_fault_logged = false;  // Enemies out of a shown ghost (fight/enemies/push_game.inc): its fault.
+void sound_pass(bool sounds);
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
 uint64_t next_poll = 0, next_counters = 0;
@@ -136,15 +145,97 @@ struct FightIo {
   std::string load(bool &exists) { return read_file(dir + L"coop-fight-record.txt", exists, fight::kMaxRecording + 1); }
 };
 
-// Bytes onto a file of the mod folder, shared for delete too (it may be read or moved while open).
-void append_file(const wchar_t *name, const std::string &text) {
+// Bytes onto a file of the mod folder, shared for delete too (it may be read or moved while open); whether all went.
+bool append_file(const wchar_t *name, const std::string &text) {
   HANDLE f = CreateFileW((dir + name).c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                          nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (f == INVALID_HANDLE_VALUE)
-    return;
+    return false;
   DWORD n = 0;
-  WriteFile(f, text.data(), static_cast<DWORD>(text.size()), &n, nullptr);
+  const bool ok = WriteFile(f, text.data(), static_cast<DWORD>(text.size()), &n, nullptr) && n == text.size();
   CloseHandle(f);
+  return ok;
+}
+
+// Her asset names per ghost slot (game/events.h's SBA lines): the lines taken this link session by key; how far the
+// slot's coop-loaded file was read. Counted for the 60 s line: lines taken; lines refused (a bad line, no slot,
+// another line for a key already named, the coop-names file not written); loaded lines taken; loaded lines refused (a
+// bad line, a key the slot never named).
+struct AssetNames {
+  std::unordered_map<uint16_t, std::string> lines;
+  uint64_t loaded_at = 0;
+};
+std::array<AssetNames, kMaxRemote> asset_names;
+uint64_t names_in = 0, names_refused = 0, loaded_in = 0, loaded_refused = 0;
+constexpr size_t kLoadedBytes = 64 << 10; // Read at most a pass: about 800 lines.
+
+// A file's bytes from offset on, kLoadedBytes at most; size: the file's size, 0 when there is none.
+std::string read_from(const std::wstring &path, uint64_t offset, uint64_t &size) {
+  size = 0;
+  HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (f == INVALID_HANDLE_VALUE)
+    return {};
+  std::string text;
+  LARGE_INTEGER bytes{}, at{};
+  at.QuadPart = static_cast<LONGLONG>(offset);
+  if (GetFileSizeEx(f, &bytes) && (size = static_cast<uint64_t>(bytes.QuadPart)) > offset &&
+      SetFilePointerEx(f, at, nullptr, FILE_BEGIN)) {
+    text.resize(static_cast<size_t>(std::min<uint64_t>(size - offset, kLoadedBytes)));
+    DWORD n = 0;
+    text.resize(ReadFile(f, text.data(), static_cast<DWORD>(text.size()), &n, nullptr) ? n : 0);
+  }
+  CloseHandle(f);
+  return text;
+}
+
+// Every 250 ms: the slot's coop-loaded file from where it was last read, whole lines only, into the game thread's
+// asset_loaded in place (no rebuild(), which would restart every playback); a later line for a key replaces the
+// earlier one. A file shorter than that, or gone, was started again by Lua: the slot's loaded objects go and the file
+// is read from 0.
+void read_loaded(size_t slot) {
+  AssetNames &names = asset_names[slot];
+  if (names.lines.empty() && !names.loaded_at)
+    return;
+  const std::wstring path = slot_path("coop-loaded", slot);
+  uint64_t size = 0;
+  std::string text = read_from(path, names.loaded_at, size);
+  const bool shorter = size < names.loaded_at;
+  if (shorter) {
+    names.loaded_at = 0;
+    text = read_from(path, 0, size);
+  }
+  const size_t whole = text.rfind('\n') + 1; // 0 with no newline: a line still being written waits.
+  text.resize(whole);
+  names.loaded_at += whole;
+  std::vector<Loaded> got;
+  parse_loaded(text, got);
+  loaded_refused += static_cast<uint64_t>(std::count(text.begin(), text.end(), '\n')) - got.size();
+  std::vector<Named> named; // Each with the int parameters the slot's line for its key names.
+  for (const Loaded &l : got) {
+    const auto line = names.lines.find(l.k);
+    const auto parsed = line == names.lines.end() ? std::nullopt : parse_asset_line(line->second);
+    if (!parsed) {
+      ++loaded_refused;
+      continue;
+    }
+    Named &n = named.emplace_back();
+    n.loaded = l;
+    n.kind = parsed->kind;
+    n.path[0] = parsed->asset;
+    n.path[1] = parsed->a == "-" ? std::string() : parsed->a;
+    n.path[2] = parsed->b == "-" ? std::string() : parsed->b;
+    for (const Param &p : parsed->params) { // At most kMaxParams words of 1 to kMaxWord bytes (parse_asset_line).
+      std::memcpy(n.param_name[n.params], p.name.data(), p.name.size());
+      n.param_value[n.params++] = p.value;
+    }
+  }
+  std::lock_guard<std::mutex> lock(m);
+  if (shorter)
+    asset_loaded[slot].clear();
+  for (const Named &n : named)
+    asset_loaded[slot].insert_or_assign(n.loaded.k, n);
+  loaded_in += named.size();
 }
 
 // One line onto nightop-probe.txt. Past 4 MB a last line says so and the poller stops for the run.
@@ -465,10 +556,12 @@ void take_display(size_t slot) {
       drawn += d.puppet[i].object != 0;
       mapped += !d.remap[i].empty();
     }
-    char line[200];
+    char line[200], boxes[32] = "";
+    if (d.effects[0])
+      std::snprintf(boxes, sizeof boxes, ", %zu effect boxes", kEffectSlots);
     std::snprintf(line, sizeof line, "ghost of table %llu%s drawn: %d of %d leaders (%d on a fallback mesh), %zu "
                   "bytes a pose%s", static_cast<unsigned long long>(d.generation), slot_tag(slot).c_str(), drawn,
-                  leaders, mapped, pose_size(r.table), d.effects[0] ? ", 4 effect boxes" : "");
+                  leaders, mapped, pose_size(r.table), boxes);
     say(line);
   } else if (r.table.generation && text.rfind("display " + std::to_string(r.table.generation) + "\n", 0) == 0) {
     say("ghost of table " + std::to_string(r.table.generation) + slot_tag(slot) +
@@ -580,6 +673,26 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(warp_fault_address.load()));
     event(text);
   }
+  if (zone_faulted && !zone_fault_logged) {
+    zone_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "zone row read off for this run: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; the "
+                  "vitals carry zone type 0",
+                  static_cast<unsigned long long>(zone_fault_code.load()),
+                  static_cast<unsigned long long>(zone_fault_rva.load()),
+                  static_cast<unsigned long long>(zone_fault_address.load()));
+    event(text);
+  }
+  { // The warp read's lines: the zone type's changes, the area's disagreements, each start of a zone reset.
+    std::vector<std::string> lines;
+    {
+      std::lock_guard<std::mutex> lock(warp_text_m);
+      lines.swap(warp_text.lines);
+    }
+    for (const std::string &line : lines)
+      event(line);
+  }
   if (travel_faulted && !travel_fault_logged) {
     travel_fault_logged = true;
     char text[200];
@@ -635,6 +748,63 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(cycle_fault_address.load()));
     event(text);
   }
+  if (drone_faulted && !drone_fault_logged) {
+    drone_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "drone off: fault 0x%08llx in %s reading 0x%llx; the ghost goes on without her drone",
+                  static_cast<unsigned long long>(drone_fault_code.load()), fault_where(drone_fault_rva).c_str(),
+                  static_cast<unsigned long long>(drone_fault_address.load()));
+    event(text);
+  }
+  if (push_faulted && !push_fault_logged) {
+    push_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "enemy contact off: fault 0x%08llx in %s reading 0x%llx; enemies go through the ghost again, the "
+                  "ghost and the shared fight go on",
+                  static_cast<unsigned long long>(push_fault_code.load()), fault_where(push_fault_rva).c_str(),
+                  static_cast<unsigned long long>(push_fault_address.load()));
+    event(text);
+  }
+  if (sounds_faulted && !sounds_fault_logged) {
+    sounds_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "sounds off: fault 0x%08llx in %s reading 0x%llx; her sounds' slots go back, the ghost goes on "
+                  "without them",
+                  static_cast<unsigned long long>(sounds_fault_code.load()), fault_where(sounds_fault_rva).c_str(),
+                  static_cast<unsigned long long>(sounds_fault_address.load()));
+    event(text);
+  }
+  if (worldfx_faulted && !worldfx_fault_logged) {
+    worldfx_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "world effects off: fault 0x%08llx in %s reading 0x%llx; their slots go back, the ghost goes on "
+                  "without them",
+                  static_cast<unsigned long long>(worldfx_fault_code.load()), fault_where(worldfx_fault_rva).c_str(),
+                  static_cast<unsigned long long>(worldfx_fault_address.load()));
+    event(text);
+  }
+  if (faces_faulted && !faces_fault_logged) {
+    faces_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "faces off: fault 0x%08llx in %s reading 0x%llx; the ghost goes on without her face and shape keys",
+                  static_cast<unsigned long long>(faces_fault_code.load()), fault_where(faces_fault_rva).c_str(),
+                  static_cast<unsigned long long>(faces_fault_address.load()));
+    event(text);
+  }
+  // coop-drone.txt for the capture, written only when the actor changes (none after coop off); a failed write is tried
+  // again at the next pass.
+  if (const uint64_t actor = blocked ? 0 : drone_actor.load(); actor != drone_written) {
+    char text[40] = "drone none\n";
+    if (actor)
+      std::snprintf(text, sizeof text, "drone 0x%llx\n", static_cast<unsigned long long>(actor));
+    if (write_text(dir + L"coop-drone.txt", text))
+      drone_written = actor;
+  }
   if (cycle_odd && !cycle_odd_logged) {
     cycle_odd_logged = true;
     char text[160];
@@ -657,10 +827,15 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     travel_logged = uint32_t(done >> 32);
     const auto why = travel::Why((done >> 16) & 0xff);
     const std::string alias = travel_logged == travel_alias_ask ? travel_alias : std::string("?");
-    event(why == travel::Why::none
-              ? "travel call " + alias + " ret=" + std::to_string(done & 0xff) +
-                    " other_world=" + std::to_string((done >> 8) & 0xff)
-              : "travel refused " + alias + ": " + travel::why_name(why));
+    if ((done >> 24) & 1) // A spot warp: alias holds the place.
+      event(why == travel::Why::none ? "travel spot call " + alias + " ret=" + std::to_string(done & 0xff) +
+                                           " other=" + std::to_string((done >> 8) & 0xff)
+                                     : std::string("travel spot refused: ") + travel::why_name(why));
+    else
+      event(why == travel::Why::none
+                ? "travel call " + alias + " ret=" + std::to_string(done & 0xff) +
+                      " other_world=" + std::to_string((done >> 8) & 0xff)
+                : "travel refused " + alias + ": " + travel::why_name(why));
   }
   if (const uint32_t w = uint32_t(travel_watched); w != travel_watch_logged) { // And one per state the watch reaches.
     travel_watch_logged = w;
@@ -690,12 +865,15 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     debug_asks.asked = 0; // And SB's developer gates go back to the game's values.
     anim_drop = true;     // And a clip an earlier load played on EVE stops.
     bike_want(false);     // And SB's actions an earlier load turned off for the bike come back.
+    race_want_fields = race_want_tick = false; // And the race's kept values on EVE go back (online/modes/race/).
     event("new Lua session: capture and ghost dropped");
   }
   take_capture(now_ms);
-  for (size_t k = 0; k < kMaxRemote; ++k)
+  for (size_t k = 0; k < kMaxRemote; ++k) {
     if (remotes[k].table.generation)
       take_display(k);
+    read_loaded(k);
+  }
   // A missing or bad file keeps the previous values: Lua's put() removes the old file before it renames the new one in,
   // so the worker can find none in between.
   if (State now; parse_state(read_file(folder + L"coop-state.txt", exists, kMaxState), now)) {
@@ -705,6 +883,8 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     }
     lua = now;
   }
+  sound_pass(lua.sounds); // Her sounds' and world effects' slots, by their looks; back after a fault.
+  push_wanted = lua.collide; // Enemies out of a shown ghost (fight/enemies/push_game.inc).
   {
     std::vector<std::string> lines;
     std::array<Gap, 8> long_gaps;
@@ -740,6 +920,29 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     int64_t lag_us = window_lag_us.exchange(0), behind_us = window_behind_us.exchange(0);
     uint64_t fx_started = window_fx_started.exchange(0), fx_over = window_fx_over.exchange(0),
              fx_unlisted = window_fx_unlisted.exchange(0), fx_written = window_fx_written.exchange(0);
+    const uint64_t mark = window_sound_mark.exchange(0), owner = window_sound_owner.exchange(0),
+                   attach = window_sound_attach.exchange(0), other = window_sound_other.exchange(0),
+                   sound_sent = window_sound_sent.exchange(0), waited = window_sound_dropped.exchange(0),
+                   paths = window_sound_paths.exchange(0), left_out = window_sound_left_out.exchange(0),
+                   keys = window_sound_keys.exchange(0), ring = window_sound_ring.exchange(0);
+    const uint64_t played = window_play_played.exchange(0), play_far = window_play_far.exchange(0),
+                   play_ghost = window_play_ghost.exchange(0), play_all = window_play_all.exchange(0),
+                   play_scene = window_play_scene.exchange(0), play_hidden = window_play_hidden.exchange(0),
+                   play_unnamed = window_play_unnamed.exchange(0), play_unloaded = window_play_unloaded.exchange(0),
+                   play_looping = window_play_looping.exchange(0);
+    const uint64_t fx_mark = window_worldfx_mark.exchange(0), fx_owner = window_worldfx_owner.exchange(0),
+                   fx_attach = window_worldfx_attach.exchange(0), fx_other = window_worldfx_other.exchange(0),
+                   fx_skipped = window_worldfx_attached.exchange(0), fx_sent = window_worldfx_sent.exchange(0),
+                   fx_paths = window_worldfx_paths.exchange(0), fx_keys = window_worldfx_keys.exchange(0),
+                   fx_played = window_worldfx_played.exchange(0), fx_unspawned = window_worldfx_unspawned.exchange(0),
+                   fx_hidden = window_worldfx_hidden.exchange(0), fx_scene = window_worldfx_scene.exchange(0),
+                   fx_unnamed = window_worldfx_unnamed.exchange(0), fx_unloaded = window_worldfx_unloaded.exchange(0);
+    const uint64_t push_moves = window_push_moves.exchange(0), push_copies = window_push_copies.exchange(0),
+                   push_refused = window_push_refused.exchange(0), push_held = window_push_held.exchange(0),
+                   push_unread = window_push_unread.exchange(0), push_capped = window_push_capped.exchange(0);
+    const uint64_t faces_read = window_faces_read.exchange(0), faces_clamped = window_faces_clamped.exchange(0),
+                   faces_written = window_faces_written.exchange(0), faces_dirty = window_faces_dirty.exchange(0),
+                   faces_refused = window_faces_refused.exchange(0);
     if (!first && vitals_reads) { // Eight ReadProcessMemory calls each; the cost under Proton is unmeasured.
       char line[96];
       std::snprintf(line, sizeof line, "vitals read, last 60 s: %llu reads, max %llu us",
@@ -786,12 +989,82 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
       }
       if (fx_started || fx_over || fx_unlisted || fx_written) {
         std::snprintf(line, sizeof line,
-                      "effects, last 60 s: %llu started, %llu over 4, %llu unlisted reads; %llu boxes written",
+                      "effects, last 60 s: %llu started, %llu over %zu, %llu unlisted reads; %llu boxes written",
                       static_cast<unsigned long long>(fx_started), static_cast<unsigned long long>(fx_over),
-                      static_cast<unsigned long long>(fx_unlisted), static_cast<unsigned long long>(fx_written));
+                      kEffectSlots, static_cast<unsigned long long>(fx_unlisted),
+                      static_cast<unsigned long long>(fx_written));
+        event(line);
+      }
+      if (mark || owner || attach || other || sound_sent || waited || paths || left_out || keys || ring) {
+        std::snprintf(line, sizeof line,
+                      "sounds, last 60 s: captured %llu (mark %llu, owner %llu, attach %llu, other thread %llu), sent "
+                      "%llu, %llu events dropped waiting for a slot, %llu paths refused, %llu params left out, %llu "
+                      "over %zu keys, %llu events lost to a full ring",
+                      static_cast<unsigned long long>(mark + owner + attach), static_cast<unsigned long long>(mark),
+                      static_cast<unsigned long long>(owner), static_cast<unsigned long long>(attach),
+                      static_cast<unsigned long long>(other), static_cast<unsigned long long>(sound_sent),
+                      static_cast<unsigned long long>(waited), static_cast<unsigned long long>(paths),
+                      static_cast<unsigned long long>(left_out), static_cast<unsigned long long>(keys),
+                      kMaxAssetKeys, static_cast<unsigned long long>(ring));
+        event(line);
+      }
+      if (played || play_far || play_ghost || play_all || play_scene || play_hidden || play_unnamed || play_unloaded ||
+          play_looping) {
+        std::snprintf(line, sizeof line,
+                      "sounds played, last 60 s: %llu played, %llu far, %llu over a ghost's %zu, %llu over all %zu, "
+                      "%llu in a scene, %llu from a hidden ghost, %llu without a name, %llu not loaded, %llu looping",
+                      static_cast<unsigned long long>(played), static_cast<unsigned long long>(play_far),
+                      static_cast<unsigned long long>(play_ghost), kPerGhost, static_cast<unsigned long long>(play_all),
+                      kAll, static_cast<unsigned long long>(play_scene), static_cast<unsigned long long>(play_hidden),
+                      static_cast<unsigned long long>(play_unnamed), static_cast<unsigned long long>(play_unloaded),
+                      static_cast<unsigned long long>(play_looping));
+        event(line);
+      }
+      if (fx_mark || fx_owner || fx_attach || fx_other || fx_skipped || fx_sent || fx_paths || fx_keys || fx_played ||
+          fx_unspawned || fx_hidden || fx_scene || fx_unnamed || fx_unloaded) {
+        std::snprintf(line, sizeof line,
+                      "world effects, last 60 s: captured %llu (mark %llu, owner %llu, attach %llu, other thread "
+                      "%llu), sent %llu, %llu attached skipped, %llu paths refused, %llu over %zu keys; played %llu, "
+                      "%llu not spawned, %llu from a hidden ghost, %llu in a scene, %llu without a name, %llu not "
+                      "loaded",
+                      static_cast<unsigned long long>(fx_mark + fx_owner + fx_attach),
+                      static_cast<unsigned long long>(fx_mark), static_cast<unsigned long long>(fx_owner),
+                      static_cast<unsigned long long>(fx_attach), static_cast<unsigned long long>(fx_other),
+                      static_cast<unsigned long long>(fx_sent), static_cast<unsigned long long>(fx_skipped),
+                      static_cast<unsigned long long>(fx_paths), static_cast<unsigned long long>(fx_keys),
+                      kMaxAssetKeys, static_cast<unsigned long long>(fx_played),
+                      static_cast<unsigned long long>(fx_unspawned), static_cast<unsigned long long>(fx_hidden),
+                      static_cast<unsigned long long>(fx_scene), static_cast<unsigned long long>(fx_unnamed),
+                      static_cast<unsigned long long>(fx_unloaded));
+        event(line);
+      }
+      if (faces_read || faces_clamped || faces_written || faces_dirty || faces_refused) {
+        std::snprintf(line, sizeof line,
+                      "faces, last 60 s: %llu parts read, %llu clamped, %llu written, %llu dirty calls, %llu refused",
+                      static_cast<unsigned long long>(faces_read), static_cast<unsigned long long>(faces_clamped),
+                      static_cast<unsigned long long>(faces_written), static_cast<unsigned long long>(faces_dirty),
+                      static_cast<unsigned long long>(faces_refused));
+        event(line);
+      }
+      if (push_moves || push_copies || push_refused || push_held || push_unread || push_capped) {
+        std::snprintf(line, sizeof line,
+                      "enemy contact, last 60 s: %llu pushes, %llu copies left alone, %llu refused by SB's rules, %llu "
+                      "frames held (paused, scene, hidden), %llu not read, %llu over %zu a frame",
+                      static_cast<unsigned long long>(push_moves), static_cast<unsigned long long>(push_copies),
+                      static_cast<unsigned long long>(push_refused), static_cast<unsigned long long>(push_held),
+                      static_cast<unsigned long long>(push_unread), static_cast<unsigned long long>(push_capped),
+                      kPushLooks);
+        event(line);
+      }
+      if (names_in || names_refused || loaded_in || loaded_refused) {
+        std::snprintf(line, sizeof line,
+                      "asset names, last 60 s: %llu taken, %llu refused; %llu loaded lines taken, %llu refused",
+                      static_cast<unsigned long long>(names_in), static_cast<unsigned long long>(names_refused),
+                      static_cast<unsigned long long>(loaded_in), static_cast<unsigned long long>(loaded_refused));
         event(line);
       }
     }
+    names_in = names_refused = loaded_in = loaded_refused = 0;
   }
 }
 
@@ -858,6 +1131,58 @@ void peer(uint8_t slots, uint64_t now_ms, void (*send)(const uint8_t *, size_t, 
 }
 
 void table_again() { table_resend = TableResend(); }
+
+std::vector<std::string> asset_lines(bool linked) {
+  std::vector<std::string> lines;
+  {
+    std::lock_guard<std::mutex> lock(m);
+    lines.swap(asset_named);
+  }
+  // A solo test hears the loopback ghost; a replay stays silent (names are not recorded). Not in a link session: our
+  // keys in slot 0 would refuse the same keys of the member whose names it holds, after the loopback too.
+  if (loopback_on && !linked)
+    for (const std::string &line : lines)
+      asset_line_in(0, line);
+  return lines;
+}
+
+// Into the slot's table by key (take_name) and its coop-names file as "name <k> ...". asset_slot_reset() empties the
+// table when the slot's member changes.
+void asset_line_in(size_t slot, const std::string &line) {
+  const Taken taken = slot < kMaxRemote ? take_name(asset_names[slot].lines, line) : Taken::refused;
+  if (taken == Taken::refused)
+    ++names_refused;
+  if (taken != Taken::fresh)
+    return;
+  const std::string name = slot_file("coop-names", slot);
+  if (append_file(std::wstring(name.begin(), name.end()).c_str(), "name" + line.substr(asset_tag().size()) + "\n"))
+    ++names_in;
+  else
+    ++names_refused;
+}
+
+void asset_keys_clear() {
+  std::lock_guard<std::mutex> lock(m);
+  asset_named.clear();
+  asset_keys_reset = true;
+}
+
+// A reset slot's coop-names file starts again with a head line, "book <n>", n new at each reset of the run (the Steam
+// worker removes a previous run's files when it starts, glue/steam.cpp). Lua reads the file from its last offset: the
+// head tells it the file was started again even when the new one is already longer than that offset (core/link.lua's
+// names()).
+uint64_t asset_books = 0;
+void asset_slot_reset(size_t slot) {
+  if (slot >= kMaxRemote || dir.empty()) // dir: worker_poll's first pass ran (never the game's own folder).
+    return;
+  asset_names[slot] = AssetNames();
+  DeleteFileW(slot_path("coop-names", slot).c_str());
+  const std::string name = slot_file("coop-names", slot);
+  append_file(std::wstring(name.begin(), name.end()).c_str(), "book " + std::to_string(++asset_books) + "\n");
+  DeleteFileW(slot_path("coop-loaded", slot).c_str());
+  std::lock_guard<std::mutex> lock(m);
+  asset_loaded[slot].clear();
+}
 
 // Gated on peer_open, not peer_on: a table that follows the accept in the tick that completes the handshake comes
 // before this pass's peer(), and the link already checked the handshake.

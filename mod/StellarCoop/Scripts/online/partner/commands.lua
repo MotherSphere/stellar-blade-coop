@@ -30,12 +30,12 @@ function Partner.new(o)
     function self.cns(...) return puppet.cns(...) end
     function self.look(feature,state)
         if feature==nil then
-            return true,looks()..' (coop look <cloth|dyes|effects> <on|off> changes one until the mod reloads: game '
-                ..'start or Ctrl+R)'
+            return true,looks()..' (coop look <cloth|dyes|effects|drone|sounds|faces> <on|off> changes one until the '
+                ..'mod reloads: game start or Ctrl+R)'
         end
-        local named=({cloth='Cloth',dyes='Dyes',effects='Effects'})[feature]
+        local named=({cloth='Cloth',dyes='Dyes',effects='Effects',drone='Drone',sounds='Sounds',faces='Faces'})[feature]
         if not named or (state~='on' and state~='off') then
-            return false,'Use: coop look [cloth|dyes|effects on|off]'
+            return false,'Use: coop look [cloth|dyes|effects|drone|sounds|faces on|off]'
         end
         look[feature]=state=='on'
         puppet.rebuild('look')

@@ -4,9 +4,11 @@
 // Online sessions of 3 and 4 players (phase 7b1) against the shared fake Steam (fake_steam.h), several Links through
 // its Mesh: the host's let line and the pair, the host in slot 0 on every guest, a joiner every guest holds until the
 // host lets her in, refused and removed members, the host's questions one at a time with each joiner's wait line, the
-// host leaving, a guest leaving, the follow's camps answers to the asker only, the features kept to 2 players (gifts,
-// Doro races, Night Operation, a guest's photo pause), the pair rule on channels 1 and 2 with its notice, max_players,
-// the pose rate past 2, each member's vitals and parked bike.
+// host leaving, a guest leaving, the follow's camps answers to the asker only, the spot answers to the asker only, the
+// camp rests the host relays to every other guest, the features kept to 2 players (gifts, Doro races, Night Operation,
+// a guest's photo pause), the pair rule on channels 1 and 2 with its notice, max_players, the pose rate past 2, each
+// member's vitals and parked bike, the mode lines with their rate and 60 s line, each member's ghost slot and lines
+// queued for her, the asset names' SBA lines kept across a new pair.
 #include "fake_steam.h"
 
 namespace {
@@ -101,7 +103,7 @@ int main() {
            saw("P2: pose rate cap 30 a second for P1: 3 players in the lobby"));
     assert(peer_of(m[2], kMe)->cap.cap() == 30 && peer_of(m[2], kFriend)->cap.cap() == 30);
     for (int i = 0; i < 3; ++i)
-      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
+      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0});
     m.round();
     const std::string s0 = m.status(0), s2 = m.status(2);
     assert(s0.find("\nmate=101 500 ") != npos && s0.find("\nvit=2002 101 500 ") != npos &&
@@ -415,6 +417,94 @@ int main() {
     assert(saw("P1: camps line not sent: no guest asked for it") && sent_from(kMe, kPlayer[2], v("camps 9")) == 1);
   }
 
+  // The spot lines: a guest asks the host only; the host's answer goes to her alone; the host asks one guest. A
+  // session's end forgets every spot line, as the camps lines.
+  reset();
+  {
+    Mesh m(3);
+    group(m, 3);
+    m.tick(1, "spot? 5 " + id(kMe));
+    m.round();
+    assert(sent_from(kFriend, kMe, v("spot? 5")) == 1 && sent_from(kFriend, kPlayer[2], v("spot?")) == 0);
+    assert(m.status(0).find("\nspot?=1\n") != npos);
+    m.tick(0, "spot 1 100 -200 300 90");
+    m.round();
+    assert(sent_from(kMe, kFriend, v("spot 5 100 -200 300 90")) == 1 && sent_from(kMe, kPlayer[2], v("spot")) == 0);
+    assert(m.status(1).find("\nspot=5 100 -200 300 90\n") != npos && m.status(2).find("\nspot=") == npos);
+    m.tick(0, "spot 1 100 -200 300 90"); // Answered already: her spot? no longer waits.
+    m.round();
+    assert(saw("P1: spot line not sent: nobody asked for it") && sent_from(kMe, kFriend, v("spot 5")) == 1);
+    m.tick(0, "spot? 9 " + id(kPlayer[2]));
+    m.round();
+    assert(sent_from(kMe, kPlayer[2], v("spot? 9")) == 1 && sent_from(kMe, kFriend, v("spot? 9")) == 0);
+    m.tick(1, "spot? 6 " + id(kPlayer[2])); // A guest asks the host only.
+    m.round();
+    assert(sent_from(kFriend, kPlayer[2], v("spot?")) == 0 && saw("spot line not sent: a guest asks the host only"));
+    m.tick(1, "spot? 7 " + id(kMe)); // Within 2 s of her last: dropped by the host.
+    m.round();
+    assert(saw("dropped a spot line from P2"));
+    // A guest takes a spot? from the host only, an answer only from the member she asked with her last id.
+    inbox(2, kChannel).push_back({kFriend, v("spot? 3")});
+    inbox(1, kChannel).push_back({kMe, v("spot 6 1 2 3 4")});
+    inbox(1, kChannel).push_back({kPlayer[2], v("spot 7 1 2 3 4")}); // Her last id, from a member she did not ask.
+    m.round();
+    assert(saw("P3: dropped a spot line from P2: a request not from the host") &&
+           saw("P2: dropped a spot line from P1: not the id of our last request") &&
+           saw("P2: dropped a spot line from P3: an answer from a member we did not ask") &&
+           m.status(1).find("\nspot=") == npos);
+    m.tick(1, "leave");
+    rounds(m, 2000);
+    assert(m.status(0).find("\nspot?=") == npos && m.status(1).find("\nspot=") == npos);
+  }
+  // The rest line: a guest sends hers to the host only. He relays it to every other guest once, never back to her. His
+  // own goes to every guest. Lua's chat line names the resting member by SteamID. A rest line naming another member is
+  // dropped by the host, a guest takes one from the host only.
+  reset();
+  {
+    Mesh m(3);
+    group(m, 3);
+    m.tick(1, "rest Zone_Xion_10");
+    rounds(m, 100);
+    const std::string line = v("rest Zone_Xion_10 " + id(kFriend));
+    assert(sent_from(kFriend, kMe, line) == 1 && sent_from(kMe, kPlayer[2], line) == 1 &&
+           sent_from(kMe, kFriend, v("rest")) == 0 && sent_from(kFriend, kPlayer[2], v("rest")) == 0);
+    const std::string lua = "rest Zone_Xion_10 " + id(kFriend);
+    for (int i : {0, 2}) {
+      const auto chat = m[i].take_chat();
+      assert(std::count(chat.begin(), chat.end(), lua) == 1);
+    }
+    assert(m[1].take_chat().empty());
+    m.tick(0, "rest Zone_Xion_10");
+    rounds(m, 100);
+    assert(sent_from(kMe, kFriend, v("rest Zone_Xion_10 " + id(kMe))) == 1 &&
+           sent_from(kMe, kPlayer[2], v("rest Zone_Xion_10 " + id(kMe))) == 1);
+    F.inbox.push_back({kPlayer[2], v("rest Zone_B " + id(kFriend))});
+    inbox(2, kChannel).push_back({kFriend, v("rest Zone_C " + id(kFriend))});
+    rounds(m, 100);
+    assert(saw("P1: dropped a rest line from P3: not her own") && sent_from(kMe, kFriend, v("rest Zone_B")) == 0 &&
+           saw("P3: dropped a rest line from P2: not from the host"));
+    for (int i : {0, 2})
+      for (auto &chat : m[i].take_chat())
+        assert(chat.rfind("rest Zone_B", 0) != 0 && chat.rfind("rest Zone_C", 0) != 0);
+  }
+  // Four players: guests 1 and 2 rest 100 ms apart; guest 3 sends nothing and gets both (the host limits each sender,
+  // a guest takes the host's relays with no limit of its own).
+  reset();
+  {
+    Mesh m(4);
+    group(m, 4);
+    m.tick(1, "rest Zone_A");
+    m.round(100);
+    m.tick(2, "rest Zone_A");
+    rounds(m, 200);
+    const auto chat = m[3].take_chat();
+    assert(std::count(chat.begin(), chat.end(), "rest Zone_A " + id(kFriend)) == 1 &&
+           std::count(chat.begin(), chat.end(), "rest Zone_A " + id(kPlayer[2])) == 1);
+    m.tick(1, "rest Zone_A"); // Within 2 s of her last: the host drops it.
+    rounds(m, 200);
+    assert(saw("dropped a rest line from P2") && sent_from(kMe, kPlayer[3], v("rest Zone_A " + id(kFriend))) == 1);
+  }
+
   // Past 2 players: a gift is refused at once (nolink, with a notice) and nothing goes; an answer to a gift sent before
   // still goes. Doro races and Night Operation send nothing. A guest's photo mode no longer pauses the host's game,
   // with a notice on both screens; the host's cutscene still pauses every guest who asked for it.
@@ -480,16 +570,29 @@ int main() {
     const auto two = m[2].take_fight(), one = m[1].take_fight();
     assert(two.size() == 1 && two[0].from == kMe && two[0].line == sbq);
     assert(one.size() == 1 && one[0].from == kMe && one[0].line == sbf && m[3].take_fight().empty());
-    // Both ways at the pair's leaving: her lines already in and ours still queued go, all but the shared quests'.
-    assert(m[2].send_fight(sbq, true, kMe) && m[1].send_fight(sbf, true, kMe));
+    // Each member's ghost slot by SteamID; -1 for a player who is not a member past the handshake.
+    assert(m[0].slot_of(kFriend) == 0 && m[0].slot_of(kPlayer[2]) == 1 && m[0].slot_of(kPlayer[3]) == 2);
+    assert(m[0].slot_of(12345) == -1 && m[0].slot_of(kMe) == -1);
+    // Both ways at the pair's leaving: her lines already in and ours still queued go, all but the shared quests' and
+    // the asset names' (SBA), which run with every member.
+    const std::string sba = asset_tag() + " 1 sound /Game/Sound/A.A - - -", sbf3 = fight_tag() + " on";
+    assert(m[2].send_fight(sbq, true, kMe) && m[2].send_fight(sba, true, kMe) && m[1].send_fight(sbf, true, kMe));
     m.round();
     m.round();
     assert(m[0].send_fight(sbq, true, kPlayer[3]) && m[0].send_fight(sbf, true, kFriend));
+    F.refuse_to = kPlayer[3]; // Her lines wait in our queue (her send buffer is full).
+    assert(m[0].send_fight(sba, true, kPlayer[3]) && m[0].send_fight(sbf3, true, kPlayer[3]));
+    assert(m[0].queued_for(kPlayer[3]) == 3 && m[0].queued_for(kPlayer[2]) == 0 && m[0].queued_for(kFriend) == 1);
     m.tick(1, "leave");
     m.tick(0);
     assert(m[0].partner() == 0);
+    assert(m[0].queued_for(kPlayer[3]) == 2); // The fight line went with the pair. The quest and SBA lines wait.
     const auto in = m[0].take_fight();
-    assert(in.size() == 1 && in[0].from == kPlayer[2] && in[0].line == sbq);
+    assert(in.size() == 2 && in[0].from == kPlayer[2] && in[0].line == sbq && in[1].line == sba);
+    F.refuse_to = 0;
+    m.tick(0);
+    assert(m[0].queued_for(kPlayer[3]) == 0 && sent_on(kFightChannel, kMe, kPlayer[3], sba) == 1);
+    assert(sent_on(kFightChannel, kMe, kPlayer[3], sbf3) == 0);
     assert(sent_on(kFightChannel, kMe, kPlayer[3], sbq) == 1 && sent_on(kFightChannel, kMe, kFriend, sbf) == 1);
     assert(notices(m.status(3), out) == 1); // The pair gone: no second notice.
   }
@@ -537,6 +640,54 @@ int main() {
     m.tick(3, "join " + id(L));
     m.round();
     assert(noticed(m.status(3), "Could not join: that game is full.") && m[3].lobby() == 0);
+  }
+  // Mode lines in an online session of three (the fishing tournament's): a mode request goes reliable to every member
+  // past the handshake, guest to guest included. It reaches each one's Lua as "mode <sender's SteamID> <word>
+  // <text>", the id from Steam. A text mode_line() would not carry never goes. At most kModePerSecond a second each
+  // way: ours past it is dropped with one log line a minute, a member's the same. The counts get a line of their own
+  // beside the 60 s line, only in a minute that had some. With nobody linked, nothing goes.
+  reset();
+  {
+    Mesh m(3);
+    assert(!m[0].mode("fish go 7 10 1001,2002"));
+    group(m, 3);
+    const auto has = [](const std::vector<std::string> &lines, const std::string &line) {
+      return std::find(lines.begin(), lines.end(), line) != lines.end();
+    };
+    const int lines = count("P1: link, last 60 s: ");
+    while (count("P1: link, last 60 s: ") == lines)
+      m.round();
+    m.tick(0, "mode fish go 7 10 1001,2002,4003");
+    assert(sent_from(kMe, kFriend, v("mode fish go 7 10 1001,2002,4003")) == 1 &&
+           sent_from(kMe, kPlayer[2], v("mode fish go 7 10 1001,2002,4003")) == 1);
+    m.round();
+    assert(has(m[1].take_chat(), "mode 1001 fish go 7 10 1001,2002,4003") &&
+           has(m[2].take_chat(), "mode 1001 fish go 7 10 1001,2002,4003"));
+    m.tick(2, "mode fish ready 7");
+    m.round();
+    assert(has(m[0].take_chat(), "mode 4003 fish ready 7") && has(m[1].take_chat(), "mode 4003 fish ready 7"));
+    assert(!m[0].mode("fish a\tb") && !m[0].mode("fish") && !m[0].mode("Fish go 7") &&
+           !m[0].mode(std::string(kMaxMessage, 'a') + " go") && sent_from(kMe, kFriend, v("mode")) == 1);
+    rounds(m, 1000);
+    for (int i = 0; i < 16; ++i)
+      assert(m[0].mode("fish catch 7 9220 " + id(i)));
+    assert(!m[0].mode("fish catch 7 9220 16") && !m[0].mode("photohunt claim 7 1") &&
+           count("P1: dropped our mode lines: over the rate limit") == 1);
+    m.round();
+    m.round();
+    assert(m[1].take_chat().size() == 16 && m[2].take_chat().size() == 16);
+    rounds(m, 1000);
+    for (int i = 0; i < 20; ++i)
+      inbox(0, kChannel).push_back({kFriend, mode_line("fish catch 7 9220 " + id(i))});
+    m.round();
+    m.round();
+    const auto got = m[0].take_chat();
+    assert(got.size() == 16 && got[0] == "mode 2002 fish catch 7 9220 0" && got[15] == "mode 2002 fish catch 7 9220 15");
+    assert(count("P1: dropped mode lines from P2: over the rate limit") == 1);
+    rounds(m, 60000);
+    assert(count("P1: mode lines, last 60 s: 17 in, 17 out, 10 dropped") == 1);
+    rounds(m, 60000);
+    assert(count("P1: mode lines, last 60 s: ") == 1); // A minute without one has no line.
   }
   std::puts("link_group_test: ok");
 }

@@ -202,10 +202,12 @@ fake_link={
     end,
     settings=function() return Link.parse_settings(pinned(settings_text)) end,
     -- The real one writes on a change only (link_test): this one says each call.
-    state=function(world,rate,photo,sync,max,title,cut,names)
+    state=function(world,rate,photo,sync,max,title,cut,names,sounds,collide)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
         gr.cuts[#gr.cuts+1]=cut
         state_names[#state_names+1]=names
+        state_sounds[#state_sounds+1]=sounds
+        state_collides[#state_collides+1]=collide
         states[#states+1]=string.format('world=%s rate=%d',world and '1' or title and 'title' or '0',rate)
         return states[#states]
     end,
@@ -249,6 +251,15 @@ fake_link.uidev=function() return link_uidev end
 fake_link.scores={}
 fake_link.take_score=function() return {} end
 fake_link.score=function(text) fake_link.scores[#fake_link.scores+1]=text; return true end
+-- link.take_dr() and link.dr(text), the same for the Doro race lines of a match round (fake_link.drs).
+fake_link.drs={}
+fake_link.take_dr=function() return {} end
+fake_link.dr=function(text) fake_link.drs[#fake_link.drs+1]=text; return true end
+-- link.take_mode(word), the lines of a mode of online sessions waiting (none in these tests), and
+-- link.mode_line(word, text), each sent in fake_link.modes as '<word> <text>'.
+fake_link.modes={}
+fake_link.take_mode=function() return {} end
+fake_link.mode_line=function(word,text) fake_link.modes[#fake_link.modes+1]=word..' '..text; return true end
 native_ok=nil
 captured,remoted={},nil
 -- capture_leave_out: what main.lua gave the capture's leave_out (the bike's idle_part).
@@ -290,11 +301,12 @@ end
 -- Whether a save is loaded and the title shown (core/where.lua's world; core/where_test tests it): in_world, at_title.
 -- Where EVE stands (its me): bt.me.
 package.loaded['core.where']={world=function() return in_world,at_title end,me=function() return bt.me end}
-package.loaded['online.partner.puppet']={new=function(link,capture,say,tag,looks)
+package.loaded['online.partner.puppet']={new=function(link,capture,say,tag,looks,_,_,solo)
     assert(link==(native_ok and fake_link or nil),'The ghost reads and writes its files through the link, if any')
     assert(capture==fake_capture,'The ghost gets the capture (its offset in loopback)')
     assert(the_notice and type(say)=='function','The map notice goes on screen')
     puppet_say=say
+    puppet_solo=solo -- Whether her vitals put her in a solo area (nil without the link).
     name_tag,look,rebuilds=tag,looks,{}
     return {rebuild=function(why) rebuilds[#rebuilds+1]=why end,toggle=function()
         if toggle_raise then error(toggle_raise,0) end
@@ -333,6 +345,7 @@ package.loaded['core.link']={new=function() return fake_link end,parse_settings=
         disk.files[to],disk.files[from]=disk.files[from],nil
         return true
     end}}
+package.loaded['core.link'].solo=Link.solo -- The real rule: which zone types are solo areas.
 said,said_en,notice_ticks,notice_result,notice_stops={},{},0,nil,0 -- said_en: the English given with each.
 package.loaded['ui.kit.notice']={new=function()
     the_notice={say=function(text,en) said[#said+1]=text; said_en[#said]=en end,stop=function() notice_stops=notice_stops+1 end,
@@ -370,23 +383,28 @@ end}
 nr={o=nil,runs={},chs={},ticks=0,stops={},raise=nil}
 -- The friend's revive and the cutscene wait (online/group/group.lua): what group.new got (o), its ticks' clocks, coop
 -- revive test's answer, the photo states main.lua hands it (owns) and what it gives back (wire, else the same), its
--- cut, and the cut each state write got (cuts).
-gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0}
+-- cut, the cut each state write got (cuts), its back() calls (backs) and the camp rests the inbox gave it (rests:
+-- {zone, from} each).
+gr={o=nil,ticks={},tests=0,owns={},cuts={},stops=0,rests={}}
 package.loaded['online.group.group']={new=function(o)
     gr.o=o
     return {tick=function(t) gr.ticks[#gr.ticks+1]=t end,stop=function() gr.stops=gr.stops+1 end,
+        back=function() gr.backs=(gr.backs or 0)+1; return true,'going back to Kaanta' end,
         test=function() gr.tests=gr.tests+1; return true,'ServerRequest_ActorRespawn asked' end,
         photo=function(own) gr.owns[#gr.owns+1]=own; return gr.wire or own end,cut=function() return gr.cut end,
+        rest=function(zone,from) gr.rests[#gr.rests+1]={zone,from} end,
         cutscene_playing=function() return gr.playing==true end}
 end}
--- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses and coop
--- travel probe's camps.
-tv={o=nil,ticks={},presses=0,probes={}}
+-- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses, coop
+-- travel probe's camps, coop travel spot's words and the member its go(id) got last (gone).
+tv={o=nil,ticks={},presses=0,probes={},spots={}}
 package.loaded['online.group.travel']={new=function(o)
     tv.o=o
     return {tick=function(t) tv.ticks[#tv.ticks+1]=t end,
         press=function() tv.presses=tv.presses+1; return true,'asked the host for camps' end,
-        probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end}
+        go=function(id) tv.gone=id; return true,'asked' end,
+        probe=function(camp) tv.probes[#tv.probes+1]=camp; return true,'travel '..camp..' asked' end,
+        spot=function(a,b,c,d) tv.spots[#tv.spots+1]={a,b,c,d}; return true,'travel spot asked' end}
 end}
 package.loaded['online.modes.nightop.run']={new=function(o)
     nr.o=o
@@ -399,12 +417,12 @@ package.loaded['online.modes.nightop.run']={new=function(o)
             if nr.raise then error(nr.raise,0) end
         end}
 end}
--- The Doro look and probe (online/modes/race/doro.lua; doro_test tests them): what doro.new got (log, store), its calls
--- as words, its restores and ticks, what a tick says, a stop that raises; and the ghost's Doro mode as puppet.doro was
--- last given it, with what it answers.
+-- The Doro look and probe (online/modes/race/doro.lua; doro_test tests them): what doro.new got (o, its log and store),
+-- its calls as words, its restores and ticks, what a tick says, a stop that raises; and the ghost's Doro mode as
+-- puppet.doro was last given it, with what it answers.
 dr={calls={},restores=0,ticks=0}
 package.loaded['online.modes.race.doro']={new=function(o)
-    dr.log,dr.store=o.log,o.store
+    dr.o,dr.log,dr.store=o,o.log,o.store
     return {log=o.log,
         on=function() dr.calls[#dr.calls+1]='on'; if dr.no_eve then return false,'no EVE in the world' end
             return true,'look on' end,
@@ -959,17 +977,20 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'unblock <SteamID>|all | blocked | leave | '
     ..'match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | '
     ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
-    ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
+    ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look '
+    ..'[cloth|dyes|effects|drone|sounds|faces on|off] | cns [reset] | wear [<name>|off [hair|suit]] | '
+    ..'scene [emil|orcal|stop] | lines [<name>|stop] | '
     ..'emote [list|<name>|off] | bike [status|tune [<name> <value>]] | gun [status] | '
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '
     ..'challenge [<name>|stop] | '
     ..'scoreattack [status|pick <challenge>] | '
+    ..'fish [status|start [<minutes>]|stop] | '
     ..'recruiter [off] | '
     ..'gift [send <item> [count]|take [n]] | '
-    ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
-    ..'spawn | quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | '
+    ..'race record <name>|cp|save [laps]|cancel|start <name>|quit|match [status|pick <track>] | '
+    ..'fight on|off|status|probe|test|record|replay|pilot|spawn | '
+    ..'quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | '
     ..'keys reset [<name>|all] | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 
@@ -1008,6 +1029,8 @@ function load_main(with_native,no_folder,source)
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
     pausetabs,popup_asks={},{}
     state_names={} -- link.state's mod_names argument, each call.
+    state_sounds={} -- link.state's sounds look, each call.
+    state_collides={} -- link.state's collide (the solid partner on, outside an SBO session), each call.
     settles=0 -- link.settle() calls: the end of each 250 ms pass and the top of each frame.
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0

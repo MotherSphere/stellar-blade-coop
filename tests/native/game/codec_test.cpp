@@ -5,7 +5,8 @@
 // one defect at a time, and fuzzed input (random and mutated messages) that must never crash or yield a non-finite
 // value. Codec v2's deltas: rebuilds within the sender's tolerance and at its edge, their refusals, fuzzed deltas,
 // which keyframe the receiver holds, the sender's keyframe choice and byte budget, a lossy stream that never decodes a
-// pose past the tolerance, and a 60 a second stream with every second delta dropped, which decodes whole.
+// pose past the tolerance, and a 60 a second stream with every second delta dropped, which decodes whole. Event slots
+// travel as units compared exactly.
 #include "game/codec.h"
 
 #include <algorithm>
@@ -53,11 +54,255 @@ void random_rotation(std::mt19937_64 &rng, float *q) {
   for (int k = 0; k < 4; ++k)
     q[k] = float(v[k] / std::sqrt(norm));
 }
+
+// Her drone's table (table_test.cpp's kFreeTable): part 0 with two bones, part 1 free with three.
+const std::string kFreeTable = "SBT " + std::to_string(coop::kProtocol) +
+                               "\ngeneration 7\nmap /game/x\npart 0 - - - 1 2 Body /Game/A/Body.Body\nnames 0 a b\n"
+                               "part 1 - - - 1 3 CharacterMesh0 /Game/Art/Character/NPC/CH_NPC_Drone/CH_NPC_Drone."
+                               "CH_NPC_Drone\nfree 1\nnames 1 c d e\n";
+constexpr uint64_t kAgeUs = 16'000; // Pose n is published at n * kAgeUs.
+size_t leader_bones(const Table &t) {
+  size_t n = 0;
+  for (const Part &p : t.eve)
+    n += p.leader ? p.bones : 0;
+  return n;
+}
+// A pose of t with zero bones and empty slots, its free blocks from free (nullptr: none), into out.
+size_t encode_at(const Table &t, uint32_t sequence, const Free *free, std::vector<uint8_t> &out) {
+  const float root[10] = {0, 0, 0, 1, 0, 0, 0, 1, 1, 1};
+  const std::vector<uint8_t> bones(leader_bones(t) * kTransformBytes);
+  const Effect fx[kEffectSlots];
+  uint32_t clamped = 0;
+  return encode_pose(t, {t.generation, sequence * kAgeUs, sequence, 0}, root, bones.data(), fx, out.data(), clamped,
+                     free);
+}
+size_t encode_at(const Table &t, uint32_t sequence, const Free &free, std::vector<uint8_t> &out) {
+  return encode_at(t, sequence, &free, out);
+}
+// Why decode_pose refuses pose, or null; its free blocks into free (nullptr: not stored).
+const char *why_not(const Table &t, const std::vector<uint8_t> &pose, Free *free) {
+  PoseHeader h;
+  float root[10];
+  std::vector<uint8_t> bones(leader_bones(t) * kTransformBytes);
+  Effect fx[kEffectSlots];
+  return decode_pose(t, pose.data(), pose.size(), h, root, bones.data(), fx, free);
+}
+bool decode_at(const Table &t, const std::vector<uint8_t> &pose, Free *free) { return !why_not(t, pose, free); }
+// A delta of n bytes applied to key (published at sequence * kAgeUs) into out.
+bool apply_at(const Table &t, const std::vector<uint8_t> &key, const std::vector<uint8_t> &delta, size_t n,
+              std::vector<uint8_t> &out) {
+  const uint8_t *publication = key.data() + 16;
+  return !apply_delta(t, key.data(), codec::get(publication, 8), delta.data(), n, out.data());
+}
+// The byte of part i's free block in a pose: right after component 0's world transform, in table order.
+size_t free_offset(const Table &t, size_t i) {
+  size_t before = 0;
+  for (size_t k = 1; k < i; ++k)
+    before += t.eve[k].free;
+  return kWorldAt + kWorldBytes + before * kFreeBytes;
+}
+
+void test_free_in_pose_and_delta() { // kFreeTable: part 0 two bones, part 1 free with three
+  const Table t = *parse_table(kFreeTable, false);
+  Free a{{0, 0, 0.7071068f, 0.7071068f, 120.f, -30.f, 250.f, 1, 1, 1}, uint8_t(0x80 | 13)}, b = a, got[1];
+  std::vector<uint8_t> key(pose_size(t)), full(pose_size(t)), back(pose_size(t)), delta(pose_size(t));
+  assert(encode_at(t, 1, a, key) == pose_size(t));             // encode_pose with &a, sequence 1
+  assert(decode_at(t, key, got) && got[0].place[4] == 120.f && got[0].place[5] == -30.f && got[0].state == 0x8d);
+  assert(std::fabs(got[0].place[2] - 0.7071068f) < 1e-4f && std::fabs(got[0].place[3] - 0.7071068f) < 1e-4f);
+  assert(got[0].place[6] == 250.f && got[0].place[7] == 1 && got[0].place[9] == 1);
+  assert(key[kPoseHeader + 1 + kWorldBytes + kFreeBytes + 2 * kBoneBytes] == (kFree | kBones)); // part 1's status
+  b.place[4] = 130.f;
+  encode_at(t, 2, b, full);                                     // same bones and slots: only the free block moved
+  const size_t n = encode_delta(t, key.data(), full.data(), 16'000, delta.data(), delta.size());
+  assert(n == delta_fixed(t));                                  // the free block rides in the fixed part: no unit
+  assert(apply_at(t, key, delta, n, back) && decode_at(t, back, got) && got[0].place[4] == 130.f);
+  std::vector<uint8_t> none(pose_size(t));
+  encode_at(t, 1, nullptr, none);
+  assert(std::all_of(none.begin() + long(free_offset(t, 1)), none.begin() + long(free_offset(t, 1) + kFreeBytes),
+                     [](uint8_t c) { return c == 0; }));        // nullptr encodes 25 zero bytes
+  assert(decode_at(t, key, nullptr));                           // and a decode with nullptr skips them
+  // Hidden (bit 7 clear) travels as those 25 zero bytes whatever else it holds. It decodes to an empty block.
+  std::vector<uint8_t> hidden(pose_size(t));
+  Free dark = a;
+  dark.state = 13;
+  encode_at(t, 1, dark, hidden);
+  got[0] = a;
+  assert(hidden == none && decode_at(t, hidden, got) && got[0].state == 0 && got[0].place[3] == 0 &&
+         got[0].place[4] == 0);
+  // Refused: one defect each, from key.
+  const size_t at = free_offset(t, 1);
+  auto refused = [&](std::vector<uint8_t> bad, const char *why) {
+    const char *got_why = why_not(t, bad, got);
+    assert(got_why && std::string(got_why) == why);
+  };
+  for (size_t k = 0; k < kFreeBytes; ++k) { // a hidden block with any byte set
+    auto bad = none;
+    bad[at + k] = 1;
+    refused(bad, "free");
+  }
+  auto bad = key;
+  const uint32_t nan_bits = 0x7fc00000u;
+  std::memcpy(bad.data() + at, &nan_bits, 4); // a NaN translation
+  refused(bad, "free");
+  bad = key;
+  const float far = 3e38f;
+  std::memcpy(bad.data() + at + 8, &far, 4); // finite: blending it could still overflow
+  refused(bad, "free");
+  bad = key;
+  bad[at + kFreeBytes + 2 * kBoneBytes] = kBones; // part 1 without its kFree flag
+  refused(bad, "status");
+  bad = key;
+  bad[kPoseHeader] = kWorld | kBones | kFree; // part 0 with it
+  refused(bad, "status");
+
+  // Fuzz: mutated keys and deltas of kFreeTable never crash. Whatever decodes holds a finite block, unit when shown
+  // and all zero when hidden.
+  std::mt19937_64 rng(5);
+  std::uniform_int_distribution<int> byte(0, 255);
+  size_t decoded = 0;
+  for (int round = 0; round < 100000; ++round) {
+    const bool is_delta = round % 2;
+    std::vector<uint8_t> input = is_delta ? std::vector<uint8_t>(delta.begin(), delta.begin() + long(n)) : key;
+    for (int flips = 1 + byte(rng) % 4; flips--;)
+      input[size_t(byte(rng) * 131 + byte(rng)) % input.size()] = uint8_t(byte(rng));
+    got[0] = a;
+    const bool good = is_delta ? apply_at(t, key, input, input.size(), back) && decode_at(t, back, got)
+                               : decode_at(t, input, got);
+    if (!good)
+      continue;
+    ++decoded;
+    const Free &f = got[0];
+    for (float v : f.place)
+      assert(std::isfinite(v) && (f.state & 0x80 || v == 0));
+    const double norm = std::sqrt(double(f.place[0]) * f.place[0] + double(f.place[1]) * f.place[1] +
+                                  double(f.place[2]) * f.place[2] + double(f.place[3]) * f.place[3]);
+    assert(f.state & 0x80 ? std::fabs(norm - 1) < 1e-5 : f.state == 0);
+  }
+  std::printf("codec: free fuzz decoded %zu of 100000 mutated keys and deltas, none non-finite\n", decoded);
+}
+
+void test_event_slots_as_units() { // kFreeTable's layout; key: a keyframe with no event
+  const Table t = *parse_table(kFreeTable, false);
+  const float root[10] = {0, 0, 0, 1, 0, 0, 0, 1, 1, 1};
+  const std::vector<uint8_t> bones(leader_bones(t) * kTransformBytes);
+  const Effect fx[kEffectSlots];
+  // The pose of sequence s with these events (nullptr: none).
+  auto pose = [&](uint32_t s, const Event *events) {
+    std::vector<uint8_t> out(pose_size(t));
+    uint32_t clamped = 0;
+    assert(encode_pose(t, {t.generation, s * kAgeUs, s, 0}, root, bones.data(), fx, out.data(), clamped, nullptr,
+                       events) == out.size() &&
+           clamped == 0);
+    return out;
+  };
+  const std::vector<uint8_t> key = pose(1, nullptr);
+  std::vector<uint8_t> delta(pose_size(t));
+  // The delta of the pose with events b against the keyframe with events a.
+  auto delta_between = [&](const Event *a, const Event *b) {
+    const std::vector<uint8_t> k = pose(1, a), full = pose(2, b);
+    return encode_delta(t, k.data(), full.data(), uint32_t(kAgeUs), delta.data(), delta.size());
+  };
+  Event ev[kEventSlots];
+  ev[2].kind = Kind::sound;
+  ev[2].serial = 1;
+  ev[2].asset = 12;
+  ev[2].place[3] = 1;
+  const size_t n = delta_between(nullptr, ev);
+  assert(n == delta_fixed(t) + kEventBytes);
+  std::vector<uint8_t> back(pose_size(t));
+  Event got[kEventSlots];
+  PoseHeader h;
+  float root_back[10];
+  std::vector<uint8_t> bones_back(bones.size());
+  Effect fx_back[kEffectSlots];
+  Free free_back[1];
+  assert(apply_at(t, key, delta, n, back));
+  assert(!decode_pose(t, back.data(), back.size(), h, root_back, bones_back.data(), fx_back, free_back, got));
+  assert(got[2].asset == 12 && got[2].serial == 1 && got[2].kind == Kind::sound && got[0].kind == Kind::none);
+  Event moved[kEventSlots];
+  std::copy(ev, ev + kEventSlots, moved);
+  moved[2].kind = Kind::niagara; // the kind byte only
+  assert(delta_between(ev, moved) == delta_fixed(t) + kEventBytes); // one unit, compared exactly (strays would pass it)
+  assert(delta_between(ev, ev) == delta_fixed(t));
+  assert(delta_units(t) == 3 * (2 + 3) + kEffectSlots + kEventSlots);
+  // The event slots are the pose's last bytes; a refused one refuses the pose, as an effect slot does.
+  std::vector<uint8_t> full = pose(2, ev);
+  const size_t at = pose_size(t) - kEventSlots * kEventBytes + 2 * kEventBytes;
+  assert(full[at] == uint8_t(Kind::sound) && full[at + 2] == 12);
+  assert(!decode_pose(t, full.data(), full.size(), h, root_back, bones_back.data(), fx_back, nullptr, nullptr));
+  full[at + 4] = 2; // part 2 of a 2-part table
+  const char *why = decode_pose(t, full.data(), full.size(), h, root_back, bones_back.data(), fx_back, free_back, got);
+  assert(why && std::string(why) == "event");
+}
+
+// Her face and shape keys: kFreeTable with part 0's three morph targets. A morph's byte comes after the event slots,
+// one exact unit each in a delta.
+void test_morph_bytes_as_units() {
+  std::string text = kFreeTable;
+  text.replace(text.find("names 0 a b\n"), 12, "names 0 a b\nmorphs 0 EyeL_Up EyeL_Down Smile\n");
+  const Table t = *parse_table(text, false);
+  const float root[10] = {0, 0, 0, 1, 0, 0, 0, 1, 1, 1};
+  const std::vector<uint8_t> bones(leader_bones(t) * kTransformBytes);
+  const Effect fx[kEffectSlots];
+  auto pose = [&](uint32_t s, const std::vector<uint8_t> &morphs) { // The pose of sequence s with these weights.
+    std::vector<uint8_t> out(pose_size(t));
+    uint32_t clamped = 0;
+    assert(encode_pose(t, {t.generation, s * kAgeUs, s, 0}, root, bones.data(), fx, out.data(), clamped, nullptr,
+                       nullptr, morphs.data()) == out.size());
+    return out;
+  };
+  const std::vector<uint8_t> key = pose(1, {0, 0, 0});
+  const std::vector<uint8_t> full = pose(2, {255, 128, 7});
+  assert(full[full.size() - 3] == 255 && full[full.size() - 2] == 128 && full.back() == 7); // the pose's last bytes
+  std::vector<uint8_t> delta(pose_size(t));
+  auto delta_of_morphs = [&](const std::vector<uint8_t> &m) {
+    const std::vector<uint8_t> next = pose(2, m);
+    return encode_delta(t, key.data(), next.data(), uint32_t(kAgeUs), delta.data(), delta.size());
+  };
+  assert(delta_units(t) == 3 * (2 + 3) + kEffectSlots + kEventSlots + 3);
+  assert(delta_of_morphs({0, 0, 0}) == delta_fixed(t));
+  const size_t n = delta_of_morphs({0, 1, 0});
+  assert(n == delta_fixed(t) + 1); // one unit, compared exactly: a bone field's tolerance would pass one step
+  std::vector<uint8_t> back(pose_size(t));
+  assert(apply_at(t, key, delta, n, back));
+  PoseHeader h;
+  float root_back[10];
+  std::vector<uint8_t> bones_back(bones.size());
+  Effect fx_back[kEffectSlots];
+  uint8_t m[3] = {9, 9, 9};
+  assert(!decode_pose(t, back.data(), back.size(), h, root_back, bones_back.data(), fx_back, nullptr, nullptr, m));
+  assert(m[0] == 0 && m[1] == 1 && m[2] == 0);
+  assert(!decode_pose(t, full.data(), full.size(), h, root_back, bones_back.data(), fx_back, nullptr, nullptr, m));
+  assert(m[0] == 255 && m[1] == 128 && m[2] == 7);
+  // No weights given: zeros. Any byte is a weight, so nothing in them refuses a pose.
+  std::vector<uint8_t> plain(pose_size(t));
+  uint32_t clamped = 0;
+  assert(encode_pose(t, {t.generation, kAgeUs, 1, 0}, root, bones.data(), fx, plain.data(), clamped) == plain.size());
+  assert(plain == key);
+  // Through the keyed pair: a keyframe, then a delta of one morph.
+  KeyedEncoder sender;
+  KeyedDecoder receiver;
+  sender.reset(pose_size(t));
+  receiver.reset(pose_size(t));
+  std::vector<uint8_t> wire = key;
+  size_t sent = sender.encode(t, wire.data(), wire.size(), 1 * kAgeUs);
+  assert(sent == wire.size() && !receiver.decode(t, wire.data(), sent, h, root_back, bones_back.data(), fx_back,
+                                                 nullptr, nullptr, m));
+  wire = pose(2, {0, 1, 0});
+  sent = sender.encode(t, wire.data(), wire.size(), 2 * kAgeUs);
+  assert(wire[2] == 'D' && sent == delta_fixed(t) + 1);
+  assert(!receiver.decode(t, wire.data(), sent, h, root_back, bones_back.data(), fx_back, nullptr, nullptr, m) &&
+         m[1] == 1);
+}
 } // namespace
 
 int main() {
+  test_free_in_pose_and_delta();
+  test_event_slots_as_units();
+  test_morph_bytes_as_units();
   const Table t = table();
-  assert(pose_size(t) == kPoseHeader + 3 + kWorldBytes + kBoneBytes * kLeaderBones + 60); // 4 effect slots of 15.
+  // 6 effect slots of 15, 4 event slots of 19.
+  assert(pose_size(t) == kPoseHeader + 3 + kWorldBytes + kBoneBytes * kLeaderBones + 90 + 76);
   std::mt19937_64 rng(7);
   std::uniform_real_distribution<float> cm(-1000, 1000), scale(0.25f, 4), world(-4e5f, 4e5f);
   std::vector<uint8_t> wire(kMaxPose), bones(kLeaderBones * kTransformBytes), back(bones.size());
@@ -155,8 +400,9 @@ int main() {
     const Effect &cut = fx_back[1];
     assert(cut.asset == 7 && cut.part == 2 && cut.serial == 9 && cut.place[3] == 1);
     assert(std::fabs(cut.place[4] - 32767.0 / 32) < 1e-3 && cut.place[5] == -1024 && cut.place[6] == -1024);
-    for (size_t at = n - 4 * kEffectBytes; at < n; ++at) // Slots 0, 2 and 3 empty: their 45 bytes all 0.
-      assert((at >= n - 3 * kEffectBytes && at < n - 2 * kEffectBytes) || wire[at] == 0);
+    const size_t slots = n - kEventSlots * kEventBytes - kEffectSlots * kEffectBytes; // Then the empty event slots.
+    for (size_t at = slots; at < n; ++at) // Every slot but 1 empty: all 0.
+      assert((at >= slots + kEffectBytes && at < slots + 2 * kEffectBytes) || wire[at] == 0);
     assert(fx_back[2].asset == 0 && fx_back[2].part == 0 && fx_back[2].serial == 0 && fx_back[2].place[4] == 0);
   }
 
@@ -164,11 +410,12 @@ int main() {
   float root[10] = {0, 0, 0, 1, 10, 20, 30, 1, 1, 1}, root_back[10];
   PoseHeader h{42, 99, 3, 0}, got;
   uint32_t clamped = 0;
-  Effect fx[kEffectSlots] = {{3, 2, 200, {0, 0.6f, 0, 0.8f, 1, -2, 3}}, {}, {32, 0, 0, {0, 0, 0, 1, 0, 0, 0}}}, fx_back[4];
+  Effect fx[kEffectSlots] = {{3, 2, 200, {0, 0.6f, 0, 0.8f, 1, -2, 3}}, {}, {32, 0, 0, {0, 0, 0, 1, 0, 0, 0}}},
+         fx_back[kEffectSlots];
   const size_t n = encode_pose(t, h, root, bones.data(), fx, wire.data(), clamped);
   const std::vector<uint8_t> good(wire.begin(), wire.begin() + long(n));
   const size_t follower_status = 29 + 1 + kWorldBytes + 5 * kBoneBytes; // After component 0's world and 5 bones.
-  const size_t slot0 = n - 4 * kEffectBytes, slot1 = slot0 + kEffectBytes;
+  const size_t slot0 = n - kEventSlots * kEventBytes - kEffectSlots * kEffectBytes, slot1 = slot0 + kEffectBytes;
   auto refused = [&](std::vector<uint8_t> bad, const char *why) {
     const char *got_why = decode_pose(t, bad.data(), bad.size(), got, root_back, back.data(), fx_back);
     if (!got_why || std::string(got_why) != why) {
@@ -274,11 +521,20 @@ int main() {
       input[28] = good[28];
       for (size_t at : {size_t(29), follower_status, follower_status + 1}) // The statuses too: the bones get parsed.
         input[at] = good[at];
-      if (round % 8 == 3) // Plausible slots too, so their rotations and translations get decoded.
-        for (size_t at = slot0; at < n; at += kEffectBytes) {
+      if (round % 8 == 3) { // Plausible slots too, so their rotations and translations get decoded.
+        for (size_t at = slot0; at < slot0 + kEffectSlots * kEffectBytes; at += kEffectBytes) {
           input[at] %= kMaxEffectAssets + 1;
           input[at + 1] %= 3;
         }
+        for (size_t at = slot0 + kEffectSlots * kEffectBytes; at < n; at += kEventBytes) // events: empty or near good
+          if (byte(rng) % 2) {
+            std::memset(input.data() + at, 0, kEventBytes);
+          } else {
+            input[at] %= uint8_t(Kind::trail_off) + 1;
+            input[at + 3] %= 17;
+            input[at + 4] = byte(rng) % 2 ? uint8_t(byte(rng) % 3) : kNoPart;
+          }
+      }
     } else {
       input = good;
       for (int flips = 1 + byte(rng) % 8; flips--;)
@@ -293,7 +549,7 @@ int main() {
 
   // ---- Codec v2: deltas against a keyframe ----
   // table()'s units by hand: component 0's status and world, 5 bones (rotation, translation, scale each), the
-  // follower's status, the small leader's status, its 3 bones, then the 4 effect slots.
+  // follower's status, the small leader's status, its 3 bones, then the 6 effect slots and the 4 event slots.
   std::vector<std::pair<size_t, size_t>> units;
   {
     size_t at = kPoseHeader + 1 + kWorldBytes; // kPoseHeader ends with the component count.
@@ -304,13 +560,16 @@ int main() {
       units.push_back({at, 6});
     for (size_t k = 0; k < kEffectSlots; ++k, at += kEffectBytes)
       units.push_back({at, kEffectBytes});
-    assert(at == pose_size(t) && units.size() == delta_units(t) && units.size() == 28);
-    assert(delta_fixed(t) == kPoseHeader + 4 + kWorldBytes + 4); // 28 units: 4 mask bytes, 4 padding bits.
+    for (size_t k = 0; k < kEventSlots; ++k, at += kEventBytes)
+      units.push_back({at, kEventBytes});
+    assert(at == pose_size(t) && units.size() == delta_units(t) && units.size() == 34);
+    assert(delta_fixed(t) == kPoseHeader + 4 + kWorldBytes + 5); // 34 units: 5 mask bytes, 6 padding bits.
   }
   struct Pose {
     float root[10] = {};
     std::vector<uint8_t> bones = std::vector<uint8_t>(kLeaderBones * kTransformBytes);
     Effect fx[kEffectSlots];
+    Event ev[kEventSlots];
   };
   auto bone_field = [&](Pose &p, size_t b, int field) { // 0 rotation, 1 translation, 2 scale: a new random value.
     float f[12];
@@ -333,6 +592,20 @@ int main() {
     for (int k = 4; k < 7; ++k)
       e.place[k] = cm(rng);
   };
+  auto new_event = [&](Event &e) { // Empty one time in four.
+    e = Event();
+    if (any_byte(rng) % 4 == 0)
+      return;
+    e.kind = Kind(1 + any_byte(rng) % 6);
+    e.serial = uint8_t(any_byte(rng));
+    e.asset = uint16_t(1 + (any_byte(rng) << 4 | any_byte(rng) % 16));
+    e.part = any_byte(rng) % 4 == 0 ? kNoPart : uint8_t(any_byte(rng) % 3);
+    e.value[0] = uint8_t(any_byte(rng));
+    e.value[1] = uint8_t(any_byte(rng));
+    random_rotation(rng, e.place);
+    for (int k = 4; k < 7; ++k)
+      e.place[k] = std::nearbyint(cm(rng)); // Whole cm: the wire's step.
+  };
   auto move_root = [&](Pose &p) {
     random_rotation(rng, p.root);
     for (int k = 4; k < 7; ++k)
@@ -347,11 +620,14 @@ int main() {
         bone_field(p, b, field);
     for (Effect &e : p.fx)
       new_slot(e);
+    for (Event &e : p.ev)
+      new_event(e);
   };
   auto encode = [&](const Pose &p, uint32_t sequence, uint64_t publication) {
     std::vector<uint8_t> out(kMaxPose);
     uint32_t cut = 0;
-    out.resize(encode_pose(t, {42, publication, sequence, 0xabcdef01u}, p.root, p.bones.data(), p.fx, out.data(), cut));
+    out.resize(encode_pose(t, {42, publication, sequence, 0xabcdef01u}, p.root, p.bones.data(), p.fx, out.data(), cut,
+                           nullptr, p.ev));
     assert(out.size() == pose_size(t) && !cut);
     return out;
   };
@@ -361,10 +637,16 @@ int main() {
     float root[10];
     std::vector<uint8_t> bones = std::vector<uint8_t>(kLeaderBones * kTransformBytes);
     Effect fx[kEffectSlots];
+    Event ev[kEventSlots];
     bool operator==(const Decoded &o) const {
       for (size_t k = 0; k < kEffectSlots; ++k)
         if (fx[k].asset != o.fx[k].asset || fx[k].part != o.fx[k].part || fx[k].serial != o.fx[k].serial ||
             std::memcmp(fx[k].place, o.fx[k].place, sizeof fx[k].place))
+          return false;
+      for (size_t k = 0; k < kEventSlots; ++k)
+        if (ev[k].kind != o.ev[k].kind || ev[k].serial != o.ev[k].serial || ev[k].asset != o.ev[k].asset ||
+            ev[k].part != o.ev[k].part || std::memcmp(ev[k].value, o.ev[k].value, 2) ||
+            std::memcmp(ev[k].place, o.ev[k].place, sizeof ev[k].place))
           return false;
       return h.generation == o.h.generation && h.publication == o.h.publication && h.sequence == o.h.sequence &&
              h.map == o.h.map && !std::memcmp(root, o.root, sizeof root) && bones == o.bones;
@@ -393,7 +675,7 @@ int main() {
   };
   auto decoded_full = [&](const std::vector<uint8_t> &full) {
     Decoded d;
-    assert(!decode_pose(t, full.data(), full.size(), d.h, d.root, d.bones.data(), d.fx));
+    assert(!decode_pose(t, full.data(), full.size(), d.h, d.root, d.bones.data(), d.fx, nullptr, d.ev));
     return d;
   };
   std::vector<uint8_t> delta(kMaxPose), rebuilt(pose_size(t));
@@ -429,7 +711,7 @@ int main() {
   // decodes to values within kTolerance of the sender's (Decoded::near).
   {
     size_t deltas = 0, not_smaller = 0, held = 0;
-    for (int round = 0; round < 4000; ++round) {
+    for (int round = 0; round < 5000; ++round) {
       Pose a, b;
       random_pose(a);
       b = a;
@@ -442,6 +724,9 @@ int main() {
       for (Effect &e : b.fx)
         if (any_byte(rng) % odds == 0)
           new_slot(e);
+      for (Event &e : b.ev)
+        if (any_byte(rng) % odds == 0)
+          new_event(e);
       const uint64_t key_at = 5'000'000, at = key_at + 1 + uint64_t(any_byte(rng)) * 1000;
       const std::vector<uint8_t> key = encode(a, 10, key_at);
       std::vector<uint8_t> full = encode(b, 11, at);
@@ -477,12 +762,12 @@ int main() {
         held += within[u] && std::memcmp(key.data() + units[u].first, full.data() + units[u].first, 6);
       }
       Decoded d;
-      assert(!decode_pose(t, rebuilt.data(), rebuilt.size(), d.h, d.root, d.bones.data(), d.fx));
+      assert(!decode_pose(t, rebuilt.data(), rebuilt.size(), d.h, d.root, d.bones.data(), d.fx, nullptr, d.ev));
       assert(d.near(decoded_full(full)));
     }
     std::fprintf(stderr, "codec: %zu deltas rebuilt within the tolerance (%zu fields held), %zu not smaller\n", deltas,
                  held, not_smaller);
-    assert(deltas > 3000 && not_smaller > 300 && held > 10000); // About 3600, 390 and 21000.
+    assert(deltas > 3000 && not_smaller > 300 && held > 10000); // About 4660, 340 and 26500.
   }
 
   // The tolerance at its edge, on every bone field at once: a rotation's three components each 2 steps off, a
@@ -499,7 +784,7 @@ int main() {
     assert(encode_delta(t, key.data(), moved.data(), 16667, delta.data(), moved.size()) == delta_fixed(t));
     assert(!apply_delta(t, key.data(), 5'000'000, delta.data(), delta_fixed(t), rebuilt.data()));
     Decoded d;
-    assert(!decode_pose(t, rebuilt.data(), rebuilt.size(), d.h, d.root, d.bones.data(), d.fx));
+    assert(!decode_pose(t, rebuilt.data(), rebuilt.size(), d.h, d.root, d.bones.data(), d.fx, nullptr, d.ev));
     assert(d.near(decoded_full(moved)) && !(d == decoded_full(moved)));
     assert(encode_delta(t, key.data(), moved.data(), 16667, delta.data(), moved.size(), Tolerance{}) ==
            delta_fixed(t) + kLeaderBones * 3 * 6);
@@ -558,7 +843,7 @@ int main() {
     bad[mask] |= 1; // unit 0 named, its bytes missing
     delta_refused(bad, "size");
     bad = good_delta;
-    bad[mask + 3] |= 0x10; // padding bit 28
+    bad[mask + 4] |= 0x40; // padding bit 38 (34 units)
     delta_refused(bad, "mask");
     bad = good_delta;
     bad[2] = 'P';
@@ -615,23 +900,23 @@ int main() {
           for (size_t k = 0; k < 3; ++k)
             input[kPoseHeader + 4 + 4 * k + 3] = 0x40;
         const size_t mask = input.size(), odds = 1 + size_t(byte(rng)) % 8;
-        input.resize(mask + 4, 0);
+        const size_t fx_unit = units.size() - kEffectSlots - kEventSlots; // The slots come last: effects, then events.
+        input.resize(mask + (units.size() + 7) / 8, 0);
         for (size_t u = 0; u < units.size(); ++u)
           if (size_t(byte(rng)) % odds == 0) {
             input[mask + u / 8] |= uint8_t(1 << (u % 8));
+            const size_t at_unit = input.size();
             for (size_t k = 0; k < units[u].second; ++k)
               input.push_back(uint8_t(byte(rng)));
-          }
-        if (round % 7 == 1) // Plausible slots too.
-          for (size_t k = 24; k < 28; ++k)
-            if (input[mask + k / 8] >> (k % 8) & 1) {
-              size_t at_slot = input.size(); // The slots come last: find this one's start from the end.
-              for (size_t later = 27; later >= k; --later)
-                if (input[mask + later / 8] >> (later % 8) & 1)
-                  at_slot -= kEffectBytes;
-              input[at_slot] %= kMaxEffectAssets + 1;
-              input[at_slot + 1] %= 3;
+            if (round % 7 == 1 && u >= fx_unit && u < fx_unit + kEffectSlots) { // Plausible slots too.
+              input[at_unit] %= kMaxEffectAssets + 1;
+              input[at_unit + 1] %= 3;
+            } else if (round % 7 == 1 && u >= fx_unit + kEffectSlots) { // kind, asset's high byte, part
+              input[at_unit] %= uint8_t(Kind::trail_off) + 1;
+              input[at_unit + 3] %= 17;
+              input[at_unit + 4] = byte(rng) % 2 ? uint8_t(byte(rng) % 3) : kNoPart;
             }
+          }
         if (round % 11 == 5)
           input.resize(input.size() + size_t(byte(rng)) % 3 - 1);
       } else {
@@ -707,15 +992,15 @@ int main() {
     assert(sender.encode(t, buf.data(), 0, later + 3 * 16667) == 0); // No pose (a table too large): nothing.
   }
 
-  // The byte budget: every unit of a 900-bone outfit changing every frame (every pose a 16 KB keyframe) asked 60 times
+  // The byte budget: every unit of a 897-bone outfit changing every frame (every pose a 16 KB keyframe) asked 60 times
   // a second by a 144 fps game thread for 10 s goes at kPoseBytesPerSecond, plus at most the burst and one pose; while
   // SBE runs (game/pilot.h), at kSbeBytesPerSecond less. A small pose at 60 a second is never held, SBE or not.
   static_assert(kPoseBytesPerSecond - kSbeBytesPerSecond == 180'224, "196,608 B/s less 16 KiB/s while SBE runs");
   {
     Table large;
     large.generation = 42;
-    large.eve = {Part{1, 1, 1, 900, true}};
-    std::vector<uint8_t> large_bones(900 * kTransformBytes), buf(kMaxPose);
+    large.eve = {Part{1, 1, 1, 897, true}};
+    std::vector<uint8_t> large_bones(897 * kTransformBytes), buf(kMaxPose);
     const Effect none[kEffectSlots];
     for (int pass = 0; pass < 4; ++pass) {
       const bool small = pass >= 2, sbe = pass % 2;
@@ -733,7 +1018,7 @@ int main() {
         next = (next && now - next < 16667 ? next : now) + 16667;
         float r[10] = {0, 0, 0, 1, 0, 0, 0, 1, 1, 1};
         uint8_t *bones_of = small ? bones.data() : large_bones.data();
-        for (size_t k = 0; k < (small ? kLeaderBones : 900); ++k) {
+        for (size_t k = 0; k < (small ? kLeaderBones : 897); ++k) {
           float f[12] = {};
           random_rotation(rng, f);
           for (int c = 0; c < 3; ++c)
@@ -803,7 +1088,7 @@ int main() {
       }
       holding = holding || keyframe;
       Decoded d;
-      const char *why = receiver.decode(t, buf.data(), n, d.h, d.root, d.bones.data(), d.fx);
+      const char *why = receiver.decode(t, buf.data(), n, d.h, d.root, d.bones.data(), d.fx, nullptr, d.ev);
       if (why) {
         assert(!holding && std::string(why) == "key");
         ++keyless;
@@ -843,7 +1128,7 @@ int main() {
         continue;
       keyframes += buf[2] == 'P';
       Decoded d;
-      const char *why = receiver.decode(t, buf.data(), n, d.h, d.root, d.bones.data(), d.fx);
+      const char *why = receiver.decode(t, buf.data(), n, d.h, d.root, d.bones.data(), d.fx, nullptr, d.ev);
       assert(!why && d.near(decoded_full(f)));
       ++decoded_ok;
     }

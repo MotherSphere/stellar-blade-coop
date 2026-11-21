@@ -23,7 +23,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `online.modes.nightop` | Night Operation | `online/modes/nightop/` | `online/modes/nightop/` | [Night Operation](../online/modes/nightop.md) | The shop's rows in `online/modes/nightop/shop_rows.h` |
 | `fight.bosses` | Cut enemies | `fight/bosses/` | `fight/bosses/` (its rows only) | [Cut enemies](../fight/bosses.md) | `fight/bosses/enemy.lua`, its copy; the Lion's, the Gardener's and the Tendril's rows in `fight/bosses/lion_rows.h`; `fight/bosses/lion_rows.lua`, the Lua list of those rows and of the bolt and shop batches |
 | `online.group` | Group play | `online/group/` | `online/group/` | [Following the host](../players/playing-with-a-friend.md#following-the-host) | |
-| `online.modes.race` | Doro races | `online/modes/race/` | none | [Doro races](../online/modes/race.md) | |
+| `online.modes.race` | Doro races | `online/modes/race/` | `online/modes/race/` | [Doro races](../online/modes/race.md) | `online/modes/race/match/round.lua` and the best times in `online/modes/race/match/model.lua`, its copies; the official tracks in `online/modes/race/match/tracks/` |
 | `eve` | EVE's cut moves | `eve/` | `eve/` (`debug_keys.h`, the anim and debug parts) | [EVE's cut moves](../eve/eve.md) | The Shock Bolt's rows in `eve/bolt_rows.h` (its ammo list grower stays shared in `rows/shock.h`); `eve/chainspin_rows.lua`, its copy of the ChainSpin rows |
 | `story.scenes` | Cut scenes | `story/scenes/` | none | [Cut scenes](../story/scenes.md) | |
 | `world.maps.matrix13` | Matrix XIII | `world/maps/matrix13/` | `world/maps/matrix13/` | [Matrix XIII](../world/matrix13.md), [Lily's signal](../world/lily-signal.md) | Its rows in `world/maps/matrix13/mxiii_rows.h` and `world/maps/matrix13/signal_rows.h`; `world/maps/matrix13/level/boss_rows.lua`, its copy of the Lion's and the Gardener's rows |
@@ -41,6 +41,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `world.teamshop` | Team shop | `world/teamshop/` | `world/teamshop/` | [Team shop](../world/teamshop.md) | Its rows in `world/teamshop/teamshop_rows.h` |
 | `fight.gunmode` | Gun mode | `fight/gunmode/` | `fight/gunmode/` (its rows only) | [Gun mode](../fight/gunmode.md) | Its rounds' rows in `fight/gunmode/nikke_rows.h`; `fight/gunmode/rows.lua`, the Lua list of those rows |
 | `online.modes.scoreattack` | Score attack | `online/modes/scoreattack/` | none | [Score attack](../online/modes/scoreattack.md) | `online/modes/scoreattack/challenges.lua`, `online/modes/scoreattack/waves.lua` and `online/modes/scoreattack/run.lua`, its copies |
+| `online.modes.fishing` | Fishing tournament | `online/modes/fishing/` | `online/modes/fishing/` | [Fishing tournament](../online/modes/fishing.md) | `online/modes/fishing/records.lua`, its copy of score attack's records; `online/modes/fishing/rows.lua`, the names of SB's 40 fish rows; `native/src/online/modes/fishing/fishing.h`, its copy of the set walk of `cutmenus/items.h` |
 
 ## Shared pieces
 

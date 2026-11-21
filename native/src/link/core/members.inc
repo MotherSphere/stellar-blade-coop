@@ -64,6 +64,13 @@ public:
         bits = static_cast<uint8_t>(bits | 1u << p.slot);
     return bits;
   }
+  // The ghost slot of the member with this SteamID past the handshake both ways, or -1.
+  int slot_of(uint64_t id) const {
+    for (auto &p : peers_)
+      if (p.id == id && p.compatible && p.accepted)
+        return static_cast<int>(p.slot);
+    return -1;
+  }
 
   // This account's SteamID: 0 until Steam is ready.
   uint64_t me() const { return me_; }

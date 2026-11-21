@@ -5,8 +5,14 @@
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local files,renames={},0
 local fs={
-    read=function(path) return files[path] end,
+    read=function(path,limit,offset)
+        local text=files[path]
+        if text and offset then text=text:sub(offset+1) end
+        if text and limit then text=text:sub(1,limit) end
+        return text
+    end,
     write=function(path,text) files[path]=text; return true end,
+    append=function(path,text) files[path]=(files[path] or '')..text; return true end,
     remove=function(path) files[path]=nil; return true end,
     rename=function(from,to)
         if files[to] then return nil,'exists' end -- Windows' rename never replaces.
@@ -74,6 +80,15 @@ assert(link.display(nil) and files[DISPLAY]==nil)
 assert(link.remote_table()==nil)
 files[REMOTE]='SBT 9\ngeneration 7\n'
 assert(link.remote_table()=='SBT 9\ngeneration 7\n' and files[REMOTE],'Read, never removed')
+-- Her drone as the native part found it: the actor's address text, or nil.
+local DRONE='C:\\Mod\\coop-drone.txt'
+assert(link.drone()==nil,'No file yet')
+files[DRONE]='drone 0x1f2e3d4c5b60\n'; assert(link.drone()=='0x1f2e3d4c5b60')
+files[DRONE]='drone none\n'; assert(link.drone()==nil)
+files[DRONE]='drone 12\n'; assert(link.drone()==nil,'only 0x and hex digits')
+files[DRONE]='drone 0x\n'; assert(link.drone()==nil,'no digit')
+files[DRONE]='drone 0x1f2e3d4c5b60 extra\n'; assert(link.drone()==nil,'one word')
+files[DRONE]=nil
 
 -- The remote table the native part holds, from the status as of the last changes().
 files[STATUS]='mod=v\nengine=on loopback=on 120 30 1 remote=1797 3 loopback\nlast=#5 remote table\n'
@@ -611,10 +626,26 @@ assert(Link.parse_settings('').hide_popups==true and Link.parse_settings('hide_p
 -- the next round (online/modes/scoreattack/game.lua).
 assert(Link.parse_settings('').scoreattack==true and Link.parse_settings('scoreattack=OFF').scoreattack==false
     and Link.DEFAULT:find('\nhide_popups=on\n# Score attack: on or off, on by default.',1,true)
-    and Link.DEFAULT:find('\nscoreattack=on\n$'))
+    and Link.DEFAULT:find('\nscoreattack=on\n',1,true))
 s,notes=Link.parse_settings('scoreattack=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for scoreattack (use on or off); "
     .."scoreattack stays on" and s.scoreattack==true,notes[1])
+-- Fishing tournament: on by default, its comment right after scoreattack (online/modes/fishing reads it at each go
+-- line).
+assert(Link.parse_settings('').fishing==true and Link.parse_settings('fishing=OFF').fishing==false
+    and Link.DEFAULT:find('\nscoreattack=on\n# Fishing tournament: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nfishing=on\n# Doro races in matches: on or off, on by default.',1,true))
+s,notes=Link.parse_settings('fishing=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for fishing (use on or off); "
+    .."fishing stays on" and s.fishing==true,notes[1])
+-- Doro races in matches: on by default, last in a new file, its comment right after fishing. Session races do not
+-- read it (online/modes/race/).
+assert(Link.parse_settings('').race_match==true and Link.parse_settings('race_match=OFF').race_match==false
+    and Link.DEFAULT:find('\nfishing=on\n# Doro races in matches: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nrace_match=on\n$'))
+s,notes=Link.parse_settings('race_match=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for race_match (use on or off); "
+    .."race_match stays on" and s.race_match==true,notes[1])
 assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)
@@ -659,6 +690,20 @@ assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for clo
     and s.cloth==true,notes[1])
 s,notes=Link.parse_settings('dyes=maybe')
 assert(#notes==1 and notes[1]:find('; dyes stays on$') and s.dyes==true,notes[1])
+-- Her drone, her sounds and her face and shape keys: looks too, on unless set. A file with the comment 0.11 wrote gets
+-- the one that names them.
+s=Link.parse_settings('')
+assert(s.drone==true and s.sounds==true and s.faces==true,'drone, sounds and faces are on by default')
+s,notes=Link.parse_settings('DRONE=Off\nsounds=OFF\n')
+assert(#notes==0 and s.drone==false and s.sounds==false and s.faces==true)
+s,notes=Link.parse_settings('faces=maybe')
+assert(#notes==1 and notes[1]:find('; faces stays on$') and s.faces==true,notes[1])
+local OLD_GHOST="# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; "
+    .."it sends\n# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). "
+    .."dyes and effects off\n# also stop sending yours.\n# For example: dyes=off"
+assert(Link.migrate_off('send_rate=60\n'..OLD_GHOST..'\n'):find('faces (her eyes, face and shape keys)',1,true),
+    'a file with the old comment gets the new one')
+assert(Link.DEFAULT:find('faces (her eyes, face and shape keys)',1,true))
 -- The shared enemies (Phase 11, experimental): shared_enemies on or off, on by default; fight_chars auto (the default:
 -- every common enemy, an empty list for the native part) or at most 16 whole character ids from 1 to 2^32-1 separated
 -- by spaces. An empty value is auto too: the files written before auto said fight_chars= and shared nothing. A bad
@@ -1117,6 +1162,17 @@ assert(link.state(true,60,'0','both',600,nil,false,false)=='world=1 rate=60 phot
 assert(link.state(true,60,'0','both',600,nil,false,true)=='world=1 rate=60 photo=0 sync=both max=600')
 assert(link.state(false,60,'c','notice',3600,true,true,false)
     =='world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0' and #files[STATE_FILE]<=80)
+-- sounds=off: sounds=0 last (the native part then records and plays no sound); on (true or not given) adds nothing.
+assert(link.state(true,60,'0','both',600,nil,nil,nil,false)=='world=1 rate=60 photo=0 sync=both max=600 sounds=0')
+assert(link.state(true,60,'0','both',600,nil,nil,nil,true)=='world=1 rate=60 photo=0 sync=both max=600')
+assert(link.state(false,60,'c','notice',3600,true,true,false,false)
+    =='world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0 sounds=0' and #files[STATE_FILE]<=80)
+-- collide off (or an SBO session): collide=0 last (the native part then pushes no enemy out of a ghost); on (true or
+-- not given) adds nothing. The longest line within the native part's 96 bytes.
+assert(link.state(true,60,'0','both',600,nil,nil,nil,nil,false)=='world=1 rate=60 photo=0 sync=both max=600 collide=0')
+assert(link.state(true,60,'0','both',600,nil,nil,nil,nil,true)=='world=1 rate=60 photo=0 sync=both max=600')
+assert(link.state(false,60,'c','notice',3600,true,true,false,false,false)
+    =='world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0 sounds=0 collide=0' and #files[STATE_FILE]<=96)
 fs.write=write
 
 -- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.
@@ -1228,6 +1284,37 @@ do
     g,n,source=link.remote(0)
     assert(g==5 and n==2 and source=='peer')
     assert(select('#',link.remote(2))==0 or link.remote(2)==nil,'No table in slot 2')
+    -- Her asset names (coop-names-<k>.txt, the native part appends): read from an offset, only whole lines; false
+    -- once the file is shorter than the offset, gone or has a new head line (the slot was reset). Our loaded objects (coop-loaded-<k>.txt):
+    -- appended a line at a time; nil removes the file.
+    local NAMES,LOADED='C:\\Mod\\coop-names-2.txt','C:\\Mod\\coop-loaded-2.txt'
+    files[NAMES]='name 1 sound /Game/Sound/A.A - - -\n'
+    local text,at=link.slot(2).names(0)
+    assert(text=='name 1 sound /Game/Sound/A.A - - -\n' and at==#text and link.names(0)==nil)
+    files[NAMES]=files[NAMES]..'name 2 niagara /Game/Art/FX/B.B - -\nname 3 cas'
+    local more,now=link.slot(2).names(at)
+    assert(more=='name 2 niagara /Game/Art/FX/B.B - -\n' and now==at+#more,'only what was appended, whole lines')
+    assert(link.slot(2).names(now)=='' and select(2,link.slot(2).names(now))==now,'a cut line waits')
+    files[NAMES]=''
+    assert(link.slot(2).names(at)==false,'shorter: the slot was reset')
+    files[NAMES]=nil
+    assert(link.slot(2).names(at)==false and link.slot(2).names(0)==nil,'gone: reset, then nothing')
+    -- The head line the native part writes at each reset: given back by the read at 0, then a read past it with
+    -- another head is a reset, even when the new file is longer and has a newline before the offset.
+    files[NAMES]='book 4\nname 1 sound /Game/Sound/A.A - - -\n'
+    local first,past,head=link.slot(2).names(0)
+    assert(first==files[NAMES] and past==#first and head=='book 4',tostring(head))
+    files[NAMES]=files[NAMES]..'name 2 sound /Game/Sound/B.B - - -\n'
+    assert(link.slot(2).names(past,head)=='name 2 sound /Game/Sound/B.B - - -\n','the same head: read on')
+    files[NAMES]='book 5\nname 1 sound /Game/Sound/X.X - - -\nname 2 sound /Game/Sound/D.D - - -\n'
+    assert(files[NAMES]:sub(past,past)=='\n' and link.slot(2).names(past,head)==false,'another head: reset')
+    assert(select(3,link.slot(2).names(0))=='book 5')
+    assert(link.slot(2).loaded('loaded 1 0x10 0x20 0x0 0x0') and link.slot(2).loaded('loaded 2 0x11 0x20 0x0 0x0'))
+    assert(files[LOADED]=='loaded 1 0x10 0x20 0x0 0x0\nloaded 2 0x11 0x20 0x0 0x0\n','appended')
+    assert(link.slot(2).loaded(nil) and files[LOADED]==nil,'nil removes the file')
+    local MINE='C:\\Mod\\coop-loaded.txt'
+    assert(link.loaded('loaded 1 0x10 0x20 0x0 0x0') and files[MINE]=='loaded 1 0x10 0x20 0x0 0x0\n')
+    assert(link.loaded(nil) and files[MINE]==nil,'nil removes the file')
     files[STATUS]=HEAD..'engine=on remote3=9 1\n'
     link.changes()
     g,n,source=link.remote()
@@ -1484,6 +1571,52 @@ files[CHAT]=table.concat(many,'\n')..'\n'
 link.take_chat()
 scores=link.take_score()
 assert(#scores==64 and scores[1].text=='now 7 7 1' and scores[64].text=='now 7 70 1')
+-- Doro race lines of a match round: dr() is a dr request; each member's line waits for take_dr() with her SteamID,
+-- apart from the chat, the race lines and the score lines, oldest first; a line with no id is no dr line.
+files[REQUEST]=nil
+assert(link.dr('go 7 4242 xion_eight') and files[REQUEST]=='dr go 7 4242 xion_eight\n')
+files[REQUEST]=nil
+assert(#link.take_dr()==0)
+files[CHAT]='dr 2002 ready 7\nin 2002 dr 9\ndr x go 7\nscore 4003 ready 7\ndr 4003 done 7 fin 61200 1\nrace dr 1\n'
+chat=link.take_chat()
+assert(#chat==2 and chat[1].text=='dr 9' and chat[2].race=='dr 1','Dr lines kept apart')
+local drs=link.take_dr()
+assert(#drs==2 and drs[1].from=='2002' and drs[1].text=='ready 7' and drs[2].from=='4003'
+    and drs[2].text=='done 7 fin 61200 1' and #link.take_dr()==0,'Handed over once, in order')
+scores=link.take_score()
+assert(#scores==1 and scores[1].text=='ready 7','A score line stays a score line')
+-- The same ceiling: 64 waiting at most, the oldest dropped.
+for i=1,70 do many[i]='dr 2002 cp 7 1 1 '..i end
+files[CHAT]=table.concat(many,'\n')..'\n'
+link.take_chat()
+drs=link.take_dr()
+assert(#drs==64 and drs[1].text=='cp 7 1 1 7' and drs[64].text=='cp 7 1 1 70' and #link.take_score()==0)
+-- Mode lines: mode_line() is a mode request; each member's line waits for take_mode() under its word with her
+-- SteamID, apart from what take_chat() returns and from the other words, oldest first; a line with no id or no
+-- lowercase word is no mode line.
+files[REQUEST]=nil
+assert(link.mode_line('fish','go 7 10 1001,2002') and files[REQUEST]=='mode fish go 7 10 1001,2002\n')
+files[REQUEST]=nil
+assert(#link.take_mode('fish')==0)
+files[CHAT]='mode 2002 fish ready 7\nmode 4003 photohunt claim 7 1\nin 2002 mode 9\nmode x fish go 7\n'
+    ..'mode 2002 Fish go 7\nmode 4003 fish catch 7 9220 138\nscore 2002 fish 1\n'
+chat=link.take_chat()
+assert(#chat==1 and chat[1].text=='mode 9','Mode lines kept apart')
+local fish=link.take_mode('fish')
+assert(#fish==2 and fish[1].from=='2002' and fish[1].text=='ready 7' and fish[2].from=='4003'
+    and fish[2].text=='catch 7 9220 138' and #link.take_mode('fish')==0,'Handed over once, in order')
+local hunt=link.take_mode('photohunt')
+assert(#hunt==1 and hunt[1].from=='4003' and hunt[1].text=='claim 7 1' and #link.take_mode('photohunt')==0,
+    'Each word apart')
+assert(#link.take_score()==1 and link.take_score()[1]==nil,'The score line stays a score line')
+-- ponytail's ceiling: 64 waiting a word at most, the oldest dropped, for a pass that never takes them.
+many={}
+for i=1,70 do many[i]='mode 2002 fish catch 7 9220 '..i end
+files[CHAT]=table.concat(many,'\n')..'\nmode 2002 photohunt claim 7 1\n'
+link.take_chat()
+fish=link.take_mode('fish')
+assert(#fish==64 and fish[1].text=='catch 7 9220 7' and fish[64].text=='catch 7 9220 70'
+    and #link.take_mode('photohunt')==1)
 -- ponytail's ceiling: 512 waiting at most, the oldest dropped, for a native part that never takes the file.
 files[RACE]='stuck\n'
 for i=1,520 do link.race('cp 7 1 1 '..i) end
@@ -1497,7 +1630,7 @@ files[RACE]=nil
 -- The HUD's fields, as of the last changes(): her vitals (mate=, never logged as they change up to 10 times a
 -- second), the RTT of the member the status line names (her member= line's, past the handshake only); whether a chat
 -- session holds: a friend linked (lost or not), a rejoin under way, or the loopback.
-local MATE='mate=900 1600 0 50 5 200 1000 0 0 0 0 1\n'
+local MATE='mate=900 1600 0 50 5 200 1000 0 0 0 0 1 0\n'
 files[STATUS]=HEAD..'peer=2 name=x rtt_ms=5 session=3 session_ping=4 hello=1 accepted=1 compatible=1 lost=0 '
     ..'invalid=0 rtt_ms=118 session=3 session_ping=40\nmember=2 0 1 0 0 118 x rtt_ms=5\nfriend=1 0 x\n'..MATE
     ..'last=#9 x\n'
@@ -1518,6 +1651,42 @@ for _,bad in ipairs({'life=1\n','life=1 2 3\n','life=-1 5\n','life=x 5\n','frien
     fresh.changes()
     assert(fresh.life()==nil,bad)
 end
+-- The zone type rides in the vitals: mate= and vit= with 13 numbers; 12 read as none.
+do
+    local MATE13='mate=900 1600 0 50 5 200 1000 0 0 0 0 1 5\n'
+    files[STATUS]=HEAD..'friend=1 0 x\n'..MATE13
+    fresh.changes()
+    assert(fresh.mate().zone==5 and fresh.mate().life==1)
+    files[STATUS]=HEAD..'friend=1 0 x\nmate=900 1600 0 50 5 200 1000 0 0 0 0 1\n'
+    fresh.changes()
+    assert(fresh.mate()==nil,'The 12 numbers of before: no vitals')
+    for t=-1,8 do assert(Link.solo(t)==(t>=2 and t<=6),t) end
+    assert(Link.solo(nil)==false and Link.solo('5')==false)
+    -- zone() from the engine line; spots() from the spot lines.
+    files[STATUS]='mod=v steam=ready\nengine=on warp=idle me=4242 zonetype=5 area=Zone_Xion_Boss_RavenBeast '
+        ..'rest=2:Zone_X:1 starts=3 travel=idle travel_calls=0\nlink=guest lobby=7\nspot?=4\nspot=9 -1235 0 7 -180\n'
+    fresh.changes()
+    local t,area=fresh.zone()
+    assert(t==5 and area=='Zone_Xion_Boss_RavenBeast')
+    local asked,answer=fresh.spots()
+    assert(asked==4 and answer=='9 -1235 0 7 -180')
+    files[STATUS]='mod=v steam=ready\nengine=on warp=idle me=4242 zonetype=1 area=none rest=0:none:0 starts=0\n'
+        ..'link=guest lobby=7\nspot=9 none air\n'
+    fresh.changes()
+    t,area=fresh.zone()
+    asked,answer=fresh.spots()
+    assert(t==1 and area==nil and asked==nil and answer=='9 none air','area=none: no area')
+    -- No engine line (or one before the warp read): type 0, no area; no spot lines: none (a session's end).
+    files[STATUS]='mod=v steam=ready\nlink=guest lobby=7\nfriend=1 0 x spot?=4 spot=9 1 2 3 4\n'
+    fresh.changes()
+    t,area=fresh.zone()
+    asked,answer=fresh.spots()
+    assert(t==0 and area==nil and asked==nil and answer==nil)
+    -- A rest line in coop-chat.txt: the zone and the resting member's SteamID; a line without digits is ignored.
+    files[CHAT]='rest Zone_Xion_10 2002\nrest Zone_Xion_10 Kaanta\n'
+    lines=fresh.take_chat()
+    assert(#lines==1 and lines[1].rest=='Zone_Xion_10' and lines[1].from=='2002')
+end
 -- The follow's camps lines: the host's camps?=<id> (her last request) and the guest's camps=<answer>, from the start of
 -- their own lines only, each in the log once.
 files[STATUS]=HEAD..'friend=1 0 x\ncamps?=41\ncamps=7 Xion Xion_Camp_10:12\n'
@@ -1534,7 +1703,7 @@ for _,bad in ipairs({'friend=1 0 x camps?=41 camps=7 x\n','camps?=x\ncamps=\n','
     assert(asked==nil and answer==nil,bad)
 end
 files[STATUS]=HEAD..'peer=2 name=x hello=1 accepted=0 compatible=1 lost=0 invalid=0 rtt_ms=40 session=1 '
-    ..'session_ping=-1\nmember=2 0 0 0 0 40 x\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12\nmate=1 2 3\n'
+    ..'session_ping=-1\nmember=2 0 0 0 0 40 x\nfriend=0 0 x mate=1 2 3 4 5 6 7 8 9 10 11 12 0\nmate=1 2 3\n'
 fresh.changes()
 assert(fresh.mate()==nil and fresh.ping()==nil and fresh.chatting()==false,'No vitals, no RTT, not linked')
 files[STATUS]=HEAD..'friend=1 1 x\n'
@@ -1631,12 +1800,14 @@ assert(door.pending()==nil and #door.pendings()==0)
 -- vitals (vit=, out of the log as mate= is), how many are past the handshake, the status line with ' +<n>'.
 local V12='1 2 3 4 5 6 7 8 9 10 11 '
 local CROWD='mod=v steam=ready\nlink=host lobby=7003\nhost=1 pair=21 max=4\nmember=21 0 1 0 0 40 Kaanta\n'
-    ..'member=22 1 1 0 0 50 Lucas\nmember=23 2 0 0 0 -1 Wait\nfriend=1 0 Kaanta\nvit=21 '..V12..'1\nvit=22 '..V12..'4\n'
+    ..'member=22 1 1 0 0 50 Lucas\nmember=23 2 0 0 0 -1 Wait\nfriend=1 0 Kaanta\nvit=21 '..V12..'1 0\n'
+    ..'vit=22 '..V12..'4 6\n'
 files[STATUS]=CROWD
 lines=door.changes()
 for _,line in ipairs(lines) do assert(not line:find('^vit='),'vit= stays out of the log') end
 assert(door.host().id=='1' and door.host().pair=='21' and door.others()==2)
 assert(door.vitals('21').life==1 and door.vitals('22').life==4 and door.vitals('22').hp==1 and door.vitals('23')==nil)
+assert(door.vitals('21').zone==0 and door.vitals('22').zone==6,'Her zone type, the thirteenth number')
 assert(door.slot(1).mate().life==4 and door.slot(2).mate()==nil and door.slot(1).friend()=='Lucas')
 assert(door.summary()=='Co-op: hosting Kaanta +1.' and door.ping()==40 and door.cap()==4)
 files[STATUS]=CROWD:gsub('friend=1 0 Kaanta\n',''):gsub('member=21 0 1','member=21 0 0'):gsub('pair=21','pair=0')
@@ -1664,7 +1835,7 @@ door.changes()
 assert(door.host().id=='1' and door.cap()==nil,'max=0: the let line has not come yet')
 for _,bad in ipairs({'host=1\n','host=x pair=2 max=4\n','host=1 pair=2 max=4 x\n','friend=1 0 x host=1 pair=2 max=4\n',
         'host=1 pair=2\n','host=1 pair=2 max=x\n',
-        'vit=21 1 2 3\n','vit=x '..V12..'1\n'}) do
+        'vit=21 1 2 3\n','vit=x '..V12..'1 0\n','vit=21 '..V12..'1\n'}) do
     files[STATUS]='mod=v steam=ready\nlink=host lobby=7003\n'..bad
     door.changes()
     assert(door.host()==nil and door.vitals('21')==nil,bad)
@@ -1776,9 +1947,11 @@ do
     end
     old=swap(old,'on or off, on by\n# default, not tested in game yet.',
         'on or off, off\n# until it has been tested in game.')
-    old=swap(old,"# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in "
-        .."solo; it sends\n# nothing), dyes (hair colours and material variants) and effects (her attack and skill "
-        .."effects). dyes and effects off\n# also stop sending yours.\n# For example: dyes=off",
+    local NEW_GHOST="# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in "
+        .."solo; it sends\n# nothing), dyes (hair colours and material variants), effects (her attack and skill "
+        .."effects), drone (her drone),\n# sounds (her steps, voice, swings and hits) and faces (her eyes, face and "
+        .."shape keys). Each one but cloth also stops\n# sending yours when off.\n# For example: dyes=off"
+    old=swap(old,NEW_GHOST,
         "# What the ghost shows, each on or off: cloth (her ponytail swings as in solo; on unless set here, and it "
         .."sends\n# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects), "
         .."both off unless set\n# here. dyes and effects off also stop sending yours.\n# For example: dyes=on")
@@ -1807,6 +1980,18 @@ do
         notes[1])
     s,notes=require('core.link').new('C:\\Mod',fs).settings()
     assert(s.revive and #notes==0,'Once only')
+    -- A file 0.11 wrote: only its ghost comment changes, an off look stays, the line claims no setting.
+    files[SETTINGS],files[OLD_FILE]=swap(Link.DEFAULT,NEW_GHOST,OLD_GHOST)..'faces=off\n',nil
+    s,notes=require('core.link').new('C:\\Mod',fs).settings()
+    assert(files[SETTINGS]==Link.DEFAULT..'faces=off\n' and s.faces==false and #notes==1
+        and notes[1]=='settings: the comments in coop-settings.txt now read as this version writes them; no setting '
+        ..'changed',notes[1])
+    fs.write=function() return false end
+    files[SETTINGS],files[OLD_FILE]=swap(Link.DEFAULT,NEW_GHOST,OLD_GHOST),nil
+    s,notes=require('core.link').new('C:\\Mod',fs).settings()
+    assert(#notes==1 and notes[1]:find('^settings: the comments in coop%-settings%.txt kept as they were %(not '
+        ..'rewritten: '),notes[1])
+    fs.write=write
     files[SETTINGS],files[OLD_FILE]=nil,nil
 end
 -- The real read: no such file gives nil with errno 2 (coop-records.txt tells it from a file it cannot open).
