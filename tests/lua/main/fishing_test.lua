@@ -8,7 +8,7 @@
 -- the round, its game side (the book asked once a second from GO) and its screens (online/modes/fishing/ui/board.lua,
 -- built on the kit's hud step: the round's start notice in the menu's words, the corner board each pass, hidden on the
 -- title screen); coop off ends the tournament with no line and no ask after it and hides the board; the pass line is
--- guarded.
+-- guarded; fishing=off and a save that is not a co-op one refuse the host's start.
 dofile('tests/lua/main/fixture.lua')
 local Round=require('online.modes.fishing.round')
 local new,o=Round.new,nil
@@ -115,5 +115,15 @@ local errors=0
 local ERROR='fishing: error (logged once until the mod reloads; the other modules go on): boom'
 for _,l in ipairs(printed) do if l:find(ERROR,1,true) then errors=errors+1 end end
 assert(errors==1,'Logged once')
+-- The fishing setting and the co-op save check reach the round through main.lua: each refuses the host's start.
+settings_text='fishing=off\n'
+load_main(true)
+assert(select(2,round.start('1'))=='off','fishing=off from the settings')
+settings_text=''
+load_main(true)
+status_text=status_text:gsub('slot=coop ','slot=normal ')
+assert(select(2,round.start('1'))=='slot','Off a co-op save')
+status_text=status_text:gsub('slot=normal ','slot=coop ')
+assert(round.start('1'),'Both hold: it starts')
 Where.world,Where.me,os.time=world,me,time
 print('main/fishing_test ok')
