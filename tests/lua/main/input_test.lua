@@ -231,7 +231,7 @@ end)()
 
 -- Spectate (fight/enemies/spectate.lua) while our EVE is down in a shared boss fight: the pad's left and right that
 -- nothing else took switch the member it watches; the co-op menu open takes them first. The left and right arrows the
--- same way, never A, Q or D; nothing while it does not watch.
+-- same way, never A, Q or D, nor while the code box or the chat box is open; nothing while it does not watch.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
@@ -251,6 +251,19 @@ end)()
     assert(table.concat(sp.switches,'|')=='left|right|left|right',table.concat(sp.switches,'|'))
     key('A'); key('Q'); key('D'); key('UP_ARROW'); key('DOWN_ARROW')
     assert(#sp.switches==4,'A, Q, D and the up and down arrows: no switch')
+    -- A box that takes typing keeps the arrows for its cursor: the code box (Join with a code), then the chat box.
+    key('F5'); to('Join with a code'); key('RETURN'); assert(kit_shown.code and not kit_shown.menu)
+    key('LEFT_ARROW'); key('RIGHT_ARROW')
+    assert(#sp.switches==4 and kit_shown.code,'The code box keeps the arrows: '..table.concat(sp.switches,'|'))
+    pad(6); assert(not kit_shown.code)
+    link_mode,chat_active='host',true
+    key('RETURN'); clock=clock+0.25; loops[1].f(); assert(kit_shown.chat)
+    key('LEFT_ARROW'); key('RIGHT_ARROW')
+    assert(#sp.switches==4 and kit_shown.chat,'The chat box keeps the arrows: '..table.concat(sp.switches,'|'))
+    pad(6); assert(not kit_shown.chat)
+    key('RIGHT_ARROW')
+    assert(table.concat(sp.switches,'|')=='left|right|left|right|right','The box closed: the arrow switches')
+    link_mode,chat_active='none',false
     -- The camera's frame each frame, right after the ghost's place (main/frame.lua).
     local frames=sp.frames
     loops[1].f()
