@@ -40,10 +40,17 @@ std::vector<std::string> outbox;
 // Her asset names (game/events.h's SBA lines), under m too: the lines the game thread named since the worker's last
 // asset_lines(); asset_keys_reset, set by asset_keys_clear() at a link session's start or end (the game thread takes it
 // in its next hold of m and drops its asset keys before it names another asset); each ghost slot's loaded
-// objects by key, from the slot's coop-loaded file (the worker writes them in place; asset_slot_reset() empties one).
+// objects by key, from the slot's coop-loaded file, with the int parameters her SBA line named for that key (the
+// worker writes them in place; asset_slot_reset() empties one; play_game.inc copies an entry out under m).
 std::vector<std::string> asset_named;
 bool asset_keys_reset = false;
-std::array<std::unordered_map<uint16_t, Loaded>, kMaxRemote> asset_loaded;
+struct Named {
+  Loaded loaded{};
+  uint8_t params = 0;
+  char param_name[kMaxParams][sba::kMaxWord + 1] = {};
+  int32_t param_value[kMaxParams] = {};
+};
+std::array<std::unordered_map<uint16_t, Named>, kMaxRemote> asset_loaded;
 // The game thread's: our asset keys for this link session, our events on their way into the pose's event slots, the
 // fresh SBA lines not handed over yet. asset_keys_stale: a reset taken under m, carried out right after it (the keys,
 // lines and events of the session before are dropped).
@@ -325,8 +332,16 @@ void stream(uint64_t now_us) {
       // but the worker reads that withdrawal only within 250 ms: a destroyed ghost is no refused write, just the end.
       if (!alive(objects, static_cast<uintptr_t>(ghost.display.puppet[0].object)))
         ghost.ghost_gone = true;
-      else if (ghost.playback.sample(now_us, ghost.draw_root, ghost.draw.data(), ghost.draw_fx, ghost.draw_free))
+      else if (ghost.playback.sample(now_us, ghost.draw_root, ghost.draw.data(), ghost.draw_fx, ghost.draw_free)) {
         ++(write_puppet(ghost) ? window_drawn_written : window_drawn_refused);
+        ghost.drawn_at = now_us;
+        // Her sounds the playback reached go to wait for their names: play_game.inc plays them, no game call here.
+        Event passed[NameWait::kHeld];
+        const size_t n = ghost.playback.passed(passed, std::size(passed));
+        for (size_t k = 0; k < n; ++k)
+          if (passed[k].kind == Kind::sound)
+            ghost.waiting.hold(passed[k], now_us);
+      }
     }
     Playback::Stats s = ghost.playback.take(); // Summed over the slots: the 60 s line's means stay per pose.
     window_poses += s.poses;

@@ -3,15 +3,19 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // online/partner/sound.h on the build machine: a set of slots swapped all or none and given back; the three sets apart;
 // why a sound is hers; what the sink records; the ring under one mark; a show stage's main actor; the asset key's
-// attenuation with params; an SBA line's words from the name pool.
+// attenuation with params; an SBA line's words from the name pool; the viewer's place of her sound from its event.
 #include "online/partner/sound.h"
 
 #include <cassert>
+#include <cmath>
+#include <random>
 #include <cstdio>
 #include <cstring>
 #include <map>
 #include <string>
 #include <vector>
+
+#include "game/partner/engine.h" // relative(), the sender's side of compose()
 
 void test_swap_all_refuses_and_gives_back() { // Review Focus 5
   const uint64_t base = 0x7ff600000000, image = coop::game::kImageBase;
@@ -208,6 +212,33 @@ void test_fit_parts() { // an event on a part the table no longer has goes empty
   assert(slots[3].kind == Kind::none);
 }
 
+void test_compose() { // the viewer puts her sound back where her game played it, from the event's place
+  std::mt19937 rng(5);
+  std::uniform_real_distribution<float> u(-1.f, 1.f);
+  for (int n = 0; n < 2000; ++n) {
+    float parent[10], child[10], place[7], world[7];
+    for (float *t : {parent, child}) {
+      float q[4] = {u(rng), u(rng), u(rng), u(rng)};
+      const float len = std::sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+      for (int i = 0; i < 4; ++i)
+        t[i] = len > 1e-3f ? q[i] / len : float(i == 3);
+      for (int i = 4; i < 7; ++i)
+        t[i] = 5000.f * u(rng);
+      t[7] = t[8] = t[9] = n % 2 ? 1.f : 1.5f; // EVE's scale is 1; a scaled parent too
+    }
+    coop::pose::relative(parent, child, place);
+    coop::sound::compose(parent, place, world);
+    for (int i = 4; i < 7; ++i)
+      assert(std::fabs(world[i] - child[i]) < 0.05f);
+    const float dot = world[0] * child[0] + world[1] * child[1] + world[2] * child[2] + world[3] * child[3];
+    assert(std::fabs(std::fabs(dot) - 1.f) < 1e-4f); // the same rotation
+  }
+  const float identity[10] = {0, 0, 0, 1, 100, 200, 300, 1, 1, 1}, at[7] = {0, 0, 0, 1, 1, 2, 3};
+  float out[7];
+  coop::sound::compose(identity, at, out);
+  assert(out[4] == 101 && out[5] == 202 && out[6] == 303 && out[3] == 1);
+}
+
 int main() {
   test_swap_all_refuses_and_gives_back();
   test_three_sets();
@@ -220,6 +251,7 @@ int main() {
   test_record_words();
   test_record_words_longest_key();
   test_fit_parts();
+  test_compose();
   std::puts("sound_test: ok");
   return 0;
 }

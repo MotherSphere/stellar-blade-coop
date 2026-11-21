@@ -209,16 +209,27 @@ void read_loaded(size_t slot) {
   std::vector<Loaded> got;
   parse_loaded(text, got);
   loaded_refused += static_cast<uint64_t>(std::count(text.begin(), text.end(), '\n')) - got.size();
+  std::vector<Named> named; // Each with the int parameters the slot's line for its key names.
+  for (const Loaded &l : got) {
+    const auto line = names.lines.find(l.k);
+    const auto parsed = line == names.lines.end() ? std::nullopt : parse_asset_line(line->second);
+    if (!parsed) {
+      ++loaded_refused;
+      continue;
+    }
+    Named &n = named.emplace_back();
+    n.loaded = l;
+    for (const Param &p : parsed->params) { // At most kMaxParams words of 1 to kMaxWord bytes (parse_asset_line).
+      std::memcpy(n.param_name[n.params], p.name.data(), p.name.size());
+      n.param_value[n.params++] = p.value;
+    }
+  }
   std::lock_guard<std::mutex> lock(m);
   if (shorter)
     asset_loaded[slot].clear();
-  for (const Loaded &l : got)
-    if (names.lines.count(l.k)) {
-      asset_loaded[slot].insert_or_assign(l.k, l);
-      ++loaded_in;
-    } else {
-      ++loaded_refused;
-    }
+  for (const Named &n : named)
+    asset_loaded[slot].insert_or_assign(n.loaded.k, n);
+  loaded_in += named.size();
 }
 
 // One line onto nightop-probe.txt. Past 4 MB a last line says so and the poller stops for the run.
@@ -852,6 +863,10 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                    sound_sent = window_sound_sent.exchange(0), waited = window_sound_dropped.exchange(0),
                    paths = window_sound_paths.exchange(0), left_out = window_sound_left_out.exchange(0),
                    keys = window_sound_keys.exchange(0), ring = window_sound_ring.exchange(0);
+    const uint64_t played = window_play_played.exchange(0), play_far = window_play_far.exchange(0),
+                   play_ghost = window_play_ghost.exchange(0), play_all = window_play_all.exchange(0),
+                   play_scene = window_play_scene.exchange(0), play_hidden = window_play_hidden.exchange(0),
+                   play_unnamed = window_play_unnamed.exchange(0), play_unloaded = window_play_unloaded.exchange(0);
     if (!first && vitals_reads) { // Eight ReadProcessMemory calls each; the cost under Proton is unmeasured.
       char line[96];
       std::snprintf(line, sizeof line, "vitals read, last 60 s: %llu reads, max %llu us",
@@ -915,6 +930,16 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                       static_cast<unsigned long long>(waited), static_cast<unsigned long long>(paths),
                       static_cast<unsigned long long>(left_out), static_cast<unsigned long long>(keys),
                       kMaxAssetKeys, static_cast<unsigned long long>(ring));
+        event(line);
+      }
+      if (played || play_far || play_ghost || play_all || play_scene || play_hidden || play_unnamed || play_unloaded) {
+        std::snprintf(line, sizeof line,
+                      "sounds played, last 60 s: %llu played, %llu far, %llu over a ghost's %zu, %llu over all %zu, "
+                      "%llu in a scene, %llu from a hidden ghost, %llu without a name, %llu not loaded",
+                      static_cast<unsigned long long>(played), static_cast<unsigned long long>(play_far),
+                      static_cast<unsigned long long>(play_ghost), kPerGhost, static_cast<unsigned long long>(play_all),
+                      kAll, static_cast<unsigned long long>(play_scene), static_cast<unsigned long long>(play_hidden),
+                      static_cast<unsigned long long>(play_unnamed), static_cast<unsigned long long>(play_unloaded));
         event(line);
       }
       if (names_in || names_refused || loaded_in || loaded_refused) {

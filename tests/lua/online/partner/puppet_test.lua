@@ -2498,6 +2498,47 @@ end
 cns={}
 dyeable=false
 
+-- Her sounds' assets (online/partner/assets.lua): one loader for every ghost slot, made the first time a ghost is
+-- built with sounds or effects on; that ghost's slot watched with its files and the kinds its look wants, unwatched
+-- when the ghost goes; every ghost's tick drives it; coop off ends it.
+do
+    local made,watched,ticks,offs=0,{},0,0
+    package.loaded['online.partner.assets']={new=function()
+        made=made+1
+        return {watch=function(k,files,kinds) watched[k]={files=files,kinds=kinds} end,
+            unwatch=function(k) watched[k]=nil end,off=function() offs=offs+1 end,tick=function() ticks=ticks+1 end}
+    end}
+    package.loaded['online.partner.puppet']=nil
+    local P=require('online.partner.puppet')
+    -- A slot's files: the link's, with its names and loaded files (core/link.lua's slot(k)).
+    local files=setmetatable({names=function() end,loaded=function() return true end},{__index=link})
+    local function member(slot,look_of)
+        ghost=P.new(files,capture,function() end,false,look_of,function() return words end,nil,slot)
+        ghost.toggle()
+        send(940+slot,her_parts())
+        ghost.tick()
+        clock=clock+2
+        local built,line=build()
+        assert(built and line:find('^Ghost '..(940+slot)..' built: '),line)
+        return ghost
+    end
+    local g=member(2,{sounds=true})
+    assert(made==1 and watched[2] and watched[2].files==files,'one Assets for every ghost; this ghost\'s slot watched')
+    assert(watched[2].kinds.sound==true and watched[2].kinds.niagara==false,'its sounds, not effects it does not show')
+    local h=member(3,{sounds=false,effects=false})
+    assert(made==1 and watched[3]==nil,'sounds and effects off: not watched')
+    local before=ticks
+    h.tick()
+    g.tick()
+    assert(ticks==before+2,'each ghost\'s tick drives it')
+    g.toggle()
+    assert(watched[2]==nil,'its ghost gone: unwatched')
+    h.toggle()
+    P.assets_off()
+    assert(offs==1,'coop off: the loader removes every slot\'s loaded file')
+    package.loaded['online.partner.assets']=nil
+end
+
 -- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.
 local part=cloth_part(object('Owner'))
 for what,f in pairs({own=part.GetAddress,added=part.SetVisibility,replaced=part.IsA,given=world.GetFullName,

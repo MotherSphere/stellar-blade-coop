@@ -6,12 +6,12 @@ the ghost in [online/partner-internals.md](partner-internals.md).
 
 ## Looks
 
-Four looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`. All four are on by default. The
+The looks below change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`. All are on by default. The
 file names them in a comment only, so add a line such as `dyes=off` or `cloth=off`, or change them in the menu's
 Options > Ghost. A file that already says `cloth=off` keeps it off. `coop look` changes one until the mod reloads. With
 one on, the `Ghost ... built` log line ends with `; look: ...`.
 
-The four looks have not been tested in game yet. Back up your saves before you play with one on (see
+These looks have not been tested in game yet. Back up your saves before you play with one on (see
 [players/saves.md](../players/saves.md)), and turn it off if the game crashes or the ghost looks wrong.
 
 - `cloth`: her ponytail moves as in solo. In solo, the strands you see are an NvCloth simulation of the ponytail mesh,
@@ -51,7 +51,15 @@ The four looks have not been tested in game yet. Back up your saves before you p
   character: the one nearest her within 30 m. `drone=off` hides it on the ghosts you see and stops sending yours. A
   fault in that lookup logs `drone off: fault ...` once. Her ghost then goes on without the drone until the game
   restarts.
-- `dyes=off`, `effects=off` and `drone=off` also stop sending yours, so your friend's ghost of you lacks them too.
+- `sounds`: her sounds. Her ghost plays the steps, voice, swings and hits her game played, from where it played them.
+  Your game hears ghosts within 50 m of your EVE, at most 8 sounds a second from one ghost and 32 from all of them,
+  the nearest first. A shared scene plays its own sound, so the ghosts are silent during it and during your own
+  cutscenes. A hidden ghost is silent too (your photo mode's veil, or a second without a pose). Your game loads each
+  sound the first time a ghost names it, one every 0.25 s, so that first time it may be missing. A sound not loaded
+  within 0.2 s of its turn is dropped. Every 60 s with any sound played or dropped, a `sounds played, last 60 s:` line
+  counts why. A fault logs `sounds off: fault ...` once. Her sounds then stop on both sides until the game restarts.
+- `dyes=off`, `effects=off`, `drone=off` and `sounds=off` also stop sending yours, so your friend's ghost of you lacks
+  them too.
 
 ## Mods and CNS outfits
 

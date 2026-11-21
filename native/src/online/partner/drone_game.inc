@@ -25,6 +25,17 @@ struct DroneFind {
   }
 };
 
+// game_calls_ok() as the game thread reads it now: lion_gate open, the client in game and playing, not SB's logic
+// thread. Her drone's look and her sounds on the ghost (play_game.inc) call SB only then.
+bool ghost_calls_ok() {
+  uint32_t mode = 0;
+  const uintptr_t client = at<uintptr_t>(base + (travel::kClientAt - game::kImageBase));
+  return game::plausible(client) &&
+         game_calls_ok(lion_gate(mode) == lion::Why::none, at<int32_t>(client + travel::kFlow),
+                       at<int32_t>(client + travel::kPhase),
+                       GetCurrentThreadId() == at<uint32_t>(base + (world::kLogicThread - game::kImageBase)));
+}
+
 // False while a logic task runs (no look: a later frame tries again). Else true, actor her drone's character or 0: no
 // look allowed (drone::may_ask), no CharID, none of SB's list within 30 m of her. Out of line with plain values:
 // clang-cl catches a fault only in a function the __try calls.
@@ -41,13 +52,7 @@ __declspec(noinline) bool drone_look(const Part &main_mesh, uint64_t &actor) {
     return true;
   pilot::Globals s;
   const bool found = pilot::globals(read, base, s);
-  uint32_t mode = 0;
-  const uintptr_t client = global(travel::kClientAt);
-  const bool calls_ok =
-      game::plausible(client) &&
-      game_calls_ok(lion_gate(mode) == lion::Why::none, at<int32_t>(client + travel::kFlow),
-                    at<int32_t>(client + travel::kPhase),
-                    GetCurrentThreadId() == at<uint32_t>(base + (world::kLogicThread - game::kImageBase)));
+  const bool calls_ok = ghost_calls_ok();
   // GMalloc (camps::kMallocAt) too: FUN_141aae2f0 grows the list through it, FMemory::Free makes it when null.
   if (!drone::may_ask(global(drone::kCharTableAt), global(travel::kTablesAt), found, calls_ok) ||
       !game::plausible(global(camps::kMallocAt)))

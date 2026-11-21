@@ -343,6 +343,8 @@
 #include "rows/rows_game.inc"
 // After rows_game.inc, fight_game_shared.inc and pilot_game_shared.inc: lion_gate, game_function and kFindCharacter.
 #include "online/partner/drone_game.inc"
+// After drone_game.inc, fight_game_shared.inc and freeze_game_shared.inc: ghost_calls_ok, game_function and MakeName.
+#include "online/partner/play_game.inc"
 #include "glue/tick/debug_game_shared.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "eve/debug_game.inc"
 #include "ui/pause_tab_game.inc" // After debug_game_shared.inc: its UI calls and ui_reads.
@@ -443,6 +445,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // first fault.
   if (game_pinned && !drone_faulted && !blocked)
     drone_tick();
+  // Her sounds on the ghosts, the sounds latch checked inside: none after coop off.
+  if (game_pinned && engine_on && !blocked)
+    play_tick();
   // Its own latch: a ghost fault leaves the shared fight running, and the reverse. Once more after off: the arm rule
   // then forgets its last arm, so the next on arms at once.
   const bool fight_on = fight_engine.on();

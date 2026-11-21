@@ -4,7 +4,8 @@
 // When the ghost's features may call the game; the events a pose carries (what her game played: a sound, an effect,
 // a trail) and the sender's side of them: the Outbox that puts them in the pose's event slots and the asset keys their
 // names travel under; the SBA lines that carry those names on channel 2, the book a later member reads them from, the
-// slot watch that forgets a member's names and the viewer's coop-loaded lines. No Windows types:
+// slot watch that forgets a member's names and the viewer's coop-loaded lines; the viewer's side of her sounds: which
+// ghost may play, the wait for a key's name and the gate that keeps them near and few. No Windows types:
 // tests/native/game/events_test.cpp checks it on the build machine. game/codec.h writes and reads an event slot's bytes
 // (put_event, get_event).
 #pragma once
@@ -18,6 +19,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "game/travel.h"    // kInGame, kPlaying
@@ -412,6 +414,119 @@ inline bool parse_loaded(const std::string &text, std::vector<Loaded> &out) {
   }
   return ok;
 }
+
+// The viewer plays a ghost's events only while it shows: Lua built it for its table (drawn), did not destroy it
+// (gone), the native part drew a pose into it (root_scale, the drawn root's X scale, 0 before the first) and its actor
+// is not hidden (our photo mode's veil, or Lua's hide a second after its last pose).
+inline bool ghost_shows(bool drawn, bool gone, float root_scale, bool hidden) {
+  return drawn && !gone && root_scale > 0 && !hidden;
+}
+// No ghost sound while a shared scene plays (it has its own) or our own game's theater holds a cutscene.
+inline bool scene_silent(bool story_scene, bool our_theater) { return story_scene || our_theater; }
+
+// The viewer's events of one ghost waiting for their key's loaded objects (the slot's coop-loaded lines): at most
+// kHeld, each at most kNameWaitUs. A loaded asset plays at once; the first time a sound is heard its asset is loaded
+// then, so it is mostly lost. Game thread; no allocation.
+constexpr uint64_t kNameWaitUs = 200'000;
+class NameWait {
+public:
+  static constexpr size_t kHeld = 16;
+  // An event the playback passed at now: false (counted in dropped()) when kHeld wait already.
+  bool hold(const Event &e, uint64_t now_us) {
+    if (count_ == kHeld) {
+      ++dropped_;
+      return false;
+    }
+    held_[count_++] = {e, now_us};
+    return true;
+  }
+  // Each event whose key named(k) knows goes to play(event), oldest first; one past kNameWaitUs is dropped (counted);
+  // the rest keep waiting in their order.
+  template <class Named, class Play> void release(uint64_t now_us, Named &&named, Play &&play) {
+    size_t kept = 0;
+    for (size_t i = 0; i < count_; ++i)
+      if (named(held_[i].event.asset))
+        play(held_[i].event);
+      else if (now_us > held_[i].at + kNameWaitUs)
+        ++dropped_;
+      else
+        held_[kept++] = held_[i];
+    count_ = kept;
+  }
+  // Every waiting event given up (a hidden ghost's, sounds off): how many.
+  size_t clear() { return std::exchange(count_, size_t(0)); }
+  uint64_t dropped() const { return dropped_; }
+
+private:
+  struct Held {
+    Event event;
+    uint64_t at = 0;
+  };
+  Held held_[kHeld];
+  size_t count_ = 0;
+  uint64_t dropped_ = 0;
+};
+
+// Which of the events the ghosts asked to play this frame may play: none in a scene; none farther than kHearCm from
+// your EVE; then the nearest first, at most kPerGhost in any second from one ghost slot and kAll from all of them.
+// The counts say why each refused one was. Game thread; no allocation.
+constexpr float kHearCm = 5000;
+constexpr size_t kPerGhost = 8, kAll = 32;
+class Gate {
+public:
+  struct Ask {
+    size_t slot; // The ghost slot, below kMaxRemote.
+    float cm;    // Its distance from your EVE.
+  };
+  struct Counts {
+    uint64_t distant = 0, ghost = 0, all = 0, scene = 0; // Not "far": a Windows macro.
+  } counts;
+  static constexpr size_t kMaxAsks = 128; // Past it in one frame, an ask counts as over all.
+  // play[i] for asks[i], at now.
+  void admit(const Ask *asks, size_t n, uint64_t now_us, bool scene, bool *play) {
+    size_t order[kMaxAsks], m = 0;
+    for (size_t i = 0; i < n; ++i) {
+      play[i] = false;
+      if (scene)
+        ++counts.scene;
+      else if (!(asks[i].cm <= kHearCm)) // NaN too.
+        ++counts.distant;
+      else if (m == kMaxAsks || asks[i].slot >= kMaxRemote)
+        ++counts.all;
+      else
+        order[m++] = i;
+    }
+    std::stable_sort(order, order + m, [&](size_t a, size_t b) { return asks[a].cm < asks[b].cm; });
+    for (size_t j = 0; j < m; ++j) {
+      const size_t i = order[j];
+      Window<kPerGhost> &ghost = ghost_[asks[i].slot];
+      if (!ghost.room(now_us)) {
+        ++counts.ghost;
+      } else if (!all_.room(now_us)) {
+        ++counts.all;
+      } else {
+        ghost.take(now_us);
+        all_.take(now_us);
+        play[i] = true;
+      }
+    }
+  }
+
+private:
+  // The last N starts: room while fewer than N started or the oldest is a second old.
+  template <size_t N> struct Window {
+    uint64_t at[N] = {};
+    size_t next = 0, used = 0;
+    bool room(uint64_t now_us) const { return used < N || now_us >= at[next] + 1'000'000; }
+    void take(uint64_t now_us) {
+      at[next] = now_us;
+      next = (next + 1) % N;
+      used += used < N;
+    }
+  };
+  std::array<Window<kPerGhost>, kMaxRemote> ghost_{};
+  Window<kAll> all_;
+};
 
 // The game thread may call SB for the ghost's features when lion_gate is open (net mode 0, no logic task in flight),
 // the client is in game (flow travel::kInGame) and playing (phase travel::kPlaying) and the caller is not SB's logic

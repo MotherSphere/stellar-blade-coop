@@ -221,4 +221,22 @@ inline void fit_parts(pose::Event *slots, size_t parts) {
       slots[k] = pose::Event();
 }
 
+// The viewer's side: an event's place (rotation xyzw, translation xyz, relative to parent as game/partner/engine.h's
+// relative() wrote it on her side) back into the world (rotation xyzw, translation xyz), as UE composes child =
+// relative * parent: rotation qp qc, translation tp + qp (tc sp) conj(qp), sp the parent's X scale.
+inline void compose(const float *parent, const float *place, float *out) {
+  const double x = parent[0], y = parent[1], z = parent[2], w = parent[3];
+  const double cx = place[0], cy = place[1], cz = place[2], cw = place[3];
+  out[0] = float(w * cx + x * cw + y * cz - z * cy);
+  out[1] = float(w * cy - x * cz + y * cw + z * cx);
+  out[2] = float(w * cz + x * cy - y * cx + z * cw);
+  out[3] = float(w * cw - x * cx - y * cy - z * cz);
+  const double scale = parent[7] > 1e-6f || parent[7] < -1e-6f ? parent[7] : 1.0;
+  const double v[3] = {place[4] * scale, place[5] * scale, place[6] * scale};
+  const double t[3] = {2 * (y * v[2] - z * v[1]), 2 * (z * v[0] - x * v[2]), 2 * (x * v[1] - y * v[0])}; // 2 q x v
+  out[4] = float(parent[4] + v[0] + w * t[0] + y * t[2] - z * t[1]); // v + w t + q x t
+  out[5] = float(parent[5] + v[1] + w * t[1] + z * t[0] - x * t[2]);
+  out[6] = float(parent[6] + v[2] + w * t[2] + x * t[1] - y * t[0]);
+}
+
 } // namespace coop::sound

@@ -4,7 +4,8 @@
 // game/events.h on the build machine: when a feature may call the game (game_calls_ok); an event slot's 19 bytes
 // (game/codec.h's put_event and get_event, fuzzed); the sender's Outbox with its waits, its holds and a member on the
 // lowest pose cap; the asset keys; the SBA line (fuzzed), its paths and the name book a later member reads from; the
-// slot watch; the coop-loaded file's lines.
+// slot watch; the coop-loaded file's lines; the viewer's gate (50 m, 8 a second from one ghost, 32 from all, nothing
+// in a scene), which ghost may play and the wait for a key's name.
 #include "game/events.h"
 
 #include <cassert>
@@ -349,6 +350,80 @@ void test_loaded_file() {
   assert(!parse_loaded("loaded 1 0xA0 0xb0 0x0 0x0\nloaded x\nloaded 2 0xc0 0xd0 0xe0 0xf0\n", got) && got.size() == 3);
   assert(got[1].object == 0xa0 && got[2].k == 2 && got[2].b == 0xf0);
 }
+void test_gate() {
+  Gate g;
+  bool play[64];
+  Gate::Ask a[10];
+  for (int i = 0; i < 10; ++i)
+    a[i] = {1, 300.f};
+  g.admit(a, 10, 0, false, play);
+  assert(std::count(play, play + 10, true) == 8 && g.counts.ghost == 2);
+  g.admit(a, 10, 500'000, false, play);
+  assert(std::count(play, play + 10, true) == 0); // the same second
+  g.admit(a, 10, 1'000'000, false, play);
+  assert(std::count(play, play + 10, true) == 8); // a second later: whole again
+  Gate h;
+  Gate::Ask b[40];
+  for (int i = 0; i < 40; ++i)
+    b[i] = {size_t(i / 8), 100.f * (1 + i / 8)}; // 5 ghosts, the first nearest
+  h.admit(b, 40, 0, false, play);
+  assert(std::count(play, play + 32, true) == 32 && std::count(play + 32, play + 40, true) == 0); // farthest refused
+  assert(h.counts.all == 8 && h.counts.ghost == 0);
+  Gate::Ask mixed[3] = {{2, 900.f}, {3, 100.f}, {2, 500.f}}; // nearest first, whatever the order asked in
+  Gate n;
+  for (int i = 0; i < 31; ++i) { // 31 of the 32 a second taken by ghosts 0, 1, 4 and 5
+    Gate::Ask one = {size_t(i / 8 < 2 ? i / 8 : i / 8 + 2), 10.f};
+    n.admit(&one, 1, 0, false, play);
+  }
+  n.admit(mixed, 3, 0, false, play);
+  assert(!play[0] && play[1] && !play[2] && n.counts.all == 2);
+  Gate f;
+  Gate::Ask far[2] = {{0, 5001.f}, {0, std::nanf("")}};
+  f.admit(far, 2, 0, false, play);
+  assert(!play[0] && !play[1] && f.counts.distant == 2);
+  Gate s;
+  Gate::Ask near[1] = {{0, 10.f}};
+  s.admit(near, 1, 0, true, play);
+  assert(!play[0] && s.counts.scene == 1);
+  assert(scene_silent(true, false) && scene_silent(false, true) && !scene_silent(false, false)); // our own cutscene too
+}
+void test_ghost_shows() { // nothing from a hidden ghost or one on another map
+  assert(ghost_shows(true, false, 1.f, false));
+  assert(!ghost_shows(false, false, 1.f, false)); // no display for its table (another map, a rebuild)
+  assert(!ghost_shows(true, true, 1.f, false));   // ghost_gone: Lua destroyed it
+  assert(!ghost_shows(true, false, 0.f, false));  // no pose drawn yet
+  assert(!ghost_shows(true, false, 1.f, true));   // hidden: our photo mode's veil, or 1 s without a stamp
+}
+void test_name_wait() {
+  NameWait w;
+  std::vector<uint16_t> played;
+  Event e;
+  e.kind = Kind::sound;
+  e.asset = 7;
+  auto play = [&](const Event &x) { played.push_back(x.asset); };
+  assert(w.hold(e, 0));
+  w.release(100'000, [](uint16_t) { return false; }, play);
+  assert(played.empty()); // no name yet
+  w.release(150'000, [](uint16_t k) { return k == 7; }, play);
+  assert(played == std::vector<uint16_t>{7});
+  e.asset = 8;
+  w.hold(e, 0);
+  w.release(201'000, [](uint16_t) { return false; }, play);
+  assert(w.dropped() == 1); // past 200 ms
+  for (int i = 0; i < 16; ++i)
+    assert(w.hold(e, 300'000));
+  assert(!w.hold(e, 300'000) && w.dropped() == 2); // 16 at most
+  assert(w.clear() == 16 && w.clear() == 0);       // a hidden ghost's: given up at once
+  e.asset = 9;
+  w.hold(e, 400'000);
+  e.asset = 10;
+  w.hold(e, 400'000);
+  played.clear();
+  w.release(400'000, [](uint16_t k) { return k == 10; }, play);
+  assert(played == std::vector<uint16_t>{10}); // the one still waiting keeps its place
+  w.release(500'000, [](uint16_t k) { return k == 9; }, play);
+  assert(played == std::vector<uint16_t>({10, 9}) && w.dropped() == 2);
+}
 } // namespace
 
 int main() {
@@ -362,6 +437,9 @@ int main() {
   test_take_name();
   test_slot_watch();
   test_loaded_file();
+  test_gate();
+  test_ghost_shows();
+  test_name_wait();
   std::puts("events_test: ok");
   return 0;
 }

@@ -341,8 +341,52 @@ sounds off with one `sounds off: fault ...` line. The ghost goes on.
 
 `coop status` shows `sounds=on`, `off`, `refused` or `fault`. Every 60 s `coop-link.log` has `sounds, last 60 s:
 captured <n> (mark <n>, owner <n>, attach <n>, other thread <n>), sent <n>, <n> dropped waiting for a slot, <n> paths
-refused, <n> params left out, <n> over 4096 keys, <n> lost to a full ring`. The ghost does not play them yet. Not tested
-in game yet.
+refused, <n> params left out, <n> over 4096 keys, <n> lost to a full ring`. Not tested in game yet.
+
+## Her sounds, played
+
+The viewer's side is `online/partner/assets.lua` in Lua and `online/partner/play_game.inc` in the native part, with
+the gate and the wait in `game/events.h`.
+
+One loader serves every ghost slot. A ghost built with the sounds look on (or the effects look, for effect kinds)
+has its slot watched. Each 0.25 s at most, the loader reads the new lines of the slot's `coop-names[-k].txt`. It loads
+one path each 0.25 s for all the slots together with `LoadAsset`. A path two slots name loads once. Each object must be
+of its kind's class: a sound's asset a SoundBase, its class a SoundClass, its attenuation a SoundAttenuation. A path
+outside the game's own `Sound` and `Art` folders is a mod's and loads only when you both have that mod, under the crash
+sentinel. A failed load is logged once and not tried again. Once every path of a key is in, the loader appends
+`loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>` to the slot's `coop-loaded[-k].txt`. It checks one cached object a
+frame. A collected one is loaded again at the same pace. Each key naming it then gets a new line. Each object is
+cached with the class it was checked as, so a path named as a sound and as a sound class is checked as both. When the
+ghost goes, its slot is no longer read or loaded for. Its loaded file stays: removing it could race the worker's read
+offset. `coop off` removes every slot's loaded file.
+
+The worker reads each slot's loaded file every 250 ms and keeps each key's objects with the int parameters its SBA line
+names. Each frame the game thread puts the sound events the ghost's playback reached into that ghost's wait (16 at
+most). A key with no loaded objects 200 ms later drops its event. Each event whose key is loaded goes to the gate, which
+lets through the nearest first: within 50 m of your EVE, at most 8 a second from one ghost and 32 from all of them,
+none while a shared scene plays or your theater holds a cutscene. Nothing plays from a ghost that does not show: one
+Lua has not built for its table or has destroyed, one with no pose drawn yet, or one whose actor is hidden (`bHidden`,
+byte `+0x58`, bit `0x20`). A hidden ghost's waiting events are dropped at once.
+
+Each admitted sound plays with the calls SB's footstep notify (`0x142019370`) makes, in its order:
+
+| Call | What it does |
+| --- | --- |
+| `0x1441ff120` | makes the audio component on the ghost's actor (world context and owner), never from SB's pool |
+| `0x1441088f0` | places it: the event's offset on her main mesh's drawn place, or on the ghost's part |
+| `+0x278`, `+0x2d0` | her sound class and attenuation, when her line named them |
+| `0x144094850`, `0x144094900` | her volume and pitch |
+| `0x1441090b0` | attaches it to the ghost's part (rules at `0x146e15994`: KeepWorld three times), when hers was |
+| `0x1440944c0` | each int parameter, its FName found (never added) through `0x14293dde0` |
+| `0x1440925f0` | Play, at 0 s |
+
+A sound is dropped and counted when its object is no longer alive with the class it was loaded as. A part Lua did not
+draw (a follower, a part left out) hangs the sound on the ghost's main mesh. These calls run only while
+`game_calls_ok()` holds. While they run, the sink of [Her sounds, sent](#her-sounds-sent) records nothing. With the
+sounds look off, nothing plays. A fault turns her sounds off on both sides with the `sounds off: fault ...` line.
+
+Every 60 s with any of it, `coop-link.log` has `sounds played, last 60 s: <n> played, <n> far, <n> over a ghost's 8, <n>
+over all 32, <n> in a scene, <n> from a hidden ghost, <n> without a name, <n> not loaded`. Not tested in game yet.
 
 ## CNS guard and crash sentinel
 

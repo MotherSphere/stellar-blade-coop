@@ -76,6 +76,10 @@ local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHa
 local Doro=require('core.actors')
 local Pick=require('online.partner.doro_pick')
 local Capture=require('online.partner.capture')
+local Assets=require('online.partner.assets')
+-- The assets her sounds name (online/partner/assets.lua): one loader for every ghost slot, made by the first ghost
+-- built with sounds or effects on.
+local assets
 local EFFECTS=Capture.EFFECTS -- What the wire's effect indexes name, for both players.
 local MAX_EFFECT_ASSETS=64 -- The native part's kMaxEffectAssets: past EFFECTS, the indexes the table's fx lines name.
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
@@ -254,6 +258,8 @@ end
 -- character past U+00FF shows as '?'. Of the names given (her Steam name, then the partner card's word for her in the
 -- player's language, then in English), the first that loses at most half its characters, or none for the words after
 -- her name; each cleaned as the card cleans her name. nil when none does.
+-- At coop off: every slot's coop-loaded file removed (online/partner/assets.lua's off()).
+function Puppet.assets_off() if assets then assets.off() end end
 function Puppet.tag_text(...)
     for i=1,select('#',...) do
         local lost,count=0,0
@@ -273,9 +279,9 @@ end
 -- offset. say(text,en) puts a line on screen (en: the same in English); name_tag: the tag. look: what else the ghost
 -- shows ({cloth=,dyes=,effects=,drone=true|false}, read at each build; nil: nothing more). words: the words for the
 -- screen now (ui/text.lua's T.en or T.fr; English when nil). sentinel: online/partner/sentinel.lua's (none: nothing
--- marked or set aside).
-function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
-    look=look or {}
+-- marked or set aside). slot: the ghost slot whose files link gives (0 unless said).
+function Puppet.new(link,capture,say,name_tag,look,words,sentinel,slot)
+    look,slot=look or {},slot or 0
     sentinel=sentinel or require('online.partner.sentinel').new(nil)
     words=words or function() return T.en end
     local files=link or {remote_table=function() end,display=function() return false,'no native part' end,
@@ -302,6 +308,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         local g=ghost
         ghost=nil
         if not g then return nil end
+        if assets then assets.unwatch(slot) end
         files.display(nil)
         store.clear()
         if valid(g.actor) then g.actor:K2_DestroyActor() end
@@ -941,6 +948,12 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
             end
             local published,why=files.display(table.concat(lines,'\n')..'\n')
             g.built=true
+            -- Her sounds (and her effects' events): what her game names, loaded for the native part to play.
+            if files.names and (look.sounds or look.effects) then
+                assets=assets or Assets.new(sentinel,function(path) return files.mod_assets()[path]~=nil end)
+                assets.watch(slot,files,{sound=look.sounds==true,niagara=look.effects==true,
+                    cascade=look.effects==true})
+            end
             if #counts.mods>0 then notes[#notes+1]='mod assets: '..table.concat(counts.mods,', ') end
             if g.missed[1] then
                 notes[#notes+1]='mod parts not shown: '..table.concat(g.missed,', ')
@@ -1575,7 +1588,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     end
     -- Once per game-thread tick: nothing while the ghost is off. A level change removes the ghost; it is built again
     -- (or for a new table) once EVE has been in the world 2 s and she is on the table's map.
-    function self.tick()
+    local function tick_ghost()
         sweep()
         if not wanted then return end
         local eve=her(valid(UE.GetPlayer()))
@@ -1622,6 +1635,14 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         end
         hidden_pair,said_pair=nil,nil
         return step(eve)
+    end
+    -- Each frame: the assets loader's turn (every ghost calls it, its clock paces it), then the ghost's. A failed load
+    -- is said when the ghost has nothing to say.
+    function self.tick()
+        local note=assets and assets.tick()
+        local ok,message=tick_ghost()
+        if message==nil and note then return true,note end
+        return ok,message
     end
     return self
 end

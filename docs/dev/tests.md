@@ -28,7 +28,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
-`online/partner/`: `bike_part`, `capture`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`, `sentinel`; `online/photo/`:
+`online/partner/`: `assets`, `bike_part`, `capture`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`, `sentinel`;
+`online/photo/`:
 `off`; `story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`, `drive`, `drive_model`, `model`,
 `off`, `run`; `online/saves/`: `off`, `saves`; `online/session/`: `booth`, `chat`, `commands`, `join`, `off`,
 `wiring_cycle`, `wiring_dlc`; `online/session/ui/`: `create`, `create_model`, `sessions`, `sessions_model`;
@@ -209,7 +210,15 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   once a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes;
   getting on or off starts a new generation; another component on the bike's mesh stays a part;
 - asset names: `core/link_test` reads a slot's `coop-names` file from an offset (whole lines only, false once the file
-  is shorter or gone) and appends to its `coop-loaded` file (nil removes it);
+  is shorter or gone) and appends to its `coop-loaded` file (nil removes it). `online/partner/assets_test` loads what
+  the slots name with one loader: one load each 0.25 s for every slot together, a path two slots name once, a slot's
+  `loaded` line once all its paths are in, an object of the wrong class refused, a collected one loaded again with a
+  new line, a failed load said once and not tried again, a mod's path only when both players have it (through the
+  crash sentinel), a set-aside path never, a reset slot read again from 0, a kind the slot does not want never (until
+  it is watched again with it), a path checked as each class a key names it as, an unwatched slot's file kept with no
+  line appended twice once it is watched again, the loaded files removed by `off`. `online/partner/puppet_test` makes
+  that loader once. It watches a ghost's slot once the ghost is built with sounds on (with the kinds its look wants),
+  never with sounds and effects off. The slot is unwatched when the ghost goes;
 - her drone: `core/link_test` reads `coop-drone.txt` (`drone()`: the address, nil for `none` or anything but 0x and
   hex digits). `online/partner/capture_test` adds the SBCharacter of class `CH_Drone_BP_C` at that address after her
   parts and the bike's, its main mesh a free part with a light line after its read line; hidden in game it goes with
@@ -738,7 +747,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   counted); a show stage's main actor; the asset key's attenuation mixed with the int parameters; a record's SBA words
   from a fake name pool (a class outside SB's folders goes as `-`, a parameter name that is not a word is left out, a
   sound not at the top of its package or outside SB's folders is refused, as is a line that passes 512 bytes only
-  under key 4096); an event on a part the table no longer has goes empty;
+  under key 4096); an event on a part the table no longer has goes empty; the viewer's `compose`, which puts an
+  event's place back on its parent where her game played it (2000 random transforms, a scaled parent among them);
 - `game_events_test`: `game_calls_ok`, which allows a game call only with the lion gate open, the client in game and
   playing, off SB's logic thread; an event slot's 19 bytes with a fuzz (each slot it accepts encodes back to the same
   bytes); the `Outbox`, whose events wait at most 100 ms and hold a slot for 2 poses and 50 ms plus one send interval,
@@ -746,7 +756,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   past 4096; the SBA line with a fuzz (each line it accepts formats back to the same text), its paths (SB's own only)
   and its 512-byte cap; the name book a member who comes in later reads from her cursor at 8 KB a second and while her
   channel-2 share has room; a slot's names (a key's second line refused, the same line again let through); the slot
-  watch that forgets a slot's names when its member changes or a session starts or ends; the `coop-loaded` lines;
+  watch that forgets a slot's names when its member changes or a session starts or ends; the `coop-loaded` lines; the
+  viewer's `Gate` (8 a second from one ghost and 32 from all in any second, the nearest first, none past 50 m or in a
+  scene), `ghost_shows` and `NameWait` (a key's name waited for 200 ms at most, 16 events per ghost);
 - `online_partner_resend_test`: our component table's resends (`TableResend` in `game/table.h`) on a worker passing
   every 50 ms: at once to a new friend, then 5, 10, 20, 40 and 60 s apart, every 60 s from then on; a change brings the
   next one 5 s after it and starts the doubling over; a sign her side lost our table brings it within 5 s, and a flood
