@@ -1860,9 +1860,9 @@ function GunMode.new(env)
         if s.prof then s.prof('pose') end
         -- In firing mode, every frame (SB reads the row when a round spawns): the NIKKE bullet's start on the rifle's
         -- muzzle and its destination on this frame's crosshair point, moved at random within the spread. In the flip
-        -- it is the bore's point, as shoot wrote it this frame: the zone event queues the round (the CreateSBZoneEvent
-        -- exec 0x142669a50 pushes it under the lock at manager+0x50 through 0x14226f8a0 on 26123051), so the round
-        -- spawns after this write.
+        -- it is the bore's point, as shoot wrote it this frame: the zone event queues the round (its exec 0x142669a50
+        -- pushes it under the lock at manager+0x50 through 0x14226f8a0 on 26123051), so the round spawns after this
+        -- write.
         if s.zoom_held or inp.fire then
             local loc=g.try(function() return p:K2_GetActorLocation() end)
             local rot=g.try(function() return p:K2_GetActorRotation() end)
