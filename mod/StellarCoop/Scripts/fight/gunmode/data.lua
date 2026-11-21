@@ -424,7 +424,8 @@ function Data.new(g,native,opts)
             local r=self.refill
             self.refill,self.late=nil,{r[1],r[2],r[3],left=Data.REFILL_HOLD}
         end
-        if now and self.late then self.late.left=0; self.tick(0,false) end
+        -- (at cleared too: after frames of the hold, tick(0) read a step back in time and kept the 0)
+        if now and self.late then self.late.left,self.late.at=0,nil; self.tick(0,false) end
         if not saved then return end
         undo(saved)
         g.log('data: SB\'s rows put back')

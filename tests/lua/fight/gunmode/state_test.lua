@@ -740,7 +740,7 @@ end
 -- 20. SB's refill field goes back 3 s of play after the off, not with the other rows: a ReloadCompleted already on its
 --     way (about 1.07 s after SB's last NIKKE shot) reads it when it starts. A pause does not count. coop-gun.txt keeps
 --     its shipped value until then. A rifle out during the hold keeps the 0 and the shipped value. A Lua reload during
---     the hold puts it back. coop off puts it back at once (no tick runs after it).
+--     the hold puts it back. coop off puts it back at once (no tick runs after it), also part way through the hold.
 do
     local w=Fake.new(); w.install()
     local rc={Action1=22}
@@ -773,6 +773,13 @@ do
     assert(rc.Action1==0,'held after the off')
     gun.stop('coop off')
     assert(rc.Action1==22 and not kept(),'coop off: back at once: '..tostring(rc.Action1)..' / '..store.peek())
+    -- coop off half a second into the hold, after its frames ran: back at once too.
+    gun=new(nil,store)
+    toggle(gun,true); frames(gun,10); toggle(gun,false); frames(gun,30)
+    assert(rc.Action1==0,'held half a second after the off')
+    gun.stop('coop off')
+    assert(rc.Action1==22 and not kept(),'coop off during the hold: back at once: '..tostring(rc.Action1)..' / '
+        ..store.peek())
 end
 
 print('gunmode state: ok')
