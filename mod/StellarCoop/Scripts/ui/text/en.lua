@@ -7,7 +7,7 @@ return {
     head={modes='MODES',
         session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
         ghost='GHOST',saves='SAVES',combat='COMBAT',display='DISPLAY',chat='CHAT',line='CO-OP LINE'},
-    row={scoreattack='Score attack',race_match='Doro race',
+    row={scoreattack='Score attack',fishing='Fishing tournament',race_match='Doro race',
         host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',find='Find a session',
         copy='Copy my code',remove='Remove %s',join_code='Join with a code',
         chat='Chat',options='Options',report='Write a bug report',close='Close',
@@ -142,7 +142,8 @@ return {
         ['world.objects']='Shared world',['story.together']='Story together',['online.lobby']='The SBO lobby',
         ['vehicles.bike']='The bike',['world.daynight']='Day and night',['cutmenus']='Cut menus',
         ['online.saves']='Co-op saves',
-        ['world.teamshop']='Team shop',['fight.gunmode']='Gun mode',['online.modes.scoreattack']='Score attack'},
+        ['world.teamshop']='Team shop',['fight.gunmode']='Gun mode',['online.modes.scoreattack']='Score attack',
+        ['online.modes.fishing']='Fishing tournament'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
@@ -188,20 +189,35 @@ return {
     -- Camp rests in a shared area, as the guest (main.lua): the host's rest reset the area in their game, or ours
     -- reset our own only. The revive by the friend (online/group/group.lua): she is down near us, we are down and she
     -- can revive us, she revived us, we revived her; and our game waiting while the host watches a cutscene. (%s: her
-    -- name, or fight.friend.)
+    -- name, or fight.friend.) The return after our death: the offer and always's notice (her name, follow_key). A
+    -- member in a solo area (her name, then one of places by the zone type) and back from it (her name). A member's
+    -- camp rest (online/group/group.lua, %s: her name, or someone): it reset this area in our game, or did not while we
+    -- were busy for a minute; then the stop after too many resets.
     group={rest="Enemies are back: the area reset in %s's game.",
         rest_guest="Shared area: only %s's camp rest brings its enemies back.",
         down='%s is down. Stand next to them for 3 s to revive them.',
         wait='%s can revive you: wait, or respawn at a camp.',
         revived='Revived by %s.',
         you_revived='You revived %s.',
-        cutscene='%s is watching a cutscene. Your game waits until it ends.'},
+        cutscene='%s is watching a cutscene. Your game waits until it ends.',
+        back='%s is alive. Press %s to go back to them.',
+        back_auto='Going back to %s in 5 s. Press %s to stay.',
+        solo='%s is in %s. Online play waits until they are back.',
+        places={training='the training room',spirit='the Matrix 11 demo room',test='a test zone',
+            boss='a Boss Challenge',nikke='a NIKKE stage'},
+        solo_back='%s is back.',
+        rested='%s rested at a camp. The enemies of this area are back.',
+        rest_skipped='%s rested at a camp. This area did not reset in your game: you were busy for a minute.',
+        rest_stopped="Other players' camp rests no longer reset your area until the game restarts. UE4SS.log says why.",
+        someone='A player'},
     -- The follow (online/group/travel.lua), the guest's: the offer when the host is on another map or far on hers (%s:
     -- her name, her map, follow_key), always's notice (her name, follow_key), the travel taken, no camp found, a
-    -- guard of the moment, and the native part's refusal or a warp that never started.
-    travel={offer='%s is in %s. Press %s to travel to the camp nearest them.',
+    -- guard of the moment, the host's last ground point missing or too old (her name), and the native part's refusal
+    -- or a warp that never started.
+    travel={offer='%s is in %s. Press %s to travel to them.',
         auto='Following %s in 5 s. Press %s to stay.',going='Travelling to %s.',
         none='No camp you have found is near %s.',busy='You cannot travel now. Try again in a moment.',
+        air='%s is not on solid ground. Try again in a moment.',
         failed='The travel did not start. UE4SS.log says why.'},
     -- The parked bike (vehicles/bike/ride.lua): a mount refused with the bike's distance and side from her camera (%d
     -- metres, then one of the four side words), refused before it is back on her map (2 s after her arrival) or while
@@ -417,6 +433,24 @@ return {
             refused='Your game could not start the challenge: you sit out this round. UE4SS.log says why.'},
         end_notice='%s: %s, score %d, time %s.',
         placed='Score attack: you placed %d of %d.'},
+    -- The fishing tournament (online/modes/fishing/ui/board.lua): the corner board's title line (head, then the
+    -- countdown, the time left or up); the result panel's heading (title), the line under it (mine: our points and
+    -- fish), a ranking row's fish and its notes (waiting, unranked, best, norank); the notices: the start (start: the
+    -- host's name, the minutes), why a player sits out (out: off, slot, table), why a tournament ends with no ranking
+    -- (host_left, cancelled), a reloaded game (reloaded). With the UI off: GO (go: the minutes), each change of our
+    -- place and points (standing), our end (end_notice: points, fish), the first three (top: their entries, each
+    -- place, name and points, joined by sep) and our place (placed: ours, of how many).
+    fishing={head='FISHING',count='Starts in %d',up='Time up',title='Fishing tournament',mine='%d points · %d fish',
+        fish='%d fish',waiting="Waiting for the host's ranking.",unranked='Not ranked.',best='New personal best.',
+        norank='No ranking came from the host.',start='%s starts a fishing tournament: %d min.',
+        out={off='Fishing tournament is off in Options.',
+            slot='Load a co-op save to fish in the tournament.',
+            table='Could not read the fish table.'},
+        host_left='The host left. This tournament has no ranking.',cancelled='The tournament was cancelled.',
+        reloaded='Your game reloaded: your catches no longer count in this tournament.',
+        go='Fishing tournament: start fishing. %d min left.',standing='Fishing tournament: place %d, %d points.',
+        end_notice='Fishing tournament: time up, %d points, %d fish.',top='Fishing tournament: %s.',entry='%d. %s %d',
+        sep=', ',placed='You placed %d of %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='The game stayed paused, so the co-op menu did not open.'},
 }

@@ -306,6 +306,39 @@ A button pressed on the death screen takes EVE out of the room. Press none: the 
 within 10 s of the death. When it does not, `UE4SS.log` has `respawn waits: <reason>`, then
 `respawn not asked in 10 s: <reason>`. Send that log (see [Which logs to send](#which-logs-to-send)).
 
+## Fishing tournament
+
+### A catch does not count
+
+Your `UE4SS.log` has `[StellarCoop][FT] catch: <ID> <points>` for each catch your game counted and sent. With no such
+line for a catch:
+
+- it came during the countdown, or after your game's last read of the book, a second or so after your end;
+- your game took its baseline again in that second, after a map change, a fast travel, a load, a respawn or a loading
+  screen (see [What stops a tournament](../online/modes/fishing.md#what-stops-a-tournament));
+- the log has `book jumped by <n>: baseline again` or `book fell: baseline again`: that read of the book changed by
+  more than a catch, so it counted nothing;
+- `coop-link.log` has `fishbook (ask <n>): none <why>`. `noeve` means no EVE could be read (the title, a load).
+  `nobook` means SB made no fishing log book for this save. `unread` is a torn read, asked again a second later.
+  `unpinned` means another game build.
+
+With the line, the host's `UE4SS.log` may have `rank: refused <name>: <why>` for a catch its checks refused (`sender`,
+`fish`, `points`, `time` or `rate`, see [The host's checks](../online/modes/fishing.md#the-hosts-checks)). `sender`
+means the host did not count that player: her ready line came more than 10 s after the start line.
+
+### `Not ranked.`
+
+The ranking holds only the players the host counted who are still in the online session at its end plus 10 s. You are
+left out when you sat out (a notice said why), when your ready line came late, or when you had left or your link was
+lost at that time.
+
+### `The tournament was cancelled.`, `The host left. This tournament has no ranking.` or `No ranking came from the host.`
+
+`The tournament was cancelled.` follows the host's `coop fish stop`, or a Lua reload on the host's PC (the host's log
+then has `void <seed>: a catch from <name> of a tournament we do not run`). `The host left. This tournament has no
+ranking.` means the host left the online session, or typed `coop off`. `No ranking came from the host.` comes 30 s
+after your end with no ranking line, for example after a Lua reload on the host's PC with no catch after it.
+
 ## Menu, chat, controller and screen
 
 ### The game ignores its keys after the co-op menu or the chat
@@ -677,6 +710,13 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
   another travel under way, the game paused, in photo mode or in a menu (the co-op menu too), a Night Operation run, a
   cutscene, a boss fight or an enemy in battle near you, the host's game loading or busy, or less than 10 s since the
   last travel. The log line names which.
+  On the host's map it also covers `the host is in a solo area`, `we are in a solo area`, an answer from the host's
+  game that says it is busy (`no spot from the host: none <loading|busy|solo|boss>`), no answer in 10 s
+  (`no answer from the host in 10 s`) and a host who left your map before his answer came
+  (`refused at the call: the host left this map`). The native part's refusals of the warp to his place are in
+  `coop-link.log` as `travel spot refused: <why>` (`solo` while your own zone is a solo area).
+- `<host> is not on solid ground. Try again in a moment.`: the host's EVE had not walked on a floor in the last 10 s
+  (`no spot from the host: none air`). Wait until he stands on the ground, then press F7 again.
 - `No camp you have found is near <host>.`: the host's game found no travel camp on its map (`none nocamp`), none of
   the camps it sent could be used (`travel: <camp> is not activated in this save` for a camp you have not found), or
   the game refused each one (`travel: SB refused <camp>`).
@@ -688,6 +728,17 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
 - No notice at all: `follow_host=off`, `follow_key=none` (use `coop travel host`), you are the host, your own save is
   loaded, or the host is within 150 m of you on your map. Press F7 and read the `travel refused:` line.
 - A second F7 within 2.5 s is refused in the log only (`one request to the host each 2.5 s`).
+- F7 within 5 m of the host is refused in the log only (`the host is within 5 m`). With his ghost hidden or not yet
+  placed, the log says `the host's place on this map is unknown`.
+- After a camp travel to the host's map you stay at the camp: `travel: no second hop: <why>` means a guard held for
+  30 s after the arrival. Press F7 again.
+
+The way back after a death (`<name> is alive. Press F7 to go back to them.`) writes `[StellarCoop][GR] return: ...`
+lines. No notice shows with `follow_key=none` or `follow_host=off` (`return: no notice (follow_key=none)`), with
+`revive=off`, during a boss fight, in a solo area on either side, with your friend down or on another map, or within
+10 s of the last respawn the mod asked for. `return refused: <why>` names the guard that stopped the respawn call.
+`return: no warp, <why>` means you got up where you fell with no warp: your friend left, went down or entered a solo
+area, the respawn did not take, or you went down again before the warp.
 
 ### A revive is not offered
 
@@ -808,6 +859,9 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 - `score lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
   [score attack](../online/modes/scoreattack.md) lines: the lines received, sent and dropped (see
   [The score line](../online/steam-link-internals.md#the-score-line)).
+- `mode lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried
+  [fishing tournament](../online/modes/fishing.md) lines: the lines received, sent and dropped (see
+  [The mode line](../online/steam-link-internals.md#the-mode-line)).
 - `dr lines, last 60 s: <in> in, <out> out, <dropped> dropped`, in a minute that carried the lines of
   [Doro races in matches](../online/modes/race.md#races-in-a-match): the same counts (see
   [The dr line](../online/steam-link-internals.md#the-dr-line)).

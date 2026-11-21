@@ -98,11 +98,16 @@
 //
 // The revive's guard: every 250 ms coop_tick reads, under its own SEH latch, whether a respawn or a warp is in flight
 // and our EVE's GUID, straight from two globals; status() puts them in the engine line for online/group/group.lua.
+// Under the same latch it reads the area (the world's zone, when the logic's agrees) every 250 ms and the starts of
+// SB's camp process at each frame (game/travel.h's Rests: the zone resets, ours counted apart). Every 250 ms in game,
+// under a latch of its own, it reads our zone's type through SB's own ZoneTable row lookup when the client's zone
+// changed. status() puts the type, the area and the rest counts in the engine line; the vitals carry the type. The
+// worker logs each change. glue/tick/camps_game_shared.inc comes before online/group/warp_game.inc for camps_name.
 //
-// The follow's travel (game/travel.h): the worker hands over a camp's FName from Lua's travel request; the game thread
-// calls SB's own fast travel with it once game/travel.h's guard passes, under its own SEH latch, and watches the warp
-// block every 250 ms; status() puts the watch's state in the engine line for online/group/travel.lua, and the worker
-// logs each call.
+// The follow's travel (game/travel.h): the worker hands over a camp's FName from Lua's travel request, or a place and a
+// yaw from its travel spot request; the game thread calls SB's own fast travel to the camp, or SB's position warp to
+// the place, once game/travel.h's guard passes, under its own SEH latch, and watches the warp block every 250 ms;
+// status() puts the watch's state in the engine line for online/group/travel.lua. The worker logs each call.
 //
 // The camps this save has activated (game/camps.h): every 250 ms, once the client is in game and no warp, respawn or
 // logic task is in flight, the game thread asks SB's own camp list for each travel type at most every 2 s, and reads
@@ -228,6 +233,10 @@
 // item our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cutmenus/mailbox.lua.
 //
+// The fishing tournament's book read (online/modes/fishing/fishing.h) is the worker's alone too: on Lua's fishbook
+// request it reads our EVE's fishing log book through ReadProcessMemory, her GUID too. status() puts the answer in the
+// engine line's fish= for online/modes/fishing/game.lua. It never writes and calls no game function.
+//
 // The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
 // button pressed, button released), all or none, for hooks on the game thread that record the key and run the game's
@@ -283,6 +292,7 @@
 #include "eve/debug_keys.h"
 #include "game/dev_panels.h"
 #include "cutmenus/items.h"
+#include "online/modes/fishing/fishing.h"
 #include "online/lobby/loading.h"
 #include "game/memory.h"
 #include "online/session/options.h"
@@ -337,11 +347,11 @@
 #include "online/lobby/loading_game.inc"
 #include "glue/tick/quests_game_shared.inc"
 #include "story/quests/quests_game.inc"
+#include "glue/tick/camps_game_shared.inc" // Before warp_game.inc: its camps_name.
 #include "online/group/warp_game.inc"
 #include "glue/tick/pilot_game_shared.inc"
 #include "fight/enemies/pilot_game.inc"
 #include "online/group/travel_game.inc"
-#include "glue/tick/camps_game_shared.inc"
 #include "online/group/camps_game.inc"
 #include "rows/rows_game.inc"
 #include "glue/tick/debug_game_shared.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
@@ -388,6 +398,7 @@
 #include "online/group/travel_worker.inc"
 #include "online/saves/shortcut_worker.inc"
 #include "cutmenus/items_worker.inc"
+#include "online/modes/fishing/fishing_worker.inc"
 #include "glue/tick/quests_worker_shared.inc"
 #include "story/quests/quests_worker.inc"
 #include "glue/tick/world_worker_shared.inc"

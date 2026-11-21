@@ -333,6 +333,7 @@ Platform-free headers, tested on the build machine:
 | `online/photo/photo_freeze.h` | The synced photo mode's pause |
 | `eve/debug_keys.h` | `coop fly` and `coop slowmo`: the lookup of SB's two developer gates in its settings map and the passes that set them and put them back; the level flight's hold of the flight key |
 | `cutmenus/items.h` | `coop gift`'s inventory read: how many of one item EVE carries, through `ReadProcessMemory` along SB's item bucket manager and its hash sets |
+| `online/modes/fishing/fishing.h` | The fishing tournament's read of SB's fishing log book: each fish's catch count, through `ReadProcessMemory` along SB's logic actor map and the book's hash set |
 | `ui/pad.h` | The controller's events for the co-op menu, the game's controller key events as one read (`PadKeys`), Slate's handler slots and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |

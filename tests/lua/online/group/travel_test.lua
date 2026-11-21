@@ -11,15 +11,20 @@
 -- in her table under the host's world that her save has activated and that this game knows as a name (FNAME_Find, never
 -- a new name; UE's trailing number split off), the next one after SB's refusal, 3 calls at most,
 -- then the notices. Her activated camps come from the status line activated=<n>:<alias>,... (the native read):
--- without it, with activated=none:<why> or a list cut short, no offer, and every travel refused. With follow=true, as
--- main.lua passes it, the follow runs; without it the same refusals with a read: the follow is off. The offer: once
+-- without it, with activated=none:<why> or a list cut short, no offer, and every camp travel refused. With follow=true,
+-- as main.lua passes it, the follow runs; without it the same refusals with a read: the follow is off. The offer: once
 -- per host map change or once the host stands more than 150 m away on her map (follow_host=ask), the travel by itself
 -- 5 s later with follow_key to cancel (always), nothing with off or with follow_key=none; no new offer for the place
--- the travel brought her to, and his next move offered again after it. The guards, each refusing on its own (silent,
--- busy or failed), again right before the call; the stuck warp; and coop travel probe: solo, on a co-op save only, any
--- of the 120 camps, only one the read lists, and for coop mxiii its guards alone (ready: also the native warp, the 10 s
--- after a travel SB took and the travel's fault) and a camp in no table, without the activation read; camps() for coop
--- mxiii leave: the read's travel camps in its order and the camp EVE respawns at, or why there is no read.
+-- the travel brought her to, and his next move offered again after it. On his map the press asks his game for his
+-- spot (spot?), then SB's position warp next to him: refused within 5 m or with no distance to him (his ghost hidden).
+-- A camp travel to his map asks his spot by itself 10 s after SB took it (the second hop); a camp travel whose host
+-- came to her map meanwhile asks his spot in place of the camp. Every member's game answers each spot? once with its
+-- last ground point in whole numbers, or none and why. go(id), the return's warp to a member. The guards, each refusing
+-- on its own (silent, busy or failed), again right before the call; the solo areas on either side; the stuck warp; and
+-- coop travel probe: solo, on a co-op save only, any of the 120 camps, only one the read lists, and for coop mxiii its
+-- guards alone (ready: also the native warp, the 10 s after a travel SB took and the travel's fault) and a camp in no
+-- table, without the activation read; coop travel spot, its spot warp's solo test; camps() for coop mxiii leave: the
+-- read's travel camps in its order and the camp EVE respawns at, or why there is no read.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local W -- The world of one case.
@@ -46,6 +51,14 @@ FindAllOf=function(class)
     return list
 end
 package.loaded['core.where']={me=function() return W.me end,world=function() return W.me~=nil,W.title==true end}
+-- EVE while W.me is set: her movement mode (W.move, 1 Walking unless set), her place (W.eve_at, else W.me.at), her yaw
+-- and her address (W.pawn).
+package.loaded['core.player']={her=function()
+    if not W.me then return nil end
+    return uobject({GetAddress=function() return W.pawn or 1 end,CharacterMovement=uobject({MovementMode=W.move or 1}),
+        K2_GetActorLocation=function() return W.eve_at or W.me.at end,
+        K2_GetActorRotation=function() return {Yaw=W.yaw or 0} end})
+end}
 local Travel=require('online.group.travel')
 local XION=Travel.WORLDS.Xion
 local DEDA=Travel.WORLDS.DrownedEidosDistrict
@@ -60,14 +73,14 @@ local function world(change)
         warp='idle',life={state=1,hp=1600},fight=FIGHT,me={at={X=0,Y=0,Z=0},map=DEDA},her_map=XION,ghost=nil,
         settings={follow_host='ask',follow_key={key='F7',name='F7'}},names={},fnames={},spawns={},finds=0,
         requests={},said={},logs={},paused=false,night=false,cutscene=false,camps=EVERY,follow=true,wheres={},
-        rules={}}
+        rules={},mate={life=1,hp=1600,max_hp=1600,zone=1}}
     if change then change(W) end
     clock=0
     -- host(), member() and others() as core/link.lua gives them: W.host names the session's host ({id=}) and
     -- W.members the member lines; without W.members, the slot-0 member alone, linked as W.linked says.
     local function members() return W.members or {{id='2',slot=0,linked=W.linked}} end
     local link={mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
-        host=function() return W.host end,
+        host=function() return W.host end,members=members,
         member=function(id) for _,m in ipairs(members()) do if m.id==id then return m end end end,
         others=function()
             local n=0
@@ -80,7 +93,10 @@ local function world(change)
             return 'mod=v proto=12 steam=ready\nlink='..W.mode..' lobby=7\n'..W.slot..'\n'..engine..'\n'..camps
                 ..'camps=9 Xion Xion_Camp_10:1\n' -- The link's own camps line (the host's answer): never the read.
         end,
-        camps=function() return W.asked,W.answer end,
+        camps=function() return W.asked,W.answer end,spots=function() return W.spot_asked,W.spot end,
+        -- The slot-0 member's vitals, a member's by her SteamID, our zone type (1 public unless set) and area.
+        mate=function() return W.mate end,vitals=function(id) return W.vits and W.vits[id] end,
+        zone=function() return W.zonetype or 1,W.area end,
         request=function(line) W.requests[#W.requests+1]=line; return true,'asked the native part: '..line end,
         life=function() return W.life end,fight=function() return W.fight end,match=function() return W.match end,
         -- The session list's where and rules (core/link.lua's, which ask only a change): each call kept.
@@ -101,7 +117,8 @@ local function world(change)
         tell=function(build) W.said[#W.said+1]=build(T.en) end,
         name=function() return 'Kaanta' end,log=function(m) W.logs[#W.logs+1]=m end,
         paused=function() return W.paused end,night=function() return W.night end,
-        cutscene=function() return W.cutscene end,follow=W.follow})
+        cutscene=function() return W.cutscene end,follow=W.follow,
+        back=function() if W.back then return W.back() end end})
 end
 local function run(t,seconds) -- Ticks of 250 ms, as main.lua's loop gives them.
     for _=1,math.floor(seconds/0.25+0.5) do
@@ -115,6 +132,8 @@ end
 local function last(list) return list[#list] end
 -- The id of the last camps? asked.
 local function asked_id() return tonumber(last(W.requests):match('^camps%? (%d+)$')) end
+-- The id of the last spot? asked.
+local function spot_id() return tonumber((last(W.requests) or ''):match('^spot%? (%d+) ')) end
 local W_ = T.en.travel
 local OFFER=W_.offer:format('Kaanta','e04','F7')
 local GOING,NONE,BUSY,FAILED=W_.going:format('Kaanta'),W_.none:format('Kaanta'),W_.busy,W_.failed
@@ -490,19 +509,19 @@ run(t,0.5)
 W.her_map=Travel.WORLDS.SpaceElevator
 run(t,3)
 assert(#W.said==4 and last(W.said)==W_.offer:format('Kaanta','b07','F7'),last(W.said))
--- The place a travel brought her to is taken as seen also when it reads as the place before: her camp 120 m from him
--- on his map keeps the far offer's place (100 to 150 m), and his next map change is still offered.
-t=world(function(w) w.her_map=DEDA; w.ghost={X=40000,Y=0,Z=0}; w.names={DED10_Camp_07=8} end)
+-- On his map the press asks his spot: the place it brings her to (2 m from him) is taken as seen. His next map change
+-- is still offered.
+t=world(function(w) w.her_map=DEDA; w.ghost={X=40000,Y=0,Z=0} end)
 run(t,0.25)
 assert(#W.said==1 and W.said[1]==W_.offer:format('Kaanta','f02','F7'),W.said[1])
 assert(t.press())
-W.answer=asked_id()..' DrownedEidosDistrict DED10_Camp_07:3'
+W.spot=spot_id()..' 40000 0 0 0'
 run(t,0.25)
-assert(last(W.requests)=='travel DED10_Camp_07 8 0',last(W.requests))
+assert(last(W.requests)=='travel spot 40000 0 0 0',last(W.requests))
 W.travel,W.calls='pending',1
 run(t,0.25)
 assert(last(W.said)==GOING)
-W.travel,W.ghost='arrived',{X=12000,Y=0,Z=0}
+W.travel,W.ghost='arrived',{X=200,Y=0,Z=0}
 run(t,1)
 assert(#W.said==2,last(W.said))
 W.her_map,W.ghost=XION,nil
@@ -519,7 +538,8 @@ assert(last(W.said)==GOING and logged('already gone'),last(W.said))
 run(t,3)
 assert(not t.press() and last(W.said)==BUSY)
 -- The guards again right before the call, as the answer can come seconds after the press: a menu opened meanwhile, no
--- call and busy; the host back within 150 m, no call and the log only.
+-- call and busy. The host now on her map 50 m away: no camp call, his spot asked instead; within 5 m, no call and the
+-- log only.
 t=world(function(w) w.names={Xion_Camp_10=1} end)
 assert(t.press())
 W.paused=true
@@ -531,13 +551,21 @@ assert(t.press())
 W.her_map,W.ghost=DEDA,{X=5000,Y=0,Z=0}
 W.answer=asked_id()..' Xion Xion_Camp_10:1'
 run(t,0.25)
-assert(#W.requests==1 and #W.said==0 and logged('refused at the call: the host is within 150 m')
+assert(not table.concat(W.requests,'|'):find('travel Xion_Camp_10',1,true)
+    and last(W.requests):find('^spot%? %d+ 2$') and logged('the host is on this map now'),last(W.requests))
+t=world(function(w) w.names={Xion_Camp_10=1} end)
+assert(t.press())
+W.her_map,W.ghost=DEDA,{X=400,Y=0,Z=0}
+W.answer=asked_id()..' Xion Xion_Camp_10:1'
+run(t,0.25)
+assert(#W.requests==1 and #W.said==0 and logged('refused at the call: the host is within 5 m')
     and not logged('travel off for this run'))
 
 -- The guards, each refusing on its own. Silent (the log only): not a linked guest, follow_host=off, not a co-op save,
--- no travel in the native part, the host's map unknown or the host within 150 m on hers. Busy: our EVE down, a warp or
--- respawn in flight, the game paused (or photo mode, or a menu), Night Operation, a cutscene, a boss or an enemy in
--- battle near us (while the shared fight runs). Failed: the native part's travel stopped by a fault.
+-- no travel in the native part, the host's map unknown, his place on hers unknown (no ghost shown) or the host within
+-- 5 m on hers. Busy: our EVE down, a warp or respawn in flight, the game paused (or photo mode, or a menu), Night
+-- Operation, a cutscene, a boss or an enemy in battle near us (while the shared fight runs). Failed: the native part's
+-- travel stopped by a fault.
 local cases={
     {function(w) w.mode='host' end,'not a guest',nil},
     {function(w) w.linked=false end,'not a guest',nil},
@@ -545,8 +573,8 @@ local cases={
     {function(w) w.slot='slot=main index=1 marker=1 saves=main' end,'co-op save',nil},
     {function(w) w.engine=ENGINE end,'no travel in the native part',nil},
     {function(w) w.her_map=nil end,"host's map",nil},
-    {function(w) w.her_map=DEDA; w.ghost={X=14000,Y=0,Z=0} end,'within 150 m',nil},
-    {function(w) w.her_map=DEDA end,'within 150 m',nil}, -- No ghost on her map: no distance.
+    {function(w) w.her_map=DEDA; w.ghost={X=400,Y=0,Z=0} end,'within 5 m',nil},
+    {function(w) w.her_map=DEDA end,'place on this map is unknown',nil}, -- No ghost on her map: no distance.
     {function(w) w.life={state=3,hp=0} end,'our EVE is down',BUSY},
     {function(w) w.life=nil end,'our EVE is down',BUSY},
     {function(w) w.warp='busy' end,'warp',BUSY},
@@ -563,11 +591,11 @@ for _,case in ipairs(cases) do
     assert(not ok and why:find(case[2],1,true) and #W.requests==0,case[2]..': '..tostring(why))
     if case[3] then assert(last(W.said)==case[3],case[2]) else assert(#W.said==0 or W.said[1]~=BUSY,case[2]) end
 end
--- The shared fight off: no boss= field, no battle guard. The host 151 m away on her map: allowed.
+-- The shared fight off: no boss= field, no battle guard. The host 151 m away on her map: allowed, as a spot ask.
 t=world(function(w) w.fight=nil end)
 assert(t.press())
 t=world(function(w) w.her_map=DEDA; w.ghost={X=15100,Y=0,Z=0} end)
-assert(t.press())
+assert(t.press() and last(W.requests):find('^spot%? %d+ 2$'))
 
 -- The far offer ends only once the host is back within 100 m: none again while he walks between 100 and 150 m.
 t=world(function(w) w.her_map=DEDA; w.ghost={X=20000,Y=0,Z=0} end)
@@ -736,6 +764,206 @@ W.me.at={X=-200,Y=0,Z=0}; assert(c.camp_near('Xion',10)==nil and W.finds==1)
 W.me={map=DEDA,at={X=0,Y=0,Z=0}}; assert(c.camp_near('Xion',10)==nil)
 W.camps=nil; W.me={map=XION,at={X=0,Y=0,Z=0}}; assert(c.camp_near('Xion',10)==nil,'No read: no camp')
 W.me=nil; assert(c.camp_near('Xion',10)==nil,'No EVE: no camp')
+assert(#W.requests==0)
+-- Same map, 20 m: follow_key asks the host's spot, then the native warp to it; the going notice.
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
+assert(t.press())
+local sid=tonumber(last(W.requests):match('^spot%? (%d+) 2$'))
+assert(sid,last(W.requests))
+W.spot=sid..' 2000 0 0 90'
+run(t,0.25)
+assert(last(W.requests)=='travel spot 2000 0 0 90',last(W.requests))
+W.travel,W.calls='pending',1
+run(t,0.25)
+assert(last(W.said)==GOING,last(W.said))
+-- Within 5 m, or no distance (his ghost hidden): refused, one log line, no request, no notice. 6 m: asked.
+for _,case in ipairs({{{X=400,Y=0,Z=0},'the host is within 5 m'},{nil,"the host's place on this map is unknown"}}) do
+    t=world(function(w) w.her_map=DEDA; w.ghost=case[1] end)
+    ok,why=t.press()
+    assert(not ok and why==case[2] and #W.requests==0 and #W.said==0 and logged('travel refused: '..case[2]),why)
+end
+t=world(function(w) w.her_map=DEDA; w.ghost={X=600,Y=0,Z=0} end)
+assert(t.press() and last(W.requests):find('^spot%? %d+ 2$'),'6 m: asked')
+-- The host's answers: air gives its notice; title failed; loading, busy, solo and boss busy. No answer in 10 s: busy.
+-- The native part's refused:solo: busy.
+for reason,notice in pairs({air=W_.air:format('Kaanta'),title=FAILED,loading=BUSY,busy=BUSY,solo=BUSY,boss=BUSY}) do
+    t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
+    assert(t.press())
+    W.spot=spot_id()..' none '..reason
+    run(t,0.25)
+    assert(last(W.said)==notice and not last(W.requests):find('^travel'),reason)
+end
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
+assert(t.press()); run(t,9.75); assert(#W.said==0); run(t,0.25)
+assert(last(W.said)==BUSY and logged('no answer from the host in 10 s'))
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
+assert(t.press()); W.spot=spot_id()..' 2000 0 0 90'; run(t,0.25)
+W.travel,W.calls='refused:solo',1; run(t,0.25)
+assert(last(W.said)==BUSY,last(W.said))
+-- The host left her map between the press and his answer: no warp to a place of another map, busy.
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
+assert(t.press()); W.her_map=XION; W.spot=spot_id()..' 2000 0 0 90'; run(t,0.25)
+assert(not last(W.requests):find('^travel') and last(W.said)==BUSY and logged('the host left this map'),last(W.requests))
+-- The guards again at his answer: the game paused meanwhile, no warp and busy. SB's refusal of the spot warp
+-- (refused:game) is failed, never a next camp.
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
+assert(t.press()); W.paused=true; W.spot=spot_id()..' 2000 0 0 90'; run(t,0.25)
+assert(not last(W.requests):find('^travel') and last(W.said)==BUSY
+    and logged('refused at the call: the game is paused'),last(W.requests))
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0} end)
+assert(t.press()); W.spot=spot_id()..' 2000 0 0 90'; run(t,0.25)
+W.travel,W.calls='refused:game',1; run(t,0.25)
+assert(last(W.said)==FAILED and not logged('travel off for this run'),last(W.said))
+-- whole numbers (Review Focus 2): our ground point at -1234.6, 0.4, 7.5, yaw -179.6, asked as spot?=3. A point that
+-- is not finite is no point (air), never a Lua error.
+t=world(function(w) w.mode='host'; w.eve_at={X=-1234.6,Y=0.4,Z=7.5}; w.yaw=-179.6; w.spot_asked=3 end)
+run(t,0.25)
+assert(last(W.requests)=='spot 3 -1235 0 8 -180',last(W.requests))
+run(t,1); assert(#W.requests==1,'Each number once')
+t=world(function(w) w.mode='host'; w.eve_at={X=0/0,Y=0,Z=0}; w.spot_asked=4 end)
+run(t,0.25)
+assert(last(W.requests)=='spot 4 none air' and not logged('travel off for this run'))
+-- Past 10,000,000 cm or a yaw past 360: no point either.
+for _,change in ipairs({function(w) w.eve_at={X=10000001,Y=0,Z=0} end,function(w) w.yaw=361 end}) do
+    t=world(function(w) w.mode='host'; w.spot_asked=4; change(w) end)
+    run(t,0.25)
+    assert(last(W.requests)=='spot 4 none air',last(W.requests))
+end
+-- The answer's reasons, first that holds: title, loading, a cutscene (busy), solo, boss, busy, air.
+local function answer(change)
+    t=world(function(w) w.mode='host'; w.spot_asked=4; change(w) end)
+    run(t,0.25)
+    return last(W.requests)
+end
+assert(answer(function(w) w.title=true end)=='spot 4 none title')
+assert(answer(function(w) w.me=nil end)=='spot 4 none loading')
+assert(answer(function(w) w.cutscene=true; w.zonetype=5 end)=='spot 4 none busy')
+assert(answer(function(w) w.zonetype=5 end)=='spot 4 none solo')
+assert(answer(function(w) w.fight=FIGHT:gsub('boss=0','boss=1') end)=='spot 4 none boss')
+assert(answer(function(w) w.warp='busy' end)=='spot 4 none busy')
+assert(answer(function(w) w.move=3 end)=='spot 4 none air')
+-- A guest answers too (the host's go()).
+assert(answer(function(w) w.mode='guest' end)=='spot 4 0 0 0 0')
+-- FRESH: a ground point 9.5 s old still goes; 10.5 s old is air. A map change drops the point.
+t=world(function(w) w.mode='host' end); run(t,0.25)
+W.move=3; run(t,9.25); W.spot_asked=6; run(t,0.25)
+assert(last(W.requests)=='spot 6 0 0 0 0',last(W.requests))
+run(t,0.75); W.spot_asked=7; run(t,0.25)
+assert(last(W.requests)=='spot 7 none air',last(W.requests))
+t=world(function(w) w.mode='host' end); run(t,0.25)
+W.me={at={X=0,Y=0,Z=0},map=XION}; W.move=3; run(t,1); W.spot_asked=8; run(t,0.25)
+assert(last(W.requests)=='spot 8 none air','The point of the map before is gone')
+t=world(function(w) w.mode='host' end); run(t,0.25)
+W.pawn=2; W.move=3; run(t,0.25); W.spot_asked=9; run(t,0.25)
+assert(last(W.requests)=='spot 9 none air','The point of the EVE before is gone')
+-- Another map: the camp travel, then one spot? by itself 10 s after the accepted call, no second notice. EVE missing
+-- at the due time (a load): the hop waits and goes once she is back.
+t=world(function(w) w.names={Xion_Camp_10=1} end)
+assert(t.press())
+W.answer=asked_id()..' Xion Xion_Camp_10:1'
+run(t,0.25)
+W.travel,W.calls='pending',1
+run(t,0.25)
+W.travel='warping'; run(t,0.5) -- Still on her map while the warp runs: the hop waits for the arrival.
+said=#W.said
+W.me={at={X=0,Y=0,Z=0},map=XION}; W.ghost={X=3000,Y=0,Z=0}; W.travel='arrived'
+run(t,9); assert(not last(W.requests):find('^spot%?'),'Not before 10 s')
+W.me=nil; run(t,1); assert(not last(W.requests):find('^spot%?'),'No EVE: it waits')
+W.me={at={X=0,Y=0,Z=0},map=XION}; run(t,1)
+assert(last(W.requests):find('^spot%? %d+ 2$') and #W.said==said,last(W.requests))
+-- The hop's answer goes to the warp with no notice.
+W.spot=spot_id()..' 3000 0 0 0'; run(t,0.25)
+assert(last(W.requests)=='travel spot 3000 0 0 0' and #W.said==said,last(W.requests))
+-- The hop's none answer, or no answer in 10 s: the log only, no notice and no second ask.
+for _,spot in ipairs({'none air',false}) do
+    t=world(function(w) w.names={Xion_Camp_10=1} end)
+    assert(t.press())
+    W.answer=asked_id()..' Xion Xion_Camp_10:1'
+    run(t,0.25)
+    W.travel,W.calls='pending',1
+    run(t,0.25)
+    said=#W.said
+    W.me={at={X=0,Y=0,Z=0},map=XION}; W.ghost={X=3000,Y=0,Z=0}; W.travel='arrived'
+    run(t,10.5)
+    local asks=#W.requests
+    assert(last(W.requests):find('^spot%? %d+ 2$'),last(W.requests))
+    if spot then W.spot=spot_id()..' '..spot end
+    run(t,15)
+    assert(#W.requests==asks and #W.said==said and logged(spot or 'no answer from the host in 10 s'),last(W.requests))
+end
+-- The hop refused for 30 s after the arrival (the host within 5 m): one log line, nothing asked.
+t=world(function(w) w.names={Xion_Camp_10=1} end)
+assert(t.press())
+W.answer=asked_id()..' Xion Xion_Camp_10:1'
+run(t,0.25)
+W.travel,W.calls='pending',1
+run(t,0.25)
+said=#W.said
+W.me={at={X=0,Y=0,Z=0},map=XION}; W.ghost={X=300,Y=0,Z=0}; W.travel='arrived'
+run(t,29.75); assert(not logged('no second hop'))
+run(t,0.25); run(t,5)
+local hops=0
+for _,line in ipairs(W.logs) do if line:find('travel: no second hop: the host is within 5 m',1,true) then hops=hops+1 end end
+assert(hops==1 and #W.requests==2 and #W.said==said,'One line, nothing asked')
+-- always on his map, 200 m: the spot after 5 s, no camps?. 140 m on his map: follow_key asks a spot.
+t=world(function(w) w.her_map=DEDA; w.ghost={X=20000,Y=0,Z=0}; w.settings.follow_host='always' end)
+run(t,5.25)
+assert(last(W.requests):find('^spot%? %d+ 2$') and not table.concat(W.requests,'|'):find('camps%?'))
+t=world(function(w) w.her_map=DEDA; w.ghost={X=14000,Y=0,Z=0} end)
+assert(t.press() and last(W.requests):find('^spot%? %d+ 2$'))
+-- Solo areas: the host's vitals type 5, or ours 2: refused with the busy notice, nothing asked.
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0}; w.mate.zone=5 end)
+assert(not t.press() and #W.requests==0 and last(W.said)==BUSY and logged('the host is in a solo area'))
+t=world(function(w) w.her_map=DEDA; w.ghost={X=2000,Y=0,Z=0}; w.zonetype=2 end)
+assert(not t.press() and #W.requests==0 and logged('we are in a solo area'))
+-- go(id): the host's return to member 3 (slot 1, 10 m away), no camps read needed; the answer, then the warp.
+local function going(change)
+    return world(function(w) w.mode='host'; w.camps=nil
+        w.members={{id='2',slot=0,linked=true},{id='3',slot=1,linked=true}}
+        w.vits={['3']={life=1,hp=900,max_hp=1600,zone=1}}; w.ghosts={[1]={map=DEDA,feet={X=1000,Y=0,Z=0}}}
+        if change then change(w) end end)
+end
+t=going()
+assert(t.go('3')==true and last(W.requests):find('^spot%? %d+ 3$'),last(W.requests))
+W.spot=spot_id()..' 1000 0 0 0'
+run(t,0.25)
+assert(last(W.requests)=='travel spot 1000 0 0 0',last(W.requests))
+W.travel,W.calls='pending',1; run(t,0.25)
+assert(#W.said==0 and logged('travel accepted: spot'),'No notice on success')
+-- go()'s refusals, none answers and silence: the log only. Not linked, another map, down, solo; a none answer; no
+-- answer in 10 s.
+for _,case in ipairs({{function(w) w.members[2].linked=false end,'not a linked member of a session'},
+    {function(w) w.ghosts[1].map=XION end,'they are on another map'},
+    {function(w) w.vits['3'].life=3; w.vits['3'].hp=0 end,'they are down'},
+    {function(w) w.vits=nil end,'they are down'},
+    {function(w) w.vits['3'].zone=6 end,'they are in a solo area'}}) do
+    t=going(case[1])
+    ok,why=t.go('3')
+    assert(ok==false and why==case[2] and #W.requests==0 and #W.said==0,tostring(why))
+end
+t=going(); assert(t.go('3')); W.spot=spot_id()..' none air'; run(t,0.25)
+assert(#W.said==0 and #W.requests==1 and logged('none air'))
+t=going(); assert(t.go('3')); run(t,10)
+assert(#W.said==0 and #W.requests==1 and logged('no answer from member 3 in 10 s'))
+-- go()'s guards again at her answer: she went down meanwhile, no warp, the log only.
+t=going(); assert(t.go('3')); W.vits['3'].life,W.vits['3'].hp=3,0; W.spot=spot_id()..' 1000 0 0 0'; run(t,0.25)
+assert(#W.said==0 and #W.requests==1 and logged('refused at the call: they are down'),last(W.requests))
+-- press() takes o.back's answer first, true or false.
+t=world(function(w) w.back=function() return true,'going back' end end)
+local ok3,text=t.press(); assert(ok3==true and text=='going back' and #W.requests==0)
+t=world(function(w) w.back=function() return false,'the game is not standalone' end end)
+ok3,text=t.press(); assert(ok3==false and text=='the game is not standalone' and #W.requests==0)
+-- coop travel spot: solo, co-op save; a world of Travel.WORLDS through FNAME_Find.
+for _,case in ipairs({{{'100','-200','300'},'travel spot 100 -200 300 0'},
+    {{'Xion','1','2','3'},'travel spot 1 2 3 0 Xion 77 0'}}) do
+    t=world(function(w) w.mode='none'; w.names={Xion=77} end)
+    assert(t.spot(table.unpack(case[1]))==true and last(W.requests)==case[2],last(W.requests))
+end
+t=world(function(w) w.mode='none' end); assert(select(2,t.spot('Nowhere','1','2','3')):find('not a world'))
+t=world(function(w) w.mode='none' end); assert(select(2,t.spot('Xion','1','2','3')):find('not a name'))
+t=world(function(w) w.mode='none' end); assert(select(2,t.spot('1.5','2','3')):find('whole'))
+t=world(function(w) w.mode='none' end); assert(select(2,t.spot('1','2','10000001')):find('whole'))
+t=world(); assert(select(2,t.spot('1','2','3')):find('solo only'))
 assert(#W.requests==0)
 -- A Lua error turns the follow off for the run, with one line.
 t=world(function(w) w.names={Xion_Camp_10=1} end)

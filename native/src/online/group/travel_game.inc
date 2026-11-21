@@ -16,14 +16,24 @@ namespace {
 // travel for the run.
 constexpr uint64_t kCampTravel = 0x141cdfbd0;
 using CampTravel = uint8_t (*)(void *client, const void *request); // The return is a bool in AL.
+// The spot warp (Seamless gap phase 4), under the same latch, count and watch: kWarpStart, FUN_141cdfe70(client,
+// record), the position warp SB's WarpSBActor (FUN_141ac3d80) calls, with the record game/travel.h's args() builds (our
+// GUID, a place and a yaw, no camp). It returns 1 in AL once it wrote the warp block at client +0xa20, 0 when our EVE
+// is not in the world's actor map or FUN_141cf7630 reads a Boss Challenge zone. game/travel.h's guard refuses it in a
+// solo zone too (warp_zonetype, warp_game.inc).
+constexpr uint64_t kWarpStart = 0x141cdfe70;
+using WarpStart = uint8_t (*)(void *client, const void *args);
 std::atomic<bool> travel_faulted{false};
 std::atomic<uint64_t> travel_fault_code{0}, travel_fault_rva{0}, travel_fault_address{0};
-// The worker's ask, its number and the camp's FName, taken by the game thread with try_lock only.
+// The worker's ask, its number, its kind and the camp's FName (a spot: its place and the world's FName, index 0 for
+// none), taken by the game thread with try_lock only.
 std::mutex travel_m;
 uint32_t travel_asked = 0, travel_index = 0, travel_number = 0;
-// The game thread's word back: the last ask it handled (number << 32 | Why << 16 | other world << 8 | return), the
-// asks handled with the watch (count << 32 | State << 8 | Why: one word, so Lua never reads a new count with the state
-// before it), and the 24 bytes copied into +0x3c and +0x48 (read at the first call).
+bool travel_spot = false;
+coop::Spot travel_at{};
+// The game thread's word back: the last ask it handled (number << 32 | spot << 24 | Why << 16 | other world << 8 |
+// return), the asks handled with the watch (count << 32 | State << 8 | Why: one word, so Lua never reads a new count
+// with the state before it), and the 24 bytes copied into +0x3c and +0x48 (read at the first camp call).
 std::atomic<uint64_t> travel_done{0}, travel_watched{0};
 std::atomic<uint64_t> travel_globals[3] = {};
 std::atomic<bool> travel_globals_read{false};
@@ -32,8 +42,8 @@ uint32_t travel_taken = 0, travel_handled = 0;
 uint64_t travel_next = 0;
 travel::Calls travel_calls;
 travel::Watch travel_watch;
-__declspec(noinline) travel::Why travel_body(uint32_t index, uint32_t number, uint64_t now, uint8_t &ret,
-                                             uint8_t &other) {
+__declspec(noinline) travel::Why travel_body(bool spot, const coop::Spot &place, uint32_t index, uint32_t number,
+                                             uint64_t now, uint8_t &ret, uint8_t &other) {
   if (const travel::Why why = travel_calls.check(now); why != travel::Why::none)
     return why;
   const auto global = [](uint64_t where) { return at<uintptr_t>(base + (where - game::kImageBase)); };
@@ -60,8 +70,17 @@ __declspec(noinline) travel::Why travel_body(uint32_t index, uint32_t number, ui
     const auto find = reinterpret_cast<FindFsb>(base + (kFindFsb - game::kImageBase));
     r.player = travel::plausible(actors) && find(reinterpret_cast<void *>(actors), static_cast<int32_t>(guid));
   }
-  if (const travel::Why why = travel::refuse(r); why != travel::Why::none)
+  r.solo = coop::solo_zone(warp_zonetype);
+  if (const travel::Why why = travel::refuse(r, spot); why != travel::Why::none)
     return why;
+  if (spot) {
+    const travel::Args a = travel::args(guid, float(place[0]), float(place[1]), float(place[2]), float(place[3]),
+                                        uint64_t(number) << 32 | index);
+    const auto warp = reinterpret_cast<WarpStart>(base + (kWarpStart - game::kImageBase));
+    ret = warp(reinterpret_cast<void *>(r.client), a.data());
+    other = at<uint8_t>(r.client + travel::kOtherWorld);
+    return travel::Why::none;
+  }
   uint8_t location[12], rotation[12];
   std::memcpy(location, reinterpret_cast<const void *>(base + (travel::kLocationAt - game::kImageBase)), 12);
   std::memcpy(rotation, reinterpret_cast<const void *>(base + (travel::kRotationAt - game::kImageBase)), 12);
@@ -88,11 +107,12 @@ __declspec(noinline) void travel_watch_body(uint64_t now) {
 }
 void travel_tick() {
   const uint64_t now = GetTickCount64();
-  bool got = false;
+  bool got = false, spot = false;
   uint32_t asked = 0, index = 0, number = 0;
+  coop::Spot place{};
   if (travel_m.try_lock()) {
     got = travel_asked != travel_taken;
-    asked = travel_asked, index = travel_index, number = travel_number;
+    asked = travel_asked, index = travel_index, number = travel_number, spot = travel_spot, place = travel_at;
     travel_m.unlock();
   }
   if (got) {
@@ -100,7 +120,7 @@ void travel_tick() {
     uint8_t ret = 0, other = 0;
     travel::Why why = travel::Why::fault;
     __try {
-      why = travel_body(index, number, now, ret, other);
+      why = travel_body(spot, place, index, number, now, ret, other);
     } __except (fault_filter(GetExceptionInformation(), travel_fault_code, travel_fault_rva, travel_fault_address)) {
       travel_faulted = true;
     }
@@ -113,7 +133,7 @@ void travel_tick() {
     } else {
       travel_watch.refused(why);
     }
-    travel_done = uint64_t(asked) << 32 | uint64_t(why) << 16 | uint64_t(other) << 8 | ret;
+    travel_done = uint64_t(asked) << 32 | uint64_t(spot) << 24 | uint64_t(why) << 16 | uint64_t(other) << 8 | ret;
     ++travel_handled;
   }
   if (now >= travel_next && !travel_faulted) {

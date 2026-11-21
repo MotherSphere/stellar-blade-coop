@@ -203,6 +203,9 @@ private:
     case Command::score:
       score(r.text);
       break;
+    case Command::mode:
+      mode(r.text);
+      break;
     case Command::dr:
       dr(r.text);
       break;
@@ -245,6 +248,7 @@ private:
     case Command::shortcut:
     case Command::devinfo:
     case Command::items:
+    case Command::fishbook:
     case Command::nightshop:
     case Command::teamshop:
     case Command::roxanne:
@@ -276,6 +280,58 @@ private:
         put(kRulesKey, rules_);
       event("rules: " + rules_);
       break;
+    // The travel's spot lines (online/group/travel.lua writes them; link/protocol.h checked their shape): reliable, on
+    // channel 0, never in a match lobby. Our spot? goes to the member Lua names: the host only on a guest, any guest
+    // past the handshake on the host. It forgets the answer to the one before. Our answer goes to the member whose
+    // spot? still waits with the number it answers (spot?= in our status), with her own id in place of that number.
+    case Command::spot: {
+      const bool ask = r.line.find(" spot? ") != std::string::npos;
+      Message m = parse(r.line.data(), r.line.size());
+      Peer *to = nullptr;
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && (ask ? p.id == r.player : p.spot_waiting && p.spot_n == m.a))
+          to = &p;
+      const char *why = match()                                ? "a match lobby"
+                        : !(host_ ? linked() : leader())        ? "no session"
+                        : ask && !host_ && r.player != host_id_ ? "a guest asks the host only"
+                        : ask && !to                            ? "no such member"
+                        : !ask && !to                           ? "nobody asked for it"
+                                                                : nullptr;
+      if (why) {
+        event(std::string("spot line not sent: ") + why);
+        break;
+      }
+      if (ask) {
+        send(*to, r.line, kReliable);
+        asked_spot_ = true;
+        spot_to_ = to->id;
+        spot_asked_ = m.a;
+        spot_answer_.clear();
+        event("sent " + r.line.substr(r.line.find(' ') + 1) + " to " + to->name);
+        break;
+      }
+      m.a = to->spot_id;
+      const std::string line = spot_line(m);
+      send(*to, line, kReliable);
+      to->spot_waiting = false;
+      event("sent " + line.substr(line.find(' ') + 1) + " to " + to->name);
+      break;
+    }
+    // A camp rest of ours (online/group/group.lua): reliable on channel 0 with our SteamID, to the host on a guest, to
+    // every guest past the handshake on the host, never in a match lobby.
+    case Command::rest: {
+      const char *why = match() ? "a match lobby" : !(host_ ? linked() : leader()) ? "no session" : nullptr;
+      if (why) {
+        event(std::string("rest line not sent: ") + why);
+        break;
+      }
+      const std::string line = rest_line(r.alias, me_);
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && (host_ || p.id == host_id_))
+          send(p, line, kReliable);
+      event("sent " + line.substr(line.find(' ') + 1));
+      break;
+    }
     case Command::mute: { // Any player's, in any lobby, kept for the game run (my call 18).
       const std::string name = name_of(r.player);
       if (r.off)

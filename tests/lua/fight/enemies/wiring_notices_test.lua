@@ -48,7 +48,10 @@ fight_step('fight=off why=coop fight off')
 -- zone while their vitals read alive and they were not down in the last 10 s says their game reset the area; our own
 -- resets moving with spawns=on and our life alive for the 10 s before says only their rest brings the enemies back.
 -- Nothing for the first epoch line, another zone, a respawn of either player, no life read, spawns off, or as the host.
+-- These run with shared_world=off: with it on, online/group/group.lua's rested notice says it, so neither shows.
 do
+    local settings=gr.o.settings -- M.settings, the table the group module got too.
+    settings.shared_world=false
     local REST,MINE="Enemies are back: the area reset in Kaanta's game.",
         "Shared area: only Kaanta's camp rest brings its enemies back."
     local function guest(zone,n,resets,spawns)
@@ -92,6 +95,11 @@ do
         ..'réinitialisée dans la partie de Kaanta.|Zone partagée : seul le repos de Kaanta au camp fait revenir ses '
         ..'ennemis.')
     mate_v,fake_link.Q.life,kit_language=nil,nil,language
+    fight_step('fight=off why=coop fight off')
+    settings.shared_world=true
+    mate_v,fake_link.Q.life=vitals(1000,1),up
+    assert(rest_tick(guest(40,1,0),41)=='' and rest_tick(guest(40,2,1))=='','shared_world=on: neither epoch notice')
+    mate_v,fake_link.Q.life=nil,nil
     fight_step('fight=off why=coop fight off')
 end
 -- The same notices in the game's language (French: 0 and 1 singular), each with its English for the line above EVE.

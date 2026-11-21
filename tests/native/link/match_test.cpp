@@ -272,7 +272,7 @@ int main() {
     match_of(m, 3);
     assert(slot_of(m[0], kFriend) == 0 && slot_of(m[0], kPlayer[2]) == 1);
     for (int i = 0; i < 3; ++i)
-      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1});
+      m[i].vitals(Vitals{uint32_t(100 + i), 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0});
     m.round();
     for (int i = 0; i < 3; ++i)
       assert(m.status(i).find("\nvit=") == std::string::npos && m.status(i).find("\nmate=") == std::string::npos);
@@ -351,7 +351,7 @@ int main() {
   {
     Mesh m(1);
     lobby_of(7000, kPlayer[7], kPublic,
-             {{kLobbyKey, "23:24463856"}, {kModeKey, "ffa"}, {kStateKey, "open"}, {kHallKey, "xion"}});
+             {{kLobbyKey, "24:24463856"}, {kModeKey, "ffa"}, {kStateKey, "open"}, {kHallKey, "xion"}});
     m.tick(0, "match search ffa xion xion");
     m.round();
     m.round();
@@ -954,6 +954,18 @@ int main() {
            !saw("P2: dropped a camps line"));
     m.tick(1, "camps? 3");
     assert(saw("P2: camps line not sent: a match lobby") && sent_count(P + " camps") == 0);
+    // The spot and rest lines: off both ways.
+    inbox(0, kChannel).push_back({kPlayer[1], spot_ask_line(3)});
+    inbox(0, kChannel).push_back({kPlayer[1], rest_line("Zone_A", kPlayer[1])});
+    inbox(1, kChannel).push_back({kPlayer[0], spot_line(3, Spot{1, 2, 3, 4})});
+    m.round();
+    assert(m[0].take_chat().empty() && m.status(0).find("\nspot?=") == std::string::npos &&
+           m.status(1).find("\nspot=") == std::string::npos && !saw("dropped a spot line") &&
+           !saw("dropped a rest line"));
+    m.tick(1, "spot? 3 " + std::to_string(kPlayer[0]));
+    m.tick(1, "rest Zone_A");
+    assert(saw("P2: spot line not sent: a match lobby") && saw("P2: rest line not sent: a match lobby") &&
+           sent_count(P + " spot") == 0 && sent_count(P + " rest") == 0);
     assert(!m[0].send_fight(quest_tag() + " x", true) && !m[0].send_fight(world_tag() + " on", true) &&
            !m[0].send_fight(story_tag() + " on", true) && m[0].send_fight(fight_tag() + " x", true));
     inbox(0, kFightChannel).push_back({kPlayer[1], quest_tag() + " x"});
@@ -1271,6 +1283,20 @@ int main() {
     inbox(0, kChannel).push_back({kFriend, dr_line("ready 7")});
     m.round();
     assert(m[0].take_chat().empty() && !saw("P1: dropped dr lines") &&
+           m.status(0).find(" name=P2 hello=1 accepted=1 compatible=1 lost=0 invalid=0 ") != std::string::npos);
+  }
+  // A match lobby carries no mode line (the modes of online sessions'): ours never goes, hers is never taken, with no
+  // log line.
+  reset();
+  {
+    Mesh m(2);
+    match_by_hand(m, 2);
+    assert(m[0].match());
+    m.tick(0, "mode fish go 7 10 1001,2002");
+    assert(!m[0].mode("fish go 7 10 1001,2002") && sent_count(P + " mode") == 0);
+    inbox(0, kChannel).push_back({kFriend, mode_line("fish ready 7")});
+    m.round();
+    assert(m[0].take_chat().empty() && !saw("P1: dropped mode lines") &&
            m.status(0).find(" name=P2 hello=1 accepted=1 compatible=1 lost=0 invalid=0 ") != std::string::npos);
   }
   std::puts("link_match_test: ok");
