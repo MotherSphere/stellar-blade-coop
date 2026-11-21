@@ -5,10 +5,10 @@
 -- fish table read from SB's two tables by row name (a missing row, a bad value, a shared ID refused) and fish()'s sit
 -- outs (fishing=off, off a co-op save, a table that cannot be read, read once a Lua load); the engine line's book
 -- answers; the asks once a second from GO, never with the number the engine line shows, again after a lost answer, one
--- last ask at our end, then none; a catch before GO; the baseline taken again after a map change, a loading screen, a
--- slot change and each none answer but unread, which keeps it, the answer of an ask sent before the event dropped; no
--- ask while the world is not loaded; a fall or a missing fish counting nothing; a jump of 3; a fish not in the table
--- logged once and never sent; coop off, a round replaced and a round that ended.
+-- last ask at our end (after G.LOST when an answer is lost), then none; a catch before GO; the baseline taken again
+-- after a map change, a loading screen, a slot change and each none answer but unread, which keeps it, the answer of an
+-- ask sent before the event dropped; no ask while the world is not loaded; a fall or a missing fish counting nothing; a
+-- jump of 3; a fish not in the table logged once and never sent; coop off, a round replaced and a round that ended.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local G=require('online.modes.fishing.game')
 local rows=require('online.modes.fishing.rows')
@@ -201,6 +201,19 @@ answer('9201:2'); g.tick()
 assert(#caught==1 and caught[1]=='9201 30','The last answer counts')
 now=170; g.tick()
 assert(#asked==n,'Nothing after it')
+-- An answer lost at our end: the last ask goes once G.LOST passed. A last answer that comes G.LOST later still counts
+-- nothing.
+start()
+now=163; g.tick(); answer('9201:1'); g.tick() -- The baseline.
+now=164; g.tick() -- An ask whose answer never comes.
+n=#asked
+now=165; g.tick()
+assert(#asked==n,'Waits for the lost answer')
+now=164+G.LOST; g.tick()
+assert(#asked==n+1,'Then the last ask')
+now=now+G.LOST; g.tick()
+answer('9201:2'); g.tick()
+assert(#caught==0 and #asked==n+1,'Its answer came too late: nothing counts, nothing is asked')
 -- An end with no baseline left (a loading screen at the end): no last ask.
 start()
 now=164; g.tick(); answer('9201:1'); g.tick()

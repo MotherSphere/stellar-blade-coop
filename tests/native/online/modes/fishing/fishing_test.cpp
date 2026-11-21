@@ -166,6 +166,15 @@ int main() {
     m.put(kLogic + coop::fight::kMapData + kSetFree, int32_t(2));
     assert(m.book().why == Why::noeve);
   }
+  { // GUID 0, even with an actor of GUID 0 under key 0 in the map: SB's test wants a GUID above 0.
+    Image m = full();
+    std::vector<uint8_t> zero;
+    at<uint32_t>(zero, 0, 0);
+    at<uint64_t>(zero, kActorValue, kActor);
+    set(m, kLogic + coop::fight::kMapData, kActors, kActorHash, 4, kActorElement, kActorNext, {{0, zero}});
+    m.put(kActor + coop::fight::kGuid, uint32_t(0));
+    assert(m.book(0).why == Why::noeve);
+  }
   {
     Image m = full();
     m.put(kActor, uint64_t(0x145bfca38)); // Another vtable.
@@ -267,9 +276,14 @@ int main() {
     m.put(kFishData + 2 * kFishElement + kFishNext, int32_t(2)); // 9228 (index 2) chains to itself: a loop.
     unread(m, "loop");
   }
-  {
+  { // A chain that leaves the array of five for a fish past it. That fish is of bucket 4 and takes 9220's place in the
+    // count: only the array's bound stops the walk.
     Image m = full();
-    m.put(kFishData + 2 * kFishElement + kFishNext, int32_t(5)); // Past the array of five.
+    m.put(kFishData + 2 * kFishElement + kFishNext, int32_t(5));
+    std::vector<uint8_t> past = fish(9236, 1).second;
+    past.resize(kFishElement);
+    at<int32_t>(past, kFishNext, -1);
+    m.put(kFishData + 5 * kFishElement, past.data(), kFishElement);
     unread(m, "index past the array");
   }
   {
