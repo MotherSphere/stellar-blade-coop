@@ -180,7 +180,8 @@ do
         if l:find('^%s*[-*] %*%*[^*]+:%*%*') then fail(('%s:%d: a bold-label bullet'):format(p,n)) end
         if l:lower():find('co-op session',1,true) then fail(('%s:%d: "co-op session"'):format(p,n)) end
     end)
-    -- The comments of the files the v4 review found joins in, a run of comment lines read as one text.
+    -- The comments of the files the v4 review found joins in, a run of comment lines read as one text. A split join
+    -- leaves no sentence break inside a parenthesis: "(a drops it. B takes it)" reads as a broken aside.
     local T='tests/lua/fight/gunmode/'
     for _,p in ipairs({S..'input.lua',S..'ik.lua',S..'mode.lua',S..'aimrot.lua',S..'ui/dpad.lua',
             T..'ik_pin_test.lua',T..'input_memo_test.lua',T..'rifle_frame_test.lua'}) do
@@ -195,6 +196,9 @@ do
             local flat=b[2]:gsub('%s+',' ')
             for _,j in ipairs({', and ',', but '}) do
                 if flat:find(j,1,true) then fail(('%s:%d: "%s" joins two clauses'):format(p,b[1],j)) end
+            end
+            for inner in flat:gmatch('%b()') do
+                if inner:find('%. %u') then fail(('%s:%d: a sentence break inside %s'):format(p,b[1],inner)) end
             end
         end
     end
