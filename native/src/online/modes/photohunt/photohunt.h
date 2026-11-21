@@ -42,8 +42,8 @@ constexpr int32_t kUiType = 0xf2;
 constexpr size_t kNodeLogic = 0x60;
 // The shutter's result byte: FUN_141f0d410 (UI_FaceButton_Bottom in the photo UI's state 1) stores FUN_142371d30's
 // result at +0x310 (LEA RDI,[RBX+0x310] at 0x141f0d4c9, MOV [RDI],AL at 0x141f0d4d0). 3: a screenshot was asked. A 2 is
-// set back to 0 in the same call (0x141f0d693). The capture event's handler FUN_141f16280 sets it back to 0
-// (0x141f17168) while DAT_147037569 is 0 (CMP at 0x141f162b8), which no code writes.
+// set back to 0 in the same call (0x141f0d693). FUN_141f16280, which the capture event's handler FUN_141f16240 calls
+// (0x141f16273), sets it back to 0 (0x141f17168) while DAT_147037569 is 0 (CMP at 0x141f162b8), which no code writes.
 constexpr size_t kShot = 0x310;
 constexpr uint8_t kAsked = 3;
 // The PhotoChallengeTable row getter FUN_141f24370(tables list, unused, FName by value), as the challenge tick calls

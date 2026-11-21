@@ -710,8 +710,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   and the 8 `signal` words, in `story/quests/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`, `abort`,
   `leave`, `seq`) and their refusals, the score request, the mode request (`mode <word> <text>`), `fishbook <ask>` (1
   to 65535, 0 and 65536 refused) and `photohunt <ask> <index> <number> ...` with 1 to 3 rows or `photohunt off` (an
-  ask of 0 or 65536, an index of 0, a value over 32 bits, 0 or 4 rows and a doubled space refused)), Night Operation's night line (its round trip, its refusals
-  and a fuzz seed), the score line (Lua's text after `score`, printable ASCII up to the 512-byte message, never read as
+  ask of 0 or 65536, an index of 0, a value over 32 bits, 0 or 4 rows and a doubled space refused)), Night
+  Operation's night line (its round trip, its refusals and a fuzz seed), the score line (Lua's text after `score`, printable ASCII up to the 512-byte message, never read as
   a race line, another protocol's refused, a fuzz seed), the mode line (its word of 1 to 16 lowercase letters, then
   Lua's text as it went, never read as a score or race line), and
   the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check

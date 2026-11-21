@@ -168,7 +168,7 @@ one. `No ranking came from the host.` is a notice with the UI off only.
 | `coop off` | Your round stops with no line. The photo checks stop and the screens hide. Your link goes with the mod, so the host counts you as a player who left. A host's `coop off` is a host who leaves |
 | A map change, a fast travel, a load or a respawn | The round goes on. Your game keeps its three targets armed. The native part finds the photo UI again each frame and looks each target up again at each photo |
 | A guest's Lua reload (Ctrl+R) | The native part stops her photo checks at the new Lua session. Her game loses the round and sends nothing more. The host keeps her targets and ranks her. The first board line that names her under a round her game does not run gives `Your game reloaded: your photos no longer count in this photo hunt.` Her panel still shows the ranking when it names her. Her record comes from the world the ranking line carries |
-| The host's Lua reload | The host's game loses the round. The first claim of it that the host's game hears gets a cancel back, once: every game then says `The photo hunt was cancelled.` A guest whose end passed 30 s ago with no ranking shows `No ranking came from the host.` |
+| The host's Lua reload | The host's game loses the round. The first claim of it that the host's game hears gets a cancel back, once: each guest's game then says `The photo hunt was cancelled.` The host's game shows nothing of it. A guest whose end passed 30 s ago with no ranking shows `No ranking came from the host.` |
 | A cutscene or SB's free photo mode | No selfie camera, so no photo is checked. The clock runs on |
 | Pause, a death or a loading screen | The clock runs on: it is the wall clock (`os.time()`), whole seconds. Another player's free photo mode may pause your game ([photo sync](../../players/interface.md#notices)); the clock runs on then too |
 | A fault in the native part | Its photo checks stop for the game run. Your game says `Photo checks stopped in this game: restart the game to play.` You stay ranked with your points |
@@ -281,7 +281,7 @@ The module is `online.modes.photohunt`, in `mod/StellarCoop/Scripts/online/modes
 The wiring reads no other module (`uses` is empty). It exports `photohunt` (the round) and `photohunt_board` (the
 screens). `main/pass.lua` ticks the round every 250 ms after the inbox, then the game side and the screens. `coop off`
 stops it from `main/commands.lua`. `main/ui.lua` builds the screens after the fishing tournament's. It reads shared
-pieces only: `core/where.lua` (a loaded world, EVE's map), `core/unreal.lua` (SB's tables), `core/worlds.lua` (each
+pieces only, among them `core/where.lua` (a loaded world, EVE's map), `core/unreal.lua` (SB's tables), `core/worlds.lua` (each
 world's map), `core/link.lua`'s files (the records), `M.fname`, `M.photo_state`, `M.coop_slot` and the `photohunt`
 setting.
 
@@ -323,10 +323,11 @@ never after `coop off`, the part reads, on build 26123051:
    photo UI's type `0xf2`. The node's logic at `+0x60` must have the photo UI's vtable `0x145c3bee0`, whose slot 2
    (`0x141f09650`) returns `0xf2`. No node or another vtable: nothing this frame.
 3. The shot: the photo UI's byte `+0x310`. The shutter `FUN_141f0d410` stores there the result of the screenshot ask
-   `FUN_142371d30` (`0x141f0d4d0`), whose one caller it is. 3 means a screenshot was asked. The capture event's handler
-   `FUN_141f16280` sets it back to 0 (`0x141f17168`) while `DAT_147037569` is 0 (`0x141f162b8`). No instruction of the
-   image Ghidra holds writes that byte. Code SB decrypts at run time was not searched. A shot is a frame where the byte reads 3 on the same photo UI object whose byte read
-   something else at the frame before. The first frame on a new object only records its byte.
+   `FUN_142371d30` (`0x141f0d4d0`), whose one caller it is. 3 means a screenshot was asked. `FUN_141f16280`, which the
+   capture event's handler `FUN_141f16240` calls, sets it back to 0 (`0x141f17168`) while `DAT_147037569` is 0
+   (`0x141f162b8`). No instruction of the image Ghidra holds writes that byte. Code SB decrypts at run time was not
+   searched. A shot is a frame where the byte reads 3 on the same photo UI object whose byte read something else at the
+   frame before. The first frame on a new object only records its byte.
 4. At a shot, for each armed row: the row from SB's getter `FUN_141f24370` on `*(*(0x1470373b0) + 0x20)`, the FName by
    value as SB's challenge tick passes it (`0x141f0e30e`). While the row's byte `+8` is 0, the part sets it to 1 and
    calls the row's vfunc `+0x20` once, the lazy init SB's tick makes at `0x141f0e31e` to `0x141f0e32e`. That byte is the
