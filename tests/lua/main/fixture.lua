@@ -202,11 +202,12 @@ fake_link={
     end,
     settings=function() return Link.parse_settings(pinned(settings_text)) end,
     -- The real one writes on a change only (link_test): this one says each call.
-    state=function(world,rate,photo,sync,max,title,cut,names,sounds)
+    state=function(world,rate,photo,sync,max,title,cut,names,sounds,collide)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
         gr.cuts[#gr.cuts+1]=cut
         state_names[#state_names+1]=names
         state_sounds[#state_sounds+1]=sounds
+        state_collides[#state_collides+1]=collide
         states[#states+1]=string.format('world=%s rate=%d',world and '1' or title and 'title' or '0',rate)
         return states[#states]
     end,
@@ -1005,6 +1006,7 @@ function load_main(with_native,no_folder,source)
     pausetabs,popup_asks={},{}
     state_names={} -- link.state's mod_names argument, each call.
     state_sounds={} -- link.state's sounds look, each call.
+    state_collides={} -- link.state's collide (the solid partner on, outside an SBO session), each call.
     settles=0 -- link.settle() calls: the end of each 250 ms pass and the top of each frame.
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0

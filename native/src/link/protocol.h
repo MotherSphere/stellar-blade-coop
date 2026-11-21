@@ -1504,7 +1504,8 @@ inline Request parse_request(std::string text) {
 enum class Sync { off, notice, both };
 inline const char *sync_name(Sync s) { return s == Sync::both ? "both" : s == Sync::notice ? "notice" : "off"; }
 // coop-state.txt, from Lua: "world=<0|1|title> rate=<10..60> photo=<0|1|s|c> sync=<both|notice|off> max=<0|30..3600>",
-// then " cut=<0|1>" or nothing (0), then " names=<0|1>" or nothing (1), then " sounds=0" or nothing (on).
+// then " cut=<0|1>" or nothing (0), then " names=<0|1>" or nothing (1), then " sounds=0" or nothing (on), then
+// " collide=0" or nothing (on).
 struct State {
   bool world = false;    // A save is loaded (world=1): held invites wait for one.
   bool title = false;    // world=title: no save loaded, and a pawn stands on the title screen's map (the co-op saves).
@@ -1516,9 +1517,11 @@ struct State {
   bool cut = false;      // The guest's cutscene_wait=on with the host's ghost on her map: the host's 'c' pauses us.
   bool names = true;     // mod_names: our mod containers go to the friend by name (the pak lines), on until Lua says.
   bool sounds = true;    // The sounds look: ours recorded and the ghosts' played, on until Lua says sounds=0.
+  bool collide = true;   // Enemies we run pushed out of a shown ghost (fight/enemies/push.h), on until Lua says
+                         // collide=0: the solid partner off, or an SBO session (the capsule's rule).
 };
 // One trailing \n or \r\n, at most kMaxState bytes; anything else is refused and changes nothing.
-constexpr size_t kMaxState = 80;
+constexpr size_t kMaxState = 96;
 inline bool parse_state(const std::string &text, State &out) {
   if (text.size() > kMaxState)
     return false;
@@ -1527,18 +1530,22 @@ inline bool parse_state(const std::string &text, State &out) {
     line.resize(line.size() - 2);
   else if (!line.empty() && line.back() == '\n')
     line.pop_back();
-  std::string f[8];
+  std::string f[9];
   uint64_t rate = 0, max = 0;
-  size_t n = 8, at = 5; // Its words: five, then cut=, names= and sounds=0 if there, in this order.
+  size_t n = 9, at = 5; // Its words: five, then cut=, names=, sounds=0 and collide=0 if there, in this order.
   while (n >= 5 && !split(line, f, n, nullptr))
     --n;
-  bool cut = false, names = true, sounds = true;
+  bool cut = false, names = true, sounds = true, collide = true;
   if (at < n && (f[at] == "cut=0" || f[at] == "cut=1"))
     cut = f[at++] == "cut=1";
   if (at < n && (f[at] == "names=0" || f[at] == "names=1"))
     names = f[at++] == "names=1";
   if (at < n && f[at] == "sounds=0") {
     sounds = false;
+    ++at;
+  }
+  if (at < n && f[at] == "collide=0") {
+    collide = false;
     ++at;
   }
   if (n < 5 || at != n || (f[0] != "world=0" && f[0] != "world=1" && f[0] != "world=title") ||
@@ -1556,6 +1563,7 @@ inline bool parse_state(const std::string &text, State &out) {
   out.cut = cut;
   out.names = names;
   out.sounds = sounds;
+  out.collide = collide;
   return true;
 }
 

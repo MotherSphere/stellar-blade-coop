@@ -47,6 +47,7 @@ std::string fault_where(uint64_t rva); // fight_worker_shared.inc's, after this 
 // Her sounds and world effects (online/partner/sound_game.inc): their faults; sound_worker.inc's pass, after this part.
 bool sounds_fault_logged = false, worldfx_fault_logged = false;
 bool faces_fault_logged = false; // Her face and shape keys (online/partner/pose_game.inc): their fault.
+bool push_fault_logged = false;  // Enemies out of a shown ghost (fight/enemies/push_game.inc): its fault.
 void sound_pass(bool sounds);
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
@@ -733,6 +734,16 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(drone_fault_address.load()));
     event(text);
   }
+  if (push_faulted && !push_fault_logged) {
+    push_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "enemy contact off: fault 0x%08llx in %s reading 0x%llx; enemies go through the ghost again, the "
+                  "ghost and the shared fight go on",
+                  static_cast<unsigned long long>(push_fault_code.load()), fault_where(push_fault_rva).c_str(),
+                  static_cast<unsigned long long>(push_fault_address.load()));
+    event(text);
+  }
   if (sounds_faulted && !sounds_fault_logged) {
     sounds_fault_logged = true;
     char text[200];
@@ -844,6 +855,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     lua = now;
   }
   sound_pass(lua.sounds); // Her sounds' and world effects' slots, by their looks; back after a fault.
+  push_wanted = lua.collide; // Enemies out of a shown ghost (fight/enemies/push_game.inc).
   {
     std::vector<std::string> lines;
     std::array<Gap, 8> long_gaps;
@@ -895,6 +907,9 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                    fx_played = window_worldfx_played.exchange(0), fx_unspawned = window_worldfx_unspawned.exchange(0),
                    fx_hidden = window_worldfx_hidden.exchange(0), fx_scene = window_worldfx_scene.exchange(0),
                    fx_unnamed = window_worldfx_unnamed.exchange(0), fx_unloaded = window_worldfx_unloaded.exchange(0);
+    const uint64_t push_moves = window_push_moves.exchange(0), push_copies = window_push_copies.exchange(0),
+                   push_refused = window_push_refused.exchange(0), push_held = window_push_held.exchange(0),
+                   push_unread = window_push_unread.exchange(0), push_capped = window_push_capped.exchange(0);
     const uint64_t faces_read = window_faces_read.exchange(0), faces_clamped = window_faces_clamped.exchange(0),
                    faces_written = window_faces_written.exchange(0), faces_dirty = window_faces_dirty.exchange(0),
                    faces_refused = window_faces_refused.exchange(0);
@@ -997,6 +1012,16 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                       static_cast<unsigned long long>(faces_read), static_cast<unsigned long long>(faces_clamped),
                       static_cast<unsigned long long>(faces_written), static_cast<unsigned long long>(faces_dirty),
                       static_cast<unsigned long long>(faces_refused));
+        event(line);
+      }
+      if (push_moves || push_copies || push_refused || push_held || push_unread || push_capped) {
+        std::snprintf(line, sizeof line,
+                      "enemy contact, last 60 s: %llu pushes, %llu copies left alone, %llu refused by SB's rules, %llu "
+                      "frames held (paused, scene, hidden), %llu not read, %llu over %zu a frame",
+                      static_cast<unsigned long long>(push_moves), static_cast<unsigned long long>(push_copies),
+                      static_cast<unsigned long long>(push_refused), static_cast<unsigned long long>(push_held),
+                      static_cast<unsigned long long>(push_unread), static_cast<unsigned long long>(push_capped),
+                      kPushLooks);
         event(line);
       }
       if (names_in || names_refused || loaded_in || loaded_refused) {

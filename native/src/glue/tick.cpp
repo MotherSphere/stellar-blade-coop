@@ -266,6 +266,7 @@
 #include <vector>
 
 #include "fight/enemies/worker.h"
+#include "fight/enemies/push.h"
 #include "game/camp_text.h"
 #include "game/camps.h"
 #include "game/anim.h"
@@ -345,6 +346,8 @@
 #include "online/partner/drone_game.inc"
 // After drone_game.inc, fight_game_shared.inc and freeze_game_shared.inc: ghost_calls_ok, game_function and MakeName.
 #include "online/partner/play_game.inc"
+// After pilot_game.inc and rows_game.inc: pilot_table and lion_gate (freeze_game_shared.inc's FreezeGame too).
+#include "fight/enemies/push_game.inc"
 #include "glue/tick/debug_game_shared.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "eve/debug_game.inc"
 #include "ui/pause_tab_game.inc" // After debug_game_shared.inc: its UI calls and ui_reads.
@@ -478,6 +481,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // back.
   if (game_pinned && !pilot_faulted && (!blocked || driver.holding()))
     guarded_pilot();
+  // Enemies we run out of a shown ghost, their own latch: a pass each frame while collide is on, none after coop off or
+  // their first fault.
+  if (game_pinned && !push_faulted && !blocked)
+    push_tick();
   // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
   if (game_pinned && !quest_faulted && !blocked)
     quest_tick();

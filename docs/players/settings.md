@@ -261,7 +261,7 @@ hide_popups=on
 | `photo_pause` | `full` or `scenery`: how your own photo mode [pauses your game](playing-with-a-friend.md#photo-mode-pause-experimental), experimental, from your next photo mode | `full` |
 | `cutscene_wait` | `on` or `off`: as the guest, your game [waits](playing-with-a-friend.md#cutscene-wait) while a cutscene plays in the host's game | `on` |
 | `follow_host` | `ask`, `always` or `off`: as the guest, the offer to [travel to the host](playing-with-a-friend.md#following-the-host) | `ask` |
-| `collide` | `on` or `off`: the [solid partner](../online/partner.md#solid-partner-experimental), experimental | `on` |
+| `collide` | `on` or `off`: the [solid partner](../online/partner.md#solid-partner-experimental), experimental. Also the enemies your game runs stop at the ghost (never in an SBO session) | `on` |
 | `ui_scale` | `75` to `150`: the size of the menu, the chat and the partner HUD, in percent | `100` |
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
 | `ui_language` | `game` (the game's text language) or `english` | `game` |

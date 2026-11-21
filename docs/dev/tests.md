@@ -252,7 +252,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `invitation`) and `friends_ask`, the `where` and `rules` requests
   asked only on a change and never with a word the native part refuses. The rules word is built from the settings and
   read back in that shape only. The parked bike's line goes to `coop-parked.txt`, the newest replacing one the native
-  part has not taken. Each member's `bike_of=` line reads into `bikes()` by her SteamID and stays out of the log;
+  part has not taken. Each member's `bike_of=` line reads into `bikes()` by her SteamID and stays out of the log.
+  `coop-state.txt` gets `collide=0` last when the state's collide is false, nothing when it is true or not given;
 - sessions of more than 2 players: `core/link_test` reads `max_players` (2 to 4, 4 by default and in a new file; any
   other value refused with a line, `4` kept), every `pending=` line in the status's order (`pending()` the first,
   `pendings()` all of them), the `host=` and `vit=` lines (`vit=` kept out of the log, a malformed line read as none),
@@ -428,7 +429,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   over one idle minute, each case from a fresh Lua load: 4 and 5 in a world with the UI up, 0 and 2 at the title, all in
   the first second;
 - `main/collide_test` covers the ghost's collision through `main/pass.lua`: as `collide` says, never solid during an SBO
-  session;
+  session, and the state's `collide` the same (`collide=0` stops the enemy contact);
 - `main/loader_test` covers `main/loader.lua` alone with fake modules: every export the stub before any `new` runs (also
   the exports of a module whose require raises, read from its `wiring.lua`), the modules in list order, an on module's
   exports as its `new` left them, its words in `M.commands` (a word defined twice raises), a require, a `new` or a build
@@ -628,8 +629,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   public|friends|stop`, `where`, `rules` and the row cleaner, the match lines (start, count, end) with their bounds, the
   host's let and wait lines with theirs, the dlc and dlcs lines with their bounds, the DLC comparison by app id, the
   cycle line with its bounds (count 0 to 99, difficulty 0 to 2) and a fuzz seed, the bike line (`none`, or `park` with
-  the map rule, three places within 10,000,000 and three angles within 36,000 as signed whole numbers), then protocol 23
-  refusing a protocol-22 lobby and line;
+  the map rule, three places within 10,000,000 and three angles within 36,000 as signed whole numbers), the
+  `coop-state.txt` line with `cut=`, `names=`, `sounds=0` and `collide=0` in that order only (the longest 82 bytes),
+  then protocol 23 refusing a protocol-22 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the
@@ -891,6 +893,11 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 
 ### Shared enemies
 
+- `fight_enemies_push_test`: enemies at her ghost (`fight/enemies/push.h`). SB's step out of a ghost's body: 100 cm/s
+  (750, or its lead when larger) times the delta, never past the free place, at most 100 cm out, horizontal; nothing
+  when touching, above or below her, on one vertical with her, with a delta of 0 or a NaN anywhere. The ghost's body
+  from the drawn root (98 cm up her main mesh, turned and scaled). The frame's gates. SB's rule of who moves: same
+  weight by rank and motion, the lighter of two weights, each of the enemy's own bytes that stops it;
 - `fight_enemies_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves
   out, the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put back
   after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd control, taken

@@ -691,14 +691,15 @@ function Link.new(folder,fs)
     -- (world=title: the only time the native part changes the co-op saves), the poses sent a second, and the synced
     -- photo mode's: ours ('0', '1' or 's'; 'c' while the host's cutscene plays, online/group/group.lua's), photo_sync
     -- and photo_freeze_max; then cut=1 while the guest asks for the pause during the host's cutscene (cut), and names=0
-    -- with mod_names=off (names false: the native part then sends no pak line), and sounds=0 with the sounds look off
-    -- (sounds false: the native part then records and plays no sound). Written when its text changes, and remembered
-    -- only once written, so a failed write is tried again; returns the line it wrote.
+    -- with mod_names=off (names false: the native part then sends no pak line), sounds=0 with the sounds look off
+    -- (sounds false: the native part then records and plays no sound) and collide=0 when no enemy is to be pushed out
+    -- of a ghost (collide false: the solid partner off, or an SBO session). Written when its text changes, and
+    -- remembered only once written, so a failed write is tried again; returns the line it wrote.
     local state=nil
-    function self.state(world,rate,photo_now,sync,max,title,cut,names,sounds)
-        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d%s%s%s',
+    function self.state(world,rate,photo_now,sync,max,title,cut,names,sounds,collide)
+        local line=string.format('world=%s rate=%d photo=%s sync=%s max=%d%s%s%s%s',
             world and '1' or title and 'title' or '0',rate,photo_now,sync,max,cut and ' cut=1' or '',
-            names==false and ' names=0' or '',sounds==false and ' sounds=0' or '')
+            names==false and ' names=0' or '',sounds==false and ' sounds=0' or '',collide==false and ' collide=0' or '')
         if line==state or not put('coop-state.txt',line..'\n') then return nil end
         state=line
         return line

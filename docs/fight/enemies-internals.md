@@ -103,6 +103,46 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
 
 The commands, the notices and the solo test are in [Shared enemies](enemies.md#same-place-experimental).
 
+## Enemies at the ghost
+
+SB keeps two overlapping characters apart in each one's own tick. `ASBCharacter::TickLocationFromOverlapCollision`
+(`FUN_1420ad9a0`) moves the character out of each character its overlap list holds, when `FUN_1420ad3b0` lets that one
+push it. The list's only writer is the begin-overlap handler (`FUN_142040da0`), which takes SB characters and area
+volumes alone, so no list ever holds the ghost. `fight/enemies/push_game.inc` does the same work for the ghost on the
+game thread each frame (`push_tick()`, after `guarded_pilot()` in `coop_tick`), under its own SEH latch
+(`push_faulted`):
+
+- Gates (`fight::push_now`): game calls allowed (`game_calls_ok()`), not after `coop off`, not while SB's pause holds
+  (a menu, our photo mode, our freeze tag: `FreezeGame::paused()`), no cutscene in our theater or shared scene, the
+  ghost shown (`ghost_shows()`) and drawn in the last second. A logic task in flight holds the frame. Lua writes
+  `collide=0` into `coop-state.txt` when `collide` is off or an SBO session runs (the capsule's rule), and the pass
+  stops.
+- Enemies: SB's actor manager's FSBActors of type Monster or BossMonster within 5 m of a ghost's body (FSBActor
+  `+0x4cc`), never a copy this side draws (same-place enemies' `pilot_table`: her game runs it, where her real EVE
+  meets it). Each one's character through SB's character map, at most 32 a frame.
+- Bodies: the ghost's is EVE's `BodyCollision` (radius 50, half height 95, 98 cm up her main mesh, pak data), placed on
+  the drawn root. The enemy's is its `OverlapBodyCollision` (`+0x850`) or else its `CapsuleComponent` (`+0x338`) at its
+  root's place. SB scales a capsule's radius by the smaller of its x and y scale and its half height by z.
+- The step (`fight::push`, `0x1420af3b8` to `0x1420af5b9`): along the horizontal line from her centre to its root, to
+  its free place (where it touches her, at most 100 cm away: SB's sweep starts 100 cm out), at most
+  `max(100 cm/s, 0.95 x the distance to its movement component's vector +0xf74) x dt`. dt is the world's
+  `DeltaTimeSeconds` (`+0x758`) times the enemy's `CustomTimeDilation` (`+0xb0`): the actor tick's delta. Two centres
+  on one vertical give SB no direction and no push.
+- SB's rule (`fight::sb_lets_push`), the ghost standing in for an EVE with your own EVE's weight (`+0x2830`, the
+  CharacterTable row's `WeightType`) and rank (`+0x2c9c`): the same weight moves a lower rank, or the same rank while
+  it moves or she stands still (her drawn root moved since the last frame). Weights that differ move the lighter one.
+  An enemy is never moved while its bytes `+0x26ec` or `+0x26ed` are set, its movement component is not SB's, a float
+  of `+0x3300` to `+0x3308` is not 0, its weak pointer `+0x2d90` is live, its int `+0x2848` is above 0, its movement
+  mode is 6 with custom mode 3, or its byte `+0x29a8` is set. Her own state bytes are not on the wire and count as
+  clear.
+- The move: the sum over the ghosts it overlaps, through its root's `MoveComponent` (vtable `+0x4a0`) as a teleport
+  with its rotation kept, the call `FUN_1420ad9a0` makes at `0x1420af5b9`.
+
+Not applied: the significance test at the top of `FUN_1420ad3b0` (`FUN_142476c80` and three thresholds at
+`0x146d94630`), which needs SB's significance manager's lookups. `UE4SS.log` gets `enemy contact, last 60 s: <n>
+pushes, <n> copies left alone, <n> refused by SB's rules, <n> frames held (paused, scene, hidden), <n> not read, <n>
+over 32 a frame` and, after a fault, `enemy contact off: fault ...` once.
+
 ## Same spawns
 
 Same spawns (`same_spawns`, experimental, the host's value, on by default, not tested in game yet) has the guest's game

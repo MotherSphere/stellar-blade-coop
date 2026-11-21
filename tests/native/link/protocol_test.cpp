@@ -1137,6 +1137,17 @@ int main() {
   assert(!parse_state("world=1 rate=60 photo=0 sync=both max=600 sounds=1\n", s));         // only sounds=0
   assert(std::string("world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0 sounds=0\r\n").size() <=
          kMaxState);
+  // collide=0 (the solid partner off, or an SBO session: no enemy is pushed out of a ghost) after sounds=; without it,
+  // on. Only collide=0 is written, last.
+  const std::string longest_state =
+      "world=title rate=60 photo=0 sync=notice max=3600 cut=1 names=0 sounds=0 collide=0\n";
+  assert(longest_state.size() == 82 && parse_state(longest_state, s) && !s.collide && !s.sounds);
+  assert(parse_state("world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0 sounds=0 collide=0\r\n", s) &&
+         !s.collide);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=600\n", s) && s.collide);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=600 collide=0", s) && !s.collide && s.sounds && s.names);
+  assert(!parse_state("world=1 rate=60 photo=0 sync=both max=600 collide=0 sounds=0\n", s)); // order kept
+  assert(!parse_state("world=1 rate=60 photo=0 sync=both max=600 collide=1\n", s));          // only collide=0
   assert(std::string("world=title rate=60 photo=c sync=notice max=3600 cut=1\r\n").size() <= kMaxState);
   assert(std::string("world=1 rate=30 photo=s sync=notice max=3600\r\n").size() <= kMaxState);
   for (const std::string &bad :

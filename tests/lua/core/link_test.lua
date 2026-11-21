@@ -1138,6 +1138,12 @@ assert(link.state(true,60,'0','both',600,nil,nil,nil,false)=='world=1 rate=60 ph
 assert(link.state(true,60,'0','both',600,nil,nil,nil,true)=='world=1 rate=60 photo=0 sync=both max=600')
 assert(link.state(false,60,'c','notice',3600,true,true,false,false)
     =='world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0 sounds=0' and #files[STATE_FILE]<=80)
+-- collide off (or an SBO session): collide=0 last (the native part then pushes no enemy out of a ghost); on (true or
+-- not given) adds nothing. The longest line within the native part's 96 bytes.
+assert(link.state(true,60,'0','both',600,nil,nil,nil,nil,false)=='world=1 rate=60 photo=0 sync=both max=600 collide=0')
+assert(link.state(true,60,'0','both',600,nil,nil,nil,nil,true)=='world=1 rate=60 photo=0 sync=both max=600')
+assert(link.state(false,60,'c','notice',3600,true,true,false,false,false)
+    =='world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0 sounds=0 collide=0' and #files[STATE_FILE]<=96)
 fs.write=write
 
 -- Notices: numbered by the native part for its run; a Lua load only shows those that come after its first look.
