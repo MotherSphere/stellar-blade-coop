@@ -387,6 +387,45 @@ do
     Keep.reset()
 end
 
+-- 9b. The layer's rebuild swaps in a body other than hers (Overlay.BASES). Neither was in memory at the first rifle out
+--     of the 2026-11-21 test, whose layer step took 49 ms (11 ms at the next ones): one was loaded on the frame. The
+--     keep now holds both bodies for the game run, so the first rifle out loads none.
+do
+    local U=require('core.unreal')
+    local Keep=require('core.keep')
+    local w=world()
+    local function typed(o) if o then o.type=o.type or function() return 'UObject' end end; return o end
+    local bodies={}
+    for _,b in ipairs(Overlay.BASES) do
+        bodies[b]={IsValid=function() return true end,GetFullName=function() return 'SkeletalMesh '..b end,
+            PostProcessAnimBlueprint=w.own_class}
+    end
+    local seen=w.find
+    function w.find(path) if bodies[path] then return nil end return seen(path) end -- not in memory, but kept
+    local loads={}
+    local load=LoadAsset
+    LoadAsset=function(path) loads[path]=(loads[path] or 0)+1; return load(path) end
+    local registry=w.find('/Script/AssetRegistry.Default__AssetRegistryHelpers')
+    local get=registry.GetAsset
+    registry.GetAsset=function(o,d) local path=d.ObjectPath:ToString(); loads[path]=(loads[path] or 0)+1; return get(o,d) end
+    local object_at=U.object_at
+    U.object_at=function(path) return typed(w.find(path)),true end
+    -- the native part loads each kept path off the frame: the bodies are in memory once the keep holds them
+    local k=dofile('tests/lua/core/keep_fake.lua')(function(path) return typed(bodies[path] or w.find(path)),true end)
+    local gun=GunMode.new({log=function() end})
+    Keep.slow(); k.settle()
+    frames(gun,1)
+    out(w,gun)
+    frames(gun,30)
+    local loaded={}
+    for _,b in ipairs(Overlay.BASES) do if loads[b] then loaded[#loaded+1]=b..' x'..loads[b] end end
+    assert(#loaded==0,'a body loaded on the frame of the rifle out: '..table.concat(loaded,', '))
+    assert(gun.state.layer==true,'the layer is on')
+    assert(w.mesh.SkeletalMesh==w.body,'her own body back after the rebuild')
+    U.object_at,LoadAsset,registry.GetAsset=object_at,load,get
+    Keep.reset()
+end
+
 -- 10. The drone's class from the first walk: a rifle out on a new map lists the drones through the engine's class hash
 --     (core/unreal.lua's class_at and actors_of) with no FindAllOf walk (32 ms in the 2026-11-21 test). The new drone
 --     is hidden.
