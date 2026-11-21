@@ -401,8 +401,10 @@ one path each 0.25 s for all the slots together with `LoadAsset`. A path two slo
 of its kind's class: a sound's asset a SoundBase, its class a SoundClass, its attenuation a SoundAttenuation. A path
 outside the game's own `Sound` and `Art` folders is a mod's and loads only when you both have that mod, under the crash
 sentinel. A failed load is logged once and not tried again. Once every path of a key is in, the loader appends
-`loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>` to the slot's `coop-loaded[-k].txt`. It checks one cached object a
-frame. A collected one is loaded again at the same pace. Each key naming it then gets a new line. Each object is
+`loaded <k> 0x<object> 0x<class> 0x<a|0> 0x<b|0>` to the slot's `coop-loaded[-k].txt`. `LoadAsset` keeps nothing
+loaded: the game may collect an object and give its address to another one, even one of the same class. So the loader
+checks one cached object a frame: it must still be valid and still have the full name it had at its load. A collected
+one is loaded again at the same pace. Each key naming it then gets a new line. Each object is
 cached with the class it was checked as, so a path named as a sound and as a sound class is checked as both. When the
 ghost goes, its slot is no longer read or loaded for. Its loaded file stays: removing it could race the worker's read
 offset. `coop off` removes every slot's loaded file.
@@ -427,7 +429,10 @@ Each admitted sound plays with the calls SB's footstep notify (`0x142019370`) ma
 | `0x1440944c0` | each int parameter, its FName found (never added) through `0x14293dde0` |
 | `0x1440925f0` | Play, at 0 s |
 
-A sound is dropped and counted when its object is no longer alive with the class it was loaded as. A part Lua did not
+A sound is dropped and counted as not loaded when one of its objects is no longer the one Lua loaded. The sound must
+be alive with the class it was loaded as. Its sound class and attenuation, when named, must be alive. The path of each
+one, read from the name pool (its package, then its name), must be the one her SBA line names, in any case. An effect
+gets the same check. A part Lua did not
 draw (a follower, a part left out) hangs the sound on the ghost's main mesh. These calls run only while
 `game_calls_ok()` holds. While they run, the sink of [Her sounds, sent](#her-sounds-sent) records nothing. With the
 sounds look off, nothing plays. A fault turns her sounds off on both sides with the `sounds off: fault ...` line.

@@ -222,6 +222,9 @@ void read_loaded(size_t slot) {
     Named &n = named.emplace_back();
     n.loaded = l;
     n.kind = parsed->kind;
+    n.path[0] = parsed->asset;
+    n.path[1] = parsed->a == "-" ? std::string() : parsed->a;
+    n.path[2] = parsed->b == "-" ? std::string() : parsed->b;
     for (const Param &p : parsed->params) { // At most kMaxParams words of 1 to kMaxWord bytes (parse_asset_line).
       std::memcpy(n.param_name[n.params], p.name.data(), p.name.size());
       n.param_value[n.params++] = p.value;

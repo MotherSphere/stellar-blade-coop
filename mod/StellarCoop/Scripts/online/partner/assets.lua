@@ -8,8 +8,9 @@
 -- 0x<a|0> 0x<b|0>' to the slot's coop-loaded file once every path of that key is in, for the native part to play.
 -- Each object must be of its kind's class (a sound's SoundBase, its SoundClass and SoundAttenuation), else it is
 -- refused. A path outside the game's own Sound and Art folders is a mod's: loaded only when allowed(path) says both
--- players have it, under the crash sentinel. The game may collect an object nothing else holds: one cached object a
--- tick is checked. A collected one is loaded again at the same pace; each key naming it then gets a new line.
+-- players have it, under the crash sentinel. The game may collect an object nothing else holds and give its address
+-- to another object, of the same class too: one cached object a tick is checked, alive and still named as at its
+-- load. A collected one is loaded again at the same pace; each key naming it then gets a new line.
 local U=require('core.unreal')
 local valid,hex,find=U.valid,U.hex,U.find
 local Assets={}
@@ -29,12 +30,18 @@ function Assets.new(sentinel,allowed)
     -- By ghost slot: files, from (bytes read), read_at, keys ({k, kind, paths}) in order, sent (k: line), kinds, on
     -- (watched now). A slot unwatched keeps its place, so watching it again appends no line it already has.
     local slots={}
-    -- By class and path: {object=, hex=, class=}, or false after a failed load (never tried again). Its address and
-    -- class are read at the load: lines() may run after the game collected it, before the check finds it.
+    -- By class and path: {object=, hex=, class=, full=}, or false after a failed load (never tried again). Its
+    -- address, class and full name are read at the load: lines() may run after the game collected it, before the check
+    -- finds it.
     local cache={}
     local order,check={},0 -- The cache keys holding an object, in their load's order; the last one checked.
     local load_at,dirty=-math.huge,false
     local function wants(s,kind) return s.on and (not s.kinds or s.kinds[kind]) end
+    -- An object's full name ('<class> <path>'), or false when it does not read.
+    local function full(object)
+        local ok,name=pcall(function() return object:GetFullName() end)
+        return ok and type(name)=='string' and name or false
+    end
     -- A slot's new names from its files, or all of them again after a reset.
     local function read(s)
         local text,to=s.files.names(s.from)
@@ -84,7 +91,7 @@ function Assets.new(sentinel,allowed)
             if object and not (checked and is) then object=false end
         end
         if own(path) then get() else sentinel.call(path,get) end
-        cache[c]=object and {object=object,hex=hex(object),class=hex(object:GetClass())} or false
+        cache[c]=object and {object=object,hex=hex(object),class=hex(object:GetClass()),full=full(object)} or false
         if not object then
             return 'Ghost asset not loaded: '..path..(object==false and ' (not a '..class_path..')' or '')
         end
@@ -139,7 +146,9 @@ function Assets.new(sentinel,allowed)
         if #order>0 then
             check=check%#order+1
             local c=cache[order[check]]
-            if c and not valid(c.object) then cache[order[check]]=nil; table.remove(order,check); check=check-1 end
+            if c and not (valid(c.object) and full(c.object)==c.full) then
+                cache[order[check]]=nil; table.remove(order,check); check=check-1
+            end
         end
         local said
         if now-load_at>=EVERY then

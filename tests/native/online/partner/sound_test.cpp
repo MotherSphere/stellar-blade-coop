@@ -4,7 +4,7 @@
 // online/partner/sound.h on the build machine: a set of slots swapped all or none and given back; the three sets apart;
 // the world-effect set; why a sound is hers; what the sink records; the ring under one mark; a show stage's main
 // actor; the asset key's attenuation with params; an SBA line's words from the name pool, a world effect's too; the
-// viewer's place of her sound from its event.
+// viewer's check that a loaded object is still the asset at its path; the viewer's place of her sound from its event.
 #include "online/partner/sound.h"
 
 #include <cassert>
@@ -224,6 +224,25 @@ void test_record_words_longest_key() { // a line that fits under key 1 but not u
   assert(!words.empty() && (head + "4096 " + words).size() == coop::kMaxMessage);
   assert(coop::pose::parse_asset_line(head + "4096 " + words));
 }
+void test_is_asset() { // the viewer's loaded object is still the asset at its path, not what took its address
+  Memory m;
+  const auto read = [&m](uint64_t at, void *out, size_t n) { return m.read(at, out, n); };
+  const uint64_t step = m.object("/Game/Sound/SFX/Step_Run", "Step_Run");
+  const std::string path = "/Game/Sound/SFX/Step_Run.Step_Run";
+  assert(coop::sound::is_asset(read, Memory::kPool, step, path));
+  assert(coop::sound::is_asset(read, Memory::kPool, step, "/game/sound/sfx/STEP_RUN.step_run")); // FName: no case
+  // Collected, its address given to another object (of the same class: the class word is not read here).
+  const uint64_t other = m.object("/Game/Sound/SFX/Wind_Loop", "Wind_Loop");
+  uint8_t moved[0x40];
+  m.read(other, moved, sizeof moved);
+  std::memcpy(&m.bytes[step - Memory::kBase], moved, sizeof moved);
+  assert(!coop::sound::is_asset(read, Memory::kPool, step, path));
+  const uint64_t namesake = m.object("/Game/Sound/Other/Step_Run", "Step_Run"); // its name in another package
+  assert(!coop::sound::is_asset(read, Memory::kPool, namesake, path));
+  assert(!coop::sound::is_asset(read, Memory::kPool, step, path + "x"));
+  assert(!coop::sound::is_asset(read, Memory::kPool, 0, path));
+  assert(!coop::sound::is_asset(read, Memory::kPool, namesake, ""));
+}
 void test_fit_parts() { // an event on a part the table no longer has goes empty: get_event would refuse the pose
   using coop::pose::Kind;
   coop::pose::Event slots[coop::pose::kEventSlots];
@@ -275,6 +294,7 @@ int main() {
   test_keyed_attenuation();
   test_record_words();
   test_record_words_longest_key();
+  test_is_asset();
   test_fit_parts();
   test_compose();
   std::puts("sound_test: ok");

@@ -199,6 +199,15 @@ template <class Read> bool asset_path(Read &&read, uint64_t pool, uint64_t objec
   out.assign(p, pl).append(".").append(o, ol);
   return true;
 }
+// The viewer's check that a loaded object is still the asset at path. Lua's LoadAsset roots nothing, so the game may
+// collect it and give its address to another object, of the same class too. Its path from the name pool must be path,
+// in any case (FName compares names without case). False for 0.
+template <class Read> bool is_asset(Read &&read, uint64_t pool, uint64_t object, const std::string &path) {
+  std::string now;
+  const auto lower = [](char c) { return c >= 'A' && c <= 'Z' ? char(c - 'A' + 'a') : c; };
+  return asset_path(read, pool, object, now) && now.size() == path.size() &&
+         std::equal(now.begin(), now.end(), path.begin(), [&](char x, char y) { return lower(x) == lower(y); });
+}
 // The words of r's SBA line, what it carries after its key: sound <asset> <class|-> <attenuation|-> <params|->, or
 // niagara or cascade <asset> - -. Empty when the asset's path does not read or the line would be refused (a path
 // outside SB's own folders, over kMaxMessage under the longest key, kMaxAssetKeys, so it passes under any key

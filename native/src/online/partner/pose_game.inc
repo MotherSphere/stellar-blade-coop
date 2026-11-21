@@ -58,6 +58,9 @@ struct Named {
   uint8_t params = 0;
   char param_name[kMaxParams][sba::kMaxWord + 1] = {};
   int32_t param_value[kMaxParams] = {};
+  // The paths her SBA line names for the object, a and b ("" for none): play_game.inc checks that each object is still
+  // the asset at its path (sound::is_asset).
+  std::string path[3];
 };
 std::array<std::unordered_map<uint16_t, Named>, kMaxRemote> asset_loaded;
 // The game thread's: our asset keys for this link session, our events on their way into the pose's event slots, the

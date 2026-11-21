@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- online/partner/assets.lua with fake slot files and a fake LoadAsset: one loader for every ghost slot, one load each
 -- 0.25 s for all of them, a path two slots name loaded once, a slot's loaded line once all its paths are in, each
--- object of the wrong class refused, a collected one loaded again with a new line, a failed load said once and not
+-- object of the wrong class refused, a collected one loaded again with a new line (one whose address went to another
+-- object of its class too), a failed load said once and not
 -- tried again, a mod's path only when both players have it (through the crash sentinel), the slot's names read again
 -- from 0 after a reset, a kind the slot does not want never loaded, a path checked as each class a key names it,
 -- unwatch() keeping the loaded file and off() removing it.
@@ -19,6 +20,10 @@ local function object(name,class)
     function o.IsValid(self) return not self.dead end
     function o.GetAddress() return at end
     function o.GetClass(self) assert(not self.dead,'GetClass on a collected object') return self.class end
+    function o.GetFullName(self)
+        assert(not self.dead,'GetFullName on a collected object')
+        return (self.class and self.class.name or 'Class')..' '..self.name
+    end
     function o.IsA(self,c) return self.class==c or self.class.super==c end
     return o
 end
@@ -181,4 +186,12 @@ at_fresh(10.75)
 at_fresh(11) -- finds F1 collected, loads it again
 assert(loads_of['/Game/Sound/F1.F1']==2 and #fifth.appended==4 and fifth.appended[4]:match('^loaded 1 ') and
     fifth.appended[4]~=first,'collected: loaded again, a new line')
+-- Collected and its address given to another object of the same class (the UE4SS object at that address still reads
+-- as valid): found by its full name, loaded again with a new line.
+local f2=objects['/Game/Sound/F2.F2']
+f2.name='/Game/Sound/Other.Other'
+for i=1,4 do at_fresh(11+i*0.25) end
+assert(loads_of['/Game/Sound/F2.F2']==2 and fifth.appended[5] and fifth.appended[5]:match('^loaded 2 ') and
+    fifth.appended[5]~=string.format('loaded 2 0x%x 0x%x 0x0 0x0',f2.GetAddress(),classes.cue.GetAddress()),
+    'its address taken by another sound: loaded again, a new line')
 print('assets_test: ok')

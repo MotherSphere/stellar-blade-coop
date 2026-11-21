@@ -221,10 +221,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   is shorter or gone) and appends to its `coop-loaded` file (nil removes it). `online/partner/assets_test` loads what
   the slots name with one loader: one load each 0.25 s for every slot together, a path two slots name once, a slot's
   `loaded` line once all its paths are in, an object of the wrong class refused, a collected one loaded again with a
-  new line, a failed load said once and not tried again, a mod's path only when both players have it (through the
-  crash sentinel), a set-aside path never, a reset slot read again from 0, a kind the slot does not want never (until
-  it is watched again with it), a path checked as each class a key names it as, an unwatched slot's file kept with no
-  line appended twice once it is watched again, the loaded files removed by `off`. A collected object the check has not
+  new line (one whose address another sound took too, found by its full name), a failed load said once and not tried
+  again, a mod's path only when both players have it (through the crash sentinel), a set-aside path never, a reset
+  slot read again from 0, a kind the slot does not want never (until it is watched again with it), a path checked as
+  each class a key names it as, an unwatched slot's file kept with no line appended twice once it is watched again, the
+  loaded files removed by `off`. A collected object the check has not
   found yet is never asked its class when other lines are written. `online/partner/puppet_test` makes
   that loader once. It watches a ghost's slot once the ghost is built with sounds on (with the kinds its look wants),
   never with sounds and effects off. The slot is unwatched when the ghost goes;
@@ -773,7 +774,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   from a fake name pool (a class outside SB's folders goes as `-`, a parameter name that is not a word is left out, a
   sound not at the top of its package or outside SB's folders is refused, as is a line that passes 512 bytes only
   under key 4096); a world effect's SBA words (`niagara` or `cascade` with its path and `- -`, refused outside SB's
-  folders); an event on a part the table no longer has goes empty; the viewer's `compose`, which puts an
+  folders); an event on a part the table no longer has goes empty; the viewer's `is_asset` (an object still at its
+  path in any case, not one that took its address, not a namesake in another package); the viewer's `compose`, which
+  puts an
   event's place back on its parent where her game played it (2000 random transforms, a scaled parent among them);
 - `game_events_test`: `game_calls_ok`, which allows a game call only with the lion gate open, the client in game and
   playing, off SB's logic thread; an event slot's 19 bytes with a fuzz (each slot it accepts encodes back to the same
