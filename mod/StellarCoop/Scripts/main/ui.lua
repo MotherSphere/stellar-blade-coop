@@ -7,10 +7,11 @@ local print,log=M.print,M.log
 -- The chat's box and feed (online/session/chat.lua's view), the partner HUD (online/partner/hud.lua's), Night
 -- Operation's card and result panel (online/modes/nightop/run.lua's), score attack's card, board and result panel
 -- (online/modes/scoreattack/ui/board.lua), the fishing tournament's corner board and result panel
--- (online/modes/fishing/ui/board.lua), the code box (online/session/join.lua), the co-op menu (ui/kit/menu.lua),
--- the host's question (online/session/join.lua) and the co-op saves' question (online/saves/saves.lua) on the Uplink
--- kit (ui/kit/kit.lua), with the Steam link only: its root is built in a world or on the title screen, after one
--- lookup a 250 ms tick. The feed and the HUDs first: the menu draws over them, the questions over all.
+-- (online/modes/fishing/ui/board.lua), the photo hunt's card and result panel (online/modes/photohunt/ui/board.lua),
+-- the code box (online/session/join.lua), the co-op menu (ui/kit/menu.lua), the host's question
+-- (online/session/join.lua) and the co-op saves' question (online/saves/saves.lua) on the Uplink kit (ui/kit/kit.lua),
+-- with the Steam link only: its root is built in a world or on the title screen, after one lookup a 250 ms tick. The
+-- feed and the HUDs first: the menu draws over them, the questions over all.
 -- Each module's groups are its build steps (main/loader.lua's build), run here at their old places.
 if M.settings then
     local Ui=require('ui.kit.kit')
@@ -21,6 +22,7 @@ if M.settings then
     require('main.loader').build(M,'online.modes.nightop','hud',Ui)
     require('main.loader').build(M,'online.modes.scoreattack','hud',Ui)
     require('main.loader').build(M,'online.modes.fishing','hud',Ui)
+    require('main.loader').build(M,'online.modes.photohunt','hud',Ui)
     require('main.loader').build(M,'online.modes.race','hud',Ui)
     require('main.loader').build(M,'world.maps.matrix13','hud',Ui)
     require('main.loader').build(M,'fight.gunmode','hud',Ui)

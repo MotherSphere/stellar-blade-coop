@@ -17,14 +17,15 @@
 -- settings, values and status within their columns and its waiting-room notice within 200 bytes, Find a session's
 -- hints, status lines, version and footer within theirs, Create a session's title, rules header, Start row and
 -- right-pane words within theirs, the fishing tournament's corner board and result panel within theirs and its
--- notices with 32-byte names within 200 bytes, the pause menu's Online tab word within its tab and its notice within
--- 200 bytes; no Thai word that ends on a leading vowel; each join Steam refused as link/core.h words it, in every
--- language; the DLC notice (T.dlcs) within 200 bytes with 100-byte DLC names in every language; its English as main.lua
--- says it; the New Game+ notice (T.cycle) within 200 bytes with every count word and difficulty on both sides; its
--- English; the bike's refusals with each side word and a six-digit distance or another map's 32-byte name, the paid
--- fetch's offer after them with the longest key name and betacrystal, the fetch's other lines with a 32-byte money
--- name, within 200 bytes; the 20 module names in every table; the notice of a module that failed to load with the
--- longest of them within 200 bytes.
+-- notices with 32-byte names within 200 bytes, the photo hunt's card and result panel within theirs and its notices
+-- with 32-byte names, the longest place and the longest target names within 200 bytes, the pause menu's Online tab
+-- word within its tab and its notice within 200 bytes; no Thai word that ends on a leading vowel; each join Steam
+-- refused as link/core.h words it, in every language; the DLC notice (T.dlcs) within 200 bytes with 100-byte DLC names
+-- in every language; its English as main.lua says it; the New Game+ notice (T.cycle) within 200 bytes with every
+-- count word and difficulty on both sides; its English; the bike's refusals with each side word and a six-digit
+-- distance or another map's 32-byte name, the paid fetch's offer after them with the longest key name and betacrystal,
+-- the fetch's other lines with a 32-byte money name, within 200 bytes; the 20 module names in every table; the notice
+-- of a module that failed to load with the longest of them within 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('online.modes.nightop.recruiter_text')
@@ -174,6 +175,31 @@ local function notices(w)
     for _,text in ipairs({f.start:format(NAME,60),f.host_left,f.cancelled,f.reloaded,f.norank,f.unranked,f.best,
         f.go:format(60),f.standing:format(8,999999),f.end_notice:format(999999,9999),
         f.top:format(table.concat({entry,entry,entry},f.sep)),f.placed:format(8,8)}) do
+        lines[#lines+1]=text
+    end
+    -- The photo hunt's notices (online/modes/photohunt/ui/board.lua): the start with a 32-byte name, the longest place
+    -- (another world's among them: the longest alias of core/worlds.lua, as targets.lua takes a world from there only),
+    -- the three longest target names with two-digit numbers and 60 minutes; the Camera's; a target taken by a 32-byte
+    -- name or by us; each sit-out and each stop of the photo checks; a photo hunt without a ranking; a reloaded game;
+    -- each shot's words with the longest target (taken with a 32-byte name); with the UI off GO, our end, the first
+    -- three with 32-byte names, our place, Not ranked, the no-ranking note and a new personal best.
+    local ph=w.photohunt
+    local targets,place,alias={},'',''
+    for _,k in ipairs({'memory','cat','butterfly','fish'}) do targets[#targets+1]=ph[k]:format(99) end
+    table.sort(targets,function(a,b) return #a>#b end)
+    for k in pairs(require('core.worlds')) do if #k>#alias then alias=k end end
+    for k,text in pairs(ph.places) do
+        text=k=='other' and text:format(alias) or text
+        if #text>#place then place=text end
+    end
+    for _,group in ipairs({'out','stopped','shot'}) do
+        for k,text in pairs(ph[group]) do lines[#lines+1]=text:format(targets[1],NAME) end
+    end
+    local pentry=ph.entry:format(8,NAME,3)
+    for _,text in ipairs({ph.start:format(NAME,place,table.concat({targets[1],targets[2],targets[3]},ph.sep),60),
+        ph.camera,ph.took:format(NAME,targets[1]),ph.you_took:format(targets[1]),ph.host_left,ph.cancelled,
+        ph.reloaded,ph.norank,ph.unranked,ph.best,ph.go:format(60),ph.end_notice:format(3),
+        ph.top:format(table.concat({pentry,pentry,pentry},ph.sep)),ph.placed:format(8,8)}) do
         lines[#lines+1]=text
     end
     -- The race's notices (online/modes/race/run.lua): its banners too, which come as notices with the UI off.
@@ -350,6 +376,23 @@ for name in pairs(R.TEXT) do
     fits(name..'.fishing.mine',fi.mine:format(999999,9999),54)
     for _,k in ipairs({'waiting','unranked','best','norank'}) do fits(name..'.fishing.'..k,fi[k],54) end
     fits(name..'.fishing.fish',fi.fish:format(9999),16)
+    -- The photo hunt's screens (online/modes/photohunt/ui/board.lua, in the fishing tournament's places): the card's
+    -- title line as the corner board's (31 columns) with the countdown, the longest time left (60:00) or Time up; a
+    -- target row (Mideum 34, 18 units a column, 32 units in from each side of its 720: 36 columns), the target's name
+    -- with two-digit numbers at the left, then a column, then open, you or a name cut by Join.name (19 columns) at the
+    -- right; the last line with 3 points and place 8 within the 36; the result panel's heading within 31, the line
+    -- under it with 3 points and each note within 54.
+    local pc=w.photohunt
+    for _,clock in ipairs({pc.count:format(5),'60:00',pc.up}) do
+        fits(name..'.photohunt.head',pc.head..'  '..clock,31)
+    end
+    for _,k in ipairs({'memory','cat','butterfly','fish'}) do fits(name..'.photohunt.'..k,pc[k]:format(99),36-1-19) end
+    fits(name..'.photohunt.open',pc.open,19)
+    fits(name..'.photohunt.you',pc.you,19)
+    fits(name..'.photohunt.card',pc.card:format(3,8),36)
+    fits(name..'.photohunt.title',pc.title,31)
+    fits(name..'.photohunt.points',pc.points:format(3),54)
+    for _,k in ipairs({'waiting','unranked','best','norank'}) do fits(name..'.photohunt.'..k,pc[k],54) end
     local room=w.lobby.room:format('F5')
     assert(Chat.clean(room)==room,name..'.lobby.room: '..#room..' bytes or a control')
     -- Find a session (online/session/ui/sessions.lua): a key hint's label within the 420 units between two hints less

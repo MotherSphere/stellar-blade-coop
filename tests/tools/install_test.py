@@ -283,6 +283,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'online/modes/photohunt/commands', 'online/modes/photohunt/model',
                               'online/modes/photohunt/records', 'online/modes/photohunt/targets',
                               'online/modes/photohunt/round', 'online/modes/photohunt/game',
+                              'online/modes/photohunt/ui/board',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',

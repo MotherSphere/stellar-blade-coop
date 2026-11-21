@@ -51,9 +51,12 @@ disk.fail[P]=nil
 assert(disk.files[P]:find('\nbest_photohunt_xion=3 100\n',1,true))
 
 -- The two runtime lines on a host's round over a fake clock and world: the 250 ms loop ticks the round, then its game
--- side, which arms the native part at GO with the three targets' FNames; a valid photo in the engine line makes the
--- host's own claim and its board line; coop off ends the round with no line and takes the ask back, with no ask after
--- it; the pass line is guarded; photohunt=off and a save that is not a co-op one refuse the host's start.
+-- side, which arms the native part at GO with the three targets' FNames, then its screens (online/modes/photohunt/
+-- ui/board.lua, built on the kit's hud step: the start and Camera notices in the menu's words, the card each pass,
+-- hidden on the title screen); a valid photo in the engine line makes the host's own claim and its board line, with
+-- the shot's words once the selfie mode closes; coop off ends the round with no line and no ask after it: it takes the
+-- ask back and hides the card; the pass line is guarded; photohunt=off and a save that is not a co-op one refuse the
+-- host's start.
 local T=1000
 local time=os.time
 os.time=function() return T end
@@ -77,6 +80,15 @@ status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\nslot=coop 2\nengine=v
 coop('photohunt','start','1')
 assert(round.round().phase=='play' and fake_link.modes[#fake_link.modes]:find('^photohunt go %d+ 1 Xion %w+,%w+,%w+ 1001,2002$'),
     tostring(fake_link.modes[#fake_link.modes]))
+-- A notice said: on the screen's notice line, or in the chat feed once the kit is up.
+local function told(text)
+    for _,each in ipairs(said) do if each==text then return true end end
+    for _,call in ipairs(chat_calls) do if call:match('^system (.-) [%d.]+$')==text then return true end end
+    return false
+end
+assert(said[#said-1]:find('^.+ starts a photo hunt in Xion: .+%. 1 minutes%.$'),'The start notice: '..said[#said-1])
+assert(said[#said]=='Use the Camera to take the photos.',said[#said])
+kit_ready=true
 local function arms()
     local n,last=0,nil
     for _,line in ipairs(asked) do if line:find('^photohunt %d+ ') then n,last=n+1,line end end
@@ -84,6 +96,13 @@ local function arms()
 end
 loops[2].f() -- In the countdown: no ask.
 assert(arms()==0)
+assert(kit_shown.photohunt==true and not kit_shown.photohunt_result,'The pass ticks the screens: the card')
+Where.world=function() return false,true end -- The title screen: the co-op saves' badge takes the card's place.
+loops[2].f()
+assert(kit_shown.photohunt==false,'Hidden on the title screen')
+Where.world=function() return true,false end
+loops[2].f()
+assert(kit_shown.photohunt==true)
 T=T+5 -- GO.
 loops[2].f()
 local n,line=arms()
@@ -92,13 +111,20 @@ assert(n==1 and line:find('^photohunt %d+ 50%d 0 50%d 0 50%d 0$'),'The pass tick
 -- its board at the next.
 local ask=line:match('^photohunt (%d+) ')
 status_text=status_text:gsub(' pad=',' photohunt='..ask..' 1 1,0,0 300 pad=')
+selfie_mode=true -- The selfie mode is still open: the shot's words wait.
 loops[2].f()
 assert(round.round().board[1] and round.round().board[1].id=='1001','Taken by the host')
+local first=require('online.modes.photohunt.targets').name(round.round().rows[1],require('ui.text').en.photohunt)
+assert(told('You took '..first..'.') and not told(first..' counts: 1 point.'),'The shot words wait')
+selfie_mode=false
+loops[2].f()
+assert(told(first..' counts: 1 point.'),'Said once the selfie mode closed')
 loops[2].f()
 assert(fake_link.modes[#fake_link.modes]:find('^photohunt board %d+ 1001:0,0:0,0:0$'),fake_link.modes[#fake_link.modes])
 local lines=#fake_link.modes
 coop('off')
 assert(round.round().phase=='over' and round.round().why=='coop off' and #fake_link.modes==lines,'No line')
+assert(kit_shown.photohunt==false,'coop off hides the card')
 local back=false
 for i=#asked,1,-1 do
     if asked[i]:find('^photohunt %d+ ') then break end

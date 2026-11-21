@@ -7,19 +7,29 @@
 -- GO to our end), logging [PH] lines, with coop photohunt as its console word. main/pass.lua ticks M.photohunt every
 -- 250 ms after the inbox; coop off stops it (main/commands.lua). Our best photo hunt of each world goes in
 -- coop-records.txt in the mod folder, written as the fishing tournament's wiring writes its records (a copy: .tmp,
--- then a rename). It reads no other module.
+-- then a rename). Its screens (ui/board.lua, M.photohunt_board): the card, the result panel and the shot words, drawn
+-- after each pass; the round's and the game side's notices come in the menu's words (M.tell). It reads no other module.
 return {
 uses={},
-exports={'photohunt'},
+exports={'photohunt','photohunt_board'},
 new=function(M)
-local game
+local game,board
 if M.link then
     local log=function(m) M.print('[StellarCoop][PH] '..tostring(m)..'\n') end
     local Rec=require('online.modes.photohunt.records')
     local Game=require('online.modes.photohunt.game')
     M.photohunt=require('online.modes.photohunt.round').new({link=M.link,clock=os.time,log=log,
         check=function() return game.check() end,targets=function() return game.targets() end,
-        start=function(t) game.start(t) end,stop=function(why) game.stop(why) end,pass=function() game.pass() end,
+        start=function(t) game.start(t) end,
+        stop=function(why)
+            game.stop(why)
+            board.stop()
+        end,
+        pass=function()
+            game.pass()
+            board.tick()
+        end,
+        tell=function(...) board.notice(...) end,
         record=M.folder and function(world,points,s)
             local fs,p=require('core.link').files,M.folder..'\\coop-records.txt'
             local text,e,code=fs.read(p)
@@ -37,6 +47,14 @@ if M.link then
             return true
         end or nil})
     local Where,U=require('core.where'),require('core.unreal')
+    board=require('online.modes.photohunt.ui.board').new({round=M.photohunt.round,clock=os.time,log=log,tell=M.tell,
+        name=function(id)
+            if id==(M.link.saves() or {}).steamid then return M.link.me() end
+            local m=M.link.member(id)
+            return m and m.name
+        end,
+        title=function() return select(2,Where.world())==true end,selfie=function() return M.photo_state()=='s' end})
+    M.photohunt_board=board
     game=Game.new({round=M.photohunt,status=function() return M.link.status() end,
         request=function(line) return M.link.request(line) end,clock=os.time,log=log,
         on=function() return M.settings.photohunt==true end,coop=function() return M.coop_slot('photohunt')==true end,
@@ -45,8 +63,14 @@ if M.link then
             local me=Where.me()
             return me and me.map
         end,
-        read=function(map) return Game.read(U.find,U,map) end,fname=function(row) return M.fname(row) end})
+        read=function(map) return Game.read(U.find,U,map) end,fname=function(row) return M.fname(row) end,
+        feedback=function(k,word) board.feedback(k,word) end,tell=function(...) board.notice(...) end})
 end
 return require('online.modes.photohunt.commands').new({round=M.photohunt,game=game})
 end,
+build={
+hud=function(M,Ui)
+    if M.photohunt_board then M.photohunt_board.hud({kit=M.kit,theme=Ui.THEME,settings=M.settings}) end
+end,
+},
 }
