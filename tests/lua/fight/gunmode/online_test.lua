@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode and what other players see, over fake UE4SS objects: the posed stance keeps its hidden donor body off EVE,
--- so the ghost's capture never sends it (M10); the laser hangs on no part of EVE, so no partner draws a copy of it
--- ending at their own LaserPosition (M11); the rifle stays away while an SBO match runs, with a notice (M12).
+-- so the ghost's capture never sends it (M10); the laser hangs right on no part of EVE, so no partner draws a copy of
+-- it ending at their own LaserPosition (M11); the rifle stays away while an SBO match runs, with a notice (M12).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 local clock=100
@@ -63,21 +63,22 @@ do
     for _,c in ipairs(pawn.comps) do assert(c.dead,'a part left on EVE') end
 end
 
--- 2. M11: the laser is spawned at the muzzle, attached to nothing (its end is NC_NikkeMinigame's LaserPosition, one
---    value per world: on a partner's game a copy would end at theirs). Each update moves it to the muzzle.
+-- 2. M11: the laser hangs from a plain scene component snapped to the rifle's muzzle socket, never right on the rifle
+--    (its end is NC_NikkeMinigame's LaserPosition, one value per world: on a partner's game a copy would end at theirs).
+--    The capture and the native effect read take only Niagara components hung right on a part. The engine carries it
+--    with the muzzle: no update moves it.
 do
     local Laser=require('fight.gunmode.laser')
-    local attached,at,beam=0,{},nil
-    local muzzle={X=1,Y=2,Z=3}
+    local at,beam,holder={},nil,nil
     local instance=object({GetVectorParameter=function() return {X=0,Y=0,Z=0} end})
     instance.SetVectorParameter=function(o,_,v) rawset(o,'end_at',v) end
-    local library=object({GetNiagaraParameterCollection=function() return instance end,
-        SpawnSystemAttached=function() attached=attached+1; return object() end})
-    library.SpawnSystemAtLocation=function(_,context,asset,location,rotation,scale,destroy,activate,pool,cull)
-        at[#at+1]={context=context,asset=asset,location=location,rotation=rotation,scale=scale,destroy=destroy,
+    local library=object({GetNiagaraParameterCollection=function() return instance end})
+    library.SpawnSystemAtLocation=function() error('spawned at a location: it lags the muzzle') end
+    library.SpawnSystemAttached=function(_,asset,parent,point,location,rotation,kind,destroy,activate,pool,cull)
+        at[#at+1]={asset=asset,parent=parent,point=point,location=location,kind=kind,destroy=destroy,
             activate=activate,pool=pool,cull=cull}
-        beam=object({moves={}})
-        beam.K2_SetWorldLocationAndRotation=function(o,l,r) o.moves[#o.moves+1]={l=l,r=r} end
+        beam=object({ComponentTags={}})
+        beam.K2_SetWorldLocationAndRotation=function() error('the beam moved from Lua') end
         beam.Activate=function(o) rawset(o,'active',true) end
         return beam
     end
@@ -89,25 +90,29 @@ do
     LoadAsset=StaticFindObject
     FName=function(t) return t end
     local pawn=object()
-    local gun=object({DoesSocketExist=function() return true end,GetSocketLocation=function() return muzzle end,
+    pawn.AddComponentByClass=function(_,class)
+        holder=object({class=class.path,ComponentTags={}})
+        holder.K2_AttachToComponent=function(o,parent,socket) rawset(o,'parent',parent); rawset(o,'socket',socket) end
+        return holder
+    end
+    local gun=object({DoesSocketExist=function() return true end,GetSocketLocation=function() return {X=1,Y=2,Z=3} end,
         GetSocketRotation=function() return {Pitch=0,Yaw=90,Roll=0} end})
     local mathlib=object({GetForwardVector=function() return {X=1,Y=0,Z=0} end})
     local update,cleanup=Laser(pawn,gun,mathlib)
-    assert(attached==0,'the laser hangs on the rifle, a part the capture sends')
-    assert(#at==1 and at[1].context==pawn and at[1].asset.path:find('NS_A_GuideLaser',1,true),'spawned once')
-    assert(at[1].location==muzzle and at[1].rotation.Yaw==90 and at[1].scale.X==1,'at the muzzle')
+    assert(holder.class=='/Script/Engine.SceneComponent' and holder.parent==gun and holder.socket=='FX_Fire',
+        'a plain scene component on the muzzle socket')
+    assert(#at==1 and at[1].parent==holder and at[1].parent~=gun and at[1].asset.path:find('NS_A_GuideLaser',1,true),
+        'spawned once, on the holder: never right on the rifle, a part the capture sends')
+    assert(at[1].point=='None' and at[1].location.X==0 and at[1].kind==2,'snapped to the holder')
     assert(at[1].destroy==true and at[1].activate==false and at[1].pool==0 and at[1].cull==false,
-        'as SpawnSystemAttached had it: destroyed when done, activated after its first update')
+        'destroyed when done, activated after its first update')
     assert(beam.active,'activated')
-    muzzle={X=40,Y=50,Z=60}
     update({X=900,Y=0,Z=0})
-    local last=beam.moves[#beam.moves]
-    assert(last and last.l==muzzle and last.r.Yaw==90,'moved to the muzzle')
     assert(instance.end_at.X==900,'its end where the rounds go')
     cleanup()
 end
 
--- 3. M11: the rifle layer moves the laser at each frame of aim, with or without the point the rounds go to.
+-- 3. M11: the rifle layer updates the laser at each frame of aim, with or without the point the rounds go to.
 do
     local w=Fake.new(); w.install()
     local Rifle=require('fight.gunmode.rifle')

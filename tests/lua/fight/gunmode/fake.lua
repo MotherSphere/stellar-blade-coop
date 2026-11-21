@@ -3,9 +3,10 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- A fake UE4SS world for gun mode's tests (not a test file itself): EVE's controller and pawn, her body mesh component
 -- with its post-process instance (rebuilt from the mesh asset's class at each SetSkeletalMesh, as the engine does),
--- the components added to her, the input settings' action mappings, the rows fight/gunmode/data.lua changes and the
--- rifle layer's class. Her pawn, its components, the drones (w.drone()) and the actors spawned have paths of their own,
--- which StaticFindObject finds while they live. Every row value is a test value, none comes from a game file.
+-- the components added to her, the input settings' action mappings, the rows and the NIKKE shot's show that
+-- fight/gunmode/data.lua changes and the rifle layer's class. Her pawn, its components, the drones (w.drone()) and the
+-- actors spawned have paths of their own, which StaticFindObject finds while they live. Every row value is a test
+-- value, none comes from a game file.
 -- Fake.new() returns the world; w.install() sets the globals UE4SS gives the scripts.
 local Fake={}
 local NAME={}
@@ -37,6 +38,10 @@ Fake.SWORD='/Game/Test/CH_W_Sword_Test.CH_W_Sword_Test' -- A mesh fight/gunmode/
 Fake.ANIMS='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/' -- The posed stance's clips (fight/gunmode/stance.lua).
 -- fight/gunmode/config.lua's pak_probe: a rifle clip of zNGMSpike_P, found only with w.pak.
 Fake.PROBE='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/NGM_R_AimIdle.NGM_R_AimIdle'
+-- The NIKKE shot's show and its anim key (fight/gunmode/data.lua's Data.SHOT_SHOW and Data.SHOT_KEY); the key's
+-- AnimResourcePath is a test value.
+Fake.SHOT_SHOW='/Game/Art/Show/CH_P_EVE_01/Skill/P_Eve_GunNikke_ShootSlug1.P_Eve_GunNikke_ShootSlug1'
+Fake.SHOT_ANIM='/Game/Test/Test_Cover_Shot'
 
 -- The rows data.lua reads or writes, with test values. Their fields have the kinds read in Ghidra on 26123051 (see
 -- fight/gunmode/journal.lua): SkillCommandTable's bJumping and bWallRun are bytes (0x145dfa3b0, 0x145dfa380);
@@ -53,15 +58,22 @@ local function rows()
             P_Eve_Gun_ShootSlug1_2={SkillAlias=name('P_Eve_Gun_ShootSlug1_2'),CommandActionType=2,bJumping=2,
                 bWallRun=0}},
         CharacterStanceTable={P_Eve_Gun={WalkSpeed=200,RunSpeed=400.5,JoggingRunSpeed=300,LockOnWalkSpeed=150,
-                LockOnRunSpeed=250,Condition_Jumping=4,StartShowPathWhenPeaceful='',StartShowPathWhenBattle='',
-                EndShowPathWhenPeaceful='',EndShowPathWhenBattle=''},P_Eve_Default={Condition_Jumping=0}},
+                LockOnRunSpeed=250,Condition_Jumping=4,
+                -- The drone aim's raise and dismiss shows as the base pak's CharacterStanceTable ships them (26123051).
+                StartShowPathWhenPeaceful='CH_P_EVE_01/Skill/P_Eve_Gun_S_Peaceful',
+                StartShowPathWhenBattle='CH_P_EVE_01/Skill/P_Eve_Gun_S',
+                EndShowPathWhenPeaceful='CH_P_EVE_01/Skill/P_Eve_Gun_E_Peaceful',
+                EndShowPathWhenBattle='CH_P_EVE_01/Skill/P_Eve_Gun_E'},P_Eve_Default={Condition_Jumping=0}},
         CharacterAnimSetTable={P_Eve_Gun_Battle={RunBlendSpace='Test_Run_BS',RunTiltBlendSpace='Test_Tilt_BS',
                 LockOnRunBlendSpace='Test_LockOn_BS',AimOffsetBlendSpace='Test_Aim_BS'}},
-        ProjectileTable={P_Eve_GunNikke_ShootSlug1_Projectile1={StartTargetTransformType=1,
-                StartTargetRelativeAxisType=1,DestTargetTransformType=2,DestTargetRelativeAxisType=2,
-                DestTargetRelativeLocation={X=1,Y=2,Z=3},DestTargetRandomRange={X=300,Y=300,Z=300},
+        -- (The NIKKE row's StartTarget, DestTarget and StartToDestDirectionDistance as the base pak's export reads
+        -- them; the drone row's pair as the game reads it: Base and RootAxis.)
+        ProjectileTable={P_Eve_GunNikke_ShootSlug1_Projectile1={StartTarget=0,StartTargetTransformType=1,
+                StartTargetRelativeAxisType=1,DestTarget=3,StartToDestDirectionDistance=50000,
+                DestTargetTransformType=2,DestTargetRelativeAxisType=2,
+                DestTargetRelativeLocation={X=1,Y=2,Z=3},DestTargetRandomRange={X=300,Y=300,Z=300},DestTargetUpdate=1,
                 StartTargetRelativeLocation={X=4,Y=5,Z=6.25}},
-            P_Eve_Gun_ShootSlug1_Projectile1={DestTargetTransformType=5,DestTargetRelativeAxisType=6}},
+            P_Eve_Gun_ShootSlug1_Projectile1={DestTargetTransformType=0,DestTargetRelativeAxisType=2}},
         SkillActiveStepTable={P_Eve_GunNikke_ShootSlug1_1_Hit1={Type=1},
             P_Eve_GunNikke_ShootSlug1_1_Cast1={Type=2}},
     }
@@ -122,7 +134,7 @@ function Fake.new()
             {ComponentTags={},bHiddenInGame=false,bOwnerNoSee=false}))
         for _,f in ipairs({'SetCollisionEnabled','SetCastShadow','SetLightingChannels','K2_AttachToComponent',
                 'K2_SetRelativeTransform','SetVisibility','SetMaterial','PlayAnimation','Stop','SetPosition',
-                'SetComponentTickEnabled','SetAnimationMode','SetAnimation'}) do c[f]=function() end end
+                'SetComponentTickEnabled','SetAnimationMode','SetAnimation','K2_AddLocalRotation','SetStaticMesh'}) do c[f]=function() end end
         function c.SetSkeletalMesh(o,a) o.SkeletalMesh=a end
         function c.IsA(_,cls) return cls==skeletal end
         function c.ComponentHasTag(o,tag)
@@ -225,12 +237,23 @@ function Fake.new()
         for _,m in ipairs(w.mappings) do t[#t+1]=m.ActionName:ToString()..'='..m.Key.KeyName:ToString() end
         return table.concat(t,' ')
     end
+    -- The NIKKE shot's show in memory (w.shot_key: its anim key now). w.shot_show() again: the engine collected the
+    -- show and SB loaded it again, as shipped.
+    function w.shot_show()
+        if w.shot_key then w.shot_key.dead=true; w.show.dead=true end
+        w.show=named(object('SBShowData '..Fake.SHOT_SHOW))
+        w.shot_key=named(object('SBShowAnimKey '..Fake.SHOT_SHOW..':SBShowAnimKey_1',{AnimResourcePath=Fake.SHOT_ANIM}))
+    end
+    w.shot_show()
     w.tables=rows()
     w.shipped=snapshot(w.tables)
-    -- The fields that differ from the shipped values, as 'table.row.field'.
+    -- The fields that differ from the shipped values, as 'table.row.field' (the show's anim key as 'show.<field>').
     function w.changed()
         local now,out=snapshot(w.tables),{}
         for k,v in pairs(w.shipped) do if now[k]~=v then out[#out+1]=k..' '..tostring(now[k])..' (was '..v..')' end end
+        if w.shot_key.AnimResourcePath~=Fake.SHOT_ANIM then
+            out[#out+1]='show.AnimResourcePath '..tostring(w.shot_key.AnimResourcePath)
+        end
         table.sort(out)
         return out
     end
@@ -250,7 +273,7 @@ function Fake.new()
     local registry=object('AssetRegistryHelpers /Script/AssetRegistry.Default__AssetRegistryHelpers',
         {GetAsset=function() return nil end})
     local classes={}
-    for _,c in ipairs({'MeshComponent','StaticMeshComponent','PoseableMeshComponent','Actor'}) do
+    for _,c in ipairs({'MeshComponent','StaticMeshComponent','PoseableMeshComponent','Actor','AudioComponent'}) do
         classes['/Script/Engine.'..c]=object('Class /Script/Engine.'..c)
     end
     function w.find(path)
@@ -288,4 +311,54 @@ function Fake.new()
     return w
 end
 Fake.name=name
+
+-- UE4SS's way with objects over the installed globals: each read of an object (a property, a game function's result,
+-- StaticFindObject, FindFirstOf, FindAllOf, LoadAsset) gives a new wrapper with a finalizer, as UE4SS makes a new
+-- userdata at each read. Wrappers of one object compare equal. A table keyed by such objects grows with each read. The
+-- counts: n.made (wrappers made), n.calls (calls of the game's functions; UE4SS's own methods below make none).
+-- Returns n and a function that puts the globals back.
+local OWN={IsValid=true,GetAddress=true,GetFullName=true,GetFName=true,GetClass=true,IsA=true,type=true,ToString=true}
+function Fake.ue4ss()
+    local n={made=0,calls=0}
+    local MT,OF={},{} -- OF: the key under which a wrapper holds its object (no table of wrappers to grow)
+    local function unwrap(v) return type(v)=='table' and rawget(v,OF) or v end
+    local function object(v) return type(v)=='table' and rawget(v,OF)==nil and rawget(v,'IsValid')~=nil end
+    local function wrap(v)
+        if not object(v) then return v end
+        n.made=n.made+1
+        return setmetatable({[OF]=v},MT)
+    end
+    local function results(...)
+        local c=select('#',...); local t={...}
+        for i=1,c do t[i]=wrap(t[i]) end
+        return table.unpack(t,1,c)
+    end
+    MT.__index=function(p,k)
+        local v=rawget(p,OF)[k]
+        if type(v)=='function' then
+            return function(self,...)
+                if not OWN[k] then n.calls=n.calls+1 end
+                local c=select('#',...); local args={...}
+                for i=1,c do args[i]=unwrap(args[i]) end
+                if k=='GetAddress' then return v(unwrap(self),table.unpack(args,1,c)) end -- (a number in UE4SS)
+                return results(v(unwrap(self),table.unpack(args,1,c)))
+            end
+        end
+        return wrap(v)
+    end
+    MT.__newindex=function(p,k,v) rawget(p,OF)[k]=unwrap(v) end
+    MT.__eq=function(a,b) return unwrap(a)==unwrap(b) end
+    MT.__gc=function() end
+    local sfo,ffo,fao,la=StaticFindObject,FindFirstOf,FindAllOf,LoadAsset
+    StaticFindObject=function(...) return wrap(sfo(...)) end
+    FindFirstOf=function(c) return wrap(ffo(c)) end
+    FindAllOf=function(c)
+        local list=fao(c); if type(list)~='table' then return list end
+        local out={}
+        for i,o in ipairs(list) do out[i]=wrap(o) end
+        return out
+    end
+    LoadAsset=function(path) return wrap(la(path)) end
+    return n,function() StaticFindObject,FindFirstOf,FindAllOf,LoadAsset=sfo,ffo,fao,la end
+end
 return Fake

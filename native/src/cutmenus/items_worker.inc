@@ -7,14 +7,15 @@
 namespace coop::pose {
 namespace {
 // The last ask's answer for the engine line (status()): " items=<ask> <count>" or " items=<ask> none <why>"; empty
-// before the first ask of the run.
+// before the first ask of the run. items_said: each alias's answer as last logged (cutmenus/items.h's said_anew).
 std::string items_line;
+items::Said items_said;
 } // namespace
 
 // coop gift (Lua's items <ask> <alias> <index> <number>): how many of the item our EVE carries, read now through
 // ReadProcessMemory (cutmenus/items.h), her GUID too (client +0x58): never the revive guard's warp_me, whose latch
 // would refuse every read after its first fault. Refused off the pinned build, after coop off and with no EVE read; the
-// answer replaces the last one in the engine line.
+// answer replaces the last one in the engine line. The log line only when the alias's answer changes, else empty.
 std::string ask_items(const coop::Request &request) {
   const char *why = !game_pinned ? "unpinned" : blocked ? "off" : nullptr;
   const int guid = why ? slot::kUnread : slot::field(base, rpm, slot::kPlayerGuid);
@@ -29,6 +30,8 @@ std::string ask_items(const coop::Request &request) {
   }
   const std::string answer = why ? std::string("none ") + why : std::to_string(c.count);
   items_line = " items=" + std::to_string(request.ask) + " " + answer;
+  if (!items::said_anew(items_said, request.alias, answer))
+    return std::string();
   return "items " + request.alias + " (ask " + std::to_string(request.ask) + "): " + answer;
 }
 

@@ -103,6 +103,15 @@ do
     for _,want in ipairs({ASSET,'NGM_R_','SBOutfitProject'}) do
         if not readme:find(want,1,true) then fail('tools/gunmode/README.md does not name '..want) end
     end
+    -- The pak's v4 assets that no script here makes: the poses overlay.lua plays and the aim camera's modifier.
+    local poses=require('fight.gunmode.overlay').CLIPS.aim:match('^/Game/(.+)/[^/]+$')
+    local cammod=read(S..'mode.lua'):match("local CAMMOD='[^']-/([%w_]+)%.[%w_]+'")
+    assert(poses and cammod,'overlay.lua names its poses, mode.lua its camera modifier')
+    for _,w in ipairs({{'tools/gunmode/README.md',readme},{PAGE,page}}) do
+        for _,want in ipairs({poses,cammod}) do
+            if not w[2]:find(want,1,true) then fail(w[1]..' does not name '..want) end
+        end
+    end
 end
 
 -- 3. Gun mode's code, tests, tools and page: no clock time of a play session unless it names its log (as in
@@ -127,9 +136,9 @@ do
 end
 
 -- 4. The page as the code runs: it names every table fight/gunmode/data.lua changes and the notice the parked key
---    shows. While mode.lua builds the rounds with no D-pad slot, neither the page nor ammo.lua's header promises the
---    "rounds | magazines" count. While it passes one, the page says what the slot shows, names its icon and says the
---    first in-game test sets its place. The page and the docs index row speak of no crouching. Plain prose on the page: no
+--    shows. It gives the grip's ease with ik.lua's pin_blend. While mode.lua ticks no HUD entry
+--    (fight/gunmode/ui/dpad.lua), neither the page nor ammo.lua's header promises the "rounds | magazines" count. While it ticks one, the page says what the entry shows and names its
+--    icon and the icon's ItemTable row. The page and the docs index row speak of no crouching. Plain prose on the page: no
 --    ", and" or ", but", no bold-label bullets, no "co-op session". No ", and" or ", but" either in the comments this
 --    pass rewrote: ammo.lua's header, facts.lua's note on the retired F11.
 do
@@ -140,18 +149,22 @@ do
     end
     assert(next(seen),'data.lua opens tables')
     if not page:find(require('ui.text').en.gun.rebuilding,1,true) then fail(PAGE..' does not quote the parked notice') end
-    -- The D-pad slot argument, before the optional stock (fight/gunmode/nikke.lua's rounds).
-    local slot=read(S..'mode.lua'):match('Ammo%.new%(g,cfg,function%(v%) data%.cool%(v%) end,on_reload,([%w_]+)[,%)]')
-    assert(slot,'mode.lua builds the rounds')
-    if slot=='nil' then
+    -- The grip's ease as ik.lua runs it: an exponential ease with pin_blend as its time constant.
+    local tau=assert(tonumber(read(S..'ik.lua'):match('pin_blend=([%d%.]+)')),'ik.lua sets pin_blend')
+    local ease=('a time constant of %g s: %d%% of the way after %g s, %d%% after 0.5 s'):format(tau,
+        math.floor(100*(1-math.exp(-1))+0.5),tau,math.floor(100*(1-math.exp(-0.5/tau))+0.5))
+    if not page:gsub('%s+',' '):find(ease,1,true) then fail(PAGE..' does not give the grip\'s ease as "'..ease..'"') end
+    -- The HUD entry ticked from mode.lua.
+    local entry=read(S..'mode.lua'):find('s.dpad=s.dpad or Dpad.new(g)',1,true)
+    if not entry then
         local head=read(S..'ammo.lua'):match('^(.-)\nlocal Ammo')
         for _,w in ipairs({{PAGE,page},{S..'ammo.lua (header)',head}}) do
             if w[2]:find('rounds | magazines',1,true) then fail(w[1]..' promises a bottom-left count no code draws') end
         end
     else
-        local icon=require('fight.gunmode.ui.slot').ICON:match('[^.]+$')
-        for _,want in ipairs({'rounds | magazines',icon,'Nikke_AR','first in-game test'}) do
-            if not page:find(want,1,true) then fail(PAGE..' does not say '..want..' of the D-pad slot') end
+        local icon=require('fight.gunmode.ui.dpad').ICON:match('[^.]+$')
+        for _,want in ipairs({'rounds | magazines',icon,'Nikke_AR'}) do
+            if not page:find(want,1,true) then fail(PAGE..' does not say '..want..' of the HUD entry') end
         end
     end
     local row=read('docs/README.md'):match('\n(| %[Gun mode%][^\n]*)')
@@ -172,6 +185,30 @@ do
         if l:find('^%s*[-*] %*%*[^*]+:%*%*') then fail(('%s:%d: a bold-label bullet'):format(p,n)) end
         if l:lower():find('co-op session',1,true) then fail(('%s:%d: "co-op session"'):format(p,n)) end
     end)
+    -- The comments of the files the v4 review and the review of the 2026-11-21 fixes found joins in, a run of comment
+    -- lines read as one text. A split join leaves no sentence break inside a parenthesis: "(a drops it. B takes it)"
+    -- reads as a broken aside.
+    local T='tests/lua/fight/gunmode/'
+    for _,p in ipairs({S..'input.lua',S..'ik.lua',S..'mode.lua',S..'aimrot.lua',S..'ui/dpad.lua',S..'rifle.lua',
+            T..'ik_pin_test.lua',T..'input_memo_test.lua',T..'rifle_frame_test.lua',T..'morph_test.lua',
+            T..'cost_test.lua'}) do
+        local blocks,last={},nil -- {line of its first comment, its text}
+        lines({p},function(_,n,l)
+            local c=l:match('%-%-(.*)$')
+            if c and last==n-1 then blocks[#blocks][2]=blocks[#blocks][2]..' '..c
+            elseif c then blocks[#blocks+1]={n,c} end
+            if c then last=n end
+        end)
+        for _,b in ipairs(blocks) do
+            local flat=b[2]:gsub('%s+',' ')
+            for _,j in ipairs({', and ',', but '}) do
+                if flat:find(j,1,true) then fail(('%s:%d: "%s" joins two clauses'):format(p,b[1],j)) end
+            end
+            for inner in flat:gmatch('%b()') do
+                if inner:find('%. %u') then fail(('%s:%d: a sentence break inside %s'):format(p,b[1],inner)) end
+            end
+        end
+    end
 end
 
 -- 5. Engine hooks (NotifyOnNewObject, RegisterHook) are registered in wiring.lua only, where each callback checks

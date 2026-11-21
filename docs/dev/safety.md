@@ -246,9 +246,9 @@ feature or drops the input.
   ask the `items` request with the numbers 20000 to 32767. With `gun_mode=off` gun mode asks no rows. It asks them
   once a co-op save from the co-op save files has loaded, never at the title, on your own saves or on the manual
   co-op slot. Those rows patch the three shipped camp ShopTable rows (`Shop_SimpleCamp`, `Shop_FullCamp`,
-  `Shop_NestCamp`) in place for the game run, with `Camp_Bullet_Nikke_Buy` added to their `ShopItems` and their other
-  items as shipped.
-  They add `Camp_Bullet_Nikke_Buy` to ShopItemTable and 8 RewardGroupTable rows (31114 to 31121) to the ammo groups
+  `Shop_NestCamp`) in place for the game run, with `SBO_Camp_Bullet_Nikke_Buy` added to their `ShopItems` and their
+  other items as shipped.
+  They add `SBO_Camp_Bullet_Nikke_Buy` to ShopItemTable and 8 RewardGroupTable rows (31114 to 31121) to the ammo groups
   enemies and supply boxes roll. No shipped RewardGroupTable row changes. SB's own buy and drops add the rounds: gun
   mode adds none. Apart from enemy stats with the experimental shared enemies
   (`coop fight`, on by default, co-op saves only), their positions and animations with the experimental same place (on

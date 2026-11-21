@@ -12,10 +12,13 @@
 //     resolves a row naming an ItemAlias in FUN_141bea040: count rand(ItemMinCount, ItemMaxCount). AddRow
 //     (0x1441815b0) puts the row in the table's index of Group (FUN_144182060, table +0x170), which the group query
 //     reads.
-//   - the shop: the ShopItemTable row Camp_Bullet_Nikke_Buy (a copy of Camp_Bullet_Normal_Buy: ShopType Buy, gold),
-//     then the three camp vending machines' ShopTable rows patched in place with it added to ShopItems. Their other
-//     items and their order are the shipped ones (the build 26123051 dump). SB's FSBActorBuyItem (FUN_141bbe480) sells
-//     any item a shop lists in ShopItems whose ShopItemTable row names it with ShopType Buy or Exchange.
+//   - the shop: the ShopItemTable row SBO_Camp_Bullet_Nikke_Buy (ID 37001, a copy of Camp_Bullet_Normal_Buy: ShopType
+//     Buy, gold). Its name and ID are the mod's own: older NIKKE gun mods' paks (zNikkeGunMode_P, RoguelikeMode_P) add
+//     a row named Camp_Bullet_Nikke_Buy, which made rows/rows.h refuse ours in game on 2026-11-20 (why=name). The
+//     camp shops list ours, so such a pak's row is sold no more while these rows are in. Then the three camp vending
+//     machines' ShopTable rows are patched in place with it added to ShopItems. Their other items and their order are
+//     the shipped ones (the build 26123051 dump). SB's FSBActorBuyItem (FUN_141bbe480) sells any item a shop lists
+//     in ShopItems whose ShopItemTable row names it with ShopType Buy or Exchange.
 // Row sizes and field offsets read in Ghidra on build 26123051: SBRewardGroupTableProperty FStructParams 0x146db2a30
 // (0x80 bytes), its ItemAlias 0x145e0f998 (+0x28), DropRate 0x145e0f830 (+0x54), ItemMinCount 0x145e0f750 (+0x58),
 // ItemMaxCount 0x145e0f728 (+0x5c); SBShopItemTableProperty 0x146db1d10 (0xa0), its ItemAlias 0x145e1acb8 (+0x18),
@@ -74,8 +77,8 @@ constexpr Patch kNikkePatches[] = {
     {0x54, Kind::i32, 5000, nullptr},   // DropRate
     {0x58, Kind::i32, 20, nullptr},     // ItemMinCount
     {0x5c, Kind::i32, 40, nullptr},     // ItemMaxCount
-    // Camp_Bullet_Nikke_Buy (ShopItemTable), over Camp_Bullet_Normal_Buy: sold for gold with no condition. The donor's
-    // CG_TPSMode_Opened is the drone's gun, not the rifle's.
+    // SBO_Camp_Bullet_Nikke_Buy (ShopItemTable), over Camp_Bullet_Normal_Buy: sold for gold with no condition. The
+    // donor's CG_TPSMode_Opened is the drone's gun, not the rifle's.
     {0x18, Kind::name, 0, kNikkeRound},             // ItemAlias
     {0x34, Kind::i32, kNikkePrice, nullptr},        // MoneyItemCount1
     {0x7c, Kind::name, 0, "None"},                  // CheckConditionGroup
@@ -84,19 +87,19 @@ constexpr Patch kNikkePatches[] = {
     {0x38, Kind::names, 0,
      "Camp_ResurrectionItem_x3_Buy|Camp_HP_Potion_Buy|Camp_HP_Potion_Small_Buy|Camp_Bullet_Package_Dummy_Buy|"
      "Camp_Bullet_Normal_Buy|Camp_Bullet_Scatter_Buy|Camp_Bullet_Explosive_Buy|Camp_Bullet_Missile_Buy|"
-     "Camp_Bullet_Railgun_Buy|Camp_Bullet_Nikke_Buy|Camp_ConcussionGrenade_Buy|Camp_PulseGrenade_Buy|"
+     "Camp_Bullet_Railgun_Buy|SBO_Camp_Bullet_Nikke_Buy|Camp_ConcussionGrenade_Buy|Camp_PulseGrenade_Buy|"
      "Camp_FlashGrenade_Buy|Camp_TrapGrenade_Buy|Camp_HealGrenade_Buy|Camp_SPInitializer_Buy"},
     // Shop_FullCamp (ShopTable 1002), in place: the same list
     {0x38, Kind::names, 0,
      "Camp_ResurrectionItem_x3_Buy|Camp_HP_Potion_Buy|Camp_HP_Potion_Small_Buy|Camp_Bullet_Package_Dummy_Buy|"
      "Camp_Bullet_Normal_Buy|Camp_Bullet_Scatter_Buy|Camp_Bullet_Explosive_Buy|Camp_Bullet_Missile_Buy|"
-     "Camp_Bullet_Railgun_Buy|Camp_Bullet_Nikke_Buy|Camp_ConcussionGrenade_Buy|Camp_PulseGrenade_Buy|"
+     "Camp_Bullet_Railgun_Buy|SBO_Camp_Bullet_Nikke_Buy|Camp_ConcussionGrenade_Buy|Camp_PulseGrenade_Buy|"
      "Camp_FlashGrenade_Buy|Camp_TrapGrenade_Buy|Camp_HealGrenade_Buy|Camp_SPInitializer_Buy"},
     // Shop_NestCamp (ShopTable 1003), in place: its own first item (one resurrection item, not three)
     {0x38, Kind::names, 0,
      "Camp_ResurrectionItem_Buy|Camp_HP_Potion_Buy|Camp_HP_Potion_Small_Buy|Camp_Bullet_Package_Dummy_Buy|"
      "Camp_Bullet_Normal_Buy|Camp_Bullet_Scatter_Buy|Camp_Bullet_Explosive_Buy|Camp_Bullet_Missile_Buy|"
-     "Camp_Bullet_Railgun_Buy|Camp_Bullet_Nikke_Buy|Camp_ConcussionGrenade_Buy|Camp_PulseGrenade_Buy|"
+     "Camp_Bullet_Railgun_Buy|SBO_Camp_Bullet_Nikke_Buy|Camp_ConcussionGrenade_Buy|Camp_PulseGrenade_Buy|"
      "Camp_FlashGrenade_Buy|Camp_TrapGrenade_Buy|Camp_HealGrenade_Buy|Camp_SPInitializer_Buy"},
 };
 // The drops first (each stands alone), then the shop item, then the three shops that list it, once it is in.
@@ -109,7 +112,7 @@ constexpr Row kNikkeRecipe[] = {
     {Table::reward, "31119", "220025", 31119u, 20, 4},
     {Table::reward, "31120", "200024", 31120u, 24, 4},
     {Table::reward, "31121", "31105", 31121u, 28, 4},
-    {Table::shopitem, "Camp_Bullet_Nikke_Buy", "Camp_Bullet_Normal_Buy", 37u, 32, 4},
+    {Table::shopitem, "SBO_Camp_Bullet_Nikke_Buy", "Camp_Bullet_Normal_Buy", 37001u, 32, 4},
     {Table::shop, "Shop_SimpleCamp", "Shop_SimpleCamp", 1001u, 36, 1},
     {Table::shop, "Shop_FullCamp", "Shop_FullCamp", 1002u, 37, 1},
     {Table::shop, "Shop_NestCamp", "Shop_NestCamp", 1003u, 38, 1},

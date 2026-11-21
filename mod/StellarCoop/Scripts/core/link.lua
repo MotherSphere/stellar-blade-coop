@@ -286,7 +286,7 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
 -- gun mode checks them and logs what it refuses.
 local GUN_TESTS={gun_aim_key=true,gun_zoom=true,gun_upper=true,gun_fire=true,gun_probe=true,gun_trace=true,
     gun_facts=true,gun_g0=true,gun_bs=true,gun_carry_ovr=true,gun_carry_spare=true,gun_carry_idle=true,
-    gun_fire_key=true}
+    gun_fire_key=true,gun_airtrace=true,gun_g1=true,gun_g1_tag=true,gun_spread=true}
 for name in pairs(GUN_TESTS) do DEFAULTS[name]='' end
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
@@ -943,8 +943,11 @@ function Link.new(folder,fs)
         if not text then return new end
         listed,noted={},{}
         for line in text:gmatch('[^\r\n]+') do
-            now[line]=true
-            if not seen[line] and not line:find('^peer=') and not line:find('^member=') and not line:find('^fight=')
+            -- The engine line's items= carries the ask's number, new at each read: gun mode reads its rounds once a
+            -- second while the rifle is out. The line is logged when anything else in it changes, the count included.
+            local key=line:find('^engine=') and line:gsub(' items=%d+ ',' items=# ',1) or line
+            now[key]=true
+            if not seen[key] and not line:find('^peer=') and not line:find('^member=') and not line:find('^fight=')
                 and not line:find('^mate=') and not line:find('^vit=')
                 and not line:find('^match=') -- Its countdown changes each second.
                 and not (waited and line:find('^wait=')) -- Likewise: the first of a wait only.

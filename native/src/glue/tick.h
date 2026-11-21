@@ -229,7 +229,8 @@ std::string ask_shortcut_load(int file);
 bool shortcut_load_pass(std::string &save, std::string &line);
 // Worker thread, coop gift (cutmenus/items.h): Lua's items request, how many of one item our EVE carries, read now
 // through ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build,
-// after coop off and with no EVE read. Returns the line for the log.
+// after coop off and with no EVE read. Returns the line for the log, empty while the alias's answer stays the same:
+// gun mode asks once a second while the rifle is out.
 std::string ask_items(const coop::Request &request);
 // Worker thread, the fishing tournament (online/modes/fishing/fishing.h): Lua's fishbook request, our EVE's fishing log
 // book, read now through ReadProcessMemory; the answer goes in the engine line's fish= (status()). Refused off the

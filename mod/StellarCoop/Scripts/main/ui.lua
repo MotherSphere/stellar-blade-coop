@@ -25,7 +25,6 @@ if M.settings then
     require('main.loader').build(M,'online.modes.photohunt','hud',Ui)
     require('main.loader').build(M,'online.modes.race','hud',Ui)
     require('main.loader').build(M,'world.maps.matrix13','hud',Ui)
-    require('main.loader').build(M,'fight.gunmode','hud',Ui)
     require('main.loader').build(M,'online.session','code_box',Ui)
     -- The first-launch guide (ui/kit/guide.lua): the menu's Guide row and coop guide open it; in front of the co-op
     -- saves' question, it takes the question's keys, pad, clicks and loops first (front), and the question waits for

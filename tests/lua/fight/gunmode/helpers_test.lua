@@ -28,6 +28,16 @@ do
     s,bad=Config.from(Link.parse_settings('gun_zoom=sideways\ngun_upper=yes\ngun_fire=both\ngun_aim_key=Left Mouse\n'))
     assert(not s.zoom_toggle and not s.upper and s.native and s.aim_key=='RightMouseButton' and #bad==4,
         table.concat(bad,'|'))
+    -- gun_spread: degrees from 0 to 10. Another value is refused with its line: the default spread stays.
+    for v,want in pairs({['0']=0,['2.5']=2.5,['10']=10}) do
+        s,bad=Config.from(Link.parse_settings('gun_spread='..v..'\n'))
+        assert(s.spread==want and #bad==0,'gun_spread='..v..': '..tostring(s.spread)..' '..table.concat(bad,'|'))
+    end
+    for _,v in ipairs({'-1','10.5','wide'}) do
+        s,bad=Config.from(Link.parse_settings('gun_spread='..v..'\n'))
+        assert(s.spread==nil and #bad==1 and bad[1]=='gun_spread: degrees from 0 to 10',
+            'gun_spread='..v..': '..tostring(s.spread)..' '..table.concat(bad,'|'))
+    end
 end
 
 -- 2. Keys: an edge on the press only; a tap is a short press, a hold is not.
@@ -46,7 +56,7 @@ do
 end
 
 -- 4. The magazine: a press fires at once, then one round per cool time in whole frames; empty -> a reload (no round
---    until it is done), the count jumping when the magazine goes in; lowered part-spent -> reloaded after a moment;
+--    until it is done), the count jumping when the magazine goes in; lowered part-spent -> no reload (11-20);
 --    spares spent -> no rounds (cool time 999) until a refill.
 do
     assert(close(Ammo.step(0.045,1/60),0.05) and close(Ammo.step(0.01,1/60),1/60))
@@ -62,16 +72,19 @@ do
     run(31,true,true)
     assert(a.left<1 and a.reload_until and reloads[1]==true and cools[1]==1.2)
     run(62,true,false)
-    assert(a.left==10 and a.reserve==10 and not a.reload_until and reloads[2]==false and cools[2]==0.05)
+    -- The reload's end writes 0 (SB's own copy of a longer cool time cleared). The first round puts the rate of fire
+    -- back one cool time later.
+    assert(a.left==10 and a.reserve==10 and not a.reload_until and reloads[2]==false and cools[2]==0)
     run(31,true,true); run(62,true,false)
+    assert(cools[3]==0.05,tostring(cools[3]))
     assert(a.left==10 and a.reserve==0)
     run(31,true,true)
     assert(a.left==0 and a.reserve==0 and cools[#cools]==999)
     a.refill()
-    assert(a.left==10 and a.reserve==20 and cools[#cools]==0.05)
+    assert(a.left==10 and a.reserve==20 and cools[#cools]==0)
     run(1,true,false); run(1,true,true)
     run(120,false,false)
-    assert(a.left==10 and a.reserve==19,'lowered reload '..a.left..' '..a.reserve)
+    assert(a.left==9 and a.reserve==20,'no reload when lowered (11-20): '..a.left..' '..a.reserve)
 end
 
 -- 4b. L4: the reticle's round slot in the menu's words (g.words: ui/text.lua's gun in the player's language): the
@@ -97,6 +110,7 @@ do
     local g={log=function() end,valid=function(o) return o~=nil and o:IsValid() end,
         try=function(f) local ok,r=pcall(f); if ok then return r end end,
         words=function() asked=asked+1; return fr end}
+    function g.path(o) local f=g.valid(o) and o:GetFullName(); return f and f:match('^%S+ (.+)$') or nil end
     local cfg={mag_size=1,spare_mags=1,reload_time=1,reload_delay=1,fire_interval=0.05,round_color={1,1,1},
         reload_color={1,0,0}}
     local a=Ammo.new(g,cfg,function() end,function() end)
@@ -113,6 +127,64 @@ do
     assert(asked==1,'words read '..asked..' times')
     a.stop()
     assert(name.text=='game','the game\'s own text back')
+    FindAllOf=function() return {} end
+end
+
+-- 4c. The reticle's round slot on the first frame of each aim: the game writes its own round's name when its aim
+--     starts (11-21: the drone's round showed 0.2 s before NIKKE RAPID), here also on the aim's second frame. The
+--     slot found at the first aim is kept. A block whose address another object took (a freed HUD) gets no write.
+--     Only the reticle's slot is looked for: the bottom-left count keeps the game's text and no line says it was
+--     not found (11-21).
+do
+    local T=require('ui.text')
+    local en=T.en.gun
+    local function block(full)
+        local b={text='game',full=full,ColorAndOpacity={SpecifiedColor={R=1,G=1,B=1,A=1}},writes=0}
+        function b.GetFullName(o) return o.full end
+        function b.IsValid() return true end
+        function b.SetText(o,t) o.text=t; o.writes=o.writes+1 end
+        function b.GetText(o) return {ToString=function() return o.text end} end
+        function b.SetColorAndOpacity() end
+        return b
+    end
+    local hud='TextBlock /Engine/Transient.GameEngine_0:Instance_0.WB_MainHUD_Master_C_1.WidgetTree.'
+    local name=block(hud..'WB_Tps_Bullet3.WidgetTree.TextBlock_bullet_name')
+    local count=block(hud..'WB_Tps_Bullet3.WidgetTree.TextBlock_ItemCount')
+    local lower=block(hud..'WB_MainHUD_Lower1Item.WidgetTree.WB_MainHUD_ItemSlotGeneral.WidgetTree.TextBlock_Item_Count')
+    local walks=0
+    FindAllOf=function(class) if class=='TextBlock' then walks=walks+1; return {lower,name,count} end return {} end
+    FText=function(t) return t end
+    local clock=10
+    local real_clock=os.clock
+    os.clock=function() return clock end
+    local lines={}
+    local g={log=function(m) lines[#lines+1]=m end,valid=function(o) return o~=nil and o:IsValid() end,
+        try=function(f) local ok,r=pcall(f); if ok then return r end end,words=function() return en end}
+    function g.path(o) local f=g.valid(o) and o:GetFullName(); return f and f:match('^%S+ (.+)$') or nil end
+    local cfg={mag_size=30,spare_mags=2,reload_time=1,fire_interval=0.05,round_color={1,1,1},reload_color={1,0,0}}
+    local a=Ammo.new(g,cfg,function() end,function() end)
+    local function run(n,aim) for _=1,n do clock=clock+1/60; a.tick(aim,false,clock) end end
+    run(5,true)
+    assert(name.text==en.round and walks==1,'the first aim: '..tostring(name.text)..', '..walks..' walks')
+    run(30,false)
+    name.text='DRONE ROUND' -- The game's aim starts: its own round's name.
+    run(1,true)
+    assert(name.text==en.round,'the first frame of the next aim: '..tostring(name.text))
+    name.text='DRONE ROUND' -- Written again by the game on the aim's second frame.
+    run(1,true)
+    assert(name.text==en.round,'the second frame of the aim: '..tostring(name.text))
+    assert(walks==1,'the slot found at the first aim is kept: '..walks..' walks')
+    assert(lower.text=='game' and lower.writes==0,'the bottom-left count keeps the game\'s text')
+    for _,m in ipairs(lines) do assert(not m:find('bottom-left',1,true),'a bottom-left line: '..m) end
+    -- A map change frees the HUD. A text block of another widget takes the name block's address: it passes IsValid.
+    run(30,false)
+    name.full='TextBlock /Engine/Transient.GameEngine_0:Instance_0.WB_Other_C_7.WidgetTree.TextBlock_Title'
+    name.text,name.writes='Title',0
+    clock=clock+1
+    run(10,true)
+    a.stop()
+    assert(name.text=='Title' and name.writes==0,'no write to another object at the old address: '..name.writes)
+    os.clock=real_clock
     FindAllOf=function() return {} end
 end
 
@@ -146,13 +218,13 @@ do
         and GunMode.ease(45,66,0)==45)
 end
 
--- 7. overlay.lua's parts that need no engine: the rifle clips sit in one folder as object paths. The meshes the layer
+-- 7. overlay.lua's parts that need no engine: the rifle clips are object paths (<folder>/<name>.<name>). The meshes the layer
 --    went on (records for coop-gun.txt, adopt from an earlier Lua load's records) keep the first class listed.
 do
     local Overlay=require('fight.gunmode.overlay')
     for clip,path in pairs(Overlay.CLIPS) do
-        local name=path:match('^/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/([%w_]+)%.([%w_]+)$')
-        assert(name and path:match('%.(.+)$')==name,clip..': '..path)
+        local name,obj=path:match('^/Game/[%w_/]+/([%w_]+)%.([%w_]+)$')
+        assert(name and obj==name,clip..': '..path)
     end
     assert(Overlay.CLASS:match('^/Game/Mods/NGM/ABP_NGM_Spike%.ABP_NGM_Spike_C$'))
     local g={log=function() end,try=function(f) local ok,r=pcall(f); if ok then return r end end}
@@ -164,6 +236,53 @@ do
     local got={}
     for _,r in ipairs(layer.records()) do assert(r[1]=='pp'); got[r[2]]=r[3] end
     assert(got['/Game/A/Body']=='/Game/A/PP_C' and got['/Game/B/Body']=='' and #layer.records()==2)
+end
+
+-- 7b. A rifle clip found once is kept while it is still that clip. After a map change another object may sit at its
+--     freed address and pass IsValid: the clip is then looked up again by its path.
+do
+    local Overlay=require('fight.gunmode.overlay')
+    local path=Overlay.CLIPS.aim
+    local function clip(len)
+        return {full='AnimSequence '..path,IsValid=function() return true end,
+            GetFullName=function(o) return o.full end,GetPlayLength=function() return len end}
+    end
+    local now=clip(1.0)
+    local finds=0
+    local find=StaticFindObject
+    StaticFindObject=function(p) finds=finds+1; return p==path and now or nil end
+    local g={log=function() end,try=function(f) local ok,r=pcall(f); if ok then return r end end}
+    local layer=Overlay.new(g)
+    assert(layer.length('aim')==1.0 and layer.length('aim')==1.0 and finds==1,'found once: '..finds)
+    now.full='Texture2D /Game/Other/T_Other.T_Other' -- another object at the clip's address
+    now=clip(2.0)                                    -- the clip loaded again
+    assert(layer.length('aim')==2.0,'the clip looked up again')
+    StaticFindObject=find
+end
+
+-- 7c. A rifle clip the installed pak lacks (an older zNGMSpike_P without the v4 poses) is looked up once a Lua load. A
+--     miss walks the object array twice and tries a load (50 to 70 ms): the tick asks for the clip each frame.
+do
+    local Overlay=require('fight.gunmode.overlay')
+    local path=Overlay.CLIPS.aimup
+    local lookups=0
+    local find,load=StaticFindObject,LoadAsset
+    local registry={IsValid=function() return true end,GetAsset=function() return nil end}
+    StaticFindObject=function(p)
+        if p=='/Script/AssetRegistry.Default__AssetRegistryHelpers' then return registry end
+        if p==path then lookups=lookups+1 end
+    end
+    LoadAsset=function(p) if p==path then lookups=lookups+1 end end
+    local g={log=function() end,try=function(f) local ok,r=pcall(f); if ok then return r end end}
+    local layer=Overlay.new(g)
+    local pp={IsValid=function() return true end}
+    local her={Mesh={GetPostProcessInstance=function() return pp end}}
+    for _=1,60 do
+        local m,e=layer.play(her,'aimup')
+        assert(m==nil and tostring(e):find('clip not found',1,true),tostring(e))
+    end
+    assert(lookups==3,'a missing clip looked up '..lookups..' times in 60 frames')
+    StaticFindObject,LoadAsset=find,load
 end
 
 -- 8. ik.lua's math (UE's conventions): a rotator to a quaternion and back, a vector turned by a quaternion, the

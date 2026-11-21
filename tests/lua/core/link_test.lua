@@ -447,7 +447,7 @@ assert(#notes==1 and notes[1]=='settings: F3 is set for two actions: default key
     notes[1])
 local GUN_TESTS={gun_aim_key='LeftMouseButton',gun_zoom='toggle',gun_upper='nikke',gun_fire='own',gun_probe='on',
     gun_trace='on',gun_facts='on',gun_g0='on',gun_bs='X_BS',gun_carry_ovr='off',gun_carry_spare='2',gun_carry_idle='1',
-    gun_fire_key='F'}
+    gun_fire_key='F',gun_airtrace='on',gun_g1='on',gun_g1_tag='v3a',gun_spread='0.5'}
 local gun_lines={}
 for k,v in pairs(GUN_TESTS) do gun_lines[#gun_lines+1]=k..'='..v end
 s,notes=Link.parse_settings(table.concat(gun_lines,'\n')..'\n')
@@ -1465,6 +1465,23 @@ lines=link.changes()
 for _,l in ipairs(lines) do assert(not l:find('^bike_of='),'bike_of lines stay out of the log') end
 local b=link.bikes(); assert(b['4003']=='park /a 1 2 3 4 5 6' and b['2002']=='none')
 files[STATUS]=HEAD; link.changes(); assert(next(link.bikes())==nil)
+-- The engine line again only when more than the items read's ask number changed (gun mode reads its rounds once a
+-- second while the rifle is out): a new count is logged.
+local function engine_lines()
+    local n=0
+    for _,line in ipairs(fresh.changes()) do if line:find('^engine=') then n=n+1 end end
+    return n
+end
+files[STATUS]=HEAD..'engine=on fight=waiting items=20002 60 pad=slate\n'
+assert(engine_lines()==1,'the first engine line is logged')
+files[STATUS]=HEAD..'engine=on fight=waiting items=20003 60 pad=slate\n'
+assert(engine_lines()==0,'a new ask with the same count is not logged')
+files[STATUS]=HEAD..'engine=on fight=waiting items=20004 0 pad=slate\n'
+assert(engine_lines()==1,'a new count is logged')
+files[STATUS]=HEAD..'engine=on fight=on items=20005 0 pad=slate\n'
+assert(engine_lines()==1,'another field that changes is logged')
+files[STATUS]=HEAD..'engine=on fight=on items=20006 none noeve pad=slate\n'
+assert(engine_lines()==1,'an answer with no count is logged')
 -- The day/night cycle's line: its hour and sun move each second.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nsky=cycle h=12.00 el=65.0 le=65.0 ly=0.0 k=1.000 moon=0 amb=1.000 eve=1.000 '
     ..'ev=0.00 tint=1.00,1.00,1.00 n=114 lit=20 seen=1\n'
