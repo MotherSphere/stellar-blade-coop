@@ -276,7 +276,7 @@ function Spectate.new(o)
         local ok,why=link.request('spectate test')
         if not ok then return false,why end
         probe={at=last or 0,hud=(engine() or ''):match(' hud=(%S+)') or '-'}
-        return true,'spectate test asked: its line follows in this log in '..PROBE..' s'
+        return true,'spectate test asked: its line follows in this log in '..(PROBE+AFTER)..' s'
     end
     function self.status()
         local eng=engine() or ''

@@ -1500,7 +1500,7 @@ session, `coop loopback 0 0 0` running (so that your life state is read) and you
 state 3). Back up the save first: the respawn refills your recovery items in it.
 
 1. Let EVE die, wait for the death screen, then type `coop spectate test`. The answer is `spectate test asked: its line
-   follows in this log in 10 s`.
+   follows in this log in 12 s`.
 2. The death screen hides from the next frame and a camera looks down on your EVE from 4 m up.
 3. 10 s later the mod asks the game's in-place respawn. 2 s after that `UE4SS.log` says `[StellarCoop][SP] spectate
    test: hud <before> -> <after>, life <n>, camera <ours|pawn|other>, respawn <asked|refused: <why>>`. Expected: `hud

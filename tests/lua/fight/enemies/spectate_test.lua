@@ -328,7 +328,8 @@ do -- test_probe: alone at life 3, the ask, the camera over our EVE, 10 s later 
     s=world(function(w) w.mode='none'; w.host=nil end)
     s.tick(0)
     ok,why=s.test()
-    assert(ok and W.requests[1]=='spectate test' and #W.requests==1,tostring(why))
+    assert(ok and W.requests[1]=='spectate test' and #W.requests==1
+        and why=='spectate test asked: its line follows in this log in 12 s',tostring(why))
     ok,why=s.test(); assert(not ok and #W.requests==1,'One at a time')
     s.tick(0.25); s.frame()
     assert(#W.spawned==1 and W.view==cam_actor and W.moves[#W.moves].at.Z==400,'Our camera over our EVE')
