@@ -265,16 +265,21 @@ assert(count('ammo: reload (')==reloaded+1 and a.reload_until,'Reloaded after Am
 -- the skill component (FUN_141d2f750, from FSBSkillStart::Execute). Each tick counts that copy down by the frame time
 -- (FUN_141d2e4c0). A start is refused while the row's CoolTime and the copy are both above 0 (FUN_141d2cce0). Each
 -- start drops the game's aim for the next frame (bTPSMode, seen in the game), so that frame fires nothing.
--- sb_first: SB's check runs before gun mode's tick in the frame, else after it.
-local function sb_fire(a,sb,n,held,sb_first)
+-- sb_first: SB's check runs before gun mode's tick in the frame, else after it. dt: the frame time (1/60 s). late: SB
+-- starts from the frame after this many frames of the trigger held (0: from the press's frame).
+local function sb_fire(a,sb,n,held,sb_first,dt,late)
+    dt,late=dt or 1/60,late or 0
     for _=1,n do
-        clock=clock+1/60
-        sb.stored=math.max(0,sb.stored-1/60)
+        clock=clock+dt
+        sb.stored=math.max(0,sb.stored-dt)
+        sb.held=held and (sb.held or 0)+1 or 0
         local tps=not sb.dropped
         sb.dropped=false
         local function try()
             local row=cool() or 0
-            if held and tps and not (row>0 and sb.stored>0) then sb.starts,sb.stored,sb.dropped=sb.starts+1,row,true end
+            if held and tps and sb.held>late and not (row>0 and sb.stored>0) then
+                sb.starts,sb.stored,sb.dropped=sb.starts+1,row,true
+            end
         end
         if sb_first then try() end
         a.tick(true,held and tps,clock)
@@ -285,21 +290,25 @@ end
 -- Rounds come, the reload runs with the trigger held or let go. Then 1 s with the trigger held: SB fires again at the
 -- rate of fire. Before the fix the reload's end wrote the rate of fire, which SB refuses while its copy of 999 lasts:
 -- no round and no shot sound after the second reload (2026-11-21 test).
+local function locked(sb_first,through,how)
+    st=stock(30)
+    st.rows=true
+    a=new(st)
+    local sb={starts=0,stored=0}
+    for _=1,600 do sb_fire(a,sb,1,false,sb_first); if not a.reload_until then break end end
+    for _=1,600 do if a.dry then break end; sb_fire(a,sb,1,true,sb_first) end
+    sb_fire(a,sb,30,true,sb_first)
+    assert(a.dry and cool()==999 and sb.stored>900,how..': SB keeps the 999: '..sb.stored)
+    st.carried=30
+    for _=1,600 do sb_fire(a,sb,1,through,sb_first); if a.reload_until then break end end
+    for _=1,600 do if not a.reload_until then break end; sb_fire(a,sb,1,through,sb_first) end
+    assert(a.left==30 and cool()==0,how..': the reload ends on 0: '..tostring(cool()))
+    return sb
+end
 for _,sb_first in ipairs({true,false}) do
     for _,through in ipairs({true,false}) do
         local how=(sb_first and 'SB first' or 'gun mode first')..(through and ', held through the reload' or '')
-        st=stock(30)
-        st.rows=true
-        a=new(st)
-        local sb={starts=0,stored=0}
-        for _=1,600 do sb_fire(a,sb,1,false,sb_first); if not a.reload_until then break end end
-        for _=1,600 do if a.dry then break end; sb_fire(a,sb,1,true,sb_first) end
-        sb_fire(a,sb,30,true,sb_first)
-        assert(a.dry and cool()==999 and sb.stored>900,how..': SB keeps the 999: '..sb.stored)
-        st.carried=30
-        for _=1,600 do sb_fire(a,sb,1,through,sb_first); if a.reload_until then break end end
-        for _=1,600 do if not a.reload_until then break end; sb_fire(a,sb,1,through,sb_first) end
-        assert(a.left==30 and cool()==0,how..': the reload ends on 0: '..tostring(cool()))
+        local sb=locked(sb_first,through,how)
         local starts,fired=sb.starts,a.fired
         sb_fire(a,sb,60,true,sb_first)
         local n,counted=sb.starts-starts,a.fired-fired
@@ -307,6 +316,19 @@ for _,sb_first in ipairs({true,false}) do
         assert(math.abs(n-counted)<=2,how..': SB fired '..n..', gun mode counted '..counted)
         assert(cool()==CFG.fire_interval,how..': the rate of fire back: '..tostring(cool()))
     end
+end
+-- A slow frame (0.12 s, over one cool time) right after the press, with SB's start one frame after gun mode sees the
+-- press: the 0 lasts Ammo.OPEN_FRAMES frames as well as one cool time, so that start still passes. With one cool time
+-- alone the 0 ended on the slow frame before SB's start: no SB round in the whole magazine.
+do
+    local sb=locked(false,false,'slow frame')
+    local starts=sb.starts
+    sb_fire(a,sb,1,true,false,1/60,1)
+    sb_fire(a,sb,1,true,false,0.12,1)
+    sb_fire(a,sb,58,true,false,1/60,1)
+    local n=sb.starts-starts
+    assert(n>=8 and n<=14,'slow frame: '..n..' SB rounds in 1 s after the reload, about 10 wanted')
+    assert(cool()==CFG.fire_interval,'slow frame: the rate of fire back: '..tostring(cool()))
 end
 
 -- The rifle out again: fight/gunmode/data.lua's take writes 0, sync() with rounds writes nothing over it. The first

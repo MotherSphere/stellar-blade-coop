@@ -18,9 +18,14 @@
 -- Rounds are counted at the rate the game fires them: one at the press, then one per cool time (rounded up to whole
 -- frames, as the game checks the cool time once a frame). While reloading the shot's cool time is the reload's, so
 -- the trigger fires nothing until the magazine is full again. Where rounds come back after a longer cool time (a
--- reload's end, a refill, the rifle out) the cool time is 0 until one cool time after the first round (open below).
+-- reload's end, a refill, the rifle out) the cool time is 0 until one cool time and Ammo.OPEN_FRAMES frames after the
+-- first round (open below).
 local Ammo={}
 Ammo.RETRY=5 -- s: after a refused take, before a stocked magazine reloads again.
+-- frames: the cool time 0 (open below) lasts at least this many frames from the first round. One cool time alone is
+-- 1 to 2 frames at 30 fps or after a slow frame. SB's first start can come a frame or two after gun mode sees the
+-- press. With the rate of fire already back in the row, a stored 999 refused that start.
+Ammo.OPEN_FRAMES=4
 
 Ammo.SLOT='WB_Tps_Bullet3'
 Ammo.NAME_TEXT,Ammo.COUNT_TEXT='TextBlock_bullet_name','TextBlock_ItemCount'
@@ -142,10 +147,11 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
     -- 0x141d2f750, which copies the SkillTable row's CoolTime (SBSkillTableProperty+0x124, property params at
     -- 0x145df2820) into the skill component's map at +0x80 at each start (0x141d2fe7b). 0x141d2e4c0 counts that copy
     -- down by the frame time (0x141d2e623) and never reads the row. 0x141d2cce0 refuses a start while the row's
-    -- CoolTime and the copy are both above 0 (0x141d2d5ed). A 999 taken while SB could start (fired dry with the trigger held) then refused every
-    -- round of the next magazine for up to 999 s: no round, no shot sound (2026-11-21 test). A row value of 0 lets the
-    -- next start through, which stores 0. tick puts the rate of fire back one cool time after the first round
-    -- (open_at): the game's aim drops for a frame on each of its shots, which ends a held press.
+    -- CoolTime and the copy are both above 0 (0x141d2d5ed). A 999 taken while SB could start (fired dry with the
+    -- trigger held) then refused every round of the next magazine for up to 999 s: no round, no shot sound (2026-11-21
+    -- test). A row value of 0 lets the next start through, which stores 0. tick puts the rate of fire back one cool time
+    -- and Ammo.OPEN_FRAMES frames after the first round (open_at, open_n): the game's aim drops for a frame on each of
+    -- its shots, which ends a held press.
     local function open() self.open,self.open_at=true,nil; pcall(cool,0) end
 
     local function start_reload(now,why)
@@ -220,7 +226,7 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
                 if self.left>0 then open() else pcall(cool,999) end -- Nothing loaded: no round.
             end
         elseif aiming and firing and self.left>0 then
-            if self.open and not self.open_at then self.open_at=now end
+            if self.open and not self.open_at then self.open_at,self.open_n=now,0 end
             if not self.held then -- The press: one round at once.
                 self.held=true
                 self.acc=0
@@ -252,9 +258,12 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
             elseif not self.dry then self.dry=true; pcall(cool,999); g.log('ammo: out of rounds') end
         end
         if self.left>0 or self.reserve>0 then self.dry=nil end
-        if self.open_at and now-self.open_at>=cfg.fire_interval then
-            self.open,self.open_at=nil,nil
-            if self.left>0 and not self.reload_until then pcall(cool,cfg.fire_interval) end -- (else 999 or the reload's wait)
+        if self.open_at then
+            self.open_n=self.open_n+1
+            if self.open_n>Ammo.OPEN_FRAMES and now-self.open_at>=cfg.fire_interval then
+                self.open,self.open_at=nil,nil
+                if self.left>0 and not self.reload_until then pcall(cool,cfg.fire_interval) end -- (else 999 or the reload's wait)
+            end
         end
         show()
     end
@@ -274,7 +283,7 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
     -- matches the rounds that left the rifle.
     function self.spend(now)
         if self.reload_until or self.left<=0 then return false end
-        if self.open and not self.open_at then self.open_at=now end
+        if self.open and not self.open_at then self.open_at,self.open_n=now,0 end
         self.left=self.left-1
         if self.left<=0 then
             self.left=0

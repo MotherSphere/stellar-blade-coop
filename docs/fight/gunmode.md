@@ -61,7 +61,8 @@ rifle changes:
 - `SkillTable`: the NIKKE shot's cool time. It is the rate of fire (0.045 s), the reload's wait during a reload and
   999 with no round. SB keeps its own copy of the cool time from each shot's start and counts that copy down. It
   refuses a shot while the row's cool time and that copy are both above 0. So the rifle out, the end of a reload and a
-  new world write 0. One cool time after the first round the row holds the rate of fire again. Without the 0, a
+  new world write 0. One cool time and at least 4 frames after the first round the row holds the rate of fire again.
+  The 4 frames cover a slow frame or 30 fps, where SB's first start can come after one cool time. Without the 0, a
   magazine fired dry with the trigger held leaves SB a copy of 999. The next magazine then fires no round and no shot
   sound for up to 999 s, while gun mode's flash, recoil and count go on.
 - `SkillActiveStepTable`: the shot's `Hit1` step takes the `Type` of its `Cast1` step. It fires its projectile and
