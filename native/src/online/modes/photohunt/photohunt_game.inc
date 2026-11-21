@@ -7,7 +7,7 @@ namespace coop::pose {
 namespace {
 // ---- The photo hunt's photo check (online/modes/photohunt/photohunt.h), the game thread's calls ----
 // The worker hands over Lua's arm with an ask number; each frame the game thread takes a new one with try_lock only,
-// then runs photohunt::tick over the reads and calls below, out of line under its own latch, and hands its answer back
+// then runs photohunt::tick over the reads and calls below, out of line under its own latch. It hands its answer back
 // with try_lock only (a frame that misses the lock hands it at the next). Never called: the getters of the globals it
 // reads (FUN_141add5a0 the photo manager, FUN_141a987d0 the client, FUN_141a98e30 the tables, FUN_141a98bc0 the
 // registry), which allocate when their global is null; the check runs only with all four set, so its own calls of the

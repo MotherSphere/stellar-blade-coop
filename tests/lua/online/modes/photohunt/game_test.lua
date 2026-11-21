@@ -4,13 +4,15 @@
 -- The game side of a photo hunt (online/modes/photohunt/game.lua) on a fake round, status, clock, map and SB's three
 -- tables: the targets walk (a row of the map, of another map, with no ZoneEnvSpawnTable row, with two zones, fewer
 -- than three rows, a read error, no world loaded); check()'s refusals (photohunt=off, off a co-op save, the checks
--- stopped); the ask at GO only, never with the number the engine line shows, again after a lost answer; M.fname nil
+-- stopped); the ask at GO only, never with the number the engine line shows, again after a lost answer (another ask's
+-- answer brings nothing); M.fname nil
 -- for one row (left out of the ask) and for all (no ask, one notice); the answer's v rising (a claim), a jump of 2, a
--- shot with no valid photo, the shot's words for each drawn target; none answers (off ends the round's checks only,
+-- shot with no valid photo, the shot's words for each drawn target (given before the host's own claim takes it); none
+-- answers (off ends the round's checks only,
 -- fault and unpinned stop them for the Lua load, a later check() refuses); a map change mid-round (the ask stays armed, no
 -- target read again); the end at time, at a full board and at a ranked round (the ask taken back once); stop (coop
 -- off); a round replaced; coop photohunt try (its rows, three of the map by default, its shot lines, its end at 5
--- minutes and at a round's start, its refusals).
+-- minutes, at a round's start and at a none answer, its refusals).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local G=require('online.modes.photohunt.game')
 local XION,WASTE='/game/art/bg/worldmap/level_p/e04','/game/art/bg/worldmap/e03_wasteland_p/e03_wasteland_p'
@@ -108,11 +110,14 @@ pass(4)
 assert(asked[1] and asked[1]:match('^photohunt %d+ 502 0 503 0 501 0$'),tostring(asked[1]))
 assert(tostring(ask())~=status:match('photohunt=(%d+)'),'Never the number the engine line shows')
 local first=ask()
--- The answer not taken yet (another ask's in the line): nothing; after G.LOST with none, the ask goes again.
+-- The answer not taken yet (another ask's in the line, even one with a valid photo): nothing; after G.LOST with none,
+-- the ask goes again.
 pass(1)
 assert(#asked==1)
+answer('2 1,0,0 300',first%65535+1)
 pass(G.LOST)
 assert(#asked==2 and ask()~=first and asked[2]:match(' 502 0 503 0 501 0$'),asked[2])
+assert(#claims==0 and #shown==0,'Another ask brings nothing')
 -- Our ask taken: no shot yet, nothing.
 answer('0 0,0,0 000')
 pass(1)
@@ -252,6 +257,24 @@ h.pass()
 assert(select(2,h.check())=='checks' and said('photo checks stopped in this game: unpinned'))
 h.stop()
 
+-- On the host its own claim takes the target at once (round.lua's claim into its model): the shot's words come
+-- first, so a 3 on an open target says counts, not yours.
+local board,words={},{}
+local hosted={go=now,minutes=5,rows={'Cat1','Cat2','Cat3'},board=board,me='1001',phase='play'}
+local hg=G.new({round={round=function() return hosted end,claim=function(c) board[c]={id='1001',s=1}; return true end},
+    status=function() return status end,request=function(line) asked[#asked+1]=line; return true end,
+    clock=function() return now end,log=function() end,on=function() return true end,coop=function() return true end,
+    map=function() return map end,read=function(m) return read(m) end,fname=function(row) return NAMES[row] end,
+    feedback=function(c,word) words[#words+1]=c..' '..word end})
+hg.start(hosted)
+now=now+5
+hg.pass()
+answer('1 1,0,0 300')
+now=now+1
+hg.pass()
+assert(table.concat(words,',')=='1 counts' and board[1].id=='1001',table.concat(words,','))
+hg.stop()
+
 -- coop photohunt try: three of this map by default, a shot line per new shot, over at 5 minutes.
 local k=G.new({round={round=function() return nil end},status=function() return status end,
     request=function(line) asked[#asked+1]=line; return true end,clock=function() return now end,
@@ -295,4 +318,18 @@ n=#asked
 k.start(rc)
 assert(asked[#asked]=='photohunt off' and #asked==n+1 and said('try: over, a round starts'))
 assert(select(2,k.try({'Cat2'}))=='on')
+-- A none answer ends a try at once: no shot line and no end line after it.
+local q=G.new({round={round=function() return nil end},status=function() return status end,
+    request=function(line) asked[#asked+1]=line; return true end,clock=function() return now end,
+    log=function(m) logged[#logged+1]=m end,on=function() return true end,coop=function() return true end,
+    map=function() return map end,read=function(m) return read(m) end,fname=function(row) return NAMES[row] end})
+assert(q.try({'Cat1'}))
+answer('none unpinned')
+now=now+1
+q.pass()
+assert(q.status()=='photo checks stopped (unpinned)')
+n,lines=#asked,#logged
+now=now+G.TRY
+q.pass()
+assert(#asked==n and #logged==lines,'The try ended with its none answer')
 print('photohunt_game_test ok')

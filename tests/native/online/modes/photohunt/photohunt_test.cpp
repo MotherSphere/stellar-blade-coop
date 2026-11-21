@@ -26,6 +26,7 @@ struct Fake {
   std::map<uintptr_t, int32_t> results{{0x40000, 3}, {0x50000, 1}, {0x60000, 0}};
   std::map<uintptr_t, int> inits;
   int finds = 0, checks = 0;
+  mutable int lookups = 0;
   uintptr_t checked_ui = 0;
   bool selfie() const { return selfie_; }
   uintptr_t find() {
@@ -35,7 +36,10 @@ struct Fake {
   uintptr_t ptr(uintptr_t p) const { return ptrs.count(p) ? ptrs.at(p) : 0; }
   uint8_t byte(uintptr_t p) const { return bytes.count(p) ? bytes.at(p) : 0; }
   uintptr_t image(uint64_t a) const { return uintptr_t(a); } // The fake's image sits at the pinned base.
-  uintptr_t row(uint64_t name) const { return rows.count(name) ? rows.at(name) : 0; }
+  uintptr_t row(uint64_t name) const {
+    ++lookups;
+    return rows.count(name) ? rows.at(name) : 0;
+  }
   void init(uintptr_t row) {
     ++inits[row];
     bytes[row + kRowInit] = 1;
@@ -115,8 +119,10 @@ int main() {
   a = start(one, w);
   g.shot(0);
   tick(g, one, w, a);
+  const int lookups = g.lookups;
   g.shot(3);
   assert(tick(g, one, w, a) && text(a) == "8 1 1 3" && g.inits.count(0x70000) == 0);
+  assert(g.lookups == lookups + 1); // Only the armed rows are looked up.
   // A map change: the photo UI is another object, which a 3 on it only records; a row reads null (counts 0, no check,
   // no init), the others still count. Then the next shot counts again.
   a = start(three, w);

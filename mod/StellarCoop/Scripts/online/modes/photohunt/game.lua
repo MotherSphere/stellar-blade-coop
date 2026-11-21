@@ -11,7 +11,7 @@
 -- photo rose and gives each shot's words for our drawn targets (model.lua's feedback). The ask stays armed across a
 -- map change, a load or a respawn: the native part looks the rows up at each photo. A none answer of fault or
 -- unpinned stops our checks for this round and every later one of this Lua load, with one notice; we stay ranked
--- with our points. coop photohunt try arms up to three rows for 5 minutes with no round and no line, and logs each
+-- with our points. coop photohunt try arms up to three rows for 5 minutes with no round and no line. It logs each
 -- shot. It writes no game memory itself and calls no game function: the native part does.
 -- tests/lua/online/modes/photohunt/game_test.lua covers it on fakes.
 local Ph=require('online.modes.photohunt.model')
@@ -52,7 +52,7 @@ end
 -- o: round (round.lua's: round(), claim(k)), status() (coop-status.txt's text), request(line), clock() (whole seconds
 -- of os.time()), log(text), on() (photohunt=on), coop() (the slot verdict is coop), map() (EVE's map while a save is
 -- loaded, else nil), read(map) (G.read on SB's tables; it may raise), fname(row) (the runtime's M.fname: {index=,
--- number=} or nil), and optional: feedback(k, word) (a shot's words for target k: counts, close, yours, taken) and
+-- number=} or nil). Optional: feedback(k, word) (a shot's words for target k: counts, close, yours, taken) and
 -- tell(key, ...) (a notice: stopped with the none answer's why).
 function G.new(o)
     local self={}
