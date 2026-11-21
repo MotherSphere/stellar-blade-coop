@@ -92,7 +92,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `coop-gun.txt`'s line is not built again while nothing changes. The perf line gives the heap's lowest point and the
   `on` and `off` lines the heap. A keep lookup that raises falls through to the engine's name hash: the rifle comes out
   with no tick error. A frame where the game's aim drops with RMB held (one on each shot) leaves her facing flags as
-  they are and writes no `coop-gun.txt` line. Hip fire still sets the flags;
+  they are and writes no `coop-gun.txt` line. Hip fire still sets the flags. Gun mode fires no round of its own on
+  such a frame. A drop two frames long (a jump) has it fire from the second frame;
 - `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames, over `fight/gunmode/fake.lua`.
   Masked keys go back into the action mappings as they are when the rifle goes away, after coop fly's mappings moved
   the array to a new buffer; nothing is written into the old one. The muzzle flash's asset is found by its path or

@@ -630,7 +630,9 @@ end
 -- 13. The game's aim drops bTPSMode for a frame on each shot's skill while RMB is held. Such a frame is no hip fire:
 --     her movement's facing flags stay as they are and coop-gun.txt is not written. Each drop turned the flags over
 --     and back, with two writes of the file (about 40 a second in a burst). Hip fire (LMB without RMB) still faces her
---     to the camera. The chest loop runs here on neutral math (no turn) with the rifle's muzzle on her root.
+--     to the camera. The chest loop runs here on neutral math (no turn) with the rifle's muzzle on her root. Nor does
+--     gun mode fire its own round on such a frame: the game's aim fires its own. An aim dropped two frames in a row (a
+--     jump or a dodge with RMB held) has gun mode fire from its second frame.
 do
     local w=world()
     local ML={IsValid=function() return true end,GetForwardVector=function() return {X=1,Y=0,Z=0} end,
@@ -655,7 +657,7 @@ do
     w.pawn.bTPSMode,w.down.RightMouseButton=true,true; frames(gun,30)
     w.down.LeftMouseButton=true
     local flips=0
-    for i=1,90 do -- (the first 0.5 s arms the shot's rows: one write)
+    for i=1,90 do
         if i==31 then saves,flips=0,0 end
         w.pawn.bTPSMode=i%3~=0
         local was=move.bOrientRotationToMovement
@@ -664,6 +666,12 @@ do
     end
     assert(flips==0 and saves==0,('20 drops in 1 s: her facing turned over %d times, coop-gun.txt written %d times')
         :format(flips,saves))
+    assert(gun.state.next_shot==0,'gun mode fired its own round on a drop frame')
+    w.pawn.bTPSMode=true; frames(gun,1)
+    w.pawn.bTPSMode=false; frames(gun,1)
+    assert(gun.state.next_shot==0,'gun mode fired its own round on the first frame of a jump')
+    frames(gun,1)
+    assert(gun.state.next_shot>0,'gun mode fires its own round from the second frame of a jump')
     w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil; frames(gun,120) -- (a reload ends)
     w.down.LeftMouseButton=true; frames(gun,2)
     assert(move.bOrientRotationToMovement==false and move.bUseControllerDesiredRotation==true,

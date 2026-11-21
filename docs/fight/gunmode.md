@@ -134,10 +134,11 @@ magazine.
 
 When the rifle goes away while the game's aim is still on (F4 in firing mode, a cutscene), the aim stays on RMB and
 the trigger fires nothing until the aim ends. The game's aim drops for a frame on each shot while RMB / LT is held. An
-off on such a frame counts as an off in the aim. Letting RMB / LT go ends it. The keys and SB's rows then go back.
+off on such a frame counts as an off in the aim. Letting RMB / LT go ends it. The keys and SB's rows then go back. Gun
+mode fires no round of its own on such a frame: the game's aim fires its own.
 
 A jump drops the game's aim stance in the air. Gun mode keeps the rifle up, keeps her turned to the camera and fires
-the NIKKE shot itself until the aim button is let go, after landing as well. Press RMB / LT again to get the game's
+the NIKKE shot itself from the jump's second frame until the aim button is let go, after landing as well. Press RMB / LT again to get the game's
 strafing aim back. On the rifle layer each of these shots waits until the rifle points within 10 degrees of the
 reticle point. Without the layer nothing measures the rifle's line, so the shots leave at once.
 

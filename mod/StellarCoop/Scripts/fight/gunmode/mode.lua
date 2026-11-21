@@ -268,8 +268,8 @@ function GunMode.new(env)
         toggle_at=-1,hooked=false,errors=0}
     -- What belongs to one pawn and its controller, cleared on a new controller with no game call (new_controller).
     local PER_PAWN={'ovr_row','flash_fx','rifle','pose_m','pose_on','ik','layer_clip','reload_until','turn','turnq',
-        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','drone_wait','drone_keep','morph',
-        'move_block','resume','free_at','resume_n','cmove','cmove_of'}
+        'want','move','sounds','aim_seen','air_aim','key_held','held_since','jump_down','tps','tps_was','drone_wait',
+        'drone_keep','morph','move_block','resume','free_at','resume_n','cmove','cmove_of'}
     local restored=false -- coop-gun.txt read this Lua load (self.restore).
 
     -- The reload: the NIKKE squad's reload animation on the rifle stance with its sounds at their times.
@@ -1418,7 +1418,7 @@ function GunMode.new(env)
             local tps=g.get(p,'bTPSMode')==true
             if tps then s.aim_seen=now end
             local key_held=down(set.aim_key) or down('Gamepad_LeftTrigger')
-            s.key_held,s.tps=key_held,tps
+            s.tps_was,s.key_held,s.tps=s.tps,key_held,tps -- (tps_was: the game's aim on the frame before)
             falling_n=g.try(function() return movement(p):IsFalling() end)==true
             -- a dodge drops the game's aim like a jump: bridged the same way
             s.air_aim=Input.bridge(s.air_aim,tps,key_held,s.aim_seen and now-s.aim_seen)
@@ -1470,8 +1470,12 @@ function GunMode.new(env)
             -- without the rifle layer no bore is measured: the jump or dodge bridge fires at once, hip fire not at all
             local aligned=s.flip or (not s.layer and s.air_aim)
                 or ((s.bore_err or 180)<(cfg.hip_aligned or 10) and now-(s.bore_at or 0)<0.1)
+            -- A frame where the game's aim dropped after a frame in it (each shot's skill drops it for a frame) fires no
+            -- round of gun mode's own: the game's aim fires its own. A jump or a dodge has gun mode fire from its second frame.
             local before=ammo.left
-            if not tps and inp.fire and aligned and not s.morph and ammo.left>0 and not ammo.reload_until then pcall(shoot,p,now) end
+            if not (tps or s.tps_was) and inp.fire and aligned and not s.morph and ammo.left>0 and not ammo.reload_until then
+                pcall(shoot,p,now)
+            end
             if s.prof then s.prof('native') end
             -- the timer counts the game's own rounds (its aim); gun mode's own shots count themselves (shoot -> ammo.spend).
             -- s.shots takes both: the 'off' line counted only gun mode's own shots ('0 shots' after a burst, 11-21).
