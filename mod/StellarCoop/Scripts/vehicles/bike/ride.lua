@@ -21,6 +21,7 @@
 -- - rig, the default: vehicles/bike/rig.lua's hidden actor plays the riding clip in her body mesh (Ride.SPARE when that
 --   mesh is on another skeleton than the clip's). Its actor's path and its mesh's path go to coop-bike.txt as fields 8
 --   and 9. Then her main mesh and her outfit parts copy its bones. No custom animation slot of hers is used.
+--   self.pose_source names the rig's component while she rides this way, for the capture.
 -- - hold: "anim play <id> <clip> ride", the riding clip looped on EVE herself, her foot IK off, held in her custom
 --   animation slot 0 above SB's own plays there (native/src/game/anim.h).
 -- A dismount runs it backward: the part hidden, the rig unhooked (each part pointed back at her main mesh) then gone,
@@ -874,6 +875,13 @@ function Ride.new(o)
     function self.idle_part(at)
         local h=here
         return not ride and h and h.at==at and h.part and address(h.part) or nil
+    end
+    -- online/partner/capture.lua's pose source: the rig's SkeletalMeshComponent while the EVE at at rides the rig way
+    -- (her body copies its bones), else nil: off the bike, on the hold way, before the mount made the rig. No engine
+    -- call.
+    function self.pose_source(at)
+        local r=ride
+        return r and r.at==at and r.rig and r.rig.mesh or nil
     end
     -- The key, the pad gesture and coop bike: on the bike, or off it. ok and a line for the screen.
     function self.toggle(why)

@@ -24,7 +24,8 @@
 -- while it runs, the place it gives, its notices; never within reach, in an SBO lobby or away from a camp. The money's
 -- name in them: SB's (o.game_text) on the screen's words, betacrystal in the English copy of another language, for a
 -- name over 32 bytes and in an offer it would take past the feed's 200 bytes. The rig way (a fake
--- vehicles/bike/rig.lua): its mount and dismount, bike_pose read at each mount, its 250 ms checks; after Ctrl+R the rig
+-- vehicles/bike/rig.lua): its mount and dismount, bike_pose read at each mount, pose_source (the rig's component during
+-- a rig ride of her EVE only, nil off the bike and on a hold ride), its 250 ms checks; after Ctrl+R the rig
 -- of fields 8 and 9 released before her mesh goes back (a hold ride's file releases nothing); a dismount in photo mode
 -- keeps the rig until the first 250 ms pass with photo mode closed.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -1185,6 +1186,7 @@ assert(s10.mesh.made[SLOT] and s10.mesh.current[SLOT]==s10.mesh.made[SLOT],'The 
 settings.bike_pose=nil
 R=new(); eve=make_eve('EVE_R'); settle()
 local rpart=eve.list[2]
+assert(R.pose_source(eve:GetAddress())==nil,'Off the bike: no pose source')
 local function on_rig()
     events={}
     local n_asked=#asked
@@ -1204,7 +1206,10 @@ local LINE='/Game/Map.Map:PersistentLevel.EVE_R\t0\t-90\t0\t0\t0\t-90'
 assert(stored==LINE..'\t'..rig.path..'\t'..BODY,'Fields 8 and 9: the rig and its mesh')
 assert(find('^bike rig made in [%d.]+ ms wearing '..BODY:gsub('%p','%%%0')..': her body and 2 of 2 part%(s%) follow it$'))
 assert(R.status():find(', riding for 0 s %(rig%); '),R.status())
+assert(R.pose_source(eve:GetAddress())==rig.mesh and R.pose_source(eve:GetAddress()+100)==nil,
+    "The rig's component is her pose source, for her EVE only")
 R.toggle()
+assert(R.pose_source(eve:GetAddress())==nil,'Off the bike again: no pose source')
 order={'hide','unhook','rig gone','bike gate off','drive off','mesh back'}
 for k,e in ipairs(order) do assert(events[7+k]==e,k..': '..tostring(events[7+k])) end
 assert(#events==7+#order and stored==nil and not R.riding() and rig.actor.gone)
@@ -1223,6 +1228,7 @@ settings.bike_pose='hold'
 local made=#rigs
 events={}
 assert(R.toggle() and asked[#asked]:find('^anim play %d+ ') and #rigs==made)
+assert(R.riding() and R.pose_source(eve:GetAddress())==nil,'A hold ride: no pose source')
 R.toggle()
 settings.bike_pose='puppet'
 on_rig(); R.toggle()
