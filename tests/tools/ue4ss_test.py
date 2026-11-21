@@ -316,6 +316,10 @@ assert not [k for keys in got.values() for k, (v, _) in keys.items() if ';' in v
 # NOTICE sends readers to the header for what was changed: it names each value that differs from the release file.
 header = text.split('\n[', 1)[0]
 assert not [k for (s, k), v in SBO.items() if OFFICIAL[s][k] not in (v, None) and k not in header], header
+# Every build set shares this file, yet DebugBuild and Stats were read on 26123051 only. A new set first needs
+# FUObjectItem's size read in Ghidra (0x18 bytes: Stats = false). Then its name goes in this list.
+STATS_READ = ['6ad8eff1-15fa3000']
+assert builds == STATS_READ, f'Stats and DebugBuild not read in Ghidra for {sorted(set(builds) - set(STATS_READ))}'
 # SBO's own check at each load (core/ue4ss_settings.lua) finds no key that makes Stellar Blade unstable.
 CHECK = "local S=dofile(arg[1]); local f=assert(io.open(arg[2],'rb')); print(#S.check(f:read('a')))"
 out = subprocess.run(['lua5.4', '-', str(ROOT / 'mod/StellarCoop/Scripts/core/ue4ss_settings.lua'), str(SETTINGS)],
