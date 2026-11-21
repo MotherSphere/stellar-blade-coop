@@ -150,7 +150,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   has no key (RMB and LT included). A pause keeps it so. Once the arrival is over it moves to RMB. The 'off' line
   counts the rounds the game's aim fired. Her audio components and the ones playing are logged after 30 rounds and at
   each off. With `gun_fire=own` the 60th shot starts a reload, no shot leaves while it runs and the shots go on after
-  it, also after the player's reload;
+  it, also after the player's reload. The free magazines keep their count when the rifle goes away and comes out
+  again;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
   layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.

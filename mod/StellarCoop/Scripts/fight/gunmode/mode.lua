@@ -891,7 +891,6 @@ function GunMode.new(env)
         lap('layer')
         s.layer=okl and inst==true
         g.log('rifle layer '..(s.layer and 'on' or ('not available: '..tostring(okl and why_not or inst))))
-        pcall(ammo.refill) -- full magazines each time the rifle comes out (the shop sells the drone's rounds, not these)
         if s.layer then s.pak=false end
         if s.pak==nil then
             s.pak=g.try(function() return LoadAsset(cfg.pak_probe)~=nil end)==true

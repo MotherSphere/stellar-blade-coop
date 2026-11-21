@@ -223,8 +223,9 @@ Each player buys and picks up rounds in their own game. Nothing of the rounds go
 ### Free magazines
 
 On your own saves the rifle keeps its free magazines: 5 spare magazines of 60 rounds. A new map, a death or a camp
-warp gives full magazines again. The same holds on a co-op save without the Steam link or the
-native part, or when the rows were refused or read back other than written. `UE4SS.log` then has the `[GM]` line
+warp gives full magazines again. Putting the rifle away and taking it out again does not. The same holds on a co-op
+save without the Steam link or the native part, or when the rows were refused or read back other than written.
+`UE4SS.log` then has the `[GM]` line
 `rounds: rows refused (...): the rifle keeps its own magazines` or
 `rounds: rows read back other than written: the rifle keeps its own magazines`.
 

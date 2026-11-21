@@ -489,4 +489,23 @@ do
     toggle(gun,false)
 end
 
+-- 14. The free magazines keep their count across a rifle out: only a new world fills them again. F4 twice after 10
+--     rounds leaves 50 in the magazine (the player's reload logs it).
+do
+    local w=Fake.new(); w.install()
+    local gun,logs=new('gun_fire=own\n')
+    toggle(gun,true); frames(gun,40)
+    w.down.RightMouseButton,w.down.LeftMouseButton=true,true
+    for _=1,300 do if gun.state.shots>=10 then break end; frames(gun,1) end
+    w.down.RightMouseButton,w.down.LeftMouseButton=nil,nil
+    assert(gun.state.shots==10,gun.state.shots..' shots')
+    frames(gun,2)
+    toggle(gun,false); toggle(gun,true); frames(gun,40)
+    w.down.B=true; frames(gun,1); w.down.B=nil
+    local line
+    for _,l in ipairs(logs) do if l:find('ammo: reload (manual)',1,true) then line=l end end
+    assert(line and line:find('50 in the magazine, 300 spare',1,true),'F4 twice refilled: '..tostring(line))
+    toggle(gun,false)
+end
+
 print('gunmode state: ok')
