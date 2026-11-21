@@ -232,6 +232,25 @@ do -- native_fault: spectate=faulted at life 3 with our camera on: the view back
     assert(s.watching()==false)
     s.tick(0.5); s.tick(0.75)
     assert(#W.calls==1 and #W.logs==n+1,'Once')
+    -- The fault resets the native word, so upn drops from 1 to 0: with our camera on, the fallback stays the only
+    -- call; with spectate off (EVE down outside a boss fight), no call at all.
+    s=world()
+    W.fight=line(true,1,0); s.tick(0)
+    W.fight=line(true,1,1); s.tick(0.25)
+    assert(#W.calls==1,'The reason: one call')
+    W.engine=ENGINE:gsub('spectate=on','spectate=faulted')
+    W.fight=line(false,nil,0); s.tick(0.5)
+    assert(#W.calls==2 and logged('the native spectate faulted')==1 and logged('(reason 0;')==0,
+        table.concat(W.logs,'|'))
+    for t=0.75,3,0.25 do s.tick(t) end
+    assert(table.concat(W.calls,'|')=='respawn 228 false|respawn 228 false|revival 228 false'
+        and logged('(reason 0;')==0 and logged('no respawn')==0,table.concat(W.calls,'|'))
+    s=world()
+    W.fight=line(false,nil,1); s.tick(0)
+    W.engine=ENGINE:gsub('spectate=on','spectate=faulted')
+    W.fight=line(false,nil,0); s.tick(0.25)
+    for t=0.5,3,0.25 do s.tick(t) end
+    assert(#W.calls==0 and logged('no respawn')==0,table.concat(W.calls,'|'))
     -- The word lost (coop off): the same.
     s=world()
     W.fight=line(true,1,0); s.tick(0)

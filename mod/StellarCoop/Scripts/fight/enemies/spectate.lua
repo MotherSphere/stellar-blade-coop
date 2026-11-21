@@ -14,7 +14,7 @@
 -- the camera stands BACK cm from the watched ghost's feet along its own horizontal direction from her (the first one:
 -- from her feet toward our EVE), UP cm above her feet, aimed at CHEST cm above them. With no ghost anchor (partner
 -- off, a ghost not drawn) it stands BACK cm over our EVE, looking down.
--- The respawn: each time upn moves (a reason to get up), once, our life 2 or 3, warp=idle, no nightop=rule, the
+-- The respawn: each time upn rises (a reason to get up), once, our life 2 or 3, warp=idle, no nightop=rule, the
 -- controller, the game standalone and our EVE: pc:ServerRequest_ActorRespawn(me, false), SB's in-place respawn (full
 -- health, the recovery items refilled as at a camp). AFTER s later, our life not moved and those checks holding again:
 -- pc:ServerRequest_ActorRevival(me, false) once. The AFTER wait stops while the fight= line reads fight=waiting (a
@@ -216,7 +216,8 @@ function Spectate.new(o)
         end
         local upn=line and tonumber(line:match(' upn=(%d+)'))
         if upn then
-            if last_upn and upn~=last_upn then call('reason '..upn) end
+            -- A fault drops upn to 0 (the native word reset): no reason to get up, the fallback above is the only call.
+            if last_upn and upn>last_upn then call('reason '..upn) end
             last_upn=upn
         end
         local her=line and line:match(' her_spec=(%S+)')

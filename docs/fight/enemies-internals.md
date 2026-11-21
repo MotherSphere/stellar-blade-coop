@@ -517,12 +517,13 @@ Lua (`fight/enemies/spectate.lua`, log tag `[SP]`) reads those words each 250 ms
   direction from her (the first one: from her toward our EVE), 160 cm above her feet, aimed 130 cm above them. With no
   ghost anchor (partner off, a ghost not drawn) it stands 400 cm over our EVE, looking down. At `spec=0` the view goes
   back to our EVE only from our camera. The camera's frame call runs in `main/frame.lua` right after the ghosts'.
-- When `upn` moves, once, it calls `ServerRequest_ActorRespawn(me, false)` on our player controller with the checks of
+- When `upn` rises, once, it calls `ServerRequest_ActorRespawn(me, false)` on our player controller with the checks of
   `online/group/group.lua`'s respawn (our life 2 or 3, `warp=idle`, no `nightop=rule`, the controller, a standalone
   game, our EVE); 2 s later, our life not moved, `ServerRequest_ActorRevival(me, false)` once. The 2 s stop while the
   line reads `fight=waiting`. That code is a copy of group's, with its own tests. A refused call is logged once.
 - When the `engine=` line reads `spectate=faulted`, or loses its `spectate=` word (`coop off`), the view goes back to
-  our EVE. With our camera on and our life 2 or 3, one respawn call follows, logged.
+  our EVE. With our camera on and our life 2 or 3, one respawn call follows, logged. The fault resets `upn` to 0 on
+  the `fight=` line. That drop is no reason to get up, so it makes no call.
 - `switch('left'|'right')` watches the previous or next member alive on our map (camera only, logged). `main/input.lua`
   calls it for the pad's `left` and `right` that no screen took, `main/keys.lua` for the Left and Right arrows when no
   menu, screen or box is open.
