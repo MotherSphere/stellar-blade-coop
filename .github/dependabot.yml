@@ -1,0 +1,8 @@
+# Weekly update pull requests for the GitHub Actions the workflows use. They go to dev, like every other change.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
