@@ -990,6 +990,7 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'challenge [<name>|stop] | '
     ..'scoreattack [status|pick <challenge>] | '
     ..'fish [status|start [<minutes>]|stop] | '
+    ..'photohunt [start [<minutes>]|stop|try [<row> ...]|status] | '
     ..'recruiter [off] | '
     ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit|match [status|pick <track>] | '

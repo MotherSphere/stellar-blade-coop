@@ -220,6 +220,9 @@ fishing=on
 # Doro races in matches: on or off, on by default. On, you race each round of a Doro race match in the SBO lobby.
 # Off, you sit out its rounds. Doro races in an online session do not read it.
 race_match=on
+# Photo hunt: on or off, on by default. On, you photograph the targets of each photo hunt the host of your
+# online session starts with coop photohunt start. Off, you sit out its rounds. As the host you cannot start one.
+photohunt=on
 ```
 
 | Setting | Values | Default |
@@ -295,6 +298,7 @@ race_match=on
 | `scoreattack` | `on` or `off`: [score attack](../online/modes/scoreattack.md), a match mode of the SBO lobby. On, you play each round of a score attack lobby you are in. Off locks the lobby menu's Score attack row. You then sit out its rounds, with a notice. Options, Modes, Score attack; read at each round's start | `on` |
 | `fishing` | `on` or `off`: the [fishing tournament](../online/modes/fishing.md), a mode of online sessions. On, you fish in each tournament the host of your online session starts with `coop fish start`. Off refuses your own start as the host. A guest with it off sits out each tournament, with a notice. Options, Modes, Fishing tournament; read at each start | `on` |
 | `race_match` | `on` or `off`: [Doro races in matches](../online/modes/race.md#races-in-a-match) of the SBO lobby. On, you race each round of a race lobby you are in. Off locks the lobby menu's Doro race row. You then sit out its rounds, with a notice. Options, Modes, Doro race; read at each round's start. Doro races in an online session do not read it | `on` |
+| `photohunt` | `on` or `off`: the [photo hunt](../online/modes/photohunt.md), a mode of online sessions. On, you photograph the targets of each photo hunt the host of your online session starts with `coop photohunt start`. Off refuses your own start as the host. A guest with it off sits out each round, with a notice. Options, Modes, Photo hunt; read at each start | `on` |
 
 Rules:
 

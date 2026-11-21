@@ -638,14 +638,22 @@ assert(Link.parse_settings('').fishing==true and Link.parse_settings('fishing=OF
 s,notes=Link.parse_settings('fishing=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for fishing (use on or off); "
     .."fishing stays on" and s.fishing==true,notes[1])
--- Doro races in matches: on by default, last in a new file, its comment right after fishing. Session races do not
--- read it (online/modes/race/).
+-- Doro races in matches: on by default, its comment right after fishing. Session races do not read it
+-- (online/modes/race/).
 assert(Link.parse_settings('').race_match==true and Link.parse_settings('race_match=OFF').race_match==false
     and Link.DEFAULT:find('\nfishing=on\n# Doro races in matches: on or off, on by default.',1,true)
-    and Link.DEFAULT:find('\nrace_match=on\n$'))
+    and Link.DEFAULT:find('\nrace_match=on\n',1,true))
 s,notes=Link.parse_settings('race_match=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for race_match (use on or off); "
     .."race_match stays on" and s.race_match==true,notes[1])
+-- Photo hunt: on by default, last in a new file, its comment right after race_match (online/modes/photohunt reads it at
+-- each go line).
+assert(Link.parse_settings('').photohunt==true and Link.parse_settings('photohunt=OFF').photohunt==false
+    and Link.DEFAULT:find('\nrace_match=on\n# Photo hunt: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nphotohunt=on\n$'))
+s,notes=Link.parse_settings('photohunt=maybe')
+assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for photohunt (use on or off); "
+    .."photohunt stays on" and s.photohunt==true,notes[1])
 assert(Link.DEFAULT:find('\ndaynight=on\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
     and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
 assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)

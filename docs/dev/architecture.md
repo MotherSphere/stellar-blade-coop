@@ -60,6 +60,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `online/modes/race/commands.lua` | `coop race`: the Doro look and probe, `coop race match` ([Races in a match](../online/modes/race.md#races-in-a-match)) and the co-op save check before `online/modes/race/run.lua`'s command |
 | `online/modes/scoreattack/commands.lua` | `coop scoreattack`: the round's state line and the host's challenge pick ([Score attack](../online/modes/scoreattack.md)) |
 | `online/modes/fishing/commands.lua` | `coop fish`: the tournament's state line, the host's start and stop ([Fishing tournament](../online/modes/fishing.md)) |
+| `online/modes/photohunt/commands.lua` | `coop photohunt`: the round's state line, the host's start and stop, the `try` alone ([Photo hunt](../online/modes/photohunt.md)) |
 | `fight/enemies/commands.lua` | `coop fight` (its pilot and spawn probe included) and `coop pvp`: their lines for the native part |
 | `story/quests/commands.lua` | `coop quests`: its lines for the native part |
 | `fight/bosses/commands.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `fight/bosses/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `fight/bosses/tendril.lua` the same way |
@@ -124,6 +125,8 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `online/modes/scoreattack/run.lua` | Score attack in game: a copy of Night Operation's run with its heal and group play's in-place respawn. `online/modes/scoreattack/game.lua` starts it at the player's lobby spot and `online/modes/scoreattack/ui/board.lua` draws its card, board and result panel |
 | `online/modes/fishing/model.lua` | The fishing tournament with no engine call: the length, the clock, the fish texts and who may send each, the host's checks of each catch, the board and the ranking with shared places, the catches from two reads of SB's fishing log book |
 | `online/modes/fishing/round.lua` | The fishing tournament on the Steam link: the start, the fish texts sent and read on the mode line, the host's board and ranking, the ends. `online/modes/fishing/game.lua` reads the fish table and asks the book read once a second; `online/modes/fishing/ui/board.lua` draws the corner board and the result panel |
+| `online/modes/photohunt/model.lua` | The photo hunt with no engine call: the length, the clock, the host's draw of three targets, the photohunt texts and who may send each, the host's checks of each claim, the board and the ranking with shared places, the native part's answer |
+| `online/modes/photohunt/round.lua` | The photo hunt on the Steam link: the start, the photohunt texts sent and read on the mode line, the host's board and ranking, the ends. `online/modes/photohunt/game.lua` reads the targets of a map from SB's tables and asks SB's photo check of the native part; `online/modes/photohunt/ui/board.lua` draws the card and the result panel |
 | `fight/bosses/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
 | `fight/bosses/enemy.lua` | The cut enemies' copy of `core/enemy.lua`: the flow `coop lion`, `coop gardener fight` and `coop tendril fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the material and the boss bar's name, the lines that follow the body ([The cut Lion](../fight/bosses-internals.md#the-cut-lion)) |
 | `core/enemy.lua` | The same flow as the cut enemies' copy; Matrix XIII's batches (`world/maps/matrix13/level/travel.lua`, `world/maps/matrix13/quest/on_time.lua`) and the hall lobbies' (`online/lobby/halls_rows.lua`) use its rows part only |
@@ -235,6 +238,10 @@ file is written in full beside its final name and then renamed over it, so the r
   races' drive and look ask the native part for its hold on EVE (`race hold on|off`, `race tick on|off` in
   `coop-request.txt`). The `engine=` line of `coop-status.txt` answers with `race_hold=`, `race_tick=` and
   `race_retick=` ([The native hold](../online/modes/race-internals.md#the-native-hold)).
+- The photo hunt sends its lines the same way (`mode photohunt <text>`, `take_mode('photohunt')`). It asks SB's photo
+  check of the native part with `photohunt <ask> <index> <number> ...` or `photohunt off` in `coop-request.txt`,
+  answered in the engine line's `photohunt=` in `coop-status.txt` (see
+  [The photo check](../online/modes/photohunt.md#the-photo-check)).
 - `coop gift` sends its lines as requests (`gift <payload>` in `coop-request.txt`), and asks the inventory read the
   same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
   go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](../cutmenus/menus-internals.md#cut-mailbox)).
@@ -373,6 +380,7 @@ whose copy it is; from then on each module fixes its own.
 | `online/modes/fishing/fishing.h` (native) | `cutmenus/items.h`'s `find()` and its TSet offsets and checks | The fishing tournament's read of SB's fishing log book |
 | `online/modes/race/match/round.lua` | `online/modes/scoreattack/round.lua` | The Doro race's match round |
 | `Mm.best`, `Mm.better` and `Mm.write` in `online/modes/race/match/model.lua` | `online/modes/scoreattack/challenges.lua`'s `C.best`, `C.better` and `C.write` | The Doro race's best times in `coop-records.txt` |
+| `online/modes/photohunt/records.lua` | `online/modes/scoreattack/challenges.lua`'s `C.best`, `C.better` and `C.write` | The photo hunt's bests in `coop-records.txt` |
 
 `world/maps/matrix13/level/travel.lua` also asks the Lion's and the Gardener's rows itself, where it read them from
 `fight/bosses/lion.lua` and `fight/bosses/gardener.lua`.

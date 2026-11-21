@@ -36,8 +36,7 @@ player has to update.
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
 revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, score attack, the fishing tournament,
-Doro races in matches,
-the bike and the day and night cycle.
+Doro races in matches, the photo hunt, the bike and the day and night cycle.
 The status strip shows its
 compact form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the
 old off values is changed once at the next load (see [Settings](players/settings.md#coop-settingstxt)). Most of these features
@@ -99,6 +98,14 @@ achievements, which cannot be taken back.
   ranking, which a result panel shows. Your best of each length goes in `coop-records.txt`. The fish stays in your
   co-op save's inventory. It writes no game memory: each game reads its catches from SB's fishing log book. Not tested
   in game yet (see [online/modes/fishing.md](online/modes/fishing.md)).
+- The photo hunt: in an online session on Xion, the Wasteland or the Great Desert, the host types
+  `coop photohunt start` (15 minutes, or 1 to 60). The host's game draws three photo targets of its map from SB's
+  photo challenges. Every player then looks for them and photographs them with the Camera. SB's own photo check judges
+  each selfie photo: close enough, in the centre, faced and not hidden. The first valid photo of a target that reaches
+  the host takes its point. A card shows the three targets and who took each. The host's game sends the ranking,
+  which a result panel shows. Your best of each world goes in `coop-records.txt`. The native part calls SB's check on
+  the game thread. Its one write to game memory is the setup byte SB itself sets on a photo challenge row before it
+  checks it. Not tested in game yet (see [online/modes/photohunt.md](online/modes/photohunt.md)).
 - The bike: F3, D-pad Right held 1 s or `coop bike` puts EVE on a motorbike from the game's files, on any save. She
   rides it with the left stick, leans into turns, drifts with R2 or B and jumps with the game's Jump; her attacks and
   items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. It stays where she

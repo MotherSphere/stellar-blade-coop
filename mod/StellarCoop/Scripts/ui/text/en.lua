@@ -8,6 +8,7 @@ return {
         session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
         ghost='GHOST',saves='SAVES',combat='COMBAT',display='DISPLAY',chat='CHAT',line='CO-OP LINE'},
     row={scoreattack='Score attack',fishing='Fishing tournament',race_match='Doro race',
+        photohunt='Photo hunt',
         host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',find='Find a session',
         copy='Copy my code',remove='Remove %s',join_code='Join with a code',
         chat='Chat',options='Options',report='Write a bug report',close='Close',
@@ -145,7 +146,7 @@ return {
         ['vehicles.bike']='The bike',['world.daynight']='Day and night',['cutmenus']='Cut menus',
         ['online.saves']='Co-op saves',
         ['world.teamshop']='Team shop',['fight.gunmode']='Gun mode',['online.modes.scoreattack']='Score attack',
-        ['online.modes.fishing']='Fishing tournament'},
+        ['online.modes.fishing']='Fishing tournament',['online.modes.photohunt']='Photo hunt'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
@@ -453,6 +454,38 @@ return {
         go='Fishing tournament: start fishing. %d min left.',standing='Fishing tournament: place %d, %d points.',
         end_notice='Fishing tournament: time up, %d points, %d fish.',top='Fishing tournament: %s.',entry='%d. %s %d',
         sep=', ',placed='You placed %d of %d.'},
+    -- The photo hunt (online/modes/photohunt/ui/board.lua): the card's title line (head, then the countdown, the time
+    -- left or up), each target's taker (open, you or her name) and its last line (card: our points and place); the
+    -- targets' names (cat, butterfly and fish with the row's number, memory); a world's name with its preposition
+    -- (places: Xion, WasteLandA, WasteLandB, other with the alias); the result panel's heading (title), the line under
+    -- it (points) and its notes (waiting, unranked, best, norank); the notices: the start (start: the host's name, the
+    -- world, the three targets joined by sep, the minutes) and the Camera's after it (camera), a target taken (took:
+    -- the taker's name and the target; you_took), why a player sits out (out: off, slot, checks), why our photo checks
+    -- stopped (stopped: fault, unpinned, names), why a photo hunt ends with no ranking (host_left, cancelled), a
+    -- reloaded game (reloaded), a shot's words for a drawn target once the selfie mode closes (shot: counts, yours,
+    -- close with the target; taken with the target and the taker's name). With the UI off: GO (go: the minutes), our
+    -- end (end_notice: our points), the first three (top: their entries, each place, name and points, joined by sep)
+    -- and our place (placed: ours, of how many). one: card, points and end_notice for 1 point, with no number.
+    photohunt={head='PHOTO HUNT',count='Starts in %d',up='Time up',open='open',you='you',card='%d points · place %d',
+        cat='Cat %d',butterfly='Butterfly %d',fish='Fish %d',memory='Memory of Xion',
+        places={Xion='in Xion',WasteLandA='in the Wasteland',WasteLandB='in the Great Desert',other='in %s'},
+        title='Photo hunt',points='%d points',waiting="Waiting for the host's ranking.",unranked='Not ranked.',
+        best='New personal best.',norank='No ranking came from the host.',
+        start='%s starts a photo hunt %s: %s. %d min.',camera='Use the Camera to take the photos.',
+        took='%s took %s.',you_took='You took %s.',
+        out={off='Photo hunt is off in Options.',
+            slot='Load a co-op save to play the photo hunt.',
+            checks='Photo checks are off in this game.'},
+        stopped={fault='Photo checks stopped in this game: restart the game to play.',
+            unpinned='Photo checks are off in this game.',
+            names="This game does not know this photo hunt's targets: your photos do not count."},
+        host_left='The host left. This photo hunt has no ranking.',cancelled='The photo hunt was cancelled.',
+        reloaded='Your game reloaded: your photos no longer count in this photo hunt.',
+        shot={counts='%s counts: 1 point.',yours='%s is yours already.',taken='%s was taken by %s.',
+            close='%s was in your photo: get closer, centre it and face it.'},
+        one={card='1 point · place %d',points='1 point',end_notice='Photo hunt over: 1 point.'},
+        go='Photo hunt: take your photos. %d min left.',end_notice='Photo hunt over: %d points.',
+        top='Photo hunt: %s.',entry='%d. %s %d',sep=', ',placed='You placed %d of %d.'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='Online',stuck='The game stayed paused, so the co-op menu did not open.'},
 }

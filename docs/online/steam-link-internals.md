@@ -616,7 +616,8 @@ lines, `score lines, last 60 s: <in> in, <out> out, <dropped> dropped` follows t
 ### The mode line
 
 The mode line carries one line of a mode of online sessions, sent reliable. The [fishing
-tournament](modes/fishing.md#the-mode-line) is the first such mode. Its word is `fish`. The line goes in an online
+tournament](modes/fishing.md#the-mode-line) is the first such mode. Its word is `fish`. The
+[photo hunt](modes/photohunt.md#the-mode-line) uses the word `photohunt`. The line goes in an online
 session only: Lua's `mode <word> <text>` request sends it to every member past the handshake, the host and each guest
 the let line names (guests link with each other, see [Sessions of more than 2
 players](#sessions-of-more-than-2-players)). In a match lobby the request sends nothing. A mode line that arrives there

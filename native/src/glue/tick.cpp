@@ -237,6 +237,13 @@
 // request it reads our EVE's fishing log book through ReadProcessMemory, her GUID too. status() puts the answer in the
 // engine line's fish= for online/modes/fishing/game.lua. It never writes and calls no game function.
 //
+// The photo hunt's photo check (online/modes/photohunt/photohunt.h): on Lua's photohunt request the worker hands over
+// 1 to 3 PhotoChallengeTable rows' FNames; each frame while they are armed the game thread, under its own SEH latch,
+// reads SB's photo manager and, in selfie mode, finds the photo UI through SB's own finder. At each photo it takes
+// (the shutter's byte +0x310 turning 3) it looks up each row with SB's getter, makes the row's lazy init once as SB's
+// tick does (the part's only game write) and calls SB's own photo check. status() puts the answer in the engine
+// line's photohunt= for online/modes/photohunt/game.lua. A new Lua session disarms it.
+//
 // The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
 // button pressed, button released), all or none, for hooks on the game thread that record the key and run the game's
@@ -322,6 +329,7 @@
 #include "online/modes/nightop/roxanne.h"
 #include "online/modes/nightop/shop_ui.h"
 #include "world/teamshop/shop_ui.h"
+#include "online/modes/photohunt/photohunt.h"
 #include "game/codec.h"
 #include "game/events.h"
 #include "game/partner/engine.h"
@@ -371,6 +379,8 @@
 #include "ui/pause_tab_game.inc" // After debug_game_shared.inc: its UI calls and ui_reads.
 #include "online/modes/nightop/nightop_game.inc"
 #include "world/teamshop/teamshop_game.inc" // After debug_game_shared.inc and rows_game.inc: its UI calls and names.
+// After debug_game_shared.inc and fight_game_shared.inc: its UI finder and game_function.
+#include "online/modes/photohunt/photohunt_game.inc"
 #include "glue/tick/anim_game_shared.inc"
 #include "eve/anim_game.inc"
 // After anim_game_shared.inc, freeze_game_shared.inc and rows_game.inc: their calls and GMalloc.
@@ -413,6 +423,7 @@
 #include "online/saves/shortcut_worker.inc"
 #include "cutmenus/items_worker.inc"
 #include "online/modes/fishing/fishing_worker.inc"
+#include "online/modes/photohunt/photohunt_worker.inc"
 #include "glue/tick/quests_worker_shared.inc"
 #include "story/quests/quests_worker.inc"
 #include "glue/tick/world_worker_shared.inc"
@@ -603,6 +614,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The team shop's screen, its own latch: an open ask taken each frame (the worker takes none after coop off).
   if (game_pinned && !teamshop_faulted)
     teamshop_tick();
+  // The photo hunt's photo check, its own latch: a new arm taken each frame, then SB's check of the armed rows at each
+  // selfie photo; none after coop off or its first fault.
+  if (game_pinned && !photohunt_faulted && !blocked)
+    photohunt_tick();
   LARGE_INTEGER left;
   QueryPerformanceCounter(&left);
   coop_tick_us = micros_between(entry, left); // The next gap line's "that tick took".

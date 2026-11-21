@@ -1510,6 +1510,23 @@ int main() {
   for (const char *bad : {"fishbook 0", "fishbook 65536", "fishbook", "fishbook ", "fishbook -1", "fishbook 1 2",
                           "fishbook x", "fishbooks 1", "Fishbook 1"})
     assert(parse_request(bad).command == Command::none);
+  // The photo hunt's photo check: photohunt <ask> then 1 to 3 FNames as index and number (ask 1 to 65535, each index
+  // above 0, both within 32 bits), or photohunt off. Anything else is refused.
+  Request ph = parse_request("photohunt 7 4096 0\r\n");
+  assert(ph.command == Command::photohunt && ph.ask == 7 && ph.name_count == 1 && !ph.off && ph.names[0] == 4096);
+  ph = parse_request("photohunt 65535 1 0 4294967295 4294967295 812 3");
+  assert(ph.command == Command::photohunt && ph.ask == 65535 && ph.name_count == 3 && ph.names[0] == 1 &&
+         ph.names[1] == 0xffffffffffffffffull && ph.names[2] == (uint64_t(3) << 32 | 812));
+  ph = parse_request("photohunt 2 9 0 10 1");
+  assert(ph.command == Command::photohunt && ph.name_count == 2 && ph.names[1] == (uint64_t(1) << 32 | 10));
+  ph = parse_request("photohunt off");
+  assert(ph.command == Command::photohunt && ph.off && ph.name_count == 0 && ph.ask == 0);
+  for (const char *bad :
+       {"photohunt", "photohunt ", "photohunt 7", "photohunt 0 1 0", "photohunt 65536 1 0", "photohunt -1 1 0",
+        "photohunt 7 0 0", "photohunt 7 4294967296 0", "photohunt 7 1 4294967296", "photohunt 7 1", "photohunt 7 1 0 2",
+        "photohunt 7 1 0 2 0 3 0 4 0", "photohunt 7 1 0  2 0", "photohunt 7 x 0", "photohunt 7 1 -1", "photohunt on",
+        "photohunt off 1", "Photohunt 7 1 0", "photohunts 7 1 0"})
+    assert(parse_request(bad).command == Command::none);
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
   // (batch 3), coop mxiii's (batch 4), the Night Operation shop's (batch 5), Lily's signal's (batch 6), Matrix XIII's

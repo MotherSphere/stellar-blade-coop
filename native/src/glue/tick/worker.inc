@@ -866,6 +866,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     anim_drop = true;     // And a clip an earlier load played on EVE stops.
     bike_want(false);     // And SB's actions an earlier load turned off for the bike come back.
     race_want_fields = race_want_tick = false; // And the race's kept values on EVE go back (online/modes/race/).
+    photohunt_hand(photohunt::Arm()); // And the photo hunt's checks stop until Lua asks again.
     event("new Lua session: capture and ghost dropped");
   }
   take_capture(now_ms);

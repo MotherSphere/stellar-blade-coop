@@ -75,6 +75,10 @@ for _,list in ipairs({{
             stopped,e=pcall(M.fishing.stop,'coop off')
             if not stopped then log('fishing: '..tostring(e)) end
         end
+        if M.photohunt then -- Our photo hunt ends with no line; its photo checks stop.
+            stopped,e=pcall(M.photohunt.stop,'coop off')
+            if not stopped then log('photohunt: '..tostring(e)) end
+        end
         if M.group then -- A death screen the revive hid comes back.
             stopped,e=pcall(M.group.stop)
             if not stopped then log('revive: '..tostring(e)) end

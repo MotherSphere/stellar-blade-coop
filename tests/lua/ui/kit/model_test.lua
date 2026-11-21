@@ -220,7 +220,7 @@ assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key r
     ..'effects drone sounds faces collide send_rate head:session who_can_join max_players revive cutscene_wait '
     ..'follow_host shared_world '
     ..'shared_story hide_popups '
-    ..'head:modes scoreattack fishing race_match '
+    ..'head:modes scoreattack fishing race_match photohunt '
     ..'head:saves '
     ..'auto_coop_save '
     ..'shared_quests '
