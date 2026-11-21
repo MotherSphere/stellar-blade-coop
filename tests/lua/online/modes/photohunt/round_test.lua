@@ -152,6 +152,10 @@ local n=#L.sent
 assert(not r.claim(2) and not r.claim(4) and #L.sent==n)
 assert(r.status()==string.format('round %d, 15 minutes in Xion, play, 14:53 left; board: %s open, %s P2 (6 s), %s P3 (7 s)',
     seed,rows[1],rows[2],rows[3]),r.status())
+-- A member with no Steam name shows as her SteamID.
+L.member(P3).name=''
+assert(r.status():find(', '..rows[3]..' 4003 %(7 s%)$'),r.status())
+L.member(P3).name='P3'
 t=1013
 assert(r.claim(1) and said(o,'claim: 1 '..rows[1])==1 and #L.sent==n and not r.claim(1))
 -- The third point: the board and the rank in the same pass. Most points first, then the earlier last point. P4 is not
@@ -182,6 +186,8 @@ t=2011; r.tick()
 L.member(P2).lost=false
 t=2000+5+60+9; r.tick()
 assert(not last(L.sent):find('^rank'))
+-- Past our end, in the 10 s for late lines: the clock part says the time is up.
+assert(r.status():find('^round '..seed..', 1 minutes in Xion, play, time up; board: '),r.status())
 t=t+1; r.tick()
 assert(last(L.sent)=='rank '..seed..' Xion 2002:1:5,1001:0:0,4003:0:0',last(L.sent))
 assert(r.round().list[2].place==2 and r.round().list[3].place==2,'0 points share the last place')
@@ -311,6 +317,9 @@ o.record=function() return false end
 L.from(HOST,'go 22 15 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); L.from(HOST,'rank 22 Xion 2002:1:9,1001:0:0'); r.tick()
 assert(r.round().phase=='ranked' and r.round().best==false)
 o.record=record
+-- A rank with nobody in it: the ranking part says so, no record.
+L.from(HOST,'go 23 15 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); L.from(HOST,'rank 23 Xion -'); r.tick()
+assert(r.round().phase=='ranked' and r.status():find('; ranking: nobody$') and #o.records==1,r.status())
 -- The host leaves: the session ends with no rejoin of ours and the native part's notice says she left. While our own
 -- rejoin runs, it goes on.
 L.from(HOST,'go 12 15 Xion Cat1,Cat2,MemoryOfXion 1001,2002'); r.tick()
