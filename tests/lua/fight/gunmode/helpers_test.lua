@@ -116,6 +116,37 @@ do
     FindAllOf=function() return {} end
 end
 
+-- 4c. Only the reticle's round slot is looked for: the bottom-left count keeps the game's text and no line says it
+--     was not found (11-21).
+do
+    local function block(full)
+        local b={text='game',full=full,ColorAndOpacity={SpecifiedColor={R=1,G=1,B=1,A=1}},writes=0}
+        function b.GetFullName(o) return o.full end
+        function b.IsValid() return true end
+        function b.SetText(o,t) o.text=t; o.writes=o.writes+1 end
+        function b.GetText(o) return {ToString=function() return o.text end} end
+        function b.SetColorAndOpacity() end
+        return b
+    end
+    local hud='TextBlock /Engine/Transient.GameEngine_0:Instance_0.WB_MainHUD_Master_C_1.WidgetTree.'
+    local name=block(hud..'WB_Tps_Bullet3.WidgetTree.TextBlock_bullet_name')
+    local count=block(hud..'WB_Tps_Bullet3.WidgetTree.TextBlock_ItemCount')
+    local lower=block(hud..'WB_MainHUD_Lower1Item.WidgetTree.WB_MainHUD_ItemSlotGeneral.WidgetTree.TextBlock_Item_Count')
+    FindAllOf=function(class) if class=='TextBlock' then return {lower,name,count} end return {} end
+    FText=function(t) return t end
+    local lines={}
+    local g={log=function(m) lines[#lines+1]=m end,valid=function(o) return o~=nil and o:IsValid() end,
+        try=function(f) local ok,r=pcall(f); if ok then return r end end,words=function() return require('ui.text').en.gun end}
+    local cfg={mag_size=30,spare_mags=2,reload_time=1,fire_interval=0.05,round_color={1,1,1},reload_color={1,0,0}}
+    local a=Ammo.new(g,cfg,function() end,function() end)
+    for i=1,5 do a.tick(true,false,i/60) end
+    assert(name.text==require('ui.text').en.gun.round,tostring(name.text))
+    assert(lower.text=='game' and lower.writes==0,'the bottom-left count keeps the game\'s text')
+    for _,m in ipairs(lines) do assert(not m:find('bottom-left',1,true),'a bottom-left line: '..m) end
+    a.stop()
+    FindAllOf=function() return {} end
+end
+
 -- 5. The one zone event gun mode may fire: kind 2 on the shot's row, also once arm() borrowed a spare NIKKE row in its
 --    place. Never matchmaking's kinds 15, 16 or 19, another kind or another row.
 do
