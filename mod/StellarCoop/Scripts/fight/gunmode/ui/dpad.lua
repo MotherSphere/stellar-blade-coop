@@ -10,8 +10,10 @@
 -- game's own key cell (btn_PcEmpty), the way the marker shows Q and R. With no icon for the key (gun_key=none) the
 -- button shows nothing. Sizes come from the game's own widgets (the key icon from btn_up, the rifle icon from the heal
 -- item's icon), so the entry scales with the HUD. It is a child of the marker's own overlay, so it shows and hides with
--- the HUD. Each HUD gets the entry built anew, its parts found by name in the HUD's widget trees (Dpad.PARTS). The look
--- for the HUD on screen walks the object array. A name that UE4SS's StaticFindObject does not find costs a walk too
+-- the HUD. Each HUD gets the entry built anew, its parts found by name in the HUD's widget trees (Dpad.PARTS). While
+-- the keep holds SB's HUD class, a hook on its Construct names each new HUD: the entry is built at the first tick that
+-- HUD is on screen, with no walk. Otherwise (a Lua reload, the keep off) the look for the HUD on screen walks the
+-- object array every Dpad.RETRY s. A name that UE4SS's StaticFindObject does not find costs a walk too
 -- (core/unreal.lua), so gun mode's own widgets are looked for by name only when an earlier Lua load's are there. Every
 -- widget kept is checked by its path before it is used, as a map change frees them and another object can then sit at
 -- a freed address and pass IsValid.
@@ -27,9 +29,13 @@ Dpad.ICON_SIZE=34  -- the rifle icon, until the heal item's icon has a drawn siz
 -- touched the edge, 3.0 was off the screen)
 Dpad.DOWN=1.5
 -- s between two looks for the HUD while the entry is not built: each look walks the object array once (FindAllOf of
--- WB_MainHUD_Master_C). The rifle away makes no other lookup (M2). A map change shows the entry again within this
--- time. A HUD whose item column could not be used is not tried again: only a new HUD is.
+-- WB_MainHUD_Master_C). The rifle away makes no other lookup (M2). Without the Construct hook a map change shows the
+-- entry again within this time. A HUD whose item column could not be used is not tried again: only a new HUD is.
 Dpad.RETRY=10
+-- SB's HUD class (base paks of 26123051: /Game/Art/UI/Widget/HUD/WB_MainHUD_Master holds WB_MainHUD_Master_C, an
+-- SBUserWidget whose own Construct overrides UserWidget's). Kept for the game run, so its hooked Construct stays.
+Dpad.HUD='/Game/Art/UI/Widget/HUD/WB_MainHUD_Master.WB_MainHUD_Master_C'
+Dpad.FRESH=30 -- s a HUD named by its Construct is checked for the screen before the looks alone go on
 Dpad.CROSS_LEN,Dpad.CROSS_THICK,Dpad.CROSS_GAP=7,2,4 -- the hip-fire crosshair (screen units)
 -- The game's widgets the entry uses, by their names in SB's HUD (the paks of 26123051): in WB_MainHUD_Master's widget
 -- tree the D-pad marker (marker, a WB_MainHUD_Dpad) and the heal item (heal, a WB_MainHUD_ItemSlot); in the marker's
@@ -57,8 +63,10 @@ function Dpad.new(g)
     local cr={}  -- the crosshair: its canvas, its path, its visibility
     local hud,hud_at -- the HUD on screen as last looked for; its path
     local look_at,cross_at,failed=0,0,nil -- the next look, the next crosshair try; a HUD whose column was not usable
+    local fresh,fresh_at,fresh_until -- the HUD its Construct named last; its path; until when it is checked
+    local hooked,gone=false,false -- the Construct hook tried; the entry taken off for good (hide)
     local said={}
-    Keep.want({Dpad.ICON})
+    Keep.want({Dpad.ICON,Dpad.HUD})
 
     local function say(k,m) if not said[k] then said[k]=true; g.log(m) end end
     -- o while it is still the object recorded at path
@@ -93,6 +101,21 @@ function Dpad.new(g)
         end)
         hud_at=hud and g.path(hud)
         return hud_at~=nil
+    end
+    -- SB's HUD built (its Construct, on the game thread): only noted. It may not be on screen yet. tick builds.
+    local function on_construct(ctx)
+        if gone then return end
+        local w=g.try(function() return ctx:get() end)
+        local at=g.path(w)
+        if at then fresh,fresh_at,fresh_until=w,at,os.clock()+Dpad.FRESH end
+    end
+    -- Once a Lua load, as soon as the keep holds the HUD class (its Construct is then never freed). gun mode's
+    -- g.hook_hud registers it in fight/gunmode/wiring.lua. A hook that fails leaves the looks alone.
+    local function hook()
+        if hooked or not Keep.serves(Dpad.HUD) then return end
+        hooked=true
+        local ok,e=pcall(g.hook_hud,Dpad.HUD,on_construct)
+        g.log(ok and 'dpad: hook on: WB_MainHUD_Master_C:Construct' or ('dpad: no Construct hook: '..tostring(e)))
     end
 
     local function build()
@@ -227,14 +250,21 @@ function Dpad.new(g)
     -- rifle is away) in colour c ({r,g,b}). true when it built the entry (gun mode then keeps its path in coop-gun.txt).
     function self.tick(key,text,c)
         local made=false
+        hook()
         if not (alive(ui.box,ui.box_at) and alive(ui.overlay,ui.overlay_at)) then
             ui={}
-            if look_at>os.clock() then return false end
-            look_at=os.clock()+Dpad.RETRY
-            if not look() then say('hud','dpad: no HUD in the viewport'); return false end
+            if fresh and (os.clock()>fresh_until or not alive(fresh,fresh_at)) then fresh=nil end
+            local src='a look'
+            if fresh and g.try(function() return fresh:IsInViewport() end)==true then
+                hud,hud_at,fresh,src=fresh,fresh_at,nil,'its Construct'
+            else
+                if look_at>os.clock() then return false end
+                look_at=os.clock()+Dpad.RETRY
+                if not look() then say('hud','dpad: no HUD in the viewport'); return false end
+            end
             if hud_at==failed then return false end
             local ok,err=pcall(build)
-            g.log('dpad: rifle entry '..(ok and 'built' or ('not built: '..tostring(err))))
+            g.log('dpad: rifle entry '..(ok and ('built (HUD from '..src..')') or ('not built: '..tostring(err))))
             if not ok then failed=hud_at; ui={}; return false end
             made=true
         end
@@ -290,11 +320,11 @@ function Dpad.new(g)
         return made
     end
 
-    -- Taken off the HUD (gun mode unloaded).
+    -- Taken off the HUD (gun mode unloaded). The Construct hook stays registered: it does nothing from then on.
     function self.hide()
         if alive(ui.holder,ui.holder_at) then pcall(function() ui.holder:RemoveFromParent() end) end
         if alive(cr.w,cr.at) then pcall(function() cr.w:RemoveFromParent() end) end
-        ui,cr={},{}
+        ui,cr,gone,fresh={},{},true,nil
     end
 
     -- coop-gun.txt's records of the entry and the crosshair on the HUD now (hud|<path>): a later Lua load takes them

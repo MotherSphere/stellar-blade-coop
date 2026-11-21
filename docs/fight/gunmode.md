@@ -184,14 +184,17 @@ rifle is out it also reads `rounds | magazines`: the rounds in the magazine, the
 counted). The icon is the game's NIKKE rifle texture, `Icon_Nikke_LostItem_AssaultRifle`, the icon of the item table's
 `Nikke_AR` row. Gun mode loads it from the game. While the native part runs, SBO's keep holds it across map changes. No
 image file ships with SBO. The entry is a child of the HUD's own D-pad marker, so it shows and hides with the HUD. A
-box the marker's size holds it, so the item column never grows. While no HUD is on screen gun mode looks for it once
-every 10 s. That look walks the game's objects. The entry's parts are found by their names in the HUD. A new HUD (a
-map change, a death, a camp warp) gets the entry built anew. A HUD without the D-pad marker is tried once. After a Lua
-reload the new load takes the earlier load's entry again instead of building a second one over it. A name UE4SS does
-not find costs a walk of the game's objects too, so gun mode looks for its own widgets by name only once an earlier
-load's row is in the marker. Each build looks for that row once. In hip fire (the rifle up without the game's aim) a
-small crosshair shows at the screen's centre. Its first build in a HUD looks once for an earlier load's crosshair.
-`hud_entry=false` in `fight/gunmode/config.lua` turns the entry off.
+box the marker's size holds it, so the item column never grows. While the native part runs, the keep also holds SB's
+HUD class (`WB_MainHUD_Master_C`). A hook on its Construct, registered in `fight/gunmode/wiring.lua` once a Lua load,
+then names each new HUD. The entry shows within a tenth of a second of that HUD coming on screen, with no walk of the
+game's objects. Without the hook (a Lua reload before the next map, the keep off, a hook that failed) gun mode looks
+for the HUD on screen once every 10 s. That look walks the game's objects. The entry's parts are found by their names
+in the HUD. A new HUD (a map change, a death, a camp warp) gets the entry built anew. A HUD without the D-pad marker
+is tried once. After a Lua reload the new load takes the earlier load's entry again instead of building a second one
+over it. A name UE4SS does not find costs a walk of the game's objects too, so gun mode looks for its own widgets by
+name only once an earlier load's row is in the marker. Each build looks for that row once. In hip fire (the rifle up
+without the game's aim) a small crosshair shows at the screen's centre. Its first build in a HUD looks once for an
+earlier load's crosshair. `hud_entry=false` in `fight/gunmode/config.lua` turns the entry off.
 
 The rounds below have not run in game yet. The rest of this section is written from the code and the game's tables.
 
