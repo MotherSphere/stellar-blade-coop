@@ -9,7 +9,8 @@
 -- refusal of her main mesh raises, a follower's is counted out); hooked; the unhook (her main mesh to none, each part
 -- back once, her main mesh never pointed at itself, a part no longer hers never called, a failing call counted while
 -- the others go on, nothing called once her EVE is gone, a part on a socket that the hook moved sent back); remove and
--- sweep; the release after Ctrl+R (the rig found by its path and mesh, each part it leads sent back, then swept).
+-- sweep; the release after Ctrl+R (the rig found by its path and mesh, each part it leads sent back, then swept; a root
+-- of another class left alone).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local next_address=0x1000
@@ -248,7 +249,8 @@ assert(Rig.sweep(old.path,BODY)==true and old.actor.destroyed)
 -- The release after Ctrl+R: an earlier load's rig found by its path and mesh. Her main mesh to none; each part whose
 -- leader is the rig back at her main mesh (the bangs and the ponytail too, which the rule does not take), each
 -- follower back, the bike part and the sword (another leader) never called; then the rig swept. Another mesh at that
--- path or no actor there: nothing called, nothing swept. Her EVE gone: nothing called on her, the rig still swept.
+-- path, a root of another class showing her mesh or no actor there: nothing called, nothing swept. Her EVE gone:
+-- nothing called on her, the rig still swept.
 local function earlier()
     local r=Rig.make(eve,BODY,clip,bike:GetAddress())
     by_path[r.path]=r.actor
@@ -261,7 +263,13 @@ sword.MasterPoseComponent=weak(face)
 calls={}
 back,failed=Rig.release(eve,r.path,OTHER,bike:GetAddress())
 assert(back==0 and failed==0 and #calls==0 and not r.actor.destroyed,'another mesh: nothing called')
+local other=object({path='/Game/Map.Map:PersistentLevel.Other',K2_DestroyActor=function(self) self.destroyed=true end})
+local not_skinned=object({SkeletalMesh=body,IsA=function() return false end})
+function other:K2_GetRootComponent() return not_skinned end
+by_path[other.path]=other
 local swept
+back,failed,swept=Rig.release(eve,other.path,BODY,bike:GetAddress())
+assert(back==0 and failed==0 and swept==false and #calls==0 and not other.destroyed,'another class: nothing called')
 back,failed,swept=Rig.release(eve,'/Game/Map.Map:PersistentLevel.Gone',BODY,bike:GetAddress())
 assert(back==0 and failed==0 and swept==false and #calls==0)
 back,failed,swept=Rig.release(eve,r.path,BODY,bike:GetAddress())

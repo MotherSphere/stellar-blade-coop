@@ -194,7 +194,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   the rig made hidden, posing while hidden, its cloth off, snapped to her main mesh with the clip looped, a rig that
   cannot be made leaving no actor, the hook and the unhook (each part back once, a failing call counted while the
   others go on, nothing called once her EVE is gone, a part on a socket that the hook's cascade moved sent back),
-  `hooked`, the sweep and the release after Ctrl+R;
+  `hooked`, the sweep and the release after Ctrl+R (a root that is no `SkeletalMeshComponent` left alone);
 - `vehicles/bike/paint_test` covers `vehicles/bike/paint.lua` with fake UE4SS objects: the shipped table passes its
   check with one entry, a `Base Color Tint` on slot 1; the check takes a name with spaces (`Base Color Tint`),
   punctuation (`A_b-1`) or a `}` and refuses a slot out of 0 to 3, an empty or 65-byte name, a control character, a
