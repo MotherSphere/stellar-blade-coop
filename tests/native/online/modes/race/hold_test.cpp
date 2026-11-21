@@ -99,6 +99,11 @@ int main() {
   assert(!h.holding() && own(m, move) && m.b[mesh.at + kTickOption] == 3 && h.fields.why == Why::eve);
   h.step(m, true, true, s);
   assert(h.holding() && zero(m, move));
+  // A part Lua does not ask has no why, whatever the sight: the log names only what is asked.
+  h.step(m, false, true, Sight{});
+  assert(own(m, move) && h.fields.why == Why::none && h.tick.why == Why::eve);
+  h.step(m, true, true, s);
+  assert(h.holding() && zero(m, move));
   // A map change: her components are other objects; the old ones are gone, so their kept values drop unwritten.
   const Obj move2{0x30000, 21, 4}, mesh2{0x40000, 22, 4};
   m.live.erase(move.at), m.live.erase(mesh.at);

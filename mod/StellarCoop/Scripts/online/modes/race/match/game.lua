@@ -35,7 +35,9 @@ function G.new(o)
         local best=Mm.best(text,sum)
         if not Mm.better(best,ms) then return end
         local new,why=Mm.write(text,sum,ms,name)
-        if not new or not o.records.write(new) then return o.log('records: not written: '..tostring(why)) end
+        if not new or not o.records.write(new) then
+            return o.log('records: not written: '..tostring(why or 'the file write failed'))
+        end
         o.log(string.format('best on %s: %d ms (was %s)',name,ms,best and tostring(best) or 'none'))
     end
     -- The round's track is known: our race on slot k (our place in the round's players, from 0).

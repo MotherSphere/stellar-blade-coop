@@ -76,6 +76,15 @@ disk.files[P]=nil
 m.line({word='done',ending='fin',ms=95000,flags=0})
 assert(Mm.best(disk.files[P],Mm.sum(m.t))==95000,tostring(disk.files[P]))
 assert(dr('best on xion_eight: 95000 ms (was none)'))
+-- A better finish over the file: the old file goes first (rename never replaces on Windows). A write that fails (a
+-- full disk) leaves the file as it was, with a log line.
+m.line({word='done',ending='fin',ms=90000,flags=0})
+assert(Mm.best(disk.files[P],Mm.sum(m.t))==90000 and disk.files[P..'.tmp']==nil,tostring(disk.files[P]))
+assert(dr('best on xion_eight: 90000 ms (was 95000)'))
+disk.fail[P..'.tmp']='write'
+m.line({word='done',ending='fin',ms=80000,flags=0})
+assert(Mm.best(disk.files[P],Mm.sum(m.t))==90000 and dr('records: not written: the file write failed'))
+disk.fail[P..'.tmp']=nil
 -- What the round tells our race: a finish came, then the host's ranking with names.
 assert(m.news().fin==true and m.news().list==nil)
 -- The round's end with the host gone: our race closes, the notice in the menu's words.

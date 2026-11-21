@@ -991,7 +991,7 @@ do
         S.lines,S.news,S.by={},{fin=false},{['2002']=ghost(),['3003']=ghost()}
         player=S.eve
         S.eve.at={X=5000,Y=5000,Z=0}
-        local t=assert(R.parse_track(TEXT))
+        local t=o.track or assert(R.parse_track(TEXT))
         S.t=t
         S.ok,S.key,S.why=S.race.match(t,'quest',7,o.k or 3,S.by,function(l) S.lines[#S.lines+1]=l end,
             function() return S.news end)
@@ -1039,6 +1039,17 @@ do
     S.race.match_stop('host')
     assert(not S.race.armed() and not S.look.on and not S.by['2002'].on and not S.by['3003'].on and #S.lines==4)
     assert(S.by['3003'].emote_==nil and S.by['2002'].top==nil and find(S.logs,'^race 7 closed %(host%)$'))
+    -- Put back from 25 m away (past the runner's 20 m teleport rule) or from inside a first checkpoint 19 m from her
+    -- slot: the runner starts from her slot, so neither a DNF teleport nor a split comes of it.
+    local near=assert(R.parse_track('SBR 1\nmap '..MAP..'\nlaps 1\ngrid 0 0 0 0\ncp 1600 0 0 400\n'
+        ..'cp 3200 1600 0 400\n'))
+    for _,c in ipairs({{at={x=s3.x-2500,y=s3.y,z=s3.z}},{track=near,at={x=1600,y=0,z=0}}}) do
+        S=match({track=c.track})
+        S.move=function(s) if not s.go_at then put(s,c.at) end end
+        run({S},function() return S.go_at end)
+        frames({S},10)
+        assert(#S.lines==0 and S.race.armed() and find(S.logs,'out of slot 4 at GO: put back'),words(S))
+    end
     -- Results 20 s after the list with no end line: the race closes by itself.
     S=match()
     S.move=racer(3)

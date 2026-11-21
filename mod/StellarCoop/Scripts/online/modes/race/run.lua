@@ -224,6 +224,8 @@ function Race.new(o)
             local e=r.role=='match' and r.pos and not R.in_slot(m.track,m.slot,r.pos,true) and eve()
             if e then
                 local ok,why=put(e,m.track,m.slot)
+                -- The runner's first step starts from her slot: the way back is no move of hers.
+                if ok then m.prev=R.slot(m.track,m.slot) end
                 log('race '..m.id..': out of slot '..(m.slot+1)..' at GO: '..(ok and 'put back' or why))
             end
             r.go_clock,r.go_time=os.clock(),os.time()
