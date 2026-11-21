@@ -371,13 +371,16 @@ do
 end
 
 -- 11. For the lost shot sound (fix list item 4): her audio components and the ones playing are logged once a rifle out
---     after 30 rounds and at each off. The fake lists every component of hers for any class; one of them plays.
+--     after 30 rounds (with every owner's for the first 6 outs) and at each off. The fake lists every component of hers
+--     for any class; one of them plays.
 do
     local w=Fake.new(); w.install()
     local gun,logs=new()
     local cue=w.component(w.pawn)
     cue.IsPlaying=function() return true end
     cue.Sound={GetFName=function() return Fake.name('P_Test_Shot_Cue') end}
+    local find=FindAllOf
+    FindAllOf=function(class) if class=='AudioComponent' then return {cue} end return find(class) end
     local function count(text)
         local n=0
         for _,l in ipairs(logs) do if l:find(text,1,true) then n=n+1 end end
@@ -391,6 +394,8 @@ do
     toggle(gun,false)
     assert(count('sounds while firing: ')==1 and count('1 playing (P_Test_Shot_Cue)')==2,table.concat(logs,'|'))
     assert(logs[#logs]:match('^sounds at the off: %d+ audio components, 1 playing'),logs[#logs])
+    assert(count('every owner 1 audio components, 1 playing (P_Test_Shot_Cue)')==1,table.concat(logs,'|'))
+    FindAllOf=find
 end
 
 print('gunmode state: ok')

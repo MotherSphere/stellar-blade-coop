@@ -129,7 +129,8 @@ the rounds left in the magazine. Lowering the rifle never reloads it. No round f
 
 The `[GM]` line `off (...), N shots` counts the rounds of the rifle out, the game's aim's included. For a shot sound
 that goes missing, two `[GM]` lines list EVE's audio components and the ones playing. `sounds while firing:` comes once
-a rifle out, after 30 rounds. `sounds at the off:` comes each time the rifle goes away.
+a rifle out, after 30 rounds. For the first 6 rifle outs of a Lua load it counts every audio component of the game too:
+a pooled sound has another owner. `sounds at the off:` comes each time the rifle goes away.
 
 In firing mode the reticle's round slot shows the round's name and the rounds left in the magazine. While the rifle
 reloads the name reads RELOADING. With the magazine and every spare empty it reads NO AMMO. RELOADING and NO AMMO show
