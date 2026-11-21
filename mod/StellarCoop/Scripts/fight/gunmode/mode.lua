@@ -191,8 +191,9 @@ function GunMode.new(env)
     -- froze the game 100 to 340 ms (2026-11-21 test). Before the soft path is proven (no pawn yet), or where it
     -- fails, StaticFindObject as before.
     function g.loaded(path)
-        local o=Keep.serves(path) and Keep.get(path) or nil
-        if g.valid(o) then return o end
+        local ok_k,o=false,nil
+        if Keep.serves(path) then ok_k,o=pcall(Keep.get,path) end -- (a raise here must not stop the tick's clip play)
+        if ok_k and g.valid(o) then return o end
         local ok,x,known=pcall(U.object_at,path,g.pc())
         if not (ok and known~=nil) then x=StaticFindObject(path) end
         if g.valid(x) then return x end
