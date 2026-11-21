@@ -25,7 +25,7 @@ is no runtime DLL to ship.
 `<game>/SB/Binaries/Win64/ue4ss/Mods/StellarCoop`. It refuses while the game runs.
 
 ```
-python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run] [--zip [PATH] | --uninstall | --pak <folder>]
+python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run] [--ue4ss] [--zip [PATH] | --uninstall | --pak <folder>]
 ```
 
 | Option | What it does |
@@ -36,8 +36,10 @@ python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run] [--zip [PAT
 | `--zip [PATH]` | Runs the tests and the build, then writes a release zip (by default `build/StellarCoop-<version>.zip`) instead of installing. Needs a clean tree; no game folder needed |
 | `--uninstall` | Backs up the hall lobby pak files in `~mods` and the installed folder, then removes them. No tests and no build; with `--dry-run` it changes nothing |
 | `--pak <folder>` | Installs the mod, then copies the hall lobby pak `zSBO_Lobby.pak`, `.ucas` and `.utoc` from the folder into `<game>/SB/Content/Paks/~mods`. With `--dry-run` it changes nothing |
+| `--ue4ss` | Installs the mod, then SBO's UE4SS package for the game's build into `<game>/SB/Binaries/Win64` (see [UE4SS](#ue4ss)). Not with `--zip` or `--uninstall`. With `--dry-run` it changes nothing |
 
-Except with `--zip`, the game's UE4SS `Mods` folder must exist. `--pak` also needs `<game>/SB/Content/Paks`.
+Except with `--zip` or `--ue4ss`, the game's UE4SS `Mods` folder must exist. `--pak` also needs
+`<game>/SB/Content/Paks`. `--ue4ss` needs `<game>/SB/Binaries/Win64/SB-Win64-Shipping.exe`.
 
 A run does these steps in order:
 
@@ -103,6 +105,14 @@ folder. The package holds:
 An executable with no set gets nothing. The tool names the build it read and the builds SBO has files for, then
 stops. UE4SS v4.0.0 without the set's `MemberVariableLayout.ini` would write past the end of the game's
 FUObjectArray.
+
+`tools/install.py --ue4ss` installs the same package. Before the tests run, it reads the executable's header and
+checks the release zip, which it downloads when the cache lacks it. An unknown build or a refused zip stops it there.
+After the mod install, it backs up every file it replaces or removes into
+`~/StellarCoop-install-backups/<UTC time>/Win64`. It removes the signature scripts in `ue4ss/UE4SS_Signatures/` that
+the package lacks (the 1.3 package's `FText_Constructor.lua`, another build's scripts) and the 1.3 package's
+`ue4ss/Changelog.md`. It keeps an existing `Mods/mods.txt` and never touches a mod folder that the package lacks.
+`--uninstall` leaves UE4SS in place. An install without `--ue4ss` writes no UE4SS file.
 
 ## tools/wine_smoke.py
 

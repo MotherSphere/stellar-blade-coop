@@ -444,6 +444,106 @@ with tempfile.TemporaryDirectory() as tmp:
     finally: install.subprocess, install.sanitizers, install.version, install.package = saved
     assert files_of(lobby2) == pak2
 
+    # 20. --ue4ss writes SBO's UE4SS package (tools/ue4ss.py) into SB/Binaries/Win64 over a 1.3 install. It first
+    # backs up each file it replaces or removes. The signature scripts the package lacks (FText_Constructor.lua,
+    # another build's) and the 1.3 package's Changelog.md go. The player's mods.txt, other mods, StellarCoop, the
+    # .example files, the log, the usmap and the game stay.
+    win64 = tmp / 'game3/SB/Binaries/Win64'
+    old13 = {'dwmapi.dll': b'proxy 1.3', 'ue4ss/UE4SS.dll': b'ue4ss 3.0.1', 'ue4ss/UE4SS-settings.ini': b'settings 1.3',
+             'ue4ss/MemberVariableLayout.ini': b'layout 1.3', 'ue4ss/VTableLayout.ini': b'vtables 1.3',
+             'ue4ss/Changelog.md': b'rc1', 'ue4ss/UE4SS_Signatures/FText_Constructor.lua': b'ftext',
+             'ue4ss/UE4SS_Signatures/GNatives.lua': b'gnatives 1.3',
+             'ue4ss/Mods/Keybinds/Scripts/main.lua': b'keys 1.3'}
+    kept = {'ue4ss/Mods/mods.txt': b'ConsoleEnablerMod : 1\r\nKeybinds : 1\r\n',
+            'ue4ss/Mods/ConsoleEnablerMod/Scripts/main.lua': b'console 1.3', 'ue4ss/Mods/StellarCoop/enabled.txt': b'',
+            'ue4ss/UE4SS_Signatures/GUObjectArray.lua.example': b'example', 'ue4ss/UE4SS.log': b'log',
+            'ue4ss/SB-4.26.2-0+++UE4+Release-4.26-08a0733.usmap': b'usmap', 'SB-Win64-Shipping.exe': b'game'}
+    put(win64, {**old13, **kept})
+    ue4ss_files = {'dwmapi.dll': b'proxy 4', 'ue4ss/UE4SS.dll': b'ue4ss 4', 'ue4ss/LICENSE': b'MIT',
+                   'ue4ss/UE4SS-settings.ini': b'sbo settings', 'ue4ss/MemberVariableLayout.ini': b'sbo layout',
+                   'ue4ss/VTableLayout.ini': b'vtables', 'ue4ss/UE4SS_Signatures/GNatives.lua': b'gnatives',
+                   'ue4ss/UE4SS_Signatures/GUObjectArray.lua': b'guobjectarray',
+                   'ue4ss/Mods/mods.txt': b'Keybinds : 1\r\n', 'ue4ss/Mods/Keybinds/Scripts/main.lua': b'keys 4'}
+    gone = [win64 / 'ue4ss/Changelog.md', win64 / 'ue4ss/UE4SS_Signatures/FText_Constructor.lua']
+    before = tree()
+    assert run(install.install_ue4ss, win64, ue4ss_files, True) == (
+        None, 'Dry run: would back up 9 UE4SS files first\n' + ''.join(f'Dry run: would remove {p}\n' for p in gone)
+        + f'Dry run: would install 9 UE4SS files into {win64}\n') and tree() == before
+    install.running_game = lambda: True
+    assert run(install.install_ue4ss, win64, ue4ss_files, False) == (CLOSE, '') and tree() == before
+    install.running_game = lambda: False
+    old = set(backups())
+    code, out = run(install.install_ue4ss, win64, ue4ss_files, False)
+    new, = set(backups()) - old
+    assert code is None and out == (f'Backed up 9 files into {new / "Win64"}\n'
+                                    + ''.join(f'Removing {p}\n' for p in gone)
+                                    + f'Installed 9 UE4SS files into {win64}\n'), out
+    assert files_of(new / 'Win64') == old13
+    assert files_of(win64) == {**kept, **{r: d for r, d in ue4ss_files.items() if r != 'ue4ss/Mods/mods.txt'}}
+    # A game folder without UE4SS gets the whole package, its mods.txt included, and backs up nothing.
+    win64b = tmp / 'game4/SB/Binaries/Win64'
+    win64b.mkdir(parents=True)
+    old = set(backups())
+    assert run(install.install_ue4ss, win64b, ue4ss_files, False) == (
+        None, f'Installed 10 UE4SS files into {win64b}\n')
+    assert files_of(win64b) == ue4ss_files and set(backups()) == old
+
+    # 21. main with --ue4ss: never with --zip or --uninstall. A game folder without the executable, an executable with
+    # no build set in ue4ss/builds/ and a cached release zip of other bytes each stop it before the tests. Then its dry
+    # run and its install each say the mod's lines, then the UE4SS lines. A Win64 folder without UE4SS is enough.
+    def header(stamp, size):
+        """The first 0x100 bytes of a 64-bit PE file with this TimeDateStamp and SizeOfImage."""
+        head = bytearray(0x100)
+        head[:2], head[0x3c:0x40], head[0x80:0x84] = b'MZ', (0x80).to_bytes(4, 'little'), b'PE\0\0'
+        head[0x88:0x8c], head[0x98:0x9a] = stamp.to_bytes(4, 'little'), (0x20b).to_bytes(2, 'little')
+        head[0xd0:0xd4] = size.to_bytes(4, 'little')
+        return bytes(head)
+
+    def with_ue4ss(*extra):
+        return run(install.main, ['--ue4ss', *extra, '--game', str(tmp / 'game5')])
+
+    win64c = tmp / 'game5/SB/Binaries/Win64'
+    target5, exe = win64c / 'ue4ss/Mods/StellarCoop', win64c / 'SB-Win64-Shipping.exe'
+    for other in ('--zip', '--uninstall'):
+        code, out = with_ue4ss(other)
+        assert code == 2 and 'argument --ue4ss: not allowed with --zip or --uninstall' in out, (code, out)
+    saved = install.subprocess, install.sanitizers, install.version, install.package, install.ue4ss.CACHE
+    install.subprocess = types.SimpleNamespace(run=tests_ran)
+    try:
+        code, out = with_ue4ss()
+        assert code.startswith(f'Cannot read {exe}: ') and out == '', (code, out)
+        win64c.mkdir(parents=True)
+        exe.write_bytes(header(0x6ad8eff1, 0x15fa3001))
+        builds = ', '.join(sorted(p.name for p in install.ue4ss.BUILDS.iterdir()))
+        assert with_ue4ss() == (f'SBO has no UE4SS files for this Stellar Blade build (6ad8eff1-15fa3001), only for '
+                                f'{builds}. SBO waits for an update. Nothing was written.', '')
+        exe.write_bytes(header(0x6ad8eff1, 0x15fa3000))  # Build 26123051's, as check_build() pins it.
+        install.ue4ss.CACHE = tmp / 'cache/UE4SS_v4.0.0.zip'
+        put(install.ue4ss.CACHE.parent, {install.ue4ss.CACHE.name: b'not the release'})
+        assert with_ue4ss() == (f'{install.ue4ss.CACHE} is not the UE4SS v4.0.0 release zip (SHA-256 '
+                                f'{hashlib.sha256(b"not the release").hexdigest()}, expected {install.ue4ss.SHA256}): '
+                                'refused', '')
+        assert sorted(p.relative_to(tmp / 'game5').as_posix() for p in (tmp / 'game5').rglob('*')) == [
+            'SB', 'SB/Binaries', 'SB/Binaries/Win64', 'SB/Binaries/Win64/SB-Win64-Shipping.exe']
+        install.subprocess = types.SimpleNamespace(run=lambda *args, **kwargs: None, DEVNULL=None)
+        install.sanitizers, install.version = (lambda: []), (lambda: 'v')
+        install.package = lambda ver, dll: {'enabled.txt': b''}
+        packaged = []
+        real_package, install.ue4ss.package = install.ue4ss.package, lambda path: packaged.append(path) or ue4ss_files
+        try:
+            assert with_ue4ss('--dry-run') == (None, f'Version: v\nDry run: would install 1 files into {target5}\n'
+                                                     f'Dry run: would install 10 UE4SS files into {win64c}\n')
+            assert sorted(p.name for p in win64c.iterdir()) == ['SB-Win64-Shipping.exe']
+            assert with_ue4ss() == (None, f'Version: v\nInstalled 1 files into {target5}\n'
+                                          f'Installed 10 UE4SS files into {win64c}\n')
+        finally: install.ue4ss.package = real_package
+        assert packaged == [exe, exe], packaged
+    finally:
+        install.subprocess, install.sanitizers, install.version, install.package, install.ue4ss.CACHE = saved
+    assert files_of(win64c) == {**ue4ss_files, 'SB-Win64-Shipping.exe': header(0x6ad8eff1, 0x15fa3000),
+                                'ue4ss/Mods/StellarCoop/enabled.txt': b'',
+                                f'ue4ss/Mods/StellarCoop/{install.MANIFEST}': b'enabled.txt\n'}
+
 # 13. CHANGELOG.md: features and fixes from the commit subjects, newest first; other types and empty sections left out.
 # The subjects are those after the last GPL-3.0 commit: none of 0.9.0's history.
 head = '# StellarCoop v1\n\nBuilt from the commit of 2025-10-09; generated from the commits after 0.9.0.\n'

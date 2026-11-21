@@ -1563,7 +1563,11 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   part: the copy of the three `zSBO_Lobby` files into `~mods` with a backup of the ones it replaces, a copy that does
   not hash like its source, a folder that lacks one of the files, the dry run, the refusal while the game runs, and an
   uninstall without and with the mod folder (the pak first, each into its own backup folder), all of them leaving the
-  rest of `~mods` and `LogicMods` alone;
+  rest of `~mods` and `LogicMods` alone. Its `--ue4ss` part: SBO's UE4SS package over a 1.3 install (the backup, the
+  signature scripts the package lacks and `Changelog.md` removed, the player's `mods.txt` and other mods kept), into
+  a folder without UE4SS, the dry run, the refusal while the game runs. `main` with `--ue4ss` refuses `--zip` and
+  `--uninstall`. It stops before the tests on a missing executable, on a build with no set and on a cached zip of
+  other bytes. Its dry run and its install say the mod's lines, then the UE4SS lines;
 - `ue4ss_test.py`: the files under `ue4ss/`. Each build set is named after its executable. The set's signature
   scripts run under `lua5.4` on made-up matches and, when this PC has Ghidra's copy of build 26123051, on its
   executable. Its `VTableLayout.ini` gives the offsets read in Ghidra. Its `MemberVariableLayout.ini` holds only

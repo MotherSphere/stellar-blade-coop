@@ -6,7 +6,9 @@
 What an install replaces or removes is backed up first; --uninstall backs up the whole folder, then removes it.
 --zip writes a release zip that the same commit always gives byte for byte, with a CHANGELOG.md from the commits made
 after the last GPL-3.0 commit. --pak also copies the hall lobby pak, kept on this PC and never in the zip, into
-SB/Content/Paks/~mods; --uninstall backs up and removes its three files there, and nothing else in ~mods."""
+SB/Content/Paks/~mods; --uninstall backs up and removes its three files there, and nothing else in ~mods. --ue4ss
+also installs SBO's UE4SS package (tools/ue4ss.py) into SB/Binaries/Win64: the official UE4SS v4.0.0 with SBO's
+settings and the files of the game's build. It backs up what it replaces or removes."""
 import argparse
 import hashlib
 import os
@@ -18,6 +20,9 @@ import time
 import zipfile
 from fnmatch import fnmatch
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # python3 -I leaves the script's folder out.
+import ue4ss  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 GAME = Path('/mnt/Jeux/SteamLibrary/steamapps/common/StellarBlade')
@@ -31,6 +36,7 @@ CLOSE_GAME = 'Close Stellar Blade first: its mods must not change under it.'
 LAST_GPL = '051ab5090a2ea6832279345524e9cdaa816ee736'
 ART = 'Assets/MotherSphere.png'  # timediffer24's art, not under the SBO License (NOTICE): installed, never zipped.
 PAK = ('zSBO_Lobby.pak', 'zSBO_Lobby.ucas', 'zSBO_Lobby.utoc')  # The only files --pak and --uninstall touch in ~mods.
+UE4SS_OLD = ('ue4ss/Changelog.md',)  # The 1.3 package's UE4SS 3.0.1 changelog: --ue4ss moves it into the backup.
 
 
 def running_game():
@@ -187,6 +193,30 @@ def uninstall_pak(paks, dry_run):
         print(f'Removed {paks / name}')
 
 
+def install_ue4ss(win64, files, dry_run):
+    """Writes SBO's UE4SS package (tools/ue4ss.py) into win64, SB/Binaries/Win64. It backs up first every file it
+    replaces or removes. It removes the signature scripts the package lacks (FText_Constructor.lua, another build's)
+    and UE4SS_OLD. A mods.txt already there stays: it lists the player's mods."""
+    if (win64 / 'ue4ss/Mods/mods.txt').is_file():
+        files = {rel: data for rel, data in files.items() if rel != 'ue4ss/Mods/mods.txt'}
+    scripts = {path.relative_to(win64).as_posix() for path in (win64 / 'ue4ss/UE4SS_Signatures').glob('*.lua')}
+    gone = sorted((scripts - set(files)) | {rel for rel in UE4SS_OLD if (win64 / rel).is_file()})
+    old = sorted({*gone, *(rel for rel in files if (win64 / rel).is_file())})
+    if dry_run:
+        if old: print(f'Dry run: would back up {len(old)} UE4SS files first')
+        for rel in gone: print(f'Dry run: would remove {win64 / rel}')
+        return print(f'Dry run: would install {len(files)} UE4SS files into {win64}')
+    if running_game(): sys.exit(CLOSE_GAME)
+    if old: backup(win64, old, 'Win64')
+    for rel in gone:
+        print(f'Removing {win64 / rel}')
+        (win64 / rel).unlink()
+    for rel, data in files.items():
+        (win64 / rel).parent.mkdir(parents=True, exist_ok=True)
+        (win64 / rel).write_bytes(data)
+    print(f'Installed {len(files)} UE4SS files into {win64}')
+
+
 def changelog(ver, when, subjects):
     """CHANGELOG.md from the commit subjects, newest first: features and fixes only. It goes into the zip, never
     into the repository."""
@@ -236,12 +266,19 @@ def main(argv=None):
     mode.add_argument('--pak', type=Path, metavar='DIR',
                       help=f'After the install, also copy {", ".join(PAK)} from DIR into SB/Content/Paks/~mods, '
                            'backing up the ones they replace')
+    parser.add_argument('--ue4ss', action='store_true',
+                        help="Also install UE4SS v4.0.0 with SBO's settings and the files of the game's build "
+                             '(tools/ue4ss.py) into SB/Binaries/Win64, backing up the files it replaces. The UE4SS '
+                             'Mods folder may be missing then. Not with --zip or --uninstall')
     args = parser.parse_args(argv)
+    if args.ue4ss and (args.zip or args.uninstall):
+        parser.error('argument --ue4ss: not allowed with --zip or --uninstall')
     # Only a committed tree: the zip, its version and its changelog all name one commit.
     if args.zip and git('status', '--porcelain'):
         sys.exit('A release zip needs a clean tree: commit first (git status is not empty).')
-    mods = args.game / 'SB/Binaries/Win64/ue4ss/Mods'
-    if not args.zip and not mods.is_dir(): sys.exit(f'No UE4SS Mods folder at {mods}')
+    win64 = args.game / 'SB/Binaries/Win64'
+    mods = win64 / 'ue4ss/Mods'
+    if not args.zip and not args.ue4ss and not mods.is_dir(): sys.exit(f'No UE4SS Mods folder at {mods}')
     paks = args.game / 'SB/Content/Paks/~mods'
     if args.uninstall:
         uninstall_pak(paks, args.dry_run)
@@ -249,6 +286,8 @@ def main(argv=None):
     if args.pak:  # Before the tests and the build: a wrong folder fails in a second, not after six minutes.
         if not paks.parent.is_dir(): sys.exit(f'No Paks folder at {paks.parent}')
         sources = pak_sources(args.pak)
+    if args.ue4ss:  # Also before: an unknown build or a refused zip stops it in a second.
+        ue4ss_files = ue4ss.package(win64 / 'SB-Win64-Shipping.exe')
     for test in sorted((ROOT / 'tests/lua').rglob('*_test.lua')):
         subprocess.run(['lua5.4', test.relative_to(ROOT)], cwd=ROOT, check=True)  # The game embeds Lua 5.4.
     checks = sanitizers()
@@ -279,6 +318,7 @@ def main(argv=None):
         print(f'Dry run: would install {len(files)} files into {target}')
     else:
         install_files(target, files)
+    if args.ue4ss: install_ue4ss(win64, ue4ss_files, args.dry_run)
     if args.pak: install_pak(sources, paks, args.dry_run)
 
 
