@@ -703,4 +703,37 @@ do
     toggle(gun,false)
 end
 
+-- 19. SB's own NIKKE reload adds no rounds while the rifle is out (the user's call, 11-21), in both fire modes:
+--     EffectTable P_Eve_GunNikke_ReloadCompleted's Action1 (ItemRefill, 22 here as a test value) is 0 (None). It
+--     goes back with SB's other rows: at the off (native fire) or at a new world. coop-gun.txt lists its shipped
+--     value, so a Lua reload puts it back. Without the row the rifle still comes out and the log says so.
+local REFILL='\trow|EffectTable|P_Eve_GunNikke_ReloadCompleted|Action1|d|22\t'
+do
+    for _,settings in ipairs({'','gun_fire=own\n'}) do
+        local w=Fake.new(); w.install()
+        local rc={Action1=22}
+        w.tables.EffectTable.P_Eve_GunNikke_ReloadCompleted=rc
+        local store=file()
+        local gun=new(settings,store)
+        toggle(gun,true)
+        assert(rc.Action1==0,settings..'SB\'s refill on while the rifle is out: '..tostring(rc.Action1))
+        assert(('\t'..store.peek()..'\t'):find(REFILL,1,true),'coop-gun.txt: '..store.peek())
+        toggle(gun,false)
+        -- (gun_fire=own keeps SB's rows taken with the rifle away until a new world)
+        assert(settings~='' or rc.Action1==22,'back with the rifle away: '..tostring(rc.Action1))
+        gun.new_controller(w.pc); clock=clock+5; frames(gun,2)
+        assert(rc.Action1==22 and #w.changed()==0,settings..'back at a new world: '..tostring(rc.Action1))
+        toggle(gun,true)
+        new(settings,store).restore()
+        assert(rc.Action1==22,'a Lua reload puts it back: '..tostring(rc.Action1))
+    end
+    local w=Fake.new(); w.install()
+    local gun,logs=new()
+    toggle(gun,true)
+    local said=false
+    for _,l in ipairs(logs) do if l:find('no EffectTable row P_Eve_GunNikke_ReloadCompleted',1,true) then said=true end end
+    assert(said,'the missing row is logged')
+    toggle(gun,false)
+end
+
 print('gunmode state: ok')

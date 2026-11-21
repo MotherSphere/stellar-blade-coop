@@ -27,6 +27,9 @@ Data.FIRE_EFFECT='M_Scarlet_CounterLinkStart'
 Data.BORROWED={Fire={'Nikke_01_E_ActorEff_015',Data.FIRE_EFFECT}}
 Data.BORROW_ORDER={'Fire'}
 Data.FIRE_SKILL='P_Eve_GunNikke_ShootSlug1_1'
+-- SB's own NIKKE reload: about 1 s after its last shot the effect P_Eve_GunNikke_ReloadCompleted adds 60 Bullet_Nikke
+-- (its Action1). Nothing while the rifle is out (take below).
+Data.REFILL_EFFECT='P_Eve_GunNikke_ReloadCompleted'
 Data.FIRE_COMMANDS={'P_Eve_GunNikke_ShootSlug1_1','P_Eve_GunNikke_ShootSlug1_2'}
 Data.BURST_COMMAND='P_Eve_GunNikke_ShootSlug2_1'
 -- Every drone fire command, of every round (the game loads the round the player picked each time she aims), the empty
@@ -176,7 +179,7 @@ function Data.new(g,native,opts)
 
     function self.take()
         if self.saved then return true end
-        local saved={}
+        local saved,refill={},nil
         local ok,err=pcall(function()
             -- The NIKKE shot's cool time: opts.cool at the rifle out (fight/gunmode/mode.lua gives 0, which
             -- fight/gunmode/ammo.lua turns into the rate of fire at the first round).
@@ -370,13 +373,28 @@ function Data.new(g,native,opts)
                 g.log('data: '..Data.HIT_STEP..' Type '..tostring(hit.Type)..' -> '..tostring(cast.Type))
                 hit.Type=cast.Type
             end
+            -- No free rounds from SB's own NIKKE reload while the rifle is out, in both fire modes: the magazine loads
+            -- only what EVE carries (the user's call, 11-21). Each NIKKE shot's Cast1 step applies SkillUseCheck. About
+            -- 1 s after the last one, with fewer than 60 carried, Reload ends in ReloadCompleted, whose Action1 adds 60.
+            -- Action1 is an ESBEffectAction byte at +0x2fc of SBEffectTableProperty (property params 0x145df9618 on
+            -- 26123051, enum params 0x146d33c30): EffectAction_None 0 (entry 0x145e27d30), EffectAction_ItemRefill 22
+            -- (entry 0x145e27e90). The effect start (0x141bc8d40) reads the live row's +0x2fc at each start. Its switch
+            -- has no case 0. Its case 0x16 adds AddCount to bucket 1 (0x141bdbc20). Last here: nothing after it can
+            -- fail, so a refused take never leaves it changed.
+            local eff=g.try(function() return tbl('EffectTable') end)
+            local rc=eff and find(eff,Data.REFILL_EFFECT)
+            if rc then
+                refill={rc,'Action1',rc.Action1}
+                g.log('data: '..Data.REFILL_EFFECT..' Action1 '..tostring(rc.Action1)..' -> 0: SB\'s NIKKE reload adds no rounds')
+                rc.Action1=0
+            else g.log('data: no EffectTable row '..Data.REFILL_EFFECT..': SB\'s NIKKE reload still adds rounds') end
         end)
         if not ok then
             undo(saved)
             g.log('data: not taken ('..tostring(err)..')')
             return false,err
         end
-        self.saved=saved
+        self.saved,self.refill=saved,refill
         quiet()
         g.log('data: '..#saved..' fields of SB\'s rows taken for gun mode')
         return true
@@ -393,6 +411,7 @@ function Data.new(g,native,opts)
         self.cool_row=nil
         local saved=self.saved
         self.saved=nil
+        if self.refill then undo({self.refill}); self.refill=nil end
         if not saved then return end
         undo(saved)
         g.log('data: SB\'s rows put back')
@@ -403,7 +422,7 @@ function Data.new(g,native,opts)
     -- A field that read nil has nothing to put back. Raises on a value it cannot keep.
     function self.records()
         local out={}
-        for _,list in ipairs({self.saved or {},self.armed or {}}) do
+        for _,list in ipairs({self.saved or {},self.armed or {},{self.refill}}) do
             for _,e in ipairs(list) do
                 if e[3]~=nil then
                     local at=assert(names[e[1]],'a row with no name')

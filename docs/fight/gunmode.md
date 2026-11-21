@@ -68,6 +68,12 @@ rifle changes:
   sound for up to 999 s, while gun mode's flash, recoil and count go on.
 - `SkillActiveStepTable`: the shot's `Hit1` step takes the `Type` of its `Cast1` step. It fires its projectile and
   spends no round.
+- `EffectTable` `P_Eve_GunNikke_ReloadCompleted`: SB's own NIKKE reload adds no rounds, in both fire modes. As
+  shipped, its `Action1` adds 60 `Bullet_Nikke` about 1 s after the last NIKKE shot while EVE carries fewer than 60.
+  Each reload of gun mode leaves her with fewer than 60, so every pause in the fire gave a free magazine (4 of them in
+  the 2026-11-21 test). While the rifle is out the action is `EffectAction_None`. The magazine then loads only the rounds
+  she buys or picks up. `UE4SS.log` has the line
+  `data: P_Eve_GunNikke_ReloadCompleted Action1 22 -> 0: SB's NIKKE reload adds no rounds`.
 - `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its destination is an offset from
   EVE's root in her root's frame (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own
   target line and sent the rounds to the side. Its own spread (a random range of 300 cm) is off. Its destination is
@@ -287,6 +293,11 @@ save without the Steam link or the native part, or when the rows were refused or
   actor a controller takes (`FUN_141ba6820`) and of an actor spawned with an inventory (`FUN_141ad24d0`,
   `FUN_141ba7f60`) with it set. The buckets the save load makes (`FUN_141ad2fa0`) have owner 0 with it clear. That no
   bucket of EVE's comes from that load was not read.
+- That a UE4SS write of 0 to the byte `Action1` of `P_Eve_GunNikke_ReloadCompleted` holds in the game was not tested.
+  The same kind of write to the `Type` of the shot's `Hit1` step does.
+- `P_Eve_GunNikke_BurstSkillReloadCompleted` also adds 60 rounds. Gun mode leaves it as shipped. Only the Cast1 steps
+  of the NIKKE burst skills apply it. Gun mode starts none of them. Whether the beta skill input can start those
+  skills in gun mode's aim stance was not checked.
 - A 999 written at an off while the game's aim runs (the off's hold) may be copied by a shot SB starts during the
   hold. SB's NIKKE shot outside gun mode would then wait up to 999 s. The next rifle out clears it. This was not seen
   in a test.
