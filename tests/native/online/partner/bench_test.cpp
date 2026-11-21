@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstdio>
 #include <deque>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -182,10 +183,39 @@ void test_loop() {
     const uint8_t *drawn = loop.frame(root);
     assert(root[0] == float(k % kBenchLoopFrames) && drawn[0] == uint8_t(k % kBenchLoopFrames));
   }
-  BenchLoop moved; // A new display list on the same table takes the loop over (bench_game.inc's bench_take).
-  moved.reset(2 * kTransformBytes);
-  std::swap(moved, loop);
-  assert(!moved.recording() && loop.recording() && !loop.frame(root) && moved.frame(root) && root[0] == 2.f);
+}
+
+// The worker's new list taken by the game thread (bench_game.inc's bench_take): on the same capture her loop goes on,
+// on another capture or other leaders' bones she is recorded again; no list (bench off) gives the old one back.
+void test_take() {
+  const auto list = [](uint64_t generation, size_t bone_bytes) {
+    auto b = std::make_unique<BenchLive>();
+    b->generation = generation;
+    b->bones.assign(bone_bytes, 0);
+    b->loop.reset(bone_bytes);
+    return b;
+  };
+  const size_t two = 2 * kTransformBytes;
+  const std::vector<uint8_t> bones(two, 9);
+  const float first[10] = {5};
+  float root[10] = {};
+  std::unique_ptr<BenchLive> live, incoming = list(7, two);
+  bench_swap(live, incoming); // The first list: nothing to carry over.
+  assert(live && live->generation == 7 && !incoming && !live->loop.frames());
+  live->loop.add(first, bones.data());
+  incoming = list(7, two); // A ghost built on the same capture.
+  bench_swap(live, incoming);
+  assert(live->loop.frames() == 1 && live->loop.frame(root) && root[0] == 5.f && !incoming->loop.frames());
+  incoming = list(8, two); // Her new capture.
+  bench_swap(live, incoming);
+  assert(live->generation == 8 && !live->loop.frames() && incoming->loop.frames() == 1);
+  live->loop.add(first, bones.data());
+  incoming = list(8, 3 * kTransformBytes); // The same generation with other leaders' bones.
+  bench_swap(live, incoming);
+  assert(live->bones.size() == 3 * kTransformBytes && !live->loop.frames() && incoming->loop.frames() == 1);
+  incoming.reset(); // bench off.
+  bench_swap(live, incoming);
+  assert(!live && incoming && incoming->bones.size() == 3 * kTransformBytes);
 }
 
 std::vector<uint8_t> pose(uint8_t first, size_t bones) {
@@ -308,6 +338,7 @@ void test_out() {
 int main() {
   test_parse();
   test_loop();
+  test_take();
   test_write();
   test_due();
   test_read();

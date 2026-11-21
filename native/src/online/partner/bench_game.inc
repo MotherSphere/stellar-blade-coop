@@ -9,20 +9,8 @@
 
 namespace coop::pose {
 namespace {
-// What the worker hands over, all sized off the game thread: the ghosts of one bench file, built on her capture of
-// generation, her loop and the scratch of a read (bones: leader_bytes of that capture).
-struct BenchLive {
-  uint64_t generation = 0;
-  std::vector<BenchGhost> ghosts;
-  BenchLoop loop;
-  std::vector<uint8_t> bones;
-  float root[10] = {};
-  Free free[kMaxParts];
-  uint64_t frame = 0;          // Frames drawn, for the strides.
-  bool refusal_logged = false; // Only the first refused write of a list is logged.
-};
-// Hand-over, guarded by bench_m: the worker's newest list (null: the bench is off); the game thread swaps it in and the
-// worker frees what comes back at its next hand-over.
+// Hand-over (bench.h's BenchLive), guarded by bench_m: the worker's newest list (null: the bench is off); the game
+// thread swaps it in and the worker frees what comes back at its next hand-over.
 std::mutex bench_m;
 std::unique_ptr<BenchLive> bench_incoming;
 bool bench_incoming_set = false;
@@ -34,16 +22,13 @@ float bench_stamp = 1; // The bench mailboxes' scale Z, as pose_game.inc's stamp
 std::atomic<uint64_t> bench_frames{0}, bench_gap_sum_us{0}, bench_gap_max_us{0}, bench_tick_sum_us{0},
     bench_tick_max_us{0}, bench_written{0}, bench_refused{0};
 
-// A new list from the worker. On the same capture (a ghost built, a group added) her loop goes on: no new recording.
+// A new list from the worker (bench.h's bench_swap: on the same capture her loop goes on).
 void bench_take() {
   if (!bench_m.try_lock()) // Swaps only under the lock: nothing allocates or frees.
     return;
   if (bench_incoming_set) {
-    bench_live.swap(bench_incoming);
+    bench_swap(bench_live, bench_incoming);
     bench_incoming_set = false;
-    BenchLive *now = bench_live.get(), *was = bench_incoming.get();
-    if (now && was && now->generation == was->generation && now->bones.size() == was->bones.size())
-      std::swap(now->loop, was->loop);
   }
   bench_m.unlock();
 }

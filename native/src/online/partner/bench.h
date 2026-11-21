@@ -15,8 +15,10 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "game/partner/engine.h" // alive, write_leader, write_leader_mapped, write_mailbox; game/table.h's Display
@@ -142,6 +144,28 @@ private:
   std::vector<uint8_t> data_;
   size_t frame_ = 0, frames_ = 0, played_ = 0;
 };
+
+// What the worker hands over, all sized off the game thread: the ghosts of one bench file, built on her capture of
+// generation, her loop and the scratch of a read (bones: leader_bytes of that capture).
+struct BenchLive {
+  uint64_t generation = 0;
+  std::vector<BenchGhost> ghosts;
+  BenchLoop loop;
+  std::vector<uint8_t> bones;
+  float root[10] = {};
+  Free free[kMaxParts];
+  uint64_t frame = 0;          // Frames drawn, for the strides.
+  bool refusal_logged = false; // Only the first refused write of a list is logged.
+};
+
+// The worker's newest list (null: the bench is off) swapped in for live, the old one left in incoming for the worker to
+// free. On the same capture (a ghost built, a group added) her loop goes on: no new recording. No allocation.
+inline void bench_swap(std::unique_ptr<BenchLive> &live, std::unique_ptr<BenchLive> &incoming) {
+  live.swap(incoming);
+  BenchLive *now = live.get(), *was = incoming.get();
+  if (now && was && now->generation == was->generation && now->bones.size() == was->bones.size())
+    std::swap(now->loop, was->loop);
+}
 
 inline bool bench_due(const BenchGhost &g, uint64_t frame) { return (frame + g.phase) % g.stride == 0; }
 

@@ -1024,10 +1024,12 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   malformed for a bad head, a block line that is not `ghost` and three whole numbers, stride 0, 3 or 8, an offset past
   30000 cm, a 65th block or a file over 4 MiB. A pass's read of a missing file: off before a run, kept during one. Her
   loop: nothing before her first read, the frame just added drawn while recording (again after a refused read), then the
-  240 frames in order from the first again, a new list taking the loop over. One pose written into a bench ghost: its
-  leaders' bones and refresh bytes, the mailbox at her root plus the offset with the stamp, a remapped leader, a closed
-  gate refused with its part while the rest is written, the first refused part named, a mailbox of another actor refused
-  as the mailbox, a destroyed root part gone with nothing written or counted, a left-out leader's bytes skipped.
+  240 frames in order from the first again. A new list swapped in (`bench_swap`, which `bench_take` calls): the first
+  one, one on the same capture that keeps her loop, one on a new capture or with other leaders' bones that records her
+  again. `bench off` gives the old list back. One pose written into a bench ghost: its leaders' bones and refresh bytes,
+  the mailbox at her root plus the offset with the stamp, a remapped leader, a closed gate refused with its part while
+  the rest is written, the first refused part named, a mailbox of another actor refused as the mailbox, a destroyed
+  root part gone with nothing written or counted, a left-out leader's bytes skipped.
   `bench_due` for stride 4 and phase 1. The exact `coop-bench-out.txt` lines with the memory, without it and empty;
 
 ### Saves
