@@ -103,6 +103,15 @@ do
     for _,want in ipairs({ASSET,'NGM_R_','SBOutfitProject'}) do
         if not readme:find(want,1,true) then fail('tools/gunmode/README.md does not name '..want) end
     end
+    -- The pak's v4 assets that no script here makes: the poses overlay.lua plays and the aim camera's modifier.
+    local poses=require('fight.gunmode.overlay').CLIPS.aim:match('^/Game/(.+)/[^/]+$')
+    local cammod=read(S..'mode.lua'):match("local CAMMOD='[^']-/([%w_]+)%.[%w_]+'")
+    assert(poses and cammod,'overlay.lua names its poses, mode.lua its camera modifier')
+    for _,w in ipairs({{'tools/gunmode/README.md',readme},{PAGE,page}}) do
+        for _,want in ipairs({poses,cammod}) do
+            if not w[2]:find(want,1,true) then fail(w[1]..' does not name '..want) end
+        end
+    end
 end
 
 -- 3. Gun mode's code, tests, tools and page: no clock time of a play session unless it names its log (as in

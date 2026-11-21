@@ -6,8 +6,11 @@ The mod does not run these scripts (see [Gun mode](../../docs/fight/gunmode.md))
 ## What no script here makes
 
 - `ABP_NGM_Spike` in `/Game/Mods/NGM/`, the rifle layer that `fight/gunmode/overlay.lua` looks for.
-- The `NGM_R_*` rifle clips in `/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/` that the layer plays, with the blend
-  spaces `fight/gunmode/config.lua` names (`P_Eve_NGM_R_BS`, `P_Eve_NGM_RC_BS`, `P_Eve_NGM_RCB_BS`, `NGM_R_Aim_BS`).
+- The four poses the layer plays, in `/Game/Mods/NGM/Poses/` (`NGM_Pose_CarryLowReady`, `NGM_Pose_AimLevel`,
+  `NGM_Pose_AimUp45`, `NGM_Pose_AimDown45`) and the aim camera's modifier `BP_NGM_CamMod` in `/Game/Mods/NGM/`.
+- The `NGM_R_*` rifle clips in `/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/` that gun mode uses without the
+  layer, with the blend spaces `fight/gunmode/config.lua` names (`P_Eve_NGM_R_BS`, `P_Eve_NGM_RC_BS`,
+  `P_Eve_NGM_RCB_BS`, `NGM_R_Aim_BS`).
 - `SBOutfitProject`, the Unreal 4.26 project these assets are made in. It is not in this repository.
 
 The `ngm_spike_build_*.py` scripts only cook `SBOutfitProject` and pack what it holds.
@@ -21,7 +24,7 @@ The `ngm_spike_build_*.py` scripts only cook `SBOutfitProject` and pack what it 
 | `unreal/import_stand.py` | Unreal 4.26, in `SBOutfitProject`: the FBX imported on the `CH_P_EVE_01_Skeleton` stand-in into `/Game/OutfitMods/NikkeGunMode/Anim`, the aim poses made additive. Gun mode's code loads nothing from that folder |
 | `rebuild/ngm_spike_build_a1.py` | `SBOutfitProject` cooked, `Mods/NGM` packed with retoc into `zNGMSpike_P` (`NGM_PAK`), copied into `~mods` while the game is closed |
 | `rebuild/ngm_spike_build_a2.py` | The same, copied into a `~mods` subfolder (`NGM_SUB`, default `NikkeGunModeSpike`) |
-| `rebuild/ngm_spike_build_a4.py` | The same as `a2` for each folder `NGM_REL` names, `;` between them. The default `Mods/NGM` packs the layer alone. `Mods/NGM;Art/Character/PC/CH_P_EVE_01/Animation/NGM` adds the rifle clips |
+| `rebuild/ngm_spike_build_a4.py` | The same as `a2` for each folder `NGM_REL` names, `;` between them. The default `Mods/NGM` packs the layer with its poses and the camera modifier. `Mods/NGM;Art/Character/PC/CH_P_EVE_01/Animation/NGM` adds the rifle clips |
 | `rebuild/ngm_camturn_a1.py` | Test input: the mouse moved sideways by the pixels in `camturn_dx.txt` (600 without it) over about a second |
 | `rebuild/ngm_holdmouse_a1.py` | Test input: after 3 s, the right mouse button held 12 s and the left one from 6 s to 9 s |
 | `rebuild/ngm_holdpitch_a1.py` | Test input: the right mouse button held while the camera pitches up, down past centre and back |

@@ -25,9 +25,11 @@ at low ready otherwise. It puts her right hand on the rifle's grip and her left 
 attached to her real right hand (`fight/gunmode/rifle.lua`) with the grip of the pose on the layer. When the pose
 changes, her hands and the grip ease to the new place together over 0.14 s, so the rifle never jumps in her hand.
 
-During one of the game's own moves (a dodge, a hit reaction, a knockdown, a parry) the layer lets go of her arms until
-the move ends. A new outfit drops the layer: gun mode puts it back within a second, or puts the rifle away when it
-cannot. When the rifle goes away, each body mesh the layer went on gets its own post-process class back.
+During one of the game's own moves on the ground (a dodge, a hit reaction, a knockdown, a parry) the layer plays the
+carry pose until the move ends, in firing mode too. The aim's turn of her body eases out meanwhile. In the air the aim
+pose stays while she aims or fires. A new outfit drops the layer: gun mode puts it back within a second, or puts the
+rifle away when it cannot. When the rifle goes away, each body mesh the layer went on gets its own post-process class
+back.
 
 `UE4SS.log` has the `[GM]` line `rifle layer on`, or `rifle layer not available:` with the reason. When the layer
 does not install, gun mode falls back to the rifle clips alone if the game finds them (`animation pak found`): the aim
@@ -38,8 +40,9 @@ stance's animation set then points at the rifle's blend spaces. Without them it 
 
 `zNGMSpike_P` is not part of SBO. SBO ships no animation file. The pak is built on your own PC:
 `tools/gunmode/rebuild/ngm_spike_build_a4.py` cooks an Unreal project (`SBOutfitProject`) that is not in this
-repository. It packs the layer, then the clips when the environment variable `NGM_REL` names their folder. No script
-in the repository makes the layer, the clips or the project. [Gun mode tools](../../tools/gunmode/README.md) lists
+repository. It packs `Mods/NGM`: the layer, its four poses (`Mods/NGM/Poses`) and the aim camera's modifier
+`BP_NGM_CamMod`. It adds the `NGM_R_` clips when the environment variable `NGM_REL` names their folder. No script in
+the repository makes these assets or the project. [Gun mode tools](../../tools/gunmode/README.md) lists
 what each script makes.
 
 ## What gun mode changes in the game's data
@@ -70,7 +73,7 @@ stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the rif
 | --- | --- | --- |
 | F4 (`gun_key`) | A tap of D-pad Right | Rifle out or away. A hold of D-pad Right is the bike's |
 | RMB (held) | LT (held) | Firing mode: the camera comes over her shoulder, the laser sight and the reticle come up |
-| LMB | RT | In firing mode: full auto |
+| LMB | RT | In firing mode: full auto. Without RMB / LT: hip fire ([Firing mode](#firing-mode)) |
 | Space | A | In firing mode: jump, still firing |
 | B | Triangle | Reload: the magazine is topped up from the spares |
 
@@ -111,7 +114,7 @@ It takes the HUD entry and the crosshair off SB's HUD, with gun mode on or off.
 ## Firing mode
 
 Firing mode is the game's own drone aim (`gun_fire=native`, the default) with a few changes. On the rifle layer her
-arms take the aim clip with the rifle on the camera's line. On the posed stance her upper body takes luke77's rifle aim
+arms take the aim pose with the rifle on the camera's line. On the posed stance her upper body takes luke77's rifle aim
 on her normal standing spine. The camera's field of view is 66 (the game's aim uses 45), so her hips and the rifle stay
 in frame. She runs, strafes and backpedals at the aim stance's speed times 1.4.
 
@@ -131,6 +134,10 @@ A jump drops the game's aim stance in the air. Gun mode keeps the rifle up, keep
 the NIKKE shot itself until the aim button is let go, after landing as well. Press RMB / LT again to get the game's
 strafing aim back. On the rifle layer each of these shots waits until the rifle points within 10 degrees of the
 reticle point. Without the layer nothing measures the rifle's line, so the shots leave at once.
+
+LMB / RT without the aim button is hip fire. On the rifle layer the rifle comes up in the aim pose. EVE turns to the
+camera through her own movement. Gun mode fires the NIKKE shot itself once the rifle points within 10 degrees of the
+reticle point. Without the layer hip fire fires nothing.
 
 In firing mode the laser sight runs from the rifle's muzzle to the reticle point. The rifle turns in her hands onto
 that line every frame, up to 6 degrees. The beam hangs from the muzzle socket through a component of its own, so a
