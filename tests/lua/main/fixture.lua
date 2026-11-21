@@ -384,6 +384,15 @@ package.loaded['online.group.group']={new=function(o)
         rest=function(zone,from) gr.rests[#gr.rests+1]={zone,from} end,
         cutscene_playing=function() return gr.playing==true end}
 end}
+-- Spectate's camera and respawn (fight/enemies/spectate.lua; spectate_test tests it): what new got (o), its ticks'
+-- clocks, its frames, the ways it was asked to switch and whether it watches (watching).
+sp={o=nil,ticks={},frames=0,switches={},watching=false}
+package.loaded['fight.enemies.spectate']={new=function(o)
+    sp.o=o
+    return {tick=function(t) sp.ticks[#sp.ticks+1]=t end,frame=function() sp.frames=sp.frames+1 end,
+        switch=function(way) sp.switches[#sp.switches+1]=way end,watching=function() return sp.watching==true end,
+        test=function() return true,'spectate test asked' end,status=function() return 'spectate: native on' end}
+end}
 -- The follow (online/group/travel.lua): what travel.new got (o), its ticks' clocks, follow_key's presses, coop
 -- travel probe's camps, coop travel spot's words and the member its go(id) got last (gone).
 tv={o=nil,ticks={},presses=0,probes={},spots={}}
@@ -1033,6 +1042,7 @@ function load_main(with_native,no_folder,source)
     gt.o,gt.ticks=nil,0
     nr.o,nr.runs,nr.chs,nr.ticks,nr.stops=nil,{},{},0,{}
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
+    sp.o,sp.ticks,sp.frames,sp.switches,sp.watching=nil,{},0,{},false
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
     li.o,li.cmds,li.ticks,li.stops,li.says,li.raise=nil,{},0,0,nil,nil

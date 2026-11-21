@@ -88,7 +88,9 @@ end
 -- our screens open (the host's question, the Sessions screen and the Create a session screen included) and the game
 -- neither paused nor showing one of its own screens, such as its inventory or map; otherwise it logs why and does
 -- nothing. pause_tab (RB on the pause menu's last tab, E on the keyboard: the native part's event 12) goes to the
--- Online tab only (ui/kit/pause_tab.lua), never to one of our screens.
+-- Online tab only (ui/kit/pause_tab.lua), never to one of our screens. left and right (the D-pad or the left stick)
+-- that nothing above took switch the member spectate watches while our EVE is down in a shared boss fight
+-- (fight/enemies/spectate.lua).
 M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab'}
 -- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
 -- English as the bike gives it, since the press shows nothing else.
@@ -152,6 +154,8 @@ function M.pad_event(what)
     elseif what=='menu' and M.hud_shown then
         log('pad: menu')
         open_menu()
+    elseif (what=='left' or what=='right') and M.spectate and M.spectate.watching() then
+        M.spectate.switch(what)
     end
 end
 -- The pause menu's Online tab (ui/kit/pause_tab.lua), made after pad_event: it opens the menu. Logging [PT] lines.

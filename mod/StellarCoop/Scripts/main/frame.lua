@@ -74,6 +74,8 @@ LoopInGameThreadWithDelay(1,function()
     if message then M.report(ok,message) end
     if M.ghosts then M.report_each(M.guarded('ghost',M.ghosts.place)) end
     placed=os.clock()-placed
+    -- Spectate's camera, from the ghosts' places just set (fight/enemies/spectate.lua).
+    if M.spectate then M.guarded('spectate',M.spectate.frame) end
     local looked=os.clock()
     ok,message=M.guarded('doro',M.doro.tick) -- After the native tick: EVE's mesh is where this frame draws her.
     if message then M.report(ok,message) end

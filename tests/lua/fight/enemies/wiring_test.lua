@@ -511,4 +511,68 @@ for _,case in ipairs({{with_slot('fight=on mode=pvp proxy=0 sent=0 unnamed=0 lin
         table.concat(printed,'|'))
 end
 settings_text=''
+-- spectate (each player's own, on by default; fight/enemies/spectate.lua). The native part starts with it on: once a
+-- load, once the native part judged the slot, the loop asks spectate on or off only where the engine line's spectate=
+-- word disagrees with the setting (no word reads as on; faulted takes no ask). The co-op menu's row asks at once.
+local function spectate_asks()
+    local out={}
+    for _,line in ipairs(asked) do if line:find('^spectate') then out[#out+1]=line end end
+    return out
+end
+local function engine(word)
+    return 'mod=v proto=3 steam=ready\nlink=none lobby=0\nengine=on'..(word and ' spectate='..word..' hud=-' or '')
+        ..'\nslot=coop index=4 marker=4\nlast=#1 ready\n'
+end
+for _,case in ipairs({{'on',nil,nil},{'on','on',nil},{'on','off','spectate on'},{'on','faulted',nil},
+        {'off',nil,'spectate off'},{'off','on','spectate off'},{'off','off',nil},{'off','faulted',nil}}) do
+    settings_text,status_text='shared_enemies=off\nspectate='..case[1]..'\n',engine(case[2])
+    load_main(true)
+    quarter(); quarter()
+    local got=spectate_asks()
+    assert(#got==(case[3] and 1 or 0) and got[1]==case[3],case[1]..' '..tostring(case[2])..': '..table.concat(got,'|'))
+    assert(not case[3] or logged('OK: spectate='..case[1]..': asked the native part: '..case[3]),
+        table.concat(printed,'|'))
+end
+-- It waits for the judged slot; coop spectate on or off before then cancels it.
+settings_text,status_text='shared_enemies=off\nspectate=off\n',plain
+load_main(true)
+quarter(); assert(#spectate_asks()==0,'No slot judged yet: it waits')
+coop('spectate','on'); status_text=engine(nil); quarter(); quarter()
+assert(table.concat(spectate_asks(),'|')=='spectate on','Only the command: '..table.concat(spectate_asks(),'|'))
+-- The co-op menu's row: off asks spectate off once, back on asks spectate on.
+settings_text,status_text='shared_enemies=off\n',engine(nil)
+load_main(true)
+in_world,kit_ready=true,true; quarter(); quarter()
+assert(#spectate_asks()==0,'On and no word: nothing')
+key('F5'); to('Options'); key('RETURN'); to('Watch a friend when I fall'); assert(select(2,focus())=='On')
+key('RETURN'); quarter(); quarter()
+assert(settings_text:find('\nspectate=off\n',1,true) and table.concat(spectate_asks(),'|')=='spectate off'
+    and logged('OK: spectate=off: asked the native part: spectate off'),table.concat(spectate_asks(),'|'))
+key('RETURN'); quarter(); quarter()
+assert(table.concat(spectate_asks(),'|')=='spectate off|spectate on',table.concat(spectate_asks(),'|'))
+key('ESCAPE'); key('ESCAPE')
+in_world,kit_ready=true,false
+-- coop spectate: strict arguments; on and off ask the native part; status asks it and answers with the Lua side's
+-- line; test runs on a co-op save only.
+local SPECTATE_USE='[StellarCoop] STOP: Use: coop spectate on | off | status | test\n'
+settings_text,status_text='shared_enemies=off\n',plain
+load_main(true)
+for _,bad in ipairs({{},{'start'},{'ON'},{'on','x'},{'test','1'},{'status','x'}}) do
+    coop('spectate',table.unpack(bad))
+    assert(last()==SPECTATE_USE and #asked==0,table.concat(bad,' ')..': '..last())
+end
+coop('spectate','off')
+assert(asked[1]=='spectate off' and last()=='[StellarCoop] OK: asked the native part: spectate off\n',last())
+coop('spectate','status')
+assert(asked[2]=='spectate status' and last()=='[StellarCoop] OK: spectate: native on\n',last())
+coop('spectate','test')
+assert(last()=='[StellarCoop] STOP: coop spectate test runs only on a co-op save (INSTALL.md: Co-op saves); now '
+    ..'no slot status\n' and #asked==2,last())
+status_text=COOP
+coop('spectate','test'); assert(last()=='[StellarCoop] OK: spectate test asked\n',last())
+-- The tick runs in fight's 250 ms work with the loop's clock, after coop off too (the view back on EVE).
+local ticks=#sp.ticks
+quarter(); assert(#sp.ticks==ticks+1 and sp.ticks[#sp.ticks]>0)
+coop('off'); quarter(); assert(#sp.ticks==ticks+2,'After coop off too')
+settings_text,status_text='',plain
 io.stdout:write('fight_test ok\n')

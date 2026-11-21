@@ -4,8 +4,9 @@
 -- The shared enemies' console commands (Phase 11, experimental): coop fight with its pilot and spawn probe; coop pvp,
 -- the PvP test (a test tool). fight/enemies/wiring.lua builds them with new(o) at each Lua load and main/loader.lua
 -- merges them into the command table; main/pass.lua runs coop fight on by itself for shared_enemies=on
--- (fight/enemies/wiring.lua's fight_asks). o: link, settings, native_tick, ask (a line for the native part), coop_slot
--- and fight_auto_off() (coop fight off cancels that ask).
+-- (fight/enemies/wiring.lua's fight_asks). o: link, settings, native_tick, ask (a line for the native part), coop_slot,
+-- fight_auto_off() (coop fight off cancels that ask), spectate_auto_off() (coop spectate on or off cancels the load's
+-- spectate ask) and spectate() (fight/enemies/spectate.lua's object, built with the Steam link only). coop spectate.
 local Fight={}
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
@@ -30,6 +31,11 @@ local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true,exec=
 -- off and status (the fight= line), which check nothing.
 local PVP_USE='Use: coop pvp on | off | status'
 local PVP_WORDS={on=true,off=true,status=true}
+-- coop spectate: on and off go to the native part until the next ask (the menu's row, a reload); status asks the native
+-- part (its line in the log, with the press filter's state) and answers with the Lua side's; test is the solo probe at
+-- the death screen, on a co-op save only (its respawn refills the recovery items).
+local SPECTATE_USE='Use: coop spectate on | off | status | test'
+local SPECTATE_WORDS={on=true,off=true,status=true,test=true}
 function Fight.new(o)
     local link,settings,native_tick,ask,coop_slot=o.link,o.settings,o.native_tick,o.ask,o.coop_slot
     local self={}
@@ -120,6 +126,23 @@ function Fight.new(o)
         local ok,why=ask('fight status')()
         if not ok then return ok,why end
         return true,link.fight() or 'no PvP status yet'
+    end
+    function self.spectate(sub,extra)
+        if extra~=nil or not SPECTATE_WORDS[sub or ''] then return false,SPECTATE_USE end
+        local spectate=o.spectate()
+        if not spectate then return false,'the Steam link needs the native part' end
+        if sub=='on' or sub=='off' then
+            o.spectate_auto_off()
+            return ask('spectate '..sub)()
+        end
+        if sub=='status' then
+            local ok,why=ask('spectate status')()
+            if not ok then return ok,why end
+            return true,spectate.status()
+        end
+        local ok,why=coop_slot('coop spectate test')
+        if not ok then return false,why end
+        return spectate.test()
     end
     return self
 end

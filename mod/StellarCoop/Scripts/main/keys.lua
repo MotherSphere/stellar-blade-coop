@@ -13,10 +13,12 @@ local print,log=M.print,M.log
 -- co-op menu; E and the left tab key are C's tabs), then the Sessions screen while it is open (menu_key closes it; E
 -- and the left tab key are its tabs, F its Refresh). Enter goes to the menu's key capture, then selects; the navigation
 -- keys go to the menu while it is open only (UI-DESIGN 4.1: up arrow, W or Z; down arrow or S; left arrow, A or Q;
--- right arrow or D; Enter or Space; Esc), and to the co-op saves' question while it is open. The code box takes Enter
--- (join) and Esc (cancel). With all closed, Enter opens the chat's box, then sends, and Esc cancels; while the question
--- or a box is open our F-keys do nothing. The mouse buttons are the join popups' first while one is open (a left click
--- answers with the button under the mouse, a right click declines or closes), then the lobby's screens' and the menu's
+-- right arrow or D; Enter or Space; Esc), and to the co-op saves' question while it is open. With none of them open,
+-- the left and right arrows switch the member spectate watches while our EVE is down in a shared boss fight
+-- (fight/enemies/spectate.lua). The code box takes Enter (join) and Esc (cancel). With all closed, Enter opens the
+-- chat's box, then sends, and Esc cancels; while the question or a box is open our F-keys do nothing. The mouse
+-- buttons are the join popups' first while one is open (a left click answers with the button under the mouse, a right
+-- click declines or closes), then the lobby's screens' and the menu's
 -- (a left click selects the row under the mouse, a right click goes back), then the left one the co-op saves'
 -- question's (the choice under the mouse); closed, they are the game's. A left click over the pause menu's Online tab
 -- closes the pause menu and opens the co-op menu (ui/kit/pause_tab.lua). A key callback runs on UE4SS's key thread: it
@@ -127,7 +129,12 @@ if M.settings then
                 ExecuteInGameThread(function() lobby_key(nav[1],nav[2]) end)
             elseif not nav[2] then return
             elseif M.menu.is_open() then ExecuteInGameThread(function() M.menu.nav(nav[2]) end)
-            elseif M.saves_ui.is_open() then ExecuteInGameThread(function() M.saves_ui.nav(nav[2]) end) end
+            elseif M.saves_ui.is_open() then ExecuteInGameThread(function() M.saves_ui.nav(nav[2]) end)
+            -- The arrows alone (never A, Q or D) switch the member spectate watches, while no box takes typing.
+            elseif (nav[1]=='LEFT_ARROW' or nav[1]=='RIGHT_ARROW') and not M.box.is_open()
+                and not M.code_box.is_open() and M.spectate and M.spectate.watching() then
+                ExecuteInGameThread(function() M.spectate.switch(nav[2]) end)
+            end
         end)
     end
     bind('ESCAPE',nil,function()

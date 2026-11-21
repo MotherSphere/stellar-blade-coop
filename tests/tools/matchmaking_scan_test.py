@@ -58,6 +58,8 @@ ADD_ROWS = {'online/modes/nightop/probe.lua': 1}
 # mentions. On 26123051 CreateActor (0x1423bdd20) queues its job on SB's local logic queue (0x141af4b70) and sends it
 # only in the UE client net mode 3; RunEvent hands kind 2 to 0x141c9e690 (its call at 0x141ca627d); the respawn's job
 # (0x141b10b30) finds EVE by her GUID and refills her recovery items, reading no zone type.
+# Spectate (fight/enemies/spectate.lua, a copy of group play's respawn call): ActorRespawn and ActorRevival on our own
+# EVE (each call with its log line, coop spectate test's one ActorRespawn and the header's two mentions).
 RATIONED = {'MultiplayTest_ZoneE_059': {'online/modes/nightop/recruiter.lua': 1},
             'CreateSBZoneEvent': {'online/modes/nightop/probe.lua': 3, 'online/modes/nightop/recruiter.lua': 4,
                                   'story/scenes/scene.lua': 6,
@@ -71,7 +73,7 @@ RATIONED = {'MultiplayTest_ZoneE_059': {'online/modes/nightop/recruiter.lua': 1}
                                'fight/bosses/enemy.lua': 2, 'eve/chainspin.lua': 1, 'core/effect.lua': 1,
                                'cutmenus/mailbox.lua': 2, 'vehicles/bike/fetch.lua': 1,
                                'fight/gunmode/probe.lua': 5, 'fight/gunmode/nikke.lua': 2,
-                               'online/modes/scoreattack/run.lua': 5}}
+                               'online/modes/scoreattack/run.lua': 5, 'fight/enemies/spectate.lua': 7}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -174,6 +176,7 @@ NS, LI, SC = (f'{SCRIPTS}/online/modes/nightop/shop.lua', f'{SCRIPTS}/fight/boss
 BO = f'{SCRIPTS}/world/maps/matrix13/level/boss.lua'
 GM, GP = f'{SCRIPTS}/fight/gunmode/mode.lua', f'{SCRIPTS}/fight/gunmode/probe.lua'
 SA = f'{SCRIPTS}/online/modes/scoreattack/run.lua'
+SP = f'{SCRIPTS}/fight/enemies/spectate.lua'
 SH, SG, WG = ('native/src/game/sbo.h', 'native/src/online/lobby/sbo_game.inc',
               'native/src/glue/tick/world_game_shared.inc')
 SEQ_CONST, SEQ_CALL = ('constexpr uint64_t kRunZoneEvent = 0x141ca5790;\n',
@@ -212,6 +215,8 @@ GUN = padded('fight/gunmode/mode.lua', GUARDED.replace('NightOp', 'GunMode'))
 SCORE = padded('online/modes/scoreattack/run.lua', GUARDED.replace('NightOp', 'Run')
                + "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,key,key&0xFF,n,false)\n"
                + 'pc:ServerRequest_ActorRespawn(me,false)\n')
+SPECTATE = padded('fight/enemies/spectate.lua',
+                  'pc:ServerRequest_ActorRespawn(me,false)\npc:ServerRequest_ActorRevival(c.me,false)\n')
 GUN_PROBE = padded('fight/gunmode/probe.lua', "pc:ServerRequest_ChangeBulletItem(pawn,FName('Bullet_Nikke'))\n")
 CHAINSPIN = padded('eve/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(ChainSpin.ID))\n")
 MAILBOX = padded('cutmenus/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
@@ -223,7 +228,8 @@ CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: E
          MB: MAILBOX, BF: FETCH, NK: NIKKE, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n',
          SH: SEQ_CONST, SG: SEQ_CALL, WG: WORLD_CALL,
-         IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', ''), GM: GUN, GP: GUN_PROBE, SA: SCORE}
+         IT: padded('core/items.lua', ''), EF: padded('core/effect.lua', ''), GM: GUN, GP: GUN_PROBE, SA: SCORE,
+         SP: SPECTATE}
 CE = f'{SCRIPTS}/fight/bosses/enemy.lua'
 CLEAN[CE] = padded('fight/bosses/enemy.lua', '')  # fight.bosses' copy of core/enemy.lua (November 2026).
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
@@ -262,6 +268,7 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L1'}, {SA: SCORE.replace('Run.allowed(kind,name)', 'Run.allowed(15,name)')}),
           ({'L1', 'L5'}, {SA: None}),
           ({'L5'}, {SA: SCORE + 'pc:ServerRequest_ActorRevival(me,false)\n'}),
+          ({'L5'}, {SP: SPECTATE + 'pc:ServerRequest_ResetZone(me,zone)\n'}),
           ({'L1'}, {R: RECRUITER.replace('Recruiter.allowed(kind,name)', 'Recruiter.allowed(15,name)')}),
           ({'L1', 'L5'}, {M: 'bpl.CreateSBZoneEvent(bpl,15,n)\n'}),
           ({'L1', 'L5'}, {M: 'bpl: CreateSBZoneEvent(15,n)\n'}),

@@ -229,6 +229,32 @@ end)()
     link_mode,in_world,kit_ready='none',false,false
 end)()
 
+-- Spectate (fight/enemies/spectate.lua) while our EVE is down in a shared boss fight: the pad's left and right that
+-- nothing else took switch the member it watches; the co-op menu open takes them first. The left and right arrows the
+-- same way, never A, Q or D; nothing while it does not watch.
+;(function()
+    local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    kit_ready=true; quarter()
+    pad(3,4); assert(#sp.switches==0,'Not watching: nothing')
+    key('LEFT_ARROW'); assert(#sp.switches==0)
+    sp.watching=true
+    pad(3); assert(table.concat(sp.switches,'|')=='left','left: '..table.concat(sp.switches,'|'))
+    pad(4); assert(table.concat(sp.switches,'|')=='left|right')
+    pad(1,2); assert(#sp.switches==2,'up and down: nothing')
+    key('F5'); assert(kit_shown.menu and focus()=='Host a session')
+    pad(3,4); assert(#sp.switches==2 and kit_shown.menu,'The menu takes them')
+    key('LEFT_ARROW'); assert(#sp.switches==2 and kit_shown.menu,'The menu takes the arrow')
+    key('F5'); assert(not kit_shown.menu)
+    key('LEFT_ARROW'); key('RIGHT_ARROW')
+    assert(table.concat(sp.switches,'|')=='left|right|left|right',table.concat(sp.switches,'|'))
+    key('A'); key('Q'); key('D'); key('UP_ARROW'); key('DOWN_ARROW')
+    assert(#sp.switches==4,'A, Q, D and the up and down arrows: no switch')
+    sp.watching=false
+    in_world,kit_ready=false,false
+end)()
+
 -- The focus watchdog (the kit's lost(); ui_kit_test tests when it fires): the 250 ms loop then runs what coop ui reset
 -- runs, before the menu's slow (the menu closed, an open host's question denied, the game's input given back now), and
 -- logs who lost the focus; no notice on screen.

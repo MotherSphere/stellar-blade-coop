@@ -36,7 +36,8 @@
 -- fight/enemies/commands.lua's (coop pvp, the PvP test, a test tool with no menu row; main.lua's reload ends it when
 -- off); its sbo_lobby online/lobby/sbo.lua's (the SBO lobby in Xion, on by default, no menu row), which also reads
 -- sbo() here; its bike and bike_key vehicles/bike/ride.lua's and main.lua's (the bike); its gun_mode, gun_key and
--- gun_ test lines fight/gunmode/mode.lua's (gun mode, which checks the test lines itself). The co-op menu
+-- gun_ test lines fight/gunmode/mode.lua's (gun mode, which checks the test lines itself); its spectate
+-- fight/enemies/wiring.lua's (it asks the native part spectate on or off). The co-op menu
 -- (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')

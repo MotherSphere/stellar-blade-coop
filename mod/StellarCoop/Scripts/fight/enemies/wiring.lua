@@ -1,10 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The shared enemies' wiring (fight/enemies/): the reload kill switches, the notices and the menu rows' asks.
+-- The shared enemies' wiring (fight/enemies/): the reload kill switches, the notices, the menu rows' asks and spectate.
 return {
 uses={'online.partner'},
-exports={'fight_notices','pilot_notices','fight_asks'},
+exports={'fight_notices','pilot_notices','fight_asks','spectate'},
 new=function(M)
 local print,log=M.print,M.log
 -- shared_enemies=on: coop fight on asked once a load, as soon as the native part judged the slot (coop, main, or none
@@ -21,6 +21,12 @@ local place_wanted=M.settings~=nil and M.settings.same_place
 -- The co-op menu's hit_reactions and stagger_resist rows the same way: a change of either asks coop fight stagger with
 -- both (stagger_wanted: the values last acted on).
 local stagger_wanted={M.settings~=nil and M.settings.hit_reactions,M.settings~=nil and M.settings.stagger_resist}
+-- spectate: the native part starts with it on. Once a load, as soon as the native part judged the slot, the loop asks
+-- spectate on or off only where the engine line's spectate= word disagrees with the setting (no word reads as on).
+-- coop spectate on or off before then cancels that ask. The co-op menu's row asks spectate on or off at once;
+-- spectate_wanted: the value last acted on.
+local spectate_auto=M.settings~=nil
+local spectate_wanted=M.settings~=nil and M.settings.spectate
 -- shared_enemies=off is a kill switch at a reload too (Ctrl+R): the native part outlives Lua, so a coop fight on that an
 -- earlier load started ends here, waiting or running (its fight= line, from the start of its own line). A probe, record
 -- or replay goes on: shared_enemies does not gate them.
@@ -47,6 +53,14 @@ if M.settings and not M.settings.same_place and not M.off then
     end
 end
 if M.link then
+    -- Spectate (fight/enemies/spectate.lua), logging [SP] lines: the camera and the respawn while our EVE is down in a
+    -- shared boss fight. It reads partner's ghosts late (M.ghost_of and the puppet view); partner off: no ghost anchor,
+    -- so the camera stays over our own EVE. Its tick runs first in fight_notices, after coop off too, so the view
+    -- comes back on our EVE.
+    M.spectate=require('fight.enemies.spectate').new({link=M.link,settings=M.settings,
+        log=function(m) print('[StellarCoop][SP] '..tostring(m)..'\n') end,tell=M.tell,name=M.her_name,
+        puppet=require('main.loader').view(M,'puppet'),ghost=function(k) return M.ghost_of(k) end,
+        actors=require('core.actors'),player=require('core.player'),unreal=require('core.unreal')})
     -- The shared enemies' notices, from the fight= line (an unread status changes nothing), in the menu's language
     -- (read only to say one): on with the count when its enemies go from none to some, and the host's scaling unless it
     -- is 100 % and 100 % (the line's scale=, which the guest has from the host); off, or stopped for the run, once it
@@ -77,6 +91,7 @@ if M.link then
     -- fight_maxhp.
     local REST_CALM,rest=10,{}
     function M.fight_notices()
+        M.guarded('spectate',M.spectate.tick,M.chat_clock)
         if M.link.mode()=='none' then fight_told=nil end
         local line=M.link.fight()
         if not line then return end
@@ -195,8 +210,8 @@ if M.link then
         end
         pilot_was=state
     end
-    -- The co-op menu's shared_enemies, same_place, hit_reactions and stagger_resist rows, then coop fight on once a
-    -- load (main/pass.lua calls this).
+    -- The co-op menu's shared_enemies, same_place, hit_reactions, stagger_resist and spectate rows, then coop fight on
+    -- and the spectate ask once a load (main/pass.lua calls this).
     function M.fight_asks()
         if M.settings.shared_enemies~=fight_wanted and not M.off then -- The co-op menu's row.
             fight_wanted=M.settings.shared_enemies
@@ -223,6 +238,25 @@ if M.link then
                 M.report(ok,'stagger: '..tostring(message))
             end
         end
+        if M.settings.spectate~=spectate_wanted and not M.off then -- The co-op menu's row.
+            spectate_wanted=M.settings.spectate
+            local word=spectate_wanted and 'on' or 'off'
+            local ok,message=M.ask('spectate '..word)()
+            M.report(ok,'spectate='..word..': '..tostring(message))
+        end
+        if spectate_auto and not M.off then
+            local verdict=(M.slot_line() or ''):match('^slot=(%a+)')
+            if verdict=='coop' or verdict=='main' or verdict=='none' then
+                spectate_auto=false
+                local engine=('\n'..(M.link.status() or '')):match('\nengine=([^\r\n]*)') or ''
+                local now=engine:match(' spectate=(%a+)') or 'on' -- faulted: no ask changes it.
+                local word=M.settings.spectate and 'on' or 'off'
+                if (now=='on' or now=='off') and now~=word then
+                    local ok,message=M.ask('spectate '..word)()
+                    M.report(ok,'spectate='..word..': '..tostring(message))
+                end
+            end
+        end
         if fight_auto and not M.off then
             local verdict=(M.slot_line() or ''):match('^slot=(%a+)')
             if verdict=='coop' or verdict=='main' or verdict=='none' then
@@ -234,7 +268,8 @@ if M.link then
     end
 end
 return require('fight.enemies.commands').new({ask=M.ask,coop_slot=M.coop_slot,
-    fight_auto_off=function() fight_auto=false end,
+    fight_auto_off=function() fight_auto=false end,spectate_auto_off=function() spectate_auto=false end,
+    spectate=function() return M.spectate end,
     link=M.link,native_tick=M.native_tick,settings=M.settings})
 end,
 }
