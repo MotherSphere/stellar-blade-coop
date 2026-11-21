@@ -159,7 +159,7 @@ return {
         qte_other='QTE til %s.',
         qte_missed='%s klarte ikke QTE. QTE til deg.',
         finisher='%s gir bossen nådestøtet.',
-        host_down='Delte fiender: %s er nede. Etter gjenopplivingen får de delte fiendene full HP igjen.',
+        host_down='Delte fiender: %s er nede. Gjenoppstår verten ved en leir, får de delte fiendene full HP igjen.',
         paks='%s laster andre .pak-modder enn deg (%d der, %d her). Fiender som avviker, deles ikke.',
         mods_missing='%s bruker modder du ikke har: %s. Deler av antrekket fra dem ser annerledes ut her.',
         mods_other='%s bruker andre versjoner av moddene dine: %s. Deler av antrekket fra dem kan se annerledes ut '

@@ -154,7 +154,8 @@ return {
         qte_other='QTE till %s.',
         qte_missed='%s missade QTE. QTE till dig.',
         finisher='%s ger bossen nådastöten.',
-        host_down='Delade fiender: %s har fallit. Vid återupplivning får era delade fiender full hälsa igen.',
+        host_down='Delade fiender: %s har fallit. Återuppstår värden vid ett läger får era delade fiender full hälsa '
+            ..'igen.',
         paks='%s laddar andra .pak-moddar än du (%d där, %d här). Fiender som skiljer sig förblir odelade.',
         mods_missing='%s använder moddar som du inte har: %s. Delar av dräkten från dem ser annorlunda ut här.',
         mods_other='%s använder andra versioner av dina moddar: %s. Delar av dräkten från dem kan se annorlunda ut '

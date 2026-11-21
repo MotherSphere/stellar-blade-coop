@@ -162,8 +162,8 @@ return {
         qte_other='QTE pour %s.',
         qte_missed='%s a raté le QTE. QTE pour vous.',
         finisher='%s achève le boss.',
-        host_down='Ennemis partagés : %s est à terre. Après sa réapparition, vos ennemis partagés reviennent à pleine '
-            ..'santé.',
+        host_down='Ennemis partagés : %s est à terre. Après une réapparition à un camp, vos ennemis partagés '
+            ..'reviennent à pleine santé.',
         paks="%s n'a pas les mêmes mods .pak que vous (%d en face, %d ici). Les ennemis qui diffèrent ne sont pas "
             ..'partagés.',
         mods_missing="%s utilise des mods que vous n'avez pas : %s. Les parties de sa tenue qui en viennent "

@@ -166,8 +166,8 @@ return {
         qte_other='QTE für %s.',
         qte_missed='%s hat das QTE verpasst. QTE für dich.',
         finisher='%s gibt dem Boss den Gnadenstoß.',
-        host_down='Gemeinsame Gegner: %s ist am Boden. Nach der Wiederbelebung haben eure gemeinsamen Gegner '
-            ..'wieder volle LP.',
+        host_down='Gemeinsame Gegner: %s ist am Boden. Nach dem Neuerscheinen an einem Lager haben eure gemeinsamen '
+            ..'Gegner wieder volle LP.',
         paks='%s lädt andere .pak-Mods als du (%d dort, %d hier). Abweichende Gegner werden nicht geteilt.',
         mods_missing='%s nutzt Mods, die du nicht hast: %s. Teile des Outfits daraus sehen hier anders aus.',
         mods_other='%s nutzt andere Versionen deiner Mods: %s. Teile des Outfits daraus können hier anders aussehen.'},

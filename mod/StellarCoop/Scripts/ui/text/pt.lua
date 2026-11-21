@@ -162,8 +162,8 @@ return {
         qte_other='QTE para %s.',
         qte_missed='%s falhou o QTE. QTE para ti.',
         finisher='%s dá o golpe final no boss.',
-        host_down='Inimigos partilhados: %s está no chão. Quando reaparecer, os inimigos partilhados recuperam '
-            ..'todos os PV.',
+        host_down='Inimigos partilhados: %s está no chão. Se reaparecer num acampamento, os inimigos partilhados '
+            ..'recuperam todos os PV.',
         paks='%s usa mods .pak diferentes dos teus (%d lá, %d aqui). Os inimigos que diferem não são partilhados.',
         mods_missing='%s usa mods que não tens: %s. As partes da roupa que vêm deles aparecem diferentes aqui.',
         mods_other='%s usa outras versões dos teus mods: %s. As partes da roupa que vêm deles podem aparecer '

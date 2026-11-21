@@ -161,8 +161,8 @@ return {
         qte_other='QTE pelaajalle %s.',
         qte_missed='%s epäonnistui QTE:ssä. QTE sinulle.',
         finisher='%s viimeistelee pomon.',
-        host_down='Jaetut viholliset: %s on kaatunut. Kun hän palaa henkiin, jaettujen vihollisten HP palautuu '
-            ..'täyteen.',
+        host_down='Jaetut viholliset: %s on kaatunut. Jos hän palaa henkiin leirissä, jaettujen vihollisten HP '
+            ..'palautuu täyteen.',
         paks='%s käyttää eri .pak-modeja kuin sinä (%d siellä, %d täällä). Eroavia vihollisia ei jaeta.',
         mods_missing='%s käyttää modeja, joita sinulla ei ole: %s. Niistä tulevat asun osat näyttävät täällä '
             ..'erilaisilta.',

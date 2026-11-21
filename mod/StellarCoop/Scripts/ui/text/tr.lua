@@ -160,7 +160,7 @@ return {
         qte_other='QTE: %s.',
         qte_missed="%s QTE'yi kaçırdı. QTE senin.",
         finisher='%s baş düşmanı bitiriyor.',
-        host_down='Ortak düşmanlar: %s yere düştü. O yeniden doğunca ortak düşmanların canı tamamen dolar.',
+        host_down='Ortak düşmanlar: %s yere düştü. Bir kampta yeniden doğarsa ortak düşmanların canı tamamen dolar.',
         paks='%s senden farklı .pak modları yüklüyor (onda %d, sende %d). Farklı olan düşmanlar paylaşılmaz.',
         mods_missing='%s sende olmayan modlar kullanıyor: %s. Kıyafetinin bu modlardan gelen kısımları burada farklı '
             ..'görünür.',

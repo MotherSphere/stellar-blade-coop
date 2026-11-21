@@ -170,7 +170,8 @@ return {
         qte_other='QTE for %s.',
         qte_missed='%s failed the QTE. QTE for you.',
         finisher='%s finishes the boss.',
-        host_down='Shared enemies: %s is down. Once they respawn, the enemies you share go back to full health.',
+        host_down='Shared enemies: %s is down. If they respawn at a camp, the enemies you share go back to full '
+            ..'health.',
         paks='%s loads other .pak mods than you (%d there, %d here). Enemies that differ stay unshared.',
         mods_missing="%s uses mods you don't have: %s. Parts of their outfit from them look different here.",
         mods_other='%s uses other versions of mods you have: %s. Parts of their outfit from them may look different '

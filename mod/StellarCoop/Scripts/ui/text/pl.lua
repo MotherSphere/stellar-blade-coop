@@ -158,7 +158,7 @@ return {
         qte_other='QTE dla: %s.',
         qte_missed='%s nie zalicza QTE. QTE dla ciebie.',
         finisher='%s dobija bossa.',
-        host_down='Wspólni wrogowie: %s ginie. Gdy się odrodzi, wasi wspólni wrogowie odzyskają pełne PŻ.',
+        host_down='Wspólni wrogowie: %s ginie. Po odrodzeniu w obozie wasi wspólni wrogowie odzyskają pełne PŻ.',
         paks='Różne mody .pak: %s ma %d, ty masz %d. Wrogowie, którzy się różnią, nie są wspólni.',
         mods_missing='%s używa modów, których nie masz: %s. Części stroju z tych modów wyglądają tu inaczej.',
         mods_other='%s używa innych wersji twoich modów: %s. Części stroju z tych modów mogą tu wyglądać inaczej.'},

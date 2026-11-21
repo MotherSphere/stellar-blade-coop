@@ -12,12 +12,13 @@ settings_text,status_text,fight_text,pilot_text,paks_v='shared_enemies=off\n',CO
 load_main(true)
 paks_tick(nil)
 -- Sharing as the guest: once when the host has enemies we cannot pair for their MaxHP (until it stops or the friend
--- leaves); each time the host goes down while enemies are linked (her vitals: HP 0, or a life state 3-5).
+-- leaves); each time the host goes down while enemies are linked (her vitals: HP 0, or a life state 3-5). The reset
+-- it names holds for a camp respawn only: spectate and a revive get the host up in place, with no camp respawn.
 local GUEST_ON='fight=on mode=on role=guest claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=1 sim_us=5/9 '
     ..'threads=1/1/2 pairs='
 local MAXHP="Shared enemies: some enemies have another max HP in Kaanta's game (another difficulty or New Game+). They "
     ..'stay unshared.'
-local DOWN='Shared enemies: Kaanta is down. Once they respawn, the enemies you share go back to full health.'
+local DOWN='Shared enemies: Kaanta is down. If they respawn at a camp, the enemies you share go back to full health.'
 local function vitals(hp,life) return {hp=hp,max_hp=1000,life=life} end
 for _,step in ipairs({{'fight=off why=coop fight off',''},
         {GUEST_ON..'2 maxhp=0','Shared enemies on: 2 enemies linked.'},
@@ -40,8 +41,8 @@ kit_language='fr-FR'
 assert(fight_step(GUEST_ON..'1 maxhp=1')=="Ennemis partagés actifs : 1 ennemi lié.|Ennemis partagés : certains "
     .."ennemis ont d'autres PV max dans la partie de Kaanta (autre difficulté ou New Game+). Ils ne sont pas partagés.")
 mate_v=vitals(0,3)
-assert(fight_step(GUEST_ON..'1 maxhp=1')=='Ennemis partagés : Kaanta est à terre. Après sa réapparition, vos '
-    ..'ennemis partagés reviennent à pleine santé.')
+assert(fight_step(GUEST_ON..'1 maxhp=1')=='Ennemis partagés : Kaanta est à terre. Après une réapparition à un camp, '
+    ..'vos ennemis partagés reviennent à pleine santé.')
 mate_v=nil
 fight_step('fight=off why=coop fight off')
 -- Camp rests in a shared area, as the guest, from the line's epoch=<zone>/<n>/<resets>: the host's n moving in the same

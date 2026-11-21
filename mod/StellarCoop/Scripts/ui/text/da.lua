@@ -159,7 +159,7 @@ return {
         qte_other='QTE til %s.',
         qte_missed='%s klarede ikke QTE. QTE til dig.',
         finisher='%s giver bossen nådestødet.',
-        host_down='Delte fjender: %s er faldet. Når værten er genoplivet, har jeres delte fjender fuld HP igen.',
+        host_down='Delte fjender: %s er faldet. Genopstår værten ved en lejr, har jeres delte fjender fuld HP igen.',
         paks='%s har andre .pak-mods end dig (%d der, %d her). Fjender, der afviger, deles ikke.',
         mods_missing='%s bruger mods, du ikke har: %s. Dele af dragten fra dem ser anderledes ud her.',
         mods_other='%s bruger andre versioner af dine mods: %s. Dele af dragten fra dem kan se anderledes ud her.'},

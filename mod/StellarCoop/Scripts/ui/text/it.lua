@@ -162,8 +162,8 @@ return {
         qte_other='QTE per %s.',
         qte_missed='%s ha fallito il QTE. QTE per te.',
         finisher='%s dà il colpo di grazia al boss.',
-        host_down='Nemici condivisi: %s è a terra. Quando torna in gioco, i nemici che condividete recuperano '
-            ..'tutti i PS.',
+        host_down='Nemici condivisi: %s è a terra. Se torna in gioco a un accampamento, i nemici che condividete '
+            ..'recuperano tutti i PS.',
         paks='Mod .pak diverse tra te e %s (%d là, %d qui). I nemici diversi restano non condivisi.',
         mods_missing='%s usa mod che non hai: %s. Le parti della sua tenuta che ne derivano qui appaiono diverse.',
         mods_other='%s usa altre versioni delle tue mod: %s. Le parti della sua tenuta che ne derivano qui possono '

@@ -163,8 +163,8 @@ return {
         qte_other='QTE para %s.',
         qte_missed='%s ha fallado el QTE. QTE para ti.',
         finisher='%s remata al jefe.',
-        host_down='Enemigos compartidos: %s ha caído. Cuando reaparezca, los enemigos que compartís recuperan '
-            ..'todos sus PS.',
+        host_down='Enemigos compartidos: %s ha caído. Si reaparece en un campamento, los enemigos que compartís '
+            ..'recuperan todos sus PS.',
         paks='Mods .pak distintos entre %s y tú (%d allí, %d aquí). Los enemigos que difieren no se comparten.',
         mods_missing='%s usa mods que no tienes: %s. Las partes de su traje que vienen de ellos se ven distintas aquí.',
         mods_other='%s usa otras versiones de tus mods: %s. Las partes de su traje que vienen de ellos pueden verse '

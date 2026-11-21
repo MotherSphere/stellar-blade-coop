@@ -209,9 +209,11 @@ leaves out every path from a mod's own folder (see [Mods and CNS outfits](../onl
 The guest also sees two notices while enemies are shared. `Shared enemies: some enemies have another max HP in <name>'s
 game (another difficulty or New Game+). They stay unshared.` shows once, until shared enemies stop or the friend
 leaves, when an enemy of the host's cannot be paired because its maximum HP differs (by more than 0.5, before any
-scaling). `Shared enemies: <name> is down. Once they respawn, the enemies you share go back to full health.` shows each
-time the host goes down while enemies are linked: the host's respawn resets the enemies in the host's game, and your
-copies follow them back to full health. A respawn on another map leaves your copies unshared, with the HP they had.
+scaling). `Shared enemies: <name> is down. If they respawn at a camp, the enemies you share go back to full health.`
+shows each time the host goes down while enemies are linked. A camp respawn resets the enemies in the host's game.
+Your copies follow them back to full health. A host who gets up in place makes no camp respawn: a revive by another
+player, or [spectate](#down-in-a-boss-fight-spectate) in a boss fight. A respawn on another map leaves your copies
+unshared, with the HP they had.
 
 Once both games have read their New Game+ cycle and difficulty, each compares them: the guest with the host, the host
 with each member. When they differ, one notice says so, for example `Kaanta is on New Game+ 1 (Hard); you are on your

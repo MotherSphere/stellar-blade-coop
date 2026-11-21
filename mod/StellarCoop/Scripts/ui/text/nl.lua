@@ -159,7 +159,8 @@ return {
         qte_other='QTE voor %s.',
         qte_missed='%s heeft de QTE gemist. QTE voor jou.',
         finisher='%s geeft de baas de genadeslag.',
-        host_down='Gedeelde vijanden: %s is geveld. Zodra die terugkeert, krijgen de gedeelde vijanden weer volle HP.',
+        host_down='Gedeelde vijanden: %s is geveld. Keert die terug bij een kamp, dan krijgen de gedeelde vijanden '
+            ..'weer volle HP.',
         paks='%s laadt andere .pak-mods dan jij (%d daar, %d hier). Vijanden die verschillen worden niet gedeeld.',
         mods_missing='%s gebruikt mods die jij niet hebt: %s. Delen van de outfit daaruit zien er hier anders uit.',
         mods_other='%s gebruikt andere versies van jouw mods: %s. Delen van de outfit daaruit kunnen er hier anders '
