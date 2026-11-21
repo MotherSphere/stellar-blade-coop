@@ -85,6 +85,37 @@ do
     end
 end
 
+-- 1c. Native fire on the rifle layer: letting the aim go plays no drone dismiss show. The aim stance's two End show
+--     fields are empty while the rifle is out. Its Start pair stays as shipped. The log names the change. coop-gun.txt
+--     lists both End fields. They go back when the rifle goes away or at the next Lua load.
+do
+    local w=Fake.new(); w.install()
+    local store=file()
+    local gun,logs=new(nil,store)
+    local function said(text)
+        for _,l in ipairs(logs) do if l:find(text,1,true) then return true end end
+        return false
+    end
+    local st=w.tables.CharacterStanceTable.P_Eve_Gun
+    toggle(gun,true)
+    assert(st.EndShowPathWhenPeaceful=='' and st.EndShowPathWhenBattle=='',
+        'no dismiss show while the rifle is out: '..st.EndShowPathWhenPeaceful..' / '..st.EndShowPathWhenBattle)
+    assert(st.StartShowPathWhenPeaceful=='CH_P_EVE_01/Skill/P_Eve_Gun_S_Peaceful'
+        and st.StartShowPathWhenBattle=='CH_P_EVE_01/Skill/P_Eve_Gun_S','the raise show as shipped')
+    assert(said('aim stance EndShowPathWhenBattle cleared') and said('aim stance EndShowPathWhenPeaceful cleared'),
+        table.concat(logs,'|'))
+    -- whole records (a record ends at a tab or at the line's end), so the Battle one is not matched by the Peaceful one
+    local kept,at='\t'..store.peek()..'\t','\trow|CharacterStanceTable|P_Eve_Gun|'
+    assert(kept:find(at..'EndShowPathWhenPeaceful|s|CH_P_EVE_01/Skill/P_Eve_Gun_E_Peaceful\t',1,true)
+        and kept:find(at..'EndShowPathWhenBattle|s|CH_P_EVE_01/Skill/P_Eve_Gun_E\t',1,true),'coop-gun.txt: '..kept)
+    toggle(gun,false)
+    assert(#w.changed()==0,table.concat(w.changed(),'; '))
+    -- a Lua reload with the rifle out: the next load's restore puts them back
+    toggle(gun,true)
+    new(nil,store).restore()
+    assert(#w.changed()==0,table.concat(w.changed(),'; '))
+end
+
 -- 2. M4: the shot's two borrowed fields are SB's own rows: EventActorEffectTable Nikke_01_E_ActorEff_015's
 --    ActorEffectAlias and EffectTable M_Scarlet_CounterLinkStart's ActionValue1. They point at the NIKKE shot from a
 --    shot through the zone event until arm_hold s after the last one (a pause holds them), not while the rifle is only

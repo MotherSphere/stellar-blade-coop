@@ -66,7 +66,12 @@ rifle changes:
   EVE's root in her root's frame (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own
   target line and sent the rounds to the side. Its own spread (a random range of 300 cm) is off. Its destination is
   placed once, when the round spawns, not again while it flies.
-- `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it.
+- `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it. Letting the aim
+  go plays no drone dismiss show. As shipped, SB plays `P_Eve_Gun_E` (in a fight) or `P_Eve_Gun_E_Peaceful` on her
+  whole body when the aim stance ends: the drone aim's side-on exit with bent knees. While the rifle is out, both
+  paths are empty. The drone aim's raise show still plays when the aim starts, except with the animation pak, which
+  empties it too. `UE4SS.log` has the lines
+  `data: aim stance EndShowPathWhenPeaceful cleared` and `data: aim stance EndShowPathWhenBattle cleared`.
 - `CharacterAnimSetTable`: not on the rifle layer. With the rifle clips alone, the aim stance's animation set points at
   the rifle's blend spaces. A spare NPC row takes EVE's peaceful set with the rifle clips for the carry. The test line
   `gun_bs` changes the aim stance's blend spaces too.

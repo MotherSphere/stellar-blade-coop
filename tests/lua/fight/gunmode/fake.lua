@@ -58,8 +58,12 @@ local function rows()
             P_Eve_Gun_ShootSlug1_2={SkillAlias=name('P_Eve_Gun_ShootSlug1_2'),CommandActionType=2,bJumping=2,
                 bWallRun=0}},
         CharacterStanceTable={P_Eve_Gun={WalkSpeed=200,RunSpeed=400.5,JoggingRunSpeed=300,LockOnWalkSpeed=150,
-                LockOnRunSpeed=250,Condition_Jumping=4,StartShowPathWhenPeaceful='',StartShowPathWhenBattle='',
-                EndShowPathWhenPeaceful='',EndShowPathWhenBattle=''},P_Eve_Default={Condition_Jumping=0}},
+                LockOnRunSpeed=250,Condition_Jumping=4,
+                -- The drone aim's raise and dismiss shows as the base pak's CharacterStanceTable ships them (26123051).
+                StartShowPathWhenPeaceful='CH_P_EVE_01/Skill/P_Eve_Gun_S_Peaceful',
+                StartShowPathWhenBattle='CH_P_EVE_01/Skill/P_Eve_Gun_S',
+                EndShowPathWhenPeaceful='CH_P_EVE_01/Skill/P_Eve_Gun_E_Peaceful',
+                EndShowPathWhenBattle='CH_P_EVE_01/Skill/P_Eve_Gun_E'},P_Eve_Default={Condition_Jumping=0}},
         CharacterAnimSetTable={P_Eve_Gun_Battle={RunBlendSpace='Test_Run_BS',RunTiltBlendSpace='Test_Tilt_BS',
                 LockOnRunBlendSpace='Test_LockOn_BS',AimOffsetBlendSpace='Test_Aim_BS'}},
         -- (The NIKKE row's StartTarget, DestTarget and StartToDestDirectionDistance as the base pak's export reads
