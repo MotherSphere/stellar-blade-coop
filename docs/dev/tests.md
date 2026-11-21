@@ -1673,7 +1673,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   function's own run, a `ref`, a `ref` with an `add` and a `ref` with `then` each match once in the whole file and give
   their address, the moved one in the build with moved code. No script comes from a `holder`, a `read`, a signature
   found twice or not at all, one that also matches in `.rdata` or one that matches in `.rdata` only. Its UE4SS report
-  prints a script for each target or the line `no script.`, with exit code 1 for the latter.
+  prints a script for each target or the line `no script.`, with exit code 1 for the latter. `find.py`'s main prints
+  that report after the one of `signatures.json` and exits with 1 when a target gets no script.
   Last, `find.py` on `~/Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe`, Ghidra's copy of build 26123051:
   every entry of both files is found at its own address. Each UE4SS target's script matches once in the whole file
   and gives the address read in Ghidra (FText constructor 0x142862fc0, GNatives 0x146f17900, GUObjectArray

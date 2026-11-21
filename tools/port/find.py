@@ -11,7 +11,7 @@ For each entry it prints the address on build 26123051, the kind, the name and o
 - missing: the pattern matches nowhere, a field it reads lies outside the file or no place holds a holder's code.
 The image entry gives the image base of the PE header. A section entry gives the start of the section that its
 "ghidra" text names after "start of". docs/dev/porting.md says how each kind of signature gives its address back.
-Then the same report for tools/port/ue4ss.json, the addresses UE4SS's signature scripts find, and the text of a
+Then the same report for tools/port/ue4ss.json (the addresses that UE4SS's signature scripts find) and the text of a
 UE4SS_Signatures/<name>.lua for each one (docs/dev/ue4ss.md).
 
 Run: python3 tools/port/find.py <SB-Win64-Shipping.exe> (exit code 0 only when every entry is found once and every

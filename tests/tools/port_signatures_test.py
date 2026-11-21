@@ -6,7 +6,8 @@
 small PE file built here, its main writing signatures.json and ue4ss.json in one pass, then the form of each entry in
 tools/port/signatures.json and tools/port/ue4ss.json. tools/port/find.py on that file and on copies of it with moved
 code, a pattern that matches three times, a holder held twice, a missing function and a value read outside the file.
-Its UE4SS signature scripts run under lua5.4 and give their address; a signature UE4SS cannot use gives none. Then
+Its UE4SS signature scripts run under lua5.4 and give their address; a signature UE4SS cannot use gives none. Its
+main prints the UE4SS part after the native report and exits with 1 when a target gets no script. Then
 find.py on the executable of build 26123051 when this PC has Ghidra's copy of it: every entry is found at its own
 address and each UE4SS target's script gives it.
 Run: python3 tests/tools/port_signatures_test.py"""
@@ -355,7 +356,7 @@ for name, symbol, add in (('Unique', 'unique', 0), ('Flag', 'flag', 0), ('Slot',
 # at all, nor for one that also matches in .rdata, where UE4SS scans too though find.py looks in the code only.
 copied = bytearray(data)
 vt2 = data.index(struct.pack('<2Q', at['unique'], at['lone']))  # vtable2, at .rdata + 0x148
-copied[vt2 + 0x60:vt2 + 0x6a] =bytes.fromhex(out[f'{at["unique"]:#x}']['pattern'])  # .rdata + 0x1a8, free
+copied[vt2 + 0x60:vt2 + 0x6a] = bytes.fromhex(out[f'{at["unique"]:#x}']['pattern'])  # .rdata + 0x1a8, free
 assert find.locate(ms.Image(bytes(copied)), out[f'{at["unique"]:#x}']) == [at['unique']]
 # unique's last immediate byte changed in the code, its old bytes in .rdata: the pattern matches once, outside the code.
 elsewhere = bytearray(fake_exe({**FUNCS, 'unique': [FUNCS['unique'][0][:9] + b'\x45\xc3']})[0])
@@ -385,6 +386,19 @@ assert text.count('function Register()') == 1 and '-- UE4SS_Signatures/Flag.lua:
 assert '\nUE4SS_Signatures/Held.lua: no script. ' in text, text
 text, code = ue4ss(image, {f'{at["flag"]:#x}': both[f'{at["flag"]:#x}']})
 assert code == 0 and find.script(image, both[f'{at["flag"]:#x}']) in text, (text, code)
+
+# find.py's main on the fake executable: the report of signatures.json, then the UE4SS part. A target without a script
+# makes the exit code 1.
+with tempfile.TemporaryDirectory() as tmp:
+    exe = Path(tmp) / 'SB-Win64-Shipping.exe'
+    exe.write_bytes(data)
+    for targets, exit_code in ((both, 1), ({f'{at["flag"]:#x}': both[f'{at["flag"]:#x}']}, 0)):
+        printed = io.StringIO()
+        with mock.patch.object(addresses, 'load', lambda path=None, t=targets: t if path == addresses.UE4SS else out), \
+                contextlib.redirect_stdout(printed):
+            code = find.main(['find.py', str(exe)])
+        text, native = printed.getvalue(), f'{len(out)} found (0 moved), 0 ambiguous, 0 missing\n'
+        assert code == exit_code and native + 'UE4SS signature targets (ue4ss.json):\n' in text, (code, text)
 
 # The executable of build 26123051 itself: every entry of signatures.json and ue4ss.json is found at its own address.
 # Each UE4SS target's script matches once in the whole image and gives it. Ghidra, 2026-11-21: FUN_142862fc0 builds
