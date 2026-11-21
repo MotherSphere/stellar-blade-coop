@@ -49,8 +49,9 @@ what each script makes.
 
 While the rifle is out, gun mode changes a few fields of the game's own data tables in memory, plus one field of the
 NIKKE shot's show. These changes add no row. Everything it changed goes back when the rifle is put away or at the next
-map load, so the NIKKE missions and the drone find their rows as shipped. The rounds' rows are apart from these: they go in once a co-op save has loaded and
-stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the rifle changes:
+map load, so the NIKKE missions and the drone find their rows as shipped. The rounds' rows are apart from these: they
+go in once a co-op save has loaded and stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the
+rifle changes:
 
 - `EventActorEffectTable`, `EffectTable`: the NIKKE shot, started from a borrowed row. The game's own tables use these
   two rows too (a NIKKE mission's zone event, the Scarlet fight's counter). They change only from a shot that needs
