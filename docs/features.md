@@ -80,6 +80,9 @@ achievements, which cannot be taken back.
     one; with the experimental revive (on by default), a friend who stands next to the downed EVE for 3 s revives it
     where it fell;
   - on the death screen, F7 gets you up in place and takes you back to a living friend on your map;
+  - a player who falls in a shared boss fight watches a living friend and gets up in place when the boss falls,
+    reaches its next phase or comes to one of its HP scenes (spectate, on by default; see
+    [fight/enemies.md](fight/enemies.md#down-in-a-boss-fight-spectate));
   - the guest's game pauses while a cutscene plays in the host's game;
   - with the shared world on, a camp rest brings the enemies of that area back in the game of each other member who
     stands there;
@@ -179,6 +182,8 @@ The ghost is display only, and items are not shared, except the consumables sent
 Shared enemies option (co-op menu, Options, Combat) is on by default and untested in game. It shares common enemies only
 while both players play a co-op save (see [fight/enemies.md](fight/enemies.md#shared-enemies-experimental)). Same place, same
 spawns, shared bosses, shared flinches and stagger resistance build on it. They are experimental and on by default too.
+A shared boss ends with the first finisher press on any screen (the host's `boss_finish`). With story together on, its
+QTE goes to the player whose hit brought it down (see [fight/enemies.md](fight/enemies.md#the-finisher)).
 The host's settings decide them for both games. As guest, the Same place row of your co-op menu can still turn same
 place off on your screen. Shared flinches show a light hit's flinch in both games. Stagger resistance raises an
 enemy's poise for a short time after it reacted to hits from two or more players (see

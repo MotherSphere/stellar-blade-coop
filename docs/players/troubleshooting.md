@@ -574,7 +574,9 @@ moves it.
 
 Shared bosses (`bosses`) are experimental, on by default and not tested in game yet, and only the host's setting counts.
 With same place on, the guest's copy of a boss follows the host's through the lines in
-[fight/enemies-internals.md: Shared bosses](../fight/enemies-internals.md#shared-bosses). Look in the guest's `coop-link.log` first:
+[fight/enemies-internals.md: Shared bosses](../fight/enemies-internals.md#shared-bosses).
+With `aggro=game` a boss changes hands as a common enemy does: while the guest's game runs it, the host's lines below
+come from her game. Look in the guest's `coop-link.log` first:
 
 - No arena walls on her side: there is no `fight bstart hguid=<n>` line. Her game calls the boss start only for a copy
   it draws: check `pilot=` in `coop status` and the `fight paired` and `fight frozen` lines for that boss. The host
@@ -590,13 +592,28 @@ With same place on, the guest's copy of a boss follows the host's through the li
   through. `fight bad
   line hguid=<n> not its row` or `not a boss` means the two games do not run the same build of the mod. The host logs
   `fight phase sent <key> hguid=<n>` at each phase change.
-- `fight finish guard <key> hguid=<n>` is expected once her copy reaches its finishing stance: her game takes the
-  finisher's state (`Passive_FinishReady`) off and keeps the copy at 1 HP. The boss ends with the host's finisher. On
-  the host, `fight finish-held <key> hguid=<n>` means her killing hit came while the host's boss waited for its
-  finisher; the `finish-held` count of the host's `fight stats:` lines shows how often. `fight finish guard ended <key>
+- `fight finish guard <key> hguid=<n>` is expected once a copy reaches its finishing stance in a game whose finisher
+  does not count: on her side with `boss_finish=host`, on either side with `first` once the host named the other
+  member's press. That game takes the finisher's state (`Passive_FinishReady`) off and keeps the copy at 1 HP. The
+  host logs `fight finisher <key> hguid=<n> ours` or `hers` for the press that won, `fight finish refused <key>
+  hguid=<n> another member won` for its own press that came second and `fight exec refused <key> hguid=<n> the host
+  finishes` for hers with `boss_finish=host`. On the host, `fight finish-held <key> hguid=<n>` means a killing hit of
+  hers came while the host's boss waited for a finisher that was not hers; the `finish-held` count of the host's
+  `fight stats:` lines shows how often. `fight finish guard ended <key>
   Immortal off` means the pair ended before the host's finisher (the link dropped, the host's world changed, `coop
   fight off`): her copy is at 1 HP with no Immortal, and her own hit ends it in her game. With `the game refused its
   dispel` in place of `Immortal off`, her copy keeps its Immortal at 1 HP: load a checkpoint to fight that boss again.
+- No QTE for anybody, or both players press: the host logs `fight qte owner <key> hguid=<n> ours` or `hers` (with `after
+  a miss` for a later try) when it names the QTE's owner, `fight qte none <key> hguid=<n> nobody up` when nobody
+  stands and `fight qte off ...` while story together does not run in both games. The `qte=` word of the `fight=`
+  line shows the last owner and its try.
+- A boss stays with the host whoever hits it: look for `fight boss pilot off`. The guest's game refused to take a boss
+  once, so every boss stays with the host until the game restarts.
+- A downed player does not watch the fight: the `[StellarCoop][SP]` lines of her `UE4SS.log` and the `spectate` lines
+  of her `coop-link.log` say why. `spectate filter refused: ...` means another mod holds the death screen's press slot:
+  spectate then runs without its filter, so the death screen's buttons are not held back while she watches.
+  `spectate off: <reason>, the death screen back` names why it stopped: `nobody`, `ended`, `link`, `off` or `revive`
+  (the respawn did not come). After `spectate fault ...` it stays off until the game restarts.
 - A summoned enemy missing on her side: the host logs `fight summon keyed <key>` and `fight summon sent <key>
   hguid=<owner>`, and she logs `fight summon made <key>` or `fight summon refused <key> <why>`. The host sends the line
   again every second while it follows the summon, and she logs a refusal only when its reason changes for that key,

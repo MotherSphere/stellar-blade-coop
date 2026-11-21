@@ -287,6 +287,12 @@ says `[StellarCoop] pad: menu` each time a View hold asks to open or close the m
 time a D-pad Right hold asks for the bike. With an older `StellarCoop.dll`
 it says `Native pad unavailable (no controller in the co-op menu): <why>` once, and the keyboard works as before.
 
+While you watch a friend after a fall in a shared boss fight
+([spectate](../fight/enemies.md#down-in-a-boss-fight-spectate)), D-pad or left stick left and right watch the previous
+or next member alive on your map, when no menu or screen of the mod takes them. On the keyboard the Left and Right
+arrows do the same; A, Q and D do not. The camera stays 4 m behind the member you watch and 1.6 m above her feet,
+aimed at her chest. It keeps its direction while she moves. It gives way to the camera of a scene that plays.
+
 ### Mouse
 
 While the menu is open, it shows the mouse cursor. The row you move the mouse onto takes the focus (the mouse is read
@@ -309,7 +315,8 @@ off and its key, [gun mode](../fight/gunmode.md) on or off and its key (read whe
 [Online tab in the pause menu](#pause-menu), then Reset all keys), Photo mode, Partner (the name
 tag and the [partner HUD](#partner-hud)), Ghost (the looks, the [solid partner](../online/partner.md#solid-partner-experimental)
 and the send rate), Session (who can join a session you host, whether your Steam friends join without asking, the
-players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
+players it holds (Players, 2 to 4), the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), Watch a
+friend when I fall ([spectate](../fight/enemies.md#down-in-a-boss-fight-spectate)), the
 [cutscene wait](playing-with-a-friend.md#cutscene-wait),
 [following the host](playing-with-a-friend.md#following-the-host), the [shared world](../world/objects.md),
 [story together](../story/together.md) and Hide popups online, which turns the game's tutorial and record popups off
@@ -317,7 +324,8 @@ during online play), Modes ([score attack](../online/modes/scoreattack.md) on or
 [co-op saves](playing-with-a-friend.md#co-op-saves) at the title and
 [shared quests](playing-with-a-friend.md#shared-quests-experimental)), Combat (shared enemies, same place, shared
 flinches, stagger resistance, who same-place enemies attack, same spawns, extra enemies, shared bosses, the host's
-enemy and boss scaling and your kill rewards), Display (the [status strip](#status-strip-above-the-card)
+[boss finisher](../fight/enemies.md#the-finisher) rule (First press or The host only), the host's enemy and boss
+scaling and your kill rewards), Display (the [status strip](#status-strip-above-the-card)
 above the partner card; the size, sounds and
 language of the menu, the chat and the partner HUD; the [day and night cycle](../world/daynight-internals.md)) and Chat.
 In a session, Chat ends with a row for each other member past the handshake, `Mute <name>` with On or Off: Enter runs
@@ -326,12 +334,12 @@ In a session, Chat ends with a row for each other member past the handshake, `Mu
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. Reset all keys rewrites the line of every key setting
 (`host_key` included) and adds those the file lacks. The first change since the mod loaded keeps the file as
-it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says `Saved. It takes effect
-when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, Same spawns, Extra enemies, Shared bosses,
-scaling and kill reward rows, which
-count from the next time shared enemies start (turn the Shared enemies row off and on again, or restart the game). The
-Same place row applies at once while shared enemies wait or run, and otherwise from their next start (as guest, only
-while they wait or run, and only on your screen).
+it was as `coop-settings.old.txt`. A change applies at once, except for the name tag and the Enemies attack, Same
+spawns, Extra enemies, Shared bosses, Boss finisher, scaling and kill reward rows. The name tag says `Saved. It takes
+effect when the mod reloads (game start or Ctrl+R).` The other rows count from the next time shared enemies start
+(turn the Shared enemies row off and on again, or restart the game). The Same place row applies at once while shared
+enemies wait or run. Otherwise it applies from their next start (as guest, only on your screen while they wait or
+run).
 
 Shared flinches (experimental) and Stagger resistance (experimental) sit next to Same place. Both are the host's for
 every game of the fight pair. Shared flinches makes a light hit's flinch on a shared enemy show in the other game too.

@@ -267,6 +267,12 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ25
   step`) is story together's: the host's game takes it from the pair only and logs any other guest's as `a step line
   from guest <SteamID> not taken: her game is not the pair`. A guest out of the pair sends none.
+- In a shared boss fight the pair's `SBF` lines go both ways: the game that runs a boss sends its `bstart`, `phase`
+  and summon `spawn` lines, the host sends `fin` (whose finisher counts) and `qte-own` (who owns a boss QTE at which
+  try) and each side sends `spec` while its player watches the fight
+  ([Shared enemies: how they work](../fight/enemies-internals.md#shared-bosses)). The host's `bosses` line carries
+  its `boss_finish` as a fourth word. Story together's `SBS` lines of a boss QTE scene come from the member who leads
+  it, the guest included ([Story together: how it works](../story/together-internals.md#boss-qte-scenes)).
 - A new pair, or none, empties channel 2's queues both ways of all but the shared quests' lines, so a snapshot on its
   way to another guest still goes.
 - The status has `host=<host's SteamID> pair=<pair's SteamID or 0> max=<max_players>` in an online session (on a

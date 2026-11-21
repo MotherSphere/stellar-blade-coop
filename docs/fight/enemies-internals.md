@@ -87,8 +87,9 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
 - The owner's SBE entry carries flag 8 (`kExec`) while its copy holds a marker. The drawing side then freezes its copy
   despite Groggy, follows the stream through Groggy and through the stream's dying flag, and goes back onto the stream
   at once instead of after 200 ms, so the takedown plays there with the executor's ghost. Its own copy's death still
-  releases it. Nothing in the mod starts `Passive_FinishReady` (2001102), and the host refuses an exec line for a
-  BossMonster. The game still applies 2001102 by itself to a boss in a Finish stance, on her copy too; the finish
+  releases it. Nothing in the mod starts `Passive_FinishReady` (2001102). The host refuses a takedown's exec line for a
+  BossMonster; an exec 1 for a boss pair takes the finisher path instead ([The finisher press](#the-finisher-press)).
+  The game still applies 2001102 by itself to a boss in a Finish stance, on her copy too; the finish
   guard ([Shared bosses](#shared-bosses)) takes it off her copy and holds her killing hit on the host's boss.
 - Every way back puts each copy back in this order: its replays stopped, Velocity zeroed, the movement component back
   in the manager if it was there, the speed override as it was; then the freeze comes off. The game-thread part has
@@ -273,12 +274,14 @@ The log lines are in [Shared enemies](enemies.md#extra-enemies-experimental).
 
 Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
 Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
-any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
-game. The host sends `SBF25 bosses <gen> <percent>` with its list.
+any common enemy and its maximum HP takes the host's `boss_hp_scale`. With same place on its AI changes hands by the
+aggro rule since phase 3 ([Boss hand-overs](#boss-hand-overs)). The host sends `SBF25 bosses <gen> <percent>
+<first|host>` with its list: the last word is its `boss_finish` ([The finisher press](#the-finisher-press)).
 
-With same place on, the guest's copy of a boss is frozen and never casts a skill, so on its own it would never enter
-battle mode, change phase or summon anything. The host's job reads them on its own copy and tells her game, which
-applies them to her copy:
+With same place on, the copy a game draws is frozen and never casts a skill, so on its own it would never enter battle
+mode, change phase or summon anything. The owner's job reads them on its own copy and tells the other game, which
+applies them to its copy. The list below says host for the owner and guest for the side that draws, as it was before
+phase 3; with the guest as owner the roles swap:
 
 - The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF25 bstart <gen> <hguid>` when it turns on,
   then every second while it stays on.
@@ -314,8 +317,9 @@ applies them to her copy:
   finds the SummonActor row that made each one in the owner's effect list, by the effect GUID at `+0x40c` (an effect's
   GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward dummies
   and the Elder's dummy have none and stay in the host's game.
-  - A summon gets a key in the summon range, EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons
-    since the game started, and joins the shared list under it. After its up the host sends
+  - A summon gets a key in the summon range, EventSpawnId `0xF0000000 | member << 24 | n` and SpawnIndex 0, where
+    member is the owner's (0 the host, 1 the guest) and n counts that side's summons since the game started (1 to
+    2^24 - 1). It joins the shared list under it. After its up the host sends
     `SBF25 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner hguid> <row>`, with epoch 1 when same spawns do not
     run, and sends it again every second while it follows the summon: her game takes a repeat as one it has, and a line
     it refused for a passing reason (its boss not paired yet) can go through later.
@@ -332,15 +336,200 @@ applies them to her copy:
   state the finisher needs). In each turn a paired boss copy of hers holds either one, her game applies
   `FinishReady_Dispel` (2001103) and then the boss's own `Passive_Immortal` (2001100) again: her hits stop at 1 HP and
   no finisher starts on her side. On the host's side, her claim that would kill a boss whose copy holds either row takes
-  it down to 1 HP and kills nothing, however long the stance lasts (`fight finish-held`). So a boss in its Finish stance
-  ends only by the host's finisher; a boss without one dies of her killing hit, unless its own thresholds or Immortal
-  hold it. When the host's `dead` comes for a boss whose fight she took part in, her game applies `MinimumHP_Dispel`
-  and `FinishReady_Dispel` to her copy before the kill, so neither a threshold nor Immortal holds it. When the pair
-  ends any other way (the host's `dead` for a fight she was not in, the host's `down` or world line, the link,
-  `coop fight off`, the fault latch), her game applies `FinishReady_Dispel` to a guarded copy still under 2 HP, so the
-  Immortal it put back goes and her own hit ends that boss in her game.
+  it down to 1 HP and kills nothing, however long the stance lasts (`fight finish-held`), unless her press won the
+  finisher. With `boss_finish=host` a boss in its Finish stance ends only by the host's finisher. With `first` the
+  guard runs only once the host named another member ([The finisher press](#the-finisher-press)). A boss without a
+  Finish stance dies of her killing hit, unless its own thresholds or Immortal hold it. When the host's `dead` comes
+  for a boss whose fight she took part in, her game applies `MinimumHP_Dispel` and `FinishReady_Dispel` to her copy
+  before the kill, so neither a threshold nor Immortal holds it. When the pair ends any other way (the host's `dead`
+  for a fight she was not in, the host's `down` or world line, the link, `coop fight off`, the fault latch), her game
+  applies `FinishReady_Dispel` to a guarded copy still under 2 HP, so the Immortal it put back goes and her own hit
+  ends that boss in her game.
 - Every call runs inside the shared fight's job on the logic thread, under its fault latch. The host's side makes no
   new game call: it reads, and her claims go through ApplyStat as before. Recordings keep none of these lines.
+
+### Boss hand-overs
+
+Since phase 3 a boss pair changes hands under the same rule as a common enemy (`pilot::rule`: the last hit, the nearer
+player after 10 s, the 4 s hold, the down EVE's give and take-back), unless `aggro=host`. A boss pair is also busy, and
+stays with its owner, while:
+
+- a story scene plays in either game: story together's game part sets the shared flag `story_scene`
+  (`glue/tick/freeze_game_shared.inc`) from its `active()` or `pending()`. The fight's worker hands it to the job at
+  each pass (`Engine::scene()`);
+- its phase rows changed in the last 3000 ms (`kPhaseHoldMs`): the owner's change that logs `phase sent`, or a phase
+  line taken whose row set differs from the last one; the 1 s repeats of an unchanged set do not count;
+- the host's copy shows its Finish stance;
+- a `fin` or `qte-own` line named a member for it (`Host::named`).
+
+The first `own-no ... target` for a boss pair turns the boss pilot off for the run (`Engine::boss_hands()`, `fight
+boss pilot off`). Every boss then stays with the host, as with `aggro=host`. The gate fires on a refused take-over
+only: a boss that takes the forced target and ignores it is not caught (not checked in game). A fault in the boss code
+stops the whole shared fight through the job's latch.
+
+The bstart, phase and summon spawn lines go from the pair's owner on either side. The host's receive loop
+(`engine_run.h`) hands her `bstart`, `phase` and summon `spawn` lines to `boss_in_`, as the guest's does. Each side
+takes a pair's lines only from its current owner, `phase` also only at the owner's epoch. `bstart` and the summon
+`spawn` carry no epoch: the channel is reliable and in order, so a line sent before a hand-over arrives before the
+`own` line that ends it. A bstart for a copy already in battle mode is counted with no SetBattleMode call:
+`FUN_141a7db90`, with FSBActor `+0xb58` already on, runs `EventOnBattle` (`FUN_141a68440`) again. A copy that turned
+ours keeps its battle mode, since its own AI runs the fight from then. `Guest::phase_ran()` forgets the host's last
+phase set each turn the pair is hers, so the host's first phase line after it took the boss back plans from her copy's
+list. Each side keys only the summons of a boss it owns.
+
+### The finisher press
+
+Lua adds ` finish-host` after `bosses <n>` in `coop fight on` and `coop fight record` for `boss_finish=host`; `first`,
+the default, adds nothing. A bosses line without its fourth word reads as `host` (a host built before phase 3).
+
+- With `first`, a press is a takedown marker on the host's copy in its Finish stance (`Host::own_press`, called before
+  her lines are drained) or her `exec 1` for a pair whose host copy holds that stance. In one turn the host's own
+  wins, then the lowest member number. The winner (`Host::finisher()`) stays until the pair dies or leaves. Her off
+  forgets a win of hers. The host sends `SBF25 fin <gen> <hguid> <member>` once, then again in each whole list after
+  her on or world, after the up lines.
+- The guest's `takedowns()` sends exec 1 for a boss copy in its Finish stance with `first` even when same place does
+  not run on her side or with `aggro=host`. `Host::exec()` skips its stale check for a boss pair with bosses on.
+  Common enemies keep both gates.
+- Her exec 1 for a pair whose host copy is not in its Finish stance yet waits 1000 ms (`kFinishWaitMs`), checked
+  again at each step: the game puts DeathReady and FinishReady on the copy a tick after the hit that brought it low.
+  Then it is refused with the words a takedown's exec gets. A press refused for another reason never waits.
+- With `host`, her exec 1 is refused at once with `the host finishes` while the host's EVE is up. While it is down
+  the first press counts. Her game's guard still runs in this mode, so her prompt stays hidden (open).
+- Once `fin` names another member, the host's job casts `FinishReady_Dispel` (2001103) then `Passive_Immortal`
+  (2001100) on its own copy each turn the stance shows, captured as the guest's guard is: its prompt goes. A press of
+  the host's after that is refused (`fight finish refused ... another member won`). Her winning lethal claim lifts
+  that capture and casts `MinimumHP_Dispel` (1001323) and `FinishReady_Dispel` on the host's copy before the kill,
+  past the NoDamageNoHit hold. Without a win of hers, her lethal claim stays held at 1 HP (`finish-held`).
+- The guest runs her finish guard with `host`, or once `fin` names another member. A `fin` naming her: no guard.
+- The worker's `fight=` line shows `fin=<member|->` while the mode on runs. Lua says `fight.finisher` with the
+  winner's name once a winner, never when the winner is ours.
+
+### The QTE owner
+
+`native/src/game/boss_rows.h`, written by `tools/boss_rows.py` from build 26123051's EventSpawnTable, ConditionTable,
+ZoneEventTable, EventTheaterTable, CharacterTable and EffectTable, lists the HP triggers of Boss and Elite spawn rows:
+25 triggers on 14 rows, each with its ActorHP value, its zone event and the scene that event plays. Test, demo, NIKKE
+and Boss Challenge rows are left out. 10 triggers are HP <= 1 triggers whose theater holds a QTE (`qte_rows()`), by
+the exact theater alias (`QTE_THEATERS` in the tool). It also lists the 15 `LV_Dead` EffectTable rows (7000007 to
+7000099) for spectate's pit rule. Another build needs the block written again from its tables.
+
+- `Host::set_qte(on)` is on while story together runs on both sides. Story's game part publishes
+  `story_together_on` (its gates open and her `on` line heard). `glue/steam.cpp` passes `story_together()` to
+  `fight_pass`, which gives the job a local `qte_on` message at each change and, while on, at each new session. Off:
+  no owner is named. The host logs `fight qte off ...` once.
+- `Host::set_member_up(member, up)` runs each turn: 0 for the host's EVE alive (life 1 or 6), 1 for her vitals alive.
+  A member in Coma is not up here, since she cannot press.
+- After the turn's claims, `qte_check` names an owner once for a pair whose spawn has a QTE row and whose HP is 1 or
+  less: hers when one of her claims took it there in this turn, the host otherwise. When that member is not up, the
+  next member up by number takes it; with nobody up, `qte none`. It sends `SBF25 qte-own <gen> <hguid> <spawnId>
+  <member> <try>` with try 0 (event `qte owner`).
+- A QTE scene of that spawn that ends in the host's game with the pair alive is a miss. Story together reports the
+  ended scene (`qte_ended`). The hub hands it to the job as a local `qte_end` message. The next member up after
+  the owner gets the next try (255 at most) in one more `qte-own`.
+- Her on or world: the whole list sends the live `qte-own` of each pair still up, after the up and fin lines.
+- The worker keeps the latest `qte-own` of each spawn, sent as the host or heard as the guest
+  (`fight_qte_owners()`). A world line, the host's off and the session's start or stop empty it. The `fight=` line's
+  `qte=<member>:<try>` is the newest. The hub hands the list to story together, which gives each QTE scene of that
+  spawn a leader ([Story together: how it works](../story/together-internals.md#boss-qte-scenes)).
+- Lua tells each change of `qte=`: `fight.qte_you` for ours at try 0, `fight.qte_missed` for ours at a later try
+  (unless the last owner shown was ours), `fight.qte_other` for hers.
+
+### The HP scene hold
+
+While our EVE spectates, a change on a boss pair that would cross one of its spawn's triggers with a scene
+(`boss_rows::crosses()`) waits. On the host, that claim and every later claim of the pair stay queued in order. On
+the guest, her copy keeps its HP (Shield and Stamina go on). The hold ends when our EVE is up (life 1 or 6) or 2000 ms
+after it began (`kSceneHoldMs`, event `scene-held expired`). Event `scene-held` comes once a hold. While a hold runs
+the host sends no hp entry for that enemy, so an ack with the old values does not take her hits back off her copy.
+Exec lines and the host's dead are never held. A trigger with no scene never holds. After an expiry, a later
+trigger of the same enemy holds for its own 2 s. A scene binds the player of the game that plays it, so the hold
+keeps it from starting on a dead EVE. The guest's `kMaxPending` (32 claims, about 1.6 s at the full claim pace) is
+below a 2 s hold: at that pace her oldest claims are forgotten. Her copy then shows a heal until the hold ends.
+
+### Spectate
+
+Spectate (`spectate`, each player's own, on by default, not tested in game yet) lets a player downed in a shared boss
+fight watch a living member. The decisions are pure in `fight/enemies/spectate.h`, tested by
+`tests/native/fight/enemies/spectate_test.cpp`. `fight/enemies/spectate_game.inc` runs them on the game thread,
+`fight/enemies/spectate_worker.inc` swaps the press slot and logs. `fight/enemies/spectate.lua` moves the camera and
+asks the respawn. Every address below was read in Ghidra on build 26123051.
+
+- The death screen is HUDDead, the UI logic whose vtable reads `0x145c341e0` (its `+0x10`, `0x141619b70`, returns
+  0x14, `ESBUILogicType_HUDDead`). The game thread finds it as the death path `FUN_141a6efe0` does: the client cache
+  `0x1470373f8` (never through `FUN_141a987d0`, which allocates when it is 0), its `+0x48` the UI manager, whose
+  `+0x10` lists its entries (the count an int at `+0x18`, walked from the last as `FUN_141fc9c40` does), each entry's
+  logic at `+0x60`. It looks only while our EVE is down or the hold is ours. Its internal state is the byte at `+0xb0`:
+  the event handler `FUN_141e46750` sets 0 at life 1, 4 (the Coma screen) at life 2 and 1 (the Dead screen) at life
+  3; the animation end `FUN_141e46350` sets 2 after the Dead animation and 5 after the Coma one.
+- The hold calls HUDDead's setter `FUN_141e46b70` with 0 (hidden) while spectate is on, our life reads 2 or 3 and the
+  state is neither 0 nor 3, 8 or 9 (3 and 8: the camp respawn chosen, its fade running; 9: the Boss Challenge exit
+  chosen). After any leave it calls the setter once with the game's own value: 1 at life 3, 4 at life 2, so the WB Pump
+  comes back. The setter returns when `+0xb0` holds the value already. Only 3 and 8 queue its music fade, so 0, 1 and
+  4 start none. The mod never writes `+0xb0` itself.
+- The press filter: HUDDead's vtable slot `0x145c34250` (`+0x70`) holds the press handler `FUN_141e46860`. The worker
+  swaps it to `spectate_filter` with one compare-and-swap from the handler's runtime address. It swaps it back by the
+  same compare at `coop off`, at unload and after a fault. A slot that holds anything else is left as it is and logged
+  (`spectate filter refused: ...`); spectate then runs without the filter. The filter reads the FName at `msg+0x28`
+  and compares it with `UI_FaceButton_Left` (`0x146f52ec8`), `_Top` (`0x146f52eb8`) and `_Right` (`0x146f52ed0`), as the
+  handler does. It swallows Left and Right while the state reads 2 or 5 and spectate is on or would start; Left in 5
+  then starts spectate at the next step. Top (the WB Pump) always goes through. The game's handler gets every other
+  press with the same arguments, as it does a press on another thread than the tick's or one after a fault or
+  `coop off`. The filter never writes the message and makes no allocation, lock or log line: the worker logs the count
+  (`spectate: <n> press(es) on the death screen swallowed`).
+- The facts come from the fight engine on the logic thread (`SpectateFacts` in the pilot table): the boss fight on our
+  side, our boss copy's death since we went down, its phase rows as a set (FNV-1a over the sorted distinct rows),
+  Task 4's hold, our member number, the member alive or in Coma whose ghost stands within 100 m of our boss copy, the
+  member up by her vitals at any distance, our zone's ZoneTable `+0x25` and whether an `LV_Dead` row was on our EVE
+  when its life went to 3. The game thread adds our life (FSBActor `+0x2600`), the state, the setting, the pair, the
+  fight running, net mode 0 and SB's MultiPlay rule row, read as `FUN_141e46750` reads it: the rule manager cache
+  `0x147037410` (its `+8` the row key), the table holder cache `0x1470373b0`, then the lookup `0x141c437d0`, a thunk to
+  `FUN_14bafa890`. A row whose `+0x90` is not 0 keeps the death screen shut in solo play, so spectate does not start.
+- The rules are in `spectate.h`'s header. Enter at life 3, or by a swallowed Left on the Coma screen at life 2, when
+  the state is not 3, 8 or 9, spectate is on, the pair is there, the fight runs with `boss=1`, a member is near, the
+  zone type is not 2, 5 or 6 (training room, Boss Challenge, NIKKE), no rule row is set and the game is standalone.
+  The first reason after enter counts one in `upn`: our copy died (`boss`), its phase set changed (`phase`) or Task 4
+  holds a scene (`scene`). Leave with `nobody`, `ended` (`boss=0` for 10 s with no death of our copy), `link`, `off`
+  or `revive` (no life change 4 s after a reason). A pause of the shared fight keeps spectate on with its clocks
+  stopped. One spectate per down: after a leave, nothing enters and nothing is swallowed until our life reads 1 or 6.
+- The game thread publishes spectate's state as one 64-bit atomic word (on, watched, up, upn, out, state), the only
+  thing the worker reads. The worker writes ` spec=<0|1> watch=<member|-> up=<-|boss|phase|scene> upn=<n>
+  her_spec=<member|-> mem=<0|1>` on the `fight=` line. The status adds ` spectate=<on|off|faulted> hud=<n|->` to the
+  `engine=` line. The worker sends `SBF25 spec <member> <watched|->` at each change of the member watched and again
+  after her on. It logs `spectate on: watching member <n>`, `spectate: up (<reason>), reason <n>` and `spectate off:
+  <reason>, the death screen back` or `spectate off: our EVE is up`.
+- The pit: once our life goes from 3 to 1 or 6 after a spectate revive with an `LV_Dead` row at the death, the engine
+  makes one `relocate` (thunk `0x141a51f60`) 200 cm from her ghost toward our EVE, at her feet plus 97 cm, our capsule's
+  centre (`fight pit relocate`). A camp respawn moves nobody. The point can lie over the pit when her ghost stands at
+  its edge.
+- The game tick steps only in game with lion_gate open (net mode 0, no logic task in flight). Its parts run under three
+  SEH latches of their own (the tick, the filter, the release after a fault) and the worker's swap under a fourth. A
+  fault logs `spectate fault ...: off for this run; the death screen is given back once`, gives the slot back and makes
+  one guarded release in the next frame when the hold was ours. The finisher, the QTE owner and the boss pilot run
+  inside the fight job, under its latch.
+- `spectate test` (refused while the pair is there) holds the death screen at life 3 for 10 s, then for the respawn's
+  4 s, 14 s at most or until our EVE is up, then gives 1 or 4 back.
+
+Lua (`fight/enemies/spectate.lua`, log tag `[SP]`) reads those words each 250 ms tick:
+
+- At `spec=1` it makes a camera actor (`core/actors.lua`, its path kept in `coop-spectate.txt` and swept at the next
+  Lua load) and takes the view with a 0.5 s blend, only while `GetViewTarget()` is our EVE, so an HP scene's theater
+  keeps its camera. Each frame the camera stands 400 cm from the watched ghost's feet along its own horizontal
+  direction from her (the first one: from her toward our EVE), 160 cm above her feet, aimed 130 cm above them. With no
+  ghost anchor (partner off, a ghost not drawn) it stands 400 cm over our EVE, looking down. At `spec=0` the view goes
+  back to our EVE only from our camera. The camera's frame call runs in `main/frame.lua` right after the ghosts'.
+- When `upn` moves, once, it calls `ServerRequest_ActorRespawn(me, false)` on our player controller with the checks of
+  `online/group/group.lua`'s respawn (our life 2 or 3, `warp=idle`, no `nightop=rule`, the controller, a standalone
+  game, our EVE); 2 s later, our life not moved, `ServerRequest_ActorRevival(me, false)` once. The 2 s stop while the
+  line reads `fight=waiting`. That code is a copy of group's, with its own tests. A refused call is logged once.
+- When the `engine=` line reads `spectate=faulted`, or loses its `spectate=` word (`coop off`), the view goes back to
+  our EVE. With our camera on and our life 2 or 3, one respawn call follows, logged.
+- `switch('left'|'right')` watches the previous or next member alive on our map (camera only, logged). `main/input.lua`
+  calls it for the pad's `left` and `right` that no screen took, `main/keys.lua` for the Left and Right arrows when no
+  menu, screen or box is open.
+- The members: `mem` is ours; member 0 is the host's SteamID (`link.host()`), member 1 its pair. Outside an online
+  session the other member is slot 0's. The map knows 0 and 1 only until 7b2 numbers every guest.
+- The ask: `spectate on|off` when the setting changes; at load only when the `engine=` line's `spectate=` word
+  disagrees with the setting (no word reads as on, the native default).
 
 The log lines are in [players/troubleshooting.md](../players/troubleshooting.md#a-shared-boss-differs-between-the-two-games).
 

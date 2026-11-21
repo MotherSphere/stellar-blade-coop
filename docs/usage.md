@@ -26,6 +26,7 @@ The keys work with or without the console. They need the native part (`StellarCo
 | D-pad Right held 1 s, on a controller | The same as F3, in a world with none of the mod's screens or the game's menus open | `coop bike` |
 | F4 | Bring the NIKKE rifle out or put it away ([gun mode](fight/gunmode.md), experimental; without the optional `zNGMSpike_P` pak it shows only the notice "Gun mode: rebuilding"). `gun_key` in `coop-settings.txt` sets the key. G is left to Stellar Blade, which binds it to a menu action | `coop gun` |
 | A tap of D-pad Right (released within 0.4 s), on a controller | The same as F4 | `coop gun` |
+| Left and Right arrows; D-pad or left stick left and right | While you watch a friend after a fall in a shared boss fight ([spectate](fight/enemies.md#down-in-a-boss-fight-spectate)) and no menu, screen or box is open, watch the previous or next member alive on your map | (none) |
 | Enter | During a session or in the SBO lobby, open the [chat](players/interface.md#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 
@@ -126,6 +127,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](fight/enemies.md#same-place-experimental) (experimental, on by default) and its solo test steps |
 | `coop fight pilot test bstart\|phase\|finish\|summon` | Solo tests of [shared bosses](fight/enemies.md#shared-bosses-experimental) on the boss copy of a replay (experimental) |
 | `coop fight spawn probe` | Solo probe of [same spawns](fight/enemies.md#same-spawns-experimental) (experimental, co-op save only) |
+| `coop spectate on\|off\|status\|test` | [Spectate](fight/enemies.md#down-in-a-boss-fight-spectate) after a fall in a shared boss fight (on by default, untested in game): `on` and `off` until the Options row changes or the mod reloads, whatever `spectate` says; `status` prints the native part's state, its press filter and the camera; `test` is the solo probe at the death screen (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read): the death screen held hidden, a camera over your EVE, then the in-place respawn and one result line in `UE4SS.log` |
 | `coop pvp on\|off\|status` | The [PvP test](online/lobby.md#the-pvp-test) with your linked friend, who types it too: a stand-in at their ghost takes your hits for their game, down to 1 HP (test command, untested in game; needs `pvp_spike=on` and `shared_enemies=off`, co-op save only) |
 | `coop sbo enter\|leave\|status` | The [SBO lobby](online/lobby.md) by hand: `enter` saves the co-op game and takes you to the lobby, as the recruiter's Join does; `leave` brings you back to where you stood; `status` prints one line (test command, untested in game; needs `sbo_lobby=on`, co-op save only) |
 | `coop sbo hop\|back\|view [set]\|seq <alias>\|parts` | The SBO lobby's test commands: `hop` goes from the lobby to the NK_Boss_Scarlet arena when no match lobby is open, and `back` returns to the lobby from there; `view` prints the camera's location, rotation and FOV, and `view set` uses that view for the lobby menu's camera until the mod reloads; `seq` plays one of Xion's light sequences, `Xion_10_E_Seq_011`, `_013`, `_012` or `_019`, in the lobby; `seq done` and the native `called` line only say that Stellar Blade was asked, because the game first checks the row's condition against EVE's save and plays nothing, with no log line, when it fails or when that sequence already plays (`_011` plays only before Xion's phase 2, `_019` only once `Quest_Epic_11` is done); `parts` makes each Stellar Blade widget part of the lobby screens once and logs the result (test command, untested in game; needs `sbo_lobby=on`, co-op save only) |
@@ -316,7 +318,7 @@ any save. See [online/modes/nightop.md](online/modes/nightop.md#the-solo-run-coo
 - On a co-op save, Roxanne in Xion offers Night Operation (Easy, Normal, Hard) and its supplies in her dialogue. See
   [online/modes/nightop-shop.md](online/modes/nightop-shop.md#night-operation-at-roxannes).
 
-The ghost, the link and every other command except `coop fight` (see [Shared enemies](fight/enemies.md#shared-enemies-experimental)), `coop race start`, `coop race look on`,
+The ghost, the link and every other command except `coop fight` (see [Shared enemies](fight/enemies.md#shared-enemies-experimental)), `coop spectate test`, `coop race start`, `coop race look on`,
 `coop race probe doro` and `coop race drive probe` (see [Doro races](online/modes/race.md)), `coop leviathan show`,
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
 [viewer commands](fight/bosses.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
@@ -345,6 +347,8 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 - the shared world (its hooks are taken out of the game's slots);
 - story together (its hooks are taken out of the game's slots; a scene of hers still paused is given back);
 - the photo pause (released; the native tick keeps running for this alone);
+- [spectate](fight/enemies.md#down-in-a-boss-fight-spectate) (the death screen it hid is shown again with the game's
+  own value, its press filter goes out of the death screen's slot and the view comes back to your EVE);
 - a Doro race (left as a DNF, or cancelled before GO, with EVE's movement values put back), the drive probe, a race
   track being recorded (dropped, nothing written) and the Doro look (EVE drawn again);
 - the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes back as it
@@ -441,7 +445,9 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   plays, or `-` while its first take loads or its name is not read), `items=<ask> <count>` or `items=<ask> none <why>`
   (the answer to [`coop
   gift`](cutmenus/menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`,
-  `nomanager`, `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
+  `nomanager`, `nobucket` or `unread`), `spectate=<on|off|faulted> hud=<n|->` (the
+  [spectate](fight/enemies.md#down-in-a-boss-fight-spectate) setting or its latch; the death screen's state as last
+  read, `-` while your EVE stands) and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,
   phone booths, tetrapods) that the game's own camp list would show for this save, read every 2 s while you play,
   followed by `rested=<camp>`, the camp where EVE respawns (that of her last rest or fast-travel arrival), when the
@@ -461,7 +467,10 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   waits for>`, `fight=stopped why=<why>` or `fight=off`, with `her=<state>` while a friend is linked (see [Shared
   enemies](fight/enemies.md#shared-enemies-experimental)). While it runs, the line ends with `boss=<0|1>` (a boss fight on your side),
   `battle=<n>` (enemies in battle within 30 m of your EVE) and `epoch=<zone>/<n>/<resets>` (same spawns' zone and epoch,
-  and how often your own zone reset this run).
+  and how often your own zone reset this run). In every state but `fight=off`, spectate's words come right after
+  `her=` (in its place while no friend is linked): `spec=<0|1> watch=<member|-> up=<-|boss|phase|scene> upn=<n>
+  her_spec=<member|-> mem=<0|1>`, then while it runs `fin=<member|->` and `qte=<member>:<try>|-` (see
+  [Shared bosses](fight/enemies.md#shared-bosses-experimental)).
 - Same place: `pilot=on piloted=<n>`, `pilot=off why=<why>`, `pilot=stopped` or `pilot=refused why=<why>` (see
   [Same place](fight/enemies.md#same-place-experimental)).
 - Shared quests: `quests=off`, `quests=waiting mode=<mode> why=<friend|save|game>`, `quests=on mode=<mode>

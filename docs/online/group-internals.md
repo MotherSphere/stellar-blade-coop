@@ -230,19 +230,28 @@ Each game reads its own EVE's life state with its vitals (`life=` in `coop statu
 down in life state 3 to 5 or at 0 HP, alive in 1 or 6, unknown in any other state or when no vit line came for 3 s. In
 an online session of more than 2 players, Lua reads each member's from her `vit=` status line (the slot-0 member's
 from `mate=`). The native worker hands the pair's state to the shared fight's job as a local message, on each change
-and once a second. It never goes on the wire.
+and once a second. It never goes on the wire. The native read (`link/protocol.h`'s `life_of`) takes life state 2 as
+Coma before the 0 HP rule, since a Coma EVE has 0 HP. The boss claim rule below counts a member in Coma as up; the
+hand-overs count her as down.
 
 - On the host, while the guest's EVE is down, each same-place pair she owns comes back to the host at the next turn,
   guards or not, if the enemy stands within 30 m of the host's EVE, and stays his while she is down. While the host's
   EVE is down and hers is alive, his common pairs within 30 m of her ghost go to her once the 4 s hold and the busy
-  guards allow it. Bosses stay the host's. An unknown state changes nothing, and `aggro=host` keeps every pair with the
-  host. Each of these hand-overs writes one log line.
+  guards allow it. Bosses go the same way while the boss pilot runs
+  ([Boss hand-overs](../fight/enemies-internals.md#boss-hand-overs)). An unknown state changes nothing. `aggro=host`
+  keeps every pair with the host. Each of these hand-overs writes one log line.
 - The 30 m limit is there for achievements: the game that takes an enemy forces its target onto its own EVE, which makes
   that EVE the enemy's last player, and a kill counts for its last player from any distance. A pair already where the
   down rule puts it stays there, so nothing is handed to the down EVE.
-- While the host's EVE is down, the host drops the guest's claims on boss pairs. Their numbers are still acknowledged,
-  so her copy's HP goes back to the host's. The host's respawn resets the boss in his world and her copy follows, as a
-  death ends a boss fight in solo play.
+- While the host's EVE is down (life state 3 to 5) and no other member is alive or in Coma by her vitals, the host
+  drops the guest's claims on boss pairs (`fight claim dropped hguid=<n> on our boss while our EVE is down`, once a
+  down). Their numbers are still acknowledged, so her copy's HP goes back to the host's. While she stands, her claims
+  count as before. The engine sets this before it drains her lines and again after each of her vitals in the drain,
+  so a claim is judged on the vitals that came before it. The host's camp respawn resets the boss in his world. Her
+  copy follows, as a death ends a boss fight in solo play.
+- A player down in a shared boss fight watches a living member instead of the death screen
+  ([Spectate](../fight/enemies-internals.md#spectate)). Group's revive and F7's way back need `boss=0`, so neither
+  runs while spectate does.
 - A down EVE takes no part in a kill through the 30 m clause (see [Achievements](../dev/safety.md#achievements)).
 
 ### Revive

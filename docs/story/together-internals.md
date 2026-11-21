@@ -224,6 +224,46 @@ The worker hands the engine `Link::partner()` (`quest::Engine::pair`). The host'
 guest with `quests: a step line from guest <SteamID> not taken: her game is not the pair`. A guest whose partner is 0
 sends none: `Guest::lead()` logs `step of hers not sent: she is not the host's pair (more than 2 players)`.
 
+## Boss QTE scenes
+
+A boss QTE scene that the shared fight gave to a member (its `qte-own` line, see
+[Shared enemies: how they work](../fight/enemies-internals.md#the-qte-owner)) is led by that member at that try. The
+other side follows it as this page describes, with the roles swapped. Neither module reads the other: the hub
+(`glue/steam.cpp`) hands story the fight's owners (`fight_qte_owners()`) and our spectating (`fight_spectating()`, the
+on bit of spectate's word). It hands the fight the QTE scenes that ended here.
+
+- `Gates` gains `me` (0 on the host, 1 on the guest), `spectating` and `leaders`. The hub names one `Leader {path,
+  member, tries}` for every QTE scene of the owner's spawn (`boss_rows::qte_rows()`): ExoSuit's two Lily paths both
+  get its owner.
+- `leader_of(path)` is the named member, else the host. A Leader whose try is not above the last try that ended here
+  for that path counts as none. `leads(path)` is `leader_of(path) == me`.
+- Our lines go for the scenes we lead; the host keeps every scene no Leader names. A `play` or `talk` line is taken
+  only from the member who leads its path at the latest try. Any other is bad, logged as `a scene line from a member
+  who does not lead it at try <n>`. The later lines of a scene go by its scene number. A `trip` line from the guest is
+  bad.
+- `Lead` runs on both sides, on the guest only while a Leader names her. The QTE and InputCounter hooks record a block
+  for the play that runs while it is open (its `+0x6a0` below 0: the block start `0x1425498e0` writes -1 there and
+  FinishBlock `0x142549a60` writes the result only while it reads below 0). Only the side that leads the playing
+  scene sends them.
+- A copy whose path a Leader gives to us is dropped (`we lead it now`). `Lead` then starts that scene anew from the take
+  it plays. A copy whose leader's end came no longer leads. Its own end records the try named when that end line came.
+- A QTE scene that plays here with no leader's lines holds at its first QTE block (the leash pauses its sequence
+  player) on both sides until `leaders` names one or the leader's lines come, 5 s (`kStartMs`) at most. Then our own
+  presses count, logged (`... s at its first QTE block with no leader's lines, our own presses count`). The hold
+  counts in `holds=`, once a play.
+- When a QTE scene ends here, read from our theater's path change, its path goes into `qte_ended`. Its leader counts
+  as none until a Leader with a higher try comes, so the next try waits at its first QTE block for the host's next
+  `qte-own`. The hub maps those paths to spawns (`boss_rows::by_scene()`) for the fight's miss rule. Ended tries are
+  forgotten once no Leader names their scene.
+- While `spectating`, a queued `play` line whose path is a boss trigger scene (`boss_rows::by_scene()` finds it) waits
+  until spectating ends, 2000 ms at most (`kSpectateWaitMs`, story's copy of the fight's scene hold). Then it goes to
+  the story gate, logged, which refuses it with `dead` while our EVE's `+0x2600` still reads 2 to 5.
+- Limits: a guest named after her first QTE block started does not send that block's result, since `Lead` was not
+  running when hook 2 kept it. Presses during the first-block hold may still count (the hold pauses the sequence
+  player only). The host never starts a guest-led QTE scene its own game does not play yet. A root that comes first
+  then falls back (`story`). Its hold waits 5 s. Sync's log lines still name the follower "her" and the leader
+  "the host" on both sides.
+
 ## Status line
 
 `coop-status.txt` holds one `story=` line, which `coop scenes status` prints:

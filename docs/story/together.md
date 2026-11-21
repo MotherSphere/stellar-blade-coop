@@ -9,7 +9,8 @@ How the code does it is in [Story together: how it works](together-internals.md)
 
 ## What is shared
 
-The host leads. His scenes go to the guest. A scene the guest starts in her own game stays hers.
+The host leads. His scenes go to the guest. A scene the guest starts in her own game stays hers. A boss's QTE scene is
+the one exception: the member who owns that QTE leads it ([Boss QTE scenes](#boss-qte-scenes)).
 
 - A cutscene that a zone event starts. The game's tables of build 26123051 hold 847 such rows over 761 scenes.
 - A talk that a character or an interaction starts.
@@ -52,6 +53,24 @@ shares stay with each player.
 The host's game makes her step once he is in game with no cutscene playing and the game not paused. Up to 16 of her
 steps wait for that. A load on his side drops them. His game makes the step through the same calls the shared quests
 use, then sends it back as one of his own quest lines.
+
+### Boss QTE scenes
+
+Some bosses and elites play a scene with a QTE when their HP reaches 1. With shared enemies on, the host's game gives
+that QTE to the member whose hit brought the boss to 1 HP, or to the next member standing (see
+[The QTE](../fight/enemies.md#the-qte)). That member leads the scene: her presses count, her game sends her results
+and the other game follows them with its own EVE, as the guest follows the host's scenes. The host's game follows
+too when the guest leads.
+
+- After a missed QTE (the scene ends with the boss alive), the next try waits at its first QTE until the host's game
+  names the next member.
+- A QTE scene that plays before anybody is named waits at its first QTE, 5 s at most. Then each game counts its own
+  presses.
+- A scene line from a member who does not lead that scene at its current try is dropped and logged.
+
+While a player watches a boss fight after a fall ([spectate](../fight/enemies.md#down-in-a-boss-fight-spectate)), the
+host's boss scenes wait in her game until she is up, 2 s at most. If her EVE is still down then, that scene is not
+shared with her, as for any dead EVE.
 
 ## When a scene is not shared
 
@@ -127,6 +146,8 @@ others are described in [Story together: how it works](together-internals.md#sta
 ## Known limits
 
 - Nothing of this has run in game yet.
+- A guest named the QTE's owner after its first QTE block started does not send that block's result. Presses made while
+  a QTE scene waits for its owner may still count.
 - A QTE or button-mash prompt in a shared scene counts the guest's own presses when the host's game could not hook
   that prompt. `coop-link.log` says so when the host's side comes on.
 - A result that reaches her game after her copy left that part of the scene is dropped. Her copy then takes the branch

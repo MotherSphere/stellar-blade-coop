@@ -506,17 +506,12 @@ With `bosses=on` in the host's coop-settings.txt, shared enemies also share the 
 BossMonster type) that both games hold: one HP bar, balance gauge and death, as for a common enemy. Shared bosses are on
 by default and have not been tested in game yet.
 
-With same place on, the guest's copy is frozen like any copy her game draws, so it never casts its own skills. The
-host's game tells hers when its boss enters battle mode, which phase effects it holds and which enemies it summons, and
-her game applies the same to her copy: the arena events, the phase changes and the summoned enemies, which are shared
-like any other. Her copy leaves battle mode up to 10 s after the host's boss does, not counting time while the host's
-game is paused, and at once when it stops being shared. Without same place, each game runs these for its own copy.
-
-A boss in its Finish stance ends only by the host's finisher: a killing hit of the guest's then leaves it at 1 HP, and
-her game takes the finisher's state off her copy. If the boss stops being shared first (the link drops, the host's world
-changes, `coop fight off`), her game removes the Immortal it put back on her copy, and her own hit ends that boss in her
-game. A boss without a Finish stance dies of her killing hit as a common enemy does, unless its own thresholds or
-Immortal hold it.
+With same place on, one game runs a boss's AI at a time, as for a common enemy: the host's at first. The other
+game's copy is frozen like any copy it draws, so it never casts its own skills. The game that runs the boss tells the
+other when the boss enters battle mode, which phase effects it holds and which enemies it summons. The other game
+applies the same to its copy: the arena events, the phase changes and the summoned enemies, which are shared like any
+other. A copy leaves battle mode up to 10 s after the boss that runs does, not counting time while that game is paused,
+and at once when it stops being shared. Without same place, each game runs these for its own copy.
 
 When the host's boss dies, her copy dies too if she took part in its fight (`kill_credit` under
 [shared enemies](#shared-enemies-experimental)), its thresholds taken off first. Otherwise her copy stays alive in her
@@ -525,10 +520,10 @@ copy (the arena events) only while her EVE stands within 30 m of it or has hit i
 [How it works](enemies-internals.md#shared-bosses) has the details, and
 [troubleshooting](../players/troubleshooting.md#a-shared-boss-differs-between-the-two-games) the log lines.
 
-- Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental) and
-  Boss HP (host's) in the host's co-op menu, or `bosses` and `boss_hp_scale` in its
-  [coop-settings.txt](../players/settings.md#coop-settingstxt). `coop fight record` keeps them in its file, and `coop fight replay` uses the
-  recorded ones.
+- Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental), Boss
+  finisher (host's) and Boss HP (host's) in the host's co-op menu, or `bosses`, `boss_finish` and `boss_hp_scale` in
+  its [coop-settings.txt](../players/settings.md#coop-settingstxt). `coop fight record` keeps them in its file, and
+  `coop fight replay` uses the recorded ones.
 - `boss_hp_scale` (default `2.0`, from `1.0` to `4.0`) multiplies a shared boss's maximum HP in place of
   `enemy_hp_scale`, the Alpha Naytibas' too; `enemy_balance_scale` still sets its balance gauge. The mod does not adjust
   a boss's phase thresholds yet. The game sets each one (a minimum HP) as a share of the maximum HP the boss has when
@@ -541,12 +536,112 @@ copy (the arena events) only while her EVE stands within 30 m of it or has hit i
 - A boss takes one of the 16 shared places before any common enemy, even the place of a common enemy in a fight, which
   then stops being shared, unless that enemy's death or takedown is under way. A common enemy never takes a boss's
   place.
-- With same place on, a shared boss always fights the host: its AI never moves to the guest's game, whoever hits it.
 - A boss that only one save still holds (the other player already killed it, for example) stays unshared. The host's
   game fights its own alone, at `boss_hp_scale` once the guest's side is on, as with common enemies; a boss that only
   the guest's save holds stays as it is in her game. Same spawns never create or remove a boss.
 - The `fight=` line of `coop status` carries `bosses=<percent>` (the host's `boss_hp_scale`) or `bosses=off`, on
-  both PCs.
+  both PCs. While the shared fight runs it also carries `fin=<member|->` (the member whose finisher counts) and
+  `qte=<member>:<try>|-` (the last QTE owner and its try). Member 0 is the host, member 1 the first guest.
+
+### Whom a boss fights
+
+With same place on, a shared boss follows the host's `aggro`, as common enemies do. With `aggro=game` (the default) its
+AI goes to the game of the player who hit it last, or to the nearer player after 10 s with no hit; that player's EVE
+becomes its target. With `aggro=host` a boss always fights the host. A boss does not change hands:
+
+- while a story scene plays in either game ([story together](../story/together.md));
+- for 3 s after its phase effects changed;
+- while the host's copy shows its Finish stance;
+- once the host named the member whose finisher counts or who owns its QTE.
+
+While the host's EVE is down and the guest's is alive, the host's game gives her the bosses within 30 m of her ghost
+too, so the boss fights the player still standing. While her EVE is down or in Coma, the bosses within 30 m of the
+host's EVE come back to the host. The first time her game refuses to take a boss, every boss stays with the host for
+the rest of the game run: `coop-link.log` says `fight boss pilot off hguid=<n> her game refused a boss's target: bosses
+stay ours for this run`. Common enemies go on changing hands.
+
+### The finisher
+
+A boss at the end of its HP takes its Finish stance: the game shows the finisher prompt. The host's `boss_finish`
+decides whose press ends it:
+
+- `first` (the default): every player gets the prompt. The first press that reaches the host's game wins. Two presses
+  in the same turn of the host's game go to the host first, then to the lowest member number. The host's game names
+  the winner to the other game, which then takes its own prompt away and keeps its copy at 1 HP. The winner's
+  finisher kills the boss in both games. The other player sees `<name> finishes the boss.` A press that reaches
+  the host's game up to 1 s before its own copy shows the Finish stance waits for it. This works with `aggro=host`
+  and with same place off too.
+- `host`: only the host's finisher ends the boss. The guest's game takes her prompt away. Her killing hit leaves the
+  boss at 1 HP, so the host's finisher ends it. While the host's EVE is down, the host's game would take her press,
+  but her game still hides her prompt in this mode (a known limit).
+
+If the boss stops being shared before the finisher (the link drops, the host's world changes, `coop fight off`), the
+guest's game removes the Immortal it put back on her copy. Her own hit then ends that boss in her game. A boss without
+a Finish stance dies of her killing hit as a common enemy does, unless its own thresholds or Immortal hold it.
+
+### The QTE
+
+Some bosses and elites play a scene with a QTE when their HP reaches 1: 10 scenes of build 26123051's tables, Raven's
+at the Nest among them (`native/src/game/boss_rows.h` lists them). With [story together](../story/together.md) on in
+both games, the host's game gives that QTE to one member. Her presses count. The other game plays the scene with its
+own EVE and follows her result.
+
+- The QTE goes to the member whose hit brought the boss to 1 HP. When that member is down or in Coma, it goes to the
+  next member standing, by member number. With nobody standing it goes to nobody.
+- When the scene ends with the boss alive (a missed QTE), the next try goes to the next member standing.
+- The notices: `QTE for you.`, `QTE for <name>.` and, after her miss, `<name> failed the QTE. QTE for you.`
+- Until the host's game names the member, the scene waits at its first QTE, 5 s at most. After that each game counts
+  its own presses.
+- With story together off in either game, each game plays its own QTE as before. The host's `coop-link.log` says
+  `fight qte off story together does not run on both sides; each game plays its own QTE`.
+
+### Down in a boss fight: spectate
+
+With `spectate=on` (each player's own, on by default), a player whose EVE dies in a shared boss fight watches a friend
+who fights on, in place of the death screen. It has not been tested in game yet.
+
+- When your EVE dies, the game's death screen stays hidden. The camera follows the friend from 4 m behind her and
+  1.6 m up, aimed at her chest: `You are down. Watching <name>. You get up when the boss falls or reaches its next
+  phase.` The friend sees `<name> is down and watching.`
+- In Coma, the game's own Coma screen shows first. Its WB Pump works as in solo play. Its button that would respawn
+  you at a camp starts watching instead, when spectate can start.
+- You get up where you fell, through the game's own in-place respawn, with full health and your recovery items refilled
+  as at a camp. That happens once for each of these: the boss dies, its phase effects change, or one of its HP scenes
+  is due. An HP scene does not start while you watch: the change that would start it waits until you are up, 2 s at
+  most. After a death in a pit or another death zone, you get up 2 m from the friend you watched.
+- Left and right (the arrow keys, the D-pad or the left stick) switch between the members alive on your map, when
+  there is more than one. The A, Q and D keys do not switch. Neither do the arrows while the chat box is open.
+- The game's death screen comes back, with its camp respawn, when nobody else stands (every other member is down, or
+  no vitals came from them for 3 s), when no boss fight has run on your side for 10 s with no death of your copy, when
+  the link drops, when spectate is turned off (the setting, `coop spectate off`, `coop off`), or when your respawn did
+  not come 4 s after its reason. A death screen given back stays until you are up: you watch once a death.
+- While you watch, the death screen's camp respawn button does nothing. The mod never holds back the WB Pump's
+  button. Photo mode and a pause keep you watching, with the 10 s and the 4 s stopped.
+
+Spectate starts only when all of these hold:
+
+- spectate on and a friend linked;
+- the shared fight running with a boss fight on your side (`boss=1`);
+- a member alive or in Coma within 100 m of your copy of the boss;
+- not in a Boss Challenge, a NIKKE stage or the training room;
+- no MultiPlay rule row in force (the game's table ships empty);
+- the game standalone.
+
+A scene that holds the camera keeps it: the spectate camera takes the view only from your EVE.
+
+When both EVEs are down, nobody watches: each player gets the game's death screen and respawns at a camp. While nobody
+stands, the host's game drops the guest's hits on a shared boss. The camp respawn resets the boss as in solo play.
+
+`coop spectate on` and `coop spectate off` change it until the next change of the Options row or a reload. `coop
+spectate status` answers with the native part's state (`spectate=<on|off|faulted> hud=<n|->` on the `engine=` line), the
+death screen's press filter and what the camera does. `coop spectate test` runs alone, on a co-op save, at the death
+screen, with `coop loopback 0 0 0` running so that your life state is read: the native part keeps the death screen
+hidden for up to 14 s while a camera looks down on your EVE, then the mod asks the in-place respawn. 12 s after the
+command, `UE4SS.log` says `[StellarCoop][SP] spectate test: hud <before> -> <after>, life <n>, camera <ours|pawn|other>,
+respawn <asked|refused: <why>>`. Back up your saves first: the respawn refills your recovery items in that save. The
+`[StellarCoop][SP]` lines of `UE4SS.log` and the `spectate` lines of `coop-link.log` say each step.
+
+### Solo tests
 
 To test shared bosses alone, record the host's side of a boss fight as the [same place](#same-place-experimental)
 steps do, with `bosses=on`, load the save again so the boss is back, then play the recording into the guest's side

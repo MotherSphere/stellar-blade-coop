@@ -99,11 +99,13 @@ enemy_extra=0
 # removed.
 spawn_filter=on
 # Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
-# hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
+# hold shares one HP bar and one death, as a common enemy does. With same_place=on, aggro decides whom it fights.
 # boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
 # to 4.0.
 bosses=on
 boss_hp_scale=2.0
+# boss_finish, the host's: first (the first finisher press on any screen counts) or host (the host's press only).
+boss_finish=first
 # Shared flinches and stagger resistance, experimental, the host's for every game: on or off, on by default, not
 # tested in game yet. hit_reactions: a light hit that makes a shared enemy flinch on one screen makes it flinch on the
 # other screens too. stagger_resist: after a shared enemy reacts to hits from two or more players, light hits stop
@@ -138,6 +140,8 @@ shared_story=on
 # never happens during a boss fight on your side. In a co-op Night Operation run, on also turns your death into a 30 s
 # down: your friend revives you by holding the interact key next to your EVE, or you type coop nightop revive.
 revive=on
+# Spectate, yours: on or off. Down in a shared boss fight, you watch a friend until the boss falls or changes phase.
+spectate=on
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
@@ -250,12 +254,14 @@ scoreattack=on
 | `spawn_filter` | `on` or `off`: the [spawn filter](../fight/enemies.md#spawn-filter-experimental), experimental; your own, used when you are the guest; no menu row | `on` |
 | `bosses` | `on` or `off`: [shared bosses](../fight/enemies.md#shared-bosses-experimental), experimental; the host's value counts for both games | `on` |
 | `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
+| `boss_finish` | `first` or `host`: whose [finisher](../fight/enemies.md#the-finisher) ends a shared boss, the first press on any screen or the host's only; the host's value counts for both games, from the next start of shared enemies. Options, Combat, Boss finisher (host's) | `first` |
 | `shared_quests` | `on` or `off`: [shared quests](playing-with-a-friend.md#shared-quests-experimental), experimental; both players need it on | `on` |
 | `quest_deny` | quest names or numbers separated by spaces or commas, at most 200 characters: quests never shared; the host's value counts | empty |
 | `shared_world` | `on` or `off`: the [shared world](../world/objects.md), experimental; doors, levers, lifts and shortcuts one player works change in the other's game too; a member's camp rest resets that area in the game of each other member there ([Camp rests in a shared area](playing-with-a-friend.md#camp-rests-in-a-shared-area)); each player's own. Both need it on | `on` |
 | `shared_story` | `on` or `off`: [story together](../story/together.md), experimental; a cutscene or a talk the host plays plays in the guest's game too, with his choices, QTE results and skips; each player's own; both need it on | `on` |
 | `hide_popups` | `on` or `off`: the game's Tutorial and Record popups (its own Settings rows) are Off while at least one other player is linked with you. Only a value that was On is turned off. Your values come back when the last player leaves, when you set it off or at `coop off`. The game's settings file keeps your values the whole time. Turn one on in the game's Settings during online play and it stays on until you leave. Each player's own. Options, Session, Hide popups online; it applies at once | `on` |
 | `revive` | `on` or `off`: your friend may [revive](playing-with-a-friend.md#revive-by-your-friend-experimental) your EVE where she fell, experimental; `follow_key` on the death screen takes you [back to a living friend](playing-with-a-friend.md#back-to-a-friend-after-a-death); in a co-op Night Operation run, your death is a [down](../online/modes/nightop.md#down-and-revive) | `on` |
+| `spectate` | `on` or `off`: down in a shared boss fight, you [watch a living friend](../fight/enemies.md#down-in-a-boss-fight-spectate) and get up when the boss falls, changes phase or reaches an HP scene; each player's own. Options, Session, Watch a friend when I fall; it applies at once | `on` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](playing-with-a-friend.md#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
@@ -345,6 +351,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-fight.log` | native | The shared enemies' probe actors and stats lines, capped at 4 MB |
 | `coop-fight.old.log` | native | The previous run's `coop-fight.log` |
 | `coop-fight-record.txt` | native | The last shared-enemies recording (`coop fight record`) |
+| `coop-spectate.txt` | Lua | The [spectate](../fight/enemies.md#down-in-a-boss-fight-spectate) camera's object path, so the next Lua load (Ctrl+R) can give the view back to your EVE and remove it |
 | `coop-quests.log` | native | The shared quests' steps made, held and refused, snapshots and stats lines, capped at 4 MB |
 | `coop-quests.old.log` | native | The previous run's `coop-quests.log` |
 | `coop-quests-record.txt` | native | The last shared quests recording (`coop quests record`) |

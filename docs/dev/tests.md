@@ -219,7 +219,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   and never from a player's name; the `shared_world`, `shared_story`, `daynight`, `pause_tab` and `hide_popups`
   settings (the `sky=` line kept out of the `link:` lines); `bike` and `bike_key` (an older
   file whose keys hold F3 gets no bike key); `gun_mode` and `gun_key` (F4 by default, G refused, an older file whose
-  keys hold F4 gets no gun key, a clash both ways) with gun mode's test lines, kept as written with no note. It also reads the `dlcs=` line with the `dlc_missing=` and
+  keys hold F4 gets no gun key, a clash both ways) with gun mode's test lines, kept as written with no note;
+  `boss_finish` (first by default, right after `boss_hp_scale` in a new file, a bad value kept at first with a line)
+  and `spectate` (on by default, right after `revive`, a bad value kept at on with a line). It also reads the `dlcs=`
+  line with the `dlc_missing=` and
   `dlc_extra=` lines after it, the `mycycle=` and `cycle=` lines (a value out of range dropped), the session list's
   `list=` line with its `session=` rows (a row only after a `list=` line, `-` read as none) and a joiner's `wait=`
   line, logged once a wait. It covers `who_can_join` (`public` by default, the older `code` and `private` read as
@@ -324,7 +327,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `world/maps/matrix13/level/drone_test` the hook tried once a stay, only once its class is found by name;
 - `ui/kit/model_test` covers the four Who can join values and the Friends join without asking row, shown under Public
   and Invitation only, then the Online tab row named in `docs/players/interface.md`'s Options paragraph between the
-  bike's key and Reset all keys;
+  bike's key and Reset all keys, the Spectate row (on by default, in effect at once) and the Boss finisher row
+  (First press by default, or The host only); `main/menu_test` the Boss finisher row in the scrolled Options view;
 - `online/group/travel_test` covers the host's row in the session list: the rules word at each change, the map and
   nearest camp at once on each map and once a minute at most, from the follow's spawn point read (read again a minute
   later when it found no camp), nothing in a load, as a guest or in a match lobby. A refusal is logged once. For the
@@ -341,8 +345,20 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `enemy_extra`, `bosses`, `boss_hp_scale`, `hit_reactions` and `stagger_resist` settings, whose rows `main/menu_test`
   covers with the `shared_quests`,
   `shared_world` and `shared_story` rows, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals,
-  status, and `pvp_spike=off` ending an earlier load's PvP test at a reload);
-- `fight/enemies/wiring_notices_test` covers the same place and same spawns notices in both languages;
+  status; `pvp_spike=off` ending an earlier load's PvP test at a reload). For phase 3 it covers `boss_finish=host`
+  as `finish-host` right after the bosses percent, the `spectate` ask (at load only where the `engine=` line's word
+  disagrees with the setting, none for `faulted`, cancelled by `coop spectate on` or `off`; the Options row's ask at
+  once), `coop spectate` with its words (test on a co-op save only) and spectate's tick in fight's 250 ms work, after
+  `coop off` too;
+- `fight/enemies/wiring_notices_test` covers the same place and same spawns notices in both languages, the finisher's
+  notice (once a winner, never for ours) and the QTE notices at each change of `qte=`;
+- `fight/enemies/spectate_test` covers `fight/enemies/spectate.lua` over fakes of the link, the controller,
+  `core/actors.lua` and `core/unreal.lua`: an earlier Lua load's camera swept, one camera made and the view taken once
+  from our pawn only, a theater's camera kept on both edges, the camera's place each frame (400 cm from her feet, 160
+  cm up, aimed 130 cm above them, its direction kept), one respawn per reason with the revival once 2 s later while
+  the life did not move, the 2 s stopped while the line reads `fight=waiting`, each refused respawn with its log
+  line, the view back at `spec=0`, the native fault's fallback, the camera over our EVE with no ghost anchor, the
+  switch among the members alive on our map, the watching notice once and `coop spectate test`'s probe and line;
 - `online/session/wiring_dlc_test` covers the DLC notice: once a session when the two lists of installed DLCs differ, in
   the menu's language with its English beside. The same DLCs, or no list yet, give none;
 - `online/session/wiring_cycle_test` covers the New Game+ notice: the guest compares with the host, the host with each
@@ -443,7 +459,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   frame time line with its longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call
   of five modules, and the gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at
   most 200 a minute), then `INSTALL.md` and `docs/players/interface.md` both saying the mod reads any controller the
-  game reads;
+  game reads. For spectate it covers the pad's left and right that nothing else took switching the member watched
+  (the co-op menu open takes them first), the Left and Right arrows the same way (never A, Q or D, nothing while it
+  does not watch) and the camera's frame call right after the ghost's place;
 - `main/match_test` covers `coop match` (search, create, cancel, end, join with a code, leave), search and create with
   the SBO lobby's room and hall words, `coop mute` and `coop unmute` with their usage line, `coop block`,
   `coop unblock` (a SteamID or `all`) with their usage lines and `coop blocked` (the count from the status for one
@@ -627,7 +645,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 ### Link
 
 - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
-  `aggro-host`, `bosses <boss %>`, `reactions`, `resist`, `spawns`, `extra <n>` and `filter` words,
+  `aggro-host`, `bosses <boss %>`, `finish-host` (only right after the bosses percent), `reactions`, `resist`,
+  `spawns`, `extra <n>` and `filter` words,
   `fight stagger <0|1> <0|1>` and its `pilot` requests, `test target` and the boss tests included; `coop fight pvp` and
   `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
@@ -653,8 +672,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   the map rule, three places within 10,000,000 and three angles within 36,000 as signed whole numbers), the vit line's
   13 numbers (the zone type last, 0 to 6; the 12-number line of before refused), the `spot?` and `spot` lines (places
   within 10,000,000 cm, a yaw within 360, the six reasons) and the `rest` line (a zone alias, a SteamID other than 0)
-  with a fuzz seed each, Lua's `spot?`, `spot`, `rest` and `travel spot` requests, then protocol 25 refusing a
-  protocol-24 lobby and line;
+  with a fuzz seed each, Lua's `spot?`, `spot`, `rest` and `travel spot` requests, `spectate on|off|status|test` and
+  nothing else, a player's life from her vitals (life state 2 read as Coma before the 0 HP rule), then protocol 25
+  refusing a protocol-24 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, an
   Invitation lobby (its code, the invite dialog, the older words `code` and `private`) joined with its code and the
@@ -1070,6 +1090,33 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
     within 30 cm of the host's enemies at the same host time while they move (an 8 m/s lunge to a dead stop included)
     and 5 cm at rest, the show lines apply in the host's order with no Show held back by those two caps, and restore
     puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
+- phase 3's boss fights:
+  - `game_boss_rows_test`: `game/boss_rows.h` on build 26123051's rows: the counts (25 triggers on 14 spawn rows, 10
+    QTE, 15 `LV_Dead` rows), Raven's two triggers in table order, the QTE rows of the Raven Beast, the Elder's first
+    phase (none), ExoSuit (two), Opener (its trial row is none) and a brute whose trigger plays no scene; then
+    `by_scene`, `crosses` on both sides of a threshold (none for a percent trigger with no MaxHP read) and `lv_dead`;
+  - `fight_enemies_spectate_test`: `fight/enemies/spectate.h`'s rules with no game: each enter rule alone keeping it
+    off, the Coma press (Left on the Coma screen starts it, Top never does, taken at the next step only), one respawn
+    reason at a time counted once, a copy that died in Coma, each leave (nobody, ended after 10 s of running fight,
+    link, off, revive 4 s after a reason) with its one release (1 at life 3, 4 at life 2, none at life 4), life 6 as
+    up, one spectate per down, a pause that counts nothing and reads no reason, the hold and swallow cases of Review
+    Focus 1 and the button map;
+  - `game_fight_sync_test` adds the `bosses <first|host>`, `fin`, `qte-own` and `spec` lines through format and parse
+    (a bosses line with no fourth word read as host); the host's claims on its bosses while its EVE is down (kept while
+    a member stands, dropped and logged once a down with nobody up); the HP scene hold on both sides (held in order,
+    let go when our EVE is up or after 2 s, never for a trigger with no scene, dropped with her claims at her on, a
+    repaired copy holding for its own 2 s); the first press (hers winning past aggro and same place, ours first in
+    one turn, our press after hers refused once, her press waiting 1 s for the Finish stance, `host` mode, one `fin`
+    a winner, sent again after the up lines at her on); the QTE owner (the claimant, our own hit, hers in a shared
+    turn, the next member up, nobody up, each miss to the next member, story together off, once a boss, sent again
+    at her on); a boss line taken only from the pair's owner; the guest's reads of `bosses` and `fin`;
+  - `fight_enemies_engine_test` adds the boss claims judged on the vitals that came before them in one drain, a Coma
+    member read as up, spectate's facts and the phase signature, the pit relocation once after a spectate revive
+    only, the live `fight=` words, the finish guard waiting for `fin` on the guest, the guest's finisher exec past
+    the gates, the host's guard after her win and her off forgetting it, `fin=` and `qte=` on the line, the QTE owner
+    from her vitals (Coma or stale read as not up), the `qte_on` and `qte_end` messages, the boss hand-overs and each
+    busy reason (Finish stance, a phase change in the last 3 s, a story scene, a named QTE owner or finisher), the boss
+    pilot's gate, boss lines from the owner on both sides and her summon keyed by her member on the host;
 
 ### PvP test
 
@@ -1252,6 +1299,12 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   numbers, the queue while she loads and its overflow, a new partner, the feature off, her save not a co-op save and the
   status line. The host's choice and QTE results go before his skip, his position and the end of a theater they closed
   in; those of a play he does not share are logged once.
+- `game_story_sync_test` adds phase 3's leader per scene: the guest leading Raven's QTE scene with the host following,
+  a line for a scene no Leader names refused, the hold at the first QTE block (until a Leader or her lines, 5 s at
+  most, given back when story together goes off or a new partner comes), a stale leader's line refused, a miss
+  clearing the leader until the next try, a lead that comes mid-scene, ExoSuit's two paths, a boss scene that waits
+  while our player watches the fight, the ended QTE scenes reported once and the QTE hook's result sent only while
+  we lead.
 - `game_story_engine_test`: `game/story/engine.h` over fake memory and fake SB functions. Host side: his theater, hook
   1's read, his menus read when they close (a menu of another play left out, ordinals counted by take), his QTE and
   InputCounter blocks read once final (Flow results as bits, a widget read before its next start, a Flow's results then
@@ -1262,6 +1315,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   she lacks refused) with her menu for it closed after its skip latch is taken, her PlayerChoice answered through her
   OK, her QTE and InputCounter given the host's values (late, gone, a success that finishes at once, its take skip only
   after his, Flow results), her presses taken when a block starts and her menus held then given back.
+  Phase 3 adds her() telling a QTE or InputCounter block of the playing theater still open (its result slot below 0).
 
 ### Quests
 
@@ -1293,6 +1347,12 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 ## Python tests
 
 - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
+- `boss_rows_test.py`: `tools/boss_rows.py` on small made-up tables, without the game's: each filter (rank, test, demo,
+  NIKKE and Boss Challenge rows, a condition that is no ActorHP, a condition with no event at its index, an equation
+  other than LEQ), the scene a trigger's event plays (through AddEvents, a level sequence alone, a Stop row, an
+  effect-only chain), the QTE flag on the exact theater alias and the LV_Dead rows. Then the written block: parsed
+  back to the same values, within its markers, the rest of the header untouched, a name that cannot go into a C++
+  literal refused. Last, its load and main over a folder of table exports;
 - `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder, and its `--pak`
   part: the copy of the three `zSBO_Lobby` files into `~mods` with a backup of the ones it replaces, a copy that does
   not hash like its source, a folder that lacks one of the files, the dry run, the refusal while the game runs, and an
@@ -1357,7 +1417,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   [online/modes/nightop-previews.md](../online/modes/nightop-previews.md#how-the-original-matchmaking-is-blocked)).
   Score attack's `online/modes/scoreattack/run.lua` holds one guarded `CreateSBZoneEvent` (the heal row only), its
   one `ServerRequest_CreateActor` and its one `ServerRequest_ActorRespawn`: a plant that widens the guard, removes the
-  file's guard or adds another request (`ServerRequest_ActorRevival`) fails the scan.
+  file's guard or adds another request (`ServerRequest_ActorRevival`) fails the scan. Spectate's
+  `fight/enemies/spectate.lua` holds 7 mentions of `ServerRequest_` (its `ActorRespawn` and `ActorRevival` on our own
+  EVE, a copy of group play's respawn, with their log lines, `coop spectate test`'s respawn and the header's two):
+  another request planted there (`ServerRequest_ResetZone`) fails the scan.
   Stellar Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and called at two sites: once in
   `native/src/online/lobby/sbo_game.inc` for `coop sbo seq`, and once in `native/src/glue/tick/world_game_shared.inc`.
   That second site serves the shared world's env control rows, which `game/objects/engine.h` checks against
@@ -1429,3 +1492,21 @@ refused at the hello. Read `UE4SS.log` and `coop-link.log` on every PC after eac
 14. Three players: guest 2 follows the host. Guest 1 rests: the host's zone resets. Guest 2's zone resets only when
     she is the pair. Outside the pair she has no shared fight yet: she logs `rest: no fight read in this game (...)`
     and keeps her area. Then four players rest at one camp together: one reset in each game, no stop notice.
+
+## Solo probe: spectate
+
+`coop spectate test` checks spectate's game parts on one PC, without a friend. It needs a co-op save, no online
+session, `coop loopback 0 0 0` running (so that your life state is read) and your EVE on the game's Dead screen (life
+state 3). Back up the save first: the respawn refills your recovery items in it.
+
+1. Let EVE die, wait for the death screen, then type `coop spectate test`. The answer is `spectate test asked: its line
+   follows in this log in 10 s`.
+2. The death screen hides from the next frame and a camera looks down on your EVE from 4 m up.
+3. 10 s later the mod asks the game's in-place respawn. 2 s after that `UE4SS.log` says `[StellarCoop][SP] spectate
+   test: hud <before> -> <after>, life <n>, camera <ours|pawn|other>, respawn <asked|refused: <why>>`. Expected: `hud
+   2 -> 0` (or `1 -> 0`), `life 1`, `camera ours`, `respawn asked`, with EVE up where she fell.
+4. `coop-link.log` has `spectate filter on: 0x145c34250 swapped ...` once a run. `coop spectate status` afterwards
+   answers `spectate: native on, hud -, not watching, camera pawn`.
+
+A `refused` result names the respawn's blocker (a warp under way, the Night Operation probe's rule, a game that is not
+standalone). The native part gives the death screen back after 14 s at most if the respawn never comes.

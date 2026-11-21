@@ -270,12 +270,27 @@ When one EVE dies, the other player keeps playing (see [online/group-internals.m
 - With [same place](../fight/enemies.md#same-place-experimental) on and `aggro=game` (the defaults), the shared enemies near the living
   EVE fight it. While the guest is on the death screen, the host's game takes back each shared enemy that her game ran
   and that stands within 30 m of the host's EVE, and keeps it until she is up. While the host is on the death screen,
-  the guest's game takes the host's common enemies within 30 m of her EVE. Bosses stay the host's.
-- While the host is down, the guest's hits on the host's bosses do not count, and the boss's HP goes back to the
-  host's.
+  the guest's game takes the host's enemies within 30 m of her EVE, bosses included (see
+  [Whom a boss fights](../fight/enemies.md#whom-a-boss-fights)).
+- While the host is down, the guest's hits on a shared boss count as long as one player stands or is in Coma. With
+  every player down, the host's game drops them: the boss's HP goes back to the host's.
 - A down EVE takes no part in a kill by standing near it (the 30 m of `kill_credit=together`). Its own hits and the
   enemy's record of fighting it still count.
 - With both players down, nobody can revive: each respawns at a camp in their own game.
+
+### A death during a boss fight
+
+When your EVE falls in a shared boss fight while a friend fights on, you watch your friend instead of the death
+screen, with `spectate=on` (yours, on by default; not tested in game yet). The camera follows her. You get up where you
+fell when the boss dies, when it reaches its next phase or right before one of its HP scenes, with full health and
+your recovery items refilled. Left and right switch to another member alive on your map. The details are in
+[Down in a boss fight: spectate](../fight/enemies.md#down-in-a-boss-fight-spectate).
+
+- In Coma, the game's Coma screen comes first: a WB Pump you carry gets you up at once. While you can watch, its camp
+  respawn button starts watching instead.
+- When both players are down, nobody watches. Each gets the game's death screen and respawns at a camp, which resets
+  the boss in that game as in solo play.
+- The friend revive and F7's way back wait during a boss fight on your side, as before.
 
 ### Back to a friend after a death
 
