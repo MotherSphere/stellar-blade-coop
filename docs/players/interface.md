@@ -290,8 +290,9 @@ it says `Native pad unavailable (no controller in the co-op menu): <why>` once, 
 While you watch a friend after a fall in a shared boss fight
 ([spectate](../fight/enemies.md#down-in-a-boss-fight-spectate)), D-pad or left stick left and right watch the previous
 or next member alive on your map, when no menu or screen of the mod takes them. On the keyboard the Left and Right
-arrows do the same; A, Q and D do not. The camera stays 4 m behind the member you watch and 1.6 m above her feet,
-aimed at her chest. It keeps its direction while she moves. It gives way to the camera of a scene that plays.
+arrows do the same; A, Q and D do not. The camera stays 4 m from the member you watch, first on the side where your
+EVE lies, 1.6 m above her feet and aimed at her chest. It keeps that direction while she moves. It gives way to the
+camera of a scene that plays.
 
 ### Mouse
 

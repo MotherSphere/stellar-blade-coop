@@ -510,8 +510,8 @@ With same place on, one game runs a boss's AI at a time, as for a common enemy: 
 game's copy is frozen like any copy it draws, so it never casts its own skills. The game that runs the boss tells the
 other when the boss enters battle mode, which phase effects it holds and which enemies it summons. The other game
 applies the same to its copy: the arena events, the phase changes and the summoned enemies, which are shared like any
-other. A copy leaves battle mode up to 10 s after the boss that runs does, not counting time while that game is paused,
-and at once when it stops being shared. Without same place, each game runs these for its own copy.
+other. A copy leaves battle mode up to 10 s after the boss that runs does, not counting time while that game is paused.
+It leaves at once when it stops being shared. Without same place, each game runs these for its own copy.
 
 When the host's boss dies, her copy dies too if she took part in its fight (`kill_credit` under
 [shared enemies](#shared-enemies-experimental)), its thresholds taken off first. Otherwise her copy stays alive in her
@@ -572,8 +572,8 @@ decides whose press ends it:
   the host's game up to 1 s before its own copy shows the Finish stance waits for it. This works with `aggro=host`
   and with same place off too.
 - `host`: only the host's finisher ends the boss. The guest's game takes her prompt away. Her killing hit leaves the
-  boss at 1 HP, so the host's finisher ends it. While the host's EVE is down, the host's game would take her press,
-  but her game still hides her prompt in this mode (a known limit).
+  boss at 1 HP, so the host's finisher ends it. While the host's EVE is down, the host's game would take her press.
+  Her game still hides her prompt in this mode (a known limit).
 
 If the boss stops being shared before the finisher (the link drops, the host's world changes, `coop fight off`), the
 guest's game removes the Immortal it put back on her copy. Her own hit then ends that boss in her game. A boss without
@@ -600,9 +600,9 @@ own EVE and follows her result.
 With `spectate=on` (each player's own, on by default), a player whose EVE dies in a shared boss fight watches a friend
 who fights on, in place of the death screen. It has not been tested in game yet.
 
-- When your EVE dies, the game's death screen stays hidden. The camera follows the friend from 4 m behind her and
-  1.6 m up, aimed at her chest: `You are down. Watching <name>. You get up when the boss falls or reaches its next
-  phase.` The friend sees `<name> is down and watching.`
+- When your EVE dies, the game's death screen stays hidden. The camera follows the friend from 4 m away, first on
+  the side where your EVE lies, 1.6 m above her feet and aimed at her chest. You see `You are down. Watching <name>.
+  You get up when the boss falls or reaches its next phase.` The friend sees `<name> is down and watching.`
 - In Coma, the game's own Coma screen shows first. Its WB Pump works as in solo play. Its button that would respawn
   you at a camp starts watching instead, when spectate can start.
 - You get up where you fell, through the game's own in-place respawn, with full health and your recovery items refilled
