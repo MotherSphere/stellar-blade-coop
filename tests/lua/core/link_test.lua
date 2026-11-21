@@ -390,9 +390,14 @@ s,notes=Link.parse_settings('race_key=F6\n')
 assert(#notes==1 and s.status_key.name=='F6' and s.race_key.name=='F9',notes[1])
 -- The bike (vehicles/bike/ride.lua): bike on unless off, bike_key F3 unless set, or none; a file from before bike_key
 -- whose own keys hold F3: bike_key has none, the player's keys stay; one that names it on a taken key: all the keys go
--- back.
+-- back. bike_pose rig unless hold, in any case; another word refused with its note, rig kept.
 s,notes=Link.parse_settings('')
-assert(s.bike==true and s.bike_key.key=='F3' and s.bike_key.mod==nil and s.bike_key.name=='F3')
+assert(s.bike==true and s.bike_key.key=='F3' and s.bike_key.mod==nil and s.bike_key.name=='F3' and s.bike_pose=='rig')
+s,notes=Link.parse_settings('bike_pose=HOLD\n')
+assert(#notes==0 and s.bike_pose=='hold')
+s,notes=Link.parse_settings('bike_pose=puppet\n')
+assert(#notes==1 and s.bike_pose=='rig'
+    and notes[1]:find("'puppet' is not allowed for bike_pose (use rig or hold); bike_pose stays rig",1,true),notes[1])
 s,notes=Link.parse_settings('bike=OFF\nbike_key=Alt+F2\n')
 assert(#notes==0 and s.bike==false and s.bike_key.key=='F2' and s.bike_key.mod=='ALT' and s.bike_key.name=='Alt+F2')
 s,notes=Link.parse_settings('bike=yes\nbike_key=none\n')
@@ -515,7 +520,7 @@ assert(keys==8 and #notes==0 and s.menu_key.name=='F5' and s.host_key.name=='non
     and s.gun_key.name=='F4')
 assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\nbike_key=F3\ngun_key=F4\n',1,true),
     'A new file names the race key, the bike key and the gun key')
-assert(s.gun_mode==true and Link.DEFAULT:find('\nbike=on\n# Gun mode: on or off, on by default.',1,true)
+assert(s.gun_mode==true and Link.DEFAULT:find('\nbike=on\nbike_pose=rig\n# Gun mode: on or off, on by default.',1,true)
     and Link.DEFAULT:find('\ngun_mode=on\n',1,true),'A new file has gun mode on')
 assert(s.bike==true and Link.DEFAULT:find('\ndrift_keys=Gamepad_RightTrigger B\n# The bike: on or off, on by default.',1,true)
     and Link.DEFAULT:find('\nbike=on\n',1,true),'A new file has the bike on')

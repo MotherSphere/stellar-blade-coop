@@ -35,8 +35,8 @@
 -- online/saves/commands.lua's (coop shortcut load, a test tool with no menu row); its pvp_spike
 -- fight/enemies/commands.lua's (coop pvp, the PvP test, a test tool with no menu row; main.lua's reload ends it when
 -- off); its sbo_lobby online/lobby/sbo.lua's (the SBO lobby in Xion, on by default, no menu row), which also reads
--- sbo() here; its bike and bike_key vehicles/bike/ride.lua's and main.lua's (the bike); its gun_mode, gun_key and
--- gun_ test lines fight/gunmode/mode.lua's (gun mode, which checks the test lines itself). The co-op menu
+-- sbo() here; its bike, bike_pose and bike_key vehicles/bike/ride.lua's and main.lua's (the bike); its gun_mode,
+-- gun_key and gun_ test lines fight/gunmode/mode.lua's (gun mode, which checks the test lines itself). The co-op menu
 -- (ui/kit/menu.lua) changes the file, one line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
@@ -68,8 +68,11 @@ drift_keys=Gamepad_RightTrigger B
 # The bike: on or off, on by default. On, the mod keeps Stellar Blade's own bike loaded. bike_key, D-pad Right held 1 s
 # on a pad or the console command coop bike puts EVE on it or takes her off, on any save. The bike stays where she gets
 # off: its place is kept for each save, in the mod folder. Off gets her off the bike, removes her parked bike from
-# every world (its place stays), hides the other players' parked bikes and frees the bike's files.
+# every world (its place stays), hides the other players' parked bikes and frees the bike's files. bike_pose, a test
+# of two ways to show EVE's riding pose, read at each mount: rig (a hidden copy of her plays the pose, her body
+# follows it) or hold (the pose plays on EVE herself, kept above the game's own animations). rig by default.
 bike=on
+bike_pose=rig
 # Gun mode: on or off, on by default. On, gun_key or a tap of D-pad Right gives EVE the NIKKE rifle on any save, or
 # puts it away. Off, gun mode does nothing. Both are read when the mod loads.
 gun_mode=on
@@ -245,6 +248,7 @@ scoreattack=on
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',bike_key='F3',bike='on',
+    bike_pose='rig',
     drift_keys='Gamepad_RightTrigger B',name_tag='on',
     send_rate='60',cloth='on',dyes='on',effects='on',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
     enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
@@ -275,7 +279,7 @@ local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_ke
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
-    follow_host={'ask','always','off'},status_overlay={'off','compact','detailed'}}
+    follow_host={'ask','always','off'},status_overlay={'off','compact','detailed'},bike_pose={'rig','hold'}}
 -- The session list's rules word (the rules request, the sbo_rules lobby key the native part writes): a letter for each
 -- session rule on in the host's settings, in this order: e shared enemies, b shared bosses (with shared enemies only),
 -- w shared world, s shared story, q shared quests, r revive; then the boss HP scale in whole percent. ebwqr200: all
@@ -316,7 +320,7 @@ end
 -- nil, name='Shift+F7'}; host_key none: no key); fight_chars a list of whole numbers (the native part takes at most 16,
 -- each from 1 to 2^32-1), empty for auto (every Monster, the native part's rule), which an empty value means too (a
 -- file written before auto); a choice (CHOICES: photo_sync, ui_language, guest_kills, kill_credit, who_can_join,
--- auto_coop_save, aggro, photo_pause, follow_host, status_overlay) one of its words; photo_freeze_max a whole number of
+-- auto_coop_save, aggro, photo_pause, follow_host, status_overlay, bike_pose) one of its words; photo_freeze_max a whole number of
 -- seconds; ui_scale one of percent; max_players a whole number from 2 to 4; the scales a number from 1 to 4, digits
 -- with a decimal point or none
 -- (fight/enemies/commands.lua sends them in whole percents); quest_deny its text, letters, digits, '_', spaces and

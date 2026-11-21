@@ -168,7 +168,7 @@ assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.na
     and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='on' and values.race_key=='F9'
     and values.photo_name_tag=='on' and values.status_overlay=='compact' and values.bike=='on'
     and values.bike_key=='F3' and values.hit_reactions=='on' and values.stagger_resist=='on' and values.gun_mode=='on'
-    and values.gun_key=='F4')
+    and values.gun_key=='F4' and values.bike_pose=='rig')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -209,7 +209,8 @@ assert(menu.current(NONE).key=='menu_key' and menu.rows(NONE)[1].head=='controls
 assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='options')
 menu.select(NONE,0)
 -- Every setting shows, under its header.
-assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key gun_mode gun_key '
+assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key bike_pose '
+    ..'gun_mode gun_key '
     ..'pause_tab reset_keys '
     ..'head:photo '
     ..'photo_sync '
@@ -441,6 +442,8 @@ action,key,text=M.rebind(values,'bike_key',K.text('F2','CONTROL'))
 assert(action=='set' and key=='bike_key' and text=='Ctrl+F2')
 assert(M.read('status_key=F3\n').bike_key=='none' and M.read('bike_key=none\n').bike_key=='none')
 assert(M.read('bike=OFF\n').bike=='off' and M.read('bike=maybe\n').bike=='on')
+-- Its pose row (a test of the two ways): rig or hold, rig for any other word.
+assert(M.read('bike_pose=hold\n').bike_pose=='hold' and M.read('bike_pose=puppet\n').bike_pose=='rig')
 -- Gun mode's key (Controls): F4 by default, rebound and checked like the others, both ways; none in a file whose keys
 -- held F4. Gun mode's row: on or off.
 action,why,other=M.rebind(values,'bike_key','F4')
