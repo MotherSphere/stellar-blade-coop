@@ -225,6 +225,28 @@ do
     assert(got['/Game/A/Body']=='/Game/A/PP_C' and got['/Game/B/Body']=='' and #layer.records()==2)
 end
 
+-- 7b. A rifle clip found once is kept while it is still that clip. After a map change another object may sit at its
+--     freed address and pass IsValid: the clip is then looked up again by its path.
+do
+    local Overlay=require('fight.gunmode.overlay')
+    local path=Overlay.CLIPS.aim
+    local function clip(len)
+        return {full='AnimSequence '..path,IsValid=function() return true end,
+            GetFullName=function(o) return o.full end,GetPlayLength=function() return len end}
+    end
+    local now=clip(1.0)
+    local finds=0
+    local find=StaticFindObject
+    StaticFindObject=function(p) finds=finds+1; return p==path and now or nil end
+    local g={log=function() end,try=function(f) local ok,r=pcall(f); if ok then return r end end}
+    local layer=Overlay.new(g)
+    assert(layer.length('aim')==1.0 and layer.length('aim')==1.0 and finds==1,'found once: '..finds)
+    now.full='Texture2D /Game/Other/T_Other.T_Other' -- another object at the clip's address
+    now=clip(2.0)                                    -- the clip loaded again
+    assert(layer.length('aim')==2.0,'the clip looked up again')
+    StaticFindObject=find
+end
+
 -- 8. ik.lua's math (UE's conventions): a rotator to a quaternion and back, a vector turned by a quaternion, the
 --    rotation of an orthonormal frame and the frame made orthonormal.
 do

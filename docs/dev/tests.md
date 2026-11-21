@@ -66,14 +66,15 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `fight/gunmode/helpers_test` covers gun mode's pure parts: its settings as `core/link.lua` parses them (the defaults
   without them, `gun_key` with its modifier or none, its test lines with refusals), the polled keys' edges and D-pad
   Right's tap (a hold is the bike's), the crosshair point in EVE's frame and the rifle's magazine (a round per cool
-  time, the reload when empty and none when lowered part-spent, the HUD count, no round once the spares are spent, a refill). The
-  reticle's round slot shows the round's name, the reload word and the empty word in the menu's language. It reads
-  the words once a second, not on each frame. It writes the slot on the aim's first frame, over the round the game
-  writes when its aim starts. It keeps the slot found at the first aim. A block whose address another object took
-  gets no write. Only that slot is looked for: the bottom-left count keeps the game's text. It also covers `mode.lua`'s point along a camera's forward and its eased
-  step, then the rifle layer's clip paths (object paths) and its mesh records: an earlier load's record
-  keeps the first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to quaternion and
-  back, a vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
+  time, the reload when empty and none when lowered part-spent, the HUD count, no round once the spares are spent, a
+  refill). The reticle's round slot shows the round's name, the reload word and the empty word in the menu's language.
+  It reads the words once a second, not on each frame. It writes the slot on the aim's first frame, over the round the
+  game writes when its aim starts. It keeps the slot found at the first aim. A block whose address another object took
+  gets no write. Only that slot is looked for: the bottom-left count keeps the game's text. It also covers
+  `mode.lua`'s point along a camera's forward and its eased step, then the rifle layer's clip paths (object paths), a
+  clip looked up again once another object took its address, and its mesh records: an earlier load's record keeps the
+  first class listed. Last, `ik.lua`'s quaternion math against UE's conventions: rotator to quaternion and back, a
+  vector turned, two turns in order, a frame's rotation and a frame made orthonormal;
 - `fight/gunmode/cost_test` counts gun mode's engine calls over `fight/gunmode/fake.lua`. With the rifle away (parked or
   not) 600 frames look up nothing but the HUD entry's look for the HUD (at most once in 10 s), never ask whether the
   game is paused and poll two keys a frame (`gun_key` and D-pad Right). A press while the game is paused does nothing. The dev facts probe still waits out a pause. With no player

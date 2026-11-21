@@ -50,9 +50,11 @@ function Overlay.new(g)
     local function name(o) return g.try(function() return o:GetFullName() end) or tostring(o) end
     local function path_of(o) local f=g.try(function() return o:GetFullName() end); return f and f:match('^%S+ (.+)$') end
     local slot -- FName('DefaultSlot'), made once
-    local found={} -- path -> object (the clips stay loaded while the layer is on); checked before each use
+    -- path -> object, checked by its path before each use. Nothing of gun mode holds the clips across a map change.
+    -- Another object can then sit at a freed address and pass IsValid.
+    local found={}
     local function find(path)
-        local c=found[path]; if c and valid(c) then return c end
+        local c=found[path]; if c and valid(c) and path_of(c)==path then return c end
         local o=StaticFindObject(path)
         if valid(o) then found[path]=o; return o end
         local ok,r=pcall(function()
