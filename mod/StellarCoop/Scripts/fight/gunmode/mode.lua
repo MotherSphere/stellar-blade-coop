@@ -515,9 +515,11 @@ function GunMode.new(env)
         end
         return ('%d audio components, %d playing%s'):format(#items,playing,#names>0 and ' ('..table.concat(names,' ')..')' or '')
     end
+    -- true when it hid a mesh or made one follow (coop-gun.txt lists it then).
     local function hide_others(p,first)
         local src=g.try(function() return p.Mesh end)
         if not g.valid(src) then return end
+        local changed=false
         local body=g.try(function() return src.SkeletalMesh:GetFullName() end)
         local cls,skel,static=g.find(MESH),g.find(SKEL),g.find(STATIC)
         if not g.valid(cls) then return end
@@ -551,12 +553,12 @@ function GunMode.new(env)
                 end
                 if copy then
                     local ok,err=stance.copy(c)
-                    if ok==false then g.log('hide: '..short..' not copied ('..tostring(err)..')') end
+                    if ok==false then g.log('hide: '..short..' not copied ('..tostring(err)..')') else changed=true end
                 end
                 if follow and not s.followed[addr] then
                     local body=stance.body()
                     if g.valid(body) and pcall(function() c:SetMasterPoseComponent(body,true) end) then
-                        s.followed[addr]={c=c,to=src}
+                        s.followed[addr]={c=c,to=src}; changed=true
                     end
                 end
                 if first then
@@ -566,13 +568,14 @@ function GunMode.new(env)
                 end
                 if hide then
                     local was=g.try(function() return c.bOwnerNoSee end)
-                    if pcall(function() c:SetOwnerNoSee(true) end) then s.hidden[addr]={c=c,was=was==true} end
+                    if pcall(function() c:SetOwnerNoSee(true) end) then s.hidden[addr]={c=c,was=was==true}; changed=true end
                 end
             end
         end
         if first then
             g.log('hide: her meshes (* hidden from her camera, + following the posed copy, = copied with it): '..table.concat(seen,' '))
         end
+        return changed
     end
     local function show_others()
         for _,e in pairs(s.hidden) do
@@ -653,6 +656,7 @@ function GunMode.new(env)
         s.drone={actor=best,parts=parts}
         s.drone_keep={actor=best,name=g.try(function() return best:GetFullName() end)}
         g.log('drone: '..#parts..' parts hidden ('..#all..' drones)')
+        return true
     end
     local function show_drone()
         if s.drone then
@@ -881,7 +885,8 @@ function GunMode.new(env)
         if hold then s.aim_hold=true; data.cool(999)
         elseif s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
         keep()
-        g.log('off ('..why..'), '..s.shots..' shots'..(hold and '; the drone aim is on: its key and SB\'s rows wait for its end' or ''))
+        g.log(('off (%s), %s shots, Lua %.0f KB%s'):format(tostring(why),tostring(s.shots),collectgarbage('count'),
+            hold and '; the drone aim is on: its key and SB\'s rows wait for its end' or ''))
         g.log('sounds at the off: '..sounds(p))
     end
     -- Everything back, SB's rows too, coop-gun.txt with it: a start that failed (L2), or stop.
@@ -1095,7 +1100,7 @@ function GunMode.new(env)
                 g.log('morph mesh '..c..': '..((o and o:IsValid()) and 'found' or 'missing'))
             end
         end
-        g.log('on ('..why..'), ms: '..table.concat(laps,' '))
+        g.log(('on (%s), ms: %s; Lua %.0f KB'):format(tostring(why),table.concat(laps,' '),collectgarbage('count')))
     end
 
     -- coop off (main/commands.lua): the rifle away, everything back, SB's rows and coop-gun.txt too; from then on gun
@@ -1212,6 +1217,7 @@ function GunMode.new(env)
     local RECOIL_CAM={X=5,Y=0.8,Z=1.4} -- the camera's recoil when cfg.recoil_cam is not set
     local function is_vis(o) return o:IsVisible() end
     local function paused(gs,pc) return gs:IsGamePaused(pc) end
+    local function is_paused(pc) local ok,pz=pcall(paused,g.find(STATICS),pc); return ok and pz==true end -- (made once)
     local PELVIS,SPINE1 -- FName('Bip001-Pelvis') and FName('Bip001-Spine1'), made once (the flip test while falling)
 
     local function tick()
@@ -1241,8 +1247,7 @@ function GunMode.new(env)
         -- settings: a masked key would be saved as the player's own. The rifle away with nothing of it held (no mask,
         -- no armed rows) asks only at a toggle, which a pause refuses: no game call a frame for it then (M2).
         local idle=not s.on and not s.mask and not s.armed_until
-        local function is_paused() local ok,pz=pcall(paused,g.find(STATICS),pc); return ok and pz==true end
-        if not idle and is_paused() then
+        if not idle and is_paused(pc) then
             -- (dev only, gun_g1=on) the fixed views once per photo mode, to check the pose holds in it
             if set.g1 and s.on and g.valid(s.rifle) then
                 local photo=g.try(function() return g.find('/Script/SB.Default__SBAutomationBlueprintFunctionLibrary'):IsPhotoMode() end)==true
@@ -1290,12 +1295,12 @@ function GunMode.new(env)
         if s.on then for _,k in ipairs(cfg.reload_keys or {}) do if down(k) then rk=true end end end
         if rk and not s.reload_held and s.on and not s.morph then pcall(ammo.manual,now) end
         s.reload_held=rk
-        if (inp.key or inp.toggle) and not (idle and is_paused()) then
+        if (inp.key or inp.toggle) and not (idle and is_paused(pc)) then
             if inp.key then self.toggle(set.key.name) else self.toggle('D-pad Right') end
         end
         -- (dev only) The facts probe waits out a pause as it did before the pause was asked only at a toggle: its F8
         -- plays a clip on her and its F11 swaps her body mesh's post-process class.
-        if set.facts and not (idle and is_paused()) then
+        if set.facts and not (idle and is_paused(pc)) then
             s.facts=s.facts or require('fight.gunmode.facts').new(g)
             local ok,e=pcall(s.facts.tick,pc,g.pawn(),down,now)
             if not ok and not s.facts_err then s.facts_err=true; g.log('facts: '..tostring(e)) end
@@ -1334,7 +1339,7 @@ function GunMode.new(env)
                 elseif p0 and not s.is_held then
                     s.free_at=s.free_at or now
                     -- (quiet while anything else still holds her: enable would show its refusal each time)
-                    if GunMode.resume_due(s.free_at,now,1.0,s.resume_n) and not held(p0) and not is_paused() then
+                    if GunMode.resume_due(s.free_at,now,1.0,s.resume_n) and not held(p0) and not is_paused(pc) then
                         if not pcall(enable,'back after the interaction') then give_all_back() end
                         if s.on then s.resume,s.free_at,s.resume_n=false,nil,nil
                         else
@@ -1830,9 +1835,11 @@ function GunMode.new(env)
         if s.prof then s.prof('layer_play') end
         if now-s.hide_at>=1.0 then
             s.hide_at=now
-            pcall(hide_others,p,false)
-            if cfg.hide_drone~=false then pcall(hide_drone,p,now) end
-            keep() -- A mesh or a drone hidden this second listed.
+            local _,hid=pcall(hide_others,p,false)
+            local _,drone=false,false
+            if cfg.hide_drone~=false then _,drone=pcall(hide_drone,p,now) end
+            -- A mesh or a drone hidden this second listed. Only then: the list built each second was garbage a second.
+            if hid==true or drone==true then keep() end
         end
         if s.prof then s.prof('hide') end
         if set.native and set.upper then pcall(hold_pose,p,inp.fire) end
@@ -1858,19 +1865,24 @@ function GunMode.new(env)
     -- section (s.prof('<section that ends here>') marks in tick), one log line. Lua's collector stays as UE4SS sets it:
     -- a generational mode, a hand-paced one and an aggressive pause were tried (11-20); the last one crashed UE4SS
     -- (access violation in UE4SS.dll right after gun mode came on). The stutters are cut at their source instead: less
-    -- garbage a frame.
+    -- garbage a frame. The line also gives the Lua heap of the whole mod now and its lowest at a tick's end in those
+    -- 10 s, with what gun mode's own ticks allocated (a collector step inside a tick hides its part of that tick: at
+    -- least that much). The heap grew from 33 MB to 223 MB in 8 minutes with the rifle out (2026-11-21 test), with no
+    -- figure from the rifle away or for gun mode's share: the on and off lines give the heap too.
     local sec,smax,last={},{},0
     s.prof=function(name) local t=os.clock(); local d=t-last; sec[name]=(sec[name] or 0)+d; if d>(smax[name] or 0) then smax[name]=d end; last=t end
-    local function perf(t0,dt)
-        local pf=s.perf or {n=0,sum=0,max=0,at=t0}; s.perf=pf
-        pf.n,pf.sum,pf.max=pf.n+1,pf.sum+dt,math.max(pf.max,dt)
+    local function perf(t0,dt,kb)
+        local heap=collectgarbage('count')
+        local pf=s.perf or {n=0,sum=0,max=0,at=t0,kb=0,low=heap}; s.perf=pf
+        pf.n,pf.sum,pf.max,pf.kb,pf.low=pf.n+1,pf.sum+dt,math.max(pf.max,dt),pf.kb+math.max(0,kb),math.min(pf.low,heap)
         if t0-pf.at<10 then return end
         local parts={}
         for k,v in pairs(sec) do parts[#parts+1]={k,v} end
         table.sort(parts,function(a,b) return a[2]>b[2] end)
         local txt={}
         for i=1,math.min(6,#parts) do txt[#txt+1]=('%s %.2f (worst %.1f)'):format(parts[i][1],parts[i][2]/pf.n*1000,(smax[parts[i][1]] or 0)*1000) end
-        g.log(('perf: tick %.2f ms average, %.2f ms worst, %d ticks, Lua %.0f KB; ms a tick: %s'):format(pf.sum/pf.n*1000,pf.max*1000,pf.n,collectgarbage('count'),table.concat(txt,', ')))
+        g.log(('perf: tick %.2f ms average, %.2f ms worst, %d ticks, Lua %.0f KB (lowest %.0f KB), gun mode allocated at least %.1f KB a tick; ms a tick: %s'):format(
+            pf.sum/pf.n*1000,pf.max*1000,pf.n,heap,pf.low,pf.kb/pf.n,table.concat(txt,', ')))
         s.perf=nil; sec={}; smax={}
     end
 
@@ -1878,9 +1890,10 @@ function GunMode.new(env)
     function self.tick()
         if not set.on or s.dead then return end
         local t0=os.clock(); last=t0
+        local kb=collectgarbage('count')
         local ok,e=pcall(tick)
         if not ok and s.errors<5 then s.errors=s.errors+1; g.log('error: '..tostring(e)) end
-        if s.on then perf(t0,os.clock()-t0) end
+        if s.on then perf(t0,os.clock()-t0,collectgarbage('count')-kb) end
     end
 
     -- A new controller (map load, death, camp warp), from fight/gunmode/wiring.lua's NotifyOnNewObject: the rifle goes

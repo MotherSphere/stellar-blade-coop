@@ -415,4 +415,49 @@ do
     U.class_at,U.actors_of=class_at,actors_of
 end
 
+-- 11. The Lua heap grew from 33 MB to 223 MB in 8 minutes with the rifle out (2026-11-21 test). Over 30 s carried,
+--     aiming and firing after a warm-up, nothing of gun mode grows: the heap after a full collection stays within 8 KB
+--     (the fake's own logs of FOV calls and zone events emptied first). Carried with nothing new to hide, coop-gun.txt's
+--     line is not built again each second (it was garbage a second). The perf line every 10 s gives the heap's lowest
+--     point and what gun mode's ticks allocated; the on and off lines give the heap.
+do
+    local Journal=require('fight.gunmode.journal')
+    local w=world()
+    local logs={}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,
+        store={save=function() return true end,clear=function() end,load=function() return '' end}})
+    out(w,gun)
+    local function live()
+        w.fovs={}
+        for k in pairs(Fake.events) do Fake.events[k]=nil end
+        collectgarbage('collect'); collectgarbage('collect')
+        return collectgarbage('count')
+    end
+    local function phases(n)
+        w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil; frames(gun,n)
+        w.pawn.bTPSMode,w.down.RightMouseButton=true,true; frames(gun,n)
+        w.down.LeftMouseButton=true; frames(gun,n)
+    end
+    phases(600)
+    local before=live()
+    phases(600)
+    local grew=live()-before
+    assert(grew<8,('the heap grew %.1f KB in 30 s with the rifle out'):format(grew))
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil
+    frames(gun,120)
+    local line,built=Journal.line,0
+    Journal.line=function(...) built=built+1; return line(...) end
+    frames(gun,600)
+    Journal.line=line
+    assert(built==0,built..' journal lines built in 10 s carried')
+    local perf,on
+    for _,m in ipairs(logs) do
+        perf=perf or m:match('^perf: .* Lua %d+ KB %(lowest %d+ KB%), gun mode allocated at least [%d.]+ KB a tick; ')
+        on=on or m:match('^on %(command%), ms: .*; Lua %d+ KB$')
+    end
+    assert(perf and on,'the perf and on lines give the heap')
+    clock=clock+1; gun.toggle_now(); frames(gun,60)
+    assert(logs[#logs-1]:match('^off %(command%), %d+ shots, Lua %d+ KB$'),logs[#logs-1])
+end
+
 print('gunmode cost: ok')

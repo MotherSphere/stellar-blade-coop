@@ -314,6 +314,12 @@ the first rifle out on a map froze the game for 100 to 340 ms in the 2026-11-21 
 body that is already in memory when there is one. The first rifle out of a Lua load finds her drone with a walk of the
 game's objects. After that the drone comes from the engine's list of actors of its class.
 
+While the rifle is out, `UE4SS.log` has a `[GM]` line every 10 s: `perf: tick <average> ms average, <worst> ms worst,
+<n> ticks, Lua <heap> KB (lowest <low> KB), gun mode allocated at least <k> KB a tick; ms a tick:` and the six
+costliest parts of the tick. The heap is the Lua heap of the whole mod. Its lowest point over the 10 s goes up when
+something keeps memory. The heap went from 33 MB to 223 MB in 8 minutes with the rifle out in the 2026-11-21 test. The
+`on` and `off` lines end with the heap at that moment, so a rise while the rifle is away shows too.
+
 ## coop gun
 
 | Command | What it does |
