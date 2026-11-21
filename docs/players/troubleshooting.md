@@ -206,8 +206,9 @@ effects off until the game restarts; the ghost stays, without effects.
 Your EVE's sounds go to the others with the sounds look on (`sounds=on` in `coop status`). A line `sounds refused:
 0x<slot> holds <value>; nothing of that set swapped, the ghost goes on without sounds` in `coop-link.log` means
 another mod hooks the same function of the game. Stellar Blade Online leaves that mod's hook in place, so your sounds
-are not sent while it is loaded. `coop status` then shows `sounds=refused`. A `sounds off: fault ...` line means a
-fault turned them off until the game restarts. The ghost stays either way.
+are not sent while it is loaded. When the line ends with `(her events' context)`, only some of them are sent. `coop
+status` then shows `sounds=refused`. A `sounds off: fault ...` line means a fault turned them off until the game
+restarts. The ghost stays either way.
 
 ## Doro races
 

@@ -326,9 +326,11 @@ while your game plays a ghost's sounds.
 
 A sound gets an asset key the first time its sound, class, attenuation and parameters come together in a link session.
 Its SBA line names them by their paths in the game's name pool: `sound <asset> <class|-> <attenuation|-> <params|->`.
-A sound outside the game's own folders is dropped and counted. A class or attenuation outside them goes as `-`. Then
-the event waits for a slot of the pose ([3. The pose codec](#3-the-pose-codec)) with its volume and pitch in 1/64
-steps, its part and its place.
+A sound outside the game's own folders is dropped and counted. So is one whose line would pass 512 bytes under key
+4096. A class or attenuation outside them goes as `-`. Then the event waits for a slot of the pose ([3. The pose
+codec](#3-the-pose-codec)) with its volume and pitch in 1/64 steps, its part and its place. An event on a part the
+pose's table no longer has (her drone gone since) goes empty in that pose, since the viewer refuses a whole pose that
+carries one.
 
 The worker swaps two sets apart, each all or none: the seven context slots and the two audio slots. Each swap is a
 compare-and-swap from the game's function, relocated to the loaded image. If one slot of a set holds another value, the

@@ -6,7 +6,7 @@
 // Her sounds, the sender's hooks (online/partner/sound.h): the context wrappers set a mark while SB runs one of its
 // sound notifies or show sound updaters for her; the sink in the audio component's start slot records the sound SB
 // picked into its thread's ring. They make no game call but the originals, through the relocated addresses the worker
-// wrote before its swaps. Each frame the game thread publishes who is her for them, and names each record once
+// wrote before its swaps. Each frame the game thread publishes who is her for them. It names each record once
 // (sound_take, which pose_game.inc's drain calls). Under their own SEH latch: a fault turns her sounds off for the run,
 // the worker gives the slots back and logs it once; the ghost goes on.
 
@@ -248,13 +248,12 @@ void sound_publish(const Live *live) {
 }
 // One record into the outbox: its asset key (known by its objects, else its words read once from the name pool and a
 // fresh key's SBA line into lines), then its event. A sound whose path is refused is dropped and counted; a volume
-// or pitch past the event's byte is cut and counted in clamped (the stream line's values cut).
+// or pitch past the event's byte is cut and counted in clamped (the stream line's values cut). Its objects are read
+// through safe_read: a record may wait frames in its ring (the logic thread's while a task runs), so GC may have given
+// an object's memory back.
 __declspec(noinline) void sound_take_body(const sound::Record &r, AssetKeys &keys, Outbox &out,
                                           std::vector<std::string> &lines, uint64_t now_us, uint32_t &clamped) {
-  const auto read = [](uint64_t a, void *out, size_t n) {
-    std::memcpy(out, reinterpret_cast<const void *>(a), n);
-    return true;
-  };
+  const auto read = [](uint64_t a, void *out, size_t n) { return safe_read(a, out, n); };
   int32_t index = 0, serial = 0;
   if (!pilot::live(read, objects, r.sound, &index, &serial)) {
     ++window_sound_paths;

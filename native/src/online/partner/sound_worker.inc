@@ -66,7 +66,7 @@ void sound_swap_in(SoundSet &s) {
         "; nothing of that set swapped, the ghost goes on without sounds (" + s.what + ")");
 }
 // One set back from ours to the game's functions, by a compare-and-swap from ours only: a slot that holds anything
-// else is left as it is, and a hook left in place only runs the game's function once sounds_wanted is false.
+// else is left as it is. A hook left in place only runs the game's function once sounds_wanted is false.
 void sound_give_back(SoundSet &s, const char *why, Filter after) {
   if (s.state != Filter::on)
     return;

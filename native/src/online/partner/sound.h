@@ -186,8 +186,9 @@ template <class Read> bool asset_path(Read &&read, uint64_t pool, uint64_t objec
 }
 // The words of r's SBA line, what it carries after its key: sound <asset> <class|-> <attenuation|-> <params|->. Empty
 // when the sound's path does not read or the line would be refused (a path outside SB's own folders, over
-// kMaxMessage). A class or attenuation that does not read or whose path is refused goes as -. A param whose name does
-// not read or is not a word is left out and counted in left_out.
+// kMaxMessage under the longest key, kMaxAssetKeys, so it passes under any key AssetKeys::add gives). A class or
+// attenuation that does not read or whose path is refused goes as -. A param whose name does not read or is not a word
+// is left out and counted in left_out.
 template <class Read> std::string record_words(Read &&read, uint64_t pool, const Record &r, uint64_t &left_out) {
   std::string asset, a = "-", b = "-", path;
   if (!asset_path(read, pool, r.sound, asset))
@@ -206,8 +207,18 @@ template <class Read> std::string record_words(Read &&read, uint64_t pool, const
     else
       ++left_out;
   }
-  const std::string line = pose::asset_line(1, pose::Kind::sound, asset, a, b, params);
-  return line.empty() ? std::string() : line.substr((asset_tag() + " 1 ").size());
+  const std::string line = pose::asset_line(uint16_t(pose::kMaxAssetKeys), pose::Kind::sound, asset, a, b, params);
+  return line.empty() ? std::string()
+                      : line.substr((asset_tag() + " " + std::to_string(pose::kMaxAssetKeys) + " ").size());
+}
+
+// The pose's event slots fitted to its table of parts parts: an event recorded on a part the table no longer has (her
+// drone gone, a smaller outfit since) goes empty in this pose, since get_event (game/codec.h) refuses the whole pose
+// for it. The outbox keeps the event until its hold ends.
+inline void fit_parts(pose::Event *slots, size_t parts) {
+  for (size_t k = 0; k < pose::kEventSlots; ++k)
+    if (slots[k].part != pose::kNoPart && slots[k].part >= parts)
+      slots[k] = pose::Event();
 }
 
 } // namespace coop::sound

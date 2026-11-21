@@ -29,7 +29,7 @@ void test_swap_all_refuses_and_gives_back() { // Review Focus 5
   mem[2] = runtime[2];
   assert(coop::sound::swap_all(at, runtime, ours, 4, swap) == 4 && mem[3] == 0xa3);
   assert(coop::sound::swap_all(at, ours, runtime, 4, swap) == 4 && mem[0] == runtime[0]); // and back at coop off
-  // A slot whose page would not become writable refuses the set too, and the ones taken go back.
+  // A slot whose page would not become writable refuses the set too. The ones taken go back.
   auto locked = [&](uint64_t s, uint64_t from, uint64_t to, uint64_t &held) {
     if (s == 3) return false;
     held = mem[s]; if (held == from) mem[s] = to; return true; };
@@ -56,6 +56,7 @@ void test_rule_of() {
   assert(rule_of(false, 0x200, 0, hers, 3) == Rule::owner);
   assert(rule_of(false, 0x999, 0x300, hers, 3) == Rule::attach);
   assert(rule_of(false, 0x999, 0x998, hers, 3) == Rule::none);
+  assert(rule_of(false, 0x200, 0x300, hers, 3) == Rule::owner); // owner before attach
   const uint64_t gaps[2] = {0, 0x100}; // an empty entry (no drone) never matches a null owner or parent
   assert(rule_of(false, 0, 0, gaps, 2) == Rule::none);
 }
@@ -159,9 +160,10 @@ void test_record_words() { // her sound's SBA words from the name pool, as the g
   assert(words == "sound /Game/Sound/SFX/Step_Run.Step_Run /Game/Sound/Class/SFX_Class.SFX_Class - Surface:3");
   assert(left_out == 1);
   assert(coop::pose::parse_asset_line(coop::asset_tag() + " 9 " + words)); // a viewer takes it under any key
-  r.params = 0, r.cls = 0, r.att = 0;
+  r.params = 0, r.cls = m.object("/Script/Engine/SoundClass", "SoundClass"), r.att = 0; // a class outside: goes as -
   assert(coop::sound::record_words(read, Memory::kPool, r, left_out) ==
          "sound /Game/Sound/SFX/Step_Run.Step_Run - - -");
+  r.cls = 0;
   const uint64_t inner = m.object("/Game/Sound/SFX/Inner", "Inner"); // a good path but for its package's outer
   uint64_t outer = 0;
   m.read(inner + coop::pilot::kOuter, &outer, sizeof outer);
@@ -174,6 +176,38 @@ void test_record_words() { // her sound's SBA words from the name pool, as the g
   assert(coop::sound::record_words(read, Memory::kPool, r, left_out).empty());
 }
 
+void test_record_words_longest_key() { // a line that fits under key 1 but not under key 4096 is refused before it goes
+  Memory m;
+  const auto read = [&m](uint64_t at, void *out, size_t n) { return m.read(at, out, n); };
+  // An object at /Game/Sound/<folder>/<name>.<name>, len bytes in all.
+  const auto object = [&m](size_t len) {
+    const std::string name(100, 'N'), folder(len - 14 - 2 * name.size(), 'F');
+    return m.object("/Game/Sound/" + folder + "/" + name, name);
+  };
+  const std::string head = coop::asset_tag() + " ", tail = " - -"; // b and params: -
+  // Asset and class lengths whose line under key 1 is exactly kMaxMessage bytes.
+  const size_t both = coop::kMaxMessage - head.size() - std::string("1 sound  ").size() - tail.size();
+  coop::sound::Record r{};
+  r.sound = object(250), r.cls = object(both - 250);
+  uint64_t left_out = 0;
+  assert(coop::sound::record_words(read, Memory::kPool, r, left_out).empty()); // 515 bytes under key 4096
+  r.cls = object(both - 253);
+  const std::string words = coop::sound::record_words(read, Memory::kPool, r, left_out);
+  assert(!words.empty() && (head + "4096 " + words).size() == coop::kMaxMessage);
+  assert(coop::pose::parse_asset_line(head + "4096 " + words));
+}
+void test_fit_parts() { // an event on a part the table no longer has goes empty: get_event would refuse the pose
+  using coop::pose::Kind;
+  coop::pose::Event slots[coop::pose::kEventSlots];
+  slots[0].kind = Kind::sound, slots[0].asset = 1, slots[0].part = 5; // her drone's part, gone since
+  slots[1].kind = Kind::sound, slots[1].asset = 2, slots[1].part = 2;
+  slots[2].kind = Kind::sound, slots[2].asset = 3;                    // kNoPart: placed relative to part 0
+  coop::sound::fit_parts(slots, 3);
+  assert(slots[0].kind == Kind::none && slots[0].part == coop::pose::kNoPart && !slots[0].asset);
+  assert(slots[1].kind == Kind::sound && slots[1].part == 2 && slots[2].kind == Kind::sound);
+  assert(slots[3].kind == Kind::none);
+}
+
 int main() {
   test_swap_all_refuses_and_gives_back();
   test_three_sets();
@@ -184,6 +218,8 @@ int main() {
   test_stage_hers();
   test_keyed_attenuation();
   test_record_words();
+  test_record_words_longest_key();
+  test_fit_parts();
   std::puts("sound_test: ok");
   return 0;
 }

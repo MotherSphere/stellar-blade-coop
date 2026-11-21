@@ -269,6 +269,7 @@ void stream(uint64_t now_us) {
         live.encoder.lose();
       Event events[kEventSlots];
       event_outbox.fill(events, now_us, every);
+      sound::fit_parts(events, live.capture.eve.size()); // An event recorded under an earlier, larger table.
       size_t size = encode_pose(live.capture, h, live.capture_root, live.capture_bones.data(), live.capture_fx,
                                 out_back.data.data(), clamped, live.capture_free, events);
       size = out_back.size = live.encoder.encode(live.capture, out_back.data.data(), size, now_us);

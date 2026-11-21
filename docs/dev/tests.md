@@ -737,7 +737,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   with a ring; the ring of 64 (a later start of a component under one mark replaces its record, the 65th is lost and
   counted); a show stage's main actor; the asset key's attenuation mixed with the int parameters; a record's SBA words
   from a fake name pool (a class outside SB's folders goes as `-`, a parameter name that is not a word is left out, a
-  sound not at the top of its package or outside SB's folders is refused);
+  sound not at the top of its package or outside SB's folders is refused, as is a line that passes 512 bytes only
+  under key 4096); an event on a part the table no longer has goes empty;
 - `game_events_test`: `game_calls_ok`, which allows a game call only with the lion gate open, the client in game and
   playing, off SB's logic thread; an event slot's 19 bytes with a fuzz (each slot it accepts encodes back to the same
   bytes); the `Outbox`, whose events wait at most 100 ms and hold a slot for 2 poses and 50 ms plus one send interval,
