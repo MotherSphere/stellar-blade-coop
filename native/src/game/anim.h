@@ -113,15 +113,29 @@ template <class Live> bool alive(Live &&live, uint64_t ch, int32_t index, int32_
 // over the blend-in through FUN_1421119c0 under the key "ASBCharacter::PlayCustomAnim_29770", at priority 100. SB's
 // stop turns it back on only while the slot's +0x68 still reads 1 or 2 (feet() below covers the other ends). 0
 // leaves her foot IK alone.
+// The ride is also held (vehicles/bike/ride.lua's hold way, bike_pose=hold): hold 1 and kRidePriority. The by-path
+// call passes its 17th argument on as PlayCustomAnim's 17th (0x1420b7dea), which writes it to the slot's byte +0x34
+// (0x1420b36e0). PlayCustomAnim compares priorities only while the slot is held that way or its clip has time left
+// (0x1420b3041..0x1420b3050), and refuses a new play only when its priority is strictly lower than the slot's +0x30
+// (COMISS, JC at 0x1420b3052). A loop with count -1 has no time left (+0x04 is -1), so without hold any play of SB's
+// replaces the ride. The by-path entry refuses too while +0x34 is set (FUN_1420b39b0 is then false).
+// kRidePriority is above 101.0 (0x146750358), the highest fixed priority SB plays into slot 0 with (CancelEventMove's
+// play 0x142094ff3, the slide slip end 0x14208303b, the player tick block 0x14206947a at 100.0 or 101.0); 99.0
+// (0x14675034c) is the FixedTargetRotation turn 0x142037f0e. SB's stop at 0x142063b6d (in FUN_1420634f0) stops slot 0
+// by the FName None (FUN_140e4abf0 writes 0), so any clip, when the slot's priority is 101.0 or more and a state of
+// hers holds (+0x2051 set, +0xa94 below 0, +0x204c at most 0): the held ride falls under it. A game test shows when.
+constexpr float kRidePriority = 102;
 struct Play {
   float start = 0, end = -1, rate = 1, blend_in = 0.25f, blend_out = 0.25f, input_blend = -1, priority = 0;
-  uint8_t loop = 0;
+  uint8_t loop = 0, hold = 0;
   int32_t loops = -1, foot_ik = 0;
 };
 inline Play play(bool loop, bool ride = false) {
   Play p;
   p.loop = loop || ride ? 1 : 0;
   p.foot_ik = ride ? 2 : 0;
+  p.priority = ride ? kRidePriority : 0;
+  p.hold = ride ? 1 : 0;
   return p;
 }
 
