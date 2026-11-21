@@ -852,7 +852,7 @@ function GunMode.new(env)
         s.mesh_rot,s.mesh_yaw,s.head_yaw=nil,0,nil
         if s.cmod and g.valid(s.cmod) then local m=s.cmod; pcall(function() g.pc().PlayerCameraManager:RemoveCameraModifier(m) end) end
         s.cmod,s.cmod_fail=nil,nil
-        s.layer,s.layer_clip,s.reload_until,s.turn,s.turnq,s.chest,s.move=false,nil,nil,nil,nil,nil,nil -- (no aim turn left for next time)
+        s.layer,s.layer_clip,s.reload_until,s.turn,s.turnq,s.chest,s.move,s.flip=false,nil,nil,nil,nil,nil,nil,nil -- (no aim turn or flip left for next time)
         s.ovr_row=nil
         show_others()
         show_drone()
@@ -1148,6 +1148,16 @@ function GunMode.new(env)
         if not ok then give_all_back(); g.log('off: the start failed'); notice(now,'failed'); error(e,0) end
     end
 
+    -- A round's destination in the double-jump flip: 30 m along the rifle's bore (its FX_Fire socket's forward), where
+    -- the laser points; the crosshair point without the rifle. Each shot and firing mode's write each frame both take it.
+    local function flip_point()
+        return g.valid(s.rifle) and g.try(function()
+            local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
+            local mz=s.rifle:GetSocketLocation(fx_fire())
+            local f=ml:GetForwardVector(s.rifle:GetSocketRotation(fx_fire()))
+            return {X=mz.X+f.X*3000,Y=mz.Y+f.Y*3000,Z=mz.Z+f.Z*3000}
+        end) or s.target
+    end
     -- Each shot: the bullet's start on the muzzle and its destination on the crosshair point, then the shot's row.
     -- Only in the double-jump flip it goes along the bore, where the laser points.
     local function shoot(p,now)
@@ -1159,18 +1169,9 @@ function GunMode.new(env)
         end
         s.armed_until=now+cfg.arm_hold
         s.shot_at=now
-        local tgt=s.target
         local mz0=g.valid(s.rifle) and g.try(function() return s.rifle:GetSocketLocation(fx_fire()) end)
         aim.write_start(p,mz0 or nil,cfg.start_min_forward,cfg.start_fallback)
-        if s.flip and g.valid(s.rifle) then
-            pcall(function()
-                local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
-                local mz=s.rifle:GetSocketLocation(fx_fire())
-                local f=ml:GetForwardVector(s.rifle:GetSocketRotation(fx_fire()))
-                tgt={X=mz.X+f.X*3000,Y=mz.Y+f.Y*3000,Z=mz.Z+f.Z*3000}
-            end)
-        end
-        aim.write(p,s.flip and tgt or Aim.spread(tgt,s.cam_loc,spread,math.random(),math.random()))
+        aim.write(p,s.flip and flip_point() or Aim.spread(s.target,s.cam_loc,spread,math.random(),math.random()))
         if fire_row(Data.row('Fire')) then
             s.shots=s.shots+1
             pcall(ammo.spend,now)
@@ -1856,13 +1857,15 @@ function GunMode.new(env)
         if set.native and set.upper then pcall(hold_pose,p,inp.fire) end
         if s.prof then s.prof('pose') end
         -- In firing mode, every frame (SB reads the row when a round spawns): the NIKKE bullet's start on the rifle's
-        -- muzzle and its destination on this frame's crosshair point, moved at random within the spread.
+        -- muzzle and its destination on this frame's crosshair point, moved at random within the spread. In the flip it
+        -- is the bore's point, as shoot wrote it this frame: the zone event queues the round (the CreateSBZoneEvent exec
+        -- 0x142669a50 pushes it under the lock at manager+0x50 through 0x14226f8a0 on 26123051), so it spawns after this.
         if s.zoom_held or inp.fire then
             local loc=g.try(function() return p:K2_GetActorLocation() end)
             local rot=g.try(function() return p:K2_GetActorRotation() end)
             local m=g.valid(s.rifle) and g.try(function() return s.rifle:GetSocketLocation(fx_fire()) end)
             aim.write_start(p,m or nil,cfg.start_min_forward,cfg.start_fallback,loc,rot)
-            aim.write(p,Aim.spread(s.target,s.cam_loc,spread,math.random(),math.random()),loc,rot)
+            aim.write(p,s.flip and flip_point() or Aim.spread(s.target,s.cam_loc,spread,math.random(),math.random()),loc,rot)
         end
         if not set.native then face(p,s.zoom_held) end
         -- Firing mode: fire once the rifle has had a moment to come up (Luke's raise eases in over ~12 frames).

@@ -587,4 +587,46 @@ do
     assert(not gun.state.aim_hold and #w.changed()==0,'back at the LT release: '..table.concat(w.changed(),'; '))
 end
 
+-- 18. In the double-jump flip (falling, her Pelvis->Spine1 tilted past flip_tilt) gun mode's rounds go along the
+--     rifle's bore, where the laser points. Firing mode's write of the destination at the end of each frame took the
+--     reticle point over the bore's before SB read the row: every flip round went to the screen's centre. On the
+--     ground in the game's aim the rounds go to the reticle point. Here the camera looks along +X from her root and the
+--     bore points along +Y from 1 m above it, her root unturned: the destination is that point's offset as it is.
+do
+    local w=Fake.new(); w.install()
+    local gun=new()
+    local cam={IsValid=function() return true end,GetCameraLocation=function() return {X=0,Y=0,Z=0} end,
+        GetCameraRotation=function() return {Pitch=0,Yaw=0,Roll=0} end,GetFOVAngle=function() return 45 end}
+    w.pc.PlayerCameraManager=cam
+    local ML={IsValid=function() return true end,GetForwardVector=function(_,r)
+        local p,y=math.rad(r.Pitch),math.rad(r.Yaw)
+        return {X=math.cos(p)*math.cos(y),Y=math.cos(p)*math.sin(y),Z=math.sin(p)}
+    end}
+    local find=w.find
+    function w.find(path) if path=='/Script/Engine.Default__KismetMathLibrary' then return ML end return find(path) end
+    w.pawn.K2_GetActorRotation=function() return {Pitch=0,Yaw=0,Roll=0} end
+    local falling=false
+    w.pawn.CharacterMovement.IsFalling=function() return falling end
+    function w.mesh.GetSocketLocation(_,bone) return bone:ToString()=='Bip001-Spine1' and {X=10,Y=0,Z=0} or {X=0,Y=0,Z=0} end
+    toggle(gun,true); frames(gun,40)
+    local rifle=gun.state.rifle
+    rifle.GetSocketLocation=function() return {X=0,Y=0,Z=100} end
+    rifle.GetSocketRotation=function() return {Pitch=0,Yaw=90,Roll=0} end
+    local dest=w.tables.ProjectileTable.P_Eve_GunNikke_ShootSlug1_Projectile1.DestTargetRelativeLocation
+    falling=true; frames(gun,1)
+    assert(gun.state.flip,'the flip')
+    w.down.LeftMouseButton=true
+    local shots=gun.state.shots
+    frames(gun,1)
+    assert(gun.state.shots>shots,'a round in the flip')
+    assert(math.abs(dest.X)<1e-6 and math.abs(dest.Y-3000)<1e-6 and math.abs(dest.Z-100)<1e-6,
+        ('the flip round along the bore: (%g, %g, %g)'):format(dest.X,dest.Y,dest.Z))
+    w.down.LeftMouseButton=nil; falling=false; frames(gun,2)
+    assert(not gun.state.flip,'landed')
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=true,true,true; frames(gun,2)
+    assert(dest.X>9000 and math.abs(dest.Y)<200,('a round in the aim to the reticle point: (%g, %g, %g)'):format(dest.X,dest.Y,dest.Z))
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=false,nil,nil; frames(gun,1)
+    toggle(gun,false)
+end
+
 print('gunmode state: ok')

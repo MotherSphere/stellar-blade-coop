@@ -143,7 +143,8 @@ reticle point. Without the layer hip fire fires nothing.
 In firing mode the laser sight runs from the rifle's muzzle to the reticle point. The rifle turns in her hands onto
 that line every frame, up to 6 degrees. The beam hangs from the muzzle socket through a component of its own, so a
 partner's game never copies it. The laser shows on your screen only: its end is a value each game keeps for its own
-world, so a copy on another player's screen would point elsewhere.
+world, so a copy on another player's screen would point elsewhere. During the double-jump flip the laser and the
+rounds both run along the rifle's bore.
 
 On the posed stance, the posed body and the rifle you see are drawn for your own camera only.
 
