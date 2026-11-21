@@ -5,6 +5,8 @@
 -- next Lua load can put it back after a Ctrl+R. Records are split by tabs, a record's fields by '|'; '%', '|', tabs and
 -- line ends in a field are written as %XX. The records:
 --   row|<table>|<row>|<field>|<kind>|<value>  a field of SB's rows and its value before gun mode (data.lua)
+--   obj|<object>|<field>|<kind>|<value>        a field of another of SB's objects and its value before gun mode: the
+--                                             NIKKE shot show's anim key (data.lua)
 --   key|<action>|<key>|<masked key>|<index>   an action mapping masked while the rifle is out
 --   pp|<body mesh>|<its own post-process class, or nothing>   a body mesh under the rifle layer (overlay.lua)
 --   see|<component>|<bOwnerNoSee before>[|<tick option before>]   one of her meshes hidden from her own camera

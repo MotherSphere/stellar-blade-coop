@@ -45,6 +45,46 @@ do
     assert(#w.changed()==0,table.concat(w.changed(),'; '))
 end
 
+-- 1b. Native fire: while the rifle is out the NIKKE shot's show plays no animation. Its anim key's AnimResourcePath
+--     (an FString of SBShowAnimKey) is empty, so no cover shot bends her body. The log names the change. coop-gun.txt
+--     lists it. It goes back when the rifle goes away or at the next Lua load. A show the engine collected while the
+--     rifle was out is not written to. Own fire and gun_upper=nikke leave it as shipped.
+do
+    local w=Fake.new(); w.install()
+    local store=file()
+    local gun,logs=new(nil,store)
+    local function said(text)
+        for _,l in ipairs(logs) do if l:find(text,1,true) then return true end end
+        return false
+    end
+    toggle(gun,true)
+    assert(w.shot_key.AnimResourcePath=='','no animation while the rifle is out: '..w.shot_key.AnimResourcePath)
+    assert(said('SBShowAnimKey_1 AnimResourcePath emptied') and said(Fake.SHOT_ANIM),'the log names the change')
+    assert(store.peek():find('obj|',1,true) and store.peek():find(Fake.SHOT_ANIM,1,true),'coop-gun.txt: '..store.peek())
+    toggle(gun,false)
+    assert(#w.changed()==0,table.concat(w.changed(),'; '))
+    assert(not store.peek():find('obj|',1,true),'coop-gun.txt: '..store.peek())
+    -- the show collected and loaded again while the rifle is out: the dead key is not written, the next out empties
+    -- the new one
+    toggle(gun,true)
+    local old=w.shot_key
+    w.shot_show()
+    toggle(gun,false)
+    assert(old.AnimResourcePath=='' and #w.changed()==0,'no write to a collected show')
+    toggle(gun,true)
+    assert(w.shot_key.AnimResourcePath=='','the show loaded again is emptied at the next out')
+    -- a Lua reload with the rifle out: the next load's restore puts it back
+    new(nil,store).restore()
+    assert(#w.changed()==0,table.concat(w.changed(),'; '))
+    for _,settings in ipairs({'gun_fire=own\n','gun_upper=nikke\n'}) do
+        local w2=Fake.new(); w2.install()
+        local gun2=new(settings)
+        toggle(gun2,true)
+        assert(w2.shot_key.AnimResourcePath==Fake.SHOT_ANIM,settings..': the show as shipped')
+        toggle(gun2,false)
+    end
+end
+
 -- 2. M4: the shot's two borrowed fields are SB's own rows: EventActorEffectTable Nikke_01_E_ActorEff_015's
 --    ActorEffectAlias and EffectTable M_Scarlet_CounterLinkStart's ActionValue1. They point at the NIKKE shot from a
 --    shot through the zone event until arm_hold s after the last one (a pause holds them), not while the rifle is only

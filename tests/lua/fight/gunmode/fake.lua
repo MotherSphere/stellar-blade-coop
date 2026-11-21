@@ -3,9 +3,10 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- A fake UE4SS world for gun mode's tests (not a test file itself): EVE's controller and pawn, her body mesh component
 -- with its post-process instance (rebuilt from the mesh asset's class at each SetSkeletalMesh, as the engine does),
--- the components added to her, the input settings' action mappings, the rows fight/gunmode/data.lua changes and the
--- rifle layer's class. Her pawn, its components, the drones (w.drone()) and the actors spawned have paths of their own,
--- which StaticFindObject finds while they live. Every row value is a test value, none comes from a game file.
+-- the components added to her, the input settings' action mappings, the rows and the NIKKE shot's show that
+-- fight/gunmode/data.lua changes and the rifle layer's class. Her pawn, its components, the drones (w.drone()) and the
+-- actors spawned have paths of their own, which StaticFindObject finds while they live. Every row value is a test
+-- value, none comes from a game file.
 -- Fake.new() returns the world; w.install() sets the globals UE4SS gives the scripts.
 local Fake={}
 local NAME={}
@@ -37,6 +38,10 @@ Fake.SWORD='/Game/Test/CH_W_Sword_Test.CH_W_Sword_Test' -- A mesh fight/gunmode/
 Fake.ANIMS='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/' -- The posed stance's clips (fight/gunmode/stance.lua).
 -- fight/gunmode/config.lua's pak_probe: a rifle clip of zNGMSpike_P, found only with w.pak.
 Fake.PROBE='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/NGM_R_AimIdle.NGM_R_AimIdle'
+-- The NIKKE shot's show and its anim key (fight/gunmode/data.lua's Data.SHOT_SHOW and Data.SHOT_KEY); the key's
+-- AnimResourcePath is a test value.
+Fake.SHOT_SHOW='/Game/Art/Show/CH_P_EVE_01/Skill/P_Eve_GunNikke_ShootSlug1.P_Eve_GunNikke_ShootSlug1'
+Fake.SHOT_ANIM='/Game/Test/Test_Cover_Shot'
 
 -- The rows data.lua reads or writes, with test values. Their fields have the kinds read in Ghidra on 26123051 (see
 -- fight/gunmode/journal.lua): SkillCommandTable's bJumping and bWallRun are bytes (0x145dfa3b0, 0x145dfa380);
@@ -225,12 +230,23 @@ function Fake.new()
         for _,m in ipairs(w.mappings) do t[#t+1]=m.ActionName:ToString()..'='..m.Key.KeyName:ToString() end
         return table.concat(t,' ')
     end
+    -- The NIKKE shot's show in memory (w.shot_key: its anim key now). w.shot_show() again: the engine collected the
+    -- show and SB loaded it again, as shipped.
+    function w.shot_show()
+        if w.shot_key then w.shot_key.dead=true; w.show.dead=true end
+        w.show=named(object('SBShowData '..Fake.SHOT_SHOW))
+        w.shot_key=named(object('SBShowAnimKey '..Fake.SHOT_SHOW..':SBShowAnimKey_1',{AnimResourcePath=Fake.SHOT_ANIM}))
+    end
+    w.shot_show()
     w.tables=rows()
     w.shipped=snapshot(w.tables)
-    -- The fields that differ from the shipped values, as 'table.row.field'.
+    -- The fields that differ from the shipped values, as 'table.row.field' (the show's anim key as 'show.<field>').
     function w.changed()
         local now,out=snapshot(w.tables),{}
         for k,v in pairs(w.shipped) do if now[k]~=v then out[#out+1]=k..' '..tostring(now[k])..' (was '..v..')' end end
+        if w.shot_key.AnimResourcePath~=Fake.SHOT_ANIM then
+            out[#out+1]='show.AnimResourcePath '..tostring(w.shot_key.AnimResourcePath)
+        end
         table.sort(out)
         return out
     end

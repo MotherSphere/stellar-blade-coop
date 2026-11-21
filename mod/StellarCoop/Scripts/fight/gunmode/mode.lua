@@ -240,11 +240,12 @@ function GunMode.new(env)
     -- her own finished pose; nothing of her main animation, springs or outfit physics is touched.
     local layer=Overlay.new(g)
     -- The assets of the rifle out, the aim, the rounds and the reload, asked of the keep (g.loaded): none is looked for
-    -- or loaded on the frame of a press. Nothing with gun_mode=off.
+    -- or loaded on the frame of a press. Nothing with gun_mode=off. The NIKKE shot's show too: held, the anim key
+    -- fight/gunmode/data.lua empties at a rifle out stays the one each round plays.
     if set.on then
         local want={Overlay.CLASS,Overlay.CLIPS.carry,Overlay.CLIPS.aim,Overlay.CLIPS.aimup,Overlay.CLIPS.aimdown,
             Rifle.WEAPON,CAMMOD,cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx,turn_clip('P_Eve_Gun_RotateLw'),
-            turn_clip('P_Eve_Gun_RotateRw')}
+            turn_clip('P_Eve_Gun_RotateRw'),Data.SHOT_SHOW}
         for _,e in ipairs(cfg.reload_sounds) do want[#want+1]=e[1] end
         Keep.want(want)
     end

@@ -47,9 +47,9 @@ what each script makes.
 
 ## What gun mode changes in the game's data
 
-While the rifle is out, gun mode changes a few fields of the game's own data tables in memory. These changes add no
-row. Everything it changed goes back when the rifle is put away or at the next map load, so the NIKKE missions and the
-drone find their rows as shipped. The rounds' rows are apart from these: they go in once a co-op save has loaded and
+While the rifle is out, gun mode changes a few fields of the game's own data tables in memory, plus one field of the
+NIKKE shot's show. These changes add no row. Everything it changed goes back when the rifle is put away or at the next
+map load, so the NIKKE missions and the drone find their rows as shipped. The rounds' rows are apart from these: they go in once a co-op save has loaded and
 stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the rifle changes:
 
 - `EventActorEffectTable`, `EffectTable`: the NIKKE shot, started from a borrowed row. The game's own tables use these
@@ -66,6 +66,10 @@ stay for the game run ([The rounds' rows](#the-rounds-rows)). The fields the rif
 - `CharacterAnimSetTable`: not on the rifle layer. With the rifle clips alone, the aim stance's animation set points at
   the rifle's blend spaces. A spare NPC row takes EVE's peaceful set with the rifle clips for the carry. The test line
   `gun_bs` changes the aim stance's blend spaces too.
+- The NIKKE shot's show `P_Eve_GunNikke_ShootSlug1` (with `gun_fire=native`): its animation key plays no animation.
+  As shipped it plays `P_Eve_GunNikke_Shoot` on her whole body, the NIKKE missions' shot from behind cover, which bent
+  her body down at each round. The round, its sound, its flash and the camera shake play as before. The test line
+  `gun_upper=nikke` keeps the animation. `UE4SS.log` has the line `SBShowAnimKey_1 AnimResourcePath emptied`.
 
 ## Keys
 
