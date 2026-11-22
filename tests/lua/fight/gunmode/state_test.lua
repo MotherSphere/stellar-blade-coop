@@ -782,8 +782,8 @@ do
         ..store.peek())
 end
 
--- 21. No NIKKE cover crouch and no NIKKE reload of SB's own while the rifle is out, in both fire modes. Each NIKKE shot
---     chains EffectTable P_Eve_GunNikke_BulletZero (Bullet_Nikke Equal 0, its stance the cover crouch) and
+-- 21. No NIKKE cover stance and no NIKKE reload of SB's own while the rifle is out, in both fire modes. Each NIKKE shot
+--     chains EffectTable P_Eve_GunNikke_BulletZero (Bullet_Nikke Equal 0, the cover stance) and
 --     P_Eve_GunNikke_Reload (Bullet_Nikke Less 60). Their ConditionActive_ItemCount reads -1 and 0, counts no item
 --     reaches. They go back with SB's refill field: 3 s of play after the off (native fire) or after a new world (a
 --     pause does not count). coop-gun.txt lists their shipped values. coop off and a Lua reload put them back at

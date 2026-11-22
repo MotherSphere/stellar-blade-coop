@@ -42,13 +42,14 @@ Data.REFILL_HOLD=3
 -- reload takes the whole magazine out of Bullet_Nikke (fight/gunmode/ammo.lua), so the count is often 0 after a shot.
 -- * P_Eve_GunNikke_BulletZero (10092): Bullet_Nikke Equal 0, Infinite, StanceAlias P_Eve_GunNikkeHide. That stance
 --   (CharacterStanceTable 100113, priority 5 under the aim stance's 10, bForceFoldingWeapon) is the NIKKE cover
---   crouch with the rifle down, where the 826 test left her stuck. Its end is ConditionEnd1 Bullet_Nikke Greater 0.
+--   stance, low with the rifle down, where the 826 test left her stuck. Its end is ConditionEnd1 Bullet_Nikke
+--   Greater 0.
 --   ReloadCompleted's DispelFlagsArray also names P_Eve_GunNikke_BulletZero (its Flag is Nikke_BulletZero): whether
 --   that matches was not read. The effect start (0x141bc8d40 on 26123051) reads its StanceAlias (+0x2b0, property
 --   params 0x145df9960) at 0x141bca35d and adds a stance request through 0x141ba8b50. Its end (0x141bcb980) reads the
 --   field again at 0x141bcc68d and removes one through 0x141ba8c40, so the alias itself is left as shipped.
 -- * P_Eve_GunNikke_Reload (10093): Bullet_Nikke Less 60, 1.0 s, chains ReloadCompleted. Its ActiveShowPath is
---   CH_P_EVE_01/Skill/P_Eve_GunNikke_Reload, SB's NIKKE reload on her whole body. The cover crouch's StartEffect also
+--   CH_P_EVE_01/Skill/P_Eve_GunNikke_Reload, SB's NIKKE reload on her whole body. The cover stance's StartEffect also
 --   applies it. Gun mode's own reload plays from fight/gunmode/stance.lua and overlay.lua.
 -- Both are gated by their item check. FUN_141bd0810 reads the live row (looked up by the effect's ID at +0x104 through
 -- 0x141a9f940) each time an effect is applied. It sums the carried count of ConditionActive_ItemAlias (+0x154,
@@ -61,8 +62,8 @@ Data.REFILL_HOLD=3
 -- start it later. When the inventory lookup (0x141ad8490) finds none, SB skips the check, as shipped.
 Data.HOLD={
     {Data.REFILL_EFFECT,'Action1',0,'SB\'s NIKKE reload adds no rounds','SB\'s NIKKE reload still adds rounds'},
-    {'P_Eve_GunNikke_BulletZero','ConditionActive_ItemCount',-1,'no NIKKE cover crouch at 0 rounds',
-        'the NIKKE cover crouch can start at 0 rounds'},
+    {'P_Eve_GunNikke_BulletZero','ConditionActive_ItemCount',-1,'no NIKKE cover stance at 0 rounds',
+        'the NIKKE cover stance can start at 0 rounds'},
     {'P_Eve_GunNikke_Reload','ConditionActive_ItemCount',0,'no NIKKE reload of SB\'s own',
         'SB\'s NIKKE reload can still play'},
 }
