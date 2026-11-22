@@ -14,7 +14,7 @@ local Keep=require('core.keep')
 local Dpad={}
 
 Dpad.ICON='/Game/DLC_2/Art/UI/texture/HiddenReward/Icon/Icon_Nikke_LostItem_AssaultRifle.Icon_Nikke_LostItem_AssaultRifle'
-Dpad.GAP=6         -- HUD units between the D-pad marker and the entry, and between its parts
+Dpad.GAP=6         -- HUD units between the D-pad marker and the entry. The same gap separates its parts
 Dpad.KEY_SIZE=30   -- the key or pad glyph, until the game's btn_up has a drawn size
 Dpad.ICON_SIZE=34  -- the rifle icon, until the heal item's icon has a drawn size
 -- Below the health bars (BU, BE, HP, SH sit right of the marker in combat and covered the entry, 11-20): the entry's
@@ -79,7 +79,7 @@ function Dpad.new(g)
             return false
         end
         -- the entry lives in the marker's own root overlay: placed against the marker without reading Slate geometry
-        -- (FGeometry has no reflected fields, so UE4SS reads it as zeros), and shown or hidden with it
+        -- (FGeometry has no reflected fields, so UE4SS reads it as zeros). It is shown or hidden with the marker
         local overlay=leaf_find('Overlay','Overlay_0','WB_MainHUD_Dpad.WidgetTree.Overlay_0')
         local dpad=leaf_find('UserWidget','WB_MainHUD_Dpad')
         local up=leaf_find('Image','btn_up','WB_MainHUD_Dpad')

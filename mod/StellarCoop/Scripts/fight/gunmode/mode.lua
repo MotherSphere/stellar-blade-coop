@@ -4,7 +4,7 @@
 -- Gun mode: the NIKKE DLC's rifle in EVE's hands on any save, on luke77's rifle stance. G (gun_key) or a tap of
 -- D-pad Right brings the rifle out or puts it away. Out, EVE runs and jumps as Luke's stance has her (fight/gunmode/
 -- stance.lua: her own animation, the rifle at her chest). Holding RMB / LT is firing mode: the camera comes in over her
--- right shoulder, she turns to the camera and brings the rifle up with its laser sight on, and LMB / RT fires full
+-- right shoulder, she turns to the camera and brings the rifle up with its laser sight on. LMB / RT fires full
 -- auto at the point under the screen centre. Letting go goes back to Luke's movement. Logged as [StellarCoop][GM].
 -- How: each shot is the NIKKE shot skill, started by a zone event through SB's own rows (fight/gunmode/data.lua), its
 -- bullet sent to the crosshair's point (fight/gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
@@ -83,8 +83,8 @@ function GunMode.kick(dt,decay)
     local k=math.exp(-dt/decay); return k>0.02 and k or 0
 end
 
--- The chest turn c eased back toward 0 by AR.decay (fight/gunmode/aimrot.lua). Under 0.001 degrees in all it snaps to 0, and
--- a zero turn is given back as it is: no new table each frame out of aim.
+-- The chest turn c eased back toward 0 by AR.decay (fight/gunmode/aimrot.lua). Under 0.001 degrees in all it snaps to 0.
+-- A zero turn is given back as it is: no new table each frame out of aim.
 function GunMode.decay(AR,c)
     if c.Pitch==0 and c.Yaw==0 and c.Roll==0 then return c end
     if math.abs(c.Pitch)+math.abs(c.Yaw)+math.abs(c.Roll)<1e-3 then return {Pitch=0,Yaw=0,Roll=0} end
@@ -156,7 +156,7 @@ function GunMode.new(env)
     local s={hidden={},followed={},on=false,pause=0,next_shot=0,shots=0,zoom=0,zoom_held=false,target=nil,cam=nil,mask=nil,
         toggle_at=-1,hooked=false,errors=0}
 
-    -- The reload: the NIKKE squad's reload animation on the rifle stance, and its sounds at their times.
+    -- The reload: the NIKKE squad's reload animation on the rifle stance, with its sounds at their times.
     local function sound(path)
         local ok,err=pcall(function()
             local cue=LoadAsset(path)
@@ -180,8 +180,8 @@ function GunMode.new(env)
             if not s.reload_logged then s.reload_logged=true; g.log('reload animation: '..(ok and 'playing' or 'not found')) end
         else s.sounds=nil end
     end
-    -- No D-pad slot widget for now: the runtime widget never drew, and as nothing held it the engine could free it
-    -- while its text was still being set every frame (a likely cause of the crashes at 11:27).
+    -- No D-pad slot widget for now: the runtime widget never drew. As nothing held it, the engine could free it
+    -- while its text was still being set every frame (a likely cause of the crashes in one play session).
     local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil,env.stock)
 
     local function fire_row(row)
@@ -190,7 +190,7 @@ function GunMode.new(env)
         return ok
     end
 
-    -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys, and cfg.mask_actions on any key,
+    -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys plus cfg.mask_actions on any key,
     -- set to key None and the keymaps rebuilt; restore() puts each one back. Axis mappings on those keys are only
     -- logged (the first time) so a later build can mask them if the game reads one.
     local function mask()
@@ -298,7 +298,7 @@ function GunMode.new(env)
         end
         s.zoom=GunMode.ease(s.zoom,s.zoom_held and 1 or 0,cfg.zoom_ease)
         local a,b=cfg.cam_offset,cfg.zoom_offset
-        -- Her normal camera ignores CustomOffset (00:22): its arm length (the game sets it, so taken again whenever
+        -- Her normal camera ignores CustomOffset: its arm length (the game sets it, so taken again whenever
         -- the zoom is out) and SocketOffset (right, up) are eased instead.
         if not s.cam.socket then
             local so=g.try(function() return boom.SocketOffset end)
@@ -335,7 +335,7 @@ function GunMode.new(env)
 
     -- Her other mesh components hidden from the player's own camera while the rifle is out: Luke's stance hides her
     -- real body there and shows a posed copy, so a layer on the real body (Ultra Violence's blood, an overlay wearing
-    -- her body's mesh) or the sword drawn in a fight showed as a ghost doing the real animation (00:12). Looked for
+    -- her body's mesh) or the sword drawn in a fight showed as a ghost doing the real animation. Looked for
     -- again every second (the sword comes out with a fight); each one put back as it was when the rifle goes away.
     local MESH,SKEL,STATIC='/Script/Engine.MeshComponent','/Script/Engine.SkeletalMeshComponent',
         '/Script/Engine.StaticMeshComponent'
@@ -476,7 +476,7 @@ function GunMode.new(env)
     end
 
     -- Firing mode's pose between shots: the NIKKE shot's own animation (its montage, learnt from the first shot
-    -- fired: it looked right while firing, 02:34) held near its start while aim is held and no shot is playing, so
+    -- fired: it looked right while firing in game) held near its start while aim is held and no shot is playing, so
     -- she keeps the rifle up instead of the drone aim's pointing pose; stopped when aim is let go.
     local function hold_pose(p,firing)
         local ai=g.try(function() return p.Mesh:GetAnimInstance() end)
@@ -503,7 +503,7 @@ function GunMode.new(env)
     end
 
     -- Firing mode (Luke's aim on her normal stance): the game itself keeps her facing the camera, through her
-    -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch, 00:27).
+    -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch in game).
     local function face(p,on)
         if (on and s.facing) or (not on and not s.facing) then return end -- nothing to change: no reads
         local cm=g.get(p,'CharacterMovement')
@@ -611,8 +611,8 @@ function GunMode.new(env)
         if g.try(function() return p.TPSModeType~=0 or p.bTPSMode end) then
             g.log('not now: release the drone aim first'); return
         end
-        -- The gun mode animation pak (zNikkeGunMode_P): when it is installed, the aim stance's blend spaces point at
-        -- its firing-stance animations while the rifle is out, and her real body shows while aiming (nothing posed).
+        -- The gun mode animation pak (zNGMSpike_P): when it is installed, the aim stance's blend spaces point at
+        -- its firing-stance animations while the rifle is out. Her real body shows while aiming (nothing posed).
         local okl,inst,why_not=pcall(layer.install,p)
         s.layer=okl and inst==true
         g.log('rifle layer '..(s.layer and 'on' or ('not available: '..tostring(okl and why_not or inst))))
@@ -638,7 +638,7 @@ function GunMode.new(env)
         if not ok then g.log('off: the input mask failed ('..tostring(err)..')'); return end
         ok,err=pcall(function()
             -- Held for Luke's aim: the aim key itself, not the game's aim stance, which drops for a frame now and
-            -- then (each shot's skill, a jump) and made his arms jerk between carry and aim (11:39). Off the stance (a
+            -- then (each shot's skill, a jump) and made his arms jerk between carry and aim. Off the stance (a
             -- jump, a camp) his own turn to the camera keeps her facing the shot.
             -- With the animation pak her real body is shown while aiming, so held follows the game's aim stance
             -- (bridging its one-frame drops on shots: seen in the last 0.4 s with the key still down).
@@ -656,7 +656,7 @@ function GunMode.new(env)
                 function() return s.air_aim==true or (s.key_held==true and not s.tps) end,
                 -- With the animation pak her body under the posed copy is the pak's rifle stance (upright, strafing),
                 -- so Luke's own aim runs on it unchanged: his arms from her chest, turned to the camera, the rifle
-                -- squared on the camera's line (the user's call, 11:32: Luke's aim is the look to keep).
+                -- squared on the camera's line (the user's call: Luke's aim is the look to keep).
                 0,false,false,set.native and (set.upper or s.pak),set.native and not set.upper and not s.pak)
         end)
         if not ok then
@@ -744,7 +744,8 @@ function GunMode.new(env)
         -- the arrival: a cube in her hand turns into the rifle (fight/gunmode/morph.lua); the tick runs it
         if cfg.morph~=false and s.layer then s.morph={dir='in',t0=os.clock()}; pcall(cube_make,p); pcall(single.morph,0,0) end
         if set.trace then pcall(function() require('fight.gunmode.ui.dpad').new(g).dump() end)
-            -- (dev) loaded key and pad icon textures (the HUD entry's gamepad and keyboard glyphs), and cube mesh candidates
+            -- (dev) loaded key and pad icon textures (the HUD entry's gamepad and keyboard glyphs)
+            -- plus cube mesh candidates
             pcall(function()
                 local hits={}
                 for _,t in ipairs(FindAllOf('Texture2D') or {}) do
@@ -910,7 +911,7 @@ function GunMode.new(env)
             pcall(s.dpad.crosshair,s.on and s.want=='aim' and not s.tps and not s.air_aim)
         end
         -- camps, seats, rests, doors and cutscenes: gun mode steps aside (rifle away, layer off, her own pose) while
-        -- the game holds EVE in an interaction or a level sequence, and comes back 1 s after she is free (SBCharacter's
+        -- the game holds EVE in an interaction or a level sequence. It comes back 1 s after she is free (SBCharacter's
         -- reflected calls, as bike/ride.lua uses them). A press of the gun mode key cancels the comeback.
         if now-(s.held_at or 0)>=0.1 then
             s.held_at=now
@@ -1000,7 +1001,7 @@ function GunMode.new(env)
             -- the timer counts the game's own rounds (its aim); gun mode's own shots count themselves (shoot -> ammo.spend)
             local ok_a,err_a=pcall(ammo.tick,s.zoom_held or inp.fire,inp.fire and tps,now)
             -- The muzzle flash on Luke's rifle, once a frame that rounds went out: the NIKKE shot's own flash is on
-            -- the NIKKE rifle of her hidden real body (the fire round her waist, 12:01), which the pak's show drops.
+            -- the NIKKE rifle of her hidden real body (the fire round her waist), which the pak's show drops.
             -- recoil, once a frame that rounds went out: the rifle kicks in her hands (fight/gunmode/ik.lua kick) and the camera
             -- climbs a little (the controller's pitch input, eased by the game's own camera)
             if ok_a and ammo.left<before then
@@ -1147,7 +1148,7 @@ function GunMode.new(env)
             end
             -- the game stops montages when its stances change (its aim among them): the clip is checked four times a
             -- second and played again when it was stopped
-            -- v2: the rifle-first solver places the rifle and puts both hands on it (fight/gunmode/ik.lua)
+            -- the rifle-first solver places the rifle and puts both hands on it (fight/gunmode/ik.lua)
             s.ik=s.ik or require('fight.gunmode.ik').new(g)
             local ppi=g.try(function() return mesh:GetPostProcessInstance() end)
             local mode_ik=(want=='aim') and 'aim' or ((want=='carry' or want=='reload') and 'carry' or 'off')
@@ -1225,7 +1226,7 @@ function GunMode.new(env)
                 -- her head turned back by the same amount (the stance has her looking over her left shoulder). The layer's
                 -- Neck node is off since the v3a pak (rotating the neck dragged both shoulder joints ~7.4 cm, red test
                 -- 11-19): AimRot reaches Bip001-Head alone, so the head takes the whole turn
-                -- v3c pak: the NIKKE clip drives her arms, hands and head from Bip001-Neck down, and AimRot turns
+                -- v3c pak: the NIKKE clip drives her arms, hands and head from Bip001-Neck down. AimRot turns
                 -- Bip001-Spine2 (chest, arms and rifle together). In aim a closed loop turns it until the rifle's real
                 -- bore (FX_Fire forward) points at the spot aim_dist down the camera line; otherwise it eases back to 0
                 if ppi and not s.g1_hold then
@@ -1263,7 +1264,7 @@ function GunMode.new(env)
                     elseif not hold_aim then s.chest=GunMode.decay(AR,s.chest); s.rpitch=(s.rpitch or 0)*0.85 end
                     ppi.AimRot=s.chest
                     -- hip fire (the game's own aim off): she faces the camera through her own movement (the game turns
-                    -- her, standing or strafing: one writer, gunmode's face), and shots wait until the bore is on
+                    -- her, standing or strafing: one writer, gunmode's face). Shots wait until the bore is on
                     -- target (hip_aligned); a big turn from standing plays the game's aim-stance turn clip as the shuffle
                     local hip=want=='aim' and not s.tps and not falling
                     face(p,hip)

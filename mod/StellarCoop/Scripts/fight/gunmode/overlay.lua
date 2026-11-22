@@ -1,12 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode's post-process layer (M1). Her body mesh's post-process anim blueprint is swapped for ABP_NGM_Post
--- (gunmode's pak), which takes her finished vanilla pose, plays a rifle clip through its own DefaultSlot on the arms
+-- Gun mode's post-process layer (M1). Her body mesh's post-process anim blueprint is swapped for ABP_NGM_Spike
+-- (gunmode's pak, zNGMSpike_P), which takes her finished vanilla pose, plays a rifle clip through its own DefaultSlot on the arms
 -- only (both clavicles down, mesh-space rotation), then runs the outfit's original post-process graph (BtoB on the
 -- vanilla bodies) as a linked graph tagged Orig. The main anim instance, its springs and the outfit physics are
 -- never touched.
--- Rules (learned the hard way, see NGM_FACTS.md):
+-- Rules (learned the hard way in game):
 --   * every UObject is fetched fresh in the call that uses it; nothing is kept across ticks except paths (strings)
 --   * mod-pak classes load through AssetRegistryHelpers:GetAsset (UE4SS LoadAsset can't see mod-pak packages)
 --   * the instance is rebuilt by SetSkeletalMesh(base body) then SetSkeletalMesh(her mesh), in one call
@@ -18,7 +18,7 @@ Overlay.BASES={'/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29.CH_P_EVE_29','/Ga
 -- the two-handed rifle clips made on her skeleton for this rifle (Blender Rifle10: both hands on the rifle by IK, the
 -- sight at her right eye); only the arms are used, from the clavicles down
 local NGM='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/'
--- v2: the solver places the arms; the clip on the slot only gives the hands their grip (the layer's Layered Blend
+-- the solver places the arms; the clip on the slot only gives the hands their grip (the layer's Layered Blend
 -- Per Bone takes Bip001-L-Hand / Bip001-R-Hand and their fingers from it): NIKKE's own rifle idle, a vanilla DLC asset
 local SHOOT_IDLE='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Shoot_Idle.P_Eve_GunNikke_Shoot_Idle'
 local RELOAD='/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Reload.P_Eve_GunNikke_Reload'

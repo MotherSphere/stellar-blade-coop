@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's key reads: one IsInputKeyDown a key a frame. With gun_fire_key=RightMouseButton the right mouse button
--- is in both the fire and the zoom keys; it is read once a frame, and read again on the next frame.
+-- is in both the fire and the zoom keys. It is read once a frame. It is read again on the next frame.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local reads,fnames={},0
 local pc={}

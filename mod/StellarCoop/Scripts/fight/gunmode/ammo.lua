@@ -2,14 +2,14 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The rifle's own round: NIKKE rapid rounds, a magazine of cfg.mag_size and cfg.spare_mags spare magazines, fired
--- at the NIKKE shot's cool time, and a reload (cfg.reload_time, the NIKKE squad's reload animation) when the
+-- at the NIKKE shot's cool time. A reload (cfg.reload_time, the NIKKE squad's reload animation) comes when the
 -- magazine runs dry or while the rifle is lowered with a part-spent one. The reticle's round slot (WB_Tps_Bullet3,
 -- under the drone's reticle) shows the round's name and the rounds in the magazine while firing mode is held; the
 -- drone's round count at the bottom left (WB_MainHUD_Lower1Item, beside D-pad Right) shows rounds | magazines while
 -- the rifle is out. The game's own text goes back when the rifle goes away. A new world (a map, a death, a camp's
 -- travel) gives full magazines again.
 -- With stock (a host's round store: ready, count, take, watch) once it is ready, the rounds come from it instead: the
--- magazine starts empty, each reload takes the rounds it loads (stock.take), at most what stock.count gives, and the
+-- magazine starts empty, each reload takes the rounds it loads (stock.take), at most what stock.count gives. The
 -- spares are stock.count. Rounds already in the magazine stay there across worlds. A refused take loads nothing and
 -- the next reload waits RETRY s. Without stock, or while it is not ready, the free magazines above.
 -- Rounds are counted at the rate the game fires them: one at the press, then one per cool time (rounded up to whole

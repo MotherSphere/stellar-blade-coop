@@ -52,7 +52,7 @@ function Stance.new(laser,trace)
   end
   -- gun mode: the head parts copied like her body. They follow her real body's pose in the same frame while the
   -- posed copy shows the pose one frame old (the game finishes her animation after this loop), so her neck went
-  -- through her collar while running with the rifle out (09:25); copied, the whole of her is the same frame.
+  -- through her collar while running with the rifle out; copied, the whole of her is the same frame.
   copyPart=function(real)
    if not valid(real) then return end
    for _,e in ipairs(extras) do if e.real==real then return end end
@@ -75,7 +75,7 @@ function Stance.new(laser,trace)
    local c=pawn:AddComponentByClass(StaticFindObject('/Script/Engine.'..kind),true,id,true)
    assert(valid(c));parts[#parts+1]=c;c:SetVisibility(false,false);c:SetCollisionEnabled(0)
    pawn:FinishAddComponent(c,true,id);c:SetSkeletalMesh(asset,true)
-   pcall(function() c.bPerBoneMotionBlur=false end) -- gun mode: per-bone motion blur smeared the posed copy (02:06)
+   pcall(function() c.bPerBoneMotionBlur=false end) -- gun mode: per-bone motion blur smeared the posed copy
    return c
   end
   assert(not pawn.bTPSMode,"Release campaign aim before enabling")
@@ -199,11 +199,11 @@ function Stance.new(laser,trace)
    end
    local held=held_fn() -- gun mode: RMB / LT (and Luke's Alt, Ctrl), from fight/gunmode/mode.lua.
    -- gun mode: the rifle comes down to reload (her arms then follow the donor's); with aimNative she stays on her
-   -- real body and the reload plays on its upper body (switching bodies mid-reload crashed, 11:27).
+   -- real body and the reload plays on its upper body (switching bodies mid-reload crashed).
    -- gun mode: a reload while aim is held keeps the aim and gives the rifle a quick tilt in her hands (below); the
-   -- NIKKE squad's reload on the donor, with the rifle out of the aim, is for a reload without aim (11:39, 12:08: the
+   -- NIKKE squad's reload on the donor, with the rifle out of the aim, is for a reload without aim (the
    -- donor's reload over the aim stance turned her and held the rifle across her body).
-   -- (12:17: the donor's reload while running put her arms behind her back; every reload is the tilt now)
+   -- (the donor's reload while running put her arms behind her back; every reload is the tilt now)
    local aimReload=reloading
    -- gun mode (aimNative): while aim is held the game's own animation shows (the aim stance's upper body made the
    -- NIKKE rifle's by fight/gunmode/data.lua): her real body visible, the rifle on its right hand, nothing posed; the
@@ -225,7 +225,7 @@ function Stance.new(laser,trace)
     end
     if onReal then
      -- gun mode: the rifle on her hand turned (at most 30 degrees) so its barrel points where the rounds go: the
-     -- baked aim holds it along her facing, and from over her shoulder that missed the laser's end (11:27).
+     -- baked aim holds it along her facing, and from over her shoulder that missed the laser's end.
      gun:K2_SetRelativeTransform(grip,false,{},true)
      local t=beam_target()
      local onTarget=false
@@ -242,7 +242,7 @@ function Stance.new(laser,trace)
       onTarget=dot>=math.cos(math.rad(10)) -- the stance's own barrel already close: the rifle is up
       if dot>0.99999 then return end
       -- the turn that takes the barrel's line onto the target's, applied to the rifle in world space about its own
-      -- origin (adding pitch and yaw to its rotator turned it about the wrong axes and stood it upright, 12:30)
+      -- origin (adding pitch and yaw to its rotator turned it about the wrong axes and stood it upright)
       local one={X=1,Y=1,Z=1}
       local th=mathlib:MakeTransform({X=0,Y=0,Z=0},mathlib:Conv_VectorToRotator(have),one)
       local tw=mathlib:MakeTransform({X=0,Y=0,Z=0},mathlib:Conv_VectorToRotator(want),one)
@@ -260,7 +260,7 @@ function Stance.new(laser,trace)
       gun:K2_AddLocalRotation({Pitch=-22*w,Yaw=8*w,Roll=55*w},false,{},true)
      end
      -- gun mode: no laser until the rifle is up: while the game's aim stance blends in the rifle is at her hip and
-     -- the beam started low and swung up (12:50). It comes on once the barrel is within 10 degrees of the target
+     -- the beam started low and swung up. It comes on once the barrel is within 10 degrees of the target
      -- before the turn and then stays on (the reload's tilt turns it away) until aim is let go.
      if beam or (onTarget and os.clock()-realAt>=0.1) or os.clock()-realAt>=0.8 then
       if not beam then beam,finish=laser(pawn,gun,mathlib) end
@@ -274,11 +274,11 @@ function Stance.new(laser,trace)
    if held and turnNow then local r=pawn:K2_GetActorRotation();pawn:K2_SetActorRotation({Pitch=r.Pitch,Yaw=cam.Yaw,Roll=r.Roll},false) end
    local pitch=(cam.Pitch+180)%360-180
    aimBlend=math.max(0,math.min(1,aimBlend+(held and 0.08 or -0.2))) -- gun mode: let go fast (arms wrapped round her back as
-   -- the aim eased out while the camera turned, 08:39)
+   -- the aim eased out while the camera turned)
    local right=pawn:GetActorRightVector()
    local freeAimMovement=true
    -- gun mode: in the game's aim its own pose turns her chest and shoulders to steer the drone, and Luke's arms,
-   -- placed from her chest, came out twisted (00:56). While aim is held her spine, neck and head take the donor
+   -- placed from her chest, came out twisted. While aim is held her spine, neck and head take the donor
    -- pose's (the NIKKE hide pose, as her arms do) from her pelvis up, eased in with the aim and scaled by torso.
    if torso>0 and aimBlend>0 then
     if #torsoOffsets==0 then
@@ -295,16 +295,16 @@ function Stance.new(laser,trace)
      -- gun mode (upright, the game's aim): her spine from her normal stance. While aim is not held (her normal
      -- movement, before any of Luke's posing) her Spine, Spine1 and Spine2 are recorded from a frame at her pelvis
      -- turned to her facing (her actor's yaw), and while it is held they are put back from that frame there: the
-     -- game's aim pose twists her spine to steer the drone (Luke's arms then came out twisted, 00:56, 02:26). Her neck
+     -- game's aim pose twists her spine to steer the drone (Luke's arms then came out twisted). Her neck
      -- and head stay where her real body's are (her face and hair follow her real body). Luke's aim then runs on that.
      -- The frame is her actor's location and yaw, not her pelvis: the copied pose is one frame old on some frames and
      -- new on others (the game finishes her animation on its own schedule), so anything anchored to it flipped
-     -- between two poses (02:53); her actor's transform is steady, and in the game's aim her yaw follows the camera.
+     -- between two poses; her actor's transform is steady, and in the game's aim her yaw follows the camera.
      if upright then
       local yaw=pawn:K2_GetActorRotation().Yaw
       -- gun mode: her hips' facing (the line between her thighs) from her actor's yaw, against what it was when her
       -- spine was recorded. The game's aim turns her hips sideways to its strafing; a chest held to her actor's yaw
-      -- alone twisted her waist (08:39), so the chest follows her hips by hipFollow of that turn, eased.
+      -- alone twisted her waist, so the chest follows her hips by hipFollow of that turn, eased.
       local hipOff
       pcall(function()
        local l=body:GetBoneTransformByName(thighL,0).Translation
@@ -328,7 +328,7 @@ function Stance.new(laser,trace)
        local keep={}
        for i,b in ipairs(headBones) do keep[i]=src:GetSocketTransform(b,0) end
        -- Her neck from her Spine2 as the copied pose has it, so the upright chest can be moved to meet her real
-       -- neck: a neck pinned to her real one alone stretched while the two differed (03:38, as the aim came up).
+       -- neck: a neck pinned to her real one alone stretched while the two differed (as the aim came up).
        local top=spineBones[#spineBones]
        local neckRel=#headBones>0 and top and mathlib:MakeRelativeTransform(body:GetBoneTransformByName(headBones[1],0),
         body:GetBoneTransformByName(top,0))
@@ -355,8 +355,8 @@ function Stance.new(laser,trace)
      local chest=body:GetBoneTransformByName(tip,0)
      -- gun mode (chestFix, the game's aim): her chest frame for the arms is the donor's chest orientation in its own
      -- facing frame, put in hers (her actor's yaw, which the game's aim keeps on the camera's), at her Spine2. Not
-     -- her Spine2's own rotation (the game's aim pose turns it to steer the drone: twisted arms, 00:56), nor her
-     -- pelvis's (it sways with each strafing step: the rifle shook, 02:20).
+     -- her Spine2's own rotation (the game's aim pose turns it to steer the drone: twisted arms), nor her
+     -- pelvis's (it sways with each strafing step: the rifle shook).
      if chestFix and aimBlend>0 then
       if not chestRel then
        local yawFix=pawn:K2_GetActorRotation().Yaw-src:K2_GetComponentRotation().Yaw
@@ -421,7 +421,7 @@ function Stance.new(laser,trace)
      end
      if camAnchor and coverPoses and aimBlend>0 then
       -- gun mode (camAnchor, the game's aim): the arms placed along the camera, not from her chest, whose own pose
-      -- there turns to steer the drone (twisted arms, 00:56). The donor's arm bones are taken once from a frame at its
+      -- there turns to steer the drone (twisted arms). The donor's arm bones are taken once from a frame at its
       -- Spine2 turned to its facing (yaw only); each frame that frame stands at her Spine2, turned to the control
       -- rotation (pitch clamped), eased in from Luke's carry pose with the aim.
       if #camOffsets==0 then
@@ -452,7 +452,7 @@ function Stance.new(laser,trace)
       local cameraYaw=pc.PlayerCameraManager:GetCameraRotation().Yaw
       local yawDelta=(cameraYaw-math.deg(math.atan(y,x))+180)%360-180
       -- gun mode: the turn toward the camera is held to 70 degrees either way, and dropped at once when the aim is let go
-      -- with the camera further round than that (her arms went behind her back, 08:39).
+      -- with the camera further round than that (her arms went behind her back).
       if not held and math.abs(yawDelta)>70 then aimBlend=0 end
       yawDelta=math.max(-70,math.min(70,yawDelta))
       local targetYaw=math.rad(cameraYaw)
@@ -477,7 +477,7 @@ function Stance.new(laser,trace)
      if held and aimBlend>=1 then
       -- gun mode: the muzzle worked out from the right hand's pose just set (grip, then the muzzle socket on the
       -- rifle), not read back from the rifle: the rifle follows the hand only on the next frame, so the stale reading
-      -- overcorrected every frame and swung the rifle round behind her (11:50).
+      -- overcorrected every frame and swung the rifle round behind her.
       if not muzzleRel then
        muzzleRel=mathlib:MakeRelativeTransform(gun:GetSocketTransform(FName('FX_Fire'),0),gun:K2_GetComponentToWorld())
       end
@@ -487,7 +487,7 @@ function Stance.new(laser,trace)
       local goal=mathlib:GetForwardVector(cam)
       -- gun mode: the barrel on the line from its muzzle to where the rounds go (the laser's end, under the
       -- reticle), not parallel to the camera: from over her shoulder a parallel barrel and the laser it carries
-      -- crossed (11:36). Far points (the sky) keep the camera's line.
+      -- crossed. Far points (the sky) keep the camera's line.
       local t=beam_target()
       if t then
        local m=muzzle.Translation

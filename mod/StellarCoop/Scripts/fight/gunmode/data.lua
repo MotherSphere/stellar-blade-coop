@@ -3,13 +3,13 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's shot, without a pak of tables: fields of SB's own rows (live data, as FindRow gives them), changed while
 -- gun mode is out and put back at put_back() (a new world), so the NIKKE missions find them as shipped. No row is
--- added (UE4SS's AddRow is not used).
+-- added to a table: only fields of rows SB ships change.
 -- * EventActorEffectTable: Nikke_01_E_ActorEff_015 (a NIKKE mission's cover row) applies M_Scarlet_CounterLinkStart;
 --   fight/gunmode/mode.lua fires it as a zone event for each shot.
 -- * EffectTable: M_Scarlet_CounterLinkStart (0.1 s on self, one UseSkill action) starts P_Eve_GunNikke_ShootSlug1_1,
 --   the NIKKE shot. Its ActionValue1 is an FString: an FName written there crashed the game (11-17).
 -- * SkillCommandTable: the NIKKE fire commands ShootSlug1_1 and _2 take the burst shot's command type
---   (RangedFireSkill: no check of the equipped bullet), as zNikkeGunMode_P did.
+--   (RangedFireSkill: no check of the equipped bullet), as an older gun mode pak did.
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).
 -- * Native fire (fight/gunmode/mode.lua's firing mode on the game's own aim): the drone's normal fire commands
 --   (P_Eve_Gun_Shoot*, every round's) start the NIKKE shot skill instead of the drone's, with the burst's command type
@@ -143,7 +143,7 @@ function Data.new(g,native,opts)
                     end
                 end
                 -- With the pak: no drone summon/dismiss show when the aim starts and ends (it played the drone's
-                -- raise pose for a moment before her rifle aim, 13:00); her default stance has none either.
+                -- raise pose for a moment before her rifle aim); her default stance has none either.
                 if pak then
                     for _,f in ipairs({'StartShowPathWhenPeaceful','StartShowPathWhenBattle','EndShowPathWhenPeaceful','EndShowPathWhenBattle'}) do
                         local v=g.try(function() return text(st[f]) end)
@@ -241,7 +241,7 @@ function Data.new(g,native,opts)
             -- The NIKKE bullet starts from a point fight/gunmode/mode.lua keeps on the rifle's muzzle: its start the
             -- same kind of point as its destination (EVE's base and an offset in her yaw frame), not the
             -- SC_GunShoot socket of the NIKKE rifle the game attaches only in the NIKKE stance (outside it the
-            -- shot left from the drone, 00:24).
+            -- shot left from the drone).
             local pt=tbl('ProjectileTable')
             local nr=row(pt,Data.NIKKE_PROJECTILE)
             local dr=row(pt,Data.DRONE_PROJECTILE)

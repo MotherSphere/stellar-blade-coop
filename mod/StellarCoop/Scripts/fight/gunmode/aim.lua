@@ -60,7 +60,7 @@ function Aim.new(g)
     -- Native fire: the bullet's start (fight/gunmode/data.lua made it EVE's base and an offset in her yaw frame, like its
     -- destination) put on the point muzzle (world), the rifle's FX_Fire socket.
     -- A muzzle less than min_forward ahead of her (the rifle not up yet, or posed wrong: the shot then started on
-    -- her body, 02:06) gives way to fallback, a point at her right shoulder in her frame.
+    -- her body) gives way to fallback, a point at her right shoulder in her frame.
     function self.write_start(p,muzzle,min_forward,fallback)
         if not self.row then return end
         local loc=g.try(function() return p:K2_GetActorLocation() end)

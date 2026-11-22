@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Phase 0 facts probe (dev builds only: gun_facts=on in coop-settings.txt; release_check.lua refuses it). Read-only
+-- Facts probe (dev builds only: gun_facts=on in coop-settings.txt; release_check.lua refuses it). Read-only
 -- except F8, which plays one vanilla clip through a montage slot on a key press. Runs from fight/gunmode/mode.lua's tick
 -- (the game thread), never from a key bind. Logs [GM] facts ... lines.
 --   F5/F6  once, 5 s after EVE is in the world: her mesh components, anim classes (with parents), the post-process
@@ -98,7 +98,7 @@ function Facts.new(g)
             ..', active montage now '..name(g.try(function() return ai:GetCurrentActiveMontage() end)))
     end
 
-    -- F11 (Phase 1 pre-test): can Lua swap the mesh asset's PostProcessAnimBlueprint and have the game build that
+    -- F11 (an early test): can Lua swap the mesh asset's PostProcessAnimBlueprint and have the game build that
     -- instance? At +25 s: the field set to another game post-process class (EVE_08's), then SetAnimClass(same class)
     -- to re-init; at +40 s the original put back the same way. Each step logs the instance class it finds.
     local OTHER='/Game/Art/Character/PC/CH_P_EVE_08/Blueprints/CH_P_EVE_08_AnimBP.CH_P_EVE_08_AnimBP_C'
@@ -147,9 +147,9 @@ function Facts.new(g)
                     ok and name(r) or 'error',tostring(ok and e or r),tostring(g.try(function() return st.ov.active(p) end))))
             end
         end
-        -- F11 retired (2026-11-18 17:44): holding a mesh asset and a class across a level load left stale wrappers, and
-        -- the put-back wrote a level object into the field. Any install test must re-fetch everything by path, within
-        -- one load, and never write after a load through an object found before it.
+        -- F11 retired (2026-11-18): holding a mesh asset and a class across a level load left stale wrappers.
+        -- The put-back wrote a level object into the field. Any install test must re-fetch everything by path within
+        -- one load. It must never write after a load through an object found before it.
         if not valid(ai) then return end
         if now-st.poll>=0.1 then st.poll=now; pcall(montage,ai) end
         -- F8 on a timer after the snapshot (the test harness can't press numpad keys): DefaultSlot at +5 s, UpperBody

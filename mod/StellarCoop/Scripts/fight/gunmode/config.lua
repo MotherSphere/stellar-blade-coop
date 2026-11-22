@@ -26,11 +26,11 @@ Config.DEFAULTS={
     reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_2_Cue.P_Eve_GunNikke_Reload_2_Cue',0.6},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_3_Cue.P_Eve_GunNikke_Reload_3_Cue',0.85}},
-    -- The gun mode animation pak (zNikkeGunMode_P): one of its animations (to find it) and its blend space, which the
+    -- The gun mode animation pak: one of its animations (to find it) and its blend space, which the
     -- aim stance's animation set points at while the rifle is out.
-    muzzle_every=0.09,muzzle_scale=0.45, -- the flash: at most this often (s), at this size (it stacked into a blaze, 12:07)
+    muzzle_every=0.09,muzzle_scale=0.45, -- the flash: at most this often (s), at this size (it stacked into a blaze)
     muzzle_fx='/Game/DLC_2/Art/FX/MiniGame/NS_A_NikkeGunFire.NS_A_NikkeGunFire', -- the NIKKE rifle's flash
-    -- The animation pak (zNikkeGunModeAnim_P, 11-18 rebuild): EVE's rifle animation set, new assets only.
+    -- The animation pak (11-18 rebuild): EVE's rifle animation set, new assets only.
     pak_probe='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/NGM_R_AimIdle.NGM_R_AimIdle',
     pak_bs='Animation/BlendSpace/P_Eve_NGM_R_BS', -- aiming: 8-way walk + run (her lock-on layout), rifle shouldered
     pak={aim_offset='Animation/Additive/NGM_R_Aim_BS', -- aiming up/down/left/right
@@ -69,7 +69,7 @@ Config.DEFAULTS={
                     -- are placed along the camera instead, and her head stays the real one's).
     start_min_forward=25, -- The shot starts at the rifle's muzzle only when it is this far ahead of her (cm),
     start_fallback={X=45,Y=22,Z=55}, -- else here: forward, right, up from her centre (her right shoulder).
-    follow_names={}, -- Parts made to follow the posed copy: none (her face moved off her head that way, 02:20).
+    follow_names={}, -- Parts made to follow the posed copy: none (her face moved off her head that way).
     pose_time=0.08, -- Firing mode between shots: the NIKKE shot montage held at this time (s).
     -- the rifle's arrival and departure (fight/gunmode/morph.lua): a black cube in her right hand (the engine's editor cube,
     -- the one cube mesh the game ships (BasicShapes is not cooked), sized from its bounds
@@ -83,7 +83,7 @@ Config.DEFAULTS={
     -- and any whose mesh name has one of these (the sword). Co-op partners still see them.
     hide_names={'Sword','CH_W_'},
     -- Head parts copied with the posed body: none. They follow her body through its leader pose and hold no pose of
-    -- their own, and copying a pose from one crashed the game (11:03).
+    -- their own, and copying a pose from one crashed the game.
     copy_names={},
 }
 
@@ -133,9 +133,9 @@ function Config.parse(text)
     v=get(text,'gun_carry_idle'); if v and tonumber(v) then out.carry_idle_type=tonumber(v) end
     v=get(text,'gun_probe')
     if v then out.probe=v:lower()=='on' end
-    v=get(text,'gun_facts') -- (dev only) the Phase 0 facts probe, fight/gunmode/facts.lua
+    v=get(text,'gun_facts') -- (dev only) the facts probe, fight/gunmode/facts.lua
     if v=='on' then out.facts=true end
-    v=get(text,'gun_g0') -- (dev only) the v2 plan's G0 measurements and capture pictures, fight/gunmode/g0.lua
+    v=get(text,'gun_g0') -- (dev only) gate G0 measurements and capture pictures, fight/gunmode/g0.lua
     if v=='on' then out.g0=true end
     v=get(text,'gun_airtrace') -- (dev only) air state trace for the flip work (fight/gunmode/mode.lua)
     if v=='on' then out.airtrace=true end
