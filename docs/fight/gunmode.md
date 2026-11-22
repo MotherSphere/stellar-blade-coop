@@ -76,7 +76,22 @@ rifle changes:
   when the effect starts, about 1.07 s after its last NIKKE shot. Put back at once, an off right after a shot gave 60
   free rounds. `coop off` and a Lua reload put it back at once. `UE4SS.log` has the lines
   `data: P_Eve_GunNikke_ReloadCompleted Action1 22 -> 0: SB's NIKKE reload adds no rounds` and
-  `data: P_Eve_GunNikke_ReloadCompleted Action1 back to 22: SB's NIKKE reload adds rounds again`.
+  `data: P_Eve_GunNikke_ReloadCompleted Action1 back to 22`.
+- `EffectTable` `P_Eve_GunNikke_BulletZero` and `P_Eve_GunNikke_Reload`: no NIKKE cover crouch and no NIKKE reload of
+  SB's own, in both fire modes. Every gun mode shot is SB's NIKKE shot. Its `P_Eve_GunNikke_SkillUseCheck` chains
+  `BulletZero` and `Reload`. Gun mode's reload takes the whole magazine out of `Bullet_Nikke`, so the count is often 0
+  after a shot. As shipped, `BulletZero` then starts at 0 rounds. Its stance `P_Eve_GunNikkeHide` is the NIKKE cover
+  crouch with the rifle down. Its end condition is `Bullet_Nikke` above 0. In 805 SB's refill of 60 rounds met it about
+  1 s later. With the refill off only a round she picks up or buys meets it, so she stayed crouched (the 826 test).
+  `P_Eve_GunNikke_ReloadCompleted`'s `DispelFlagsArray` also names `P_Eve_GunNikke_BulletZero`. Whether that name
+  matches the effect's flag (`Nikke_BulletZero`) was not read. `Reload` plays SB's NIKKE reload show on her whole body.
+  While the rifle is out the item check of `BulletZero` needs a count of -1 and the one of `Reload` a count below 0. No
+  count passes, so SB applies neither. The two `ConditionActive_ItemCount` fields go back with the refill field, 3 s of
+  play after the other rows. At `coop off` or a Lua reload all three go back at once. A shot SB is still running at that
+  moment can then start the crouch. SB's own refill of 60 rounds ends it about 1 s later. `UE4SS.log` has the lines
+  `data: P_Eve_GunNikke_BulletZero ConditionActive_ItemCount 0 -> -1: no NIKKE cover crouch at 0 rounds`,
+  `data: P_Eve_GunNikke_Reload ConditionActive_ItemCount 60 -> 0: no NIKKE reload of SB's own` and the two `back to`
+  lines.
 - `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its destination is an offset from
   EVE's root in her root's frame (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own
   target line and sent the rounds to the side. Its own spread (a random range of 300 cm) is off. Its destination is
@@ -301,6 +316,11 @@ save without the Steam link or the native part, or when the rows were refused or
   bucket of EVE's comes from that load was not read.
 - That a UE4SS write of 0 to the byte `Action1` of `P_Eve_GunNikke_ReloadCompleted` holds in the game was not tested.
   The same kind of write to the `Type` of the shot's `Hit1` step does.
+- The writes of -1 and 0 to the `ConditionActive_ItemCount` fields of `P_Eve_GunNikke_BulletZero` and
+  `P_Eve_GunNikke_Reload` were not tested in the game. A `BulletZero` already on when the rifle comes out (from an
+  earlier build) is not ended by gun mode.
+- The `the game holds her movement` lines at aim starts (830 test) are not explained. They come with the aim key held
+  and rounds carried, so they are not the cover crouch. No log of build 805 is left to compare.
 - `P_Eve_GunNikke_BurstSkillReloadCompleted` also adds 60 rounds. Gun mode leaves it as shipped. Only the Cast1 steps
   of the NIKKE burst skills apply it. Gun mode starts none of them. Whether the beta skill input can start those
   skills in gun mode's aim stance was not checked.

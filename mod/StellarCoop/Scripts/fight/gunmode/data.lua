@@ -35,6 +35,37 @@ Data.REFILL_EFFECT='P_Eve_GunNikke_ReloadCompleted'
 -- the base pak's SkillActiveStepTable), then Reload's LifeTime of 1.0 s (EffectTable 10093). Put back at once, an off
 -- inside that time gave 60 free rounds. 3 s: that and a margin.
 Data.REFILL_HOLD=3
+-- SB's NIKKE effects held off while the rifle is out, in both fire modes (take below): {EffectTable row, field, value
+-- while held, what the hold stops, what happens without the row}. All of them go back together, Data.REFILL_HOLD s
+-- after put_back(). Each NIKKE shot applies P_Eve_GunNikke_SkillUseCheck (EffectTable 10090), which chains
+-- P_Eve_GunNikke_BulletUsed, P_Eve_GunNikke_BulletZero and P_Eve_GunNikke_Reload (26123051's base pak). Gun mode's
+-- reload takes the whole magazine out of Bullet_Nikke (fight/gunmode/ammo.lua), so the count is often 0 after a shot.
+-- * P_Eve_GunNikke_BulletZero (10092): Bullet_Nikke Equal 0, Infinite, StanceAlias P_Eve_GunNikkeHide. That stance
+--   (CharacterStanceTable 100113, priority 5 under the aim stance's 10, bForceFoldingWeapon) is the NIKKE cover
+--   crouch with the rifle down, where the 826 test left her stuck. Its end is ConditionEnd1 Bullet_Nikke Greater 0.
+--   ReloadCompleted's DispelFlagsArray also names P_Eve_GunNikke_BulletZero (its Flag is Nikke_BulletZero): whether
+--   that matches was not read. The effect start (0x141bc8d40 on 26123051) reads its StanceAlias (+0x2b0, property
+--   params 0x145df9960) at 0x141bca35d and adds a stance request through 0x141ba8b50. Its end (0x141bcb980) reads the
+--   field again at 0x141bcc68d and removes one through 0x141ba8c40, so the alias itself is left as shipped.
+-- * P_Eve_GunNikke_Reload (10093): Bullet_Nikke Less 60, 1.0 s, chains ReloadCompleted. Its ActiveShowPath is
+--   CH_P_EVE_01/Skill/P_Eve_GunNikke_Reload, SB's NIKKE reload on her whole body. The cover crouch's StartEffect also
+--   applies it. Gun mode's own reload plays from fight/gunmode/stance.lua and overlay.lua.
+-- Both are gated by their item check. FUN_141bd0810 reads the live row (looked up by the effect's ID at +0x104 through
+-- 0x141a9f940) each time an effect is applied. It sums the carried count of ConditionActive_ItemAlias (+0x154,
+-- params 0x145df8da0) from 0 (FUN_141be1580: 0 for an item she does not carry, never below 0). It compares it with
+-- ConditionActive_ItemCount (an Int at +0x160, params 0x145df8df8) by ConditionActive_ItemCompare (a byte at +0x15c,
+-- params 0x145df8e20; ESBCompare, entries at 0x145e2a500: Equal 0, NotEqual 1, Less 2), through the jump table at
+-- 0x141bd18c4: case 0 (0x141bd137d) count == ItemCount, case 2 (0x141bd1395) count < ItemCount. So -1 with Equal and 0
+-- with Less never pass. When the check fails, the effect init FUN_141bc76e0 (its only code caller) returns 0 and
+-- FUN_141ad1c70 / FUN_141ad1af0 free the effect (FUN_141c83ff0): a refused effect waits nowhere, the put back cannot
+-- start it later. When the inventory lookup (0x141ad8490) finds none, SB skips the check, as shipped.
+Data.HOLD={
+    {Data.REFILL_EFFECT,'Action1',0,'SB\'s NIKKE reload adds no rounds','SB\'s NIKKE reload still adds rounds'},
+    {'P_Eve_GunNikke_BulletZero','ConditionActive_ItemCount',-1,'no NIKKE cover crouch at 0 rounds',
+        'the NIKKE cover crouch can start at 0 rounds'},
+    {'P_Eve_GunNikke_Reload','ConditionActive_ItemCount',0,'no NIKKE reload of SB\'s own',
+        'SB\'s NIKKE reload can still play'},
+}
 Data.FIRE_COMMANDS={'P_Eve_GunNikke_ShootSlug1_1','P_Eve_GunNikke_ShootSlug1_2'}
 Data.BURST_COMMAND='P_Eve_GunNikke_ShootSlug2_1'
 -- Every drone fire command, of every round (the game loads the round the player picked each time she aims), the empty
@@ -184,7 +215,7 @@ function Data.new(g,native,opts)
 
     function self.take()
         if self.saved then return true end
-        local saved,refill={},nil
+        local saved,refill={},{}
         local ok,err=pcall(function()
             -- The NIKKE shot's cool time: opts.cool at the rifle out (fight/gunmode/mode.lua gives 0, which
             -- fight/gunmode/ammo.lua turns into the rate of fire at the first round).
@@ -384,24 +415,35 @@ function Data.new(g,native,opts)
             -- Action1 is an ESBEffectAction byte at +0x2fc of the row (property params 0x145df9618 on 26123051, enum
             -- params 0x146d33c30): EffectAction_None 0 (entry 0x145e27d30), EffectAction_ItemRefill 22
             -- (entry 0x145e27e90). The effect start (0x141bc8d40) reads the live row's +0x2fc at each start. Its switch
-            -- has no case 0. Its case 0x16 adds AddCount to bucket 1 (0x141bdbc20). Last here: nothing after it can
-            -- fail, so a refused take never leaves it changed. During put_back's hold (self.late) it reads 0: the
-            -- shipped value is the hold's.
+            -- has no case 0. Its case 0x16 adds AddCount to bucket 1 (0x141bdbc20). The other held fields: Data.HOLD.
+            -- Last here, each in its own pcall: nothing after them can fail, so a refused take never leaves one
+            -- changed, and a field that cannot be written is logged without refusing the take. During put_back's hold
+            -- (self.late) a field reads its held value: the shipped value is the hold's. One the hold has and this
+            -- take cannot write again stays in the hold's list.
             local eff=g.try(function() return tbl('EffectTable') end)
-            local rc=eff and find(eff,Data.REFILL_EFFECT)
-            if rc then
-                refill={rc,'Action1',self.late and self.late[3] or rc.Action1}
-                g.log('data: '..Data.REFILL_EFFECT..' Action1 '..tostring(refill[3])..' -> 0: SB\'s NIKKE reload adds no rounds')
-                rc.Action1=0
-            else g.log('data: no EffectTable row '..Data.REFILL_EFFECT..': SB\'s NIKKE reload still adds rounds') end
+            local late={}
+            for _,l in ipairs(self.late or {}) do late[l.hold]=l end
+            for i,h in ipairs(Data.HOLD) do
+                local r=eff and find(eff,h[1])
+                local e=r and {r,h[2],nil,hold=i}
+                local done,why=false,nil
+                if e then done,why=pcall(function() e[3]=late[i] and late[i][3] or r[h[2]]; r[h[2]]=h[3] end) end
+                if done then
+                    refill[#refill+1]=e
+                    g.log(('data: %s %s %s -> %s: %s'):format(h[1],h[2],tostring(e[3]),tostring(h[3]),h[4]))
+                else
+                    refill[#refill+1]=late[i]
+                    g.log(e and ('data: '..h[1]..' '..h[2]..' not changed ('..tostring(why)..'): '..h[5])
+                        or ('data: no EffectTable row '..h[1]..': '..h[5]))
+                end
+            end
         end)
         if not ok then
             undo(saved)
             g.log('data: not taken ('..tostring(err)..')')
             return false,err
         end
-        self.saved,self.refill=saved,refill
-        if refill then self.late=nil end
+        self.saved,self.refill,self.late=saved,refill,nil
         quiet()
         g.log('data: '..#saved..' fields of SB\'s rows taken for gun mode')
         return true
@@ -412,8 +454,8 @@ function Data.new(g,native,opts)
         if self.saved and self.cool_row then self.cool_row.CoolTime=v end
     end
 
-    -- SB's refill field goes back Data.REFILL_HOLD s of play later (tick below), the rest at once. now: that one at once
-    -- too (coop off: no tick runs after it).
+    -- SB's held NIKKE fields (Data.HOLD) go back Data.REFILL_HOLD s of play later (tick below), the rest at once. now:
+    -- those at once too (coop off: no tick runs after it).
     function self.put_back(now)
         self.disarm()
         loud()
@@ -422,7 +464,8 @@ function Data.new(g,native,opts)
         self.saved=nil
         if self.refill then
             local r=self.refill
-            self.refill,self.late=nil,{r[1],r[2],r[3],left=Data.REFILL_HOLD}
+            self.refill=nil
+            if #r>0 then r.left,self.late=Data.REFILL_HOLD,r end
         end
         -- (at cleared too: after frames of the hold, tick(0) read a step back in time and kept the 0)
         if now and self.late then self.late.left,self.late.at=0,nil; self.tick(0,false) end
@@ -431,8 +474,8 @@ function Data.new(g,native,opts)
         g.log('data: SB\'s rows put back')
     end
 
-    -- Each frame while the refill field waits (fight/gunmode/mode.lua's tick, gun mode on or off): its hold counts down
-    -- while the game is not paused. now: os.clock(). true when the shipped value went back (coop-gun.txt drops it).
+    -- Each frame while the held fields wait (fight/gunmode/mode.lua's tick, gun mode on or off): their hold counts down
+    -- while the game is not paused. now: os.clock(). true when the shipped values went back (coop-gun.txt drops them).
     function self.tick(now,paused)
         local l=self.late
         if not l then return false end
@@ -441,8 +484,8 @@ function Data.new(g,native,opts)
         if not paused then l.left=l.left-dt end
         if l.left>0 then return false end
         self.late=nil
-        undo({l})
-        g.log('data: '..Data.REFILL_EFFECT..' Action1 back to '..tostring(l[3])..': SB\'s NIKKE reload adds rounds again')
+        undo(l)
+        for _,e in ipairs(l) do g.log('data: '..Data.HOLD[e.hold][1]..' '..e[2]..' back to '..tostring(e[3])) end
         return true
     end
 
@@ -451,7 +494,7 @@ function Data.new(g,native,opts)
     -- A field that read nil has nothing to put back. Raises on a value it cannot keep.
     function self.records()
         local out={}
-        for _,list in ipairs({self.saved or {},self.armed or {},{self.refill or self.late}}) do
+        for _,list in ipairs({self.saved or {},self.armed or {},self.refill or self.late or {}}) do
             for _,e in ipairs(list) do
                 if e[3]~=nil then
                     local at=assert(names[e[1]],'a row with no name')
