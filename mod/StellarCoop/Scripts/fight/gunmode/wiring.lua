@@ -10,29 +10,10 @@ uses={},
 exports={'gun','gunrounds'},
 new=function(M)
 local function log(m) M.print('[StellarCoop][GM] '..tostring(m)..'\n') end
--- The rounds' gun_mode check: main.lua's settings, or coop-settings.txt read here without the native part.
-local Link=require('core.link')
-local settings=M.settings or Link.parse_settings(M.folder and Link.files.read(M.folder..'\\coop-settings.txt') or '')
--- The rifle's rounds as SB's Bullet_Nikke (fight/gunmode/nikke.lua), with the Steam link only (the native part adds
--- the rows and reads the inventory): its rows asked once a co-op save has loaded from the co-op save files, their
--- read-back and the inventory reads at each pass (main/pass.lua: gunrounds.tick). Without it, or with gun_mode=off
--- (no rows asked then), the magazines stay free.
-local Nikke=require('fight.gunmode.nikke')
-local function controller()
-    local pc=FindFirstOf('SBPlayerController')
-    if pc and pc:IsValid() then return pc end
-end
-M.gunrounds=M.link and settings.gun_mode~=false and Nikke.new({log=log,status=function() return M.link.status() end,
-    ask=function(line) return M.ask(line)() end,request=function(line) return M.link.request(line) end,
-    paused=M.logic_paused,name=M.fname,pc=controller,
-    pawn=function()
-        local pc=controller()
-        local ok,p=pcall(function() return pc and pc.Pawn end)
-        if ok and p and p:IsValid() then return p end
-    end})
-M.gunrounds=M.gunrounds or nil -- gun_mode=off leaves nil, as an export with no link does.
-if M.gunrounds then M.gunrounds.round=Nikke.ROUND end -- fight/gunmode/ammo.lua's log names the round.
-M.gun=require('fight.gunmode.mode').new({log=log,folder=M.folder,stock=M.gunrounds,words=M.words,
+-- No round store: the magazines are 6b095696's free ones (fight/gunmode/ammo.lua). fight/gunmode/nikke.lua and
+-- rows.lua (SB's Bullet_Nikke as the rifle's rounds) are not started: main.lua's gunrounds stays nil.
+M.gunrounds=nil
+M.gun=require('fight.gunmode.mode').new({log=log,folder=M.folder,words=M.words,
     notice=function(key) M.tell(function(w) return w.gun[key or 'rebuilding'] end) end})
 M.gun.start()
 -- A new controller (map load, death, camp warp) resets gun mode. The hook stays registered while the module is off.

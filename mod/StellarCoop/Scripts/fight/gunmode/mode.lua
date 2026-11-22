@@ -26,7 +26,6 @@ local Ammo=require('fight.gunmode.ammo')
 local Dpad=require('fight.gunmode.ui.dpad')
 local Overlay=require('fight.gunmode.overlay')
 local Morph=require('fight.gunmode.morph')
-local U=require('core.unreal')
 
 local GunMode={}
 
@@ -35,6 +34,7 @@ local GunMode={}
 -- RunEvent, RunZoneEvent (0x141ca5790) or StartMatchMaking (0x141ca3ea0, RunEvent's kind 15). Kinds 16 and 19 stop
 -- matchmaking or go back to single play. The only zone event gun mode fires: kind 2 on the shot's row
 -- (Data.row('Fire'), read at the call).
+local U=require('core.unreal')
 local ATTACH_ACTOR_EFFECT=2
 function GunMode.allowed(kind,name) return kind==ATTACH_ACTOR_EFFECT and name~=nil and name==Data.row('Fire') end
 local function find_name(t) return FName(t,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
@@ -125,12 +125,6 @@ function GunMode.new(env)
         return ok and r==true
     end
     function g.try(fn) local ok,r=pcall(fn); if ok then return r end end
-    -- An object's path (its full name without its class), as core/actors.lua's path_of. nil when it cannot be read.
-    -- fight/gunmode/ammo.lua checks with it that a reticle text block still sits where it was found.
-    function g.path(o)
-        local f=g.valid(o) and g.try(function() return o:GetFullName() end)
-        return type(f)=='string' and f:match('^%S+ (.+)$') or nil
-    end
     function g.get(o,k) local ok,r=pcall(get_field,o,k); if ok then return r end end -- a property read without a closure
     local cached -- The controller: FindFirstOf walks the whole object array.
     local cdos={}
@@ -188,7 +182,7 @@ function GunMode.new(env)
     end
     -- No D-pad slot widget for now: the runtime widget never drew. As nothing held it, the engine could free it
     -- while its text was still being set every frame (a likely cause of the crashes in one play session).
-    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil,env.stock)
+    local ammo=Ammo.new(g,cfg,function(v) data.cool(v) end,on_reload,nil)
 
     local function fire_row(row)
         local ok,err=pcall(zone_event,ATTACH_ACTOR_EFFECT,row)

@@ -10,7 +10,7 @@ dofile('tests/lua/main/fixture.lua')
 settings_text,status_text,in_world='',plain,true
 load_main(true)
 assert(gm.o.folder=='mod/StellarCoop',tostring(gm.o.folder))
-assert(gm.o.stock~=nil,'the rounds with the native part')
+assert(gm.o.stock==nil,'no round store: free magazines')
 assert(gm.starts==1,'wiring starts gun mode once')
 assert(gm.hud==nil,'no hud build step')
 -- The menu's words for its reticle slot, its notice in them (the rebuilding one by default).

@@ -46,7 +46,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
 `fight/gunmode/`: `aimrot`, `dpad`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`, `morph`, `nikke`,
-`off`, `release`, `rifle_frame`, `stock`, `texts`, `v4_rules`)
+`off`, `release`, `rifle_frame`, `texts`, `v4_rules`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -117,24 +117,6 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   engine line shows), read once a second while watched, with the takes no read shows yet taken off. A take calls
   `ServerRequest_ItemBucketItemRemove` with bucket 1, EVE's GUID and `Bullet_Nikke`. It is refused before the rows,
   while the game is paused, with no EVE or no GUID; `coop off` ends the rows' wait and the reads;
-- `fight/gunmode/stock_test` runs `fight/gunmode/ammo.lua` over a fake stock: free magazines until the stock is ready,
-  then an empty magazine, one take per reload of at most a magazine and at most the count, the spares as the count, a
-  refused take that loads nothing and a wait of `Ammo.RETRY` (5 s) before the next empty reload (also for a
-  part-filled magazine fired empty), an empty magazine
-  that reloads once rounds come, no round while none are carried (`out of rounds` logged once), free magazines again
-  once the stock stops being ready, a new world that keeps the magazine and the rifle put away mid-reload that takes
-  once. A part-spent magazine never reloads by itself. The player's reload keeps its rounds and tops it up through the
-  stock with at most what she carries. A refused take there keeps the magazine as it was. The player's reload is
-  refused while a refused take waits. A reload's end, a refill and free magazines again write the cool time 0. The
-  rifle out keeps the take's 0 (`sync` writes nothing). One cool time and 4 frames after the first round the rate of
-  fire is back. Before the count's first read an empty magazine logs no `out of rounds`. It holds no round: the fake
-  SB shot starts at most once with the trigger held (on the take's 0 it fired every other frame). The first read
-  starts its reload. SB fires again after it.
-  A fake SB shot follows SB's cool time rule as read in Ghidra: a start copies the row's cool time, the copy counts
-  down and a start is refused while both are above 0. Each start drops the game's aim for a frame. A magazine fired
-  dry with the trigger held leaves the fake a copy of 999. After the next reload it fires 8 to 14 rounds in 1 s, within
-  2 of gun mode's count. This holds in both orders of SB's check and gun mode's tick, with the trigger held through
-  the reload or let go. It also holds with a slow frame (0.12 s) right after the press and SB's start one frame late;
 - `vehicles/bike/ride_test` covers `vehicles/bike/ride.lua` over a fake EVE and native part: the preload asked once and
   released at `bike=off`, the part made once (at the seat, hidden, its tick off) or found again after a reload, every
   mount refusal with its reason and nothing written, the mount's order and the dismount backward, the lean (the math

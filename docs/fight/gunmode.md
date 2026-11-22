@@ -192,8 +192,9 @@ The rifle fires NIKKE RAPID rounds: about 20 a second.
 | Magazine | 60 rounds |
 | Reload | 1.6 s, with the NIKKE squad's reload sounds |
 
-The magazine reloads when it runs dry or when you press the reload key (B, or Triangle on a pad). A press keeps the
-rounds left in the magazine and tops it up from the spares. With fewer spares than it lacks, every spare goes in.
+The magazine reloads when it runs dry or when you press the reload key (B, or Triangle on a pad). A press throws away
+the rounds left in the magazine and loads a new one from the spares. With fewer spares than a magazine, every spare
+goes in.
 Lowering the rifle never reloads it. No round fires while it reloads. With `gun_fire=own` gun mode's own shots use
 the same magazine and reloads.
 
@@ -218,98 +219,15 @@ never grows. In hip fire (the rifle up without the
 game's aim) a small crosshair shows at the screen's centre. `hud_entry=false` in `fight/gunmode/config.lua` turns the
 entry off.
 
-The rounds below have not run in game yet. The rest of this section is written from the code and the game's tables.
-
-### Rounds on a co-op save
-
-On a [co-op save](../players/saves.md#co-op-saves) the rifle's rounds are an item EVE carries: `Bullet_Nikke`, the
-game's own round of the NIKKE stage. The mod adds no item. It adds where to get the round:
-
-- The camp vending machines sell it for 2 gold a round, at simple camps, full camps and nest camps. It is listed after
-  the drone's railgun rounds. The machines' item that refills all ammo refills the rounds of EVE's bullet slot list
-  (the player data's list that `FUN_141cc63d0` copies), each up to its carry limit (`FUN_141bbe480`). The mod never
-  puts `Bullet_Nikke` in that list. Whether anything in the game does was not read.
-- Enemies and supply boxes drop it, beside the drone's ammo. Each row below rolls on its own: its chance out of 100,
-  then a count between its two numbers. The enemy counts come from the game's table dumps.
-- EVE carries at most 60 rounds, 62 with the drone upgrade `P_Protector_Shoot2_5` (below). That is one spare magazine
-  beside a full one. A drop or a buy past that limit adds only what fits.
-
-| Drop group | Who rolls it | Chance | Rounds |
-| --- | --- | --- | --- |
-| `subGroup_FA_Normal_Bullet` | 18 kinds of enemy | 15% | 15 to 30 |
-| `subGroup_FA_Normal3_Bullet` | 9 kinds of enemy | 20% | 20 to 40 |
-| `subGroup_global_Normal_Bullet` | 8 kinds of enemy | 10% | 10 to 20 |
-| `subGroup_global_Normal3_Bullet` | 2 kinds of enemy | 15% | 15 to 30 |
-| `subGroup_FA_BodyBag_Bullet` | 2 kinds of enemy | 30% | 30 to 60 |
-| `subGroup_Raven_Bullet` | 2 kinds of enemy | 30% | 30 to 60 |
-| `subGroup_FA_Animal_Bullet` | 13 kinds of enemy | 10% | 10 to 20 |
-| `subGroup_b_standard_Bullet_Random` | Supply boxes | 50% | 20 to 40 |
-
-The shop and drop rows go in once a co-op save from the co-op save files has loaded, once a game run. The title, your
-own saves and the manual co-op slot that `StellarCoopSlot.txt` names never ask them. From that load on the game refuses
-`coop saves main` until it restarts, so none of your own saves loads while the rows are in. The rows stay for the rest
-of the game run. The magazine loads from the inventory only while a co-op save is loaded. Then the
-magazine starts empty. Each reload takes the rounds it loads out of EVE's inventory in one take, at most a magazine
-and at most what she carries. The rounds she carries are the spares. An empty magazine reloads as
-soon as she carries rounds (a buy, a drop). With none in the magazine and none carried the reticle's slot reads NO AMMO.
-Until the count's first read after a co-op save loads (0.37 s after the rifle out in the 2026-11-21 test), the empty
-magazine waits for it with no `out of rounds` line. It holds no round in that time: the shot's cool time is 999, as
-for any empty magazine. On the take's 0, SB's own NIKKE shot fired with no round paid for.
-
-Rounds in the magazine have already left the inventory. They stay in the magazine across a new map, a death or a camp
-warp. Nothing gives them back to the inventory: not putting the rifle away, not `coop off`. A reload loads nothing
-when the game cannot take the rounds, for example while the game is paused. An empty magazine then reloads again
-after 5 s.
-
-Each player buys and picks up rounds in their own game. Nothing of the rounds goes over the Steam link.
-
 ### Free magazines
 
-On your own saves the rifle keeps its free magazines: 5 spare magazines of 60 rounds. A new map, a death or a camp
-warp gives full magazines again. Putting the rifle away and taking it out again does not. The same holds on a co-op
-save without the Steam link or the native part, or when the rows were refused or read back other than written.
-`UE4SS.log` then has the `[GM]` line
-`rounds: rows refused (...): the rifle keeps its own magazines` or
-`rounds: rows read back other than written: the rifle keeps its own magazines`.
-
-### Not known or not checked
-
-- The round's name may show empty in the machines and the inventory. `Bullet_Nikke`'s name and description fields are
-  empty in ItemTable. No `Item_Bullet_Nikke_` key ships in ItemStringTable. How the game shows an empty name was not
-  read.
-- Its icon is the drone's normal round's (`bullet_icon_01`).
-- Like every shipped round, its row has SaveType None. Whether the rounds EVE carries survive a save and a reload was
-  not tested.
-- Its carry limit is an actor stat no other item uses. SB's bucket add (`FUN_141bdbc20`) cuts an add down to the
-  room left under the item's cap (`FUN_141be1440`): ItemTable `MaxAmount` (+0x84), or, in the player's bucket, the
-  owner's value of the stat that `MaxAmountOverrideActorStat` (+0x88) names. For `Bullet_Nikke` that is
-  `ActorStatType_ItemStackBullet5`. EVE's `Player` CharacterTable rows set it to 60. Of EffectTable's rows only
-  `P_Protector_Shoot2_5` (+2) and `P_Protector_Shoot2_MK2_5` (+0) change it. The cut applies only when the bucket's
-  byte at +0x38 is set. That byte is the bucket's `bPlayerOwned` (`FUN_141ad8cd0`). SB makes the inventory bucket of the
-  actor a controller takes (`FUN_141ba6820`) and of an actor spawned with an inventory (`FUN_141ad24d0`,
-  `FUN_141ba7f60`) with it set. The buckets the save load makes (`FUN_141ad2fa0`) have owner 0 with it clear. That no
-  bucket of EVE's comes from that load was not read.
-- That a UE4SS write of 0 to the byte `Action1` of `P_Eve_GunNikke_ReloadCompleted` holds in the game was not tested.
-  The same kind of write to the `Type` of the shot's `Hit1` step does.
-- Whether the aim start looks right without the drone's raise clip was not checked in the game. The animation pak
-  already had it off.
-- The writes of -1 and 0 to the `ConditionActive_ItemCount` fields of `P_Eve_GunNikke_BulletZero` and
-  `P_Eve_GunNikke_Reload` were not tested in the game. A `BulletZero` already on when the rifle comes out (from an
-  earlier build) is not ended by gun mode.
-- The `the game holds her movement` lines at aim starts (830 test) are not explained. They come with the aim key held
-  and rounds carried, so they are not the cover stance. No log of build 805 is left to compare.
-- `P_Eve_GunNikke_BurstSkillReloadCompleted` also adds 60 rounds. Gun mode leaves it as shipped. Only the Cast1 steps
-  of the NIKKE burst skills apply it. Gun mode starts none of them. Whether the beta skill input can start those
-  skills in gun mode's aim stance was not checked.
-- A 999 written at an off while the game's aim runs (the off's hold) may be copied by a shot SB starts during the
-  hold. SB's NIKKE shot outside gun mode would then wait up to 999 s. The next rifle out clears it. This was not seen
-  in a test.
-- The camp machines carry the `AllShop` tag. A buy of rounds there counts toward the gold-spending trophy, as a buy of
-  drone ammo does.
-- A RandomEach group rolls each of its rows on its own (`FUN_141be9540`): a pick up to the constant
-  `RewardRandomEachMax` (10000 by default) drops the row when it is at or below its DropRate.
+The rifle has free magazines: 5 spare magazines of 60 rounds. A new map, a death or a camp warp gives full magazines
+again. Putting the rifle away and taking it out again does not. Gun mode starts no round store: `fight/gunmode/wiring.lua`
+starts neither `fight/gunmode/nikke.lua` nor the rows below, so no `Bullet_Nikke` is sold, dropped or spent.
 
 ## The rounds' rows
+
+Not started in this version (see Free magazines above). The files stay as they are.
 
 The batch `nikke` (`native/src/fight/gunmode/nikke_rows.h`) leaves `Bullet_Nikke` (ItemTable ID 37) as it ships. It
 adds 9 rows and patches 3 shipped rows in place, in this order:
