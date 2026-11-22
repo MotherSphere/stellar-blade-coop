@@ -16,8 +16,6 @@ assert(GunMode.want(nil,true,true,'Evade',false)=='carry')    -- a dodge on the 
 assert(GunMode.want(nil,true,true,'Flip',true)=='aim')        -- the double-jump flip keeps the aim
 assert(GunMode.want(5,true,true,nil,false)=='reload')
 assert(GunMode.want(5,false,false,'Evade',false)=='reload')
-assert(GunMode.pose('reload',true)=='aim' and GunMode.pose('reload',false)=='reload') -- an aimed reload keeps the aim's pose
-assert(GunMode.pose('aim',true)=='aim' and GunMode.pose('carry',false)=='carry')
 
 -- 2. The aim bridge: a dodge with the key held keeps the aim; the game's aim back or the key let go ends it.
 assert(Input.bridge(nil,false,true,0.2)==true)     -- aim dropped 0.2 s ago, key held
@@ -67,19 +65,14 @@ do
     assert(a.spend(0)==true and a.left==2)
     assert(a.spend(0.1)==true and a.spend(0.2)==true and a.left==0 and reloads==1)
     assert(a.spend(0.3)==false and a.left==0)
-    -- the player's reload tops the magazine up from the spares; no reload when lowered
+    -- the player's reload: the rest of the magazine is thrown away; no reload when lowered
     local b=Ammo.new(g,cfg,function() end,function() end,nil)
     b.spend(0) -- 2 left, 6 spare
     for i=1,600 do b.tick(false,false,1+i/60) end -- 10 s lowered with a part-spent magazine
     assert(b.left==2 and not b.reload_until,'no reload when lowered')
-    assert(b.manual(20)==true and b.left==2,'the magazine keeps its rounds at the press: '..b.left)
+    assert(b.manual(20)==true and b.left==0)
     for i=1,120 do b.tick(false,false,20+i/60) end -- the reload runs out
-    assert(b.left==3 and b.reserve==5,'manual reload: left '..b.left..' reserve '..b.reserve)
+    assert(b.left==3 and b.reserve==3,'manual reload: left '..b.left..' reserve '..b.reserve)
     assert(b.manual(30)==false,'full magazine: no reload')
-    -- fewer spares than the magazine lacks: every spare goes in, never fewer rounds than before the press
-    b.spend(31); b.reserve=1 -- 2 left, 1 spare
-    assert(b.manual(40)==true)
-    for i=1,120 do b.tick(false,false,40+i/60) end
-    assert(b.left==3 and b.reserve==0,'one spare: left '..b.left..' reserve '..b.reserve)
 end
 print('gunmode v4_rules_test ok')

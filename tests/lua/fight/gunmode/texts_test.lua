@@ -104,8 +104,8 @@ do
         if not readme:find(want,1,true) then fail('tools/gunmode/README.md does not name '..want) end
     end
     -- The pak's v4 assets that no script here makes: the poses overlay.lua plays and the aim camera's modifier.
-    local poses=require('fight.gunmode.overlay').CLIPS.aim:match('^/Game/(.+)/[^/]+$')
-    local cammod=read(S..'mode.lua'):match("local CAMMOD='[^']-/([%w_]+)%.[%w_]+'")
+    local poses=read(S..'overlay.lua'):match("local POSE='/Game/(.-)/[^/']+'")
+    local cammod=read(S..'mode.lua'):match("'/Game/Mods/NGM/([%w_]+)%.[%w_]+'")
     assert(poses and cammod,'overlay.lua names its poses, mode.lua its camera modifier')
     for _,w in ipairs({{'tools/gunmode/README.md',readme},{PAGE,page}}) do
         for _,want in ipairs({poses,cammod}) do
@@ -190,8 +190,7 @@ do
     -- reads as a broken aside.
     local T='tests/lua/fight/gunmode/'
     for _,p in ipairs({S..'input.lua',S..'ik.lua',S..'mode.lua',S..'aimrot.lua',S..'ui/dpad.lua',S..'rifle.lua',
-            T..'ik_pin_test.lua',T..'input_memo_test.lua',T..'rifle_frame_test.lua',T..'morph_test.lua',
-            T..'cost_test.lua'}) do
+            T..'ik_pin_test.lua',T..'input_memo_test.lua',T..'rifle_frame_test.lua',T..'morph_test.lua'}) do
         local blocks,last={},nil -- {line of its first comment, its text}
         lines({p},function(_,n,l)
             local c=l:match('%-%-(.*)$')

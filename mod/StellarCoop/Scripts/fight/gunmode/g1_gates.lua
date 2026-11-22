@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gate G1 of the v3 plan (standing aim at camera pitch -40, 0 and +40): the pass thresholds, fixed before the build
--- so they are not tuned to the result. Units cm and degrees.
+-- so they are not tuned to the result. Values are the plan's, unchanged. Units cm and degrees.
 -- The red test runs these on the build before the v3a graph: the wrist, neck and pocket gates must FAIL there.
 local Gates={}
 

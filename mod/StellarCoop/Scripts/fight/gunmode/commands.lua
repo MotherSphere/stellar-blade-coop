@@ -1,15 +1,15 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop gun: gun mode on or off, as its key does; coop gun status: on or off, firing mode or moving, its key and the
--- shots fired (fight/gunmode/mode.lua's status). The loader merges this into M.commands. o.gun():
--- fight/gunmode/mode.lua's object, or nil when gun mode failed to build.
+-- coop gun: gun mode on or off, as its key does; coop gun status: on or off, firing mode or moving, its key, real ammo,
+-- the pose and whether its paks were found. fight/gunmode/wiring.lua returns this for the command table. gun(): fight/gunmode/mode.lua's
+-- object, or nil when gun mode failed to build.
 local Commands={}
 local USE='Use: coop gun [status]'
-function Commands.new(o)
+function Commands.new(gun)
     local self={}
     function self.gun(sub,extra)
-        local g=o.gun()
+        local g=gun()
         if not g then return false,'gun mode did not start: see [StellarCoop][GM] in UE4SS.log' end
         if sub==nil then
             local ok,e=pcall(g.toggle_now)
