@@ -255,15 +255,22 @@ function Data.new(g,native,opts)
                         st[f]=(pak and pak.speeds and pak.speeds[f]) or v*self.opts.speed
                     end
                 end
-                -- No drone dismiss show when the aim ends. SB's stance change (0x141a7e2a0 on 26123051) reads the old
-                -- stance's row again and plays its EndShowPathWhenBattle (an FString at +0x130, property params
+                -- No drone show when the aim starts or ends. SB's stance change (0x141a7e2a0 on 26123051) reads the
+                -- old stance's row again and plays its EndShowPathWhenBattle (an FString at +0x130, property params
                 -- 0x145dfe518) or its EndShowPathWhenPeaceful (+0x120, params 0x145dfe540) on her whole body. For
                 -- P_Eve_Gun that is the drone aim's side-on exit with bent knees. It queues the show only when that
                 -- FString's length is above 1 (the check at 0x141a7e3e4), so an empty one plays nothing.
-                -- Her default stance has none either. The End pair is cleared on every native path. The Start pair
-                -- only with the pak (it played the drone's raise pose for a moment before her rifle aim).
-                for _,f in ipairs(pak and {'StartShowPathWhenPeaceful','StartShowPathWhenBattle','EndShowPathWhenPeaceful',
-                        'EndShowPathWhenBattle'} or {'EndShowPathWhenPeaceful','EndShowPathWhenBattle'}) do
+                -- Her default stance has none either. The same change takes the new stance's StartShowPathWhenBattle
+                -- (+0x100, params 0x145dfe630) or StartShowPathWhenPeaceful (+0xf0, params 0x145dfe5b8, when the byte
+                -- at +0xb58 of its first argument is 0). Its Start task (0x141a7eda0) plays it (FUN_14228af60) only
+                -- when the FString's length is above 1. For P_Eve_Gun that is P_Eve_Gun_S or _S_Peaceful, each one anim
+                -- key: the drone's side-on raise P_Eve_Gun_Normal_S or _S_Peaceful, 1.1 s, bStopAtMove (26123051's
+                -- base pak). The shipped End show took over from it at the release (P_Eve_Gun_E's key lists both
+                -- clips in PlayIfSamePriorityCustomAniNameArray). With the End pair empty it played to its end: after
+                -- a 0.05 s aim she stood side-on for about 1 s (2026-11-22 test). All four are cleared on every native
+                -- path.
+                for _,f in ipairs({'StartShowPathWhenPeaceful','StartShowPathWhenBattle','EndShowPathWhenPeaceful',
+                        'EndShowPathWhenBattle'}) do
                     local v=g.try(function() return text(st[f]) end)
                     if v and v~='' and v~='None' then
                         saved[#saved+1]={st,f,v}

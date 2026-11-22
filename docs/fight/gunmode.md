@@ -96,11 +96,13 @@ rifle changes:
   EVE's root in her root's frame (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own
   target line and sent the rounds to the side. Its own spread (a random range of 300 cm) is off. Its destination is
   placed once, when the round spawns, not again while it flies.
-- `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it. Letting the aim
-  go plays no drone dismiss show. As shipped, SB plays `P_Eve_Gun_E` (in a fight) or `P_Eve_Gun_E_Peaceful` on her
-  whole body when the aim stance ends: the drone aim's side-on exit with bent knees. While the rifle is out, both
-  paths are empty. The drone aim's raise show still plays when the aim starts, except with the animation pak, which
-  empties it too. `UE4SS.log` has the lines
+- `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it. The aim plays no
+  drone show when it starts or ends. As shipped, SB plays `P_Eve_Gun_E` (in a fight) or `P_Eve_Gun_E_Peaceful` on her
+  whole body when the aim stance ends: the drone aim's side-on exit with bent knees. When the aim starts it plays
+  `P_Eve_Gun_S` or `P_Eve_Gun_S_Peaceful`: the drone's side-on raise, 1.1 s long. The shipped exit took over from the
+  raise at the release. With only the exit emptied the raise played to its end, so a short aim left her standing
+  side-on with the rifle at the hip for up to 1 s. While the rifle is out, all four paths are empty. `UE4SS.log` has
+  the lines `data: aim stance StartShowPathWhenPeaceful cleared`, `data: aim stance StartShowPathWhenBattle cleared`,
   `data: aim stance EndShowPathWhenPeaceful cleared` and `data: aim stance EndShowPathWhenBattle cleared`.
 - `CharacterAnimSetTable`: not on the rifle layer. With the rifle clips alone, the aim stance's animation set points at
   the rifle's blend spaces. A spare NPC row takes EVE's peaceful set with the rifle clips for the carry. The test line
@@ -316,6 +318,8 @@ save without the Steam link or the native part, or when the rows were refused or
   bucket of EVE's comes from that load was not read.
 - That a UE4SS write of 0 to the byte `Action1` of `P_Eve_GunNikke_ReloadCompleted` holds in the game was not tested.
   The same kind of write to the `Type` of the shot's `Hit1` step does.
+- Whether the aim start looks right without the drone's raise clip was not checked in the game. The animation pak
+  already had it off.
 - The writes of -1 and 0 to the `ConditionActive_ItemCount` fields of `P_Eve_GunNikke_BulletZero` and
   `P_Eve_GunNikke_Reload` were not tested in the game. A `BulletZero` already on when the rifle comes out (from an
   earlier build) is not ended by gun mode.
