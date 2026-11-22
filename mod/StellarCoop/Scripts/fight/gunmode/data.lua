@@ -424,7 +424,7 @@ function Data.new(g,native,opts)
             -- (entry 0x145e27e90). The effect start (0x141bc8d40) reads the live row's +0x2fc at each start. Its switch
             -- has no case 0. Its case 0x16 adds AddCount to bucket 1 (0x141bdbc20). The other held fields: Data.HOLD.
             -- Last here, each in its own pcall: nothing after them can fail, so a refused take never leaves one
-            -- changed, and a field that cannot be written is logged without refusing the take. During put_back's hold
+            -- changed. A field that cannot be written is logged without refusing the take. During put_back's hold
             -- (self.late) a field reads its held value: the shipped value is the hold's. One the hold has and this
             -- take cannot write again stays in the hold's list.
             local eff=g.try(function() return tbl('EffectTable') end)
