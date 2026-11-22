@@ -76,16 +76,33 @@ rifle changes:
   when the effect starts, about 1.07 s after its last NIKKE shot. Put back at once, an off right after a shot gave 60
   free rounds. `coop off` and a Lua reload put it back at once. `UE4SS.log` has the lines
   `data: P_Eve_GunNikke_ReloadCompleted Action1 22 -> 0: SB's NIKKE reload adds no rounds` and
-  `data: P_Eve_GunNikke_ReloadCompleted Action1 back to 22: SB's NIKKE reload adds rounds again`.
+  `data: P_Eve_GunNikke_ReloadCompleted Action1 back to 22`.
+- `EffectTable` `P_Eve_GunNikke_BulletZero` and `P_Eve_GunNikke_Reload`: no NIKKE cover stance and no NIKKE reload of
+  SB's own, in both fire modes. Every gun mode shot is SB's NIKKE shot. Its `P_Eve_GunNikke_SkillUseCheck` chains
+  `BulletZero` and `Reload`. Gun mode's reload takes the whole magazine out of `Bullet_Nikke`, so the count is often 0
+  after a shot. As shipped, `BulletZero` then starts at 0 rounds. Its stance `P_Eve_GunNikkeHide` is the NIKKE cover
+  stance, low with the rifle down. Its end condition is `Bullet_Nikke` above 0. In 805 SB's refill of 60 rounds met it
+  about 1 s later. With the refill off only a round she picks up or buys meets it, so she stayed in it (the 826 test).
+  `P_Eve_GunNikke_ReloadCompleted`'s `DispelFlagsArray` also names `P_Eve_GunNikke_BulletZero`. Whether that name
+  matches the effect's flag (`Nikke_BulletZero`) was not read. `Reload` plays SB's NIKKE reload show on her whole body.
+  While the rifle is out the item check of `BulletZero` needs a count of -1 and the one of `Reload` a count below 0. No
+  count passes, so SB applies neither. The two `ConditionActive_ItemCount` fields go back with the refill field, 3 s of
+  play after the other rows. At `coop off` or a Lua reload all three go back at once. A shot SB is still running at that
+  moment can then start the cover stance. SB's own refill of 60 rounds ends it about 1 s later. `UE4SS.log` has the
+  lines `data: P_Eve_GunNikke_BulletZero ConditionActive_ItemCount 0 -> -1: no NIKKE cover stance at 0 rounds`,
+  `data: P_Eve_GunNikke_Reload ConditionActive_ItemCount 60 -> 0: no NIKKE reload of SB's own` and the two `back to`
+  lines.
 - `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its destination is an offset from
   EVE's root in her root's frame (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own
   target line and sent the rounds to the side. Its own spread (a random range of 300 cm) is off. Its destination is
   placed once, when the round spawns, not again while it flies.
-- `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it. Letting the aim
-  go plays no drone dismiss show. As shipped, SB plays `P_Eve_Gun_E` (in a fight) or `P_Eve_Gun_E_Peaceful` on her
-  whole body when the aim stance ends: the drone aim's side-on exit with bent knees. While the rifle is out, both
-  paths are empty. The drone aim's raise show still plays when the aim starts, except with the animation pak, which
-  empties it too. `UE4SS.log` has the lines
+- `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it. The aim plays no
+  drone show when it starts or ends. As shipped, SB plays `P_Eve_Gun_E` (in a fight) or `P_Eve_Gun_E_Peaceful` on her
+  whole body when the aim stance ends: the drone aim's side-on exit with bent knees. When the aim starts it plays
+  `P_Eve_Gun_S` or `P_Eve_Gun_S_Peaceful`: the drone's side-on raise, 1.1 s long. The shipped exit took over from the
+  raise at the release. With only the exit emptied the raise played to its end, so a short aim left her standing
+  side-on with the rifle at the hip for up to 1 s. While the rifle is out, all four paths are empty. `UE4SS.log` has
+  the lines `data: aim stance StartShowPathWhenPeaceful cleared`, `data: aim stance StartShowPathWhenBattle cleared`,
   `data: aim stance EndShowPathWhenPeaceful cleared` and `data: aim stance EndShowPathWhenBattle cleared`.
 - `CharacterAnimSetTable`: not on the rifle layer. With the rifle clips alone, the aim stance's animation set points at
   the rifle's blend spaces. A spare NPC row takes EVE's peaceful set with the rifle clips for the carry. The test line
@@ -301,6 +318,13 @@ save without the Steam link or the native part, or when the rows were refused or
   bucket of EVE's comes from that load was not read.
 - That a UE4SS write of 0 to the byte `Action1` of `P_Eve_GunNikke_ReloadCompleted` holds in the game was not tested.
   The same kind of write to the `Type` of the shot's `Hit1` step does.
+- Whether the aim start looks right without the drone's raise clip was not checked in the game. The animation pak
+  already had it off.
+- The writes of -1 and 0 to the `ConditionActive_ItemCount` fields of `P_Eve_GunNikke_BulletZero` and
+  `P_Eve_GunNikke_Reload` were not tested in the game. A `BulletZero` already on when the rifle comes out (from an
+  earlier build) is not ended by gun mode.
+- The `the game holds her movement` lines at aim starts (830 test) are not explained. They come with the aim key held
+  and rounds carried, so they are not the cover stance. No log of build 805 is left to compare.
 - `P_Eve_GunNikke_BurstSkillReloadCompleted` also adds 60 rounds. Gun mode leaves it as shipped. Only the Cast1 steps
   of the NIKKE burst skills apply it. Gun mode starts none of them. Whether the beta skill input can start those
   skills in gun mode's aim stance was not checked.

@@ -85,9 +85,10 @@ do
     end
 end
 
--- 1c. Native fire on the rifle layer: letting the aim go plays no drone dismiss show. The aim stance's two End show
---     fields are empty while the rifle is out. Its Start pair stays as shipped. The log names the change. coop-gun.txt
---     lists both End fields. They go back when the rifle goes away or at the next Lua load.
+-- 1c. Native fire on the rifle layer: the drone aim plays no show when it starts or ends. The aim stance's four show
+--     fields are empty while the rifle is out: no raise clip left her side-on after a release, no dismiss show bent
+--     her knees. The log names each change. coop-gun.txt lists the four fields. They go back when the rifle goes away
+--     or at the next Lua load.
 do
     local w=Fake.new(); w.install()
     local store=file()
@@ -97,17 +98,16 @@ do
         return false
     end
     local st=w.tables.CharacterStanceTable.P_Eve_Gun
+    local shows={StartShowPathWhenPeaceful='P_Eve_Gun_S_Peaceful',StartShowPathWhenBattle='P_Eve_Gun_S',
+        EndShowPathWhenPeaceful='P_Eve_Gun_E_Peaceful',EndShowPathWhenBattle='P_Eve_Gun_E'}
     toggle(gun,true)
-    assert(st.EndShowPathWhenPeaceful=='' and st.EndShowPathWhenBattle=='',
-        'no dismiss show while the rifle is out: '..st.EndShowPathWhenPeaceful..' / '..st.EndShowPathWhenBattle)
-    assert(st.StartShowPathWhenPeaceful=='CH_P_EVE_01/Skill/P_Eve_Gun_S_Peaceful'
-        and st.StartShowPathWhenBattle=='CH_P_EVE_01/Skill/P_Eve_Gun_S','the raise show as shipped')
-    assert(said('aim stance EndShowPathWhenBattle cleared') and said('aim stance EndShowPathWhenPeaceful cleared'),
-        table.concat(logs,'|'))
     -- whole records (a record ends at a tab or at the line's end), so the Battle one is not matched by the Peaceful one
     local kept,at='\t'..store.peek()..'\t','\trow|CharacterStanceTable|P_Eve_Gun|'
-    assert(kept:find(at..'EndShowPathWhenPeaceful|s|CH_P_EVE_01/Skill/P_Eve_Gun_E_Peaceful\t',1,true)
-        and kept:find(at..'EndShowPathWhenBattle|s|CH_P_EVE_01/Skill/P_Eve_Gun_E\t',1,true),'coop-gun.txt: '..kept)
+    for f,show in pairs(shows) do
+        assert(st[f]=='',f..' empty while the rifle is out: '..st[f])
+        assert(said('aim stance '..f..' cleared (was CH_P_EVE_01/Skill/'..show..')'),table.concat(logs,'|'))
+        assert(kept:find(at..f..'|s|CH_P_EVE_01/Skill/'..show..'\t',1,true),'coop-gun.txt: '..kept)
+    end
     toggle(gun,false)
     assert(#w.changed()==0,table.concat(w.changed(),'; '))
     -- a Lua reload with the rifle out: the next load's restore puts them back
@@ -814,6 +814,104 @@ for _,parked in ipairs({false,true}) do
     else
         assert(gun.state.on,'free: the tap brings the rifle out')
     end
+end
+
+-- 22. No NIKKE cover stance and no NIKKE reload of SB's own while the rifle is out, in both fire modes. Each NIKKE shot
+--     chains EffectTable P_Eve_GunNikke_BulletZero (Bullet_Nikke Equal 0, the cover stance) and
+--     P_Eve_GunNikke_Reload (Bullet_Nikke Less 60). Their ConditionActive_ItemCount reads -1 and 0, counts no item
+--     reaches. They go back with SB's refill field: 3 s of play after the off (native fire) or after a new world (a
+--     pause does not count). coop-gun.txt lists their shipped values. coop off and a Lua reload put them back at
+--     once. A missing row, or a field that cannot be written, is logged and the rifle still comes out.
+do
+    local ZERO='\trow|EffectTable|P_Eve_GunNikke_BulletZero|ConditionActive_ItemCount|d|0\t'
+    local RELOAD='\trow|EffectTable|P_Eve_GunNikke_Reload|ConditionActive_ItemCount|d|60\t'
+    local function said(logs,text)
+        for _,l in ipairs(logs) do if l:find(text,1,true) then return true end end
+        return false
+    end
+    local function setup(settings)
+        local w=Fake.new(); w.install()
+        local z,r={ConditionActive_ItemCount=0},{ConditionActive_ItemCount=60}
+        w.tables.EffectTable.P_Eve_GunNikke_BulletZero,w.tables.EffectTable.P_Eve_GunNikke_Reload=z,r
+        local store=file()
+        local gun,logs=new(settings,store)
+        local t={w=w,gun=gun,logs=logs,store=store}
+        function t.kept(rec) return ('\t'..store.peek()..'\t'):find(rec,1,true)~=nil end
+        function t.held() return z.ConditionActive_ItemCount==-1 and r.ConditionActive_ItemCount==0 end
+        function t.shipped() return z.ConditionActive_ItemCount==0 and r.ConditionActive_ItemCount==60 end
+        function t.now() return tostring(z.ConditionActive_ItemCount)..' / '..tostring(r.ConditionActive_ItemCount) end
+        return t
+    end
+    for _,settings in ipairs({'','gun_fire=own\n'}) do
+        local t=setup(settings)
+        toggle(t.gun,true)
+        assert(t.held(),settings..'held while the rifle is out: '..t.now())
+        assert(t.kept(ZERO) and t.kept(RELOAD),'coop-gun.txt: '..t.store.peek())
+        assert(said(t.logs,'P_Eve_GunNikke_BulletZero ConditionActive_ItemCount 0 -> -1')
+            and said(t.logs,'P_Eve_GunNikke_Reload ConditionActive_ItemCount 60 -> 0'),table.concat(t.logs,'|'))
+        toggle(t.gun,false); frames(t.gun,200)
+        -- (gun_fire=own keeps SB's rows taken with the rifle away until a new world)
+        assert(settings~='' or t.shipped(),'back with the rifle away: '..t.now())
+        t.gun.new_controller(t.w.pc); clock=clock+5; frames(t.gun,200)
+        assert(t.shipped() and #t.w.changed()==0,settings..'back at a new world: '..t.now())
+        toggle(t.gun,true)
+        new(settings,t.store).restore()
+        assert(t.shipped(),settings..'a Lua reload puts them back: '..t.now())
+    end
+    -- Native fire: the hold after the off.
+    local t=setup('')
+    local gun=t.gun
+    toggle(gun,true); frames(gun,10); toggle(gun,false)
+    assert(t.held() and t.kept(ZERO) and t.kept(RELOAD),'held after the off: '..t.now()..' / '..t.store.peek())
+    frames(gun,150)
+    assert(t.held(),'still held 2.5 s after the off: '..t.now())
+    t.w.paused=true; frames(gun,300); t.w.paused=false
+    assert(t.held(),'a pause does not count: '..t.now())
+    frames(gun,40)
+    assert(t.shipped() and not t.kept(ZERO) and not t.kept(RELOAD),'back after 3 s of play: '..t.now())
+    assert(said(t.logs,'P_Eve_GunNikke_BulletZero ConditionActive_ItemCount back to 0')
+        and said(t.logs,'P_Eve_GunNikke_Reload ConditionActive_ItemCount back to 60'),table.concat(t.logs,'|'))
+    -- a rifle out during the hold keeps the shipped values
+    toggle(gun,true); frames(gun,10); toggle(gun,false); frames(gun,60)
+    toggle(gun,true)
+    assert(t.held() and t.kept(ZERO) and t.kept(RELOAD),'out again during the hold: '..t.store.peek())
+    toggle(gun,false); frames(gun,200)
+    assert(t.shipped(),'the shipped values after the second hold: '..t.now())
+    -- a Lua reload during the hold
+    toggle(gun,true); toggle(gun,false)
+    new(nil,t.store).restore()
+    assert(t.shipped(),'a Lua reload during the hold: '..t.now())
+    -- coop off: back at once, also half a second into the hold
+    toggle(gun,true); toggle(gun,false)
+    assert(t.held(),'held after the off: '..t.now())
+    gun.stop('coop off')
+    assert(t.shipped() and not t.kept(ZERO),'coop off: back at once: '..t.now()..' / '..t.store.peek())
+    gun=new(nil,t.store)
+    toggle(gun,true); frames(gun,10); toggle(gun,false); frames(gun,30)
+    assert(t.held(),'held half a second after the off: '..t.now())
+    gun.stop('coop off')
+    assert(t.shipped() and not t.kept(RELOAD),'coop off during the hold: back at once: '..t.now())
+    -- no rows: logged, the rifle still comes out
+    local w=Fake.new(); w.install()
+    local gun2,logs=new()
+    toggle(gun2,true)
+    assert(said(logs,'no EffectTable row P_Eve_GunNikke_BulletZero')
+        and said(logs,'no EffectTable row P_Eve_GunNikke_Reload'),table.concat(logs,'|'))
+    toggle(gun2,false)
+    -- a field that cannot be written: logged, the rifle still comes out, the other row held
+    w=Fake.new(); w.install()
+    local r={ConditionActive_ItemCount=60}
+    w.tables.EffectTable.P_Eve_GunNikke_Reload=r
+    w.tables.EffectTable.P_Eve_GunNikke_BulletZero=setmetatable({},{__index={ConditionActive_ItemCount=0},
+        __newindex=function() error('read only') end})
+    local store=file()
+    gun2,logs=new(nil,store)
+    toggle(gun2,true)
+    assert(r.ConditionActive_ItemCount==0,'the other row held: '..tostring(r.ConditionActive_ItemCount))
+    assert(said(logs,'P_Eve_GunNikke_BulletZero ConditionActive_ItemCount not changed'),table.concat(logs,'|'))
+    assert(not ('\t'..store.peek()..'\t'):find(ZERO,1,true),'no record for a field not changed: '..store.peek())
+    toggle(gun2,false); frames(gun2,200)
+    assert(r.ConditionActive_ItemCount==60,'back: '..tostring(r.ConditionActive_ItemCount))
 end
 
 print('gunmode state: ok')

@@ -1283,7 +1283,7 @@ function GunMode.new(env)
             if p then local b=s.mesh_back; s.mesh_back=nil; pcall(function() p.Mesh:K2_SetRelativeRotation(b,false,{},false) end); keep() end
         end
         local pc=g.pc(); if not pc then return end
-        -- SB's NIKKE refill field back once its hold after put_back is over (fight/gunmode/data.lua tick): a pause
+        -- SB's held NIKKE fields back once their hold after put_back is over (fight/gunmode/data.lua tick): a pause
         -- check a frame for those 3 s only.
         if data.late and data.tick(now,is_paused(pc)) then keep() end
         -- Paused (the pause menu and its options among others): the mask lifted until the game runs again. SB's
