@@ -209,4 +209,20 @@ st.refuse=nil
 frames(a,10)
 assert(count('ammo: reload (')==reloaded+1 and a.reload_until,'The empty magazine reloads after Ammo.RETRY s')
 
+-- Before the count's first read (count() nil, as fight/gunmode/nikke.lua gives it until the inventory is read): the
+-- magazine holds no round (cool time 999 once the store is ready), logs no 'out of rounds' and starts no reload. Once
+-- the count is read the empty magazine reloads from it.
+st=stock(nil)
+st.rows=true
+a=new(st)
+frame(a)
+assert(a.left==0 and cool()==999,'No round before the first count: '..a.left..' '..tostring(cool()))
+frames(a,30,true,true)
+assert(count('out of rounds')==0 and not a.reload_until and #st.takes==0,'Nothing before the first count')
+st.carried=40
+frames(a,2)
+assert(a.reload_until,'The first count starts the reload')
+while a.reload_until do frame(a) end
+assert(a.left==30 and st.takes[1]==30,'Loaded from the count: '..a.left)
+
 print('gunmode stock_test ok')

@@ -217,6 +217,9 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
                 -- The store is ready: from now on the magazine loads from it and holds no free round.
                 self.stocked,self.left=true,0
                 if self.reload_until then self.reload_until,self.loaded=nil,false; pcall(on_reload,false) end
+                -- No round until a reload loads one. Before the count's first read the empty check below waits, so
+                -- the take's 0 stayed and SB fired NIKKE shots that no round paid for.
+                pcall(cool,999)
                 g.log('ammo: the magazine loads from the round store ('..tostring(stock.round)..')')
             end
             if self.stocked then
@@ -262,8 +265,8 @@ function Ammo.new(g,cfg,cool,on_reload,dpad,stock)
             -- (no reload when the rifle is lowered: only an empty magazine or the player's reload key, 11-20)
         end
         -- With stock, an empty magazine reloads as soon as the store holds rounds, and holds no round while it holds
-        -- none.
-        if self.stocked and self.left<=0 and not self.reload_until and now>=(self.retry_at or 0) then
+        -- none. Nothing before the count's first read (count() nil): its reserve of 0 is no count.
+        if self.stocked and self.left<=0 and not self.reload_until and now>=(self.retry_at or 0) and stock.count()~=nil then
             if self.reserve>0 then start_reload(now,'empty')
             elseif not self.dry then self.dry=true; pcall(cool,999); g.log('ammo: out of rounds') end
         end

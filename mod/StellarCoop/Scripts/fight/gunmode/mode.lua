@@ -125,6 +125,12 @@ function GunMode.new(env)
         return ok and r==true
     end
     function g.try(fn) local ok,r=pcall(fn); if ok then return r end end
+    -- An object's path (its full name without its class), as core/actors.lua's path_of. nil when it cannot be read.
+    -- fight/gunmode/ammo.lua checks with it that a reticle text block still sits where it was found.
+    function g.path(o)
+        local f=g.valid(o) and g.try(function() return o:GetFullName() end)
+        return type(f)=='string' and f:match('^%S+ (.+)$') or nil
+    end
     function g.get(o,k) local ok,r=pcall(get_field,o,k); if ok then return r end end -- a property read without a closure
     local cached -- The controller: FindFirstOf walks the whole object array.
     local cdos={}
