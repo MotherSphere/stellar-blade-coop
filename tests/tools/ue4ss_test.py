@@ -330,6 +330,32 @@ CHECK = "local S=dofile(arg[1]); local f=assert(io.open(arg[2],'rb')); print(#S.
 out = subprocess.run(['lua5.4', '-', str(ROOT / 'mod/StellarCoop/Scripts/core/ue4ss_settings.lua'), str(SETTINGS)],
                      input=CHECK, capture_output=True, text=True, timeout=60)
 assert out.returncode == 0 and out.stdout.strip() == '0', (out.stdout, out.stderr)
+# SBO's UEHelpers.lua keeps the controller and the world it found: two calls make one search, a controller gone is
+# searched for again. UE4SS v4.0.0's own file searches on every call.
+HELPERS_CHECK = """local finds=0
+local function invalid() return {IsValid=function() return false end} end
+CreateInvalidObject=invalid
+FindFirstOf=invalid
+StaticFindObject=invalid
+local world={IsValid=function() return true end}
+local function controller() local c={live=true}
+  c.IsValid=function(self) return self.live end
+  c.IsPlayerController=function() return true end
+  c.GetWorld=function() return world end
+  return c end
+local pc=controller()
+FindAllOf=function(class) finds=finds+1; if class=='PlayerController' then return {pc} end end
+local H=dofile(arg[1])
+assert(H.GetPlayerController()==pc and H.GetPlayerController()==pc and finds==1, 'controller kept: '..finds)
+assert(H.GetWorld()==world and H.GetWorld()==world and finds==1, 'world kept: '..finds)
+pc.live=false
+pc=controller()
+assert(H.GetPlayerController()==pc and finds==2, 'a controller gone is searched again: '..finds)
+print('ok')"""
+HELPERS = ROOT / tool.HELPERS
+out = subprocess.run(['lua5.4', '-', str(HELPERS)], input=HELPERS_CHECK, capture_output=True, text=True, timeout=60)
+assert out.returncode == 0 and out.stdout.strip() == 'ok', (out.stdout, out.stderr)
+assert HELPERS.read_text().startswith("-- Stellar Blade Online's copy of UE4SS v4.0.0's"), HELPERS
 # The pinned release zip, when this PC has it: OFFICIAL is its file.
 ZIP = tool.CACHE
 assert tool.SHA256 == '251ad0d1381a241750e036f5918cbf2b5d7ec58ebc608cb2dd09d459d0c81e45'  # GitHub's digest of the asset
@@ -405,6 +431,7 @@ expected = {rel: data for rel, data in RELEASE.items()
 expected['ue4ss/Mods/mods.txt'] = (b'LineTraceMod : 0\r\nBPML_GenericFunctions : 1\r\nBPModLoaderMod : 1\r\n'
                                    b'\r\n\r\n\r\n\r\n; Built-in keybinds, do not move up!\r\nKeybinds : 1\r\n')
 expected['ue4ss/UE4SS-settings.ini'] = SETTINGS.read_bytes()
+expected[tool.HELPERS] = HELPERS.read_bytes()
 expected.update({f'ue4ss/{p.relative_to(SET).as_posix()}': p.read_bytes() for p in SET.rglob('*')
              if p.is_file() and p.name != 'README.md'})
 expected['ue4ss/SBO-NOTICE'] = (ROOT / 'NOTICE').read_bytes()
@@ -488,7 +515,7 @@ with tempfile.TemporaryDirectory() as tmp:
         names = zipfile.ZipFile(ZIP).namelist()
         assert all(any(n.startswith(f'ue4ss/Mods/{mod}/') for n in names) for mod in GONE), names
         files = tool.package(known)
-        ours = ['ue4ss/UE4SS-settings.ini', *(r for r in expected if r not in RELEASE)]
+        ours = ['ue4ss/UE4SS-settings.ini', tool.HELPERS, *(r for r in expected if r not in RELEASE)]
         kept = {n for n in names if not n.endswith('/') and not n.startswith(tuple(f'ue4ss/Mods/{m}/' for m in GONE))}
         assert set(files) == kept | set(ours), sorted(set(files) ^ (kept | set(ours)))
         assert {'dwmapi.dll', 'ue4ss/UE4SS.dll', 'ue4ss/LICENSE', 'ue4ss/Mods/Keybinds/Scripts/main.lua',

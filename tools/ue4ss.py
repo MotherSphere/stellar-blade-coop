@@ -8,10 +8,11 @@ Stellar Blade build, as paths under SB/Binaries/Win64.
 fetch() downloads the release zip once into CACHE. It refuses bytes whose SHA-256 is not SHA256, from the cache or
 from the download. The zip is only read as data: nothing in it runs here.
 package() takes the release's dwmapi.dll and ue4ss/ folder without its settings file and without the example mods
-that change the game (DROPPED, whose lines also leave mods.txt). It adds ue4ss/UE4SS-settings.ini, the files of
-ue4ss/builds/<TimeDateStamp>-<SizeOfImage>/ for the executable's PE header (the set's README.md stays here) and SBO's
-NOTICE and LICENSE as ue4ss/SBO-NOTICE and ue4ss/SBO-LICENSE. An executable with no set gets nothing at all, not even
-a download: UE4SS v4.0.0 without the set's MemberVariableLayout.ini writes past the end of the game's FUObjectArray.
+that change the game (DROPPED, whose lines also leave mods.txt). It swaps in SBO's UEHelpers.lua (HELPERS). It adds
+ue4ss/UE4SS-settings.ini, the files of ue4ss/builds/<TimeDateStamp>-<SizeOfImage>/ for the executable's PE header
+(the set's README.md stays here) and SBO's NOTICE and LICENSE as ue4ss/SBO-NOTICE and ue4ss/SBO-LICENSE. An
+executable with no set gets nothing at all, not even a download: UE4SS v4.0.0 without the set's
+MemberVariableLayout.ini writes past the end of the game's FUObjectArray.
 
 The zip leaves ue4ss/Mods/mods.txt out. On a game with no UE4SS yet, the release's BPML_GenericFunctions,
 BPModLoaderMod and Keybinds then do not start: they have no enabled.txt. SBO needs none of them.
@@ -36,6 +37,8 @@ CACHE = Path.home() / '.cache/sbo-ue4ss/official-v4.0.0/UE4SS_v4.0.0.zip'
 # The release's example mods that change the game: a console, cheats, the console's set and summon commands, split
 # screen. A player's own copies stay: install.py never touches a mod folder the package lacks.
 DROPPED = ('CheatManagerEnablerMod', 'ConsoleCommandsMod', 'ConsoleEnablerMod', 'SplitScreenMod')
+# SBO's copy of the release's UEHelpers.lua: GetPlayerController and GetWorld keep what they found while it stays valid.
+HELPERS = 'ue4ss/Mods/shared/UEHelpers/UEHelpers.lua'
 
 
 def build(exe):
@@ -89,6 +92,7 @@ def package(exe):
     listed = files['ue4ss/Mods/mods.txt'].decode('utf-8').splitlines(keepends=True)
     files['ue4ss/Mods/mods.txt'] = ''.join(ln for ln in listed if ln.split(':')[0].strip() not in DROPPED).encode()
     files['ue4ss/UE4SS-settings.ini'] = (ROOT / 'ue4ss/UE4SS-settings.ini').read_bytes()
+    files[HELPERS] = (ROOT / HELPERS).read_bytes()  # The release's file with the caches of UE4SS 3.x put back.
     for path in sorted((BUILDS / name).rglob('*')):
         if path.is_file() and path.name != 'README.md':
             files[f'ue4ss/{path.relative_to(BUILDS / name).as_posix()}'] = path.read_bytes()

@@ -17,6 +17,7 @@ The paths are under the game's `SB/Binaries/Win64/`.
 | `ue4ss/UE4SS-settings.ini` | The release's settings file with SBO's values, kept in this repository at `ue4ss/UE4SS-settings.ini`. Its header lists what changed | MIT. The lines that start with `; SBO:` are SBO's. The `[EngineVersionOverride]` 4.26 setting comes from Rev-OG-UwU's SB-UE4SS |
 | `ue4ss/UE4SS_Signatures/GNatives.lua`, `ue4ss/UE4SS_Signatures/GUObjectArray.lua`, `ue4ss/VTableLayout.ini` | The build's set. For build 26123051: Rev-OG-UwU's SB-UE4SS (https://github.com/Rev-OG-UwU/SB-UE4SS, commit a63c3f8e). The three files first appear in Chrisr0's RE-UE4SS (https://github.com/Chrisr0/RE-UE4SS, commit e6e59de9). Each file's header says what changed here | MIT, Copyright (c) 2022 Narknon |
 | `ue4ss/MemberVariableLayout.ini` | The build's set. SBO's own file: each value was read in Ghidra | SBO License |
+| `ue4ss/Mods/shared/UEHelpers/UEHelpers.lua` | The release's file with one change, kept in this repository at the same path: `GetPlayerController` and `GetWorld` keep the object they found while it stays valid, as UE4SS 3.x did. v4.0.0 searches for it on every call. Mods that call these every frame paid for that search every frame | MIT |
 | `ue4ss/SBO-NOTICE`, `ue4ss/SBO-LICENSE` | This repository's `NOTICE` and `LICENSE` | |
 
 The package leaves out:

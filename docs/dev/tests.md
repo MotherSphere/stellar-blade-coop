@@ -1578,8 +1578,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `tools/ue4ss.py` on made-up executables and a made-up release zip (a download reads a `file://` URL): the set picked
   by the PE header, a file that is no 64-bit executable refused, an unknown build stopped before any download, a
   download or a cache file of other bytes refused and never cached, the package's files and the zip's paths with no
-  `mods.txt`, written twice with the same bytes. When this PC has the pinned release zip, the settings and the package
-  are checked against it;
+  `mods.txt`, written twice with the same bytes. SBO's `UEHelpers.lua` is loaded over fakes: two calls to
+  `GetPlayerController` or `GetWorld` make one search, a controller gone is searched for again. When this PC has the
+  pinned release zip, the settings and the package are checked against it;
 - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
   and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the
   names of every new door, EnvC and ZoneEvent row chained. After a change to the data file, run
