@@ -10,8 +10,8 @@ local print=M.print
 -- SBO Xion (world/maps/sboxion/sboxion.lua), logging [SX] lines, with the Steam link only (the native part adds the
 -- rows and makes the warp): its rows asked at the title on the co-op save files once the zSBO_Xion test pak is found
 -- under SB/Content/Paks (main/pass.lua: sboxion.title), their read-back, the native answers and the watch at each
--- pass (sboxion.tick, with the recovery after a fall while EVE is there), coop xion [city|gate|leave|status] on a
--- co-op save, solo.
+-- pass (sboxion.tick, with the recovery after a fall or a death while EVE is there), coop xion
+-- [city|gate|leave|status|recover] on a co-op save, solo.
 M.sboxion=M.link and require('world.maps.sboxion.sboxion').new({
     log=function(m) print('[StellarCoop][SX] '..tostring(m)..'\n') end,
     status=function() return M.link.status() end,ask=function(line) return M.ask(line)() end,

@@ -24,7 +24,10 @@
 -- SB's death screen cannot respawn her in this zone, so a dead EVE gets SB's in-place respawn.
 -- coop xion leave: the request "sboxion leave <zone FName index>". The native part compares the zone with the
 -- client's and calls SB's reload of the co-op save only from SBO Xion, so the request is sent from any map.
--- coop xion status: the pak, the rows, the native part's last answer, EVE's place and the nearest waypoint.
+-- coop xion status: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint and the
+-- recovery's state.
+-- coop xion recover [on|death|off], inside SBO Xion: the recovery's mode until the next arrival, which sets it to on.
+-- death leaves falls alone, so EVE can die of one on purpose. off does nothing, as before the recovery existed.
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local D=require('world.maps.sboxion.data')
@@ -307,10 +310,18 @@ function Xion.new(o)
                 if d<far then best,far=w.name,d end
             end
             parts[#parts+1]=string.format('EVE at %s, nearest waypoint %s %.1f m',place(me.at),best,far/100)
+            if stay then parts[#parts+1]=recover.status() end
         else
             parts[#parts+1]='EVE is not in SBO Xion'..(me and ' (map '..me.map..')' or '')
         end
         return true,'sboxion: '..table.concat(parts,'; ')
+    end
+    -- coop xion recover [on|death|off]: the recovery's mode, or its state with no word. on and death start a stopped
+    -- recovery again.
+    function self.recover(word)
+        if not stay then return false,'coop xion recover: EVE is not in SBO Xion' end
+        local ok,line=recover.mode(word)
+        return ok,ok and 'coop xion recover: '..line or line
     end
     -- Each 250 ms pass: the wait for the rows and their read-back, the native answer awaited, then the arrival, the
     -- watch and the recovery while EVE's map is SBO Xion. In any other map, with nothing asked, it reads nothing.

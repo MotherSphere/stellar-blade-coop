@@ -10,7 +10,8 @@
 -- line and the characters; nothing read in another map; a second arrival writes again; a probe level's change logged
 -- once; a waypoint logged once a visit; the watch ended by a map change and by coop off. The recovery
 -- (world/maps/sboxion/recover.lua): ticked only in SBO Xion, reset at each arrival with the point coop xion asked, fed
--- by the engine's read of EVE and not by me(), ended by a map change and by coop off.
+-- by the engine's read of EVE and not by me(), ended by a map change and by coop off; coop xion recover refused out
+-- of SBO Xion, its three modes inside, the mode back to on at the next arrival and the recovery's part of the status.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -310,7 +311,19 @@ her_at=nil
 me=at({X=kaya.X+300,Y=kaya.Y+400,Z=kaya.Z})
 ok,why=x.status()
 assert(ok and why:find('rows in; sboxionwarp=refused asks=2 verb=leave why=zone; EVE at (-7877, -1413, 44), nearest '
-    ..'waypoint kaya 5.0 m',1,true) and why:find('^sboxion: pak %d+_4096; '),why)
+    ..'waypoint kaya 5.0 m; recovery on, ground (3000, -9000, 1222) 1.2 s old, failures 0',1,true)
+    and why:find('^sboxion: pak %d+_4096; '),why)
+-- coop xion recover: the three modes, said in the log too; alone, the recovery's state; another word refused.
+ok,why=x.recover('death')
+assert(ok and why=='coop xion recover: recovery mode death: falls are not caught, deaths are'
+    and logs[#logs]=='sboxion: recovery mode death: falls are not caught, deaths are',why)
+ok,why=x.recover()
+assert(ok and why=='coop xion recover: recovery death, ground (3000, -9000, 1222) 1.2 s old, failures 0',why)
+ok,why=x.recover('off')
+assert(ok and x.status and select(2,x.status()):find('; recovery off, ',1,true),why)
+ok,why=x.recover('up')
+assert(not ok and why=='Use: coop xion recover [on|death|off]',why)
+assert(x.recover('on'))
 -- Inside, coop xion is refused: the way in is for another map.
 ok,why=x.enter('gate')
 assert(not ok and why=='coop xion: EVE is in SBO Xion already; way out: coop xion leave' and #asked==0,why)
@@ -327,7 +340,9 @@ me={at={X=0,Y=0,Z=0},map=SB_XION}
 pass(x,0.25)
 assert(logs[#logs]=='sboxion: left, map '..SB_XION,logs[#logs])
 ok,why=x.status()
-assert(ok and why:find('EVE is not in SBO Xion (map '..SB_XION..')',1,true),why)
+assert(ok and why:find('EVE is not in SBO Xion (map '..SB_XION..')',1,true) and not why:find('recovery',1,true),why)
+ok,why=x.recover('on')
+assert(not ok and why=='coop xion recover: EVE is not in SBO Xion',why)
 pass(x,20)
 assert(total()==reads and times('sboxion: left')==1,'Nothing is read after a map change')
 fresh()
@@ -335,6 +350,7 @@ me=at(D.ARRIVALS.gate)
 pass(x,0.25)
 assert(times('sboxion: arrived')==2 and #sets==21 and times('41 named, 21 changed')==2,'A second arrival writes again')
 assert(times('sboxion: recovery on: floor Z -3275, arrival point city')==2,'The recovery starts again at each arrival')
+assert(select(2,x.status()):find('; recovery on, no ground point, failures 0',1,true),'The mode is on again')
 pass(x,5)
 assert(not logged('put back failed') and times('put back: EVE walks')==1,'The check of the stay before is gone')
 -- A loading screen (no EVE) ends the stay too.
