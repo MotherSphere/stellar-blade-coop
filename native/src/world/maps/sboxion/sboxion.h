@@ -44,7 +44,8 @@ constexpr size_t kWarpLocation = 0xa4c, kWarpRotation = 0xa58;
 // warp gets is this index with number 0.
 constexpr uint64_t kNoneName = 0x147017b00;
 // A zone row of type 5, Zone_BossChallenge: the only type SB keeps as the arrival's zone with no SBZoneVolume at the
-// place (0x141cde9b0 compares row +0x25 with 5 at 0x141cdeb20). SB queues no save in such a zone (0x141ce8050).
+// place (0x141cde9b0 compares row +0x25 with 5 at 0x141cdeb20). SB's in-game save 0x141ce8050 queues nothing in such
+// a zone. SB's other save requests (0x1421d71e0, 0x1421d72f0, 0x1421d7fa0) have no zone test.
 constexpr uint8_t kBossChallenge = 5;
 
 enum class Verb : uint8_t { none, enter, leave };

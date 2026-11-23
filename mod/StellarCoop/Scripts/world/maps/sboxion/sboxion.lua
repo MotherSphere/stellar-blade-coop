@@ -13,8 +13,8 @@
 -- coop xion [city|gate]: on a co-op save, solo, with the pak and the rows in, the request "sboxion enter <zone FName
 -- index> <x> <y> <z> <yaw>" for the native part (native/src/world/maps/sboxion/sboxion.h), which runs its guards and
 -- SB's URL warp in one frame and puts EVE at one of data.lua's two points. The zone is of type 5 (Boss Challenge): SB
--- keeps it as the arrival's zone with no zone volume in the level. SB queues no save in it. EVE inside is the EVE SB
--- builds for a Boss Challenge zone, from the newest save of the list.
+-- keeps it as the arrival's zone with no zone volume in the level. SB's in-game save queues nothing in it. EVE inside
+-- is the EVE SB builds for a Boss Challenge zone, from the newest save of the list.
 -- Arrival, once a load of SBO Xion: the day table (41 bActiveVolume values of E04_ENV_VOL's volumes, matched by level
 -- and name), read back 2 s and 10 s later, the streaming levels' state, the two probe levels' state and the
 -- characters, each as a log line a test reads. While EVE stays, once a second: each change of the two probe levels

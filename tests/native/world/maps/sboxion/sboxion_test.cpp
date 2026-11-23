@@ -60,7 +60,7 @@ int main() {
   assert(enter_with([](Reads &r, Target &) { r.logic = false; }) == Why::logic);
   assert(enter_with([](Reads &r, Target &) { r.theater = true; }) == Why::theater);
   assert(enter_with([](Reads &r, Target &) { r.photo = true; }) == Why::photo);
-  for (uint8_t type : {uint8_t(3), uint8_t(5), uint8_t(6)}) // A zone SB saves nothing in, SBO Xion itself included.
+  for (uint8_t type : {uint8_t(3), uint8_t(5), uint8_t(6)}) // A zone of the three types, SBO Xion's included.
     assert(enter_with([type](Reads &r, Target &) { r.zone_type = type; }) == Why::inzone);
   for (uint8_t type : {uint8_t(0), uint8_t(1), uint8_t(2), uint8_t(4)})
     assert(enter_with([type](Reads &r, Target &) { r.zone_type = type; }) == Why::none);

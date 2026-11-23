@@ -34,11 +34,12 @@ The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then i
 
 `coop xion` refuses with nothing asked when the save is not a co-op save, when a session is open, without the pak,
 when the rows were refused and when EVE is already in SBO Xion. The native part then refuses the warp during a
-cutscene or talk, in photo mode, during a warp, a camp request or a reload, in a zone where SB saves nothing and
-after `coop off`. Its refusal is one word in `coop-link.log` and in the `sboxionwarp=` line of `coop-status.txt`.
+cutscene or talk, in photo mode, during a warp, a camp request or a reload, in a zone of type 3, 5 or 6 and after
+`coop off`. Its refusal is one word in `coop-link.log` and in the `sboxionwarp=` line of `coop-status.txt`.
 
 `coop xion leave` returns EVE to the last save of the co-op slot, not to the place she left. Rest at a camp before
-`coop xion`. If the reload does not start, quit to the title from SB's menu: nothing was saved in SBO Xion.
+`coop xion`. If the reload does not start, quit to the title from SB's menu: the in-game save wrote nothing in SBO
+Xion.
 
 ## EVE inside
 
@@ -58,7 +59,9 @@ Two things keep the player's story saves untouched, the same two Matrix XIII and
 
 1. The rows and the command need the co-op save files (`saves=coop`). The game then reads and writes
    `StellarBladeCoop0N.sav`, never `StellarBladeSave0N.sav` ([Saves](../../players/saves.md)).
-2. SB queues no save while EVE is in a zone of type 3, 5 or 6. The URL warp itself saves nothing.
+2. SB's in-game save (`0x141ce8050`) queues nothing while EVE is in a zone of type 3, 5 or 6. SB's three other save
+   requests (`0x1421d71e0`, `0x1421d72f0`, `0x1421d7fa0`) set one value each and have no zone test. On the co-op save
+   files they write the co-op file. The URL warp itself saves nothing.
 
 Never run `coop saves export` on a co-op slot used for this test. The export writes a co-op copy over one of the
 player's own saves. A co-op save made while SBO's rows are in the tables may hold their names. The export's refusal
@@ -81,7 +84,7 @@ Each line below is one proof of the test. They are in `UE4SS.log` unless said.
 | `sboxion: probe: start: E04_DistantView_A_01 loaded b visible b, E04_DistantView_A_03 loaded b visible b` | The two volume-streamed levels at the arrival |
 | `sboxion: probe: <level> loaded b visible b, EVE at (x, y, z)` | One of the two changed state |
 | `sboxion: at <waypoint>: A_01 loaded b visible b, A_03 loaded b visible b` | EVE stood 5 s within 3 m of a waypoint |
-| `sboxion leave: queue q, last save unchanged, reload call 1` (`coop-link.log`) | SB's reload started and nothing was saved since the enter |
+| `sboxion leave: queue q, last save unchanged, reload call 1` (`coop-link.log`) | SB's reload started and its last save time did not move since the enter |
 | `sboxion: left, map <path>` | EVE is out |
 
 The two probe levels are the only ones the pak leaves volume streamed, as SB ships them. Both read loaded and
@@ -119,8 +122,8 @@ takes 7131 or 1000131 refuses the batch.
 
 The zone is of type 5 for two reasons read in the game's code. At an arrival (`0x141cde9b0`) SB takes the zone from
 the zone volume at EVE's place. It keeps the zone the warp asked for only when that zone's row is of type 5. SBO Xion
-has no zone volume: Xion's 15 are in level-design sublevels. Type 5 is also a type SB saves nothing in
-(`0x141ce8050`).
+has no zone volume: Xion's 15 are in level-design sublevels. Type 5 is also a type SB's in-game save queues nothing
+in (`0x141ce8050`).
 
 The rows go in at the title while the game uses the co-op save files and the pak is found, through `core/enemy.lua`'s
 title batch. `coop xion` asks the same batch when the rows are not in yet.
