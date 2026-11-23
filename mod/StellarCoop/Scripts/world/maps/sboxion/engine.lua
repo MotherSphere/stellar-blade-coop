@@ -66,11 +66,11 @@ function Engine.characters()
     end
     return out
 end
--- EVE's place, yaw, movement mode, her world's time and her address, all from one EVE in one call; nil with no EVE. recover.lua reads her through this alone: core/where.lua's me() is refreshed after sboxion.tick in
--- main/pass.lua, so it is one pass old. mode is CharacterMovement.MovementMode (EMovementMode: 1 Walking, 2
--- NavWalking, 3 Falling), nil with no movement component. time is UGameplayStatics::GetTimeSeconds (exec 0x14475bc80
--- on build 26123051: the context's world, then the float at world +0x748), which stands still while the world is
--- paused.
+-- EVE's place, yaw, movement mode, her world's time and her address, all from one EVE in one call; nil with no EVE.
+-- recover.lua reads her through this alone: core/where.lua's me() is refreshed after sboxion.tick in main/pass.lua,
+-- so it is one pass old. mode is CharacterMovement.MovementMode (EMovementMode: 1 Walking, 2 NavWalking, 3 Falling),
+-- nil with no movement component. time is UGameplayStatics::GetTimeSeconds (exec 0x14475bc80 on build 26123051: the
+-- context's world, then the float at world +0x748).
 function Engine.move()
     local e=N.her()
     if not e then return nil end

@@ -131,6 +131,12 @@ world.move=function()
     return {at={X=p.X,Y=p.Y,Z=p.Z},yaw=30,mode=her_mode,time=clock,pawn=0x7000}
 end
 world.put=function(to,yaw) puts[#puts+1]={at=to,yaw=yaw}; her_at,her_mode={X=to.X,Y=to.Y,Z=to.Z},1; return true end
+-- The respawn's fakes: SB's request sets the life word to 1; the death screen plays until hidden.
+local PC,respawns,screen_shown={},{},true
+world.controller=function() return PC end
+world.standalone=function() return true end
+world.screen=function() return true end
+world.hide=function() screen_shown=false; return function() screen_shown=true end end
 local SB_XION='/game/art/bg/worldmap/level_p/e04'
 local function new()
     logs,asked,calls={},{},{}
@@ -140,6 +146,7 @@ local function new()
         slot=function(what) if slot_ok then return true end return false,what..' runs only on a co-op save' end,
         mode=function() return mode end,me=function() return me end,world=world})
 end
+world.respawn=function(_,guid) respawns[#respawns+1]=guid; warp_line='sboxionwarp=entered asks=3 life=1' end
 local function logged(text) for _,l in ipairs(logs) do if l:find(text,1,true) then return l end end end
 local function times(text) local n=0; for _,l in ipairs(logs) do if l:find(text,1,true) then n=n+1 end end; return n end
 -- Seconds of 250 ms passes.
@@ -363,6 +370,24 @@ assert(ok)
 me=at(D.ARRIVALS.gate)
 pass(x,0.25)
 assert(logged('sboxion: recovery on: floor Z -3275, arrival point gate (-23393, 17287, 1285)'),logs[#logs])
+
+-- A death in SBO Xion: the life word of the sboxionwarp line starts SB's in-place respawn with the GUID of the
+-- engine line. The death screen the recovery hid is shown again when EVE leaves the map.
+warp_line='sboxionwarp=entered asks=3 life=3'
+pass(x,0.25)
+assert(#respawns==1 and respawns[1]==2610 and logged('sboxion: death: life 3, EVE at (-23393, 17287, 1285)'),
+    logs[#logs])
+pass(x,2)
+assert(logged('sboxion: respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 1') and not screen_shown,
+    logs[#logs])
+me={at={X=0,Y=0,Z=0},map=SB_XION}
+pass(x,0.25)
+assert(screen_shown and logs[#logs-1]=='sboxion: respawn: death screen shown again (a map change)'
+    and logs[#logs]=='sboxion: left, map '..SB_XION,logs[#logs-1])
+warp_line='sboxionwarp=left asks=4'
+ok=x.enter('city')
+me=at(D.ARRIVALS.city)
+pass(x,0.25)
 
 -- coop_off: the watch and the recovery end, nothing is read or said after.
 her_at,her_mode={X=0,Y=0,Z=-5000},3

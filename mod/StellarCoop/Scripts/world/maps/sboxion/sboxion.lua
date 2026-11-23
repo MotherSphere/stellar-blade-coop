@@ -19,8 +19,9 @@
 -- and name), read back 2 s and 10 s later, the streaming levels' state, the two probe levels' state and the
 -- characters, each as a log line a test reads. While EVE stays, once a second: each change of the two probe levels
 -- and each waypoint she stands at. Nothing is read in any other map.
--- Falls, each pass of the stay (world/maps/sboxion/recover.lua): the level has none of SB's fall volumes, so EVE under
--- data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
+-- Falls and deaths, each pass of the stay (world/maps/sboxion/recover.lua): the level has none of SB's fall volumes,
+-- so EVE under data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
+-- SB's death screen cannot respawn her in this zone, so a dead EVE gets SB's in-place respawn.
 -- coop xion leave: the request "sboxion leave <zone FName index>". The native part compares the zone with the
 -- client's and calls SB's reload of the co-op save only from SBO Xion, so the request is sent from any map.
 -- coop xion status: the pak, the rows, the native part's last answer, EVE's place and the nearest waypoint.
@@ -327,14 +328,14 @@ function Xion.new(o)
             guarded('recovery',recover.tick)
         elseif stay then
             stay=nil
-            recover.stop()
+            recover.stop('a map change')
             log('sboxion: left, map '..(me and me.map or 'none'))
         end
     end
     -- coop off: the title's wait, the watch and the recovery ended. Rows already in stay for the game run.
     function self.stop()
         off,stay,awaited=true,nil,nil
-        recover.stop()
+        recover.stop('coop off')
         title_stop()
         e.stop()
     end

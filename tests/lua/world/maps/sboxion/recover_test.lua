@@ -1,7 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- SBO Xion's falls (world/maps/sboxion/recover.lua) over a fake world and a fake status text. The ground point: three
+-- SBO Xion's falls and deaths (world/maps/sboxion/recover.lua) over a fake world and a fake status text. The ground
+-- point: three
 -- walking passes give none and four give the first of the four; a falling pass keeps it; a step of 2000 cm starts
 -- the streak again; walking under the floor and passes with one world time add nothing; a guard that waits empties
 -- the streak. The fall: EVE under the floor goes to the ground point plus 10 cm with its yaw, or to the arrival point
@@ -11,6 +12,15 @@
 -- 6 s of passes on one world time, then a walking read, is a success; a refused teleport sends the next try to the
 -- arrival point; a second failure stops the recovery with one line and no third call; the mode word starts it again;
 -- an error in a pass counts as a failure; an arrival resets all of it; a stop drops a put-back being checked.
+-- The death, with the respawn cases of tests/lua/online/modes/scoreattack/run_test.lua for this module's copy: it
+-- starts while her life reads 3 to 5 (not on the change), each reason the respawn waits for is said once, one call
+-- of SB's respawn with her GUID, the result line 2 s later, a death screen that still plays over a living EVE hidden,
+-- then shown again at a new death and at a stop; no call in 10 s is a failure. This module's own cases: with no death
+-- screen playing the call is made after 5 s; a respawn that leaves her off the ground puts her back, in the mode
+-- death too; life still 3 after the call is a failure and the death starts again; two failures stop the recovery
+-- and the mode word starts it again; a death left from the mode off, one read during a guard's wait and one on a
+-- world time that stands still are all asked; a life back at 1 before the call ends the death with no failure;
+-- without a warp= word the respawn is never asked; an arrival and a stop drop a death being handled.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Recover=require('world.maps.sboxion.recover')
 local D=require('world.maps.sboxion.data')
@@ -18,7 +28,7 @@ assert(D.FLOOR==-3275 and D.LIFT==10 and D.STREAK==4 and D.JUMP==1500 and D.CHEC
 
 local IDLE='engine=on remote=0 0 none warp=idle me=2610 zonetype=5 area=Zone_SBO_Xion rest=0::0 starts=0 theater=none'
 local logs,puts={},{}
-local eve,photo,engine,warp_line -- The fake EVE ({at=, yaw=, mode=, time=, pawn=}, or nil), the status text's parts.
+local eve,photo,engine -- The fake EVE ({at=, yaw=, mode=, time=, pawn=}, or nil) and the status text's parts.
 local refuse,lands,broken=false,3,nil -- put: refused; the mode it leaves her in. move: raises with broken.
 local world={
     move=function()
@@ -32,10 +42,34 @@ local world={
         return true
     end,
 }
+-- The respawn's fakes: the controller, the standalone test, SB's request (revive: the life it leaves, or nil) and the
+-- death screen (there: the widget exists; playing; visible until hidden; looks: each search for the widget).
+local PC={}
+local pc,standalone,respawns,revive=PC,true,{},nil
+local there,playing,visible,looks=true,false,true,0
+local warp_line
+world.controller=function() return pc end
+world.standalone=function(p) assert(p==PC,'The test is asked on the controller'); return standalone end
+world.respawn=function(p,me)
+    assert(p==PC)
+    respawns[#respawns+1]=me
+    if revive then warp_line='sboxionwarp=entered asks=1 life='..revive end
+end
+world.screen=function(look)
+    if look then looks=looks+1 end
+    if not there then return nil end
+    return playing
+end
+world.hide=function()
+    if not there then return nil end
+    visible=false
+    return function() visible=true end
+end
 local function fresh(at)
     logs,puts={},{}
     eve={at=at or {X=0,Y=0,Z=225},yaw=90,mode=1,time=500,pawn=0x7000}
     photo,engine,warp_line,refuse,lands,broken='0',IDLE,'sboxionwarp=entered asks=1 life=1',false,3,nil
+    pc,standalone,respawns,revive,there,playing,visible,looks=PC,true,{},nil,true,false,true,0
     local r=Recover.new({log=function(m) logs[#logs+1]=m end,
         status=function() return 'mod=v\n'..engine..'\n'..warp_line..'\nlast=x\n' end,
         photo=function() return photo end,world=world})
@@ -283,8 +317,236 @@ walk(r,6)
 fall()
 pass(r)
 r.stop('a map change')
-local lines=#logs
 eve.mode=1
 pass(r,20)
-assert(#logs==lines or not logged('put back:'),'Nothing of the dropped check')
+assert(not logged('put back:'),'Nothing of the dropped check')
+
+local function die(z)
+    warp_line='sboxionwarp=entered asks=1 life=3'
+    if z then eve.at.Z,eve.mode=z,3 end
+end
+local function count(text) return times(text) end
+local ASKED='respawn: ServerRequest_ActorRespawn(2610, false) asked (life 3, death screen up)'
+
+-- death: each reason the respawn waits for is said once, then one call with her GUID and the result 2 s later.
+r=fresh()
+walk(r,6)
+playing,standalone=true,false
+die()
+pass(r)
+assert(logs[#logs-1]=='death: life 3, EVE at (600, 0, 225)' and last()=='respawn waits: the game is not standalone',
+    last())
+pass(r,3)
+assert(count('respawn waits:')==1 and count('death: life')==1,'A reason is said once, the death once')
+standalone=true
+engine=IDLE:gsub('warp=idle','warp=busy')
+pass(r,2)
+assert(last()=='respawn waits: a respawn or a warp is under way' and #respawns==0,last())
+engine=IDLE..' nightop=rule'
+pass(r)
+assert(last()=='respawn waits: a coop no probe rule is set in this game run',last())
+engine,pc=IDLE,nil
+pass(r)
+assert(last()=='respawn waits: no SB player controller',last())
+pc,playing=PC,false
+pass(r)
+assert(last()=='respawn waits: no death screen' and #respawns==0,last())
+playing=true
+pass(r)
+assert(#respawns==1 and respawns[1]==2610 and last()==ASKED,last())
+pass(r,3)
+assert(#respawns==1,'Once')
+warp_line,eve.mode='sboxionwarp=entered asks=1 life=1',1 -- Up and standing; the death screen still plays.
+pass(r,4)
+assert(not logged('respawn result'),'Not before 2 s')
+pass(r)
+assert(last()=='respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 1',last())
+assert(visible==false and #respawns==1 and #puts==0 and r.status():find('failures 0',1,true))
+pass(r,40)
+assert(#respawns==1 and count('death: life')==1,'Nothing more while she lives')
+-- A new death shows the screen the part hid, first. With no life read after it started, the respawn is given up
+-- after 10 s as a failure. A life that is not read starts no death.
+die()
+pass(r)
+assert(visible==true and logs[#logs-2]=='respawn: death screen shown again (a new death)' and last()==ASKED,last())
+r=fresh()
+playing=false
+die()
+pass(r)
+warp_line='sboxionwarp=entered asks=1'
+pass(r)
+assert(last()=='respawn waits: no life read',last())
+pass(r,37)
+assert(#respawns==0 and not logged('failure'))
+pass(r)
+assert(last()=='respawn not asked in 10 s: no life read: failure 1 of 2' and #respawns==0,last())
+pass(r,40)
+assert(count('death: life')==1 and count('failure')==1,'An unread life starts no death')
+-- A screen the part hid comes back at a stop (a map change, coop off).
+r=fresh()
+playing,revive=true,1
+die()
+pass(r,9)
+assert(visible==false,last())
+r.stop('coop off')
+assert(visible==true and last()=='respawn: death screen shown again (coop off)',last())
+-- A stop before the call drops the death being handled. So does an arrival. A pass after it that still reads life
+-- 3 starts a new death, with its line and its reason said again.
+for _,drop in ipairs({function() r.stop('a map change') end,function() r.arrive('city') end}) do
+    r=fresh()
+    standalone=false
+    die()
+    pass(r,30)
+    assert(count('death: life 3')==1 and count('respawn waits: the game is not standalone')==1)
+    drop()
+    pass(r,30)
+    assert(count('death: life 3')==2 and count('respawn waits: the game is not standalone')==2,'A new death')
+    assert(not logged('failure'),'The 10 s of the dropped death do not count')
+end
+
+-- no_screen: with no death screen playing, the call is made 5 s after the death started.
+r=fresh()
+die()
+pass(r,19)
+assert(#respawns==0 and last()=='respawn waits: no death screen',last())
+pass(r)
+assert(#respawns==1 and last()=='respawn: ServerRequest_ActorRespawn(2610, false) asked (life 3, no death screen in 5 '
+    ..'s)',last())
+warp_line,eve.mode='sboxionwarp=entered asks=1 life=1',1
+pass(r,8)
+assert(last()=='respawn result: life 3/1, death screen off/off, EVE pawn same, mode 1' and visible==true,last())
+-- No widget at all: the same, and it is looked for once in those 10 s.
+r=fresh()
+there=false
+die()
+pass(r,20)
+assert(#respawns==1 and looks==1,'One search for the widget')
+warp_line,eve.mode,eve.pawn='sboxionwarp=entered asks=1 life=6',1,0x7100
+pass(r,8)
+assert(last()=='respawn result: life 3/6, death screen gone/gone, EVE pawn new, mode 1',last())
+
+-- off_the_ground: a respawn that leaves her falling under the floor puts her on the ground point, in the mode death
+-- too. The walking read after it is the success.
+for _,word in ipairs({'on','death'}) do
+    r=fresh()
+    walk(r,6)
+    assert(r.mode(word))
+    playing,revive=true,1
+    eve.at.Z,eve.mode=-25367,3
+    if word=='on' then -- The fall is caught first; here it leaves her falling, then SB's timer kills her.
+        pass(r)
+        assert(#puts==1)
+        eve.at.Z=-25367
+    else pass(r,4) end
+    die()
+    pass(r)
+    assert(#respawns==1 and logged('death: life 3, EVE at ('..(word=='on' and 300 or 600)..', 0, -25367)'),last())
+    pass(r,8)
+    local n=#puts
+    assert(logs[#logs-1]=='respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 3',logs[#logs-1])
+    assert(last():find('^death: EVE at %(%d+, 0, %-25367%) not on the ground: to the ground point %(300, 0, 225%) '),
+        last())
+    assert(puts[n].at.X==300 and puts[n].at.Z==235 and n==(word=='on' and 2 or 1),word)
+    eve.mode=1
+    pass(r)
+    assert(last():find('^put back: EVE walks at %(300, 0, 235%), 0.2 s after the move'),last())
+end
+-- Above the floor and falling after the respawn: put back too. A guard that waits then: nothing is moved.
+r=fresh()
+walk(r,6)
+playing,revive=true,1
+die(500)
+pass(r,9)
+assert(#puts==1 and logged('death: EVE at (600, 0, 500) not on the ground'),last())
+r=fresh()
+walk(r,6)
+playing,revive=true,1
+die(500)
+pass(r)
+photo='1'
+pass(r,8)
+assert(#puts==0 and logged('respawn result: life 3/1'),'No put-back while a guard waits')
+
+-- still_dead: life still 3 two seconds after the call is a failure; the death starts again; the second stops the
+-- recovery, with two calls and no third. The mode word starts it again.
+r=fresh()
+playing=true
+die()
+pass(r,9)
+assert(last()=='respawn result: life 3/3, death screen up/up, EVE pawn same, mode 1: failure 1 of 2' and visible,
+    last())
+pass(r)
+assert(#respawns==2 and count('death: life 3')==2,'The death starts again on the next pass')
+pass(r,8)
+assert(logs[#logs-1]:find('respawn result: life 3/3.*: failure 2 of 2') and last():find('^recovery stopped after 2'),
+    last())
+pass(r,60)
+assert(#respawns==2 and count('death: life 3')==2,'No third call')
+local ok,line=r.mode('death')
+assert(ok and line=='recovery mode death: falls are not caught, deaths are')
+revive=1
+pass(r)
+assert(#respawns==3 and count('death: life 3')==3,'Started again by the word')
+pass(r,8)
+assert(logged('respawn result: life 3/1') and r.status():find('^recovery death, .* failures 0$'),r.status())
+
+-- off_then_on: a death left from the mode off is asked once the mode is on.
+r=fresh()
+playing=true
+assert(r.mode('off'))
+die()
+pass(r,20)
+assert(#respawns==0 and not logged('death:'),'Nothing in the mode off')
+assert(r.mode('on'))
+pass(r)
+assert(#respawns==1 and logged('death: life 3'),last())
+-- guard_wait: a death read while a guard waits is asked once the wait ends.
+r=fresh()
+playing,photo=true,'1'
+die()
+pass(r,8)
+assert(#respawns==0 and not logged('death:'),'No death starts while a guard waits')
+photo='0'
+pass(r)
+assert(#respawns==1,last())
+-- still_world: the respawn is asked on a world time that stands still.
+r=fresh()
+playing=true
+pass(r,2)
+die()
+pass(r,1,true)
+assert(#respawns==1,'Asked in a stopped world')
+warp_line='sboxionwarp=entered asks=1 life=1'
+pass(r,8,true)
+assert(logged('respawn result: life 3/1'),'The result is read in a stopped world')
+-- alive_again: her life back at 1 before the call ends the death with no failure.
+r=fresh()
+standalone=false
+die()
+pass(r,2)
+warp_line='sboxionwarp=entered asks=1 life=1'
+pass(r)
+assert(last()=='death: over before the respawn was asked (life 1)',last())
+pass(r,60)
+assert(#respawns==0 and not logged('failure'))
+-- no_warp_word: the call needs her GUID from the engine line. Two waits of 10 s stop the recovery.
+r=fresh()
+engine='engine=on remote=0 0 none theater=none'
+playing=true
+die()
+pass(r,2)
+assert(last()=='respawn waits: no warp read' and count('the engine line has no warp= word')==1,last())
+pass(r,38)
+assert(last()=='respawn not asked in 10 s: no warp read: failure 1 of 2',last())
+pass(r,40)
+assert(last():find('^recovery stopped after 2') and #respawns==0 and count('death: life 3')==2,last())
+-- The life word is read on the refused and fault forms too, before where=.
+for _,l in ipairs({'sboxionwarp=refused asks=2 verb=leave why=camp life=3',
+    'sboxionwarp=fault asks=2 life=3 where=SB.exe+0x10 (a read of life=1)'}) do
+    r=fresh()
+    playing=true
+    warp_line=l
+    pass(r)
+    assert(#respawns==1 and logged('death: life 3'),l)
+end
 print('sboxion_recover_test ok')
