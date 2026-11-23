@@ -335,6 +335,7 @@
 #include "online/lobby/halls_rows.h"
 #include "world/teamshop/teamshop_rows.h"
 #include "fight/gunmode/nikke_rows.h"
+#include "world/maps/sboxion/sboxion_rows.h"
 #include "rows/shock.h"
 #include "online/modes/nightop/guard_text.h"
 #include "online/modes/nightop/probe.h"

@@ -11,9 +11,10 @@
 //   halls: online/lobby/halls_rows.h
 //   teamshop: world/teamshop/teamshop_rows.h
 //   nikke: fight/gunmode/nikke_rows.h
+//   sboxion: world/maps/sboxion/sboxion_rows.h
 // A Batch names its rows, its patches and the word its status line, log lines and request start with ("lion",
-// "gardener", "tendril", "bolt", "mxiii", "shop", "signal", "halls", "teamshop", "nikke": coop-status.txt's shock
-// line is rows/shock.h's); every batch shares the table checks, the block and the rules below, and each keeps its own
+// "gardener", "tendril", "bolt", "mxiii", "shop", "signal", "halls", "teamshop", "nikke", "sboxion": coop-status.txt's
+// shock line is rows/shock.h's); every batch shares the table checks, the block and the rules below, and each keeps its own
 // Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
@@ -66,8 +67,8 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
 // The 40 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
-// mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily, mxrecords, halls, teamshop, nikke)
-// name those their batch writes, each with its address. kTables describes them all: the generated part's, the two zone
+// mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily, mxrecords, halls, teamshop, nikke,
+// sboxion) name those their batch writes, each with its address. kTables describes them all: the generated part's, the two zone
 // tables camp (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which Matrix XIII's batches
 // write (env also the halls batch's seats), the five only Lily's signal batch writes: quest (QuestTable), group
 // (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and select (TheaterSelectDataTable, whose ID
@@ -76,8 +77,8 @@ constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + k
 // (ZoneEventTable), envc (EventEnvControlTable), transition (WorldTransitionTable), warp (EventZoneWarpTable) and
 // effvol (EffectVolumeTable), then the two only the mxlily batch writes: condition (ConditionTable) and cgroup
 // (ConditionGroupTable), then the three only the mxrecords batch writes: album (AlbumTable), achievement
-// (AchievementTable) and puzzle (PuzzleStringArrayTable), then the two only the halls batch writes: world (WorldTable)
-// and zone (ZoneTable), then the one only the nikke batch writes: reward (RewardGroupTable, its struct 0x80 bytes in
+// (AchievementTable) and puzzle (PuzzleStringArrayTable), then the two only the halls and sboxion batches write: world
+// (WorldTable) and zone (ZoneTable), then the one only the nikke batch writes: reward (RewardGroupTable, its struct 0x80 bytes in
 // Ghidra on 26123051, FStructParams 0x146db2a30). None of the fifteen has a Transient field (SDK stellar-sdk-647527f;
 // SBRewardGroupTableProperty holds no array at all).
 enum class Table : uint8_t {

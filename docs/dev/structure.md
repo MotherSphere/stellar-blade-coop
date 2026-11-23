@@ -86,9 +86,10 @@ patches, its recipes, its counts and its `Batch` constants):
 | `online/lobby/halls_rows.h` | `halls` | `tools/sbo_lobby_rows.py` |
 | `world/teamshop/teamshop_rows.h` | `teamshop` | `tools/teamshop_rows.py` |
 | `fight/gunmode/nikke_rows.h` | `nikke` | hand |
+| `world/maps/sboxion/sboxion_rows.h` | `sboxion` | hand |
 
 `rows/rows.h` keeps the engine, the generated `kTables` and one line per batch word naming its header. `glue/tick.cpp`
-includes the eight headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
+includes the nine headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
 and shop batches are asked by the Lion object, so their lists stay in `fight/bosses/lion_rows.lua`.
 
 A module that needs rows another module owns gets a generated copy in its own folder, never a `require` of the other

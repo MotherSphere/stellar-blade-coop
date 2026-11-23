@@ -1037,8 +1037,10 @@ inline std::string masked(std::string_view text) {
 // batches (world/maps/matrix13/level/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper rows ...", "mxmiddle
 // rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..." and "mxrecords rows ..." and for the hall
 // lobbies (online/lobby/halls_rows.lua) "halls rows ..." and for the team shop (world/teamshop/shop.lua) "teamshop rows
-// ..." and for gun mode's rounds (fight/gunmode/nikke.lua) "nikke rows ..." (that batch of
-// online/lobby/halls_rows.h, world/teamshop/teamshop_rows.h or fight/gunmode/nikke_rows.h for SB's AddRow,
+// ..." and for gun mode's rounds (fight/gunmode/nikke.lua) "nikke rows ..." and for SBO Xion
+// (world/maps/sboxion/sboxion.lua) "sboxion rows ..." (that batch of
+// online/lobby/halls_rows.h, world/teamshop/teamshop_rows.h, fight/gunmode/nikke_rows.h or
+// world/maps/sboxion/sboxion_rows.h for SB's AddRow,
 // rows/rows_game.inc: one word for each table the batch writes, 1 to 40 of the kLionTables, in any order, each once,
 // its address in 1 to 16 hex digits and plausible; a table left out stays 0, and a batch that writes it refuses it as
 // no UDataTable; Request::batch says which). Lua finds the tables by their fixed paths, so no console argument reaches
@@ -1086,12 +1088,12 @@ enum class MatchAsk : uint8_t { search, create, cancel, end };
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
 // The words of the rows requests, one a batch of a module's row header (rows/rows.h names each one's: kLion, kGardener,
 // kTendril, kBolt, kMxiii, kShop, kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily,
-// kMxrecords, kHalls, kTeamshop, kNikke), in Request::batch's order.
-constexpr size_t kRowWordCount = 18;
+// kMxrecords, kHalls, kTeamshop, kNikke, kSboxion), in Request::batch's order.
+constexpr size_t kRowWordCount = 19;
 constexpr const char *kRowWords[kRowWordCount] = {"lion",   "gardener", "tendril", "bolt",    "mxiii",    "shop",
                                                   "signal", "mxspawn",  "mxenv",   "mxupper", "mxmiddle", "mxlower",
                                                   "mxnames", "mxlily", "mxrecords", "halls", "teamshop",
-                                                  "nikke"};
+                                                  "nikke",  "sboxion"};
 // The tables the rows of every batch go into (rows/rows.h's Table, in this order), as their assets are named.
 constexpr size_t kLionTableCount = 40;
 constexpr const char *kLionTables[kLionTableCount] = {

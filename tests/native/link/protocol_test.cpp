@@ -1639,7 +1639,7 @@ int main() {
   assert(mi.command == Command::rows && mi.batch == 10 && mi.tables == li.tables);
   const Request lo = parse_request(mxlower({words[31], words[28], words[27], words[25], words[16]}));
   assert(lo.command == Command::rows && lo.batch == 11 && lo.tables[31] == 0x1f4a2b3c1f00ull &&
-         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 18);
+         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 19);
   const Request na = parse_request(rows("mxnames", {words[15]}));
   assert(na.command == Command::rows && na.batch == 12 && na.tables[15] != 0 && na.tables[16] == 0);
   const Request ly = parse_request(rows("mxlily", {words[32], words[33]}));
@@ -1655,12 +1655,16 @@ int main() {
   // The team shop's batch (16) names its three tables only: ItemTable, ShopTable and ShopItemTable.
   const Request ts = parse_request(rows("teamshop", {words[12], words[17], words[18]}));
   assert(ts.command == Command::rows && ts.batch == 16 && ts.tables[12] != 0 && ts.tables[17] != 0 &&
-         ts.tables[18] != 0 && ts.tables[16] == 0 && kRowWordCount == 18 && !std::strcmp(kRowWords[16], "teamshop"));
+         ts.tables[18] != 0 && ts.tables[16] == 0 && kRowWordCount == 19 && !std::strcmp(kRowWords[16], "teamshop"));
   // Gun mode's rounds batch (17) names its three tables only: ShopTable, ShopItemTable and RewardGroupTable (39).
   const Request nk = parse_request(rows("nikke", {words[17], words[18], words[39]}));
   assert(nk.command == Command::rows && nk.batch == 17 && nk.tables[17] != 0 && nk.tables[18] != 0 &&
          nk.tables[39] != 0 && nk.tables[12] == 0 && !std::strcmp(kRowWords[17], "nikke") &&
          !std::strcmp(kLionTables[39], "RewardGroupTable"));
+  // SBO Xion's batch (18) names its two tables only: WorldTable and ZoneTable.
+  const Request sx = parse_request(rows("sboxion", {words[37], words[38]}));
+  assert(sx.command == Command::rows && sx.batch == 18 && sx.tables[37] != 0 && sx.tables[38] != 0 &&
+         sx.tables[16] == 0 && !std::strcmp(kRowWords[18], "sboxion"));
   assert(!std::strcmp(kLionTables[37], "WorldTable") && !std::strcmp(kLionTables[38], "ZoneTable"));
   assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
          !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable") &&

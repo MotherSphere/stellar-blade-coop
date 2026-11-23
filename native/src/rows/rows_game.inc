@@ -62,23 +62,23 @@ RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::
     mxiii_job{lion::kMxiii}, shop_job{lion::kShop}, signal_job{lion::kSignal}, mxspawn_job{lion::kMxspawn},
     mxenv_job{lion::kMxenv}, mxupper_job{lion::kMxupper}, mxmiddle_job{lion::kMxmiddle}, mxlower_job{lion::kMxlower},
     mxnames_job{lion::kMxnames}, mxlily_job{lion::kMxlily}, mxrecords_job{lion::kMxrecords}, halls_job{lion::kHalls},
-    teamshop_job{lion::kTeamshop}, nikke_job{lion::kNikke};
+    teamshop_job{lion::kTeamshop}, nikke_job{lion::kNikke}, sboxion_job{lion::kSboxion};
 RowsJob *const kJobs[] = {&lion_job,   &gardener_job, &tendril_job, &bolt_job,    &mxiii_job,    &shop_job,
                           &signal_job, &mxspawn_job,  &mxenv_job,   &mxupper_job, &mxmiddle_job, &mxlower_job,
                           &mxnames_job, &mxlily_job, &mxrecords_job, &halls_job, &teamshop_job,
-                          &nikke_job};
+                          &nikke_job,  &sboxion_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
 // Shared: the spawn manager's counter (INT64_MIN until read) and the latch. No batch gets a latch of its own: no part
 // of its call stays clear of what the others use. The gate reads SB's globals; every row is built in the one lion_block
 // through SB's FName table, CopyScriptStruct and GMalloc; AddRow writes tables several batches write (rows/rows.h's
 // recipes: ItemTable for the lion, bolt, shop and teamshop batches; ShopTable and ShopItemTable for the shop,
-// teamshop and nikke ones; SkillTable for the lion, gardener, tendril and bolt ones; SkillResultTable for the lion,
-// tendril and bolt ones; CharacterTable, CharacterStanceTable, SkillCommandTable and SkillActiveStepTable for the three
-// Naytibas'; and five more for the lion and tendril ones); and the read-back runs SB's lookups over those same tables
-// and its registry. Only ProjectileTable (bolt), RewardGroupTable (nikke), EffectTable and ItemConsumableTable (lion),
-// the signal batch's five quest tables, the halls batch's WorldTable and ZoneTable, and Matrix XIII's zone and world
-// tables (its four batches) except ZoneEnvSpawnTable, which the halls batch writes too, have no other batch writing
-// them, and those rows still go through the same block and calls (Matrix XIII's shipped trigger rows through
+// teamshop and nikke ones; WorldTable and ZoneTable for the halls and sboxion ones; SkillTable for the lion, gardener,
+// tendril and bolt ones; SkillResultTable for the lion, tendril and bolt ones; CharacterTable, CharacterStanceTable,
+// SkillCommandTable and SkillActiveStepTable for the three Naytibas'; and five more for the lion and tendril ones); and
+// the read-back runs SB's lookups over those same tables and its registry. Only ProjectileTable (bolt),
+// RewardGroupTable (nikke), EffectTable and ItemConsumableTable (lion), the signal batch's five quest tables and
+// Matrix XIII's zone and world tables (its four batches) except ZoneEnvSpawnTable, which the halls batch writes too,
+// have no other batch writing them, and those rows still go through the same block and calls (Matrix XIII's shipped trigger rows through
 // CopyScriptStruct back over the row, never AddRow). So a fault anywhere in the call may leave shared state half
 // written, and it stops every batch. The status lines are the worker's, built from atomics with no engine access. The
 // Shock Bolt's list growth writes nothing a batch writes and keeps its own latch (shock_faulted).
