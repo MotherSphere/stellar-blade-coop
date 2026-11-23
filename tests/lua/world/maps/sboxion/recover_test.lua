@@ -2,12 +2,11 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's falls and deaths (world/maps/sboxion/recover.lua) over a fake world and a fake status text. The ground
--- point: three
--- walking passes give none and four give the first of the four; a falling pass keeps it; a step of 2000 cm starts
--- the streak again; walking under the floor and passes with one world time add nothing; a guard that waits empties
--- the streak. The fall: EVE under the floor goes to the ground point plus 10 cm with its yaw, or to the arrival point
--- with no ground point; nothing moves while a guard waits (no EVE, photo mode, a cutscene, a warp, another zone or
--- zone type), while her life reads 3 to 5 or in the modes death and off; with no warp= word the fall is still caught
+-- point: three walking passes give none and four give the first of the four; a falling pass keeps it; a step of 2000 cm
+-- starts the streak again; walking under the floor and passes with one world time add nothing; a guard that waits
+-- empties the streak. The fall: EVE under the floor goes to the ground point plus 10 cm with its yaw, or to the arrival
+-- point with no ground point; nothing moves while a guard waits (no EVE, photo mode, a cutscene, a warp, another zone
+-- or zone type), while her life reads 3 to 5 or in the modes death and off; with no warp= word the fall is still caught
 -- and one line says so; the fault words theater=fault and zonetype=0 beside SBO Xion's area are no wait. The check: a
 -- walking read within 3 s of world time is a success and sets the failures to 0; 6 s of passes on one world time, then
 -- a walking read, is a success; 24 passes in 0.75 s of world time are no failure and three passes of 1 s each are one;
@@ -531,7 +530,7 @@ assert(#respawns==1 and last()=='respawn: ServerRequest_ActorRespawn(2610, false
 warp_line,eve.mode='sboxionwarp=entered asks=1 life=1',1
 pass(r,8)
 assert(last()=='respawn result: life 3/1, death screen off/off, EVE pawn same, mode 1' and visible==true,last())
--- No widget at all: the same, and it is looked for once in those 10 s.
+-- No widget at all: the same. It is looked for once in those 10 s.
 r=fresh()
 there=false
 die()

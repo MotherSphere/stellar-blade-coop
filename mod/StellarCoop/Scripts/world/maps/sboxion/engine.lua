@@ -90,7 +90,7 @@ function Engine.put(at,yaw)
     if move then move:StopMovementImmediately() end
     return true
 end
--- The respawn's pieces: the SB player controller (or nil), whether the game is standalone, and SB's in-place respawn
+-- The respawn's pieces: the SB player controller (or nil), whether the game is standalone and SB's in-place respawn
 -- of the actor of GUID me. ServerRequest_ActorRespawn's exec 0x1427639f0 reads an int and a bool and calls the
 -- controller's vtable +0x1488 (0x1423bf600), which queues the job FSBActorRespawn. With the bool false the job's
 -- Simulate 0x141b10b30 does not move the actor to a camp. It reads no zone type.
