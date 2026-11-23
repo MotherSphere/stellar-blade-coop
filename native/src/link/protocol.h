@@ -1057,7 +1057,11 @@ inline std::string masked(std::string_view text) {
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (online/modes/nightop/roxanne.lua,
 // online/modes/nightop/roxanne.h) "roxanne on" and "roxanne off"; for the team shop in SB's own shop screen
-// (world/teamshop/shop.lua, world/teamshop/shop_ui.h) "teamshop open" (SBOTeam_Shop); for Lily's signal choice
+// (world/teamshop/shop.lua, world/teamshop/shop_ui.h) "teamshop open" (SBOTeam_Shop); for SBO Xion
+// (world/maps/sboxion/sboxion.lua, world/maps/sboxion/sboxion.h) "sboxion enter <zone FName index> <x> <y> <z> <yaw>"
+// (SB's URL warp into that type-5 zone on the game thread, EVE placed there: an index above 0 within 32 bits, the
+// place in whole centimetres within kMaxSpotAt, the yaw in whole degrees within kMaxSpotYaw) and "sboxion leave <zone
+// FName index>" (SB's reload of the entered slot, only from that zone); for Lily's signal choice
 // (world/maps/matrix13/quest/on_time.lua, the same header) "lily on" and "lily off"; for the mod's own quests
 // (world/maps/matrix13/quest/on_time.lua, story/quests/own.h) "signal watch" (the reads only, from then on), "signal
 // acquire" (acquire On Time), "signal complete" (its M01 task's Complete), "signal prologue" (acquire the prologue),
@@ -1070,7 +1074,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score, spot, rest, mode, fishbook, dr, race, photohunt, spectate
+  pausetab, popups, teamshop, score, spot, rest, mode, fishbook, dr, race, photohunt, spectate, sboxion
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1156,6 +1160,7 @@ struct Request {
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
   bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on, race hold on and
                                          // race tick on (true) or off (race: text holds hold or tick); host ... ask.
+                                         // sboxion: enter (true) or leave.
   bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
   uint8_t signal = 0;                    // signal: its word's index in kSignalWords.
   bool rule = false;                     // nightop rule.
@@ -1194,9 +1199,11 @@ struct Request {
   std::string alias;            // travel, items: the camp's or item's alias (for the log), and its FName. travel
                                 // spot: the world's, or empty. rest: the zone.
   uint32_t index = 0, number = 0; // travel, items: the FName (travel spot: index 0 without a world). sbo arm: the
-                                  // Join's alias; sbo warp: the zone; sbo seq: the sequence's alias.
+                                  // Join's alias; sbo warp: the zone; sbo seq: the sequence's alias. sboxion: the
+                                  // zone's index.
   bool spot = false;            // travel spot: SB's position warp to at, no camp.
-  Spot at{};                    // travel spot: the place in whole centimetres and the yaw in whole degrees.
+  Spot at{};                    // travel spot, sboxion enter: the place in whole centimetres and the yaw in whole
+                                // degrees.
   uint32_t ask = 0;             // items, fishbook, photohunt: Lua's number for its answer.
   std::array<uint64_t, 3> names{}; // photohunt: the rows' FNames (number << 32 | index), name_count of them.
   uint8_t name_count = 0;
@@ -1640,6 +1647,16 @@ inline Request parse_request(std::string text) {
                                : ShopAsk::watch;
   } else if (text == "teamshop open") {
     r.command = Command::teamshop;
+  } else if (text.rfind("sboxion ", 0) == 0) {
+    std::string w[7];
+    uint64_t index = 0;
+    const bool enter = split(text, w, 7, nullptr) && w[1] == "enter";
+    bool ok = (enter || (split(text, w, 3, nullptr) && w[1] == "leave")) && number(w[2], index) && index &&
+              index <= UINT32_MAX;
+    for (size_t i = 0; ok && enter && i < r.at.size(); ++i)
+      ok = signed_number(w[3 + i], i < 3 ? kMaxSpotAt : kMaxSpotYaw, r.at[i]);
+    if (ok)
+      r.command = Command::sboxion, r.on = enter, r.index = static_cast<uint32_t>(index);
   } else if (text == "roxanne on" || text == "roxanne off") {
     r.command = Command::roxanne;
     r.on = text.size() == 10;

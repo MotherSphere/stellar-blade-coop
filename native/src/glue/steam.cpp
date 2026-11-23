@@ -881,6 +881,10 @@ bool step() {
       event(coop::pose::ask_teamshop());
       request.clear();
       break;
+    case coop::Command::sboxion: // SBO Xion's warp and its way out: the game thread's.
+      event(coop::pose::ask_sboxion(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::roxanne: // Roxanne's Night Operation choices or Lily's signal choice: the game thread's.
       event(coop::pose::ask_roxanne(coop::parse_request(request)));
       request.clear();
@@ -1075,6 +1079,7 @@ bool step() {
       link->notice(said);
     coop::pose::hud_pass();
     coop::pose::teamshop_pass();
+    coop::pose::sboxion_pass();
     coop::pose::photohunt_pass();
     coop::pose::loading_pass();
     coop::pose::sky_pass();
