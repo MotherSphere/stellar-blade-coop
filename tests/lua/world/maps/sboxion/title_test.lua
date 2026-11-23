@@ -79,7 +79,8 @@ local line='sboxion=off'
 local function new()
     logs,asked={},{}
     return Xion.new({log=function(m) logs[#logs+1]=m end,status=function() return 'mod=v\n'..line..'\nlast=x\n' end,
-        ask=function(l) asked[#asked+1]=l; return true,'asked the native part: '..l end,paks=PAKS,read=read})
+        ask=function(l) asked[#asked+1]=l; return true,'asked the native part: '..l end,paks=PAKS,read=read,
+        me=function() return nil end}) -- At the title: no EVE, so no engine read.
 end
 local function logged(text) for _,l in ipairs(logs) do if l:find(text,1,true) then return l end end end
 local function count(text) local n=0; for _,l in ipairs(logs) do if l:find(text,1,true) then n=n+1 end end; return n end

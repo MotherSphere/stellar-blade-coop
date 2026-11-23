@@ -292,7 +292,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'online/modes/photohunt/round', 'online/modes/photohunt/game',
                               'online/modes/photohunt/ui/board',
                               'world/maps/sboxion/commands', 'world/maps/sboxion/data',
-                              'world/maps/sboxion/sboxion',
+                              'world/maps/sboxion/engine', 'world/maps/sboxion/sboxion',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',
