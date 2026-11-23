@@ -45,7 +45,8 @@ With the patch, the two `NotifyOnNewObject` containers get their own mutex. A lo
 hook and queues what it finds for the game thread. The patch's commit message gives the details.
 
 The patch file is `git format-patch` output of a commit on tag v4.0.0. The note below its `---` line says where SBO uses
-it. `git am` leaves that note out of the commit. Applied to v4.0.0, the patch gives the source tree `874b6855`.
+it. `git am` leaves that note out of the commit. Applied to v4.0.0, the patch gives the source tree `874b6855`. With
+`tools/ue4ss_build.py`, it gives commit `4c8e4f4d` on any PC. The DLL holds that commit's short hash.
 
 Git does not hold the DLL. It is 27,089,920 bytes. `tools/ue4ss.py` pins its SHA-256 in `DLL_SHA256`
 (`791a90ea71c6ffb3743d34f8c1afb239c201984de177286b25ba853e5a1e876b`). It refuses a missing file or a file of other bytes

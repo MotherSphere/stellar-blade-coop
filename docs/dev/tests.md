@@ -1739,13 +1739,15 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `UE4SS.dll` is not the release's. When this PC also has SBO's `UE4SS.dll` at the default output of
   `tools/ue4ss_build.py`, the package's DLL has the pinned SHA-256. Without it, a made-up DLL stands in and the output
   says the real check was skipped;
-- `ue4ss_build_test.py`: `tools/ue4ss_build.py` without network, Git or the toolchain. The one file in
-  `ue4ss/patches/` is `git format-patch` output of commit 9a61a393 with its subject, the issue link in the note below
-  `---` and diffs of `LuaMod.hpp`, `LuaMod.cpp` and `UE4SSProgram.cpp`. A tag that is not commit `30afe5ff` is refused.
-  It checks the clone, configure and build command lines (the `UE4SS` target only) and the variables that map local
-  folders and make the link reproducible. The default output is the path `tools/ue4ss.py` reads. Over a fake
-  `subprocess.run`: a used work folder, a path with a space, extra arguments, a missing tool and a missing xwin folder
-  stop it before any command. A moved tag stops it after the clone. A whole run calls clone, commit check, `git am`,
+- `ue4ss_build_test.py`: `tools/ue4ss_build.py` without network, Git or the toolchain. The one file in `ue4ss/patches/`
+  is `git format-patch` output of commit 9a61a393 with its subject, the issue link in the note below `---` and diffs of
+  `LuaMod.hpp`, `LuaMod.cpp` and `UE4SSProgram.cpp`. A tag that is not commit `30afe5ff` is refused. So is a patched
+  source that is not commit `4c8e4f4d`. `git am` keeps the author's date as commit date. It runs with the patch's author
+  as committer and with no user or system Git config. It checks the clone, configure and build command lines (the
+  `UE4SS` target only) and the variables that map local folders and make the link reproducible. The default output is
+  the path `tools/ue4ss.py` reads. Over a fake `subprocess.run`: a used work folder, a path with a space, extra
+  arguments, a missing tool and a missing xwin folder stop it before any command. A moved tag stops it after the clone.
+  Another patched commit stops it after `git am`. A whole run calls clone, tag check, `git am`, patched-commit check,
   configure and build in that order and prints the DLL's hash against the pin;
 - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
   and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the

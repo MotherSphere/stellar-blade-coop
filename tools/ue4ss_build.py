@@ -5,12 +5,12 @@
 """Builds the UE4SS.dll of SBO's UE4SS package on Linux: UE4SS-RE/RE-UE4SS tag v4.0.0 with PATCH, for Windows x64 in
 the Game__Shipping__Win64 configuration of the official release.
 
-It clones the tag with its submodules into <work>/src, checks that the tag is commit COMMIT, applies PATCH with git
-am, then configures and builds the UE4SS target into <work>/build-rel with clang-cl, lld-link and Ninja through the
-repository's xwin toolchain file. Cargo builds patternsleuth for x86_64-pc-windows-msvc with CARGO_HOME in
-<work>/cargo-home. The compiler, Rust and linker flags map the local folders to src, build, cargo, rustup and xwin and
-make the link reproducible, so no local path lands in the DLL. It prints the DLL's path and SHA-256. tools/ue4ss.py
-packages the DLL only when that SHA-256 is its pin.
+It clones the tag with its submodules into <work>/src, checks that the tag is commit COMMIT, applies PATCH with git am
+and checks that this gives commit PATCHED, then configures and builds the UE4SS target into <work>/build-rel with
+clang-cl, lld-link and Ninja through the repository's xwin toolchain file. Cargo builds patternsleuth for
+x86_64-pc-windows-msvc with CARGO_HOME in <work>/cargo-home. The compiler, Rust and linker flags map the local folders
+to src, build, cargo, rustup and xwin and make the link reproducible, so no local path lands in the DLL. It prints the
+DLL's path and SHA-256. tools/ue4ss.py packages the DLL only when that SHA-256 is its pin.
 
 The proxy target (dwmapi.dll) is not built: its sources come from a Windows program that the build would run. No
 Windows binary runs here. The package keeps the release's dwmapi.dll.
@@ -21,6 +21,8 @@ x86_64-pc-windows-msvc target and the MSVC CRT and Windows SDK that xwin unpacks
 ~/.local/share/xwin). The work folder must be missing or empty.
 
 Run: python3 tools/ue4ss_build.py [<work folder>]   (default ~/.cache/sbo-ue4ss/ue4ss-build)"""
+import email
+import email.utils
 import hashlib
 import os
 import shutil
@@ -35,6 +37,9 @@ ROOT = Path(__file__).resolve().parent.parent
 URL = 'https://github.com/UE4SS-RE/RE-UE4SS.git'
 TAG = 'v4.0.0'
 COMMIT = '30afe5fff94a94c2313e220b2002059a080da9a0'  # Tag v4.0.0, the commit of the official release.
+# COMMIT with PATCH, as am() and am_environment() make it on any PC: tree 874b6855. UE4SS's CMakeLists.txt compiles
+# its short hash into the DLL (version info, log, window titles), so another commit gives another DLL.
+PATCHED = '4c8e4f4dfe73e08a5dba821c2536f743f9d1ceaa'
 PATCH = ROOT / ('ue4ss/patches/0001-fix-Lua-don-t-block-loading-threads-on-m_thread_actions_mutex-in-the-'
                 'StaticConstructObject-hook.patch')
 WORK = Path.home() / '.cache/sbo-ue4ss/ue4ss-build'
@@ -51,10 +56,24 @@ def clone(src):
             'clone', '--branch', TAG, '--recurse-submodules', '--shallow-submodules', URL, str(src)]
 
 
-def check_commit(got):
-    """Stops unless the cloned tag is COMMIT: a moved tag would build other sources."""
-    if got.strip() != COMMIT:
-        sys.exit(f'Tag {TAG} is commit {got.strip()}, not {COMMIT}: refused. Nothing was built.')
+def check_commit(got, want=COMMIT, what=f'Tag {TAG}'):
+    """Stops unless got is commit want. A moved tag would build other sources. Another patched commit gives another
+    DLL."""
+    if got.strip() != want:
+        sys.exit(f'{what} is commit {got.strip()}, not {want}: refused. Nothing was built.')
+
+
+def am(work):
+    """git am of PATCH. The commit date is the author's date from the patch, not the time of the run."""
+    return ['git', '-C', str(work / 'src'), 'am', '--committer-date-is-author-date', str(PATCH)]
+
+
+def am_environment(env):
+    """env for am(): the patch's author as committer and no user or system Git config, so the commit is PATCHED on any
+    PC. commit.gpgsign=true would sign it, am.messageid=true would add a line to its message."""
+    name, mail = email.utils.parseaddr(email.message_from_string(PATCH.read_text(encoding='utf-8'))['From'])
+    return {**env, 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_CONFIG_NOSYSTEM': '1',
+            'GIT_COMMITTER_NAME': name, 'GIT_COMMITTER_EMAIL': mail}
 
 
 def environment(work, env):
@@ -99,9 +118,10 @@ def main(argv):
         sys.exit(f'No xwin CRT and SDK at {env["XWIN_DIR"]} (set XWIN_DIR). Nothing was built.')
     work.mkdir(parents=True, exist_ok=True)
     subprocess.run(clone(work / 'src'), check=True)
-    check_commit(subprocess.run(['git', '-C', str(work / 'src'), 'rev-parse', 'HEAD'], check=True,
-                                capture_output=True, text=True).stdout)
-    subprocess.run(['git', '-C', str(work / 'src'), 'am', str(PATCH)], check=True)
+    head = ['git', '-C', str(work / 'src'), 'rev-parse', 'HEAD']
+    check_commit(subprocess.run(head, check=True, capture_output=True, text=True).stdout)
+    subprocess.run(am(work), check=True, env=am_environment(dict(os.environ)))
+    check_commit(subprocess.run(head, check=True, capture_output=True, text=True).stdout, PATCHED, 'The patched source')
     subprocess.run(configure(work, shutil.which('llvm-ml')), check=True, env=env)
     subprocess.run(build(work), check=True, env=env)
     dll = work / DLL

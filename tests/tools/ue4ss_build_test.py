@@ -2,9 +2,10 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-"""tools/ue4ss_build.py without network, git or the toolchain: the patch file it applies, the commit check, the clone,
-configure and build command lines, the variables that keep local paths out of the DLL, the refusals that come before
-any clone and a whole run over a fake subprocess.run. Its default output is where tools/ue4ss.py looks for UE4SS.dll.
+"""tools/ue4ss_build.py without network, git or the toolchain: the patch file it applies, the commit checks, the
+variables of git am, the clone, configure and build command lines, the variables that keep local paths out of the DLL,
+the refusals that come before any clone and a whole run over a fake subprocess.run. Its default output is where
+tools/ue4ss.py looks for UE4SS.dll.
 Run: python3 tests/tools/ue4ss_build_test.py"""
 import contextlib
 import hashlib
@@ -50,8 +51,20 @@ assert tool.check_commit(tool.COMMIT + '\n') is None
 assert stop(tool.check_commit, 'f' * 40 + '\n') == (
     f'Tag v4.0.0 is commit {"f" * 40}, not {tool.COMMIT}: refused. Nothing was built.')
 
-# Clone, configure and build. The submodule deps/first/Unreal has an SSH URL: both insteadOf rules send it over https.
+# git am of the patch must give commit 4c8e4f4d on every PC: UE4SS's CMakeLists.txt compiles its short hash into the
+# DLL. The committer is the patch's author. No user or system Git config is read: commit.gpgsign=true or
+# am.messageid=true would give another commit.
+assert tool.PATCHED == '4c8e4f4dfe73e08a5dba821c2536f743f9d1ceaa'
+assert tool.check_commit(tool.PATCHED + '\n', tool.PATCHED, 'The patched source') is None
+assert stop(tool.check_commit, tool.COMMIT + '\n', tool.PATCHED, 'The patched source') == (
+    f'The patched source is commit {tool.COMMIT}, not {tool.PATCHED}: refused. Nothing was built.')
+assert tool.am_environment({'PATH': '/bin', 'GIT_CONFIG_GLOBAL': '/home/me/.gitconfig'}) == {
+    'PATH': '/bin', 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_CONFIG_NOSYSTEM': '1',
+    'GIT_COMMITTER_NAME': 'MotherSphere', 'GIT_COMMITTER_EMAIL': 'mothersphere.colony@gmail.com'}
 work = Path('/w')
+assert tool.am(work) == ['git', '-C', '/w/src', 'am', '--committer-date-is-author-date', str(tool.PATCH)]
+
+# Clone, configure and build. The submodule deps/first/Unreal has an SSH URL: both insteadOf rules send it over https.
 assert tool.clone(work / 'src') == [
     'git', '-c', 'url.https://github.com/.insteadOf=git@github.com:',
     '-c', 'url.https://github.com/.insteadOf=ssh://git@github.com/', 'clone', '--branch', 'v4.0.0',
@@ -90,12 +103,12 @@ def no_command(cmd, **kwargs):
 
 
 def fake_run(cmd, **kwargs):
-    """Records each command with its env. rev-parse answers commit; the build writes a made-up DLL."""
+    """Records each command with its env. Each rev-parse answers the next of heads; the build writes a made-up DLL."""
     calls.append((cmd, kwargs.get('env')))
     if cmd[:2] == ['cmake', '--build']:
         (Path(cmd[2]) / 'Game__Shipping__Win64/bin').mkdir(parents=True)
         (Path(cmd[2]) / 'Game__Shipping__Win64/bin/UE4SS.dll').write_bytes(b'built')
-    return types.SimpleNamespace(stdout=commit + '\n')
+    return types.SimpleNamespace(stdout=heads.pop(0) + '\n' if cmd[-2:] == ['rev-parse', 'HEAD'] else '')
 
 
 saved = tool.subprocess, tool.shutil, os.environ.get('XWIN_DIR')
@@ -122,20 +135,28 @@ with tempfile.TemporaryDirectory() as tmp:
         assert not (tmp / 'new').exists()
         # A moved tag stops after the clone, before git am.
         os.environ['XWIN_DIR'] = str(tmp)
-        tool.subprocess, commit = types.SimpleNamespace(run=fake_run), 'f' * 40
+        tool.subprocess, heads = types.SimpleNamespace(run=fake_run), ['f' * 40]
         assert stop(tool.main, ['ue4ss_build.py', str(tmp / 'moved')]).startswith('Tag v4.0.0 is commit ffff')
         assert [cmd[1:3] for cmd, _ in calls] == [['-c', 'url.https://github.com/.insteadOf=git@github.com:'],
                                                   ['-C', str(tmp / 'moved/src')]], calls
-        # The whole run: clone, commit check, git am, configure and build with the variables, then the DLL's hash.
+        # Another patched commit stops after git am, before configure.
         calls.clear()
-        commit, work = tool.COMMIT, tmp / 'work'
+        heads = [tool.COMMIT, 'e' * 40]
+        assert stop(tool.main, ['ue4ss_build.py', str(tmp / 'other')]) == (
+            f'The patched source is commit {"e" * 40}, not {tool.PATCHED}: refused. Nothing was built.')
+        assert [cmd[3:4] for cmd, _ in calls[1:]] == [['rev-parse'], ['am'], ['rev-parse']], calls
+        # The whole run: clone, tag check, git am, patched check, configure and build with the variables, then the
+        # DLL's hash.
+        calls.clear()
+        heads, work = [tool.COMMIT, tool.PATCHED], tmp / 'work'
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             tool.main(['ue4ss_build.py', str(work)])
         env = tool.environment(work, dict(os.environ))
         assert calls == [(tool.clone(work / 'src'), None),
                          (['git', '-C', str(work / 'src'), 'rev-parse', 'HEAD'], None),
-                         (['git', '-C', str(work / 'src'), 'am', str(tool.PATCH)], None),
+                         (tool.am(work), tool.am_environment(dict(os.environ))),
+                         (['git', '-C', str(work / 'src'), 'rev-parse', 'HEAD'], None),
                          (tool.configure(work, '/usr/bin/llvm-ml'), env), (tool.build(work), env)], calls
         assert out.getvalue() == (f'{work / tool.DLL}: SHA-256 {hashlib.sha256(b"built").hexdigest()}, not the pin '
                                   f'of tools/ue4ss.py ({ue4ss.DLL_SHA256})\n'), out.getvalue()

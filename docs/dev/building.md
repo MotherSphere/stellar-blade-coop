@@ -137,20 +137,23 @@ Git does not hold the DLL. The build needs:
 
 - a GitHub login that can read UE4SS-RE's private UEPseudo repository, the `deps/first/Unreal` submodule. The clone
   reads it over https: `gh auth login` sets the credential helper it uses;
-- a Git user name and email, for `git am`;
 - CMake, Ninja, `clang-cl`, `lld-link` and `llvm-ml` from LLVM;
 - Rust through rustup, with the `x86_64-pc-windows-msvc` target (`rustup target add x86_64-pc-windows-msvc`);
 - the MSVC CRT and Windows SDK that xwin unpacks, in `~/.local/share/xwin` or the folder in `XWIN_DIR`;
 - no space in the work folder's path.
 
 The work folder (default `~/.cache/sbo-ue4ss/ue4ss-build`) must be missing or empty. The tool clones the tag with its
-submodules into `src/`, stops unless the tag is commit `30afe5ff`, applies the patch with `git am`, then configures and
-builds the `UE4SS` target into `build-rel/` with the repository's `cmake/toolchains/xwin-clang-cl-toolchain.cmake`.
-Cargo keeps its downloads in `cargo-home/`. The compiler and Rust flags map the local folders to `src`, `build`,
-`cargo`, `rustup` and `xwin`. `/PDBALTPATH:UE4SS.pdb` keeps the PDB's local path out of the DLL. `/Brepro` makes the
-link reproducible. The tool passes these flags through `CFLAGS`, `CXXFLAGS`, `RUSTFLAGS` and `LDFLAGS`: the toolchain
-file adds its include flags to them, which `-DCMAKE_CXX_FLAGS` would replace. The build takes about 8.5 minutes with 6
-jobs. It ends with the DLL's path and SHA-256 and says whether that is the pin of `tools/ue4ss.py`.
+submodules into `src/`, stops unless the tag is commit `30afe5ff`, applies the patch with `git am`, stops unless that
+gives commit `4c8e4f4d`, then configures and builds the `UE4SS` target into `build-rel/` with the repository's
+`cmake/toolchains/xwin-clang-cl-toolchain.cmake`. UE4SS's `CMakeLists.txt` compiles the short hash of that commit into
+the DLL: its version information, the first line of its log and the titles of its debugging windows hold it. `git am`
+runs without the user's and the system's Git config, with the patch's author as committer and the author's date as
+commit date. A signing key (`commit.gpgsign`) or `am.messageid` would give another commit. Cargo keeps its downloads in
+`cargo-home/`. The compiler and Rust flags map the local folders to `src`, `build`, `cargo`, `rustup` and `xwin`.
+`/PDBALTPATH:UE4SS.pdb` keeps the PDB's local path out of the DLL. `/Brepro` makes the link reproducible. The tool
+passes these flags through `CFLAGS`, `CXXFLAGS`, `RUSTFLAGS` and `LDFLAGS`: the toolchain file adds its include flags to
+them, which `-DCMAKE_CXX_FLAGS` would replace. The build takes about 8.5 minutes with 6 jobs. It ends with the DLL's
+path and SHA-256 and says whether that is the pin of `tools/ue4ss.py`.
 
 Only the `UE4SS` target is built. The `proxy` target (`dwmapi.dll`) would run `proxy_generator.exe` on the build
 machine. No Windows program runs: the package keeps the release's `dwmapi.dll`.
