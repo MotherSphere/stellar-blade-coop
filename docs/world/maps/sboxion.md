@@ -92,7 +92,9 @@ put-back of a fall runs.
 The native part writes the `life=` word only while EVE is inside SBO Xion: an accepted `coop xion` starts it and an
 accepted `coop xion leave` ends it. The call also needs `warp=idle` and EVE's GUID (`me=`) from the `engine=` line,
 which the group's native read writes. If that read is off or stopped on a fault, falls are still caught and deaths
-are not. The log says so once a stay.
+are not. The log says so once a stay. Two other native reads can stop on a fault for the rest of the game run. The
+theater read then writes `theater=fault`. The zone row read then writes `zonetype=0`. Neither word makes the recovery
+wait: SBO Xion has no cutscene and `area=` still names the zone.
 
 Nothing is saved. The items are refilled in memory and SB's in-game save queues nothing in this zone
 ([Saves](#saves)).
@@ -100,7 +102,8 @@ Nothing is saved. The items are refilled in memory and SB's in-game save queues 
 ### When it waits and when it stops
 
 The recovery waits with no EVE, in photo mode, during a cutscene, while a warp is under way and while the `engine=`
-line names another zone or zone type. It skips the passes on which the world's time did not move.
+line names another zone or a zone type other than 5 and the fault word 0. It skips the passes on which the world's
+time did not move.
 
 These are failures: a teleport the game refuses, 3 s without a walking read after a put-back, life still 3 to 5 two
 seconds after the call, no call in 10 s. After one failure the next put-back goes to the arrival point. A put-back

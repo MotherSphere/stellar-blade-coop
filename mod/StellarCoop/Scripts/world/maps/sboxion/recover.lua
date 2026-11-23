@@ -21,11 +21,14 @@
 -- or CHECK s without that read is a failure. A success and a full streak set the failures to 0. Two failures with
 -- neither between them stop the recovery until the next arrival or coop xion recover on. An error in a pass counts
 -- as a failure, so an error on every pass is logged twice.
--- The guards: no EVE, photo mode, a theater= word of the status text's engine line other than none, and, when that
--- line has a warp= word, a warp under way or another zone or zone type than SBO Xion's. A pass that waits moves
--- nothing and empties the streak. A put-back being checked keeps its time. Passes on which the world's time did
--- not move are skipped, so a world that stands still uses up no CHECK. Without a warp= word (online/group's native
--- read is off) falls are still caught.
+-- The guards: no EVE, photo mode and a theater= word of the status text's engine line other than none. When that
+-- line has a warp= word: a warp under way, another zone or another zone type than SBO Xion's. Two words are no guard,
+-- since each can stay for the whole game run. theater=fault: the native theater read faulted and is off
+-- (native/src/glue/tick/status.inc). zonetype=0 beside SBO Xion's area: the native zone row read faulted, has not run
+-- yet or found no row (native/src/online/group/warp_game.inc). SBO Xion has no cutscene and area= names the zone. A
+-- pass that waits moves nothing and empties the streak. A put-back being checked keeps its time. Passes on which the
+-- world's time did not move are skipped, so a world that stands still uses up no CHECK. Without a warp= word
+-- (online/group's native read is off) falls are still caught.
 -- The death: SB's own death screen cannot bring EVE back here. In a standalone game its respawn 0x141e47070 calls the
 -- camp respawn 0x141cdb440, which compares the world of the save's camp zone with the world of the current zone. For
 -- another world it takes 0x141cdfbd0 to the zone warp 0x141cdfe70, which returns 0 when the current zone's row is of
@@ -101,12 +104,12 @@ function Recover.new(o)
         if not m then return 'no EVE' end
         if o.photo and o.photo()~='0' then return 'photo mode' end
         local theater=line:match(' theater=(%S+)')
-        if theater and theater~='none' then return 'cutscene '..theater end
+        if theater and theater~='none' and theater~='fault' then return 'cutscene '..theater end
         local warp=line:match(' warp=(%a+)')
         if not warp then return nil end
         if warp~='idle' then return 'a warp is under way' end
         local area,kind=line:match(' area=(%S+)'),line:match(' zonetype=(%d+)')
-        if area~=D.ZONE or kind~='5' then return 'zone '..tostring(area)..' type '..tostring(kind) end
+        if area~=D.ZONE or kind~='5' and kind~='0' then return 'zone '..tostring(area)..' type '..tostring(kind) end
     end
     -- The death screen we hid comes back as it was.
     local function show(reason)

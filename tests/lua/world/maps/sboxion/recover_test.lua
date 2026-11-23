@@ -8,11 +8,12 @@
 -- the streak. The fall: EVE under the floor goes to the ground point plus 10 cm with its yaw, or to the arrival point
 -- with no ground point; nothing moves while a guard waits (no EVE, photo mode, a cutscene, a warp, another zone or
 -- zone type), while her life reads 3 to 5 or in the modes death and off; with no warp= word the fall is still caught
--- and one line says so. The check: a walking read within 3 s of world time is a success and sets the failures to 0;
--- 6 s of passes on one world time, then a walking read, is a success; a refused teleport sends the next try to the
--- arrival point; a second failure stops the recovery with one line and no third call; the mode word starts it again;
--- an error in a pass counts as a failure; 1 s of walking between two failures sets them to 0, so the recovery stays
--- on; an arrival resets all of it; a stop drops a put-back being checked.
+-- and one line says so; the fault words theater=fault and zonetype=0 beside SBO Xion's area are no wait. The check: a
+-- walking read within 3 s of world time is a success and sets the failures to 0; 6 s of passes on one world time, then
+-- a walking read, is a success; a refused teleport sends the next try to the arrival point; a second failure stops the
+-- recovery with one line and no third call; the mode word starts it again; an error in a pass counts as a failure; 1 s
+-- of walking between two failures sets them to 0, so the recovery stays on; an arrival resets all of it; a stop drops a
+-- put-back being checked.
 -- The death, with the respawn cases of tests/lua/online/modes/scoreattack/run_test.lua for this module's copy: it
 -- starts while her life reads 3 to 5 (not on the change), each reason the respawn waits for is said once, one call
 -- of SB's respawn with her GUID, the result line 2 s later, a death screen that still plays over a living EVE hidden,
@@ -181,10 +182,10 @@ for _,g in ipairs({
     {'photo mode',function() photo='1' end},
     {'photo mode',function() photo='s' end},
     {'cutscene SEQ_Xion',function() engine=IDLE:gsub('theater=none','theater=SEQ_Xion') end},
-    {'cutscene fault',function() engine=IDLE:gsub('theater=none','theater=fault') end},
     {'a warp is under way',function() engine=IDLE:gsub('warp=idle','warp=busy') end},
     {'zone none type 1',function() engine=IDLE:gsub('zonetype=5 area=Zone_SBO_Xion','zonetype=1 area=none') end},
     {'zone Zone_SBO_Xion type 1',function() engine=IDLE:gsub('zonetype=5','zonetype=1') end},
+    {'zone none type 0',function() engine=IDLE:gsub('zonetype=5 area=Zone_SBO_Xion','zonetype=0 area=none') end},
 }) do
     r=fresh()
     walk(r,6)
@@ -197,6 +198,17 @@ for _,g in ipairs({
     photo,engine='0',IDLE
     pass(r)
     assert(times('recovery waits no more')==1 and #puts==1,g[1]..': the fall is caught once the wait ends')
+end
+-- fault_words: theater=fault (the native theater read faulted and is off for the game run) and zonetype=0 beside SBO
+-- Xion's area (the native zone row read faulted) are no wait. The fall is caught and no wait is said.
+for _,w in ipairs({{'theater=none','theater=fault'},{'zonetype=5','zonetype=0'}}) do
+    r=fresh()
+    engine=IDLE:gsub(w[1],w[2])
+    assert(engine:find(' '..w[2],1,true))
+    walk(r,6)
+    fall()
+    pass(r)
+    assert(#puts==1 and puts[1].at.X==300 and not logged('recovery waits'),w[2]..': '..tostring(last()))
 end
 -- A wait empties the streak: the point is not made of passes from before and after it.
 r=fresh()
