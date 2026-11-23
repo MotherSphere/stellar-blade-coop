@@ -243,7 +243,7 @@ function Recover.new(o)
             end
             return
         end
-        if mode=='on' and m.at.Z<D.FLOOR and not down then
+        if mode=='on' and m.at.Z<D.FLOOR then -- Her life is not 3 to 5 here: in the mode on that returned above.
             put(m,string.format('fall: EVE at %s under the floor, mode %s, life %s',place(m.at),tostring(m.mode),
                 life or '?'))
         end
