@@ -186,9 +186,9 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   items (`HP2Burst_Potion`, the Burst Stimpack; `Buff_HP2MP`, the Beta Stimpack; `Bullet_Shock`, the Shock Bolt;
   `Money_NightOperation`, the Beta Seed) in the inventory, in a pickup left in the world or on a quick slot; Shock
   Bolts as the selected ammo (`BulletItemSlotIndex` 5, past the five ammo types the game ships); or the cut Matrix XIII
-  dungeon as the save's map (`MXIII_P`), its camp, its last full camp or its last simple camp (any name that starts
+  area as the save's map (`MXIII_P`), its camp, its last full camp or its last simple camp (any name that starts
   with `DLC02_`: the camps `coop mxiii` and `coop mxiii 30` add there, their rows, `DLC02_10_EnvS_906` once the kit is
-  activated, `DLC02_30_EnvS_900` after the arrival at the third zone's camp, and the dungeon's own rows, which no camp
+  activated, `DLC02_30_EnvS_900` after the arrival at the third zone's camp, and the area's own rows, which no camp
   of the released game uses);
 - refuses it, before it writes anything, while it names an item of the team shop (`coop teamshop`, see
   [world/teamshop.md](../world/teamshop.md)): an item name (`ItemAlias`) anywhere in the save or a quick slot name
@@ -197,7 +197,7 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   the buy. Nobody has checked yet. The save may then stay a co-op save after EVE no longer holds the item. The refusal
   names each one;
 - refuses it, before it writes anything, when any other name in the save starts with `DLC02_` (names that start with
-  `Zone_DLC02_` excepted): the rows of the dungeon's zones the save keeps once it has played there, such as an enemy's
+  `Zone_DLC02_` excepted): the rows of the area's zones the save keeps once it has played there, such as an enemy's
   saved death, an opened box, a door's state or a pickup. None of the user's 15 released-game saves holds such a name.
   The game keeps a world's zone state for good, so such a save can never be exported, and the refusal says so;
 - refuses it, before it writes anything, when the save names one of the mod's quests, A Second Signal
@@ -216,7 +216,7 @@ copies, and switches neither. As with a refresh, the first time it only says wha
 `coop-link.log` has `StellarBladeCoop0N.sav exported to StellarBladeSave0M.sav (<size> bytes)`, or why not. A refusal
 lists what it found and what to do before you export again: use up or sell the items and take them off the quick
 slots, open and close `coop nightop shop` so that the Beta Seeds go back to the wallet, switch the gun to another
-ammo, or rest at a full camp (one with a phone booth) outside the dungeon; then save. The mod's camps in the dungeon are
+ammo, or rest at a full camp (one with a phone booth) outside the area; then save. The mod's camps in the area are
 full camps, and the save keeps the last full camp you rested at apart from the camp you are at, so a rest at a simple
 camp does not clear it. The game keeps every item you ever held in a list of its own (`ItemOtaineSet`), and every save
 names every world and zone of the game's tables, Matrix XIII's `DLCMatrix13` and `Zone_DLC02_10` to `40` included, so
@@ -225,7 +225,7 @@ old details. The export has not been tested in game yet.
 
 A save that went through New Game+ also holds a second copy of the inventory and the camps for New Game+
 (`NewGamePlusBaseData`), which playing on does not change. If a co-op save started New Game+ while it held the mod's
-items, a team shop item, Shock Bolts as the selected ammo or the dungeon's camp, that copy keeps them, and the export
+items, a team shop item, Shock Bolts as the selected ammo or the area's camp, that copy keeps them, and the export
 keeps refusing the save; the refusal says so. Only the copy by hand (see [Recovery](#recovery)) takes such a save out,
 and nothing then checks it.
 

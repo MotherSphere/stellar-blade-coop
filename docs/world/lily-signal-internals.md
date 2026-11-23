@@ -171,7 +171,7 @@ select cache swap of Roxanne's choices, `coop scene`'s borrowed theater rows and
    "On Time" held and no game screen shown, never during another talk. Once EVE stands in that map with the quest at M01
    and its task in progress for 10 s (SB's EnterZone check did not fire after the camp travel), Lua asks `signal
    complete`, once a visit. Once she stands 2 s inside the Fusion Drive room's box with the quest at M05, Lua asks
-   `signal zone4`, once a visit. The box is the planned dungeon's (zone 4's room Z4R18 in zone 1's plan frame, turned
+   `signal zone4`, once a visit. The box is the planned area's (zone 4's room Z4R18 in zone 1's plan frame, turned
    into world centimetres in `world/maps/matrix13/quest/on_time.lua`); the test pak has no zone 4 room there, so `coop
    lily signal next` stands in for it.
 

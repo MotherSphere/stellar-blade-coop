@@ -108,8 +108,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](fight/bosses.md#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
 | `coop tendril fight [rows]` | The [cut Tendril](fight/bosses.md#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](eve/eve.md#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
-| `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](world/matrix13.md) and a camp there (experimental test command; the travel arrived in game with test pak v2 after a reload, the rows at the title are untested; needs the v5 zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
-| `coop mxiii 30` | The same with a travel to a second camp, in the dungeon's third zone (experimental test command, untested in game; needs the v5 test pak; solo, co-op save only) |
+| `coop mxiii` | A camp travel into the [cut Matrix XIII area](world/matrix13.md) and a camp there (experimental test command; the travel arrived in game with test pak v2 after a reload, the rows at the title are untested; needs the v5 zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
+| `coop mxiii 30` | The same with a travel to a second camp, in the area's third zone (experimental test command, untested in game; needs the v5 test pak; solo, co-op save only) |
 | `coop mxiii leave` | The way out of Matrix XIII: a travel back to the camp where EVE respawned before `coop mxiii`, or to another camp your save has activated (test command, untested in game; solo, co-op save only) |
 | `coop xion`, `coop xion gate` | SB's warp into [SBO Xion](world/maps/sboxion.md), an empty copy of Xion in a world of SBO's own, at its city point or its gate point (experimental test command, untested in game; needs the zSBO_Xion test pak, which the mod does not ship; solo, co-op save only) |
 | `coop xion leave` | The way out of SBO Xion: SB's reload of the co-op save, which the native part runs only from SBO Xion (test command, untested in game; solo, co-op save only) |
@@ -608,7 +608,7 @@ Each section that left this page is listed under its old name, with its new plac
 | Cut enemy: `coop tendril fight` | [fight/bosses.md](fight/bosses.md#cut-enemy-coop-tendril-fight) |
 | Cut Tachy skill: `coop chainspin` | [eve/eve.md](eve/eve.md#cut-tachy-skill-coop-chainspin) |
 | Cut ammo: Shock Bolt | [online/modes/nightop-shop.md](online/modes/nightop-shop.md#cut-ammo-shock-bolt) |
-| Cut dungeon: `coop mxiii` (experimental) | [world/matrix13.md](world/matrix13.md) |
+| Cut area: `coop mxiii` (experimental) | [world/matrix13.md](world/matrix13.md) |
 | SBO Xion: `coop xion` (experimental) | [world/maps/sboxion.md](world/maps/sboxion.md) |
 | Lily's signal (experimental) | [lily-signal.md: Status lines](world/lily-signal.md#status-lines) |
 | Cut hairs and suits: `coop wear` | [eve/eve.md](eve/eve.md#cut-hairs-and-suits-coop-wear) |

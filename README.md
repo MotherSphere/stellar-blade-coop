@@ -105,7 +105,7 @@ setting is now on by default, the experimental ones included; most of them have 
   suits (`coop wear`), emotes, the developer flight and slow motion, the cut glide, cut scenes and subtitles, the Load
   Shortcut saves and the developer menu. See [Cut enemies](docs/fight/bosses.md), [EVE's cut moves](docs/eve/eve.md),
   [Cut scenes](docs/story/scenes.md) and [Cut menus and the mailbox](docs/cutmenus/menus.md).
-- `coop mxiii` (experimental) travels to a camp in Matrix XIII, a dungeon cut before release. It needs the zMXIII_P
+- `coop mxiii` (experimental) travels to a camp in Matrix XIII, an area cut before release. It needs the zMXIII_P
   test pak, which does not come with the mod. See [Matrix XIII](docs/world/matrix13.md).
 - Lily's signal adds two quests of the mod's own near the end of the story. The second leads through Matrix XIII and
   needs the same test pak. See [Lily's signal](docs/world/lily-signal.md).

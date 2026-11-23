@@ -279,9 +279,9 @@ More about the copies:
   co-op slot, M the slot of yours it goes to, both 0 to 4). The mod backs up `StellarBladeSave0M.sav` into
   `StellarCoopBackups`, then writes `StellarBladeCoop0N.sav` over it, unchanged. It refuses a co-op save that still
   holds the mod's items (Burst Stimpack, Beta Stimpack, Shock Bolt, Beta Seed), has Shock Bolts as the selected ammo,
-  or names the cut Matrix XIII dungeon as its map, its camp, its last full camp or its last simple camp, and
+  or names the cut Matrix XIII area as its map, its camp, its last full camp or its last simple camp, and
   `coop-link.log` says what to use up, sell or switch, or to rest at a full camp (one with a phone booth) outside the
-  dungeon. It also refuses a developer save that `coop shortcut load` wrote in co-op slot 4
+  area. It also refuses a developer save that `coop shortcut load` wrote in co-op slot 4
   (`StellarBladeCoop04.sav`, the title's fifth slot), played or not. Quit the game afterwards: until it restarts, the
   title's slot list shows the slot's old details. The export has not been tried in game yet. See
   [docs/players/saves.md](docs/players/saves.md#co-op-saves).

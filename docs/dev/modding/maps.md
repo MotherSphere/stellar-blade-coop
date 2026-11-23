@@ -1,9 +1,9 @@
 # Map pipeline
 
-Stellar Blade Online has three sets of maps of its own: the cut dungeon Matrix XIII (module `world.maps.matrix13`),
-the five hall lobbies of `online.lobby` and SBO Xion (module `world.maps.sboxion`, a test not run in game). This page
-lists what the game needs before such a map works and the steps that make one, with the steps the repository holds.
-The map tools stay with MotherSphere for now, so a clone of the repository cannot build a map pak today.
+Stellar Blade Online has three sets of maps of its own: the cut area Matrix XIII (module `world.maps.matrix13`),
+the five hall lobbies of `online.lobby` and SBO Xion (module `world.maps.sboxion`, experimental). This page lists
+what the game needs before such a map works and the steps that make one, with the steps the repository holds. The
+map tools stay with MotherSphere for now, so a clone of the repository cannot build a map pak today.
 
 How each map does these steps is in [world/matrix13-internals.md](../../world/matrix13-internals.md),
 [online/lobby.md](../../online/lobby.md#hall-lobbies) and [world/maps/sboxion.md](../../world/maps/sboxion.md). The

@@ -1,6 +1,6 @@
 # Matrix XIII: how it works
 
-The player's side of the dungeon is in [Matrix XIII](matrix13.md), and the quests that lead into it in
+The player's side of the area is in [Matrix XIII](matrix13.md), and the quests that lead into it in
 [Lily's signal: how it works](lily-signal-internals.md).
 
 WorldTable row `DLCMatrix13` (ID 2800) points to `/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P`, a map that no pak of
@@ -56,11 +56,11 @@ The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spa
 point of that name when EVE enters the zone.
 
 The camp keeps `ME01_Camp_03`'s picture, and its name until [the camp names](#the-camp-names) replace it. Its Region is
-`Matrix13`, a name the game makes a bucket for on first sight, so a full camp's list shows only the dungeon's full
+`Matrix13`, a name the game makes a bucket for on first sight, so a full camp's list shows only the area's full
 camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11` from its donor `ME01_Camp_00`. In game (2026-11-03)
 the region teleport screen still shows it under a tab of its own, "Matrice 13", right after "Matrice 11", with Matrix
-11's picture; Matrix 11's tab lists only its own six camps. No dungeon has a world map in the game (WorldMapTable has 5
-rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
+11's picture; Matrix 11's tab lists only its own six camps. No Matrix area has a world map in the game (WorldMapTable has 5
+rows, none of them Matrix 11), so for a camp of such an area the camp list is the whole display.
 
 The third zone's camp gives `coop mxiii 30` a way past the climb from `Zone_DLC02_20` (see below). The travel reads
 only the camp's first env-spawn row (its `Zone`, else `ZoneList[0]`, then that zone's world), and the arrival needs
@@ -84,7 +84,7 @@ on its 32 bits, so 2800032900 matches whether UE4SS reads it as signed or not.
 
 ## Its event spawns
 
-Of the dungeon's 92 spawn rows, 19 wait for props of the cut map. The 11 Antlions of `Zone_DLC02_20` are `ZoneEvent`
+Of the area's 92 spawn rows, 19 wait for props of the cut map. The 11 Antlions of `Zone_DLC02_20` are `ZoneEvent`
 spawns in three waves: when the countdown gates `DLC02_20_EnvS_014`, `_018` and `_016` reach their `Open` tag, their
 ZoneEnvSpawnTable rows run the zone events `DLC02_20_ZoneE_022` to `_025`, `_026` to `_028` and `_029` to `_032`, each a
 `ZoneEvent_Spawn` of one row. In `Zone_DLC02_40`, triggers `DLC02_40_ZTrigger_001` and `_002` start the chains of spawn
@@ -116,7 +116,7 @@ row refuses with `no shipped row of that name`, an ID that names another row wit
 trigger rows keep their shipped `SaveType`: `ResetZone` for 001, `Save` for 005 and 006, `None` for the zone 40 pair.
 When the game reads `InitActivate` and `TouchEvents` was not traced: the patches go in before the travel, so a zone that
 starts after it sees them whether it copies the row or keeps a pointer to it. The Antlions and Clrikets they spawn are
-species the other DLC02 rows already spawn, so their kills feed no achievement row the dungeon could not feed before.
+species the other DLC02 rows already spawn, so their kills feed no achievement row the area could not feed before.
 
 The rows cannot make the climb from `Zone_DLC02_20` to `Zone_DLC02_30` work. On Matrix 11's Area02 it runs on
 `Zone_ME_02`'s triggers (falling-train QTE sequences `MV_ME02_0x_QTE_*`, theater events and env controls of the ropes
@@ -149,9 +149,9 @@ The command's answer names the way out, `coop mxiii leave`: the follow's probe, 
 host](../online/group-internals.md#following-the-host)), to a camp the read lists among the 120 travel camps. The
 arrival at the Tetrapod camp, `DLC02_10_Camp_01` or `DLC02_30_Camp_01` makes it the camp EVE respawns at (`+0x26d0`),
 and none of the three is in a travel table, so each command keeps the camp she respawned at when it asked its travel, if
-the read lists it (inside the dungeon it keeps the one it had), and `leave` takes that camp first, then the camp she
+the read lists it (inside the area it keeps the one it had), and `leave` takes that camp first, then the camp she
 respawns at now, then the read's first travel camp. The kept camp lives in the Lua state only, so a reload of the
-scripts in the dungeon loses it.
+scripts in the area loses it.
 
 The check tells the builds of the test pak apart by the `.ucas`, of which it reads up to 16 MB at a time. A zen package of
 UE 4.26 keeps its own name map, in plain text when the container is not compressed, and an FName whose text ends in `_`
@@ -160,7 +160,7 @@ spawn point names, and v1 has no such name (its own names, such as `DLC02_10_E_C
 stored whole). v3's `MXIII_30_LD` holds `DLC02_30_Camp_01` whole, a name neither older build has, and the full map
 holds `DLC02_00_Camp_00` whole too, which makes it v4. v5 is a v4 pak whose `.utoc` directory index also names
 `MXIII_Camps_A.umap`. The checks line says
-which build it found and where its camp's spawn point stands: at the dungeon start (40368, 35663, -846) in v1, beside
+which build it found and where its camp's spawn point stands: at the start of the area (40368, 35663, -846) in v1, beside
 the camp objects at Matrix 11's first simple camp site (36624, 16140, -2136) in v2, and in v3 also where `coop mxiii
 30` arrives (26392, -23650, 4414); v4 adds the Tetrapod arrival (38290, 36221, 715). At the title all of them get the
 same rows; the commands go on with v5 only.
@@ -184,7 +184,7 @@ Each stands at the cooked spawn point of its own name, 80 or 88 cm from its vend
 The vending machine starts Enable and Off, the rest of the kit Disable and Off, so EVE activates a camp on foot by
 spending a coin there. Of the game's 105 full and simple camps, 80 point at a Vitcoin row.
 
-A save that has been in the dungeon keeps what happened there. The camp records and the taken coin are saved rows
+A save that has been in the area keeps what happened there. The camp records and the taken coin are saved rows
 (SaveType Save), so a camp activated in an earlier test stays active and its coin stays gone. The mod leaves those
 records alone; a co-op slot with no DLC02 record shows the inactive state. The link to the base row runs only when the
 coin is used, so a full camp activated before the base rows existed has no saved On state for its base, and row data
@@ -194,7 +194,7 @@ says the base then spawns Off (`SaveType` Save, `InitStateTag` Off; not seen in 
 
 `DLC02_00_E_CharS_960` uses the graph `Xion01_NPC_Lily_01` that every Tetrapod Lily uses. The graph's root is a switch
 with one pin per world and no default, and `DLCMatrix13` is on no pin, so without a patch her Talk prompt opens nothing.
-The `mxlily` batch patches six shipped rows in place, routing the dungeon into the Great Desert's Phase 5 branch:
+The `mxlily` batch patches six shipped rows in place, routing the area into the Great Desert's Phase 5 branch:
 
 | Row (prefix `Xion01_NPC_Lily_01_`) | Table | ID | Field | Shipped | Patched |
 | --- | --- | --- | --- | --- | --- |
@@ -292,12 +292,12 @@ What the title holds, read in Ghidra on build 24463856 (the addresses are build 
   task, as in a world.
 
 The rows stay in for the game run, also when the player then turns the co-op saves off and loads one of their own:
-nothing in the main game leads to the dungeon or its camps.
+nothing in the main game leads to the area or its camps.
 
 ## Matrix XIII's world rows
 
 The cooked map (the full-build pak of all four zones) places a spawn point, trigger box, zone volume and waypoint chain
-for every row the dungeon needs, and the rows themselves come from the mod. `data/mxiii-world.json` holds them all, each
+for every row the area needs, and the rows themselves come from the mod. `data/mxiii-world.json` holds them all, each
 as a copy of a shipped row (its donor) with the fields that differ; `tools/mxiii_rows.py` writes
 `native/src/world/maps/matrix13/mxiii_rows.h` and `world/maps/matrix13/level/rows.lua` from it, so the native batches
 and the Lua read-back never disagree (`tests/tools/mxiii_rows_test.py` fails when either file is out of date). The
@@ -459,7 +459,7 @@ time, each once the batch before it has an answer (rows, or a refusal, which nev
 `mxenv`, `mxupper`, `mxmiddle`, `mxlower`, then the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC`
 and `M_Gardener` the boss spawn rows name, and last `mxnames` ([below](#the-camp-names)). All go in before any save
 loads, since the zone manager lists a world's rows when the world starts. `coop mxiii` asks no travel until every one of
-these lines but `mxnames` reads `rows`, and names the first batch that does not: the travel would reach a dungeon
+these lines but `mxnames` reads `rows`, and names the first batch that does not: the travel would reach an area
 without its Naytibas or its doors, and a peer's shared Naytibas would match no spawn row.
 
 ### The drone's light
@@ -526,7 +526,7 @@ At each arrival in a world 2800 younger than 20 s, `travel.lua` first puts up SB
 spawns during its fade-in. Under it each list spends 0.1 s a frame in place of 4 ms. `fans.lua` and `boss.lua` walk
 once there for the rotors and the boss bar's text blocks; in play they find them again by path. Once both lists are
 done in that world, Lua asks `loading lift`. When the setup takes longer, SB ends its black itself after 10 s and the
-rest spreads in play on the 4 ms budget. A world met late (a Lua reload in the dungeon) gets no black. Lily's arrival
+rest spreads in play on the 4 ms budget. A world met late (a Lua reload in the area) gets no black. Lily's arrival
 talk waits while the black is up.
 
 ### Bosses
@@ -577,7 +577,7 @@ its level loaded registers with its row and breaks is untested.
 
 The export check (`game/twins.h`) refuses a co-op save holding any FString that starts with `DLC02_` outside the camp
 fields it already reads (names that start with `Zone_DLC02_` excepted, every save holds them). None of the user's 15
-released-game saves holds one; a save that played the dungeon keeps its zones' rows for good, so it can never be
+released-game saves holds one; a save that played the area keeps its zones' rows for good, so it can never be
 exported.
 
 ## The camp names
@@ -630,7 +630,7 @@ return to the title.
 
 ## The records
 
-The dungeon's 25 records (7 memorysticks, 18 documents) use the path of the game's own: an env row that reaches state
+The area's 25 records (7 memorysticks, 18 documents) use the path of the game's own: an env row that reaches state
 `CallPuzzle` when EVE reads it completes an unlock achievement, and the Data Bank row on that achievement opens. The
 cooked map already holds a spawn point named after each env row (`DLC02_00_EnvS_950`, `DLC02_10_EnvS_950` to `957`, and
 so on) and the prop EVE looks at, so the map does not change.

@@ -61,7 +61,7 @@ claim the host accepts):
     list, and every camp while there is no read (a load, the title, after a fault). Whether arriving at a camp through
     the game's fast travel activates it has not been checked.
   - `coop mxiii` and `coop mxiii 30` travel to their own camps (`DLC02_00_Camp_00` or `DLC02_10_Camp_01`, and
-    `DLC02_30_Camp_01`) without that read ([The cut Matrix XIII dungeon](../world/matrix13-internals.md)): the two camp
+    `DLC02_30_Camp_01`) without that read ([The cut Matrix XIII area](../world/matrix13-internals.md)): the two camp
     trophies count only named ZoneEnvSpawnTable rows turning On (`Trophy_Activate_FirstCamp` one,
     `Trophy_Activate_AllCamp` the 89 `ChangeState_ZoneEnv_*_Camp` rows of AchievementTable), and none of them names
     `DLC02_00_EnvS_960`, `DLC02_10_EnvS_900` or `DLC02_30_EnvS_900`, the mod's rows for those camps.
@@ -79,7 +79,7 @@ claim the host accepts):
   - None of the 2747 AchievementTable rows names a `DLC02` row, zone or world, `MXIII` or `DLCMatrix13`. The only rows
     that match a camp object by its class are the skill machine's guide rows (`Ach_Guide_InteractEnvAlias_SkillMachine`,
     `Ach_Guide_TrainingRoom`), which open a guide and the skill manual page and lead to no trophy, as any camp's skill
-    machine does. A row that is only present raises no event: the kit's objects exist only inside the dungeon.
+    machine does. A row that is only present raises no event: the kit's objects exist only inside the area.
   - The test pak's levels are copies of Matrix 11's, and the camp vending machines in them keep Matrix 11's rows
     (`ME_01_EnvS_017` and `_018`, `ME_03_EnvS_005`, `_015` and `_023`, `ME_04_EnvS_008` and `_009`), seven of the 89.
     Matrix 11's zones never start in that world, which should leave them unusable, but that was not checked, so v3 moves
@@ -191,7 +191,7 @@ feature or drops the input.
       field or a quick slot names one of the mod's items, while `BulletItemSlotIndex` is 5 or more (the Shock Bolt
       `rows/shock.h` appends after the five ammo types the game ships), or while the save's `MapName` is `MXIII_P` or one
       of its four camp fields (`CampAlias`, `CampEnvSpawnAlias`, `LastFullCampEnvSpawnAlias`,
-      `LastSimplyCampEnvSpawnAlias`) holds a name that starts with `DLC02_`, a row of the Matrix XIII dungeon. A find
+      `LastSimplyCampEnvSpawnAlias`) holds a name that starts with `DLC02_`, a row of the Matrix XIII area. A find
       inside `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing does not change, is refused
       too, with a line that says so instead of what to use up or where to rest.
     - Only then does it back up the target save, read the copy again (unchanged since the check, or it stops), scan those

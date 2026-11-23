@@ -300,7 +300,7 @@ mod/StellarCoop/            the UE4SS mod folder
                             fight; lion_rows.lua, the Lua list of the lion, gardener, tendril, bolt and shop rows
       gunmode/              gun mode: the NIKKE rifle in EVE's hands, coop gun (parked while it is rebuilt)
     world/
-      maps/matrix13/        the cut Matrix XIII dungeon, by place then quest: level/ (coop mxiii's travel, rows,
+      maps/matrix13/        the cut Matrix XIII area, by place then quest: level/ (coop mxiii's travel, rows,
                             boss_rows.lua, ladders, bosses, drone light), quest/ ("On Time" and its words, the talk
                             player subtitles.lua), talks/ (the talks' lines, one file per talk or zone), culture.lua,
                             words.lua and text/ (the words in the 21 languages past English and French, generated)
