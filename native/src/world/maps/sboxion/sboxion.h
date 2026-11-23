@@ -193,7 +193,8 @@ inline Answer unpack(uint64_t w) {
 
 // Whether EVE is inside SBO Xion by the answers so far. An accepted enter says yes and an accepted leave says no. Any
 // other answer (a refusal, the worker's own refusal, no request yet) keeps was: a refused coop xion leave replaces an
-// accepted enter in the answer word while EVE is still inside.
+// accepted enter in the answer word while EVE is still inside. A stay left by SB's title menu has no accepted leave,
+// so the answer stays yes until the game closes or a later leave is accepted.
 inline bool inside(bool was, const Answer &a) {
   if (!a.asks || a.why != Why::none)
     return was;
@@ -207,7 +208,7 @@ inline bool inside(bool was, const Answer &a) {
 //   sboxionwarp=refused asks=<a> verb=<enter|leave> why=<word>[ life=<n>]
 //   sboxionwarp=fault asks=<a>[ life=<n>] where=<text, maybe with spaces>
 // asks: the requests answered, so Lua tells a new answer from an old one. life: EVE's life state (FSBActor +0x2600,
-// through game/types.h's fight::vitals), given as 0 or more only while she is inside SBO Xion and the read worked.
+// through game/types.h's fight::vitals), given as 0 or more only while inside() says yes and the read worked.
 // The off and left forms never carry it.
 inline std::string status_line(uint64_t word, bool faulted, const std::string &where, int32_t life = -1) {
   const Answer a = unpack(word);
