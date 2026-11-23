@@ -545,8 +545,10 @@ with tempfile.TemporaryDirectory() as tmp:
         tool.URL, tool.SHA256, tool.CACHE, tool.DLL, tool.DLL_SHA256 = pin
     # The pinned release itself, when this PC has it: each left-out mod is a folder of it. The package keeps the
     # release's proxy, its license, the rest of mods.txt and every other file of it byte for byte. Its UE4SS.dll is
-    # SBO's build at DLL when this PC has it, else a made-up one with its own pin.
-    real_dll = tool.DLL.is_file()
+    # SBO's build at DLL when this PC has the pinned one, else a made-up one with its own pin. A DLL that tools/
+    # ue4ss_build.py made is not the pin: the refusal of such bytes is checked above with made-up files.
+    real_sha = hashlib.sha256(tool.DLL.read_bytes()).hexdigest() if tool.DLL.is_file() else None
+    real_dll = real_sha == tool.DLL_SHA256
     if ZIP.is_file():
         rz = zipfile.ZipFile(ZIP)
         names = rz.namelist()
@@ -578,7 +580,8 @@ with tempfile.TemporaryDirectory() as tmp:
             assert hashlib.sha256(files['ue4ss/UE4SS.dll']).hexdigest() == tool.DLL_SHA256
             packaged = "package checked against the v4.0.0 zip with SBO's UE4SS.dll"
         else:
-            packaged = f'package checked against the v4.0.0 zip; real UE4SS.dll skipped: no {tool.DLL}'
+            why = f'no {tool.DLL}' if real_sha is None else f'{tool.DLL} is not the pin ({real_sha})'
+            packaged = f'package checked against the v4.0.0 zip; real UE4SS.dll skipped: {why}'
     else:
         packaged = f'package not checked against the v4.0.0 zip: no {ZIP}'
 
