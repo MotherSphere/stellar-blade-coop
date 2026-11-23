@@ -153,7 +153,8 @@ commit date. A signing key (`commit.gpgsign`) or `am.messageid` would give anoth
 `/PDBALTPATH:UE4SS.pdb` keeps the PDB's local path out of the DLL. `/Brepro` makes the link reproducible. The tool
 passes these flags through `CFLAGS`, `CXXFLAGS`, `RUSTFLAGS` and `LDFLAGS`: the toolchain file adds its include flags to
 them, which `-DCMAKE_CXX_FLAGS` would replace. The build takes about 8.5 minutes with 6 jobs. It ends with the DLL's
-path and SHA-256 and says whether that is the pin of `tools/ue4ss.py`.
+path and SHA-256 and says whether that is the pin of `tools/ue4ss.py`. Today it is not: [SBO UE4SS](ue4ss.md#ue4ssdll)
+says why.
 
 Only the `UE4SS` target is built. The `proxy` target (`dwmapi.dll`) would run `proxy_generator.exe` on the build
 machine. No Windows program runs: the package keeps the release's `dwmapi.dll`.

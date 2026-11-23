@@ -45,20 +45,29 @@ With the patch, the two `NotifyOnNewObject` containers get their own mutex. A lo
 hook and queues what it finds for the game thread. The patch's commit message gives the details.
 
 The patch file is `git format-patch` output of a commit on tag v4.0.0. The note below its `---` line says where SBO uses
-it. `git am` leaves that note out of the commit. Applied to v4.0.0, the patch gives the source tree `874b6855`. With
-`tools/ue4ss_build.py`, it gives commit `4c8e4f4d` on any PC. The DLL holds that commit's short hash.
+it. `git am` leaves that note out of the commit. Applied to v4.0.0, the patch gives the source tree `874b6855`.
+`tools/ue4ss_build.py` applies it as commit `4c8e4f4d` on any PC. UE4SS compiles the short hash of the source commit
+into the DLL.
 
 Git does not hold the DLL. It is 27,089,920 bytes. `tools/ue4ss.py` pins its SHA-256 in `DLL_SHA256`
 (`791a90ea71c6ffb3743d34f8c1afb239c201984de177286b25ba853e5a1e876b`). It refuses a missing file or a file of other bytes
 before it fetches the release zip. `install.py --ue4ss` stops the same way before the tests. This build was tested in
-game with the package: no freeze with the gore mod installed, every mod starts, F10 opens the console.
+game with the package: no freeze with the gore mod installed, every mod starts, F10 opens the console. It was built by
+hand in the work folder `~/.cache/sbo-ue4ss/ue4ss-build`, from commit `9a61a393`: a signed commit of the same tree
+`874b6855`.
 
-`python3 tools/ue4ss_build.py` rebuilds the DLL on Linux ([Building](building.md#ue4ssdll) lists what it needs). It
-clones the tag with its submodules, checks the commit, applies the patch with `git am` and builds the `UE4SS` target in
-the `Game__Shipping__Win64` configuration of the official release. The pinned DLL came from this toolchain: clang-cl and
-lld-link of LLVM 23.1.5, CMake 4.5.1, Ninja 1.13.2, rustc 1.99.1 for `x86_64-pc-windows-msvc`, the MSVC CRT 14.44.35220
-and the Windows SDK 10.0.26100 from xwin. Another version can give other bytes. `tools/ue4ss.py` then refuses the file:
-a new pin means a new build to test in game.
+`python3 tools/ue4ss_build.py` builds the DLL on Linux ([Building](building.md#ue4ssdll) lists what it needs). It clones
+the tag with its submodules, checks the commit, applies the patch with `git am`, checks the patched commit and builds
+the `UE4SS` target in the `Game__Shipping__Win64` configuration of the official release. The pinned DLL came from the
+same toolchain: clang-cl and lld-link of LLVM 23.1.5, CMake 4.5.1, Ninja 1.13.2, rustc 1.99.1 for
+`x86_64-pc-windows-msvc`, the MSVC CRT 14.44.35220 and the Windows SDK 10.0.26100 from xwin.
+
+A build with the tool does not give the pinned bytes. Its DLL holds `4c8e4f4d` where the pinned one holds `9a61a393`.
+Its layout also depends on the absolute path of the work folder. The `patternsleuth` and `patternsleuth_scanner` crates
+sit outside the Cargo workspace of `patternsleuth_bind`. So Cargo hashes their absolute path into the names of the Rust
+symbols. A tool build in another folder with the same toolchain had the same size and the same strings as the pinned
+DLL. Its `.rdata` was 32 bytes larger and most data sat at other addresses. Another toolchain version can give other
+bytes too. `tools/ue4ss.py` refuses each of these files: a new pin means a new build to test in game.
 
 The release builds its DLL with MSVC. SBO's build uses clang-cl, so its code differs from the release's even where the
 sources match. It is 6.4 MB larger. It does not import `VCRUNTIME140_1.dll`. The package keeps the release's

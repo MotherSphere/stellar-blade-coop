@@ -47,11 +47,13 @@ On Linux, you can build and install the mod from the Stellar Blade Online reposi
 `python3 tools/install.py`. Add `--game <Stellar Blade folder>` if the game is not in the script's default folder
 (`--help` shows it). The script first backs up the files it replaces into `~/StellarCoop-install-backups`.
 
-`python3 tools/install.py --ue4ss` also installs SBO's own UE4SS package in place of the 1.3 package: the official
-UE4SS v4.0.0 with SBO's build of `UE4SS.dll`, Stellar Blade Online's settings and the files of your game build. Build
-that DLL first with `python3 tools/ue4ss_build.py` (see [docs/dev/building.md](docs/dev/building.md#ue4ssdll)). It
-backs up each UE4SS file it replaces or removes into the same folder. On a game build it has no files for, it writes
-no UE4SS file. This option is still being tested. Without it, the script leaves your UE4SS as it is.
+`python3 tools/install.py --ue4ss` also installs SBO's own UE4SS package in place of the 1.3 package: the official UE4SS
+v4.0.0 with SBO's build of `UE4SS.dll`, Stellar Blade Online's settings and the files of your game build. Build that DLL
+first with `python3 tools/ue4ss_build.py` (see [docs/dev/building.md](docs/dev/building.md#ue4ssdll)). A build with that
+tool does not pass the check yet: its bytes differ from the pinned build
+([docs/dev/ue4ss.md](docs/dev/ue4ss.md#ue4ssdll) says why). The script backs up each UE4SS file it replaces or removes
+into the same folder. On a game build it has no files for, it writes no UE4SS file. This option is still being tested.
+Without it, the script leaves your UE4SS as it is.
 [docs/dev/ue4ss.md](docs/dev/ue4ss.md) lists what the package holds.
 
 ### Linux and Steam Deck
