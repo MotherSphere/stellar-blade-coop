@@ -93,18 +93,18 @@ build machine: the tool reads it as data.
 `zip` writes the package for one executable, with paths under `SB/Binaries/Win64/` to unpack into the Stellar Blade
 folder. The package holds:
 
-- the release's `dwmapi.dll` and `ue4ss/` folder, without its settings file and without the four example mods that
-  change the game (CheatManagerEnablerMod, ConsoleCommandsMod, ConsoleEnablerMod and SplitScreenMod). Their lines
-  leave `Mods/mods.txt` too. The `coop` console commands need ConsoleEnablerMod: a player keeps or adds it
-  separately ([INSTALL.md](../../INSTALL.md#requirements));
+- the release's `dwmapi.dll` and `ue4ss/` folder, without its settings file and without the three example mods that
+  change the game (CheatManagerEnablerMod, ConsoleCommandsMod and SplitScreenMod). Their lines leave `Mods/mods.txt`
+  too. The release's ConsoleEnablerMod stays: it adds F10 and Tilde to the game's console keys, where players type
+  the `coop` commands;
 - `ue4ss/UE4SS-settings.ini` from this repository;
 - the files of `ue4ss/builds/<TimeDateStamp>-<SizeOfImage>/` for the executable's PE header, without the set's
   `README.md`;
 - this repository's `NOTICE` and `LICENSE` as `ue4ss/SBO-NOTICE` and `ue4ss/SBO-LICENSE`.
 
-The zip leaves `Mods/mods.txt` out. Unpacked over a UE4SS install, it would replace the player's list of mods,
-ConsoleEnablerMod's line included. The mods that the release's `mods.txt` turns on (BPML_GenericFunctions,
-BPModLoaderMod and Keybinds) get an `enabled.txt` instead, so they also start on a game that never had UE4SS.
+The zip leaves `Mods/mods.txt` out. Unpacked over a UE4SS install, it would replace the player's list of mods. The
+mods that the release's `mods.txt` turns on (BPML_GenericFunctions, BPModLoaderMod, ConsoleEnablerMod and Keybinds)
+get an `enabled.txt` instead, so they also start on a game that never had UE4SS.
 BPModLoaderMod is the one that loads Blueprint mods from `Content/Paks/LogicMods`.
 
 An executable with no set gets nothing. The tool names the build it read and the builds SBO has files for, then

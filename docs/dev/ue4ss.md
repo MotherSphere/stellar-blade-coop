@@ -13,7 +13,7 @@ The paths are under the game's `SB/Binaries/Win64/`.
 
 | Path | Source | License |
 | --- | --- | --- |
-| `dwmapi.dll`, `ue4ss/UE4SS.dll`, `ue4ss/LICENSE`, `ue4ss/UE4SS_SDK_Backends/UE4SS.json`, `ue4ss/Mods/` | The UE4SS v4.0.0 release zip (https://github.com/UE4SS-RE/RE-UE4SS, tag `v4.0.0`, commit 30afe5ff, `UE4SS_v4.0.0.zip`). `tools/ue4ss.py` checks the zip's SHA-256. `Mods/mods.txt` loses the lines of the four mods left out. `install.py --ue4ss` writes it only where the player has none. The zip of `tools/ue4ss.py` leaves it out. The rest is unchanged | MIT, Copyright (c) 2022 Narknon |
+| `dwmapi.dll`, `ue4ss/UE4SS.dll`, `ue4ss/LICENSE`, `ue4ss/UE4SS_SDK_Backends/UE4SS.json`, `ue4ss/Mods/` | The UE4SS v4.0.0 release zip (https://github.com/UE4SS-RE/RE-UE4SS, tag `v4.0.0`, commit 30afe5ff, `UE4SS_v4.0.0.zip`). `tools/ue4ss.py` checks the zip's SHA-256. `Mods/mods.txt` loses the lines of the three mods left out. `install.py --ue4ss` writes it only where the player has none. The zip of `tools/ue4ss.py` leaves it out. Each mod the release's `mods.txt` turns on (BPML_GenericFunctions, BPModLoaderMod, ConsoleEnablerMod, Keybinds) gets an empty `enabled.txt`. ConsoleEnablerMod adds F10 and Tilde to the game's console keys: players type the `coop` commands in that console. The rest is unchanged | MIT, Copyright (c) 2022 Narknon |
 | `ue4ss/UE4SS-settings.ini` | The release's settings file with SBO's values, kept in this repository at `ue4ss/UE4SS-settings.ini`. Its header lists what changed | MIT. The lines that start with `; SBO:` are SBO's. The `[EngineVersionOverride]` 4.26 setting comes from Rev-OG-UwU's SB-UE4SS |
 | `ue4ss/UE4SS_Signatures/GNatives.lua`, `ue4ss/UE4SS_Signatures/GUObjectArray.lua`, `ue4ss/VTableLayout.ini` | The build's set. For build 26123051: Rev-OG-UwU's SB-UE4SS (https://github.com/Rev-OG-UwU/SB-UE4SS, commit a63c3f8e). The three files first appear in Chrisr0's RE-UE4SS (https://github.com/Chrisr0/RE-UE4SS, commit e6e59de9). Each file's header says what changed here | MIT, Copyright (c) 2022 Narknon |
 | `ue4ss/MemberVariableLayout.ini` | The build's set. SBO's own file: each value was read in Ghidra | SBO License |
@@ -22,8 +22,8 @@ The paths are under the game's `SB/Binaries/Win64/`.
 
 The package leaves out:
 
-- The release's CheatManagerEnablerMod, ConsoleCommandsMod, ConsoleEnablerMod and SplitScreenMod, with their lines in
-  `Mods/mods.txt`. They change the game.
+- The release's CheatManagerEnablerMod, ConsoleCommandsMod and SplitScreenMod, with their lines in `Mods/mods.txt`.
+  They change the game.
 - `FText_Constructor.lua`. UE4SS v4.0.0 never reads it: `Signatures.cpp` loads a fixed list of script names and this
   one is not on it. With older UE4SS builds it is a known cause of games that do not start after a Stellar Blade
   update ([Troubleshooting](../players/troubleshooting.md#the-game-does-not-start-at-all-with-ue4ss-installed)).

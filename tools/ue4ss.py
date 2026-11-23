@@ -15,8 +15,9 @@ executable with no set gets nothing at all, not even a download: UE4SS v4.0.0 wi
 MemberVariableLayout.ini writes past the end of the game's FUObjectArray.
 
 The zip leaves ue4ss/Mods/mods.txt out, so a player's own list stays. Each mod the release's mods.txt turns on
-(BPML_GenericFunctions, BPModLoaderMod, Keybinds) gets an enabled.txt instead, so it also starts on a game that never
-had UE4SS.
+(BPML_GenericFunctions, BPModLoaderMod, ConsoleEnablerMod, Keybinds) gets an enabled.txt instead, so it also starts on
+a game that never had UE4SS. LineTraceMod ships off, as in the release. ConsoleEnablerMod adds F10 and Tilde to the
+game's console keys: players type SBO's coop commands in that console.
 
 Run: python3 tools/ue4ss.py fetch
      python3 tools/ue4ss.py zip <SB-Win64-Shipping.exe> <out.zip>   (paths under SB/Binaries/Win64/, to unpack into
@@ -35,9 +36,10 @@ BUILDS = ROOT / 'ue4ss/builds'
 URL = 'https://github.com/UE4SS-RE/RE-UE4SS/releases/download/v4.0.0/UE4SS_v4.0.0.zip'
 SHA256 = '251ad0d1381a241750e036f5918cbf2b5d7ec58ebc608cb2dd09d459d0c81e45'
 CACHE = Path.home() / '.cache/sbo-ue4ss/official-v4.0.0/UE4SS_v4.0.0.zip'
-# The release's example mods that change the game: a console, cheats, the console's set and summon commands, split
-# screen. A player's own copies stay: install.py never touches a mod folder the package lacks.
-DROPPED = ('CheatManagerEnablerMod', 'ConsoleCommandsMod', 'ConsoleEnablerMod', 'SplitScreenMod')
+# The release's example mods that change the game: cheats, the console's set and summon commands, split screen. A
+# player's own copies stay: install.py never touches a mod folder the package lacks. ConsoleEnablerMod ships: SBO's
+# coop commands are typed in the console it opens.
+DROPPED = ('CheatManagerEnablerMod', 'ConsoleCommandsMod', 'SplitScreenMod')
 # SBO's copy of the release's UEHelpers.lua: GetPlayerController and GetWorld keep what they found while it stays valid.
 HELPERS = 'ue4ss/Mods/shared/UEHelpers/UEHelpers.lua'
 

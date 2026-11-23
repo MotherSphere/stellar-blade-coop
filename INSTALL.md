@@ -13,8 +13,9 @@ Linux PC have played together. The rest of the documentation is in
 - UE4SS, as packaged in "Stellar Blade UE4SS 1.3" (UE4SS v3.0.1 Beta, git `08a0733`). The first lines of
   `UE4SS.log` show the version, for example `UE4SS - v3.0.1 Beta #0 - Git SHA #08a0733`.
 - Optional: ConsoleEnablerMod, which comes with that UE4SS package, for the `coop` console commands. The keys (see
-  "Keys and settings") work without it. It needs the line `ConsoleEnablerMod : 1` in `Mods/mods.txt`. In game, `F10`
-  or `~` (tilde) opens the console.
+  "Keys and settings") work without it. It needs the line `ConsoleEnablerMod : 1` in `Mods/mods.txt`. SBO's own UE4SS
+  package (`--ue4ss` under "Install") includes ConsoleEnablerMod and starts it. In game, `F10` or `~` (tilde) opens
+  the console.
 
 ## Find the folders
 

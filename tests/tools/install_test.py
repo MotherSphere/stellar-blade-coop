@@ -447,16 +447,18 @@ with tempfile.TemporaryDirectory() as tmp:
 
     # 20. --ue4ss writes SBO's UE4SS package (tools/ue4ss.py) into SB/Binaries/Win64 over a 1.3 install. It first
     # backs up each file it replaces or removes. The signature scripts the package lacks (FText_Constructor.lua,
-    # another build's) and the 1.3 package's Changelog.md go. The player's mods.txt, other mods, StellarCoop, the
-    # .example files, the log, the usmap and the game stay.
+    # another build's) and the 1.3 package's Changelog.md go. The player's ConsoleEnablerMod gives way to the
+    # package's: its old main.lua is in the backup. The player's mods.txt, other mods, StellarCoop, the .example
+    # files, the log, the usmap and the game stay.
     win64 = tmp / 'game3/SB/Binaries/Win64'
     old13 = {'dwmapi.dll': b'proxy 1.3', 'ue4ss/UE4SS.dll': b'ue4ss 3.0.1', 'ue4ss/UE4SS-settings.ini': b'settings 1.3',
              'ue4ss/MemberVariableLayout.ini': b'layout 1.3', 'ue4ss/VTableLayout.ini': b'vtables 1.3',
              'ue4ss/Changelog.md': b'rc1', 'ue4ss/UE4SS_Signatures/FText_Constructor.lua': b'ftext',
              'ue4ss/UE4SS_Signatures/GNatives.lua': b'gnatives 1.3',
-             'ue4ss/Mods/Keybinds/Scripts/main.lua': b'keys 1.3'}
+             'ue4ss/Mods/Keybinds/Scripts/main.lua': b'keys 1.3',
+             'ue4ss/Mods/ConsoleEnablerMod/Scripts/main.lua': b'console 1.3'}
     kept = {'ue4ss/Mods/mods.txt': b'ConsoleEnablerMod : 1\r\nKeybinds : 1\r\n',
-            'ue4ss/Mods/ConsoleEnablerMod/Scripts/main.lua': b'console 1.3', 'ue4ss/Mods/StellarCoop/enabled.txt': b'',
+            'ue4ss/Mods/OtherMod/Scripts/main.lua': b'other', 'ue4ss/Mods/StellarCoop/enabled.txt': b'',
             'ue4ss/UE4SS_Signatures/GUObjectArray.lua.example': b'example', 'ue4ss/UE4SS.log': b'log',
             'ue4ss/SB-4.26.2-0+++UE4+Release-4.26-08a0733.usmap': b'usmap', 'SB-Win64-Shipping.exe': b'game'}
     put(win64, {**old13, **kept})
@@ -464,21 +466,23 @@ with tempfile.TemporaryDirectory() as tmp:
                    'ue4ss/UE4SS-settings.ini': b'sbo settings', 'ue4ss/MemberVariableLayout.ini': b'sbo layout',
                    'ue4ss/VTableLayout.ini': b'vtables', 'ue4ss/UE4SS_Signatures/GNatives.lua': b'gnatives',
                    'ue4ss/UE4SS_Signatures/GUObjectArray.lua': b'guobjectarray',
-                   'ue4ss/Mods/mods.txt': b'Keybinds : 1\r\n', 'ue4ss/Mods/Keybinds/Scripts/main.lua': b'keys 4'}
+                   'ue4ss/Mods/mods.txt': b'Keybinds : 1\r\n', 'ue4ss/Mods/Keybinds/Scripts/main.lua': b'keys 4',
+                   'ue4ss/Mods/ConsoleEnablerMod/Scripts/main.lua': b'console 4',
+                   'ue4ss/Mods/ConsoleEnablerMod/enabled.txt': b''}
     gone = [win64 / 'ue4ss/Changelog.md', win64 / 'ue4ss/UE4SS_Signatures/FText_Constructor.lua']
     before = tree()
     assert run(install.install_ue4ss, win64, ue4ss_files, True) == (
-        None, 'Dry run: would back up 9 UE4SS files first\n' + ''.join(f'Dry run: would remove {p}\n' for p in gone)
-        + f'Dry run: would install 9 UE4SS files into {win64}\n') and tree() == before
+        None, 'Dry run: would back up 10 UE4SS files first\n' + ''.join(f'Dry run: would remove {p}\n' for p in gone)
+        + f'Dry run: would install 11 UE4SS files into {win64}\n') and tree() == before
     install.running_game = lambda: True
     assert run(install.install_ue4ss, win64, ue4ss_files, False) == (CLOSE, '') and tree() == before
     install.running_game = lambda: False
     old = set(backups())
     code, out = run(install.install_ue4ss, win64, ue4ss_files, False)
     new, = set(backups()) - old
-    assert code is None and out == (f'Backed up 9 files into {new / "Win64"}\n'
+    assert code is None and out == (f'Backed up 10 files into {new / "Win64"}\n'
                                     + ''.join(f'Removing {p}\n' for p in gone)
-                                    + f'Installed 9 UE4SS files into {win64}\n'), out
+                                    + f'Installed 11 UE4SS files into {win64}\n'), out
     assert files_of(new / 'Win64') == old13
     assert files_of(win64) == {**kept, **{r: d for r, d in ue4ss_files.items() if r != 'ue4ss/Mods/mods.txt'}}
     # A game folder without UE4SS gets the whole package with its mods.txt. Nothing is backed up.
@@ -486,7 +490,7 @@ with tempfile.TemporaryDirectory() as tmp:
     win64b.mkdir(parents=True)
     old = set(backups())
     assert run(install.install_ue4ss, win64b, ue4ss_files, False) == (
-        None, f'Installed 10 UE4SS files into {win64b}\n')
+        None, f'Installed 12 UE4SS files into {win64b}\n')
     assert files_of(win64b) == ue4ss_files and set(backups()) == old
     # python3 -I leaves the script's folder out of sys.path, as the gate runs install.py. install.py adds that folder
     # itself, so it still finds tools/ue4ss.py.
@@ -538,10 +542,10 @@ with tempfile.TemporaryDirectory() as tmp:
         real_package, install.ue4ss.package = install.ue4ss.package, lambda path: packaged.append(path) or ue4ss_files
         try:
             assert with_ue4ss('--dry-run') == (None, f'Version: v\nDry run: would install 1 files into {target5}\n'
-                                                     f'Dry run: would install 10 UE4SS files into {win64c}\n')
+                                                     f'Dry run: would install 12 UE4SS files into {win64c}\n')
             assert sorted(p.name for p in win64c.iterdir()) == ['SB-Win64-Shipping.exe']
             assert with_ue4ss() == (None, f'Version: v\nInstalled 1 files into {target5}\n'
-                                          f'Installed 10 UE4SS files into {win64c}\n')
+                                          f'Installed 12 UE4SS files into {win64c}\n')
         finally: install.ue4ss.package = real_package
         assert packaged == [exe, exe], packaged
     finally:

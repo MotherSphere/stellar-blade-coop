@@ -414,8 +414,8 @@ def zip_of(files):
     return out.getvalue()
 
 
-# The example mods that change the game: a console, cheats, the console's set and summon commands, split screen.
-GONE = ('CheatManagerEnablerMod', 'ConsoleCommandsMod', 'ConsoleEnablerMod', 'SplitScreenMod')
+# The example mods that change the game: cheats, the console's set and summon commands, split screen.
+GONE = ('CheatManagerEnablerMod', 'ConsoleCommandsMod', 'SplitScreenMod')
 MODS_TXT = ('CheatManagerEnablerMod : 1\r\nConsoleCommandsMod : 1\r\nConsoleEnablerMod : 1\r\nSplitScreenMod : 0\r\n'
             'LineTraceMod : 0\r\nBPML_GenericFunctions : 1\r\nBPModLoaderMod : 1\r\n\r\n\r\n\r\n\r\n'
             '; Built-in keybinds, do not move up!\r\nKeybinds : 1\r\n')
@@ -425,14 +425,17 @@ RELEASE = {'dwmapi.dll': b'proxy', 'ue4ss/UE4SS.dll': b'ue4ss', 'ue4ss/LICENSE':
            'ue4ss/Mods/ConsoleCommandsMod/Scripts/set.lua': b'set',
            'ue4ss/Mods/shared/UEHelpers/UEHelpers.lua': b'help',
            **{f'ue4ss/Mods/{mod}/Scripts/main.lua': mod.encode()
-              for mod in (*GONE, 'BPML_GenericFunctions', 'BPModLoaderMod', 'Keybinds', 'LineTraceMod')}}
+              for mod in (*GONE, 'BPML_GenericFunctions', 'BPModLoaderMod', 'ConsoleEnablerMod', 'Keybinds',
+                          'LineTraceMod')}}
 expected = {rel: data for rel, data in RELEASE.items()
             if rel != 'ue4ss/UE4SS-settings.ini' and not rel.startswith(tuple(f'ue4ss/Mods/{mod}/' for mod in GONE))}
-expected['ue4ss/Mods/mods.txt'] = (b'LineTraceMod : 0\r\nBPML_GenericFunctions : 1\r\nBPModLoaderMod : 1\r\n'
-                                   b'\r\n\r\n\r\n\r\n; Built-in keybinds, do not move up!\r\nKeybinds : 1\r\n')
+expected['ue4ss/Mods/mods.txt'] = (b'ConsoleEnablerMod : 1\r\nLineTraceMod : 0\r\nBPML_GenericFunctions : 1\r\n'
+                                   b'BPModLoaderMod : 1\r\n\r\n\r\n\r\n\r\n; Built-in keybinds, do not move up!\r\n'
+                                   b'Keybinds : 1\r\n')
 expected['ue4ss/UE4SS-settings.ini'] = SETTINGS.read_bytes()
-# The mods mods.txt turns on start from an enabled.txt too: the zip has no mods.txt.
-STARTED = ('BPML_GenericFunctions', 'BPModLoaderMod', 'Keybinds')
+# The mods mods.txt turns on start from an enabled.txt too: the zip has no mods.txt. ConsoleEnablerMod opens the game
+# console with F10 or Tilde, where players type SBO's coop commands.
+STARTED = ('BPML_GenericFunctions', 'BPModLoaderMod', 'ConsoleEnablerMod', 'Keybinds')
 expected.update({f'ue4ss/Mods/{mod}/enabled.txt': b'' for mod in STARTED})
 expected[tool.HELPERS] = HELPERS.read_bytes()
 expected.update({f'ue4ss/{p.relative_to(SET).as_posix()}': p.read_bytes() for p in SET.rglob('*')
@@ -486,8 +489,8 @@ with tempfile.TemporaryDirectory() as tmp:
         tool.URL = (tmp / 'no-such.zip').as_uri()
         assert tool.package(known) == expected
         # zip: the package under SB/Binaries/Win64/, to unpack into the Stellar Blade folder. The same files give the
-        # same bytes. It has no mods.txt: unpacked over a UE4SS install, it would replace the player's list of mods
-        # (ConsoleEnablerMod's line with it). install.py --ue4ss keeps that file too.
+        # same bytes. It has no mods.txt: unpacked over a UE4SS install, it would replace the player's list of mods.
+        # install.py --ue4ss keeps that file too.
         zipped_files = {f'SB/Binaries/Win64/{r}': d for r, d in expected.items() if r != 'ue4ss/Mods/mods.txt'}
         for name in ('a', 'b'):
             out = io.StringIO()
@@ -525,6 +528,10 @@ with tempfile.TemporaryDirectory() as tmp:
                 'ue4ss/Mods/shared/UEHelpers/UEHelpers.lua'} <= kept, sorted(kept)
         assert files['ue4ss/Mods/mods.txt'] == expected['ue4ss/Mods/mods.txt'], files['ue4ss/Mods/mods.txt']
         assert {r: files[r] for r in ours} == {r: expected[r] for r in ours}
+        # The release's ConsoleEnablerMod, byte for byte, started by an empty enabled.txt.
+        console = 'ue4ss/Mods/ConsoleEnablerMod/'
+        assert files[f'{console}Scripts/main.lua'] == zipfile.ZipFile(ZIP).read(f'{console}Scripts/main.lua')
+        assert files[f'{console}enabled.txt'] == b'', files[f'{console}enabled.txt']
         packaged = 'package checked against the v4.0.0 zip'
     else:
         packaged = f'package not checked against the v4.0.0 zip: no {ZIP}'

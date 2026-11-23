@@ -1565,7 +1565,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   not hash like its source, a folder that lacks one of the files, the dry run, the refusal while the game runs, and an
   uninstall without and with the mod folder (the pak first, each into its own backup folder), all of them leaving the
   rest of `~mods` and `LogicMods` alone. Its `--ue4ss` part: SBO's UE4SS package over a 1.3 install (the backup, the
-  signature scripts the package lacks and `Changelog.md` removed, the player's `mods.txt` and other mods kept), into
+  signature scripts the package lacks and `Changelog.md` removed, the player's ConsoleEnablerMod replaced after its
+  backup, the player's `mods.txt` and other mods kept), into
   a folder without UE4SS, the dry run, the refusal while the game runs. `install.py --help` runs under `python3 -I`,
   as the gate runs it, so `install.py` finds `tools/ue4ss.py` itself. `main` with `--ue4ss` refuses `--zip` and
   `--uninstall`. It stops before the tests on a missing executable, on a build with no set and on a cached zip of
@@ -1580,7 +1581,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   download or a cache file of other bytes refused and never cached, the package's files and the zip's paths with no
   `mods.txt` but an `enabled.txt` for each mod it turns on, written twice with the same bytes. SBO's `UEHelpers.lua` is loaded over fakes: two calls to
   `GetPlayerController` or `GetWorld` make one search, a controller gone is searched for again. When this PC has the
-  pinned release zip, the settings and the package are checked against it;
+  pinned release zip, the settings and the package are checked against it, ConsoleEnablerMod's `main.lua` byte for
+  byte;
 - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
   and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the
   names of every new door, EnvC and ZoneEvent row chained. After a change to the data file, run
