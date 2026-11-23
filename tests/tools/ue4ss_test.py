@@ -431,6 +431,9 @@ expected = {rel: data for rel, data in RELEASE.items()
 expected['ue4ss/Mods/mods.txt'] = (b'LineTraceMod : 0\r\nBPML_GenericFunctions : 1\r\nBPModLoaderMod : 1\r\n'
                                    b'\r\n\r\n\r\n\r\n; Built-in keybinds, do not move up!\r\nKeybinds : 1\r\n')
 expected['ue4ss/UE4SS-settings.ini'] = SETTINGS.read_bytes()
+# The mods mods.txt turns on start from an enabled.txt too: the zip has no mods.txt.
+STARTED = ('BPML_GenericFunctions', 'BPModLoaderMod', 'Keybinds')
+expected.update({f'ue4ss/Mods/{mod}/enabled.txt': b'' for mod in STARTED})
 expected[tool.HELPERS] = HELPERS.read_bytes()
 expected.update({f'ue4ss/{p.relative_to(SET).as_posix()}': p.read_bytes() for p in SET.rglob('*')
              if p.is_file() and p.name != 'README.md'})

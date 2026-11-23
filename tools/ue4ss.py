@@ -14,8 +14,9 @@ ue4ss/UE4SS-settings.ini, the files of ue4ss/builds/<TimeDateStamp>-<SizeOfImage
 executable with no set gets nothing at all, not even a download: UE4SS v4.0.0 without the set's
 MemberVariableLayout.ini writes past the end of the game's FUObjectArray.
 
-The zip leaves ue4ss/Mods/mods.txt out. On a game with no UE4SS yet, the release's BPML_GenericFunctions,
-BPModLoaderMod and Keybinds then do not start: they have no enabled.txt. SBO needs none of them.
+The zip leaves ue4ss/Mods/mods.txt out, so a player's own list stays. Each mod the release's mods.txt turns on
+(BPML_GenericFunctions, BPModLoaderMod, Keybinds) gets an enabled.txt instead, so it also starts on a game that never
+had UE4SS.
 
 Run: python3 tools/ue4ss.py fetch
      python3 tools/ue4ss.py zip <SB-Win64-Shipping.exe> <out.zip>   (paths under SB/Binaries/Win64/, to unpack into
@@ -91,6 +92,12 @@ def package(exe):
              and entry.filename != 'ue4ss/UE4SS-settings.ini' and not entry.filename.startswith(dropped)}
     listed = files['ue4ss/Mods/mods.txt'].decode('utf-8').splitlines(keepends=True)
     files['ue4ss/Mods/mods.txt'] = ''.join(ln for ln in listed if ln.split(':')[0].strip() not in DROPPED).encode()
+    # The zip has no mods.txt: each mod the release's mods.txt turns on gets an enabled.txt, so it starts on a game
+    # that never had UE4SS too (BPModLoaderMod loads the Blueprint mods).
+    for line in listed:
+        mod, _, on = (part.strip() for part in line.partition(':'))
+        if on == '1' and mod not in DROPPED and any(f.startswith(f'ue4ss/Mods/{mod}/') for f in files):
+            files[f'ue4ss/Mods/{mod}/enabled.txt'] = b''
     files['ue4ss/UE4SS-settings.ini'] = (ROOT / 'ue4ss/UE4SS-settings.ini').read_bytes()
     files[HELPERS] = (ROOT / HELPERS).read_bytes()  # The release's file with the caches of UE4SS 3.x put back.
     for path in sorted((BUILDS / name).rglob('*')):

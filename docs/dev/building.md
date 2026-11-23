@@ -103,8 +103,9 @@ folder. The package holds:
 - this repository's `NOTICE` and `LICENSE` as `ue4ss/SBO-NOTICE` and `ue4ss/SBO-LICENSE`.
 
 The zip leaves `Mods/mods.txt` out. Unpacked over a UE4SS install, it would replace the player's list of mods,
-ConsoleEnablerMod's line included. On a game with no UE4SS yet, the release's BPML_GenericFunctions, BPModLoaderMod
-and Keybinds then do not start, since they have no `enabled.txt`. SBO needs none of them.
+ConsoleEnablerMod's line included. The mods that the release's `mods.txt` turns on (BPML_GenericFunctions,
+BPModLoaderMod and Keybinds) get an `enabled.txt` instead, so they also start on a game that never had UE4SS.
+BPModLoaderMod is the one that loads Blueprint mods from `Content/Paks/LogicMods`.
 
 An executable with no set gets nothing. The tool names the build it read and the builds SBO has files for, then
 stops. UE4SS v4.0.0 without the set's `MemberVariableLayout.ini` would write past the end of the game's
