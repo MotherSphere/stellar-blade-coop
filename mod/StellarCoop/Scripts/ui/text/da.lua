@@ -139,7 +139,7 @@ return {
         ['online.saves']='Gemte co-op-spil',
         ['world.teamshop']='Holdets butik',['fight.gunmode']='Geværtilstand',
         ['online.modes.scoreattack']='Pointjagt',['online.modes.fishing']='Fiskekonkurrence',
-        ['online.modes.photohunt']='Fotojagt'},
+        ['online.modes.photohunt']='Fotojagt',['world.maps.sboxion']='SBO Xion'},
     fight={on='Delte fjender slået til: %d fjender forbundet.',one='Delte fjender slået til: 1 fjende forbundet.',
         scale='Fjendernes HP %d %%, balance %d %% (værtens indstilling).',
         off='Delte fjender slået fra. coop-link.log forklarer hvorfor.',

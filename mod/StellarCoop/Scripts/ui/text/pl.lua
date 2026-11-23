@@ -139,7 +139,7 @@ return {
         ['cutmenus']='Wycięte menu',['online.saves']='Zapisy co-op',
         ['world.teamshop']='Sklep zespołu',['fight.gunmode']='Tryb karabinu',
         ['online.modes.scoreattack']='Pogoń za punktami',['online.modes.fishing']='Turniej wędkarski',
-        ['online.modes.photohunt']='Polowanie na zdjęcia'},
+        ['online.modes.photohunt']='Polowanie na zdjęcia',['world.maps.sboxion']='SBO Xion'},
     fight={on='Wspólni wrogowie: włączono, połączono %d wrogów.',one='Wspólni wrogowie: włączono, połączono 1 wroga.',
         scale='PŻ wrogów %d%%, równowaga %d%% (ustawienie hosta).',
         off='Wspólni wrogowie: wyłączono. coop-link.log podaje powód.',

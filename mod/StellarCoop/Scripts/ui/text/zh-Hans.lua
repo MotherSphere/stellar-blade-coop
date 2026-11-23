@@ -122,7 +122,7 @@ return {
         ['online.lobby']='SBO大厅',['vehicles.bike']='摩托车',['world.daynight']='昼夜交替',['cutmenus']='删减的菜单',
         ['online.saves']='合作存档',
         ['world.teamshop']='团队商店',['fight.gunmode']='步枪模式',['online.modes.scoreattack']='得分挑战',
-        ['online.modes.fishing']='钓鱼大赛',['online.modes.photohunt']='拍照寻宝'},
+        ['online.modes.fishing']='钓鱼大赛',['online.modes.photohunt']='拍照寻宝',['world.maps.sboxion']='SBO Xion'},
     fight={on='共享敌人已启用：已关联%d个敌人。',one='共享敌人已启用：已关联1个敌人。',
         scale='敌人生命%d%%，平衡%d%%（房主的设置）。',
         off='共享敌人已关闭。原因见coop-link.log。',

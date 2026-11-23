@@ -120,7 +120,7 @@ return {
         ['online.lobby']='SBO大廳',['vehicles.bike']='機車',['world.daynight']='晝夜交替',['cutmenus']='刪減的選單',
         ['online.saves']='合作存檔',
         ['world.teamshop']='團隊商店',['fight.gunmode']='步槍模式',['online.modes.scoreattack']='得分挑戰',
-        ['online.modes.fishing']='釣魚大賽',['online.modes.photohunt']='拍照尋寶'},
+        ['online.modes.fishing']='釣魚大賽',['online.modes.photohunt']='拍照尋寶',['world.maps.sboxion']='SBO Xion'},
     fight={on='共享敵人已開啟：已連結%d個敵人。',one='共享敵人已開啟：已連結1個敵人。',
         scale='敵人生命值%d%%，平衡%d%%（主機設定）。',
         off='共享敵人已關閉。原因請見coop-link.log。',

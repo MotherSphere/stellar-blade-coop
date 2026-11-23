@@ -43,6 +43,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `online.modes.scoreattack` | Score attack | `online/modes/scoreattack/` | none | [Score attack](../online/modes/scoreattack.md) | `online/modes/scoreattack/challenges.lua`, `online/modes/scoreattack/waves.lua` and `online/modes/scoreattack/run.lua`, its copies |
 | `online.modes.fishing` | Fishing tournament | `online/modes/fishing/` | `online/modes/fishing/` | [Fishing tournament](../online/modes/fishing.md) | `online/modes/fishing/records.lua`, its copy of score attack's records; `online/modes/fishing/rows.lua`, the names of SB's 40 fish rows; `native/src/online/modes/fishing/fishing.h`, its copy of the set walk of `cutmenus/items.h` |
 | `online.modes.photohunt` | Photo hunt | `online/modes/photohunt/` | `online/modes/photohunt/` | [Photo hunt](../online/modes/photohunt.md) | `online/modes/photohunt/records.lua`, its copy of score attack's records |
+| `world.maps.sboxion` | SBO Xion | `world/maps/sboxion/` | `world/maps/sboxion/` | [SBO Xion](../world/maps/sboxion.md) | |
 
 ## Shared pieces
 

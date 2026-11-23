@@ -142,7 +142,7 @@ return {
         ['world.daynight']='Jour et nuit',['cutmenus']='Menus coupés',['online.saves']='Sauvegardes co-op',
         ['world.teamshop']="Boutique de l'équipe",['fight.gunmode']='Mode fusil',
         ['online.modes.scoreattack']='Course au score',['online.modes.fishing']='Tournoi de pêche',
-        ['online.modes.photohunt']='Chasse aux photos'},
+        ['online.modes.photohunt']='Chasse aux photos',['world.maps.sboxion']='SBO Xion'},
     fight={on='Ennemis partagés actifs : %d ennemis liés.',one='Ennemis partagés actifs : 1 ennemi lié.',
         scale="PV des ennemis %d %%, équilibre %d %% (réglage de l'hôte).",
         off='Ennemis partagés coupés. coop-link.log dit pourquoi.',
