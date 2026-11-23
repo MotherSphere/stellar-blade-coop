@@ -44,7 +44,8 @@ assert(Engine.zone_index('Zone_SBO_Xion')==nil,'A name not made yet has no index
 local function vol(path,on)
     return object({GetFullName=function() return 'SBEnvControlVolume '..path end,bActiveVolume=on})
 end
-local a,b=vol(BG..'E04_ENV_VOL.E04_ENV_VOL:PersistentLevel.E04_Area_02_Sub_ENV_01****',false),vol('/Game/X.X:PersistentLevel.V',true)
+local a=vol(BG..'E04_ENV_VOL.E04_ENV_VOL:PersistentLevel.E04_Area_02_Sub_ENV_01****',false)
+local b=vol('/Game/X.X:PersistentLevel.V',true)
 actors.SBEnvControlVolume={a,object({dead=true}),b}
 local list=Engine.volumes()
 assert(#list==2 and list[1].path==BG..'E04_ENV_VOL.E04_ENV_VOL:PersistentLevel.E04_Area_02_Sub_ENV_01****'

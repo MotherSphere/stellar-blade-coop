@@ -23,7 +23,9 @@ local function object(t)
 end
 package.loaded.UEHelpers={}
 -- EVE for core/enemy.lua's rows flow: a map to keep while the rows are asked.
-local eve=object({GetWorld=function() return {GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/E04.E04' end} end})
+local eve=object({GetWorld=function()
+    return {GetFullName=function() return 'World /Game/Art/BG/WorldMap/Level_P/E04.E04' end}
+end})
 package.loaded['core.player']={her=function() return eve end}
 local Xion=require('world.maps.sboxion.sboxion')
 local D=require('world.maps.sboxion.data')
@@ -155,7 +157,8 @@ assert(not ok and why=='coop xion: no arrival point roof',why)
 pak(false)
 x=new()
 ok,why=x.enter('city')
-assert(not ok and why:find('coop xion needs the zSBO_Xion test pak',1,true) and why:find('nothing was asked',1,true),why)
+assert(not ok and why:find('coop xion needs the zSBO_Xion test pak',1,true) and why:find('nothing was asked',1,true),
+    why)
 pak(true)
 x=new()
 rows_line='sboxion=off'
@@ -221,7 +224,7 @@ assert(logged('sboxion: light: 72 env volumes found, 65 in E04_ENV_VOL, 41 named
 assert(#sets==21,#sets..' writes')
 for _,name in ipairs(D.DAY.on) do assert(by[name].on==true,name) end
 for _,name in ipairs(D.DAY.off) do assert(by[name].on==false,name) end
--- A volume of the same name in another level, and one in a level whose name only ends like E04_ENV_VOL, are left.
+-- Two volumes are left: one of the same name in another level, one in a level whose name only ends like E04_ENV_VOL.
 assert(by.other.on==false and by.near.on==true and by.tied.on==true,'Another level\'s volume was written')
 for _,path in ipairs(sets) do assert(path:find('/E04_ENV_VOL.E04_ENV_VOL:PersistentLevel.',1,true),path) end
 assert(logged('sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none'))
@@ -236,7 +239,7 @@ pass(x,8) -- 10 s after the arrival: the levels, the read-back and the character
 assert(times('sboxion: light: 41 of 41 read back as written')==2 and times('sboxion: levels: 95 listed')==2
     and times('sboxion: characters: 1')==2 and calls.levels==2,logs[#logs])
 
--- probe_change: a change of a probe level is logged once, with EVE's place, and again when it changes back.
+-- probe_change: a change of a probe level is logged once, with EVE's place. The change back is logged once too.
 me=at({X=-8000,Y=7000,Z=225})
 levels[94].visible=false
 pass(x,3)
@@ -279,7 +282,7 @@ assert(ok and why:find('rows in; sboxionwarp=refused asks=2 verb=leave why=zone;
 ok,why=x.enter('gate')
 assert(not ok and why=='coop xion: EVE is in SBO Xion already; way out: coop xion leave' and #asked==0,why)
 
--- map_change: the watch ends, nothing is read after, and the next arrival writes the day table again.
+-- map_change: the watch ends and nothing is read after. The next arrival writes the day table again.
 local reads=total()
 me={at={X=0,Y=0,Z=0},map=SB_XION}
 pass(x,0.25)

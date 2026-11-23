@@ -13,7 +13,7 @@
 // never names a world row that is not in yet. SB's world row Xion and its zones are not touched.
 //
 // IDs World 7131 and Zone 1000131. Both are free on build 26123051 (WorldTable 50 rows, highest ID 7000; ZoneTable
-// 199 rows, highest ID 999992). The hall lobbies hold 7121-7125 and 1000121-1000125, and tools/sbo_lobby_rows.py gives
+// 199 rows, highest ID 999992). The hall lobbies hold 7121-7125 and 1000121-1000125. tools/sbo_lobby_rows.py gives
 // hall i the pair (7121 + i, 1000121 + i): 7126-7130 and 1000126-1000130 stay free for five more halls. An SB update
 // that takes either ID refuses the batch (Why::id). No name ends in _<digits>: the warp sends FName number 0.
 // Offsets as in online/lobby/halls_rows.h (SDK stellar-sdk-647527f: SBWorldTableProperty 0x30, SBZoneTableProperty

@@ -30,7 +30,7 @@ std::atomic<uint64_t> sboxion_done{0};
 std::atomic<uint32_t> sboxion_queue{0};
 std::atomic<uint64_t> sboxion_last{0};
 std::atomic<uint8_t> sboxion_type{0}, sboxion_notes{0}; // The asked zone row's type; bit 0 noted, bit 1 moved.
-// The game thread's own: the last request taken, and the time of SB's last save as the last enter read it.
+// The game thread's own: the last request taken, then the time of SB's last save as the last enter read it.
 uint32_t sboxion_taken = 0;
 uint64_t sboxion_kept_last = 0;
 bool sboxion_kept = false;

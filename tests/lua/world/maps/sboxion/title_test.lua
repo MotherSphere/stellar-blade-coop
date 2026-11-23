@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's pak gate and title batch (world/maps/sboxion/sboxion.lua) over fakes: the pak's three files, the status
--- text (its sboxion= line as the native part writes it), WorldTable and ZoneTable with the rows as the native part
--- writes them, and the clock. Covered: no pak: nothing asked or said at the title, the gate read once a Lua load; with
+-- text (its sboxion= line as the native part writes it), the clock, WorldTable and ZoneTable with the rows as the
+-- native part writes them. Covered: no pak: nothing asked or said at the title, the gate read once a Lua load; with
 -- it, nothing on the player's own saves, then the batch once on the co-op save files with its 2 tables, read back,
 -- ok() nil until then and true after; a refusal (a taken ID, rows that read back other than written) logged once,
 -- ok() false; a shut gate's refusal asked again 10 s later; coop off ends the wait.

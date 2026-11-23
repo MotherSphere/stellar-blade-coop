@@ -17,7 +17,7 @@
 // (client +0xa2c) is 1; the client tick 0x141cd2f50 then moves EVE there when +0xa29 is 1.
 //
 // The way out is SB's in-game reload 0x141cf2610 (client, 0, 0, T, 0, 0), T the difficulty read at that moment. It
-// returns 0 for flow 1, a slot below 0 or a file name of one character or less, and has no zone test: it would
+// returns 0 for flow 1, a slot below 0 or a file name of one character or less. It has no zone test: it would
 // reload the entered slot from any zone. So the request carries the zone's FName and the guard compares it with the
 // client's zone.
 //
@@ -43,7 +43,7 @@ constexpr size_t kWarpLocation = 0xa4c, kWarpRotation = 0xa58;
 // warp gets is this index with number 0.
 constexpr uint64_t kNoneIndexAt = 0x147017b00;
 // A zone row of type 5, Zone_BossChallenge: the only type SB keeps as the arrival's zone with no SBZoneVolume at the
-// place (0x141cde9b0 compares row +0x25 with 5 at 0x141cdeb20), and one SB queues no save in (0x141ce8050).
+// place (0x141cde9b0 compares row +0x25 with 5 at 0x141cdeb20). SB queues no save in such a zone (0x141ce8050).
 constexpr uint8_t kBossChallenge = 5;
 
 enum class Verb : uint8_t { none, enter, leave };
@@ -164,8 +164,9 @@ inline Why leave_guard(const Reads &r, uint64_t asked) {
   return Why::none;
 }
 
-// A request as the worker hands it to the game thread: its number, its verb, the zone's FName (index, number 0),
-// whether the saves are the co-op ones, and for enter the place in whole centimetres and the yaw in whole degrees.
+// A request as the worker hands it to the game thread: its number, its verb, the zone's FName (index, number 0) and
+// whether the saves are the co-op ones. For enter it also holds the place in whole centimetres and the yaw in whole
+// degrees.
 struct Ask {
   uint32_t asks = 0;
   Verb verb = Verb::none;

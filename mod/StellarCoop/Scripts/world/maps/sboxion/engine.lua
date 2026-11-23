@@ -5,8 +5,9 @@
 -- FName index for the native request, the SBEnvControlVolume actors with their bActiveVolume, the world's streaming
 -- levels through the three functions SB's exe exposes by name (GetWorldAssetPackageFName, IsLevelLoaded,
 -- IsLevelVisible) and the characters. sboxion.lua calls them only while EVE is in SBO Xion or for a command.
--- bActiveVolume is a plain bool of ASBEnvControlVolume (+0x320 on build 26123051). SB's env pass reads it again each
--- frame, so a write takes effect on the next frame with no call.
+-- bActiveVolume is a plain bool of ASBEnvControlVolume (+0x320 on build 26123051: its set-bit stub 0x14265b310 is
+-- mov byte ptr [rcx+0x320],1). SB's env pass 0x1425c99b0, run from its registry's tick 0x142272930, skips a volume
+-- whose byte is 0 each time it runs, so a write needs no call.
 local U=require('core.unreal')
 local N=require('core.player')
 local Engine={}

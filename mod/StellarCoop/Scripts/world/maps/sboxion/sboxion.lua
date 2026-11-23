@@ -13,8 +13,8 @@
 -- coop xion [city|gate]: on a co-op save, solo, with the pak and the rows in, the request "sboxion enter <zone FName
 -- index> <x> <y> <z> <yaw>" for the native part (native/src/world/maps/sboxion/sboxion.h), which runs its guards and
 -- SB's URL warp in one frame and puts EVE at one of data.lua's two points. The zone is of type 5 (Boss Challenge): SB
--- keeps it as the arrival's zone with no zone volume in the level, and SB queues no save in it. EVE inside is the EVE
--- SB builds for a Boss Challenge zone, from the newest save of the list.
+-- keeps it as the arrival's zone with no zone volume in the level. SB queues no save in it. EVE inside is the EVE SB
+-- builds for a Boss Challenge zone, from the newest save of the list.
 -- Arrival, once a load of SBO Xion: the day table (41 bActiveVolume values of E04_ENV_VOL's volumes, matched by level
 -- and name), read back 2 s and 10 s later, the streaming levels' state, the two probe levels' state and the
 -- characters, each as a log line a test reads. While EVE stays, once a second: each change of the two probe levels
@@ -30,7 +30,7 @@ Xion.ROWS=Enemy.rows(D.ROWS)
 -- rows/rows.h's refusals of a gate that stayed shut (busy, net, unread): the title asks again, so nothing is decided.
 local SHUT={busy=true,net=true,unread=true}
 
-local WANT,NAMED={},#D.DAY.on+#D.DAY.off -- The day table by name, and its 41.
+local WANT,NAMED={},#D.DAY.on+#D.DAY.off -- The day table by name. NAMED: its 41.
 for _,name in ipairs(D.DAY.on) do WANT[name]=true end
 for _,name in ipairs(D.DAY.off) do WANT[name]=false end
 local PROBE={}
@@ -143,7 +143,7 @@ function Xion.new(o)
         local names=world.characters()
         log('sboxion: characters: '..#names..(#names>1 and ' ('..table.concat(names,', ')..')' or ''))
     end
-    -- The two probe levels by name, and their state as text, whole or by the name's last part (A_01).
+    -- The two probe levels by name. Then their state as text, whole or by the name's last part (A_01).
     local function probes()
         local now={}
         for _,p in ipairs(world.probes(D.PROBES)) do now[p.name]=p end
@@ -205,7 +205,7 @@ function Xion.new(o)
             end
         end
     end
-    -- A request for the native part, and its answer from the sboxionwarp line once its asks= grew.
+    -- A request for the native part. Its answer comes from the sboxionwarp line once its asks= grew.
     local awaited=nil -- {asks=<the line's asks at the request>, due=}
     local function request(line,now)
         local s=Enemy.parse(o.status(),'sboxionwarp')
@@ -260,7 +260,7 @@ function Xion.new(o)
             if not fine then return false,message end
             local index=guarded('zone name',world.zone_index,D.ZONE)
             if not index then
-                return false,'coop xion: the rows are in, but '..D.ZONE..' is no name in this game: nothing was asked'
+                return false,'coop xion: the rows are in. '..D.ZONE..' is no name in this game: nothing was asked'
             end
             local asked,said=request(string.format('sboxion enter %d %d %d %d %d',index,round(at.X),round(at.Y),
                 round(at.Z),round(at.Yaw)),os.clock())
@@ -275,7 +275,8 @@ function Xion.new(o)
         if not ok then return false,why end
         local index=guarded('zone name',world.zone_index,D.ZONE)
         if not index then
-            return false,'coop xion leave: '..D.ZONE..' is no name in this game (its rows are not in): nothing was asked'
+            return false,'coop xion leave: '..D.ZONE..' is no name in this game (its rows are not in): nothing was '
+                ..'asked'
         end
         local asked,said=request('sboxion leave '..index,os.clock())
         if not asked then return false,'coop xion leave: '..said end

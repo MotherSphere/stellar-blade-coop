@@ -30,8 +30,9 @@
 // list on both "Talk to Lily" tasks, then her borrowed choice row patched in place in TheaterSelectDataTable with no ID
 // check, last, so a refusal there leaves the quest rows in. The hall lobbies' batch (online/lobby/halls_rows.h, patches
 // of its own): five WorldTable rows, then five ZoneTable rows naming them, in the two tables only it and SBO Xion's
-// batch write, then 171 ZoneEnvSpawnTable seat rows over Xion's chair rows, each naming its own row and its hall's zone; a taken
-// zone ID stops it after the worlds, a taken seat ID at that seat, a ZoneTable of another row size before any row.
+// batch write, then 171 ZoneEnvSpawnTable seat rows over Xion's chair rows, each naming its own row and its hall's
+// zone; a taken zone ID stops it after the worlds, a taken seat ID at that seat, a ZoneTable of another row size before
+// any row.
 // The team shop's batch (world/teamshop/teamshop_rows.h, generated from data/teamshop/, patches of its own): names
 // and IDs unique against the Lion's generator's batches; its rows only in ItemTable, ShopItemTable and ShopTable with
 // its ShopTable row last; a whole run.
