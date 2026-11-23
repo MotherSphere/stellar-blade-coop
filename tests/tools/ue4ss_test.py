@@ -359,6 +359,8 @@ assert HELPERS.read_text().startswith("-- Stellar Blade Online's copy of UE4SS v
 # The pinned release zip, when this PC has it: OFFICIAL is its file.
 ZIP = tool.CACHE
 assert tool.SHA256 == '251ad0d1381a241750e036f5918cbf2b5d7ec58ebc608cb2dd09d459d0c81e45'  # GitHub's digest of the asset
+# SBO's UE4SS.dll: v4.0.0 with the patch in ue4ss/patches/, the build tested in game.
+assert tool.DLL_SHA256 == '791a90ea71c6ffb3743d34f8c1afb239c201984de177286b25ba853e5a1e876b'
 if ZIP.is_file():
     blob = ZIP.read_bytes()
     assert hashlib.sha256(blob).hexdigest() == tool.SHA256, ZIP
@@ -438,6 +440,9 @@ expected['ue4ss/UE4SS-settings.ini'] = SETTINGS.read_bytes()
 STARTED = ('BPML_GenericFunctions', 'BPModLoaderMod', 'ConsoleEnablerMod', 'Keybinds')
 expected.update({f'ue4ss/Mods/{mod}/enabled.txt': b'' for mod in STARTED})
 expected[tool.HELPERS] = HELPERS.read_bytes()
+# UE4SS.dll is SBO's build, in place of the release's.
+DLL_BYTES = b'sbo ue4ss'
+expected['ue4ss/UE4SS.dll'] = DLL_BYTES
 expected.update({f'ue4ss/{p.relative_to(SET).as_posix()}': p.read_bytes() for p in SET.rglob('*')
              if p.is_file() and p.name != 'README.md'})
 expected['ue4ss/SBO-NOTICE'] = (ROOT / 'NOTICE').read_bytes()
@@ -445,7 +450,7 @@ expected['ue4ss/SBO-LICENSE'] = (ROOT / 'LICENSE').read_bytes()
 assert {'ue4ss/MemberVariableLayout.ini', 'ue4ss/VTableLayout.ini', 'ue4ss/UE4SS_Signatures/GNatives.lua',
         'ue4ss/UE4SS_Signatures/GUObjectArray.lua'} <= set(expected), sorted(expected)
 
-pin = tool.URL, tool.SHA256, tool.CACHE
+pin = tool.URL, tool.SHA256, tool.CACHE, tool.DLL, tool.DLL_SHA256
 with tempfile.TemporaryDirectory() as tmp:
     tmp = Path(tmp)
     release, other = zip_of(RELEASE), zip_of({'dwmapi.dll': b'another proxy'})
@@ -459,6 +464,7 @@ with tempfile.TemporaryDirectory() as tmp:
     try:
         tool.URL, tool.SHA256 = (tmp / 'no-such.zip').as_uri(), hashlib.sha256(release).hexdigest()
         tool.CACHE = tmp / 'cache/UE4SS_v4.0.0.zip'
+        tool.DLL, tool.DLL_SHA256 = tmp / 'build/UE4SS.dll', hashlib.sha256(DLL_BYTES).hexdigest()
         # The set's name is the header's TimeDateStamp and SizeOfImage. A file that is no 64-bit PE file is refused.
         assert tool.build(known) == SET.name and tool.build(unknown) == f'{STAMP:08x}-{SIZE + 0x1000:08x}'
         for bad in (x86, text):
@@ -471,6 +477,17 @@ with tempfile.TemporaryDirectory() as tmp:
             f'SBO has no UE4SS files for this Stellar Blade build ({STAMP:08x}-{SIZE + 0x1000:08x}), only for '
             f'{", ".join(builds)}. SBO waits for an update. Nothing was written.', ''), stop(tool.package, unknown)
         assert not tool.CACHE.parent.exists()
+        # A missing UE4SS.dll or one of other bytes is refused before any download.
+        message, _ = stop(tool.package, known)
+        assert message.startswith(f'Cannot read {tool.DLL}: ') and message.endswith(
+            '. Build it with python3 tools/ue4ss_build.py. Nothing was written.'), message
+        tool.DLL.parent.mkdir()
+        tool.DLL.write_bytes(b'the release ue4ss')
+        assert stop(tool.package, known) == (
+            f"{tool.DLL} is not SBO's build of UE4SS.dll (SHA-256 {hashlib.sha256(b'the release ue4ss').hexdigest()}, "
+            f'expected {tool.DLL_SHA256}): refused. Nothing was written.', ''), stop(tool.package, known)
+        assert not tool.CACHE.parent.exists()
+        tool.DLL.write_bytes(DLL_BYTES)
         # A download of other bytes is refused and never cached.
         tool.URL = (tmp / 'other.zip').as_uri()
         assert stop(tool.package, known) == (
@@ -486,6 +503,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert [p.name for p in tool.CACHE.parent.iterdir()] == [tool.CACHE.name], list(tool.CACHE.parent.iterdir())
         assert tool.CACHE.read_bytes() == release
         assert files == expected, sorted(set(files) ^ set(expected)) or [r for r in expected if files[r] != expected[r]]
+        assert RELEASE['ue4ss/UE4SS.dll'] not in files.values()
         tool.URL = (tmp / 'no-such.zip').as_uri()
         assert tool.package(known) == expected
         # zip: the package under SB/Binaries/Win64/, to unpack into the Stellar Blade folder. The same files give the
@@ -502,6 +520,16 @@ with tempfile.TemporaryDirectory() as tmp:
         assert {n: made.read(n) for n in made.namelist()} == zipped_files, sorted(set(made.namelist()) ^ set(zipped_files))
         assert (tmp / 'a/SBO-UE4SS.zip').read_bytes() == (tmp / 'b/SBO-UE4SS.zip').read_bytes()
         assert {i.date_time for i in made.infolist()} == {(1980, 1, 1, 0, 0, 0)}
+        # A UE4SS.dll given after the zip's path replaces DLL. It is refused the same way.
+        (tmp / 'given.dll').write_bytes(DLL_BYTES)
+        tool.DLL.write_bytes(b'stale')
+        with contextlib.redirect_stdout(io.StringIO()):
+            tool.main(['ue4ss.py', 'zip', str(known), str(tmp / 'c/SBO-UE4SS.zip'), str(tmp / 'given.dll')])
+        assert (tmp / 'c/SBO-UE4SS.zip').read_bytes() == (tmp / 'a/SBO-UE4SS.zip').read_bytes()
+        message, _ = stop(tool.main, ['ue4ss.py', 'zip', str(known), str(tmp / 'd.zip')])
+        assert message.startswith(f"{tool.DLL} is not SBO's build of UE4SS.dll"), message
+        assert not (tmp / 'd.zip').exists()
+        tool.DLL.write_bytes(DLL_BYTES)
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             tool.main(['ue4ss.py', 'fetch'])
@@ -514,13 +542,26 @@ with tempfile.TemporaryDirectory() as tmp:
         assert tool.CACHE.read_bytes() == other
         assert stop(tool.main, ['ue4ss.py'])[0].startswith('python3 tools/ue4ss.py fetch')
     finally:
-        tool.URL, tool.SHA256, tool.CACHE = pin
+        tool.URL, tool.SHA256, tool.CACHE, tool.DLL, tool.DLL_SHA256 = pin
     # The pinned release itself, when this PC has it: each left-out mod is a folder of it. The package keeps the
-    # release's proxy, UE4SS.dll, its license and the rest of mods.txt.
+    # release's proxy, its license, the rest of mods.txt and every other file of it byte for byte. Its UE4SS.dll is
+    # SBO's build at DLL when this PC has the pinned one, else a made-up one with its own pin. A DLL that tools/
+    # ue4ss_build.py made is not the pin: the refusal of such bytes is checked above with made-up files.
+    real_sha = hashlib.sha256(tool.DLL.read_bytes()).hexdigest() if tool.DLL.is_file() else None
+    real_dll = real_sha == tool.DLL_SHA256
     if ZIP.is_file():
-        names = zipfile.ZipFile(ZIP).namelist()
+        rz = zipfile.ZipFile(ZIP)
+        names = rz.namelist()
         assert all(any(n.startswith(f'ue4ss/Mods/{mod}/') for n in names) for mod in GONE), names
-        files = tool.package(known)
+        if real_dll:
+            files = tool.package(known)
+        else:
+            (tmp / 'made-up.dll').write_bytes(DLL_BYTES)
+            try:
+                tool.DLL_SHA256 = hashlib.sha256(DLL_BYTES).hexdigest()
+                files = tool.package(known, tmp / 'made-up.dll')
+            finally:
+                tool.DLL_SHA256 = pin[4]
         ours = ['ue4ss/UE4SS-settings.ini', tool.HELPERS, *(r for r in expected if r not in RELEASE)]
         kept = {n for n in names if not n.endswith('/') and not n.startswith(tuple(f'ue4ss/Mods/{m}/' for m in GONE))}
         assert set(files) == kept | set(ours), sorted(set(files) ^ (kept | set(ours)))
@@ -532,7 +573,15 @@ with tempfile.TemporaryDirectory() as tmp:
         console = 'ue4ss/Mods/ConsoleEnablerMod/'
         assert files[f'{console}Scripts/main.lua'] == zipfile.ZipFile(ZIP).read(f'{console}Scripts/main.lua')
         assert files[f'{console}enabled.txt'] == b'', files[f'{console}enabled.txt']
-        packaged = 'package checked against the v4.0.0 zip'
+        same = kept - {'ue4ss/UE4SS.dll', 'ue4ss/Mods/mods.txt', 'ue4ss/UE4SS-settings.ini', tool.HELPERS}
+        assert 'dwmapi.dll' in same and not [n for n in same if files[n] != rz.read(n)], same
+        assert files['ue4ss/UE4SS.dll'] != rz.read('ue4ss/UE4SS.dll')
+        if real_dll:
+            assert hashlib.sha256(files['ue4ss/UE4SS.dll']).hexdigest() == tool.DLL_SHA256
+            packaged = "package checked against the v4.0.0 zip with SBO's UE4SS.dll"
+        else:
+            why = f'no {tool.DLL}' if real_sha is None else f'{tool.DLL} is not the pin ({real_sha})'
+            packaged = f'package checked against the v4.0.0 zip; real UE4SS.dll skipped: {why}'
     else:
         packaged = f'package not checked against the v4.0.0 zip: no {ZIP}'
 

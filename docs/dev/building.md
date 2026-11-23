@@ -15,6 +15,7 @@ clang-cl. For the design, see [README.md](../README.md#how-stellar-blade-online-
   `~/.local/share/xwin/clang-cl-msvc.cmake` by default, or the path in the `STELLAR_WINDOWS_TOOLCHAIN` environment
   variable.
 - `wine` from a Proton build, for the Wine smoke test only.
+- For SBO's `UE4SS.dll` only: what [UE4SS.dll](#ue4ssdll) lists.
 
 The CMake project in `native/` builds one target, `StellarCoop.dll`, with the C++ runtime linked statically, so there
 is no runtime DLL to ship.
@@ -79,11 +80,13 @@ with their scope; a `!` marks a breaking change.
 ## UE4SS
 
 SBO runs on the official UE4SS v4.0.0 release (https://github.com/UE4SS-RE/RE-UE4SS, tag `v4.0.0`, MIT) with its own
-settings and the files of the player's Stellar Blade build. `tools/ue4ss.py` builds that package:
+build of `UE4SS.dll`, its own settings and the files of the player's Stellar Blade build. `tools/ue4ss_build.py` builds
+the DLL. `tools/ue4ss.py` builds the package:
 
 ```
+python3 tools/ue4ss_build.py [<work folder>]
 python3 tools/ue4ss.py fetch
-python3 tools/ue4ss.py zip <SB-Win64-Shipping.exe> <out.zip>
+python3 tools/ue4ss.py zip <SB-Win64-Shipping.exe> <out.zip> [<UE4SS.dll>]
 ```
 
 `fetch` downloads `UE4SS_v4.0.0.zip` once into `~/.cache/sbo-ue4ss/official-v4.0.0/` and checks its SHA-256 against
@@ -93,10 +96,12 @@ build machine: the tool reads it as data.
 `zip` writes the package for one executable, with paths under `SB/Binaries/Win64/` to unpack into the Stellar Blade
 folder. The package holds:
 
-- the release's `dwmapi.dll` and `ue4ss/` folder, without its settings file and without the three example mods that
-  change the game (CheatManagerEnablerMod, ConsoleCommandsMod and SplitScreenMod). Their lines leave `Mods/mods.txt`
-  too. The release's ConsoleEnablerMod stays: it adds F10 and Tilde to the game's console keys, where players type
-  the `coop` commands;
+- SBO's `UE4SS.dll` (see [UE4SS.dll](#ue4ssdll)), from the path given after `<out.zip>` or else from the default
+  output of `tools/ue4ss_build.py`;
+- the release's `dwmapi.dll` and `ue4ss/` folder, without its `UE4SS.dll`, without its settings file and without the
+  three example mods that change the game (CheatManagerEnablerMod, ConsoleCommandsMod and SplitScreenMod). Their
+  lines leave `Mods/mods.txt` too. The release's ConsoleEnablerMod stays: it adds F10 and Tilde to the game's console
+  keys, where players type the `coop` commands;
 - `ue4ss/UE4SS-settings.ini` from this repository;
 - the files of `ue4ss/builds/<TimeDateStamp>-<SizeOfImage>/` for the executable's PE header, without the set's
   `README.md`;
@@ -109,10 +114,12 @@ BPModLoaderMod is the one that loads Blueprint mods from `Content/Paks/LogicMods
 
 An executable with no set gets nothing. The tool names the build it read and the builds SBO has files for, then
 stops. UE4SS v4.0.0 without the set's `MemberVariableLayout.ini` would write past the end of the game's
-FUObjectArray.
+FUObjectArray. A missing `UE4SS.dll` or one whose SHA-256 is not the pin also stops it, before the download.
 
-`tools/install.py --ue4ss` installs the same package. Before the tests run, it reads the executable's header and
-checks the release zip, which it downloads when the cache lacks it. An unknown build or a refused zip stops it there.
+`tools/install.py --ue4ss` installs the same package, with the `UE4SS.dll` at the default output of
+`tools/ue4ss_build.py`. Before the tests run, it reads the executable's header, checks that DLL and checks the release
+zip, which it downloads when the cache lacks it. An unknown build, a missing or refused DLL or a refused zip stops it
+there.
 After the mod install, it backs up every file it replaces or removes into
 `~/StellarCoop-install-backups/<UTC time>/Win64`. It removes the signature scripts in `ue4ss/UE4SS_Signatures/` that
 the package lacks (the 1.3 package's `FText_Constructor.lua`, another build's scripts) and the 1.3 package's
@@ -121,6 +128,36 @@ the package lacks (the 1.3 package's `FText_Constructor.lua`, another build's sc
 
 [SBO UE4SS](ue4ss.md) says where each file of the package comes from, its license and how to add the set of a new
 Stellar Blade build.
+
+### UE4SS.dll
+
+`tools/ue4ss_build.py` builds SBO's `UE4SS.dll` on Linux: UE4SS tag `v4.0.0` with the patch in `ue4ss/patches/`, for
+Windows x64 in the `Game__Shipping__Win64` configuration ([SBO UE4SS](ue4ss.md#ue4ssdll) says what the patch fixes).
+Git does not hold the DLL. The build needs:
+
+- a GitHub login that can read UE4SS-RE's private UEPseudo repository, the `deps/first/Unreal` submodule. The clone
+  reads it over https: `gh auth login` sets the credential helper it uses;
+- CMake, Ninja, `clang-cl`, `lld-link` and `llvm-ml` from LLVM;
+- Rust through rustup, with the `x86_64-pc-windows-msvc` target (`rustup target add x86_64-pc-windows-msvc`);
+- the MSVC CRT and Windows SDK that xwin unpacks, in `~/.local/share/xwin` or the folder in `XWIN_DIR`;
+- no space in the work folder's path.
+
+The work folder (default `~/.cache/sbo-ue4ss/ue4ss-build`) must be missing or empty. The tool clones the tag with its
+submodules into `src/`, stops unless the tag is commit `30afe5ff`, applies the patch with `git am`, stops unless that
+gives commit `4c8e4f4d`, then configures and builds the `UE4SS` target into `build-rel/` with the repository's
+`cmake/toolchains/xwin-clang-cl-toolchain.cmake`. UE4SS's `CMakeLists.txt` compiles the short hash of that commit into
+the DLL: its version information, the first line of its log and the titles of its debugging windows hold it. `git am`
+runs without the user's and the system's Git config, with the patch's author as committer and the author's date as
+commit date. A signing key (`commit.gpgsign`) or `am.messageid` would give another commit. Cargo keeps its downloads in
+`cargo-home/`. The compiler and Rust flags map the local folders to `src`, `build`, `cargo`, `rustup` and `xwin`.
+`/PDBALTPATH:UE4SS.pdb` keeps the PDB's local path out of the DLL. `/Brepro` makes the link reproducible. The tool
+passes these flags through `CFLAGS`, `CXXFLAGS`, `RUSTFLAGS` and `LDFLAGS`: the toolchain file adds its include flags to
+them, which `-DCMAKE_CXX_FLAGS` would replace. The build takes about 8.5 minutes with 6 jobs. It ends with the DLL's
+path and SHA-256 and says whether that is the pin of `tools/ue4ss.py`. Today it is not: [SBO UE4SS](ue4ss.md#ue4ssdll)
+says why.
+
+Only the `UE4SS` target is built. The `proxy` target (`dwmapi.dll`) would run `proxy_generator.exe` on the build
+machine. No Windows program runs: the package keeps the release's `dwmapi.dll`.
 
 ## tools/wine_smoke.py
 
@@ -320,10 +357,12 @@ tools/
                             data/teamshop/
   ue4ss.py                  fetches the pinned UE4SS v4.0.0 release zip and assembles SBO's UE4SS package for one
                             Stellar Blade build (see UE4SS)
+  ue4ss_build.py            builds SBO's UE4SS.dll: tag v4.0.0 with the patch in ue4ss/patches/ (see UE4SS.dll)
   wine_smoke.py             loads the DLL under Wine
 ue4ss/
   UE4SS-settings.ini        SBO's UE4SS settings, the v4.0.0 release file with SBO's values
   builds/<stamp>-<size>/    the UE4SS files of one Stellar Blade build, named after its executable's PE header
+  patches/                  the patch that tools/ue4ss_build.py applies to UE4SS v4.0.0 for SBO's UE4SS.dll
 .github/workflows/
   release-please.yml        the release pull request, the tag and the draft release (see Releases)
   nexus-upload.yml          sends a published release's zip to Nexus Mods

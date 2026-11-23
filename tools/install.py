@@ -7,8 +7,9 @@ What an install replaces or removes is backed up first; --uninstall backs up the
 --zip writes a release zip that the same commit always gives byte for byte, with a CHANGELOG.md from the commits made
 after the last GPL-3.0 commit. --pak also copies the hall lobby pak, kept on this PC and never in the zip, into
 SB/Content/Paks/~mods; --uninstall backs up and removes its three files there, and nothing else in ~mods. --ue4ss
-also installs SBO's UE4SS package (tools/ue4ss.py) into SB/Binaries/Win64: the official UE4SS v4.0.0 with SBO's
-settings and the files of the game's build. It backs up what it replaces or removes."""
+also installs SBO's UE4SS package (tools/ue4ss.py) into SB/Binaries/Win64: the official UE4SS v4.0.0 with SBO's build
+of UE4SS.dll (tools/ue4ss_build.py), SBO's settings and the files of the game's build. A UE4SS.dll that is not the
+pinned build stops it before the tests. It backs up what it replaces or removes."""
 import argparse
 import hashlib
 import os
@@ -267,9 +268,9 @@ def main(argv=None):
                       help=f'After the install, also copy {", ".join(PAK)} from DIR into SB/Content/Paks/~mods, '
                            'backing up the ones they replace')
     parser.add_argument('--ue4ss', action='store_true',
-                        help="Also install UE4SS v4.0.0 with SBO's settings and the files of the game's build "
-                             '(tools/ue4ss.py) into SB/Binaries/Win64, backing up the files it replaces. The UE4SS '
-                             'Mods folder may be missing then. Not with --zip or --uninstall')
+                        help="Also install UE4SS v4.0.0 with SBO's build of UE4SS.dll, SBO's settings and the files "
+                             "of the game's build (tools/ue4ss.py) into SB/Binaries/Win64, backing up the files it "
+                             'replaces. The UE4SS Mods folder may be missing then. Not with --zip or --uninstall')
     args = parser.parse_args(argv)
     if args.ue4ss and (args.zip or args.uninstall):
         parser.error('argument --ue4ss: not allowed with --zip or --uninstall')

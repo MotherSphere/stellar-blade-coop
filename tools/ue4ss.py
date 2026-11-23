@@ -2,13 +2,16 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-"""SBO's UE4SS package: the official UE4SS v4.0.0 release with Stellar Blade Online's settings and the files of one
-Stellar Blade build, as paths under SB/Binaries/Win64.
+"""SBO's UE4SS package: the official UE4SS v4.0.0 release with SBO's build of UE4SS.dll, Stellar Blade Online's
+settings and the files of one Stellar Blade build, as paths under SB/Binaries/Win64.
 
 fetch() downloads the release zip once into CACHE. It refuses bytes whose SHA-256 is not SHA256, from the cache or
 from the download. The zip is only read as data: nothing in it runs here.
 package() takes the release's dwmapi.dll and ue4ss/ folder without its settings file and without the example mods
-that change the game (DROPPED, whose lines also leave mods.txt). It swaps in SBO's UEHelpers.lua (HELPERS). It adds
+that change the game (DROPPED, whose lines also leave mods.txt). Its UE4SS.dll is SBO's build (DLL by default): tag
+v4.0.0 with the patch in ue4ss/patches/, which tools/ue4ss_build.py applies and builds. That patch fixes the freeze
+of UE4SS-RE/RE-UE4SS issue 1504. A file whose SHA-256 is not DLL_SHA256 is refused before any download. The release's
+UE4SS.dll is not shipped. package() swaps in SBO's UEHelpers.lua (HELPERS). It adds
 ue4ss/UE4SS-settings.ini, the files of ue4ss/builds/<TimeDateStamp>-<SizeOfImage>/ for the executable's PE header
 (the set's README.md stays here) and SBO's NOTICE and LICENSE as ue4ss/SBO-NOTICE and ue4ss/SBO-LICENSE. An
 executable with no set gets nothing at all, not even a download: UE4SS v4.0.0 without the set's
@@ -20,8 +23,9 @@ a game that never had UE4SS. LineTraceMod ships off, as in the release. ConsoleE
 game's console keys: players type SBO's coop commands in that console.
 
 Run: python3 tools/ue4ss.py fetch
-     python3 tools/ue4ss.py zip <SB-Win64-Shipping.exe> <out.zip>   (paths under SB/Binaries/Win64/, to unpack into
-                                                                     the Stellar Blade folder)"""
+     python3 tools/ue4ss.py zip <SB-Win64-Shipping.exe> <out.zip> [<UE4SS.dll>]
+     (paths under SB/Binaries/Win64/, to unpack into the Stellar Blade folder. Without <UE4SS.dll> it takes the
+     default output of tools/ue4ss_build.py)"""
 import hashlib
 import io
 import struct
@@ -36,6 +40,10 @@ BUILDS = ROOT / 'ue4ss/builds'
 URL = 'https://github.com/UE4SS-RE/RE-UE4SS/releases/download/v4.0.0/UE4SS_v4.0.0.zip'
 SHA256 = '251ad0d1381a241750e036f5918cbf2b5d7ec58ebc608cb2dd09d459d0c81e45'
 CACHE = Path.home() / '.cache/sbo-ue4ss/official-v4.0.0/UE4SS_v4.0.0.zip'
+# SBO's UE4SS.dll, where tools/ue4ss_build.py writes it by default, 27089920 bytes. DLL_SHA256 is the build that was
+# tested in game: no freeze with a mod that loads assets from a hook, F10 opens the console.
+DLL = Path.home() / '.cache/sbo-ue4ss/ue4ss-build/build-rel/Game__Shipping__Win64/bin/UE4SS.dll'
+DLL_SHA256 = '791a90ea71c6ffb3743d34f8c1afb239c201984de177286b25ba853e5a1e876b'
 # The release's example mods that change the game: cheats, the console's set and summon commands, split screen. A
 # player's own copies stay: install.py never touches a mod folder the package lacks. ConsoleEnablerMod ships: SBO's
 # coop commands are typed in the console it opens.
@@ -83,12 +91,27 @@ def fetch():
     return data
 
 
-def package(exe):
-    """{path under SB/Binaries/Win64: bytes} of SBO's UE4SS for this executable."""
+def built(dll):
+    """The bytes of SBO's UE4SS.dll at dll. Any other file is refused."""
+    try:
+        data = Path(dll).read_bytes()
+    except OSError as error:
+        sys.exit(f'Cannot read {dll}: {error.strerror}. Build it with python3 tools/ue4ss_build.py. '
+                 'Nothing was written.')
+    if (got := hashlib.sha256(data).hexdigest()) != DLL_SHA256:
+        sys.exit(f"{dll} is not SBO's build of UE4SS.dll (SHA-256 {got}, expected {DLL_SHA256}): refused. "
+                 'Nothing was written.')
+    return data
+
+
+def package(exe, dll=None):
+    """{path under SB/Binaries/Win64: bytes} of SBO's UE4SS for this executable, with the UE4SS.dll at dll (DLL by
+    default)."""
     name, sets = build(exe), sorted(p.name for p in BUILDS.iterdir())
     if name not in sets:
         sys.exit(f'SBO has no UE4SS files for this Stellar Blade build ({name}), only for {", ".join(sets)}. '
                  'SBO waits for an update. Nothing was written.')
+    ue4ss_dll = built(dll or DLL)  # Before the download: a missing or wrong DLL stops it in a second.
     release, dropped = zipfile.ZipFile(io.BytesIO(fetch())), tuple(f'ue4ss/Mods/{mod}/' for mod in DROPPED)
     files = {entry.filename: release.read(entry) for entry in release.infolist() if not entry.is_dir()
              and entry.filename != 'ue4ss/UE4SS-settings.ini' and not entry.filename.startswith(dropped)}
@@ -100,6 +123,7 @@ def package(exe):
         mod, _, on = (part.strip() for part in line.partition(':'))
         if on == '1' and mod not in DROPPED and any(f.startswith(f'ue4ss/Mods/{mod}/') for f in files):
             files[f'ue4ss/Mods/{mod}/enabled.txt'] = b''
+    files['ue4ss/UE4SS.dll'] = ue4ss_dll  # In place of the release's.
     files['ue4ss/UE4SS-settings.ini'] = (ROOT / 'ue4ss/UE4SS-settings.ini').read_bytes()
     files[HELPERS] = (ROOT / HELPERS).read_bytes()  # The release's file with the caches of UE4SS 3.x put back.
     for path in sorted((BUILDS / name).rglob('*')):
@@ -125,9 +149,9 @@ def main(argv):
     if argv[1:] == ['fetch']:
         fetch()
         return print(f'{CACHE}: UE4SS v4.0.0, SHA-256 checked')
-    if len(argv) == 4 and argv[1] == 'zip':
+    if len(argv) in (4, 5) and argv[1] == 'zip':
         # Unpacked over a UE4SS install, a mods.txt would replace the player's list of mods: install.py keeps it too.
-        files = {rel: data for rel, data in package(argv[2]).items() if rel != 'ue4ss/Mods/mods.txt'}
+        files = {rel: data for rel, data in package(argv[2], *argv[4:]).items() if rel != 'ue4ss/Mods/mods.txt'}
         write_zip(files, Path(argv[3]))
         return print(f'Wrote {argv[3]} ({len(files)} files)')
     sys.exit(__doc__.rsplit('Run: ', 1)[1])
