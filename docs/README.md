@@ -50,7 +50,7 @@ start with `coop`.
 | [Matrix XIII](world/matrix13.md) | The cut area, `coop mxiii` and its test pak |
 | [Lily's signal](world/lily-signal.md) | The mod's two quests that lead through Matrix XIII, their talks, lines and status lines |
 | [Team shop](world/teamshop.md) | `coop teamshop`: outfits made by the SBO team for gold in the game's own shop screen on a co-op save; when it refuses |
-| [SBO Xion](world/maps/sboxion.md) | An empty Xion in a world of SBO's own (experimental, not run in game): `coop xion`, its test pak, its rows, the warp, the light, the log lines of its first test |
+| [SBO Xion](world/maps/sboxion.md) | An empty Xion in a world of SBO's own (experimental): `coop xion`, its test pak, its rows, the warp, the light, the log lines of its first test |
 
 ## Story
 
