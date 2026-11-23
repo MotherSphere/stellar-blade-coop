@@ -501,8 +501,9 @@ with tempfile.TemporaryDirectory() as tmp:
     assert done.returncode == 0 and '--ue4ss' in done.stdout, (done.returncode, done.stderr)
 
     # 21. main with --ue4ss: never with --zip or --uninstall. A game folder without the executable, an executable with
-    # no build set in ue4ss/builds/ and a cached release zip of other bytes each stop it before the tests. Then its dry
-    # run and its install each say the mod's lines, then the UE4SS lines. A Win64 folder without UE4SS is enough.
+    # no build set in ue4ss/builds/, a missing UE4SS.dll build, a UE4SS.dll of other bytes and a cached release zip of
+    # other bytes each stop it before the tests. Then its dry run and its install each say the mod's lines, then the
+    # UE4SS lines. A Win64 folder without UE4SS is enough.
     def header(stamp, size):
         """The first 0x100 bytes of a 64-bit PE file with this TimeDateStamp and SizeOfImage."""
         head = bytearray(0x100)
@@ -519,7 +520,8 @@ with tempfile.TemporaryDirectory() as tmp:
     for other in ('--zip', '--uninstall'):
         code, out = with_ue4ss(other)
         assert code == 2 and 'argument --ue4ss: not allowed with --zip or --uninstall' in out, (code, out)
-    saved = install.subprocess, install.sanitizers, install.version, install.package, install.ue4ss.CACHE
+    saved = (install.subprocess, install.sanitizers, install.version, install.package, install.ue4ss.CACHE,
+             install.ue4ss.DLL, install.ue4ss.DLL_SHA256)
     install.subprocess = types.SimpleNamespace(run=tests_ran)
     try:
         code, out = with_ue4ss()
@@ -530,6 +532,16 @@ with tempfile.TemporaryDirectory() as tmp:
         assert with_ue4ss() == (f'SBO has no UE4SS files for this Stellar Blade build (6ad8eff1-15fa3001), only for '
                                 f'{builds}. SBO waits for an update. Nothing was written.', '')
         exe.write_bytes(header(0x6ad8eff1, 0x15fa3000))  # Build 26123051's, as check_build() pins it.
+        install.ue4ss.DLL = tmp / 'ue4ss-build/UE4SS.dll'
+        code, out = with_ue4ss()
+        assert code.startswith(f'Cannot read {install.ue4ss.DLL}: ') and code.endswith(
+            '. Build it with python3 tools/ue4ss_build.py. Nothing was written.') and out == '', (code, out)
+        put(install.ue4ss.DLL.parent, {'UE4SS.dll': b'other bytes'})
+        assert with_ue4ss() == (f"{install.ue4ss.DLL} is not SBO's build of UE4SS.dll (SHA-256 "
+                                f'{hashlib.sha256(b"other bytes").hexdigest()}, expected '
+                                f'{install.ue4ss.DLL_SHA256}): refused. Nothing was written.', '')
+        put(install.ue4ss.DLL.parent, {'UE4SS.dll': b'sbo ue4ss'})
+        install.ue4ss.DLL_SHA256 = hashlib.sha256(b'sbo ue4ss').hexdigest()
         install.ue4ss.CACHE = tmp / 'cache/UE4SS_v4.0.0.zip'
         put(install.ue4ss.CACHE.parent, {install.ue4ss.CACHE.name: b'not the release'})
         assert with_ue4ss() == (f'{install.ue4ss.CACHE} is not the UE4SS v4.0.0 release zip (SHA-256 '
@@ -551,7 +563,8 @@ with tempfile.TemporaryDirectory() as tmp:
         finally: install.ue4ss.package = real_package
         assert packaged == [exe, exe], packaged
     finally:
-        install.subprocess, install.sanitizers, install.version, install.package, install.ue4ss.CACHE = saved
+        (install.subprocess, install.sanitizers, install.version, install.package, install.ue4ss.CACHE,
+         install.ue4ss.DLL, install.ue4ss.DLL_SHA256) = saved
     assert files_of(win64c) == {**ue4ss_files, 'SB-Win64-Shipping.exe': header(0x6ad8eff1, 0x15fa3000),
                                 'ue4ss/Mods/StellarCoop/enabled.txt': b'',
                                 f'ue4ss/Mods/StellarCoop/{install.MANIFEST}': b'enabled.txt\n'}
