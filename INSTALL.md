@@ -13,8 +13,9 @@ Linux PC have played together. The rest of the documentation is in
 - UE4SS, as packaged in "Stellar Blade UE4SS 1.3" (UE4SS v3.0.1 Beta, git `08a0733`). The first lines of
   `UE4SS.log` show the version, for example `UE4SS - v3.0.1 Beta #0 - Git SHA #08a0733`.
 - Optional: ConsoleEnablerMod, which comes with that UE4SS package, for the `coop` console commands. The keys (see
-  "Keys and settings") work without it. It needs the line `ConsoleEnablerMod : 1` in `Mods/mods.txt`. In game, `F10`
-  or `~` (tilde) opens the console.
+  "Keys and settings") work without it. It needs the line `ConsoleEnablerMod : 1` in `Mods/mods.txt`. SBO's own UE4SS
+  package (`--ue4ss` under "Install") includes ConsoleEnablerMod and starts it. In game, `F10` or `~` (tilde) opens
+  the console.
 
 ## Find the folders
 
@@ -45,6 +46,12 @@ UE4SS starts every mod folder that contains an `enabled.txt` file, so you do not
 On Linux, you can build and install the mod from the Stellar Blade Online repository instead, with
 `python3 tools/install.py`. Add `--game <Stellar Blade folder>` if the game is not in the script's default folder
 (`--help` shows it). The script first backs up the files it replaces into `~/StellarCoop-install-backups`.
+
+`python3 tools/install.py --ue4ss` also installs SBO's own UE4SS package in place of the 1.3 package: the official
+UE4SS v4.0.0 with Stellar Blade Online's settings and the files of your game build. It backs up each UE4SS file it
+replaces or removes into the same folder. On a game build it has no files for, it writes no UE4SS file. This option is
+still being tested. Without it, the script leaves your UE4SS as it is. [docs/dev/ue4ss.md](docs/dev/ue4ss.md) lists
+what the package holds.
 
 ### Linux and Steam Deck
 

@@ -593,7 +593,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   after it went and came back between two reads, one SB showed again told once across its sublevel's return, a
   SkyCreator sublevel with no dome, nothing read off the live passes and a sublevel that came meanwhile looked up at the
   first live pass, a streaming level whose read raises; the Terrace hall left alone; with the keep, no star material
-  loaded at dusk until it is in;
+  loaded at dusk until it is in; a dome actor that comes back at the freed address of the old one, whose star layer
+  went with the old actor, gets it looked for and made again;
 - `world/objects/wiring_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the
   start once a load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two
   notices;
@@ -1713,7 +1714,25 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   part: the copy of the three `zSBO_Lobby` files into `~mods` with a backup of the ones it replaces, a copy that does
   not hash like its source, a folder that lacks one of the files, the dry run, the refusal while the game runs, and an
   uninstall without and with the mod folder (the pak first, each into its own backup folder), all of them leaving the
-  rest of `~mods` and `LogicMods` alone;
+  rest of `~mods` and `LogicMods` alone. Its `--ue4ss` part: SBO's UE4SS package over a 1.3 install (the backup, the
+  signature scripts the package lacks and `Changelog.md` removed, the player's ConsoleEnablerMod replaced after its
+  backup, the player's `mods.txt` and other mods kept), into
+  a folder without UE4SS, the dry run, the refusal while the game runs. `install.py --help` runs under `python3 -I`,
+  as the gate runs it, so `install.py` finds `tools/ue4ss.py` itself. `main` with `--ue4ss` refuses `--zip` and
+  `--uninstall`. It stops before the tests on a missing executable, on a build with no set and on a cached zip of
+  other bytes. Its dry run and its install say the mod's lines, then the UE4SS lines;
+- `ue4ss_test.py`: the files under `ue4ss/`. Each build set is named after its executable. The set's signature scripts
+  run under `lua5.4` on made-up matches and, when this PC has Ghidra's copy of build 26123051, on its executable. Its
+  `VTableLayout.ini` gives the offsets read in Ghidra. Its `MemberVariableLayout.ini` holds only values read there.
+  `UE4SS-settings.ini` holds every key of the v4.0.0 file with SBO's values. `NOTICE` credits the sources, the fork's
+  `[EngineVersionOverride]` setting among them. It keeps the release files' MIT license for the package. Then
+  `tools/ue4ss.py` on made-up executables and a made-up release zip (a download reads a `file://` URL): the set picked
+  by the PE header, a file that is no 64-bit executable refused, an unknown build stopped before any download, a
+  download or a cache file of other bytes refused and never cached, the package's files and the zip's paths with no
+  `mods.txt` but an `enabled.txt` for each mod it turns on, written twice with the same bytes. SBO's `UEHelpers.lua` is loaded over fakes: two calls to
+  `GetPlayerController` or `GetWorld` make one search, a controller gone is searched for again. When this PC has the
+  pinned release zip, the settings and the package are checked against it, ConsoleEnablerMod's `main.lua` byte for
+  byte;
 - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
   and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the
   names of every new door, EnvC and ZoneEvent row chained. After a change to the data file, run
@@ -1799,15 +1818,28 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   the instruction before it and a vtable no code loads (`holder`, past a slot whose code another place also holds).
   Bytes inside an instruction that read as a call give no reference. A run stops after a jump out of the code
   section. A signature that matches twice gives no address. A holder whose code two places hold gives no address. An
-  executable other than the pinned build is refused. Every entry of `tools/port/signatures.json` that needs a
-  signature has one in the form the tool writes, with the names the code gives its address. Then
+  executable other than the pinned build is refused. `main`, on that file pinned in place of build 26123051, writes
+  `signatures.json` and `tools/port/ue4ss.json` from one build. The first takes the code's names. The second keeps its
+  own. An address in both gets the same signature in each. A `ue4ss.json` of another build than `signatures.json` is
+  refused before either is written. The two files in the tree name one build. Every entry of
+  `tools/port/signatures.json` that needs a signature has one in the form the tool writes, with the names the code
+  gives its address. So has every entry of `ue4ss.json`, whose names are FText_Constructor, GNatives and GUObjectArray.
+  Then
   `tools/port/find.py` on the same PE file: every entry is found, the image base and a section included. With a
   function added before the others, the code addresses move by 16 bytes and the data addresses stay. Three copies of
   a function give `ambiguous (3 matches)`. A holder's code held in two places gives `ambiguous (2 matches)`. A
   function removed gives `missing`. So does a `read` that lands outside the file. The exit code is 1 for each.
+  `find.py`'s UE4SS signature scripts run under `lua5.4` with a `DerefToInt32` that, as UE4SS's, gives nil for 0: a
+  function's own run, a `ref`, a `ref` with an `add` and a `ref` with `then` each match once in the whole file and give
+  their address, the moved one in the build with moved code. No script comes from a `holder`, a `read`, a signature
+  found twice or not at all, one that also matches in `.rdata` or one that matches in `.rdata` only. Its UE4SS report
+  prints a script for each target or the line `no script.`, with exit code 1 for the latter. `find.py`'s main prints
+  that report after the one of `signatures.json` and exits with 1 when a target gets no script.
   Last, `find.py` on `~/Ghidra/stellar-blade/input/26123051/SB-Win64-Shipping.exe`, Ghidra's copy of build 26123051:
-  every entry is found at its own address. A PC without that file skips this part and says so. A port points `EXE` at
-  the new build's copy (see [Porting](porting.md#the-port-step-by-step));
+  every entry of both files is found at its own address. Each UE4SS target's script matches once in the whole file
+  and gives the address read in Ghidra (FText constructor 0x142862fc0, GNatives 0x146f17900, GUObjectArray
+  0x146ddd240). A PC without that file skips this part and says so. A port points `EXE` at the new build's copy (see
+  [Porting](porting.md#the-port-step-by-step) and [SBO UE4SS](ue4ss.md#adding-a-build));
 - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
   `tools/install.py` faked;
 - `save_read_test.py`: `tools/save_read.py` on GVAS bodies built in the test (the header, values, containers, the EVAS

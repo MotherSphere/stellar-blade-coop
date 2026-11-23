@@ -2,7 +2,8 @@
 # Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 # SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-"""Byte signatures for the addresses in tools/port/signatures.json, read from the executable of the pinned build.
+"""Byte signatures for the addresses in tools/port/signatures.json and tools/port/ue4ss.json, read from the executable
+of the pinned build.
 
 A signature is a run of whole instructions in the code section (the image's first section) that occurs there exactly
 once. The 4-byte field of a relative call or jump (rel32) and of a RIP-relative operand is a wildcard: it changes as
@@ -20,7 +21,8 @@ The image and section entries come from the PE header. They get no signature. do
 of signature gives its address back. The tool checks that every signature matches once and gives its address back.
 It refuses an executable whose TimeDateStamp or SizeOfImage differ from check_build()'s.
 
-Run: python3 tools/port/make_signatures.py <SB-Win64-Shipping.exe> (rewrites signatures.json; exit 1 on a failure)"""
+Run: python3 tools/port/make_signatures.py <SB-Win64-Shipping.exe> (rewrites signatures.json and ue4ss.json; exit 1 on
+a failure)"""
 import bisect
 import json
 import re
@@ -431,13 +433,21 @@ def main(argv):
         sys.exit(f'{argv[1]}: TimeDateStamp {image.stamp:#x}, SizeOfImage {image.size:#x}: not the pinned build')
     with open(addresses.SIGNATURES, encoding='utf-8') as f:
         doc = json.load(f)
+    with open(addresses.UE4SS, encoding='utf-8') as f:
+        ue4ss = json.load(f)
+    if ue4ss['build'] != doc['build']:  # Its addresses would be another build's, signed on this executable.
+        sys.exit(f'{addresses.UE4SS} is for build {ue4ss["build"]}, {addresses.SIGNATURES} for build {doc["build"]}: '
+                 'write the new addresses and build into both (docs/dev/porting.md, step 4)')
     names = {}
     for u in addresses.scan():
         names.setdefault(f'{u.address:#x}', set()).add(u.name)
     entries = {a: {'kind': e['kind'], 'ghidra': e['ghidra'], 'name': ', '.join(sorted(names.get(a, ())))}
                for a, e in doc['addresses'].items()}  # What Ghidra showed stays; the rest is made again.
-    entries, failed = build(image, entries)
-    addresses.SIGNATURES.write_text(dump(doc['build'], entries), encoding='utf-8')
+    targets = {a: {k: e[k] for k in ('kind', 'ghidra', 'name')} for a, e in ue4ss['addresses'].items()}
+    entries, failed = build(image, {**targets, **entries})  # One pass over the code for both files.
+    addresses.SIGNATURES.write_text(dump(doc['build'], {a: entries[a] for a in doc['addresses']}), encoding='utf-8')
+    addresses.UE4SS.write_text(dump(ue4ss['build'], {a: {**entries[a], **t} for a, t in targets.items()}),
+                               encoding='utf-8')
     signed = [e for e in entries.values() if 'pattern' in e]
     print(f'{len(signed)} signatures in {image.code_name}, {sum("ref" in e for e in signed)} of them through a '
           f'referencing instruction; {len(failed)} failures')

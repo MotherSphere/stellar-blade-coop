@@ -116,7 +116,70 @@ parts come close:
   steam_api64.dll. Stellar Blade Online ships no Steamworks file. Steamworks
   is Valve's.
 - UE4SS, which loads the mod, is installed by the player. The release zip
-  does not contain it.
+  does not contain it. tools/ue4ss.py builds SBO's UE4SS package apart
+  from the mod. Its dwmapi.dll and the ue4ss/ files that come from the
+  UE4SS v4.0.0 release keep the release's MIT license (ue4ss/LICENSE in
+  the package). SBO-NOTICE and SBO-LICENSE in that package are this file
+  and the SBO License.
+
+UE4SS FILES FOR STELLAR BLADE
+
+ue4ss/builds/ holds the files that UE4SS v4.0.0 needs to run on a given
+Stellar Blade build, one folder per build. The release zip does not contain
+them.
+
+ue4ss/UE4SS-settings.ini is the settings file of the UE4SS v4.0.0 release
+(https://github.com/UE4SS-RE/RE-UE4SS, tag v4.0.0). Its header says what
+was changed here. The lines that start with "; SBO:" are Stellar Blade
+Online's. The [EngineVersionOverride] setting MajorVersion = 4 and
+MinorVersion = 26 comes from Rev-OG-UwU's SB-UE4SS (below). With both
+numbers set, UE4SS skips its engine version scan. Stellar Blade Online
+checked the version in the game's executable.
+
+GNatives.lua, GUObjectArray.lua and VTableLayout.ini in
+ue4ss/builds/6ad8eff1-15fa3000/ come from Rev-OG-UwU's SB-UE4SS
+(https://github.com/Rev-OG-UwU/SB-UE4SS, commit
+a63c3f8ecfc51c679082c30805d8af5c3514ba9a). They first appear in Chrisr0's
+RE-UE4SS (https://github.com/Chrisr0/RE-UE4SS, commit
+e6e59de93656ed3caf242233a0b6f63e073ba3df, June 2025), the repository that
+Rev-OG-UwU's fork names as its base. The header of each file says what was
+changed here. MemberVariableLayout.ini in the same folder is Stellar Blade
+Online's own work under the SBO License: its values were read in the game's
+executable. It copies nothing from the MemberVariableLayout.ini of the
+"Stellar Blade UE4SS" 1.3 package on Nexus Mods.
+
+Two parts of that fork are left out. Its backup_saves() copies the player's
+save at every start. Stellar Blade Online never touches the player's own
+saves. FText_Constructor.lua is not shipped: it is a known cause of
+games that do not start. UE4SS v4.0.0 does not read it.
+
+Both repositories, like UE4SS itself, are under this license:
+
+MIT License
+
+Copyright (c) 2022 Narknon
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+tools/port/ue4ss.json and the signature scripts that tools/port/find.py
+prints for a later Stellar Blade build are Stellar Blade Online's own work
+under the SBO License. They copy no code from these repositories.
 
 ARTWORK
 

@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = ROOT / 'native/src'
 SIGNATURES = Path(__file__).with_name('signatures.json')
+UE4SS = SIGNATURES.with_name('ue4ss.json')  # The game addresses UE4SS's signature scripts find, in the same form.
 IMAGE_BASE = 0x140000000
 SPAN = 0x20000000  # Build 26123051's image is 0x15fa3000 bytes (kSizeOfImage); the margin covers a bigger build.
 SUFFIXES = ('.h', '.cpp', '.inc')

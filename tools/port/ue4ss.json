@@ -1,0 +1,8 @@
+{
+  "build": "26123051",
+  "addresses": {
+    "0x142862fc0": {"kind": "function", "ghidra": "FUN_142862fc0, FText(FString&&): fills a 0x70-byte text history from the FString, FText is 0x18 bytes", "name": "FText_Constructor", "pattern": "48 8b c4 56 48 83 ec 60 48 89 58 10 48 8b f1", "mask": "xxxxxxxxxxxxxxx"},
+    "0x146ddd240": {"kind": "global", "ghidra": "DAT_146ddd240 in .sbss, GUObjectArray: FUN_142b8bc20 writes its fields", "name": "GUObjectArray", "pattern": "8b 05 ?? ?? ?? ?? 41 0f 45 c6", "mask": "xx????xxxx", "ref": {"from": "0x142af4b02", "disp": 2, "end": 6, "add": 0}},
+    "0x146f17900": {"kind": "global", "ghidra": "DAT_146f17900 in .sbss, GNatives: FUN_142b79420 calls (&DAT_146f17900)[opcode] until opcode 4", "name": "GNatives", "pattern": "4c 8d 3d ?? ?? ?? ?? 33 f6 c7 44 24 48 00 00 00 00", "mask": "xxx????xxxxxxxxxx", "ref": {"from": "0x141569b47", "disp": 3, "end": 7, "add": 0}}
+  }
+}

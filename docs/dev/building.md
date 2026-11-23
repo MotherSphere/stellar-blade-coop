@@ -25,7 +25,7 @@ is no runtime DLL to ship.
 `<game>/SB/Binaries/Win64/ue4ss/Mods/StellarCoop`. It refuses while the game runs.
 
 ```
-python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run] [--zip [PATH] | --uninstall | --pak <folder>]
+python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run] [--ue4ss] [--zip [PATH] | --uninstall | --pak <folder>]
 ```
 
 | Option | What it does |
@@ -36,8 +36,10 @@ python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run] [--zip [PAT
 | `--zip [PATH]` | Runs the tests and the build, then writes a release zip (by default `build/StellarCoop-<version>.zip`) instead of installing. Needs a clean tree; no game folder needed |
 | `--uninstall` | Backs up the hall lobby pak files in `~mods` and the installed folder, then removes them. No tests and no build; with `--dry-run` it changes nothing |
 | `--pak <folder>` | Installs the mod, then copies the hall lobby pak `zSBO_Lobby.pak`, `.ucas` and `.utoc` from the folder into `<game>/SB/Content/Paks/~mods`. With `--dry-run` it changes nothing |
+| `--ue4ss` | Installs the mod, then SBO's UE4SS package for the game's build into `<game>/SB/Binaries/Win64` (see [UE4SS](#ue4ss)). Not with `--zip` or `--uninstall`. With `--dry-run` it changes nothing |
 
-Except with `--zip`, the game's UE4SS `Mods` folder must exist. `--pak` also needs `<game>/SB/Content/Paks`.
+Except with `--zip` or `--ue4ss`, the game's UE4SS `Mods` folder must exist. `--pak` also needs
+`<game>/SB/Content/Paks`. `--ue4ss` needs `<game>/SB/Binaries/Win64/SB-Win64-Shipping.exe`.
 
 A run does these steps in order:
 
@@ -73,6 +75,52 @@ The release zip from `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, 
 GPL-3.0-or-later; the repository's own `CHANGELOG.md` is the one Release Please writes (see [Releases](#releases)).
 Commit subjects follow Conventional Commits. The zip's changelog lists the `feat` and `fix` subjects only, newest first,
 with their scope; a `!` marks a breaking change.
+
+## UE4SS
+
+SBO runs on the official UE4SS v4.0.0 release (https://github.com/UE4SS-RE/RE-UE4SS, tag `v4.0.0`, MIT) with its own
+settings and the files of the player's Stellar Blade build. `tools/ue4ss.py` builds that package:
+
+```
+python3 tools/ue4ss.py fetch
+python3 tools/ue4ss.py zip <SB-Win64-Shipping.exe> <out.zip>
+```
+
+`fetch` downloads `UE4SS_v4.0.0.zip` once into `~/.cache/sbo-ue4ss/official-v4.0.0/` and checks its SHA-256 against
+the pin in the script. It refuses any other bytes, from the cache or from the download. Nothing in the zip runs on the
+build machine: the tool reads it as data.
+
+`zip` writes the package for one executable, with paths under `SB/Binaries/Win64/` to unpack into the Stellar Blade
+folder. The package holds:
+
+- the release's `dwmapi.dll` and `ue4ss/` folder, without its settings file and without the three example mods that
+  change the game (CheatManagerEnablerMod, ConsoleCommandsMod and SplitScreenMod). Their lines leave `Mods/mods.txt`
+  too. The release's ConsoleEnablerMod stays: it adds F10 and Tilde to the game's console keys, where players type
+  the `coop` commands;
+- `ue4ss/UE4SS-settings.ini` from this repository;
+- the files of `ue4ss/builds/<TimeDateStamp>-<SizeOfImage>/` for the executable's PE header, without the set's
+  `README.md`;
+- this repository's `NOTICE` and `LICENSE` as `ue4ss/SBO-NOTICE` and `ue4ss/SBO-LICENSE`.
+
+The zip leaves `Mods/mods.txt` out. Unpacked over a UE4SS install, it would replace the player's list of mods. The
+mods that the release's `mods.txt` turns on (BPML_GenericFunctions, BPModLoaderMod, ConsoleEnablerMod and Keybinds)
+get an `enabled.txt` instead, so they also start on a game that never had UE4SS.
+BPModLoaderMod is the one that loads Blueprint mods from `Content/Paks/LogicMods`.
+
+An executable with no set gets nothing. The tool names the build it read and the builds SBO has files for, then
+stops. UE4SS v4.0.0 without the set's `MemberVariableLayout.ini` would write past the end of the game's
+FUObjectArray.
+
+`tools/install.py --ue4ss` installs the same package. Before the tests run, it reads the executable's header and
+checks the release zip, which it downloads when the cache lacks it. An unknown build or a refused zip stops it there.
+After the mod install, it backs up every file it replaces or removes into
+`~/StellarCoop-install-backups/<UTC time>/Win64`. It removes the signature scripts in `ue4ss/UE4SS_Signatures/` that
+the package lacks (the 1.3 package's `FText_Constructor.lua`, another build's scripts) and the 1.3 package's
+`ue4ss/Changelog.md`. It keeps an existing `Mods/mods.txt` and never touches a mod folder that the package lacks.
+`--uninstall` leaves UE4SS in place. An install without `--ue4ss` writes no UE4SS file.
+
+[SBO UE4SS](ue4ss.md) says where each file of the package comes from, its license and how to add the set of a new
+Stellar Blade build.
 
 ## tools/wine_smoke.py
 
@@ -259,8 +307,9 @@ tools/
   mxiii_rows.py             writes native/src/world/maps/matrix13/mxiii_rows.h and world/maps/matrix13/level/rows.lua
                             from data/mxiii-world.json
   port/                     addresses.py lists the game addresses native/src uses; make_signatures.py writes a
-                            byte signature for each into signatures.json, one entry per address with what Ghidra
-                            shows there; find.py finds them in another build (see porting.md)
+                            byte signature for each into signatures.json (one entry per address with what Ghidra
+                            shows there) and for UE4SS's signature targets into ue4ss.json; find.py finds them in
+                            another build and prints the UE4SS signature scripts (see porting.md, ue4ss.md)
   release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
   save_read.py              every value of a .sav file, and the values two saves differ in (see story-dump.md)
@@ -269,7 +318,12 @@ tools/
   story_lines.py            a save's story lines, their digest, and a save against an in-game dump (see story-dump.md)
   teamshop_rows.py          writes native/src/world/teamshop/teamshop_rows.h and world/teamshop/rows.lua from
                             data/teamshop/
+  ue4ss.py                  fetches the pinned UE4SS v4.0.0 release zip and assembles SBO's UE4SS package for one
+                            Stellar Blade build (see UE4SS)
   wine_smoke.py             loads the DLL under Wine
+ue4ss/
+  UE4SS-settings.ini        SBO's UE4SS settings, the v4.0.0 release file with SBO's values
+  builds/<stamp>-<size>/    the UE4SS files of one Stellar Blade build, named after its executable's PE header
 .github/workflows/
   release-please.yml        the release pull request, the tag and the draft release (see Releases)
   nexus-upload.yml          sends a published release's zip to Nexus Mods
