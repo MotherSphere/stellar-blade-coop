@@ -3,9 +3,10 @@
 Stellar Blade Online runs inside UE4SS. Today players install UE4SS themselves:
 [INSTALL.md](../../INSTALL.md#requirements) asks for the "Stellar Blade UE4SS 1.3" package from Nexus Mods (UE4SS v3.0.1
 Beta, git `08a0733`). SBO UE4SS is the package meant to replace it. It is the official UE4SS v4.0.0 release with SBO's
-settings and the files of the player's Stellar Blade build. `python3 tools/install.py --ue4ss` installs it. It stays an
-option until a game test confirms it. An install without `--ue4ss` writes no UE4SS file. [Building](building.md#ue4ss)
-gives the commands of `tools/ue4ss.py` and what `install.py --ue4ss` backs up and removes.
+build of `UE4SS.dll`, SBO's settings and the files of the player's Stellar Blade build. `python3 tools/install.py
+--ue4ss` installs it. It stays an option until a game test confirms it. An install without `--ue4ss` writes no UE4SS
+file. [Building](building.md#ue4ss) gives the commands of `tools/ue4ss.py` and `tools/ue4ss_build.py` and what
+`install.py --ue4ss` backs up and removes.
 
 ## What the package holds
 
@@ -13,7 +14,8 @@ The paths are under the game's `SB/Binaries/Win64/`.
 
 | Path | Source | License |
 | --- | --- | --- |
-| `dwmapi.dll`, `ue4ss/UE4SS.dll`, `ue4ss/LICENSE`, `ue4ss/UE4SS_SDK_Backends/UE4SS.json`, `ue4ss/Mods/` | The UE4SS v4.0.0 release zip (https://github.com/UE4SS-RE/RE-UE4SS, tag `v4.0.0`, commit 30afe5ff, `UE4SS_v4.0.0.zip`). `tools/ue4ss.py` checks the zip's SHA-256. `Mods/mods.txt` loses the lines of the three mods left out. `install.py --ue4ss` writes it only where the player has none. The zip of `tools/ue4ss.py` leaves it out. Each mod the release's `mods.txt` turns on (BPML_GenericFunctions, BPModLoaderMod, ConsoleEnablerMod, Keybinds) gets an empty `enabled.txt`. ConsoleEnablerMod adds F10 and Tilde to the game's console keys: players type the `coop` commands in that console. The rest is unchanged | MIT, Copyright (c) 2022 Narknon |
+| `ue4ss/UE4SS.dll` | SBO's build of UE4SS v4.0.0 with one patch (see [UE4SS.dll](#ue4ssdll)). `tools/ue4ss.py` checks its SHA-256. The release's `UE4SS.dll` is not shipped | MIT, Copyright (c) 2022 Narknon. A modified build of UE4SS |
+| `dwmapi.dll`, `ue4ss/LICENSE`, `ue4ss/UE4SS_SDK_Backends/UE4SS.json`, `ue4ss/Mods/` | The UE4SS v4.0.0 release zip (https://github.com/UE4SS-RE/RE-UE4SS, tag `v4.0.0`, commit 30afe5ff, `UE4SS_v4.0.0.zip`). `tools/ue4ss.py` checks the zip's SHA-256. `Mods/mods.txt` loses the lines of the three mods left out. `install.py --ue4ss` writes it only where the player has none. The zip of `tools/ue4ss.py` leaves it out. Each mod the release's `mods.txt` turns on (BPML_GenericFunctions, BPModLoaderMod, ConsoleEnablerMod, Keybinds) gets an empty `enabled.txt`. ConsoleEnablerMod adds F10 and Tilde to the game's console keys: players type the `coop` commands in that console. The rest is unchanged | MIT, Copyright (c) 2022 Narknon |
 | `ue4ss/UE4SS-settings.ini` | The release's settings file with SBO's values, kept in this repository at `ue4ss/UE4SS-settings.ini`. Its header lists what changed | MIT. The lines that start with `; SBO:` are SBO's. The `[EngineVersionOverride]` 4.26 setting comes from Rev-OG-UwU's SB-UE4SS |
 | `ue4ss/UE4SS_Signatures/GNatives.lua`, `ue4ss/UE4SS_Signatures/GUObjectArray.lua`, `ue4ss/VTableLayout.ini` | The build's set. For build 26123051: Rev-OG-UwU's SB-UE4SS (https://github.com/Rev-OG-UwU/SB-UE4SS, commit a63c3f8e). The three files first appear in Chrisr0's RE-UE4SS (https://github.com/Chrisr0/RE-UE4SS, commit e6e59de9). Each file's header says what changed here | MIT, Copyright (c) 2022 Narknon |
 | `ue4ss/MemberVariableLayout.ini` | The build's set. SBO's own file: each value was read in Ghidra | SBO License |
@@ -27,9 +29,39 @@ The package leaves out:
 - `FText_Constructor.lua`. UE4SS v4.0.0 never reads it: `Signatures.cpp` loads a fixed list of script names and this
   one is not on it. With older UE4SS builds it is a known cause of games that do not start after a Stellar Blade
   update ([Troubleshooting](../players/troubleshooting.md#the-game-does-not-start-at-all-with-ue4ss-installed)).
-- The fork's `backup_saves()`, C++ code that copies `StellarBladeSave00.sav` at every start. SBO ships the official
-  `UE4SS.dll`. Stellar Blade Online never touches the player's own saves.
+- The fork's `backup_saves()`, C++ code that copies `StellarBladeSave00.sav` at every start. SBO's `UE4SS.dll` is built
+  from the official v4.0.0 sources, which have no such code. Stellar Blade Online never touches the player's own saves.
 - The 1.3 package's `MemberVariableLayout.ini`. Neither MIT repository has it. The set holds SBO's own file instead.
+
+## UE4SS.dll
+
+The package's `UE4SS.dll` is a modified build of UE4SS: the sources of tag `v4.0.0` (commit 30afe5ff) with one patch,
+`ue4ss/patches/0001-fix-Lua-don-t-block-loading-threads-on-m_thread_actions_mutex-in-the-StaticConstructObject-hook.patch`.
+The patch fixes the freeze of [UE4SS-RE/RE-UE4SS issue 1504](https://github.com/UE4SS-RE/RE-UE4SS/issues/1504). In
+v4.0.0, `script_hook` holds `m_thread_actions_mutex` while the Lua callback of a `RegisterHook` on a Blueprint function
+runs. When that callback calls `LoadAsset`, the game thread waits for the package. The async loading thread constructs
+the package's objects. The `StaticConstructObject` hook made it wait for the same mutex. Neither thread moved again.
+With the patch, the two `NotifyOnNewObject` containers get their own mutex. A loading thread takes only that one in the
+hook and queues what it finds for the game thread. The patch's commit message gives the details.
+
+The patch file is `git format-patch` output of a commit on tag v4.0.0. The note below its `---` line says where SBO uses
+it. `git am` leaves that note out of the commit. Applied to v4.0.0, the patch gives the source tree `874b6855`.
+
+Git does not hold the DLL. It is 27,089,920 bytes. `tools/ue4ss.py` pins its SHA-256 in `DLL_SHA256`
+(`791a90ea71c6ffb3743d34f8c1afb239c201984de177286b25ba853e5a1e876b`). It refuses a missing file or a file of other bytes
+before it fetches the release zip. `install.py --ue4ss` stops the same way before the tests. This build was tested in
+game with the package: no freeze with the gore mod installed, every mod starts, F10 opens the console.
+
+`python3 tools/ue4ss_build.py` rebuilds the DLL on Linux ([Building](building.md#ue4ssdll) lists what it needs). It
+clones the tag with its submodules, checks the commit, applies the patch with `git am` and builds the `UE4SS` target in
+the `Game__Shipping__Win64` configuration of the official release. The pinned DLL came from this toolchain: clang-cl and
+lld-link of LLVM 23.1.5, CMake 4.5.1, Ninja 1.13.2, rustc 1.99.1 for `x86_64-pc-windows-msvc`, the MSVC CRT 14.44.35220
+and the Windows SDK 10.0.26100 from xwin. Another version can give other bytes. `tools/ue4ss.py` then refuses the file:
+a new pin means a new build to test in game.
+
+The release builds its DLL with MSVC. SBO's build uses clang-cl, so its code differs from the release's even where the
+sources match. It is 6.4 MB larger. It does not import `VCRUNTIME140_1.dll`. The package keeps the release's
+`dwmapi.dll`: its sources come from `proxy_generator.exe`, a Windows program that the build would have to run.
 
 ## Settings
 
@@ -115,9 +147,10 @@ Every value in the set is a game fact: read it in Ghidra on the new build first.
 
 ## Licenses
 
-The files from the UE4SS release and from the two forks keep their MIT license. The package carries the release's
-`ue4ss/LICENSE`. NOTICE gives the MIT text and credits Rev-OG-UwU's and Chrisr0's repositories under "UE4SS files for
-Stellar Blade". Each signature script and `VTableLayout.ini` keeps its own header. `MemberVariableLayout.ini`,
-`tools/port/ue4ss.json` and the scripts that `find.py` writes are SBO's own work under the SBO License. The mod's
-release zip holds none of the package's files. `ue4ss/SBO-NOTICE` and `ue4ss/SBO-LICENSE` put this repository's
-NOTICE and LICENSE in the package.
+The files from the UE4SS release and from the two forks keep their MIT license. `UE4SS.dll` is a modified build of UE4SS
+(see [UE4SS.dll](#ue4ssdll)). It stays under UE4SS's MIT license, as does the patch in `ue4ss/patches/`. The package
+carries the release's `ue4ss/LICENSE`. NOTICE gives the MIT text and credits Rev-OG-UwU's and Chrisr0's repositories
+under "UE4SS files for Stellar Blade". Each signature script and `VTableLayout.ini` keeps its own header.
+`MemberVariableLayout.ini`, `tools/port/ue4ss.json` and the scripts that `find.py` writes are SBO's own work under the
+SBO License. The mod's release zip holds none of the package's files. `ue4ss/SBO-NOTICE` and `ue4ss/SBO-LICENSE` put
+this repository's NOTICE and LICENSE in the package.

@@ -1719,8 +1719,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   backup, the player's `mods.txt` and other mods kept), into
   a folder without UE4SS, the dry run, the refusal while the game runs. `install.py --help` runs under `python3 -I`,
   as the gate runs it, so `install.py` finds `tools/ue4ss.py` itself. `main` with `--ue4ss` refuses `--zip` and
-  `--uninstall`. It stops before the tests on a missing executable, on a build with no set and on a cached zip of
-  other bytes. Its dry run and its install say the mod's lines, then the UE4SS lines;
+  `--uninstall`. It stops before the tests on a missing executable, on a build with no set, on a missing `UE4SS.dll`
+  build, on a `UE4SS.dll` of other bytes and on a cached zip of other bytes. Its dry run and its install say the mod's
+  lines, then the UE4SS lines;
 - `ue4ss_test.py`: the files under `ue4ss/`. Each build set is named after its executable. The set's signature scripts
   run under `lua5.4` on made-up matches and, when this PC has Ghidra's copy of build 26123051, on its executable. Its
   `VTableLayout.ini` gives the offsets read in Ghidra. Its `MemberVariableLayout.ini` holds only values read there.
@@ -1728,11 +1729,24 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `[EngineVersionOverride]` setting among them. It keeps the release files' MIT license for the package. Then
   `tools/ue4ss.py` on made-up executables and a made-up release zip (a download reads a `file://` URL): the set picked
   by the PE header, a file that is no 64-bit executable refused, an unknown build stopped before any download, a
-  download or a cache file of other bytes refused and never cached, the package's files and the zip's paths with no
-  `mods.txt` but an `enabled.txt` for each mod it turns on, written twice with the same bytes. SBO's `UEHelpers.lua` is loaded over fakes: two calls to
-  `GetPlayerController` or `GetWorld` make one search, a controller gone is searched for again. When this PC has the
-  pinned release zip, the settings and the package are checked against it, ConsoleEnablerMod's `main.lua` byte for
-  byte;
+  download or a cache file of other bytes refused and never cached, a missing `UE4SS.dll` or one of other bytes refused
+  before any download, the package's files and the zip's paths with no `mods.txt` but an `enabled.txt` for each mod it
+  turns on, written twice with the same bytes. The package's `UE4SS.dll` is the built file, never the release's. The zip
+  takes a `UE4SS.dll` given on the command line in place of the default one. SBO's `UEHelpers.lua` is loaded over fakes:
+  two calls to `GetPlayerController` or `GetWorld` make one search, a controller gone is searched for again. When this
+  PC has the pinned release zip, the settings and the package are checked against it, ConsoleEnablerMod's `main.lua`
+  byte for byte. Every release file the package keeps, `dwmapi.dll` included, is the release's byte for byte. Its
+  `UE4SS.dll` is not the release's. When this PC also has SBO's `UE4SS.dll` at the default output of
+  `tools/ue4ss_build.py`, the package's DLL has the pinned SHA-256. Without it, a made-up DLL stands in and the output
+  says the real check was skipped;
+- `ue4ss_build_test.py`: `tools/ue4ss_build.py` without network, Git or the toolchain. The one file in
+  `ue4ss/patches/` is `git format-patch` output of commit 9a61a393 with its subject, the issue link in the note below
+  `---` and diffs of `LuaMod.hpp`, `LuaMod.cpp` and `UE4SSProgram.cpp`. A tag that is not commit `30afe5ff` is refused.
+  It checks the clone, configure and build command lines (the `UE4SS` target only) and the variables that map local
+  folders and make the link reproducible. The default output is the path `tools/ue4ss.py` reads. Over a fake
+  `subprocess.run`: a used work folder, a path with a space, extra arguments, a missing tool and a missing xwin folder
+  stop it before any command. A moved tag stops it after the clone. A whole run calls clone, commit check, `git am`,
+  configure and build in that order and prints the DLL's hash against the pin;
 - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
   and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the
   names of every new door, EnvC and ZoneEvent row chained. After a change to the data file, run
