@@ -1879,7 +1879,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   file's guard or adds another request (`ServerRequest_ActorRevival`) fails the scan. Spectate's
   `fight/enemies/spectate.lua` holds 7 mentions of `ServerRequest_` (its `ActorRespawn` and `ActorRevival` on our own
   EVE, a copy of group play's respawn, with their log lines, `coop spectate test`'s respawn and the header's two):
-  another request planted there (`ServerRequest_ResetZone`) fails the scan.
+  another request planted there (`ServerRequest_ResetZone`) fails the scan. SBO Xion's
+  `world/maps/sboxion/engine.lua` holds its one `ServerRequest_ActorRespawn` on our own EVE and its header's mention,
+  and `world/maps/sboxion/recover.lua` holds that call's log line and its header's mention: another request planted
+  in either file fails the scan.
   Stellar Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and called at two sites: once in
   `native/src/online/lobby/sbo_game.inc` for `coop sbo seq`, and once in `native/src/glue/tick/world_game_shared.inc`.
   That second site serves the shared world's env control rows, which `game/objects/engine.h` checks against
