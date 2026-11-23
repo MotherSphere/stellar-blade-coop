@@ -19,12 +19,15 @@
 -- and name), read back 2 s and 10 s later, the streaming levels' state, the two probe levels' state and the
 -- characters, each as a log line a test reads. While EVE stays, once a second: each change of the two probe levels
 -- and each waypoint she stands at. Nothing is read in any other map.
+-- Falls, each pass of the stay (world/maps/sboxion/recover.lua): the level has none of SB's fall volumes, so EVE under
+-- data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
 -- coop xion leave: the request "sboxion leave <zone FName index>". The native part compares the zone with the
 -- client's and calls SB's reload of the co-op save only from SBO Xion, so the request is sent from any map.
 -- coop xion status: the pak, the rows, the native part's last answer, EVE's place and the nearest waypoint.
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local D=require('world.maps.sboxion.data')
+local Recover=require('world.maps.sboxion.recover')
 local Xion={}
 Xion.ROWS=Enemy.rows(D.ROWS)
 -- rows/rows.h's refusals of a gate that stayed shut (busy, net, unread): the title asks again, so nothing is decided.
@@ -41,11 +44,13 @@ local function round(v) return math.floor(v+0.5) end
 
 -- o: log(m), status() the native status text, ask(line) its request (ok, why), paks (SB/Content/Paks, or nil) and
 -- read (core/link.lua's files.read) for the pak gate; slot(command) the co-op save check (ok, why), mode() the link's
--- mode ('none' alone), me() our EVE as core/where.lua last read her ({at=, map=}, or nil) and world, the engine reads
--- (world/maps/sboxion/engine.lua; a fake in the tests).
+-- mode ('none' alone), me() our EVE as core/where.lua last read her ({at=, map=}, or nil), photo() main/base.lua's
+-- photo_state (optional) and world, the engine reads (world/maps/sboxion/engine.lua; a fake in the tests).
 function Xion.new(o)
     local log=o.log
     local world=o.world
+    local recover=Recover.new({log=function(m) log('sboxion: '..m) end,status=o.status,photo=o.photo,world=world})
+    local asked_point=nil -- The arrival point of the last coop xion asked, for the recovery of the stay it starts.
     local e=Enemy.new({log=function(m) log('sboxion '..m) end,ask=o.ask,status=o.status},
         {word='sboxion',name='SBO Xion',command='coop xion',tag='[SX]',rows=Xion.ROWS,ids={}})
     local pak,pak_why=nil,nil -- The test pak's version (false: none, with why), looked for once a Lua load.
@@ -164,6 +169,7 @@ function Xion.new(o)
     local function arrive(me,now)
         stay={near={},said={},back=now+BACK,again=now+AGAIN,next=now+WATCH}
         log(string.format('sboxion: arrived, map %s, zone %s, EVE at %s',D.UMAP,D.ZONE,place(me.at)))
+        recover.arrive(asked_point or 'city')
         stay.written=guarded('light',light) or {}
         guarded('levels',levels)
         stay.probes=guarded('probe',probes)
@@ -265,6 +271,7 @@ function Xion.new(o)
             local asked,said=request(string.format('sboxion enter %d %d %d %d %d',index,round(at.X),round(at.Y),
                 round(at.Z),round(at.Yaw)),os.clock())
             if not asked then return false,'coop xion: '..said end
+            asked_point=name
             return true,'coop xion: the rows are in and the warp to the '..name..' point is asked ([SX] lines follow); '
                 ..'way out: coop xion leave'
         end)
@@ -304,8 +311,8 @@ function Xion.new(o)
         end
         return true,'sboxion: '..table.concat(parts,'; ')
     end
-    -- Each 250 ms pass: the wait for the rows and their read-back, the native answer awaited, then the arrival and
-    -- the watch while EVE's map is SBO Xion. In any other map, with nothing asked, it reads nothing.
+    -- Each 250 ms pass: the wait for the rows and their read-back, the native answer awaited, then the arrival, the
+    -- watch and the recovery while EVE's map is SBO Xion. In any other map, with nothing asked, it reads nothing.
     local off=false
     function self.tick()
         if off then return end
@@ -317,14 +324,17 @@ function Xion.new(o)
         if me and me.map==D.MAP then
             if not stay then arrive(me,now) end
             watch(me,now)
+            guarded('recovery',recover.tick)
         elseif stay then
             stay=nil
+            recover.stop()
             log('sboxion: left, map '..(me and me.map or 'none'))
         end
     end
-    -- coop off: the title's wait and the watch ended. Rows already in stay for the game run.
+    -- coop off: the title's wait, the watch and the recovery ended. Rows already in stay for the game run.
     function self.stop()
         off,stay,awaited=true,nil,nil
+        recover.stop()
         title_stop()
         e.stop()
     end

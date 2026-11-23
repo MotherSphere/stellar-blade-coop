@@ -8,7 +8,9 @@
 -- leave's request from any map and the native answer relayed once; at an arrival the 41 writes matched by level and
 -- name, a volume of the same name in another level left alone, the counts 72, 65 and 41, the read-back, the levels
 -- line and the characters; nothing read in another map; a second arrival writes again; a probe level's change logged
--- once; a waypoint logged once a visit; the watch ended by a map change and by coop off.
+-- once; a waypoint logged once a visit; the watch ended by a map change and by coop off. The recovery
+-- (world/maps/sboxion/recover.lua): ticked only in SBO Xion, reset at each arrival with the point coop xion asked, fed
+-- by the engine's read of EVE and not by me(), ended by a map change and by coop off.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -119,12 +121,21 @@ local function total() local n=0; for _,c in pairs(calls) do n=n+c end; return n
 
 local logs,asked={},{}
 local rows_line,warp_line='sboxion=rows added=2/2 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0','sboxionwarp=off'
+local ENGINE='engine=on remote=0 0 none warp=idle me=2610 zonetype=5 area=Zone_SBO_Xion rest=0::0 starts=0 theater=none'
 local slot_ok,mode,me=true,'none',nil
+-- EVE as the engine reads her in the same pass: at her_at (me.at unless set), in mode her_mode. puts: each put-back.
+local her_at,her_mode,puts=nil,1,{}
+world.move=function()
+    count('move')
+    local p=her_at or me.at
+    return {at={X=p.X,Y=p.Y,Z=p.Z},yaw=30,mode=her_mode,time=clock,pawn=0x7000}
+end
+world.put=function(to,yaw) puts[#puts+1]={at=to,yaw=yaw}; her_at,her_mode={X=to.X,Y=to.Y,Z=to.Z},1; return true end
 local SB_XION='/game/art/bg/worldmap/level_p/e04'
 local function new()
     logs,asked,calls={},{},{}
     return Xion.new({log=function(m) logs[#logs+1]=m end,
-        status=function() return 'mod=v\n'..rows_line..'\n'..warp_line..'\nlast=x\n' end,
+        status=function() return 'mod=v\n'..ENGINE..'\n'..rows_line..'\n'..warp_line..'\nlast=x\n' end,
         ask=function(l) asked[#asked+1]=l; return true,'asked the native part: '..l end,paks=PAKS,read=read,
         slot=function(what) if slot_ok then return true end return false,what..' runs only on a co-op save' end,
         mode=function() return mode end,me=function() return me end,world=world})
@@ -219,6 +230,7 @@ fresh()
 me=at(D.ARRIVALS.city)
 pass(x,0.25)
 assert(logs[1]=='sboxion: arrived, map /Game/SBO_World/Xion_P, zone Zone_SBO_Xion, EVE at (-8304, 7201, 225)',logs[1])
+assert(logs[2]=='sboxion: recovery on: floor Z -3275, arrival point city (-8304, 7201, 225)' and calls.move==1,logs[2])
 assert(logged('sboxion: light: 72 env volumes found, 65 in E04_ENV_VOL, 41 named, 21 changed, CountDown_Posing_ENV '
     ..'active true'),logs[2])
 assert(#sets==21,#sets..' writes')
@@ -273,6 +285,20 @@ me=at({X=0,Y=0,Z=0})
 pass(x,10)
 assert(not logged('sboxion: at tie'),'A short passage is no visit')
 
+-- recovery_engine_place: the ground point and the fall use the engine's read of EVE in the pass, not me(), which is
+-- one pass old. Here me() stays at the waypoint while the engine reads her elsewhere.
+assert(#puts==0 and logged('sboxion: ground: first point (-8304, 7201, 225)'),'No put-back on the walk so far')
+her_at={X=3000,Y=-9000,Z=1222}
+pass(x,1)
+her_at,her_mode={X=3931,Y=-9086,Z=-3400},3
+pass(x,0.25)
+assert(logs[#logs]=='sboxion: fall: EVE at (3931, -9086, -3400) under the floor, mode 3, life ?: to the ground point '
+    ..'(3000, -9000, 1222) read 1.0 s ago',logs[#logs])
+assert(#puts==1 and puts[1].at.X==3000 and puts[1].at.Y==-9000 and puts[1].at.Z==1232 and puts[1].yaw==30)
+pass(x,0.25)
+assert(logs[#logs]=='sboxion: put back: EVE walks at (3000, -9000, 1232), 0.2 s after the move',logs[#logs])
+her_at=nil
+
 -- status: the pak, the rows, the native line, EVE's place and the nearest waypoint.
 me=at({X=kaya.X+300,Y=kaya.Y+400,Z=kaya.Z})
 ok,why=x.status()
@@ -282,7 +308,13 @@ assert(ok and why:find('rows in; sboxionwarp=refused asks=2 verb=leave why=zone;
 ok,why=x.enter('gate')
 assert(not ok and why=='coop xion: EVE is in SBO Xion already; way out: coop xion leave' and #asked==0,why)
 
--- map_change: the watch ends and nothing is read after. The next arrival writes the day table again.
+-- map_change: the watch and the recovery end and nothing is read after. A put-back being checked is dropped. The
+-- next arrival writes the day table again.
+her_at,her_mode={X=0,Y=0,Z=-5000},3
+world.put=function(to,yaw) puts[#puts+1]={at=to,yaw=yaw}; return true end -- She keeps falling after this one.
+pass(x,0.25)
+assert(#puts==2,'A fall right before the map change')
+her_at,her_mode=nil,1
 local reads=total()
 me={at={X=0,Y=0,Z=0},map=SB_XION}
 pass(x,0.25)
@@ -295,6 +327,9 @@ fresh()
 me=at(D.ARRIVALS.gate)
 pass(x,0.25)
 assert(times('sboxion: arrived')==2 and #sets==21 and times('41 named, 21 changed')==2,'A second arrival writes again')
+assert(times('sboxion: recovery on: floor Z -3275, arrival point city')==2,'The recovery starts again at each arrival')
+pass(x,5)
+assert(not logged('put back failed') and times('put back: EVE walks')==1,'The check of the stay before is gone')
 -- A loading screen (no EVE) ends the stay too.
 me=nil
 pass(x,0.25)
@@ -318,7 +353,19 @@ me=at(D.ARRIVALS.city)
 pass(x,0.25)
 assert(logged('sboxion: light: unread (no EVE in the world)') and times('sboxion: arrived')==4,logs[#logs])
 
--- coop_off: the watch ends, nothing is read or said after.
+-- The arrival point coop xion asked is the recovery's point of the stay it starts.
+me={at={X=0,Y=0,Z=0},map=SB_XION}
+pass(x,0.25)
+world.volumes=function() count('volumes'); return volumes end
+warp_line='sboxionwarp=off'
+ok=x.enter('gate')
+assert(ok)
+me=at(D.ARRIVALS.gate)
+pass(x,0.25)
+assert(logged('sboxion: recovery on: floor Z -3275, arrival point gate (-23393, 17287, 1285)'),logs[#logs])
+
+-- coop_off: the watch and the recovery end, nothing is read or said after.
+her_at,her_mode={X=0,Y=0,Z=-5000},3
 reads=total()
 local lines=#logs
 x.stop()
