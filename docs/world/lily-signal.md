@@ -1,7 +1,7 @@
 # Lily's signal (experimental)
 
 Lily's signal adds two quests of the mod's own near the end of the story. A short prologue, "A Second Signal" ("Un
-second signal"), sends EVE to Lily. A longer quest, "On Time" ("À l'heure"), leads through the cut Matrix XIII dungeon
+second signal"), sends EVE to Lily. A longer quest, "On Time" ("À l'heure"), leads through the cut Matrix XIII area
 and back to her. Three talks between EVE and Lily play in the game's own subtitle box. None of it has been tried in
 game yet. How the mod does it is in [world/lily-signal-internals.md](lily-signal-internals.md).
 
@@ -11,9 +11,9 @@ that choice, on a co-op save with the mod, the prologue starts by itself and Lil
 signal" ("L'autre signal"). Picking it plays her goodbye, then the prologue talk. The prologue then completes, "On
 Time" starts with the game's new-quest notice, a journal entry and the tracker, and EVE travels into Matrix XIII.
 
-The dungeon's map does not come with the game or with the mod. It needs the zMXIII_P test pak, the same one
+The area's map does not come with the game or with the mod. It needs the zMXIII_P test pak, the same one
 `coop mxiii` needs (see [matrix13.md](matrix13.md)). The trip lands at the Tetrapod camp
-`DLC02_00_Camp_00`, beside the dungeon's Lily, with the dungeon's camps inactive (an older test pak: at
+`DLC02_00_Camp_00`, beside the area's Lily, with the area's camps inactive (an older test pak: at
 `DLC02_10_Camp_01`). A desert surface with the lift down to the station is planned
 but not built: the pak has no such map yet.
 
@@ -66,7 +66,7 @@ Picking "About Matrix 13" plays her goodbye, then the end talk, and "On Time" co
 
 | Step | Alias | Ends when |
 | --- | --- | --- |
-| 1 | `Quest_Sub_MX13_01_M01` | EVE enters `Zone_DLC02_10`, the dungeon's first zone (the station) |
+| 1 | `Quest_Sub_MX13_01_M01` | EVE enters `Zone_DLC02_10`, the area's first zone (the station) |
 | 2 | `Quest_Sub_MX13_01_M02` | EVE enters `Zone_DLC02_20` |
 | 3 | `Quest_Sub_MX13_01_M03` | EVE enters `Zone_DLC02_30` |
 | 4 | `Quest_Sub_MX13_01_M04` | EVE enters `Zone_DLC02_40` |
@@ -74,9 +74,9 @@ Picking "About Matrix 13" plays her goodbye, then the end talk, and "On Time" co
 | 6 | `Quest_Sub_MX13_01_M06` | The end talk with Lily ("Talk to Lily", tracked at every Tetrapod Lily) |
 
 Steps 1 to 4 end through the game's own zone check. If the game does not count the camp travel's arrival as an entry,
-the mod ends step 1 itself after EVE has stood 10 s in the dungeon. The test pak's own zone layout for zones 2 to 4 has
+the mod ends step 1 itself after EVE has stood 10 s in the area. The test pak's own zone layout for zones 2 to 4 has
 not been checked, so steps 2 to 4 may need `coop lily signal next` in a test. The Fusion Drive room exists only in the
-planned dungeon: the box the mod checks uses the plan's numbers, and nothing in the test pak stands there. Until the
+planned area: the box the mod checks uses the plan's numbers, and nothing in the test pak stands there. Until the
 full map is cooked, `coop lily signal next` stands in for step 5 too.
 
 Steps run in order, so the end talk is only offered once step 5 is done. The talk is offered in Phase 5 only, at any
@@ -166,7 +166,7 @@ has no body` line says so and she stays a voice.
 4. Wait about 5 s with no menu open. The prologue's new-quest notice shows, and the tracker points at Lily.
 5. Talk to Lily and pick "The other signal". Her goodbye plays, then the prologue talk, then "On Time" starts and the
    camp travel runs.
-6. In the dungeon, step 1 completes and the arrival talk plays. Use `coop lily signal next` four times to walk steps 2
+6. In the area, step 1 completes and the arrival talk plays. Use `coop lily signal next` four times to walk steps 2
    to 5, then `coop mxiii leave`.
 7. Talk to Lily again and pick "About Matrix 13". The end talk plays and "On Time" completes.
 
@@ -214,7 +214,7 @@ The aliases are fixed from this version on: renaming them would lose the progres
 from the earlier test build that holds "On Time" at its second step loads at step 2 of the new list, now "enter zone
 2" [not checked in game].
 
-The camp travel writes the dungeon's world and camp into the save, as `coop mxiii` does; see
+The camp travel writes the area's world and camp into the save, as `coop mxiii` does; see
 [matrix13.md](matrix13.md) for what that means for the save and the test pak.
 
 The borrowed choice row, its label, her list's change, the theater's take, the subtitle text and whether the arrival

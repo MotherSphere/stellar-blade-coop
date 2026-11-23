@@ -1,6 +1,6 @@
 # Map pipeline
 
-Stellar Blade Online has two sets of maps of its own: the cut dungeon Matrix XIII (module `world.maps.matrix13`) and
+Stellar Blade Online has two sets of maps of its own: the cut area Matrix XIII (module `world.maps.matrix13`) and
 the five hall lobbies of `online.lobby`. This page lists what the game needs before such a map works and the steps
 that make one, with the steps the repository holds. The map tools stay with MotherSphere for now, so a clone of the
 repository cannot build a map pak today.

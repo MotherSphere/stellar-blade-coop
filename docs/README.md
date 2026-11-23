@@ -47,7 +47,7 @@ start with `coop`.
 | Page | What it covers |
 | --- | --- |
 | [Shared world](world/objects.md) | Doors, levers, lifts and shortcuts one player works changing in the other's game; what stays each player's own; the setting and `coop world` |
-| [Matrix XIII](world/matrix13.md) | The cut dungeon, `coop mxiii` and its test pak |
+| [Matrix XIII](world/matrix13.md) | The cut area, `coop mxiii` and its test pak |
 | [Lily's signal](world/lily-signal.md) | The mod's two quests that lead through Matrix XIII, their talks, lines and status lines |
 | [Team shop](world/teamshop.md) | `coop teamshop`: outfits made by the SBO team for gold in the game's own shop screen on a co-op save; when it refuses |
 
@@ -101,7 +101,7 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [Cut enemies: how they are added](fight/bosses-internals.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
 | [Shared world: how it works](world/objects-internals.md) | The four roots and their hooks, the generated filter, the SBW lines, how her changes are made, the status line, the addresses |
 | [Day and night: how it works](world/daynight-internals.md) | The shared UTC clock, the sun and moon, the dawn and dusk ramps, the map table, the rules, the env fields the native part writes, the request and status line, the cost |
-| [Matrix XIII: how it works](world/matrix13-internals.md) | The cut dungeon's rows, event spawns, arrival, camps, save, title and world rows |
+| [Matrix XIII: how it works](world/matrix13-internals.md) | The cut area's rows, event spawns, arrival, camps, save, title and world rows |
 | [Lily's signal: how it works](world/lily-signal-internals.md) | The rows, quests and talks of Lily's signal |
 | [Story together: how it works](story/together-internals.md) | The host's theater reads and hooks, the scene and trip tables, the SBS lines, the guest's gate, leash and results, the guest's quest steps, the status line, the addresses |
 | [The bike: how it works](vehicles/bike-internals.md) | The preload, the part on EVE, mount and dismount, the gate, the riding pose, the riding model, the lean, the ghosts |
@@ -145,7 +145,7 @@ body reads its state and how the game reuses Lion bodies, which is in
 | [eve/eve-internals.md](eve/eve-internals.md) | The cut ChainSpin, developer flight and slow motion, the cut glide, emotes |
 | [cutmenus/menus-internals.md](cutmenus/menus-internals.md) | The cut Load Shortcut menu and loading one of its saves, the developer menu and panels, the cut mailbox |
 | [online/modes/nightop-shop-internals.md](online/modes/nightop-shop-internals.md) | The shop screen (its rows, the opener, the wallet), Roxanne's choices, the cut stimpacks, the cut Shock Bolt |
-| [world/matrix13-internals.md](world/matrix13-internals.md) | The cut dungeon's rows and event spawns, the command, the arrival, Lily's menu, the camps, the save, the title, its world rows, the records |
+| [world/matrix13-internals.md](world/matrix13-internals.md) | The cut area's rows and event spawns, the command, the arrival, Lily's menu, the camps, the save, the title, its world rows, the records |
 | [world/lily-signal-internals.md](world/lily-signal-internals.md) | The rows, quests and talks of Lily's signal |
 | [dev/safety.md](dev/safety.md) | Which kills and achievements count for each player; the safety design |
 
@@ -221,18 +221,18 @@ body reads its state and how the game reuses Lion bodies, which is in
 | The cut Tendril: Its batch in the native part | [fight/bosses-internals.md](fight/bosses-internals.md#the-tendrils-batch-in-the-native-part) |
 | The cut Tendril: Its spawn | [fight/bosses-internals.md](fight/bosses-internals.md#the-tendrils-spawn) |
 | The cut Tendril: Open questions | [fight/bosses-internals.md](fight/bosses-internals.md#open-questions-about-the-tendril) |
-| The cut Matrix XIII dungeon (experimental) | [world/matrix13-internals.md](world/matrix13-internals.md) |
-| The cut Matrix XIII dungeon (experimental): Its rows | [world/matrix13-internals.md](world/matrix13-internals.md#its-rows) |
-| The cut Matrix XIII dungeon (experimental): Its event spawns | [world/matrix13-internals.md](world/matrix13-internals.md#its-event-spawns) |
-| The cut Matrix XIII dungeon (experimental): The command | [world/matrix13-internals.md](world/matrix13-internals.md#the-command) |
-| The cut Matrix XIII dungeon (experimental): The arrival and the coins | [world/matrix13-internals.md](world/matrix13-internals.md#the-arrival-and-the-coins) |
-| The cut Matrix XIII dungeon (experimental): Lily's menu | [world/matrix13-internals.md](world/matrix13-internals.md#lilys-menu) |
-| The cut Matrix XIII dungeon (experimental): The camp list | [world/matrix13-internals.md](world/matrix13-internals.md#the-camp-list) |
-| The cut Matrix XIII dungeon (experimental): The save | [world/matrix13-internals.md](world/matrix13-internals.md#the-save) |
-| The cut Matrix XIII dungeon (experimental): At the title | [world/matrix13-internals.md](world/matrix13-internals.md#at-the-title) |
-| The cut Matrix XIII dungeon (experimental): Matrix XIII's world rows | [world/matrix13-internals.md](world/matrix13-internals.md#matrix-xiiis-world-rows) |
-| The cut Matrix XIII dungeon (experimental): The camp names | [world/matrix13-internals.md](world/matrix13-internals.md#the-camp-names) |
-| The cut Matrix XIII dungeon (experimental): Open questions | [world/matrix13-internals.md](world/matrix13-internals.md#open-questions) |
+| The cut Matrix XIII area (experimental) | [world/matrix13-internals.md](world/matrix13-internals.md) |
+| The cut Matrix XIII area (experimental): Its rows | [world/matrix13-internals.md](world/matrix13-internals.md#its-rows) |
+| The cut Matrix XIII area (experimental): Its event spawns | [world/matrix13-internals.md](world/matrix13-internals.md#its-event-spawns) |
+| The cut Matrix XIII area (experimental): The command | [world/matrix13-internals.md](world/matrix13-internals.md#the-command) |
+| The cut Matrix XIII area (experimental): The arrival and the coins | [world/matrix13-internals.md](world/matrix13-internals.md#the-arrival-and-the-coins) |
+| The cut Matrix XIII area (experimental): Lily's menu | [world/matrix13-internals.md](world/matrix13-internals.md#lilys-menu) |
+| The cut Matrix XIII area (experimental): The camp list | [world/matrix13-internals.md](world/matrix13-internals.md#the-camp-list) |
+| The cut Matrix XIII area (experimental): The save | [world/matrix13-internals.md](world/matrix13-internals.md#the-save) |
+| The cut Matrix XIII area (experimental): At the title | [world/matrix13-internals.md](world/matrix13-internals.md#at-the-title) |
+| The cut Matrix XIII area (experimental): Matrix XIII's world rows | [world/matrix13-internals.md](world/matrix13-internals.md#matrix-xiiis-world-rows) |
+| The cut Matrix XIII area (experimental): The camp names | [world/matrix13-internals.md](world/matrix13-internals.md#the-camp-names) |
+| The cut Matrix XIII area (experimental): Open questions | [world/matrix13-internals.md](world/matrix13-internals.md#open-questions) |
 | The Night Operation shop screen | [online/modes/nightop-shop-internals.md](online/modes/nightop-shop-internals.md#the-night-operation-shop-screen) |
 | The Night Operation shop screen: Its rows | [online/modes/nightop-shop-internals.md](online/modes/nightop-shop-internals.md#its-rows) |
 | The Night Operation shop screen: The opener | [online/modes/nightop-shop-internals.md](online/modes/nightop-shop-internals.md#the-opener) |
