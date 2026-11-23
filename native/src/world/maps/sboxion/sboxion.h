@@ -41,7 +41,7 @@ namespace coop::sboxion {
 constexpr size_t kWarpLocation = 0xa4c, kWarpRotation = 0xa58;
 // The global SB's code compares an FName's index with to tell None (0x14bb73480, 0x141d01910): the point's FName the
 // warp gets is this index with number 0.
-constexpr uint64_t kNoneIndexAt = 0x147017b00;
+constexpr uint64_t kNoneName = 0x147017b00;
 // A zone row of type 5, Zone_BossChallenge: the only type SB keeps as the arrival's zone with no SBZoneVolume at the
 // place (0x141cde9b0 compares row +0x25 with 5 at 0x141cdeb20). SB queues no save in such a zone (0x141ce8050).
 constexpr uint8_t kBossChallenge = 5;

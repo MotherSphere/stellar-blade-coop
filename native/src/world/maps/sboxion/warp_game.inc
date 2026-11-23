@@ -108,7 +108,7 @@ __declspec(noinline) sboxion::Why sboxion_enter(const sboxion::Ask &ask) {
   if (why != sboxion::Why::none)
     return why;
   // The point is None: its index as SB's own code reads it, number 0.
-  const uint64_t point = at<uint32_t>(base + (sboxion::kNoneIndexAt - game::kImageBase));
+  const uint64_t point = at<uint32_t>(base + (sboxion::kNoneName - game::kImageBase));
   // The world row's UMapPath (+0x18), no net, the zone, no point, then 1, 1, 0 as the hall lobbies pass them.
   if (game_function<SboxionUrlWarp>(sbo::kUrlWarp)(reinterpret_cast<void *>(client), world_row + sbo::kWorldUrl, 0,
                                                    &ask.zone, &point, 1, 1, 0) != 1)
