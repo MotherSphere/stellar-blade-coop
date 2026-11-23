@@ -10,8 +10,9 @@
 -- line and the characters; nothing read in another map; a second arrival writes again; a probe level's change logged
 -- once; a waypoint logged once a visit; the watch ended by a map change and by coop off. The recovery
 -- (world/maps/sboxion/recover.lua): ticked only in SBO Xion, reset at each arrival with the point coop xion asked, fed
--- by the engine's read of EVE and not by me(), ended by a map change and by coop off; coop xion recover refused out
--- of SBO Xion, its three modes inside, the mode back to on at the next arrival and the recovery's part of the status.
+-- by the engine's read of EVE and not by me(), ended by a map change and by coop off, each showing again a death
+-- screen the recovery hid; coop xion recover refused out of SBO Xion, its three modes inside, the mode death back to
+-- on at the next arrival and the recovery's part of the status.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -334,6 +335,7 @@ her_at,her_mode={X=0,Y=0,Z=-5000},3
 world.put=function(to,yaw) puts[#puts+1]={at=to,yaw=yaw}; return true end -- She keeps falling after this one.
 pass(x,0.25)
 assert(#puts==2,'A fall right before the map change')
+assert(x.recover('death')) -- The stay ends in the mode death: the next arrival sets it back to on.
 her_at,her_mode=nil,1
 local reads=total()
 me={at={X=0,Y=0,Z=0},map=SB_XION}
@@ -413,4 +415,14 @@ x.stop()
 levels[94].visible=not levels[94].visible
 pass(x,30)
 assert(total()==reads and #logs==lines,'Nothing after coop off')
+
+-- coop_off_screen: coop off shows again a death screen the recovery hid.
+x=new()
+her_at,her_mode=nil,1
+me=at(D.ARRIVALS.city)
+warp_line='sboxionwarp=entered asks=5 life=3'
+pass(x,2.5)
+assert(not screen_shown and logged('sboxion: respawn result: life 3/1, death screen up/hidden'),logs[#logs])
+x.stop()
+assert(screen_shown and logs[#logs]=='sboxion: respawn: death screen shown again (coop off)',logs[#logs])
 print('sboxion_world_test ok')

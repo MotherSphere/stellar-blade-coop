@@ -871,9 +871,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   within 3 m, once a visit. A map change, a loading screen and `coop off` end the watch. The recovery is ticked only
   in SBO Xion. Each arrival starts it again with the arrival point `coop xion` asked. Its ground point and its fall
   line hold the engine's read of EVE when `me()` names another place. A `life=3` word gets the respawn asked with
-  the GUID of the `engine=` line. A death screen it hid is shown again at a map change. `coop xion recover` is
-  refused outside SBO Xion, sets each of its three modes inside and prints the state alone. `coop xion status` ends
-  with the recovery's part inside SBO Xion only;
+  the GUID of the `engine=` line. A death screen it hid is shown again at a map change and at `coop off`. `coop xion
+  recover` is refused outside SBO Xion, sets each of its three modes inside and prints the state alone. A stay left in
+  the mode `death` is followed by an arrival in the mode `on`. `coop xion status` ends with the recovery's part inside
+  SBO Xion only;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
@@ -881,16 +882,20 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   Nothing moves while a guard waits (no EVE, photo mode, a cutscene, a warp, another zone or zone type), while her
   life reads 3 to 5 or in the modes `death` and `off`. Without a `warp=` word the fall is still caught. It is caught
   too with `theater=fault` and with `zonetype=0` beside SBO Xion's area. The check: a walking read within 3 s of world
-  time is the success, 6 s of passes on one world time run nothing out, a refused teleport sends the next try to the
-  arrival point, the second failure stops the recovery with no third call, the mode word starts it again, an error in
-  a pass counts as a failure. The death, with the respawn cases of `online/modes/scoreattack/run_test` for the
-  module's copy: each reason the respawn waits for is logged once, one call with her GUID, the result line 2 s later,
-  the death screen hidden over a living EVE and shown again at a new death and at a stop, no call in 10 s given up.
-  The module's own cases: the call after 5 s with no death screen, the put-back when the respawn leaves her off the
-  ground (in the mode `death` too, never while a guard waits), life still 3 after the call as a failure that starts
-  the death again, a death left from the mode `off`, one read during a wait and one on a world time that stands still,
-  a life back at 1 before the call, no call without a `warp=` word, the `life=` word read on the refused and fault
-  forms, a death dropped by an arrival and by a stop;
+  time is the success, 6 s of passes on one world time run nothing out, 24 passes in 0.75 s of world time are no
+  failure, three passes of 1 s each are one, a refused teleport sends the next try to the arrival point, the second
+  failure stops the recovery with no third call, the mode word starts it again, an error in a pass counts as a
+  failure. An arrival sets the modes `death` and `off` back to `on`. An arrival, a stop, an error in a pass and the
+  mode `off` each drop a put-back being checked. The death, with the respawn cases of
+  `online/modes/scoreattack/run_test` for the module's copy: each reason the respawn waits for is logged once, one
+  call with her GUID, the result line 2 s later, the death screen hidden over a living EVE and shown again at a new
+  death and at a stop, no call in 10 s given up. The module's own cases: the call after 5 s with no death screen, the
+  put-back when the respawn leaves her off the ground (in the mode `death` too, never while a guard waits), life still
+  3 after the call as a failure that starts the death again, a death left from the mode `off`, one read during a wait
+  and one on a world time that stands still, a life back at 1 before the call, no call without a `warp=` word, the
+  `life=` word read on the refused and fault forms, a death dropped by an arrival, by a stop and by the mode `off`,
+  the failures at 0 after a respawn that leaves her walking, a put-back's check dropped by a death that starts during
+  it;
 - `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects: the zone's FName
   index only for a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
   dead actor never written, the streaming levels by their package's last part, the probes read again on the kept

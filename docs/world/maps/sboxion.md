@@ -302,8 +302,8 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
   name, the counts 72, 65 and 41, nothing read outside SBO Xion, a second arrival, a probe change logged once, a
   waypoint logged once a visit, the watch ended by a map change and by `coop off`. For the recovery: ticked only in
   SBO Xion, started again at each arrival with the point `coop xion` asked, fed by the engine's read of EVE when
-  `me()` names another place, a death answered with her GUID, the hidden death screen shown again at a map change,
-  `coop xion recover` and the status line's part.
+  `me()` names another place, a death answered with her GUID, the hidden death screen shown again at a map change
+  and at `coop off`, `coop xion recover`, the mode back to `on` at an arrival and the status line's part.
 - `recover_test.lua`: the ground point, the fall, each guard, the check on the world's time, the two failures that
   stop the recovery, then the death with score attack's respawn cases and this module's own (no death screen for
   5 s, a respawn that leaves EVE off the ground, a death left from the mode `off` or read during a wait).

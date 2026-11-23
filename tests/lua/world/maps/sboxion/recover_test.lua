@@ -10,19 +10,21 @@
 -- zone type), while her life reads 3 to 5 or in the modes death and off; with no warp= word the fall is still caught
 -- and one line says so; the fault words theater=fault and zonetype=0 beside SBO Xion's area are no wait. The check: a
 -- walking read within 3 s of world time is a success and sets the failures to 0; 6 s of passes on one world time, then
--- a walking read, is a success; a refused teleport sends the next try to the arrival point; a second failure stops the
--- recovery with one line and no third call; the mode word starts it again; an error in a pass counts as a failure; 1 s
--- of walking between two failures sets them to 0, so the recovery stays on; an arrival resets all of it; a stop drops a
--- put-back being checked.
+-- a walking read, is a success; 24 passes in 0.75 s of world time are no failure and three passes of 1 s each are one;
+-- a refused teleport sends the next try to the arrival point; a second failure stops the recovery with one line and no
+-- third call; the mode word starts it again; an error in a pass counts as a failure; 1 s of walking between two
+-- failures sets them to 0, so the recovery stays on; an arrival resets all of it, the modes death and off included; an
+-- arrival, a stop, an error in a pass and the mode off each drop a put-back being checked.
 -- The death, with the respawn cases of tests/lua/online/modes/scoreattack/run_test.lua for this module's copy: it
--- starts while her life reads 3 to 5 (not on the change), each reason the respawn waits for is said once, one call
--- of SB's respawn with her GUID, the result line 2 s later, a death screen that still plays over a living EVE hidden,
--- then shown again at a new death and at a stop; no call in 10 s is a failure. This module's own cases: with no death
--- screen playing the call is made after 5 s; a respawn that leaves her off the ground puts her back, in the mode
--- death too; life still 3 after the call is a failure and the death starts again; two failures stop the recovery
--- and the mode word starts it again; a death left from the mode off, one read during a guard's wait and one on a
--- world time that stands still are all asked; a life back at 1 before the call ends the death with no failure;
--- without a warp= word the respawn is never asked; an arrival and a stop drop a death being handled.
+-- starts while her life reads 3 to 5 (not on the change), each reason the respawn waits for is said once, one call of
+-- SB's respawn with her GUID, the result line 2 s later, a death screen that still plays over a living EVE hidden, then
+-- shown again at a new death and at a stop; no call in 10 s is a failure. This module's own cases: with no death screen
+-- playing the call is made after 5 s; a respawn that leaves her off the ground puts her back, in the mode death too;
+-- life still 3 after the call is a failure and the death starts again; two failures stop the recovery and the mode word
+-- starts it again; a death left from the mode off, one read during a guard's wait and one on a world time that stands
+-- still are all asked; a life back at 1 before the call ends the death with no failure; without a warp= word the
+-- respawn is never asked; an arrival, a stop and the mode off drop a death being handled; a respawn that leaves her
+-- walking sets the failures to 0; a death that starts while a put-back is checked drops the check.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Recover=require('world.maps.sboxion.recover')
 local D=require('world.maps.sboxion.data')
@@ -266,6 +268,29 @@ eve.mode=1
 pass(r)
 assert(logged('put back: EVE walks at (300, 0, 235), 0.2 s after the move'),last())
 
+-- check_world_time: CHECK counts the world's time, not passes. 24 passes of 1/32 s after the move are 0.75 s: no
+-- failure. The walking read after them is the success. Three passes of 1 s each are 3 s: the failure.
+r=fresh()
+walk(r,6)
+fall()
+pass(r)
+eve.at.Z=100 -- Above the floor, still falling.
+for _=1,24 do eve.time=eve.time+0.03125; r.tick() end
+assert(#puts==1 and not logged('failure'),'24 passes in 0.75 s of world time run no check out')
+eve.mode=1
+pass(r)
+assert(last()=='put back: EVE walks at (300, 0, 100), 1.0 s after the move',last())
+r=fresh()
+walk(r,6)
+fall()
+pass(r)
+eve.at.Z=100
+for _=1,2 do eve.time=eve.time+1; r.tick() end
+assert(not logged('failure'),'2 s of world time in two passes')
+eve.time=eve.time+1
+r.tick()
+assert(last()=='put back failed: EVE at (300, 0, 100), mode 3, 3 s after the move: failure 1 of 2',last())
+
 -- check_failed: no walking read in 3 s of world time is a failure; the next try goes to the arrival point.
 r=fresh()
 walk(r,6)
@@ -332,6 +357,30 @@ assert(r.status():find('ground (500, 0, 225)',1,true) and r.status():find('failu
 fall()
 pass(r)
 assert(#puts==1 and puts[1].at.X==500 and logged('to the ground point (500, 0, 225)'),last())
+-- An error in a pass drops a put-back being checked: the walking read after it is no success of that put-back.
+r=fresh()
+walk(r,6)
+fall()
+pass(r)
+broken='no world'
+pass(r)
+broken=nil
+eve.mode=1
+pass(r)
+assert(#puts==1 and not logged('put back') and r.status():find('failures 1',1,true),r.status())
+-- mode_off_check: coop xion recover off drops a put-back being checked. Nothing is said of it after, whether she
+-- walks or goes on falling.
+for _,after in ipairs({1,3}) do
+    r=fresh()
+    walk(r,6)
+    fall()
+    pass(r)
+    eve.at.Z=100
+    assert(#puts==1 and r.mode('off'))
+    eve.mode=after
+    pass(r,20)
+    assert(not logged('put back') and not logged('failure'),'Nothing of the check in the mode off, mode '..after)
+end
 
 -- arrival: a new arrival sets the mode to on, drops the point, the failures and the stop.
 r=fresh()
@@ -344,6 +393,21 @@ refuse=false
 r.arrive('gate')
 assert(last()=='recovery on: floor Z -3275, arrival point gate (-23393, 17287, 1285)',last())
 assert(r.status()=='recovery on, no ground point, failures 0',r.status())
+for _,word in ipairs({'death','off'}) do
+    r=fresh()
+    assert(r.mode(word) and r.status()=='recovery '..word..', no ground point, failures 0',r.status())
+    r.arrive('city')
+    assert(r.status()=='recovery on, no ground point, failures 0',word..': '..r.status())
+end
+-- An arrival drops a put-back being checked.
+r=fresh()
+walk(r,6)
+fall()
+pass(r)
+r.arrive('city')
+eve.mode=1
+pass(r,20)
+assert(#puts==1 and not logged('put back'),'Nothing of the check of the stay before')
 -- stop: a put-back being checked is dropped, so nothing is said of it after.
 r=fresh()
 walk(r,6)
@@ -533,6 +597,42 @@ assert(#respawns==0 and not logged('death:'),'Nothing in the mode off')
 assert(r.mode('on'))
 pass(r)
 assert(#respawns==1 and logged('death: life 3'),last())
+-- off_during_death: coop xion recover off drops a death being handled: no call after it and no failure.
+r=fresh()
+standalone=false
+die()
+pass(r,2)
+assert(last()=='respawn waits: the game is not standalone',last())
+assert(r.mode('off'))
+standalone,playing=true,true
+pass(r,60)
+assert(#respawns==0 and count('death: life 3')==1 and not logged('failure'),last())
+-- respawn_walking: a respawn that leaves her walking sets the failures to 0.
+r=fresh()
+playing,revive=true,1
+broken='no world'
+pass(r)
+broken=nil
+assert(r.status():find('failures 1',1,true),r.status())
+die()
+pass(r,9)
+assert(last()=='respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 1',last())
+assert(r.status():find('failures 0',1,true),r.status())
+-- death_drops_check: a death that starts while a put-back is checked drops the check. After the respawn nothing is
+-- said of that put-back.
+r=fresh()
+walk(r,6)
+playing,revive=true,1
+fall()
+pass(r)
+assert(#puts==1)
+eve.at.Z=100
+die()
+pass(r)
+assert(#respawns==1 and logged('death: life 3, EVE at (300, 0, 100)'),last())
+eve.mode=1
+pass(r,12)
+assert(logged('respawn result: life 3/1') and #puts==1 and not logged('put back'),last())
 -- guard_wait: a death read while a guard waits is asked once the wait ends.
 r=fresh()
 playing,photo=true,'1'
