@@ -7,12 +7,13 @@
 // thread under its own SEH latch, warp_worker.inc takes Lua's two requests.
 // tests/native/world/maps/sboxion/sboxion_test.cpp checks this file on the build machine.
 //
-// The way in is SB's URL warp 0x141cdfa50 (client, &URL, 0, &zone, &point, 1, 1, 0), as the hall lobbies call it and
-// as SB's own Boss Challenge entry 0x141ce4150 calls it. It tests only the URL's length, so every guard is ours. It
+// The way in is SB's URL warp 0x141cdfa50 (client, &URL, 0, &zone, &point, 1, 1, 0), as the hall lobbies call it. SB's
+// own Boss Challenge entry 0x141ce4150 passes 1 as argument 8, which skips 0x141c733a0, a reset of several managers
+// that the warp also calls when argument 8 is 0. The warp tests only the URL's length, so every guard is ours. It
 // resets the warp block at client +0xa20, zeroes the block's location and rotation, stores the zone at +0xa64 and the
-// point at +0xa7c, sets +0xa2c to argument 6 and +0xa29 to argument 7 and returns 1. SBO Xion has no spawn point
-// (they are in SB's level-design sublevels, which it does not load), so the point is None and the game thread writes
-// the arrival location and rotation into the block right after the call. SB's arrival 0x141cde9b0 hands the block to
+// point at +0xa7c, sets +0xa2c to argument 6 and +0xa29 to argument 7 and returns 1. SBO Xion has no spawn point (they
+// are in SB's level-design sublevels, which it does not load), so the point is None and the game thread writes the
+// arrival location and rotation into the block right after the call. SB's arrival 0x141cde9b0 hands the block to
 // 0x14bb73480 (through the thunk 0x141c975b0), which keeps a stored location that is not zero when the block's +0xc
 // (client +0xa2c) is 1; the client tick 0x141cd2f50 then moves EVE there when +0xa29 is 1.
 //
