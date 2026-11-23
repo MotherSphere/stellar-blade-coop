@@ -8,11 +8,12 @@ sublevels, so it has no NPC, no quest, no event, no shop and no camp.
 SB's own Xion is not changed. Its world row `Xion`, its zones and its sublevels stay as shipped. Story mode and
 online sessions keep SB's Xion.
 
-The module `world.maps.sboxion` is a test tool. It has not run in game. Its first test answers one question: can a
-persistent level in a container of SBO's stream SB's sublevels, with EVE standing in a lit, empty city. The commands
-are left out of the usage line. They run only alone (not in a session) on a
-[co-op save](../../players/playing-with-a-friend.md#co-op-saves). Their lines go to `UE4SS.log` as `[StellarCoop][SX]`
-and the native part's to `coop-link.log`.
+The module `world.maps.sboxion` is a test tool. Its first game test answered one question: can a persistent level in
+a container of SBO's stream SB's sublevels, with EVE standing in a lit, empty city. It can: the 93 always-loaded
+sublevels loaded and the day light applied. In the same test EVE fell out of the city and stayed dead.
+[Falls and deaths](#falls-and-deaths) describes the fix. The commands are left out of the usage line. They run only
+alone (not in a session) on a [co-op save](../../players/playing-with-a-friend.md#co-op-saves). Their lines go to
+`UE4SS.log` as `[StellarCoop][SX]` and the native part's to `coop-link.log`.
 
 ## The test pak
 
@@ -30,7 +31,8 @@ The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then i
 | `coop xion` or `coop xion city` | Warps EVE into SBO Xion at the city point (-8304, 7201, 225) |
 | `coop xion gate` | The same at the gate point (-23393, 17287, 1285) |
 | `coop xion leave` | Asks SB's reload of the co-op save. The native part runs it only from SBO Xion |
-| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place and the nearest waypoint |
+| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint and the recovery's state |
+| `coop xion recover on`, `death` or `off` | Inside SBO Xion: what the module does after a fall or a death, until the next arrival ([Falls and deaths](#falls-and-deaths)). Alone, it prints the recovery's state |
 
 `coop xion` refuses with nothing asked when the save is not a co-op save, when a session is open, without the pak,
 when the rows were refused and when EVE is already in SBO Xion. The native part then refuses the warp during a
@@ -52,6 +54,114 @@ The functions that apply the rebuild have not been read in the game's code.
 
 SB's own zone warps and camp travel are refused in a type-5 zone (`0x141cdfe70`). The UI code that tests the zone
 type has not been read: the pause menu may show Boss Challenge entries.
+
+## Falls and deaths
+
+SB catches a fall out of Xion with fall volumes in the level-design sublevel `E04_Area01_A_LD_Visible`. SBO Xion does
+not load it. The lift's doors are in a level-design sublevel too, so lift doorway A near (3958, -9124, 1222) is open
+and leads into the shaft. In the first game test EVE walked through it and fell. SB's own timer kills an EVE who
+falls for `Falling_Time_Dead`, 10 s by the default in the game's code. Her death screen could not respawn her: its
+camp respawn ends in SB's zone warp, which refuses a zone of type 5 (`0x141cdfe70`). The player had to quit the
+game.
+
+`recover.lua` handles both cases at each 250 ms pass while EVE is in SBO Xion. It has not run in game yet.
+
+### A fall
+
+The module keeps a ground point: the last place where EVE walked for four passes in a row. While she walks it is
+under 1 s old. A jump or a fall keeps it. An arrival drops it.
+
+Once EVE's Z is under -3275 the module moves her 10 cm above the ground point with `K2_TeleportTo`, facing the way she
+faced there, then calls `StopMovementImmediately`. -3275 is the top of SB's largest fall volume,
+`SBEffectVolume_Xion10_04`. It lies 1410 cm under the lowest spawn point of the upper city and 3500 cm under the
+city point. In the first game test EVE fell more than 26,000 cm before SB's timer ended the fall.
+
+With no ground point, or after a failure, the target is the arrival point of the stay. The first read of EVE
+walking within 3 s of the world's time is the success. SB sets its fall timer to 0 on the first frame she does not
+fall (`0x141ba1810`), so the module writes nothing of SB.
+
+### A death
+
+While the `sboxionwarp=` line of `coop-status.txt` reads `life=3`, `4` or `5`, the module asks SB's own respawn job in
+place: `ServerRequest_ActorRespawn(<EVE's GUID>, false)`. The job's code has no test for a zone of type 5. It sets
+her life state to alive, sets her HP to its maximum and refills her recovery items. With `false` it does not move her
+to a camp. The module waits until the death screen plays, 5 s at most, then makes the call once. Two seconds later
+it logs the result and hides a death screen that still plays. If EVE is then not walking, or is under -3275, the
+put-back of a fall runs.
+
+The native part writes the `life=` word only while EVE is inside SBO Xion: an accepted `coop xion` starts it and an
+accepted `coop xion leave` ends it. The call also needs `warp=idle` and EVE's GUID (`me=`) from the `engine=` line,
+which the group's native read writes. If that read is off or stopped on a fault, falls are still caught and deaths
+are not. The log says so once a stay.
+
+Nothing is saved. The items are refilled in memory and SB's in-game save queues nothing in this zone
+([Saves](#saves)).
+
+### When it waits and when it stops
+
+The recovery waits with no EVE, in photo mode, during a cutscene, while a warp is under way and while the `engine=`
+line names another zone or zone type. It skips the passes on which the world's time did not move.
+
+These are failures: a teleport the game refuses, 3 s without a walking read after a put-back, life still 3 to 5 two
+seconds after the call, no call in 10 s. After one failure the next put-back goes to the arrival point. Two failures
+in a row stop the recovery until the next arrival or `coop xion recover on`. `coop xion leave` stays the way out.
+
+`coop xion recover death` leaves falls alone, so a test can let EVE die of one. `coop xion recover off` does nothing
+after a fall or a death, as in the first game test. Each arrival sets the mode back to `on`.
+
+The floor is one height for the whole map, so a roof or a ledge outside the city above -3275 counts as ground. Lift
+doorway A stays open. Other open edges were not looked for.
+
+### What the log shows after a fall or a death
+
+| Line | Meaning |
+| --- | --- |
+| `sboxion: recovery on: floor Z -3275, arrival point <name> (x, y, z)` | Each arrival |
+| `sboxion: ground: first point (x, y, z)` | The first ground point of the stay |
+| `sboxion: recovery waits: <reason>`, then `sboxion: recovery waits no more` | A wait started, then ended |
+| `sboxion: recovery: the engine line has no warp= word: falls are caught, deaths are not` | The group's native read is off |
+| `sboxion: fall: EVE at (x, y, z) under the floor, mode m, life n: to the ground point (x, y, z) read t s ago` | A fall was caught. The target also reads `the arrival point <name> (x, y, z), no ground point` or `after a failure` |
+| `sboxion: put back: EVE walks at (x, y, z), t s after the move` | The put-back worked |
+| `sboxion: put back refused by K2_TeleportTo: failure n of 2` | The game refused the teleport |
+| `sboxion: put back failed: EVE at (x, y, z), mode m, 3 s after the move: failure n of 2` | No walking read in 3 s |
+| `sboxion: death: life n, EVE at (x, y, z)` | The death rule started |
+| `sboxion: respawn waits: <reason>` | Why the call is not made yet, each reason once |
+| `sboxion: respawn: ServerRequest_ActorRespawn(<GUID>, false) asked (life n, death screen up)` | The call. It reads `no death screen in 5 s` when none played |
+| `sboxion: respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode m` | Before and after, 2 s after the call. `life 3/3` comes with `failure n of 2` |
+| `sboxion: death: EVE at (x, y, z) not on the ground: to the ground point (x, y, z) read t s ago` | The respawn left her off the ground |
+| `sboxion: respawn not asked in 10 s: <reason>: failure n of 2` | The call was never made |
+| `sboxion: death: over before the respawn was asked (life n)` | She was alive again before the call |
+| `sboxion: respawn: death screen shown again (<reason>)` | A death screen the module hid is back: a new death, a map change or `coop off` |
+| `sboxion: recovery stopped after 2 failures in a row; coop xion recover on starts it again; way out: coop xion leave` | Nothing more is tried |
+| `sboxion: recovery mode <on, death or off>: ...` | `coop xion recover` changed the mode |
+| `link: sboxionwarp=entered asks=a life=n` | The status line, at each change of her life state |
+
+### Testing it in game
+
+On a co-op save, alone, with the test pak in. `coop xion status` prints EVE's place: use it to find lift doorway A.
+
+1. `coop xion`, then walk for 5 s. The log has `recovery on` and `ground: first point`.
+2. Walk through lift doorway A and let go of the stick. EVE stands in front of the doorway again within about 4 s,
+   with no death screen. The log has one `fall:` line and one `put back: EVE walks` line.
+3. Run and jump through the doorway, then walk on for 10 s. The log has the same two lines. EVE does not die 10 s
+   later.
+4. `coop glide on`, jump through the doorway and hold Jump. EVE comes back by the catch or, after SB's 10 s, by a
+   death and its respawn. Note which. `coop glide off`.
+5. `coop xion recover death`, then walk through the doorway. The death screen shows after 10 s. Within about 3 s
+   EVE is alive in front of the doorway and the death screen is gone. Moving, jumping and the pause menu work. The
+   log has `death: life 3`, `respawn: ... asked`, `respawn result: life 3/1`, `death: ... not on the ground` and
+   `put back: EVE walks`.
+6. `coop xion leave`. The co-op save reloads at its camp. `coop-link.log` has
+   `sboxion leave: ... last save unchanged, reload call 1`.
+7. `coop xion`, `coop xion recover off`, walk through the doorway, wait for the death screen, then
+   `coop xion leave`. If the native part refuses it, note its `why=` word, type `coop xion recover on`, wait for the
+   respawn, then `coop xion leave` again.
+8. `coop xion`, `coop xion recover off`, walk through the doorway. At the death screen press its left button and
+   wait 5 s. Note what the screen shows. Then `coop xion leave`, with `coop xion recover on` first if it is refused.
+
+Not known before this test: whether SB's respawn job runs as read in a zone of type 5, whether the engine accepts
+the teleport targets, what the death screen shows after its left button and whether `coop xion leave` passes with a
+dead EVE.
 
 ## Saves
 
@@ -100,7 +210,9 @@ Lua, in `mod/StellarCoop/Scripts/world/maps/sboxion/`:
 
 - `data.lua`: the pak's name, the level, the two rows, the two arrival points, the four waypoints, the 41 names of
   the day table and the two probe levels.
-- `sboxion.lua`: the pak gate, the rows at the title, the three commands, the arrival and the watch.
+- `sboxion.lua`: the pak gate, the rows at the title, the commands, the arrival and the watch.
+- `recover.lua`: the ground point, the put-back after a fall and the respawn after a death. Its respawn block is the
+  module's copy of score attack's. Its ground read is the module's copy of the group's.
 - `engine.lua`: the UE4SS calls. `commands.lua`: `coop xion`. `wiring.lua`: the manifest, export `sboxion`.
 
 Native, in `native/src/world/maps/sboxion/`:
@@ -108,6 +220,8 @@ Native, in `native/src/world/maps/sboxion/`:
 - `sboxion_rows.h`: the batch `sboxion`, two rows written by hand.
 - `sboxion.h`: the guards, the answer word, the status line and the log lines, tested on Linux.
 - `warp_game.inc` and `warp_worker.inc`: the two requests, on the game thread under the module's own fault latch.
+  The worker also reads EVE's life state each 250 ms while she is inside, for the `life=` word of the status line.
+  That read is a `ReadProcessMemory` on the worker thread, which fails instead of faulting.
 
 ### The rows
 
@@ -164,8 +278,8 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 
 ### What is left out
 
-- The 50 level-design sublevels: NPCs, quests, shops, camps, zone volumes, doors, ladders, the lift, the
-  fall-recovery volume. EVE can fall out of the world: `coop xion leave` is the way back.
+- The 50 level-design sublevels: NPCs, quests, shops, camps, zone volumes, doors, ladders, the lift, SB's fall
+  volumes. EVE can fall out of the city: [Falls and deaths](#falls-and-deaths) says what brings her back.
 - The 15 underground sublevels, the theater set, one distant-view level and the light variants for night.
 - `E04_Area02_FX_A_01`, which holds the 12 rats. Its 16 effects and its water body are missing with it.
 - The 50 actors of the persistent level tagged `XionChristmasEvent`.
@@ -174,16 +288,23 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 ## Tests
 
 - `tests/lua/world/maps/sboxion/off_test.lua`: a failure of this module at load turns this module off alone.
-- `sboxion_test.lua`: the words of `coop xion`.
+- `sboxion_test.lua`: the words of `coop xion`, `recover` and its three modes included.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the
   read-back, a refusal logged once.
 - `world_test.lua`: the commands' refusals and requests, then on a fake world the 41 writes matched by level and
   name, the counts 72, 65 and 41, nothing read outside SBO Xion, a second arrival, a probe change logged once, a
-  waypoint logged once a visit, the watch ended by a map change and by `coop off`.
-- `engine_test.lua`: the UE4SS calls over fake objects.
+  waypoint logged once a visit, the watch ended by a map change and by `coop off`. For the recovery: ticked only in
+  SBO Xion, started again at each arrival with the point `coop xion` asked, fed by the engine's read of EVE when
+  `me()` names another place, a death answered with her GUID, the hidden death screen shown again at a map change,
+  `coop xion recover` and the status line's part.
+- `recover_test.lua`: the ground point, the fall, each guard, the check on the world's time, the two failures that
+  stop the recovery, then the death with score attack's respawn cases and this module's own (no death screen for
+  5 s, a respawn that leaves EVE off the ground, a death left from the mode `off` or read during a wait).
+- `engine_test.lua`: the UE4SS calls over fake objects, the recovery's included: one read of EVE a pass, no stop call
+  after a refused teleport, the respawn's request, the death screen hidden and shown again.
 - `tests/native/world/maps/sboxion/sboxion_test.cpp`: one case for each guard of the two requests, the answer word,
-  the status line and the log lines.
+  the status line and the log lines, the inside flag and the `life=` word on each form of the line.
 - `tests/native/rows/rows_test.cpp` runs the batch on the row engine. `tests/native/link/protocol_test.cpp` parses
   the two requests.

@@ -33,7 +33,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `off`, `words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
-`world/maps/sboxion/`: `engine`, `off`, `rows`, `sboxion`, `title`, `world`; `online/modes/nightop/`:
+`world/maps/sboxion/`: `engine`, `off`, `recover`, `rows`, `sboxion`, `title`, `world`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
 `online/partner/`: `assets`, `bench`, `bike_part`, `capture`, `commands`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
 `sentinel`; `online/photo/`: `off`; `story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`,
@@ -868,13 +868,38 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   volume of the same name in another level is left alone, the log reads 72, 65 and 41. The read-back comes 2 s and
   10 s later. A write that does not hold shows in the read-back. A level not loaded is named. In another map nothing
   is read. A second arrival writes again. A change of a probe level is logged once. A waypoint is logged after 5 s
-  within 3 m, once a visit. A map change, a loading screen and `coop off` end the watch;
+  within 3 m, once a visit. A map change, a loading screen and `coop off` end the watch. The recovery is ticked only
+  in SBO Xion. Each arrival starts it again with the arrival point `coop xion` asked. Its ground point and its fall
+  line hold the engine's read of EVE when `me()` names another place. A `life=3` word gets the respawn asked with
+  the GUID of the `engine=` line. A death screen it hid is shown again at a map change. `coop xion recover` is
+  refused outside SBO Xion, sets each of its three modes inside and prints the state alone. `coop xion status` ends
+  with the recovery's part inside SBO Xion only;
+- `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
+  The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
+  of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
+  EVE under Z -3275 goes to the ground point plus 10 cm with its yaw, or to the arrival point with no ground point.
+  Nothing moves while a guard waits (no EVE, photo mode, a cutscene, a warp, another zone or zone type), while her
+  life reads 3 to 5 or in the modes `death` and `off`. Without a `warp=` word the fall is still caught. The check: a
+  walking read within 3 s of world time is the success, 6 s of passes on one world time run nothing out, a refused
+  teleport sends the next try to the arrival point, the second failure stops the recovery with no third call, the
+  mode word starts it again, an error in a pass counts as a failure. The death, with the respawn cases of
+  `online/modes/scoreattack/run_test` for the module's copy: each reason the respawn waits for is logged once, one
+  call with her GUID, the result line 2 s later, the death screen hidden over a living EVE and shown again at a new
+  death and at a stop, no call in 10 s given up. The module's own cases: the call after 5 s with no death screen,
+  the put-back when the respawn leaves her off the ground (in the mode `death` too, never while a guard waits),
+  life still 3 after the call as a failure that starts the death again, a death left from the mode `off`, one read
+  during a wait and one on a world time that stands still, a life back at 1 before the call, no call without a
+  `warp=` word, the `life=` word read on the refused and fault forms, a death dropped by an arrival and by a stop;
 - `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects: the zone's FName
   index only for a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
   dead actor never written, the streaming levels by their package's last part, the probes read again on the kept
-  objects, the characters' names, every world read raising with no EVE;
-- `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`, the
-  use line for any other word and the answer without the Steam link;
+  objects, the characters' names, every world read raising with no EVE. For the recovery: `move` gives EVE's place,
+  yaw, movement mode, world time and address from one EVE with each read made once; `put` teleports then stops her
+  movement, with no stop call after a refusal; the respawn's controller, standalone test and request with the GUID
+  and `false`; the death screen looked for only on request, read playing or not, hidden and shown again as it was;
+- `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
+  `recover` alone and with `on`, `death` or `off`, the use line for any other word or one too many and the answer
+  without the Steam link;
 - `world/maps/sboxion/off_test` runs `main/isolation.lua` with `world.maps.sboxion` (see the module tests above);
 - `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return
   from the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry,
@@ -1225,7 +1250,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   no Boss Challenge byte, the asked zone's row, its type 5 and its world row. For `coop xion leave`: the zone
   compared with the client's (another zone, another FName number, none asked), then the same flow guards, the
   theater, photo mode and the reload's two other sources. Then the answer word's round trip, the `sboxionwarp=` line
-  and the log lines;
+  and the log lines. Then the inside flag (an accepted enter sets it, an accepted leave clears it, a refusal keeps
+  it) and the line's `life=` word: on the entered, refused and fault forms when the read worked, never on the off
+  and left forms;
 
 ### Table rows
 
