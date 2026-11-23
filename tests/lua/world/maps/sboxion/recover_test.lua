@@ -11,7 +11,8 @@
 -- and one line says so. The check: a walking read within 3 s of world time is a success and sets the failures to 0;
 -- 6 s of passes on one world time, then a walking read, is a success; a refused teleport sends the next try to the
 -- arrival point; a second failure stops the recovery with one line and no third call; the mode word starts it again;
--- an error in a pass counts as a failure; an arrival resets all of it; a stop drops a put-back being checked.
+-- an error in a pass counts as a failure; 1 s of walking between two failures sets them to 0, so the recovery stays
+-- on; an arrival resets all of it; a stop drops a put-back being checked.
 -- The death, with the respawn cases of tests/lua/online/modes/scoreattack/run_test.lua for this module's copy: it
 -- starts while her life reads 3 to 5 (not on the change), each reason the respawn waits for is said once, one call
 -- of SB's respawn with her GUID, the result line 2 s later, a death screen that still plays over a living EVE hidden,
@@ -299,6 +300,26 @@ broken='no world'
 pass(r,10)
 assert(times('recovery: error (no world): failure')==2 and times('recovery stopped')==1,last())
 broken=nil
+-- walked_since: a full streak sets the failures to 0. An error, 1 s of walking and a second error leave the recovery
+-- on; the next fall goes to the ground point.
+r=fresh()
+broken='no world'
+pass(r)
+broken=nil
+assert(r.status()=='recovery on, no ground point, failures 1',r.status())
+walk(r,3)
+assert(r.status()=='recovery on, no ground point, failures 1','Three walking passes are not a streak')
+walk(r,1)
+assert(r.status()=='recovery on, ground (100, 0, 225) 0.8 s old, failures 0',r.status())
+broken='no world'
+pass(r)
+broken=nil
+assert(last()=='recovery: error (no world): failure 1 of 2' and not logged('recovery stopped'),last())
+walk(r,4)
+assert(r.status():find('ground (500, 0, 225)',1,true) and r.status():find('failures 0',1,true),r.status())
+fall()
+pass(r)
+assert(#puts==1 and puts[1].at.X==500 and logged('to the ground point (500, 0, 225)'),last())
 
 -- arrival: a new arrival sets the mode to on, drops the point, the failures and the stop.
 r=fresh()

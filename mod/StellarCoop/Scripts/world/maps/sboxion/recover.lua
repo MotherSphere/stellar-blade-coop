@@ -18,8 +18,9 @@
 -- The fall: with EVE under FLOOR the part calls world.put (K2_TeleportTo, then StopMovementImmediately) to the ground
 -- point plus LIFT cm, facing the point's yaw. With no ground point, or after a failure, the target is the arrival
 -- point of the stay. The first walking read within CHECK s of the world's time is the success. A refused teleport
--- or CHECK s without that read is a failure. Two failures in a row stop the recovery until the next arrival or
--- coop xion recover on. An error in a pass counts as a failure, so it is logged twice at most.
+-- or CHECK s without that read is a failure. A success and a full streak set the failures to 0. Two failures with
+-- neither between them stop the recovery until the next arrival or coop xion recover on. An error in a pass counts
+-- as a failure, so an error on every pass is logged twice.
 -- The guards: no EVE, photo mode, a theater= word of the status text's engine line other than none, and, when that
 -- line has a warp= word, a warp under way or another zone or zone type than SBO Xion's. A pass that waits moves
 -- nothing and empties the streak. A put-back being checked keeps its time. Passes on which the world's time did
@@ -220,7 +221,7 @@ function Recover.new(o)
             ring[#ring+1]={at=m.at,yaw=m.yaw,time=m.time}
             if #ring>D.STREAK then table.remove(ring,1) end
             if #ring==D.STREAK then
-                point=ring[1]
+                point,fails=ring[1],0 -- She walked for a full streak: an older failure no longer counts.
                 if not first then
                     first=true
                     log('ground: first point '..place(point.at))

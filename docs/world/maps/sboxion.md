@@ -103,8 +103,10 @@ The recovery waits with no EVE, in photo mode, during a cutscene, while a warp i
 line names another zone or zone type. It skips the passes on which the world's time did not move.
 
 These are failures: a teleport the game refuses, 3 s without a walking read after a put-back, life still 3 to 5 two
-seconds after the call, no call in 10 s. After one failure the next put-back goes to the arrival point. Two failures
-in a row stop the recovery until the next arrival or `coop xion recover on`. `coop xion leave` stays the way out.
+seconds after the call, no call in 10 s. After one failure the next put-back goes to the arrival point. A put-back
+that works, a respawn that leaves EVE walking and 1 s of walking each set the count back to 0. Two failures with none
+of these between them stop the recovery until the next arrival or `coop xion recover on`. `coop xion leave` stays the
+way out.
 
 `coop xion recover death` leaves falls alone, so a test can let EVE die of one. `coop xion recover off` does nothing
 after a fall or a death, as in the first game test. Each arrival sets the mode back to `on`.
