@@ -57,6 +57,7 @@ Rule.MAPS={
     ['/game/art/bg/worldmap/dungeon_p/ending_p']={cycle='fixed'},
     ['/game/art/bg/worldmap/dungeon_p/epilogue_p']={cycle='fixed'},
     ['/game/sbo_lobby/lobby_terrace']={cycle='fixed'}, -- The night hall.
+    ['/game/sbo_world/xion_p']={cycle='fixed'}, -- SBO Xion: the day its module sets (world/maps/sboxion).
     ['/game/lobby/lobby']={cycle='fixed'}, -- The title world.
 }
 -- SB's star sky of the Nest's night ending, the material of SBO's star layer.
