@@ -44,10 +44,11 @@
 -- 3 to 5, warp=idle with me=<GUID> and no nightop=rule on the engine line, an SB player controller, a standalone
 -- game, EVE and the death screen playing, each reason logged once, then makes the one call. The change: after SCREEN
 -- s without a playing death screen the call is made without one. AFTER s later it logs the result. With life 1 or 6
--- a death screen that still plays is hidden until the next death or a stop. If EVE is then not walking or is under
--- FLOOR, the fall's put-back runs, in the mode death too. Life still 3 to 5, or no call in TRY s, is a failure: the
--- next pass starts the death again unless the recovery stopped. TRY, AFTER and SCREEN count passes, so they run in
--- real time whatever the world's time does. Without a warp= word the call is never made: it needs the GUID.
+-- a death screen that still plays is hidden until the next death, a stop or the recovery stopping after two failures.
+-- If EVE is then not walking or is under FLOOR, the fall's put-back runs, in the mode death too. Life still 3 to 5,
+-- or no call in TRY s, is a failure: the next pass starts the death again unless the recovery stopped. TRY, AFTER and
+-- SCREEN count passes, so they run in real time whatever the world's time does. Without a warp= word the call is
+-- never made: it needs the GUID.
 -- tests/lua/world/maps/sboxion/recover_test.lua covers it.
 local U=require('core.unreal')
 local D=require('world.maps.sboxion.data')
@@ -74,6 +75,13 @@ function Recover.new(o)
     local hidden=nil -- The call that shows the death screen this part hid.
     local passes,look_at=0,0 -- Every pass; the death screen's widget is looked for again at most every 10 s.
     local self={}
+    -- The death screen we hid comes back as it was.
+    local function show(reason)
+        local back=hidden
+        hidden=nil
+        back()
+        log('respawn: death screen shown again ('..reason..')')
+    end
     local function fail(what)
         fails=fails+1
         log(string.format('%s: failure %d of %d',what,fails,MOST))
@@ -81,6 +89,7 @@ function Recover.new(o)
         stopped,check,dead=true,nil,nil
         log('recovery stopped after '..MOST..' failures in a row; coop xion recover on starts it again; way out: coop '
             ..'xion leave')
+        if hidden then show('the recovery stopped') end -- No pass reads a new death from here on.
     end
     -- EVE to the ground point, or to the stay's arrival point with none or after a failure. said: the line's start.
     local function put(m,said)
@@ -110,13 +119,6 @@ function Recover.new(o)
         if warp~='idle' then return 'a warp is under way' end
         local area,kind=line:match(' area=(%S+)'),line:match(' zonetype=(%d+)')
         if area~=D.ZONE or kind~='5' and kind~='0' then return 'zone '..tostring(area)..' type '..tostring(kind) end
-    end
-    -- The death screen we hid comes back as it was.
-    local function show(reason)
-        local back=hidden
-        hidden=nil
-        back()
-        log('respawn: death screen shown again ('..reason..')')
     end
     -- Whether the death screen plays: true, false, or nil with no widget.
     local function playing()

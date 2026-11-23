@@ -108,8 +108,8 @@ time did not move.
 These are failures: a teleport the game refuses, 3 s without a walking read after a put-back, life still 3 to 5 two
 seconds after the call, no call in 10 s. After one failure the next put-back goes to the arrival point. A put-back
 that works, a respawn that leaves EVE walking and 1 s of walking each set the count back to 0. Two failures with none
-of these between them stop the recovery until the next arrival or `coop xion recover on`. `coop xion leave` stays the
-way out.
+of these between them stop the recovery until the next arrival or `coop xion recover on`. A death screen the module
+hid is shown again at that stop, so a death after it has its screen. `coop xion leave` stays the way out.
 
 `coop xion recover death` leaves falls alone, so a test can let EVE die of one. `coop xion recover off` does nothing
 after a fall or a death, as in the first game test. Each arrival sets the mode back to `on`.
@@ -136,7 +136,7 @@ doorway A stays open. Other open edges were not looked for.
 | `sboxion: death: EVE at (x, y, z) not on the ground: to the ground point (x, y, z) read t s ago` | The respawn left her off the ground |
 | `sboxion: respawn not asked in 10 s: <reason>: failure n of 2` | The call was never made |
 | `sboxion: death: over before the respawn was asked (life n)` | She was alive again before the call |
-| `sboxion: respawn: death screen shown again (<reason>)` | A death screen the module hid is back: a new death, a map change or `coop off` |
+| `sboxion: respawn: death screen shown again (<reason>)` | A death screen the module hid is back: a new death, a map change, `coop off` or the recovery stopped |
 | `sboxion: recovery stopped after 2 failures in a row; coop xion recover on starts it again; way out: coop xion leave` | Nothing more is tried |
 | `sboxion: recovery mode <on, death or off>: ...` | `coop xion recover` changed the mode |
 | `link: sboxionwarp=entered asks=a life=n` | The status line, at each change of her life state |

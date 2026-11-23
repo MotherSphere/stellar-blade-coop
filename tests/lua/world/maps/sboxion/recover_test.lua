@@ -18,13 +18,14 @@
 -- The death, with the respawn cases of tests/lua/online/modes/scoreattack/run_test.lua for this module's copy: it
 -- starts while her life reads 3 to 5 (not on the change), each reason the respawn waits for is said once, one call of
 -- SB's respawn with her GUID, the result line 2 s later, a death screen that still plays over a living EVE hidden, then
--- shown again at a new death and at a stop; no call in 10 s is a failure. This module's own cases: with no death screen
--- playing the call is made after 5 s; a respawn that leaves her off the ground puts her back, in the mode death too;
--- life still 3 after the call is a failure and the death starts again; two failures stop the recovery and the mode word
--- starts it again; a death left from the mode off, one read during a guard's wait and one on a world time that stands
--- still are all asked; a life back at 1 before the call ends the death with no failure; without a warp= word the
--- respawn is never asked; an arrival, a stop and the mode off drop a death being handled; a respawn that leaves her
--- walking sets the failures to 0; a death that starts while a put-back is checked drops the check.
+-- shown again at a new death, at a stop and when two failures stop the recovery; no call in 10 s is a failure. This
+-- module's own cases: with no death screen playing the call is made after 5 s; a respawn that leaves her off the ground
+-- puts her back, in the mode death too; life still 3 after the call is a failure and the death starts again; two
+-- failures stop the recovery and the mode word starts it again; a death left from the mode off, one read during a
+-- guard's wait and one on a world time that stands still are all asked; a life back at 1 before the call ends the death
+-- with no failure; without a warp= word the respawn is never asked; an arrival, a stop and the mode off drop a death
+-- being handled; a respawn that leaves her walking sets the failures to 0; a death that starts while a put-back is
+-- checked drops the check.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Recover=require('world.maps.sboxion.recover')
 local D=require('world.maps.sboxion.data')
@@ -487,6 +488,24 @@ pass(r,9)
 assert(visible==false,last())
 r.stop('coop off')
 assert(visible==true and last()=='respawn: death screen shown again (coop off)',last())
+-- stopped_screen: a screen the part hid comes back when two failures stop the recovery. A death after the stop is
+-- not handled: its death screen must not stay hidden.
+r=fresh()
+walk(r,6)
+playing,revive=true,1
+die()
+pass(r,9)
+assert(visible==false and last()=='respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 1',last())
+refuse=true
+fall()
+pass(r,2)
+assert(r.status():find('^recovery stopped'),r.status())
+assert(visible==true,'The screen is shown again when the recovery stops')
+assert(logs[#logs-1]:find('^recovery stopped after 2') and last()=='respawn: death screen shown again (the recovery '
+    ..'stopped)',last())
+die()
+pass(r,40)
+assert(visible==true and #respawns==1 and count('death screen shown again')==1,'Nothing more after the stop')
 -- A stop before the call drops the death being handled. So does an arrival. A pass after it that still reads life
 -- 3 starts a new death, with its line and its reason said again.
 for _,drop in ipairs({function() r.stop('a map change') end,function() r.arrive('city') end}) do
