@@ -4,7 +4,11 @@
 -- SBO Xion's engine reads (world/maps/sboxion/engine.lua) over fake UE4SS objects: the zone's FName index only for a
 -- name the game has made; each env volume's path with its bActiveVolume read and written on the actor, a dead actor
 -- raising; the streaming levels by their package's last part with what IsLevelLoaded and IsLevelVisible say; the
--- probes read again on the kept objects, a gone one reading not loaded; the characters' names; no EVE raising.
+-- probes read again on the kept objects, a gone one reading not loaded; the characters' names; no EVE raising. Then
+-- the recovery's calls (world/maps/sboxion/recover.lua): move gives EVE's place, yaw, movement mode, world time and
+-- address from one EVE with each read made once, nil with no EVE; put teleports then stops her movement, with no stop
+-- call after a refusal; the respawn's controller, standalone test and call; the death screen found once, read
+-- playing or not, hidden and shown again as it was.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(t)
     t.type=t.type or function() return 'UObject' end
@@ -23,7 +27,8 @@ FName=function(alias,how)
 end
 local actors={}
 FindAllOf=function(name) return actors[name] end
-StaticFindObject=function(path) return object({path=path}) end
+local statics={} -- The class default objects the recovery's calls go through, by path.
+StaticFindObject=function(path) return statics[path] or object({path=path}) end
 local function level(package,loaded,visible)
     return object({GetWorldAssetPackageFName=function() return fname(package) end,
         IsLevelLoaded=function() return loaded end,IsLevelVisible=function(self) return self.shown end,shown=visible})
@@ -81,4 +86,79 @@ for _,read in ipairs({Engine.volumes,Engine.levels,Engine.characters}) do
     local ok,why=pcall(read)
     assert(not ok and tostring(why):find('no EVE in the world',1,true),tostring(why))
 end
+
+-- move: one EVE, each of her reads made once; the world time is asked with her as the context.
+local reads={}
+local function count(what) reads[what]=(reads[what] or 0)+1 end
+local function value(v) return object({type=function() return 'RemoteUnrealParam' end,get=function() return v end}) end
+local teleport,stops,went=true,0,nil
+local walker=object({GetAddress=function() return 0x7000 end,
+    K2_GetActorLocation=function() count('location'); return value({X=3931.4,Y=-9086.2,Z=-25367.6}) end,
+    K2_GetActorRotation=function() count('rotation'); return value({Pitch=1,Yaw=40.5,Roll=2}) end,
+    K2_TeleportTo=function(_,at,turn) went={at=at,turn=turn}; return teleport end,
+    CharacterMovement=object({MovementMode=3,StopMovementImmediately=function() stops=stops+1 end})})
+statics['/Script/Engine.Default__GameplayStatics']=object({GetTimeSeconds=function(_,context)
+    assert(context==walker,'The clock reads EVE\'s world')
+    count('time')
+    return 812.25
+end})
+package.loaded['core.player'].her=function() count('her'); return walker end
+local m=Engine.move()
+assert(m.at.X==3931.4 and m.at.Y==-9086.2 and m.at.Z==-25367.6 and m.yaw==40.5 and m.mode==3 and m.time==812.25
+    and m.pawn==0x7000,'The five values')
+assert(reads.her==1 and reads.location==1 and reads.rotation==1 and reads.time==1,'One EVE, each read once')
+walker.CharacterMovement.dead=true
+assert(Engine.move().mode==nil,'No movement component: no mode')
+walker.CharacterMovement.dead=nil
+-- put: the teleport to the place facing yaw, then the stop; a refusal makes no stop call.
+assert(Engine.put({X=1,Y=2,Z=3},-233.4)==true and stops==1)
+assert(went.at.X==1 and went.at.Y==2 and went.at.Z==3 and went.turn.Pitch==0 and went.turn.Yaw==-233.4
+    and went.turn.Roll==0,'The place and the yaw alone')
+teleport=nil -- A game call that returns nothing is no refusal.
+assert(Engine.put({X=1,Y=2,Z=3},0)==true and stops==2)
+teleport=false
+assert(Engine.put({X=1,Y=2,Z=3},0)==false and stops==2,'No stop call after a refusal')
+-- The respawn's pieces: the controller, the standalone test on it and SB's request with the GUID and false.
+local asked={}
+local pc=object({ServerRequest_ActorRespawn=function(_,me,camp) asked[#asked+1]={me,camp} end})
+local standalone=true
+statics['/Script/Engine.Default__KismetSystemLibrary']=object({IsStandalone=function(_,context)
+    assert(context==pc,'The test is asked on the controller')
+    return standalone
+end})
+package.loaded['core.player'].controller=function() return pc end
+assert(Engine.controller()==pc and Engine.standalone(pc)==true)
+standalone=false
+assert(Engine.standalone(pc)==false)
+Engine.respawn(pc,2610)
+assert(#asked==1 and asked[1][1]==2610 and asked[1][2]==false,'ServerRequest_ActorRespawn(GUID, false)')
+-- The death screen: not looked for unless asked; found once and kept; playing or not; hidden, then shown as it was.
+local looks,playing,visibility=0,true,0
+local dead=object({IsAnyAnimationPlaying=function() return playing end,GetVisibility=function() return visibility end,
+    SetVisibility=function(_,v) visibility=v end})
+local hud=object({GetFullName=function() return 'WB_MainHUD_Master_C /Engine/Transient.GameEngine_1:X' end,
+    WB_MainHUD_Dead=dead})
+local all=FindAllOf
+FindAllOf=function(name)
+    if name~='WB_MainHUD_Master_C' then return all(name) end
+    looks=looks+1
+    return {hud}
+end
+assert(Engine.screen(false)==nil and looks==0 and Engine.hide()==nil,'No look unless asked')
+assert(Engine.screen(true)==true and looks==1)
+playing=false
+assert(Engine.screen(true)==false and Engine.screen(false)==false and looks==1,'The widget is kept while it lives')
+local show=Engine.hide()
+assert(visibility==2 and type(show)=='function','Hidden: ESlateVisibility 2')
+show()
+assert(visibility==0,'Shown as it was')
+dead.dead=true
+assert(Engine.screen(false)==nil and Engine.screen(true)==nil and looks==2,'A dead widget is looked for again')
+show()
+assert(visibility==0,'A dead widget is not touched')
+
+-- No EVE: move gives nil, put raises.
+package.loaded['core.player'].her=function() return nil end
+assert(Engine.move()==nil)
+assert(not pcall(Engine.put,{X=0,Y=0,Z=0},0))
 print('sboxion_engine_test ok')

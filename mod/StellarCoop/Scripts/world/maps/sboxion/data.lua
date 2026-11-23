@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's data (world/maps/sboxion/sboxion.lua): the test pak, its level, the two table rows, the arrival points,
--- the waypoints of the test walk, the day table and the two probe levels. Level facts are read from the paks of build
--- 26123051. Units: cm and degrees.
+-- the waypoints of the test walk, the day table, the two probe levels and the recovery's numbers. Level facts are read
+-- from the paks of build 26123051. Units: cm and degrees.
 local D={}
 D.PAK='zSBO_Xion' -- The container: zSBO_Xion.utoc, .ucas and .pak, built outside the repository.
 D.UMAP='/Game/SBO_World/Xion_P' -- Its one package: SBO's copy of Xion's persistent level, World object Xion_P.
@@ -61,4 +61,21 @@ D.DAY={
 D.TIED='CountDown_Posing_ENV'
 -- The two streaming levels the pak leaves volume streamed, as shipped. Every other listed level is always loaded.
 D.PROBES={'E04_DistantView_A_01','E04_DistantView_A_03'}
+-- Falls and deaths (world/maps/sboxion/recover.lua). FLOOR: EVE under this Z has fallen out of the city. It is the top
+-- of SB's largest fall volume, SBEffectVolume_Xion10_04 of E04_Area01_A_LD_Visible (centre Z -11000, scale Z 77.25, a
+-- cube brush of half size 100), which lies under the whole upper city. That level is not loaded in SBO Xion, so only
+-- its number is used. It is 1410 cm under SBSpawnPoint43 of E04_LD_Respawn (Z -1865.14), the lowest spawn point of
+-- the upper city.
+D.FLOOR=-3275
+-- LIFT: how far above its target a put-back places EVE, the module's own value. Both kinds of target are the centre of
+-- a capsule: a ground point is where her own capsule stood and an arrival point is the root of a spawn point, its
+-- CapsuleComponent CollisionCapsule.
+D.LIFT=10
+-- A ground point is the oldest of STREAK passes in a row on which EVE walked. Two passes more than JUMP cm apart
+-- start the streak again (a warp, or the new pawn at the origin during an arrival).
+D.STREAK,D.JUMP=4,1500
+-- s. CHECK, of the world's time: after a put-back, EVE must read walking within it. TRY and AFTER, of real time: how
+-- long the respawn is tried for and how long after its call the result is read. SCREEN, of real time: after it the
+-- respawn is asked with no death screen playing.
+D.CHECK,D.TRY,D.AFTER,D.SCREEN=3,10,2,5
 return D
