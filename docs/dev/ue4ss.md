@@ -43,11 +43,12 @@ These values differ from the release file:
   26123051 the engine branch string at 0x145f536f8 reads `++UE4+Release-4.26`. FUObjectItem is 0x18 bytes there,
   with no stats field.
 - `HookBeginPlay = 0`. With it on, the game can crash when EVE lets go of a movable crate.
+- `ConsoleEnabled = 1`. The UE4SS console window opens with the game, as players expect from other UE4SS packages.
 
 The release's values stay for `bUseUObjectArrayCache = false` (on, it can cause stutter and crashes at startup), for the
-three console keys (off) and for `FExecVTableOffsetInLocalPlayer = 0x28`, which Ghidra confirms on build 26123051.
-`tests/tools/ue4ss_test.py` pins every key. At each load the mod still checks `HookBeginPlay` and
-`bUseUObjectArrayCache` (`core/ue4ss_settings.lua`) and warns when either is on.
+two debug window keys (`GuiConsoleEnabled` and `GuiConsoleVisible`, off) and for `FExecVTableOffsetInLocalPlayer =
+0x28`, which Ghidra confirms on build 26123051. `tests/tools/ue4ss_test.py` pins every key. At each load the mod still
+checks `HookBeginPlay` and `bUseUObjectArrayCache` (`core/ue4ss_settings.lua`) and warns when either is on.
 
 ## Build sets
 

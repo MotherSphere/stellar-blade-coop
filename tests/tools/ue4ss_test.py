@@ -279,7 +279,7 @@ SBO = {('General', 'bUseUObjectArrayCache'): 'false', ('Hooks', 'HookBeginPlay')
        ('General', 'EnableHotReloadSystem'): '1', ('General', 'EnableDebugKeyBindings'): '0',
        ('EngineVersionOverride', 'MajorVersion'): '4', ('EngineVersionOverride', 'MinorVersion'): '26',
        ('EngineVersionOverride', 'DebugBuild'): 'false', ('EngineVersionOverride', 'Stats'): 'false',
-       ('Debug', 'ConsoleEnabled'): '0', ('Debug', 'GuiConsoleEnabled'): '0', ('Debug', 'GuiConsoleVisible'): '0',
+       ('Debug', 'ConsoleEnabled'): '1', ('Debug', 'GuiConsoleEnabled'): '0', ('Debug', 'GuiConsoleVisible'): '0',
        ('Hooks', 'FExecVTableOffsetInLocalPlayer'): '0x28'}
 FACTS = {('EngineVersionOverride', 'MajorVersion'), ('EngineVersionOverride', 'Stats'),
          ('Hooks', 'FExecVTableOffsetInLocalPlayer')}
