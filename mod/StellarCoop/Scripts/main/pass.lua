@@ -56,6 +56,8 @@ if M.link then
         if not M.off then M.guarded('halls',M.halls.tick) end -- The hall rows' wait and read-back: likewise.
         -- The team shop rows' wait and read-back, then its open's answer: likewise.
         if not M.off then M.guarded('teamshop',M.teamshop.tick) end
+        -- SBO Xion's rows' wait and read-back, then its watch while EVE is there: likewise.
+        if not M.off then M.guarded('sboxion',M.sboxion.tick) end
         -- Gun mode's rounds: their rows asked once a co-op save has loaded (never at the title), their wait and
         -- read-back, then the inventory reads: likewise. None with gun_mode=off.
         if not M.off and M.gunrounds then M.guarded('gun rounds',M.gunrounds.tick) end
@@ -180,6 +182,8 @@ if M.link then
             M.guarded('halls',M.halls.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
             -- The team shop's rows likewise, so coop teamshop on a co-op save finds its ShopTable row.
             M.guarded('teamshop',M.teamshop.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
+            -- SBO Xion's rows likewise (its test pak only), so coop xion's warp finds its zone.
+            M.guarded('sboxion',M.sboxion.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
             -- Her marker carries her name: the ghost's tag is its fallback.
             M.guarded('ghost',M.puppet.marker,M.hud.marking())
             if world or title then M.photo_pause(M.settings.photo_pause=='scenery' and 1 or 0,
