@@ -3,7 +3,7 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // SBO Xion's warp and its way out, the worker's side (world/maps/sboxion/sboxion.h): Lua's two requests, the log
-// lines of the game thread's answers and the sboxionwarp status line.
+// lines of the game thread's answers and the sboxionwarp status line with EVE's life state while she is inside.
 
 namespace coop::pose {
 
@@ -66,10 +66,31 @@ void sboxion_pass() {
   say(sboxion::describe(a, sboxion_said, t, s));
 }
 
-// coop-status.txt's sboxionwarp line (world/maps/sboxion/sboxion.h's status_line).
+namespace {
+// SBO Xion's copy of the bike worker's life read (vehicles/bike/bike_worker.inc), for world/maps/sboxion/recover.lua's
+// death rule, which runs solo where link.life() gives nothing: fight::vitals' read of our FSBActor (ReadProcessMemory,
+// which fails instead of faulting) at most each sboxion::kLifeMs, only while EVE is inside SBO Xion by the answers
+// (sboxion::inside). -1 when it did not read. A player who never asks coop xion gets no read.
+std::atomic<bool> sboxion_in{false};
+std::atomic<int32_t> sboxion_life{-1};
+std::atomic<uint64_t> sboxion_life_next{0};
+} // namespace
+
+// coop-status.txt's sboxionwarp line (world/maps/sboxion/sboxion.h's status_line), with EVE's life state while she is
+// inside SBO Xion.
 std::string sboxion_status() {
+  sboxion_in = sboxion::inside(sboxion_in, sboxion::unpack(sboxion_done));
+  int32_t life = -1;
+  if (sboxion_in && game_pinned && !blocked) {
+    if (const uint64_t now = GetTickCount64(); now >= sboxion_life_next) {
+      coop::Vitals v{};
+      sboxion_life = fight::vitals(base, rpm, v) ? int32_t(v[coop::vital::life]) : -1;
+      sboxion_life_next = now + sboxion::kLifeMs;
+    }
+    life = sboxion_life;
+  }
   return sboxion::status_line(sboxion_done, sboxion_faulted,
-                              sboxion_faulted ? fault_where(sboxion_fault_rva) : std::string());
+                              sboxion_faulted ? fault_where(sboxion_fault_rva) : std::string(), life);
 }
 
 } // namespace coop::pose

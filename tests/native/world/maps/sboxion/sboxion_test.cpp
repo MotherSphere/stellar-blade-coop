@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // SBO Xion's guards, answer word, status line and log lines (world/maps/sboxion/sboxion.h). Each guard has one case:
-// reads that pass every guard, with the one field of that guard changed, give that guard's word.
+// reads that pass every guard, with the one field of that guard changed, give that guard's word. Then the inside flag
+// and the status line's life word.
 #include "world/maps/sboxion/sboxion.h"
 
 #include <cassert>
@@ -109,6 +110,39 @@ int main() {
   a.verb = Verb::enter, a.why = Why::off;
   assert(status_line(pack(a), false, "") == "sboxionwarp=refused asks=4 verb=enter why=off");
   assert(status_line(pack(a), true, "x y") == "sboxionwarp=fault asks=4 where=x y");
+
+  // Inside SBO Xion by the answers: an accepted enter says yes, an accepted leave says no, every other answer keeps
+  // what was (a refused leave replaces an accepted enter in the word while EVE is still inside).
+  Answer in;
+  assert(!inside(false, in) && inside(true, in)); // No request yet.
+  in.asks = 1, in.verb = Verb::enter;
+  assert(inside(false, in) && inside(true, in)); // An accepted enter.
+  in.why = Why::photo;
+  assert(!inside(false, in) && inside(true, in)); // A refused enter.
+  in.why = Why::game;
+  assert(!inside(false, in)); // SB's warp returned 0.
+  in = Answer(), in.asks = 2, in.verb = Verb::leave;
+  assert(!inside(true, in) && !inside(false, in)); // An accepted leave.
+  in.why = Why::camp;
+  assert(inside(true, in) && !inside(false, in)); // A refused leave: still inside.
+  in.verb = Verb::enter, in.why = Why::fault;
+  assert(inside(true, in) && !inside(false, in)); // The worker's own refusal after a fault.
+
+  // The life word: on the entered, refused and fault forms when it read (0 or more), before where=. Never on the off
+  // form or the left form.
+  assert(status_line(0, false, "", 1) == "sboxionwarp=off");
+  a = Answer(), a.asks = 3, a.verb = Verb::enter;
+  assert(status_line(pack(a), false, "", 1) == "sboxionwarp=entered asks=3 life=1");
+  assert(status_line(pack(a), false, "", 3) == "sboxionwarp=entered asks=3 life=3");
+  assert(status_line(pack(a), false, "", 0) == "sboxionwarp=entered asks=3 life=0");
+  assert(status_line(pack(a), false, "", -1) == "sboxionwarp=entered asks=3");
+  a.verb = Verb::leave;
+  assert(status_line(pack(a), false, "", 1) == "sboxionwarp=left asks=3");
+  a.asks = 4, a.why = Why::camp;
+  assert(status_line(pack(a), false, "", 3) == "sboxionwarp=refused asks=4 verb=leave why=camp life=3");
+  assert(status_line(pack(a), false, "", -1) == "sboxionwarp=refused asks=4 verb=leave why=camp");
+  assert(status_line(pack(a), true, "x y", 1) == "sboxionwarp=fault asks=4 life=1 where=x y");
+  assert(status_line(pack(a), true, "x y", -1) == "sboxionwarp=fault asks=4 where=x y");
 
   // The log lines.
   Ask ask;

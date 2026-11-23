@@ -43,6 +43,8 @@ constexpr size_t kWarpLocation = 0xa4c, kWarpRotation = 0xa58;
 // The global SB's code compares an FName's index with to tell None (0x14bb73480, 0x141d01910): the point's FName the
 // warp gets is this index with number 0.
 constexpr uint64_t kNoneName = 0x147017b00;
+// The worker reads EVE's life state for the status line's life= this often, while she is inside SBO Xion.
+constexpr uint64_t kLifeMs = 250;
 // A zone row of type 5, Zone_BossChallenge: the only type SB keeps as the arrival's zone with no SBZoneVolume at the
 // place (0x141cde9b0 compares row +0x25 with 5 at 0x141cdeb20). SB's in-game save 0x141ce8050 queues nothing in such
 // a zone. SB's other save requests (0x1421d71e0, 0x1421d72f0, 0x1421d7fa0) have no zone test.
@@ -189,23 +191,35 @@ inline Answer unpack(uint64_t w) {
   return a;
 }
 
-// coop-status.txt's sboxionwarp line (world/maps/sboxion/sboxion.lua reads it):
+// Whether EVE is inside SBO Xion by the answers so far. An accepted enter says yes and an accepted leave says no. Any
+// other answer (a refusal, the worker's own refusal, no request yet) keeps was: a refused coop xion leave replaces an
+// accepted enter in the answer word while EVE is still inside.
+inline bool inside(bool was, const Answer &a) {
+  if (!a.asks || a.why != Why::none)
+    return was;
+  return a.verb == Verb::enter ? true : a.verb == Verb::leave ? false : was;
+}
+
+// coop-status.txt's sboxionwarp line (world/maps/sboxion/sboxion.lua and recover.lua read it):
 //   sboxionwarp=off                                  (never asked this game run)
-//   sboxionwarp=entered asks=<a>                     (the warp is written)
+//   sboxionwarp=entered asks=<a>[ life=<n>]          (the warp is written)
 //   sboxionwarp=left asks=<a>                        (SB's reload is started)
-//   sboxionwarp=refused asks=<a> verb=<enter|leave> why=<word>
-//   sboxionwarp=fault asks=<a> where=<text, maybe with spaces>
-// asks: the requests answered, so Lua tells a new answer from an old one.
-inline std::string status_line(uint64_t word, bool faulted, const std::string &where) {
+//   sboxionwarp=refused asks=<a> verb=<enter|leave> why=<word>[ life=<n>]
+//   sboxionwarp=fault asks=<a>[ life=<n>] where=<text, maybe with spaces>
+// asks: the requests answered, so Lua tells a new answer from an old one. life: EVE's life state (FSBActor +0x2600,
+// through game/types.h's fight::vitals), given as 0 or more only while she is inside SBO Xion and the read worked.
+// The off and left forms never carry it.
+inline std::string status_line(uint64_t word, bool faulted, const std::string &where, int32_t life = -1) {
   const Answer a = unpack(word);
   const std::string asks = " asks=" + std::to_string(a.asks);
+  const std::string alive = life >= 0 ? " life=" + std::to_string(life) : std::string();
   if (faulted)
-    return "sboxionwarp=fault" + asks + " where=" + where;
+    return "sboxionwarp=fault" + asks + alive + " where=" + where;
   if (!a.asks)
     return "sboxionwarp=off";
   if (a.why != Why::none)
-    return "sboxionwarp=refused" + asks + " verb=" + verb_word(a.verb) + " why=" + why_word(a.why);
-  return (a.verb == Verb::enter ? "sboxionwarp=entered" : "sboxionwarp=left") + asks;
+    return "sboxionwarp=refused" + asks + " verb=" + verb_word(a.verb) + " why=" + why_word(a.why) + alive;
+  return a.verb == Verb::enter ? "sboxionwarp=entered" + asks + alive : "sboxionwarp=left" + asks;
 }
 
 // What the step read of SB's save manager for the log: its queue's count (+0x50) and the time of SB's last save
