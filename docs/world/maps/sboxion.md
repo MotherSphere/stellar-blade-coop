@@ -11,7 +11,8 @@ online sessions keep SB's Xion.
 The module `world.maps.sboxion` is a test tool. Its first game test answered one question: can a persistent level in
 a container of SBO's stream SB's sublevels, with EVE standing in a lit, empty city. It can: the 93 always-loaded
 sublevels loaded and the day light applied. In the same test EVE fell out of the city and stayed dead.
-[Falls and deaths](#falls-and-deaths) describes the fix. The commands are left out of the usage line. They run only
+[Falls and deaths](#falls-and-deaths) describes the fix. [The walls](#the-walls) close the edges one step leads out
+of the city from. The commands are left out of the usage line. They run only
 alone (not in a session) on a [co-op save](../../players/playing-with-a-friend.md#co-op-saves). Their lines go to
 `UE4SS.log` as `[StellarCoop][SX]` and the native part's to `coop-link.log`.
 
@@ -31,8 +32,9 @@ The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then i
 | `coop xion` or `coop xion city` | Warps EVE into SBO Xion at the city point (-8304, 7201, 225) |
 | `coop xion gate` | The same at the gate point (-23393, 17287, 1285) |
 | `coop xion leave` | Asks SB's reload of the co-op save. The native part runs it only from SBO Xion |
-| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint and the recovery's state |
+| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state and the walls' count |
 | `coop xion recover on`, `death` or `off` | Inside SBO Xion: what the module does after a fall or a death, until the next arrival ([Falls and deaths](#falls-and-deaths)). Alone, it prints the recovery's state |
+| `coop xion walls on` or `off` | Inside SBO Xion: `off` takes [the walls](#the-walls) down until `on` or the next arrival. Alone, it prints their count |
 
 `coop xion` refuses with nothing asked when the save is not a co-op save, when a session is open, without the pak,
 when the rows were refused and when EVE is already in SBO Xion. The native part then refuses the warp during a
@@ -64,9 +66,14 @@ falls for `Falling_Time_Dead`, 10 s by the default in the game's code. Her death
 camp respawn ends in SB's zone warp, which refuses a zone of type 5 (`0x141cdfe70`). The player had to quit the
 game.
 
-`recover.lua` handles both cases at each 250 ms pass while EVE is in SBO Xion. The fall catch ran in game on
-2026-11-23: three falls were caught and EVE walked 0.3 s after each move. The death rule and
-[the black](#the-black) have not run in game.
+`recover.lua` handles both cases at each 250 ms pass while EVE is in SBO Xion. Two game tests ran it:
+
+- 2026-11-23: three falls were caught. EVE walked 0.3 s after each move.
+- 2026-11-24: [the black](#the-black) showed over a put-back. EVE also left the city at a second place west of the
+  arrival square, near (-11272, 9451). The first one is near (-10823, 9941). [The walls](#the-walls) says what
+  stands at both.
+
+The death rule and `coop xion leave` have not run in game.
 
 ### A fall
 
@@ -168,8 +175,9 @@ of its two passes.
 `coop xion recover death` leaves falls alone, so a test can let EVE die of one. `coop xion recover off` does nothing
 after a fall or a death, as in the first game test. Each arrival sets the mode back to `on`.
 
-The floor is one height for the whole map, so a roof or a ledge outside the city above -3275 counts as ground. Lift
-doorway A stays open. Other open edges were not looked for.
+The floor is one height for the whole map, so a roof or a ledge outside the city above -3275 counts as ground.
+[The walls](#the-walls) close lift doorway A and the other edges one step leads out from. The edges EVE jumps over
+stay open: the recovery is what brings her back from those.
 
 ### What the log shows after a fall or a death
 
@@ -237,9 +245,194 @@ type `coop xion leave`. Last, quit the game.
 13. `coop xion`, `coop xion recover off`, walk through the doorway. At the death screen press its left button and
     wait 5 s. Note what the screen shows. Then `coop xion leave`, with `coop xion recover on` first if it is refused.
 
-Not known before this test: whether SB's respawn job runs as read in a zone of type 5, what the death screen shows
-after its left button, whether `coop xion leave` passes with a dead EVE, whether `LoadingScreenFadeAuto` called from
-Lua shows SB's black, whether EVE can move under it and what SB's pause menu does to it.
+The game tests of 2026-11-23 and 2026-11-24 answered two points of this list. A fall is caught, with EVE walking
+0.3 s after the move. `LoadingScreenFadeAuto` called from Lua shows SB's black over the move. With the walls up, the
+steps through lift doorway A need `coop xion walls off` first. Still not known: whether SB's respawn job runs as read
+in a zone of type 5, what the death screen shows after its left button, whether `coop xion leave` passes at all and
+with a dead EVE, whether EVE can move under the black and what SB's pause menu does to it.
+
+## The walls
+
+SB's level-design sublevels hold the lift's doors and SB's ways down from three edges: ladders, ledges and a rope.
+SBO Xion loads none of them. A survey of 2026-11-24, made outside the game, read the collision of the 95 kept
+sublevels from the paks of build 26123051 and filled it from the two arrival points with EVE's capsule (radius 40,
+half height 95, step 45, floor up to 45 degrees). It found 22 places where one step, with no jump, leads to no
+ground, to a fall of more than 15 m or to a place with no way back. The cave at the gate point is the 23rd: it runs
+138 m west with rocks that have no collision and ends on a shelf with no ground behind.
+
+`walls/list.lua` holds 145 boxes for them, 572.8 m of wall. A box stands 50 cm beyond the last floor cell of its
+edge, from 2.5 m under the lowest floor of its hole to 7 m over the highest. It is 30 to 89 cm thick. A box follows
+the edge at the height of its hole only: the edge of a floor over or under the hole gets none.
+
+Where another floor lies over or under a hole inside that span, the box ends short of it. Its top stays 5 cm under
+the slab that carries the floor above. The boxes of `W02` and `W04` end under the east city's upper street and deck
+(Z 1483 and 1541), the box of `W05` under the centre's plaza (Z 132) and the box of `W19` under the floor over the
+second lift's pit (Z 2128). Its bottom stays 2 m over a floor below: `W15.1` starts over the rocks under it
+(Z 518). `W08.1` and `W08.2` keep their full height: their floor is the level under lift doorway A and the doorway
+itself is 3.1 m higher.
+
+A second fill with the boxes in the collision found none of the 1395 edge cells left and no floor reached behind
+the cave wall. A ray scan of the list finds no box across ground EVE walks on at another level than its hole.
+
+Three of the boxes stand at two edges that the fill passes over. The fill records a step only into free air or onto
+a floor EVE fits on. The floor under lift doorway A ends at a kerb beside the doorway's gap: a 45 degree bevel, a
+77 cm step and a block, 1.1 to 1.5 m over the floor. The west edge of `W21`'s level ends at a face that falls 15.9 m
+at 76 degrees. A ray fill of the list, which takes a face steeper than 45 degrees for no floor, walked off both.
+`W08.3` and `W08.4` continue the wall 2 m past both ends of the gap, under the ceiling of that floor (their top is at
+Z 1070). `W21.6` runs 11.9 m along the west edge. The same ray fill now finds no step into no ground beside the
+doorway or along those 11.9 m.
+
+| Hole | Place | Centre (X, Y, floor Z) | A step leads to | Boxes | Wall |
+| --- | --- | --- | --- | --- | --- |
+| `W01` | Hub of the two bridges, south-east side | (-12641, 13476, 134) | no ground | 5 | 10.1 m |
+| `W02` | East city, upper level | (7412, 2614, 1257) | no ground | 2 | 14.4 m |
+| `W03` | Round plaza, east rim | (-11236, 19352, 32) | no ground | 21 | 68.8 m |
+| `W04` | East city, upper level | (9614, -3299, 1257) | no ground | 2 | 24.2 m |
+| `W05` | Centre, lower level | (-1221, 2759, -190) | no ground | 1 | 7.4 m |
+| `W06` | Round plaza, west rim | (-15458, 19068, 37) | no ground | 23 | 74.2 m |
+| `W07` | East city | (6327, -6019, 672) | no ground | 18 | 59.2 m |
+| `W08` | Lift doorway A | (3850, -9250, 910) | the lift shaft | 4 | 10.1 m |
+| `W09` | North-west city | (-6660, -3794, 424) | no ground | 7 | 35.0 m |
+| `W10` | Centre | (1438, 2137, 1098) | no ground | 6 | 11.3 m |
+| `W11` | Centre | (2376, 1652, 1078) | no ground | 7 | 12.9 m |
+| `W12` | Centre, top level | (2625, 462, 1864) | no ground | 1 | 2.6 m |
+| `W13` | High terrace west of the arrival square | (-11491, 8213, 1077) | no ground or a fall over 15 m | 11 | 41.1 m |
+| `W14` | Rocks east of the gate point | (-17638, 17654, 467) | a place with a deadly edge | 1 | 2.4 m |
+| `W15` | Rocks east of the gate point | (-17550, 19162, 807) | 3.2 m down, no way back | 2 | 3.8 m |
+| `W16` | In the cave | (-27562, 15662, 2649) | outside the city | 1 | 2.3 m |
+| `W17` | Hub of the two bridges, north side | (-13462, 12462, 159) | a place with a deadly edge | 2 | 3.5 m |
+| `W18` | Terrace west of the arrival square | (-10098, 7841, -225) | 4.8 m down to a deck with a deadly edge | 2 | 6.0 m |
+| `W19` | Second lift | (14662, -1812, 1785) | its pit, no way back | 1 | 2.3 m |
+| `W20` | Round plaza, south rim | (-13515, 22418, 57) | a lower deck with a deadly edge | 17 | 57.7 m |
+| `W21` | South-east of the arrival square | (-8226, 9109, 804) | a fall over 15 m or a place with a deadly edge | 6 | 24.8 m |
+| `W22` | South-east of the arrival square | (-7517, 8982, 597) | a place with a deadly edge | 4 | 10.5 m |
+| `CAVE` | The cave, 17.5 m from the gate point | (-24950, 16452) | 3160 m2 of cave floor | 1 | 88.0 m |
+
+On foot from the two arrival points EVE meets `W01`, `W14`, `W15`, `W16`, `W17`, `W18` and the cave. The other holes
+are in parts of the city she enters with a jump.
+
+The boxes of `W17`, `W18` and `W20` close the tops of three of Stellar Blade's own routes down: a rope at `W17`, two
+ledges and a ladder at `W18`, a ladder at `W20`. SBO Xion does not load the level-design actors of those routes, so
+each top is a one-way drop.
+
+### What a wall is
+
+SB blocks with two kinds of actor in its kept level `E04_Blocking_VOL`: 409 `BlockingVolume` brushes and 86
+`BP_BlockWall_C` blueprints. Lua can make neither at run time. A brush gets its shape when the level is cooked. A
+spawned `BP_BlockWall_C` runs its construction script, which reads the wall's line from two spline components the
+cooked class has no template for. It then builds a mesh section with no vertex, so the wall has no collision. SB's
+placed walls block with a mesh cooked in the editor.
+
+So a wall of SBO Xion is not SB's blueprint. It is an engine actor with SB's collision settings:
+
+- `core/actors.lua` spawns a plain `Actor` with one `StaticMeshComponent` showing `/Engine/BasicShapes/Cube`. The cube
+  is in memory in SBO Xion: 38 actors of the kept, always loaded level `E04_NAVI_VOL` show it. Its simple collision
+  is one box of 100 cm a side. The module scales the component to the box, so nothing is cooked. The actor is hidden
+  in game.
+- The component gets SB's collision profile `SB_InvisiblewallIgnoreCamera` through `SetCollisionProfileName`. SB's
+  `BP_BlockWall` sets the same profile on its own blocking mesh with the same call. The profile's object type is
+  `BlockVolume`. It blocks EVE's capsule and lets the camera through.
+- `CanCharacterStepUpOn` is `No`, as on SB's wall.
+
+The walls do not carry the three actor tags of `BP_BlockWall`: `NoBlockWallAction`, `NoHurdleUp` and `BlockMoveGrab`.
+SB's code reads them (`0x1420d55c0`, `0x1420a4f00` and `0x14256eea0` are three of the readers). What EVE does at a
+wall without them was not read. The game test below looks for it.
+
+The order of the two collision calls comes from the engine's code. `core/actors.lua` hands the actor over with its
+collision off, so the component was registered with no body. `SetActorEnableCollision` makes no body
+(`0x143f6eba0`, then the component's handler `0x144495e20`). The profile call makes one only when the collision it
+reads changes (`0x144495cf0`). It reads no collision while the actor's is off (`0x14441e250`). The module therefore
+turns the actor's collision on first, over a component that still blocks nothing, then sets the profile. The wall is
+kept only if the component reads back object type 20, which is `BlockVolume`.
+
+### When they are up
+
+Each arrival queues the 145 boxes, nearest to EVE's own place first. Each 250 ms pass makes 10, so all are up
+3.75 s after the arrival. At the gate point the cave wall is made in the first pass. Her place is read at the
+arrival, so that holds after a Lua reload too, which forgets the point `coop xion` asked. A wall that cannot be made
+is logged with its reason while the others go up. The recovery stays under every edge.
+
+A map change and `coop off` take the walls down. `coop xion leave` ends in a map change. The module asks each wall
+of the world once and destroys an actor only while it is still the one it made. After a map change the world is gone
+with its walls and nothing is called. Nothing is made in any other map: SB's own Xion is never changed. The recovery
+is ended before the walls come down, so a removal that raises leaves no recovery running.
+
+`coop xion walls off` takes them down until `coop xion walls on` or the next arrival, so a test can walk to an open
+edge. `on` puts them up again, nearest to EVE first. A wall put up around EVE was not tried: type `on` away from the
+edges and out of the cave.
+
+The module keeps the walls' actor paths in `coop-xion-walls.txt`, one line. After a Lua reload (Ctrl+R) the first
+pass in SBO Xion destroys the walls of the earlier load, then the arrival builds them again. A file left by a game
+that closed inside SBO Xion costs one lookup. A file that cannot be written is logged once a build and stops no
+wall. A file that cannot be read is logged and nothing is swept.
+
+### What the walls do not close
+
+- The edges EVE jumps over. With a single jump (184 cm) she reaches 26,913 m2 of floor, with a double jump (332 cm)
+  58,395 m2. Boxes along every such edge would take 13 to 16 km of wall. SB itself leaves these edges open: its
+  level-design sublevel `E04_Area01_A_LD_Visible` holds 19 fall volumes and 10 return points. In SBO Xion the
+  recovery does that job.
+- The two bridge falls of the game tests, near (-10823, 9941) and (-11272, 9451), are not closed. Both are on the
+  long bridge between the arrival square and the hub. Stellar Blade's own block walls stand along both sides of it,
+  210 cm high (`BP_BlockWall33` to `54`). They are in SBO Xion too. A jumping EVE passes over them: near the first
+  place their top is about 1.7 m over the deck. The recovery then brings her back. SB expects a fall there: the
+  return point of its fall volume `SBEffectVolume_Xion10_12` is on the deck, at (-11011, 9938, -54), 1.9 m from the
+  first place. No step hole was found within 6 m of either place. Raising those walls is not built. The south bridge
+  is the same case.
+- The roofs and decks outside the city that a jump reaches.
+- Other edges with a kerb or a steep face beyond them. The city was not searched for more of the two kinds that
+  `W08.3`, `W08.4` and `W21.6` close. South of (-9080, 8520) the west edge of `W21`'s level stays open: it leads to
+  falls of 5 to 10 m, with two cells near (-8940, 7910) over a steep face.
+- The view. The cave wall is invisible, so the cave is still seen behind it.
+
+The survey is a model. It was not run in game. A jump over an edge, an air dash, a ledge grab and water are not in
+it. Collision that a level-design blueprint carries in its class was not built, so a piece SB blocks with outside the
+doors, gates, shutters and lifts it lists would be missed. 280 m2 of city floor within 40 cm of a box is lost.
+
+### What the log shows
+
+| Line | Meaning |
+| --- | --- |
+| `sboxion: walls: 145 to put up, 10 a pass, nearest to EVE first` | Each arrival and `coop xion walls on`. When `on` cannot read EVE the line ends `nearest to EVE's place at the arrival first` |
+| `sboxion: walls: first wall <hole>.<n> up: object type 20, collision on` | The first wall of a build, with what its component reads back |
+| `sboxion: walls: <hole>.<n> not made: <why>` | A wall failed. Three reasons are logged a build |
+| `sboxion: walls: 145 of 145 up in 15 passes, t ms` | The build is over. `t` is the time spent in the passes. Failed walls follow as `; not made: <names>` |
+| `sboxion: walls: down (<reason>): n removed` | A map change, `coop off`, `coop xion walls off` or an arrival. It adds `m gone already` for walls their world took, `k never made` for a build cut short and `j raised (<why>)` for a removal that failed |
+| `sboxion: walls: an earlier Lua load left n: m swept` | After a Lua reload. `0 swept` means their world is gone |
+| `sboxion: walls: an earlier Lua load's paths unread (<why>): none swept` | `coop-xion-walls.txt` could not be read after a Lua reload |
+| `sboxion: walls: paths not kept (<why>): a Lua reload would leave these walls up` | `coop-xion-walls.txt` could not be written. Said once a build |
+| `sboxion: walls: error (<why>): the build is ended with n of 145 up` | A pass raised an error. The walls made stay up. `coop xion walls off`, then `on`, builds again |
+
+`coop xion status` ends with `walls 145 of 145 up`, `walls n of 145 up, m to go`, `walls n of 145 up, k not made`,
+`walls n of 145 up, build ended` after a pass that raised, or `walls off`.
+
+Reasons a wall is not made: `the game has no name SB_InvisiblewallIgnoreCamera`, `Cube is missing on this PC`,
+`the cube is not on the component`, `SB's profile SB_InvisiblewallIgnoreCamera did not take: object type n`, or the
+message of a call that raised.
+
+### Testing them in game
+
+Nothing of the walls has run in game. On a co-op save, alone, with the test pak in.
+
+1. `coop xion`. Within 5 s the log has `walls: 145 to put up`, `first wall ... up: object type 20, collision on`
+   and `walls: 145 of 145 up in 15 passes`. Note the ms figure and any hitch during those 5 s.
+2. `coop xion status` ends with `walls 145 of 145 up`.
+3. Walk into lift doorway A near (3958, -9124, 1222). EVE stops at it. Run at it, jump at it and sprint along it.
+   Note any move she makes against the wall that she does not make against a real wall: a push, a vault, a grab.
+4. Turn the camera so it passes through the doorway. It is not pushed back by the wall.
+5. `coop xion walls off`. The log has `walls: down (coop xion walls off): 145 removed`. Walk through the doorway: EVE
+   falls and the recovery brings her back.
+6. `coop xion walls on`. The log has `nearest to EVE first` and the count line again. The doorway is closed again.
+7. Walk to the edge of the terrace west of the arrival square near (-10098, 7841, -225). Then walk to the hub's
+   south-east side near (-12641, 13476, 134). EVE cannot step off either edge.
+8. Walk the long bridge near (-10823, 9941) and (-11272, 9451). Walk into its side: SB's own wall stops her. Jump over
+   it: she falls and the recovery brings her back. Note whether a single jump is enough.
+9. `coop xion leave`, then `coop xion gate`. The log has `walls: down (a map change): 0 removed, 145 gone already`,
+   then a new build that starts with `first wall CAVE.1`. Walk west into the cave: EVE stops 17.5 m from the gate
+   point.
+10. Press Ctrl+R in the UE4SS console, inside SBO Xion. The log has `walls: an earlier Lua load left 145: 145 swept`,
+    then a new build.
+11. `coop off` inside SBO Xion. The log has `walls: down (coop off): 145 removed`. The doorway is open again.
 
 ## Saves
 
@@ -291,8 +484,11 @@ Lua, in `mod/StellarCoop/Scripts/world/maps/sboxion/`:
 - `sboxion.lua`: the pak gate, the rows at the title, the commands, the arrival and the watch.
 - `recover.lua`: the ground point, the black and the put-back after a fall, the respawn after a death. Its respawn
   block is the module's copy of score attack's. Its ground read is the module's copy of the group's.
-- `engine.lua`: the UE4SS calls. Its black call is the module's copy of the lobby's. `commands.lua`: `coop xion`.
-  `wiring.lua`: the manifest, export `sboxion`.
+- `walls/list.lua`: the 145 boxes. `walls/walls.lua`: their build at an arrival, their removal, `coop xion walls` and
+  the sweep after a Lua reload.
+- `engine.lua`: the UE4SS calls. Its black call is the module's copy of the lobby's. Its wall is the module's copy
+  of the bike stand's hidden, blocking actor. `commands.lua`: `coop xion`. `wiring.lua`: the manifest, export
+  `sboxion`.
 
 Native, in `native/src/world/maps/sboxion/`:
 
@@ -358,7 +554,8 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 ### What is left out
 
 - The 50 level-design sublevels: NPCs, quests, shops, camps, zone volumes, doors, ladders, the lift, SB's fall
-  volumes. EVE can fall out of the city: [Falls and deaths](#falls-and-deaths) says what brings her back.
+  volumes. [The walls](#the-walls) close the edges a step leads out from. EVE can still jump out of the city:
+  [Falls and deaths](#falls-and-deaths) says what brings her back.
 - The 15 underground sublevels, the theater set, one distant-view level and the light variants for night.
 - `E04_Area02_FX_A_01`, which holds the 12 rats. Its 16 effects and its water body are missing with it.
 - The 50 actors of the persistent level tagged `XionChristmasEvent`.
@@ -367,7 +564,8 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 ## Tests
 
 - `tests/lua/world/maps/sboxion/off_test.lua`: a failure of this module at load turns this module off alone.
-- `sboxion_test.lua`: the words of `coop xion`, `recover` and its three modes included.
+- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes and `walls` with `on` and `off`
+  included, then the wiring's store `coop-xion-walls.txt`.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the
@@ -378,14 +576,26 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
   SBO Xion, started again at each arrival with the point `coop xion` asked, fed by the engine's read of EVE when
   `me()` names another place, SB's black asked through the module's own wiring with the move two passes later, a
   death answered with her GUID, the hidden death screen shown again at a map change and at `coop off`, `coop xion
-  recover`, the mode back to `on` at an arrival and the status line's part.
+  recover`, the mode back to `on` at an arrival and the status line's part. For the walls: none outside SBO Xion, 10
+  in the arrival's pass and 145 after 15 passes, the cave wall first at the gate point, the build ordered from
+  EVE's place at an arrival no `coop xion` asked, none destroyed once a map change took the world, each destroyed
+  after a pass with EVE unread and at `coop off`, the recovery ended before a removal that raises, `coop xion
+  walls`.
 - `recover_test.lua`: the ground point, the fall with its black and the move two passes later, a black that is not
   shown, the move dropped or held back like a check, each guard, the check on the world's time, the two failures
   that stop the recovery, then the death with score attack's respawn cases and this module's own (no death screen
   for 5 s, a respawn that leaves EVE off the ground, a death left from the mode `off` or read during a wait).
 - `engine_test.lua`: the UE4SS calls over fake objects, the recovery's included: one read of EVE a pass, no stop call
   after a refused teleport, the black's call and its three answers, the respawn's request, the death screen hidden
-  and shown again.
+  and shown again. For a wall: the actor's collision on before the profile call, the read-back, each failure with no
+  actor left, the removal and the sweep.
+- `walls/list_test.lua`: the 145 rows, the count of each hole, 572.8 m, the boxes of `W02`, `W04`, `W05` and `W19`
+  under the floor over their hole, `W15.1` over the rocks under it, the four boxes of lift doorway A, a box at each
+  step the ray fill took off the kerbed edge beside the doorway and off the west edge of `W21`'s level, the cave wall
+  17.5 m from the gate point, no box around an arrival point or a waypoint.
+- `walls/walls_test.lua`: the build nearest to EVE first at 10 a pass, a wall that fails, the removal with a world
+  that still stands and with one that is gone, `coop xion walls`, the sweep, an error in a pass with `build ended`
+  in the status, a store that raises.
 - `tests/native/world/maps/sboxion/sboxion_test.cpp`: one case for each guard of the two requests, the answer word,
   the status line and the log lines, the inside flag and the `life=` word on each form of the line.
 - `tests/native/rows/rows_test.cpp` runs the batch on the row engine. `tests/native/link/protocol_test.cpp` parses
