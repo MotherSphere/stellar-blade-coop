@@ -103,8 +103,9 @@ Nothing is saved. The items are refilled in memory and SB's in-game save queues 
 ### When it waits and when it stops
 
 The recovery waits with no EVE, in photo mode, during a cutscene, while a warp is under way and while the `engine=`
-line names another zone or a zone type other than 5 and the fault word 0. The ground point, the fall and the check
-skip the passes on which the world's time did not move. The respawn does not.
+line names another zone or a zone type other than 5 or 0. The zone row read writes 0 before its first read, after a
+fault, for a zone with no row and for a type above 6. The ground point, the fall and the check skip the passes on
+which the world's time did not move. The respawn does not.
 
 These are failures: a teleport the game refuses, 3 s without a walking read after a put-back, life still 3 to 5 two
 seconds after the call, no call in 10 s, an error in a pass. After one failure the next put-back goes to the arrival
