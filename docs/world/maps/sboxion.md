@@ -3,7 +3,8 @@
 SBO Xion is a world of Stellar Blade Online's own. Its persistent level, `/Game/SBO_World/Xion_P`, is a copy of the
 persistent level of SB's Xion that lists 95 of its 180 sublevels: the city's geometry, lights, sky and sound. Those
 sublevels are not copied. They load from the player's own game files. The level has none of SB's level-design
-sublevels, so it has no NPC, no quest, no event, no shop and no camp.
+sublevels, so it has no NPC, no quest, no event, no shop and no camp. A third pak, [the full test
+pak](#the-full-test-pak), lists 156 of the 180 with 47 of the 50 level-design sublevels, to see what they start.
 
 SB's own Xion is not changed. Its world row `Xion`, its zones and its sublevels stay as shipped. Story mode and
 online sessions keep SB's Xion.
@@ -447,6 +448,96 @@ On a co-op save, alone.
 
 A room whose line reads `closed` keeps SB's door. Send that line: it names the row and the reason.
 
+## The full test pak
+
+The third pak of 24 November 2026 is a test build. It loads the levels of Xion as Stellar Blade ships them,
+level-design levels included and nothing removed from them. Its test asks what wakes up in `Zone_SBO_Xion` and
+whether the game holds. The pak was built and checked outside the game. Nothing of it has run in game.
+
+### What it loads
+
+`Xion_P` lists 161 levels. 127 are always loaded. 34 stream by SB's own volumes, as SB ships them.
+
+- The 95 levels of the first pak.
+- 14 levels of the underground: the lower end of the lift with its hall, the Elder's chamber in its peace state and
+  the hyper drive room. 10 of them stream by SB's volumes. 4 are always loaded.
+- 47 of Xion's 50 level-design levels.
+- The five room levels, the same as in the rooms pak.
+
+24 levels of SB's Xion stay out: 5 light variants for the night and the story phases before the day light, the
+chamber's battle state (2), 4 light phases of the hyper drive room, the 6 cutscene levels, the theater set, one far
+view, the effects level with the 12 rats and the Elder's body. The 3 level-design levels left out are the two Boss
+Challenge arenas (`E04_LD_RavenBeast_01`, `E04_LD_Mann`) and the refugees of story phase 5
+(`E04_Area01_A_LD_5Phase_Unload`).
+
+What the 47 level-design levels hold, read in the paks of build 26123051:
+
+- 263 spawn points. 155 of their rows spawn an NPC, each in a zone of Xion's own, 111 of them when the player enters
+  that zone. Each row has its own story conditions (`Xion_Phase_2`, `Xion_Phase_5`, side quests).
+- 15 zone volumes. The city point (-8304, 7201, 225) and the gate point both lie inside `Zone_Xion_10_A` and
+  `Zone_Xion_10_B2`.
+- 117 zone triggers. Some end in a warp. `Xion_10_ZTrigger_102`, 7 m from the city point, warps to the camp
+  `Xion_Camp_10` of SB's world `Xion`.
+- 13 doors, among them SB's closed lift door in lift doorway A at (3982, -9162, 1222) with its open twin at
+  (3958, -9124, 1222). The lever of the second lift with its deck at the top. 5 ladders, 2 ledges and 1 rope.
+- Camps with their chairs and teleport machines. Teleport machine 4 stands 1.5 m from the city point.
+- 19 fall volumes under the city, active in `Zone_Xion_10`, and the pit's under ground, active in `Zone_Xion_22`.
+
+### What the module does with it
+
+The same as with the rooms pak. The rooms open as before. The recovery catches EVE under Z -3275 while the zone is
+`Zone_SBO_Xion` and waits while it is another. The levels line counts the 34 volume levels apart. The look lines say
+what wakes up ([What the log shows](#what-the-log-shows)). Nothing pins the pak's version: `coop xion status` prints
+`pak 1203_1501548`.
+
+### What is not known
+
+- Whether SB changes the current zone from `Zone_SBO_Xion` to one of Xion's own while EVE stands in its volumes. How
+  SB picks one among overlapping zone volumes was not read. The `zone:` lines answer it.
+- While the zone is `Zone_SBO_Xion`, SB's zone warp does not run: `0x141cdfe70` writes no warp when `0x141cf7630`
+  reads type 5 in the current zone's row. If the zone turns to one of Xion's own, that guard no longer holds. A
+  warp trigger, a camp or a teleport machine could then take EVE to SB's own Xion, since its row names the world
+  `Xion`. Copy the co-op save files before the test.
+- Which NPCs spawn. That depends on the story state of the co-op save EVE is built from.
+- What `SBAIWorldManager_0` of `E04_LD_MetalAI` starts. What the 154 env actors and the sequences of their start
+  states do. Some of those sequences load, unload or hide streaming levels by name.
+- The memory and the frame time of the 61 added levels. The 14 underground levels alone hold 379 MB of build data.
+  `E04_Area07_Light_A_03` adds 226 movable lights under ground, loaded from the start.
+- The way down. The module has none. SB's lift is a trigger, a cutscene and a zone warp, which the type-5 test
+  refuses. The recovery's floor of -3275 would also catch EVE as soon as she stood under ground.
+
+### The game test
+
+Close the game. Copy the co-op save files (`StellarBladeCoop0N.sav`, [Saves](../../players/saves.md)) to a folder
+outside the game. Copy the pak's three files over the three of the rooms pak in `SB/Content/Paks/~mods`. The pak's
+own `INSTALL.md` has the commands, the three hashes and the way back. Never keep two containers that hold `Xion_P`.
+
+On a co-op save, alone.
+
+1. `coop xion`. Within 15 s the log has `levels: 161 listed, 127 of 127`, the five `rooms: <room> open` lines, a
+   `characters:` line, `zone: zonetype 5 area Zone_SBO_Xion` and `life: 1`. Note any hitch.
+2. `coop xion status`. Note the look part: the count of characters, the nearest one, the zone.
+3. Stand on the arrival square for 20 s and look around. Note every NPC, guard or merchant, a teleport machine and
+   any cutscene. Note each `zone:` line.
+4. Walk to lift doorway A near (3958, -9124, 1222). A closed lift door of Stellar Blade should stand in the doorway.
+   Walk into it. Note whether it blocks EVE, whether a cutscene starts and any `zone:` line.
+5. Climb the ladder `BP_EM_Ladder3` at (-9973, 7549, -234), west of the arrival square, with its two ledges beside
+   it. Then the ladder `BP_EM_Ladder5` at (-12218, 22514, -470), on the south rim of the round plaza. Note whether
+   EVE can grab them and climb.
+6. Jump off the long bridge near (-10823, 9941). Note who brings EVE back: the module (a `black:`, a `fall:` and a
+   `put back:` line) or SB itself (no `fall:` line, maybe a `zone:` line first).
+7. `coop xion leave`. The log has `left`. `coop-link.log` has `sboxion leave: ... reload call 1`.
+
+Send the `[SX]` lines of `UE4SS.log` and `coop-link.log`. The fall steps of [Testing it in
+game](#testing-it-in-game) under Falls and deaths walk through lift doorway A: with this pak a door should stand
+there.
+
+### Back to the rooms pak
+
+Close the game. Copy the three files of the rooms pak over the three of the full test pak in
+`SB/Content/Paks/~mods`. `coop xion status` then reads `pak 1203_1501348`. The full test pak's `INSTALL.md` has
+the commands and the hashes of both.
+
 ## Saves
 
 Two things keep the player's story saves untouched, the same two Matrix XIII and the hall lobbies use.
@@ -574,6 +665,9 @@ another level is left alone. `CountDown_Posing_ENV` holds fog data and ties with
 The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists the level as fixed.
 
 ### What is left out
+
+The two paks of 23 and 24 November leave out the parts below. [The full test pak](#the-full-test-pak) brings back the
+underground and 47 of the 50 level-design sublevels.
 
 - The 50 level-design sublevels: NPCs, quests, shops, camps, zone volumes, doors, ladders, the lift, SB's fall
   volumes. EVE can step or jump out of the city: [Falls and deaths](#falls-and-deaths) says what brings her back.
