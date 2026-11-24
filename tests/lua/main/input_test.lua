@@ -456,6 +456,20 @@ in_world=false
     assert(not kit_shown.wheel and em_logged('wheel: not opened: the native part has no coop_stick, coop_held or '
         ..'coop_fkey') and fed()=='The emote wheel needs the native part of this version.')
     wh.missing=false
+    -- A wheel that does not build (ui/kit/wheel.lua raises): off until the mod reloads, one log line. The load goes
+    -- on, F2 gets the wheel's refusal and the co-op menu opens on its key.
+    local real=package.loaded['ui.kit.wheel']
+    package.loaded['ui.kit.wheel']={new=function() error('no wheel today') end}
+    local loaded,why=pcall(load_main,true)
+    package.loaded['ui.kit.wheel']=real
+    assert(loaded,'The load goes on without the wheel: '..tostring(why))
+    kit_ready=true; quarter()
+    assert(table.concat(printed,'|'):find('[StellarCoop] wheel: off until the mod reloads: ',1,true)
+        and table.concat(printed,'|'):find('no wheel today',1,true) and logged('Loaded version v9-test. '..USAGE))
+    key('F2')
+    assert(not kit_shown.wheel and em_logged('wheel: not opened: the wheel did not build')
+        and fed()=='The emote wheel is off (the UI stopped): use coop emote.')
+    key('F5'); assert(kit_shown.menu,'The co-op menu opens without the wheel')
     -- coop off: F2 refused as a command is.
     load_main(true)
     kit_ready=true; quarter()

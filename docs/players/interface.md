@@ -456,6 +456,8 @@ wheel is open.
   `wheel: closed (<why>)`, or `wheel: not opened: <why>`.
 - It needs the `StellarCoop.dll` of this version. With an older one, `UE4SS.log` says
   `Native emote wheel reads unavailable (no emote wheel): <why>` once and the wheel does not open.
+- If the wheel itself fails to build, `UE4SS.log` says `wheel: off until the mod reloads: <why>`. The wheel does not
+  open. The co-op menu, the keys and `coop emote` work as before.
 
 The wheel has not been tested in game yet. A tap of D-pad Left is still the game's; what the game does with a 0.3 s
 hold and whether a hit always closes the wheel are part of its game test ([Tests](../dev/tests.md)).

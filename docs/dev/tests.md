@@ -774,7 +774,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `ui_language=english`, the refusals in the player's words with English for the line above EVE, a pick through
   `coop emote`, its refusal on screen and the page used last; `main/input_test` the keys and the pad on the fixture
   (F2, Q, A, E, Esc, the mouse buttons, the other keys dropped, D-pad Left's event, LB, RB, A, B, `emote_key=none`,
-  `emote_pad=off`, an older DLL, `coop off`); `eve/emote_test` EVE's busy reasons;
+  `emote_pad=off`, an older DLL, a wheel that does not build, `coop off`); `eve/emote_test` EVE's busy reasons;
 - `eve/ui/tools_test`, `cutmenus/ui/devmenu_test` and `fight/bosses/ui/viewer_test` cover the three TEST TOOLS pages:
   their rows, the commands each row runs, the values after accepted and refused commands (a devmenu switch's Off
   running `clear` and every lasting switch then Off, the lock-on's `lockswitch`), the viewer's parts and skins per

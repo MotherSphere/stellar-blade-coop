@@ -52,8 +52,18 @@ if M.settings then
             if M.off_modules['online.session'] then return false,'online sessions are off until the mod reloads' end
             return M.sessions.open(...)
         end},{__index=require('main.loader').view(M,'sessions')})})
-    -- The kit's wheel (ui/kit/wheel.lua), over the menu: the emote wheel (eve/ui/wheel.lua) opens it.
-    M.wheel=require('ui.kit.wheel').new({kit=M.kit,theme=Ui.THEME,words=M.words,reads=M.wheel_reads})
+    -- The kit's wheel (ui/kit/wheel.lua), over the menu: the emote wheel (eve/ui/wheel.lua) opens it. Built behind a
+    -- guard: a wheel that does not load or build is off until the mod reloads. Its open refuses, its other calls do
+    -- nothing (main/loader.lua's stub). The kit, the menu and the keys go on.
+    local built,wheel=pcall(function()
+        return require('ui.kit.wheel').new({kit=M.kit,theme=Ui.THEME,words=M.words,reads=M.wheel_reads})
+    end)
+    if not built then
+        log('wheel: off until the mod reloads: '..tostring(wheel))
+        wheel=setmetatable({open=function() return false,'off','the wheel did not build' end},
+            {__index=require('main.loader').STUB})
+    end
+    M.wheel=wheel
     require('main.loader').build(M,'online.session','create',Ui)
     require('main.loader').build(M,'online.saves','saves',Ui)
     require('main.loader').build(M,'online.lobby','screens',Ui)
