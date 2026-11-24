@@ -3,9 +3,10 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's rooms (world/maps/sboxion/sboxion.lua starts this part at each arrival and ticks it each 250 ms pass
 -- while EVE's map is SBO Xion).
--- The zSBO_Xion test pak of 2026-11-24 adds five rooms behind five closed doors of SB's Xion, each a level of its own
--- that SBO Xion's persistent level always loads. A room has an open doorway of ours where SB's closed door unit and
--- wall panel stand, with street debris in front. rooms/list.lua names those pieces of SB, 23 rows. This part hides
+-- The zSBO_Xion test paks of 2026-11-24 add rooms behind closed doors of SB's Xion, each a level of its own that SBO
+-- Xion's persistent level always loads: five in the paks of build2, eleven in the pak of build3. A room has an open
+-- doorway of ours where SB's closed door unit and wall panel stand, with street debris in front. rooms/list.lua names
+-- those pieces of SB for ten rooms, 41 rows. This part hides
 -- them (world.piece, world.piece_out: world/maps/sboxion/engine.lua), so EVE walks in through the door with no
 -- loading screen. It puts them back with world.piece_back. Nothing is hidden in any other map and SB's own Xion is
 -- never changed: the pieces are objects of SBO Xion's world, which a map change destroys.

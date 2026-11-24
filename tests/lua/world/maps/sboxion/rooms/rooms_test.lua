@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's rooms (world/maps/sboxion/rooms/rooms.lua) over a fake world that lists levels and finds, hides and puts
--- back pieces, and a fake store. The list: five rooms with their rows named by sublevel, actor, component and instance,
+-- back pieces, and a fake store. The list: ten rooms with their rows named by sublevel, actor, component and instance,
 -- the levels each needs and the game path the pak gate is asked for, one room at a time. A pak without the rooms: one
 -- log line an arrival, no level read, no piece asked. With the rooms, one line an arrival says how many the pak holds.
 -- With every level loaded and visible the arrival's first pass checks the rows of a room, hides them all and logs the
@@ -23,7 +23,7 @@ os.clock=function() return clock end
 package.loaded.UEHelpers={}
 local Rooms=require('world.maps.sboxion.rooms.rooms')
 local LIST=Rooms.LIST
-assert(#LIST==5 and Rooms.PACE==4 and Rooms.WAIT==30)
+assert(#LIST==10 and Rooms.PACE==4 and Rooms.WAIT==30)
 for _,room in ipairs(LIST) do
     assert(room.umap=='/Game/SBO_World/Rooms/Xion_Rooms_'..room.name,'The game path the pak gate is asked for')
 end
@@ -46,7 +46,9 @@ for _,room in ipairs(LIST) do
         names[r.name],total=true,total+1
     end
 end
-assert(total==23)
+assert(total==41)
+local FIVE={} -- The game paths of the five rooms the paks of 24 November hold.
+for i=1,5 do FIVE[LIST[i].umap]=true end
 
 -- The fake world. hidden: the rows hidden now, by name. order: each call. A row of missing is not found, a row of
 -- stuck cannot be hidden (the engine's piece_out sets was before it raises).
@@ -83,7 +85,7 @@ local world={
 local stored,saves,clears=nil,0,0
 local store={save=function(line) stored=line; saves=saves+1 end,load=function() return stored end,
     clear=function() stored=nil; clears=clears+1 end}
-local held,none,asked=true,nil,{} -- held: true for every room, or the game paths the pak holds. asked: each ask.
+local held,none,asked=FIVE,nil,{} -- held: true for every room, or the game paths the pak holds. asked: each ask.
 local function all_levels(without)
     local list={{name='E04_ENV',loaded=true,visible=true}}
     for _,room in ipairs(LIST) do
@@ -95,7 +97,7 @@ local function all_levels(without)
 end
 local function fresh(with_store)
     logs,order,hidden,missing,stuck,levels,reads={},{},{},{},{},all_levels(),0
-    alive,level_error,back_error,held,none,asked=true,nil,nil,true,nil,{}
+    alive,level_error,back_error,held,none,asked=true,nil,nil,FIVE,nil,{}
     stored,saves,clears=nil,0,0
     return Rooms.new({log=function(m) logs[#logs+1]=m end,world=world,gate=function(umap)
         asked[#asked+1]=umap
@@ -133,12 +135,13 @@ r=Rooms.new({log=function(m) logs[#logs+1]=m end,world=world,gate=function() err
 r.arrive()
 assert(#logs==1 and logs[1]=='rooms: none in this pak (the folder does not read): no door is opened',logs[1])
 
--- open_all: the first pass of an arrival opens the five rooms, each row checked before any of its room is hidden.
+-- open_all: with a pak of 24 November the first pass of an arrival opens its five rooms, each row checked before any
+-- of its room is hidden. The five rooms it lacks are asked of the pak only.
 r=fresh()
 r.arrive()
-assert(#logs==1 and logs[1]=='rooms: this pak holds 5 of 5 rooms: D011, D031, D081, D107, D158' and #order==0,
+assert(#logs==1 and logs[1]=='rooms: this pak holds 5 of 10 rooms: D011, D031, D081, D107, D158' and #order==0,
     'An arrival with the rooms in the pak says so and waits for the pass')
-assert(#asked==5 and asked[1]==D011.umap and asked[5]==LIST[5].umap,'Each room asked on its own')
+assert(#asked==10 and asked[1]==D011.umap and asked[10]==LIST[10].umap,'Each room asked on its own')
 r.tick()
 assert(reads==1 and count('piece ')==23 and count('out ')==23 and size(hidden)==23)
 assert(order[1]=='piece '..D011.rows[1].name and order[4]=='piece '..D011.rows[4].name
@@ -280,7 +283,7 @@ r=fresh()
 r.arrive()
 r.tick()
 local kept=stored
-r=Rooms.new({log=function(m) logs[#logs+1]=m end,world=world,gate=function() return true end,store=store})
+r=Rooms.new({log=function(m) logs[#logs+1]=m end,world=world,gate=function(umap) return FIVE[umap] end,store=store})
 logs,order,reads={},{},0
 r.arrive()
 r.tick()
@@ -347,7 +350,7 @@ assert(size(hidden)==23 and r.status()=='rooms 5 of 5 open')
 r=fresh()
 held={[D011.umap]=true,[D158.umap]=true}
 r.arrive()
-assert(#logs==1 and logs[1]=='rooms: this pak holds 2 of 5 rooms: D011, D158',logs[1])
+assert(#logs==1 and logs[1]=='rooms: this pak holds 2 of 10 rooms: D011, D158',logs[1])
 r.tick()
 assert(count('piece ')==12 and size(hidden)==12 and #logs==3 and logs[3]=='rooms: D158 open: 8 rows hidden, 0 ms')
 assert(not said('waits') and r.status()=='rooms 2 of 2 open',r.status())
@@ -362,10 +365,10 @@ assert(ok and line=='rooms on: 2 to open ([SX] lines follow)',line)
 r=fresh()
 r=Rooms.new({log=function(m) logs[#logs+1]=m end,world=world,gate=function(umap)
     if umap==D031.umap then error('the .utoc does not read') end
-    return true
+    return FIVE[umap]
 end})
 r.arrive()
-assert(logs[1]=='rooms: this pak holds 4 of 5 rooms: D011, D081, D107, D158',logs[1])
+assert(logs[1]=='rooms: this pak holds 4 of 10 rooms: D011, D081, D107, D158',logs[1])
 r.tick()
 assert(size(hidden)==19 and r.status()=='rooms 4 of 4 open',r.status())
 -- No room in the pak: the reason of the first room asked.
@@ -374,5 +377,22 @@ held={}
 none='no Xion_Rooms_D011.umap'
 r.arrive()
 assert(#logs==1 and logs[1]=='rooms: none in this pak (no Xion_Rooms_D011.umap): no door is opened',logs[1])
-assert(#asked==5,'Each room is asked')
+assert(#asked==10,'Each room is asked')
+
+-- all_rooms: the pak of build3 holds the ten. Each opens. D036 and D158 hide other instances of one component.
+r=fresh()
+held=true
+r.arrive()
+assert(logs[1]=='rooms: this pak holds 10 of 10 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, D106',
+    logs[1])
+r.tick()
+assert(reads==1 and count('piece ')==41 and size(hidden)==41 and #logs==11,#logs)
+assert(logs[7]=='rooms: D009 open: 4 rows hidden, 0 ms' and logs[8]=='rooms: D049 open: 5 rows hidden, 0 ms'
+    and logs[9]=='rooms: D092 open: 2 rows hidden, 0 ms' and logs[10]=='rooms: D036 open: 3 rows hidden, 0 ms'
+    and logs[11]=='rooms: D106 open: 4 rows hidden, 0 ms',logs[11])
+local F34='E04_Area02_Object_F_01.Actor_0.HierarchicalInstancedStaticMeshComponent_34'
+assert(hidden[F34..'[6]'] and hidden[F34..'[3]'],'One component, two rooms')
+assert(r.status()=='rooms 10 of 10 open' and select(2,stored:gsub('\t',''))==40,r.status())
+r.close('coop off')
+assert(logs[12]=='rooms: closed (coop off): 41 rows put back' and size(hidden)==0,logs[12])
 print('sboxion_rooms_test ok')

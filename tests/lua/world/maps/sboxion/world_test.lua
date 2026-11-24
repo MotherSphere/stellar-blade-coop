@@ -74,6 +74,10 @@ local PAKS='C:\\G\\SB\\Content\\Paks'
 local files={}
 local ROOMS={'Rooms','Xion_Rooms_D011.umap','Xion_Rooms_D031.umap','Xion_Rooms_D081.umap','Xion_Rooms_D107.umap',
     'Xion_Rooms_D158.umap'}
+local ROOMS3={'Rooms'} -- The pak of build3: every room of the list, D039 too.
+for _,room in ipairs({'D011','D031','D081','D107','D158','D009','D039','D049','D092','D036','D106'}) do
+    ROOMS3[#ROOMS3+1]='Xion_Rooms_'..room..'.umap'
+end
 local opens=0 -- Each time the .utoc is opened.
 local function read(path,limit,offset)
     if path:sub(-5)=='.utoc' then opens=opens+1 end
@@ -511,7 +515,7 @@ warp_line='sboxionwarp=entered asks=7 life=1'
 me=at(D.ARRIVALS.city)
 pass(x,0.25)
 assert(not logged('none in this pak') and times('sboxion: rooms: D')==5 and pieces_asked==23 and hidden_rows()==23)
-assert(times('sboxion: rooms: this pak holds 5 of 5 rooms: D011, D031, D081, D107, D158')==1)
+assert(times('sboxion: rooms: this pak holds 5 of 10 rooms: D011, D031, D081, D107, D158')==1)
 assert(logged('sboxion: rooms: D011 open: 4 rows hidden, 0 ms') and logged('sboxion: rooms: D158 open: 8 rows hidden'))
 assert(select(2,rooms_kept:gsub('\t',''))==22,'The hidden rows go to the rooms\' own store')
 assert(select(2,x.status()):find('; recovery on, [^;]+; rooms 5 of 5 open; look [^;]+$'),select(2,x.status()))
@@ -571,7 +575,7 @@ rows_hidden,her_at,her_mode,pieces_asked,opens={},nil,1,0,0
 warp_line='sboxionwarp=entered asks=8 life=1'
 me=at(D.ARRIVALS.city)
 pass(x,0.25)
-assert(logged('sboxion: rooms: this pak holds 2 of 5 rooms: D011, D158') and pieces_asked==12 and hidden_rows()==12
+assert(logged('sboxion: rooms: this pak holds 2 of 10 rooms: D011, D158') and pieces_asked==12 and hidden_rows()==12
     and times('sboxion: rooms: D')==2 and not logged('waits'),logs[#logs])
 assert(select(2,x.status()):find('; rooms 2 of 2 open; look [^;]+$'),select(2,x.status()))
 opened=opens
@@ -579,7 +583,7 @@ me,world_gone={at={X=0,Y=0,Z=0},map=SB_XION},true
 pass(x,0.25)
 me,world_gone,rows_hidden=at(D.ARRIVALS.city),false,{}
 pass(x,0.25)
-assert(opens==opened and hidden_rows()==12 and times('this pak holds 2 of 5')==2,
+assert(opens==opened and hidden_rows()==12 and times('this pak holds 2 of 10')==2,
     'The pak is asked once a room a Lua load')
 x.stop()
 pak('rooms')
@@ -587,7 +591,8 @@ pak('rooms')
 -- full_pak: the full test pak lists 161 levels. The 34 of data.lua's VOLUMED load and show where SB's volumes say:
 -- they are counted, never named as missing. Only the other 127 must read loaded and visible. 155 characters of SB's
 -- spawn rows beside EVE are counted by class, the most first. Only the five nearest are named, with class and
--- distance. The rooms open as with the rooms pak.
+-- distance. The pak of build3 holds every room of the list: the ten open.
+pak(ROOMS3)
 fresh()
 levels={}
 local needed={}
@@ -618,7 +623,9 @@ local CROWD='sboxion: characters: 156 by class: N_CitizenMaleA_C 100, N_XionGuar
     ..'CH_P_EVE_01_Blueprint_C 1; nearest: NPC_1 (N_CitizenMaleA_C) 1.0 m, NPC_2 (N_CitizenMaleA_C) 2.0 m, NPC_3 '
     ..'(N_CitizenMaleA_C) 3.0 m, NPC_4 (N_CitizenMaleA_C) 4.0 m, NPC_5 (N_CitizenMaleA_C) 5.0 m'
 assert(times(CROWD)==1 and not logged('NPC_6'),'Counted by class, the five nearest named')
-assert(hidden_rows()==23 and select(2,x.status()):find('; rooms 5 of 5 open; look [^;]+$'),select(2,x.status()))
+assert(hidden_rows()==41 and select(2,x.status()):find('; rooms 10 of 10 open; look [^;]+$'),select(2,x.status()))
+assert(logged('sboxion: rooms: this pak holds 10 of 10 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, '
+    ..'D106') and times('sboxion: rooms: D')==10,'Every room the pak holds opens')
 -- eyes_arrival: the zone and area of the engine line and EVE's life state, once each.
 assert(times('sboxion: zone: zonetype 5 area Zone_SBO_Xion')==1 and times('sboxion: life: 1')==1,logs[#logs])
 -- eyes_second_look: 10 s after the arrival the levels line and the characters line again, whole. 10 s later nothing
@@ -656,7 +663,7 @@ assert(times('sboxion: characters: 158 by class: N_CitizenMaleA_C 100, N_XionGua
     ..'1.5 m, NPC_2 (N_CitizenMaleA_C) 2.0 m, NPC_3 (N_CitizenMaleA_C) 3.0 m')==1,logs[#logs])
 -- eyes_status: the last look as the status line's last part.
 ok,why=x.status()
-assert(why:find('; rooms 5 of 5 open; look %d+ s ago: 158 characters, nearest Lyle_1 %(N_Lyle_C%) 0%.5 m, levels '
+assert(why:find('; rooms 10 of 10 open; look %d+ s ago: 158 characters, nearest Lyle_1 %(N_Lyle_C%) 0%.5 m, levels '
     ..'126 of 127 always%-loaded, 20 of 34 by volume loaded, 9 visible, zonetype 1 area Zone_Xion_10, life 3$'),why)
 -- eyes_quiet: nothing changes for 30 s, nothing more is said.
 said=#logs
