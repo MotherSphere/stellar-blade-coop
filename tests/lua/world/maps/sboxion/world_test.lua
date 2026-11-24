@@ -13,7 +13,10 @@
 -- by the engine's read of EVE and not by me(), SB's black asked through the module's own wiring at a fall with the
 -- move two passes later, ended by a map change and by coop off, each showing again a death
 -- screen the recovery hid; coop xion recover refused out of SBO Xion, its three modes inside, the mode death back to
--- on at the next arrival and the recovery's part of the status.
+-- on at the next arrival and the recovery's part of the status. The walls (world/maps/sboxion/walls/walls.lua): queued
+-- at each arrival nearest to the point coop xion asked, made 10 a pass through the module's own wiring and only in SBO
+-- Xion, their part of the status, taken down by a map change (none called once the world is gone, each destroyed
+-- while it still stands) and by coop off, kept in the store the wiring hands over.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -141,6 +144,22 @@ world.controller=function() return PC end
 world.standalone=function() return true end
 world.screen=function() return true end
 world.hide=function() screen_shown=false; return function() screen_shown=true end end
+-- The walls' fakes, counted apart from the reads: each wall made by name, each removal, a world that is gone.
+local walls_made,walls_removed,world_gone={},0,false
+world.wall=function(b)
+    walls_made[#walls_made+1]=b.name
+    return {path='/Game/SBO_World/Xion_P.Xion_P:PersistentLevel.Actor_'..#walls_made,
+        read='object type 20, collision on'}
+end
+world.unwall=function(d)
+    if world_gone or d.gone then return false end
+    d.gone=true
+    walls_removed=walls_removed+1
+    return true
+end
+world.wall_swept=function() return false end
+local kept=nil -- The store's line.
+local store={save=function(line) kept=line end,load=function() return kept end,clear=function() kept=nil end}
 local SB_XION='/game/art/bg/worldmap/level_p/e04'
 local function new()
     logs,asked,calls={},{},{}
@@ -148,7 +167,7 @@ local function new()
         status=function() return 'mod=v\n'..ENGINE..'\n'..rows_line..'\n'..warp_line..'\nlast=x\n' end,
         ask=function(l) asked[#asked+1]=l; return true,'asked the native part: '..l end,paks=PAKS,read=read,
         slot=function(what) if slot_ok then return true end return false,what..' runs only on a co-op save' end,
-        mode=function() return mode end,me=function() return me end,world=world})
+        mode=function() return mode end,me=function() return me end,world=world,store=store})
 end
 world.respawn=function(_,guid) respawns[#respawns+1]=guid; warp_line='sboxionwarp=entered asks=3 life=1' end
 local function logged(text) for _,l in ipairs(logs) do if l:find(text,1,true) then return l end end end
@@ -235,6 +254,7 @@ assert(logged('sboxion: the native part answers: sboxionwarp=refused asks=2 verb
 x=new()
 pass(x,30)
 assert(total()==0 and #logs==0,'Nothing outside SBO Xion: '..total()..' reads, '..#logs..' lines')
+assert(#walls_made==0,'No wall outside SBO Xion')
 
 -- arrival: the day table, the levels, the probes and the characters, once.
 fresh()
@@ -242,6 +262,9 @@ me=at(D.ARRIVALS.city)
 pass(x,0.25)
 assert(logs[1]=='sboxion: arrived, map /Game/SBO_World/Xion_P, zone Zone_SBO_Xion, EVE at (-8304, 7201, 225)',logs[1])
 assert(logs[2]=='sboxion: recovery on: floor Z -3275, arrival point city (-8304, 7201, 225)' and calls.move==1,logs[2])
+-- walls_arrival: queued at the arrival, the first 10 made in its pass, all 178 up 18 passes later.
+assert(logs[3]=='sboxion: walls: 178 to put up, 10 a pass, nearest to the city point first',logs[3])
+assert(#walls_made==10 and logged('sboxion: walls: first wall '..walls_made[1]..' up: object type 20, collision on'))
 assert(logged('sboxion: light: 72 env volumes found, 65 in E04_ENV_VOL, 41 named, 21 changed, CountDown_Posing_ENV '
     ..'active true'),logs[2])
 assert(#sets==21,#sets..' writes')
@@ -258,9 +281,13 @@ assert(not logged('read back'),'The read-back comes 2 s later')
 pass(x,2)
 assert(times('sboxion: light: 41 of 41 read back as written')==1,logs[#logs])
 assert(calls.volumes==1 and #sets==21,'One pass over the volumes an arrival')
+assert(#walls_made==90 and not logged('walls: 178 of 178 up'),'Nine passes: '..#walls_made)
 pass(x,8) -- 10 s after the arrival: the levels, the read-back and the characters again.
 assert(times('sboxion: light: 41 of 41 read back as written')==2 and times('sboxion: levels: 95 listed')==2
     and times('sboxion: characters: 1')==2 and calls.levels==2,logs[#logs])
+assert(#walls_made==178 and times('sboxion: walls: 178 of 178 up in 18 passes, 0 ms')==1,'The walls are up')
+local _,tabs=kept:gsub('\t','')
+assert(tabs==177,'The wiring\'s store holds the 178 paths')
 
 -- probe_change: a change of a probe level is logged once, with EVE's place. The change back is logged once too.
 me=at({X=-8000,Y=7000,Z=225})
@@ -320,8 +347,8 @@ her_at=nil
 me=at({X=kaya.X+300,Y=kaya.Y+400,Z=kaya.Z})
 ok,why=x.status()
 assert(ok and why:find('rows in; sboxionwarp=refused asks=2 verb=leave why=zone; EVE at (-7877, -1413, 44), nearest '
-    ..'waypoint kaya 5.0 m; recovery on, ground (3000, -9000, 1222) 1.8 s old, failures 0',1,true)
-    and why:find('^sboxion: pak %d+_4096; '),why)
+    ..'waypoint kaya 5.0 m; recovery on, ground (3000, -9000, 1222) 1.8 s old, failures 0; walls 178 of 178 up',1,
+    true) and why:find('^sboxion: pak %d+_4096; ') and why:find('walls 178 of 178 up$'),why)
 -- coop xion recover: the three modes, said in the log too; alone, the recovery's state; another word refused.
 ok,why=x.recover('death')
 assert(ok and why=='coop xion recover: recovery mode death: falls are not caught, deaths are'
@@ -347,26 +374,36 @@ assert(x.recover('death')) -- The stay ends in the mode death: the next arrival 
 her_at,her_mode=nil,1
 local reads=total()
 me={at={X=0,Y=0,Z=0},map=SB_XION}
+world_gone=true -- The map change destroyed SBO Xion's world with its walls.
 pass(x,0.25)
 assert(logs[#logs]=='sboxion: left, map '..SB_XION,logs[#logs])
+-- walls_map_change: no wall of a world that is gone is destroyed and the store is cleared.
+assert(logs[#logs-1]=='sboxion: walls: down (a map change): 0 removed, 178 gone already' and walls_removed==0
+    and kept==nil,logs[#logs-1])
+world_gone=false
 ok,why=x.status()
-assert(ok and why:find('EVE is not in SBO Xion (map '..SB_XION..')',1,true) and not why:find('recovery',1,true),why)
+assert(ok and why:find('EVE is not in SBO Xion (map '..SB_XION..')',1,true) and not why:find('recovery',1,true)
+    and not why:find('walls',1,true),why)
 ok,why=x.recover('on')
 assert(not ok and why=='coop xion recover: EVE is not in SBO Xion',why)
 pass(x,20)
 assert(total()==reads and times('sboxion: left')==1,'Nothing is read after a map change')
+assert(#walls_made==178,'No wall is made in another map')
 fresh()
 me=at(D.ARRIVALS.gate)
 pass(x,0.25)
+assert(#walls_made==188 and times('sboxion: walls: 178 to put up, 10 a pass, nearest to the city point first')==2,
+    'Each arrival builds the walls again')
 assert(times('sboxion: arrived')==2 and #sets==21 and times('41 named, 21 changed')==2,'A second arrival writes again')
 assert(times('sboxion: recovery on: floor Z -3275, arrival point city')==2,'The recovery starts again at each arrival')
 assert(select(2,x.status()):find('; recovery on, no ground point, failures 0',1,true),'The mode is on again')
 pass(x,5)
 assert(not logged('put back failed') and times('put back: EVE walks')==1,'The check of the stay before is gone')
--- A loading screen (no EVE) ends the stay too.
+-- A loading screen (no EVE) ends the stay too. Walls of a world that still stands are destroyed.
 me=nil
 pass(x,0.25)
 assert(logs[#logs]=='sboxion: left, map none',logs[#logs])
+assert(logs[#logs-1]=='sboxion: walls: down (a map change): 178 removed' and walls_removed==178,logs[#logs-1])
 
 -- A volume whose write does not hold shows in the read-back; a level not loaded is named.
 fresh()
@@ -396,6 +433,9 @@ assert(ok)
 me=at(D.ARRIVALS.gate)
 pass(x,0.25)
 assert(logged('sboxion: recovery on: floor Z -3275, arrival point gate (-23393, 17287, 1285)'),logs[#logs])
+-- walls_gate: the walls are queued from the point coop xion asked, so the cave wall is made first.
+assert(logged('sboxion: walls: 178 to put up, 10 a pass, nearest to the gate point first')
+    and logged('sboxion: walls: first wall CAVE.1 up: object type 20, collision on'),logs[#logs])
 
 -- A death in SBO Xion: the life word of the sboxionwarp line starts SB's in-place respawn with the GUID of the
 -- engine line. The death screen the recovery hid is shown again when EVE leaves the map.
@@ -418,11 +458,16 @@ pass(x,0.25)
 -- coop_off: the watch and the recovery end, nothing is read or said after.
 her_at,her_mode={X=0,Y=0,Z=-5000},3
 reads=total()
-local lines=#logs
+local lines,before=#logs,walls_removed
 x.stop()
+-- walls_coop_off: the 10 walls of the arrival's pass are destroyed. That line is coop off's only one.
+assert(#logs==lines+1 and logs[#logs]=='sboxion: walls: down (coop off): 10 removed, 168 never made'
+    and walls_removed==before+10,logs[#logs])
+lines=#logs
+local built=#walls_made
 levels[94].visible=not levels[94].visible
 pass(x,30)
-assert(total()==reads and #logs==lines,'Nothing after coop off')
+assert(total()==reads and #logs==lines and #walls_made==built,'Nothing after coop off')
 
 -- coop_off_screen: coop off shows again a death screen the recovery hid.
 x=new()

@@ -22,6 +22,7 @@
 -- A Lua reload (Ctrl+R) forgets the walls it made. Their paths are kept in the store, one line, at each pass that
 -- made one. The first pass of a Lua load asks the world to sweep them (world.wall_swept) until the first path that is
 -- no wall, so the paths of a game run that ended inside SBO Xion cost one look.
+-- An error in a pass is logged once and ends the build. The walls made stay up.
 -- tests/lua/world/maps/sboxion/walls/walls_test.lua covers it.
 local U=require('core.unreal')
 local D=require('world.maps.sboxion.data')
@@ -81,8 +82,7 @@ function Walls.new(o)
         store.clear()
         log(string.format('walls: an earlier Lua load left %d: %d swept',left,gone))
     end
-    -- Each 250 ms pass while EVE's map is SBO Xion: the sweep once, then PER_PASS walls of a build.
-    function self.tick()
+    local function pass()
         if not swept then sweep() end
         if not queue then return end
         local started=os.clock()
@@ -108,6 +108,13 @@ function Walls.new(o)
                 ..(#failed>NAMED and ' and '..#failed-NAMED..' more' or '')
         end
         log(string.format('walls: %d of %d up in %d passes, %.0f ms%s',#up,#BOXES,passes,ms,missing))
+    end
+    -- Each 250 ms pass while EVE's map is SBO Xion: the sweep once, then PER_PASS walls of a build.
+    function self.tick()
+        local ok,e=pcall(pass)
+        if ok then return end
+        queue=nil
+        log(string.format('walls: error (%s): the build is ended with %d of %d up',U.why(e),#up,#BOXES))
     end
     -- Every wall down and the build ended (reason: for the log). With nothing up and no build it does nothing.
     function self.down(reason)

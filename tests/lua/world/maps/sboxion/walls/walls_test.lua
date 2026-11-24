@@ -11,7 +11,7 @@
 -- them up again nearest to EVE first, on again while they are up makes nothing, on after a build that made none tries
 -- again, any other word gets the use line. An arrival sets off back to on and takes down what is still up. The
 -- sweep: once a Lua load, an earlier load's paths asked of the world until the first one that is no wall, then the
--- store cleared.
+-- store cleared. An error in a pass is logged once and ends the build with the walls made left up.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=50
 os.clock=function() return clock end
@@ -226,6 +226,19 @@ w.arrive('gate')
 w.tick()
 assert(asked[1]=='swept /Game/A.A:PersistentLevel.Lamp_1' and asked[2]=='CAVE.1','One look, then the build')
 assert(said('walls: an earlier Lua load left 3: 0 swept'))
+-- pass_error: a pass that raises is logged once and ends the build; the walls made stay and can be taken down.
+w=fresh()
+w.arrive('gate')
+w.tick()
+store.save=function() error('the disk is full') end
+w.tick()
+assert(logs[#logs]=='walls: error (the disk is full): the build is ended with 20 of 178 up',logs[#logs])
+local lines=#logs
+w.tick()
+assert(#asked==20 and #logs==lines and w.status()=='walls 20 of 178 up','One line, no more wall')
+store.save=function(line) saved=line; stored=line end
+w.down('coop off')
+assert(removed==20 and logs[#logs]=='walls: down (coop off): 20 removed',logs[#logs])
 -- no_store: the walls work with no store.
 w=fresh(false)
 w.arrive('gate')
