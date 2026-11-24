@@ -162,10 +162,15 @@ end
 -- (0x1440e84c0) only when the two differ. So the actor's collision goes on first, over a component that blocks
 -- nothing yet. The profile call then opens the component and makes its body.
 -- b: {at={X,Y,Z} the box's centre, yaw of its long side, size={X length, Y thickness, Z height}} in cm and degrees.
--- The profile's name is looked up, never added. The cube must be on the component: SetStaticMesh (0x1441449f0)
--- refuses a registered component of Static mobility. The component must read back SB's object type. Returns
--- core/actors.lua's display with read, that read-back as text. Raises, with no actor left, when a step fails.
+-- The profile's name is looked up, never added. The cube must be on the component. SetStaticMesh (0x1441449f0)
+-- refuses a component that is registered and of Static mobility (its byte +0x173 is 0) once the world plays, with
+-- the text "Calling SetStaticMesh on '{0}' but Mobility is Static." core/actors.lua adds the component registered
+-- and a StaticMeshComponent is Static by its class, so its call set no mesh: in the first game run all 145 walls
+-- failed there. So the wall makes the component Movable first (SetMobility, exec 0x14490a6c0, the component's vtable
+-- +0x520), then sets the cube itself. The component must read back SB's object type. Returns core/actors.lua's
+-- display with read, that read-back as text. Raises, with no actor left, when a step fails.
 local CUBE='/Engine/BasicShapes/Cube.Cube'
+local MOVABLE=2 -- EComponentMobility::Movable (Static 0, Stationary 1).
 local PROFILE='SB_InvisiblewallIgnoreCamera'
 local BLOCK_VOLUME=20 -- ECC_GameTraceChannel7, named BlockVolume in SB's DefaultEngine.ini.
 function Engine.wall(b)
@@ -174,6 +179,10 @@ function Engine.wall(b)
     local d=Actors.spawn(eve():GetWorld(),b.at,{Pitch=0,Yaw=b.yaw,Roll=0},{path=CUBE,static=true})
     local ok,why=pcall(function()
         local c=d.mesh
+        if not Actors.same(c.StaticMesh,CUBE) then
+            c:SetMobility(MOVABLE)
+            c:SetStaticMesh(Actors.resolve(CUBE,'/Script/Engine.StaticMesh'))
+        end
         assert(Actors.same(c.StaticMesh,CUBE),'the cube is not on the component')
         d.actor:SetActorHiddenInGame(true)
         c:SetRelativeScale3D({X=b.size.X/100,Y=b.size.Y/100,Z=b.size.Z/100})

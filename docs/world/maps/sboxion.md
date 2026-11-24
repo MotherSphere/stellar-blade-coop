@@ -343,6 +343,10 @@ So a wall of SBO Xion is not SB's blueprint. It is an engine actor with SB's col
   is in memory in SBO Xion: 38 actors of the kept, always loaded level `E04_NAVI_VOL` show it. Its simple collision
   is one box of 100 cm a side. The module scales the component to the box, so nothing is cooked. The actor is hidden
   in game.
+- The engine refuses a mesh on a component that is registered and of Static mobility once the world plays
+  (`SetStaticMesh`, `0x1441449f0`). The component is added that way. In the first game run with the walls, on
+  24 November 2026, all 145 failed with `the cube is not on the component`. The module now makes the component
+  Movable with `SetMobility` before it sets the cube. That change has not run in game yet.
 - The component gets SB's collision profile `SB_InvisiblewallIgnoreCamera` through `SetCollisionProfileName`. SB's
   `BP_BlockWall` sets the same profile on its own blocking mesh with the same call. The profile's object type is
   `BlockVolume`. It blocks EVE's capsule and lets the camera through.

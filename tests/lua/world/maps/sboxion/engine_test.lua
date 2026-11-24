@@ -214,7 +214,7 @@ statics[CUBE]=cube_mesh(CUBE)
 statics['/Script/Engine.Default__KismetMathLibrary']=object({MakeTransform=function() return 'identity' end})
 made[PROFILE]=991
 local spawned,took,profile_error={},20,nil -- took: the object type the component reads back after the profile call.
-local static=false -- A component of Static mobility: the engine refuses its mesh.
+local static=false -- A component that takes no mesh at all, whatever its mobility.
 local function order(a,what) a.order[#a.order+1]=what end
 local wall_world=object({SpawnActor=function(_,class,at,turn)
     assert(class.path=='/Script/Engine.Actor','A plain Actor only')
@@ -232,8 +232,18 @@ local wall_world=object({SpawnActor=function(_,class,at,turn)
     function a:AddComponentByClass(k,manual,transform,deferred)
         assert(k.path=='/Script/Engine.StaticMeshComponent' and manual==false and transform=='identity'
             and deferred==false,'One StaticMeshComponent')
-        local c=object({IsA=function(_,x) return x.path=='/Script/Engine.StaticMeshComponent' end})
-        function c:SetStaticMesh(m) if not static then self.StaticMesh=m end end
+        -- As in the game: the component is added registered and of Static mobility (0), so the engine refuses a
+        -- mesh until its mobility is another one.
+        local c=object({mobility=0,IsA=function(_,x) return x.path=='/Script/Engine.StaticMeshComponent' end})
+        function c:SetMobility(m)
+            self.mobility=m
+            order(a,'mobility '..tostring(m))
+        end
+        function c:SetStaticMesh(m)
+            if static or self.mobility==0 then return end
+            self.StaticMesh=m
+            order(a,'mesh')
+        end
         function c:SetRelativeScale3D(v) self.scale=v end
         function c:SetCollisionEnabled(v) self.enabled=v end
         function c:K2_SetWorldLocationAndRotation(to,rot) self.at,self.turn=to,rot end
@@ -263,13 +273,16 @@ assert(c.scale.X==1.75 and c.scale.Y==0.3 and c.scale.Z==9.5,'The cube is 100 cm
 assert(c.profile==PROFILE and c.kind==20)
 -- The engine makes the body when the profile call changes the collision it reads with the actor's own: so the actor
 -- is on first, over a component still closed (0, NoCollision), which blocks nothing until the profile is on.
-assert(table.concat(a.order,',')=='actor false,actor true,profile over 0',table.concat(a.order,','))
+-- core/actors.lua's own SetStaticMesh sets nothing on the Static component, so the wall makes it Movable (2) and
+-- sets the cube itself, before the collision calls.
+assert(c.mobility==2,'The component is Movable, so the engine takes the cube')
+assert(table.concat(a.order,',')=='actor false,mobility 2,mesh,actor true,profile over 0',table.concat(a.order,','))
 assert(d.read=='object type 20, collision on',d.read)
 -- wall_no_mesh: a component that did not take the cube has no shape, so the wall is taken out again.
 static=true
 ok,why=pcall(Engine.wall,BOX)
 assert(not ok and tostring(why):find('the cube is not on the component',1,true) and #spawned==2 and spawned[2].dead
-    and #spawned[2].order==1,tostring(why))
+    and table.concat(spawned[2].order,',')=='actor false,mobility 2',tostring(why))
 static=false
 -- wall_profile_not_taken: the read-back is not SB's object type, so the wall is taken out again.
 took=0
