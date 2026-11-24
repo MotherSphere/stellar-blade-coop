@@ -28,12 +28,19 @@ D.ARRIVALS={
 -- 1636.5444), yaw -55.00003, scale (34.75, 15.0, 34.09681). It lies about 18 m from the gate point.
 -- The test walk's waypoints. tie: Xion_Camp_10_02_SV, inside two env volumes of the same priority. kaya:
 -- TeleportPoint_FrontOfKaya. camp7: Xion_Camp_10_07_SV. Both lie outside every visibility volume of the two probe
--- levels. tree: E04_Amb_ChristmasTreeBP_2 of E04_Sound, the place of the two Christmas sound actors.
+-- levels. tree: E04_Amb_ChristmasTreeBP_2 of E04_Sound, the place of the two Christmas sound actors. D011 to D158:
+-- the doors of the five rooms (rooms/list.lua), each the centre of its doorway as the room's layout gives it. SB's
+-- door piece there has its pivot 20 to 55 cm from it (the level dumps of build 26123051).
 D.WAYPOINTS={
     {name='tie',X=-9576.632,Y=7993.2314,Z=235.47108},
     {name='kaya',X=-8176.726,Y=-1813.0625,Z=44.0},
     {name='camp7',X=-4898.648,Y=7474.126,Z=689.1905},
     {name='tree',X=-900.0,Y=-50.0,Z=630.0},
+    {name='D011',X=-10901.1,Y=3360.9,Z=411.6},
+    {name='D031',X=-5853.9,Y=4.2,Z=465.7},
+    {name='D081',X=-6971.5,Y=1706.1,Z=475.4},
+    {name='D107',X=8279.4,Y=-5081.4,Z=1374.1},
+    {name='D158',X=-4798.1,Y=6916.7,Z=595.5},
 }
 D.NEAR,D.STAY=300,5 -- A waypoint is logged once EVE has stood within NEAR cm of it (flat distance) for STAY s.
 -- The day table: bActiveVolume of 41 SBEnvControlVolume actors of the level E04_ENV_VOL, as SB's sequence

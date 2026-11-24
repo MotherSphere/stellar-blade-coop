@@ -18,7 +18,13 @@
 -- set once the actor's collision is on (the engine makes the component's body only then) and the read-back in the
 -- answer; with no such name nothing is spawned; a cube the component did not take, a profile that did not take (object
 -- type other than 20), a raise of its call and a missing cube each raise with the actor destroyed; unwall destroys
--- only the actor it made; a sweep takes only an actor whose root shows the cube.
+-- only the actor it made; a sweep takes only an actor whose root shows the cube. Then a piece of SB in a room's doorway
+-- (world/maps/sboxion/rooms/rooms.lua): found by its sublevel, actor and component names and taken only when its
+-- class, mesh, place and instance count are the row's; a whole component hidden with SetVisibility(false, false) and
+-- SetCollisionEnabled(0) after both values are read; an instance scaled to nothing where it stands through
+-- UpdateInstanceTransform, its ten numbers read first; a piece that reads hidden already, an instance the engine
+-- refuses and a call that changes nothing each raise; the put-back writes what was read, leaves an instance alone that
+-- is not hidden and calls nothing on an object that is gone or another one.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(t)
     t.type=t.type or function() return 'UObject' end
@@ -309,6 +315,153 @@ statics[CUBE].dead=true -- core/actors.lua keeps the mesh it found while it live
 LoadAsset=function() return object({dead=true}) end
 ok,why=pcall(Engine.wall,{at={X=1,Y=2,Z=3},yaw=0,size={X=100,Y=30,Z=950}})
 assert(not ok and tostring(why):find('Cube is missing on this PC',1,true) and spawned[#spawned].dead,tostring(why))
+
+-- A room's pieces. The fake sublevel holds one whole component and one instanced component of three instances.
+local E04,ACTORS='/Game/Art/BG/WorldMap/SubLevel/E04/','/Game/Art/BG/Actor/'
+local DOOR=E04..'E04_Area02_Object_F_01.E04_Area02_Object_F_01:PersistentLevel.Actor_0.StaticMeshComponent_6'
+local RUBBLE=E04..'E04_Area02_Object_F_01.E04_Area02_Object_F_01:PersistentLevel.Actor_0.'
+    ..'HierarchicalInstancedStaticMeshComponent_34'
+local function component(path,class,mesh)
+    local c=object({calls={},StaticMesh=cube_mesh(ACTORS..mesh..'.'..mesh:match('[^/]+$')),
+        GetFullName=function() return class..' '..path end,
+        IsA=function(_,x)
+            return x.path=='/Script/Engine.StaticMeshComponent'
+                or x.path=='/Script/Engine.InstancedStaticMeshComponent' and class~='StaticMeshComponent'
+        end})
+    statics[path]=c
+    return c
+end
+local door=component(DOOR,'StaticMeshComponent','Architecture/Door/031_A_SM')
+door.RelativeLocation,door.visible,door.collision=value({X=-457.874,Y=-486.76,Z=-79.113}),true,3
+function door:IsVisible() return self.visible end
+function door:GetCollisionEnabled() return self.collision end
+function door:SetVisibility(on,children)
+    self.calls[#self.calls+1]='visible '..tostring(on)..' '..tostring(children)
+    if not self.stuck then self.visible=on end
+end
+function door:SetCollisionEnabled(kind)
+    self.calls[#self.calls+1]='collision '..tostring(kind)
+    self.collision=kind
+end
+local rubble=component(RUBBLE,'HierarchicalInstancedStaticMeshComponent','Deco/Rubble/027_A_SM')
+rubble.instances={{0,0,0.6,0.8,-314.739,-635.928,-78.641,1.227,1.227,0.481},
+    {0,0,0,1,-503.915,-283.841,-78.641,1.227,1.227,0.481},{0,0,1,0,-731.058,-85.583,-78.641,1.227,1.227,0.481}}
+function rubble:GetInstanceCount() return #self.instances end
+function rubble:GetInstanceTransform(index,out,world)
+    assert(world==false,'The place inside the component, not in the world')
+    local n=self.instances[index+1]
+    if not n or self.unread then return false end
+    out.Rotation,out.Translation=value({X=n[1],Y=n[2],Z=n[3],W=n[4]}),value({X=n[5],Y=n[6],Z=n[7]})
+    out.Scale3D=value({X=n[8],Y=n[9],Z=n[10]})
+    return true
+end
+function rubble:UpdateInstanceTransform(index,t,world,dirty,teleport)
+    assert(world==false and dirty==true and teleport==true,'Inside the component, the render state dirty')
+    self.calls[#self.calls+1]='instance '..index
+    if self.refuses then return false end
+    if not self.stuck then
+        self.instances[index+1]={t.Rotation.X,t.Rotation.Y,t.Rotation.Z,t.Rotation.W,t.Translation.X,t.Translation.Y,
+            t.Translation.Z,t.Scale3D.X,t.Scale3D.Y,t.Scale3D.Z}
+    end
+    return true
+end
+local function row(component_name,index,mesh,x,y,z,count)
+    return {level='E04_Area02_Object_F_01',actor='Actor_0',component=component_name,index=index,mesh=mesh,
+        at={X=x,Y=y,Z=z},count=count}
+end
+local DOOR_ROW=row('StaticMeshComponent_6',-1,'Architecture/Door/031_A_SM',-457.874,-486.76,-79.113)
+local RUBBLE_ROW=row('HierarchicalInstancedStaticMeshComponent_34',1,'Deco/Rubble/027_A_SM',-503.915,-283.841,-78.641,
+    3)
+local function refused(r,text)
+    local fine,said=pcall(Engine.piece,r)
+    assert(not fine and tostring(said):find(text,1,true),text..': '..tostring(said))
+end
+-- piece: the object at the row's path, with the path it reads.
+local dp,rp=Engine.piece(DOOR_ROW),Engine.piece(RUBBLE_ROW)
+assert(dp.c==door and dp.path==DOOR and dp.row==DOOR_ROW and rp.c==rubble and rp.path==RUBBLE)
+-- piece_not_found: no object, or a dead one, at the path.
+statics[E04..'E04_Area02_Object_F_01.E04_Area02_Object_F_01:PersistentLevel.Actor_0.StaticMeshComponent_7']=
+    object({dead=true})
+refused(row('StaticMeshComponent_7',-1,'Architecture/Door/031_A_SM',0,0,0),'not found')
+-- piece_class: a whole row names no instanced component and an instance row names one.
+refused(row('HierarchicalInstancedStaticMeshComponent_34',-1,'Deco/Rubble/027_A_SM',0,0,0),'not the class listed')
+refused(row('StaticMeshComponent_6',0,'Architecture/Door/031_A_SM',-457.874,-486.76,-79.113,1),
+    'not the class listed')
+-- piece_mesh, piece_place, piece_count: another mesh, a place more than 1 cm off, another number of instances.
+refused(row('StaticMeshComponent_6',-1,'Architecture/Door/031_B_SM',-457.874,-486.76,-79.113),'another mesh')
+refused(row('StaticMeshComponent_6',-1,'Architecture/Door/031_A_SM',-457.874,-485.7,-79.113),'another place')
+refused(row('HierarchicalInstancedStaticMeshComponent_34',1,'Deco/Rubble/027_A_SM',-503.915,-283.841,-76.5,3),
+    'another place')
+refused(row('HierarchicalInstancedStaticMeshComponent_34',1,'Deco/Rubble/027_A_SM',-503.915,-283.841,-78.641,9),
+    'another number of instances')
+assert(Engine.piece(row('StaticMeshComponent_6',-1,'Architecture/Door/031_A_SM',-457,-487.5,-79.9)).c==door,
+    'A place within 1 cm on each axis is the row\'s')
+-- piece_name_case: the game gives a name back in the case it first met.
+door.StaticMesh=cube_mesh((ACTORS..'Architecture/Door/031_A_SM.031_A_SM'):upper())
+assert(Engine.piece(DOOR_ROW).c==door)
+rubble.unread=true
+refused(RUBBLE_ROW,'its instance did not read')
+rubble.unread=nil
+assert(#door.calls==0 and #rubble.calls==0,'A look changes nothing')
+-- hide_whole: both values read first, then SetVisibility(false, false) and SetCollisionEnabled(0).
+Engine.piece_out(dp)
+assert(table.concat(door.calls,',')=='visible false false,collision 0' and door.visible==false and door.collision==0)
+assert(dp.was[1]==1 and dp.was[2]==3,'What was read is kept')
+-- hide_whole_twice: a component that reads hidden already has no values to keep.
+local again=Engine.piece(DOOR_ROW)
+ok,why=pcall(Engine.piece_out,again)
+assert(not ok and tostring(why):find('it is hidden already',1,true) and again.was==nil and #door.calls==2,
+    tostring(why))
+-- show_whole: what was read is written back.
+assert(Engine.piece_back(dp)==true and door.visible==true and door.collision==3)
+assert(table.concat(door.calls,',',3)=='visible true false,collision 3',table.concat(door.calls,',',3))
+assert(Engine.piece_back(again)==false and #door.calls==4,'A piece never hidden is not called')
+-- hide_whole_stuck: a call that changes nothing raises with the values kept, so the caller can put back.
+door.stuck=true
+local stuck=Engine.piece(DOOR_ROW)
+ok,why=pcall(Engine.piece_out,stuck)
+assert(not ok and tostring(why):find('it did not hide',1,true) and stuck.was[1]==1 and stuck.was[2]==3,tostring(why))
+door.stuck=nil
+assert(Engine.piece_back(stuck)==true and door.visible==true and door.collision==3)
+-- A QueryOnly component (collision 1, the one Custom piece of D158) gets its own value back.
+door.collision=1
+local query=Engine.piece(DOOR_ROW)
+Engine.piece_out(query)
+assert(door.collision==0 and Engine.piece_back(query)==true and door.collision==1)
+-- hide_instance: the ten numbers read first, then the same rotation and place with a scale of nothing.
+Engine.piece_out(rp)
+local n=rubble.instances[2]
+assert(table.concat(rubble.calls,',')=='instance 1' and n[8]==0 and n[9]==0 and n[10]==0,'Scaled to nothing')
+assert(n[4]==1 and n[5]==-503.915 and n[6]==-283.841 and n[7]==-78.641,'Where it stands')
+assert(#rp.was==10 and rp.was[4]==1 and rp.was[5]==-503.915 and rp.was[8]==1.227 and rp.was[10]==0.481)
+assert(rubble.instances[1][8]==1.227 and rubble.instances[3][8]==1.227,'The other instances are left alone')
+assert(Engine.piece(RUBBLE_ROW).c==rubble,'A hidden instance still reads at its place')
+-- hide_instance_twice: an instance that reads hidden already has no numbers to keep.
+local twice=Engine.piece(RUBBLE_ROW)
+ok,why=pcall(Engine.piece_out,twice)
+assert(not ok and tostring(why):find('it is hidden already',1,true) and twice.was==nil and #rubble.calls==1,
+    tostring(why))
+-- show_instance: the ten numbers go back; an instance that is not hidden is left alone.
+assert(Engine.piece_back(rp)==true and #rubble.calls==2 and rubble.instances[2][8]==1.227
+    and rubble.instances[2][10]==0.481)
+assert(Engine.piece_back(rp)==true and #rubble.calls==2,'An instance that is not hidden gets no call')
+-- hide_instance_refused, hide_instance_stuck: the engine's no and a call that changes nothing both raise.
+rubble.refuses=true
+local no=Engine.piece(RUBBLE_ROW)
+ok,why=pcall(Engine.piece_out,no)
+assert(not ok and tostring(why):find('the engine refused its instance',1,true) and #no.was==10,tostring(why))
+rubble.refuses,rubble.stuck=nil,true
+ok,why=pcall(Engine.piece_out,no)
+assert(not ok and tostring(why):find('it did not hide',1,true),tostring(why))
+rubble.stuck=nil
+-- show_gone: an object that is gone, or another one at the handle, is never called.
+Engine.piece_out(rp)
+Engine.piece_out(dp)
+local calls=#door.calls+#rubble.calls
+door.dead=true
+rubble.GetFullName=function() return 'HierarchicalInstancedStaticMeshComponent /Game/O.O:PersistentLevel.A.B' end
+assert(Engine.piece_back(dp)==false and Engine.piece_back(rp)==false and #door.calls+#rubble.calls==calls)
+assert(rubble.instances[2][8]==0,'Left as it was')
 
 -- No EVE: move gives nil, put and wall raise.
 package.loaded['core.player'].her=function() return nil end

@@ -409,6 +409,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-bike-stand.txt` | Lua | While your parked bike stands in the world: its actor path, so the next Lua load (Ctrl+R) can remove it |
 | `coop-bike-copies.txt` | Lua | While the other players' parked bikes show: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |
 | `coop-xion-walls.txt` | Lua | While the walls of [SBO Xion](../world/maps/sboxion.md#the-walls) are up: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |
+| `coop-xion-rooms.txt` | Lua | While the rooms of [SBO Xion](../world/maps/sboxion.md#the-rooms) are open: the pieces of Stellar Blade hidden in their doorways with the values read before, on one line, so the next Lua load (Ctrl+R) can put them back |
 | `coop-parked.txt` | Lua | Your parked bike's line (`park <map> <x> <y> <z> <pitch> <yaw> <roll>` or `none`), for a moment: the native part takes and deletes it at its next pass and sends it to the players linked with you |
 | `coop-keep.txt` | Lua | The object paths of the assets the mod keeps in memory, one a line, the whole list each time it grows, for a moment: the native part takes and deletes it at its next pass |
 | `coop-sbo.txt` | Lua | The object path of the SBO lobby's last menu camera, so the next Lua load (Ctrl+R) can remove it if it still stands |

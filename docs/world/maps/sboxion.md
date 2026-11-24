@@ -12,7 +12,8 @@ The module `world.maps.sboxion` is a test tool. Its first game test answered one
 a container of SBO's stream SB's sublevels, with EVE standing in a lit, empty city. It can: the 93 always-loaded
 sublevels loaded and the day light applied. In the same test EVE fell out of the city and stayed dead.
 [Falls and deaths](#falls-and-deaths) describes the fix. [The walls](#the-walls) close the edges one step leads out
-of the city from. The commands are left out of the usage line. They run only
+of the city from. [The rooms](#the-rooms) are five rooms of SBO's own behind five of Xion's closed doors, which a
+second test pak adds. The commands are left out of the usage line. They run only
 alone (not in a session) on a [co-op save](../../players/playing-with-a-friend.md#co-op-saves). Their lines go to
 `UE4SS.log` as `[StellarCoop][SX]` and the native part's to `coop-link.log`.
 
@@ -25,6 +26,18 @@ mod does not ship it and the repository cannot build it: the map tools stay outs
 The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then in `SB/Content/Paks/LogicMods`. The
 `.utoc` must name `SBO_World` and `Xion_P.umap`, with its `.pak` and `.ucas` beside it.
 
+There are two builds of the pak, under the same three file names. Only one of them is installed at a time.
+
+| Pak | Packages | `.utoc` | `.ucas` | Version in `coop xion status` |
+| --- | --- | --- | --- | --- |
+| 23 November 2026 | `Xion_P` | 657 bytes | 1,261,721 bytes | `657_1261721` |
+| 24 November 2026 | `Xion_P` and five room levels | 1203 bytes | 1,501,348 bytes | `1203_1501348` |
+
+Both pass the check above. At the first arrival of a Lua load the module asks a second time, for `Rooms` and the five
+file names `Xion_Rooms_D011.umap`, `_D031`, `_D081`, `_D107` and `_D158`. Only the pak of 24 November passes
+that one. With the pak of 23 November the module works as before [the rooms](#the-rooms) existed: it logs
+`rooms: none in this pak` at each arrival and hides nothing.
+
 ## Commands
 
 | Command | What it does |
@@ -32,9 +45,10 @@ The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then i
 | `coop xion` or `coop xion city` | Warps EVE into SBO Xion at the city point (-8304, 7201, 225) |
 | `coop xion gate` | The same at the gate point (-23393, 17287, 1285) |
 | `coop xion leave` | Asks SB's reload of the co-op save. The native part runs it only from SBO Xion |
-| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state and the walls' count |
+| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state, the walls' count and the rooms' state |
 | `coop xion recover on`, `death` or `off` | Inside SBO Xion: what the module does after a fall or a death, until the next arrival ([Falls and deaths](#falls-and-deaths)). Alone, it prints the recovery's state |
 | `coop xion walls on` or `off` | Inside SBO Xion: `off` takes [the walls](#the-walls) down until `on` or the next arrival. Alone, it prints their count |
+| `coop xion rooms on` or `off` | Inside SBO Xion: `off` puts SB's pieces back in the doorways of [the rooms](#the-rooms) until `on` or the next arrival, so the five doors are closed as SB ships them. Alone, it prints the rooms' state |
 
 `coop xion` refuses with nothing asked when the save is not a co-op save, when a session is open, without the pak,
 when the rows were refused and when EVE is already in SBO Xion. The native part then refuses the warp during a
@@ -434,6 +448,179 @@ Nothing of the walls has run in game. On a co-op save, alone, with the test pak 
     then a new build.
 11. `coop off` inside SBO Xion. The log has `walls: down (coop off): 145 removed`. The doorway is open again.
 
+## The rooms
+
+The pak of 24 November 2026 adds five rooms behind five closed doors of Xion. Each room is a level of its own,
+`/Game/SBO_World/Rooms/Xion_Rooms_<room>`, on the streaming list of `Xion_P` as an always-loaded level. The list
+then holds 100 levels, 98 of them always loaded. The five levels hold 421 actors: 394 pieces and 27 movable lights.
+A piece names one of Stellar Blade's meshes by its path. The mesh loads from the player's own game files. No
+`/Script/SB` class is in a room.
+
+A room has an open doorway of ours at the place of SB's closed door. SB's door stays where it is unless the module
+hides it: the rooms would stand behind closed doors, with our open frame inside SB's closed door unit. So at each
+arrival the module hides SB's pieces in the five doorways. EVE then walks in through the door with no loading
+screen: the room was loaded with the map.
+
+| Room | What it is | Level | Door (X, Y, Z) | From the city point | Actors | Rows |
+| --- | --- | --- | --- | --- | --- | --- |
+| `D011` | Repair shop | `Xion_Rooms_D011` | (-10901, 3361, 412) | 46 m | 76 pieces, 6 lights | 4 |
+| `D031` | Goods store | `Xion_Rooms_D031` | (-5854, 4, 466) | 76 m | 83 pieces, 5 lights | 4 |
+| `D081` | Kitchen | `Xion_Rooms_D081` | (-6972, 1706, 475) | 57 m | 72 pieces, 4 lights | 4 |
+| `D107` | Tailor | `Xion_Rooms_D107` | (8279, -5081, 1374) | 206 m | 73 pieces, 5 lights | 3 |
+| `D158` | Workshop | `Xion_Rooms_D158` | (-4798, 6917, 596) | 35 m | 90 pieces, 7 lights | 8 |
+
+The door is the centre of the doorway. The distance is a straight line on the map from the city point
+(-8304, 7201, 225). The way on foot was not surveyed. Each door is a waypoint: `coop xion status` names the nearest
+one with its distance.
+
+### What is hidden
+
+`rooms/list.lua` holds 23 rows. A row is one piece of SB in a doorway: the closed door unit (a mesh of
+`Architecture/Door`), the wall panel behind it (`Architecture/Building_003`) or street debris that reaches into the
+doorway (`Deco/Rubble`, `Deco/Trash`). The pieces are in 8 art sublevels that SBO Xion keeps. All of them are of
+Static mobility with baked lighting.
+
+- 11 rows are whole components. The module calls `SetVisibility(false, false)` and `SetCollisionEnabled(0)` on the
+  component.
+- 12 rows are one instance of an instanced component. 9 components hold them, with 2 to 19 instances each. The
+  other instances stay. The module scales the instance to nothing where it stands, with
+  `UpdateInstanceTransform`. It never removes an instance: the engine would move the last one into the hole. The
+  baked lightmap rows go by index.
+
+Before it hides a row the module compares the live object with the row: its class, its mesh, the place it stores
+(within 1 cm on each axis) and, for an instance, the number of instances of its component. A game update that
+reorders a level then hides no other piece. It reads the values it is about to change and keeps them: the visible
+flag and the collision value of a component, the rotation, place and scale of an instance.
+
+A room opens as a whole or stays closed. Every row of the room is found and compared first. Then all are hidden. If
+one row is not found or cannot be hidden, the rows hidden before it are put back and the room's door stays as SB
+ships it. The log names the row and the reason. The other rooms open. A facade with one of SB's pieces left in it is
+worse than a closed door.
+
+The calls were read in the game's code on build 26123051. None of them tests the mobility.
+
+- `SetVisibility` (`0x14410dfb0`) flips the component's visible flag and marks its render state dirty
+  (`0x14408e490`). The engine makes the render state again at the end of the frame. It adds the component to the
+  scene only when the flag is set (`0x1440e7a10`, `0x1440e8fb0`, `0x14410de00`). The hidden component is not drawn.
+  The shadow it baked onto its neighbours stays.
+- `SetCollisionEnabled` (`0x144495c70`) writes the value into the body instance, then ends the physics state
+  (`0x1440e84c0`, `0x1440e9000`): the body leaves the physics scene (`0x144143960`). The value read before, written
+  back, makes the body again. The body instance's profile name reads `Custom` afterwards. Its responses are kept.
+- `UpdateInstanceTransform` on a hierarchical component (`0x14424e0c0`, then `0x14427eeb0`) writes the instance's
+  matrix. With a scale of 0.0001 or less on each axis it ends the instance's body and deletes it (`0x14427ed70`). A
+  larger scale makes a new body. That is the engine's own state for an instance with no body.
+- What is drawn after that call depends on the component. A component that kept a CPU copy of its instance buffer
+  gets the new matrix written into the buffer. The tree cooked with the level stays. The copy is kept by a
+  component that casts a shadow and affects distance field lighting while `r.GenerateMeshDistanceFields` is on
+  (`0x144281ec0`). SB's `DefaultEngine.ini` sets it. A component without the copy starts an async build of a new
+  tree and a new instance buffer from its instances (`0x1442511b0`, `0x144251400`, `0x144250d90`). The instance is
+  drawn until the build is taken over, some frames later. 4 of the 9 components store `CastShadow` false: the
+  debris components of `D011` (two), `D081` and `D107`.
+
+### When a room opens and closes
+
+After each arrival the module looks at the streaming levels once a second while a room waits. A room is decided
+once its own level and every sublevel of its rows read loaded and visible. All levels are always loaded, so the
+five rooms open in the arrival's first pass. A room whose levels are not there after 30 s stays closed.
+
+A map change, `coop off` and `coop xion rooms off` put every hidden row back, the last hidden first.
+`coop xion leave` ends in a map change. The module writes only on an object that is still the one it found. After a
+map change the world is gone with its levels and nothing is called. Nothing is hidden in any other map: SB's own Xion
+is never changed. At `coop off` and at a map change the rows are put back before the walls come down.
+
+`coop xion rooms off` closes the five doors until `coop xion rooms on` or the next arrival. SB's door unit comes
+back with its collision: type `off` outside the doorway. `on` asks the pak and opens the rooms again.
+
+The module keeps what it read before each hide in `coop-xion-rooms.txt`, one line. After a Lua reload (Ctrl+R) the
+first pass in SBO Xion puts those rows back, until the first one that is not found. The arrival then hides them
+again. A file left by a game that closed inside SBO Xion changes nothing in a new world: its components read
+visible and its instances read their own scale. A file that cannot be written is logged once an arrival. A file
+that cannot be read is logged and nothing is put back.
+
+### What the log shows
+
+| Line | Meaning |
+| --- | --- |
+| `sboxion: levels: 100 listed, 98 of 98 always-loaded ones loaded and visible, missing: none` | The pak of 24 November is in and its five room levels loaded |
+| `sboxion: rooms: none in this pak (<path>\zSBO_Xion.utoc does not hold Rooms): no door is opened` | The pak of 23 November. One line an arrival. Nothing else of the rooms runs |
+| `sboxion: rooms: <room> open: n rows hidden, t ms` | Every row of the room is hidden. `t` is the time spent on the room |
+| `sboxion: rooms: <room> closed: <row>: <why>` | One row failed. Nothing of the room is hidden. `<row>` reads `<sublevel>.<actor>.<component>`, with `[<index>]` for an instance |
+| `sboxion: rooms: <room> waits for <levels>` | A level the room needs is not loaded and visible yet. Said once |
+| `sboxion: rooms: <room> closed: <levels> not loaded and visible after 30 s` | The wait ended |
+| `sboxion: rooms: closed (<reason>): n rows put back` | A map change, `coop off`, `coop xion rooms off` or an arrival. It adds `m gone already` for rows their world took and `k raised (<why>)` for a put-back that failed |
+| `sboxion: rooms: an earlier Lua load left n rows hidden: m put back` | After a Lua reload |
+| `sboxion: rooms: an earlier Lua load's rows unread (<why>): none put back` | `coop-xion-rooms.txt` could not be read after a Lua reload |
+| `sboxion: rooms: rows not kept (<why>): a Lua reload could not put them back` | `coop-xion-rooms.txt` could not be written |
+| `sboxion: rooms: levels unread (<why>): the rooms wait` | The level list did not read for a pass. Said once an arrival |
+| `sboxion: at D158: A_01 loaded b visible b, A_03 loaded b visible b` | EVE stood 5 s within 3 m of that room's door |
+
+`coop xion status` ends with `rooms 5 of 5 open`, `rooms n of 5 open, m waiting`,
+`rooms n of 5 open, closed: D031, D107`, `rooms off` or `rooms none in the pak`.
+
+Reasons a row closes its room: `not found`, `not the class listed`, `another mesh`, `another number of instances`,
+`another place`, `its instance did not read`, `it is hidden already`, `its collision did not read`,
+`the engine refused its instance`, `it did not hide`, or the message of a call that raised.
+
+### What is not known before the first game test
+
+Nothing of the rooms has run in game. The pak was built and checked outside the game. The module's calls were read
+in the game's code and run over fakes.
+
+- Light. The check of the pak expects dark rooms. The room levels hold only their own lights, 4 to 7 small ones a
+  room. In editor captures made with those lights alone, 41 to 90 % of each inside view is near black. Only `D107`
+  reads as a lit room there. The brighter captures of the build used a sky fill that is not in the levels. What
+  else lights a room in game is not known.
+- UE4SS. `GetInstanceTransform` hands the transform back in a table and `UpdateInstanceTransform` takes one. The
+  mod reads a hit result that way in gun mode. A transform was not tried. If it does not read, the room closes with
+  `its instance did not read` or `it did not hide`. Then every room is closed: each one has an instance row.
+- The path each instanced component takes of the two above. How long the debris of `D011`, `D081` and `D107` stays
+  drawn while the new tree is built.
+- The doorway's look. SB's door unit baked its shadow onto the pieces around it. Our facade has two materials. In
+  four rooms a strip under the facade is closed by other pieces of SB. In `D158` a strip 7 cm high stays open
+  under the floor line. `D107` has a wall edge of another colour.
+- Other pieces of SB in a doorway. The 23 rows are the pieces the room layouts found. SB's levels were not searched
+  for more. SBO Xion keeps `E04_Blocking_VOL`, with 409 blocking volumes: none was checked against the five
+  doorways.
+- Collision inside. The room's floor is an engine plane whose collision box has no height. SB's own floor lies
+  0.9 cm under it in all five rooms. Small clutter may block or not.
+- The cost of the pass. Each room's line carries its ms.
+- EVE in the doorway at `coop xion rooms off`. SB's door unit comes back around her.
+
+### Testing them in game
+
+Install the pak of 24 November with the game closed: copy its three files over the three of 23 November in
+`SB/Content/Paks/~mods`. The pak's own `INSTALL.md` has the commands, the three hashes and the way back. Never keep
+two containers that hold `Xion_P`. Install it together with a build of the mod that has this part. An older build
+hides nothing: the rooms then stand behind SB's closed doors.
+
+On a co-op save, alone.
+
+1. `coop xion`. Within 5 s the log has `levels: 100 listed, 98 of 98` and five lines `rooms: <room> open`, with
+   4, 4, 4, 3 and 8 rows. Note each ms figure and any hitch.
+2. `coop xion status` reads `pak 1203_1501348` and ends with `rooms 5 of 5 open`. It names the nearest waypoint.
+   Walk until it reads `nearest waypoint D158`, 35 m east of the city point and 3.7 m higher, near
+   (-4798, 6917, 596).
+3. Look at the door from the street. It should be an open doorway with the room behind it, where SB's closed door
+   stood. Note what is wrong: a piece of SB left in the doorway, a gap around the frame, debris in the air, a
+   flicker, a black room.
+4. Walk in. No loading screen comes. Note an invisible wall in the doorway, a step, a hole in the floor. Walk
+   along the walls and to the furniture, then jump. Note where EVE passes through a piece or stands on air.
+5. Stand 5 s in the doorway. The log has `at D158`.
+6. Walk out, away from the doorway. `coop xion rooms off`. The log has
+   `rooms: closed (coop xion rooms off): 23 rows put back`. SB's closed door is back. Walk into it: it blocks. Note
+   any difference from the door SB ships: its light, debris that comes back late.
+7. `coop xion rooms on`. The five lines come again. The doorway is open again.
+8. The same at `D011` near (-10901, 3361, 412), `D081` near (-6972, 1706, 475), `D031` near (-5854, 4, 466) and
+   `D107` near (8279, -5081, 1374), in the east city.
+9. Press Ctrl+R in the UE4SS console, inside SBO Xion. The log has
+   `rooms: an earlier Lua load left 23 rows hidden: 23 put back`, then the five lines.
+10. `coop xion leave`. The log has `rooms: closed (a map change): 0 rows put back, 23 gone already`. If the co-op
+    save is in SB's Xion, look at one of the five doors there: it is closed as SB ships it.
+11. `coop xion` again, then `coop off` outside a doorway. The log has `rooms: closed (coop off): 23 rows put back`.
+    The door is closed again.
+
+A room whose line reads `closed` keeps SB's door. Send that line: it names the row and the reason.
+
 ## Saves
 
 Two things keep the player's story saves untouched, the same two Matrix XIII and the hall lobbies use.
@@ -458,7 +645,7 @@ Each line below is one proof of the test. They are in `UE4SS.log` unless said.
 | `sboxion title: the rows are in, before any save loads` and `sboxion rows: 2/2 in` | The two rows went in at the title and read back as written |
 | `sboxion enter: zone row found, type 5, world row found, call 1, to (x, y, z) yaw y, queue q, last save t` (`coop-link.log`) | The native guards passed and SB's warp returned 1 |
 | `sboxion: arrived, map /Game/SBO_World/Xion_P, zone Zone_SBO_Xion, EVE at (x, y, z)` | EVE stands in SBO Xion |
-| `sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none` | Every sublevel loaded from the game's own files |
+| `sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none` | Every sublevel loaded from the game's own files. With the pak of 24 November: `100 listed, 98 of 98` |
 | `sboxion: light: 72 env volumes found, 65 in E04_ENV_VOL, 41 named, 21 changed, CountDown_Posing_ENV active true` | The day table was written |
 | `sboxion: light: 41 of 41 read back as written` | The writes held, 2 s and 10 s after the arrival |
 | `sboxion: characters: 1` | EVE is the only character |
@@ -479,16 +666,19 @@ Christmas sound actors in `E04_Sound`.
 
 Lua, in `mod/StellarCoop/Scripts/world/maps/sboxion/`:
 
-- `data.lua`: the pak's name, the level, the two rows, the two arrival points, the four waypoints, the 41 names of
-  the day table, the two probe levels and the recovery's numbers.
-- `sboxion.lua`: the pak gate, the rows at the title, the commands, the arrival and the watch.
+- `data.lua`: the pak's name, the level, the two rows, the two arrival points, the nine waypoints (four of the first
+  test walk and the five doors), the 41 names of the day table, the two probe levels and the recovery's numbers.
+- `sboxion.lua`: the pak gate, asked a second time for the room levels, the rows at the title, the commands, the
+  arrival and the watch.
 - `recover.lua`: the ground point, the black and the put-back after a fall, the respawn after a death. Its respawn
   block is the module's copy of score attack's. Its ground read is the module's copy of the group's.
 - `walls/list.lua`: the 145 boxes. `walls/walls.lua`: their build at an arrival, their removal, `coop xion walls` and
   the sweep after a Lua reload.
+- `rooms/list.lua`: the five rooms and their 23 rows. `rooms/rooms.lua`: the pass that opens a room once its levels
+  are there, the put-back, `coop xion rooms` and the sweep after a Lua reload.
 - `engine.lua`: the UE4SS calls. Its black call is the module's copy of the lobby's. Its wall is the module's copy
-  of the bike stand's hidden, blocking actor. `commands.lua`: `coop xion`. `wiring.lua`: the manifest, export
-  `sboxion`.
+  of the bike stand's hidden, blocking actor. It also finds, hides and puts back a piece of a room's doorway.
+  `commands.lua`: `coop xion`. `wiring.lua`: the manifest, export `sboxion`.
 
 Native, in `native/src/world/maps/sboxion/`:
 
@@ -564,8 +754,8 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 ## Tests
 
 - `tests/lua/world/maps/sboxion/off_test.lua`: a failure of this module at load turns this module off alone.
-- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes and `walls` with `on` and `off`
-  included, then the wiring's store `coop-xion-walls.txt`.
+- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes and `walls` and `rooms` with `on`
+  and `off` included, then the wiring's two stores, `coop-xion-walls.txt` and `coop-xion-rooms.txt`.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the
@@ -580,7 +770,10 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
   in the arrival's pass and 145 after 15 passes, the cave wall first at the gate point, the build ordered from
   EVE's place at an arrival no `coop xion` asked, none destroyed once a map change took the world, each destroyed
   after a pass with EVE unread and at `coop off`, the recovery ended before a removal that raises, `coop xion
-  walls`.
+  walls`. For the rooms: with the pak of 23 November one line an arrival, the pak read once more a Lua load, no
+  piece asked; with the five room levels in the pak the five rooms opened in the arrival's pass, their part of the
+  status, `coop xion rooms`, no row called once a map change took the world, every row put back at `coop off`
+  before the walls come down.
 - `recover_test.lua`: the ground point, the fall with its black and the move two passes later, a black that is not
   shown, the move dropped or held back like a check, each guard, the check on the world's time, the two failures
   that stop the recovery, then the death with score attack's respawn cases and this module's own (no death screen
@@ -588,7 +781,10 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 - `engine_test.lua`: the UE4SS calls over fake objects, the recovery's included: one read of EVE a pass, no stop call
   after a refused teleport, the black's call and its three answers, the respawn's request, the death screen hidden
   and shown again. For a wall: the actor's collision on before the profile call, the read-back, each failure with no
-  actor left, the removal and the sweep.
+  actor left, the removal and the sweep. For a piece of a doorway: found by its names and refused for another
+  class, mesh, place or instance count, a whole component hidden with its two values read first, an instance
+  scaled to nothing where it stands, a piece that reads hidden already refused, the put-back and no call on an
+  object that is gone.
 - `walls/list_test.lua`: the 145 rows, the count of each hole, 572.8 m, the boxes of `W02`, `W04`, `W05` and `W19`
   under the floor over their hole, `W15.1` over the rocks under it, the four boxes of lift doorway A, a box at each
   step the ray fill took off the kerbed edge beside the doorway and off the west edge of `W21`'s level, the cave wall
@@ -596,6 +792,12 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 - `walls/walls_test.lua`: the build nearest to EVE first at 10 a pass, a wall that fails, the removal with a world
   that still stands and with one that is gone, `coop xion walls`, the sweep, an error in a pass with `build ended`
   in the status, a store that raises.
+- `rooms/list_test.lua`: the five rooms, their 23 rows as the level dumps gave them, 11 whole components and 12
+  instances of 9 components in 8 sublevels, no piece twice, each door a waypoint.
+- `rooms/rooms_test.lua`: one line and no read with a pak that has no room, the five rooms opened in one pass, a
+  room that waits for a level and closes after 30 looks, a row not found, a row that cannot be hidden with the rows
+  before it put back, the put-back with a world that still stands and with one that is gone, `coop xion rooms`,
+  the store's line and the sweep, a store that raises, a level read that raises.
 - `tests/native/world/maps/sboxion/sboxion_test.cpp`: one case for each guard of the two requests, the answer word,
   the status line and the log lines, the inside flag and the `life=` word on each form of the line.
 - `tests/native/rows/rows_test.cpp` runs the batch on the row engine. `tests/native/link/protocol_test.cpp` parses
