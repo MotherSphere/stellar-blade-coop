@@ -174,6 +174,17 @@ closes them. The boss challenge debug panel cannot open: like the menu's, its co
 in the build. The native part's lines go to `coop-link.log`: `coop devinfo quest asked: at the game thread's next
 frame`, then `devinfo quest: 0 closed, 1 opened`, or `devinfo quest refused: not playing, 0 closed`.
 
+### In the co-op menu
+
+The co-op menu's Developer menu page ([Test tools](../players/interface.md#test-tools), `cutmenus/ui/devmenu.lua`)
+runs the same rows without the console. Under EVE and ENEMIES NEAR EVE, each lasting row is a switch: On runs the row,
+Off runs `clear`. `clear` ends every lasting row but the lock-on's, so every switch but "Lock-on stays off" reads
+Off after it. Lock-on stays off's Off runs `lockswitch`. The attack rows add up, so they are buttons, like the one-shot
+rows, Clear the enemies (`enemyclear`, which sets the three enemy switches Off) and Clear all (`clear`). Under PANELS,
+Developer panel steps through Off, Quests and Player info (`coop devinfo off`, `quest`, `player`). A switch reads On
+while the game took its row in this Lua load and no dispel row ran since; the mod does not read the effects themselves.
+The panel opens behind the menu: close the menu to see it.
+
 ## Cut mailbox: `coop gift`
 
 The game's files hold a mailbox that was cut: its menu (`WB_MailBox_Set`, with a detail panel and list rows), a toast
