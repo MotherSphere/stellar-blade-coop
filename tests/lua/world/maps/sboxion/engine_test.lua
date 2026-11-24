@@ -8,7 +8,11 @@
 -- the recovery's calls (world/maps/sboxion/recover.lua): move gives EVE's place, yaw, movement mode, world time and
 -- address from one EVE with each read made once, nil with no EVE; put teleports then stops her movement, with no stop
 -- call after a refusal; the respawn's controller, standalone test and call; the death screen found once, read
--- playing or not, hidden and shown again as it was (4, not 0), a dead widget left as it is.
+-- playing or not, hidden and shown again as it was (4, not 0), a dead widget left as it is. SB's black, with the call
+-- case of tests/lua/online/lobby/wiring_test.lua and the raise of tests/lua/online/lobby/arrival_test.lua for this
+-- module's copy: one LoadingScreenFadeAuto call with the hold, the fade-in from 0 to 1, the fade-out from 1 to 0 and
+-- tag 0; with a fade-in of 0 the start block is 0 s from 1 to 1; true for a GUID that is not zero, false for a zero
+-- GUID, nil for one that does not read; a raise of the call is not caught.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(t)
     t.type=t.type or function() return 'UObject' end
@@ -158,6 +162,35 @@ assert(Engine.screen(false)==nil and Engine.screen(true)==nil and looks==2,'A de
 visibility=2
 show()
 assert(visibility==2,'A dead widget is not touched')
+
+-- SB's black. The fake library records each LoadingScreenFadeAuto call's eight arguments, raises with fade_error and
+-- returns guid.
+local fades,guid,fade_error={},nil,nil
+statics['/Script/SB.Default__SBBlueprintLibrary']=object({LoadingScreenFadeAuto=function(_,...)
+    fades[#fades+1]=table.concat({...},' ')
+    if fade_error then error(fade_error) end
+    return guid
+end})
+-- black_call: SB's own fade (0x141b1b8e0): a start block of fade s from 0 to 1, an end block of out s from 1 to 0,
+-- tag 0, with the time the black stands first.
+guid=value({A=0,B=0,C=7,D=0})
+assert(Engine.black(1,0.3,0.5)==true and #fades==1 and fades[1]=='1 0.3 0 1 0.5 1 0 0',fades[1])
+-- black_at_once: with a fade-in of 0 the start block is 0 s from 1 to 1, black inside the call.
+assert(Engine.black(1,0,0.5)==true and #fades==2 and fades[2]=='1 0 1 1 0.5 1 0 0',fades[2])
+-- black_none: a zero GUID is no black.
+guid=value({A=0,B=0,C=0,D=0})
+assert(Engine.black(1,0.3,0.5)==false,'A zero GUID: SB made no loading screen')
+-- black_unread: a GUID that does not read gives nil and raises nothing.
+for _,g in ipairs({value({A=0,B=0}),'x',false}) do
+    guid=g or nil -- false stands for a call that returns nothing.
+    local ok,up=pcall(Engine.black,1,0.3,0.5)
+    assert(ok and up==nil,'A GUID that does not read: '..tostring(g))
+end
+-- black_raises: a raise of the call reaches the caller (recover.lua takes it and logs why).
+fade_error='LoadingScreenFadeAuto: no such function'
+local ok,why=pcall(Engine.black,1,0.3,0.5)
+assert(not ok and tostring(why):find('LoadingScreenFadeAuto: no such function',1,true),tostring(why))
+assert(#fades==7,'One call a black: '..#fades)
 
 -- No EVE: move gives nil, put raises.
 package.loaded['core.player'].her=function() return nil end

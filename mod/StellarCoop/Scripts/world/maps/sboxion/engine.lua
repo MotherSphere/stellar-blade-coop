@@ -1,12 +1,14 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+-- Holds SBO Xion's copy of the black call of online/lobby/wiring.lua (Engine.black): sboxion owns it; a fix here does
+-- not reach theirs.
 -- SBO Xion's engine reads and its one write (world/maps/sboxion/sboxion.lua's world), on the game thread: the zone's
 -- FName index for the native request, the SBEnvControlVolume actors with their bActiveVolume, the world's streaming
 -- levels through the three functions SB's exe exposes by name (GetWorldAssetPackageFName, IsLevelLoaded,
 -- IsLevelVisible), the characters and the recovery's calls (world/maps/sboxion/recover.lua): EVE's place and movement
--- mode, the put-back, SB's respawn request and the death screen. sboxion.lua and recover.lua call them only while EVE
--- is in SBO Xion or for a command.
+-- mode, the put-back, SB's black, SB's respawn request and the death screen. sboxion.lua and recover.lua call them
+-- only while EVE is in SBO Xion or for a command.
 -- bActiveVolume is a plain bool of ASBEnvControlVolume (+0x320 on build 26123051: its set-bit stub 0x14265b310 is
 -- mov byte ptr [rcx+0x320],1). SB's env pass 0x1425c99b0, run from its registry's tick 0x142272930, skips a volume
 -- whose byte is 0 each time it runs, so a write needs no call.
@@ -89,6 +91,25 @@ function Engine.put(at,yaw)
     local move=U.valid(e.CharacterMovement)
     if move then move:StopMovementImmediately() end
     return true
+end
+-- SB's black over a put-back: USBBlueprintLibrary::LoadingScreenFadeAuto (exec 0x1426641e0 on build 26123051). It
+-- reads the time the black stands, then a start block and an end block (each a duration, the opacity it starts from
+-- and the one it ends at), then a tag. Its impl 0x14c91ad10 is the one SB's own fall warp calls for its fade
+-- (0x141b1b8e0, FSBActorShowFadeUI::Execute). The widget goes from clear to black over fade s, stands hold s and goes
+-- back to clear over out s: SB's two blocks there, with its tag 0 (ESBUILoadingScreenTag None). With fade 0 it is
+-- black inside the call (start 0 s, 1 to 1, the block SB's move 0x141bb1300 starts its own black with). SB's loading
+-- controller ends it by itself (its tick 0x1424ea330 counts hold from the end of the fade-in). The call returns the
+-- black's FGuid, four ints A, B, C and D (the property list of its struct data 0x146dde670). true when SB made the
+-- black, false when it made none (the exec gives a zero GUID with no UI manager and so does CreateLoadingScreen
+-- 0x1424ebd00 with no widget), nil when the GUID did not read. A raise of the call itself is the caller's to take.
+function Engine.black(hold,fade,out)
+    local id=U.find('/Script/SB.Default__SBBlueprintLibrary'):LoadingScreenFadeAuto(hold,fade,fade>0 and 0 or 1,1,out,
+        1,0,0)
+    local read,up=pcall(function()
+        local g=U.value_of(id)
+        return (g.A|g.B|g.C|g.D)~=0 -- Raises on a field that is no integer: the GUID did not read.
+    end)
+    if read then return up end
 end
 -- The respawn's pieces: the SB player controller (or nil), whether the game is standalone and SB's in-place respawn
 -- of the actor of GUID me. ServerRequest_ActorRespawn's exec 0x1427639f0 reads an int and a bool and calls the

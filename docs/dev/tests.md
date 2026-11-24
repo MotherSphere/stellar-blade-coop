@@ -905,7 +905,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   yaw, movement mode, world time and address from one EVE with each read made once; `put` teleports then stops her
   movement, with no stop call after a refusal; the respawn's controller, standalone test and request with the GUID
   and `false`; the death screen looked for only on request, read playing or not, hidden and shown again as it was
-  (visibility 4, not 0), a dead widget left as it is;
+  (visibility 4, not 0), a dead widget left as it is. For SB's black, the module's copy of the lobby's call: one
+  `LoadingScreenFadeAuto` call with the time the black stands, a fade-in from 0 to 1, a fade-out from 1 to 0 and
+  tag 0; a fade-in of 0 s goes from 1 to 1; `true` for a GUID that is not zero, `false` for a zero GUID, `nil` for
+  one that does not read; a raise of the call reaches the caller;
 - `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
   `recover` alone and with `on`, `death` or `off`, the use line for any other word or one too many and the answer
   without the Steam link;
