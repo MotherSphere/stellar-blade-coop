@@ -148,15 +148,22 @@ end
 -- (DefaultEngine.ini of build 26123051: object type BlockVolume, ECC_GameTraceChannel7; it ignores Visibility, Camera,
 -- PhysicsBody, Vehicle, Destructible, PhysicsStatic, Projectile, EventMoveObject, DragonIK and Item and blocks the
 -- rest, EVE's capsule channel PawnCollision among them). SB's own BP_BlockWall sets that profile on its PM_Pawn with
--- the same call, SetCollisionProfileName(name, true), in statement 58 of its construction script. The call's exec
--- 0x1448f0300 reads an FName and a bool and calls the component's vtable +0x670. CanCharacterStepUpOn is ECB_No, as on
--- PM_Pawn. A wall is SB's profile on an engine actor. It is not SB's blueprint: a spawned BP_BlockWall_C runs that
--- script, which builds its mesh from two spline components the cooked class has no template for, so it comes out with
--- no collision.
+-- the same call, SetCollisionProfileName(name, true), in statement 58 of its construction script. CanCharacterStepUpOn
+-- is ECB_No, as on PM_Pawn. A wall is SB's profile on an engine actor. It is not SB's blueprint: a spawned
+-- BP_BlockWall_C runs that script, which builds its mesh from two spline components the cooked class has no template
+-- for, so it comes out with no collision.
+-- The order of the two collision calls is the engine's, read on build 26123051. core/actors.lua hands the actor over
+-- with its collision off and the component closed (NoCollision), so the component was registered with no body.
+-- SetActorEnableCollision (exec 0x1446b97c0, then 0x143f6eba0) sets the actor's bit and calls each component's
+-- vtable +0x398. The component's handler 0x144495e20 updates the body's filter and makes no body. The profile call
+-- (exec 0x1448f0300, the component's vtable +0x670: 0x144145240, then 0x144495cf0) reads the collision before and
+-- after through 0x14441e250, which answers NoCollision while the owner's collision is off, and makes the body
+-- (0x1440e84c0) only when the two differ. So the actor's collision goes on first, over a component that blocks
+-- nothing yet, and the profile call then opens the component and makes its body.
 -- b: {at={X,Y,Z} the box's centre, yaw of its long side, size={X length, Y thickness, Z height}} in cm and degrees.
--- The profile's name is looked up, never added. The actor's collision goes on last, once the component reads back
--- SB's object type. Returns core/actors.lua's display with read, that read-back as text. Raises, with no actor left,
--- when a step fails.
+-- The profile's name is looked up, never added. The cube must be on the component: SetStaticMesh (0x1441449f0)
+-- refuses a registered component of Static mobility. The component must read back SB's object type. Returns
+-- core/actors.lua's display with read, that read-back as text. Raises, with no actor left, when a step fails.
 local CUBE='/Engine/BasicShapes/Cube.Cube'
 local PROFILE='SB_InvisiblewallIgnoreCamera'
 local BLOCK_VOLUME=20 -- ECC_GameTraceChannel7, named BlockVolume in SB's DefaultEngine.ini.
@@ -166,13 +173,14 @@ function Engine.wall(b)
     local d=Actors.spawn(eve():GetWorld(),b.at,{Pitch=0,Yaw=b.yaw,Roll=0},{path=CUBE,static=true})
     local ok,why=pcall(function()
         local c=d.mesh
+        assert(Actors.same(c.StaticMesh,CUBE),'the cube is not on the component')
         d.actor:SetActorHiddenInGame(true)
         c:SetRelativeScale3D({X=b.size.X/100,Y=b.size.Y/100,Z=b.size.Z/100})
         c.CanCharacterStepUpOn=0 -- ECB_No
+        d.actor:SetActorEnableCollision(true,false) -- SB's Actor takes (bNewActorEnableCollision, inFastUpdate).
         c:SetCollisionProfileName(name,true)
         local kind=c:GetCollisionObjectType()
         assert(kind==BLOCK_VOLUME,'SB\'s profile '..PROFILE..' did not take: object type '..tostring(kind))
-        d.actor:SetActorEnableCollision(true,false) -- SB's Actor takes (bNewActorEnableCollision, inFastUpdate).
         d.read=string.format('object type %s, collision %s',tostring(kind),c:K2_IsCollisionEnabled() and 'on' or 'off')
     end)
     if not ok then
@@ -181,8 +189,8 @@ function Engine.wall(b)
     end
     return d
 end
--- A wall of wall() gone: true when its actor was still the one made and K2_DestroyActor was called (exec
--- 0x1446bf590), false when it is gone already, with its world or before. Never a call on another object.
+-- A wall of wall() gone: true when its actor was still the one made and K2_DestroyActor was called, false when it is
+-- gone already, with its world or before. Never a call on another object.
 function Engine.unwall(d)
     if not Actors.same(d.actor,d.path) then return false end
     Actors.remove(d)
