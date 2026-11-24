@@ -8,7 +8,7 @@
 -- the recovery's calls (world/maps/sboxion/recover.lua): move gives EVE's place, yaw, movement mode, world time and
 -- address from one EVE with each read made once, nil with no EVE; put teleports then stops her movement, with no stop
 -- call after a refusal; the respawn's controller, standalone test and call; the death screen found once, read
--- playing or not, hidden and shown again as it was.
+-- playing or not, hidden and shown again as it was (4, not 0), a dead widget left as it is.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(t)
     t.type=t.type or function() return 'UObject' end
@@ -133,7 +133,8 @@ assert(Engine.standalone(pc)==false)
 Engine.respawn(pc,2610)
 assert(#asked==1 and asked[1][1]==2610 and asked[1][2]==false,'ServerRequest_ActorRespawn(GUID, false)')
 -- The death screen: not looked for unless asked; found once and kept; playing or not; hidden, then shown as it was.
-local looks,playing,visibility=0,true,0
+-- It starts at 4 (ESlateVisibility SelfHitTestInvisible), so a show that writes 0 (Visible) is seen.
+local looks,playing,visibility=0,true,4
 local dead=object({IsAnyAnimationPlaying=function() return playing end,GetVisibility=function() return visibility end,
     SetVisibility=function(_,v) visibility=v end})
 local hud=object({GetFullName=function() return 'WB_MainHUD_Master_C /Engine/Transient.GameEngine_1:X' end,
@@ -151,11 +152,12 @@ assert(Engine.screen(true)==false and Engine.screen(false)==false and looks==1,'
 local show=Engine.hide()
 assert(visibility==2 and type(show)=='function','Hidden: ESlateVisibility 2')
 show()
-assert(visibility==0,'Shown as it was')
+assert(visibility==4,'Shown as it was')
 dead.dead=true
 assert(Engine.screen(false)==nil and Engine.screen(true)==nil and looks==2,'A dead widget is looked for again')
+visibility=2
 show()
-assert(visibility==0,'A dead widget is not touched')
+assert(visibility==2,'A dead widget is not touched')
 
 -- No EVE: move gives nil, put raises.
 package.loaded['core.player'].her=function() return nil end

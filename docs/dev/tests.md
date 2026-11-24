@@ -904,7 +904,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   objects, the characters' names, every world read raising with no EVE. For the recovery: `move` gives EVE's place,
   yaw, movement mode, world time and address from one EVE with each read made once; `put` teleports then stops her
   movement, with no stop call after a refusal; the respawn's controller, standalone test and request with the GUID
-  and `false`; the death screen looked for only on request, read playing or not, hidden and shown again as it was;
+  and `false`; the death screen looked for only on request, read playing or not, hidden and shown again as it was
+  (visibility 4, not 0), a dead widget left as it is;
 - `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
   `recover` alone and with `on`, `death` or `off`, the use line for any other word or one too many and the answer
   without the Steam link;
