@@ -6,7 +6,8 @@
 -- components, in 8 sublevels of SB's Area 02. A whole row has eight values and index -1. An instance row has nine and
 -- its index lies inside its component's count. No piece is listed twice. Every room starts with its door piece, a mesh
 -- of Architecture/Door, and holds one wall panel of Architecture/Building_003. The rows as the level dumps of build
--- 26123051 gave them are pinned by the sum of their places and by four rows written out.
+-- 26123051 gave them are pinned by the sum of their places and by four rows written out. Each room's door is a
+-- waypoint of the test walk (world/maps/sboxion/data.lua), named after the room, after the four older ones.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local List=require('world.maps.sboxion.rooms.list')
 local ROWS={D011=4,D031=4,D081=4,D107=3,D158=8}
@@ -64,4 +65,13 @@ assert(same(List[4].rows[3],{'E04_Area02_Object_D_01','Actor_0',26,6,'Deco/Rubbl
 assert(same(List[5].rows[3],{'E04_Area02_Object_F_01','Actor_0',31,2,'Deco/Rubble/024_N_SM',-355.828,-660.868,
     -85.37,3}) and same(List[5].rows[8],{'E04_Area02_Object_F_01','Actor_0',31,-1,'Deco/Rubble/001_E_SM',-303.149,
     -475.678,-77.252}),'The two pieces numbered 31 of D158')
+-- The doors: coop xion status names the nearest one and the watch logs a stay of 5 s within 3 m of it.
+local D=require('world.maps.sboxion.data')
+local DOORS={D011={-10901.1,3360.9,411.6},D031={-5853.9,4.2,465.7},D081={-6971.5,1706.1,475.4},
+    D107={8279.4,-5081.4,1374.1},D158={-4798.1,6916.7,595.5}}
+assert(#D.WAYPOINTS==9 and D.WAYPOINTS[1].name=='tie' and D.WAYPOINTS[4].name=='tree','The four older waypoints first')
+for i,room in ipairs(List) do
+    local w,door=D.WAYPOINTS[4+i],DOORS[room.name]
+    assert(w.name==room.name and w.X==door[1] and w.Y==door[2] and w.Z==door[3],'The door of '..room.name)
+end
 print('sboxion_rooms_list_test ok')
