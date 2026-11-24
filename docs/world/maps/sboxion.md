@@ -3,7 +3,8 @@
 SBO Xion is a world of Stellar Blade Online's own. Its persistent level, `/Game/SBO_World/Xion_P`, is a copy of the
 persistent level of SB's Xion that lists 95 of its 180 sublevels: the city's geometry, lights, sky and sound. Those
 sublevels are not copied. They load from the player's own game files. The level has none of SB's level-design
-sublevels, so it has no NPC, no quest, no event, no shop and no camp.
+sublevels, so it has no NPC, no quest, no event, no shop and no camp. A third pak, [the full test
+pak](#the-full-test-pak), lists 156 of the 180 with 47 of the 50 level-design sublevels, to see what they start.
 
 SB's own Xion is not changed. Its world row `Xion`, its zones and its sublevels stay as shipped. Story mode and
 online sessions keep SB's Xion.
@@ -11,9 +12,8 @@ online sessions keep SB's Xion.
 The module `world.maps.sboxion` is a test tool. Its first game test answered one question: can a persistent level in
 a container of SBO's stream SB's sublevels, with EVE standing in a lit, empty city. It can: the 93 always-loaded
 sublevels loaded and the day light applied. In the same test EVE fell out of the city and stayed dead.
-[Falls and deaths](#falls-and-deaths) describes the fix. [The walls](#the-walls) close the edges one step leads out
-of the city from. [The rooms](#the-rooms) are five rooms of SBO's own behind five of Xion's closed doors, which a
-second test pak adds. The commands are left out of the usage line. They run only
+[Falls and deaths](#falls-and-deaths) describes the fix. [The rooms](#the-rooms) are five rooms of SBO's own behind
+five of Xion's closed doors, which a second test pak adds. The commands are left out of the usage line. They run only
 alone (not in a session) on a [co-op save](../../players/playing-with-a-friend.md#co-op-saves). Their lines go to
 `UE4SS.log` as `[StellarCoop][SX]` and the native part's to `coop-link.log`.
 
@@ -26,16 +26,18 @@ mod does not ship it and the repository cannot build it: the map tools stay outs
 The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then in `SB/Content/Paks/LogicMods`. The
 `.utoc` must name `SBO_World` and `Xion_P.umap`, with its `.pak` and `.ucas` beside it.
 
-There are two builds of the pak, under the same three file names. Only one of them is installed at a time.
+There are three builds of the pak, under the same three file names. Only one of them is installed at a time.
 
-| Pak | Packages | `.utoc` | `.ucas` | Version in `coop xion status` |
-| --- | --- | --- | --- | --- |
-| 23 November 2026 | `Xion_P` | 657 bytes | 1,261,721 bytes | `657_1261721` |
-| 24 November 2026 | `Xion_P` and five room levels | 1203 bytes | 1,501,348 bytes | `1203_1501348` |
+| Pak | Packages | Levels listed | `.utoc` | `.ucas` | Version in `coop xion status` |
+| --- | --- | --- | --- | --- | --- |
+| 23 November 2026 | `Xion_P` | 95 | 657 bytes | 1,261,721 bytes | `657_1261721` |
+| 24 November 2026, rooms | `Xion_P` and five room levels | 100 | 1203 bytes | 1,501,348 bytes | `1203_1501348` |
+| 24 November 2026, full test | `Xion_P` and the same five room levels | 161 | 1203 bytes | 1,501,548 bytes | `1203_1501548` |
 
-Both pass the check above. At the first arrival of a Lua load the module asks a second time, for `Rooms` and the five
-file names `Xion_Rooms_D011.umap`, `_D031`, `_D081`, `_D107` and `_D158`. Only the pak of 24 November passes
-that one. With the pak of 23 November the module works as before [the rooms](#the-rooms) existed: it logs
+All three pass the check above. The module looks for package paths, never for a version: `self.gate()` in
+`sboxion.lua` hands the version to `coop xion status`, which prints it. Nothing else reads it. At the first arrival
+of a Lua load the module asks a second time, for `Rooms` and the five file names `Xion_Rooms_D011.umap`, `_D031`,
+`_D081`, `_D107` and `_D158`. Both paks of 24 November pass that one. With the pak of 23 November the module works as before [the rooms](#the-rooms) existed: it logs
 `rooms: none in this pak` at each arrival and hides nothing.
 
 ## Commands
@@ -45,9 +47,8 @@ that one. With the pak of 23 November the module works as before [the rooms](#th
 | `coop xion` or `coop xion city` | Warps EVE into SBO Xion at the city point (-8304, 7201, 225) |
 | `coop xion gate` | The same at the gate point (-23393, 17287, 1285) |
 | `coop xion leave` | Asks SB's reload of the co-op save. The native part runs it only from SBO Xion |
-| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state, the walls' count and the rooms' state |
+| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state, the rooms' state and the last look: its age, the characters with the nearest one, the levels, the zone, the area and EVE's life state |
 | `coop xion recover on`, `death` or `off` | Inside SBO Xion: what the module does after a fall or a death, until the next arrival ([Falls and deaths](#falls-and-deaths)). Alone, it prints the recovery's state |
-| `coop xion walls on` or `off` | Inside SBO Xion: `off` takes [the walls](#the-walls) down until `on` or the next arrival. Alone, it prints their count |
 | `coop xion rooms on` or `off` | Inside SBO Xion: `off` puts SB's pieces back in the doorways of [the rooms](#the-rooms) until `on` or the next arrival, so the five doors are closed as SB ships them. Alone, it prints the rooms' state |
 
 `coop xion` refuses with nothing asked when the save is not a co-op save, when a session is open, without the pak,
@@ -84,8 +85,9 @@ game.
 
 - 2026-11-23: three falls were caught. EVE walked 0.3 s after each move.
 - 2026-11-24: [the black](#the-black) showed over a put-back. EVE also left the city at a second place west of the
-  arrival square, near (-11272, 9451). The first one is near (-10823, 9941). [The walls](#the-walls) says what
-  stands at both.
+  arrival square, near (-11272, 9451). The first one is near (-10823, 9941). Both are on the long bridge between the
+  arrival square and the hub. SB's own block walls stand along both sides of it, 210 cm high (`BP_BlockWall33` to
+  `54`), in a level SBO Xion keeps. A jumping EVE passes over them.
 
 The death rule and `coop xion leave` have not run in game.
 
@@ -189,9 +191,9 @@ of its two passes.
 `coop xion recover death` leaves falls alone, so a test can let EVE die of one. `coop xion recover off` does nothing
 after a fall or a death, as in the first game test. Each arrival sets the mode back to `on`.
 
-The floor is one height for the whole map, so a roof or a ledge outside the city above -3275 counts as ground.
-[The walls](#the-walls) close lift doorway A and the other edges one step leads out from. The edges EVE jumps over
-stay open: the recovery is what brings her back from those.
+The floor is one height for the whole map, so a roof or a ledge outside the city above -3275 counts as ground. With
+the paks of 23 and 24 November lift doorway A and the other edges one step leads out from are open. The recovery is
+what brings EVE back from those.
 
 ### What the log shows after a fall or a death
 
@@ -260,197 +262,18 @@ type `coop xion leave`. Last, quit the game.
     wait 5 s. Note what the screen shows. Then `coop xion leave`, with `coop xion recover on` first if it is refused.
 
 The game tests of 2026-11-23 and 2026-11-24 answered two points of this list. A fall is caught, with EVE walking
-0.3 s after the move. `LoadingScreenFadeAuto` called from Lua shows SB's black over the move. With the walls up, the
-steps through lift doorway A need `coop xion walls off` first. Still not known: whether SB's respawn job runs as read
+0.3 s after the move. `LoadingScreenFadeAuto` called from Lua shows SB's black over the move. Still not known: whether SB's respawn job runs as read
 in a zone of type 5, what the death screen shows after its left button, whether `coop xion leave` passes at all and
 with a dead EVE, whether EVE can move under the black and what SB's pause menu does to it.
 
 ## The walls
 
-SB's level-design sublevels hold the lift's doors and SB's ways down from three edges: ladders, ledges and a rope.
-SBO Xion loads none of them. A survey of 2026-11-24, made outside the game, read the collision of the 95 kept
-sublevels from the paks of build 26123051 and filled it from the two arrival points with EVE's capsule (radius 40,
-half height 95, step 45, floor up to 45 degrees). It found 22 places where one step, with no jump, leads to no
-ground, to a fall of more than 15 m or to a place with no way back. The cave at the gate point is the 23rd: it runs
-138 m west with rocks that have no collision and ends on a shelf with no ground behind.
-
-`walls/list.lua` holds 145 boxes for them, 572.8 m of wall. A box stands 50 cm beyond the last floor cell of its
-edge, from 2.5 m under the lowest floor of its hole to 7 m over the highest. It is 30 to 89 cm thick. A box follows
-the edge at the height of its hole only: the edge of a floor over or under the hole gets none.
-
-Where another floor lies over or under a hole inside that span, the box ends short of it. Its top stays 5 cm under
-the slab that carries the floor above. The boxes of `W02` and `W04` end under the east city's upper street and deck
-(Z 1483 and 1541), the box of `W05` under the centre's plaza (Z 132) and the box of `W19` under the floor over the
-second lift's pit (Z 2128). Its bottom stays 2 m over a floor below: `W15.1` starts over the rocks under it
-(Z 518). `W08.1` and `W08.2` keep their full height: their floor is the level under lift doorway A and the doorway
-itself is 3.1 m higher.
-
-A second fill with the boxes in the collision found none of the 1395 edge cells left and no floor reached behind
-the cave wall. A ray scan of the list finds no box across ground EVE walks on at another level than its hole.
-
-Three of the boxes stand at two edges that the fill passes over. The fill records a step only into free air or onto
-a floor EVE fits on. The floor under lift doorway A ends at a kerb beside the doorway's gap: a 45 degree bevel, a
-77 cm step and a block, 1.1 to 1.5 m over the floor. The west edge of `W21`'s level ends at a face that falls 15.9 m
-at 76 degrees. A ray fill of the list, which takes a face steeper than 45 degrees for no floor, walked off both.
-`W08.3` and `W08.4` continue the wall 2 m past both ends of the gap, under the ceiling of that floor (their top is at
-Z 1070). `W21.6` runs 11.9 m along the west edge. The same ray fill now finds no step into no ground beside the
-doorway or along those 11.9 m.
-
-| Hole | Place | Centre (X, Y, floor Z) | A step leads to | Boxes | Wall |
-| --- | --- | --- | --- | --- | --- |
-| `W01` | Hub of the two bridges, south-east side | (-12641, 13476, 134) | no ground | 5 | 10.1 m |
-| `W02` | East city, upper level | (7412, 2614, 1257) | no ground | 2 | 14.4 m |
-| `W03` | Round plaza, east rim | (-11236, 19352, 32) | no ground | 21 | 68.8 m |
-| `W04` | East city, upper level | (9614, -3299, 1257) | no ground | 2 | 24.2 m |
-| `W05` | Centre, lower level | (-1221, 2759, -190) | no ground | 1 | 7.4 m |
-| `W06` | Round plaza, west rim | (-15458, 19068, 37) | no ground | 23 | 74.2 m |
-| `W07` | East city | (6327, -6019, 672) | no ground | 18 | 59.2 m |
-| `W08` | Lift doorway A | (3850, -9250, 910) | the lift shaft | 4 | 10.1 m |
-| `W09` | North-west city | (-6660, -3794, 424) | no ground | 7 | 35.0 m |
-| `W10` | Centre | (1438, 2137, 1098) | no ground | 6 | 11.3 m |
-| `W11` | Centre | (2376, 1652, 1078) | no ground | 7 | 12.9 m |
-| `W12` | Centre, top level | (2625, 462, 1864) | no ground | 1 | 2.6 m |
-| `W13` | High terrace west of the arrival square | (-11491, 8213, 1077) | no ground or a fall over 15 m | 11 | 41.1 m |
-| `W14` | Rocks east of the gate point | (-17638, 17654, 467) | a place with a deadly edge | 1 | 2.4 m |
-| `W15` | Rocks east of the gate point | (-17550, 19162, 807) | 3.2 m down, no way back | 2 | 3.8 m |
-| `W16` | In the cave | (-27562, 15662, 2649) | outside the city | 1 | 2.3 m |
-| `W17` | Hub of the two bridges, north side | (-13462, 12462, 159) | a place with a deadly edge | 2 | 3.5 m |
-| `W18` | Terrace west of the arrival square | (-10098, 7841, -225) | 4.8 m down to a deck with a deadly edge | 2 | 6.0 m |
-| `W19` | Second lift | (14662, -1812, 1785) | its pit, no way back | 1 | 2.3 m |
-| `W20` | Round plaza, south rim | (-13515, 22418, 57) | a lower deck with a deadly edge | 17 | 57.7 m |
-| `W21` | South-east of the arrival square | (-8226, 9109, 804) | a fall over 15 m or a place with a deadly edge | 6 | 24.8 m |
-| `W22` | South-east of the arrival square | (-7517, 8982, 597) | a place with a deadly edge | 4 | 10.5 m |
-| `CAVE` | The cave, 17.5 m from the gate point | (-24950, 16452) | 3160 m2 of cave floor | 1 | 88.0 m |
-
-On foot from the two arrival points EVE meets `W01`, `W14`, `W15`, `W16`, `W17`, `W18` and the cave. The other holes
-are in parts of the city she enters with a jump.
-
-The boxes of `W17`, `W18` and `W20` close the tops of three of Stellar Blade's own routes down: a rope at `W17`, two
-ledges and a ladder at `W18`, a ladder at `W20`. SBO Xion does not load the level-design actors of those routes, so
-each top is a one-way drop.
-
-### What a wall is
-
-SB blocks with two kinds of actor in its kept level `E04_Blocking_VOL`: 409 `BlockingVolume` brushes and 86
-`BP_BlockWall_C` blueprints. Lua can make neither at run time. A brush gets its shape when the level is cooked. A
-spawned `BP_BlockWall_C` runs its construction script, which reads the wall's line from two spline components the
-cooked class has no template for. It then builds a mesh section with no vertex, so the wall has no collision. SB's
-placed walls block with a mesh cooked in the editor.
-
-So a wall of SBO Xion is not SB's blueprint. It is an engine actor with SB's collision settings:
-
-- `core/actors.lua` spawns a plain `Actor` with one `StaticMeshComponent` showing `/Engine/BasicShapes/Cube`. The cube
-  is in memory in SBO Xion: 38 actors of the kept, always loaded level `E04_NAVI_VOL` show it. Its simple collision
-  is one box of 100 cm a side. The module scales the component to the box, so nothing is cooked. The actor is hidden
-  in game.
-- The engine refuses a mesh on a component that is registered and of Static mobility once the world plays
-  (`SetStaticMesh`, `0x1441449f0`). The component is added that way. In the first game run with the walls, on
-  24 November 2026, all 145 failed with `the cube is not on the component`. The module now makes the component
-  Movable with `SetMobility` before it sets the cube. That change has not run in game yet.
-- The component gets SB's collision profile `SB_InvisiblewallIgnoreCamera` through `SetCollisionProfileName`. SB's
-  `BP_BlockWall` sets the same profile on its own blocking mesh with the same call. The profile's object type is
-  `BlockVolume`. It blocks EVE's capsule and lets the camera through.
-- `CanCharacterStepUpOn` is `No`, as on SB's wall.
-
-The walls do not carry the three actor tags of `BP_BlockWall`: `NoBlockWallAction`, `NoHurdleUp` and `BlockMoveGrab`.
-SB's code reads them (`0x1420d55c0`, `0x1420a4f00` and `0x14256eea0` are three of the readers). What EVE does at a
-wall without them was not read. The game test below looks for it.
-
-The order of the two collision calls comes from the engine's code. `core/actors.lua` hands the actor over with its
-collision off, so the component was registered with no body. `SetActorEnableCollision` makes no body
-(`0x143f6eba0`, then the component's handler `0x144495e20`). The profile call makes one only when the collision it
-reads changes (`0x144495cf0`). It reads no collision while the actor's is off (`0x14441e250`). The module therefore
-turns the actor's collision on first, over a component that still blocks nothing, then sets the profile. The wall is
-kept only if the component reads back object type 20, which is `BlockVolume`.
-
-### When they are up
-
-Each arrival queues the 145 boxes, nearest to EVE's own place first. Each 250 ms pass makes 10, so all are up
-3.75 s after the arrival. At the gate point the cave wall is made in the first pass. Her place is read at the
-arrival, so that holds after a Lua reload too, which forgets the point `coop xion` asked. A wall that cannot be made
-is logged with its reason while the others go up. The recovery stays under every edge.
-
-A map change and `coop off` take the walls down. `coop xion leave` ends in a map change. The module asks each wall
-of the world once and destroys an actor only while it is still the one it made. After a map change the world is gone
-with its walls and nothing is called. Nothing is made in any other map: SB's own Xion is never changed. The recovery
-is ended before the walls come down, so a removal that raises leaves no recovery running.
-
-`coop xion walls off` takes them down until `coop xion walls on` or the next arrival, so a test can walk to an open
-edge. `on` puts them up again, nearest to EVE first. A wall put up around EVE was not tried: type `on` away from the
-edges and out of the cave.
-
-The module keeps the walls' actor paths in `coop-xion-walls.txt`, one line. After a Lua reload (Ctrl+R) the first
-pass in SBO Xion destroys the walls of the earlier load, then the arrival builds them again. A file left by a game
-that closed inside SBO Xion costs one lookup. A file that cannot be written is logged once a build and stops no
-wall. A file that cannot be read is logged and nothing is swept.
-
-### What the walls do not close
-
-- The edges EVE jumps over. With a single jump (184 cm) she reaches 26,913 m2 of floor, with a double jump (332 cm)
-  58,395 m2. Boxes along every such edge would take 13 to 16 km of wall. SB itself leaves these edges open: its
-  level-design sublevel `E04_Area01_A_LD_Visible` holds 19 fall volumes and 10 return points. In SBO Xion the
-  recovery does that job.
-- The two bridge falls of the game tests, near (-10823, 9941) and (-11272, 9451), are not closed. Both are on the
-  long bridge between the arrival square and the hub. Stellar Blade's own block walls stand along both sides of it,
-  210 cm high (`BP_BlockWall33` to `54`). They are in SBO Xion too. A jumping EVE passes over them: near the first
-  place their top is about 1.7 m over the deck. The recovery then brings her back. SB expects a fall there: the
-  return point of its fall volume `SBEffectVolume_Xion10_12` is on the deck, at (-11011, 9938, -54), 1.9 m from the
-  first place. No step hole was found within 6 m of either place. Raising those walls is not built. The south bridge
-  is the same case.
-- The roofs and decks outside the city that a jump reaches.
-- Other edges with a kerb or a steep face beyond them. The city was not searched for more of the two kinds that
-  `W08.3`, `W08.4` and `W21.6` close. South of (-9080, 8520) the west edge of `W21`'s level stays open: it leads to
-  falls of 5 to 10 m, with two cells near (-8940, 7910) over a steep face.
-- The view. The cave wall is invisible, so the cave is still seen behind it.
-
-The survey is a model. It was not run in game. A jump over an edge, an air dash, a ledge grab and water are not in
-it. Collision that a level-design blueprint carries in its class was not built, so a piece SB blocks with outside the
-doors, gates, shutters and lifts it lists would be missed. 280 m2 of city floor within 40 cm of a box is lost.
-
-### What the log shows
-
-| Line | Meaning |
-| --- | --- |
-| `sboxion: walls: 145 to put up, 10 a pass, nearest to EVE first` | Each arrival and `coop xion walls on`. When `on` cannot read EVE the line ends `nearest to EVE's place at the arrival first` |
-| `sboxion: walls: first wall <hole>.<n> up: object type 20, collision on` | The first wall of a build, with what its component reads back |
-| `sboxion: walls: <hole>.<n> not made: <why>` | A wall failed. Three reasons are logged a build |
-| `sboxion: walls: 145 of 145 up in 15 passes, t ms` | The build is over. `t` is the time spent in the passes. Failed walls follow as `; not made: <names>` |
-| `sboxion: walls: down (<reason>): n removed` | A map change, `coop off`, `coop xion walls off` or an arrival. It adds `m gone already` for walls their world took, `k never made` for a build cut short and `j raised (<why>)` for a removal that failed |
-| `sboxion: walls: an earlier Lua load left n: m swept` | After a Lua reload. `0 swept` means their world is gone |
-| `sboxion: walls: an earlier Lua load's paths unread (<why>): none swept` | `coop-xion-walls.txt` could not be read after a Lua reload |
-| `sboxion: walls: paths not kept (<why>): a Lua reload would leave these walls up` | `coop-xion-walls.txt` could not be written. Said once a build |
-| `sboxion: walls: error (<why>): the build is ended with n of 145 up` | A pass raised an error. The walls made stay up. `coop xion walls off`, then `on`, builds again |
-
-`coop xion status` ends with `walls 145 of 145 up`, `walls n of 145 up, m to go`, `walls n of 145 up, k not made`,
-`walls n of 145 up, build ended` after a pass that raised, or `walls off`.
-
-Reasons a wall is not made: `the game has no name SB_InvisiblewallIgnoreCamera`, `Cube is missing on this PC`,
-`the cube is not on the component`, `SB's profile SB_InvisiblewallIgnoreCamera did not take: object type n`, or the
-message of a call that raised.
-
-### Testing them in game
-
-Nothing of the walls has run in game. On a co-op save, alone, with the test pak in.
-
-1. `coop xion`. Within 5 s the log has `walls: 145 to put up`, `first wall ... up: object type 20, collision on`
-   and `walls: 145 of 145 up in 15 passes`. Note the ms figure and any hitch during those 5 s.
-2. `coop xion status` ends with `walls 145 of 145 up`.
-3. Walk into lift doorway A near (3958, -9124, 1222). EVE stops at it. Run at it, jump at it and sprint along it.
-   Note any move she makes against the wall that she does not make against a real wall: a push, a vault, a grab.
-4. Turn the camera so it passes through the doorway. It is not pushed back by the wall.
-5. `coop xion walls off`. The log has `walls: down (coop xion walls off): 145 removed`. Walk through the doorway: EVE
-   falls and the recovery brings her back.
-6. `coop xion walls on`. The log has `nearest to EVE first` and the count line again. The doorway is closed again.
-7. Walk to the edge of the terrace west of the arrival square near (-10098, 7841, -225). Then walk to the hub's
-   south-east side near (-12641, 13476, 134). EVE cannot step off either edge.
-8. Walk the long bridge near (-10823, 9941) and (-11272, 9451). Walk into its side: SB's own wall stops her. Jump over
-   it: she falls and the recovery brings her back. Note whether a single jump is enough.
-9. `coop xion leave`, then `coop xion gate`. The log has `walls: down (a map change): 0 removed, 145 gone already`,
-   then a new build that starts with `first wall CAVE.1`. Walk west into the cave: EVE stops 17.5 m from the gate
-   point.
-10. Press Ctrl+R in the UE4SS console, inside SBO Xion. The log has `walls: an earlier Lua load left 145: 145 swept`,
-    then a new build.
-11. `coop off` inside SBO Xion. The log has `walls: down (coop off): 145 removed`. The doorway is open again.
+The walls were tried on 24 November 2026. Each arrival queued 145 invisible walls at 22 edges where one step leads out
+of the city, lift doorway A among them. One more stood in the cave at the gate point. Each wall was an engine cube with SB's
+collision profile `SB_InvisiblewallIgnoreCamera`. In the game run all 145 failed with `the cube is not on the
+component`, so they never made a wall in game. They were dropped for real pieces of Stellar Blade: the doors, ladders
+and lift pieces of SB's own level-design sublevels. `coop xion walls` is gone. A `coop-xion-walls.txt` left by an older
+build is no longer read.
 
 ## The rooms
 
@@ -530,7 +353,7 @@ five rooms open in the arrival's first pass. A room whose levels are not there a
 A map change, `coop off` and `coop xion rooms off` put every hidden row back, the last hidden first.
 `coop xion leave` ends in a map change. The module writes only on an object that is still the one it found. After a
 map change the world is gone with its levels and nothing is called. Nothing is hidden in any other map: SB's own Xion
-is never changed. At `coop off` and at a map change the rows are put back before the walls come down.
+is never changed. At `coop off` and at a map change the recovery ends first. The rows are put back after it.
 
 `coop xion rooms off` closes the five doors until `coop xion rooms on` or the next arrival. SB's door unit comes
 back with its collision: type `off` outside the doorway. `on` asks the pak and opens the rooms again.
@@ -545,7 +368,7 @@ that cannot be read is logged and nothing is put back.
 
 | Line | Meaning |
 | --- | --- |
-| `sboxion: levels: 100 listed, 98 of 98 always-loaded ones loaded and visible, missing: none` | The pak of 24 November is in and its five room levels loaded |
+| `sboxion: levels: 100 listed, 98 of 98 always-loaded ones loaded and visible, missing: none; by volume: 2 listed, 2 loaded, 2 visible` | The rooms pak of 24 November is in and its five room levels loaded. The full test pak reads `161 listed, 127 of 127` |
 | `sboxion: rooms: none in this pak (<path>\zSBO_Xion.utoc does not hold Rooms): no door is opened` | The pak of 23 November. One line an arrival. Nothing else of the rooms runs |
 | `sboxion: rooms: <room> open: n rows hidden, t ms` | Every row of the room is hidden. `t` is the time spent on the room |
 | `sboxion: rooms: <room> closed: <row>: <why>` | One row failed. Nothing of the room is hidden. `<row>` reads `<sublevel>.<actor>.<component>`, with `[<index>]` for an instance |
@@ -599,8 +422,8 @@ hides nothing: the rooms then stand behind SB's closed doors.
 
 On a co-op save, alone.
 
-1. `coop xion`. Within 5 s the log has `levels: 100 listed, 98 of 98` and five lines `rooms: <room> open`, with
-   4, 4, 4, 3 and 8 rows. Note each ms figure and any hitch.
+1. `coop xion`. Within 5 s the log has `levels: 100 listed, 98 of 98` (`161 listed, 127 of 127` with the full test
+   pak) and five lines `rooms: <room> open`, with 4, 4, 4, 3 and 8 rows. Note each ms figure and any hitch.
 2. `coop xion status` reads `pak 1203_1501348` and ends with `rooms 5 of 5 open`. It names the nearest waypoint.
    Walk until it reads `nearest waypoint D158`, 35 m east of the city point and 3.7 m higher, near
    (-4798, 6917, 596).
@@ -624,6 +447,108 @@ On a co-op save, alone.
     The door is closed again.
 
 A room whose line reads `closed` keeps SB's door. Send that line: it names the row and the reason.
+
+## The full test pak
+
+The third pak of 24 November 2026 is a test build. It loads the levels of Xion as Stellar Blade ships them,
+level-design levels included and nothing removed from them. Its test asks what wakes up in `Zone_SBO_Xion` and
+whether the game holds. The pak was built and checked outside the game. Nothing of it has run in game.
+
+### What it loads
+
+`Xion_P` lists 161 levels. 127 are always loaded. 34 stream by SB's own volumes, as SB ships them.
+
+- The 95 levels of the first pak.
+- 14 levels of the underground: the lower end of the lift with its hall, the Elder's chamber in its peace state and
+  the hyper drive room. 10 of them stream by SB's volumes. 4 are always loaded.
+- 47 of Xion's 50 level-design levels.
+- The five room levels, the same as in the rooms pak.
+
+24 levels of SB's Xion stay out: 5 light variants for the night and the story phases before the day light, the
+chamber's battle state (2), 4 light phases of the hyper drive room, the 6 cutscene levels, the theater set, one far
+view, the effects level with the 12 rats and the Elder's body. The 3 level-design levels left out are the two Boss
+Challenge arenas (`E04_LD_RavenBeast_01`, `E04_LD_Mann`) and the refugees of story phase 5
+(`E04_Area01_A_LD_5Phase_Unload`).
+
+What the 47 level-design levels hold, read in the paks of build 26123051:
+
+- 263 spawn points. 155 of their rows spawn an NPC, each in a zone of Xion's own, 111 of them when the player enters
+  that zone. Each row has its own story conditions (`Xion_Phase_2`, `Xion_Phase_5`, side quests).
+- 15 zone volumes. The city point (-8304, 7201, 225) and the gate point both lie inside `Zone_Xion_10_A` and
+  `Zone_Xion_10_B2`.
+- 117 zone triggers. Some end in a warp. `Xion_10_ZTrigger_102`, 7 m from the city point, warps to the camp
+  `Xion_Camp_10` of SB's world `Xion`.
+- 13 doors, among them SB's closed lift door in lift doorway A at (3982, -9162, 1222) with its open twin at
+  (3958, -9124, 1222). The lever of the second lift with its deck at the top. 5 ladders, 2 ledges and 1 rope.
+- Camps with their chairs and teleport machines. Teleport machine 4 stands 1.5 m from the city point.
+- 19 fall volumes under the city, active in `Zone_Xion_10`. The pit's fall volume under ground is active in
+  `Zone_Xion_22`.
+
+### What the module does with it
+
+The same as with the rooms pak. The rooms open as before. The recovery catches EVE under Z -3275 while the zone is
+`Zone_SBO_Xion` and waits while it is another. The levels line counts the 34 volume levels apart. The look lines say
+what wakes up ([What the log shows](#what-the-log-shows)). Nothing pins the pak's version: `coop xion status` prints
+`pak 1203_1501548`.
+
+### What is not known
+
+- Whether SB changes the current zone from `Zone_SBO_Xion` to one of Xion's own while EVE stands in its volumes. How
+  SB picks one among overlapping zone volumes was not read. The `zone:` lines answer it.
+- While the zone is `Zone_SBO_Xion`, SB's zone warp does not run: `0x141cdfe70` writes no warp when `0x141cf7630`
+  reads type 5 in the current zone's row. If the zone turns to one of Xion's own, that guard no longer holds. A
+  warp trigger, a camp or a teleport machine could then take EVE to SB's own Xion, since its row names the world
+  `Xion`. Copy the co-op save files before the test.
+- Which NPCs spawn. That depends on the story state of the co-op save EVE is built from.
+- What `SBAIWorldManager_0` of `E04_LD_MetalAI` starts. What the 154 env actors and the sequences of their start
+  states do. Some of those sequences load, unload or hide streaming levels by name.
+- The memory and the frame time of the 61 added levels. The 14 underground levels alone hold 379 MB of build data.
+  `E04_Area07_Light_A_03` adds 226 movable lights under ground, loaded from the start.
+- The way down. The module has none. SB's lift is a trigger, a cutscene and a zone warp, which the type-5 test
+  refuses. The recovery's floor of -3275 would also catch EVE as soon as she stood under ground.
+
+### The game test
+
+Close the game. Copy the co-op save files (`StellarBladeCoop0N.sav`, [Saves](../../players/saves.md)) to a folder
+outside the game. Copy the pak's three files over the three of the rooms pak in `SB/Content/Paks/~mods`. The pak's
+own `INSTALL.md` has the commands, the three hashes and the way back. Never keep two containers that hold `Xion_P`.
+
+On a co-op save, alone.
+
+The rule of this test: read the zone before each step. `coop xion status` shows it. Go on only while it reads zone
+type 5 and area `Zone_SBO_Xion`. If it reads anything else, Stellar Blade took EVE into one of its own zones. Its
+triggers, its saves and its warps then work again. Stop walking. Do not jump. Leave by Stellar Blade's title menu:
+`coop xion leave` is refused outside `Zone_SBO_Xion`. Then put the copied co-op saves back.
+
+1. `coop xion`. Do not move. Within 15 s the log has `levels: 161 listed, 127 of 127`, the five `rooms: <room> open`
+   lines, a `characters:` line, `zone: zonetype 5 area Zone_SBO_Xion` and `life: 1`. Note any hitch.
+2. `coop xion status`. Note the look part: the count of characters, the nearest one, the zone.
+3. Stand still for 2 minutes, then walk on the arrival square for 1 minute. Stay out of the box 7 m to the north
+   around (-8340, 6502, 403): a trigger of Stellar Blade's camp warp stands there. Note every NPC, guard or merchant,
+   a teleport machine and any cutscene. Type `coop xion status` again and note the zone.
+4. Climb the ladder `BP_EM_Ladder3` at (-9973, 7549, -234), west of the arrival square, with its two ledges beside
+   it. Then the ladder `BP_EM_Ladder5` at (-12218, 22514, -470), on the south rim of the round plaza. Note whether
+   EVE can grab them and climb.
+5. Only if the zone still reads type 5: jump off the long bridge near (-10823, 9941). Note who brings EVE back: the
+   module (a `black:`, a `fall:` and a `put back:` line) or SB itself (no `fall:` line, maybe a `zone:` line first).
+6. Only if the zone still reads type 5: walk to lift doorway A near (3958, -9124, 1222). The lift hall is the place
+   with the most triggers: a zone volume of `Zone_Xion_11`, the lift's cutscene and warp at the doorway and a
+   cutscene trigger at (4578, -9973, 955). Look at the doorway from 5 m first: a closed lift door of Stellar Blade
+   should stand in it. Then walk into it. Note whether it blocks EVE, whether a cutscene starts and the zone.
+7. `coop xion leave`. The log has `left`. `coop-link.log` has `sboxion leave: ... reload call 1`.
+
+Do not use `coop xion gate` in this test. Do not walk into the cave at the west gate: Stellar Blade's exit trigger to
+the Wasteland stands there.
+
+Send the `[SX]` lines of `UE4SS.log` and `coop-link.log`. The fall steps of [Testing it in
+game](#testing-it-in-game) under Falls and deaths walk through lift doorway A: with this pak a door should stand
+there.
+
+### Back to the rooms pak
+
+Close the game. Copy the three files of the rooms pak over the three of the full test pak in
+`SB/Content/Paks/~mods`. `coop xion status` then reads `pak 1203_1501348`. The full test pak's `INSTALL.md` has
+the commands and the hashes of both.
 
 ## Saves
 
@@ -649,17 +574,24 @@ Each line below is one proof of the test. They are in `UE4SS.log` unless said.
 | `sboxion title: the rows are in, before any save loads` and `sboxion rows: 2/2 in` | The two rows went in at the title and read back as written |
 | `sboxion enter: zone row found, type 5, world row found, call 1, to (x, y, z) yaw y, queue q, last save t` (`coop-link.log`) | The native guards passed and SB's warp returned 1 |
 | `sboxion: arrived, map /Game/SBO_World/Xion_P, zone Zone_SBO_Xion, EVE at (x, y, z)` | EVE stands in SBO Xion |
-| `sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none` | Every sublevel loaded from the game's own files. With the pak of 24 November: `100 listed, 98 of 98` |
+| `sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none; by volume: 2 listed, 2 loaded, 2 visible` | Every always-loaded sublevel loaded from the game's own files. With the rooms pak: `100 listed, 98 of 98`. With the full test pak: `161 listed, 127 of 127`. The levels streamed by SB's volumes (the 34 of `data.lua`'s `VOLUMED`, two with the older paks) are counted, never named as missing: they load and show where SB's volumes say |
 | `sboxion: light: 72 env volumes found, 65 in E04_ENV_VOL, 41 named, 21 changed, CountDown_Posing_ENV active true` | The day table was written |
 | `sboxion: light: 41 of 41 read back as written` | The writes held, 2 s and 10 s after the arrival |
-| `sboxion: characters: 1` | EVE is the only character |
+| `sboxion: characters: 1` | EVE is the only character. With more: `characters: n by class: <class> <count>, ...; nearest: <name> (<class>) d m, ...`. The classes come the most first. Only the five nearest to EVE are named, with the distance in metres. EVE is counted, never among the nearest. Logged at the arrival, 10 s later and at each later look whose count by class or five names differ |
+| `sboxion: zone: zonetype t area <alias>` | The zone type and the area of the `engine=` line of `coop-status.txt`, at the arrival. Each change adds `, EVE at (x, y, z)`. `zonetype 5 area Zone_SBO_Xion` is SBO Xion's own zone. `area none` means the world and the logic name different zones. `zone unread (...)` means the group's native read is off |
+| `sboxion: life: n` | EVE's life state (ESBActorLifeState) of the `sboxionwarp=` line, at the arrival. Each change adds `, EVE at (x, y, z)`. 3 to 5 are the death states [the recovery](#a-death) answers. `unread (...)` before the native part's first read |
+| `sboxion: levels changed: <level> loaded b visible b, ...; EVE at (x, y, z)` | At a look, each listed level whose state differs from the look before, in the list's order |
 | `sboxion: probe: start: E04_DistantView_A_01 loaded b visible b, E04_DistantView_A_03 loaded b visible b` | The two volume-streamed levels at the arrival |
 | `sboxion: probe: <level> loaded b visible b, EVE at (x, y, z)` | One of the two changed state |
 | `sboxion: at <waypoint>: A_01 loaded b visible b, A_03 loaded b visible b` | EVE stood 5 s within 3 m of a waypoint |
 | `sboxion leave: queue q, last save unchanged, reload call 1` (`coop-link.log`) | SB's reload started and its last save time did not move since the enter |
 | `sboxion: left, map <path>` | EVE is out |
 
-The two probe levels are the only ones the pak leaves volume streamed, as SB ships them. Both read loaded and
+The module reads the zone and the life state each second, from the status text only. It looks at the levels and the
+characters 10 s after the arrival, then every 10 s. A look says only what changed. A look reads each listed level
+three times and each character five times through UE4SS: with 161 levels and 156 characters that is about 1,260
+calls every 10 s. Their time was not measured in game. The two probe levels are the only
+ones the older paks leave volume streamed, as SB ships them. Both read loaded and
 visible at the arrival, which decides nothing. A waypoint line with `visible false` and a later probe line back to
 `visible true` shows that UE's volume streaming runs in a persistent level of SBO. The waypoints `kaya` (the front of
 Kaya's shop) and `camp7` (the camp beside Roxanne's place) lie outside every visibility volume of both levels.
@@ -671,17 +603,16 @@ Christmas sound actors in `E04_Sound`.
 Lua, in `mod/StellarCoop/Scripts/world/maps/sboxion/`:
 
 - `data.lua`: the pak's name, the level, the two rows, the two arrival points, the nine waypoints (four of the first
-  test walk and the five doors), the 41 names of the day table, the two probe levels and the recovery's numbers.
+  test walk and the five doors), the 41 names of the day table, the two probe levels, the 34 levels a pak leaves
+  streamed by SB's volumes (`VOLUMED`) and the recovery's numbers.
 - `sboxion.lua`: the pak gate, asked a second time for the room levels, the rows at the title, the commands, the
   arrival and the watch.
 - `recover.lua`: the ground point, the black and the put-back after a fall, the respawn after a death. Its respawn
   block is the module's copy of score attack's. Its ground read is the module's copy of the group's.
-- `walls/list.lua`: the 145 boxes. `walls/walls.lua`: their build at an arrival, their removal, `coop xion walls` and
-  the sweep after a Lua reload.
 - `rooms/list.lua`: the five rooms and their 23 rows. `rooms/rooms.lua`: the pass that opens a room once its levels
   are there, the put-back, `coop xion rooms` and the sweep after a Lua reload.
-- `engine.lua`: the UE4SS calls. Its black call is the module's copy of the lobby's. Its wall is the module's copy
-  of the bike stand's hidden, blocking actor. It also finds, hides and puts back a piece of a room's doorway.
+- `engine.lua`: the UE4SS calls. Its black call is the module's copy of the lobby's. It also finds, hides and puts
+  back a piece of a room's doorway.
   `commands.lua`: `coop xion`. `wiring.lua`: the manifest, export `sboxion`.
 
 Native, in `native/src/world/maps/sboxion/`:
@@ -747,9 +678,11 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 
 ### What is left out
 
+The two paks of 23 and 24 November leave out the parts below. [The full test pak](#the-full-test-pak) brings back the
+underground and 47 of the 50 level-design sublevels.
+
 - The 50 level-design sublevels: NPCs, quests, shops, camps, zone volumes, doors, ladders, the lift, SB's fall
-  volumes. [The walls](#the-walls) close the edges a step leads out from. EVE can still jump out of the city:
-  [Falls and deaths](#falls-and-deaths) says what brings her back.
+  volumes. EVE can step or jump out of the city: [Falls and deaths](#falls-and-deaths) says what brings her back.
 - The 15 underground sublevels, the theater set, one distant-view level and the light variants for night.
 - `E04_Area02_FX_A_01`, which holds the 12 rats. Its 16 effects and its water body are missing with it.
 - The 50 actors of the persistent level tagged `XionChristmasEvent`.
@@ -758,44 +691,36 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 ## Tests
 
 - `tests/lua/world/maps/sboxion/off_test.lua`: a failure of this module at load turns this module off alone.
-- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes and `walls` and `rooms` with `on`
-  and `off` included, then the wiring's two stores, `coop-xion-walls.txt` and `coop-xion-rooms.txt`.
+- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes and `rooms` with `on` and `off`
+  included, `walls` refused, then the wiring's one store, `coop-xion-rooms.txt`.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the
   read-back, a refusal logged once.
 - `world_test.lua`: the commands' refusals and requests, then on a fake world the 41 writes matched by level and
-  name, the counts 72, 65 and 41, nothing read outside SBO Xion, a second arrival, a probe change logged once, a
+  name, the counts 72, 65 and 41, the full test pak's 161 levels with the 34 volume-streamed ones counted apart, 155
+  characters counted by class with the five nearest named, the zone, area and life lines at the arrival and at each
+  change, a look that says nothing when nothing changed, the levels and characters that changed said once, the
+  status line's look part, nothing read outside SBO Xion, a second arrival, a probe change logged once, a
   waypoint logged once a visit, the watch ended by a map change and by `coop off`. For the recovery: ticked only in
   SBO Xion, started again at each arrival with the point `coop xion` asked, fed by the engine's read of EVE when
   `me()` names another place, SB's black asked through the module's own wiring with the move two passes later, a
   death answered with her GUID, the hidden death screen shown again at a map change and at `coop off`, `coop xion
-  recover`, the mode back to `on` at an arrival and the status line's part. For the walls: none outside SBO Xion, 10
-  in the arrival's pass and 145 after 15 passes, the cave wall first at the gate point, the build ordered from
-  EVE's place at an arrival no `coop xion` asked, none destroyed once a map change took the world, each destroyed
-  after a pass with EVE unread and at `coop off`, the recovery ended before a removal that raises, `coop xion
-  walls`. For the rooms: with the pak of 23 November one line an arrival, the pak read once more a Lua load, no
-  piece asked; with the five room levels in the pak the five rooms opened in the arrival's pass, their part of the
-  status, `coop xion rooms`, no row called once a map change took the world, every row put back at `coop off`
-  before the walls come down.
+  recover`, the mode back to `on` at an arrival and the status line's part. For the rooms: with the pak of
+  23 November one line an arrival, the pak read once more a Lua load, no piece asked; with the five room levels in
+  the pak the five rooms opened in the arrival's pass, their part of the status, `coop xion rooms`, no row called
+  once a map change took the world, every row put back at `coop off`, the recovery ended before the rooms close at
+  `coop off` and at a map change.
 - `recover_test.lua`: the ground point, the fall with its black and the move two passes later, a black that is not
   shown, the move dropped or held back like a check, each guard, the check on the world's time, the two failures
   that stop the recovery, then the death with score attack's respawn cases and this module's own (no death screen
   for 5 s, a respawn that leaves EVE off the ground, a death left from the mode `off` or read during a wait).
 - `engine_test.lua`: the UE4SS calls over fake objects, the recovery's included: one read of EVE a pass, no stop call
   after a refused teleport, the black's call and its three answers, the respawn's request, the death screen hidden
-  and shown again. For a wall: the actor's collision on before the profile call, the read-back, each failure with no
-  actor left, the removal and the sweep. For a piece of a doorway: found by its names and refused for another
+  and shown again. No wall call is left. For a piece of a doorway: found by its names and refused for another
   class, mesh, place or instance count, a whole component hidden with its two values read first, an instance
   scaled to nothing where it stands, a piece that reads hidden already refused, the put-back and no call on an
   object that is gone.
-- `walls/list_test.lua`: the 145 rows, the count of each hole, 572.8 m, the boxes of `W02`, `W04`, `W05` and `W19`
-  under the floor over their hole, `W15.1` over the rocks under it, the four boxes of lift doorway A, a box at each
-  step the ray fill took off the kerbed edge beside the doorway and off the west edge of `W21`'s level, the cave wall
-  17.5 m from the gate point, no box around an arrival point or a waypoint.
-- `walls/walls_test.lua`: the build nearest to EVE first at 10 a pass, a wall that fails, the removal with a world
-  that still stands and with one that is gone, `coop xion walls`, the sweep, an error in a pass with `build ended`
-  in the status, a store that raises.
 - `rooms/list_test.lua`: the five rooms, their 23 rows as the level dumps gave them, 11 whole components and 12
   instances of 9 components in 8 sublevels, no piece twice, each door a waypoint.
 - `rooms/rooms_test.lua`: one line and no read with a pak that has no room, the five rooms opened in one pass, a

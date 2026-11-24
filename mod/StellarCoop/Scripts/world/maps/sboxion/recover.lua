@@ -5,12 +5,15 @@
 -- online/group/travel.lua: sboxion owns it; a fix here does not reach theirs.
 -- Falls and deaths in SBO Xion (world/maps/sboxion/sboxion.lua ticks this part each 250 ms pass while EVE's map is SBO
 -- Xion).
--- SBO Xion loads none of SB's level-design sublevels, so SB's fall volumes are missing and nothing of SB catches a
--- fall out of the city. SB's logic update 0x141ba1810 (build 26123051) then counts the time EVE stays in falling mode
--- at logic +0x344 and applies the effect of its constant Falling_Effect_Dead once the count reaches the threshold at
--- logic +0x340 (Falling_Time_Dead, compiled default 10.0 s at 0x1425f3d98). The same function writes 0 to the count
--- on the first frame she does not fall (0x141ba1b7c), so putting her on the ground is enough: nothing of SB is
--- written.
+-- The paks of 2026-11-23 and of the rooms load none of SB's level-design sublevels, so SB's fall volumes are missing
+-- and nothing of SB catches a fall out of the city. SB's logic update 0x141ba1810 (build 26123051) then counts the time
+-- EVE stays in falling mode at logic +0x344 and applies the effect of its constant Falling_Effect_Dead once the count
+-- reaches the threshold at logic +0x340 (Falling_Time_Dead, compiled default 10.0 s at 0x1425f3d98). The same function
+-- writes 0 to the count on the first frame she does not fall (0x141ba1b7c), so putting her on the ground is enough:
+-- nothing of SB is written.
+-- The full test pak loads those sublevels as SB ships them. The rows of the city's 19 fall volumes name Zone_Xion_10
+-- as the zone they act in, so in Zone_SBO_Xion the recovery runs the same with each pak. Whether SB's volumes act
+-- there was not seen in game.
 -- The ground point: each pass, world.move() gives EVE's place, yaw and movement mode from one read. A pass on which
 -- she walks (mode 1 or 2) at or above data.lua's FLOOR joins a streak. The oldest of STREAK passes in a row is the
 -- ground point: a place she walked on, at most 1 s old. A jump, a fall, a guard that waits or a step of more than

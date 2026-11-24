@@ -1,16 +1,15 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Holds SBO Xion's copy of the black call of online/lobby/wiring.lua (Engine.black) and of the hidden, blocking actor
--- of vehicles/bike/stand.lua (Engine.wall): sboxion owns them; a fix here does not reach theirs.
+-- Holds SBO Xion's copy of the black call of online/lobby/wiring.lua (Engine.black): sboxion owns it; a fix here does
+-- not reach theirs.
 -- SBO Xion's engine reads and writes (world/maps/sboxion/sboxion.lua's world), on the game thread: the zone's FName
 -- index for the native request, the SBEnvControlVolume actors with their bActiveVolume, the world's streaming levels
 -- through the three functions SB's exe exposes by name (GetWorldAssetPackageFName, IsLevelLoaded, IsLevelVisible),
 -- the characters, the recovery's calls (world/maps/sboxion/recover.lua): EVE's place and movement mode, the put-back,
--- SB's black, SB's respawn request and the death screen, then a wall made, removed and swept
--- (world/maps/sboxion/walls/walls.lua) and a piece of SB in a room's doorway found, hidden and put back
--- (world/maps/sboxion/rooms/rooms.lua). sboxion.lua, recover.lua, walls.lua and rooms.lua call them only while EVE is
--- in SBO Xion or for a command.
+-- SB's black, SB's respawn request and the death screen, then a piece of SB in a room's doorway found, hidden and put
+-- back (world/maps/sboxion/rooms/rooms.lua). sboxion.lua, recover.lua and rooms.lua call them only while EVE is in SBO
+-- Xion or for a command.
 -- bActiveVolume is a plain bool of ASBEnvControlVolume (+0x320 on build 26123051: its set-bit stub 0x14265b310 is
 -- mov byte ptr [rcx+0x320],1). SB's env pass 0x1425c99b0, run from its registry's tick 0x142272930, skips a volume
 -- whose byte is 0 each time it runs, so a write needs no call.
@@ -63,11 +62,20 @@ function Engine.probes(names)
     end
     return out
 end
--- The names of the SBCharacter actors of EVE's world, EVE included.
+-- The SBCharacter actors of EVE's world, EVE included: {name=, class=, at={X,Y,Z}, eve=} each, the class's own name,
+-- the actor's place and whether it is EVE herself (the same object as core/player.lua's her()). One whose reads raise
+-- (a character that goes while it is read) is given as {name='?', class='unread', eve=false} with no place.
 function Engine.characters()
+    local me=eve()
+    local mine=U.address(me)
     local out={}
-    for _,c in ipairs((U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',eve()))) do
-        out[#out+1]=U.text(c:GetFName())
+    for _,c in ipairs((U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',me))) do
+        local ok,r=pcall(function()
+            local at=U.value_of(c:K2_GetActorLocation())
+            return {name=U.text(c:GetFName()),class=U.text(assert(U.valid(c:GetClass()),'no class'):GetFName()),
+                at={X=at.X,Y=at.Y,Z=at.Z},eve=U.address(c)==mine}
+        end)
+        out[#out+1]=ok and r or {name='?',class='unread',eve=false}
     end
     return out
 end
@@ -142,73 +150,6 @@ function Engine.hide()
     s:SetVisibility(HIDDEN)
     return function() if U.valid(s) then s:SetVisibility(was) end end
 end
--- A wall: core/actors.lua's plain Actor whose root is one StaticMeshComponent showing the engine's cube, hidden in game
--- and scaled to the box. The cube, /Engine/BasicShapes/Cube, is in memory in SBO Xion: 38 StaticMeshActors of the
--- kept, always loaded level E04_NAVI_VOL show it. Its simple collision is one box of 100 cm a side, so the scale is
--- the size over 100 and nothing is cooked. The component then gets SB's collision profile SB_InvisiblewallIgnoreCamera
--- (DefaultEngine.ini of build 26123051: object type BlockVolume, ECC_GameTraceChannel7; it ignores Visibility, Camera,
--- PhysicsBody, Vehicle, Destructible, PhysicsStatic, Projectile, EventMoveObject, DragonIK and Item and blocks the
--- rest, EVE's capsule channel PawnCollision among them). SB's own BP_BlockWall sets that profile on its PM_Pawn with
--- the same call, SetCollisionProfileName(name, true), in statement 58 of its construction script. CanCharacterStepUpOn
--- is ECB_No, as on PM_Pawn. A wall is SB's profile on an engine actor. It is not SB's blueprint: a spawned
--- BP_BlockWall_C runs that script, which builds its mesh from two spline components the cooked class has no template
--- for, so it comes out with no collision.
--- The order of the two collision calls is the engine's, read on build 26123051. core/actors.lua hands the actor over
--- with its collision off and the component closed (NoCollision), so the component was registered with no body.
--- SetActorEnableCollision (exec 0x1446b97c0, then 0x143f6eba0) sets the actor's bit and calls each component's
--- vtable +0x398. The component's handler 0x144495e20 updates the body's filter and makes no body. The profile call
--- (exec 0x1448f0300, the component's vtable +0x670: 0x144145240, then 0x144495cf0) reads the collision before and
--- after through 0x14441e250, which answers NoCollision while the owner's collision is off. It makes the body
--- (0x1440e84c0) only when the two differ. So the actor's collision goes on first, over a component that blocks
--- nothing yet. The profile call then opens the component and makes its body.
--- b: {at={X,Y,Z} the box's centre, yaw of its long side, size={X length, Y thickness, Z height}} in cm and degrees.
--- The profile's name is looked up, never added. The cube must be on the component. SetStaticMesh (0x1441449f0)
--- refuses a component that is registered and of Static mobility (its byte +0x173 is 0) once the world plays, with
--- the text "Calling SetStaticMesh on '{0}' but Mobility is Static." core/actors.lua adds the component registered
--- and a StaticMeshComponent is Static by its class, so its call set no mesh: in the first game run all 145 walls
--- failed there. So the wall makes the component Movable first (SetMobility, exec 0x14490a6c0, the component's vtable
--- +0x520), then sets the cube itself. The component must read back SB's object type. Returns core/actors.lua's
--- display with read, that read-back as text. Raises, with no actor left, when a step fails.
-local CUBE='/Engine/BasicShapes/Cube.Cube'
-local MOVABLE=2 -- EComponentMobility::Movable (Static 0, Stationary 1).
-local PROFILE='SB_InvisiblewallIgnoreCamera'
-local BLOCK_VOLUME=20 -- ECC_GameTraceChannel7, named BlockVolume in SB's DefaultEngine.ini.
-function Engine.wall(b)
-    local name=U.value_of(FName(PROFILE,EFindName.FNAME_Find))
-    assert(U.text(name):lower()==PROFILE:lower(),'the game has no name '..PROFILE)
-    local d=Actors.spawn(eve():GetWorld(),b.at,{Pitch=0,Yaw=b.yaw,Roll=0},{path=CUBE,static=true})
-    local ok,why=pcall(function()
-        local c=d.mesh
-        if not Actors.same(c.StaticMesh,CUBE) then
-            c:SetMobility(MOVABLE)
-            c:SetStaticMesh(Actors.resolve(CUBE,'/Script/Engine.StaticMesh'))
-        end
-        assert(Actors.same(c.StaticMesh,CUBE),'the cube is not on the component')
-        d.actor:SetActorHiddenInGame(true)
-        c:SetRelativeScale3D({X=b.size.X/100,Y=b.size.Y/100,Z=b.size.Z/100})
-        c.CanCharacterStepUpOn=0 -- ECB_No
-        d.actor:SetActorEnableCollision(true,false) -- SB's Actor takes (bNewActorEnableCollision, inFastUpdate).
-        c:SetCollisionProfileName(name,true)
-        local kind=c:GetCollisionObjectType()
-        assert(kind==BLOCK_VOLUME,'SB\'s profile '..PROFILE..' did not take: object type '..tostring(kind))
-        d.read=string.format('object type %s, collision %s',tostring(kind),c:K2_IsCollisionEnabled() and 'on' or 'off')
-    end)
-    if not ok then
-        Actors.remove(d)
-        error(why,0)
-    end
-    return d
-end
--- A wall of wall() gone: true when its actor was still the one made and K2_DestroyActor was called, false when it is
--- gone already, with its world or before. Never a call on another object.
-function Engine.unwall(d)
-    if not Actors.same(d.actor,d.path) then return false end
-    Actors.remove(d)
-    return true
-end
--- A wall an earlier Lua load made, by its actor's path: destroyed, and true, only while that actor's root still shows
--- the cube.
-function Engine.wall_swept(path) return Actors.sweep(path,CUBE)==true end
 -- A room's pieces (world/maps/sboxion/rooms/rooms.lua): a component of one of SB's art sublevels, or one instance of
 -- an instanced component, in a room's doorway. All of it was read on build 26123051. None of it has run in game.
 -- The path. The level dumps give a component's outers: the package /Game/Art/BG/WorldMap/SubLevel/E04/<sublevel>,

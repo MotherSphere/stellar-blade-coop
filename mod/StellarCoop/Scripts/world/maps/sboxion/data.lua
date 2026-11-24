@@ -17,9 +17,10 @@ D.ROWS={
     {'WorldTable',D.WORLD,D.WORLD_ID,{{'UMapPath','s',D.UMAP..'.Xion_P',true}}},
     {'ZoneTable',D.ZONE,D.ZONE_ID,{{'WorldAlias','n',D.WORLD,true},{'ZoneType','e',5,false}}},
 }
--- Where EVE arrives: the root transform of two of SB's own points in E04_LD_Respawn. That level is not loaded in SBO
--- Xion, so the native part writes the location into the warp itself. city is SBSpawnPoint_Xion_Camp_10_02, where the
--- day volume E04_Area_02_Global_ENV_01 wins alone. gate is Xion_Camp_10_01_SV, where E04_Area_01_Global_ENV_03 does.
+-- Where EVE arrives: the root transform of two of SB's own points in E04_LD_Respawn. The paks of 2026-11-23 and of the
+-- rooms do not load that level. The full test pak does. The native part writes the location into the warp itself with
+-- each pak. city is SBSpawnPoint_Xion_Camp_10_02, where the day volume E04_Area_02_Global_ENV_01 wins alone. gate is
+-- Xion_Camp_10_01_SV, where E04_Area_01_Global_ENV_03 does.
 D.ARRIVALS={
     city={X=-8303.969,Y=7201.06,Z=225.0,Yaw=-233.43753},
     gate={X=-23392.768,Y=17287.305,Z=1285.3723,Yaw=-8.409791},
@@ -66,13 +67,30 @@ D.DAY={
 -- The volume of E04_Area02_Light_A_01 that ties with E04_Area_01_Global_ENV_01 at Priority 100. It is logged and left
 -- as it is.
 D.TIED='CountDown_Posing_ENV'
--- The two streaming levels the pak leaves volume streamed, as shipped. Every other listed level is always loaded.
+-- The two probe levels of the test of 2026-11-23: the only levels the paks of 2026-11-23 and of the rooms leave volume
+-- streamed, as shipped. The watch reads them each second.
 D.PROBES={'E04_DistantView_A_01','E04_DistantView_A_03'}
+-- Every level a pak leaves volume streamed, as shipped (LevelStreamingDynamic with the volumes it names in E04): the 34
+-- 'dynamic' levels of the full test pak's set file (full-sets.json, private to the map tools). Its
+-- build read the same 34 slots back from the pak. The two probes are among them. The paks of 2026-11-23 and of the
+-- rooms list only those two of them. Every other listed level is always loaded: 93 with the first pak, 98 with the
+-- rooms pak, 127 with the full test pak.
+D.VOLUMED={
+    'E04_Area01_A_LD','E04_Area01_A_LD_UnLoad','E04_Area02_A_LD','E04_Area02_A_LD_UnLoad','E04_Area03_A_LD',
+    'E04_Area03_A_LD_UnLoad','E04_Area04_A_LD','E04_Area04_A_LD_UnLoad','E04_Area04_B_LD','E04_Area04_B_LD_UnLoad',
+    'E04_Area04_C_LD','E04_Area04_C_LD_UnLoad','E04_Area05_A_LD','E04_Area05_A_LD_UnLoad',
+    'E04_Area05_Architecture_C_01','E04_Area05_Architecture_C_02','E04_Area05_B_LD','E04_Area05_B_LD_UnLoad',
+    'E04_Area05_C_LD','E04_Area05_C_LD_UnLoad','E04_Area06_A_LD','E04_Area06_A_LD_UnLoad',
+    'E04_Area06_Architecture_A_01_Battle','E04_Area06_Foliage_A_01_Peace','E04_Area06_Light_A_00','E04_Area07_A_LD',
+    'E04_Area07_A_LD_UnLoad','E04_Area07_Architecture_A_01','E04_Area07_Architecture_A_02',
+    'E04_Area07_Architecture_B_01','E04_Area07_FX_A_01','E04_Area07_Light_A_00','E04_DistantView_A_01',
+    'E04_DistantView_A_03'}
 -- Falls and deaths (world/maps/sboxion/recover.lua). FLOOR: EVE under this Z has fallen out of the city. It is the top
 -- of SB's largest fall volume, SBEffectVolume_Xion10_04 of E04_Area01_A_LD_Visible (centre Z -11000, scale Z 77.25, a
--- cube brush of half size 100), which lies under the whole upper city. That level is not loaded in SBO Xion, so only
--- its number is used. It is 1410 cm under SBSpawnPoint43 of E04_LD_Respawn (Z -1865.14), the lowest spawn point of
--- the upper city.
+-- cube brush of half size 100), which lies under the whole upper city. Only its number is used: the paks of
+-- 2026-11-23 and of the rooms do not load that level. The full test pak does, with that volume's row active in
+-- Zone_Xion_10 only. It is 1410 cm under SBSpawnPoint43 of E04_LD_Respawn (Z -1865.14), the lowest spawn point of the
+-- upper city.
 D.FLOOR=-3275
 -- LIFT: how far above its target a put-back places EVE, the module's own value. Both kinds of target are the centre of
 -- a capsule: a ground point is where her own capsule stood and an arrival point is the root of a spawn point, its
