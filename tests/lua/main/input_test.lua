@@ -194,7 +194,7 @@ end)()
     clock=clock+0.0625; hover(3); assert(focus()=='Host a session','Every 100 ms only')
     clock=clock+0.0625; hover(3); assert(focus()=='Find a session')
     sounds=#kit_sounds
-    for _,i in ipairs({5,14,false}) do clock=clock+0.125; hover(i or nil) end
+    for _,i in ipairs({5,15,false}) do clock=clock+0.125; hover(i or nil) end
     assert(focus()=='Find a session' and #kit_sounds==sounds,'A header, an empty slot, no row: nothing')
     -- Clicks: on a header or no row nothing; on a row, that row selected (Options opens its page), wherever the keys
     -- left the focus.

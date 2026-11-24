@@ -458,8 +458,15 @@ package.loaded['fight.bosses.leviathan']={new=function(o)
     return {commands=commands,
         restore=function() lv.restores=lv.restores+1 end,
         tick=function() lv.ticks=lv.ticks+1; if lv.says then return table.unpack(lv.says) end end,
-        stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
-end}
+        stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end,
+        shown=function() if lv.shown then return lv.shown[1],lv.shown[2] end end,
+        skin=function() return 'default' end}
+end,
+-- The creatures' show and skin words, for the cut models' page (fight/bosses/ui/viewer.lua; its own test has the real
+-- ones).
+CREATURES={leviathan={meshes={'body','a'},skins={{'statue','x'}}},gardener={meshes={'body'},skins={}},
+    tendril={meshes={'body'},skins={}},mann={meshes={'body'},skins={}},nier={meshes={'square'},skins={}},
+    orcal={meshes={'test1'},skins={}},enya={meshes={'mech'},skins={}}}}
 -- coop lion (fight/bosses/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and
 -- stops, what a tick says, a tick that raises, the seconds a tick takes on the fake clock (cost); its rows (the shop's
 -- cut items, with the batch word it was given) answer done at once.
@@ -1086,7 +1093,7 @@ function load_main(with_native,no_folder,source)
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     sp.o,sp.ticks,sp.frames,sp.switches,sp.watching=nil,{},0,{},false
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
-    lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
+    lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming,lv.shown=nil,{},0,0,0,nil,nil,nil
     li.o,li.cmds,li.ticks,li.stops,li.says,li.raise=nil,{},0,0,nil,nil
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil

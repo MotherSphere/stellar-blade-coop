@@ -43,8 +43,8 @@ assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_soun
 assert(lv.o.blocked()==true,'coop leviathan\'s free camera reads no key while the menu is open')
 assert(screen()=='SESSION||disabled\nHost a session||focus\nFind a session||normal\nJoin with a code||normal\n'
     ..'SETTINGS||disabled\n'
-    ..'Options||normal\nTEST TOOLS||disabled\nEVE\'s cut moves||normal\nDeveloper menu||normal\nHELP||disabled\n'
-    ..'Guide||normal\n'
+    ..'Options||normal\nTEST TOOLS||disabled\nEVE\'s cut moves||normal\nDeveloper menu||normal\nCut models||normal\n'
+    ..'HELP||disabled\nGuide||normal\n'
     ..'Write a bug report||normal\nClose||normal',screen())
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
@@ -505,8 +505,8 @@ clock=clock+1
 key('F5'); assert(kit_said('show true') and logged('key F5: menu'),'The menu key\'s default, at once')
 key('ESCAPE')
 settings_text='menu_key=F11\nrace_key=F2\n'
-local ALL='[StellarCoop] OK: menu_key=F5 host_key=none status_key=F6 leave_key=F8 follow_key=F7 race_key=F9 bike_key=F3 '
-    ..'emote_key=F2: every key at its default\n'
+local ALL='[StellarCoop] OK: menu_key=F5 host_key=none status_key=F6 leave_key=F8 follow_key=F7 race_key=F9 '
+    ..'bike_key=F3 emote_key=F2: every key at its default\n'
 coop('keys','reset'); assert(last()==ALL,last())
 settings_text='race_key=F2\n'
 coop('keys','reset','all'); assert(last()==ALL and settings_text:find('race_key=F9\n',1,true))
@@ -805,8 +805,8 @@ end)()
     load_main(true)
     kit_ready=true; quarter()
     key('F5')
-    assert(screen():find('TEST TOOLS||disabled\nEVE\'s cut moves||normal\nDeveloper menu||normal\nHELP||disabled',1,
-        true),screen())
+    assert(screen():find('TEST TOOLS||disabled\nEVE\'s cut moves||normal\nDeveloper menu||normal\n'
+        ..'Cut models||normal\nHELP||disabled',1,true),screen())
     to("EVE's cut moves"); key('RETURN')
     assert(menu_view.title.s=="EVE's cut moves" and screen()=='Debug flight|Off|focus\nSlow motion|Off|normal\n'
         ..'Glide|Off|normal',screen())
@@ -832,6 +832,15 @@ end)()
     assert(asked[#asked]=='devinfo quest' and select(2,focus())=='Quests')
     key('ESCAPE')
     assert(focus()=='Developer menu')
+    -- The cut models' page (fight/bosses/ui/viewer.lua): Show asks coop leviathan show body, and reads what is shown.
+    key('DOWN_ARROW'); key('RETURN')
+    assert(menu_view.title.s=='Cut models' and screen()=='Model|Leviathan|focus\nPart|body|normal\n'
+        ..'Skin|default|normal\nShow|Nothing shown|normal\nFree camera|Off|normal\nRemove||normal',screen())
+    to('Show'); lv.shown={'leviathan','body'}; key('RETURN')
+    assert(lv.cmds[#lv.cmds].who=='leviathan' and lv.cmds[#lv.cmds][1]=='show' and lv.cmds[#lv.cmds][2]=='body'
+        and select(2,focus())=='Leviathan body')
+    key('ESCAPE')
+    assert(focus()=='Cut models')
     key('ESCAPE')
     in_world,kit_ready,status_text=false,false,plain
 end)()

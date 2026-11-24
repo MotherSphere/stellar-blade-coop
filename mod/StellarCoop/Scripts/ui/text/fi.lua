@@ -445,5 +445,5 @@ return {
         player='Pelaajan tiedot'},
         viewer={title='Poistetut mallit',model='Malli',part='Osa',skin='Ulkoasu',show='Näytä',cam='Vapaa kamera',
         remove='Poista',nothing='Ei mitään näkyvissä',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
-        mann='Mann',nier='NieR-kone',orcal='Orcalin prototyyppi',enya='Enyan prototyyppi'}},
+        mann='Mann',nier='NieR-kone',orcal='Orcal-prototyyppi',enya='Enya-prototyyppi'}},
 }

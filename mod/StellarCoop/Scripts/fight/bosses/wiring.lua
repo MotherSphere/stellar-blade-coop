@@ -1,10 +1,11 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The cut enemies' wiring (fight/bosses/): coop lion, coop gardener fight, coop tendril fight, the model viewer.
+-- The cut enemies' wiring (fight/bosses/): coop lion, coop gardener fight, coop tendril fight, the model viewer and its
+-- page.
 return {
 uses={'online.session','online.saves'},
-exports={'lion','gardener','tendril','leviathan'},
+exports={'lion','gardener','tendril','leviathan','viewer_page'},
 new=function(M)
 local print,log=M.print,M.log
 -- coop lion (fight/bosses/lion.lua), logging [LI] lines: its rows asked of the native part, its status read back. Night
@@ -28,6 +29,8 @@ M.leviathan=require('fight.bosses.leviathan').new({
         return M.menu~=nil and (M.menu.is_open() or M.box.is_open() or M.code_box.is_open() or M.approval.is_open()
             or M.saves_ui.is_open() or M.open_screen()~=nil)
     end})
+-- The co-op menu's TEST TOOLS page of the model viewer (fight/bosses/ui/viewer.lua).
+M.viewer_page=require('fight.bosses.ui.viewer').new({run=function(...) return M.run(...) end,leviathan=M.leviathan})
 return require('fight.bosses.commands').new({coop_slot=M.coop_slot,leviathan=M.leviathan,lion=M.lion,
     gardener=M.gardener,
     tendril=M.tendril})
