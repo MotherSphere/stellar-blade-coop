@@ -337,6 +337,8 @@ data/
   teamshop/                 one file per team member: their ID ranges and team shop items, the one source of
                             tools/teamshop_rows.py
 tools/
+  compat/                   cns_coop_saves.py lets the CNS outfit mod see the unlocks on the co-op saves (see
+                            tools/compat/README.md)
   gunmode/                  the Blender and Unreal scripts that made an earlier gun mode build's standing rifle set;
                             rebuild/ holds the Windows scripts that build the rifle layer's test pak and send test input
   install.py                checks, build, install, uninstall, release zip

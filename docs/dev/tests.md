@@ -2005,6 +2005,14 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `tools/install.py` faked;
 - `save_read_test.py`: `tools/save_read.py` on GVAS bodies built in the test (the header, values, containers, the EVAS
   wrapper's checks, the byte-or-name guess, value paths) and its commands on saves in a temporary folder;
+- `cns_coop_saves_test.py`: `tools/compat/cns_coop_saves.py` on a stand-in for CNS's `main.lua` written for the test,
+  with its own hash and insertion lines. No line of CNS is needed. It covers the apply with its backup, a second apply
+  that changes nothing, the remove back to the same bytes and the check of each state. A file of another hash is
+  refused by each command. Apply and remove refuse while the game runs. A remove after a line of the stand-in changed
+  restores the shipped backup, or refuses without one. Then the stand-in with both blocks runs in Lua 5.4 on temporary
+  saves: solo save only, co-op copy only (the fallback), both (the union, the first path put back), neither, the cache
+  reset. On a PC with CNS v2.2 installed, a copy of its `main.lua` goes through apply, a Lua load and remove. Without
+  it, the test says so;
 - `story_lines_test.py`: `tools/story_lines.py` on an invented 29-line example with a known digest, on
   `story_case.json` against `story_case.txt`, on what must leave the digest alone, and its commands on saves and dump
   files in a temporary folder. It also checks `float_repr.txt`, Python's `repr` of 2,331 doubles for the Lua side;
