@@ -78,4 +78,13 @@ D.STREAK,D.JUMP=4,1500
 -- long the respawn is tried for and how long after its call the result is read. SCREEN, of real time: after it the
 -- respawn is asked with no death screen playing.
 D.CHECK,D.TRY,D.AFTER,D.SCREEN=3,10,2,5
+-- The black over a put-back (recover.lua's black, engine.lua's call). By the values its code falls back to
+-- (0x141b1b8e0 on build 26123051: ActorShowUI_FadeIn 0.3, ActorShowUI_Duration 2.0, ActorShowUI_FadeOut 0.5), SB's own
+-- fall warp fades its loading widget to black over 0.3 s, lets it stand 2.0 s and fades the picture back over 0.5 s.
+-- It moves EVE under it, WaitTimeToWarpSafeLocation after the start (0.4 s by the default at 0x1425f4cdb). BLACK_IN
+-- and BLACK_OUT, s: SB's two fades. BLACK, s: how long the black stands once it is full, shorter than SB's 2.0: SB
+-- keeps EVE still under its black with three actor states (set at 0x141bb1e40) and this module sets none. LEAD,
+-- passes: how long after the black is asked a first put-back moves EVE. The black is full after 0.3 s and a pass comes
+-- every 0.25 s.
+D.BLACK_IN,D.BLACK,D.BLACK_OUT,D.LEAD=0.3,1,0.5,2
 return D

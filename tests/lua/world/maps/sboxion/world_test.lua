@@ -10,7 +10,8 @@
 -- line and the characters; nothing read in another map; a second arrival writes again; a probe level's change logged
 -- once; a waypoint logged once a visit; the watch ended by a map change and by coop off. The recovery
 -- (world/maps/sboxion/recover.lua): ticked only in SBO Xion, reset at each arrival with the point coop xion asked, fed
--- by the engine's read of EVE and not by me(), ended by a map change and by coop off, each showing again a death
+-- by the engine's read of EVE and not by me(), SB's black asked through the module's own wiring at a fall with the
+-- move two passes later, ended by a map change and by coop off, each showing again a death
 -- screen the recovery hid; coop xion recover refused out of SBO Xion, its three modes inside, the mode death back to
 -- on at the next arrival and the recovery's part of the status.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -133,6 +134,7 @@ world.move=function()
     return {at={X=p.X,Y=p.Y,Z=p.Z},yaw=30,mode=her_mode,time=clock,pawn=0x7000}
 end
 world.put=function(to,yaw) puts[#puts+1]={at=to,yaw=yaw}; her_at,her_mode={X=to.X,Y=to.Y,Z=to.Z},1; return true end
+world.black=function() count('black'); return true end -- SB's black over a put-back: SB made it.
 -- The respawn's fakes: SB's request sets the life word to 1; the death screen plays until hidden.
 local PC,respawns,screen_shown={},{},true
 world.controller=function() return PC end
@@ -301,9 +303,15 @@ her_at={X=3000,Y=-9000,Z=1222}
 pass(x,1)
 her_at,her_mode={X=3931,Y=-9086,Z=-3400},3
 pass(x,0.25)
+-- recovery_black: the module's own wiring hands the recovery the engine's black. It is asked at the catch and the move
+-- comes two passes later.
+assert(calls.black==1 and #puts==0 and logs[#logs]=='sboxion: black: up in 0.3 s; EVE at (3931, -9086, -3400) moves '
+    ..'in 2 passes',logs[#logs])
+pass(x,0.5)
 assert(logs[#logs]=='sboxion: fall: EVE at (3931, -9086, -3400) under the floor, mode 3, life ?: to the ground point '
-    ..'(3000, -9000, 1222) read 1.0 s ago',logs[#logs])
+    ..'(3000, -9000, 1222) read 1.5 s ago',logs[#logs])
 assert(#puts==1 and puts[1].at.X==3000 and puts[1].at.Y==-9000 and puts[1].at.Z==1232 and puts[1].yaw==30)
+assert(calls.black==1,'One black a put-back')
 pass(x,0.25)
 assert(logs[#logs]=='sboxion: put back: EVE walks at (3000, -9000, 1232), 0.2 s after the move',logs[#logs])
 her_at=nil
@@ -312,14 +320,14 @@ her_at=nil
 me=at({X=kaya.X+300,Y=kaya.Y+400,Z=kaya.Z})
 ok,why=x.status()
 assert(ok and why:find('rows in; sboxionwarp=refused asks=2 verb=leave why=zone; EVE at (-7877, -1413, 44), nearest '
-    ..'waypoint kaya 5.0 m; recovery on, ground (3000, -9000, 1222) 1.2 s old, failures 0',1,true)
+    ..'waypoint kaya 5.0 m; recovery on, ground (3000, -9000, 1222) 1.8 s old, failures 0',1,true)
     and why:find('^sboxion: pak %d+_4096; '),why)
 -- coop xion recover: the three modes, said in the log too; alone, the recovery's state; another word refused.
 ok,why=x.recover('death')
 assert(ok and why=='coop xion recover: recovery mode death: falls are not caught, deaths are'
     and logs[#logs]=='sboxion: recovery mode death: falls are not caught, deaths are',why)
 ok,why=x.recover()
-assert(ok and why=='coop xion recover: recovery death, ground (3000, -9000, 1222) 1.2 s old, failures 0',why)
+assert(ok and why=='coop xion recover: recovery death, ground (3000, -9000, 1222) 1.8 s old, failures 0',why)
 ok,why=x.recover('off')
 assert(ok and x.status and select(2,x.status()):find('; recovery off, ',1,true),why)
 ok,why=x.recover('up')
@@ -333,8 +341,8 @@ assert(not ok and why=='coop xion: EVE is in SBO Xion already; way out: coop xio
 -- next arrival writes the day table again.
 her_at,her_mode={X=0,Y=0,Z=-5000},3
 world.put=function(to,yaw) puts[#puts+1]={at=to,yaw=yaw}; return true end -- She keeps falling after this one.
-pass(x,0.25)
-assert(#puts==2,'A fall right before the map change')
+pass(x,0.75) -- The black, then the move two passes later.
+assert(#puts==2 and calls.black==2,'A fall right before the map change')
 assert(x.recover('death')) -- The stay ends in the mode death: the next arrival sets it back to on.
 her_at,her_mode=nil,1
 local reads=total()

@@ -870,18 +870,25 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   is read. A second arrival writes again. A change of a probe level is logged once. A waypoint is logged after 5 s
   within 3 m, once a visit. A map change, a loading screen and `coop off` end the watch. The recovery is ticked only
   in SBO Xion. Each arrival starts it again with the arrival point `coop xion` asked. Its ground point and its fall
-  line hold the engine's read of EVE when `me()` names another place. A `life=3` word gets the respawn asked with
-  the GUID of the `engine=` line. A death screen it hid is shown again at a map change and at `coop off`. `coop xion
-  recover` is refused outside SBO Xion, sets each of its three modes inside and prints the state alone. A stay left in
-  the mode `death` is followed by an arrival in the mode `on`. `coop xion status` ends with the recovery's part inside
-  SBO Xion only;
+  line hold the engine's read of EVE when `me()` names another place. At that fall SB's black is asked once through
+  the module's own wiring, nothing moves in that pass and the move comes two passes later. A `life=3` word gets the
+  respawn asked with the GUID of the `engine=` line. A death screen it hid is shown again at a map change and at
+  `coop off`. `coop xion recover` is refused outside SBO Xion, sets each of its three modes inside and prints the
+  state alone. A stay left in the mode `death` is followed by an arrival in the mode `on`. `coop xion status` ends
+  with the recovery's part inside SBO Xion only;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
-  EVE under Z -3275 goes to the ground point plus 10 cm with its yaw, or to the arrival point with no ground point.
-  Nothing moves while a guard waits (no EVE, photo mode, a cutscene, a warp, another zone or zone type), while her
-  life reads 3 to 5 or in the modes `death` and `off`. Without a `warp=` word the fall is still caught. It is caught
-  too with `theater=fault` and with `zonetype=0` beside SBO Xion's area. The check: a walking read within 3 s of world
+  with EVE under Z -3275 SB's black is asked (0.3 s in, 1 s black, 0.5 s out) and nothing moves in that pass. Two
+  passes later she goes to the ground point plus 10 cm with its yaw, or to the arrival point with no ground point.
+  A black that raises, that SB did not make or whose handle did not read changes one log line and not the move. The
+  move is held back like a check while a guard waits or the world's time stands still. The mode `off`, an arrival, a
+  stop, a death that starts and an error in a pass drop it. After a failure the move is made at once, then a black
+  that is up at once, none after a refused teleport. One black is asked a put-back, the one after a respawn
+  included. Nothing moves and no black is asked while a guard waits (no EVE, photo mode, a cutscene, a warp, another
+  zone or zone type), while her life reads 3 to 5 or in the modes `death` and `off`. Without a `warp=` word the fall
+  is still caught. It is caught too with `theater=fault` and with `zonetype=0` beside SBO Xion's area. The check: a
+  walking read within 3 s of world
   time is the success, 6 s of passes on one world time run nothing out, 24 passes in 0.75 s of world time are no
   failure, three passes of 1 s each are one, a refused teleport sends the next try to the arrival point, the second
   failure stops the recovery with no third call, the mode word starts it again, an error in a pass counts as a

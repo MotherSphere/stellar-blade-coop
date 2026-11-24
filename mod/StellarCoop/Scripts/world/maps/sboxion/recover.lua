@@ -15,20 +15,26 @@
 -- she walks (mode 1 or 2) at or above data.lua's FLOOR joins a streak. The oldest of STREAK passes in a row is the
 -- ground point: a place she walked on, at most 1 s old. A jump, a fall, a guard that waits or a step of more than
 -- JUMP cm between two passes starts the streak again and keeps the point. An arrival drops it.
--- The fall: with EVE under FLOOR the part calls world.put (K2_TeleportTo, then StopMovementImmediately) to the ground
--- point plus LIFT cm, facing the point's yaw. With no ground point, or after a failure, the target is the arrival
--- point of the stay. The first walking read within CHECK s of the world's time is the success. A refused teleport
--- or CHECK s without that read is a failure. A success and a full streak set the failures to 0. Two failures with
--- neither between them stop the recovery until the next arrival or coop xion recover on. An error in a pass counts
--- as a failure, so an error on every pass is logged twice.
--- The guards: no EVE, photo mode and a theater= word of the status text's engine line other than none. When that
--- line has a warp= word: a warp under way, another zone or another zone type than SBO Xion's. Two words are no guard,
--- since each can stay for the whole game run. theater=fault: the native theater read faulted and is off
+-- The fall: with EVE under FLOOR the part asks SB's black (world.black), the fade SB's own fall warp shows: to black
+-- over BLACK_IN s, black for BLACK s, back to the picture over BLACK_OUT s. LEAD passes later it calls world.put
+-- (K2_TeleportTo, then StopMovementImmediately) to the ground point plus LIFT cm, facing the point's yaw, so the move
+-- is made under the black. The move never waits for the black: it is made at that pass whatever the black's call did. A
+-- call that raised, no loading screen and a handle that did not read each give one log line. With no ground point, or
+-- after a failure, the target is the arrival point of the stay. After a failure the move is made in the pass that reads
+-- her under FLOOR. A black that is up at once is asked after it, only when the game took the teleport. SB ends each
+-- black by itself, so the part keeps nothing of it and has nothing to lift. The first walking read within CHECK s of
+-- the world's time is the success. A refused teleport or CHECK s without that read is a failure. A success and a full
+-- streak set the failures to 0. Two failures with neither between them stop the recovery until the next arrival or coop
+-- xion recover on. An error in a pass counts as a failure, so an error on every pass is logged twice.
+-- The guards: no EVE, photo mode and a theater= word of the status text's engine line other than none. When that line
+-- has a warp= word: a warp under way, another zone or another zone type than SBO Xion's. Two words are no guard, since
+-- each can stay for the whole game run. theater=fault: the native theater read faulted and is off
 -- (native/src/glue/tick/status.inc). zonetype=0 beside SBO Xion's area: the native zone row read faulted, has not run
 -- yet or found no row (native/src/online/group/warp_game.inc). SBO Xion has no cutscene and area= names the zone. A
 -- pass that waits moves nothing and empties the streak. A put-back being checked keeps its time. Passes on which the
--- world's time did not move are skipped, so a world that stands still uses up no CHECK. Without a warp= word
--- (online/group's native read is off) falls are still caught.
+-- world's time did not move are skipped, so a world that stands still uses up no CHECK. A move that waits under the
+-- black counts neither kind of pass, so it can come after the black is over. Without a warp= word (online/group's
+-- native read is off) falls are still caught.
 -- The death: SB's own death screen cannot bring EVE back here. In a standalone game its respawn 0x141e47070 calls the
 -- camp respawn 0x141cdb440, which compares the world of the save's camp zone with the world of the current zone. For
 -- another world it takes 0x141cdfbd0 to the zone warp 0x141cdfe70, which returns 0 when the current zone's row is of
@@ -61,8 +67,8 @@ local MODES={on='falls are caught, deaths are',death='falls are not caught, deat
 local function place(at) return string.format('(%.0f, %.0f, %.0f)',at.X,at.Y,at.Z) end
 
 -- o: log(m), status() the native status text, photo() main/base.lua's photo_state ('0' out of photo mode; optional)
--- and world, the engine calls (world/maps/sboxion/engine.lua's move, put, controller, standalone, respawn, screen and
--- hide; a fake in the tests).
+-- and world, the engine calls (world/maps/sboxion/engine.lua's move, put, black, controller, standalone, respawn,
+-- screen and hide; a fake in the tests).
 function Recover.new(o)
     local log,world=o.log,o.world
     local mode,stopped,fails,arrival='on',false,0,'city'
@@ -70,6 +76,7 @@ function Recover.new(o)
     local last,prev=nil,nil -- The world's time and EVE's place at the pass before.
     local waiting,bare=nil,false -- Why the passes wait; the missing warp= word was said.
     local check=nil -- A put-back being checked: {spent=<s of the world's time since it>}.
+    local lead=nil -- A first put-back that waits under SB's black: {left=<passes>, said=<its line's start>}.
     -- A death being handled, until the respawn's result line: {ticks=, said=, call=<the pass of the call>, before=}.
     local dead=nil
     local hidden=nil -- The call that shows the death screen this part hid.
@@ -86,7 +93,7 @@ function Recover.new(o)
         fails=fails+1
         log(string.format('%s: failure %d of %d',what,fails,MOST))
         if fails<MOST then return end
-        stopped,check,dead=true,nil,nil
+        stopped,check,dead,lead=true,nil,nil,nil
         log('recovery stopped after '..MOST..' failures in a row; coop xion recover on starts it again; way out: coop '
             ..'xion leave')
         if hidden then show('the recovery stopped') end -- No pass reads a new death from here on.
@@ -107,6 +114,25 @@ function Recover.new(o)
         if world.put({X=to.at.X,Y=to.at.Y,Z=to.at.Z+D.LIFT},to.yaw)==false then
             fail('put back refused by K2_TeleportTo')
         else check={spent=0} end
+    end
+    -- SB's black for a put-back (world.black), asked once and never waited for: SB ends it by itself. fade: the s it
+    -- fades in over, 0 for a black that is up at once. tail: the end of its line.
+    local function black(fade,tail)
+        local ok,up=pcall(world.black,D.BLACK,fade,D.BLACK_OUT)
+        log('black: '..(not ok and 'not shown: '..U.why(up) or up==false and 'not shown: SB made no loading screen'
+            or up==nil and 'asked, its handle did not read' or fade>0 and string.format('up in %.1f s',fade)
+            or 'up at once')..tail)
+    end
+    -- A put-back is due. With no failure counted: SB's order, its black first and the move LEAD passes later, under
+    -- it, whatever the black did. After a failure: the move in this pass, then a black that is up at once.
+    local function due(m,said)
+        if fails>0 then
+            put(m,said)
+            if check then black(0,'') end -- check is set: the game took the teleport.
+            return
+        end
+        black(D.BLACK_IN,string.format('; EVE at %s moves in %d passes',place(m.at),D.LEAD))
+        lead={left=D.LEAD,said=said}
     end
     -- Why this pass waits, or nil. line: the status text's engine line.
     local function guard(m,line)
@@ -190,7 +216,7 @@ function Recover.new(o)
         log(said)
         if not alive or not m then return end
         if GROUND[m.mode] and m.at.Z>=D.FLOOR then fails=0
-        elseif not waits then put(m,'death: EVE at '..place(m.at)..' not on the ground') end
+        elseif not waits then due(m,'death: EVE at '..place(m.at)..' not on the ground') end
     end
     local function tick()
         passes=passes+1
@@ -214,7 +240,7 @@ function Recover.new(o)
         local down=life~=nil and life>=3 and life<=5
         if hidden and down then show('a new death') end
         if down and not dead and not reason and mode~='off' then
-            dead,check={ticks=0},nil
+            dead,check,lead={ticks=0},nil,nil
             log(string.format('death: life %d, EVE at %s',life,place(m.at)))
         end
         if dead then return respawn(m,line,life,reason~=nil) end
@@ -245,8 +271,17 @@ function Recover.new(o)
             end
             return
         end
+        if lead then -- Counted like a check: not on a pass that waits, not while the world's time stands still.
+            lead.left=lead.left-1
+            if lead.left<=0 then
+                local said=lead.said
+                lead=nil
+                put(m,said)
+            end
+            return
+        end
         if mode=='on' and m.at.Z<D.FLOOR then -- Her life is not 3 to 5 here: in the mode on that returned above.
-            put(m,string.format('fall: EVE at %s under the floor, mode %s, life %s',place(m.at),tostring(m.mode),
+            due(m,string.format('fall: EVE at %s under the floor, mode %s, life %s',place(m.at),tostring(m.mode),
                 life or '?'))
         end
     end
@@ -255,7 +290,7 @@ function Recover.new(o)
         if stopped then return end
         local ok,e=pcall(tick)
         if not ok then
-            check,dead=nil,nil
+            check,dead,lead=nil,nil,nil
             fail('recovery: error ('..U.why(e)..')')
         end
     end
@@ -263,13 +298,13 @@ function Recover.new(o)
     -- before.
     function self.arrive(name)
         mode,stopped,fails,arrival='on',false,0,D.ARRIVALS[name] and name or 'city'
-        ring,point,first,last,prev,waiting,bare,check,dead={},nil,false,nil,nil,nil,false,nil,nil
+        ring,point,first,last,prev,waiting,bare,check,dead,lead={},nil,false,nil,nil,nil,false,nil,nil,nil
         log(string.format('recovery on: floor Z %d, arrival point %s %s',D.FLOOR,arrival,place(D.ARRIVALS[arrival])))
     end
-    -- A map change or coop off (reason): a put-back being checked and a respawn not asked yet are dropped and a death
-    -- screen this part hid is shown again.
+    -- A map change or coop off (reason): a put-back that waits under the black, one being checked and a respawn not
+    -- asked yet are dropped and a death screen this part hid is shown again.
     function self.stop(reason)
-        check,dead=nil,nil
+        check,dead,lead=nil,nil,nil
         if hidden then show(reason) end
     end
     -- One part of coop xion status.
@@ -284,7 +319,7 @@ function Recover.new(o)
         if word==nil then return true,self.status() end
         if not MODES[word] then return false,'Use: coop xion recover [on|death|off]' end
         mode=word
-        if word=='off' then check,dead=nil,nil else stopped,fails=false,0 end
+        if word=='off' then check,dead,lead=nil,nil,nil else stopped,fails=false,0 end
         local line='recovery mode '..word..': '..MODES[word]
         log(line)
         return true,line

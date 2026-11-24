@@ -4,8 +4,13 @@
 -- SBO Xion's falls and deaths (world/maps/sboxion/recover.lua) over a fake world and a fake status text. The ground
 -- point: three walking passes give none and four give the first of the four; a falling pass keeps it; a step of 2000 cm
 -- starts the streak again; walking under the floor and passes with one world time add nothing; a guard that waits
--- empties the streak. The fall: EVE under the floor goes to the ground point plus 10 cm with its yaw, or to the arrival
--- point with no ground point; nothing moves while a guard waits (no EVE, photo mode, a cutscene, a warp, another zone
+-- empties the streak. The fall: SB's black is asked at the pass that reads EVE under the floor (0.3 s in, 1 s black,
+-- 0.5 s out) and she goes two passes later to the ground point plus 10 cm with its yaw, or to the arrival point with no
+-- ground point; a black that raises, that SB did not make or whose handle did not read changes one log line and not
+-- the move; the move waits like a check while a guard waits or the world's time stands still; the mode off, an
+-- arrival, a stop, a death that starts and an error in a pass drop it; after a failure the move is made at once, then
+-- a black that is up at once, none after a refused teleport; one black a put-back, the one after a respawn included;
+-- nothing moves and no black is asked while a guard waits (no EVE, photo mode, a cutscene, a warp, another zone
 -- or zone type), while her life reads 3 to 5 or in the modes death and off; with no warp= word the fall is still caught
 -- and one line says so; the fault words theater=fault and zonetype=0 beside SBO Xion's area are no wait. The check: a
 -- walking read within 3 s of world time is a success and sets the failures to 0; 6 s of passes on one world time, then
@@ -31,11 +36,15 @@ package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Recover=require('world.maps.sboxion.recover')
 local D=require('world.maps.sboxion.data')
 assert(D.FLOOR==-3275 and D.LIFT==10 and D.STREAK==4 and D.JUMP==1500 and D.CHECK==3)
+assert(D.BLACK_IN==0.3 and D.BLACK==1 and D.BLACK_OUT==0.5 and D.LEAD==2)
 
 local IDLE='engine=on remote=0 0 none warp=idle me=2610 zonetype=5 area=Zone_SBO_Xion rest=0::0 starts=0 theater=none'
 local logs,puts={},{}
 local eve,photo,engine -- The fake EVE ({at=, yaw=, mode=, time=, pawn=}, or nil) and the status text's parts.
 local refuse,lands,broken=false,3,nil -- put: refused; the mode it leaves her in. move: raises with broken.
+-- SB's black: each call ({hold=, fade=, out=}); what it returns (true, false or nil), or the error it raises. order:
+-- the black and put calls as they came.
+local blacks,order,black_up,black_error={},{},true,nil
 local world={
     move=function()
         if broken then error(broken) end
@@ -43,9 +52,16 @@ local world={
     end,
     put=function(at,yaw)
         puts[#puts+1]={at=at,yaw=yaw}
+        order[#order+1]='put'
         if refuse then return false end
         eve.at,eve.yaw,eve.mode={X=at.X,Y=at.Y,Z=at.Z},yaw,lands
         return true
+    end,
+    black=function(hold,fade,out)
+        blacks[#blacks+1]={hold=hold,fade=fade,out=out}
+        order[#order+1]='black'
+        if black_error then error(black_error) end
+        return black_up
     end,
 }
 -- The respawn's fakes: the controller, the standalone test, SB's request (revive: the life it leaves, or nil) and the
@@ -73,6 +89,7 @@ world.hide=function()
 end
 local function fresh(at)
     logs,puts={},{}
+    blacks,order,black_up,black_error={},{},true,nil
     eve={at=at or {X=0,Y=0,Z=225},yaw=90,mode=1,time=500,pawn=0x7000}
     photo,engine,warp_line,refuse,lands,broken='0',IDLE,'sboxionwarp=entered asks=1 life=1',false,3,nil
     pc,standalone,respawns,revive,there,playing,visible,looks=PC,true,{},nil,true,false,true,0
@@ -142,16 +159,25 @@ r=fresh({X=0,Y=0,Z=D.FLOOR})
 walk(r,4)
 assert(r.status():find('ground (100, 0, -3275)',1,true) and #puts==0,r.status())
 
--- fall_to_ground: under the floor she goes to the ground point plus 10 cm, facing its yaw.
+-- fall_to_ground: under the floor she goes to the ground point plus 10 cm, facing its yaw. black_lead: SB's black is
+-- asked at the pass that reads her under the floor (0.3 s in, 1 s black, 0.5 s out) and nothing moves. The move comes
+-- two passes later, with the fall line then.
 r=fresh()
 eve.yaw=40
 walk(r,6)
 eve.yaw=170 -- She turned while falling: the point's yaw is used.
 fall(-3275.5)
 pass(r)
+assert(#blacks==1 and blacks[1].hold==1 and blacks[1].fade==0.3 and blacks[1].out==0.5 and #puts==0,'The black first')
+assert(last()=='black: up in 0.3 s; EVE at (600, 0, -3276) moves in 2 passes' and not logged('fall:'),last())
+pass(r)
+assert(#puts==0,'One pass after the black: not yet')
+pass(r)
 assert(#puts==1 and puts[1].at.X==300 and puts[1].at.Y==0 and puts[1].at.Z==235 and puts[1].yaw==40,'To the point')
 assert(logged('fall: EVE at (600, 0, -3276) under the floor, mode 3, life 1: to the ground point (300, 0, 225) read '
-    ..'1.0 s ago'),last())
+    ..'1.5 s ago'),last())
+assert(last()=='fall: EVE at (600, 0, -3276) under the floor, mode 3, life 1: to the ground point (300, 0, 225) read '
+    ..'1.5 s ago' and #blacks==1 and table.concat(order,',')=='black,put','The black, then the move: '..last())
 -- The check: no second move while it runs; a walking read is the success.
 pass(r,2)
 assert(#puts==1 and not logged('put back'))
@@ -162,14 +188,14 @@ assert(r.status():find('failures 0',1,true))
 -- The ground point is kept through the fall: a second fall goes to a point again.
 walk(r,4)
 fall()
-pass(r)
+pass(r,3)
 assert(#puts==2 and puts[2].at.X==400 and puts[2].at.Z==245,'The new point')
 
 -- fall_no_point: with no ground point she goes to the stay's arrival point.
 r=fresh()
 r.arrive('gate')
 fall()
-pass(r)
+pass(r,3)
 assert(#puts==1 and puts[1].at.X==-23392.768 and puts[1].at.Z==1285.3723+10 and puts[1].yaw==-8.409791)
 assert(last()=='fall: EVE at (0, 0, -3276) under the floor, mode 3, life 1: to the arrival point gate (-23393, 17287, '
     ..'1285), no ground point',last())
@@ -177,7 +203,7 @@ assert(last()=='fall: EVE at (0, 0, -3276) under the floor, mode 3, life 1: to t
 r=fresh()
 warp_line='sboxionwarp=entered asks=1'
 fall()
-pass(r)
+pass(r,3)
 assert(#puts==1 and logged('mode 3, life ?: to the arrival point city'),last())
 
 -- guards: nothing moves while one waits; each reason is said once; the streak is emptied.
@@ -198,9 +224,12 @@ for _,g in ipairs({
     g[2]()
     pass(r,8)
     assert(#puts==0 and times('recovery waits: '..g[1])==1 and not logged('fall:'),g[1]..': '..tostring(last()))
+    assert(#blacks==0,g[1]..': no black while a guard waits')
     eve=eve or {at=kept.at,yaw=90,mode=3,time=kept.time+2,pawn=0x7000}
     photo,engine='0',IDLE
     pass(r)
+    assert(#blacks==1 and #puts==0,g[1]..': the black at the first pass after the wait')
+    pass(r,2)
     assert(times('recovery waits no more')==1 and #puts==1,g[1]..': the fall is caught once the wait ends')
 end
 -- fault_words: theater=fault (the native theater read faulted and is off for the game run) and zonetype=0 beside SBO
@@ -211,7 +240,7 @@ for _,w in ipairs({{'theater=none','theater=fault'},{'zonetype=5','zonetype=0'}}
     assert(engine:find(' '..w[2],1,true))
     walk(r,6)
     fall()
-    pass(r)
+    pass(r,3)
     assert(#puts==1 and puts[1].at.X==300 and not logged('recovery waits'),w[2]..': '..tostring(last()))
 end
 -- A wait empties the streak: the point is not made of passes from before and after it.
@@ -230,7 +259,7 @@ engine='engine=on remote=0 0 none'
 walk(r,5)
 assert(times('recovery: the engine line has no warp= word: falls are caught, deaths are not')==1,last())
 fall()
-pass(r)
+pass(r,3)
 assert(#puts==1 and puts[1].at.X==200 and times('the engine line has no warp= word')==1,'Still caught, said once')
 
 -- Nothing moves while her life reads 3 to 5, or in the modes death and off.
@@ -240,6 +269,7 @@ for life=3,5 do
     fall()
     pass(r,1)
     assert(#puts==0 and not logged('fall:'),'life '..life)
+    assert(#blacks==0,'No black either, life '..life)
 end
 for _,word in ipairs({'death','off'}) do
     r=fresh()
@@ -248,9 +278,10 @@ for _,word in ipairs({'death','off'}) do
     fall()
     pass(r,20)
     assert(#puts==0 and not logged('fall:'),word)
+    assert(#blacks==0,'No black either: '..word)
     ok,line=r.mode('on')
     assert(ok and line=='recovery mode on: falls are caught, deaths are',line)
-    pass(r)
+    pass(r,3)
     assert(#puts==1,'On again: caught')
 end
 r=fresh()
@@ -263,7 +294,7 @@ assert(ok and line=='recovery on, no ground point, failures 0',line)
 r=fresh()
 walk(r,6)
 fall()
-pass(r)
+pass(r,3)
 pass(r,24,true)
 assert(#puts==1 and not logged('failure'),'A world that stands still runs no check out')
 eve.mode=1
@@ -275,7 +306,7 @@ assert(logged('put back: EVE walks at (300, 0, 235), 0.2 s after the move'),last
 r=fresh()
 walk(r,6)
 fall()
-pass(r)
+pass(r,3)
 eve.at.Z=100 -- Above the floor, still falling.
 for _=1,24 do eve.time=eve.time+0.03125; r.tick() end
 assert(#puts==1 and not logged('failure'),'24 passes in 0.75 s of world time run no check out')
@@ -285,7 +316,7 @@ assert(last()=='put back: EVE walks at (300, 0, 100), 1.0 s after the move',last
 r=fresh()
 walk(r,6)
 fall()
-pass(r)
+pass(r,3)
 eve.at.Z=100
 for _=1,2 do eve.time=eve.time+1; r.tick() end
 assert(not logged('failure'),'2 s of world time in two passes')
@@ -294,20 +325,23 @@ r.tick()
 assert(last()=='put back failed: EVE at (300, 0, 100), mode 3, 3 s after the move: failure 1 of 2',last())
 
 -- check_failed: no walking read in 3 s of world time is a failure; the next try goes to the arrival point.
+-- black_at_once: that try is made in the pass that reads her under the floor, then a black that is up at once.
 r=fresh()
 walk(r,6)
 fall()
-pass(r)
+pass(r,3)
 eve.at.Z=100 -- Above the floor, still falling.
 pass(r,11)
 assert(not logged('failure'))
 pass(r)
 assert(last()=='put back failed: EVE at (300, 0, 100), mode 3, 3 s after the move: failure 1 of 2',last())
-assert(r.status()=='recovery on, ground (300, 0, 225) 4.0 s old, failures 1',r.status())
+assert(r.status()=='recovery on, ground (300, 0, 225) 4.5 s old, failures 1',r.status())
 fall()
 pass(r)
 assert(#puts==2 and puts[2].at.X==-8303.969 and puts[2].at.Z==235 and puts[2].yaw==-233.43753,'The arrival point')
 assert(logged('to the arrival point city (-8304, 7201, 225), after a failure'),last())
+assert(#blacks==2 and blacks[2].hold==1 and blacks[2].fade==0 and blacks[2].out==0.5,'A black that is up at once')
+assert(table.concat(order,',')=='black,put,put,black' and last()=='black: up at once',last())
 -- A walking read sets the failures to 0: the next fall goes to a ground point again.
 eve.mode=1
 pass(r)
@@ -317,7 +351,7 @@ assert(r.status():find('failures 0',1,true),r.status())
 r=fresh()
 walk(r,6)
 fall()
-pass(r)
+pass(r,3)
 assert(#puts==1)
 fall() -- Still in mode 3 and under the floor again, at the place the put-back gave her.
 pass(r,11)
@@ -332,20 +366,23 @@ r=fresh()
 walk(r,6)
 refuse=true
 fall()
-pass(r)
+pass(r,3)
 assert(#puts==1 and last()=='put back refused by K2_TeleportTo: failure 1 of 2',last())
+assert(#blacks==1,'black_refused: the one black of the first try')
 pass(r)
 assert(#puts==2 and puts[2].at.X==-8303.969,'The second try goes to the arrival point')
+assert(#blacks==1 and table.concat(order,',')=='black,put,put','black_refused: no black after a refused teleport')
 assert(logs[#logs-1]=='put back refused by K2_TeleportTo: failure 2 of 2' and last()=='recovery stopped after 2 '
     ..'failures in a row; coop xion recover on starts it again; way out: coop xion leave',last())
 pass(r,40)
 assert(#puts==2 and times('recovery stopped')==1,'No third call')
+assert(#blacks==1,'lead_at_stop: no black and no move once the recovery stopped')
 assert(r.status():find('^recovery stopped, ground %(300, 0, 225%) %d+%.%d s old, failures 2$'),r.status())
 -- The mode word starts it again with the failures at 0.
 refuse=false
 ok,line=r.mode('on')
 assert(ok and r.status():find('^recovery on, .* failures 0$'),r.status())
-pass(r)
+pass(r,3)
 assert(#puts==3 and puts[3].at.X==300,'Caught again, to the ground point')
 -- An error in a pass is a failure too: two in a row stop the recovery, with two lines and no more.
 r=fresh()
@@ -371,13 +408,13 @@ assert(last()=='recovery: error (no world): failure 1 of 2' and not logged('reco
 walk(r,4)
 assert(r.status():find('ground (500, 0, 225)',1,true) and r.status():find('failures 0',1,true),r.status())
 fall()
-pass(r)
+pass(r,3)
 assert(#puts==1 and puts[1].at.X==500 and logged('to the ground point (500, 0, 225)'),last())
 -- An error in a pass drops a put-back being checked: the walking read after it is no success of that put-back.
 r=fresh()
 walk(r,6)
 fall()
-pass(r)
+pass(r,3)
 broken='no world'
 pass(r)
 broken=nil
@@ -390,7 +427,7 @@ for _,after in ipairs({1,3}) do
     r=fresh()
     walk(r,6)
     fall()
-    pass(r)
+    pass(r,3)
     eve.at.Z=100
     assert(#puts==1 and r.mode('off'))
     eve.mode=after
@@ -403,7 +440,7 @@ r=fresh()
 walk(r,6)
 refuse=true
 fall()
-pass(r,2)
+pass(r,4)
 assert(r.status():find('^recovery stopped'))
 refuse=false
 r.arrive('gate')
@@ -419,7 +456,7 @@ end
 r=fresh()
 walk(r,6)
 fall()
-pass(r)
+pass(r,3)
 r.arrive('city')
 eve.mode=1
 pass(r,20)
@@ -428,7 +465,7 @@ assert(#puts==1 and not logged('put back'),'Nothing of the check of the stay bef
 r=fresh()
 walk(r,6)
 fall()
-pass(r)
+pass(r,3)
 r.stop('a map change')
 eve.mode=1
 pass(r,20)
@@ -513,7 +550,7 @@ pass(r,9)
 assert(visible==false and last()=='respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 1',last())
 refuse=true
 fall()
-pass(r,2)
+pass(r,4)
 assert(r.status():find('^recovery stopped'),r.status())
 assert(visible==true,'The screen is shown again when the recovery stops')
 assert(logs[#logs-1]:find('^recovery stopped after 2') and last()=='respawn: death screen shown again (the recovery '
@@ -578,7 +615,7 @@ for _,word in ipairs({'on','death'}) do
     playing,revive=true,1
     eve.at.Z,eve.mode=-25367,3
     if word=='on' then -- The fall is caught first; here it leaves her falling, then SB's timer kills her.
-        pass(r)
+        pass(r,3)
         assert(#puts==1)
         eve.at.Z=-25367
     else pass(r,4) end
@@ -586,11 +623,19 @@ for _,word in ipairs({'on','death'}) do
     pass(r)
     assert(#respawns==1 and logged('death: life 3, EVE at ('..(word=='on' and 300 or 600)..', 0, -25367)'),last())
     pass(r,8)
-    local n=#puts
+    local n,b=#puts,#blacks
     assert(logs[#logs-1]=='respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 3',logs[#logs-1])
+    -- black_death: the put-back after the respawn shows the same fade and comes two passes later.
+    assert(last():find('^black: up in 0%.3 s; EVE at %(%d+, 0, %-25367%) moves in 2 passes$'),last())
+    assert(n==(word=='on' and 1 or 0) and b==n+1 and blacks[b].fade==0.3 and order[#order]=='black',word)
+    pass(r)
+    assert(#puts==n,'One pass after the black: not yet')
+    pass(r)
+    n=#puts
     assert(last():find('^death: EVE at %(%d+, 0, %-25367%) not on the ground: to the ground point %(300, 0, 225%) '),
         last())
     assert(puts[n].at.X==300 and puts[n].at.Z==235 and n==(word=='on' and 2 or 1),word)
+    assert(#blacks==b and order[#order]=='put','No second black for one put-back')
     eve.mode=1
     pass(r)
     assert(last():find('^put back: EVE walks at %(300, 0, 235%), 0.2 s after the move'),last())
@@ -600,7 +645,7 @@ r=fresh()
 walk(r,6)
 playing,revive=true,1
 die(500)
-pass(r,9)
+pass(r,11)
 assert(#puts==1 and logged('death: EVE at (600, 0, 500) not on the ground'),last())
 r=fresh()
 walk(r,6)
@@ -610,6 +655,7 @@ pass(r)
 photo='1'
 pass(r,8)
 assert(#puts==0 and logged('respawn result: life 3/1'),'No put-back while a guard waits')
+assert(#blacks==0,'No black either while a guard waits')
 
 -- still_dead: life still 3 two seconds after the call is a failure; the death starts again; the second stops the
 -- recovery, with two calls and no third. The mode word starts it again.
@@ -671,7 +717,7 @@ r=fresh()
 walk(r,6)
 playing,revive=true,1
 fall()
-pass(r)
+pass(r,3)
 assert(#puts==1)
 eve.at.Z=100
 die()
@@ -711,7 +757,7 @@ pass(r,60)
 assert(#respawns==0 and not logged('failure'))
 assert(count('death: over before')==1,'Said once: the death is over, not read again on each pass')
 fall()
-pass(r)
+pass(r,3)
 assert(#puts==1,'The fall after it is caught')
 -- no_warp_word: the call needs her GUID from the engine line. Two waits of 10 s stop the recovery.
 r=fresh()
@@ -733,4 +779,104 @@ for _,l in ipairs({'sboxionwarp=refused asks=2 verb=leave why=camp life=3',
     pass(r)
     assert(#respawns==1 and logged('death: life 3'),l)
 end
+
+-- black_not_shown: a black SB does not show changes one log line. The move is made two passes later all the same and
+-- the walking read after it is the success.
+for _,c in ipairs({
+    {function() black_error='LoadingScreenFadeAuto: no such function' end,
+        'black: not shown: LoadingScreenFadeAuto: no such function; EVE at (600, 0, -3276) moves in 2 passes'},
+    {function() black_up=false end,
+        'black: not shown: SB made no loading screen; EVE at (600, 0, -3276) moves in 2 passes'},
+    {function() black_up=nil end,'black: asked, its handle did not read; EVE at (600, 0, -3276) moves in 2 passes'},
+}) do
+    r=fresh()
+    walk(r,6)
+    c[1]()
+    fall()
+    pass(r)
+    assert(last()==c[2] and #blacks==1 and #puts==0,last())
+    pass(r,2)
+    assert(#puts==1 and puts[1].at.X==300,'The move does not depend on the black: '..c[2])
+    eve.mode=1
+    pass(r)
+    assert(last()=='put back: EVE walks at (300, 0, 235), 0.2 s after the move' and not logged('failure'),last())
+end
+-- black_once: one black a put-back, none more during the lead's passes or during the check. A second fall after the
+-- success asks a second one.
+r=fresh()
+walk(r,6)
+fall()
+pass(r,3)
+assert(#blacks==1 and #puts==1)
+pass(r,4) -- The check runs: she still reads falling, above the floor.
+assert(#blacks==1 and #puts==1,'No black while a put-back is checked')
+eve.mode=1
+pass(r)
+assert(logged('put back: EVE walks'),last())
+walk(r,4)
+fall()
+pass(r)
+assert(#blacks==2 and #puts==1,'A second fall: a second black')
+pass(r,2)
+assert(#blacks==2 and #puts==2)
+-- lead_waits: the move that waits under the black is counted like a check: not while a guard waits and not on a world
+-- time that stands still.
+r=fresh()
+walk(r,6)
+fall()
+pass(r)
+photo='1'
+pass(r,8)
+assert(#puts==0,'No move while a guard waits')
+photo='0'
+pass(r)
+assert(#puts==0,'The wait used up no pass of the lead')
+pass(r)
+assert(#puts==1 and #blacks==1,'Moved once the passes count again')
+r=fresh()
+walk(r,6)
+fall()
+pass(r)
+pass(r,8,true)
+assert(#puts==0,'No move on a world time that stands still')
+pass(r,2)
+assert(#puts==1 and #blacks==1)
+-- lead_dropped: a move that waits under the black is dropped where a check is dropped: the mode off, an arrival, a
+-- stop, a death that starts and an error in a pass.
+local function waiting_move()
+    r=fresh()
+    walk(r,6)
+    fall()
+    pass(r,2) -- The black, then one pass of the lead: the move is due at the next pass.
+    assert(#blacks==1 and #puts==0)
+end
+waiting_move()
+assert(r.mode('off'))
+pass(r,4)
+assert(#puts==0 and #blacks==1,'The mode off drops it')
+waiting_move()
+r.arrive('city')
+eve.at.Z,eve.mode=225,1 -- She walks above the floor in the new stay.
+pass(r,4)
+assert(#puts==0 and #blacks==1,'An arrival drops it')
+waiting_move()
+r.stop('coop off')
+pass(r)
+assert(#puts==0,'A stop drops it: no move at the pass it was due')
+waiting_move()
+playing,revive=true,1
+die()
+pass(r)
+assert(logged('death: life 3'),last())
+eve.at.Z,eve.mode=225,1 -- The respawn leaves her walking above the floor: no put-back of the death rule.
+pass(r,12)
+assert(logged('respawn result: life 3/1') and #puts==0,'A death that starts drops it')
+waiting_move()
+broken='x'
+pass(r)
+assert(#puts==0 and last()=='recovery: error (x): failure 1 of 2',last())
+broken=nil
+pass(r)
+assert(#puts==1 and puts[1].at.X==-8303.969,'After the failure the move is made at once, to the arrival point')
+assert(#blacks==2 and last()=='black: up at once','It is a new put-back with its own black: '..last())
 print('sboxion_recover_test ok')
