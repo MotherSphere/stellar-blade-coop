@@ -18,7 +18,11 @@
 -- Xion, their part of the status, taken down by a map change (none called once the world is gone, each destroyed
 -- while it still stands) and by coop off, kept in the store the wiring hands over; coop xion walls refused out of SBO
 -- Xion, inside its count alone, off and on. The recovery ends before the walls come down, so a removal that raises
--- skips none of it.
+-- skips none of it. The rooms (world/maps/sboxion/rooms/rooms.lua): with a pak that holds no room level, one line an
+-- arrival, the pak's files read once more a Lua load, no piece asked and the status part saying none; with the five
+-- room levels in the pak the arrival's pass opens the five rooms through the module's own wiring, their part of the
+-- status, coop xion rooms refused out of SBO Xion, alone, off and on, every row put back at coop off before the walls
+-- come down, none called once a map change took the world, the hidden rows kept in the rooms' own store.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -70,9 +74,17 @@ local function utoc(names)
 end
 local PAKS='C:\\G\\SB\\Content\\Paks'
 local files={}
-local function read(path,limit,offset) return files[path] and files[path]:sub((offset or 0)+1,(offset or 0)+limit) end
+local ROOMS={'Rooms','Xion_Rooms_D011.umap','Xion_Rooms_D031.umap','Xion_Rooms_D081.umap','Xion_Rooms_D107.umap',
+    'Xion_Rooms_D158.umap'}
+local opens=0 -- Each time the .utoc is opened.
+local function read(path,limit,offset)
+    if path:sub(-5)=='.utoc' then opens=opens+1 end
+    return files[path] and files[path]:sub((offset or 0)+1,(offset or 0)+limit)
+end
+-- on: the pak of 2026-11-23; 'rooms': the pak with the five room levels.
 local function pak(on)
-    files[PAKS..'\\~mods\\zSBO_Xion.utoc']=on and utoc({'SBO_World','Xion_P.umap'}) or nil
+    files[PAKS..'\\~mods\\zSBO_Xion.utoc']=on and utoc({'SBO_World','Xion_P.umap',
+        table.unpack(on=='rooms' and ROOMS or {})}) or nil
     files[PAKS..'\\~mods\\zSBO_Xion.pak'],files[PAKS..'\\~mods\\zSBO_Xion.ucas']='',('\0'):rep(64)
 end
 
@@ -162,6 +174,18 @@ end
 world.wall_swept=function() return false end
 local kept=nil -- The store's line.
 local store={save=function(line) kept=line end,load=function() return kept end,clear=function() kept=nil end}
+-- The rooms' fakes: each piece asked by its row's name, the rows hidden now and the rooms' own store.
+local pieces_asked,rows_hidden,rooms_kept=0,{},nil
+world.piece=function(row) pieces_asked=pieces_asked+1; return {row=row} end
+world.piece_out=function(p) p.was={1,3}; rows_hidden[p.row.name]=true end
+world.piece_back=function(p)
+    if world_gone or not rows_hidden[p.row.name] then return false end
+    rows_hidden[p.row.name]=nil
+    return true
+end
+local rooms_store={save=function(line) rooms_kept=line end,load=function() return rooms_kept end,
+    clear=function() rooms_kept=nil end}
+local function hidden_rows() local n=0; for _ in pairs(rows_hidden) do n=n+1 end; return n end
 local SB_XION='/game/art/bg/worldmap/level_p/e04'
 local function new()
     logs,asked,calls={},{},{}
@@ -169,7 +193,8 @@ local function new()
         status=function() return 'mod=v\n'..ENGINE..'\n'..rows_line..'\n'..warp_line..'\nlast=x\n' end,
         ask=function(l) asked[#asked+1]=l; return true,'asked the native part: '..l end,paks=PAKS,read=read,
         slot=function(what) if slot_ok then return true end return false,what..' runs only on a co-op save' end,
-        mode=function() return mode end,me=function() return me end,world=world,store=store})
+        mode=function() return mode end,me=function() return me end,world=world,store=store,
+        rooms_store=rooms_store})
 end
 world.respawn=function(_,guid) respawns[#respawns+1]=guid; warp_line='sboxionwarp=entered asks=3 life=1' end
 local function logged(text) for _,l in ipairs(logs) do if l:find(text,1,true) then return l end end end
@@ -280,6 +305,11 @@ assert(logged('sboxion: probe: start: E04_DistantView_A_01 loaded true visible t
     ..'true visible true'))
 assert(logged('sboxion: characters: 1') and not logged('characters: 1 ('))
 assert(not logged('read back'),'The read-back comes 2 s later')
+-- rooms_old_pak: the pak of 2026-11-23 holds no room level. One line an arrival and no piece asked.
+assert(logged('sboxion: rooms: none in this pak ('..PAKS..'\\~mods\\zSBO_Xion.utoc does not hold Rooms): no door '
+    ..'is opened') and times('sboxion: rooms:')==1,'One line: '..times('sboxion: rooms:'))
+x.status() -- Asks the gate for Xion_P, once a Lua load too.
+local opened=opens
 pass(x,2)
 assert(times('sboxion: light: 41 of 41 read back as written')==1,logs[#logs])
 assert(calls.volumes==1 and #sets==21,'One pass over the volumes an arrival')
@@ -288,6 +318,14 @@ pass(x,8) -- 10 s after the arrival: the levels, the read-back and the character
 assert(times('sboxion: light: 41 of 41 read back as written')==2 and times('sboxion: levels: 95 listed')==2
     and times('sboxion: characters: 1')==2 and calls.levels==2,logs[#logs])
 assert(#walls_made==145 and times('sboxion: walls: 145 of 145 up in 15 passes, 0 ms')==1,'The walls are up')
+assert(times('sboxion: rooms:')==1 and pieces_asked==0 and rooms_kept==nil,'No hide pass with the old pak')
+ok,why=x.rooms()
+assert(ok and why=='coop xion rooms: rooms none in the pak',why)
+ok,why=x.rooms('off')
+assert(ok and why=='coop xion rooms: rooms off until coop xion rooms on or the next arrival' and pieces_asked==0,why)
+ok,why=x.rooms('on')
+assert(ok and why=='coop xion rooms: rooms none in the pak' and times('sboxion: rooms: none in this pak')==2,why)
+assert(opens==opened,'The pak is asked for the rooms once a Lua load')
 local _,tabs=kept:gsub('\t','')
 assert(tabs==144,'The wiring\'s store holds the 145 paths')
 
@@ -350,7 +388,7 @@ me=at({X=kaya.X+300,Y=kaya.Y+400,Z=kaya.Z})
 ok,why=x.status()
 assert(ok and why:find('rows in; sboxionwarp=refused asks=2 verb=leave why=zone; EVE at (-7877, -1413, 44), nearest '
     ..'waypoint kaya 5.0 m; recovery on, ground (3000, -9000, 1222) 1.8 s old, failures 0; walls 145 of 145 up',1,
-    true) and why:find('^sboxion: pak %d+_4096; ') and why:find('walls 145 of 145 up$'),why)
+    true) and why:find('^sboxion: pak %d+_4096; ') and why:find('walls 145 of 145 up; rooms none in the pak$'),why)
 -- coop xion recover: the three modes, said in the log too; alone, the recovery's state; another word refused.
 ok,why=x.recover('death')
 assert(ok and why=='coop xion recover: recovery mode death: falls are not caught, deaths are'
@@ -372,7 +410,7 @@ assert(ok and why=='coop xion walls: walls 145 of 145 up',why)
 ok,why=x.walls('off')
 assert(ok and why=='coop xion walls: walls off until coop xion walls on or the next arrival' and walls_removed==145
     and logs[#logs]=='sboxion: walls: down (coop xion walls off): 145 removed' and kept==nil,why)
-assert(select(2,x.status()):find('; walls off$'),select(2,x.status()))
+assert(select(2,x.status()):find('; walls off; rooms none in the pak$'),select(2,x.status()))
 pass(x,1)
 assert(#walls_made==145,'Off makes none')
 ok,why=x.walls('on')
@@ -402,9 +440,11 @@ assert(logs[#logs-1]=='sboxion: walls: down (a map change): 0 removed, 145 gone 
 world_gone=false
 ok,why=x.walls('on')
 assert(not ok and why=='coop xion walls: EVE is not in SBO Xion',why)
+ok,why=x.rooms('off')
+assert(not ok and why=='coop xion rooms: EVE is not in SBO Xion',why)
 ok,why=x.status()
 assert(ok and why:find('EVE is not in SBO Xion (map '..SB_XION..')',1,true) and not why:find('recovery',1,true)
-    and not why:find('walls',1,true),why)
+    and not why:find('walls',1,true) and not why:find('rooms',1,true),why)
 ok,why=x.recover('on')
 assert(not ok and why=='coop xion recover: EVE is not in SBO Xion',why)
 pass(x,20)
@@ -419,6 +459,7 @@ assert(#walls_made==300 and times('sboxion: walls: 145 to put up, 10 a pass, nea
 -- are ordered from EVE's own place, the gate point, so the cave wall is in the first pass.
 assert(walls_made[291]=='CAVE.1','The first wall at the gate point: '..walls_made[291])
 assert(times('sboxion: arrived')==2 and #sets==21 and times('41 named, 21 changed')==2,'A second arrival writes again')
+assert(times('sboxion: rooms: none in this pak')==3 and opens==opened and pieces_asked==0,'One line an arrival')
 assert(times('sboxion: recovery on: floor Z -3275, arrival point city')==2,'The recovery starts again at each arrival')
 assert(select(2,x.status()):find('; recovery on, no ground point, failures 0',1,true),'The mode is on again')
 pass(x,5)
@@ -527,4 +568,54 @@ for _,how in ipairs({'coop off','a map change'}) do
     store.clear=function() kept=nil end
     assert(screen_shown and logged('sboxion: respawn: death screen shown again ('..how..')'),how)
 end
+
+-- rooms_open: with the five room levels in the pak, and their levels and their rows' sublevels on the list, the
+-- arrival's pass opens the five rooms. Nothing says none.
+local Rooms=require('world.maps.sboxion.rooms.rooms')
+pak('rooms')
+fresh()
+for _,room in ipairs(Rooms.LIST) do
+    for _,name in ipairs(room.needs) do levels[#levels+1]={name=name,loaded=true,visible=true} end
+end
+x=new()
+her_at,her_mode,world_gone,pieces_asked=nil,1,false,0
+warp_line='sboxionwarp=entered asks=7 life=1'
+me=at(D.ARRIVALS.city)
+pass(x,0.25)
+assert(not logged('none in this pak') and times('sboxion: rooms: D')==5 and pieces_asked==23 and hidden_rows()==23)
+assert(logged('sboxion: rooms: D011 open: 4 rows hidden, 0 ms') and logged('sboxion: rooms: D158 open: 8 rows hidden'))
+assert(select(2,rooms_kept:gsub('\t',''))==22 and kept~=rooms_kept,'The hidden rows go to the rooms\' own store')
+assert(select(2,x.status()):find('; walls 10 of 145 up, 135 to go; rooms 5 of 5 open$'),select(2,x.status()))
+-- coop xion rooms: alone, off and on.
+ok,why=x.rooms()
+assert(ok and why=='coop xion rooms: rooms 5 of 5 open',why)
+ok,why=x.rooms('off')
+assert(ok and why=='coop xion rooms: rooms off until coop xion rooms on or the next arrival' and hidden_rows()==0
+    and logs[#logs]=='sboxion: rooms: closed (coop xion rooms off): 23 rows put back' and rooms_kept==nil,why)
+assert(select(2,x.status()):find('; rooms off$'),select(2,x.status()))
+pass(x,2)
+assert(hidden_rows()==0 and pieces_asked==23,'Off stays off')
+ok,why=x.rooms('on')
+assert(ok and why=='coop xion rooms: rooms on: 5 to open ([SX] lines follow)' and hidden_rows()==0,why)
+pass(x,0.25)
+assert(hidden_rows()==23 and times('sboxion: rooms: D011 open')==2)
+ok,why=x.rooms('up')
+assert(not ok and why=='Use: coop xion rooms [on|off]',why)
+-- rooms_map_change: a map change took the world with its levels. No row is called and the store is cleared.
+me={at={X=0,Y=0,Z=0},map=SB_XION}
+world_gone=true
+pass(x,0.25)
+assert(logs[#logs]=='sboxion: left, map '..SB_XION and logs[#logs-1]:find('^sboxion: walls: down %(a map change%)')
+    and logs[#logs-2]=='sboxion: rooms: closed (a map change): 0 rows put back, 23 gone already'
+    and hidden_rows()==23 and rooms_kept==nil,logs[#logs-2])
+world_gone,rows_hidden=false,{}
+-- rooms_coop_off: every row is put back, before the walls come down.
+me=at(D.ARRIVALS.city)
+pass(x,0.25)
+assert(hidden_rows()==23 and select(2,x.status()):find('; rooms 5 of 5 open$'))
+x.stop()
+assert(hidden_rows()==0 and logs[#logs-1]=='sboxion: rooms: closed (coop off): 23 rows put back'
+    and logs[#logs]:find('^sboxion: walls: down %(coop off%)'),logs[#logs-1])
+pass(x,5)
+assert(hidden_rows()==0,'Nothing after coop off')
 print('sboxion_world_test ok')
