@@ -209,7 +209,7 @@ with tempfile.TemporaryDirectory() as tmp:
                                                                      'rows', 'stance', 'ui/dpad')),
                               'core/keybind', 'core/link',
                               'core/mask', 'core/pak_gate', 'core/settings_file',
-                              'core/unreal', 'core/ue4ss_settings', 'eve/chainspin', 'cutmenus/devmenu',
+                              'core/unreal', 'core/ue4ss_settings', 'eve/chainspin', 'cutmenus/devmenu', 'cutmenus/ui/devmenu',
                               'eve/emote', 'eve/ui/wheel', 'eve/ui/tools', 'core/enemy', 'eve/flight',
                               'eve/glide', 'fight/bosses/gardener', 'fight/bosses/leviathan',
                               'story/scenes/lines', 'fight/bosses/lion', 'fight/bosses/lion_rows', 'cutmenus/mailbox',

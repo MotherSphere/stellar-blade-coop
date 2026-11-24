@@ -1,10 +1,10 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The cut menus' wiring (cutmenus/): coop devmenu and coop gift.
+-- The cut menus' wiring (cutmenus/): coop devmenu, coop devinfo and coop gift, and the developer menu's page.
 return {
 uses={},
-exports={'devmenu','mailbox'},
+exports={'devmenu','mailbox','devmenu_page'},
 new=function(M)
 local print,log=M.print,M.log
 -- coop devmenu (cutmenus/devmenu.lua), logging [DM] lines: the developer menu's working rows, through the same call.
@@ -21,6 +21,12 @@ M.mailbox=M.link and require('cutmenus.mailbox').new({
     write=function(name,text) return M.link.write_file(name,text) end,friend=function() return M.link.friend() end,
     loopback=function() return M.link.loopback() end,store=M.link.store('coop-gift-toast.txt'),
     paused=M.logic_paused,name=M.fname}) or nil
-return require('cutmenus.commands').new({ask=M.ask,coop_slot=M.coop_slot,devmenu=M.devmenu,mailbox=M.mailbox})
+-- The co-op menu's TEST TOOLS page of coop devmenu and coop devinfo (cutmenus/ui/devmenu.lua): the developer panel as
+-- the native part last took it in this Lua load (panel).
+local panel='off'
+M.devmenu_page=require('cutmenus.ui.devmenu').new({run=function(...) return M.run(...) end,devmenu=M.devmenu,
+    panel=function() return panel end})
+return require('cutmenus.commands').new({ask=M.ask,coop_slot=M.coop_slot,devmenu=M.devmenu,mailbox=M.mailbox,
+    panel=function(which) panel=which end})
 end,
 }

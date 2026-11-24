@@ -43,7 +43,8 @@ assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_soun
 assert(lv.o.blocked()==true,'coop leviathan\'s free camera reads no key while the menu is open')
 assert(screen()=='SESSION||disabled\nHost a session||focus\nFind a session||normal\nJoin with a code||normal\n'
     ..'SETTINGS||disabled\n'
-    ..'Options||normal\nTEST TOOLS||disabled\nEVE\'s cut moves||normal\nHELP||disabled\nGuide||normal\n'
+    ..'Options||normal\nTEST TOOLS||disabled\nEVE\'s cut moves||normal\nDeveloper menu||normal\nHELP||disabled\n'
+    ..'Guide||normal\n'
     ..'Write a bug report||normal\nClose||normal',screen())
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
@@ -804,7 +805,8 @@ end)()
     load_main(true)
     kit_ready=true; quarter()
     key('F5')
-    assert(screen():find('TEST TOOLS||disabled\nEVE\'s cut moves||normal\nHELP||disabled',1,true),screen())
+    assert(screen():find('TEST TOOLS||disabled\nEVE\'s cut moves||normal\nDeveloper menu||normal\nHELP||disabled',1,
+        true),screen())
     to("EVE's cut moves"); key('RETURN')
     assert(menu_view.title.s=="EVE's cut moves" and screen()=='Debug flight|Off|focus\nSlow motion|Off|normal\n'
         ..'Glide|Off|normal',screen())
@@ -817,6 +819,19 @@ end)()
         true),menu_view.note.s)
     key('ESCAPE')
     assert(menu_view.title.s=='CO-OP' and focus()=="EVE's cut moves",'Back on its row')
+    -- The developer menu's page (cutmenus/ui/devmenu.lua): its rows from the top, No damage asked through coop
+    -- devmenu (on a co-op save), the panel through coop devinfo.
+    status_text=with_slot('slot=coop index=4 marker=4\n')
+    key('DOWN_ARROW'); key('RETURN')
+    assert(menu_view.title.s=='Developer menu' and screen():find('^EVE||disabled\nNo damage|Off|focus\n'),screen())
+    key('RETURN')
+    assert(dm.cmds[#dm.cmds][1]=='nodamage' and select(2,focus())=='On')
+    key('UP_ARROW') -- Over the heading, wrapping to the last row.
+    assert(focus()=='Developer panel' and select(2,focus())=='Off')
+    key('RIGHT_ARROW')
+    assert(asked[#asked]=='devinfo quest' and select(2,focus())=='Quests')
+    key('ESCAPE')
+    assert(focus()=='Developer menu')
     key('ESCAPE')
     in_world,kit_ready,status_text=false,false,plain
 end)()

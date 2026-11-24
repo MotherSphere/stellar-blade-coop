@@ -6,7 +6,8 @@
 -- UI (left out too), on any save. coop gift, the cut mailbox as a co-op gift box (cutmenus/mailbox.lua, o.mailbox,
 -- built with the Steam link only), runs on a co-op save only: every word of it. cutmenus/wiring.lua builds it with
 -- new(o) at each Lua load and main/loader.lua merges it into the command table. o: coop_slot, ask (a native request;
--- coop devinfo), devmenu (cutmenus/devmenu.lua's) and mailbox.
+-- coop devinfo), devmenu (cutmenus/devmenu.lua's), mailbox and panel(which) (told each devinfo the native part took:
+-- the TEST TOOLS page shows it, cutmenus/ui/devmenu.lua).
 local Menus={}
 function Menus.new(o)
     local coop_slot=o.coop_slot
@@ -30,7 +31,9 @@ function Menus.new(o)
         if extra~=nil or which~='quest' and which~='player' and which~='off' then
             return false,'Use: coop devinfo quest|player|off'
         end
-        return o.ask('devinfo '..which)()
+        local ok,why=o.ask('devinfo '..which)()
+        if ok and o.panel then o.panel(which) end
+        return ok,why
     end
     return self
 end

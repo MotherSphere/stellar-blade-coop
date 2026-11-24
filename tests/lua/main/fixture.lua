@@ -519,7 +519,8 @@ package.loaded['cutmenus.devmenu']={new=function(o)
     dm.o=o
     return {row=function(name) return name=='heal' and {} or nil end,
         command=function(...) dm.cmds[#dm.cmds+1]=table.pack(...); return true,'dm '..tostring((...)) end,
-        stop=function() dm.stops=dm.stops+1; dm.asked_at_stop=#asked end}
+        stop=function() dm.stops=dm.stops+1; dm.asked_at_stop=#asked end,
+        on=function(name) return (dm.cmds[#dm.cmds] or {})[1]==name end} -- The last row asked reads On.
 end}
 -- coop wear (eve/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks
 -- and stops, what a tick says.
