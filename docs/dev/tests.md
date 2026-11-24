@@ -32,7 +32,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/maps/matrix13/`:
 `off`, `words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
-`world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`; `online/modes/nightop/`:
+`world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
+`world/maps/sboxion/`: `engine`, `off`, `recover`, `rows`, `sboxion`, `title`, `world`; `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
 `online/partner/`: `assets`, `bench`, `bike_part`, `capture`, `commands`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
 `sentinel`; `online/photo/`: `off`; `story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`,
@@ -852,6 +853,73 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   decides nothing; no `teamshopui=` line, its fault, the pause and an open under way refuse; the open's answer is
   logged (opened, refused, no answer in 5 s); `coop off` ends both waits; the command's argument and link checks;
 - `world/teamshop/off_test` runs `main/isolation.lua` with `world.teamshop` (see the module tests above);
+- `world/maps/sboxion/rows_test` checks SBO Xion's two rows in `world/maps/sboxion/data.lua` against
+  `world/maps/sboxion/sboxion_rows.h`: names, templates, each patched field, the IDs 7131 and 1000131 outside the
+  hall lobbies' blocks, no name ending in `_<digits>` and the 41 names of the day table, none twice;
+- `world/maps/sboxion/title_test` covers the pak gate and the title's ask over fake files, tables and a status text:
+  no pak or a container without `Xion_P.umap`, nothing asked or logged; with the pak, nothing on your own saves, one
+  ask on the co-op save files with the two tables, read back; a taken ID or rows that read back wrong refuse with
+  one log line; a shut gate's refusal is asked again 10 s later; `coop off` ends the wait;
+- `world/maps/sboxion/world_test` runs `world/maps/sboxion/sboxion.lua` on a fake world of 72 env volumes and 95
+  streaming levels. `coop xion` refuses on your own save, in a session, without the pak, after refused rows, after a
+  fault and inside SBO Xion, each with nothing asked. Its request holds the zone's FName index, the point in whole
+  centimetres and the yaw, for each of the two points. `coop xion leave` asks from any map. The native answer is
+  logged once. No answer in 10 s is logged once. At an arrival the 41 volumes of `E04_ENV_VOL` are set (21 writes), a
+  volume of the same name in another level is left alone, the log reads 72, 65 and 41. The read-back comes 2 s and
+  10 s later. A write that does not hold shows in the read-back. A level not loaded is named. In another map nothing
+  is read. A second arrival writes again. A change of a probe level is logged once. A waypoint is logged after 5 s
+  within 3 m, once a visit. A map change, a loading screen and `coop off` end the watch. The recovery is ticked only
+  in SBO Xion. Each arrival starts it again with the arrival point `coop xion` asked. Its ground point and its fall
+  line hold the engine's read of EVE when `me()` names another place. At that fall SB's black is asked once through
+  the module's own wiring, nothing moves in that pass and the move comes two passes later. A `life=3` word gets the
+  respawn asked with the GUID of the `engine=` line. A death screen it hid is shown again at a map change and at
+  `coop off`. `coop xion recover` is refused outside SBO Xion, sets each of its three modes inside and prints the
+  state alone. A stay left in the mode `death` is followed by an arrival in the mode `on`. `coop xion status` ends
+  with the recovery's part inside SBO Xion only;
+- `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
+  The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
+  of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
+  with EVE under Z -3275 SB's black is asked (0.3 s in, 1 s black, 0.5 s out) and nothing moves in that pass. Two
+  passes later she goes to the ground point plus 10 cm with its yaw, or to the arrival point with no ground point.
+  A black that raises, that SB did not make or whose handle did not read changes one log line and not the move. The
+  move is held back like a check while a guard waits or the world's time stands still. The mode `off`, an arrival, a
+  stop, a death that starts and an error in a pass drop it. After a failure the move is made at once, then a black
+  that is up at once, none after a refused teleport. One black is asked a put-back, the one after a respawn
+  included. Nothing moves and no black is asked while a guard waits (no EVE, photo mode, a cutscene, a warp, another
+  zone or zone type), while her life reads 3 to 5 or in the modes `death` and `off`. Without a `warp=` word the fall
+  is still caught. It is caught too with `theater=fault` and with `zonetype=0` beside SBO Xion's area. The check: a
+  walking read within 3 s of world
+  time is the success, 6 s of passes on one world time run nothing out, 24 passes in 0.75 s of world time are no
+  failure, three passes of 1 s each are one, a refused teleport sends the next try to the arrival point, the second
+  failure stops the recovery with no third call, the mode word starts it again, an error in a pass counts as a
+  failure. An arrival sets the modes `death` and `off` back to `on`. An arrival, a stop, an error in a pass and the
+  mode `off` each drop a put-back being checked. A put-back that leaves her under the floor is not made again while
+  it is checked: the check fails after 3 s and the next try goes to the arrival point. The death, with the respawn
+  cases of `online/modes/scoreattack/run_test` for the module's copy: each reason the respawn waits for is logged
+  once, one call with her GUID, the result line 2 s later, the death screen hidden over a living EVE and shown again
+  at a new death (in the modes `off` and `death` too), at a stop and when two failures stop the recovery, no call in
+  10 s given up. The module's own cases: the call after 5 s with no death screen, the put-back when the respawn leaves
+  her off the ground (in the mode `death` too, never while a guard waits), life still 3 after the call as a failure
+  that starts the death again, a death left from the mode `off`, one read during a wait and one on a world time that
+  stands still, a life back at 1 before the call (one line, then the next fall is caught), no call without a `warp=`
+  word, the `life=` word read on the refused and fault forms, a death dropped by an arrival,
+  by a stop and by the mode `off`, the failures at 0 after a respawn that leaves her walking, a put-back's check
+  dropped by a death that starts during it;
+- `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects: the zone's FName
+  index only for a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
+  dead actor never written, the streaming levels by their package's last part, the probes read again on the kept
+  objects, the characters' names, every world read raising with no EVE. For the recovery: `move` gives EVE's place,
+  yaw, movement mode, world time and address from one EVE with each read made once; `put` teleports then stops her
+  movement, with no stop call after a refusal; the respawn's controller, standalone test and request with the GUID
+  and `false`; the death screen looked for only on request, read playing or not, hidden and shown again as it was
+  (visibility 4, not 0), a dead widget left as it is. For SB's black, the module's copy of the lobby's call: one
+  `LoadingScreenFadeAuto` call with the time the black stands, a fade-in from 0 to 1, a fade-out from 1 to 0 and
+  tag 0; a fade-in of 0 s goes from 1 to 1; `true` for a GUID that is not zero, `false` for a zero GUID, `nil` for
+  one that does not read; a raise of the call reaches the caller;
+- `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
+  `recover` alone and with `on`, `death` or `off`, the use line for any other word or one too many and the answer
+  without the Steam link;
+- `world/maps/sboxion/off_test` runs `main/isolation.lua` with `world.maps.sboxion` (see the module tests above);
 - `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return
   from the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry,
   and a Join that enters again after SB's own reload cut an entry short (record open or warping); then the room shown,
@@ -920,7 +988,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   and the 8 `signal` words, in `story/quests/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`, `abort`,
   `leave`, `seq`) and their refusals, the score request, the mode request (`mode <word> <text>`), `fishbook <ask>` (1
   to 65535, 0 and 65536 refused), `photohunt <ask> <index> <number> ...` with 1 to 3 rows or `photohunt off` (an
-  ask of 0 or 65536, an index of 0, a value over 32 bits, 0 or 4 rows and a doubled space refused), the dr request,
+  ask of 0 or 65536, an index of 0, a value over 32 bits, 0 or 4 rows and a doubled space refused), SBO Xion's
+  `sboxion enter <index> <x> <y> <z> <yaw>` and `sboxion leave <index>` (an index of 0 or over 32 bits, a place or a
+  yaw out of range, a missing or extra word refused; `sboxion rows` stays the rows request of batch 18), the dr request,
   `race hold` and `race tick` with `on` or `off` and nothing else), Night Operation's night line (its round trip,
   its refusals and a fuzz seed), the score line (Lua's text after `score`, printable ASCII up to the 512-byte message, never read as
   a race line, another protocol's refused, a fuzz seed), the mode line (its word of 1 to 16 lowercase letters, then
@@ -1193,6 +1263,15 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `nightshop=` line and the log lines;
 - `world_teamshop_shop_ui_test`: the team shop screen's guard (`world/teamshop/shop_ui.h`: a client, its UI manager,
   in game and playing), its answer word's round trip, the `teamshopui=` line and the log lines;
+- `world_maps_sboxion_sboxion_test`: SBO Xion's two guards (`world/maps/sboxion/sboxion.h`), one case for each guard.
+  For `coop xion`: the client made, co-op saves, an entered slot, in game, playing, no warp, no camp request, no
+  reload, client `+0x100` at 0, the logic actor, no theater, photo mode off, a current zone not of type 3, 5 or 6,
+  no Boss Challenge byte, the asked zone's row, its type 5 and its world row. For `coop xion leave`: the zone
+  compared with the client's (another zone, another FName number, none asked), then the same flow guards, the
+  theater, photo mode and the reload's two other sources. Then the answer word's round trip, the `sboxionwarp=` line
+  and the log lines. Then the inside flag (an accepted enter sets it, an accepted leave clears it, a refusal keeps
+  it) and the line's `life=` word: on the entered, refused and fault forms when the read worked, never on the off
+  and left forms;
 
 ### Table rows
 
@@ -1228,6 +1307,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
       ZoneTable of another row size before any row;
     - gun mode's 9 rows added from their templates and its 3 camp shops patched in place, each with its patches as
       written, a later run adding nothing;
+    - SBO Xion's 2 rows (`world/maps/sboxion/sboxion_rows.h`) added from their templates, the world row before the
+      zone row that names it, with IDs no hall row holds; a taken zone ID stops the batch after the world row;
   - the refusals that call no AddRow (a missing template, a taken ID or name, a wrong vtable, AddRow slot or row size);
   - a later run skipping the rows already in, FName's number split, the read-back through the game's lookups by ID, the
     answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=` and `signal=` status lines and the log
@@ -1811,7 +1892,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   file's guard or adds another request (`ServerRequest_ActorRevival`) fails the scan. Spectate's
   `fight/enemies/spectate.lua` holds 7 mentions of `ServerRequest_` (its `ActorRespawn` and `ActorRevival` on our own
   EVE, a copy of group play's respawn, with their log lines, `coop spectate test`'s respawn and the header's two):
-  another request planted there (`ServerRequest_ResetZone`) fails the scan.
+  another request planted there (`ServerRequest_ResetZone`) fails the scan. SBO Xion's
+  `world/maps/sboxion/engine.lua` holds its one `ServerRequest_ActorRespawn` on our own EVE and its header's mention,
+  and `world/maps/sboxion/recover.lua` holds that call's log line and its header's mention: another request planted
+  in either file fails the scan.
   Stellar Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and called at two sites: once in
   `native/src/online/lobby/sbo_game.inc` for `coop sbo seq`, and once in `native/src/glue/tick/world_game_shared.inc`.
   That second site serves the shared world's env control rows, which `game/objects/engine.h` checks against

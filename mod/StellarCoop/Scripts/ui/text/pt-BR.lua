@@ -141,7 +141,7 @@ return {
         ['cutmenus']='Menus cortados',['online.saves']='Jogos salvos co-op',
         ['world.teamshop']='Loja da equipe',['fight.gunmode']='Modo fuzil',
         ['online.modes.scoreattack']='Corrida por pontos',['online.modes.fishing']='Torneio de pesca',
-        ['online.modes.photohunt']='Caça fotográfica'},
+        ['online.modes.photohunt']='Caça fotográfica',['world.maps.sboxion']='SBO Xion'},
     fight={on='Inimigos compartilhados ativados: %d inimigos vinculados.',
         one='Inimigos compartilhados ativados: 1 inimigo vinculado.',
         scale='PV dos inimigos %d %%, equilíbrio %d %% (configuração do anfitrião).',

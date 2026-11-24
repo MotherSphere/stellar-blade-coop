@@ -49,6 +49,10 @@ for _,list in ipairs({{
             stopped,e=pcall(M.teamshop.stop)
             if not stopped then log('teamshop: '..tostring(e)) end
         end
+        if M.sboxion then -- SBO Xion's title wait and watch ended; rows already in stay for the game run.
+            stopped,e=pcall(M.sboxion.stop)
+            if not stopped then log('sboxion: '..tostring(e)) end
+        end
         if M.gunrounds then -- Gun mode's rounds: the batch ask and the inventory reads ended; rows already in stay.
             stopped,e=pcall(M.gunrounds.stop)
             if not stopped then log('gun rounds: '..tostring(e)) end

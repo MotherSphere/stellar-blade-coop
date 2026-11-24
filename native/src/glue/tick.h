@@ -211,7 +211,7 @@ std::string ask_rows(const coop::Request &request);
 // added=<n>/<N>, asks=<a>, spawns=<s> and that state's own fields; then the shock line (rows/shock.h's shock_line: off,
 // in, refused or fault), then the nightshop line (online/modes/nightop/shop_ui.h's), the roxanne and lily lines
 // (online/modes/nightop/roxanne.h's), on the pinned build the guardtext line (online/modes/nightop/guard_text.h's),
-// then the teamshopui line (world/teamshop/shop_ui.h's).
+// then the teamshopui line (world/teamshop/shop_ui.h's), then the sboxionwarp line (world/maps/sboxion/sboxion.h's).
 std::string rows_status();
 // Worker thread, coop shortcut (game/shortcut.h): Lua's shortcut list request, which the game thread serves by
 // reading the cut Load Shortcut menu's 16 paths through SB's file manager, one a frame. Refused off the pinned build,
@@ -256,6 +256,11 @@ std::string ask_roxanne(const coop::Request &request);
 // SBOTeam_Shop at the game thread's next frame. Refused off the pinned build, after coop off and after its latch's
 // fault. Returns the line for the log; teamshop_pass logs the game thread's answer.
 std::string ask_teamshop();
+// Worker thread, SBO Xion (world/maps/sboxion/sboxion.h): Lua's sboxion enter (SB's URL warp into its zone, EVE placed
+// at the request's point) or sboxion leave (SB's reload of the entered slot, only from that zone), at the game
+// thread's next frame. Refused off the pinned build, after coop off and after its latch's fault. Returns the line for
+// the log; sboxion_pass logs the game thread's answer.
+std::string ask_sboxion(const coop::Request &request);
 // Worker: coop-status.txt's shared quests lines (game/quests/engine.h's Worker::status), then the signalquest line
 // (story/quests/own.h's status_line, on the pinned build until coop off), each ending in a line break.
 std::string quest_status();
@@ -363,6 +368,9 @@ void ask_hud(bool hide);
 void hud_pass();
 // Every pass: logs each answer of the team shop's screen (world/teamshop/shop_ui.h's describe) and its fault once.
 void teamshop_pass();
+// Every pass: logs each answer of SBO Xion's warp and way out (world/maps/sboxion/sboxion.h's describe) and its fault
+// once.
+void sboxion_pass();
 // Every pass: logs the photo hunt's fault once (online/modes/photohunt/photohunt_worker.inc).
 void photohunt_pass();
 // The pause menu's Online tab (ui/pause_tab_game.inc, ui/pause_tab.h), worker thread. Lua's pausetab on or off

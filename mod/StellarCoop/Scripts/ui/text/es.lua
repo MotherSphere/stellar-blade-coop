@@ -142,7 +142,7 @@ return {
         ['online.saves']='Partidas co-op',
         ['world.teamshop']='Tienda del equipo',['fight.gunmode']='Modo fusil',
         ['online.modes.scoreattack']='Ataque de puntos',['online.modes.fishing']='Torneo de pesca',
-        ['online.modes.photohunt']='Caza de fotos'},
+        ['online.modes.photohunt']='Caza de fotos',['world.maps.sboxion']='SBO Xion'},
     fight={on='Enemigos compartidos activados: %d enemigos vinculados.',
         one='Enemigos compartidos activados: 1 enemigo vinculado.',
         scale='PS de enemigos %d %%, equilibrio %d %% (ajuste del anfitrión).',

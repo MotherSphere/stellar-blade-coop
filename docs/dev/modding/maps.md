@@ -1,12 +1,13 @@
 # Map pipeline
 
-Stellar Blade Online has two sets of maps of its own: the cut area Matrix XIII (module `world.maps.matrix13`) and
-the five hall lobbies of `online.lobby`. This page lists what the game needs before such a map works and the steps
-that make one, with the steps the repository holds. The map tools stay with MotherSphere for now, so a clone of the
-repository cannot build a map pak today.
+Stellar Blade Online has three sets of maps of its own: the cut area Matrix XIII (module `world.maps.matrix13`),
+the five hall lobbies of `online.lobby` and SBO Xion (module `world.maps.sboxion`, experimental). This page lists
+what the game needs before such a map works and the steps that make one, with the steps the repository holds. The
+map tools stay with MotherSphere for now, so a clone of the repository cannot build a map pak today.
 
-How each of the two maps does these steps is in [world/matrix13-internals.md](../../world/matrix13-internals.md) and
-[online/lobby.md](../../online/lobby.md#hall-lobbies). The field offsets are in the generators named below.
+How each map does these steps is in [world/matrix13-internals.md](../../world/matrix13-internals.md),
+[online/lobby.md](../../online/lobby.md#hall-lobbies) and [world/maps/sboxion.md](../../world/maps/sboxion.md). The
+field offsets are in the generators named below.
 
 ## What the game needs
 
@@ -28,6 +29,8 @@ How each of the two maps does these steps is in [world/matrix13-internals.md](..
 6. A way in. The hall lobbies use SB's URL warp: the native part reads the zone row, then its world row's `UMapPath`,
    then asks the warp (`native/src/game/sbo.h`). EVE arrives at the cooked `SBSpawnPoint` the warp names. The hall
    lobbies give it the name in the zone row's `StartPointAlias`.
+   SBO Xion has no spawn point of its own. Its native part gives the warp no point and writes the arrival location
+   and rotation into the warp block right after the call (`native/src/world/maps/sboxion/sboxion.h`).
    Matrix XIII uses SB's camp travel: it looks the camp up in the zone manager's list, takes the camp's first
    ZoneEnvSpawnTable row, then that row's zone and the zone's world. EVE arrives at the actor named after the camp.
 7. Saving. SB's save writes nothing while EVE is in a zone of type 3, 5 or 6. The hall zones keep type 5 for that
@@ -74,13 +77,17 @@ Oodle compression hides.
   `data/mxiii-world.json` with `tools/mxiii_rows.py` writes `native/src/world/maps/matrix13/mxiii_rows.h` and
   `world/maps/matrix13/level/rows.lua`. With `--check`, each generator exits 1 when a written file is out of date.
   `tests/tools/sbo_lobby_rows_test.py` and `tests/tools/mxiii_rows_test.py` run that check.
+  SBO Xion has two rows and no data file: `native/src/world/maps/sboxion/sboxion_rows.h` is written by hand, with the
+  same rows in `world/maps/sboxion/data.lua`. `tests/lua/world/maps/sboxion/rows_test.lua` checks that the two agree.
 - The title batch. `core/enemy.lua`'s `title_batch` asks a batch at the title while the game uses the co-op save
   files, then reads it back. A gate that stayed shut is asked again 10 s later, at most four times a visit of the
-  title. `online/lobby/halls_rows.lua` and `world/maps/matrix13/level/travel.lua` call it.
+  title. `online/lobby/halls_rows.lua`, `world/maps/matrix13/level/travel.lua` and
+  `world/maps/sboxion/sboxion.lua` call it.
 - The pak gate. `core/pak_gate.lua` looks for the container's `.utoc` in `SB/Content/Paks/~mods`, then in
   `LogicMods`, reads its first 1 MB and needs the `.pak` and the `.ucas` beside it. A new map needs no change to it.
 - The install of the hall lobby pak. `python3 tools/install.py --pak <folder>` copies `zSBO_Lobby.pak`,
-  `zSBO_Lobby.ucas` and `zSBO_Lobby.utoc` into `~mods`. The Matrix XIII pak `zMXIII_P` is copied by hand.
+  `zSBO_Lobby.ucas` and `zSBO_Lobby.utoc` into `~mods`. The Matrix XIII pak `zMXIII_P` and the SBO Xion pak
+  `zSBO_Xion` are copied by hand.
 - The module. A new map is a module `world.maps.<map>` in `world/maps/<map>/`, added as
   [Adding a module](../structure.md#adding-a-module) says.
 
@@ -100,6 +107,7 @@ Oodle compression hides.
 These hold one map by name today. AGENTS.md lets a shared piece change only when MotherSphere asks.
 
 - `native/src/game/camp_text.h` and `native/src/game/record_text.h` add Matrix XIII's camp names and records only.
-- `native/src/game/twins.h` refuses an export only for Matrix XIII's `DLC02_` names.
+- `native/src/game/twins.h` refuses an export only for Matrix XIII's `DLC02_` names. It knows neither the hall rows'
+  names nor SBO Xion's.
 - `tools/world_rows.py` reads only `data/mxiii-world.json`.
 - `tools/install.py --pak` copies only the three `zSBO_Lobby` files.

@@ -335,12 +335,14 @@
 #include "online/lobby/halls_rows.h"
 #include "world/teamshop/teamshop_rows.h"
 #include "fight/gunmode/nikke_rows.h"
+#include "world/maps/sboxion/sboxion_rows.h"
 #include "rows/shock.h"
 #include "online/modes/nightop/guard_text.h"
 #include "online/modes/nightop/probe.h"
 #include "online/modes/nightop/roxanne.h"
 #include "online/modes/nightop/shop_ui.h"
 #include "world/teamshop/shop_ui.h"
+#include "world/maps/sboxion/sboxion.h"
 #include "online/modes/photohunt/photohunt.h"
 #include "game/codec.h"
 #include "game/events.h"
@@ -421,6 +423,9 @@
 #include "glue/tick/sbo_game_shared.inc"
 #include "online/lobby/sbo_game.inc"
 #include "online/lobby/cycle_game.inc" // After sbo_game.inc: its sbo_global and DifficultyOf.
+// After fight_game_shared.inc, pilot_game_shared.inc and theater_game.inc: its game_function, FindFsb and the
+// theater's last read.
+#include "world/maps/sboxion/warp_game.inc"
 #include "glue/tick/worker.inc"
 #include "online/partner/bench_worker.inc" // After worker.inc: its dir, read_file, capture and sent_table.
 #include "glue/tick/saves_worker_shared.inc"
@@ -436,6 +441,7 @@
 #include "online/lobby/sbo_worker.inc"
 #include "online/modes/nightop/nightop_worker.inc"
 #include "world/teamshop/teamshop_worker.inc"
+#include "world/maps/sboxion/warp_worker.inc" // After saves_worker_shared.inc: its saves_now.
 #include "online/group/travel_worker.inc"
 #include "online/saves/shortcut_worker.inc"
 #include "cutmenus/items_worker.inc"
@@ -635,6 +641,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The team shop's screen, its own latch: an open ask taken each frame (the worker takes none after coop off).
   if (game_pinned && !teamshop_faulted)
     teamshop_tick();
+  // SBO Xion's warp and way out, their own latch: a request taken each frame, its guards and SB's call in that frame;
+  // none after coop off or its first fault.
+  if (game_pinned && !sboxion_faulted && !blocked)
+    sboxion_tick();
   // The photo hunt's photo check, its own latch: a new arm taken each frame, then SB's check of the armed rows at each
   // selfie photo; none after coop off or its first fault.
   if (game_pinned && !photohunt_faulted && !blocked)

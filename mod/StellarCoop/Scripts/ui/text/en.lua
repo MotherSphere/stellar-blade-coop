@@ -150,7 +150,8 @@ return {
         ['vehicles.bike']='The bike',['world.daynight']='Day and night',['cutmenus']='Cut menus',
         ['online.saves']='Co-op saves',
         ['world.teamshop']='Team shop',['fight.gunmode']='Gun mode',['online.modes.scoreattack']='Score attack',
-        ['online.modes.fishing']='Fishing tournament',['online.modes.photohunt']='Photo hunt'},
+        ['online.modes.fishing']='Fishing tournament',['online.modes.photohunt']='Photo hunt',
+        ['world.maps.sboxion']='SBO Xion'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',

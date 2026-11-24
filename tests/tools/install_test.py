@@ -291,6 +291,9 @@ with tempfile.TemporaryDirectory() as tmp:
                               'online/modes/photohunt/records', 'online/modes/photohunt/targets',
                               'online/modes/photohunt/round', 'online/modes/photohunt/game',
                               'online/modes/photohunt/ui/board',
+                              'world/maps/sboxion/commands', 'world/maps/sboxion/data',
+                              'world/maps/sboxion/engine', 'world/maps/sboxion/recover',
+                              'world/maps/sboxion/sboxion',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',
@@ -301,7 +304,8 @@ with tempfile.TemporaryDirectory() as tmp:
                                                                    'world/daynight', 'cutmenus',
                                                                    'online/saves', 'world/teamshop',
                                                                    'fight/gunmode', 'online/modes/scoreattack',
-                                                                   'online/modes/fishing', 'online/modes/photohunt')),
+                                                                   'online/modes/fishing', 'online/modes/photohunt',
+                                                                   'world/maps/sboxion')),
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files

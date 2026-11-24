@@ -252,6 +252,7 @@ private:
     case Command::photohunt:
     case Command::nightshop:
     case Command::teamshop:
+    case Command::sboxion:
     case Command::roxanne:
     case Command::signal:
     case Command::sbo:

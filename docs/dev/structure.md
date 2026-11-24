@@ -43,6 +43,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `online.modes.scoreattack` | Score attack | `online/modes/scoreattack/` | none | [Score attack](../online/modes/scoreattack.md) | `online/modes/scoreattack/challenges.lua`, `online/modes/scoreattack/waves.lua` and `online/modes/scoreattack/run.lua`, its copies |
 | `online.modes.fishing` | Fishing tournament | `online/modes/fishing/` | `online/modes/fishing/` | [Fishing tournament](../online/modes/fishing.md) | `online/modes/fishing/records.lua`, its copy of score attack's records; `online/modes/fishing/rows.lua`, the names of SB's 40 fish rows; `native/src/online/modes/fishing/fishing.h`, its copy of the set walk of `cutmenus/items.h` |
 | `online.modes.photohunt` | Photo hunt | `online/modes/photohunt/` | `online/modes/photohunt/` | [Photo hunt](../online/modes/photohunt.md) | `online/modes/photohunt/records.lua`, its copy of score attack's records |
+| `world.maps.sboxion` | SBO Xion | `world/maps/sboxion/` | `world/maps/sboxion/` | [SBO Xion](../world/maps/sboxion.md) | Its rows in `world/maps/sboxion/sboxion_rows.h`; `world/maps/sboxion/recover.lua`, its copy of score attack's in-place respawn and of the group's ground read; `world/maps/sboxion/engine.lua`, its copy of the lobby's black call |
 
 ## Shared pieces
 
@@ -85,9 +86,10 @@ patches, its recipes, its counts and its `Batch` constants):
 | `online/lobby/halls_rows.h` | `halls` | `tools/sbo_lobby_rows.py` |
 | `world/teamshop/teamshop_rows.h` | `teamshop` | `tools/teamshop_rows.py` |
 | `fight/gunmode/nikke_rows.h` | `nikke` | hand |
+| `world/maps/sboxion/sboxion_rows.h` | `sboxion` | hand |
 
 `rows/rows.h` keeps the engine, the generated `kTables` and one line per batch word naming its header. `glue/tick.cpp`
-includes the eight headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
+includes the nine headers right after `rows/rows.h`. The Lua read-back lists follow the code that asks: the lion, bolt
 and shop batches are asked by the Lion object, so their lists stay in `fight/bosses/lion_rows.lua`.
 
 A module that needs rows another module owns gets a generated copy in its own folder, never a `require` of the other

@@ -14,6 +14,7 @@ assert(Rule.row('/game/art/bg/worldmap/e05_greatdesert_p/e05_greatdesert_p').hz=
 local E04='/game/art/bg/worldmap/level_p/e04'
 assert(Rule.row(E04).heading==205 and Rule.row(E04).sky=='painted')
 assert(Rule.row('/game/sbo_lobby/lobby_terrace').cycle=='fixed')
+assert(Rule.row('/game/sbo_world/xion_p').cycle=='fixed','SBO Xion keeps the day its module sets')
 assert(Rule.row('/game/dlc_2/art/bg/worldmap_nk/nk_p').cycle=='fixed')
 assert(Rule.row('/game/sbo_lobby/lobby_hotel').heading==308 and Rule.row('/game/sbo_lobby/lobby_hotel').sky=='engine')
 assert(Rule.row('/game/somewhere/else')==nil and Rule.row(nil)==nil)

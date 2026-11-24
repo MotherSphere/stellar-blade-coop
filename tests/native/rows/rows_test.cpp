@@ -29,15 +29,19 @@
 // writes, its group rows' task containers (a TArray of structs of FName arrays, built in the pool), the 8 filters'
 // list on both "Talk to Lily" tasks, then her borrowed choice row patched in place in TheaterSelectDataTable with no ID
 // check, last, so a refusal there leaves the quest rows in. The hall lobbies' batch (online/lobby/halls_rows.h, patches
-// of its own): five WorldTable rows, then five ZoneTable rows naming them, in the two tables no other batch writes,
-// then 171 ZoneEnvSpawnTable seat rows over Xion's chair rows, each naming its own row and its hall's zone; a taken
-// zone ID stops it after the worlds, a taken seat ID at that seat, a ZoneTable of another row size before any row.
+// of its own): five WorldTable rows, then five ZoneTable rows naming them, in the two tables only it and SBO Xion's
+// batch write, then 171 ZoneEnvSpawnTable seat rows over Xion's chair rows, each naming its own row and its hall's
+// zone; a taken zone ID stops it after the worlds, a taken seat ID at that seat, a ZoneTable of another row size before
+// any row.
 // The team shop's batch (world/teamshop/teamshop_rows.h, generated from data/teamshop/, patches of its own): names
 // and IDs unique against the Lion's generator's batches; its rows only in ItemTable, ShopItemTable and ShopTable with
 // its ShopTable row last; a whole run.
 // Gun mode's rounds batch (fight/gunmode/nikke_rows.h, patches of its own): 8 RewardGroupTable rows, then its
 // ShopItemTable row, then the three camp shops patched in place; names and IDs unique against the other batches; a
 // whole run.
+// SBO Xion's batch (world/maps/sboxion/sboxion_rows.h, written by hand, patches of its own): one WorldTable row, then
+// one ZoneTable row naming it, type 5, with IDs no hall row holds; a whole run; a taken zone ID stops it after the
+// world row.
 #include "rows/rows.h"
 #include "fight/bosses/lion_rows.h"
 #include "eve/bolt_rows.h"
@@ -47,6 +51,7 @@
 #include "online/lobby/halls_rows.h"
 #include "world/teamshop/teamshop_rows.h"
 #include "fight/gunmode/nikke_rows.h"
+#include "world/maps/sboxion/sboxion_rows.h"
 
 #include <algorithm>
 #include <cassert>
@@ -182,6 +187,7 @@ struct Game {
     donor_rows(kHalls);
     donor_rows(kTeamshop);
     donor_rows(kNikke);
+    donor_rows(kSboxion);
   }
   uint64_t vtable_at = 0;
 
@@ -1597,6 +1603,38 @@ int main() {
            "halls=refused added=0/181 asks=1 spawns=? why=size table=ZoneTable row=Zone_SBO_Hotel detail=0x148");
     assert(describe(kHalls, a) ==
            "halls rows refused Zone_SBO_Hotel: ZoneTable's row size 0x148 not 0x150; 0/181 added");
+  }
+  {
+    // sboxion_rows_build: SBO Xion's batch (world/maps/sboxion/sboxion_rows.h) on its own Builder adds its world row,
+    // then its zone row, each from its template with its ID in the table's ID map. The zone's WorldAlias is the world
+    // row's FName, so SB's warp finds our world row from our zone row. Neither ID is one a hall may take: the halls'
+    // generator gives hall i the pair (7121 + i, 1000121 + i).
+    Game g;
+    Builder xb(kSboxion);
+    const Answer a = xb.run(g, kBase, g.tables, g.block);
+    assert(a.state == State::rows && a.why == Why::none && a.added == kSboxionRows && kSboxionRows == 2 &&
+           g.adds.size() == 2 && g.puts.empty());
+    verify(g, xb, kSboxion, 0);
+    const Game::Add &world = g.adds[0], &zone = g.adds[1];
+    assert(world.table == size_t(Table::world) && zone.table == size_t(Table::zone));
+    assert(g.string_field(world, 0x18) == "/Game/SBO_World/Xion_P.Xion_P" &&
+           Game::field<uint64_t>(zone, 0x14) == world.name && zone.block[0x25] == 5);
+    assert(g.id_name(g.tables[size_t(Table::world)], 7131) == g.name("SBO_Xion") &&
+           g.id_name(g.tables[size_t(Table::zone)], 1000131) == g.name("Zone_SBO_Xion"));
+    for (size_t i = 0; i < kHallsRows; ++i)
+      assert(kHallsRecipe[i].id != 7131 && kHallsRecipe[i].id != 1000131);
+    assert(describe(kSboxion, a) == "sboxion rows: 2/2 added through SB's AddRow 0x1441815b0, 0 refused");
+    Status s;
+    s.word = pack(a, 1);
+    assert(status_line(kSboxion, s) == "sboxion=rows added=2/2 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
+    assert(xb.run(g, kBase, g.tables, g.block).added == kSboxionRows && g.adds.size() == 2);
+    // sboxion_refuses_taken_id: a zone ID a later SB update takes stops the batch at the zone, the world row in.
+    Game h;
+    h.ids[{h.tables[size_t(Table::zone)], 1000131}] = h.name("Other");
+    Builder hb(kSboxion);
+    const Answer b = hb.run(h, kBase, h.tables, h.block);
+    assert(b.state == State::refused && b.why == Why::id && b.row == 1 && b.added == 1 && h.adds.size() == 1);
+    assert(describe(kSboxion, b) == "sboxion rows refused Zone_SBO_Xion: ID 1000131 taken; 1/2 added");
   }
   {
     // teamshop_rows_build: the team shop's batch on its own Builder adds every row from its template with its patches
