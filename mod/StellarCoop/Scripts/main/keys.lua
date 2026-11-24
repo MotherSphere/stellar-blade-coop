@@ -28,9 +28,9 @@ local print,log=M.print,M.log
 -- menu's words; coop status keeps the full status. An XInput pad, which no bind can take, comes through the native part
 -- (main/input.lua's pad_event, each frame): View held 1 s does what menu_key does, D-pad Right held 1 s what bike_key
 -- does, the D-pad or the left stick, A and B navigate the join popups, the menu and the co-op saves' question, B closes
--- the chat's box and the code box. emote_key opens the emote wheel (eve/ui/wheel.lua) while it is held; while the
+-- the chat's box and the code box. emote_key opens the emote wheel (eve/ui/wheel.lua) while it is held. While the
 -- wheel is open it takes Q and A (the previous page), E (the next), Esc (cancel), a left click (play) and a right
--- click (the next page) first, and every other key of ours does nothing (the F-keys, Enter, the navigation keys).
+-- click (the next page) first. Every other key of ours does nothing then (the F-keys, Enter, the navigation keys).
 if M.settings then
     local K=require('core.keybind')
     local ACTIONS={'menu','host','status','leave','follow','race','bike','emote'}

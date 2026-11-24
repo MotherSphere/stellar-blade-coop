@@ -832,7 +832,7 @@ end)()
     assert(asked[#asked]=='devinfo quest' and select(2,focus())=='Quests')
     key('ESCAPE')
     assert(focus()=='Developer menu')
-    -- The cut models' page (fight/bosses/ui/viewer.lua): Show asks coop leviathan show body, and reads what is shown.
+    -- The cut models' page (fight/bosses/ui/viewer.lua): Show asks coop leviathan show body and reads what is shown.
     key('DOWN_ARROW'); key('RETURN')
     assert(menu_view.title.s=='Cut models' and screen()=='Model|Leviathan|focus\nPart|body|normal\n'
         ..'Skin|default|normal\nShow|Nothing shown|normal\nFree camera|Off|normal\nRemove||normal',screen())

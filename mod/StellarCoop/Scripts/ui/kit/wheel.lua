@@ -6,8 +6,8 @@
 -- its centre's soft disc, dotted circle and pointer arc, its open and focus sounds) at 80 % of the game's size, over a
 -- shade, in one kit group (ui/kit/kit.lua). A module opens it with its pages (open), one ring a page; the mouse (its
 -- direction from the screen's centre, past DEAD units, once it moved) or the right stick (the native part's sector)
--- points at a slot, and the slot stays lit until another one is pointed at; the release of the key or the button
--- that opened it, a left click or A plays the slot pointed at; Q and E (A and E on an AZERTY keyboard), a right click,
+-- points at a slot. The slot stays lit until another one is pointed at. The release of the key or the button that
+-- opened it, a left click or A plays the slot pointed at; Q and E (A and E on an AZERTY keyboard), a right click,
 -- LB and RB change the page; Esc and B cancel. It takes the game's input as the co-op menu does, with no mouse cursor:
 -- the camera stays still and the game runs on. The game's input comes back BACK s after any close, so the key that
 -- closed it never reaches the game. It closes with nothing played when the module's guard gives a reason (each

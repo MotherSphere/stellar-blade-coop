@@ -7,8 +7,8 @@
 -- UI_Gesture_Category_*; the centre's UI_HUD_Gesture), else in SBO's (ui/text's emote and wheel: the Cut clips, and
 -- every name under ui_language=english). emote_key held (main/keys.lua) or D-pad Left held 0.3 s (main/input.lua, with
 -- emote_pad=dpad_left) opens it on the page last used in this Lua load; the release plays the slot pointed at through
--- coop emote's own path (run). It does not open, and it closes with nothing played, while EVE is busy (eve/emote.lua's
--- busy: the bike, the air, a skill, a fight, a cutscene); its refusals go on screen. Logs [EM] wheel: lines.
+-- coop emote's own path (run). While EVE is busy (eve/emote.lua's busy: the bike, the air, a skill, a fight, a
+-- cutscene) it does not open; open, it closes with nothing played. Its refusals go on screen. Logs [EM] wheel: lines.
 local Emote=require('eve.emote')
 local Kit=require('ui.kit.wheel')
 local T=require('ui.text')

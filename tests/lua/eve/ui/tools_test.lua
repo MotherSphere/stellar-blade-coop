@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- eve/ui/tools.lua over eve/commands.lua: the page's title and its three switches in the player's words; Select, left
 -- and right ask the other state through the console's path; a fly or slowmo the native part took shows On (switched),
--- a refused one does not, and the refusal comes back for the menu's note; glide shows eve/glide.lua's state.
+-- a refused one does not. The refusal comes back for the menu's note. Glide shows eve/glide.lua's state.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Tools=require('eve.ui.tools')
 local Eve=require('eve.commands')
