@@ -268,8 +268,8 @@ Where another floor lies over or under a hole inside that span, the box ends sho
 the slab that carries the floor above. The boxes of `W02` and `W04` end under the east city's upper street and deck
 (Z 1483 and 1541), the box of `W05` under the centre's plaza (Z 132) and the box of `W19` under the floor over the
 second lift's pit (Z 2128). Its bottom stays 2 m over a floor below: `W15.1` starts over the rocks under it
-(Z 518). The two boxes of `W08` keep their full height: their floor is the level under lift doorway A and the
-doorway itself is 3.1 m higher.
+(Z 518). `W08.1` and `W08.2` keep their full height: their floor is the level under lift doorway A and the doorway
+itself is 3.1 m higher.
 
 A second fill with the boxes in the collision found none of the 1395 edge cells left and no floor reached behind
 the cave wall. A ray scan of the list finds no box across ground EVE walks on at another level than its hole.
