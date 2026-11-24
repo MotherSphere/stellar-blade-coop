@@ -335,7 +335,8 @@ of the world once and destroys an actor only while it is still the one it made. 
 with its walls and nothing is called. Nothing is made in any other map: SB's own Xion is never changed.
 
 `coop xion walls off` takes them down until `coop xion walls on` or the next arrival, so a test can walk to an open
-edge. `on` puts them up again, nearest to EVE first.
+edge. `on` puts them up again, nearest to EVE first. A wall put up around EVE was not tried: type `on` away from the
+edges and out of the cave.
 
 The module keeps the walls' actor paths in `coop-xion-walls.txt`, one line. After a Lua reload (Ctrl+R) the first
 pass in SBO Xion destroys the walls of the earlier load, then the arrival builds them again. A file left by a game
