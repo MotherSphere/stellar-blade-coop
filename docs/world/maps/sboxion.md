@@ -309,8 +309,11 @@ doorway or along those 11.9 m.
 | `CAVE` | The cave, 17.5 m from the gate point | (-24950, 16452) | 3160 m2 of cave floor | 1 | 88.0 m |
 
 On foot from the two arrival points EVE meets `W01`, `W14`, `W15`, `W16`, `W17`, `W18` and the cave. The other holes
-are in parts of the city she enters with a jump. `W17`, `W18` and `W20` are SB's own ways down, by a rope, by two
-ledges and a ladder, by a ladder. SBO Xion has none of those actors, so each is a one-way drop that the walls close.
+are in parts of the city she enters with a jump.
+
+The boxes of `W17`, `W18` and `W20` close the tops of three of Stellar Blade's own routes down: a rope at `W17`, two
+ledges and a ladder at `W18`, a ladder at `W20`. SBO Xion does not load the level-design actors of those routes, so
+each top is a one-way drop.
 
 ### What a wall is
 
@@ -369,12 +372,13 @@ wall. A file that cannot be read is logged and nothing is swept.
   58,395 m2. Boxes along every such edge would take 13 to 16 km of wall. SB itself leaves these edges open: its
   level-design sublevel `E04_Area01_A_LD_Visible` holds 19 fall volumes and 10 return points. In SBO Xion the
   recovery does that job.
-- The two places west of the arrival square where EVE left the city in the game tests, near (-10823, 9941) and
-  (-11272, 9451). Both are on the long bridge between the arrival square and the hub. SB's own block walls line both
-  sides of it (`BP_BlockWall33` to `54`, 210 cm high). They are in SBO Xion too. Near the first place their top is
-  about 1.7 m over the deck, so a jumping EVE passes over them. SB expects a fall there: the return point of its fall
-  volume `SBEffectVolume_Xion10_12` is on the deck, at (-11011, 9938, -54), 1.9 m from the first place. No step hole
-  was found within 6 m of either place. Raising those walls is not built. The south bridge is the same case.
+- The two bridge falls of the game tests, near (-10823, 9941) and (-11272, 9451), are not closed. Both are on the
+  long bridge between the arrival square and the hub. Stellar Blade's own block walls stand along both sides of it,
+  210 cm high (`BP_BlockWall33` to `54`). They are in SBO Xion too. A jumping EVE passes over them: near the first
+  place their top is about 1.7 m over the deck. The recovery then brings her back. SB expects a fall there: the
+  return point of its fall volume `SBEffectVolume_Xion10_12` is on the deck, at (-11011, 9938, -54), 1.9 m from the
+  first place. No step hole was found within 6 m of either place. Raising those walls is not built. The south bridge
+  is the same case.
 - The roofs and decks outside the city that a jump reaches.
 - Other edges with a kerb or a steep face beyond them. The city was not searched for more of the two kinds that
   `W08.3`, `W08.4` and `W21.6` close. South of (-9080, 8520) the west edge of `W21`'s level stays open: it leads to
