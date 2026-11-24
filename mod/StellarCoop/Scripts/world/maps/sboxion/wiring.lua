@@ -11,8 +11,8 @@ local print=M.print
 -- rows and makes the warp): its rows asked at the title on the co-op save files once the zSBO_Xion test pak is found
 -- under SB/Content/Paks (main/pass.lua: sboxion.title), their read-back, the native answers and the watch at each
 -- pass (sboxion.tick, with the recovery after a fall or a death and the walls while EVE is there, the walls' paths
--- kept in coop-xion-walls.txt for the next Lua load's sweep), coop xion [city|gate|leave|status|recover] on a co-op
--- save, solo.
+-- kept in coop-xion-walls.txt for the next Lua load's sweep), coop xion [city|gate|leave|status|recover|walls] on a
+-- co-op save, solo.
 M.sboxion=M.link and require('world.maps.sboxion.sboxion').new({
     log=function(m) print('[StellarCoop][SX] '..tostring(m)..'\n') end,
     status=function() return M.link.status() end,ask=function(line) return M.ask(line)() end,

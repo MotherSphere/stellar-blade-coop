@@ -16,7 +16,8 @@
 -- on at the next arrival and the recovery's part of the status. The walls (world/maps/sboxion/walls/walls.lua): queued
 -- at each arrival nearest to the point coop xion asked, made 10 a pass through the module's own wiring and only in SBO
 -- Xion, their part of the status, taken down by a map change (none called once the world is gone, each destroyed
--- while it still stands) and by coop off, kept in the store the wiring hands over.
+-- while it still stands) and by coop off, kept in the store the wiring hands over; coop xion walls refused out of SBO
+-- Xion, inside its count alone, off and on.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -364,6 +365,23 @@ assert(x.recover('on'))
 ok,why=x.enter('gate')
 assert(not ok and why=='coop xion: EVE is in SBO Xion already; way out: coop xion leave' and #asked==0,why)
 
+-- coop xion walls: the count alone; off takes them down and none is made; on builds them again, nearest to EVE.
+ok,why=x.walls()
+assert(ok and why=='coop xion walls: walls 178 of 178 up',why)
+ok,why=x.walls('off')
+assert(ok and why=='coop xion walls: walls off until coop xion walls on or the next arrival' and walls_removed==178
+    and logs[#logs]=='sboxion: walls: down (coop xion walls off): 178 removed' and kept==nil,why)
+assert(select(2,x.status()):find('; walls off$'),select(2,x.status()))
+pass(x,1)
+assert(#walls_made==178,'Off makes none')
+ok,why=x.walls('on')
+assert(ok and why=='coop xion walls: walls on: 178 to put up ([SX] lines follow)'
+    and logs[#logs]=='sboxion: walls: 178 to put up, 10 a pass, nearest to EVE first',why)
+pass(x,4.5)
+assert(#walls_made==356 and times('sboxion: walls: 178 of 178 up in 18 passes')==2,'Up again: '..#walls_made)
+ok,why=x.walls('up')
+assert(not ok and why=='Use: coop xion walls [on|off]',why)
+
 -- map_change: the watch and the recovery end and nothing is read after. A put-back being checked is dropped. The
 -- next arrival writes the day table again.
 her_at,her_mode={X=0,Y=0,Z=-5000},3
@@ -378,9 +396,11 @@ world_gone=true -- The map change destroyed SBO Xion's world with its walls.
 pass(x,0.25)
 assert(logs[#logs]=='sboxion: left, map '..SB_XION,logs[#logs])
 -- walls_map_change: no wall of a world that is gone is destroyed and the store is cleared.
-assert(logs[#logs-1]=='sboxion: walls: down (a map change): 0 removed, 178 gone already' and walls_removed==0
+assert(logs[#logs-1]=='sboxion: walls: down (a map change): 0 removed, 178 gone already' and walls_removed==178
     and kept==nil,logs[#logs-1])
 world_gone=false
+ok,why=x.walls('on')
+assert(not ok and why=='coop xion walls: EVE is not in SBO Xion',why)
 ok,why=x.status()
 assert(ok and why:find('EVE is not in SBO Xion (map '..SB_XION..')',1,true) and not why:find('recovery',1,true)
     and not why:find('walls',1,true),why)
@@ -388,11 +408,11 @@ ok,why=x.recover('on')
 assert(not ok and why=='coop xion recover: EVE is not in SBO Xion',why)
 pass(x,20)
 assert(total()==reads and times('sboxion: left')==1,'Nothing is read after a map change')
-assert(#walls_made==178,'No wall is made in another map')
+assert(#walls_made==356,'No wall is made in another map')
 fresh()
 me=at(D.ARRIVALS.gate)
 pass(x,0.25)
-assert(#walls_made==188 and times('sboxion: walls: 178 to put up, 10 a pass, nearest to the city point first')==2,
+assert(#walls_made==366 and times('sboxion: walls: 178 to put up, 10 a pass, nearest to the city point first')==2,
     'Each arrival builds the walls again')
 assert(times('sboxion: arrived')==2 and #sets==21 and times('41 named, 21 changed')==2,'A second arrival writes again')
 assert(times('sboxion: recovery on: floor Z -3275, arrival point city')==2,'The recovery starts again at each arrival')
@@ -403,7 +423,7 @@ assert(not logged('put back failed') and times('put back: EVE walks')==1,'The ch
 me=nil
 pass(x,0.25)
 assert(logs[#logs]=='sboxion: left, map none',logs[#logs])
-assert(logs[#logs-1]=='sboxion: walls: down (a map change): 178 removed' and walls_removed==178,logs[#logs-1])
+assert(logs[#logs-1]=='sboxion: walls: down (a map change): 178 removed' and walls_removed==356,logs[#logs-1])
 
 -- A volume whose write does not hold shows in the read-back; a level not loaded is named.
 fresh()

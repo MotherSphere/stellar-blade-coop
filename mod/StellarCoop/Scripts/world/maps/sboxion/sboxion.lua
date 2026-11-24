@@ -31,6 +31,8 @@
 -- recovery's state and the walls' count.
 -- coop xion recover [on|death|off], inside SBO Xion: the recovery's mode until the next arrival, which sets it to on.
 -- death leaves falls alone, so EVE can die of one on purpose. off does nothing, as before the recovery existed.
+-- coop xion walls [on|off], inside SBO Xion: off takes the walls down until on or the next arrival, so a test can walk
+-- to an open edge. Alone, it prints their count.
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local D=require('world.maps.sboxion.data')
@@ -329,6 +331,12 @@ function Xion.new(o)
         if not stay then return false,'coop xion recover: EVE is not in SBO Xion' end
         local ok,line=recover.mode(word)
         return ok,ok and 'coop xion recover: '..line or line
+    end
+    -- coop xion walls [on|off]: the walls taken down or put up again, or their count with no word.
+    function self.walls(word)
+        if not stay then return false,'coop xion walls: EVE is not in SBO Xion' end
+        local ok,line=walls.switch(word)
+        return ok,ok and 'coop xion walls: '..line or line
     end
     -- Each 250 ms pass: the wait for the rows and their read-back, the native answer awaited, then the arrival, the
     -- watch, the recovery and the walls while EVE's map is SBO Xion. In any other map, with nothing asked, it reads
