@@ -1,23 +1,44 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- SBO Xion's wall list (world/maps/sboxion/walls/list.lua): 178 rows of eight values, 598.1 m in all, the count of
+-- SBO Xion's wall list (world/maps/sboxion/walls/list.lua): 142 rows of eight values, 554.3 m in all, the count of
 -- each of the 22 holes and of the cave, no row twice, each size in the range the boxes were made in, the long side
--- first. The two boxes of lift doorway A stand at the doorway and under its floor. The cave wall is one box 17.5 m
--- from the gate point. No box holds an arrival point or a waypoint of data.lua with EVE's capsule radius around it.
+-- first. A box is at least 9.5 m high unless it ends short of another floor: the rows of W02, W04, W05 and W19 stay
+-- under the floor over their hole and W15.1 starts over the rocks under it. The two boxes of lift doorway A stand at
+-- the doorway and under its floor. The cave wall is one box 17.5 m from the gate point. No box holds an arrival point
+-- or a waypoint of data.lua with EVE's capsule radius around it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local List=require('world.maps.sboxion.walls.list')
 local D=require('world.maps.sboxion.data')
-local COUNT={W01=5,W02=6,W03=22,W04=10,W05=12,W06=23,W07=30,W08=2,W09=7,W10=6,W11=7,W12=1,W13=11,W14=1,W15=2,W16=1,
+local COUNT={W01=5,W02=2,W03=21,W04=2,W05=1,W06=23,W07=18,W08=2,W09=7,W10=6,W11=7,W12=1,W13=11,W14=1,W15=2,W16=1,
     W17=2,W18=2,W19=1,W20=17,W21=5,W22=4,CAVE=1}
-assert(#List==178,'178 boxes: '..#List)
+-- The holes that lie under another floor, as the survey measured them: own, the highest floor of the hole (Z, cm) and
+-- over, the lowest floor EVE walks on over it. W02 and W04 lie under the east city's upper street and deck, W05 under
+-- the centre's plaza, W19 under the second lift's upper floor. Each of their boxes ends under that floor. It still
+-- starts 2 m or more under its own floor and rises 1.6 m or more over it.
+local UNDER={W02={own=1256.8,over=1482.9},W04={own=1256.8,over=1541},W05={own=-72.8,over=131.7},
+    W19={own=1784.8,over=2127.5}}
+-- W15.1 stands over rocks at Z 518 that EVE walks on. Its own lowest floor is at Z 777.4.
+local ROCKS,W15_FLOOR=518,777.4
+assert(#List==142,'142 boxes: '..#List)
 local seen,count,length={},{},0
 for i,r in ipairs(List) do
     assert(#r==8 and COUNT[r[1]],'row '..i..': a hole and seven numbers')
     for k=2,8 do assert(math.type(r[k]) and r[k]==r[k] and math.abs(r[k])<1e5,'row '..i..' value '..k) end
     local yaw,l,t,h=r[5],r[6],r[7],r[8]
+    local bottom,top=r[4]-h/2,r[4]+h/2
+    local name=r[1]..'.'..(count[r[1]] or 0)+1
     assert(yaw>=-90 and yaw<=90,'row '..i..': the yaw of the long side')
-    assert(l>=85 and l<=8800 and t>=30 and t<=89 and h>=950 and h<=5469 and l>=t,'row '..i..': its size')
+    local under=UNDER[r[1]]
+    if under then
+        assert(top<under.over,name..' comes out through the floor over its hole: top '..top)
+        assert(top>=under.own+160 and bottom<=under.own-200,name..' no longer spans its own floor: '..bottom..' to '..top)
+    elseif name=='W15.1' then
+        assert(bottom>=ROCKS+190 and bottom<W15_FLOOR and top>=W15_FLOOR+700,name..': over the rocks, from under its floor')
+    else
+        assert(h>=950,name..': 2.5 m under its lowest floor to 7 m over its highest')
+    end
+    assert(l>=85 and l<=8800 and t>=30 and t<=89 and h<=5469 and l>=t,'row '..i..': its size')
     local key=table.concat(r,' ')
     assert(not seen[key],'row '..i..' is there twice')
     seen[key]=true
@@ -25,7 +46,7 @@ for i,r in ipairs(List) do
     length=length+l
 end
 for hole,n in pairs(COUNT) do assert(count[hole]==n,hole..': '..tostring(count[hole])..' boxes, not '..n) end
-assert(math.abs(length/100-598.1)<0.05,'598.1 m of wall: '..length/100)
+assert(math.abs(length/100-554.3)<0.05,'554.3 m of wall: '..length/100)
 
 -- Whether a point lies in a box grown by pad cm on its four sides, at any height the box spans.
 local function holds(r,p,pad)

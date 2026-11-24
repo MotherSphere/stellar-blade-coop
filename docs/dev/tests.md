@@ -877,7 +877,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `coop off`. `coop xion recover` is refused outside SBO Xion, sets each of its three modes inside and prints the
   state alone. A stay left in the mode `death` is followed by an arrival in the mode `on`. `coop xion status` ends
   with the recovery's part and the walls' count inside SBO Xion only. The walls: none is made outside SBO Xion. An
-  arrival queues them from the point `coop xion` asked, makes 10 in its pass and has 178 up 18 passes later, with the
+  arrival queues them from the point `coop xion` asked, makes 10 in its pass and has 142 up 15 passes later, with the
   cave wall first at the gate point. Their paths go to the store the wiring hands over. A map change that took the
   world destroys none and clears the store. A pass with EVE unread destroys each. `coop off` destroys the ones made
   and logs that line alone. `coop xion walls` is refused outside SBO Xion, prints the count alone, takes the walls
@@ -927,13 +927,15 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   closed; the read-back in the answer. With no such name nothing is spawned. A cube the component did not take, an
   object type other than 20, a raise of the profile call and a missing cube each raise with the actor destroyed.
   `unwall` destroys only the actor it made. The sweep takes only an actor whose root shows the cube;
-- `world/maps/sboxion/walls/list_test` checks `world/maps/sboxion/walls/list.lua`: 178 rows of eight values, the
-  count of each of the 22 holes and of the cave, 598.1 m in all, no row twice, each size in its range, the two boxes
-  of lift doorway A at the doorway from under its floor, the cave wall 17.5 m from the gate point, no box around an
-  arrival point or a waypoint with EVE's capsule radius;
+- `world/maps/sboxion/walls/list_test` checks `world/maps/sboxion/walls/list.lua`: 142 rows of eight values, the
+  count of each of the 22 holes and of the cave, 554.3 m in all, no row twice, each size in its range, a height of
+  9.5 m or more for every box that does not end short of another floor, each box of `W02`, `W04`, `W05` and `W19`
+  under the floor over its hole, from 2 m under its own floor to 1.6 m or more over it, `W15.1` from over the rocks
+  under it, the two boxes of lift doorway A at the doorway from under its floor, the cave wall 17.5 m from the gate
+  point, no box around an arrival point or a waypoint with EVE's capsule radius;
 - `world/maps/sboxion/walls/walls_test` runs `world/maps/sboxion/walls/walls.lua` over a fake world and a fake store.
-  An arrival queues the 178 boxes nearest to its point first. Each pass makes 10, logs the first wall's read-back
-  and saves the paths on one line. The count line comes after 18 passes. A wall that fails is logged with its
+  An arrival queues the 142 boxes nearest to its point first. Each pass makes 10, logs the first wall's read-back
+  and saves the paths on one line. The count line comes after 15 passes. A wall that fails is logged with its
   reason (three reasons a build) and named in the count line while the others go up. Taking the walls down asks
   each of the world once and counts the ones removed, the ones gone already, the ones never made and the removals
   that raised. `off` keeps them down. `on` builds them again nearest to EVE, or from the arrival point with EVE
