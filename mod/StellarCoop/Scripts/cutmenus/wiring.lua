@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The cut menus' wiring (cutmenus/): coop devmenu, coop devinfo and coop gift, and the developer menu's page.
+-- The cut menus' wiring (cutmenus/): coop devmenu, coop devinfo and coop gift, with the developer menu's page.
 return {
 uses={},
 exports={'devmenu','mailbox','devmenu_page'},

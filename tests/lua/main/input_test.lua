@@ -431,6 +431,15 @@ in_world=false
     assert(not kit_shown.wheel and em_logged('wheel: not opened: EVE is in combat')
         and fed()=='No emote now: EVE is busy.')
     em.busy=nil
+    -- D-pad Left held in one of the game's own screens: no wheel, no notice in the feed, one log line.
+    do
+        local before=fed()
+        kit_paused=true
+        pad(13)
+        assert(not kit_shown.wheel and fed()==before
+            and logged('pad: wheel ignored: the game is paused or shows one of its screens'),'The game\'s own menu')
+        kit_paused=false
+    end
     -- emote_pad=off and emote_key=none.
     settings_text='emote_pad=off\nemote_key=none\n'
     load_main(true)

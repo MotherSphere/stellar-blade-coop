@@ -122,6 +122,8 @@ function M.pad_event(what)
             or M.settings.emote_pad~='dpad_left' and 'emote_pad is off'
             or (M.approval.is_open() or M.lobby.is_open() or M.code_box.is_open() or M.box.is_open() or M.menu.is_open()
                 or M.saves_ui.is_open() or M.open_screen()~=nil) and 'one of our screens is open'
+            -- D-pad Left held in one of the game's own menus (a slider, the inventory) is the game's: logged only.
+            or M.kit~=nil and M.kit.paused(true) and 'the game is paused or shows one of its screens'
         if why then log('pad: wheel ignored: '..why); return end
         log('pad: wheel')
         if M.off then return M.report(false,M.OFF) end

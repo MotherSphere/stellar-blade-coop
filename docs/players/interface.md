@@ -63,7 +63,7 @@ page. No row runs `coop off`.
 | Page | Rows |
 | --- | --- |
 | EVE's cut moves | Debug flight, Slow motion and Glide, each On or Off: [`coop fly`](../eve/eve.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo), `coop slowmo` and [`coop glide`](../eve/eve.md#cut-glide-coop-glide) |
-| Developer menu | The rows of [`coop devmenu`](../cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo) as switches and buttons, and the developer panel (`coop devinfo`) |
+| Developer menu | The rows of [`coop devmenu`](../cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo) as switches and buttons, with the developer panel (`coop devinfo`) |
 | Cut models | The model viewer of [`coop leviathan`](../fight/bosses.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril) and its six other commands: a model, a part, a skin, Show, Free camera and Remove |
 
 A switch shows what the mod asked in this Lua load and the game took. The mod does not read the game's own state, so
@@ -444,7 +444,7 @@ wheel is open.
 | Cancel | Esc | B |
 
 - The wheel has 8 pages: Greeting, Expression, Orders, Emotions, Pose 1, Pose 2, Dance and Cut. The pages and the
-  emotes have the game's own names in the game's language. The Cut clips, and every name with `ui_language=english`,
+  emotes have the game's own names in the game's language. The Cut clips and every name with `ui_language=english`
   use the mod's words. It opens on the page you used last.
 - The emote you point at stays lit until you point at another one. Releasing with nothing pointed at plays nothing.
 - It does not open while EVE rides the bike, is in the air, attacks, dodges, takes a hit, fights or is held by a
@@ -458,7 +458,7 @@ wheel is open.
   `Native emote wheel reads unavailable (no emote wheel): <why>` once and the wheel does not open.
 
 The wheel has not been tested in game yet. A tap of D-pad Left is still the game's; what the game does with a 0.3 s
-hold, and whether a hit always closes the wheel, are part of its game test ([Tests](../dev/tests.md)).
+hold and whether a hit always closes the wheel are part of its game test ([Tests](../dev/tests.md)).
 
 ## Session chat
 

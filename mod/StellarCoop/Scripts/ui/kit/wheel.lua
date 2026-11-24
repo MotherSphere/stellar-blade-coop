@@ -38,8 +38,8 @@ function Wheel.angle(dx,dy) return (math.deg(math.atan(dx,-dy))+360)%360 end
 function Wheel.sector_angle(s) return (s-1)*5+2.5 end
 -- The slot (1 to n) at a direction, slot 1 at 12 o'clock and the next ones clockwise.
 function Wheel.slot(n,angle) return math.floor((angle+180/n)/(360/n))%n+1 end
--- Slot i of an n-slot ring: the piece's place and size in the group's units, its pivot (the ring's centre) and its
--- turn, and the middle of its name.
+-- Slot i of an n-slot ring: the piece's place and size in the group's units, its pivot (the ring's centre), its
+-- turn and the middle of its name.
 function Wheel.place(n,i)
     local g=GAME[n]
     local w,h=math.floor(g[1]*Wheel.K+0.5),math.floor(g[2]*Wheel.K+0.5)

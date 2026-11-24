@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The wiring of EVE's cut moves (eve/): coop wear, glide, emote, fly and chainspin, and the emote wheel.
+-- The wiring of EVE's cut moves (eve/): coop wear, glide, emote, fly and chainspin, with the emote wheel.
 return {
 uses={'fight.bosses'},
 exports={'wear','glide','emote','flight','emote_wheel','eve_page'},

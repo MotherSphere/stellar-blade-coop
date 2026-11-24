@@ -26,7 +26,7 @@ end
 -- (shown, skin, filming)}.
 function Viewer.new(o)
     local page={}
-    local model,part=1,{} -- The picked creature, and each one's picked mesh word.
+    local model,part=1,{} -- The picked creature. Each one's picked mesh word.
     function page.title(w) return w.tools.viewer.title end
     local function answer(ok,why) if ok then return true end return false,why end
     function page.rows(w)
