@@ -4,8 +4,8 @@
 -- SBO Xion (a test tool, experimental, left out of the usage line): a world of SBO's own whose persistent level
 -- /Game/SBO_World/Xion_P streams sublevels of SB's Xion from the player's own game files: the look-only ones. With
 -- the full test pak of 2026-11-24 it streams the level-design ones too, as SB ships them. The level is in the
--- zSBO_Xion test pak, built outside the mod and never shipped with it. SB's world row Xion, its zones and its sublevels are not touched: story
--- mode and online sessions keep SB's Xion.
+-- zSBO_Xion test pak, built outside the mod and never shipped with it. SB's world row Xion, its zones and its
+-- sublevels are not touched: story mode and online sessions keep SB's Xion.
 -- The pak gate (core/pak_gate.lua), once a Lua load: the container's .utoc must name SBO_World and Xion_P.umap, with
 -- its .pak and .ucas beside it. With no pak nothing is asked and nothing is said: most players have none.
 -- The rows (native/src/world/maps/sboxion/sboxion_rows.h's sboxion batch, world/maps/sboxion/data.lua): one world row
