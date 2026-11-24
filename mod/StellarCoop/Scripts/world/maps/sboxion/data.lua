@@ -71,7 +71,7 @@ D.TIED='CountDown_Posing_ENV'
 -- streamed, as shipped. The watch reads them each second.
 D.PROBES={'E04_DistantView_A_01','E04_DistantView_A_03'}
 -- Every level a pak leaves volume streamed, as shipped (LevelStreamingDynamic with the volumes it names in E04): the 34
--- 'dynamic' levels of the full test pak's set file (full-sets.json of the map tools, docs/dev/modding/maps.md). Its
+-- 'dynamic' levels of the full test pak's set file (full-sets.json, private to the map tools). Its
 -- build read the same 34 slots back from the pak. The two probes are among them. The paks of 2026-11-23 and of the
 -- rooms list only those two of them. Every other listed level is always loaded: 93 with the first pak, 98 with the
 -- rooms pak, 127 with the full test pak.

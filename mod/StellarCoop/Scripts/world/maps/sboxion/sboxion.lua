@@ -2,9 +2,9 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion (a test tool, experimental, left out of the usage line): a world of SBO's own whose persistent level
--- /Game/SBO_World/Xion_P streams sublevels of SB's Xion from the player's own game files: the look-only ones, and with
--- the full test pak of 2026-11-24 the level-design ones as SB ships them. The level is in the zSBO_Xion test pak, built
--- outside the mod and never shipped with it. SB's world row Xion, its zones and its sublevels are not touched: story
+-- /Game/SBO_World/Xion_P streams sublevels of SB's Xion from the player's own game files: the look-only ones. With
+-- the full test pak of 2026-11-24 it streams the level-design ones too, as SB ships them. The level is in the
+-- zSBO_Xion test pak, built outside the mod and never shipped with it. SB's world row Xion, its zones and its sublevels are not touched: story
 -- mode and online sessions keep SB's Xion.
 -- The pak gate (core/pak_gate.lua), once a Lua load: the container's .utoc must name SBO_World and Xion_P.umap, with
 -- its .pak and .ucas beside it. With no pak nothing is asked and nothing is said: most players have none.
@@ -21,9 +21,10 @@
 -- streamed ones of data.lua's VOLUMED), the two probe levels' state, the characters counted by class with the five
 -- nearest to EVE, the zone and area of the status text's engine line and EVE's life state of its sboxionwarp line,
 -- each as a log line a test reads. The levels and the characters again 10 s later. While EVE stays, once a second:
--- each change of the two probe levels, of the zone and area and of her life state, and each waypoint she stands at.
--- Then every LOOK s a look: the characters line again when the count by class or the five nearest changed, and the
--- levels whose loaded or visible state changed since the look before. Nothing is read in any other map.
+-- each change of the two probe levels, of the zone and area and of her life state. It logs each waypoint she
+-- stands at. Then every LOOK s a look: the characters line again when the count by class or the five nearest
+-- changed. It also logs the levels whose loaded or visible state changed since the look before. Nothing is read in
+-- any other map.
 -- The full test pak of 2026-11-24 loads SB's level-design sublevels as SB ships them: these lines are its test's eyes
 -- (what wakes up in Zone_SBO_Xion and whether the zone changes).
 -- Falls and deaths, each pass of the stay (world/maps/sboxion/recover.lua): the paks of 2026-11-23 and of the rooms
@@ -173,7 +174,7 @@ function Xion.new(o)
     -- elsewhere. view, what the last look saw: {seen=<each level's state by name>, levels=, crowd=, key=, nearest=,
     -- time=, zone=, life=}.
     local stay=nil
-    -- The listed levels with the state of each by name kept for the next look, and their counts for the status: the
+    -- The listed levels with the state of each by name kept for the next look. Their counts are for the status: the
     -- always-loaded ones loaded and visible, the volume streamed ones counted apart, since those load and show only
     -- where SB's volumes say. Returns the list, the states the look before kept (nil with none) and the levels line.
     local function tally()

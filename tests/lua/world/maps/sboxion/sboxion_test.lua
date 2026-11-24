@@ -6,7 +6,7 @@
 -- rooms goes to its call alone or with on or off; walls, the word of the walls taken out on 24 November 2026, another
 -- word or one too many is refused with the use line; without the Steam link every word says so. The wiring
 -- (world/maps/sboxion/wiring.lua) builds SBO Xion with one of the Steam link's stores, coop-xion-rooms.txt, the file
--- the rooms keep their hidden rows in, and asks for no store without the link.
+-- the rooms keep their hidden rows in. It asks for no store without the link.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Commands=require('world.maps.sboxion.commands')
 local calls={}

@@ -269,7 +269,7 @@ with a dead EVE, whether EVE can move under the black and what SB's pause menu d
 ## The walls
 
 The walls were tried on 24 November 2026. Each arrival queued 145 invisible walls at 22 edges where one step leads out
-of the city, lift doorway A among them, and in the cave at the gate point. Each wall was an engine cube with SB's
+of the city, lift doorway A among them. One more stood in the cave at the gate point. Each wall was an engine cube with SB's
 collision profile `SB_InvisiblewallIgnoreCamera`. In the game run all 145 failed with `the cube is not on the
 component`, so they never made a wall in game. They were dropped for real pieces of Stellar Blade: the doors, ladders
 and lift pieces of SB's own level-design sublevels. `coop xion walls` is gone. A `coop-xion-walls.txt` left by an older
@@ -481,7 +481,8 @@ What the 47 level-design levels hold, read in the paks of build 26123051:
 - 13 doors, among them SB's closed lift door in lift doorway A at (3982, -9162, 1222) with its open twin at
   (3958, -9124, 1222). The lever of the second lift with its deck at the top. 5 ladders, 2 ledges and 1 rope.
 - Camps with their chairs and teleport machines. Teleport machine 4 stands 1.5 m from the city point.
-- 19 fall volumes under the city, active in `Zone_Xion_10`, and the pit's under ground, active in `Zone_Xion_22`.
+- 19 fall volumes under the city, active in `Zone_Xion_10`. The pit's fall volume under ground is active in
+  `Zone_Xion_22`.
 
 ### What the module does with it
 
@@ -514,19 +515,30 @@ own `INSTALL.md` has the commands, the three hashes and the way back. Never keep
 
 On a co-op save, alone.
 
-1. `coop xion`. Within 15 s the log has `levels: 161 listed, 127 of 127`, the five `rooms: <room> open` lines, a
-   `characters:` line, `zone: zonetype 5 area Zone_SBO_Xion` and `life: 1`. Note any hitch.
+The rule of this test: read the zone before each step. `coop xion status` shows it. Go on only while it reads zone
+type 5 and area `Zone_SBO_Xion`. If it reads anything else, Stellar Blade took EVE into one of its own zones. Its
+triggers, its saves and its warps then work again. Stop walking. Do not jump. Leave by Stellar Blade's title menu:
+`coop xion leave` is refused outside `Zone_SBO_Xion`. Then put the copied co-op saves back.
+
+1. `coop xion`. Do not move. Within 15 s the log has `levels: 161 listed, 127 of 127`, the five `rooms: <room> open`
+   lines, a `characters:` line, `zone: zonetype 5 area Zone_SBO_Xion` and `life: 1`. Note any hitch.
 2. `coop xion status`. Note the look part: the count of characters, the nearest one, the zone.
-3. Stand on the arrival square for 20 s and look around. Note every NPC, guard or merchant, a teleport machine and
-   any cutscene. Note each `zone:` line.
-4. Walk to lift doorway A near (3958, -9124, 1222). A closed lift door of Stellar Blade should stand in the doorway.
-   Walk into it. Note whether it blocks EVE, whether a cutscene starts and any `zone:` line.
-5. Climb the ladder `BP_EM_Ladder3` at (-9973, 7549, -234), west of the arrival square, with its two ledges beside
+3. Stand still for 2 minutes, then walk on the arrival square for 1 minute. Stay out of the box 7 m to the north
+   around (-8340, 6502, 403): a trigger of Stellar Blade's camp warp stands there. Note every NPC, guard or merchant,
+   a teleport machine and any cutscene. Type `coop xion status` again and note the zone.
+4. Climb the ladder `BP_EM_Ladder3` at (-9973, 7549, -234), west of the arrival square, with its two ledges beside
    it. Then the ladder `BP_EM_Ladder5` at (-12218, 22514, -470), on the south rim of the round plaza. Note whether
    EVE can grab them and climb.
-6. Jump off the long bridge near (-10823, 9941). Note who brings EVE back: the module (a `black:`, a `fall:` and a
-   `put back:` line) or SB itself (no `fall:` line, maybe a `zone:` line first).
+5. Only if the zone still reads type 5: jump off the long bridge near (-10823, 9941). Note who brings EVE back: the
+   module (a `black:`, a `fall:` and a `put back:` line) or SB itself (no `fall:` line, maybe a `zone:` line first).
+6. Only if the zone still reads type 5: walk to lift doorway A near (3958, -9124, 1222). The lift hall is the place
+   with the most triggers: a zone volume of `Zone_Xion_11`, the lift's cutscene and warp at the doorway and a
+   cutscene trigger at (4578, -9973, 955). Look at the doorway from 5 m first: a closed lift door of Stellar Blade
+   should stand in it. Then walk into it. Note whether it blocks EVE, whether a cutscene starts and the zone.
 7. `coop xion leave`. The log has `left`. `coop-link.log` has `sboxion leave: ... reload call 1`.
+
+Do not use `coop xion gate` in this test. Do not walk into the cave at the west gate: Stellar Blade's exit trigger to
+the Wasteland stands there.
 
 Send the `[SX]` lines of `UE4SS.log` and `coop-link.log`. The fall steps of [Testing it in
 game](#testing-it-in-game) under Falls and deaths walk through lift doorway A: with this pak a door should stand
