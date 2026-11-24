@@ -22,9 +22,6 @@
 -- Falls and deaths, each pass of the stay (world/maps/sboxion/recover.lua): the level has none of SB's fall volumes,
 -- so EVE under data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
 -- SB's death screen cannot respawn her in this zone, so a dead EVE gets SB's in-place respawn.
--- The walls, each pass of the stay (world/maps/sboxion/walls/walls.lua): the level has none of SB's doors and lift
--- pieces, so each arrival puts up an invisible wall at every edge one step leads out of the city from. A map change
--- and coop off take them down.
 -- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test pak of 2026-11-24 adds five rooms
 -- behind five closed doors of SB's Xion, as five levels of the persistent level. The pak gate is asked once a Lua load
 -- for those five levels beside Xion_P. With them, each arrival hides the pieces of SB in each room's doorway once the
@@ -33,18 +30,15 @@
 -- coop xion leave: the request "sboxion leave <zone FName index>". The native part compares the zone with the
 -- client's and calls SB's reload of the co-op save only from SBO Xion, so the request is sent from any map.
 -- coop xion status: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the
--- recovery's state, the walls' count and the rooms' state.
+-- recovery's state and the rooms' state.
 -- coop xion recover [on|death|off], inside SBO Xion: the recovery's mode until the next arrival, which sets it to on.
 -- death leaves falls alone, so EVE can die of one on purpose. off does nothing, as before the recovery existed.
--- coop xion walls [on|off], inside SBO Xion: off takes the walls down until on or the next arrival, so a test can walk
--- to an open edge. Alone, it prints their count.
 -- coop xion rooms [on|off], inside SBO Xion: off puts SB's pieces back in the five doorways until on or the next
 -- arrival, so a test sees SB's closed doors again. Alone, it prints the rooms' state.
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local D=require('world.maps.sboxion.data')
 local Recover=require('world.maps.sboxion.recover')
-local Walls=require('world.maps.sboxion.walls.walls')
 local Rooms=require('world.maps.sboxion.rooms.rooms')
 local Xion={}
 Xion.ROWS=Enemy.rows(D.ROWS)
@@ -63,13 +57,12 @@ local function round(v) return math.floor(v+0.5) end
 -- o: log(m), status() the native status text, ask(line) its request (ok, why), paks (SB/Content/Paks, or nil) and
 -- read (core/link.lua's files.read) for the pak gate; slot(command) the co-op save check (ok, why), mode() the link's
 -- mode ('none' alone), me() our EVE as core/where.lua last read her ({at=, map=}, or nil), photo() main/base.lua's
--- photo_state (optional), world, the engine reads (world/maps/sboxion/engine.lua; a fake in the tests), store,
--- core/link.lua's store for the walls' paths (optional) and rooms_store, another for the rooms' hidden rows (optional).
+-- photo_state (optional), world, the engine reads (world/maps/sboxion/engine.lua; a fake in the tests) and
+-- rooms_store, core/link.lua's store for the rooms' hidden rows (optional).
 function Xion.new(o)
     local log=o.log
     local world=o.world
     local recover=Recover.new({log=function(m) log('sboxion: '..m) end,status=o.status,photo=o.photo,world=world})
-    local walls=Walls.new({log=function(m) log('sboxion: '..m) end,world=world,store=o.store})
     local asked_point=nil -- The arrival point of the last coop xion asked, for the recovery of the stay it starts.
     local e=Enemy.new({log=function(m) log('sboxion '..m) end,ask=o.ask,status=o.status},
         {word='sboxion',name='SBO Xion',command='coop xion',tag='[SX]',rows=Xion.ROWS,ids={}})
@@ -201,7 +194,6 @@ function Xion.new(o)
         stay={near={},said={},back=now+BACK,again=now+AGAIN,next=now+WATCH}
         log(string.format('sboxion: arrived, map %s, zone %s, EVE at %s',D.UMAP,D.ZONE,place(me.at)))
         recover.arrive(asked_point or 'city')
-        walls.arrive(me.at)
         stay.written=guarded('light',light) or {}
         guarded('levels',levels)
         stay.probes=guarded('probe',probes)
@@ -339,9 +331,7 @@ function Xion.new(o)
                 if d<far then best,far=w.name,d end
             end
             parts[#parts+1]=string.format('EVE at %s, nearest waypoint %s %.1f m',place(me.at),best,far/100)
-            if stay then
-                parts[#parts+1],parts[#parts+2],parts[#parts+3]=recover.status(),walls.status(),rooms.status()
-            end
+            if stay then parts[#parts+1],parts[#parts+2]=recover.status(),rooms.status() end
         else
             parts[#parts+1]='EVE is not in SBO Xion'..(me and ' (map '..me.map..')' or '')
         end
@@ -354,12 +344,6 @@ function Xion.new(o)
         local ok,line=recover.mode(word)
         return ok,ok and 'coop xion recover: '..line or line
     end
-    -- coop xion walls [on|off]: the walls taken down or put up again, or their count with no word.
-    function self.walls(word)
-        if not stay then return false,'coop xion walls: EVE is not in SBO Xion' end
-        local ok,line=walls.switch(word)
-        return ok,ok and 'coop xion walls: '..line or line
-    end
     -- coop xion rooms [on|off]: SB's pieces put back in the doorways or hidden again, or the rooms' state with no word.
     function self.rooms(word)
         if not stay then return false,'coop xion rooms: EVE is not in SBO Xion' end
@@ -367,10 +351,9 @@ function Xion.new(o)
         return ok,ok and 'coop xion rooms: '..line or line
     end
     -- Each 250 ms pass: the wait for the rows and their read-back, the native answer awaited, then the arrival, the
-    -- watch, the recovery, the walls and the rooms while EVE's map is SBO Xion. In any other map, with nothing asked,
-    -- it reads nothing. A map change ends the recovery, closes the rooms, then takes the walls down: a removal that
-    -- raises leaves no recovery running and no row of a world that still stands hidden. A wall or a row of a world
-    -- that is gone is not called.
+    -- watch, the recovery and the rooms while EVE's map is SBO Xion. In any other map, with nothing asked, it reads
+    -- nothing. A map change ends the recovery first, then closes the rooms: a put-back that raises leaves no recovery
+    -- running. A row of a world that is gone is not called.
     local off=false
     function self.tick()
         if off then return end
@@ -383,26 +366,22 @@ function Xion.new(o)
             if not stay then arrive(me,now) end
             watch(me,now)
             guarded('recovery',recover.tick)
-            walls.tick()
             rooms.tick()
         elseif stay then
             stay=nil
             recover.stop('a map change')
             rooms.close('a map change')
-            walls.down('a map change')
             log('sboxion: left, map '..(me and me.map or 'none'))
         end
     end
-    -- coop off: the title's wait, the watch and the recovery ended, the rooms' rows put back, then the walls taken
-    -- down. The walls come last, so a removal that raises skips none of the others. Rows already in stay for the game
-    -- run.
+    -- coop off: the title's wait, the watch and the recovery ended, then the rooms' rows put back. The rooms come last,
+    -- so a put-back that raises skips none of the others. Rows already in stay for the game run.
     function self.stop()
         off,stay,awaited=true,nil,nil
         recover.stop('coop off')
         title_stop()
         e.stop()
         rooms.close('coop off')
-        walls.down('coop off')
     end
     return self
 end
