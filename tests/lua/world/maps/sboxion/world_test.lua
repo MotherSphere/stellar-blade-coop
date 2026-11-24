@@ -14,10 +14,11 @@
 -- move two passes later, ended by a map change and by coop off, each showing again a death
 -- screen the recovery hid; coop xion recover refused out of SBO Xion, its three modes inside, the mode death back to
 -- on at the next arrival and the recovery's part of the status. The walls (world/maps/sboxion/walls/walls.lua): queued
--- at each arrival nearest to the point coop xion asked, made 10 a pass through the module's own wiring and only in SBO
+-- at each arrival nearest to EVE's own place, made 10 a pass through the module's own wiring and only in SBO
 -- Xion, their part of the status, taken down by a map change (none called once the world is gone, each destroyed
 -- while it still stands) and by coop off, kept in the store the wiring hands over; coop xion walls refused out of SBO
--- Xion, inside its count alone, off and on.
+-- Xion, inside its count alone, off and on. The recovery ends before the walls come down, so a removal that raises
+-- skips none of it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -264,7 +265,7 @@ pass(x,0.25)
 assert(logs[1]=='sboxion: arrived, map /Game/SBO_World/Xion_P, zone Zone_SBO_Xion, EVE at (-8304, 7201, 225)',logs[1])
 assert(logs[2]=='sboxion: recovery on: floor Z -3275, arrival point city (-8304, 7201, 225)' and calls.move==1,logs[2])
 -- walls_arrival: queued at the arrival, the first 10 made in its pass, all 145 up 15 passes later.
-assert(logs[3]=='sboxion: walls: 145 to put up, 10 a pass, nearest to the city point first',logs[3])
+assert(logs[3]=='sboxion: walls: 145 to put up, 10 a pass, nearest to EVE first',logs[3])
 assert(#walls_made==10 and logged('sboxion: walls: first wall '..walls_made[1]..' up: object type 20, collision on'))
 assert(logged('sboxion: light: 72 env volumes found, 65 in E04_ENV_VOL, 41 named, 21 changed, CountDown_Posing_ENV '
     ..'active true'),logs[2])
@@ -412,8 +413,11 @@ assert(#walls_made==290,'No wall is made in another map')
 fresh()
 me=at(D.ARRIVALS.gate)
 pass(x,0.25)
-assert(#walls_made==300 and times('sboxion: walls: 145 to put up, 10 a pass, nearest to the city point first')==2,
+assert(#walls_made==300 and times('sboxion: walls: 145 to put up, 10 a pass, nearest to EVE first')==3,
     'Each arrival builds the walls again')
+-- No coop xion was asked for this arrival, as after a Lua reload: the asked point is still the city one. The walls
+-- are ordered from EVE's own place, the gate point, so the cave wall is in the first pass.
+assert(walls_made[291]=='CAVE.1','The first wall at the gate point: '..walls_made[291])
 assert(times('sboxion: arrived')==2 and #sets==21 and times('41 named, 21 changed')==2,'A second arrival writes again')
 assert(times('sboxion: recovery on: floor Z -3275, arrival point city')==2,'The recovery starts again at each arrival')
 assert(select(2,x.status()):find('; recovery on, no ground point, failures 0',1,true),'The mode is on again')
@@ -453,9 +457,9 @@ assert(ok)
 me=at(D.ARRIVALS.gate)
 pass(x,0.25)
 assert(logged('sboxion: recovery on: floor Z -3275, arrival point gate (-23393, 17287, 1285)'),logs[#logs])
--- walls_gate: the walls are queued from the point coop xion asked, so the cave wall is made first.
-assert(logged('sboxion: walls: 145 to put up, 10 a pass, nearest to the gate point first')
-    and logged('sboxion: walls: first wall CAVE.1 up: object type 20, collision on'),logs[#logs])
+-- walls_gate: the walls are queued from EVE's place, here the gate point, so the cave wall is made first.
+assert(logged('sboxion: walls: first wall CAVE.1 up: object type 20, collision on')
+    and not logged('point first'),logs[#logs])
 
 -- A death in SBO Xion: the life word of the sboxionwarp line starts SB's in-place respawn with the GUID of the
 -- engine line. The death screen the recovery hid is shown again when EVE leaves the map.
@@ -468,8 +472,10 @@ assert(logged('sboxion: respawn result: life 3/1, death screen up/hidden, EVE pa
     logs[#logs])
 me={at={X=0,Y=0,Z=0},map=SB_XION}
 pass(x,0.25)
-assert(screen_shown and logs[#logs-1]=='sboxion: respawn: death screen shown again (a map change)'
-    and logs[#logs]=='sboxion: left, map '..SB_XION,logs[#logs-1])
+-- The recovery ends first, then the walls come down.
+assert(screen_shown and logs[#logs-2]=='sboxion: respawn: death screen shown again (a map change)'
+    and logs[#logs-1]:find('^sboxion: walls: down %(a map change%): %d+ removed')
+    and logs[#logs]=='sboxion: left, map '..SB_XION,logs[#logs-2])
 warp_line='sboxionwarp=left asks=4'
 ok=x.enter('city')
 me=at(D.ARRIVALS.city)
@@ -497,5 +503,28 @@ warp_line='sboxionwarp=entered asks=5 life=3'
 pass(x,2.5)
 assert(not screen_shown and logged('sboxion: respawn result: life 3/1, death screen up/hidden'),logs[#logs])
 x.stop()
-assert(screen_shown and logs[#logs]=='sboxion: respawn: death screen shown again (coop off)',logs[#logs])
+assert(screen_shown and logs[#logs-1]=='sboxion: respawn: death screen shown again (coop off)'
+    and logs[#logs]:find('^sboxion: walls: down %(coop off%): %d+ removed'),logs[#logs-1])
+
+-- walls_down_raises: the recovery ends before the walls come down. A removal that raises (here the store's clear)
+-- reaches the caller with the death screen shown again, at coop off and at a map change.
+for _,how in ipairs({'coop off','a map change'}) do
+    x=new()
+    her_at,her_mode=nil,1
+    me=at(D.ARRIVALS.city)
+    warp_line='sboxionwarp=entered asks=6 life=3'
+    local made=#walls_made
+    pass(x,2.5)
+    assert(not screen_shown and #walls_made==made+100,'The recovery hid the death screen and walls are up')
+    store.clear=function() error('the disk is full') end
+    if how=='coop off' then
+        ok,why=pcall(x.stop)
+    else
+        me={at={X=0,Y=0,Z=0},map=SB_XION}
+        ok,why=pcall(x.tick)
+    end
+    assert(not ok and tostring(why):find('the disk is full',1,true),'The store\'s error reaches the caller')
+    store.clear=function() kept=nil end
+    assert(screen_shown and logged('sboxion: respawn: death screen shown again ('..how..')'),how)
+end
 print('sboxion_world_test ok')

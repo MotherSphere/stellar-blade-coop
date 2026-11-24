@@ -344,13 +344,15 @@ kept only if the component reads back object type 20, which is `BlockVolume`.
 
 ### When they are up
 
-Each arrival queues the 145 boxes, nearest to the arrival point first. Each 250 ms pass makes 10, so all are up
-3.75 s after the arrival. At the gate point the cave wall is made in the first pass. A wall that cannot be made is
-logged with its reason while the others go up. The recovery stays under every edge.
+Each arrival queues the 145 boxes, nearest to EVE's own place first. Each 250 ms pass makes 10, so all are up
+3.75 s after the arrival. At the gate point the cave wall is made in the first pass. Her place is read at the
+arrival, so that holds after a Lua reload too, which forgets the point `coop xion` asked. A wall that cannot be made
+is logged with its reason while the others go up. The recovery stays under every edge.
 
 A map change and `coop off` take the walls down. `coop xion leave` ends in a map change. The module asks each wall
 of the world once and destroys an actor only while it is still the one it made. After a map change the world is gone
-with its walls and nothing is called. Nothing is made in any other map: SB's own Xion is never changed.
+with its walls and nothing is called. Nothing is made in any other map: SB's own Xion is never changed. The recovery
+is ended before the walls come down, so a removal that raises leaves no recovery running.
 
 `coop xion walls off` takes them down until `coop xion walls on` or the next arrival, so a test can walk to an open
 edge. `on` puts them up again, nearest to EVE first. A wall put up around EVE was not tried: type `on` away from the
@@ -358,7 +360,8 @@ edges and out of the cave.
 
 The module keeps the walls' actor paths in `coop-xion-walls.txt`, one line. After a Lua reload (Ctrl+R) the first
 pass in SBO Xion destroys the walls of the earlier load, then the arrival builds them again. A file left by a game
-that closed inside SBO Xion costs one lookup.
+that closed inside SBO Xion costs one lookup. A file that cannot be written is logged once a build and stops no
+wall. A file that cannot be read is logged and nothing is swept.
 
 ### What the walls do not close
 
@@ -386,16 +389,18 @@ doors, gates, shutters and lifts it lists would be missed. 280 m2 of city floor 
 
 | Line | Meaning |
 | --- | --- |
-| `sboxion: walls: 145 to put up, 10 a pass, nearest to the <city or gate> point first` | Each arrival. After `coop xion walls on` it ends `nearest to EVE first` |
+| `sboxion: walls: 145 to put up, 10 a pass, nearest to EVE first` | Each arrival and `coop xion walls on`. When `on` cannot read EVE the line ends `nearest to EVE's place at the arrival first` |
 | `sboxion: walls: first wall <hole>.<n> up: object type 20, collision on` | The first wall of a build, with what its component reads back |
 | `sboxion: walls: <hole>.<n> not made: <why>` | A wall failed. Three reasons are logged a build |
 | `sboxion: walls: 145 of 145 up in 15 passes, t ms` | The build is over. `t` is the time spent in the passes. Failed walls follow as `; not made: <names>` |
 | `sboxion: walls: down (<reason>): n removed` | A map change, `coop off`, `coop xion walls off` or an arrival. It adds `m gone already` for walls their world took, `k never made` for a build cut short and `j raised (<why>)` for a removal that failed |
 | `sboxion: walls: an earlier Lua load left n: m swept` | After a Lua reload. `0 swept` means their world is gone |
-| `sboxion: walls: error (<why>): the build is ended with n of 145 up` | A pass raised an error. The walls made stay up |
+| `sboxion: walls: an earlier Lua load's paths unread (<why>): none swept` | `coop-xion-walls.txt` could not be read after a Lua reload |
+| `sboxion: walls: paths not kept (<why>): a Lua reload would leave these walls up` | `coop-xion-walls.txt` could not be written. Said once a build |
+| `sboxion: walls: error (<why>): the build is ended with n of 145 up` | A pass raised an error. The walls made stay up. `coop xion walls off`, then `on`, builds again |
 
-`coop xion status` ends with `walls 145 of 145 up`, `walls n of 145 up, m to go`, `walls n of 145 up, k not made` or
-`walls off`.
+`coop xion status` ends with `walls 145 of 145 up`, `walls n of 145 up, m to go`, `walls n of 145 up, k not made`,
+`walls n of 145 up, build ended` after a pass that raised, or `walls off`.
 
 Reasons a wall is not made: `the game has no name SB_InvisiblewallIgnoreCamera`, `Cube is missing on this PC`,
 `the cube is not on the component`, `SB's profile SB_InvisiblewallIgnoreCamera did not take: object type n`, or the
@@ -556,7 +561,7 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 
 - `tests/lua/world/maps/sboxion/off_test.lua`: a failure of this module at load turns this module off alone.
 - `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes and `walls` with `on` and `off`
-  included.
+  included, then the wiring's store `coop-xion-walls.txt`.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the
@@ -568,8 +573,10 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
   `me()` names another place, SB's black asked through the module's own wiring with the move two passes later, a
   death answered with her GUID, the hidden death screen shown again at a map change and at `coop off`, `coop xion
   recover`, the mode back to `on` at an arrival and the status line's part. For the walls: none outside SBO Xion, 10
-  in the arrival's pass and 145 after 15 passes, the cave wall first at the gate point, none destroyed once a map
-  change took the world, each destroyed after a pass with EVE unread and at `coop off`, `coop xion walls`.
+  in the arrival's pass and 145 after 15 passes, the cave wall first at the gate point, the build ordered from
+  EVE's place at an arrival no `coop xion` asked, none destroyed once a map change took the world, each destroyed
+  after a pass with EVE unread and at `coop off`, the recovery ended before a removal that raises, `coop xion
+  walls`.
 - `recover_test.lua`: the ground point, the fall with its black and the move two passes later, a black that is not
   shown, the move dropped or held back like a check, each guard, the check on the world's time, the two failures
   that stop the recovery, then the death with score attack's respawn cases and this module's own (no death screen
@@ -582,8 +589,9 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
   under the floor over their hole, `W15.1` over the rocks under it, the four boxes of lift doorway A, a box at each
   step the ray fill took off the kerbed edge beside the doorway and off the west edge of `W21`'s level, the cave wall
   17.5 m from the gate point, no box around an arrival point or a waypoint.
-- `walls/walls_test.lua`: the build nearest first at 10 a pass, a wall that fails, the removal with a world that
-  still stands and with one that is gone, `coop xion walls`, the sweep, an error in a pass.
+- `walls/walls_test.lua`: the build nearest to EVE first at 10 a pass, a wall that fails, the removal with a world
+  that still stands and with one that is gone, `coop xion walls`, the sweep, an error in a pass with `build ended`
+  in the status, a store that raises.
 - `tests/native/world/maps/sboxion/sboxion_test.cpp`: one case for each guard of the two requests, the answer word,
   the status line and the log lines, the inside flag and the `life=` word on each form of the line.
 - `tests/native/rows/rows_test.cpp` runs the batch on the row engine. `tests/native/link/protocol_test.cpp` parses

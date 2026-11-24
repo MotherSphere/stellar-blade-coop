@@ -182,7 +182,7 @@ function Xion.new(o)
         stay={near={},said={},back=now+BACK,again=now+AGAIN,next=now+WATCH}
         log(string.format('sboxion: arrived, map %s, zone %s, EVE at %s',D.UMAP,D.ZONE,place(me.at)))
         recover.arrive(asked_point or 'city')
-        walls.arrive(asked_point or 'city')
+        walls.arrive(me.at)
         stay.written=guarded('light',light) or {}
         guarded('levels',levels)
         stay.probes=guarded('probe',probes)
@@ -340,7 +340,8 @@ function Xion.new(o)
     end
     -- Each 250 ms pass: the wait for the rows and their read-back, the native answer awaited, then the arrival, the
     -- watch, the recovery and the walls while EVE's map is SBO Xion. In any other map, with nothing asked, it reads
-    -- nothing. A map change takes the walls down first: a wall of a world that is gone is not called.
+    -- nothing. A map change ends the recovery, then takes the walls down: a removal that raises leaves no recovery
+    -- running. A wall of a world that is gone is not called.
     local off=false
     function self.tick()
         if off then return end
@@ -356,19 +357,19 @@ function Xion.new(o)
             walls.tick()
         elseif stay then
             stay=nil
-            walls.down('a map change')
             recover.stop('a map change')
+            walls.down('a map change')
             log('sboxion: left, map '..(me and me.map or 'none'))
         end
     end
-    -- coop off: the title's wait, the watch and the recovery ended and the walls taken down. Rows already in stay for
-    -- the game run.
+    -- coop off: the title's wait, the watch and the recovery ended, then the walls taken down. The walls come last, so
+    -- a removal that raises skips none of the others. Rows already in stay for the game run.
     function self.stop()
         off,stay,awaited=true,nil,nil
-        walls.down('coop off')
         recover.stop('coop off')
         title_stop()
         e.stop()
+        walls.down('coop off')
     end
     return self
 end

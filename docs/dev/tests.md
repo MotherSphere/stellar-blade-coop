@@ -877,11 +877,13 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `coop off`. `coop xion recover` is refused outside SBO Xion, sets each of its three modes inside and prints the
   state alone. A stay left in the mode `death` is followed by an arrival in the mode `on`. `coop xion status` ends
   with the recovery's part and the walls' count inside SBO Xion only. The walls: none is made outside SBO Xion. An
-  arrival queues them from the point `coop xion` asked, makes 10 in its pass and has 145 up 15 passes later, with the
-  cave wall first at the gate point. Their paths go to the store the wiring hands over. A map change that took the
-  world destroys none and clears the store. A pass with EVE unread destroys each. `coop off` destroys the ones made
-  and logs that line alone. `coop xion walls` is refused outside SBO Xion, prints the count alone, takes the walls
-  down with `off` and builds them again nearest to EVE with `on`;
+  arrival queues them from EVE's own place, makes 10 in its pass and has 145 up 15 passes later, with the cave wall
+  first at the gate point, also at an arrival no `coop xion` asked. Their paths go to the store the wiring hands
+  over. A map change that took the world destroys none and clears the store. A pass with EVE unread destroys each.
+  `coop off` destroys the ones made and logs that line alone. At a map change and at `coop off` the recovery ends
+  before the walls come down: a store that raises there reaches the caller with the death screen shown again. `coop
+  xion walls` is refused outside SBO Xion, prints the count alone, takes the walls down with `off` and builds them
+  again nearest to EVE with `on`;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
@@ -936,17 +938,20 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   took off the kerbed edge beside the doorway and off the west edge of `W21`'s level, the cave wall 17.5 m from the
   gate point, no box around an arrival point or a waypoint with EVE's capsule radius;
 - `world/maps/sboxion/walls/walls_test` runs `world/maps/sboxion/walls/walls.lua` over a fake world and a fake store.
-  An arrival queues the 145 boxes nearest to its point first. Each pass makes 10, logs the first wall's read-back
+  An arrival queues the 145 boxes nearest to EVE's place first. Each pass makes 10, logs the first wall's read-back
   and saves the paths on one line. The count line comes after 15 passes. A wall that fails is logged with its
   reason (three reasons a build) and named in the count line while the others go up. Taking the walls down asks
   each of the world once and counts the ones removed, the ones gone already, the ones never made and the removals
-  that raised. `off` keeps them down. `on` builds them again nearest to EVE, or from the arrival point with EVE
+  that raised. `off` keeps them down. `on` builds them again nearest to EVE, or to her place at the arrival with EVE
   unread. `on` during a build or with walls up makes nothing. `on` after a build that made none tries again. An
   arrival sets `off` back to `on` and takes down what is still up. The sweep runs once a Lua load and ends at the
-  first path that is no wall. An error in a pass is logged once and ends the build with the walls made left up;
+  first path that is no wall. An error in a pass is logged once and ends the build with the walls made left up and
+  `build ended` in the status. A save that raises is logged once a build and ends none. A load that raises is
+  logged and sweeps nothing;
 - `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
   `recover` alone and with `on`, `death` or `off`, `walls` alone and with `on` or `off`, the use line for any other
-  word or one too many and the answer without the Steam link;
+  word or one too many and the answer without the Steam link. Then `world/maps/sboxion/wiring.lua`: SBO Xion is
+  built with the Steam link's store `coop-xion-walls.txt` and no store is asked without the link;
 - `world/maps/sboxion/off_test` runs `main/isolation.lua` with `world.maps.sboxion` (see the module tests above);
 - `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return
   from the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry,

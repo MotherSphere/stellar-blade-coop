@@ -9,10 +9,10 @@
 -- makes one invisible wall a box (world.wall: an engine cube with SB's collision profile for its own block walls,
 -- world/maps/sboxion/engine.lua) and takes them down again. Nothing is made in any other map and SB's Xion is never
 -- touched: the walls are actors of SBO Xion's own world.
--- Up: an arrival queues every box, nearest to the arrival point first, so the cave wall, 17.5 m from the gate point,
--- is up in the first pass. Each pass makes PER_PASS. A wall that cannot be made is logged, at most SAID reasons a
--- build. The others go up. The count line names the ones not made. The recovery (recover.lua) stays the net under
--- every edge that is still open.
+-- Up: an arrival queues every box, nearest to EVE's own place first, so at the gate point the cave wall, 17.5 m from
+-- it, is up in the first pass. Her place is read at the arrival: a Lua reload forgets the point coop xion asked. Each
+-- pass makes PER_PASS. A wall that cannot be made is logged, at most SAID reasons a build. The others go up. The
+-- count line names the ones not made. The recovery (recover.lua) stays the net under every edge that is still open.
 -- Down: at a map change (coop xion leave is one), at coop off and at coop xion walls off, each wall is asked of the
 -- world once. world.unwall destroys an actor only while it is still the one made, so after a map change, which
 -- destroyed the world with its walls, nothing is called. A map read that failed for one pass ends the stay too: the
@@ -21,11 +21,12 @@
 -- them up again, nearest to EVE first.
 -- A Lua reload (Ctrl+R) forgets the walls it made. Their paths are kept in the store, one line, at each pass that
 -- made one. The first pass of a Lua load asks the world to sweep them (world.wall_swept) until the first path that is
--- no wall, so the paths of a game run that ended inside SBO Xion cost one look.
--- An error in a pass is logged once and ends the build. The walls made stay up.
+-- no wall, so the paths of a game run that ended inside SBO Xion cost one look. A store that raises stops nothing: a
+-- save that fails is logged once a build and the walls go up, a load that fails is logged and nothing is swept.
+-- An error in a pass is logged once and ends the build. The walls made stay up. The status part then ends with
+-- "build ended".
 -- tests/lua/world/maps/sboxion/walls/walls_test.lua covers it.
 local U=require('core.unreal')
-local D=require('world.maps.sboxion.data')
 local Walls={}
 -- shortcut: 10 a pass whatever a spawn costs, never timed in game; lower it if the count line's ms show a hitch.
 Walls.PER_PASS=10
@@ -46,13 +47,14 @@ local BOXES=Walls.BOXES
 function Walls.new(o)
     local log,world=o.log,o.world
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
-    local on,swept,arrival=true,false,'city'
+    local on,swept,arrived=true,false,nil -- arrived: EVE's place ({X,Y}) at the last arrival.
     local up,queue,failed={},nil,{} -- The walls made, the boxes still to make (nil: no build) and the names not made.
     local passes,ms=0,0 -- Of the build.
+    local ended,unkept=false,false -- Of the build: a pass raised and ended it; the store refused the paths (said).
     local self={}
     -- A build of every box, nearest to from ({X,Y}) first. what: from's name for the log.
     local function start(from,what)
-        queue,failed,passes,ms={},{},0,0
+        queue,failed,passes,ms,ended,unkept={},{},0,0,false,false
         for i,b in ipairs(BOXES) do queue[i]=b end
         local function far(b) return (b.at.X-from.X)^2+(b.at.Y-from.Y)^2 end
         table.sort(queue,function(a,b)
@@ -65,12 +67,19 @@ function Walls.new(o)
         if #up==0 then return end
         local paths={}
         for i,d in ipairs(up) do paths[i]=d.path end
-        store.save(table.concat(paths,'\t'))
+        local ok,why=pcall(store.save,table.concat(paths,'\t'))
+        if ok or unkept then return end
+        unkept=true
+        log('walls: paths not kept ('..U.why(why)..'): a Lua reload would leave these walls up')
     end
     -- An earlier Lua load's walls, by the paths it kept.
     local function sweep()
         swept=true
-        local line=store.load()
+        local ok,line=pcall(store.load)
+        if not ok then
+            log('walls: an earlier Lua load\'s paths unread ('..U.why(line)..'): none swept')
+            return
+        end
         if not line then return end
         local left,gone=0,0
         for _ in line:gmatch('[^\t]+') do left=left+1 end
@@ -113,7 +122,7 @@ function Walls.new(o)
     function self.tick()
         local ok,e=pcall(pass)
         if ok then return end
-        queue=nil
+        queue,ended=nil,true
         log(string.format('walls: error (%s): the build is ended with %d of %d up',U.why(e),#up,#BOXES))
     end
     -- Every wall down and the build ended (reason: for the log). With nothing up and no build it does nothing.
@@ -129,24 +138,25 @@ function Walls.new(o)
         log(string.format('walls: down (%s): %d removed%s%s%s',reason,removed,
             gone>0 and ', '..gone..' gone already' or '',raised>0 and ', '..raised..' raised ('..why..')' or '',
             queue and #queue>0 and ', '..#queue..' never made' or ''))
-        up,queue,failed={},nil,{}
+        up,queue,failed,ended={},nil,{},false
         store.clear()
     end
-    -- Each arrival in SBO Xion at the point of name (data.lua's ARRIVALS): on, a new build. Walls still up are taken
-    -- down first.
-    function self.arrive(name)
+    -- Each arrival in SBO Xion, with EVE's place there ({X,Y}): on, a new build nearest to her. Walls still up are
+    -- taken down first.
+    function self.arrive(at)
         self.down('an arrival')
-        on,arrival=true,D.ARRIVALS[name] and name or 'city'
-        start(D.ARRIVALS[arrival],'the '..arrival..' point')
+        on,arrived=true,at
+        start(at,'EVE')
     end
     -- One part of coop xion status.
     function self.status()
         if not on then return 'walls off' end
         return string.format('walls %d of %d up',#up,#BOXES)..(queue and ', '..#queue..' to go' or '')
-            ..(#failed>0 and ', '..#failed..' not made' or '')
+            ..(#failed>0 and ', '..#failed..' not made' or '')..(ended and ', build ended' or '')
     end
     -- coop xion walls [on|off]: off takes the walls down until on or the next arrival. on puts them up again when none
-    -- is up and none is being made, nearest to EVE first. With no word: the status part.
+    -- is up and none is being made, nearest to EVE first, or to her place at the arrival when she does not read. With
+    -- no word: the status part.
     function self.switch(word)
         if word==nil then return true,self.status() end
         if word=='off' then
@@ -159,7 +169,7 @@ function Walls.new(o)
         on=true
         local read,m=pcall(world.move)
         local eve=read and m and m.at
-        start(eve or D.ARRIVALS[arrival],eve and 'EVE' or 'the '..arrival..' point')
+        start(eve or arrived,eve and 'EVE' or 'EVE\'s place at the arrival')
         return true,'walls on: '..#BOXES..' to put up ([SX] lines follow)'
     end
     return self
