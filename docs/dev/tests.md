@@ -886,14 +886,16 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   failure, three passes of 1 s each are one, a refused teleport sends the next try to the arrival point, the second
   failure stops the recovery with no third call, the mode word starts it again, an error in a pass counts as a
   failure. An arrival sets the modes `death` and `off` back to `on`. An arrival, a stop, an error in a pass and the
-  mode `off` each drop a put-back being checked. The death, with the respawn cases of
-  `online/modes/scoreattack/run_test` for the module's copy: each reason the respawn waits for is logged once, one
-  call with her GUID, the result line 2 s later, the death screen hidden over a living EVE and shown again at a new
-  death, at a stop and when two failures stop the recovery, no call in 10 s given up. The module's own cases: the call
-  after 5 s with no death screen, the put-back when the respawn leaves her off the ground (in the mode `death` too,
-  never while a guard waits), life still 3 after the call as a failure that starts the death again, a death left from
-  the mode `off`, one read during a wait and one on a world time that stands still, a life back at 1 before the call,
-  no call without a `warp=` word, the `life=` word read on the refused and fault forms, a death dropped by an arrival,
+  mode `off` each drop a put-back being checked. A put-back that leaves her under the floor is not made again while
+  it is checked: the check fails after 3 s and the next try goes to the arrival point. The death, with the respawn
+  cases of `online/modes/scoreattack/run_test` for the module's copy: each reason the respawn waits for is logged
+  once, one call with her GUID, the result line 2 s later, the death screen hidden over a living EVE and shown again
+  at a new death (in the modes `off` and `death` too), at a stop and when two failures stop the recovery, no call in
+  10 s given up. The module's own cases: the call after 5 s with no death screen, the put-back when the respawn leaves
+  her off the ground (in the mode `death` too, never while a guard waits), life still 3 after the call as a failure
+  that starts the death again, a death left from the mode `off`, one read during a wait and one on a world time that
+  stands still, a life back at 1 before the call (one line, then the next fall is caught), no call without a `warp=`
+  word, the `life=` word read on the refused and fault forms, a death dropped by an arrival,
   by a stop and by the mode `off`, the failures at 0 after a respawn that leaves her walking, a put-back's check
   dropped by a death that starts during it;
 - `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects: the zone's FName

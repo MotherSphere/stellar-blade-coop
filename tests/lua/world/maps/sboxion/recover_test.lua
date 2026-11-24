@@ -13,18 +13,20 @@
 -- a refused teleport sends the next try to the arrival point; a second failure stops the recovery with one line and no
 -- third call; the mode word starts it again; an error in a pass counts as a failure; 1 s of walking between two
 -- failures sets them to 0, so the recovery stays on; an arrival resets all of it, the modes death and off included; an
--- arrival, a stop, an error in a pass and the mode off each drop a put-back being checked.
+-- arrival, a stop, an error in a pass and the mode off each drop a put-back being checked; a put-back that leaves her
+-- under the floor is not made again while it is checked: the check fails after 3 s and the next try goes to the arrival
+-- point.
 -- The death, with the respawn cases of tests/lua/online/modes/scoreattack/run_test.lua for this module's copy: it
 -- starts while her life reads 3 to 5 (not on the change), each reason the respawn waits for is said once, one call of
 -- SB's respawn with her GUID, the result line 2 s later, a death screen that still plays over a living EVE hidden, then
--- shown again at a new death, at a stop and when two failures stop the recovery; no call in 10 s is a failure. This
--- module's own cases: with no death screen playing the call is made after 5 s; a respawn that leaves her off the ground
--- puts her back, in the mode death too; life still 3 after the call is a failure and the death starts again; two
--- failures stop the recovery and the mode word starts it again; a death left from the mode off, one read during a
--- guard's wait and one on a world time that stands still are all asked; a life back at 1 before the call ends the death
--- with no failure; without a warp= word the respawn is never asked; an arrival, a stop and the mode off drop a death
--- being handled; a respawn that leaves her walking sets the failures to 0; a death that starts while a put-back is
--- checked drops the check.
+-- shown again at a new death (in the modes off and death too), at a stop and when two failures stop the recovery; no
+-- call in 10 s is a failure. This module's own cases: with no death screen playing the call is made after 5 s; a
+-- respawn that leaves her off the ground puts her back, in the mode death too; life still 3 after the call is a
+-- failure and the death starts again; two failures stop the recovery and the mode word starts it again; a death left
+-- from the mode off, one read during a guard's wait and one on a world time that stands still are all asked; a life
+-- back at 1 before the call ends the death with one line and no failure, then the next fall is caught; without a warp=
+-- word the respawn is never asked; an arrival, a stop and the mode off drop a death being handled; a respawn that
+-- leaves her walking sets the failures to 0; a death that starts while a put-back is checked drops the check.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Recover=require('world.maps.sboxion.recover')
 local D=require('world.maps.sboxion.data')
@@ -310,6 +312,20 @@ assert(logged('to the arrival point city (-8304, 7201, 225), after a failure'),l
 eve.mode=1
 pass(r)
 assert(r.status():find('failures 0',1,true),r.status())
+-- check_holds: a put-back that leaves her falling under the floor is not made again while it is checked. The check
+-- runs its 3 s out as a failure. The try after it goes to the arrival point.
+r=fresh()
+walk(r,6)
+fall()
+pass(r)
+assert(#puts==1)
+fall() -- Still in mode 3 and under the floor again, at the place the put-back gave her.
+pass(r,11)
+assert(#puts==1 and not logged('failure'),'No second put-back while the first is checked')
+pass(r)
+assert(last()=='put back failed: EVE at (300, 0, -3276), mode 3, 3 s after the move: failure 1 of 2',last())
+pass(r)
+assert(#puts==2 and puts[2].at.X==-8303.969,'The try after the failure goes to the arrival point')
 
 -- stopped: a refused teleport, then a second failure, stop the recovery; no third call.
 r=fresh()
@@ -505,6 +521,19 @@ assert(logs[#logs-1]:find('^recovery stopped after 2') and last()=='respawn: dea
 die()
 pass(r,40)
 assert(visible==true and #respawns==1 and count('death screen shown again')==1,'Nothing more after the stop')
+-- show_in_any_mode: a new death shows the screen the part hid in the modes off and death too. In the mode off the death
+-- is not handled, so nothing else would show it.
+for _,word in ipairs({'off','death'}) do
+    r=fresh()
+    playing,revive=true,1
+    die()
+    pass(r,9)
+    assert(visible==false,last())
+    assert(r.mode(word))
+    die()
+    pass(r)
+    assert(visible==true and count('respawn: death screen shown again (a new death)')==1,word..': '..last())
+end
 -- A stop before the call drops the death being handled. So does an arrival. A pass after it that still reads life
 -- 3 starts a new death, with its line and its reason said again.
 for _,drop in ipairs({function() r.stop('a map change') end,function() r.arrive('city') end}) do
@@ -680,6 +709,10 @@ pass(r)
 assert(last()=='death: over before the respawn was asked (life 1)',last())
 pass(r,60)
 assert(#respawns==0 and not logged('failure'))
+assert(count('death: over before')==1,'Said once: the death is over, not read again on each pass')
+fall()
+pass(r)
+assert(#puts==1,'The fall after it is caught')
 -- no_warp_word: the call needs her GUID from the engine line. Two waits of 10 s stop the recovery.
 r=fresh()
 engine='engine=on remote=0 0 none theater=none'
