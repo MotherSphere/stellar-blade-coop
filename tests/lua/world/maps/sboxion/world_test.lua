@@ -3,23 +3,24 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's commands, arrival, day table and watch (world/maps/sboxion/sboxion.lua) over a fake world: 72 env volumes
 -- (65 in E04_ENV_VOL with the 41 of the day table, 21 of them stored other than the table), 95 streaming levels with
--- the two probe levels, EVE's map and place, the status text and the clock. Covered: coop xion's refusals (not a
--- co-op save, in a session, no pak, rows refused, a fault, already inside) and its request for each point, coop xion
--- leave's request from any map and the native answer relayed once; at an arrival the 41 writes matched by level and
--- name, a volume of the same name in another level left alone, the counts 72, 65 and 41, the read-back, the levels
--- line and the characters; nothing read in another map; a second arrival writes again; a probe level's change logged
--- once; a waypoint logged once a visit; the watch ended by a map change and by coop off. The recovery
+-- the two probe levels, EVE's map and place, the status text and the clock. Covered: coop xion's refusals (not a co-op
+-- save, in a session, no pak, rows refused, a fault, already inside) and its request for each point, coop xion leave's
+-- request from any map and the native answer relayed once; at an arrival the 41 writes matched by level and name, a
+-- volume of the same name in another level left alone, the counts 72, 65 and 41, the read-back, the levels line and the
+-- characters; nothing read in another map; a second arrival writes again; a probe level's change logged once; a
+-- waypoint logged once a visit; the watch ended by a map change and by coop off. The recovery
 -- (world/maps/sboxion/recover.lua): ticked only in SBO Xion, reset at each arrival with the point coop xion asked, fed
--- by the engine's read of EVE and not by me(), SB's black asked through the module's own wiring at a fall with the
--- move two passes later, ended by a map change and by coop off, each showing again a death
--- screen the recovery hid; coop xion recover refused out of SBO Xion, its three modes inside, the mode death back to
--- on at the next arrival and the recovery's part of the status. The walls of 24 November 2026 are gone: no wall call,
--- no walls word and no walls part of the status. The rooms (world/maps/sboxion/rooms/rooms.lua): with a pak that
--- holds no room level, one line an arrival, the pak's files read once more a Lua load, no piece asked and the status
--- part saying none; with the five room levels in the pak the arrival's pass opens the five rooms through the module's
--- own wiring, their part of the status, coop xion rooms refused out of SBO Xion, alone, off and on, every row put back
--- at coop off, none called once a map change took the world, the hidden rows kept in the rooms' own store. At a map
--- change and at coop off the recovery ends before the rooms close.
+-- by the engine's read of EVE and not by me(), SB's black asked through the module's own wiring at a fall with the move
+-- two passes later, ended by a map change and by coop off, each showing again a death screen the recovery hid; coop
+-- xion recover refused out of SBO Xion, its three modes inside, the mode death back to on at the next arrival and the
+-- recovery's part of the status. The walls of 24 November 2026 are gone: no wall call, no walls word and no walls part
+-- of the status. The rooms (world/maps/sboxion/rooms/rooms.lua): with a pak that holds no room level, one line an
+-- arrival, the pak's files read once a room a Lua load, no piece asked and the status part saying none; with the five
+-- room levels in the pak one line says so and the arrival's pass opens the five rooms through the module's own wiring,
+-- their part of the status, coop xion rooms refused out of SBO Xion, alone, off and on, every row put back at coop off,
+-- none called once a map change took the world, the hidden rows kept in the rooms' own store; with two of them in the
+-- pak those two open, the pak asked once a room a Lua load. At a map change and at coop off the recovery ends before
+-- the rooms close.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -73,15 +74,19 @@ local PAKS='C:\\G\\SB\\Content\\Paks'
 local files={}
 local ROOMS={'Rooms','Xion_Rooms_D011.umap','Xion_Rooms_D031.umap','Xion_Rooms_D081.umap','Xion_Rooms_D107.umap',
     'Xion_Rooms_D158.umap'}
+local ROOMS3={'Rooms'} -- The pak of build3: every room of the list, D039 too.
+for _,room in ipairs({'D011','D031','D081','D107','D158','D009','D039','D049','D092','D036','D106'}) do
+    ROOMS3[#ROOMS3+1]='Xion_Rooms_'..room..'.umap'
+end
 local opens=0 -- Each time the .utoc is opened.
 local function read(path,limit,offset)
     if path:sub(-5)=='.utoc' then opens=opens+1 end
     return files[path] and files[path]:sub((offset or 0)+1,(offset or 0)+limit)
 end
--- on: the pak of 2026-11-23; 'rooms': the pak with the five room levels.
+-- on: the pak of 2026-11-23; 'rooms': the pak with the five room levels; a table: the pak with those room files.
 local function pak(on)
     files[PAKS..'\\~mods\\zSBO_Xion.utoc']=on and utoc({'SBO_World','Xion_P.umap',
-        table.unpack(on=='rooms' and ROOMS or {})}) or nil
+        table.unpack(on=='rooms' and ROOMS or type(on)=='table' and on or {})}) or nil
     files[PAKS..'\\~mods\\zSBO_Xion.pak'],files[PAKS..'\\~mods\\zSBO_Xion.ucas']='',('\0'):rep(64)
 end
 
@@ -510,6 +515,7 @@ warp_line='sboxionwarp=entered asks=7 life=1'
 me=at(D.ARRIVALS.city)
 pass(x,0.25)
 assert(not logged('none in this pak') and times('sboxion: rooms: D')==5 and pieces_asked==23 and hidden_rows()==23)
+assert(times('sboxion: rooms: this pak holds 5 of 10 rooms: D011, D031, D081, D107, D158')==1)
 assert(logged('sboxion: rooms: D011 open: 4 rows hidden, 0 ms') and logged('sboxion: rooms: D158 open: 8 rows hidden'))
 assert(select(2,rooms_kept:gsub('\t',''))==22,'The hidden rows go to the rooms\' own store')
 assert(select(2,x.status()):find('; recovery on, [^;]+; rooms 5 of 5 open; look [^;]+$'),select(2,x.status()))
@@ -562,10 +568,31 @@ for _,how in ipairs({'coop off','a map change'}) do
     assert(screen_shown and shown and closed and shown<closed,how..': '..tostring(shown)..' '..tostring(closed))
 end
 
+-- rooms_some: a pak that holds two of the room levels. Each room is asked on its own: those two open.
+pak({'Rooms','Xion_Rooms_D011.umap','Xion_Rooms_D158.umap'})
+x=new()
+rows_hidden,her_at,her_mode,pieces_asked,opens={},nil,1,0,0
+warp_line='sboxionwarp=entered asks=8 life=1'
+me=at(D.ARRIVALS.city)
+pass(x,0.25)
+assert(logged('sboxion: rooms: this pak holds 2 of 10 rooms: D011, D158') and pieces_asked==12 and hidden_rows()==12
+    and times('sboxion: rooms: D')==2 and not logged('waits'),logs[#logs])
+assert(select(2,x.status()):find('; rooms 2 of 2 open; look [^;]+$'),select(2,x.status()))
+opened=opens
+me,world_gone={at={X=0,Y=0,Z=0},map=SB_XION},true
+pass(x,0.25)
+me,world_gone,rows_hidden=at(D.ARRIVALS.city),false,{}
+pass(x,0.25)
+assert(opens==opened and hidden_rows()==12 and times('this pak holds 2 of 10')==2,
+    'The pak is asked once a room a Lua load')
+x.stop()
+pak('rooms')
+
 -- full_pak: the full test pak lists 161 levels. The 34 of data.lua's VOLUMED load and show where SB's volumes say:
 -- they are counted, never named as missing. Only the other 127 must read loaded and visible. 155 characters of SB's
 -- spawn rows beside EVE are counted by class, the most first. Only the five nearest are named, with class and
--- distance. The rooms open as with the rooms pak.
+-- distance. The pak of build3 holds every room of the list: the ten open.
+pak(ROOMS3)
 fresh()
 levels={}
 local needed={}
@@ -596,7 +623,9 @@ local CROWD='sboxion: characters: 156 by class: N_CitizenMaleA_C 100, N_XionGuar
     ..'CH_P_EVE_01_Blueprint_C 1; nearest: NPC_1 (N_CitizenMaleA_C) 1.0 m, NPC_2 (N_CitizenMaleA_C) 2.0 m, NPC_3 '
     ..'(N_CitizenMaleA_C) 3.0 m, NPC_4 (N_CitizenMaleA_C) 4.0 m, NPC_5 (N_CitizenMaleA_C) 5.0 m'
 assert(times(CROWD)==1 and not logged('NPC_6'),'Counted by class, the five nearest named')
-assert(hidden_rows()==23 and select(2,x.status()):find('; rooms 5 of 5 open; look [^;]+$'),select(2,x.status()))
+assert(hidden_rows()==41 and select(2,x.status()):find('; rooms 10 of 10 open; look [^;]+$'),select(2,x.status()))
+assert(logged('sboxion: rooms: this pak holds 10 of 10 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, '
+    ..'D106') and times('sboxion: rooms: D')==10,'Every room the pak holds opens')
 -- eyes_arrival: the zone and area of the engine line and EVE's life state, once each.
 assert(times('sboxion: zone: zonetype 5 area Zone_SBO_Xion')==1 and times('sboxion: life: 1')==1,logs[#logs])
 -- eyes_second_look: 10 s after the arrival the levels line and the characters line again, whole. 10 s later nothing
@@ -634,7 +663,7 @@ assert(times('sboxion: characters: 158 by class: N_CitizenMaleA_C 100, N_XionGua
     ..'1.5 m, NPC_2 (N_CitizenMaleA_C) 2.0 m, NPC_3 (N_CitizenMaleA_C) 3.0 m')==1,logs[#logs])
 -- eyes_status: the last look as the status line's last part.
 ok,why=x.status()
-assert(why:find('; rooms 5 of 5 open; look %d+ s ago: 158 characters, nearest Lyle_1 %(N_Lyle_C%) 0%.5 m, levels '
+assert(why:find('; rooms 10 of 10 open; look %d+ s ago: 158 characters, nearest Lyle_1 %(N_Lyle_C%) 0%.5 m, levels '
     ..'126 of 127 always%-loaded, 20 of 34 by volume loaded, 9 visible, zonetype 1 area Zone_Xion_10, life 3$'),why)
 -- eyes_quiet: nothing changes for 30 s, nothing more is said.
 said=#logs

@@ -899,14 +899,16 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `coop off`. `coop xion recover` is refused outside SBO Xion, sets each of its three modes inside and prints the
   state alone. A stay left in the mode `death` is followed by an arrival in the mode `on`. `coop xion status` ends
   with the recovery's part and the rooms' part inside SBO Xion only. No wall call and no walls part are left. With
-  the pak of 23 November an arrival logs one rooms line and asks no piece. With the five room levels in the pak the
-  arrival's pass opens the five rooms, their hidden rows go to the store the wiring hands over, `coop xion rooms` is
-  refused outside SBO Xion and prints, closes and opens them inside. A map change that took the world calls no row.
-  `coop off` puts every row back. At a map change and at `coop off` the recovery ends before the rooms close. With
-  the full test pak's 161 levels the 34 volume-streamed ones are counted apart and never named as missing, 155
-  characters beside EVE are counted by class with only the five nearest named (class and distance) and the five rooms
-  open. The zone and area of the `engine=` line and EVE's life state are logged at the arrival and once at each
-  change, within a second. The levels line and the characters line come again 10 s later. A look 10 s after that
+  the pak of 23 November an arrival logs one rooms line and asks no piece. With the five room levels in the pak one
+  line says the pak holds 5 of the 10 rooms. The arrival's pass opens those five, their hidden rows go to the store
+  the wiring hands over, `coop xion rooms` is refused outside SBO Xion and prints, closes and opens them inside. A
+  map change that took the world calls no row. `coop off` puts every row back. At a map change and at `coop off` the
+  recovery ends before the rooms close. With two room levels in the pak those two open, the pak asked once a room a
+  Lua load. With the full test pak's 161 levels the 34 volume-streamed ones are counted apart and never named as
+  missing, 155 characters beside EVE are counted by class with only the five nearest named (class and distance) and
+  the ten rooms of the third build's pak open. The zone and area of the `engine=` line and EVE's life state are
+  logged at the arrival and once at each change, within a second. The levels line and the characters line come
+  again 10 s later. A look 10 s after that
   reads once and says nothing. The next look says the two levels that changed and the characters line with the two
   that spawned, once. `coop xion status` ends with the last look;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
@@ -953,13 +955,17 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   doorway: found by its names and refused for another class, mesh, place or instance count, a whole component hidden
   with its two values read first, an instance scaled to nothing where it stands, a piece that reads hidden already
   refused, the put-back and no call on an object that is gone;
-- `world/maps/sboxion/rooms/list_test` checks `world/maps/sboxion/rooms/list.lua`: the five rooms with their levels,
-  the 23 rows as the level dumps of build 26123051 gave them, 11 whole components and 12 instances of 9 instanced
-  components in 8 sublevels, no piece twice, the instance count of each instanced component, each door a waypoint of
+- `world/maps/sboxion/rooms/list_test` checks `world/maps/sboxion/rooms/list.lua`: the ten rooms with their levels,
+  the 41 rows as the level dumps of build 26123051 gave them, 18 whole components and 23 instances of 18 instanced
+  components in 10 sublevels, no piece twice, the instance count of each instanced component (the same in the two
+  rooms that share one), each room starting with its door piece, `D039` left out, each door a waypoint of
   `data.lua`;
 - `world/maps/sboxion/rooms/rooms_test` runs `world/maps/sboxion/rooms/rooms.lua` over a fake world, a fake pak gate
-  and a fake store. With a pak that holds no room it logs one line and reads no level. With the rooms pak the five
-  rooms open in one look once their levels read loaded and visible. A room waits for a missing level and closes
+  and a fake store. The gate is asked for each room on its own. With a pak that holds no room it logs one line with
+  the first reason and reads no level. With a pak of the second build one line names the five rooms it holds of the
+  ten. They open in one look once their levels read loaded and visible. The other five are never looked at. A pak
+  with two rooms opens those two. A room whose ask raises is left out. With all ten the ten open, `D036` and `D158`
+  each hiding their own instances of one component. A room waits for a missing level and closes
   after 30 looks. A row that is not found closes its room with nothing hidden. A row that cannot be hidden closes
   its room with the rows before it put back, while the other rooms open. The put-back asks each hidden row once,
   with a world that still stands and with one that is gone. `coop xion rooms off` puts the rows back and `on` opens
