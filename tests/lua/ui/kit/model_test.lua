@@ -211,7 +211,7 @@ assert(menu.back()==nil and menu.page()=='main' and menu.current(NONE).id=='opti
 menu.select(NONE,0)
 -- Every setting shows, under its header.
 assert(ids(menu,NONE)=='head:controls menu_key status_key leave_key follow_key race_key bike bike_key bike_pose '
-    ..'gun_mode gun_key '
+    ..'gun_mode gun_key emote_key emote_pad '
     ..'pause_tab reset_keys '
     ..'head:photo '
     ..'photo_sync '
@@ -490,12 +490,18 @@ assert(menu.select(NONE,92,values)=='confirm_reset_keys' and menu.select(NONE,96
     'A second Select after 3 s asks again')
 file=assert(M.reset_keys('# keys\nmenu_key=F11\nstatus_key=F5\nhost_key=F12\nsend_rate=30\n'))
 assert(file=='# keys\nmenu_key=F5\nstatus_key=F6\nhost_key=none\nsend_rate=30\nleave_key=F8\nfollow_key=F7\n'
-    ..'race_key=F9\nbike_key=F3\ngun_key=F4\n',file)
+    ..'race_key=F9\nbike_key=F3\ngun_key=F4\nemote_key=F2\n',file)
 s=Link.parse_settings(file)
 assert(s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6' and s.race_key.name=='F9'
-    and s.gun_key.name=='F4' and s.send_rate==30)
+    and s.gun_key.name=='F4' and s.emote_key.name=='F2' and s.send_rate==30)
 assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n'
-    ..'bike_key=F3\ngun_key=F4\n')
+    ..'bike_key=F3\ngun_key=F4\nemote_key=F2\n')
+-- The emote wheel's settings: its key a key row (checked against the others), its pad a choice.
+values=M.read('')
+assert(values.emote_key=='F2' and values.emote_pad=='dpad_left' and M.read('emote_pad=off\n').emote_pad=='off')
+local clash,other=select(2,M.rebind(values,'menu_key','F2'))
+assert(clash=='clash' and other=='emote_key','F2 is the emote wheel\'s')
+assert(M.rebind(values,'emote_key','none')=='set' and select(3,M.rebind(values,'emote_key','Shift+F2'))=='Shift+F2')
 
 -- TEST TOOLS: one row a module page (ctx.pages), between Options and Help, none without a page; Select opens it, its
 -- rows from its module, headings skipped and the cursor wrapping; a row's Select and step give 'run' and the row (with

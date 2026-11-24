@@ -17,7 +17,7 @@ function M.open_screen() return M.sessions.is_open() and M.sessions or M.create.
 -- gives the view back to EVE with the room's overlay, as Back does. With why (the watchdog's): it is logged. A co-op
 -- saves pass under way is kept.
 function M.ui_reset(why)
-    M.menu.close(); M.box.close(); M.code_box.close(); M.approval.close(); M.saves_ui.close(why~=nil)
+    M.menu.close(); M.box.close(); M.code_box.close(); M.approval.close(); M.saves_ui.close(why~=nil); M.wheel.close()
     M.sessions.close(); M.create.close()
     local was=M.lobby.is_open()
     M.lobby.close()

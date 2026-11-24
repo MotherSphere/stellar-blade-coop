@@ -58,6 +58,8 @@ M.OPTIONS={
     toggle('bike','on'),bind('bike_key','F3'), -- bike at once: vehicles/bike/ride.lua reads it every 250 ms.
     {key='bike_pose',values={'rig','hold'},default='rig'}, -- At the next mount: vehicles/bike/ride.lua reads it there.
     reload(toggle('gun_mode','on')),reload(bind('gun_key','F4')), -- Gun mode reads both when it starts.
+    -- At once: main/keys.lua and main/input.lua read them at each press (the emote wheel, eve/ui/wheel.lua).
+    bind('emote_key','F2'),{key='emote_pad',values={'dpad_left','off'},default='dpad_left'},
     toggle('pause_tab','on'), -- At once: ui/kit/pause_tab.lua asks the native part pausetab on or off.
     {id='reset_keys',confirm=true}, -- Every key back to its default (reset_keys), host_key too.
     {head='photo'},

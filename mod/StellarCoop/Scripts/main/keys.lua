@@ -28,10 +28,12 @@ local print,log=M.print,M.log
 -- menu's words; coop status keeps the full status. An XInput pad, which no bind can take, comes through the native part
 -- (main/input.lua's pad_event, each frame): View held 1 s does what menu_key does, D-pad Right held 1 s what bike_key
 -- does, the D-pad or the left stick, A and B navigate the join popups, the menu and the co-op saves' question, B closes
--- the chat's box and the code box.
+-- the chat's box and the code box. emote_key opens the emote wheel (eve/ui/wheel.lua) while it is held; while the
+-- wheel is open it takes Q and A (the previous page), E (the next), Esc (cancel), a left click (play) and a right
+-- click (the next page) first, and every other key of ours does nothing (the F-keys, Enter, the navigation keys).
 if M.settings then
     local K=require('core.keybind')
-    local ACTIONS={'menu','host','status','leave','follow','race','bike'}
+    local ACTIONS={'menu','host','status','leave','follow','race','bike','emote'}
     if type(IsKeyBindRegistered)=='function' then
         for _,action in ipairs(ACTIONS) do
             local key=M.settings[action..'_key']
@@ -46,8 +48,9 @@ if M.settings then
         local base=name:match('^%a+%+(F%d+)$')
         if base then modified_at[base]=os.clock()
         elseif modified_at[name] and os.clock()-modified_at[name]<0.2 then return end
-        -- Typing, or the host's question open: our keys do nothing.
-        if M.box.is_open() or M.code_box.is_open() or M.approval.is_open() or M.menu.capture(name) then return end
+        -- Typing, the host's question or the emote wheel open: our keys do nothing.
+        if M.wheel.is_open() or M.box.is_open() or M.code_box.is_open() or M.approval.is_open() or M.menu.capture(name)
+            then return end
         for _,action in ipairs(ACTIONS) do
             if M.settings[action..'_key'].name==name then
                 log('key '..name..': '..action)
@@ -62,6 +65,9 @@ if M.settings then
                     end
                 elseif action=='host' then M.run('host',M.settings.who_can_join) -- host_key: at once, never the screen.
                 elseif action=='bike' then M.bike_press('bike_key')
+                elseif action=='emote' then -- Its F-key's number: the wheel plays at that key's release.
+                    if M.off then M.report(false,M.OFF)
+                    else M.emote_wheel.press('key',tonumber(M.settings.emote_key.key:match('%d+'))) end
                 elseif action~='menu' then M.run(action)
                 elseif M.off then M.report(false,M.OFF)
                 elseif M.lobby.is_open() then
@@ -90,7 +96,7 @@ if M.settings then
     bind('RETURN','ALT',function() ExecuteInGameThread(function() alt_enter_at=os.clock() end) end)
     bind('RETURN',nil,function()
         ExecuteInGameThread(function()
-            if os.clock()-alt_enter_at<0.2 then return end
+            if os.clock()-alt_enter_at<0.2 or M.wheel.is_open() then return end
             if M.approval.is_open() then M.approval.nav('select')
             elseif M.lobby.is_open() then M.lobby.nav('select')
             elseif M.open_screen() then M.open_screen().nav('select')
@@ -122,8 +128,11 @@ if M.settings then
             {'LEFT_ARROW','left'},{'A','left'},{'Q','left'},{'RIGHT_ARROW','right'},{'D','right'},
             {'SPACE','select'},{'E'},{'F'}}) do
         bind(nav[1],nil,function()
+            if M.wheel.is_open() then -- Its pages only.
+                local word=nav[1]=='E' and 'tab_right' or (nav[1]=='Q' or nav[1]=='A') and 'tab_left' or nil
+                if word then ExecuteInGameThread(function() M.wheel.nav(word) end) end
             -- The host's question opens on its own: the arrows only, never W, S or Space (walking, jumping, the menu).
-            if M.approval.is_open() then
+            elseif M.approval.is_open() then
                 if nav[1]:find('_ARROW$') then ExecuteInGameThread(function() M.approval.nav(nav[2]) end) end
             elseif M.lobby.is_open() or M.open_screen() then
                 ExecuteInGameThread(function() lobby_key(nav[1],nav[2]) end)
@@ -138,7 +147,8 @@ if M.settings then
         end)
     end
     bind('ESCAPE',nil,function()
-        if M.approval.is_open() then ExecuteInGameThread(function() M.approval.nav('back') end)
+        if M.wheel.is_open() then ExecuteInGameThread(function() M.wheel.nav('back') end)
+        elseif M.approval.is_open() then ExecuteInGameThread(function() M.approval.nav('back') end)
         elseif M.lobby.is_open() then ExecuteInGameThread(function() M.lobby.nav('back') end)
         elseif M.open_screen() then ExecuteInGameThread(function()
             local screen=M.open_screen() -- Still open on the game thread.
@@ -160,7 +170,8 @@ if M.settings then
         if not (M.kit.holding() or M.menu.is_open() or M.saves_ui.is_open()) then return end
         ExecuteInGameThread(function()
             M.kit.click()
-            if M.approval.is_open() then M.approval.nav('click')
+            if M.wheel.is_open() then M.wheel.nav('select')
+            elseif M.approval.is_open() then M.approval.nav('click')
             elseif M.lobby.is_open() then M.lobby.nav('click')
             elseif M.open_screen() then M.open_screen().nav('click')
             elseif M.menu.is_open() then M.menu.nav('click')
@@ -171,7 +182,8 @@ if M.settings then
         if M.kit.holding() or M.menu.is_open() then
             ExecuteInGameThread(function()
                 M.kit.click()
-                if M.approval.is_open() then M.approval.nav('back')
+                if M.wheel.is_open() then M.wheel.nav('tab_right')
+                elseif M.approval.is_open() then M.approval.nav('back')
                 elseif M.lobby.is_open() then M.lobby.nav('back')
                 elseif M.open_screen() then M.open_screen().nav('back') else M.menu.nav('back') end
             end)

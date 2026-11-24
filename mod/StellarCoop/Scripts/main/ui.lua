@@ -52,6 +52,8 @@ if M.settings then
             if M.off_modules['online.session'] then return false,'online sessions are off until the mod reloads' end
             return M.sessions.open(...)
         end},{__index=require('main.loader').view(M,'sessions')})})
+    -- The kit's wheel (ui/kit/wheel.lua), over the menu: the emote wheel (eve/ui/wheel.lua) opens it.
+    M.wheel=require('ui.kit.wheel').new({kit=M.kit,theme=Ui.THEME,words=M.words,reads=M.wheel_reads})
     require('main.loader').build(M,'online.session','create',Ui)
     require('main.loader').build(M,'online.saves','saves',Ui)
     require('main.loader').build(M,'online.lobby','screens',Ui)

@@ -159,6 +159,7 @@ if M.link then
                 or M.saves_ui.is_open() or M.open_screen())
                 and (M.booth.near(require('core.where').me()) or M.guarded('sbo',M.seat_hint))
                 or nil)
+            M.guarded('wheel',M.wheel.slow,shown)
             M.guarded('lobby',M.lobby.slow)
             M.guarded('sessions',M.sessions.slow,shown)
             M.guarded('create',M.create.slow,shown)

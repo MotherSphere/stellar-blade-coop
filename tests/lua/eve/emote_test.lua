@@ -448,4 +448,19 @@ end
 rides=false
 assert(riding.command('clap') and riding.active() and #asked==n_asked+1,'Off the bike: as before')
 riding.stop()
+-- busy, the emote wheel's guard: the bike, no EVE, the air, a skill, a fight (IsBattle), a cutscene's hold
+-- (IsAttachedToLevelSequenceWithoutPlayable), each its reason; nil when she stands free.
+eve.battle,eve.held=false,false
+function eve:IsBattle() return self.battle end
+function eve:IsAttachedToLevelSequenceWithoutPlayable() return self.held end
+assert(riding.busy()==nil)
+rides=true; assert(riding.busy()=='EVE rides the bike'); rides=false
+eve.move.falling=true; assert(riding.busy()=='EVE is in the air'); eve.move.falling=false
+eve.skill=true; assert(riding.busy()=='a skill of EVE runs'); eve.skill=false
+eve.battle=true; assert(riding.busy()=='EVE is in combat'); eve.battle=false
+eve.held=true; assert(riding.busy()=='a cutscene holds EVE'); eve.held=false
+local was=eve
+eve=nil
+assert(riding.busy()=='no EVE in the world')
+eve=was
 print('emote_test: ok')

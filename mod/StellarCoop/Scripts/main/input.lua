@@ -91,7 +91,9 @@ end
 -- Online tab only (ui/kit/pause_tab.lua), never to one of our screens. left and right (the D-pad or the left stick)
 -- that nothing above took switch the member spectate watches while our EVE is down in a shared boss fight
 -- (fight/enemies/spectate.lua).
--- wheel (D-pad Left held 0.3 s, the native part's event 13) is the emote wheel's only: dropped until it has one.
+-- wheel (D-pad Left held 0.3 s, the native part's event 13) opens the emote wheel (eve/ui/wheel.lua) with
+-- emote_pad=dpad_left, in a world with our HUD shown and none of our screens open; otherwise it logs why and does
+-- nothing. While the wheel is open it takes LB and RB (its pages), A (play) and B (cancel); every other word is dropped.
 M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab','wheel'}
 -- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
 -- English as the bike gives it, since the press shows nothing else.
@@ -111,7 +113,20 @@ local function open_menu()
 end
 function M.pad_event(what)
     if what=='pause_tab' then return M.pause_tab.event(os.clock()) end
-    if what=='wheel' then return end
+    if M.wheel and M.wheel.is_open() then
+        if what=='tab_left' or what=='tab_right' or what=='select' or what=='back' then M.wheel.nav(what) end
+        return
+    end
+    if what=='wheel' then
+        local why=not M.hud_shown and 'our HUD is not shown'
+            or M.settings.emote_pad~='dpad_left' and 'emote_pad is off'
+            or (M.approval.is_open() or M.lobby.is_open() or M.code_box.is_open() or M.box.is_open() or M.menu.is_open()
+                or M.saves_ui.is_open() or M.open_screen()~=nil) and 'one of our screens is open'
+        if why then log('pad: wheel ignored: '..why); return end
+        log('pad: wheel')
+        if M.off then return M.report(false,M.OFF) end
+        return M.emote_wheel.press('pad')
+    end
     if what=='bike' then
         local why=not M.hud_shown and 'our HUD is not shown'
             or (M.approval.is_open() or M.lobby.is_open() or M.code_box.is_open() or M.box.is_open() or M.menu.is_open()

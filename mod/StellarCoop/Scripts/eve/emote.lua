@@ -232,6 +232,19 @@ function Emote.new(o)
         if why then stop(why) end
     end
     function self.active() return cur~=nil end
+    -- Why no emote may start or go on being chosen now, or nil: the emote wheel's guard (eve/ui/wheel.lua), each frame
+    -- while it is open. She rides, she is gone, in the air, a skill of hers runs (an attack, a dodge, a hit taken), she
+    -- fights (IsBattle) or a cutscene holds her (IsAttachedToLevelSequenceWithoutPlayable, as gun mode reads it).
+    function self.busy()
+        if o.riding and o.riding() then return 'EVE rides the bike' end
+        local e=her()
+        if not e then return 'no EVE in the world' end
+        if falling(e) then return 'EVE is in the air' end
+        if e:IsRunningSkill()==true then return 'a skill of EVE runs' end
+        if e:IsBattle()==true then return 'EVE is in combat' end
+        if e:IsAttachedToLevelSequenceWithoutPlayable()==true then return 'a cutscene holds EVE' end
+        return nil
+    end
     -- coop emote [list|<name>|off].
     function self.command(sub,extra)
         if extra~=nil then return false,Emote.USE end

@@ -213,13 +213,13 @@ end)()
     assert(focus()=='Open this menu' and select(2,focus())~='Press a key','Right click: not waiting, nothing taken')
     -- The mouse onto the last slot scrolls the page down by one, onto the first up by one. The keys take the page one
     -- row down first: the last slot then holds a row, not the PARTNER header.
-    for _=1,17 do key('DOWN_ARROW') end
-    assert(focus()=='Name tag' and rows[1].l=='Get on or off the bike',focus()..' / '..tostring(rows[1].l))
+    for _=1,19 do key('DOWN_ARROW') end
+    assert(focus()=='Name tag' and rows[1].l=='Gun mode',focus()..' / '..tostring(rows[1].l))
     local last=rows[15].l
     clock=clock+0.125; hover(15)
     assert(focus()==last and rows[14].l==last and rows[15].l~=last,'The last slot: one row down')
     clock=clock+0.125; hover(1)
-    assert(focus()=='Riding pose (test)' and rows[1].l=='Get on or off the bike' and rows[2].st=='focus',
+    assert(focus()=='Bring out or put away the rifle' and rows[1].l=='Gun mode' and rows[2].st=='focus',
         'The first slot: one row up')
     key('RIGHT_MOUSE_BUTTON'); assert(kit_shown.menu and focus()=='Options','Right click: back to the main page')
     key('RIGHT_MOUSE_BUTTON'); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','And it closes')
@@ -369,6 +369,91 @@ key('F5'); assert(kit_shown.menu)
 coop('ui','off')
 assert(kit_calls[#kit_calls]=='stop nil' and last():find('OK: co-op UI off until the mod reloads',1,true),last())
 in_world=false
+
+-- The emote wheel (eve/ui/wheel.lua on ui/kit/wheel.lua): emote_key (F2) opens it in a world with nothing open; while
+-- it is open the F-keys, Enter and the navigation keys do nothing but Q, A and E (its pages), Esc (cancel) and the
+-- mouse buttons (a left click plays, a right click is the next page); the release of F2 plays the slot pointed at
+-- through coop emote. D-pad Left held (the native part's 13) opens it with emote_pad=dpad_left; LB, RB, A and B are
+-- its own then; the rest is dropped. EVE busy: not opened, said. emote_key=none and emote_pad=off turn each off;
+-- after coop off, F2 is refused as a command is. An older DLL without the reads: refused, said once a press.
+;(function()
+    local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
+    local function frame() loops[1].f() end
+    local function em_logged(text) return table.concat(printed,'|'):find('[StellarCoop][EM] '..text..'\n',1,true)~=nil end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    kit_ready=true; quarter()
+    wh.fkey=2
+    key('F2')
+    assert(logged('key F2: emote') and kit_shown.wheel and kit_holder=='wheel' and wh.centred==1
+        and kit_sounds[#kit_sounds]=='wheel_open' and em_logged('wheel: open on Greeting (F2)'))
+    key('F5'); key('RETURN'); key('S')
+    assert(not kit_shown.menu and not logged('key F5: menu'),'Its keys only')
+    key('E'); assert(kit_sounds[#kit_sounds]=='change' and kit_views.wheel.page.s=='Cut','E: the next page')
+    key('Q'); assert(kit_views.wheel.page.s=='Greeting','Q: the previous one')
+    key('RIGHT_MOUSE_BUTTON'); assert(kit_views.wheel.page.s=='Cut','A right click: the next page')
+    key('A'); assert(kit_views.wheel.page.s=='Greeting','A: the previous one too')
+    wh.stick=19 -- 92.5 degrees: slot 2 of a 3-slot ring, the left wave.
+    frame()
+    assert(kit_sounds[#kit_sounds]=='wheel_move' and kit_views.wheel.name.s=='Wave (left)')
+    wh.stick,wh.fkey=0,0
+    frame()
+    assert(not kit_shown.wheel and em.cmds[#em.cmds][1]=='wave' and logged('OK: em wave')
+        and em_logged('wheel: emote wave (release)'))
+    clock=clock+0.2; frame()
+    assert(kit_input==false,'The game\'s input back 150 ms after')
+    -- Esc cancels; a left click plays the slot pointed at.
+    wh.fkey=2
+    key('F2'); key('ESCAPE')
+    assert(not kit_shown.wheel and em_logged('wheel: closed (cancelled)'))
+    clock=clock+0.2; frame()
+    local cmds=#em.cmds
+    key('F2'); wh.stick=1; frame(); key('LEFT_MOUSE_BUTTON')
+    assert(not kit_shown.wheel and #em.cmds==cmds+1 and em.cmds[#em.cmds][1]=='salute','A left click plays')
+    wh.stick=0; clock=clock+0.2; frame()
+    -- The pad: D-pad Left held opens it; LB and RB its pages; B cancels; the stick and A play; menu is dropped.
+    wh.held=1
+    pad(13)
+    assert(kit_shown.wheel and logged('pad: wheel') and em_logged('wheel: open on Greeting (pad)'))
+    pad(9); assert(kit_views.wheel.page.s=='Cut','RB')
+    pad(7,1); assert(kit_shown.wheel and not kit_shown.menu,'View held and up: dropped')
+    pad(6); assert(not kit_shown.wheel,'B')
+    clock=clock+0.2; frame()
+    pad(13); wh.stick=1; frame(); pad(5)
+    assert(not kit_shown.wheel and em.cmds[#em.cmds][1]=='kaligrab','A plays, on the page last used')
+    wh.stick=0; clock=clock+0.2; frame()
+    pad(13); wh.held=0; frame()
+    assert(not kit_shown.wheel and em_logged('wheel: closed (released with nothing pointed at)'))
+    clock=clock+0.2; frame()
+    -- EVE busy: not opened, said.
+    em.busy='EVE is in combat'
+    key('F2')
+    assert(not kit_shown.wheel and em_logged('wheel: not opened: EVE is in combat')
+        and fed()=='No emote now: EVE is busy.')
+    em.busy=nil
+    -- emote_pad=off and emote_key=none.
+    settings_text='emote_pad=off\nemote_key=none\n'
+    load_main(true)
+    kit_ready=true; quarter()
+    pad(13); key('F2')
+    assert(not kit_shown.wheel and logged('pad: wheel ignored: emote_pad is off') and not logged('key F2: emote'))
+    -- An older DLL without the reads: one log line, the wheel refused with its notice.
+    settings_text=''
+    wh.missing=true
+    load_main(true)
+    kit_ready=true; quarter()
+    assert(logged('Native emote wheel reads unavailable (no emote wheel): coop_stick: not exported'))
+    key('F2')
+    assert(not kit_shown.wheel and em_logged('wheel: not opened: the native part has no coop_stick, coop_held or '
+        ..'coop_fkey') and fed()=='The emote wheel needs the native part of this version.')
+    wh.missing=false
+    -- coop off: F2 refused as a command is.
+    load_main(true)
+    kit_ready=true; quarter()
+    coop('off')
+    key('F2')
+    assert(last()=='[StellarCoop] STOP: '..'coop off is active until the game restarts\n' and not kit_shown.wheel)
+end)()
 
 -- The controllers the mod reads, said the same way in INSTALL.md and docs/players/interface.md (any controller the game
 -- reads, XInput only as the fallback); no comment still says only an XInput pad can answer the saves' question or the
