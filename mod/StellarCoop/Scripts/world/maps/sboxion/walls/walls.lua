@@ -4,15 +4,15 @@
 -- SBO Xion's walls (world/maps/sboxion/sboxion.lua puts them up at each arrival and ticks this part each 250 ms pass
 -- while EVE's map is SBO Xion).
 -- SBO Xion loads none of SB's level-design sublevels, so the doors, the lift pieces and the ways down SB closes its
--- city with are missing: one step leads out of the city at 22 places, lift doorway A among them, and the cave at the
+-- city with are missing: one step leads out of the city at 22 places, lift doorway A among them. The cave at the
 -- gate point runs on with no ground behind it. walls/list.lua holds a box for each stretch of open edge. This part
 -- makes one invisible wall a box (world.wall: an engine cube with SB's collision profile for its own block walls,
 -- world/maps/sboxion/engine.lua) and takes them down again. Nothing is made in any other map and SB's Xion is never
 -- touched: the walls are actors of SBO Xion's own world.
 -- Up: an arrival queues every box, nearest to the arrival point first, so the cave wall, 17.5 m from the gate point,
 -- is up in the first pass. Each pass makes PER_PASS. A wall that cannot be made is logged, at most SAID reasons a
--- build, and the others go up. The count line names the ones not made. The recovery (recover.lua) stays the net
--- under every edge that is still open.
+-- build. The others go up. The count line names the ones not made. The recovery (recover.lua) stays the net under
+-- every edge that is still open.
 -- Down: at a map change (coop xion leave is one), at coop off and at coop xion walls off, each wall is asked of the
 -- world once. world.unwall destroys an actor only while it is still the one made, so after a map change, which
 -- destroyed the world with its walls, nothing is called. A map read that failed for one pass ends the stay too: the

@@ -157,9 +157,9 @@ end
 -- SetActorEnableCollision (exec 0x1446b97c0, then 0x143f6eba0) sets the actor's bit and calls each component's
 -- vtable +0x398. The component's handler 0x144495e20 updates the body's filter and makes no body. The profile call
 -- (exec 0x1448f0300, the component's vtable +0x670: 0x144145240, then 0x144495cf0) reads the collision before and
--- after through 0x14441e250, which answers NoCollision while the owner's collision is off, and makes the body
+-- after through 0x14441e250, which answers NoCollision while the owner's collision is off. It makes the body
 -- (0x1440e84c0) only when the two differ. So the actor's collision goes on first, over a component that blocks
--- nothing yet, and the profile call then opens the component and makes its body.
+-- nothing yet. The profile call then opens the component and makes its body.
 -- b: {at={X,Y,Z} the box's centre, yaw of its long side, size={X length, Y thickness, Z height}} in cm and degrees.
 -- The profile's name is looked up, never added. The cube must be on the component: SetStaticMesh (0x1441449f0)
 -- refuses a registered component of Static mobility. The component must read back SB's object type. Returns
