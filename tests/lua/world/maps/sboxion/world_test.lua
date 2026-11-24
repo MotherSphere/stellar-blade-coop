@@ -88,6 +88,9 @@ end
 -- The fake world. calls counts every engine read, by name.
 local BG='/Game/Art/BG/WorldMap/SubLevel/E04/'
 local calls,volumes,levels,names,zone_index={},{},{},{},4660
+-- EVE's map and place as core/where.lua gives them (me), her place as the engine reads her in the same pass (her_at,
+-- me.at unless set).
+local me,her_at=nil,nil
 local sets={} -- Each write: the volume's path.
 local function volume(path,on)
     local v={path=path,on=on}
@@ -115,7 +118,7 @@ local function fresh()
     levels={}
     for i=1,93 do levels[i]={name='E04_Level_'..i,loaded=true,visible=true} end
     for _,name in ipairs(D.PROBES) do levels[#levels+1]={name=name,loaded=true,visible=true} end
-    names={{name='CH_P_EVE_01_Blueprint_C_0',class='CH_P_EVE_01_Blueprint_C'}}
+    names={{name='CH_P_EVE_01_Blueprint_C_0',class='CH_P_EVE_01_Blueprint_C',eve=true}}
 end
 local function count(what) calls[what]=(calls[what] or 0)+1 end
 local world={
@@ -132,16 +135,24 @@ local world={
         end
         return out
     end,
-    characters=function() count('characters'); return names end,
+    -- names: {name=, class=, eve=, at=} each; EVE's entry stands where the engine reads her.
+    characters=function()
+        count('characters')
+        local out={}
+        for i,c in ipairs(names) do
+            out[i]={name=c.name,class=c.class,eve=c.eve,at=c.eve and (her_at or me.at) or c.at}
+        end
+        return out
+    end,
 }
 local function total() local n=0; for _,c in pairs(calls) do n=n+c end; return n end
 
 local logs,asked={},{}
 local rows_line,warp_line='sboxion=rows added=2/2 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0','sboxionwarp=off'
 local ENGINE='engine=on remote=0 0 none warp=idle me=2610 zonetype=5 area=Zone_SBO_Xion rest=0::0 starts=0 theater=none'
-local slot_ok,mode,me=true,'none',nil
+local slot_ok,mode=true,'none'
 -- EVE as the engine reads her in the same pass: at her_at (me.at unless set), in mode her_mode. puts: each put-back.
-local her_at,her_mode,puts=nil,1,{}
+local her_mode,puts=1,{}
 world.move=function()
     count('move')
     local p=her_at or me.at
@@ -362,7 +373,9 @@ me=at({X=kaya.X+300,Y=kaya.Y+400,Z=kaya.Z})
 ok,why=x.status()
 assert(ok and why:find('rows in; sboxionwarp=refused asks=2 verb=leave why=zone; EVE at (-7877, -1413, 44), nearest '
     ..'waypoint kaya 5.0 m; recovery on, ground (3000, -9000, 1222) 1.8 s old, failures 0; rooms none in the pak',1,
-    true) and why:find('^sboxion: pak %d+_4096; ') and why:find('; rooms none in the pak$'),why)
+    true) and why:find('^sboxion: pak %d+_4096; ') and why:find('; rooms none in the pak; look 5 s ago: 1 character, '
+    ..'levels 93 of 93 always%-loaded, 2 of 2 by volume loaded, 0 visible, zonetype 5 area Zone_SBO_Xion, life '
+    ..'unread %(the sboxionwarp line has no life= word%)$'),why)
 -- coop xion recover: the three modes, said in the log too; alone, the recovery's state; another word refused.
 ok,why=x.recover('death')
 assert(ok and why=='coop xion recover: recovery mode death: falls are not caught, deaths are'
@@ -499,14 +512,14 @@ pass(x,0.25)
 assert(not logged('none in this pak') and times('sboxion: rooms: D')==5 and pieces_asked==23 and hidden_rows()==23)
 assert(logged('sboxion: rooms: D011 open: 4 rows hidden, 0 ms') and logged('sboxion: rooms: D158 open: 8 rows hidden'))
 assert(select(2,rooms_kept:gsub('\t',''))==22,'The hidden rows go to the rooms\' own store')
-assert(select(2,x.status()):find('; recovery on, [^;]+; rooms 5 of 5 open$'),select(2,x.status()))
+assert(select(2,x.status()):find('; recovery on, [^;]+; rooms 5 of 5 open; look [^;]+$'),select(2,x.status()))
 -- coop xion rooms: alone, off and on.
 ok,why=x.rooms()
 assert(ok and why=='coop xion rooms: rooms 5 of 5 open',why)
 ok,why=x.rooms('off')
 assert(ok and why=='coop xion rooms: rooms off until coop xion rooms on or the next arrival' and hidden_rows()==0
     and logs[#logs]=='sboxion: rooms: closed (coop xion rooms off): 23 rows put back' and rooms_kept==nil,why)
-assert(select(2,x.status()):find('; rooms off$'),select(2,x.status()))
+assert(select(2,x.status()):find('; rooms off; look [^;]+$'),select(2,x.status()))
 pass(x,2)
 assert(hidden_rows()==0 and pieces_asked==23,'Off stays off')
 ok,why=x.rooms('on')
@@ -526,7 +539,7 @@ world_gone,rows_hidden=false,{}
 -- rooms_coop_off: every row is put back.
 me=at(D.ARRIVALS.city)
 pass(x,0.25)
-assert(hidden_rows()==23 and select(2,x.status()):find('; rooms 5 of 5 open$'))
+assert(hidden_rows()==23 and select(2,x.status()):find('; rooms 5 of 5 open; look [^;]+$'))
 x.stop()
 assert(hidden_rows()==0 and logs[#logs]=='sboxion: rooms: closed (coop off): 23 rows put back',logs[#logs])
 pass(x,5)
@@ -551,7 +564,8 @@ end
 
 -- full_pak: the full test pak lists 161 levels. The 34 of data.lua's VOLUMED load and show where SB's volumes say:
 -- they are counted, never named as missing. Only the other 127 must read loaded and visible. 155 characters of SB's
--- spawn rows beside EVE are counted by class, the most first, and none is named. The rooms open as with the rooms pak.
+-- spawn rows beside EVE are counted by class, the most first. Only the five nearest are named, with class and
+-- distance. The rooms open as with the rooms pak.
 fresh()
 levels={}
 local needed={}
@@ -566,8 +580,10 @@ end
 for i=#levels+1,161-#D.VOLUMED do levels[i]={name='E04_Level_'..i,loaded=true,visible=true} end
 for i,name in ipairs(D.VOLUMED) do levels[#levels+1]={name=name,loaded=i<=20,visible=i<=8} end
 assert(#levels==161 and #D.VOLUMED==34)
-for i=1,155 do
-    names[#names+1]={name='NPC_'..i,class=i<=100 and 'N_CitizenMaleA_C' or i<=150 and 'N_XionGuardA_C' or 'N_Kaya_C'}
+local city=D.ARRIVALS.city
+for i=1,155 do -- NPC_i stands i m east of the city point.
+    names[#names+1]={name='NPC_'..i,class=i<=100 and 'N_CitizenMaleA_C' or i<=150 and 'N_XionGuardA_C' or 'N_Kaya_C',
+        at={X=city.X+i*100,Y=city.Y,Z=city.Z}}
 end
 x=new()
 rows_hidden,her_at,her_mode={},nil,1
@@ -576,8 +592,54 @@ me=at(D.ARRIVALS.city)
 pass(x,0.25)
 assert(logged('sboxion: levels: 161 listed, 127 of 127 always-loaded ones loaded and visible, missing: none; by '
     ..'volume: 34 listed, 20 loaded, 8 visible'),logs[#logs])
-assert(logged('sboxion: characters: 156 by class: N_CitizenMaleA_C 100, N_XionGuardA_C 50, N_Kaya_C 5, '
-    ..'CH_P_EVE_01_Blueprint_C 1') and not logged('NPC_'),'Counted by class')
-assert(hidden_rows()==23 and select(2,x.status()):find('; rooms 5 of 5 open$'),select(2,x.status()))
+local CROWD='sboxion: characters: 156 by class: N_CitizenMaleA_C 100, N_XionGuardA_C 50, N_Kaya_C 5, '
+    ..'CH_P_EVE_01_Blueprint_C 1; nearest: NPC_1 (N_CitizenMaleA_C) 1.0 m, NPC_2 (N_CitizenMaleA_C) 2.0 m, NPC_3 '
+    ..'(N_CitizenMaleA_C) 3.0 m, NPC_4 (N_CitizenMaleA_C) 4.0 m, NPC_5 (N_CitizenMaleA_C) 5.0 m'
+assert(times(CROWD)==1 and not logged('NPC_6'),'Counted by class, the five nearest named')
+assert(hidden_rows()==23 and select(2,x.status()):find('; rooms 5 of 5 open; look [^;]+$'),select(2,x.status()))
+-- eyes_arrival: the zone and area of the engine line and EVE's life state, once each.
+assert(times('sboxion: zone: zonetype 5 area Zone_SBO_Xion')==1 and times('sboxion: life: 1')==1,logs[#logs])
+-- eyes_second_look: 10 s after the arrival the levels line and the characters line again, whole. 10 s later nothing
+-- changed, so the look says nothing.
+pass(x,10)
+assert(times('sboxion: levels: 161 listed')==2 and times(CROWD)==2,'The second look')
+local said,looked,listed=#logs,calls.characters,calls.levels
+pass(x,10)
+assert(#logs==said and calls.characters==looked+1 and calls.levels==listed+1,
+    'A look reads once and says nothing when nothing changed: '..logs[#logs])
+-- eyes_change: a level streamed in by SB's volumes, an always-loaded one gone, two characters that spawned near EVE,
+-- the zone of Xion's own volume and a dead EVE. The zone and the life state are said within a second, the rest at
+-- the next look, once each.
+local volumed,always
+for _,l in ipairs(levels) do
+    if l.name=='E04_Area05_A_LD' then volumed=l end
+    if l.name=='E04_Level_100' then always=l end
+end
+assert(not volumed.visible and volumed.loaded and always.loaded,'E04_Area05_A_LD loaded and hidden at the start')
+volumed.visible,always.loaded,always.visible=true,false,false
+names[#names+1]={name='Lyle_1',class='N_Lyle_C',at={X=city.X+50,Y=city.Y,Z=city.Z}}
+names[#names+1]={name='Lyle_2',class='N_Lyle_C',at={X=city.X,Y=city.Y+150,Z=city.Z}}
+ENGINE=ENGINE:gsub('zonetype=5 area=Zone_SBO_Xion','zonetype=1 area=Zone_Xion_10')
+warp_line='sboxionwarp=entered asks=9 life=3'
+local respawned=#respawns
+pass(x,1)
+assert(times('sboxion: zone: zonetype 1 area Zone_Xion_10, EVE at (-8304, 7201, 225)')==1
+    and times('sboxion: life: 3, EVE at (-8304, 7201, 225)')==1 and not logged('levels changed'),logs[#logs])
+assert(logged('sboxion: recovery waits: zone Zone_Xion_10 type 1') and #respawns==respawned,'The recovery waits')
+pass(x,9)
+assert(times('sboxion: levels changed: E04_Level_100 loaded false visible false, E04_Area05_A_LD loaded true visible '
+    ..'true; EVE at (-8304, 7201, 225)')==1,logs[#logs])
+assert(times('sboxion: characters: 158 by class: N_CitizenMaleA_C 100, N_XionGuardA_C 50, N_Kaya_C 5, N_Lyle_C 2, '
+    ..'CH_P_EVE_01_Blueprint_C 1; nearest: Lyle_1 (N_Lyle_C) 0.5 m, NPC_1 (N_CitizenMaleA_C) 1.0 m, Lyle_2 (N_Lyle_C) '
+    ..'1.5 m, NPC_2 (N_CitizenMaleA_C) 2.0 m, NPC_3 (N_CitizenMaleA_C) 3.0 m')==1,logs[#logs])
+-- eyes_status: the last look as the status line's last part.
+ok,why=x.status()
+assert(why:find('; rooms 5 of 5 open; look %d+ s ago: 158 characters, nearest Lyle_1 %(N_Lyle_C%) 0%.5 m, levels '
+    ..'126 of 127 always%-loaded, 20 of 34 by volume loaded, 9 visible, zonetype 1 area Zone_Xion_10, life 3$'),why)
+-- eyes_quiet: nothing changes for 30 s, nothing more is said.
+said=#logs
+pass(x,30)
+assert(#logs==said,'Said once: '..logs[#logs])
+ENGINE=ENGINE:gsub('zonetype=1 area=Zone_Xion_10','zonetype=5 area=Zone_SBO_Xion')
 x.stop()
 print('sboxion_world_test ok')

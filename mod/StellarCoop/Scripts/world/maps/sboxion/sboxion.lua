@@ -18,9 +18,14 @@
 -- is the EVE SB builds for a Boss Challenge zone, from the newest save of the list.
 -- Arrival, once a load of SBO Xion: the day table (41 bActiveVolume values of E04_ENV_VOL's volumes, matched by level
 -- and name), read back 2 s and 10 s later, the streaming levels' state (the always-loaded ones apart from the volume
--- streamed ones of data.lua's VOLUMED), the two probe levels' state and the characters counted by class, each as a
--- log line a test reads. While EVE stays, once a second: each change of the two probe levels and each waypoint she
--- stands at. Nothing is read in any other map.
+-- streamed ones of data.lua's VOLUMED), the two probe levels' state, the characters counted by class with the five
+-- nearest to EVE, the zone and area of the status text's engine line and EVE's life state of its sboxionwarp line,
+-- each as a log line a test reads. The levels and the characters again 10 s later. While EVE stays, once a second:
+-- each change of the two probe levels, of the zone and area and of her life state, and each waypoint she stands at.
+-- Then every LOOK s a look: the characters line again when the count by class or the five nearest changed, and the
+-- levels whose loaded or visible state changed since the look before. Nothing is read in any other map.
+-- The full test pak of 2026-11-24 loads SB's level-design sublevels as SB ships them: these lines are its test's eyes
+-- (what wakes up in Zone_SBO_Xion and whether the zone changes).
 -- Falls and deaths, each pass of the stay (world/maps/sboxion/recover.lua): the paks of 2026-11-23 and of the rooms
 -- have none of SB's fall volumes. The full test pak's city ones act in Zone_Xion_10 by their rows. So EVE under
 -- data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
@@ -33,7 +38,7 @@
 -- coop xion leave: the request "sboxion leave <zone FName index>". The native part compares the zone with the
 -- client's and calls SB's reload of the co-op save only from SBO Xion, so the request is sent from any map.
 -- coop xion status: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the
--- recovery's state and the rooms' state.
+-- recovery's state, the rooms' state and the last look.
 -- coop xion recover [on|death|off], inside SBO Xion: the recovery's mode until the next arrival, which sets it to on.
 -- death leaves falls alone, so EVE can die of one on purpose. off does nothing, as before the recovery existed.
 -- coop xion rooms [on|off], inside SBO Xion: off puts SB's pieces back in the five doorways until on or the next
@@ -54,6 +59,7 @@ for _,name in ipairs(D.DAY.off) do WANT[name]=false end
 local VOLUMED={}
 for _,name in ipairs(D.VOLUMED) do VOLUMED[name]=true end
 local BACK,AGAIN,WATCH,ANSWER=2,10,1,10 -- s: the read-back, the second look, the watch's pace, the native answer.
+local LOOK,NEAREST=10,5 -- s between two looks after the second one; characters named in a characters line.
 local function place(at) return string.format('(%.0f, %.0f, %.0f)',at.X,at.Y,at.Z) end
 local function round(v) return math.floor(v+0.5) end
 
@@ -159,12 +165,22 @@ function Xion.new(o)
         log(string.format('sboxion: light: %d of %d read back as written%s',same,NAMED,
             wrong[1] and ', not '..table.concat(wrong,', ') or ''))
     end
-    -- The listed levels: the always-loaded ones loaded and visible or named, the volume streamed ones counted, since
-    -- those load and show only where SB's volumes say.
-    local function levels()
+    -- A level's state as text, whole or by the name's last part (A_01).
+    local function probe_text(p,name)
+        return string.format('%s loaded %s visible %s',name or p.name,tostring(p.loaded),tostring(p.visible))
+    end
+    -- The stay in SBO Xion, one world load: {probes=, near=, said=, written=, back=, again=, next=, look=, view=}; nil
+    -- elsewhere. view, what the last look saw: {seen=<each level's state by name>, levels=, crowd=, key=, nearest=,
+    -- time=, zone=, life=}.
+    local stay=nil
+    -- The listed levels with the state of each by name kept for the next look, and their counts for the status: the
+    -- always-loaded ones loaded and visible, the volume streamed ones counted apart, since those load and show only
+    -- where SB's volumes say. Returns the list, the states the look before kept (nil with none) and the levels line.
+    local function tally()
         local list=world.levels()
-        local always,fine,missing,by,loaded,shown=0,0,{},0,0,0
+        local always,fine,missing,by,loaded,shown,seen=0,0,{},0,0,0,{}
         for _,l in ipairs(list) do
+            seen[l.name]={loaded=l.loaded,visible=l.visible}
             if VOLUMED[l.name] then
                 by,loaded,shown=by+1,loaded+(l.loaded and 1 or 0),shown+(l.visible and 1 or 0)
             else
@@ -172,9 +188,34 @@ function Xion.new(o)
                 if l.loaded and l.visible then fine=fine+1 else missing[#missing+1]=l.name end
             end
         end
-        log(string.format('sboxion: levels: %d listed, %d of %d always-loaded ones loaded and visible, missing: %s; '
-            ..'by volume: %d listed, %d loaded, %d visible',#list,fine,always,
-            missing[1] and table.concat(missing,', ') or 'none',by,loaded,shown))
+        local was=stay.view.seen
+        stay.view.seen,stay.view.time=seen,os.clock()
+        stay.view.levels=string.format('levels %d of %d always-loaded, %d of %d by volume loaded, %d visible',fine,
+            always,loaded,by,shown)
+        return list,was,string.format('%d listed, %d of %d always-loaded ones loaded and visible, missing: %s; by '
+            ..'volume: %d listed, %d loaded, %d visible',#list,fine,always,
+            missing[1] and table.concat(missing,', ') or 'none',by,loaded,shown)
+    end
+    local function levels()
+        local _,_,line=tally()
+        log('sboxion: levels: '..line)
+    end
+    -- A look's levels: each one whose loaded or visible state differs from the look before, in the list's order, then
+    -- the ones gone from the list. With no look before, the whole levels line.
+    local function changed(me)
+        local list,was,line=tally()
+        if not was then return log('sboxion: levels: '..line) end
+        local said,now={},{}
+        for _,l in ipairs(list) do
+            now[l.name]=true
+            local w=was[l.name]
+            if not w or w.loaded~=l.loaded or w.visible~=l.visible then said[#said+1]=probe_text(l) end
+        end
+        local gone={}
+        for name in pairs(was) do if not now[name] then gone[#gone+1]=name..' gone from the list' end end
+        table.sort(gone)
+        for _,g in ipairs(gone) do said[#said+1]=g end
+        if said[1] then log('sboxion: levels changed: '..table.concat(said,', ')..'; EVE at '..place(me.at)) end
     end
     -- The characters by class, the most first: with SB's spawn rows in a pak there can be many, so no name is listed.
     local function by_class(list)
@@ -187,18 +228,60 @@ function Xion.new(o)
         for i,class in ipairs(classes) do classes[i]=class..' '..n[class] end
         return table.concat(classes,', ')
     end
-    local function characters()
-        local list=world.characters()
-        log('sboxion: characters: '..#list..(#list>1 and ' by class: '..by_class(list) or ''))
+    -- The characters line: the count, by class, then the NEAREST nearest to EVE (name, class, metres). EVE is counted,
+    -- never among the nearest. Her place is her own entry's, else me's. said: always logged; else only when the count
+    -- by class or the names of the nearest changed since the look before.
+    local function characters(me,said)
+        local list,here=world.characters(),me and me.at
+        for _,c in ipairs(list) do if c.eve and c.at then here=c.at end end
+        local near={}
+        for _,c in ipairs(list) do
+            if not c.eve and c.at and here then
+                near[#near+1]={c=c,d=math.sqrt((c.at.X-here.X)^2+(c.at.Y-here.Y)^2+(c.at.Z-here.Z)^2)/100}
+            end
+        end
+        table.sort(near,function(a,b) return a.d<b.d or a.d==b.d and a.c.name<b.c.name end)
+        local named,who={},{}
+        for i=1,math.min(NEAREST,#near) do
+            named[i]=string.format('%s (%s) %.1f m',near[i].c.name,near[i].c.class,near[i].d)
+            who[i]=near[i].c.name
+        end
+        local classes=#list>1 and by_class(list) or ''
+        local v=stay.view
+        local key=classes..'|'..table.concat(who,',')
+        v.crowd,v.nearest,v.time=#list,named[1],os.clock()
+        if key==v.key and not said then return end
+        v.key=key
+        log('sboxion: characters: '..#list..(classes~='' and ' by class: '..classes or '')
+            ..(named[1] and '; nearest: '..table.concat(named,', ') or ''))
     end
-    -- The two probe levels by name. Then their state as text, whole or by the name's last part (A_01).
+    -- The zone and area of the engine line and EVE's life state of the sboxionwarp line, as the log and the status say
+    -- them. Text only: no engine read.
+    local function words()
+        local text='\n'..(o.status() or '')
+        local kind,area=(text:match('\nengine=([^\r\n]*)') or ''):match(' zonetype=(%d+) area=(%S+)')
+        local life=text:match('\nsboxionwarp=[^\r\n]- life=(%d+)')
+        return kind and 'zonetype '..kind..' area '..area or 'zone unread (the engine line has no zonetype= word)',
+            life or 'unread (the sboxionwarp line has no life= word)'
+    end
+    -- Each change of the two, logged; at the arrival (first) both, with no place.
+    local function zone_and_life(me,first)
+        local zone,life=words()
+        local v,at=stay.view,first and '' or ', EVE at '..place(me.at)
+        if zone~=v.zone then
+            v.zone=zone
+            log('sboxion: zone: '..zone..at)
+        end
+        if life~=v.life then
+            v.life=life
+            log('sboxion: life: '..life..at)
+        end
+    end
+    -- The two probe levels by name.
     local function probes()
         local now={}
         for _,p in ipairs(world.probes(D.PROBES)) do now[p.name]=p end
         return now
-    end
-    local function probe_text(p,name)
-        return string.format('%s loaded %s visible %s',name or p.name,tostring(p.loaded),tostring(p.visible))
     end
     local function both(now,short)
         local said={}
@@ -207,17 +290,16 @@ function Xion.new(o)
         end
         return table.concat(said,', ')
     end
-    -- The stay in SBO Xion, one world load: {probes=, near=, said=, written=, back=, again=, next=}; nil elsewhere.
-    local stay=nil
     local function arrive(me,now)
-        stay={near={},said={},back=now+BACK,again=now+AGAIN,next=now+WATCH}
+        stay={near={},said={},back=now+BACK,again=now+AGAIN,next=now+WATCH,look=now+AGAIN,view={}}
         log(string.format('sboxion: arrived, map %s, zone %s, EVE at %s',D.UMAP,D.ZONE,place(me.at)))
         recover.arrive(asked_point or 'city')
         stay.written=guarded('light',light) or {}
         guarded('levels',levels)
         stay.probes=guarded('probe',probes)
         if stay.probes then log('sboxion: probe: start: '..both(stay.probes)) end
-        guarded('characters',characters)
+        guarded('characters',characters,me,true)
+        zone_and_life(me,true)
         rooms.arrive()
     end
     local function watch(me,now)
@@ -226,13 +308,19 @@ function Xion.new(o)
             read_back(stay.written)
         end
         if stay.again and now>=stay.again then
-            stay.again=nil
+            stay.again,stay.look=nil,now+LOOK
             guarded('levels',levels)
             read_back(stay.written)
-            guarded('characters',characters)
+            guarded('characters',characters,me,true)
+        end
+        if now>=stay.look then
+            stay.look=now+LOOK
+            guarded('levels',changed,me)
+            guarded('characters',characters,me,false)
         end
         if now<stay.next then return end
         stay.next=now+WATCH
+        zone_and_life(me,false)
         local seen=guarded('probe',probes)
         if seen then
             for _,name in ipairs(D.PROBES) do
@@ -334,6 +422,16 @@ function Xion.new(o)
         return true,'coop xion leave: SB\'s reload of the co-op save is asked; the native part refuses it outside SBO '
             ..'Xion ([SX] lines follow)'
     end
+    -- The last look as one part of coop xion status: its age, the characters with the nearest one, the levels, then the
+    -- zone, area and life state read at the last watch pass.
+    local function seen()
+        local v=stay.view
+        if not v.time then return 'look none yet' end
+        local n=v.crowd and v.crowd..' character'..(v.crowd==1 and '' or 's') or 'characters unread'
+        return string.format('look %.0f s ago: %s%s, %s, %s, life %s',os.clock()-v.time,n,
+            v.nearest and ', nearest '..v.nearest or '',v.levels or 'levels unread',v.zone or 'zone unread',
+            v.life or 'unread')
+    end
     -- coop xion status: one line.
     function self.status()
         local version,none=self.gate()
@@ -350,7 +448,7 @@ function Xion.new(o)
                 if d<far then best,far=w.name,d end
             end
             parts[#parts+1]=string.format('EVE at %s, nearest waypoint %s %.1f m',place(me.at),best,far/100)
-            if stay then parts[#parts+1],parts[#parts+2]=recover.status(),rooms.status() end
+            if stay then parts[#parts+1],parts[#parts+2],parts[#parts+3]=recover.status(),rooms.status(),seen() end
         else
             parts[#parts+1]='EVE is not in SBO Xion'..(me and ' (map '..me.map..')' or '')
         end

@@ -883,7 +883,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   refused outside SBO Xion and prints, closes and opens them inside. A map change that took the world calls no row.
   `coop off` puts every row back. At a map change and at `coop off` the recovery ends before the rooms close. With
   the full test pak's 161 levels the 34 volume-streamed ones are counted apart and never named as missing, 155
-  characters beside EVE are counted by class with no name and the five rooms open;
+  characters beside EVE are counted by class with only the five nearest named (class and distance) and the five rooms
+  open. The zone and area of the `engine=` line and EVE's life state are logged at the arrival and once at each
+  change, within a second. The levels line and the characters line come again 10 s later. A look 10 s after that
+  reads once and says nothing. The next look says the two levels that changed and the characters line with the two
+  that spawned, once. `coop xion status` ends with the last look;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
@@ -916,8 +920,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects: the zone's FName
   index only for a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
   dead actor never written, the streaming levels by their package's last part, the probes read again on the kept
-  objects, the characters' names and classes (one that does not read given as `unread`), every world read raising
-  with no EVE. For the recovery: `move` gives EVE's place,
+  objects, the characters' names, classes and places with EVE told apart by her address (one that does not read
+  given as `unread`), every world read raising with no EVE. For the recovery: `move` gives EVE's place,
   yaw, movement mode, world time and address from one EVE with each read made once; `put` teleports then stops her
   movement, with no stop call after a refusal; the respawn's controller, standalone test and request with the GUID
   and `false`; the death screen looked for only on request, read playing or not, hidden and shown again as it was

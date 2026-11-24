@@ -46,7 +46,7 @@ of a Lua load the module asks a second time, for `Rooms` and the five file names
 | `coop xion` or `coop xion city` | Warps EVE into SBO Xion at the city point (-8304, 7201, 225) |
 | `coop xion gate` | The same at the gate point (-23393, 17287, 1285) |
 | `coop xion leave` | Asks SB's reload of the co-op save. The native part runs it only from SBO Xion |
-| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state and the rooms' state |
+| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state, the rooms' state and the last look: its age, the characters with the nearest one, the levels, the zone, the area and EVE's life state |
 | `coop xion recover on`, `death` or `off` | Inside SBO Xion: what the module does after a fall or a death, until the next arrival ([Falls and deaths](#falls-and-deaths)). Alone, it prints the recovery's state |
 | `coop xion rooms on` or `off` | Inside SBO Xion: `off` puts SB's pieces back in the doorways of [the rooms](#the-rooms) until `on` or the next arrival, so the five doors are closed as SB ships them. Alone, it prints the rooms' state |
 
@@ -474,14 +474,21 @@ Each line below is one proof of the test. They are in `UE4SS.log` unless said.
 | `sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none; by volume: 2 listed, 2 loaded, 2 visible` | Every always-loaded sublevel loaded from the game's own files. With the rooms pak: `100 listed, 98 of 98`. With the full test pak: `161 listed, 127 of 127`. The levels streamed by SB's volumes (the 34 of `data.lua`'s `VOLUMED`, two with the older paks) are counted, never named as missing: they load and show where SB's volumes say |
 | `sboxion: light: 72 env volumes found, 65 in E04_ENV_VOL, 41 named, 21 changed, CountDown_Posing_ENV active true` | The day table was written |
 | `sboxion: light: 41 of 41 read back as written` | The writes held, 2 s and 10 s after the arrival |
-| `sboxion: characters: 1` | EVE is the only character. With more: `characters: n by class: <class> <count>, ...`, the most first, with no name |
+| `sboxion: characters: 1` | EVE is the only character. With more: `characters: n by class: <class> <count>, ...; nearest: <name> (<class>) d m, ...`. The classes come the most first. Only the five nearest to EVE are named, with the distance in metres. EVE is counted, never among the nearest. Logged at the arrival, 10 s later and at each later look whose count by class or five names differ |
+| `sboxion: zone: zonetype t area <alias>` | The zone type and the area of the `engine=` line of `coop-status.txt`, at the arrival. Each change adds `, EVE at (x, y, z)`. `zonetype 5 area Zone_SBO_Xion` is SBO Xion's own zone. `area none` means the world and the logic name different zones. `zone unread (...)` means the group's native read is off |
+| `sboxion: life: n` | EVE's life state (ESBActorLifeState) of the `sboxionwarp=` line, at the arrival. Each change adds `, EVE at (x, y, z)`. 3 to 5 are the death states [the recovery](#a-death) answers. `unread (...)` before the native part's first read |
+| `sboxion: levels changed: <level> loaded b visible b, ...; EVE at (x, y, z)` | At a look, each listed level whose state differs from the look before, in the list's order |
 | `sboxion: probe: start: E04_DistantView_A_01 loaded b visible b, E04_DistantView_A_03 loaded b visible b` | The two volume-streamed levels at the arrival |
 | `sboxion: probe: <level> loaded b visible b, EVE at (x, y, z)` | One of the two changed state |
 | `sboxion: at <waypoint>: A_01 loaded b visible b, A_03 loaded b visible b` | EVE stood 5 s within 3 m of a waypoint |
 | `sboxion leave: queue q, last save unchanged, reload call 1` (`coop-link.log`) | SB's reload started and its last save time did not move since the enter |
 | `sboxion: left, map <path>` | EVE is out |
 
-The two probe levels are the only ones the pak leaves volume streamed, as SB ships them. Both read loaded and
+The module reads the zone and the life state each second, from the status text only. It looks at the levels and the
+characters 10 s after the arrival, then every 10 s. A look says only what changed. A look reads each listed level
+three times and each character five times through UE4SS: with 161 levels and 156 characters that is about 1,260
+calls every 10 s. Their time was not measured in game. The two probe levels are the only
+ones the older paks leave volume streamed, as SB ships them. Both read loaded and
 visible at the arrival, which decides nothing. A waypoint line with `visible false` and a later probe line back to
 `visible true` shows that UE's volume streaming runs in a persistent level of SBO. The waypoints `kaya` (the front of
 Kaya's shop) and `camp7` (the camp beside Roxanne's place) lie outside every visibility volume of both levels.
@@ -586,7 +593,9 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
   read-back, a refusal logged once.
 - `world_test.lua`: the commands' refusals and requests, then on a fake world the 41 writes matched by level and
   name, the counts 72, 65 and 41, the full test pak's 161 levels with the 34 volume-streamed ones counted apart, 155
-  characters counted by class, nothing read outside SBO Xion, a second arrival, a probe change logged once, a
+  characters counted by class with the five nearest named, the zone, area and life lines at the arrival and at each
+  change, a look that says nothing when nothing changed, the levels and characters that changed said once, the
+  status line's look part, nothing read outside SBO Xion, a second arrival, a probe change logged once, a
   waypoint logged once a visit, the watch ended by a map change and by `coop off`. For the recovery: ticked only in
   SBO Xion, started again at each arrival with the point `coop xion` asked, fed by the engine's read of EVE when
   `me()` names another place, SB's black asked through the module's own wiring with the move two passes later, a

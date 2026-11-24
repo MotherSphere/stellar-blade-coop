@@ -62,15 +62,20 @@ function Engine.probes(names)
     end
     return out
 end
--- The SBCharacter actors of EVE's world, EVE included: {name=, class=} each, the class's own name. One whose reads
--- raise (a character that goes while it is read) is given as {name='?', class='unread'}.
+-- The SBCharacter actors of EVE's world, EVE included: {name=, class=, at={X,Y,Z}, eve=} each, the class's own name,
+-- the actor's place and whether it is EVE herself (the same object as core/player.lua's her()). One whose reads raise
+-- (a character that goes while it is read) is given as {name='?', class='unread', eve=false} with no place.
 function Engine.characters()
+    local me=eve()
+    local mine=U.address(me)
     local out={}
-    for _,c in ipairs((U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',eve()))) do
+    for _,c in ipairs((U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',me))) do
         local ok,r=pcall(function()
-            return {name=U.text(c:GetFName()),class=U.text(assert(U.valid(c:GetClass()),'no class'):GetFName())}
+            local at=U.value_of(c:K2_GetActorLocation())
+            return {name=U.text(c:GetFName()),class=U.text(assert(U.valid(c:GetClass()),'no class'):GetFName()),
+                at={X=at.X,Y=at.Y,Z=at.Z},eve=U.address(c)==mine}
         end)
-        out[#out+1]=ok and r or {name='?',class='unread'}
+        out[#out+1]=ok and r or {name='?',class='unread',eve=false}
     end
     return out
 end
