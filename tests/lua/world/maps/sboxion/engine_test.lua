@@ -4,7 +4,8 @@
 -- SBO Xion's engine reads (world/maps/sboxion/engine.lua) over fake UE4SS objects: the zone's FName index only for a
 -- name the game has made; each env volume's path with its bActiveVolume read and written on the actor, a dead actor
 -- raising; the streaming levels by their package's last part with what IsLevelLoaded and IsLevelVisible say; the
--- probes read again on the kept objects, a gone one reading not loaded; the characters' names; no EVE raising. Then
+-- probes read again on the kept objects, a gone one reading not loaded; the characters' names and classes, one that
+-- does not read given as unread; no EVE raising. Then
 -- the recovery's calls (world/maps/sboxion/recover.lua): move gives EVE's place, yaw, movement mode, world time and
 -- address from one EVE with each read made once, nil with no EVE; put teleports then stops her movement, with no stop
 -- call after a refusal; the respawn's controller, standalone test and call; the death screen found once, read
@@ -86,10 +87,19 @@ assert(probes[3].name=='E04_Missing' and probes[3].loaded==false and probes[3].v
 streaming[2].dead=true
 assert(Engine.probes({'E04_DistantView_A_01'})[1].loaded==false,'A gone level reads not loaded')
 
--- characters: every SBCharacter's name.
-actors.SBCharacter={object({GetFName=function() return fname('CH_P_EVE_01_Blueprint_C_0') end}),
-    object({GetFName=function() return fname('Animal_Rat_C_3') end})}
-assert(table.concat(Engine.characters(),',')=='CH_P_EVE_01_Blueprint_C_0,Animal_Rat_C_3')
+-- characters: every SBCharacter's name and its class's name; one whose reads raise is given as unread.
+local function character(name,class)
+    return object({GetFName=function() return fname(name) end,
+        GetClass=function() return class and object({GetFName=function() return fname(class) end}) end})
+end
+actors.SBCharacter={character('CH_P_EVE_01_Blueprint_C_0','CH_P_EVE_01_Blueprint_C'),
+    character('Animal_Rat_C_3','Animal_Rat_C'),character('N_Gone_C_1',nil),
+    object({GetFName=function() error('it is gone') end})}
+local chars=Engine.characters()
+assert(#chars==4 and chars[1].name=='CH_P_EVE_01_Blueprint_C_0' and chars[1].class=='CH_P_EVE_01_Blueprint_C'
+    and chars[2].name=='Animal_Rat_C_3' and chars[2].class=='Animal_Rat_C','Name and class')
+assert(chars[3].name=='?' and chars[3].class=='unread' and chars[4].name=='?' and chars[4].class=='unread',
+    'No class or a read that raises: unread')
 
 -- No EVE: every world read raises, for sboxion.lua's guarded reads.
 package.loaded['core.player'].her=function() return nil end

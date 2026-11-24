@@ -62,11 +62,15 @@ function Engine.probes(names)
     end
     return out
 end
--- The names of the SBCharacter actors of EVE's world, EVE included.
+-- The SBCharacter actors of EVE's world, EVE included: {name=, class=} each, the class's own name. One whose reads
+-- raise (a character that goes while it is read) is given as {name='?', class='unread'}.
 function Engine.characters()
     local out={}
     for _,c in ipairs((U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',eve()))) do
-        out[#out+1]=U.text(c:GetFName())
+        local ok,r=pcall(function()
+            return {name=U.text(c:GetFName()),class=U.text(assert(U.valid(c:GetClass()),'no class'):GetFName())}
+        end)
+        out[#out+1]=ok and r or {name='?',class='unread'}
     end
     return out
 end

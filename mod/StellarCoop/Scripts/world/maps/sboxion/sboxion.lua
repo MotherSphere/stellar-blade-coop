@@ -2,9 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion (a test tool, experimental, left out of the usage line): a world of SBO's own whose persistent level
--- /Game/SBO_World/Xion_P streams the look-only sublevels of SB's Xion from the player's own game files. The level is
--- in the zSBO_Xion test pak, built outside the mod and never shipped with it. SB's world row Xion, its zones and its
--- level-design sublevels are not touched: story mode and online sessions keep SB's Xion.
+-- /Game/SBO_World/Xion_P streams sublevels of SB's Xion from the player's own game files: the look-only ones, and with
+-- the full test pak of 2026-11-24 the level-design ones as SB ships them. The level is in the zSBO_Xion test pak, built
+-- outside the mod and never shipped with it. SB's world row Xion, its zones and its sublevels are not touched: story
+-- mode and online sessions keep SB's Xion.
 -- The pak gate (core/pak_gate.lua), once a Lua load: the container's .utoc must name SBO_World and Xion_P.umap, with
 -- its .pak and .ucas beside it. With no pak nothing is asked and nothing is said: most players have none.
 -- The rows (native/src/world/maps/sboxion/sboxion_rows.h's sboxion batch, world/maps/sboxion/data.lua): one world row
@@ -16,11 +17,13 @@
 -- keeps it as the arrival's zone with no zone volume in the level. SB's in-game save queues nothing in it. EVE inside
 -- is the EVE SB builds for a Boss Challenge zone, from the newest save of the list.
 -- Arrival, once a load of SBO Xion: the day table (41 bActiveVolume values of E04_ENV_VOL's volumes, matched by level
--- and name), read back 2 s and 10 s later, the streaming levels' state, the two probe levels' state and the
--- characters, each as a log line a test reads. While EVE stays, once a second: each change of the two probe levels
--- and each waypoint she stands at. Nothing is read in any other map.
--- Falls and deaths, each pass of the stay (world/maps/sboxion/recover.lua): the level has none of SB's fall volumes,
--- so EVE under data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
+-- and name), read back 2 s and 10 s later, the streaming levels' state (the always-loaded ones apart from the volume
+-- streamed ones of data.lua's VOLUMED), the two probe levels' state and the characters counted by class, each as a
+-- log line a test reads. While EVE stays, once a second: each change of the two probe levels and each waypoint she
+-- stands at. Nothing is read in any other map.
+-- Falls and deaths, each pass of the stay (world/maps/sboxion/recover.lua): the paks of 2026-11-23 and of the rooms
+-- have none of SB's fall volumes. The full test pak's city ones act in Zone_Xion_10 by their rows. So EVE under
+-- data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
 -- SB's death screen cannot respawn her in this zone, so a dead EVE gets SB's in-place respawn.
 -- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test pak of 2026-11-24 adds five rooms
 -- behind five closed doors of SB's Xion, as five levels of the persistent level. The pak gate is asked once a Lua load
@@ -48,8 +51,8 @@ local SHUT={busy=true,net=true,unread=true}
 local WANT,NAMED={},#D.DAY.on+#D.DAY.off -- The day table by name. NAMED: its 41.
 for _,name in ipairs(D.DAY.on) do WANT[name]=true end
 for _,name in ipairs(D.DAY.off) do WANT[name]=false end
-local PROBE={}
-for _,name in ipairs(D.PROBES) do PROBE[name]=true end
+local VOLUMED={}
+for _,name in ipairs(D.VOLUMED) do VOLUMED[name]=true end
 local BACK,AGAIN,WATCH,ANSWER=2,10,1,10 -- s: the read-back, the second look, the watch's pace, the native answer.
 local function place(at) return string.format('(%.0f, %.0f, %.0f)',at.X,at.Y,at.Z) end
 local function round(v) return math.floor(v+0.5) end
@@ -156,21 +159,37 @@ function Xion.new(o)
         log(string.format('sboxion: light: %d of %d read back as written%s',same,NAMED,
             wrong[1] and ', not '..table.concat(wrong,', ') or ''))
     end
+    -- The listed levels: the always-loaded ones loaded and visible or named, the volume streamed ones counted, since
+    -- those load and show only where SB's volumes say.
     local function levels()
         local list=world.levels()
-        local always,fine,missing=0,0,{}
+        local always,fine,missing,by,loaded,shown=0,0,{},0,0,0
         for _,l in ipairs(list) do
-            if not PROBE[l.name] then
+            if VOLUMED[l.name] then
+                by,loaded,shown=by+1,loaded+(l.loaded and 1 or 0),shown+(l.visible and 1 or 0)
+            else
                 always=always+1
                 if l.loaded and l.visible then fine=fine+1 else missing[#missing+1]=l.name end
             end
         end
-        log(string.format('sboxion: levels: %d listed, %d of %d always-loaded ones loaded and visible, missing: %s',
-            #list,fine,always,missing[1] and table.concat(missing,', ') or 'none'))
+        log(string.format('sboxion: levels: %d listed, %d of %d always-loaded ones loaded and visible, missing: %s; '
+            ..'by volume: %d listed, %d loaded, %d visible',#list,fine,always,
+            missing[1] and table.concat(missing,', ') or 'none',by,loaded,shown))
+    end
+    -- The characters by class, the most first: with SB's spawn rows in a pak there can be many, so no name is listed.
+    local function by_class(list)
+        local n,classes={},{}
+        for _,c in ipairs(list) do
+            if not n[c.class] then classes[#classes+1]=c.class end
+            n[c.class]=(n[c.class] or 0)+1
+        end
+        table.sort(classes,function(a,b) return n[a]>n[b] or n[a]==n[b] and a<b end)
+        for i,class in ipairs(classes) do classes[i]=class..' '..n[class] end
+        return table.concat(classes,', ')
     end
     local function characters()
-        local names=world.characters()
-        log('sboxion: characters: '..#names..(#names>1 and ' ('..table.concat(names,', ')..')' or ''))
+        local list=world.characters()
+        log('sboxion: characters: '..#list..(#list>1 and ' by class: '..by_class(list) or ''))
     end
     -- The two probe levels by name. Then their state as text, whole or by the name's last part (A_01).
     local function probes()

@@ -25,16 +25,18 @@ mod does not ship it and the repository cannot build it: the map tools stay outs
 The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then in `SB/Content/Paks/LogicMods`. The
 `.utoc` must name `SBO_World` and `Xion_P.umap`, with its `.pak` and `.ucas` beside it.
 
-There are two builds of the pak, under the same three file names. Only one of them is installed at a time.
+There are three builds of the pak, under the same three file names. Only one of them is installed at a time.
 
-| Pak | Packages | `.utoc` | `.ucas` | Version in `coop xion status` |
-| --- | --- | --- | --- | --- |
-| 23 November 2026 | `Xion_P` | 657 bytes | 1,261,721 bytes | `657_1261721` |
-| 24 November 2026 | `Xion_P` and five room levels | 1203 bytes | 1,501,348 bytes | `1203_1501348` |
+| Pak | Packages | Levels listed | `.utoc` | `.ucas` | Version in `coop xion status` |
+| --- | --- | --- | --- | --- | --- |
+| 23 November 2026 | `Xion_P` | 95 | 657 bytes | 1,261,721 bytes | `657_1261721` |
+| 24 November 2026, rooms | `Xion_P` and five room levels | 100 | 1203 bytes | 1,501,348 bytes | `1203_1501348` |
+| 24 November 2026, full test | `Xion_P` and the same five room levels | 161 | 1203 bytes | 1,501,548 bytes | `1203_1501548` |
 
-Both pass the check above. At the first arrival of a Lua load the module asks a second time, for `Rooms` and the five
-file names `Xion_Rooms_D011.umap`, `_D031`, `_D081`, `_D107` and `_D158`. Only the pak of 24 November passes
-that one. With the pak of 23 November the module works as before [the rooms](#the-rooms) existed: it logs
+All three pass the check above. The module looks for package paths, never for a version: `self.gate()` in
+`sboxion.lua` hands the version to `coop xion status`, which prints it. Nothing else reads it. At the first arrival
+of a Lua load the module asks a second time, for `Rooms` and the five file names `Xion_Rooms_D011.umap`, `_D031`,
+`_D081`, `_D107` and `_D158`. Both paks of 24 November pass that one. With the pak of 23 November the module works as before [the rooms](#the-rooms) existed: it logs
 `rooms: none in this pak` at each arrival and hides nothing.
 
 ## Commands
@@ -365,7 +367,7 @@ that cannot be read is logged and nothing is put back.
 
 | Line | Meaning |
 | --- | --- |
-| `sboxion: levels: 100 listed, 98 of 98 always-loaded ones loaded and visible, missing: none` | The pak of 24 November is in and its five room levels loaded |
+| `sboxion: levels: 100 listed, 98 of 98 always-loaded ones loaded and visible, missing: none; by volume: 2 listed, 2 loaded, 2 visible` | The rooms pak of 24 November is in and its five room levels loaded. The full test pak reads `161 listed, 127 of 127` |
 | `sboxion: rooms: none in this pak (<path>\zSBO_Xion.utoc does not hold Rooms): no door is opened` | The pak of 23 November. One line an arrival. Nothing else of the rooms runs |
 | `sboxion: rooms: <room> open: n rows hidden, t ms` | Every row of the room is hidden. `t` is the time spent on the room |
 | `sboxion: rooms: <room> closed: <row>: <why>` | One row failed. Nothing of the room is hidden. `<row>` reads `<sublevel>.<actor>.<component>`, with `[<index>]` for an instance |
@@ -419,8 +421,8 @@ hides nothing: the rooms then stand behind SB's closed doors.
 
 On a co-op save, alone.
 
-1. `coop xion`. Within 5 s the log has `levels: 100 listed, 98 of 98` and five lines `rooms: <room> open`, with
-   4, 4, 4, 3 and 8 rows. Note each ms figure and any hitch.
+1. `coop xion`. Within 5 s the log has `levels: 100 listed, 98 of 98` (`161 listed, 127 of 127` with the full test
+   pak) and five lines `rooms: <room> open`, with 4, 4, 4, 3 and 8 rows. Note each ms figure and any hitch.
 2. `coop xion status` reads `pak 1203_1501348` and ends with `rooms 5 of 5 open`. It names the nearest waypoint.
    Walk until it reads `nearest waypoint D158`, 35 m east of the city point and 3.7 m higher, near
    (-4798, 6917, 596).
@@ -469,10 +471,10 @@ Each line below is one proof of the test. They are in `UE4SS.log` unless said.
 | `sboxion title: the rows are in, before any save loads` and `sboxion rows: 2/2 in` | The two rows went in at the title and read back as written |
 | `sboxion enter: zone row found, type 5, world row found, call 1, to (x, y, z) yaw y, queue q, last save t` (`coop-link.log`) | The native guards passed and SB's warp returned 1 |
 | `sboxion: arrived, map /Game/SBO_World/Xion_P, zone Zone_SBO_Xion, EVE at (x, y, z)` | EVE stands in SBO Xion |
-| `sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none` | Every sublevel loaded from the game's own files. With the pak of 24 November: `100 listed, 98 of 98` |
+| `sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none; by volume: 2 listed, 2 loaded, 2 visible` | Every always-loaded sublevel loaded from the game's own files. With the rooms pak: `100 listed, 98 of 98`. With the full test pak: `161 listed, 127 of 127`. The levels streamed by SB's volumes (the 34 of `data.lua`'s `VOLUMED`, two with the older paks) are counted, never named as missing: they load and show where SB's volumes say |
 | `sboxion: light: 72 env volumes found, 65 in E04_ENV_VOL, 41 named, 21 changed, CountDown_Posing_ENV active true` | The day table was written |
 | `sboxion: light: 41 of 41 read back as written` | The writes held, 2 s and 10 s after the arrival |
-| `sboxion: characters: 1` | EVE is the only character |
+| `sboxion: characters: 1` | EVE is the only character. With more: `characters: n by class: <class> <count>, ...`, the most first, with no name |
 | `sboxion: probe: start: E04_DistantView_A_01 loaded b visible b, E04_DistantView_A_03 loaded b visible b` | The two volume-streamed levels at the arrival |
 | `sboxion: probe: <level> loaded b visible b, EVE at (x, y, z)` | One of the two changed state |
 | `sboxion: at <waypoint>: A_01 loaded b visible b, A_03 loaded b visible b` | EVE stood 5 s within 3 m of a waypoint |
@@ -491,7 +493,8 @@ Christmas sound actors in `E04_Sound`.
 Lua, in `mod/StellarCoop/Scripts/world/maps/sboxion/`:
 
 - `data.lua`: the pak's name, the level, the two rows, the two arrival points, the nine waypoints (four of the first
-  test walk and the five doors), the 41 names of the day table, the two probe levels and the recovery's numbers.
+  test walk and the five doors), the 41 names of the day table, the two probe levels, the 34 levels a pak leaves
+  streamed by SB's volumes (`VOLUMED`) and the recovery's numbers.
 - `sboxion.lua`: the pak gate, asked a second time for the room levels, the rows at the title, the commands, the
   arrival and the watch.
 - `recover.lua`: the ground point, the black and the put-back after a fall, the respawn after a death. Its respawn
@@ -582,7 +585,8 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the
   read-back, a refusal logged once.
 - `world_test.lua`: the commands' refusals and requests, then on a fake world the 41 writes matched by level and
-  name, the counts 72, 65 and 41, nothing read outside SBO Xion, a second arrival, a probe change logged once, a
+  name, the counts 72, 65 and 41, the full test pak's 161 levels with the 34 volume-streamed ones counted apart, 155
+  characters counted by class, nothing read outside SBO Xion, a second arrival, a probe change logged once, a
   waypoint logged once a visit, the watch ended by a map change and by `coop off`. For the recovery: ticked only in
   SBO Xion, started again at each arrival with the point `coop xion` asked, fed by the engine's read of EVE when
   `me()` names another place, SB's black asked through the module's own wiring with the move two passes later, a

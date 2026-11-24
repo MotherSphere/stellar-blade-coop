@@ -115,7 +115,7 @@ local function fresh()
     levels={}
     for i=1,93 do levels[i]={name='E04_Level_'..i,loaded=true,visible=true} end
     for _,name in ipairs(D.PROBES) do levels[#levels+1]={name=name,loaded=true,visible=true} end
-    names={'CH_P_EVE_01_Blueprint_C_0'}
+    names={{name='CH_P_EVE_01_Blueprint_C_0',class='CH_P_EVE_01_Blueprint_C'}}
 end
 local function count(what) calls[what]=(calls[what] or 0)+1 end
 local world={
@@ -281,7 +281,7 @@ for _,path in ipairs(sets) do assert(path:find('/E04_ENV_VOL.E04_ENV_VOL:Persist
 assert(logged('sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none'))
 assert(logged('sboxion: probe: start: E04_DistantView_A_01 loaded true visible true, E04_DistantView_A_03 loaded '
     ..'true visible true'))
-assert(logged('sboxion: characters: 1') and not logged('characters: 1 ('))
+assert(logged('sboxion: characters: 1') and not logged('characters: 1 (') and not logged('by class'))
 assert(not logged('read back'),'The read-back comes 2 s later')
 -- rooms_old_pak: the pak of 2026-11-23 holds no room level. One line an arrival and no piece asked.
 assert(logged('sboxion: rooms: none in this pak ('..PAKS..'\\~mods\\zSBO_Xion.utoc does not hold Rooms): no door '
@@ -418,12 +418,13 @@ assert(logs[#logs]=='sboxion: left, map none',logs[#logs])
 -- A volume whose write does not hold shows in the read-back; a level not loaded is named.
 fresh()
 by['E04_Area_02_Sub_ENV_01****'].on,by['E04_Area_02_Sub_ENV_01****'].stuck=false,true
-levels[7].visible,names=false,{'CH_P_EVE_01_Blueprint_C_0','Animal_Rat_C_3'}
+levels[7].visible,names=false,{{name='CH_P_EVE_01_Blueprint_C_0',class='CH_P_EVE_01_Blueprint_C'},
+    {name='Animal_Rat_C_3',class='Animal_Rat_C'}}
 me=at(D.ARRIVALS.city)
 pass(x,2.25)
 assert(logged('sboxion: light: 40 of 41 read back as written, not E04_Area_02_Sub_ENV_01****'),logs[#logs])
 assert(logged('sboxion: levels: 95 listed, 92 of 93 always-loaded ones loaded and visible, missing: E04_Level_7'))
-assert(logged('sboxion: characters: 2 (CH_P_EVE_01_Blueprint_C_0, Animal_Rat_C_3)'))
+assert(logged('sboxion: characters: 2 by class: Animal_Rat_C 1, CH_P_EVE_01_Blueprint_C 1'))
 -- An engine read that raises is logged and stops nothing.
 me=nil
 pass(x,0.25)
@@ -547,4 +548,36 @@ for _,how in ipairs({'coop off','a map change'}) do
     end
     assert(screen_shown and shown and closed and shown<closed,how..': '..tostring(shown)..' '..tostring(closed))
 end
+
+-- full_pak: the full test pak lists 161 levels. The 34 of data.lua's VOLUMED load and show where SB's volumes say:
+-- they are counted, never named as missing. Only the other 127 must read loaded and visible. 155 characters of SB's
+-- spawn rows beside EVE are counted by class, the most first, and none is named. The rooms open as with the rooms pak.
+fresh()
+levels={}
+local needed={}
+for _,room in ipairs(Rooms.LIST) do
+    for _,name in ipairs(room.needs) do
+        if not needed[name] then
+            needed[name]=true
+            levels[#levels+1]={name=name,loaded=true,visible=true}
+        end
+    end
+end
+for i=#levels+1,161-#D.VOLUMED do levels[i]={name='E04_Level_'..i,loaded=true,visible=true} end
+for i,name in ipairs(D.VOLUMED) do levels[#levels+1]={name=name,loaded=i<=20,visible=i<=8} end
+assert(#levels==161 and #D.VOLUMED==34)
+for i=1,155 do
+    names[#names+1]={name='NPC_'..i,class=i<=100 and 'N_CitizenMaleA_C' or i<=150 and 'N_XionGuardA_C' or 'N_Kaya_C'}
+end
+x=new()
+rows_hidden,her_at,her_mode={},nil,1
+warp_line='sboxionwarp=entered asks=9 life=1'
+me=at(D.ARRIVALS.city)
+pass(x,0.25)
+assert(logged('sboxion: levels: 161 listed, 127 of 127 always-loaded ones loaded and visible, missing: none; by '
+    ..'volume: 34 listed, 20 loaded, 8 visible'),logs[#logs])
+assert(logged('sboxion: characters: 156 by class: N_CitizenMaleA_C 100, N_XionGuardA_C 50, N_Kaya_C 5, '
+    ..'CH_P_EVE_01_Blueprint_C 1') and not logged('NPC_'),'Counted by class')
+assert(hidden_rows()==23 and select(2,x.status()):find('; rooms 5 of 5 open$'),select(2,x.status()))
+x.stop()
 print('sboxion_world_test ok')
