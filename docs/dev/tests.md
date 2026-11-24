@@ -13,6 +13,11 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/game/codec_test.
 build/host/game_codec_test
 ```
 
+`tools/install.py` runs the tests side by side, as many at once as half the CPUs it may use. `STELLAR_JOBS=1` runs
+them one at a time. Each test's output is written in the tests' own order. The first failure writes its output and
+stops the run. A native test is built again only when its source, a file it includes, the compiler or its flags
+changed. It is run every time.
+
 On Windows, `.gitattributes` keeps LF line ends in the checkout: several tests compare file text with LF patterns. A
 clone made before that file keeps its CRLF files. With no uncommitted changes, `git rm -r -q --cached .` then
 `git reset -q --hard` checks every file out again with LF ends.
@@ -1850,7 +1855,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   as the gate runs it, so `install.py` finds `tools/ue4ss.py` itself. `main` with `--ue4ss` refuses `--zip` and
   `--uninstall`. It stops before the tests on a missing executable, on a build with no set, on a missing `UE4SS.dll`
   build, on a `UE4SS.dll` of other bytes and on a cached zip of other bytes. Its dry run and its install say the mod's
-  lines, then the UE4SS lines;
+  lines, then the UE4SS lines. The tests it runs side by side write their output in their own order and stop at the
+  first failure. A native test is built again only when its source, a file it includes, the flags or the compiler
+  changed;
 - `ue4ss_test.py`: the files under `ue4ss/`. Each build set is named after its executable. The set's signature scripts
   run under `lua5.4` on made-up matches and, when this PC has Ghidra's copy of build 26123051, on its executable. Its
   `VTableLayout.ini` gives the offsets read in Ghidra. Its `MemberVariableLayout.ini` holds only values read there.
