@@ -21,8 +21,8 @@ if loaded then
     if type(f)=='function' then M.native_pad=f
     else log('Native pad unavailable (no controller in the co-op menu): '..tostring(pad_why)) end
 end
--- The DLL links no Lua: its event (0 for none) is how many of these twelve arguments it hands back.
-function M.pad() return select('#',M.native_pad(0,0,0,0,0,0,0,0,0,0,0,0)) end
+-- The DLL links no Lua: its event (0 for none) is how many of these thirteen arguments it hands back.
+function M.pad() return select('#',M.native_pad(0,0,0,0,0,0,0,0,0,0,0,0,0)) end
 -- The pause menu's close for its Online tab (ui/kit/pause_tab.lua): SB's own close, run by the native part on the game
 -- thread. Its answer is how many of three arguments it hands back: 1 closed, 2 SB has no pause menu open, 3 off. An
 -- older DLL without it, or none: no close can work.

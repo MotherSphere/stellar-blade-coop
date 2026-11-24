@@ -58,7 +58,7 @@ std::string pad_give_back(size_t n) {
   }
   return kept;
 }
-// Once a run, on the pinned build before coop off: the twelve key names, then Slate's handler, then the three slots in
+// Once a run, on the pinned build before coop off: the fourteen key names, then Slate's handler, then the three slots in
 // order. A missing name, another handler or a slot holding anything else leaves XInput as the source.
 void pad_hook_install() {
   pad_hook_state = Filter::refused; // Until all three slots are ours.

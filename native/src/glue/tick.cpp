@@ -468,10 +468,11 @@
 
 
 // Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state
-// ignored. The DLL links no Lua, so the event is the result count: Lua passes 12 arguments and gets that many of them
-// back, 0 for none or ui/pad.h's event 1 to 12, so this never returns more than 12. Event 12 is the Online tab's (RB
-// on the pause menu's last tab, pause_tab_game.inc's hook), posted before the pads' next one. Polls the pads at most
-// once per 8 ms, so Lua can take several events in one frame. Never throws, never waits.
+// ignored. The DLL links no Lua, so the event is the result count: Lua passes 13 arguments and gets that many of them
+// back, 0 for none or ui/pad.h's event 1 to 13, so this never returns more than 13. Event 12 is the Online tab's (RB
+// on the pause menu's last tab, pause_tab_game.inc's hook), posted before the pads' next one; event 13 is D-pad Left
+// held 300 ms (the emote wheel). Polls the pads at most once per 8 ms, so Lua can take several events in one frame.
+// Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
   using namespace coop::pose;
   const uint64_t now = GetTickCount64();
@@ -482,7 +483,35 @@ extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
   if (pause_tab_asked.exchange(false))
     pad.post(coop::Pad::kPauseTab);
   const int event = pad.next();
-  return event >= 0 && event <= 12 ? event : 0;
+  return event >= 0 && event <= 13 ? event : 0;
+}
+
+// The emote wheel's reads while it is open, each in lua_CFunction's shape with the Lua state ignored, its answer the
+// result count of the arguments Lua passes. They read the pads' last poll (coop_pad's) and the keyboard, never the
+// game's memory. Never throw, never wait.
+// coop_stick (Lua passes 73): the right stick's 5 degree sector, ui/pad.h's stick_sector (0 in its dead zone, 1 to 72
+// clockwise from up); 73 when no window of SB's is in front.
+extern "C" __declspec(dllexport) int coop_stick(void *) noexcept {
+  using namespace coop::pose;
+  return game_in_front() ? pad.sector() : 73;
+}
+// coop_held (Lua passes 2): 1 while D-pad Left is held, 0 when not; 2 when no window of SB's is in front.
+extern "C" __declspec(dllexport) int coop_held(void *) noexcept {
+  using namespace coop::pose;
+  if (!game_in_front())
+    return 2;
+  return (pad.held() & coop::PadState::DPAD_LEFT) ? 1 : 0;
+}
+// coop_fkey (Lua passes 13): the lowest of F1 to F12 held now (GetAsyncKeyState), 1 to 12, or 0; 13 when no window of
+// SB's is in front. UE4SS's binds see a key's press only: this is how the wheel sees its key's release.
+extern "C" __declspec(dllexport) int coop_fkey(void *) noexcept {
+  using namespace coop::pose;
+  if (!game_in_front())
+    return 13;
+  for (int k = 0; k < 12; ++k)
+    if (GetAsyncKeyState(VK_F1 + k) & 0x8000)
+      return k + 1;
+  return 0;
 }
 
 // Called by Lua on the game thread when the pause menu's Online tab closes the pause menu (package.loadlib(dll,

@@ -5,9 +5,9 @@
 // reads the pads through PadKeys (the game's own controller events, while Slate's handler is hooked) or XInput's
 // PadSlots (the fallback), steps Pad at each poll and hands Lua one event per coop_pad call.
 // The menu and the co-op saves' question take the game's input (UIOnly), so the game ignores the pad then, and UE4SS
-// binds only keyboard keys: this is the pad's only way in. In play, View held opens the menu and D-pad Right held gets
-// on or off the bike. tests/native/ui/pad_test.cpp checks this file on the build
-// machine.
+// binds only keyboard keys: this is the pad's only way in. In play, View held opens the menu, D-pad Right held gets
+// on or off the bike and D-pad Left held opens the emote wheel, which reads the right stick's direction and whether
+// D-pad Left is still held from the last step. tests/native/ui/pad_test.cpp checks this file on the build machine.
 #pragma once
 
 #include <algorithm>
@@ -22,6 +22,7 @@ namespace coop {
 
 // The tuning, named so an evening of tests can change it.
 constexpr uint64_t kPadMenuHoldMs = 1000;   // View (Back) held this long: the menu event; D-pad Right: the bike's.
+constexpr uint64_t kPadWheelHoldMs = 300;   // D-pad Left held this long: the emote wheel's event.
 constexpr uint64_t kPadRepeatDelayMs = 400; // Up or down held repeats after this...
 constexpr uint64_t kPadRepeatEveryMs = 120; // ...then this often while held.
 constexpr int kPadStickPress = 16384;       // 50 % of the left stick's full scale (32767): at or past it, pressed.
@@ -30,8 +31,8 @@ constexpr int kPadAxisKeepPct = 110;        // The stick's pressed axis stays un
 constexpr size_t kPadRing = 8;              // Events waiting for Lua; a full ring drops the newest.
 constexpr uint64_t kPadRetryMs = 2000;      // A slot with no pad is asked again after this, one such slot a poll.
 
-// One read of the pads: the buttons (XInput's bits, every connected pad ORed), the first connected left stick, and
-// whether any pad is connected.
+// One read of the pads: the buttons (XInput's bits, every connected pad ORed), the first connected left stick, whether
+// any pad is connected and the first connected right stick (rx, ry: up and right positive, as XInput gives them).
 struct PadState {
   static constexpr uint16_t DPAD_UP = 0x0001, DPAD_DOWN = 0x0002, DPAD_LEFT = 0x0004, DPAD_RIGHT = 0x0008,
                             BACK = 0x0020, LEFT_SHOULDER = 0x0100, RIGHT_SHOULDER = 0x0200, A = 0x1000, B = 0x2000,
@@ -39,27 +40,42 @@ struct PadState {
   uint16_t buttons = 0;
   int16_t lx = 0, ly = 0;
   bool connected = false;
+  int16_t rx = 0, ry = 0;
 };
+
+// The right stick's direction as the emote wheel reads it: 0 under kPadStickPress (its dead zone), else its 5 degree
+// sector, 1 to 72, clockwise from up (1: up to 5 degrees right of up).
+inline int stick_sector(int rx, int ry) {
+  if (int64_t(rx) * rx + int64_t(ry) * ry < int64_t(kPadStickPress) * kPadStickPress)
+    return 0;
+  double deg = std::atan2(double(rx), double(ry)) * 180.0 / 3.14159265358979323846;
+  if (deg < 0)
+    deg += 360.0;
+  return std::min(72, 1 + int(deg / 5.0));
+}
 
 class Pad {
 public:
   enum Event : uint8_t {
     kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight, kBike, kRefresh,
-    kPauseTab // RB on the pause menu's last tab (ui/pause_tab.h): never made by step, only posted.
+    kPauseTab, // RB on the pause menu's last tab (ui/pause_tab.h): never made by step, only posted.
+    kWheel     // D-pad Left held kPadWheelHoldMs: the emote wheel.
   };
 
   // Each poll. Directions (the D-pad or the left stick) on their press; up and down again after kPadRepeatDelayMs
   // and every kPadRepeatEveryMs while held (left and right change a value: once a press). A diagonal is up or down
   // (the stick: its main axis, and near 45 degrees the axis already pressed, so noise does not flip it), so a move
   // never changes a value too. A, B, LB, RB and Y (the session list's Refresh) on their press only; View (kMenu) and
-  // D-pad Right (kBike, after its kRight) once each was held kPadMenuHoldMs, once a hold. One step's events go in event
-  // order. No pad connected forgets what was held, so the next press is a new one; the events already made stay.
+  // D-pad Right (kBike, after its kRight) once each was held kPadMenuHoldMs, D-pad Left (kWheel, after its kLeft) once
+  // it was held kPadWheelHoldMs, once a hold. One step's events go in event order. No pad connected forgets what was
+  // held, so the next press is a new one; the events already made stay.
   void step(const PadState &s, uint64_t now_ms) {
+    last_ = s.connected ? s : PadState{};
     if (!s.connected) {
       held_ = {};
       stick_ = {};
       buttons_ = 0;
-      back_ = right_ = Hold();
+      back_ = right_ = left_ = Hold();
       return;
     }
     const int x = s.lx, y = s.ly; // As int: -(-32768) fits.
@@ -100,17 +116,23 @@ public:
       push(kSelect);
     if (pressed & PadState::B)
       push(kBack);
-    if (back_.step(s.buttons & PadState::BACK, now_ms))
+    if (back_.step(s.buttons & PadState::BACK, now_ms, kPadMenuHoldMs))
       push(kMenu);
     if (pressed & PadState::LEFT_SHOULDER)
       push(kTabLeft);
     if (pressed & PadState::RIGHT_SHOULDER)
       push(kTabRight);
-    if (right_.step(s.buttons & PadState::DPAD_RIGHT, now_ms))
+    if (right_.step(s.buttons & PadState::DPAD_RIGHT, now_ms, kPadMenuHoldMs))
       push(kBike);
     if (pressed & PadState::Y)
       push(kRefresh);
+    if (left_.step(s.buttons & PadState::DPAD_LEFT, now_ms, kPadWheelHoldMs))
+      push(kWheel);
   }
+
+  // The buttons and the right stick's sector (stick_sector) at the last step; nothing after a step with no pad.
+  uint16_t held() const { return last_.buttons; }
+  int sector() const { return stick_sector(last_.rx, last_.ry); }
 
   // An event from outside the pads (the Online tab's), in order with step's; a full ring drops it.
   void post(Event e) { push(e); }
@@ -126,18 +148,18 @@ public:
   }
 
 private:
-  // A button held kPadMenuHoldMs: true once a hold, at the step that reaches it.
+  // A button held ms: true once a hold, at the step that reaches it.
   struct Hold {
     bool held = false, sent = false;
     uint64_t since = 0;
-    bool step(bool down, uint64_t now_ms) {
+    bool step(bool down, uint64_t now_ms, uint64_t ms) {
       if (!down)
         return held = false;
       if (!held) {
         held = true, sent = false, since = now_ms;
         return false;
       }
-      if (sent || now_ms - since < kPadMenuHoldMs)
+      if (sent || now_ms - since < ms)
         return false;
       return sent = true;
     }
@@ -153,15 +175,16 @@ private:
   std::array<bool, 4> held_{}, stick_{}; // Up, down, left, right: the direction, and the stick's part of it.
   std::array<uint64_t, 4> next_{};       // When each held direction repeats next.
   uint16_t buttons_ = 0;                 // The last step's, for A's, B's, LB's, RB's and Y's press.
-  Hold back_, right_; // View, D-pad Right.
+  Hold back_, right_, left_; // View, D-pad Right, D-pad Left.
+  PadState last_;             // The last step's read, for held() and sector().
   std::array<uint8_t, kPadRing> ring_{};
   size_t head_ = 0, count_ = 0;
 };
 
 // The four XInput slots at a poll: each slot that answered at its last ask, and at most one that did not, once
 // kPadRetryMs passed since (asking an empty slot is known to cost milliseconds: never four in one frame).
-// read(slot, one) asks one slot, fills one's buttons and stick and says whether it answered. The result: every
-// answering slot's buttons ORed, the first one's stick.
+// read(slot, one) asks one slot, fills one's buttons and sticks and says whether it answered. The result: every
+// answering slot's buttons ORed, the first one's sticks.
 class PadSlots {
 public:
   template <class Read> PadState poll(uint64_t now_ms, Read &&read) {
@@ -185,6 +208,8 @@ public:
       if (!s.connected) {
         s.lx = one.lx;
         s.ly = one.ly;
+        s.rx = one.rx;
+        s.ry = one.ry;
         s.connected = true;
       }
     }
@@ -203,13 +228,16 @@ private:
 // release and analog on the game thread, the poll calls state(): relaxed atomics, each field on its own.
 class PadKeys {
 public:
-  enum Key : uint8_t { kDpadUp, kDpadDown, kDpadLeft, kDpadRight, kA, kB, kY, kView, kLB, kRB, kLeftX, kLeftY, kKeys };
+  enum Key : uint8_t {
+    kDpadUp, kDpadDown, kDpadLeft, kDpadRight, kA, kB, kY, kView, kLB, kRB, kLeftX, kLeftY, kRightX, kRightY, kKeys
+  };
   static constexpr const char *kNames[kKeys] = {"Gamepad_DPad_Up",           "Gamepad_DPad_Down",
                                                 "Gamepad_DPad_Left",         "Gamepad_DPad_Right",
                                                 "Gamepad_FaceButton_Bottom", "Gamepad_FaceButton_Right",
                                                 "Gamepad_FaceButton_Top",    "Gamepad_Special_Left",
                                                 "Gamepad_LeftShoulder",      "Gamepad_RightShoulder",
-                                                "Gamepad_LeftX",             "Gamepad_LeftY"};
+                                                "Gamepad_LeftX",             "Gamepad_LeftY",
+                                                "Gamepad_RightX",            "Gamepad_RightY"};
   static constexpr int kIds = 8; // Controller ids 0 to 7; any other is ignored.
   std::array<uint64_t, kKeys> names{}; // The FName values, written once before a hook goes live.
 
@@ -234,19 +262,27 @@ public:
       x_[id].store(v, std::memory_order_relaxed);
     else if (key == names[kLeftY])
       y_[id].store(v, std::memory_order_relaxed);
+    else if (key == names[kRightX])
+      rx_[id].store(v, std::memory_order_relaxed);
+    else if (key == names[kRightY])
+      ry_[id].store(v, std::memory_order_relaxed);
   }
   // Every controller's held buttons ORed with the taps since the last call (a press and its release inside one poll
-  // still count, once), the stick of the controller pushed furthest.
+  // still count, once), each stick of the controller that pushes it furthest.
   PadState state() {
     PadState s;
     s.buttons = taps_.exchange(0, std::memory_order_relaxed);
-    int64_t best = -1;
+    int64_t best = -1, right = -1;
     for (int i = 0; i < kIds; ++i) {
       s.buttons |= held_[i].load(std::memory_order_relaxed);
       const int16_t x = x_[i].load(std::memory_order_relaxed), y = y_[i].load(std::memory_order_relaxed);
       const int64_t m = int64_t(x) * x + int64_t(y) * y;
       if (m > best)
         best = m, s.lx = x, s.ly = y;
+      const int16_t rx = rx_[i].load(std::memory_order_relaxed), ry = ry_[i].load(std::memory_order_relaxed);
+      const int64_t r = int64_t(rx) * rx + int64_t(ry) * ry;
+      if (r > right)
+        right = r, s.rx = rx, s.ry = ry;
     }
     s.connected = true;
     return s;
@@ -258,6 +294,8 @@ public:
       held_[i].store(0, std::memory_order_relaxed);
       x_[i].store(0, std::memory_order_relaxed);
       y_[i].store(0, std::memory_order_relaxed);
+      rx_[i].store(0, std::memory_order_relaxed);
+      ry_[i].store(0, std::memory_order_relaxed);
     }
   }
 
@@ -279,7 +317,7 @@ private:
 
   std::array<std::atomic<uint16_t>, kIds> held_{};
   std::atomic<uint16_t> taps_{0};
-  std::array<std::atomic<int16_t>, kIds> x_{}, y_{};
+  std::array<std::atomic<int16_t>, kIds> x_{}, y_{}, rx_{}, ry_{};
 };
 
 // Slate's message handler on the pinned build (26123051): the application global, the handler inside it (its vtable at

@@ -1033,7 +1033,7 @@ function load_main(with_native,no_folder,source)
         if name=='coop_pad' then
             if pd.missing then return nil,'not exported' end
             return function(...)
-                assert(select('#',...)==12,'Twelve arguments: the most the native part hands back')
+                assert(select('#',...)==13,'Thirteen arguments: the most the native part hands back')
                 pd.calls=pd.calls+1
                 return table.unpack({...},1,table.remove(pd.q,1) or 0)
             end

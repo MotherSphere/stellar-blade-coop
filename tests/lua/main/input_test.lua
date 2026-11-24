@@ -45,6 +45,11 @@ dofile('tests/lua/main/fixture.lua')
     assert(kit_shown.menu and focus()=='Host a session' and #pt.events==1
         and not table.concat(printed,'|'):find('pad: error',1,true),
         'The Online tab event changes nothing in the open co-op menu')
+    -- 13 (wheel, D-pad Left held 0.3 s) never reaches a screen's nav either.
+    local moved=#kit_sounds
+    pad(13)
+    assert(kit_shown.menu and focus()=='Host a session' and #kit_sounds==moved and not logged('pad: error'),
+        'The wheel event changes nothing in the open co-op menu')
     pad(7)
     -- The tab's close: the native part's coop_pause_close, its answer read from how many of three arguments come back.
     pc.answer=1; assert(pt.o.close()==true and pc.calls==1,'1: SB closed it')

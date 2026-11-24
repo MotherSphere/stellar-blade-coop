@@ -91,7 +91,8 @@ end
 -- Online tab only (ui/kit/pause_tab.lua), never to one of our screens. left and right (the D-pad or the left stick)
 -- that nothing above took switch the member spectate watches while our EVE is down in a shared boss fight
 -- (fight/enemies/spectate.lua).
-M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab'}
+-- wheel (D-pad Left held 0.3 s, the native part's event 13) is the emote wheel's only: dropped until it has one.
+M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab','wheel'}
 -- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
 -- English as the bike gives it, since the press shows nothing else.
 function M.bike_press(by)
@@ -110,6 +111,7 @@ local function open_menu()
 end
 function M.pad_event(what)
     if what=='pause_tab' then return M.pause_tab.event(os.clock()) end
+    if what=='wheel' then return end
     if what=='bike' then
         local why=not M.hud_shown and 'our HUD is not shown'
             or (M.approval.is_open() or M.lobby.is_open() or M.code_box.is_open() or M.box.is_open() or M.menu.is_open()
