@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's walls (world/maps/sboxion/walls/walls.lua) over a fake world that makes, removes and sweeps walls and a
--- fake store: an arrival queues the 142 boxes nearest to its point first and each pass makes 10, so the cave wall is
+-- fake store: an arrival queues the 145 boxes nearest to its point first and each pass makes 10, so the cave wall is
 -- the first one up at the gate point; the first wall's read-back and the count are logged; the paths are saved at each
 -- pass that made a wall. A wall that cannot be made is logged with its reason (three reasons at most) and named in
 -- the count line while the others go up. Down: every wall asked of the world once, the ones still alive counted as
@@ -19,7 +19,7 @@ package.loaded.UEHelpers={}
 local Walls=require('world.maps.sboxion.walls.walls')
 local D=require('world.maps.sboxion.data')
 local N=#Walls.BOXES
-assert(N==142 and Walls.PER_PASS==10)
+assert(N==145 and Walls.PER_PASS==10)
 assert(Walls.BOXES[1].name=='W01.1' and Walls.BOXES[5].name=='W01.5' and Walls.BOXES[6].name=='W02.1')
 local cave=Walls.BOXES[N]
 assert(cave.name=='CAVE.1' and cave.at.X==-24949.7 and cave.yaw==-55 and cave.size.X==8800 and cave.size.Y==30
@@ -72,24 +72,24 @@ local w=fresh()
 w.tick()
 assert(#asked==0 and #logs==0,'Nothing before an arrival')
 w.arrive('gate')
-assert(logs[1]=='walls: 142 to put up, 10 a pass, nearest to the gate point first',logs[1])
-assert(w.status()=='walls 0 of 142 up, 142 to go')
+assert(logs[1]=='walls: 145 to put up, 10 a pass, nearest to the gate point first',logs[1])
+assert(w.status()=='walls 0 of 145 up, 145 to go')
 w.tick()
 assert(#asked==10 and asked[1]=='CAVE.1','The cave wall is the nearest to the gate point: '..asked[1])
 assert(logs[2]=='walls: first wall CAVE.1 up: object type 20, collision on',logs[2])
-assert(w.status()=='walls 10 of 142 up, 132 to go',w.status())
+assert(w.status()=='walls 10 of 145 up, 135 to go',w.status())
 local _,tabs=saved:gsub('\t','')
 assert(tabs==9 and saved:find('Actor_1\t',1,true) and saved:find('Actor_10$'),'Ten paths on one line: '..saved)
 for _=1,13 do w.tick() end
 assert(#asked==140 and not said('up in'))
 clock=clock+0.004
 w.tick()
-assert(#asked==142 and logs[#logs]=='walls: 142 of 142 up in 15 passes, 0 ms',logs[#logs])
-assert(#logs==3 and w.status()=='walls 142 of 142 up')
+assert(#asked==145 and logs[#logs]=='walls: 145 of 145 up in 15 passes, 0 ms',logs[#logs])
+assert(#logs==3 and w.status()=='walls 145 of 145 up')
 _,tabs=saved:gsub('\t','')
-assert(tabs==141)
+assert(tabs==144)
 w.tick()
-assert(#asked==142 and #logs==3,'Nothing more once they are up')
+assert(#asked==145 and #logs==3,'Nothing more once they are up')
 local once={}
 for _,name in ipairs(asked) do assert(not once[name],name..' was made twice'); once[name]=true end
 
@@ -107,15 +107,15 @@ w=fresh()
 bad['W08.2'],bad['W03.7']='the game has no name SB_InvisiblewallIgnoreCamera','a wall could not be spawned'
 w.arrive('city')
 build(w)
-assert(#asked==142 and #made==140)
+assert(#asked==145 and #made==143)
 assert(said('walls: W08.2 not made: the game has no name SB_InvisiblewallIgnoreCamera'),'The reason, its place cut')
 assert(said('walls: W03.7 not made: a wall could not be spawned'))
 local line=logs[#logs]
-assert(line:find('^walls: 140 of 142 up in 15 passes, 0 ms; not made: ') and line:find('W08.2',1,true)
+assert(line:find('^walls: 143 of 145 up in 15 passes, 0 ms; not made: ') and line:find('W08.2',1,true)
     and line:find('W03.7',1,true),line)
-assert(w.status()=='walls 140 of 142 up, 2 not made',w.status())
+assert(w.status()=='walls 143 of 145 up, 2 not made',w.status())
 local ok,answer=w.switch('on')
-assert(ok and answer=='walls 140 of 142 up, 2 not made' and #asked==142,'on while walls are up makes nothing')
+assert(ok and answer=='walls 143 of 145 up, 2 not made' and #asked==145,'on while walls are up makes nothing')
 -- all_fail: three reasons, then the count line with twelve names; on tries again.
 w=fresh()
 bad.all='SetCollisionProfileName: no such function'
@@ -125,38 +125,38 @@ local reasons=0
 for _,l in ipairs(logs) do if l:find(' not made: SetCollisionProfileName',1,true) then reasons=reasons+1 end end
 assert(reasons==3 and #made==0,'Three reasons at most: '..reasons)
 line=logs[#logs]
-assert(line:find('^walls: 0 of 142 up in 15 passes, 0 ms; not made: ') and line:find(' and 130 more$'),line)
+assert(line:find('^walls: 0 of 145 up in 15 passes, 0 ms; not made: ') and line:find(' and 133 more$'),line)
 assert(not said('first wall') and stored==nil,'No path is kept with no wall up')
 bad.all=nil
 ok,answer=w.switch('on')
-assert(ok and answer=='walls on: 142 to put up ([SX] lines follow)',answer)
+assert(ok and answer=='walls on: 145 to put up ([SX] lines follow)',answer)
 build(w)
-assert(#made==142 and w.status()=='walls 142 of 142 up')
+assert(#made==145 and w.status()=='walls 145 of 145 up')
 
 -- down_alive (coop off): each wall asked of the world once, the store cleared, nothing made after it.
 w=fresh()
 w.arrive('city')
 build(w)
 w.down('coop off')
-assert(removed==142 and logs[#logs]=='walls: down (coop off): 142 removed',logs[#logs])
-assert(stored==nil and clears>=1 and w.status()=='walls 0 of 142 up')
+assert(removed==145 and logs[#logs]=='walls: down (coop off): 145 removed',logs[#logs])
+assert(stored==nil and clears>=1 and w.status()=='walls 0 of 145 up')
 w.tick()
 w.down('coop off')
-assert(#asked==142 and removed==142 and logs[#logs]=='walls: down (coop off): 142 removed','Down once')
+assert(#asked==145 and removed==145 and logs[#logs]=='walls: down (coop off): 145 removed','Down once')
 -- down_gone (a map change): the world took them, so none is removed.
 w=fresh()
 w.arrive('gate')
 build(w)
 alive=false
 w.down('a map change')
-assert(removed==0 and logs[#logs]=='walls: down (a map change): 0 removed, 142 gone already',logs[#logs])
+assert(removed==0 and logs[#logs]=='walls: down (a map change): 0 removed, 145 gone already',logs[#logs])
 -- down_mid_build: the boxes not made yet are counted.
 w=fresh()
 w.arrive('gate')
 w.tick()
 w.tick()
 w.down('a map change')
-assert(removed==20 and logs[#logs]=='walls: down (a map change): 20 removed, 122 never made',logs[#logs])
+assert(removed==20 and logs[#logs]=='walls: down (a map change): 20 removed, 125 never made',logs[#logs])
 w.tick()
 assert(#asked==20,'The build ends with the walls')
 -- down_raises: a removal that raises is named and the rest is still asked.
@@ -165,7 +165,7 @@ w.arrive('gate')
 w.tick()
 remove_error='K2_DestroyActor: no such function'
 w.down('coop off')
-assert(logs[#logs]=='walls: down (coop off): 0 removed, 10 raised (K2_DestroyActor: no such function), 132 never '
+assert(logs[#logs]=='walls: down (coop off): 0 removed, 10 raised (K2_DestroyActor: no such function), 135 never '
     ..'made',logs[#logs])
 
 -- switch: off takes them down and keeps them down; on puts them up nearest to EVE; another word is refused.
@@ -173,22 +173,22 @@ w=fresh()
 w.arrive('gate')
 build(w)
 ok,answer=w.switch()
-assert(ok and answer=='walls 142 of 142 up')
+assert(ok and answer=='walls 145 of 145 up')
 ok,answer=w.switch('off')
-assert(ok and answer=='walls off until coop xion walls on or the next arrival' and removed==142,answer)
-assert(said('walls: down (coop xion walls off): 142 removed') and w.status()=='walls off')
+assert(ok and answer=='walls off until coop xion walls on or the next arrival' and removed==145,answer)
+assert(said('walls: down (coop xion walls off): 145 removed') and w.status()=='walls off')
 w.tick()
-assert(#asked==142,'Off makes nothing')
+assert(#asked==145,'Off makes nothing')
 ok,answer=w.switch('off')
-assert(ok and removed==142,'Off twice removes once')
+assert(ok and removed==145,'Off twice removes once')
 eve={at={X=3900,Y=-9100,Z=1222}} -- At lift doorway A.
 ok,answer=w.switch('on')
-assert(ok and answer=='walls on: 142 to put up ([SX] lines follow)')
-assert(logs[#logs]=='walls: 142 to put up, 10 a pass, nearest to EVE first',logs[#logs])
+assert(ok and answer=='walls on: 145 to put up ([SX] lines follow)')
+assert(logs[#logs]=='walls: 145 to put up, 10 a pass, nearest to EVE first',logs[#logs])
 w.tick()
-assert(asked[143]:find('^W08%.'),'The doorway\'s boxes first: '..asked[143])
+assert(asked[146]:find('^W08%.'),'The doorway\'s boxes first: '..asked[146])
 ok,answer=w.switch('on')
-assert(ok and answer=='walls 10 of 142 up, 132 to go' and #asked==152,'on during a build starts no second one')
+assert(ok and answer=='walls 10 of 145 up, 135 to go' and #asked==155,'on during a build starts no second one')
 ok,answer=w.switch('up')
 assert(not ok and answer=='Use: coop xion walls [on|off]',answer)
 -- switch_no_eve: on with EVE unread queues from the stay's arrival point.
@@ -197,18 +197,18 @@ w.arrive('gate')
 w.switch('off')
 world.move=function() error('no EVE in the world') end
 ok,answer=w.switch('on')
-assert(ok and logs[#logs]=='walls: 142 to put up, 10 a pass, nearest to the gate point first',logs[#logs])
+assert(ok and logs[#logs]=='walls: 145 to put up, 10 a pass, nearest to the gate point first',logs[#logs])
 world.move=function() return eve end
 -- arrival_after_off: on again. An arrival with walls still up takes them down first.
 w=fresh()
 w.arrive('city')
 w.switch('off')
 w.arrive('city')
-assert(w.status()=='walls 0 of 142 up, 142 to go','An arrival sets off back to on')
+assert(w.status()=='walls 0 of 145 up, 145 to go','An arrival sets off back to on')
 build(w)
 w.arrive('gate')
-assert(removed==142 and said('walls: down (an arrival): 142 removed'),'No wall is left behind an arrival')
-assert(w.status()=='walls 0 of 142 up, 142 to go')
+assert(removed==145 and said('walls: down (an arrival): 145 removed'),'No wall is left behind an arrival')
+assert(w.status()=='walls 0 of 145 up, 145 to go')
 
 -- sweep: an earlier Lua load's walls, at the first pass of this load only.
 w=fresh()
@@ -232,10 +232,10 @@ w.arrive('gate')
 w.tick()
 store.save=function() error('the disk is full') end
 w.tick()
-assert(logs[#logs]=='walls: error (the disk is full): the build is ended with 20 of 142 up',logs[#logs])
+assert(logs[#logs]=='walls: error (the disk is full): the build is ended with 20 of 145 up',logs[#logs])
 local lines=#logs
 w.tick()
-assert(#asked==20 and #logs==lines and w.status()=='walls 20 of 142 up','One line, no more wall')
+assert(#asked==20 and #logs==lines and w.status()=='walls 20 of 145 up','One line, no more wall')
 store.save=function(line) saved=line; stored=line end
 w.down('coop off')
 assert(removed==20 and logs[#logs]=='walls: down (coop off): 20 removed',logs[#logs])
@@ -244,5 +244,5 @@ w=fresh(false)
 w.arrive('gate')
 build(w)
 w.down('coop off')
-assert(#made==142 and removed==142)
+assert(#made==145 and removed==145)
 print('sboxion_walls_test ok')

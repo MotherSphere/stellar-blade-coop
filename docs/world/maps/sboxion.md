@@ -260,7 +260,7 @@ half height 95, step 45, floor up to 45 degrees). It found 22 places where one s
 ground, to a fall of more than 15 m or to a place with no way back. The cave at the gate point is the 23rd: it runs
 138 m west with rocks that have no collision and ends on a shelf with no ground behind.
 
-`walls/list.lua` holds 142 boxes for them, 554.3 m of wall. A box stands 50 cm beyond the last floor cell of its
+`walls/list.lua` holds 145 boxes for them, 572.8 m of wall. A box stands 50 cm beyond the last floor cell of its
 edge, from 2.5 m under the lowest floor of its hole to 7 m over the highest. It is 30 to 89 cm thick. A box follows
 the edge at the height of its hole only: the edge of a floor over or under the hole gets none.
 
@@ -274,6 +274,14 @@ doorway itself is 3.1 m higher.
 A second fill with the boxes in the collision found none of the 1395 edge cells left and no floor reached behind
 the cave wall. A ray scan of the list finds no box across ground EVE walks on at another level than its hole.
 
+Three of the boxes stand at two edges that the fill passes over. The fill records a step only into free air or onto
+a floor EVE fits on. The floor under lift doorway A ends at a kerb beside the doorway's gap: a 45 degree bevel, a
+77 cm step and a block, 1.1 to 1.5 m over the floor. The west edge of `W21`'s level ends at a face that falls 15.9 m
+at 76 degrees. A ray fill of the list, which takes a face steeper than 45 degrees for no floor, walked off both.
+`W08.3` and `W08.4` continue the wall 2 m past both ends of the gap, under the ceiling of that floor (their top is at
+Z 1070). `W21.6` runs 11.9 m along the west edge. The same ray fill now finds no step into no ground beside the
+doorway or along those 11.9 m.
+
 | Hole | Place | Centre (X, Y, floor Z) | A step leads to | Boxes | Wall |
 | --- | --- | --- | --- | --- | --- |
 | `W01` | Hub of the two bridges, south-east side | (-12641, 13476, 134) | no ground | 5 | 10.1 m |
@@ -283,7 +291,7 @@ the cave wall. A ray scan of the list finds no box across ground EVE walks on at
 | `W05` | Centre, lower level | (-1221, 2759, -190) | no ground | 1 | 7.4 m |
 | `W06` | Round plaza, west rim | (-15458, 19068, 37) | no ground | 23 | 74.2 m |
 | `W07` | East city | (6327, -6019, 672) | no ground | 18 | 59.2 m |
-| `W08` | Lift doorway A | (3850, -9250, 910) | the lift shaft | 2 | 3.5 m |
+| `W08` | Lift doorway A | (3850, -9250, 910) | the lift shaft | 4 | 10.1 m |
 | `W09` | North-west city | (-6660, -3794, 424) | no ground | 7 | 35.0 m |
 | `W10` | Centre | (1438, 2137, 1098) | no ground | 6 | 11.3 m |
 | `W11` | Centre | (2376, 1652, 1078) | no ground | 7 | 12.9 m |
@@ -296,7 +304,7 @@ the cave wall. A ray scan of the list finds no box across ground EVE walks on at
 | `W18` | Terrace west of the arrival square | (-10098, 7841, -225) | 4.8 m down to a deck with a deadly edge | 2 | 6.0 m |
 | `W19` | Second lift | (14662, -1812, 1785) | its pit, no way back | 1 | 2.3 m |
 | `W20` | Round plaza, south rim | (-13515, 22418, 57) | a lower deck with a deadly edge | 17 | 57.7 m |
-| `W21` | South-east of the arrival square | (-8226, 9109, 804) | a fall over 15 m or a place with a deadly edge | 5 | 12.9 m |
+| `W21` | South-east of the arrival square | (-8226, 9109, 804) | a fall over 15 m or a place with a deadly edge | 6 | 24.8 m |
 | `W22` | South-east of the arrival square | (-7517, 8982, 597) | a place with a deadly edge | 4 | 10.5 m |
 | `CAVE` | The cave, 17.5 m from the gate point | (-24950, 16452) | 3160 m2 of cave floor | 1 | 88.0 m |
 
@@ -336,7 +344,7 @@ kept only if the component reads back object type 20, which is `BlockVolume`.
 
 ### When they are up
 
-Each arrival queues the 142 boxes, nearest to the arrival point first. Each 250 ms pass makes 10, so all are up
+Each arrival queues the 145 boxes, nearest to the arrival point first. Each 250 ms pass makes 10, so all are up
 3.75 s after the arrival. At the gate point the cave wall is made in the first pass. A wall that cannot be made is
 logged with its reason while the others go up. The recovery stays under every edge.
 
@@ -365,25 +373,28 @@ that closed inside SBO Xion costs one lookup.
   volume `SBEffectVolume_Xion10_12` is on the deck, at (-11011, 9938, -54), 1.9 m from the first place. No step hole
   was found within 6 m of either place. Raising those walls is not built. The south bridge is the same case.
 - The roofs and decks outside the city that a jump reaches.
+- Other edges with a kerb or a steep face beyond them. The city was not searched for more of the two kinds that
+  `W08.3`, `W08.4` and `W21.6` close. South of (-9080, 8520) the west edge of `W21`'s level stays open: it leads to
+  falls of 5 to 10 m, with two cells near (-8940, 7910) over a steep face.
 - The view. The cave wall is invisible, so the cave is still seen behind it.
 
 The survey is a model. It was not run in game. A jump over an edge, an air dash, a ledge grab and water are not in
 it. Collision that a level-design blueprint carries in its class was not built, so a piece SB blocks with outside the
-doors, gates, shutters and lifts it lists would be missed. 274 m2 of city floor within 40 cm of a box is lost.
+doors, gates, shutters and lifts it lists would be missed. 280 m2 of city floor within 40 cm of a box is lost.
 
 ### What the log shows
 
 | Line | Meaning |
 | --- | --- |
-| `sboxion: walls: 142 to put up, 10 a pass, nearest to the <city or gate> point first` | Each arrival. After `coop xion walls on` it ends `nearest to EVE first` |
+| `sboxion: walls: 145 to put up, 10 a pass, nearest to the <city or gate> point first` | Each arrival. After `coop xion walls on` it ends `nearest to EVE first` |
 | `sboxion: walls: first wall <hole>.<n> up: object type 20, collision on` | The first wall of a build, with what its component reads back |
 | `sboxion: walls: <hole>.<n> not made: <why>` | A wall failed. Three reasons are logged a build |
-| `sboxion: walls: 142 of 142 up in 15 passes, t ms` | The build is over. `t` is the time spent in the passes. Failed walls follow as `; not made: <names>` |
+| `sboxion: walls: 145 of 145 up in 15 passes, t ms` | The build is over. `t` is the time spent in the passes. Failed walls follow as `; not made: <names>` |
 | `sboxion: walls: down (<reason>): n removed` | A map change, `coop off`, `coop xion walls off` or an arrival. It adds `m gone already` for walls their world took, `k never made` for a build cut short and `j raised (<why>)` for a removal that failed |
 | `sboxion: walls: an earlier Lua load left n: m swept` | After a Lua reload. `0 swept` means their world is gone |
-| `sboxion: walls: error (<why>): the build is ended with n of 142 up` | A pass raised an error. The walls made stay up |
+| `sboxion: walls: error (<why>): the build is ended with n of 145 up` | A pass raised an error. The walls made stay up |
 
-`coop xion status` ends with `walls 142 of 142 up`, `walls n of 142 up, m to go`, `walls n of 142 up, k not made` or
+`coop xion status` ends with `walls 145 of 145 up`, `walls n of 145 up, m to go`, `walls n of 145 up, k not made` or
 `walls off`.
 
 Reasons a wall is not made: `the game has no name SB_InvisiblewallIgnoreCamera`, `Cube is missing on this PC`,
@@ -394,25 +405,25 @@ message of a call that raised.
 
 Nothing of the walls has run in game. On a co-op save, alone, with the test pak in.
 
-1. `coop xion`. Within 5 s the log has `walls: 142 to put up`, `first wall ... up: object type 20, collision on`
-   and `walls: 142 of 142 up in 15 passes`. Note the ms figure and any hitch during those 5 s.
-2. `coop xion status` ends with `walls 142 of 142 up`.
+1. `coop xion`. Within 5 s the log has `walls: 145 to put up`, `first wall ... up: object type 20, collision on`
+   and `walls: 145 of 145 up in 15 passes`. Note the ms figure and any hitch during those 5 s.
+2. `coop xion status` ends with `walls 145 of 145 up`.
 3. Walk into lift doorway A near (3958, -9124, 1222). EVE stops at it. Run at it, jump at it and sprint along it.
    Note any move she makes against the wall that she does not make against a real wall: a push, a vault, a grab.
 4. Turn the camera so it passes through the doorway. It is not pushed back by the wall.
-5. `coop xion walls off`. The log has `walls: down (coop xion walls off): 142 removed`. Walk through the doorway: EVE
+5. `coop xion walls off`. The log has `walls: down (coop xion walls off): 145 removed`. Walk through the doorway: EVE
    falls and the recovery brings her back.
 6. `coop xion walls on`. The log has `nearest to EVE first` and the count line again. The doorway is closed again.
 7. Walk to the edge of the terrace west of the arrival square near (-10098, 7841, -225). Then walk to the hub's
    south-east side near (-12641, 13476, 134). EVE cannot step off either edge.
 8. Walk the long bridge near (-10823, 9941) and (-11272, 9451). Walk into its side: SB's own wall stops her. Jump over
    it: she falls and the recovery brings her back. Note whether a single jump is enough.
-9. `coop xion leave`, then `coop xion gate`. The log has `walls: down (a map change): 0 removed, 142 gone already`,
+9. `coop xion leave`, then `coop xion gate`. The log has `walls: down (a map change): 0 removed, 145 gone already`,
    then a new build that starts with `first wall CAVE.1`. Walk west into the cave: EVE stops 17.5 m from the gate
    point.
-10. Press Ctrl+R in the UE4SS console, inside SBO Xion. The log has `walls: an earlier Lua load left 142: 142 swept`,
+10. Press Ctrl+R in the UE4SS console, inside SBO Xion. The log has `walls: an earlier Lua load left 145: 145 swept`,
     then a new build.
-11. `coop off` inside SBO Xion. The log has `walls: down (coop off): 142 removed`. The doorway is open again.
+11. `coop off` inside SBO Xion. The log has `walls: down (coop off): 145 removed`. The doorway is open again.
 
 ## Saves
 
@@ -464,7 +475,7 @@ Lua, in `mod/StellarCoop/Scripts/world/maps/sboxion/`:
 - `sboxion.lua`: the pak gate, the rows at the title, the commands, the arrival and the watch.
 - `recover.lua`: the ground point, the black and the put-back after a fall, the respawn after a death. Its respawn
   block is the module's copy of score attack's. Its ground read is the module's copy of the group's.
-- `walls/list.lua`: the 142 boxes. `walls/walls.lua`: their build at an arrival, their removal, `coop xion walls` and
+- `walls/list.lua`: the 145 boxes. `walls/walls.lua`: their build at an arrival, their removal, `coop xion walls` and
   the sweep after a Lua reload.
 - `engine.lua`: the UE4SS calls. Its black call is the module's copy of the lobby's. Its wall is the module's copy
   of the bike stand's hidden, blocking actor. `commands.lua`: `coop xion`. `wiring.lua`: the manifest, export
@@ -557,7 +568,7 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
   `me()` names another place, SB's black asked through the module's own wiring with the move two passes later, a
   death answered with her GUID, the hidden death screen shown again at a map change and at `coop off`, `coop xion
   recover`, the mode back to `on` at an arrival and the status line's part. For the walls: none outside SBO Xion, 10
-  in the arrival's pass and 142 after 15 passes, the cave wall first at the gate point, none destroyed once a map
+  in the arrival's pass and 145 after 15 passes, the cave wall first at the gate point, none destroyed once a map
   change took the world, each destroyed after a pass with EVE unread and at `coop off`, `coop xion walls`.
 - `recover_test.lua`: the ground point, the fall with its black and the move two passes later, a black that is not
   shown, the move dropped or held back like a check, each guard, the check on the world's time, the two failures
@@ -567,8 +578,9 @@ The day and night cycle leaves SBO Xion alone: `world/daynight/rule.lua` lists t
   after a refused teleport, the black's call and its three answers, the respawn's request, the death screen hidden
   and shown again. For a wall: the actor's collision on before the profile call, the read-back, each failure with no
   actor left, the removal and the sweep.
-- `walls/list_test.lua`: the 142 rows, the count of each hole, 554.3 m, the boxes of `W02`, `W04`, `W05` and `W19`
-  under the floor over their hole, `W15.1` over the rocks under it, the two boxes of lift doorway A, the cave wall
+- `walls/list_test.lua`: the 145 rows, the count of each hole, 572.8 m, the boxes of `W02`, `W04`, `W05` and `W19`
+  under the floor over their hole, `W15.1` over the rocks under it, the four boxes of lift doorway A, a box at each
+  step the ray fill took off the kerbed edge beside the doorway and off the west edge of `W21`'s level, the cave wall
   17.5 m from the gate point, no box around an arrival point or a waypoint.
 - `walls/walls_test.lua`: the build nearest first at 10 a pass, a wall that fails, the removal with a world that
   still stands and with one that is gone, `coop xion walls`, the sweep, an error in a pass.

@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- SBO Xion's walls (world/maps/sboxion/walls/walls.lua): 142 boxes, 554.3 m in all, at the 22 places where one step
+-- SBO Xion's walls (world/maps/sboxion/walls/walls.lua): 145 boxes, 572.8 m in all, at the 22 places where one step
 -- with no jump leads out of the city and across the cave at the gate point. Worked out on 2026-11-24 outside the
 -- game: the collision of the levels SBO Xion keeps, read from the paks of build 26123051, was filled from the two
 -- arrival points with EVE's capsule (radius 40, half height 95), her 45 cm step and her 45 degree floor. A box stands
@@ -10,6 +10,8 @@
 -- under the slab that carries the floor above, its bottom 2 m over the floor below. With the boxes in the collision
 -- a second fill found none of the 1395 edge cells left and no floor reached behind the cave wall. Not closed: the
 -- edges EVE jumps over, the two bridges among them (docs/world/maps/sboxion.md).
+-- W08.3, W08.4 and W21.6 were added after a ray fill of the list walked off two edges that the first fill passes
+-- over: the kerb beside lift doorway A and the steep face along the west edge of W21's level.
 -- A row: the hole, the centre X, Y and Z (cm), the yaw of the long side (degrees), then the length, the thickness and
 -- the height (cm).
 return {
@@ -92,9 +94,11 @@ return {
 {'W07',6137.5,-5887.5,1175.1,45,155.7,30,950},
 {'W07',6223.3,-5809.9,1175.1,33,175.1,37.3,950},
 {'W07',6379,-5680.2,1175.1,37.9,370,43.3,950},
--- W08, lift doorway A: 2 boxes, 3.5 m.
+-- W08, lift doorway A: 4 boxes, 10.1 m.
 {'W08',3870.2,-9309,1117.3,-28.2,162.9,63.8,952},
 {'W08',3787.5,-9212.5,1104.1,90,185,80,1011.8},
+{'W08',3702.1,-9035.7,833.5,-49.5,350.7,43.5,472.9},
+{'W08',4045.4,-9442.6,835,-46.8,315.3,66.5,469.9},
 -- W09, north-west city: 7 boxes, 35.0 m.
 {'W09',-7165.6,-4302.9,648.5,-47.3,315.3,47,950},
 {'W09',-7317.5,-4104.4,648.5,-75.8,212.3,72.7,950},
@@ -165,12 +169,13 @@ return {
 {'W20',-14041.8,22492.6,282.6,40.3,155.5,49.1,950},
 {'W20',-14242.2,22426.1,282.5,19.2,448.4,79.3,950.3},
 {'W20',-14583.3,22302.1,246.3,29.6,354.7,82.9,1021.9},
--- W21, south-east of the arrival square: 5 boxes, 12.9 m.
+-- W21, south-east of the arrival square: 6 boxes, 24.8 m.
 {'W21',-8098.2,8908.1,1028.9,-67.7,465.7,63.7,950},
 {'W21',-8215.2,9186.5,1029,-69.4,289.8,64.9,950.1},
 {'W21',-8296.7,9383.4,1029.1,-66.3,196.7,55.6,950.1},
 {'W21',-8362.5,9437.5,1029.1,0,185,30,950},
 {'W21',-8387.5,9462.5,1029.2,45,155.7,30,950},
+{'W21',-8779.9,8953.7,1029,52.4,1190.1,53.2,950.2},
 -- W22, south-east of the arrival square: 4 boxes, 10.5 m.
 {'W22',-7600,8737.5,821.9,-51.4,280.2,41.6,950},
 {'W22',-7673.1,8933.4,821.9,51.6,245.1,57.7,950},
