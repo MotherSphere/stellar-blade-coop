@@ -4,10 +4,12 @@
 -- T.ko of ui/text.lua (see there).
 return {
     title='코옵',
-    head={modes='모드',
+    head={tools='테스트 도구',
+        modes='모드',
         session='세션',settings='설정',help='도움말',controls='조작',photo='포토 모드',partner='파트너',
         ghost='고스트',saves='세이브',combat='전투',display='화면',chat='채팅',line='코옵 회선'},
-    row={scoreattack='스코어 어택',fishing='낚시 대회',race_match='도로 레이스',
+    row={emote_key='감정 표현 휠 키',emote_pad='컨트롤러 감정 표현 휠',
+        scoreattack='스코어 어택',fishing='낚시 대회',race_match='도로 레이스',
         photohunt='포토 헌트',
         host='세션 열기',leave='세션 나가기',invite='친구 초대 (Steam)',find='세션 찾기',
         copy='내 코드 복사',remove='%s 내보내기',join_code='코드로 참가',
@@ -41,7 +43,8 @@ return {
         spectate='쓰러지면 친구 관전',
         boss_finish='보스 마무리 (호스트)',
         reset_keys='모든 키 초기화'},
-    value={on='켜기',off='끄기',both='양쪽',notice='알림만',game='게임 언어',english='English',
+    value={emote_pad_dpad_left='방향키 왼쪽 길게 누름',
+        on='켜기',off='끄기',both='양쪽',notice='알림만',game='게임 언어',english='English',
         ask='매번 묻기',always='항상',together='교전 또는 30m 이내',
         fought='교전한 적만',aggro_game='두 플레이어',aggro_host='호스트만',
         photo_pause_full='전체',photo_pause_scenery='배경 움직임',compact='간략',detailed='상세',
@@ -353,4 +356,30 @@ return {
         entry='%d위 %s %d',sep=', ',placed='내 순위: %d위 (%d명 중).'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='온라인',stuck='게임이 일시 정지된 상태라 코옵 메뉴가 열리지 않았습니다.'},
+    -- The emote wheel (ui/kit/wheel.lua, eve/ui/wheel.lua): its hints, the centre's word while nothing is pointed at
+    -- (after StringTable_UI's UI_HUD_Gesture) and why it did not open.
+    wheel={title='소셜 액션',release='떼기: 재생',point='가리키기',next='다음 분류',world='감정 표현 휠은 메뉴가 열려 있지 않은 게임 세계에서만 열립니다.',
+        busy='지금은 불가: EVE가 바쁩니다.',native='감정 표현 휠에는 이 버전의 네이티브 부분이 필요합니다.',
+        off='감정 표현 휠이 꺼져 있습니다(UI 중지): coop emote를 쓰세요.'},
+    -- The emote wheel's page and slot names where the game has none (the Cut clips) or gives none (ui_language),
+    -- after StringTable_UI's UI_Gesture_Category_* and UI_PhotoMode_Pose_*; left and right: the two waves.
+    emote={cats={greetings='인사',expression='표정',orders='명령',emotion='감정',pose='포즈',dance='춤',cut='삭제됨'},
+        left='%s (왼쪽)',right='%s (오른쪽)',
+        names={hello='손 흔들기',salute='경례',kungfu='무술 인사',toast='건배',clap='박수',heart='손하트',thumbsup='엄지 척',victory='승리',
+        kiss='키스',bringiton='덤벼',giveme='줘',hush='쉿',reach='손 뻗기',omg='OMG',what='뭐?',worry='걱정',wish='소원',
+        wedidit='해냈어',charm='매력',confident='자신감',cutie='귀요미',sweetie='스위티',squat='쪼그려 앉기',stretch='스트레칭',
+        warmup='준비 운동',walk='걷기',shutter1='순간 포착 1',shutter2='순간 포착 2',shutter3='순간 포착 3',flow='흐름',
+        nataraja='나타라자아사나',somersault='공중제비',chariotstruggle='Chariot: 몸싸움',chariotcounter='Chariot: 반격',
+        chariotfail='Chariot: 실패',chariottakedown='Chariot: 처형',kalitakedown='Kali: 처형',kaligrab='Kali: 붙잡기'}},
+    -- The co-op menu's TEST TOOLS pages (eve/ui/tools.lua, cutmenus/ui/devmenu.lua, fight/bosses/ui/viewer.lua).
+    tools={done='게임에 요청했습니다.',
+        eve={fly='디버그 비행',slowmo='슬로 모션',glide='활공'},
+        dev={title='개발자 메뉴',eve='EVE',enemies='EVE 근처의 적',panels='패널',nodamage='피해 없음',stealth='적에게서 숨기',
+        speed150='속도 x1.5',speed200='속도 x2',attack5='피해 x5(누적)',attack30='피해 x30(누적)',gauges='Beta와 Burst 충전',
+        tachy='Tachy 충전',tachyfull='Tachy 가득',heal='체력 가득',hp1='체력 1로',nolockswitch='록온 꺼진 상태 유지',
+        enemynodamage='피해를 받지 않음',enemynoai='행동 정지',enemyimmortal='죽지 않음',enemyshield1='실드 1로',enemybalance1='균형 1로',
+        enemyclear='적 초기화',clear='모두 초기화',devinfo='개발자 패널',quest='퀘스트',player='플레이어 정보'},
+        viewer={title='삭제된 모델',model='모델',part='부위',skin='스킨',show='보기',cam='자유 카메라',remove='제거',nothing='표시 없음',
+        leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR 기계',orcal='Orcal 시제품',
+        enya='Enya 시제품'}},
 }
