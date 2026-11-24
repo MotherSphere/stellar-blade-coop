@@ -93,11 +93,12 @@ function Engine.put(at,yaw)
     return true
 end
 -- SB's black over a put-back: USBBlueprintLibrary::LoadingScreenFadeAuto (exec 0x1426641e0 on build 26123051). It
--- reads the time the black stands, then a start block and an end block (each a duration, the opacity it starts from
--- and the one it ends at), then a tag. Its impl 0x14c91ad10 is the one SB's own fall warp calls for its fade
--- (0x141b1b8e0, FSBActorShowFadeUI::Execute). The widget goes from clear to black over fade s, stands hold s and goes
--- back to clear over out s: SB's two blocks there, with its tag 0 (ESBUILoadingScreenTag None). With fade 0 it is
--- black inside the call (start 0 s, 1 to 1, the block SB's move 0x141bb1300 starts its own black with). SB's loading
+-- reads the time the black stands, then a start block and an end block (each a duration and the two values the
+-- widget's fade runs between), then a tag. Its impl 0x14c91ad10 is the one SB's own fall warp calls for its fade
+-- (0x141b1b8e0, FSBActorShowFadeUI::Execute), with a start block from 0 to 1 and an end block from 1 to 0. Here the
+-- widget fades in over fade s, stands hold s and fades out over out s: SB's two blocks there, with its tag 0
+-- (ESBUILoadingScreenTag None). With fade 0 it is full inside the call (start 0 s, 1 to 1, the block SB's move
+-- 0x141bb1300 starts its own black with: StartFade 0x1424eb950 sets the end value at once for 0 s). SB's loading
 -- controller ends it by itself (its tick 0x1424ea330 counts hold from the end of the fade-in). The call returns the
 -- black's FGuid, four ints A, B, C and D (the property list of its struct data 0x146dde670). true when SB made the
 -- black, false when it made none (the exec gives a zero GUID with no UI manager and so does CreateLoadingScreen
