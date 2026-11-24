@@ -584,4 +584,59 @@ assert install.changelog('v1', 1760000000, ['docs: d', 'fix(tools): c']) == f'{h
 install.git('merge-base', '--is-ancestor', install.LAST_GPL, 'HEAD')  # Fails when the range would not start there.
 assert install.subjects() and 'chore(main): release 0.9.0' not in install.subjects()
 
+# 14. The dry run's tests run side by side. Each one's output is written in the tests' own order, whatever the order
+# they end in. The first failure writes its output, names its command and stops the run: no later test starts.
+def wrote(text, wait=0):
+    def task():
+        time.sleep(wait)
+        return text
+    return task
+
+
+def fails():
+    raise install.Failed('lua5.4 x_test.lua', 3, b'boom\n')
+
+
+assert run(install.side_by_side, [wrote(b'a\n', 0.2), wrote(b'b\n'), wrote(b'c\n', 0.1)], 3) == (None, 'a\nb\nc\n')
+started = []
+assert run(install.side_by_side, [wrote(b'a\n'), fails, lambda: started.append(1) or b'late\n'], 1) == (
+    'Failed (exit code 3): lua5.4 x_test.lua', 'a\nboom\n') and not started
+assert install.JOBS >= 1
+
+# 15. A native test is built again only when its source, a file it includes, the flags or the compiler changed, and
+# it is run every time. When the compiler cannot list what it includes, it is built every time.
+with tempfile.TemporaryDirectory() as tmp:
+    repo = Path(tmp)
+    test, header = repo / 'tests/native/ui/a_test.cpp', repo / 'native/src/h.h'
+    for path in (test, header, repo / 'build/host/x'):
+        path.parent.mkdir(parents=True)
+    test.write_text('#include "h.h"\nint main() {}\n')
+    header.write_text('// 1\n')
+    exe, built, lists = repo / 'build/host/ui_a_test', [], [0]
+
+    def fake_run(argv, **kwargs):
+        if '-MM' in argv:
+            return types.SimpleNamespace(returncode=lists[0], stdout=f'a.o: {test} \\\n {header}\n'.encode())
+        if '-o' in argv:
+            built.append(argv)
+            exe.write_bytes(b'built')
+        return types.SimpleNamespace(returncode=0, stdout=b'ran\n' if argv == [str(exe)] else b'', stderr=b'')
+
+    saved = install.subprocess, install.ROOT
+    install.subprocess, install.ROOT = types.SimpleNamespace(run=fake_run), repo
+    try:
+        assert install.native_test(test, [], 'c++ 1') == b'ran\n' and len(built) == 1
+        assert install.native_test(test, [], 'c++ 1') == b'ran\n' and len(built) == 1, 'Kept: run, not built'
+        header.write_text('// 2\n')
+        assert install.native_test(test, [], 'c++ 1') == b'ran\n' and len(built) == 2, 'An included file changed'
+        assert install.native_test(test, ['-g'], 'c++ 1') == b'ran\n' and len(built) == 3, 'The flags changed'
+        assert install.native_test(test, ['-g'], 'c++ 2') == b'ran\n' and len(built) == 4, 'The compiler changed'
+        assert install.native_test(test, ['-g'], 'c++ 2') == b'ran\n' and len(built) == 4
+        exe.unlink()
+        assert install.native_test(test, ['-g'], 'c++ 2') == b'ran\n' and len(built) == 5, 'The built test is gone'
+        lists[0] = 1
+        assert install.native_test(test, ['-g'], 'c++ 2') == b'ran\n' and len(built) == 6, 'No list: built again'
+        assert install.native_test(test, ['-g'], 'c++ 2') == b'ran\n' and len(built) == 7
+    finally: install.subprocess, install.ROOT = saved
+
 print('install_test: ok')

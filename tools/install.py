@@ -11,12 +11,14 @@ also installs SBO's UE4SS package (tools/ue4ss.py) into SB/Binaries/Win64: the o
 of UE4SS.dll (tools/ue4ss_build.py), SBO's settings and the files of the game's build. A UE4SS.dll that is not the
 pinned build stops it before the tests. It backs up what it replaces or removes."""
 import argparse
+import concurrent.futures
 import hashlib
 import os
 import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import zipfile
 from fnmatch import fnmatch
@@ -38,6 +40,10 @@ LAST_GPL = '051ab5090a2ea6832279345524e9cdaa816ee736'
 ART = 'Assets/MotherSphere.png'  # timediffer24's art, not under the SBO License (NOTICE): installed, never zipped.
 PAK = ('zSBO_Lobby.pak', 'zSBO_Lobby.ucas', 'zSBO_Lobby.utoc')  # The only files --pak and --uninstall touch in ~mods.
 UE4SS_OLD = ('ue4ss/Changelog.md',)  # The 1.3 package's UE4SS 3.0.1 changelog: --ue4ss moves it into the backup.
+# How many tests run side by side: STELLAR_JOBS, else half the CPUs this process may use (a native test built with the
+# sanitizers takes a GB of RAM). STELLAR_JOBS=1 runs them one at a time, in the old order.
+JOBS = int(os.environ.get('STELLAR_JOBS') or 0) or max(1, len(getattr(os, 'sched_getaffinity', lambda _: range(
+    os.cpu_count() or 1))(0)) // 2)
 
 
 def running_game():
@@ -57,6 +63,66 @@ def version():
         return git('describe', '--tags', '--always', '--dirty').strip() or 'dev'
     except (OSError, subprocess.CalledProcessError):
         return 'dev'
+
+
+class Failed(Exception):
+    """A test step that ended with another exit code than 0: its command, the code and what it wrote."""
+
+
+def step(argv):
+    """One test step run from the repository's root. Returns what it wrote, raises Failed with it."""
+    done = subprocess.run([str(a) for a in argv], cwd=ROOT, capture_output=True)
+    if done is None: return b''  # tests/tools/install_test.py's stand-in.
+    if done.returncode: raise Failed(' '.join(str(a) for a in argv), done.returncode, done.stdout + done.stderr)
+    return done.stdout + done.stderr
+
+
+def side_by_side(tasks, jobs=None):
+    """Runs the tasks JOBS at a time and writes each one's output in the tasks' own order, so the log reads as a
+    run one at a time. The first failure writes its output and stops the run; tasks not started yet never start."""
+    stopped = threading.Event()
+
+    def unless_stopped(task):
+        if stopped.is_set(): return b''
+        try:
+            return task()
+        except BaseException:
+            stopped.set()
+            raise
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs or JOBS) as pool:
+        futures = [pool.submit(unless_stopped, task) for task in tasks]
+        for future in futures:
+            try:
+                out = future.result()
+            except Failed as failed:
+                command, code, out = failed.args
+                print(out.decode(errors='replace'), end='', flush=True)
+                sys.exit(f'Failed (exit code {code}): {command}')
+            print(out.decode(errors='replace'), end='', flush=True)
+
+
+def built_key(test, flags, compiler):
+    """What a built native test depends on, as one hash: the compiler, its flags and the bytes of the test and of
+    every file it includes (c++ -MM). None when that list cannot be had: the test is then built again."""
+    listed = subprocess.run(['c++', *flags, '-MM', str(test)], cwd=ROOT, capture_output=True)
+    if listed is None or listed.returncode: return None
+    files = listed.stdout.decode().replace('\\\n', ' ').split(':', 1)[-1].split()
+    key = hashlib.sha256(repr((compiler, flags)).encode())
+    for name in sorted(files):
+        key.update(name.encode() + b'\0' + (ROOT / name).read_bytes())
+    return key.hexdigest()
+
+
+def native_test(test, checks, compiler):
+    """One native test: built again only when built_key changed, then run. Its output."""
+    exe = ROOT / 'build/host' / '_'.join(test.relative_to(ROOT / 'tests/native').with_suffix('').parts)
+    flags = ['-std=c++17', '-Wall', '-Wextra', '-Werror', *checks, '-I', str(ROOT / 'native/src')]
+    key, kept, out = built_key(test, flags, compiler), exe.with_name(exe.name + '.key'), b''
+    if not (key and exe.is_file() and kept.is_file() and kept.read_text() == key):
+        out = step(['c++', *flags, test, '-o', exe])
+        if key: kept.write_text(key)
+    return out + step([exe])
 
 
 def sanitizers():
@@ -289,16 +355,16 @@ def main(argv=None):
         sources = pak_sources(args.pak)
     if args.ue4ss:  # Also before: an unknown build or a refused zip stops it in a second.
         ue4ss_files = ue4ss.package(win64 / 'SB-Win64-Shipping.exe')
-    for test in sorted((ROOT / 'tests/lua').rglob('*_test.lua')):
-        subprocess.run(['lua5.4', test.relative_to(ROOT)], cwd=ROOT, check=True)  # The game embeds Lua 5.4.
+    # The game embeds Lua 5.4.
+    side_by_side([lambda t=t: step(['lua5.4', t.relative_to(ROOT)])
+                  for t in sorted((ROOT / 'tests/lua').rglob('*_test.lua'))])
     checks = sanitizers()
-    for test in sorted((ROOT / 'tests/tools').glob('*_test.py')):
-        subprocess.run([sys.executable, test], cwd=ROOT, check=True)
-    for test in sorted((ROOT / 'tests/native').rglob('*_test.cpp')):  # Platform-free native code, run on this machine.
-        exe = ROOT / 'build/host' / '_'.join(test.relative_to(ROOT / 'tests/native').with_suffix('').parts)
-        subprocess.run(['c++', '-std=c++17', '-Wall', '-Wextra', '-Werror', *checks, '-I', ROOT / 'native/src', test,
-                        '-o', exe], check=True)
-        subprocess.run([exe], check=True)
+    side_by_side([lambda t=t: step([sys.executable, t]) for t in sorted((ROOT / 'tests/tools').glob('*_test.py'))])
+    told = subprocess.run(['c++', '--version'], capture_output=True)
+    compiler = told.stdout.decode() if told is not None else ''
+    # Platform-free native code, run on this machine.
+    side_by_side([lambda t=t: native_test(t, checks, compiler)
+                  for t in sorted((ROOT / 'tests/native').rglob('*_test.cpp'))])
     ver = version()
     print(f'Version: {ver}', flush=True)
     build = ROOT / 'build/windows'
