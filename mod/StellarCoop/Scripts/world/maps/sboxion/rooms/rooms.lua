@@ -3,14 +3,16 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's rooms (world/maps/sboxion/sboxion.lua starts this part at each arrival and ticks it each 250 ms pass
 -- while EVE's map is SBO Xion).
--- The zSBO_Xion test pak of 2026-11-24 adds five rooms behind five closed doors of SB's Xion, each a level of its own
--- that SBO Xion's persistent level always loads. A room has an open doorway of ours where SB's closed door unit and
--- wall panel stand, with street debris in front. rooms/list.lua names those pieces of SB, 23 rows. This part hides
+-- The zSBO_Xion test paks of 2026-11-24 add rooms behind closed doors of SB's Xion, each a level of its own that SBO
+-- Xion's persistent level always loads: five in the paks of build2, eleven in the pak of build3. A room has an open
+-- doorway of ours where SB's closed door unit and wall panel stand, with street debris in front. rooms/list.lua names
+-- those pieces of SB for ten rooms, 41 rows. This part hides
 -- them (world.piece, world.piece_out: world/maps/sboxion/engine.lua), so EVE walks in through the door with no
 -- loading screen. It puts them back with world.piece_back. Nothing is hidden in any other map and SB's own Xion is
 -- never changed: the pieces are objects of SBO Xion's world, which a map change destroys.
--- The pak: o.gate says whether it holds the five room levels. The pak of 2026-11-23 holds none: one log line an
--- arrival, no level read, no piece asked.
+-- The pak: o.gate is asked for each room's level on its own, so a pak opens the rooms it holds. One log line an
+-- arrival says how many. The pak of 2026-11-23 holds none: one log line an arrival, no level read, no piece asked. A
+-- room the pak lacks is never looked at, waited for or counted.
 -- Open: a room is decided once its own level and every sublevel of its rows read loaded and visible, looked at each
 -- PACE passes. Its rows are all found first, each against its mesh and place. Then all are hidden. A row that is
 -- not found, or cannot be hidden, closes the room as a whole: the rows hidden before it are put back and the log
@@ -28,13 +30,13 @@
 local U=require('core.unreal')
 local Rooms={}
 Rooms.PACE,Rooms.WAIT=4,30 -- Passes between two looks at the levels (one look a second) and the looks a room waits.
--- The rooms: {name=, level=, needs=<its level, then each sublevel of its rows>, rows=}. A row: {name=, level=,
--- actor=, component=, index=, mesh=, at=, count=}, named <sublevel>.<actor>.<component> with [<index>] for an
--- instance. UMAPS: the five levels' game paths, for the pak gate.
-Rooms.LIST,Rooms.UMAPS={},{}
+-- The rooms: {name=, level=, umap=<its level's game path, for the pak gate>, needs=<its level, then each sublevel of
+-- its rows>, rows=}. A row: {name=, level=, actor=, component=, index=, mesh=, at=, count=}, named
+-- <sublevel>.<actor>.<component> with [<index>] for an instance.
+Rooms.LIST={}
 local ROW={} -- A row by its name.
 for i,r in ipairs(require('world.maps.sboxion.rooms.list')) do
-    local room,needed={name=r.name,level=r.level,needs={r.level},rows={}},{}
+    local room,needed={name=r.name,level=r.level,umap='/Game/SBO_World/Rooms/'..r.level,needs={r.level},rows={}},{}
     for k,v in ipairs(r.rows) do
         local component=(v[4]<0 and 'StaticMeshComponent_' or 'HierarchicalInstancedStaticMeshComponent_')..v[3]
         local row={name=v[1]..'.'..v[2]..'.'..component..(v[4]<0 and '' or '['..v[4]..']'),level=v[1],actor=v[2],
@@ -45,13 +47,13 @@ for i,r in ipairs(require('world.maps.sboxion.rooms.list')) do
             room.needs[#room.needs+1]=row.level
         end
     end
-    Rooms.LIST[i],Rooms.UMAPS[i]=room,'/Game/SBO_World/Rooms/'..r.level
+    Rooms.LIST[i]=room
 end
 local LIST=Rooms.LIST
 
 -- o: log(m), world, the engine calls (world/maps/sboxion/engine.lua's levels, piece, piece_out and piece_back; a fake
--- in the tests), gate() (true when the pak holds the five room levels, else nil and why) and store (core/link.lua's
--- store: save(line), load(), clear(); optional).
+-- in the tests), gate(umap) (true when the pak holds the room level of that game path, else nil and why) and store
+-- (core/link.lua's store: save(line), load(), clear(); optional).
 function Rooms.new(o)
     local log,world=o.log,o.world
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -59,17 +61,26 @@ function Rooms.new(o)
     -- By room name while the pak holds the rooms: its pieces (a table) once open, the reason (a string) once closed,
     -- nil while it waits. nil as a whole: off, or a pak with no room.
     local state=nil
+    local held={} -- The rooms the pak holds, in the list's order.
     local passes,looks,waited,unread,unkept=0,0,{},false,false -- Of the arrival.
     local self={}
     local function start()
         passes,looks,waited,unread,unkept=0,0,{},false,false
-        local ok,held,why=pcall(o.gate)
-        if ok and held then
-            state={}
+        held,state={},nil
+        local why=nil -- Of the first room the pak lacks.
+        for _,room in ipairs(LIST) do
+            local ok,has,no=pcall(o.gate,room.umap)
+            if ok and has then held[#held+1]=room
+            else why=why or (ok and tostring(no) or U.why(has)) end
+        end
+        if #held==0 then
+            log('rooms: none in this pak ('..why..'): no door is opened')
             return
         end
-        state=nil
-        log('rooms: none in this pak ('..(ok and tostring(why) or U.why(held))..'): no door is opened')
+        state={}
+        local names={}
+        for i,room in ipairs(held) do names[i]=room.name end
+        log(string.format('rooms: this pak holds %d of %d rooms: %s',#held,#LIST,table.concat(names,', ')))
     end
     -- A room's rows all found, then all hidden: its pieces. Else nil and why, with nothing of it left hidden.
     local function open(room)
@@ -140,7 +151,7 @@ function Rooms.new(o)
         local seen={}
         for _,l in ipairs(world.levels()) do seen[l.name]=l.loaded and l.visible end
         local opened=false
-        for _,room in ipairs(LIST) do
+        for _,room in ipairs(held) do
             local missing={}
             for _,name in ipairs(room.needs) do
                 if not seen[name] then missing[#missing+1]=name end
@@ -165,7 +176,7 @@ function Rooms.new(o)
     local function pass()
         if not swept then sweep() end
         local waiting=false
-        for _,room in ipairs(LIST) do waiting=waiting or state~=nil and state[room.name]==nil end
+        for _,room in ipairs(held) do waiting=waiting or state~=nil and state[room.name]==nil end
         if not waiting then return end
         passes=passes+1
         if (passes-1)%Rooms.PACE==0 then look() end
@@ -207,13 +218,13 @@ function Rooms.new(o)
         if not on then return 'rooms off' end
         if not state then return 'rooms none in the pak' end
         local open_ones,waiting,closed=0,0,{}
-        for _,room in ipairs(LIST) do
+        for _,room in ipairs(held) do
             local s=state[room.name]
             if type(s)=='table' then open_ones=open_ones+1
             elseif s then closed[#closed+1]=room.name
             else waiting=waiting+1 end
         end
-        return string.format('rooms %d of %d open',open_ones,#LIST)..(waiting>0 and ', '..waiting..' waiting' or '')
+        return string.format('rooms %d of %d open',open_ones,#held)..(waiting>0 and ', '..waiting..' waiting' or '')
             ..(#closed>0 and ', closed: '..table.concat(closed,', ') or '')
     end
     -- coop xion rooms [on|off]: off puts every row back until on or the next arrival. on asks the pak and opens the
@@ -229,7 +240,7 @@ function Rooms.new(o)
         if on then return true,self.status() end
         on=true
         start()
-        return true,state and 'rooms on: '..#LIST..' to open ([SX] lines follow)' or self.status()
+        return true,state and 'rooms on: '..#held..' to open ([SX] lines follow)' or self.status()
     end
     return self
 end

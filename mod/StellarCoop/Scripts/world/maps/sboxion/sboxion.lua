@@ -31,18 +31,18 @@
 -- have none of SB's fall volumes. The full test pak's city ones act in Zone_Xion_10 by their rows. So EVE under
 -- data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
 -- SB's death screen cannot respawn her in this zone, so a dead EVE gets SB's in-place respawn.
--- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test pak of 2026-11-24 adds five rooms
--- behind five closed doors of SB's Xion, as five levels of the persistent level. The pak gate is asked once a Lua load
--- for those five levels beside Xion_P. With them, each arrival hides the pieces of SB in each room's doorway once the
--- room's levels are loaded and visible, all rows of a room or none. A map change, coop off and coop xion rooms off put
--- them back. The pak of 2026-11-23 holds no room: one log line an arrival and nothing else.
+-- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test paks of 2026-11-24 add five or eleven
+-- rooms behind closed doors of SB's Xion, each a level of the persistent level. The pak gate is asked once a Lua load
+-- for each room's level beside Xion_P. Each arrival hides the pieces of SB in the doorway of each room the pak holds
+-- once the room's levels are loaded and visible, all rows of a room or none. A map change, coop off and coop xion rooms
+-- off put them back. The pak of 2026-11-23 holds no room: one log line an arrival and nothing else.
 -- coop xion leave: the request "sboxion leave <zone FName index>". The native part compares the zone with the
 -- client's and calls SB's reload of the co-op save only from SBO Xion, so the request is sent from any map.
 -- coop xion status: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the
 -- recovery's state, the rooms' state and the last look.
 -- coop xion recover [on|death|off], inside SBO Xion: the recovery's mode until the next arrival, which sets it to on.
 -- death leaves falls alone, so EVE can die of one on purpose. off does nothing, as before the recovery existed.
--- coop xion rooms [on|off], inside SBO Xion: off puts SB's pieces back in the five doorways until on or the next
+-- coop xion rooms [on|off], inside SBO Xion: off puts SB's pieces back in the doorways until on or the next
 -- arrival, so a test sees SB's closed doors again. Alone, it prints the rooms' state.
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
@@ -87,16 +87,16 @@ function Xion.new(o)
         end
         return pak or nil,pak_why
     end
-    -- Whether the test pak holds the five room levels beside Xion_P, or nil and why, asked once a Lua load. The gate
-    -- above stays as it is: the pak of 2026-11-23 passes it and fails this one.
-    local roomy,roomy_why=nil,nil
-    local rooms=Rooms.new({log=function(m) log('sboxion: '..m) end,world=world,store=o.rooms_store,gate=function()
-        if roomy==nil then
-            local version
-            version,roomy_why=PakGate.find(o.paks,o.read,D.PAK,{D.UMAP,table.unpack(Rooms.UMAPS)})
-            roomy=version~=nil
+    -- Whether the test pak holds one room's level (its game path) beside Xion_P, or nil and why, asked once a room a
+    -- Lua load. The gate above stays as it is: the pak of 2026-11-23 passes it and holds no room.
+    local roomy={} -- By game path: true, or why the pak does not hold it.
+    local rooms=Rooms.new({log=function(m) log('sboxion: '..m) end,world=world,store=o.rooms_store,gate=function(umap)
+        if roomy[umap]==nil then
+            local version,why=PakGate.find(o.paks,o.read,D.PAK,{D.UMAP,umap})
+            roomy[umap]=version~=nil or why
         end
-        return roomy or nil,roomy_why
+        if roomy[umap]==true then return true end
+        return nil,roomy[umap]
     end})
     local function refused(why)
         log('sboxion rows: refused ('..why..'): coop xion stays off')
