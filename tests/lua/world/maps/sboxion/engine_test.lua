@@ -12,7 +12,12 @@
 -- case of tests/lua/online/lobby/wiring_test.lua and the raise of tests/lua/online/lobby/arrival_test.lua for this
 -- module's copy: one LoadingScreenFadeAuto call with the hold, the fade-in from 0 to 1, the fade-out from 1 to 0 and
 -- tag 0; with a fade-in of 0 the start block is 0 s from 1 to 1; true for a GUID that is not zero, false for a zero
--- GUID, nil for one that does not read; a raise of the call is not caught.
+-- GUID, nil for one that does not read; a raise of the call is not caught. Then a wall (world/maps/sboxion/walls/
+-- walls.lua) through core/actors.lua: one plain Actor in EVE's world with the engine's cube as its root, at the box's
+-- place and yaw, hidden, scaled to the box, never a step, SB's profile SB_InvisiblewallIgnoreCamera found by name and
+-- set, the actor's collision turned on last and the read-back in the answer; with no such name nothing is spawned; a
+-- profile that did not take (object type other than 20), a raise of its call and a missing cube each raise with the
+-- actor destroyed; unwall destroys only the actor it made; a sweep takes only an actor whose root shows the cube.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(t)
     t.type=t.type or function() return 'UObject' end
@@ -192,8 +197,108 @@ local ok,why=pcall(Engine.black,1,0.3,0.5)
 assert(not ok and tostring(why):find('LoadingScreenFadeAuto: no such function',1,true),tostring(why))
 assert(#fades==7,'One call a black: '..#fades)
 
--- No EVE: move gives nil, put raises.
+-- A wall. The fake world spawns plain actors. Each records its calls in order.
+local CUBE,PROFILE='/Engine/BasicShapes/Cube.Cube','SB_InvisiblewallIgnoreCamera'
+local function cube_mesh(path)
+    return object({GetFullName=function() return 'StaticMesh '..path end,
+        IsA=function(_,c) return c.path=='/Script/Engine.StaticMesh' end})
+end
+statics[CUBE]=cube_mesh(CUBE)
+statics['/Script/Engine.Default__KismetMathLibrary']=object({MakeTransform=function() return 'identity' end})
+made[PROFILE]=991
+local spawned,took,profile_error={},20,nil -- took: the object type the component reads back after the profile call.
+local function order(a,what) a.order[#a.order+1]=what end
+local wall_world=object({SpawnActor=function(_,class,at,turn)
+    assert(class.path=='/Script/Engine.Actor','A plain Actor only')
+    local n=#spawned+1
+    local a=object({order={},at=at,turn=turn,collision=true,
+        GetFullName=function() return 'Actor /Game/SBO_World/Xion_P.Xion_P:PersistentLevel.Actor_'..n end})
+    function a:SetActorEnableCollision(on,fast)
+        assert(fast==false)
+        self.collision=on
+        order(self,'actor '..tostring(on))
+    end
+    function a:SetActorHiddenInGame(on) self.hidden=on end
+    function a:K2_DestroyActor() self.dead=true end
+    function a:K2_GetRootComponent() return self.root end
+    function a:AddComponentByClass(k,manual,transform,deferred)
+        assert(k.path=='/Script/Engine.StaticMeshComponent' and manual==false and transform=='identity'
+            and deferred==false,'One StaticMeshComponent')
+        local c=object({IsA=function(_,x) return x.path=='/Script/Engine.StaticMeshComponent' end})
+        function c:SetStaticMesh(m) self.StaticMesh=m end
+        function c:SetRelativeScale3D(v) self.scale=v end
+        function c:SetCollisionEnabled(v) self.enabled=v end
+        function c:K2_SetWorldLocationAndRotation(to,rot) self.at,self.turn=to,rot end
+        function c:SetCollisionProfileName(name,update)
+            assert(update==true,'The overlaps are updated')
+            if profile_error then error(profile_error) end
+            self.profile,self.kind,self.enabled=name:ToString(),took,3
+            order(a,'profile')
+        end
+        function c:GetCollisionObjectType() return self.kind end
+        function c:K2_IsCollisionEnabled() return self.enabled~=0 and a.collision end
+        self.root=c
+        return c
+    end
+    spawned[n]=a
+    return a
+end})
+package.loaded['core.player'].her=function() return object({GetWorld=function() return wall_world end}) end
+local BOX={at={X=3900,Y=-9200,Z=1100},yaw=40,size={X=175,Y=30,Z=950}}
+local d=Engine.wall(BOX)
+local a,c=spawned[1],spawned[1].root
+assert(#spawned==1 and d.actor==a and d.path=='/Game/SBO_World/Xion_P.Xion_P:PersistentLevel.Actor_1')
+assert(a.at.X==3900 and a.at.Y==-9200 and a.at.Z==1100 and a.turn.Yaw==40 and a.turn.Pitch==0 and a.turn.Roll==0)
+assert(c.at.X==3900 and c.turn.Yaw==40,'The root goes to the place: it was added at the origin')
+assert(c.StaticMesh==statics[CUBE] and a.hidden==true and c.CanCharacterStepUpOn==0)
+assert(c.scale.X==1.75 and c.scale.Y==0.3 and c.scale.Z==9.5,'The cube is 100 cm a side')
+assert(c.profile==PROFILE and c.kind==20)
+assert(table.concat(a.order,',')=='actor false,profile,actor true','The actor blocks only once the profile is on')
+assert(d.read=='object type 20, collision on',d.read)
+-- wall_profile_not_taken: the read-back is not SB's object type, so the wall is taken out again.
+took=0
+ok,why=pcall(Engine.wall,BOX)
+assert(not ok and tostring(why):find('did not take: object type 0',1,true) and #spawned==2 and spawned[2].dead,
+    tostring(why))
+took=20
+-- wall_profile_raises: the same for a raise of the call.
+profile_error='SetCollisionProfileName: no such function'
+ok,why=pcall(Engine.wall,BOX)
+assert(not ok and tostring(why):find('no such function',1,true) and #spawned==3 and spawned[3].dead,tostring(why))
+profile_error=nil
+-- wall_no_name: a game that has no such name spawns nothing.
+made[PROFILE]=nil
+ok,why=pcall(Engine.wall,BOX)
+assert(not ok and tostring(why):find('no name '..PROFILE,1,true) and #spawned==3,tostring(why))
+made[PROFILE]=991
+-- unwall: the actor it made, once; never another object met at its handle.
+assert(Engine.unwall(d)==true and a.dead==true)
+assert(Engine.unwall(d)==false,'A wall that is gone is not called')
+local e=Engine.wall(BOX)
+local other=spawned[4]
+other.GetFullName=function() return 'Actor /Game/Other.Other:PersistentLevel.Lamp_3' end
+assert(Engine.unwall(e)==false and not other.dead,'Another object at the handle is left alone')
+-- wall_swept: an earlier Lua load's wall by its path, only while its root shows the cube.
+local old=Engine.wall(BOX)
+statics[old.path]=old.actor
+assert(Engine.wall_swept(old.path)==true and old.actor.dead)
+local chair=Engine.wall(BOX)
+chair.mesh.StaticMesh=cube_mesh('/Game/Art/Chair.Chair')
+statics[chair.path]=chair.actor
+assert(Engine.wall_swept(chair.path)==false and not chair.actor.dead,'Another mesh at that path is left alone')
+statics['/Game/Gone.Gone:PersistentLevel.Actor_9']=object({dead=true})
+assert(Engine.wall_swept('/Game/Gone.Gone:PersistentLevel.Actor_9')==false)
+-- wall_no_cube: with no cube in memory and none loaded, nothing is left.
+statics[CUBE].dead=true -- core/actors.lua keeps the mesh it found while it lives.
+LoadAsset=function() return object({dead=true}) end
+ok,why=pcall(Engine.wall,{at={X=1,Y=2,Z=3},yaw=0,size={X=100,Y=30,Z=950}})
+assert(not ok and tostring(why):find('Cube is missing on this PC',1,true) and spawned[#spawned].dead,tostring(why))
+
+-- No EVE: move gives nil, put and wall raise.
 package.loaded['core.player'].her=function() return nil end
 assert(Engine.move()==nil)
 assert(not pcall(Engine.put,{X=0,Y=0,Z=0},0))
+statics[CUBE]=cube_mesh(CUBE)
+ok,why=pcall(Engine.wall,BOX)
+assert(not ok and tostring(why):find('no EVE in the world',1,true),tostring(why))
 print('sboxion_engine_test ok')
