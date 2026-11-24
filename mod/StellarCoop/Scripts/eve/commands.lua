@@ -4,7 +4,8 @@
 -- EVE's cut moves' console commands: coop wear, coop emote, coop fly, coop slowmo, coop glide and coop chainspin.
 -- eve/wiring.lua builds it with new(o) at each Lua load and main/loader.lua merges it into the command table. o:
 -- coop_slot, wear (eve/wear.lua's), flight (eve/flight.lua's keys for coop fly), chainspin
--- (eve/chainspin.lua's), glide (eve/glide.lua's), ask (a native request; coop fly and coop slowmo) and riding
+-- (eve/chainspin.lua's), glide (eve/glide.lua's), ask (a native request; coop fly and coop slowmo), switched(name,
+-- on) (told each fly or slowmo the native part took: the TEST TOOLS page shows it, eve/ui/tools.lua) and riding
 -- (main/base.lua's riding, read at each call: EVE rides the bike). coop chainspin, EVE's cut Tachy Mode ChainSpin (a
 -- test tool, left out of the usage line), runs on a co-op save only. coop emote, one of EVE's clips (eve/emote.lua,
 -- o.emote), runs on any save.
@@ -28,6 +29,7 @@ function Eve.new(o)
             if not ok then return false,why end
             if sub=='on' and name=='fly' and o.riding and o.riding() then return false,RIDING end
             ok,why=o.ask(name..' '..sub)()
+            if ok and o.switched then o.switched(name,sub=='on') end
             if name=='fly' and o.flight then -- Its keys: R2 only flies, Shift with a direction evades.
                 if sub=='off' then o.flight.off() elseif ok then why=tostring(why)..'; '..o.flight.on() end
             end

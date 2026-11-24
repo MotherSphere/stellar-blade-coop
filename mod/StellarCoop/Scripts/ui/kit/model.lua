@@ -275,7 +275,7 @@ function M.new(start)
     function self.point(ctx,row)
         self.current(ctx)
         for i,r in ipairs(self.rows(ctx)) do
-            if r==row and not r.head then
+            if (r==row or page=='module' and r.id==row.id) and not r.head then -- A module's rows: new at each call.
                 if name(r)==id then return false end
                 index,id,asked=i,name(r),nil
                 return true

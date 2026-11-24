@@ -4,7 +4,7 @@
 -- The wiring of EVE's cut moves (eve/): coop wear, glide, emote, fly and chainspin, and the emote wheel.
 return {
 uses={'fight.bosses'},
-exports={'wear','glide','emote','flight','emote_wheel'},
+exports={'wear','glide','emote','flight','emote_wheel','eve_page'},
 new=function(M)
 local print,log=M.print,M.log
 -- coop wear (eve/wear.lua), logging [WR] lines: coop-wear.txt lets the next Lua load give EVE the game's meshes
@@ -34,7 +34,13 @@ local chainspin=require('eve.chainspin').new({log=function(m) print('[StellarCoo
         if M.off_modules['fight.bosses'] then return false,'coop lion is not loaded: its rows carry the ChainSpin' end
         return M.lion.rows(done)
     end})
+-- The co-op menu's TEST TOOLS page of coop fly, coop slowmo and coop glide (eve/ui/tools.lua): fly and slowmo as the
+-- native part last took them in this Lua load (switched), glide as eve/glide.lua has it.
+local switched={}
+M.eve_page=require('eve.ui.tools').new({run=function(...) return M.run(...) end,
+    on=function(name) if name=='glide' then return M.glide.active() end return switched[name]==true end})
 return require('eve.commands').new({ask=M.ask,chainspin=chainspin,coop_slot=M.coop_slot,emote=M.emote,
-    flight=M.flight,glide=M.glide,riding=function() return M.riding() end,wear=M.wear})
+    flight=M.flight,glide=M.glide,riding=function() return M.riding() end,wear=M.wear,
+    switched=function(name,on) switched[name]=on end})
 end,
 }

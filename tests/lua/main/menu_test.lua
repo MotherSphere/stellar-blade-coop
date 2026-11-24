@@ -43,7 +43,8 @@ assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_soun
 assert(lv.o.blocked()==true,'coop leviathan\'s free camera reads no key while the menu is open')
 assert(screen()=='SESSION||disabled\nHost a session||focus\nFind a session||normal\nJoin with a code||normal\n'
     ..'SETTINGS||disabled\n'
-    ..'Options||normal\nHELP||disabled\nGuide||normal\nWrite a bug report||normal\nClose||normal',screen())
+    ..'Options||normal\nTEST TOOLS||disabled\nEVE\'s cut moves||normal\nHELP||disabled\nGuide||normal\n'
+    ..'Write a bug report||normal\nClose||normal',screen())
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
 assert(menu_view.hints.keys=='move enter escape','The menu moves on W, A, S, D (Z, Q on AZERTY) and the arrows')
@@ -794,5 +795,29 @@ end)()
     press('F11'); flush()
     assert(asked[#asked]=='host invitation 4' and not cr.open and #cr.calls==0,asked[#asked])
     in_world,kit_ready,settings_text=false,false,''
+end)()
+-- TEST TOOLS: EVE's cut moves (eve/ui/tools.lua) under it, between Options and Help; Select opens its page, Debug
+-- flight asks coop fly on through the console's path (a co-op save) and shows On once taken; off a co-op save the
+-- refusal shows under the rows; Back comes back to its row.
+;(function()
+    settings_text,status_text,link_mode,in_world='',with_slot('slot=coop index=4 marker=4\n'),'none',true
+    load_main(true)
+    kit_ready=true; quarter()
+    key('F5')
+    assert(screen():find('TEST TOOLS||disabled\nEVE\'s cut moves||normal\nHELP||disabled',1,true),screen())
+    to("EVE's cut moves"); key('RETURN')
+    assert(menu_view.title.s=="EVE's cut moves" and screen()=='Debug flight|Off|focus\nSlow motion|Off|normal\n'
+        ..'Glide|Off|normal',screen())
+    key('RETURN')
+    assert(asked[#asked]=='fly on' and select(2,focus())=='On' and menu_view.note.s=='',
+        menu_view.note.s)
+    status_text=with_slot('slot=main index=0 marker=4\n')
+    key('DOWN_ARROW'); key('RIGHT_ARROW')
+    assert(focus()=='Slow motion' and select(2,focus())=='Off' and menu_view.note.s:find('runs only on a co-op save',1,
+        true),menu_view.note.s)
+    key('ESCAPE')
+    assert(menu_view.title.s=='CO-OP' and focus()=="EVE's cut moves",'Back on its row')
+    key('ESCAPE')
+    in_world,kit_ready,status_text=false,false,plain
 end)()
 io.stdout:write('menu_test ok\n')

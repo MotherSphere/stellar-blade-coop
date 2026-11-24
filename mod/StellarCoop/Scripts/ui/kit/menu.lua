@@ -116,6 +116,9 @@ function Menu.new(o)
         local ctx=context()
         local rows,current=model.rows(ctx),model.current(ctx)
         if page~=model.page() then page,top=model.page(),0 end
+        if model.module() then -- Its rows are made anew at each call: the cursor's is the one of its id.
+            for _,row in ipairs(rows) do if row.id==current.id then current=row end end
+        end
         local at=1
         for i,row in ipairs(rows) do if row==current then at=i end end
         top=math.max(0,math.min(top,#rows-ROWS))

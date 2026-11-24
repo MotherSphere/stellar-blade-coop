@@ -210,7 +210,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'core/keybind', 'core/link',
                               'core/mask', 'core/pak_gate', 'core/settings_file',
                               'core/unreal', 'core/ue4ss_settings', 'eve/chainspin', 'cutmenus/devmenu',
-                              'eve/emote', 'eve/ui/wheel', 'core/enemy', 'eve/flight',
+                              'eve/emote', 'eve/ui/wheel', 'eve/ui/tools', 'core/enemy', 'eve/flight',
                               'eve/glide', 'fight/bosses/gardener', 'fight/bosses/leviathan',
                               'story/scenes/lines', 'fight/bosses/lion', 'fight/bosses/lion_rows', 'cutmenus/mailbox',
                               'eve/chainspin_rows', 'world/maps/matrix13/level/boss_rows',

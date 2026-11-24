@@ -13,7 +13,8 @@ local EW=require('eve.ui.wheel')
 local T=require('ui.text')
 
 -- The game's words: a few keys answered, in German.
-local GAME={UI_PhotoMode_Pose_Salute='Salutieren',UI_PhotoMode_Pose_Hello_Selfie='Hallo',
+local GAME={UI_PhotoMode_Pose_Salute='Salutieren',
+    UI_PhotoMode_Pose_Hello_Selfie='Hallo',
     UI_Gesture_Category_Greetings='Grüßen',UI_Gesture_Category_Pose='Pose',UI_HUD_Gesture='Aktion (sozial)'}
 local asked={}
 local function game(key) asked[#asked+1]=key; return GAME[key] end
@@ -39,7 +40,9 @@ for k in ('Salute KungFuSalute Toast Hello_Selfie Clap HandHeart ThumbUp Victory
     ..'ShutterChance2 ShutterChance3 Flow Natarajasana Somersault'):gmatch('%S+') do
     KEYS['UI_PhotoMode_Pose_'..k]=true
 end
-for k in ('Greetings Expression Instruction Emotion Pose Dance'):gmatch('%S+') do KEYS['UI_Gesture_Category_'..k]=true end
+for k in ('Greetings Expression Instruction Emotion Pose Dance'):gmatch('%S+') do
+    KEYS['UI_Gesture_Category_'..k]=true
+end
 for _,key in ipairs(asked) do assert(KEYS[key],key..': not a key of StringTable_UI') end
 -- No game word (ui_language=english): SBO's English throughout.
 local en=EW.pages(T.en,function() end)
@@ -54,7 +57,8 @@ local wheel={is_open=function() return opened.spec~=nil end,open=function(spec)
     return true
 end}
 local ew=EW.new({wheel=function() return wheel end,words=function() return T.fr end,game=function() end,
-    busy=function() return busy end,run=function(name,id) ran[#ran+1]=name..' '..id; return id~='kaligrab','refused' end,
+    busy=function() return busy end,
+    run=function(name,id) ran[#ran+1]=name..' '..id; return id~='kaligrab','refused' end,
     log=function(m) logs[#logs+1]=m end,say=function(text,english) said[#said+1]={text,english} end})
 ew.press('key',2)
 local spec=opened.spec
@@ -94,7 +98,8 @@ boom.press('key',2)
 assert(opened.spec==nil and logs[#logs]=='wheel: not opened: EVE unreadable: no EVE object')
 -- The kit's refusals: its word.
 busy=nil
-for _,r in ipairs({{'world','one of our screens holds the input'},{'native','no coop_stick'},{'off','the UI stopped'}}) do
+local REFUSED={{'world','one of our screens holds the input'},{'native','no coop_stick'},{'off','the UI stopped'}}
+for _,r in ipairs(REFUSED) do
     refuse=r
     ew.press('key',2)
     assert(logs[#logs]=='wheel: not opened: '..r[2] and said[#said][1]==T.fr.wheel[r[1]]
