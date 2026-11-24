@@ -37,9 +37,11 @@ for i,r in ipairs(List) do
     local under=UNDER[r[1]]
     if under then
         assert(top<under.over,name..' comes out through the floor over its hole: top '..top)
-        assert(top>=under.own+160 and bottom<=under.own-200,name..' no longer spans its own floor: '..bottom..' to '..top)
+        assert(top>=under.own+160 and bottom<=under.own-200,
+            name..' no longer spans its own floor: '..bottom..' to '..top)
     elseif name=='W15.1' then
-        assert(bottom>=ROCKS+190 and bottom<W15_FLOOR and top>=W15_FLOOR+700,name..': over the rocks, from under its floor')
+        assert(bottom>=ROCKS+190 and bottom<W15_FLOOR and top>=W15_FLOOR+700,
+            name..': over the rocks, from under its floor')
     elseif name=='W08.3' or name=='W08.4' then
         assert(top<W08_CEILING and top>=W08_FLOOR+160 and bottom<=W08_FLOOR-250,name..': under the ceiling: '..top)
     else
