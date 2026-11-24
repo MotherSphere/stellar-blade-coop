@@ -23,7 +23,10 @@
 -- menu) never reaches the game, and is asked again each 250 ms while closed until the kit has given it. Within 3 m of a
 -- camp phone booth (online/session/booth.lua) a hint shows the menu key, which opens the co-op line instead: the main
 -- page's session rows, Co-op menu (the main page) and Hang up, over a sentence that says whether the line is free, open
--- or linked. No engine call here: the kit makes them.
+-- or linked. Under TEST TOOLS, one row a module page (o.pages: eve's, cutmenus' and fight.bosses' test tools, each
+-- listed while its module is on): Select opens it in the menu, its rows made by its module at each draw, Back comes
+-- back; a row's select or step runs its module's console words through M.run, its refusal shown under the rows. No
+-- engine call here: the kit makes them.
 local M=require('ui.kit.model')
 local Link=require('core.link')
 local T=require('ui.text')
@@ -34,7 +37,7 @@ local Menu={}
 local ROWS,BACK=15,0.15 -- Rows shown at once (a longer page scrolls); seconds before the game's input comes back.
 local HINT_W,HINT_Y=700,1830 -- The booth hint's width and top, in the kit's 3840 by 2160 units.
 local HOVER=0.1 -- Seconds between two looks at the row under the mouse.
-local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key'}
+local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','emote_key'}
 local OFF='the co-op menu is off (the UI stopped, see the log): use the coop commands'
 -- The key hints' resource actions in SB's hint widget (as online/lobby/ui/lobby.lua and
 -- online/session/ui/sessions.lua): move, select, back. The widget shows the icon of the player's last device.
@@ -44,7 +47,8 @@ for _,row in ipairs(M.OPTIONS) do if row.key then ROW[row.key]=row end end
 -- o: {kit=ui.kit.kit's, link=, settings= (main.lua's, changed in place), look= (the ghost's), puppet=,
 -- run=function(name, arg) -> ok, message (main.lua's: the console's checks and log line), log=, version=,
 -- chat=online/session/chat.lua's view or nil, code=online/session/join.lua's code box, guide=ui/kit/guide.lua's,
--- sessions=online/session/ui/sessions.lua's}.
+-- sessions=online/session/ui/sessions.lua's, pages=function() -> the module pages (ui/kit/model.lua says their
+-- shape)}.
 function Menu.new(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,world,model,capturing,note,top,page,back_at={},false,false,nil,nil,nil,0,nil,nil
@@ -74,8 +78,10 @@ function Menu.new(o)
     end)
     local function context()
         local code=link.code()
+        local pages={}
+        for _,p in ipairs(o.pages and o.pages() or {}) do if p.title(words) then pages[#pages+1]=p end end
         return {mode=link.mode(),chat=o.chat~=nil and o.chat.can(),code=code,stranger=link.stranger(),values=values,
-            members=link.members()}
+            members=link.members(),pages=pages,words=words}
     end
     local function stranger(ctx) return Join.name(ctx.stranger.name) or words.ask.someone end
     -- The co-op line's state: free (no session), open (hosting, no friend linked or her connection lost), linked (her
@@ -110,6 +116,9 @@ function Menu.new(o)
         local ctx=context()
         local rows,current=model.rows(ctx),model.current(ctx)
         if page~=model.page() then page,top=model.page(),0 end
+        if model.module() then -- Its rows are made anew at each call: the cursor's is the one of its id.
+            for _,row in ipairs(rows) do if row.id==current.id then current=row end end
+        end
         local at=1
         for i,row in ipairs(rows) do if row==current then at=i end end
         top=math.max(0,math.min(top,#rows-ROWS))
@@ -117,7 +126,9 @@ function Menu.new(o)
         for i,w in ipairs(v.rows) do
             local row=rows[top+i]
             if not row then w.set('','','normal')
-            elseif row.head then w.set(words.head[row.head],'','disabled')
+            elseif row.head then w.set(row.label or words.head[row.head],'','disabled')
+            elseif row.page then w.set(row.page.title(words) or '','',row==current and 'focus' or 'normal')
+            elseif model.module() then w.set(row.label,row.value or '',row==current and 'focus' or 'normal')
             else
                 local label,v=row.id=='guide' and guide_words.row or words.row[row.id or row.key],
                     row.key and value(row) or ''
@@ -129,7 +140,7 @@ function Menu.new(o)
             end
         end
         local ping=link.ping() -- The member the status line names, once past the handshake.
-        v.title.set(words.title)
+        v.title.set(model.module() and model.module().title(words) or words.title)
         v.status.set(link.summary(words)..(ping and ' · '..ping..' ms' or ''))
         v.note.set(note or (o.chat and o.chat.notice()) or (page=='line' and line(ctx)) or '')
         -- SB's hint parts; the kit's key image and label show only where one is not alive (the kind broken).
@@ -273,7 +284,10 @@ function Menu.new(o)
             kit.sound('move')
         elseif what=='left' or what=='right' then
             local action,key,text=model.change(ctx,values,what=='left' and -1 or 1)
-            if action then kit.sound('change'); set(key,text) end
+            if action=='run' then
+                kit.sound('change')
+                note=select(2,key.step(text))
+            elseif action then kit.sound('change'); set(key,text) end
         elseif what=='back' then
             kit.sound('back')
             if model.back()=='close' then return self.close() end
@@ -286,6 +300,7 @@ function Menu.new(o)
             elseif action=='reset_keys' then set()
             elseif action=='rebind' then capturing,note=key,words.capture
             elseif action=='set' then set(key,text)
+            elseif action=='run' then note=key.select and select(2,key.select()) or nil
             elseif action=='close' then return self.close()
             elseif action=='chat' then
                 self.close()

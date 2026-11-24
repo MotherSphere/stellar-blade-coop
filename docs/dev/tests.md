@@ -764,6 +764,22 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   loaded or EVE is too far, one spawn a load, a guard kept after a Lua reload, none after `coop recruiter off`). It
   checks the arm call right after the spawn and at a guard already there, before any check. It runs the looks every 3 s
   until +30 s with a guard who comes at +9 s, one who never comes and one 4 m off the point;
+- `ui/kit/wheel_test` covers the wheel (`ui/kit/wheel.lua`) on a fake kit: the slot under a direction for 3 to 6
+  slots, the stick's sectors, the pages split (11 emotes as 6 and 5), the game's piece sizes and pivots at 80 %, the
+  open (the input taken with no cursor, the mouse centred), pointing with the stick and the mouse (past 60 units, once
+  moved), the highlight that stays, the release that plays once or nothing, the input back 150 ms later, a click, A,
+  Esc, B, the pages, a guard, the window lost, the HUD hidden, the refusals and `coop off`;
+- `eve/ui/wheel_test` covers the emote wheel's pages (5, 5, 4, 5, 6, 5, 3 and 6 slots, each of the 39 emotes once),
+  the game's words first and only for keys `StringTable_UI` holds, the waves' sides, SBO's words with
+  `ui_language=english`, the refusals in the player's words with English for the line above EVE, a pick through
+  `coop emote`, its refusal on screen and the page used last; `main/input_test` the keys and the pad on the fixture
+  (F2, Q, A, E, Esc, the mouse buttons, the other keys dropped, D-pad Left's event, LB, RB, A, B, `emote_key=none`,
+  `emote_pad=off`, an older DLL, a wheel that does not build, `coop off`); `eve/emote_test` EVE's busy reasons;
+- `eve/ui/tools_test`, `cutmenus/ui/devmenu_test` and `fight/bosses/ui/viewer_test` cover the three TEST TOOLS pages:
+  their rows, the commands each row runs, the values after accepted and refused commands (a devmenu switch's Off
+  running `clear` and every lasting switch then Off, the lock-on's `lockswitch`), the viewer's parts and skins per
+  model and every shown value within the menu's value column; `ui/kit/model_test` the pages' rows on the main page and
+  in their own page; `main/menu_test` the three pages drawn and run on the fixture;
 - `ui/kit/kit_test` covers the veil (the root built and kept collapsed, the look warmed in one 250 ms pass, shown again
   at once, and a hidden world's root left collapsed), the menu's mouse cursor, the focus put back after a click, the
   focus watchdog and the focus line it logs as it fires, text shadows and wrap, fixed groups, SB parts and the keyboard
@@ -1662,7 +1678,10 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   button in every read until its release, a press and release inside one poll counted once, a repeat ignored, two
   controllers ORed, the stick pushed furthest, clamped values, unknown keys and ids outside 0 to 7 ignored, `clear()`,
   the events from `PadKeys` as from XInput), Slate's handler slots pinned to the vtable and the Online tab's event
-  posted into the queue in order with the pad's, a full queue dropping the newest;
+  posted into the queue in order with the pad's, a full queue dropping the newest; the emote wheel's reads: the right
+  stick's sector (0 inside half its range, 1 to 72 clockwise from up), D-pad Left held 300 ms making event 13 once a
+  hold (not at 299 ms, again after a release, forgotten with no pad), the right stick from XInput's slots and from
+  `PadKeys` (the controller pushed furthest, `clear()`);
 - `ui_pause_tab_test`: the Online tab's decision on the GameMenu logic's input (RB on the highest enabled tab while the
   game's tab lock is off opens it; any other tab, action or lock passes the action on to the game; a tab list the game
   never builds passes too; a press and its release within 500 ms open once) and its pinned slot, function, FName
@@ -2032,3 +2051,26 @@ state 3). Back up the save first: the respawn refills your recovery items in it.
 
 A `refused` result names the respawn's blocker (a warp under way, the Night Operation probe's rule, a game that is not
 standalone). The native part gives the death screen back after 14 s at most if the respawn never comes.
+
+## Solo game test: emote wheel and test tools
+
+One PC, a co-op save, in an open area with no enemy near. Read `UE4SS.log` after each row. None of these rows has
+run yet.
+
+1. Hold F2: the wheel shows at the screen's centre. Move the mouse: the camera stays still and the slot under the
+   pointer lights. Release F2: EVE plays it. `UE4SS.log` has `[StellarCoop][EM] wheel: open on Greeting (F2)` and
+   `wheel: emote <name> (release)`.
+2. Q and E change the page, a right click goes to the next one, Esc cancels, a left click plays. Tap F2: nothing
+   plays.
+3. Controller: tap D-pad Left (the game's action still happens), then hold it 0.3 s: the wheel. Point with the right
+   stick, LB and RB change the page, release D-pad Left: the emote plays. B cancels. Walk and guard afterwards: no
+   button stays held.
+4. Hold F2 in the air, on the bike and in a fight: no wheel, the notice `No emote now: EVE is busy.` Open the wheel and
+   let an enemy hit EVE: it closes. Alt-tab with it open: it closes, nothing plays.
+5. Set the game to German: the slots show the game's German names. Set `ui_language=english` and `ui_scale=150`: the
+   mod's English names, the wheel still on screen.
+6. F5, TEST TOOLS, EVE's cut moves: Debug flight On, close the menu and fly, then Off. On a main save the row stays Off
+   and the note says why.
+7. Developer menu: No damage On, take a hit, then Off (every lasting switch reads Off). Full health. Developer panel
+   Quests, close the menu to see it, then Off.
+8. Cut models: Leviathan, body, Show; close the menu and fly the free camera; Free camera Off; Remove.

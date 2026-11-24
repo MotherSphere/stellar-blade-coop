@@ -145,6 +145,15 @@ controller ignores move and look input again only if it did before, and the came
 `coop-leviathan.txt` also holds the camera's path, the player controller's and the view's from before, so the next Lua
 load (Ctrl+R) does the same if this one could not.
 
+### In the co-op menu
+
+The co-op menu's Cut models page ([Test tools](../players/interface.md#test-tools), `fight/bosses/ui/viewer.lua`)
+runs the viewer without the console. Model picks one of the seven commands (Leviathan, Gardener, Tendril, Mann, NieR
+machine, Orcal prototype, Enya prototype) and Part one of its `show` words; neither runs anything. Skin runs
+`coop <model> skin <word>` (kept for the next `show` when nothing is shown). Show runs `coop <model> show <part>` and
+reads what is shown now. Free camera runs `coop <model> cam`. Remove runs `coop <model> off`. The parts and skins keep
+their console words. The free camera reads no key while the menu is open: close it to fly.
+
 ## Cut boss: `coop lion`
 
 The game's files hold a boss that was cut before release: Naytiba 02, the Lion, in

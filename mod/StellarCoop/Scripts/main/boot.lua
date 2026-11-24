@@ -21,8 +21,28 @@ if loaded then
     if type(f)=='function' then M.native_pad=f
     else log('Native pad unavailable (no controller in the co-op menu): '..tostring(pad_why)) end
 end
--- The DLL links no Lua: its event (0 for none) is how many of these twelve arguments it hands back.
-function M.pad() return select('#',M.native_pad(0,0,0,0,0,0,0,0,0,0,0,0)) end
+-- The DLL links no Lua: its event (0 for none) is how many of these thirteen arguments it hands back.
+function M.pad() return select('#',M.native_pad(0,0,0,0,0,0,0,0,0,0,0,0,0)) end
+-- The emote wheel's reads (ui/kit/wheel.lua), each how many of its arguments the native part hands back: coop_stick
+-- the right stick's 5 degree sector (73 arguments: 0 at rest, 73 with the game's window not in front), coop_held D-pad
+-- Left held (2: 1 held, 2 not in front), coop_fkey the lowest F-key held (13: 13 not in front). An older DLL without
+-- them: said once, the wheel refuses to open.
+M.wheel_reads=nil
+if loaded then
+    local zeros={}
+    for i=1,73 do zeros[i]=0 end
+    local fns,missing={},nil
+    for _,name in ipairs({'coop_stick','coop_held','coop_fkey'}) do
+        local f,fn_why=package.loadlib(M.folder..'\\StellarCoop.dll',name)
+        if type(f)=='function' then fns[name]=f else missing=missing or name..': '..tostring(fn_why) end
+    end
+    if missing then log('Native emote wheel reads unavailable (no emote wheel): '..missing)
+    else
+        M.wheel_reads={stick=function() return select('#',fns.coop_stick(table.unpack(zeros,1,73))) end,
+            held=function() return select('#',fns.coop_held(0,0)) end,
+            fkey=function() return select('#',fns.coop_fkey(table.unpack(zeros,1,13))) end}
+    end
+end
 -- The pause menu's close for its Online tab (ui/kit/pause_tab.lua): SB's own close, run by the native part on the game
 -- thread. Its answer is how many of three arguments it hands back: 1 closed, 2 SB has no pause menu open, 3 off. An
 -- older DLL without it, or none: no close can work.

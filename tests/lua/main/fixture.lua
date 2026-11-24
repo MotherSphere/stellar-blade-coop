@@ -458,8 +458,15 @@ package.loaded['fight.bosses.leviathan']={new=function(o)
     return {commands=commands,
         restore=function() lv.restores=lv.restores+1 end,
         tick=function() lv.ticks=lv.ticks+1; if lv.says then return table.unpack(lv.says) end end,
-        stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
-end}
+        stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end,
+        shown=function() if lv.shown then return lv.shown[1],lv.shown[2] end end,
+        skin=function() return 'default' end}
+end,
+-- The creatures' show and skin words, for the cut models' page (fight/bosses/ui/viewer.lua; its own test has the real
+-- ones).
+CREATURES={leviathan={meshes={'body','a'},skins={{'statue','x'}}},gardener={meshes={'body'},skins={}},
+    tendril={meshes={'body'},skins={}},mann={meshes={'body'},skins={}},nier={meshes={'square'},skins={}},
+    orcal={meshes={'test1'},skins={}},enya={meshes={'mech'},skins={}}}}
 -- coop lion (fight/bosses/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and
 -- stops, what a tick says, a tick that raises, the seconds a tick takes on the fake clock (cost); its rows (the shop's
 -- cut items, with the batch word it was given) answer done at once.
@@ -519,7 +526,8 @@ package.loaded['cutmenus.devmenu']={new=function(o)
     dm.o=o
     return {row=function(name) return name=='heal' and {} or nil end,
         command=function(...) dm.cmds[#dm.cmds+1]=table.pack(...); return true,'dm '..tostring((...)) end,
-        stop=function() dm.stops=dm.stops+1; dm.asked_at_stop=#asked end}
+        stop=function() dm.stops=dm.stops+1; dm.asked_at_stop=#asked end,
+        on=function(name) return (dm.cmds[#dm.cmds] or {})[1]==name end} -- The last row asked reads On.
 end}
 -- coop wear (eve/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks
 -- and stops, what a tick says.
@@ -580,8 +588,11 @@ package.loaded['eve.emote']={new=function(o)
         tick=function() em.ticks=em.ticks+1; if em.says then return table.unpack(em.says) end end,
         stop=function() em.stops=em.stops+1 end,
         sit=function(kind) return true,'em sit '..tostring(kind) end,active=function() return em.active==true end,
-        preload=function() return true end}
-end}
+        preload=function() return true end,busy=function() return em.busy end}
+end,
+-- Two of its categories, for the emote wheel (eve/ui/wheel.lua; tests/lua/eve/ui/wheel_test.lua has them all).
+CATEGORIES={{'Greetings',{{'salute','Salute'},{'wave','Hello_Selfie_L',true}},dir='PhotoMode/'},
+    {'Cut',{{'kaligrab','M_Kali_Beta_Grab',true}},dir=''}}}
 -- The races' driving (online/modes/race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
 package.loaded['online.modes.race.drive']={new=function(o)
@@ -934,6 +945,10 @@ package.loaded['ui.kit.kit']={kit=function(opts)
         azerty=function() return opts.uidev~=nil and opts.uidev()==2 end, -- SB's last keyboard (no language here).
         lost=function() local who=kit_lost; kit_lost=nil; return who~=nil,who end,
         move=function() end,fade=function() end,
+        -- The emote wheel's (ui/kit/wheel.lua): the viewport, the mouse there (wh.mouse) and its centring.
+        screen=function() return kit_ready and not kit_off and {w=3840,h=2160,s=0.5} or nil end,
+        pointer=function() return wh.mouse[1],wh.mouse[2] end,
+        centre_pointer=function() wh.centred=wh.centred+1; wh.mouse={1920,1080}; return true end,
         -- SB's widget parts (online/session/join.lua's popups, the menu's and the guide's key hints): while
         -- kit_parts_ok, each made is kept in kit_parts ({group=, class=, text=, actions={a1, a2}}) and alive. Else a
         -- popup is not in this build, so its kit fallback shows (join_test tests the popup itself), and a key hint
@@ -1012,6 +1027,9 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued
 -- (q; 0 once empty), its event; calls: how often it was called; missing: an older DLL without it.
 pd={q={},calls=0,missing=false}
+-- The native part's emote wheel reads (coop_stick, coop_held, coop_fkey): each hands back that many of its arguments
+-- (stick: the right stick's sector, held: D-pad Left's 1, fkey: the F-key held); missing: an older DLL without them.
+wh={stick=0,held=0,fkey=0,missing=false,mouse={1920,1080},centred=0}
 -- The native part's pause menu close (coop_pause_close): each call hands back answer of its three arguments (1 closed,
 -- 2 no pause menu, 3 off); calls: how often it was called; missing: an older DLL without it.
 pc={answer=1,calls=0,missing=false}
@@ -1030,10 +1048,18 @@ function load_main(with_native,no_folder,source)
                 return table.unpack({...},1,pc.answer)
             end
         end
+        if name=='coop_stick' or name=='coop_held' or name=='coop_fkey' then
+            if wh.missing then return nil,'not exported' end
+            local word,most=name:match('_(%a+)$'),({coop_stick=73,coop_held=2,coop_fkey=13})[name]
+            return function(...)
+                assert(select('#',...)==most,name..': '..most..' arguments, the most it hands back')
+                return table.unpack({...},1,wh[word])
+            end
+        end
         if name=='coop_pad' then
             if pd.missing then return nil,'not exported' end
             return function(...)
-                assert(select('#',...)==12,'Twelve arguments: the most the native part hands back')
+                assert(select('#',...)==13,'Thirteen arguments: the most the native part hands back')
                 pd.calls=pd.calls+1
                 return table.unpack({...},1,table.remove(pd.q,1) or 0)
             end
@@ -1041,6 +1067,7 @@ function load_main(with_native,no_folder,source)
         return true
     end
     pd.q,pd.calls,pc.calls,kit_lost={},0,0,nil
+    wh.stick,wh.held,wh.fkey,wh.mouse,wh.centred=0,0,0,{1920,1080},0
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
     pausetabs,popup_asks={},{}
     state_names={} -- link.state's mod_names argument, each call.
@@ -1066,7 +1093,7 @@ function load_main(with_native,no_folder,source)
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     sp.o,sp.ticks,sp.frames,sp.switches,sp.watching=nil,{},0,{},false
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
-    lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
+    lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming,lv.shown=nil,{},0,0,0,nil,nil,nil
     li.o,li.cmds,li.ticks,li.stops,li.says,li.raise=nil,{},0,0,nil,nil
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
@@ -1081,7 +1108,7 @@ function load_main(with_native,no_folder,source)
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
     gl.o,gl.cmds,gl.restores,gl.ticks,gl.stops,gl.says=nil,{},0,0,0,nil
-    em.o,em.cmds,em.restores,em.ticks,em.stops,em.says,em.active=nil,{},0,0,0,nil,nil
+    em.o,em.cmds,em.restores,em.ticks,em.stops,em.says,em.active,em.busy=nil,{},0,0,0,nil,nil,nil
     bk.o,bk.riding,bk.toggles,bk.stops,bk.steers,bk.slows,bk.restores,bk.tunes,bk.left=nil,false,{},{},0,0,0,{},nil
     bk.answer,bk.raise,bk.says,bk.slow_says,bk.idle_part,bk.idle_part_at=nil,nil,nil,nil,nil,nil
     bk.pose_source,bk.pose_source_at=nil,nil

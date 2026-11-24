@@ -4,10 +4,12 @@
 -- T['zh-Hans'] of ui/text.lua (see there).
 return {
     title='合作模式',
-    head={modes='模式',
+    head={tools='测试工具',
+        modes='模式',
         session='房间',settings='设置',help='帮助',controls='按键',photo='拍照模式',partner='队友',ghost='幽灵',
         saves='存档',combat='战斗',display='显示',chat='聊天',line='合作线路'},
-    row={scoreattack='得分挑战',fishing='钓鱼大赛',race_match='DORO竞速',
+    row={emote_key='表情轮盘按键',emote_pad='手柄表情轮盘',
+        scoreattack='得分挑战',fishing='钓鱼大赛',race_match='DORO竞速',
         photohunt='拍照寻宝',
         host='创建房间',leave='离开房间',invite='邀请好友（Steam）',find='查找房间',copy='复制我的房间码',
         remove='移除%s',join_code='用房间码加入',chat='聊天',options='选项',report='生成错误报告',close='关闭',
@@ -40,7 +42,8 @@ return {
         spectate='倒地时观战队友',
         boss_finish='首领终结技（房主）',
         reset_keys='重置所有按键'},
-    value={on='开',off='关',both='暂停并提示',notice='仅提示',game='游戏语言',english='English',
+    value={emote_pad_dpad_left='长按十字键左',
+        on='开',off='关',both='暂停并提示',notice='仅提示',game='游戏语言',english='English',
         ask='每次询问',always='始终',together='交战或30米内',
         fought='仅限交战的敌人',aggro_game='双方玩家',aggro_host='仅房主',
         photo_pause_full='完全暂停',photo_pause_scenery='场景动态',compact='简洁',detailed='详细',
@@ -323,4 +326,29 @@ return {
         entry='第%d名 %s %d分',sep='，',placed='你的名次：第%d名，共%d人。'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='在线',stuck='游戏仍处于暂停状态，因此合作菜单没有打开。'},
+    -- The emote wheel (ui/kit/wheel.lua, eve/ui/wheel.lua): its hints, the centre's word while nothing is pointed at
+    -- (after StringTable_UI's UI_HUD_Gesture) and why it did not open.
+    wheel={title='社交动作',release='松开：播放',point='指向',next='下一类别',world='表情轮盘只在游戏世界中且没有打开菜单时打开。',busy='现在不能做表情：EVE正忙。',
+        native='表情轮盘需要此版本的原生部分。',off='表情轮盘已关闭（界面已停止）：请用 coop emote。'},
+    -- The emote wheel's page and slot names where the game has none (the Cut clips) or gives none (ui_language),
+    -- after StringTable_UI's UI_Gesture_Category_* and UI_PhotoMode_Pose_*; left and right: the two waves.
+    emote={cats={greetings='问候',expression='表情',orders='命令',emotion='情绪',pose='姿势',dance='舞蹈',cut='删减'},
+        left='%s（左）',right='%s（右）',
+        names={hello='挥手',salute='敬礼',kungfu='抱拳礼',toast='干杯',clap='鼓掌',heart='双手比心',thumbsup='点赞',victory='胜利',
+        kiss='飞吻',bringiton='放马过来',giveme='给我',hush='嘘',reach='伸手',omg='OMG',what='什么？',worry='担心',wish='许愿',
+        wedidit='我们做到了',charm='魅力',confident='自信',cutie='可爱',sweetie='甜心',squat='深蹲',stretch='伸展',warmup='热身',
+        walk='行走',shutter1='抓拍1',shutter2='抓拍2',shutter3='抓拍3',flow='流动',nataraja='舞王式',somersault='空翻',
+        chariotstruggle='Chariot：缠斗',chariotcounter='Chariot：反击',chariotfail='Chariot：失败',
+        chariottakedown='Chariot：处决',kalitakedown='Kali：处决',kaligrab='Kali：抓取'}},
+    -- The co-op menu's TEST TOOLS pages (eve/ui/tools.lua, cutmenus/ui/devmenu.lua, fight/bosses/ui/viewer.lua).
+    tools={done='已请求游戏执行。',
+        eve={fly='调试飞行',slowmo='慢动作',glide='滑翔'},
+        dev={title='开发者菜单',eve='EVE',enemies='EVE附近的敌人',panels='面板',nodamage='无伤害',stealth='对敌人隐身',speed150='速度x1.5',
+        speed200='速度x2',attack5='伤害x5（叠加）',attack30='伤害x30（叠加）',gauges='Beta和Burst回复',tachy='Tachy回复',
+        tachyfull='充满Tachy',heal='生命全满',hp1='生命设为1',nolockswitch='锁定保持关闭',enemynodamage='不受伤害',enemynoai='停止行动',
+        enemyimmortal='无法死亡',enemyshield1='护盾设为1',enemybalance1='平衡设为1',enemyclear='清除敌人',clear='全部清除',
+        devinfo='开发者面板',quest='任务',player='玩家信息'},
+        viewer={title='删减模型',model='模型',part='部位',skin='外观',show='显示',cam='自由镜头',remove='移除',nothing='未显示',
+        leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR机械',orcal='Orcal原型',
+        enya='Enya原型'}},
 }

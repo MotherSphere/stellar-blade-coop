@@ -231,7 +231,7 @@ settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
 assert(table.concat(kit_order,' ')=='chat feed card status marker arrow member1 member2 member3 member4 member5 member6 '
     ..'scoreattack scoreattack_board scoreattack_result fishing fishing_result photohunt photohunt_result code guide '
-    ..'menu line_hint ask ask_popup badge saves',
+    ..'menu line_hint wheel ask ask_popup badge saves',
     table.concat(kit_order,' '))
 in_world,kit_ready,chatting=true,true,true
 mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,

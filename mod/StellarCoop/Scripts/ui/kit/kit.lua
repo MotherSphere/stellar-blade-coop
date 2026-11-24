@@ -79,6 +79,16 @@ for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common
         {'logo_hant',TEX..'Splash/Main_title_hant'},{'shade_left',TEX..'Common/lobby_menu_gra'},
         {'shade_bottom',TEX..'Common/theater_subtitle_gra'},{'more_shadow',TEX..'HUD/HUD_MoreShadow'},
         {'dither',TEX..'Common/gradation_dithering_white'},
+        -- The emote wheel's (ui/kit/wheel.lua): WB_MainHUD_ItemEquip's slot pieces for 6, 5, 4 and 3 slots and their
+        -- lit look, its centre's dotted circle, pointer arc and soft disc; the mouse's key icons (the F-keys' below).
+        {'wheel6',TEX..'HUD/Wheel/ItemEquipWheel6Bg_Cut'},{'wheel6_focus',TEX..'HUD/Wheel/ItemEquipWheel6Focus_Cut'},
+        {'wheel5',TEX..'HUD/Wheel/ItemEquipWheel5Bg'},{'wheel5_focus',TEX..'HUD/Wheel/ItemEquipWheelFocusRing_5bg'},
+        {'wheel4',TEX..'HUD/Wheel/ItemEquipWheel4Bg_Cut'},{'wheel4_focus',TEX..'HUD/Wheel/ItemEquipWheel4Focus_Cut'},
+        {'wheel3',TEX..'HUD/Wheel/ItemEquipWheel3Bg_Cut'},{'wheel3_focus',TEX..'HUD/Wheel/ItemEquipWheel3Focus_Cut'},
+        {'wheel_dots',TEX..'HUD/Wheel/ItemEquipWheelDotLines'},
+        {'wheel_pointer',TEX..'HUD/Wheel/ItemEquipWheelPositionDotLine'},{'wheel_blur',TEX..'Common/blur_circle2'},
+        {'key_mouse',TEX..'Interaction/PC/KeyIcon_Mouse_Mouse2D'},
+        {'key_mouse_right',TEX..'Interaction/PC/KeyIcon_Mouse_RightMouseButton'},
         {'open',SOUND..'MainMenu/Ui_MoveIn_Cue',1},{'close',SOUND..'MainMenu/UI_MoveOut_Cue',1},
         {'move',SOUND..'UI_Common_Hover_Cue',1},{'select',SOUND..'ui_button_Confirm_Cue',1},
         {'back',SOUND..'ui_button_cancel',1},{'change',SOUND..'MainMenu/UI_Setting_Select_Cue',1},
@@ -86,8 +96,19 @@ for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common
         -- SB's popup cues (WB_Common_Popup's PopupOpenSound, PopupCloseSound and PopupAcceptSound): the join popups'.
         {'popup_open',SOUND..'CommonPopup/UI_Common_Popup_Open_Cue',1},
         {'popup_close',SOUND..'CommonPopup/UI_Common_Popup_Close_Cue',1},
-        {'popup_confirm',SOUND..'CommonPopup/UI_Common_Popup_Confirm_Cue',1}}) do
+        {'popup_confirm',SOUND..'CommonPopup/UI_Common_Popup_Confirm_Cue',1},
+        -- The item wheel's open and focus sounds (WB_MainHUD_ItemEquip's): the emote wheel's.
+        {'wheel_open',SOUND..'UI_BodySuit_Open',1},{'wheel_move',SOUND..'ui_move',1}}) do
     table.insert(Ui.ASSETS,{a[1],path(a[2]),volume=a[3],alt=a.alt and path(a.alt)})
+end
+-- The F-key icons but F10's (the console's), key_f1 to key_f12, for the emote wheel's key: before the sounds.
+local first_sound=1
+while not Ui.ASSETS[first_sound].volume do first_sound=first_sound+1 end
+for n=1,12 do
+    if n~=10 then
+        table.insert(Ui.ASSETS,first_sound,{'key_f'..n,path(KEY..'F'..n)})
+        first_sound=first_sound+1
+    end
 end
 local VOLUME={}
 for _,a in ipairs(Ui.ASSETS) do VOLUME[a[1]]=a.volume end
@@ -842,6 +863,40 @@ function Ui.kit(opts)
         local left,top=x+pivot.X*p.w*(1-s),y+pivot.Y*p.h*(1-s)
         local function fit(at,size,room) return math.max(SAFE,math.min(at,room-SAFE-size*s)) end
         return x+fit(left,p.w,v.w)-left,y+fit(top,p.h,v.h)-top
+    end
+    -- The viewport in layout units ({w, h, s=its DPI scale}, read at most once a second) while the root is up; nil
+    -- otherwise. The emote wheel centres itself on it.
+    function self.screen()
+        if off or hidden or not built then return nil end
+        local v=nil
+        run(function() v=viewport(os.clock()) end)
+        return not off and v or nil
+    end
+    -- The mouse in the viewport's layout units (WidgetLayoutLibrary's GetMousePositionOnViewport: the cursor's place
+    -- even while hidden, outside the window too), x and y; nil while the root is not up. A refused call only degrades:
+    -- nil from then on, said once, the kit stays on.
+    local mouse_said=false
+    local function mouse_refused(what,why)
+        if not mouse_said then mouse_said=true; log('emote wheel: '..what..' refused: '..tostring(why)) end
+    end
+    function self.pointer()
+        if off or hidden or not built then return nil end
+        local ok,p=pcall(function()
+            return value_of(U.find(LAYOUT):GetMousePositionOnViewport(need(controller(),'no player controller')))
+        end)
+        if ok and p and tonumber(p.X) and tonumber(p.Y) then return p.X,p.Y end
+        mouse_refused('the mouse read',ok and 'no position' or p)
+    end
+    -- The mouse put at the viewport's centre (PlayerController's SetMouseLocation, in pixels): true once done. A
+    -- refused call only degrades, said once.
+    function self.centre_pointer()
+        local v=self.screen()
+        if not v then return false end
+        local ok,why=pcall(function()
+            need(controller(),'no player controller'):SetMouseLocation(math.floor(v.w*v.s/2),math.floor(v.h*v.s/2))
+        end)
+        if not ok then mouse_refused('the mouse move',why) end
+        return ok
     end
     -- A group's place (the marker follows her), kept on screen for an inside one: on change only.
     function self.move(name,x,y)

@@ -507,4 +507,34 @@ assert(T.cycle(T.en,'Kaanta',{count=1,difficulty=2},{count=0,difficulty=0})=='Ka
     ..'on your first playthrough (Normal).'..CYCLE_TAIL)
 assert(T.cycle(T.en,'Kaanta',{count=0,difficulty=1},{count=12,difficulty=1})=='Kaanta is on their first playthrough '
     ..'(Story); you are on New Game+ 12 (Story).'..CYCLE_TAIL)
+-- The emote wheel (ui/kit/wheel.lua, eve/ui/wheel.lua) and the TEST TOOLS pages, in every language: a hint within its
+-- 420-unit cell after its icon (Bold 30, about 17 units a column: 20 columns), the centre's word as wide; a page's tab
+-- within its 230 units (13 columns); a slot's name within two lines of its 370 units (Bold 36, about 21 units a
+-- column: 2 lines of 15), the waves' with their side; the refusals within the feed's 200 bytes; the pages' labels and
+-- values within the menu's columns. Each emote id of the wheel has a name: the two waves share hello.
+local EMOTES={'hello','salute','kungfu','toast','clap','heart','thumbsup','victory','kiss','bringiton','giveme','hush',
+    'reach','omg','what','worry','wish','wedidit','charm','confident','cutie','sweetie','squat','stretch','warmup','walk',
+    'shutter1','shutter2','shutter3','flow','nataraja','somersault','chariotstruggle','chariotcounter','chariotfail',
+    'chariottakedown','kalitakedown','kaligrab'}
+for name in pairs(R.TEXT) do
+    local w=T.pick(name)
+    for _,k in ipairs({'release','point','next','title'}) do fits(name..'.wheel.'..k,w.wheel[k],20) end
+    for _,k in ipairs({'world','busy','native','off'}) do
+        assert(Chat.clean(w.wheel[k])==w.wheel[k],name..'.wheel.'..k..': over 200 bytes or a control')
+    end
+    for k,text in pairs(w.emote.cats) do fits(name..'.emote.cats.'..k,text..' 2',13) end
+    for _,k in ipairs(EMOTES) do fits(name..'.emote.names.'..k,w.emote.names[k],30) end
+    for _,side in ipairs({'left','right'}) do fits(name..'.emote.'..side,w.emote[side]:format(w.emote.names.hello),30) end
+    fits(name..'.tools.done',w.tools.done,78)
+    for k,text in pairs(w.tools.eve) do fits(name..'.tools.eve.'..k,text,LABEL) end
+    for k,text in pairs(w.tools.dev) do fits(name..'.tools.dev.'..k,text,(k=='quest' or k=='player') and VALUE or LABEL) end
+    for k,text in pairs(w.tools.viewer) do fits(name..'.tools.viewer.'..k,text,LABEL) end
+    for _,k in ipairs({'nothing','leviathan','gardener','tendril','mann','nier','orcal','enya'}) do
+        fits(name..'.tools.viewer.'..k,w.tools.viewer[k],VALUE)
+    end
+end
+local n=0
+for _ in pairs(T.en.emote.names) do n=n+1 end
+assert(n==#EMOTES,'T.en.emote.names: '..n..' names')
+
 print('ui_text_test ok')

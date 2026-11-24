@@ -4,10 +4,12 @@
 -- T.ja of ui/text.lua (see there).
 return {
     title='協力プレイ',
-    head={modes='モード',
+    head={tools='テストツール',
+        modes='モード',
         session='セッション',settings='設定',help='ヘルプ',controls='操作',photo='フォトモード',partner='パートナー',
         ghost='ゴースト',saves='セーブ',combat='戦闘',display='ディスプレイ',chat='チャット',line='協力プレイ回線'},
-    row={scoreattack='スコアアタック',fishing='釣り大会',race_match='ドロレース',
+    row={emote_key='エモートホイールのキー',emote_pad='コントローラーのエモートホイール',
+        scoreattack='スコアアタック',fishing='釣り大会',race_match='ドロレース',
         photohunt='フォトハント',
         host='セッションをホスト',leave='セッションから退出',invite='フレンドを招待（Steam）',
         find='セッションを探す',copy='自分のコードをコピー',remove='%sを退出させる',join_code='コードで参加',
@@ -42,7 +44,8 @@ return {
         spectate='倒れたら仲間を観戦',
         boss_finish='ボスのとどめ（ホスト設定）',
         reset_keys='すべてのキーを初期化'},
-    value={on='オン',off='オフ',both='両方',notice='通知のみ',game='ゲームの言語',english='English',
+    value={emote_pad_dpad_left='十字キー左を長押し',
+        on='オン',off='オフ',both='両方',notice='通知のみ',game='ゲームの言語',english='English',
         ask='毎回確認',always='常に使用',together='交戦か30m以内',
         fought='交戦した敵のみ',aggro_game='両プレイヤー',aggro_host='ホストのみ',
         photo_pause_full='完全停止',photo_pause_scenery='背景は動く',compact='コンパクト',detailed='詳細',
@@ -354,4 +357,30 @@ return {
         entry='%d位 %s %d',sep='、',placed='あなたの順位：%d位（%d人中）。'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='オンライン',stuck='ゲームが一時停止したままのため、協力プレイメニューを開けませんでした。'},
+    -- The emote wheel (ui/kit/wheel.lua, eve/ui/wheel.lua): its hints, the centre's word while nothing is pointed at
+    -- (after StringTable_UI's UI_HUD_Gesture) and why it did not open.
+    wheel={title='ソーシャルアクション',release='離す：再生',point='指す',next='次のカテゴリー',world='エモートホイールはメニューを開いていないゲーム世界でのみ開きます。',
+        busy='今はエモートできません：EVEは手が離せません。',native='エモートホイールにはこのバージョンのネイティブ部分が必要です。',
+        off='エモートホイールはオフです（UIが停止）：coop emoteを使ってください。'},
+    -- The emote wheel's page and slot names where the game has none (the Cut clips) or gives none (ui_language),
+    -- after StringTable_UI's UI_Gesture_Category_* and UI_PhotoMode_Pose_*; left and right: the two waves.
+    emote={cats={greetings='挨拶',expression='表情',orders='命令',emotion='感情',pose='ポーズ',dance='ダンス',cut='カット'},
+        left='%s（左）',right='%s（右）',
+        names={hello='手を振る',salute='敬礼',kungfu='拳法の礼',toast='乾杯',clap='拍手',heart='ハンドハート',thumbsup='サムズアップ',
+        victory='勝利',kiss='キス',bringiton='かかってこい',giveme='ちょうだい',hush='静かに',reach='手を伸ばす',omg='OMG',what='何？',
+        worry='心配',wish='願い',wedidit='やった',charm='魅力',confident='自信',cutie='キュート',sweetie='スイート',squat='しゃがみ',
+        stretch='ストレッチ',warmup='準備運動',walk='歩く',shutter1='シャッター1',shutter2='シャッター2',shutter3='シャッター3',flow='流れ',
+        nataraja='ナタラージャ',somersault='宙返り',chariotstruggle='Chariot：もみ合い',chariotcounter='Chariot：反撃',
+        chariotfail='Chariot：失敗',chariottakedown='Chariot：とどめ',kalitakedown='Kali：とどめ',kaligrab='Kali：つかみ'}},
+    -- The co-op menu's TEST TOOLS pages (eve/ui/tools.lua, cutmenus/ui/devmenu.lua, fight/bosses/ui/viewer.lua).
+    tools={done='ゲームに要求しました。',
+        eve={fly='デバッグ飛行',slowmo='スローモーション',glide='滑空'},
+        dev={title='開発者メニュー',eve='EVE',enemies='EVEの近くの敵',panels='パネル',nodamage='ダメージなし',stealth='敵から隠れる',
+        speed150='速度x1.5',speed200='速度x2',attack5='ダメージx5（加算）',attack30='ダメージx30（加算）',gauges='BetaとBurst回復',
+        tachy='Tachy回復',tachyfull='Tachyを満タン',heal='体力全回復',hp1='体力を1に',nolockswitch='ロックオンはオフのまま',
+        enemynodamage='ダメージを受けない',enemynoai='行動停止',enemyimmortal='死なない',enemyshield1='シールドを1に',
+        enemybalance1='バランスを1に',enemyclear='敵をクリア',clear='すべてクリア',devinfo='開発者パネル',quest='クエスト',player='プレイヤー情報'},
+        viewer={title='カットモデル',model='モデル',part='パーツ',skin='スキン',show='表示',cam='フリーカメラ',remove='削除',nothing='何も表示なし',
+        leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieRの機械',orcal='Orcalの試作',
+        enya='Enyaの試作'}},
 }

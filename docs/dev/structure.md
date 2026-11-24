@@ -53,7 +53,7 @@ The shared pieces are never turned off. They require and include no module.
 | --- | --- |
 | `main.lua`, `main/` | The entry and the runtime: boot, base, the module loader, `coop ui` and `coop off`, the UI's build order, input, the frame loop, the 250 ms loop, the key binds |
 | `core/` | Helpers for every module: the files shared with the native part, settings, keys, UE4SS helpers, EVE and her world, the display actors, text lines, the row batches' flow (`core/enemy.lua`) |
-| `ui/kit/` | The on-screen kit, the menu, notices, the guide, the pause menu's Online tab, `coop guide` and `coop keys` |
+| `ui/kit/` | The on-screen kit, the menu (with the modules' TEST TOOLS pages each module exports: `eve_page`, `devmenu_page`, `viewer_page`), the wheel (`ui/kit/wheel.lua`, which the emote wheel opens), notices, the guide, the pause menu's Online tab, `coop guide` and `coop keys` |
 | `ui/text.lua`, `ui/text/` | The text tables, one file per language, with each module's translated name in `modules`; the guide's words; the culture pick |
 | `native/src/game/` | `memory.h` and the headers that more than one module reads |
 | `native/src/link/` | The Steam link |

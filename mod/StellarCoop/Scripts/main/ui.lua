@@ -40,10 +40,30 @@ if M.settings then
     M.menu=require('ui.kit.menu').new({kit=M.kit,link=M.link,settings=M.settings,look=M.look,
         puppet=require('main.loader').view(M,'puppet'),run=M.run,log=log,version=M.VERSION,
         chat=require('main.loader').view(M,'box'),code=require('main.loader').view(M,'code_box'),guide=M.guide,
+        -- The modules' TEST TOOLS pages, read at each draw: an off module's stub gives no title, so no row.
+        pages=function()
+            local list={}
+            for _,name in ipairs({'eve_page','devmenu_page','viewer_page'}) do
+                if type(M[name])=='table' then list[#list+1]=M[name] end
+            end
+            return list
+        end,
         sessions=setmetatable({open=function(...)
             if M.off_modules['online.session'] then return false,'online sessions are off until the mod reloads' end
             return M.sessions.open(...)
         end},{__index=require('main.loader').view(M,'sessions')})})
+    -- The kit's wheel (ui/kit/wheel.lua), over the menu: the emote wheel (eve/ui/wheel.lua) opens it. Built behind a
+    -- guard: a wheel that does not load or build is off until the mod reloads. Its open refuses, its other calls do
+    -- nothing (main/loader.lua's stub). The kit, the menu and the keys go on.
+    local built,wheel=pcall(function()
+        return require('ui.kit.wheel').new({kit=M.kit,theme=Ui.THEME,words=M.words,reads=M.wheel_reads})
+    end)
+    if not built then
+        log('wheel: off until the mod reloads: '..tostring(wheel))
+        wheel=setmetatable({open=function() return false,'off','the wheel did not build' end},
+            {__index=require('main.loader').STUB})
+    end
+    M.wheel=wheel
     require('main.loader').build(M,'online.session','create',Ui)
     require('main.loader').build(M,'online.saves','saves',Ui)
     require('main.loader').build(M,'online.lobby','screens',Ui)

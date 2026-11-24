@@ -4,10 +4,12 @@
 -- T['zh-Hant'] of ui/text.lua (see there).
 return {
     title='合作模式',
-    head={modes='模式',
+    head={tools='測試工具',
+        modes='模式',
         session='房間',settings='設定',help='說明',controls='按鍵',photo='相片模式',partner='隊友',ghost='幻影',
         saves='存檔',combat='戰鬥',display='顯示',chat='聊天',line='合作線路'},
-    row={scoreattack='得分挑戰',fishing='釣魚大賽',race_match='DORO競速',
+    row={emote_key='表情輪盤按鍵',emote_pad='手把表情輪盤',
+        scoreattack='得分挑戰',fishing='釣魚大賽',race_match='DORO競速',
         photohunt='拍照尋寶',
         host='建立房間',leave='離開房間',invite='邀請好友（Steam）',find='尋找房間',copy='複製我的代碼',
         remove='移除%s',join_code='用代碼加入',chat='聊天',options='選項',report='撰寫錯誤報告',close='關閉',
@@ -38,7 +40,8 @@ return {
         spectate='倒地時觀戰隊友',
         boss_finish='頭目終結技（主機）',
         reset_keys='重設所有按鍵'},
-    value={on='開',off='關',both='暫停並通知',notice='僅通知',game='遊戲語言',english='English',
+    value={emote_pad_dpad_left='長按十字鍵左',
+        on='開',off='關',both='暫停並通知',notice='僅通知',game='遊戲語言',english='English',
         ask='詢問',always='總是',together='交戰或30公尺內',fought='僅限交戰的敵人',
         aggro_game='兩位玩家',aggro_host='僅限主機',
         photo_pause_full='完全暫停',photo_pause_scenery='場景保持動態',compact='精簡',detailed='詳細',
@@ -322,4 +325,29 @@ return {
         entry='第%d名 %s %d分',sep='，',placed='你的名次：第%d名，共%d人。'},
     -- The pause menu's Online tab (ui/kit/pause_tab.lua): its word and the notice when the game stays paused.
     pause_tab={tab='線上',stuck='遊戲仍處於暫停狀態，因此合作選單沒有開啟。'},
+    -- The emote wheel (ui/kit/wheel.lua, eve/ui/wheel.lua): its hints, the centre's word while nothing is pointed at
+    -- (after StringTable_UI's UI_HUD_Gesture) and why it did not open.
+    wheel={title='社交動作',release='放開：播放',point='指向',next='下一類別',world='表情輪盤只在遊戲世界中且沒有開啟選單時開啟。',busy='現在無法做表情：EVE正忙。',
+        native='表情輪盤需要此版本的原生部分。',off='表情輪盤已關閉（介面已停止）：請用 coop emote。'},
+    -- The emote wheel's page and slot names where the game has none (the Cut clips) or gives none (ui_language),
+    -- after StringTable_UI's UI_Gesture_Category_* and UI_PhotoMode_Pose_*; left and right: the two waves.
+    emote={cats={greetings='問候',expression='表情',orders='命令',emotion='情緒',pose='姿勢',dance='舞蹈',cut='刪減'},
+        left='%s（左）',right='%s（右）',
+        names={hello='揮手',salute='敬禮',kungfu='抱拳禮',toast='乾杯',clap='鼓掌',heart='雙手比心',thumbsup='按讚',victory='勝利',
+        kiss='飛吻',bringiton='放馬過來',giveme='給我',hush='噓',reach='伸手',omg='OMG',what='什麼？',worry='擔心',wish='許願',
+        wedidit='我們做到了',charm='魅力',confident='自信',cutie='可愛',sweetie='甜心',squat='深蹲',stretch='伸展',warmup='熱身',
+        walk='行走',shutter1='抓拍1',shutter2='抓拍2',shutter3='抓拍3',flow='流動',nataraja='舞王式',somersault='空翻',
+        chariotstruggle='Chariot：纏鬥',chariotcounter='Chariot：反擊',chariotfail='Chariot：失敗',
+        chariottakedown='Chariot：處決',kalitakedown='Kali：處決',kaligrab='Kali：抓取'}},
+    -- The co-op menu's TEST TOOLS pages (eve/ui/tools.lua, cutmenus/ui/devmenu.lua, fight/bosses/ui/viewer.lua).
+    tools={done='已請求遊戲執行。',
+        eve={fly='除錯飛行',slowmo='慢動作',glide='滑翔'},
+        dev={title='開發者選單',eve='EVE',enemies='EVE附近的敵人',panels='面板',nodamage='無傷害',stealth='對敵人隱身',speed150='速度x1.5',
+        speed200='速度x2',attack5='傷害x5（疊加）',attack30='傷害x30（疊加）',gauges='Beta和Burst回復',tachy='Tachy回復',
+        tachyfull='充滿Tachy',heal='生命全滿',hp1='生命設為1',nolockswitch='鎖定保持關閉',enemynodamage='不受傷害',enemynoai='停止行動',
+        enemyimmortal='無法死亡',enemyshield1='護盾設為1',enemybalance1='平衡設為1',enemyclear='清除敵人',clear='全部清除',
+        devinfo='開發者面板',quest='任務',player='玩家資訊'},
+        viewer={title='刪減模型',model='模型',part='部位',skin='外觀',show='顯示',cam='自由鏡頭',remove='移除',nothing='未顯示',
+        leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR機械',orcal='Orcal原型',
+        enya='Enya原型'}},
 }

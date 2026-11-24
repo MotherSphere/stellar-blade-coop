@@ -59,6 +59,13 @@ DevMenu.ROWS={
 }
 local BY={}
 for _,r in ipairs(DevMenu.ROWS) do BY[r[1]]=r end
+-- The lasting rows the TEST TOOLS page shows as switches (cutmenus/ui/devmenu.lua), the attack rows aside (they add
+-- up: buttons there); what each dispel row ends of them: clear every one but the lock-on's, enemyclear the enemies',
+-- lockswitch the lock-on's.
+DevMenu.LASTING={'nodamage','stealth','speed150','speed200','gauges','tachy','nolockswitch','enemynodamage','enemynoai',
+    'enemyimmortal'}
+local ENDS={clear={'nodamage','stealth','speed150','speed200','gauges','tachy','enemynodamage','enemynoai',
+    'enemyimmortal'},enemyclear={'enemynodamage','enemynoai','enemyimmortal'},lockswitch={'nolockswitch'}}
 function DevMenu.row(name) return BY[name] end -- The row of that name, or nil.
 local USE='Use: coop devmenu [list|<row>]'
 local why=U.why
@@ -85,6 +92,10 @@ function DevMenu.new(o)
     -- outlives a game exit without coop off (the effects do not), so the next run's first coop off dispels once with
     -- nothing to remove; a per-run token would end that.
     local asked=store.load()~=nil
+    -- The lasting rows the game took in this Lua load and no dispel row ended since (the mod does not read the game's
+    -- effects: a save load may end them unseen).
+    local lasting={}
+    function self.on(name) return lasting[name]==true end
     -- One row by name: every ID first, so a row runs whole or not at all, then the target and the calls.
     local function run(name)
         local row=BY[name]
@@ -109,6 +120,8 @@ function DevMenu.new(o)
             end
             log(string.format('devmenu %s: SBApplyEffectMe %s (%d) on EVE (guid %d)',name,row[2][i],id,guid))
         end
+        for _,r in ipairs(ENDS[name] or {}) do lasting[r]=nil end
+        if not ENDS[name] then lasting[name]=true end -- Only the LASTING names are ever read.
         return true,'devmenu '..name..' asked of the game: '..row[3]
     end
     function self.command(name,extra)
@@ -127,7 +140,7 @@ function DevMenu.new(o)
             local ok,said=run(name)
             if not ok then log('coop off: devmenu '..name..' not asked: '..said) end
         end
-        asked=false
+        asked,lasting=false,{}
         store.clear()
     end
     return self

@@ -33,6 +33,12 @@ bool pad_released_hook(void *handler, uint64_t key, int32_t id, bool repeat) {
   return game_function<SlateButton>(coop::slate::kOriginals[2])(handler, key, id, repeat);
 }
 
+// Whether one of SB's windows is in front: XInput and GetAsyncKeyState answer whatever window is.
+bool game_in_front() {
+  DWORD owner = 0;
+  return GetWindowThreadProcessId(GetForegroundWindow(), &owner) && owner == GetCurrentProcessId();
+}
+
 void poll_pad(uint64_t now) {
   const bool slate = pad_slate;
   const XInputGetStateFn get = xinput_get;
@@ -41,8 +47,7 @@ void poll_pad(uint64_t now) {
   // XInput answers whatever window is in front: with another program's there, the pad is that program's. Nothing is
   // read and the held state goes (a disconnect for ui/pad.h), so nothing acts on a menu the player cannot see. The
   // hooks' holds go too: Slate may never deliver the release of a button held across an alt-tab.
-  DWORD owner = 0;
-  if (!GetWindowThreadProcessId(GetForegroundWindow(), &owner) || owner != GetCurrentProcessId()) {
+  if (!game_in_front()) {
     if (slate)
       pad_keys.clear();
     pad.step(coop::PadState{}, now);
@@ -59,6 +64,8 @@ void poll_pad(uint64_t now) {
     one.buttons = x.Gamepad.wButtons;
     one.lx = x.Gamepad.sThumbLX;
     one.ly = x.Gamepad.sThumbLY;
+    one.rx = x.Gamepad.sThumbRX;
+    one.ry = x.Gamepad.sThumbRY;
     return true;
   });
   pad_seen = pad_slots.answered();

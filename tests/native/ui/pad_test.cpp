@@ -4,11 +4,12 @@
 // The pad's events for the co-op menu, checked on the build machine (no Windows, no XInput): edges, the held
 // direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB, RB and Y, a disconnect,
 // the ring and the Online tab's event posted into it, the slots asked at each poll and PadKeys (the game's
-// controller events as one read).
+// controller events as one read); the emote wheel's D-pad Left hold, right stick sector and held buttons.
 #include "ui/pad.h"
 
 #include <cassert>
 #include <cstdio>
+#include <string>
 #include <vector>
 
 using coop::Pad;
@@ -39,7 +40,7 @@ int main() {
                 PadState::Y == 0x8000);
   static_assert(Pad::kUp == 1 && Pad::kDown == 2 && Pad::kLeft == 3 && Pad::kRight == 4 && Pad::kSelect == 5 &&
                 Pad::kBack == 6 && Pad::kMenu == 7 && Pad::kTabLeft == 8 && Pad::kTabRight == 9 && Pad::kBike == 10 &&
-                Pad::kRefresh == 11 && Pad::kPauseTab == 12);
+                Pad::kRefresh == 11 && Pad::kPauseTab == 12 && Pad::kWheel == 13);
   static_assert(coop::slate::kSlots[0] == coop::slate::kHandlerVtable + 0x88 &&
                 coop::slate::kSlots[1] == coop::slate::kHandlerVtable + 0x90 &&
                 coop::slate::kSlots[2] == coop::slate::kHandlerVtable + 0x98 && coop::slate::kHandlerAt == 0x118);
@@ -469,6 +470,65 @@ int main() {
     for (int i = 0; i < 9; ++i)
       pad.post(Pad::kPauseTab);
     assert(drain(pad).size() == coop::kPadRing);
+  }
+
+  { // The right stick's sector: 0 inside the dead zone, then 5 degree sectors clockwise from up.
+    assert(coop::stick_sector(0, 0) == 0 && coop::stick_sector(16383, 0) == 0 && coop::stick_sector(0, -16383) == 0);
+    assert(coop::stick_sector(0, 16384) == 1 && coop::stick_sector(0, 32767) == 1);
+    assert(coop::stick_sector(32767, 0) == 19 && coop::stick_sector(0, -32768) == 37);
+    assert(coop::stick_sector(-32768, 0) == 55 && coop::stick_sector(-200, 32767) == 72);
+    assert(coop::stick_sector(32767, 32767) == 10); // 45 degrees: the start of the tenth sector.
+    assert(coop::stick_sector(11585, 11585) == 0);  // 16383.6 long: inside.
+    assert(coop::stick_sector(11586, 11586) == 10); // 16385.1 long: out, at 45 degrees.
+  }
+  { // D-pad Left held 300 ms: the wheel's event once a hold, after the press's left; a release and a new hold again.
+    Pad pad;
+    const PadState left = buttons(PadState::DPAD_LEFT);
+    pad.step(left, 0);
+    assert(drain(pad) == V{Pad::kLeft});
+    pad.step(left, 299);
+    assert(drain(pad).empty());
+    pad.step(left, 300);
+    assert(drain(pad) == V{Pad::kWheel});
+    pad.step(left, 900);
+    assert(drain(pad).empty() && (pad.held() & PadState::DPAD_LEFT));
+    pad.step(buttons(0), 916);
+    assert(pad.held() == 0);
+    pad.step(left, 932), pad.step(left, 1232);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kWheel}));
+    pad.step(left, 1300), pad.step(PadState{}, 1316); // No pad: the hold and the read are forgotten.
+    assert(pad.held() == 0 && pad.sector() == 0);
+    pad.step(left, 1332), pad.step(left, 1500);
+    assert(drain(pad) == V{Pad::kLeft});
+  }
+  { // The right stick: the last step's sector, from XInput's slots and from PadKeys (the controller pushed furthest).
+    Pad pad;
+    PadState s = buttons(0);
+    s.rx = 32767;
+    pad.step(s, 0);
+    assert(pad.sector() == 19 && drain(pad).empty()); // The right stick makes no event.
+    PadSlots slots;
+    PadState one = buttons(0);
+    one.rx = -32768;
+    s = slots.poll(0, [&](unsigned slot, PadState &got) {
+      if (slot != 0)
+        return false;
+      got = one;
+      return true;
+    });
+    assert(s.rx == -32768 && s.ry == 0);
+    PadKeys keys;
+    for (size_t i = 0; i < PadKeys::kKeys; ++i)
+      keys.names[i] = 1000 + i;
+    const uint64_t RX = 1000 + PadKeys::kRightX, RY = 1000 + PadKeys::kRightY;
+    keys.analog(RX, 0, 0.3f), keys.analog(RY, 1, -1.f);
+    s = keys.state();
+    assert(s.rx == 0 && s.ry == -32767 && s.lx == 0 && s.ly == 0);
+    keys.clear();
+    s = keys.state();
+    assert(s.rx == 0 && s.ry == 0);
+    assert(std::string(PadKeys::kNames[PadKeys::kRightX]) == "Gamepad_RightX" &&
+           std::string(PadKeys::kNames[PadKeys::kRightY]) == "Gamepad_RightY");
   }
 
   std::puts("pad_test ok");

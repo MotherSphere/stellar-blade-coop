@@ -43,7 +43,9 @@ assert(kit_said('show true') and kit_said('input true') and kit_sounds[#kit_soun
 assert(lv.o.blocked()==true,'coop leviathan\'s free camera reads no key while the menu is open')
 assert(screen()=='SESSION||disabled\nHost a session||focus\nFind a session||normal\nJoin with a code||normal\n'
     ..'SETTINGS||disabled\n'
-    ..'Options||normal\nHELP||disabled\nGuide||normal\nWrite a bug report||normal\nClose||normal',screen())
+    ..'Options||normal\nTEST TOOLS||disabled\nEVE\'s cut moves||normal\nDeveloper menu||normal\nCut models||normal\n'
+    ..'HELP||disabled\nGuide||normal\n'
+    ..'Write a bug report||normal\nClose||normal',screen())
 assert(menu_view.title.s=='CO-OP' and menu_view.status.s=='Co-op: not in a session.' and menu_view.note.s==''
     and menu_view.hints[1].s=='Move' and menu_view.hints[3].s=='Back')
 assert(menu_view.hints.keys=='move enter escape','The menu moves on W, A, S, D (Z, Q on AZERTY) and the arrows')
@@ -133,8 +135,9 @@ key('F5'); to('Options'); key('RETURN')
 assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the status|F6|normal\n'
     ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nSet a race checkpoint|F9|normal\n'
     ..'Bike|On|normal\nGet on or off the bike|F3|normal\nRiding pose %(test%)|Hidden copy|normal\n'
-    ..'Gun mode|On|normal\nBring out or put away the rifle|F4|normal\nOnline tab in the pause menu|On|normal\n'
-    ..'Reset all keys||normal\nPHOTO MODE||disabled\nPhoto sync|Both|normal$'),screen())
+    ..'Gun mode|On|normal\nBring out or put away the rifle|F4|normal\nEmote wheel key|F2|normal\n'
+    ..'Emote wheel on a controller|D%-pad Left held|normal\nOnline tab in the pause menu|On|normal\n'
+    ..'Reset all keys||normal$'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
 assert(settings_text=='# mine\nname_tag=on\ncloth=off\n' and look.cloth==false and #rebuilds==rebuilt+1
@@ -478,12 +481,14 @@ key('F5'); to('Options'); key('RETURN'); to('Reset all keys')
 assert(select(2,focus())==''
     and screen():find('Set a race checkpoint|F9|normal\nBike|On|normal\nGet on or off the bike|F3|normal\n'
         ..'Riding pose (test)|Hidden copy|normal\nGun mode|On|normal\nBring out or put away the rifle|F4|normal\n'
-        ..'Online tab in the pause menu|On|normal\nReset all keys||focus\nPHOTO MODE',1,true))
+        ..'Emote wheel key|none|normal\nEmote wheel on a controller|D-pad Left held|normal\n'
+        ..'Online tab in the pause menu|On|normal\nReset all keys||focus\nPHOTO MODE',1,true),
+    'host_key=F2 in a file from before emote_key: none')
 key('RETURN')
 assert(menu_view.note.s=='Select again within 3 s to reset every key.' and settings_text:find('F12',1,true))
 clock=clock+1; key('RETURN')
 assert(settings_text=='# mine\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nhost_key=none\nfollow_key=F7\nrace_key=F9\n'
-    ..'bike_key=F3\ngun_key=F4\n'
+    ..'bike_key=F3\ngun_key=F4\nemote_key=F2\n'
     and logged('menu: every key at its default saved in coop-settings.txt'),settings_text)
 key('ESCAPE'); key('ESCAPE')
 settings_text='menu_key=F11\nstatus_key=F5\nhost_key=F2\n'
@@ -500,14 +505,15 @@ clock=clock+1
 key('F5'); assert(kit_said('show true') and logged('key F5: menu'),'The menu key\'s default, at once')
 key('ESCAPE')
 settings_text='menu_key=F11\nrace_key=F2\n'
-local ALL='[StellarCoop] OK: menu_key=F5 host_key=none status_key=F6 leave_key=F8 follow_key=F7 race_key=F9 bike_key=F3: '
-    ..'every key at its default\n'
+local ALL='[StellarCoop] OK: menu_key=F5 host_key=none status_key=F6 leave_key=F8 follow_key=F7 race_key=F9 '
+    ..'bike_key=F3 emote_key=F2: every key at its default\n'
 coop('keys','reset'); assert(last()==ALL,last())
 settings_text='race_key=F2\n'
 coop('keys','reset','all'); assert(last()==ALL and settings_text:find('race_key=F9\n',1,true))
 for _,typed in ipairs({{'keys'},{'keys','set'},{'keys','reset','chat'},{'keys','reset','all','now'}}) do
     coop(table.unpack(typed))
-    assert(last()=='[StellarCoop] STOP: Use: coop keys reset [menu|host|status|leave|follow|race|bike|all]\n',last())
+    assert(last()=='[StellarCoop] STOP: Use: coop keys reset [menu|host|status|leave|follow|race|bike|emote|all]\n',
+        last())
 end
 settings_text=nil
 coop('keys','reset'); assert(last()=='[StellarCoop] STOP: coop-settings.txt cannot be read\n',last())
@@ -790,5 +796,52 @@ end)()
     press('F11'); flush()
     assert(asked[#asked]=='host invitation 4' and not cr.open and #cr.calls==0,asked[#asked])
     in_world,kit_ready,settings_text=false,false,''
+end)()
+-- TEST TOOLS: EVE's cut moves (eve/ui/tools.lua) under it, between Options and Help; Select opens its page, Debug
+-- flight asks coop fly on through the console's path (a co-op save) and shows On once taken; off a co-op save the
+-- refusal shows under the rows; Back comes back to its row.
+;(function()
+    settings_text,status_text,link_mode,in_world='',with_slot('slot=coop index=4 marker=4\n'),'none',true
+    load_main(true)
+    kit_ready=true; quarter()
+    key('F5')
+    assert(screen():find('TEST TOOLS||disabled\nEVE\'s cut moves||normal\nDeveloper menu||normal\n'
+        ..'Cut models||normal\nHELP||disabled',1,true),screen())
+    to("EVE's cut moves"); key('RETURN')
+    assert(menu_view.title.s=="EVE's cut moves" and screen()=='Debug flight|Off|focus\nSlow motion|Off|normal\n'
+        ..'Glide|Off|normal',screen())
+    key('RETURN')
+    assert(asked[#asked]=='fly on' and select(2,focus())=='On' and menu_view.note.s=='',
+        menu_view.note.s)
+    status_text=with_slot('slot=main index=0 marker=4\n')
+    key('DOWN_ARROW'); key('RIGHT_ARROW')
+    assert(focus()=='Slow motion' and select(2,focus())=='Off' and menu_view.note.s:find('runs only on a co-op save',1,
+        true),menu_view.note.s)
+    key('ESCAPE')
+    assert(menu_view.title.s=='CO-OP' and focus()=="EVE's cut moves",'Back on its row')
+    -- The developer menu's page (cutmenus/ui/devmenu.lua): its rows from the top, No damage asked through coop
+    -- devmenu (on a co-op save), the panel through coop devinfo.
+    status_text=with_slot('slot=coop index=4 marker=4\n')
+    key('DOWN_ARROW'); key('RETURN')
+    assert(menu_view.title.s=='Developer menu' and screen():find('^EVE||disabled\nNo damage|Off|focus\n'),screen())
+    key('RETURN')
+    assert(dm.cmds[#dm.cmds][1]=='nodamage' and select(2,focus())=='On')
+    key('UP_ARROW') -- Over the heading, wrapping to the last row.
+    assert(focus()=='Developer panel' and select(2,focus())=='Off')
+    key('RIGHT_ARROW')
+    assert(asked[#asked]=='devinfo quest' and select(2,focus())=='Quests')
+    key('ESCAPE')
+    assert(focus()=='Developer menu')
+    -- The cut models' page (fight/bosses/ui/viewer.lua): Show asks coop leviathan show body and reads what is shown.
+    key('DOWN_ARROW'); key('RETURN')
+    assert(menu_view.title.s=='Cut models' and screen()=='Model|Leviathan|focus\nPart|body|normal\n'
+        ..'Skin|default|normal\nShow|Nothing shown|normal\nFree camera|Off|normal\nRemove||normal',screen())
+    to('Show'); lv.shown={'leviathan','body'}; key('RETURN')
+    assert(lv.cmds[#lv.cmds].who=='leviathan' and lv.cmds[#lv.cmds][1]=='show' and lv.cmds[#lv.cmds][2]=='body'
+        and select(2,focus())=='Leviathan body')
+    key('ESCAPE')
+    assert(focus()=='Cut models')
+    key('ESCAPE')
+    in_world,kit_ready,status_text=false,false,plain
 end)()
 io.stdout:write('menu_test ok\n')

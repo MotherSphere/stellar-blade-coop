@@ -15,7 +15,7 @@ for _,list in ipairs({{
         if (sub=='reset' or sub=='off') and arg==nil then
             if not M.kit then return false,'the co-op UI needs the Steam link' end
             if sub=='off' then -- The host's question waits for its 30 s: no answer from a UI that is gone.
-                M.menu.stop(); M.box.stop(); M.code_box.stop(); M.kit.stop()
+                M.menu.stop(); M.box.stop(); M.code_box.stop(); M.wheel.stop(); M.kit.stop()
                 return true,'co-op UI off until the mod reloads: notices on the line above EVE'
             end
             M.ui_reset()
@@ -28,6 +28,7 @@ for _,list in ipairs({{
         M.ghosts_off() -- The ghost and the members' ghosts off, each line they say logged (online/partner/wiring.lua).
         M.notice.stop()
         if M.menu then M.menu.stop() end
+        if M.wheel then M.wheel.stop() end -- The emote wheel closed, nothing played.
         if M.box then M.box.stop() end
         if M.saves_ui then M.saves_ui.stop() end
         if M.code_box then M.code_box.stop(); M.approval.stop() end

@@ -34,6 +34,7 @@ The main page shows the rows that fit your session:
 | Join with a code | Outside a session | Closes the menu and opens the [code box](playing-with-a-friend.md#join-codes) |
 | Chat | During a session, with chat on | Closes the menu and opens the [chat](#session-chat) box |
 | Options | Always | Opens the settings, below |
+| EVE's cut moves, Developer menu, Cut models | Under TEST TOOLS, each while its module is on | Opens that page of [test tools](#test-tools) |
 | Guide | Always | Closes the menu and opens the [guide](#guide) on its first page |
 | Write a bug report | Always | Runs `coop report` |
 | Close | Always | Closes the menu |
@@ -52,6 +53,23 @@ the icons are the keys the game's own key map gives those actions. If that widge
 own key images instead and `UE4SS.log` says
 `[StellarCoop] menu: part WB_Common_IndicatorBtnDefault_C: <why>; left out until the mod reloads` once. The game's
 hints in the menu and the guide have not been tested in game yet.
+
+### Test tools
+
+Under TEST TOOLS, three pages run test commands without the console. Each row runs its command as the console does:
+`UE4SS.log` gets the same `OK:` or `STOP:` line. A refusal shows under the rows. Esc or B goes back to the main
+page. No row runs `coop off`.
+
+| Page | Rows |
+| --- | --- |
+| EVE's cut moves | Debug flight, Slow motion and Glide, each On or Off: [`coop fly`](../eve/eve.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo), `coop slowmo` and [`coop glide`](../eve/eve.md#cut-glide-coop-glide) |
+| Developer menu | The rows of [`coop devmenu`](../cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo) as switches and buttons, with the developer panel (`coop devinfo`) |
+| Cut models | The model viewer of [`coop leviathan`](../fight/bosses.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril) and its six other commands: a model, a part, a skin, Show, Free camera and Remove |
+
+A switch shows what the mod asked in this Lua load and the game took. The mod does not read the game's own state, so
+a save load or a Ctrl+R can leave a switch out of step with the game. Most rows need a
+[co-op save](playing-with-a-friend.md#co-op-saves), as their commands do. None of these pages has been tested in game
+yet.
 
 ### Co-op line
 
@@ -284,7 +302,8 @@ it sees: `pad: XInput pads connected: 0` (the slots, 0 to 3), `pad: no XInput pa
 input back and reads XInput: `pad: Slate's handler given back (coop off); XInput instead`. The `engine=` line of
 `coop-status.txt` says which one it reads, `pad=slate` or `pad=xinput`. `UE4SS.log`
 says `[StellarCoop] pad: menu` each time a View hold asks to open or close the menu; `[StellarCoop] pad: bike` each
-time a D-pad Right hold asks for the bike. With an older `StellarCoop.dll`
+time a D-pad Right hold asks for the bike; `[StellarCoop] pad: wheel` each time a D-pad Left hold asks for the
+[emote wheel](#emote-wheel), or `pad: wheel ignored: <why>`. With an older `StellarCoop.dll`
 it says `Native pad unavailable (no controller in the co-op menu): <why>` once, and the keyboard works as before.
 
 While you watch a friend after a fall in a shared boss fight
@@ -312,8 +331,8 @@ closes.
 
 Each row of the Options page is a setting of [coop-settings.txt](settings.md#coop-settingstxt), except Reset all keys.
 The rows are in groups: Controls (the menu, status, leave, travel and race checkpoint keys, the [bike](../vehicles/bike.md) on or
-off, its key and its riding pose test, [gun mode](../fight/gunmode.md) on or off and its key (read when the mod loads), the
-[Online tab in the pause menu](#pause-menu), then Reset all keys), Photo mode, Partner (the name
+off, its key and its riding pose test, [gun mode](../fight/gunmode.md) on or off and its key (read when the mod loads), the [emote wheel](#emote-wheel)'s
+key and its D-pad Left hold, the [Online tab in the pause menu](#pause-menu), then Reset all keys), Photo mode, Partner (the name
 tag and the [partner HUD](#partner-hud)), Ghost (the looks: cloth, dyes, effects, her drone, her sounds, her face and
 shape keys; the [solid partner](../online/partner.md#solid-partner-experimental) and the send rate), Session (who
 can join a session you host, whether your Steam friends join without asking, the
@@ -408,6 +427,40 @@ The watchdog has not been tested in game yet.
 - The watchdog starts once it has seen the focus on the mod's UI. If that has not happened 2 s after the UI took the
   keys, `focus watchdog: our root never took the focus` shows once until the mod reloads, and nothing closes by itself.
   `focus watchdog off: the UI root refused bIsFocusable (<why>)` means it is off until the mod reloads.
+
+## Emote wheel
+
+Hold F2 to open the emote wheel at the centre of the screen, in the look of the game's own item wheel. Point at an
+emote with the mouse and release F2: EVE plays it, as `coop emote <name>` does. On a controller, hold D-pad Left for
+0.3 s, point with the right stick and release D-pad Left. The game keeps running and the camera stays still while the
+wheel is open.
+
+| Input | Keyboard and mouse | Controller |
+| --- | --- | --- |
+| Open | Hold F2 (`emote_key`) | Hold D-pad Left 0.3 s (`emote_pad`) |
+| Point | Move the mouse away from the centre | Push the right stick past half its range |
+| Play | Release F2, or a left click | Release D-pad Left, or A |
+| Previous or next page | Q (A on an AZERTY keyboard) or E; a right click is the next page | LB or RB |
+| Cancel | Esc | B |
+
+- The wheel has 8 pages: Greeting, Expression, Orders, Emotions, Pose 1, Pose 2, Dance and Cut. The pages and the
+  emotes have the game's own names in the game's language. The Cut clips and every name with `ui_language=english`
+  use the mod's words. It opens on the page you used last.
+- The emote you point at stays lit until you point at another one. Releasing with nothing pointed at plays nothing.
+- It does not open while EVE rides the bike, is in the air, attacks, dodges, takes a hit, fights or is held by a
+  cutscene, nor while the game is paused or one of the mod's screens is open. A notice says why. It closes with nothing
+  played when one of these starts while it is open, when the game's window loses the focus, in photo mode and at
+  `coop off`.
+- The game gets its input back 0.15 s after the wheel closes, so the key that closed it never reaches the game.
+- `UE4SS.log` says `[StellarCoop][EM] wheel: open on Greeting (F2)`, then `wheel: emote cutie (release)` or
+  `wheel: closed (<why>)`, or `wheel: not opened: <why>`.
+- It needs the `StellarCoop.dll` of this version. With an older one, `UE4SS.log` says
+  `Native emote wheel reads unavailable (no emote wheel): <why>` once and the wheel does not open.
+- If the wheel itself fails to build, `UE4SS.log` says `wheel: off until the mod reloads: <why>`. The wheel does not
+  open. The co-op menu, the keys and `coop emote` work as before.
+
+The wheel has not been tested in game yet. A tap of D-pad Left is still the game's; what the game does with a 0.3 s
+hold and whether a hit always closes the wheel are part of its game test ([Tests](../dev/tests.md)).
 
 ## Session chat
 

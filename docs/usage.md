@@ -26,11 +26,14 @@ The keys work with or without the console. They need the native part (`StellarCo
 | D-pad Right held 1 s, on a controller | The same as F3, in a world with none of the mod's screens or the game's menus open | `coop bike` |
 | F4 | Bring the NIKKE rifle out or put it away ([gun mode](fight/gunmode.md), experimental; without the optional `zNGMSpike_P` pak it shows only the notice "Gun mode: rebuilding"). `gun_key` in `coop-settings.txt` sets the key. G is left to Stellar Blade, which binds it to a menu action | `coop gun` |
 | A tap of D-pad Right (released within 0.4 s), on a controller | The same as F4, except while you watch a friend after a fall (spectate): that tap then switches the member you watch | `coop gun` |
+| F2, held | Open the [emote wheel](players/interface.md#emote-wheel). Point at an emote with the mouse and release F2 to play it | `coop emote <name>` |
+| D-pad Left held 0.3 s, on a controller | Open the emote wheel. Point with the right stick and release D-pad Left to play. A tap of D-pad Left stays the game's | `coop emote <name>` |
 | Left and Right arrows; D-pad or left stick left and right | While you watch a friend after a fall in a shared boss fight ([spectate](fight/enemies.md#down-in-a-boss-fight-spectate)) and no menu, screen or box is open, watch the previous or next member alive on your map | (none) |
 | Enter | During a session or in the SBO lobby, open the [chat](players/interface.md#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 
-You can change F3, F4, F5, F6, F7, F8 and F9 in the menu's Options page or in [coop-settings.txt](players/settings.md#coop-settingstxt).
+You can change F2, F3, F4, F5, F6, F7, F8 and F9 in the menu's Options page or in
+[coop-settings.txt](players/settings.md#coop-settingstxt). The same page turns the D-pad Left hold off (`emote_pad`).
 Only the file sets `host_key`. A key passes its action to the game thread, where the same checks as for the console
 command apply (`coop off` included). The log says `key F5: menu`. The other keys then log the usual `OK:` or `STOP:`
 line; the menu key logs one only when the menu cannot open.

@@ -121,6 +121,7 @@ LoopInGameThreadWithDelay(1,function()
         ok,message=M.guarded('kit',M.kit.tick,now)
         if message then M.report(ok,message) end
         M.guarded('menu',M.menu.tick,now)
+        M.guarded('wheel',M.wheel.tick,now)
         M.guarded('lobby',M.lobby.tick,now)
         M.guarded('sessions',M.sessions.tick,now)
         M.guarded('create',M.create.tick,now)

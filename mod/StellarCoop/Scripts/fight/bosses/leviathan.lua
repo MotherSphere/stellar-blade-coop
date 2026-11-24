@@ -706,6 +706,12 @@ function Leviathan.new(o)
     end
     -- Is the free camera on (fight/bosses/commands.lua: turning it off is never refused).
     function self.filming() return cam~=nil end
+    -- The shown display's creature word and mesh word, or nil (the TEST TOOLS page, fight/bosses/ui/viewer.lua).
+    function self.shown()
+        if shown then return shown.who.name,shown.name end
+    end
+    -- A creature's skin word, as its next show or the shown display has it.
+    function self.skin(name) return skins[name] or 'default' end
     -- One creature's console words. off removes the display whichever creature it shows.
     local function command(who,sub,a,b,c,d,e)
         if sub=='show' then
