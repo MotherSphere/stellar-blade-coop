@@ -253,12 +253,12 @@ with a dead EVE, whether EVE can move under the black and what SB's pause menu d
 
 ## The walls
 
-SB closes Xion with pieces of its level-design sublevels: the lift's doors, ladders, ledges, a rope, blocking volumes
-it turns on by events. SBO Xion loads none of them. A survey of 2026-11-24, made outside the game, read the collision
-of the 95 kept sublevels from the paks of build 26123051 and filled it from the two arrival points with EVE's capsule
-(radius 40, half height 95, step 45, floor up to 45 degrees). It found 22 places where one step, with no jump, leads
-to no ground, to a fall of more than 15 m or to a place with no way back. The cave at the gate point is the 23rd: it
-runs 138 m west with rocks that have no collision and ends on a shelf with no ground behind.
+SB's level-design sublevels hold the lift's doors and SB's ways down from three edges: ladders, ledges and a rope.
+SBO Xion loads none of them. A survey of 2026-11-24, made outside the game, read the collision of the 95 kept
+sublevels from the paks of build 26123051 and filled it from the two arrival points with EVE's capsule (radius 40,
+half height 95, step 45, floor up to 45 degrees). It found 22 places where one step, with no jump, leads to no
+ground, to a fall of more than 15 m or to a place with no way back. The cave at the gate point is the 23rd: it runs
+138 m west with rocks that have no collision and ends on a shelf with no ground behind.
 
 `walls/list.lua` holds 178 boxes for them, 598.1 m of wall. A box stands 50 cm beyond the last floor cell of its
 edge, from 2.5 m under the lowest floor of its hole to 7 m over the highest. It is 30 to 89 cm thick. A second fill
@@ -344,14 +344,15 @@ that closed inside SBO Xion costs one lookup.
 ### What the walls do not close
 
 - The edges EVE jumps over. With a single jump (184 cm) she reaches 26,913 m2 of floor, with a double jump (332 cm)
-  58,395 m2. Boxes along every such edge would take 13 to 16 km of wall. SB itself leaves these edges open: it has 19
-  fall volumes under the city and 10 return points. In SBO Xion the recovery does that job.
+  58,395 m2. Boxes along every such edge would take 13 to 16 km of wall. SB itself leaves these edges open: its
+  level-design sublevel `E04_Area01_A_LD_Visible` holds 19 fall volumes and 10 return points. In SBO Xion the
+  recovery does that job.
 - The two places west of the arrival square where EVE left the city in the game tests, near (-10823, 9941) and
   (-11272, 9451). Both are on the long bridge between the arrival square and the hub. SB's own block walls line both
-  sides of it (`BP_BlockWall33` to `54`). They are in SBO Xion too. They are 210 cm high, about 1.7 m over the deck,
-  and a jumping EVE passes over them. SB expects that fall: its volume `SBEffectVolume_Xion10_12` lies under the
-  bridge with a return point on the deck. No step hole was found within 6 m of either place. Raising those walls is
-  not built. The south bridge is the same case.
+  sides of it (`BP_BlockWall33` to `54`, 210 cm high). They are in SBO Xion too. Near the first place their top is
+  about 1.7 m over the deck, so a jumping EVE passes over them. SB expects a fall there: the return point of its fall
+  volume `SBEffectVolume_Xion10_12` is on the deck, at (-11011, 9938, -54), 1.9 m from the first place. No step hole
+  was found within 6 m of either place. Raising those walls is not built. The south bridge is the same case.
 - The roofs and decks outside the city that a jump reaches.
 - The view. The cave wall is invisible, so the cave is still seen behind it.
 
