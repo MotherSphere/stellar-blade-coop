@@ -7,7 +7,7 @@
 -- that SBO Xion's persistent level always loads. A room has an open doorway of ours where SB's closed door unit and
 -- wall panel stand, with street debris in front. rooms/list.lua names those pieces of SB, 23 rows. This part hides
 -- them (world.piece, world.piece_out: world/maps/sboxion/engine.lua), so EVE walks in through the door with no
--- loading screen, and puts them back (world.piece_back). Nothing is hidden in any other map and SB's own Xion is
+-- loading screen. It puts them back with world.piece_back. Nothing is hidden in any other map and SB's own Xion is
 -- never changed: the pieces are objects of SBO Xion's world, which a map change destroys.
 -- The pak: o.gate says whether it holds the five room levels. The pak of 2026-11-23 holds none: one log line an
 -- arrival, no level read, no piece asked.

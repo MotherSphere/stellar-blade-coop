@@ -34,7 +34,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `world/maps/sboxion/`: `engine`, `off`, `recover`, `rows`, `sboxion`, `title`, `world`;
-`world/maps/sboxion/walls/`: `list`, `walls`; `online/modes/nightop/`:
+`world/maps/sboxion/walls/`: `list`, `walls`; `world/maps/sboxion/rooms/`: `list`, `rooms`;
+`online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
 `online/partner/`: `assets`, `bench`, `bike_part`, `capture`, `commands`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
 `sentinel`; `online/photo/`: `off`; `story/quests/`: `off`, `wiring`; `online/modes/race/`: `commands`, `doro`,
@@ -948,6 +949,18 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   first path that is no wall. An error in a pass is logged once and ends the build with the walls made left up and
   `build ended` in the status. A save that raises is logged once a build and ends none. A load that raises is
   logged and sweeps nothing;
+- `world/maps/sboxion/rooms/list_test` checks `world/maps/sboxion/rooms/list.lua`: the five rooms with their levels,
+  the 23 rows as the level dumps of build 26123051 gave them, 11 whole components and 12 instances of 9 instanced
+  components in 8 sublevels, no piece twice, the instance count of each instanced component, each door a waypoint of
+  `data.lua`;
+- `world/maps/sboxion/rooms/rooms_test` runs `world/maps/sboxion/rooms/rooms.lua` over a fake world, a fake pak gate
+  and a fake store. With a pak that holds no room it logs one line and reads no level. With the rooms pak the five
+  rooms open in one look once their levels read loaded and visible. A room waits for a missing level and closes
+  after 30 looks. A row that is not found closes its room with nothing hidden. A row that cannot be hidden closes
+  its room with the rows before it put back, while the other rooms open. The put-back asks each hidden row once,
+  with a world that still stands and with one that is gone. `coop xion rooms off` puts the rows back and `on` opens
+  the rooms again. The store keeps one line of the values read before each hide, the next Lua load's sweep puts
+  those rows back, a store that raises stops nothing and a level read that raises is logged once;
 - `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
   `recover` alone and with `on`, `death` or `off`, `walls` alone and with `on` or `off`, the use line for any other
   word or one too many and the answer without the Steam link. Then `world/maps/sboxion/wiring.lua`: SBO Xion is
