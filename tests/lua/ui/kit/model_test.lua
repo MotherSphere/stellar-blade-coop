@@ -497,6 +497,35 @@ assert(s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name==
 assert(M.reset_keys('')=='host_key=none\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nfollow_key=F7\nrace_key=F9\n'
     ..'bike_key=F3\ngun_key=F4\n')
 
+-- TEST TOOLS: one row a module page (ctx.pages), between Options and Help, none without a page; Select opens it, its
+-- rows from its module, headings skipped and the cursor wrapping; a row's Select and step give 'run' and the row (with
+-- the direction), a row without step nothing; Back comes back to the main page on its row.
+local function module_page(title,rows) return {title=function() return title end,rows=function() return rows end} end
+local X={id='x',label='X',value='Off',select=function() end,step=function() end}
+local A=module_page('Alpha',{{head=true,label='H'},X,{id='y',label='Y',value=''}})
+local B=module_page('Beta',{{id='z',label='Z',value=''}})
+local tools={mode='none',pages={A,B}}
+menu=M.new()
+assert(ids(menu,tools)=='head:session host find join_code head:settings options head:tools page page head:help guide '
+    ..'report close',ids(menu,tools))
+assert(not ids(menu,{mode='none',pages={}}):find('tools',1,true),'No page, no heading')
+while menu.current(tools).page~=B do menu.move(tools,1) end
+assert(menu.select(tools,0,values)=='page' and menu.page()=='module' and menu.module()==B and menu.current(tools).id=='z')
+assert(menu.back()==nil and menu.page()=='main' and menu.module()==nil and menu.current(tools).page==B,'On its row')
+menu.move(tools,-1)
+assert(menu.current(tools).page==A and menu.select(tools,0,values)=='page' and menu.current(tools)==X,'Heading skipped')
+menu.move(tools,1)
+assert(menu.current(tools).id=='y')
+assert(menu.change(tools,values,1)==nil,'No step: nothing')
+menu.move(tools,1)
+assert(menu.current(tools)==X,'Wraps past the heading')
+local action,row,dir=menu.change(tools,values,-1)
+assert(action=='run' and row==X and dir==-1)
+action,row=menu.select(tools,1,values)
+assert(action=='run' and row==X)
+assert(menu.back()==nil and menu.current(tools).page==A)
+assert(menu.back()=='close')
+
 -- docs/players/interface.md's Options paragraph names the Controls rows in the model's order: the bike's key, its
 -- riding pose, gun mode's key, the Online tab, then Reset all keys.
 local f=assert(io.open('docs/players/interface.md','rb'))

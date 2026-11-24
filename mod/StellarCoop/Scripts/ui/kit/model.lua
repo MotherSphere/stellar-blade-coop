@@ -14,7 +14,13 @@ local M={}
 -- ctx: {mode=link.mode() ('none', 'host', 'guest', nil before Steam), chat=the chat box can open (a session, the SBO
 -- lobby too), code=our join code while we host with one (link.code), stranger=a player we let in who is not our Steam
 -- friend ({id=, name=}, link.stranger), values=the settings' values (M.read), for a row shown by another one's value,
--- members=the online session's other players past the handshake (link.members()'s), for their mute rows}.
+-- members=the online session's other players past the handshake (link.members()'s), for their mute rows,
+-- pages=the modules' TEST TOOLS pages (see below) whose title in these words is not nil, words=the player's words}.
+-- A module's page: {title=function(words) -> its name or nil (off: not listed), rows=function(words) -> its rows, made
+-- anew at each draw from the module's state: {id= (unique on the page: the cursor follows it), label=, value= ('' for
+-- a button), head=true (a heading: grey, the cursor skips it), select=function() -> ok, note (Enter, Space, A, a left
+-- click), step=function(dir) -> ok, note (left or right; nil: they do nothing)}}. note: the player's words, or the
+-- console's English refusal, under the rows.
 -- confirm: the row runs on a second Select within 3 s.
 local function none(c) return c.mode=='none' end
 M.MAIN={
@@ -29,6 +35,8 @@ M.MAIN={
     {id='chat',show=function(c) return c.chat end},
     {head='settings'},
     {id='options'},
+    {head='tools'},
+    {pages=true}, -- One row a module page (ctx.pages): Select opens it, Back comes back to its row.
     {head='help'},
     {id='guide'}, -- The first-launch guide (ui/kit/guide.lua); its word is ui/text/guide.lua's.
     {id='report'},
@@ -209,17 +217,28 @@ end
 -- start: the page it opens on, 'main' (the default) or 'line'.
 function M.new(start)
     local self,page,id,index,asked={},start or 'main',nil,1,nil -- asked: {id=, at=} the first Select of a confirm row.
-    local function name(row) return row.member and 'mute '..row.member or row.id or row.key end
+    local mod=nil -- The module page open (page 'module').
+    local function name(row)
+        return row.member and 'mute '..row.member or row.page and 'page '..row.n or row.id or row.key
+    end
     function self.page() return page end
+    function self.module() return mod end -- The module page open, or nil.
     -- The page's rows shown in this state, headers included. A header with no row under it is left out. Options ends
     -- with one mute row per other player of the online session, under Chat: {id='mute', member=her SteamID, name=,
     -- muted=}, the same table for her each call (the menu finds the cursor's row by identity).
-    local mutes={}
+    local mutes,pages={},{}
     function self.rows(ctx)
+        if page=='module' then return mod.rows(ctx.words) end
         local rows={}
         for _,row in ipairs(page=='main' and M.MAIN or page=='line' and M.LINE or M.OPTIONS) do
             if row.head and rows[#rows] and rows[#rows].head then rows[#rows]=nil end
-            if not row.show or row.show(ctx) then rows[#rows+1]=row end
+            if row.pages then
+                for n,p in ipairs(ctx.pages or {}) do
+                    local r=pages[p] or {id='page',page=p}
+                    r.n,pages[p]=n,r
+                    rows[#rows+1]=r
+                end
+            elseif not row.show or row.show(ctx) then rows[#rows+1]=row end
         end
         if page=='options' and (ctx.mode=='host' or ctx.mode=='guest') then
             for _,m in ipairs(ctx.members or {}) do
@@ -265,6 +284,10 @@ function M.new(start)
     -- A setting row's next value: 'set', key, text; nil on a key row (rebind), a non-setting row or at a range's end.
     function self.change(ctx,values,dir)
         local row=self.current(ctx)
+        if page=='module' then
+            if not row.step then return nil end
+            return 'run',row,dir
+        end
         if not row.key or row.bind then return nil end
         local new=M.step(row,values[row.key],dir)
         if not new then return nil end
@@ -277,8 +300,12 @@ function M.new(start)
     -- 'main' (the page changed: Co-op menu gives 'main'); 'rebind', key; or a setting's next value, as change(). nil
     -- when a first Select on Leave or Remove is pending (under 3 s old) and that row went (the session ended, the
     -- player left): the press was meant for it, not for its place.
+    -- On a module page: 'run' and its row (the caller runs its select). On a module page's row of the main page:
+    -- 'page' (the page changed).
     function self.select(ctx,now,values)
         local row=self.current(ctx)
+        if page=='module' then return 'run',row end
+        if row.page then page,mod,id,index='module',row.page,nil,1; return 'page' end
         if asked and asked.id~=name(row) then
             local live=now-asked.at<=3
             asked=nil
@@ -299,8 +326,14 @@ function M.new(start)
     end
     -- The menu closed (by menu_key; back() calls it for Esc): a first Select on Leave or Remove is forgotten.
     function self.close() asked=nil end
-    -- Back (Esc): from Options to the main page, on its Options row; from the main page or the line, 'close'.
+    -- Back (Esc): from Options to the main page, on its Options row; from a module page to the main page, on its row;
+    -- from the main page or the line, 'close'.
     function self.back()
+        if page=='module' then
+            for p,r in pairs(pages) do if p==mod then id=name(r) end end
+            page,mod,asked='main',nil,nil
+            return nil
+        end
         if page~='options' then self.close(); return 'close' end
         page,id,asked='main','options',nil
         return nil
