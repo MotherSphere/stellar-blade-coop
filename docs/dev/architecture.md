@@ -19,6 +19,10 @@ Stellar Blade Online has two parts, both in the mod folder `Mods/StellarCoop/`:
     writes the [day and night cycle](../world/daynight-internals.md)'s light into the world's env settings.
   - `coop_pad`, an exported function that the Lua loop calls each frame for the controller's events (see
     [Controller](#controller)).
+  - `coop_stick`, `coop_held` and `coop_fkey`, exported functions that the emote wheel (`ui/kit/wheel.lua`) calls each
+    frame while it is open: the right stick's 5 degree sector at the pads' last read, whether D-pad Left is held, and
+    the lowest F-key held (`GetAsyncKeyState`). Each answers how many of its arguments it hands back (73, 2 and 13
+    arguments), with its last value when no window of the game's is in front. They read no game memory.
   - `coop_pause_close`, an exported function that Lua calls on the game thread when the pause menu's Online tab closes
     the pause menu. It runs the game's own close, the one Back uses (see [Pause
     menu](../players/interface.md#pause-menu)).
@@ -479,10 +483,12 @@ from the game.
   degrees does not switch at each read), up and down repeating after 400 ms then every 120 ms, A for select, B for back,
   View held 1000 ms for the menu, once a hold, LB and RB for the tab to the left and right and Y for the Sessions
   screen's Refresh, once a press. D-pad Right held 1000 ms gives the [bike](../vehicles/bike-internals.md)'s event, once
-  a hold, after its right. A ring of 8 holds them; a full ring drops the newest.
+  a hold, after its right. D-pad Left held 300 ms gives the emote wheel's event (13), once a hold, after its left. A ring
+  of 8 holds them; a full ring drops the newest. `PadKeys` and the XInput slots also read the right stick
+  (`Gamepad_RightX`, `Gamepad_RightY`; `sThumbRX`, `sThumbRY`), which makes no event.
 - The DLL links no Lua, so each event travels as a result count. Lua calls
-  `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n. Lua hands back
-  the top n of the 11 arguments on its stack. n is the event, 1 to 11, or 0 when the ring is empty. `main/frame.lua`
+  `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n. Lua hands
+  back the top n of the 13 arguments on its stack. n is the event, 1 to 13, or 0 when the ring is empty. `main/frame.lua`
   takes at most 8 events a frame and `main/input.lua` routes them as the keys route theirs: the join popups get every
   word first while one is open, the SBO lobby's screens get the six navigation words while one is open and View closes
   it to the waiting room, the Sessions screen and the Create a session screen get every word while one is open (Y is the

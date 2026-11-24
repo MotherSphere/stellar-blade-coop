@@ -20,6 +20,7 @@ The file the mod writes:
 # the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
 # below), or none. race_key drops a checkpoint while you record a race track (coop race record). bike_key gets EVE on
 # the bike or off it (bike below), or none. gun_key brings the rifle out or puts it away (gun_mode below), or none.
+# emote_key, held, opens the emote wheel; releasing it plays the emote you point at; or none.
 menu_key=F5
 host_key=none
 status_key=F6
@@ -28,6 +29,9 @@ follow_key=F7
 race_key=F9
 bike_key=F3
 gun_key=F4
+emote_key=F2
+# The emote wheel on a controller: dpad_left (D-pad Left held 0.3 s opens it, its release plays) or off.
+emote_pad=dpad_left
 # The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
 # at speed drifts too, with no key. The defaults are R2 on a pad (it still picks up items in reach, as outside a race)
 # and B on the keyboard, which Stellar Blade leaves free.

@@ -107,6 +107,8 @@ tried in game yet.
   middle of an attack or a dodge.
 - Moving, a jump, a dodge or an attack ends it with a 0.25 s blend. So do `coop emote off`, `coop off`, a map change,
   photo mode and the game ending the clip itself. A Lua reload (Ctrl+R) stops a clip the earlier load left playing.
+- The [emote wheel](../players/interface.md#emote-wheel) plays the same clips: hold F2 (or D-pad Left on a controller),
+  point and release. It runs `coop emote <name>` and logs `[StellarCoop][EM] wheel:` lines (`eve/ui/wheel.lua`).
 
 The first six categories are those of the game's cut Social Action menu, whose own gestures never shipped. Their 31
 poses come from photo mode. Each one is a still of 0.2 s at most, played in a loop, so EVE takes the pose and keeps it
@@ -221,6 +223,9 @@ between it does nothing while `coop fly` is off. If another mod already changed
 those slots, it logs `level flight refused: ...` and leaves them alone: the space bar then starts no flight, and R2
 flies only while held. A fault in the hook takes the hook out for the rest of the run and says so on screen.
 
+Debug flight and Slow motion are also switches on the co-op menu's EVE's cut moves page
+([Test tools](../players/interface.md#test-tools)). Each shows On once the native part took its `on` in this Lua load.
+
 ## Cut glide: `coop glide`
 
 EVE's movement code still holds the end of a glide that was cut: a flag that makes her fall at a tenth of the normal
@@ -247,3 +252,5 @@ where she is. That is why it runs on co-op saves only.
 Its lines go to `UE4SS.log` with the `[StellarCoop][GL]` tag: `glide on EVE (velocity Z -120 cm/s)` when a glide
 starts and `glide ended (landed) after 2.4 s` when it ends, with `Jump released` or `flight or rising` instead of
 `landed` when that is what ended it.
+
+Glide is also a switch on the co-op menu's EVE's cut moves page ([Test tools](../players/interface.md#test-tools)).
