@@ -408,6 +408,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-bike-<steamid>-<saves><index>.txt` | Lua, each time the bike is parked at a new place, never in the SBO lobby | Where your [bike](../vehicles/bike.md#where-the-bike-stays) stands for that Steam account and save, one line: version 1, the map, its position and its rotation (see [The place per save](../vehicles/bike-internals.md#the-place-per-save)) |
 | `coop-bike-stand.txt` | Lua | While your parked bike stands in the world: its actor path, so the next Lua load (Ctrl+R) can remove it |
 | `coop-bike-copies.txt` | Lua | While the other players' parked bikes show: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |
+| `coop-xion-walls.txt` | Lua | While the walls of [SBO Xion](../world/maps/sboxion.md#the-walls) are up: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |
 | `coop-parked.txt` | Lua | Your parked bike's line (`park <map> <x> <y> <z> <pitch> <yaw> <roll>` or `none`), for a moment: the native part takes and deletes it at its next pass and sends it to the players linked with you |
 | `coop-keep.txt` | Lua | The object paths of the assets the mod keeps in memory, one a line, the whole list each time it grows, for a moment: the native part takes and deletes it at its next pass |
 | `coop-sbo.txt` | Lua | The object path of the SBO lobby's last menu camera, so the next Lua load (Ctrl+R) can remove it if it still stands |
