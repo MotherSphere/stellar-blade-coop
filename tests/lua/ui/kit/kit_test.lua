@@ -128,7 +128,8 @@ package.loaded.UEHelpers={GetPlayerController=function() ue4ss(); return pc end}
 local Ui=require('ui.kit.kit')
 local T=Ui.THEME
 local PATHS={} -- Asset name to object path.
-for _,a in ipairs(Ui.ASSETS) do PATHS[a[1]]=a[2] end
+local VOLUMES={}
+for _,a in ipairs(Ui.ASSETS) do PATHS[a[1]]=a[2]; VOLUMES[a[1]]=a.volume end
 local function reset()
     for _,o in pairs(registry or {}) do stores[o].alive=false end -- core/unreal.lua's cache looks them up again.
     calls,raise,modes,viewport,registry,loadable,constructed,logs,saved,since={},{},{},{},{},{},{},{},nil,0
@@ -1608,5 +1609,54 @@ do
     assert(count('load ')==0 and count('find /Game/')==0,'Every asset and the part class from the keep')
     Keep.reset()
 end
+
+-- The emote wheel's look (ui/kit/wheel.lua) by path: SB's item wheel pieces and centre, the mouse's and the F-keys' icons
+-- (F10's, the console's, left out), its two sounds; textures before the sounds.
+do
+    local TEX,want='/Game/Art/UI/Texture/',{wheel6='HUD/Wheel/ItemEquipWheel6Bg_Cut',
+        wheel6_focus='HUD/Wheel/ItemEquipWheel6Focus_Cut',wheel5='HUD/Wheel/ItemEquipWheel5Bg',
+        wheel5_focus='HUD/Wheel/ItemEquipWheelFocusRing_5bg',wheel4='HUD/Wheel/ItemEquipWheel4Bg_Cut',
+        wheel4_focus='HUD/Wheel/ItemEquipWheel4Focus_Cut',wheel3='HUD/Wheel/ItemEquipWheel3Bg_Cut',
+        wheel3_focus='HUD/Wheel/ItemEquipWheel3Focus_Cut',wheel_dots='HUD/Wheel/ItemEquipWheelDotLines',
+        wheel_pointer='HUD/Wheel/ItemEquipWheelPositionDotLine',wheel_blur='Common/blur_circle2',
+        key_mouse='Interaction/PC/KeyIcon_Mouse_Mouse2D',key_mouse_right='Interaction/PC/KeyIcon_Mouse_RightMouseButton'}
+    for n=1,12 do if n~=10 then want['key_f'..n]='Interaction/PC/KeyIcon_KeyBoard_F'..n end end
+    local function obj(p) return p..'.'..p:match('[^/]+$') end
+    for name,p in pairs(want) do assert(PATHS[name]==obj(TEX..p) and not VOLUMES[name],name) end
+    assert(PATHS.key_f10==nil)
+    assert(PATHS.wheel_open==obj('/Game/Sound/UI/UI_BodySuit_Open') and PATHS.wheel_move==obj('/Game/Sound/UI/ui_move'))
+    assert(VOLUMES.wheel_open==1 and VOLUMES.wheel_move==1)
+    local sound=false
+    for _,a in ipairs(Ui.ASSETS) do assert(a.volume or not sound,a[1]..': a texture after a sound'); sound=a.volume~=nil end
+end
+-- The wheel's screen, mouse read and centring: the viewport in layout units; GetMousePositionOnViewport's point;
+-- SetMouseLocation at the viewport's centre in pixels; a refusal of either only degrades (nil or false), said once,
+-- the kit stays on; nil and false while the root is not up.
+reset()
+k=kit()
+assert(k.screen()==nil and k.pointer()==nil and k.centre_pointer()==false,'Not up yet')
+up(k)
+special['WidgetLayoutLibrary.GetViewportSize']=function() return {X=1920,Y=1080} end
+special['WidgetLayoutLibrary.GetViewportScale']=function() return 0.5 end
+clock=clock+2
+local seen=k.screen()
+assert(seen.w==3840 and seen.h==2160 and seen.s==0.5)
+special['WidgetLayoutLibrary.GetMousePositionOnViewport']=function(_,_,who)
+    assert(who==pc,'The player controller as its world')
+    return {X=100,Y=-50}
+end
+local px,py=k.pointer()
+assert(px==100 and py==-50)
+assert(k.centre_pointer()==true)
+local moved=stores[pc].last.SetMouseLocation
+assert(moved[1]==960 and moved[2]==540,'In pixels')
+local said=#logs
+raise['WidgetLayoutLibrary.GetMousePositionOnViewport']='no mouse here'
+assert(k.pointer()==nil and #logs==said+1 and logs[#logs]:find('no mouse here',1,true) and k.ready())
+assert(k.pointer()==nil and #logs==said+1,'Said once')
+raise['PC.SetMouseLocation']='refused'
+assert(k.centre_pointer()==false and #logs==said+1 and k.ready())
+raise={}
+special['WidgetLayoutLibrary.GetMousePositionOnViewport']=nil
 
 print('ui_kit_test ok')
