@@ -169,7 +169,7 @@ local PROFILE='SB_InvisiblewallIgnoreCamera'
 local BLOCK_VOLUME=20 -- ECC_GameTraceChannel7, named BlockVolume in SB's DefaultEngine.ini.
 function Engine.wall(b)
     local name=U.value_of(FName(PROFILE,EFindName.FNAME_Find))
-    assert(U.text(name)==PROFILE,'the game has no name '..PROFILE)
+    assert(U.text(name):lower()==PROFILE:lower(),'the game has no name '..PROFILE)
     local d=Actors.spawn(eve():GetWorld(),b.at,{Pitch=0,Yaw=b.yaw,Roll=0},{path=CUBE,static=true})
     local ok,why=pcall(function()
         local c=d.mesh

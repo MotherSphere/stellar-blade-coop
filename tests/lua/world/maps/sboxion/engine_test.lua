@@ -281,11 +281,17 @@ made[PROFILE]=nil
 ok,why=pcall(Engine.wall,BOX)
 assert(not ok and tostring(why):find('no name '..PROFILE,1,true) and #spawned==4,tostring(why))
 made[PROFILE]=991
+-- wall_name_case: the game's name table gives a name back in the case it first met. The profile is the same one.
+local find_name=FName
+FName=function(alias,how) return fname(find_name(alias,how):ToString():upper(),991) end
+local shout=Engine.wall(BOX)
+assert(shout.read=='object type 20, collision on' and Engine.unwall(shout)==true)
+FName=find_name
 -- unwall: the actor it made, once; never another object met at its handle.
 assert(Engine.unwall(d)==true and a.dead==true)
 assert(Engine.unwall(d)==false,'A wall that is gone is not called')
 local e=Engine.wall(BOX)
-local other=spawned[5]
+local other=spawned[6]
 other.GetFullName=function() return 'Actor /Game/Other.Other:PersistentLevel.Lamp_3' end
 assert(Engine.unwall(e)==false and not other.dead,'Another object at the handle is left alone')
 -- wall_swept: an earlier Lua load's wall by its path, only while its root shows the cube.
