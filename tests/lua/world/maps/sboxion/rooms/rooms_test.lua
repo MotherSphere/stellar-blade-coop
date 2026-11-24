@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- SBO Xion's rooms (world/maps/sboxion/rooms/rooms.lua) over a fake world that lists levels and finds, hides and puts
--- back pieces, and a fake store. The list: ten rooms with their rows named by sublevel, actor, component and instance,
+-- SBO Xion's rooms (world/maps/sboxion/rooms/rooms.lua) over a fake store and a fake world that lists levels and
+-- finds, hides and puts back pieces. The list: ten rooms with their rows named by sublevel, actor, component and instance,
 -- the levels each needs and the game path the pak gate is asked for, one room at a time. A pak without the rooms: one
 -- log line an arrival, no level read, no piece asked. With the rooms, one line an arrival says how many the pak holds.
 -- With every level loaded and visible the arrival's first pass checks the rows of a room, hides them all and logs the
