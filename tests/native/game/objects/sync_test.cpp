@@ -10,8 +10,9 @@
 // apply limit per pass, the echo backstop, refusals logged once per env, a new partner, the status line, tags compared
 // without case, the watcher that sends the AltesLab trap floor's end and the catch-up by zone: when an env counts as
 // touched, the ask and its hold (asked again after a load or a close), the walk and its resume after a load, an ask
-// for an unknown zone, the receiver rule with the host's value winning and sent back, a c line older than a root of
-// ours (an answer or a send-back), a close in the middle of an answer and a partner that never answers.
+// for an unknown zone, the receiver rule with the host's value winning and sent back, her s line kept for a state held
+// out for us, a c line older than a root of ours (an answer or a send-back), a close in the middle of an answer and a
+// partner that never answers.
 #include "game/objects/sync.h"
 
 #include <algorithm>
@@ -967,6 +968,31 @@ void test_receive_rule() {
     assert(k.s.counters.kept == 1 && k.f.applied.empty() && k.take().empty());
   }
 }
+// Her live s line meets the catch-up's rule for a state held out for us. DED10_EnvS_040 starts Off; CallPuzzle, Off
+// and WaitPuzzle are kept pairs, On is not. Ours typed open (On, live or in its record): kept, host or guest. Ours
+// untouched, touched into a kept pair or not read at all: applied. A zone with no entry for that env: applied.
+void test_live_held() {
+  const std::pair<std::string, std::string> door{"Zone_DED10", "DED10_EnvS_040"};
+  for (bool host : {false, true}) {
+    for (const Value &ours : {Value{Where::live, "On", 1}, Value{Where::record, "On", 1}, Value{Where::live, "Off", 1},
+                              Value{Where::live, "WaitPuzzle", 1}, Value{}}) {
+      Side x;
+      x.g.host = host;
+      if (ours.where != Where::none)
+        x.f.values[door] = ours;
+      x.s.receive(T + "s 1 Zone_DED10 DED10_EnvS_040 CallPuzzle", x.g), x.pass();
+      const bool held = ours.tag == "On";
+      assert(x.f.applied.size() == size_t(!held) && x.s.counters.applied == uint64_t(!held));
+      assert(x.s.counters.kept == uint64_t(held) && x.s.counters.refused == 0);
+      if (ours.where != Where::none)
+        assert(x.f.values[door].tag == (held ? "On" : "CallPuzzle"));
+    }
+    Side z;
+    z.g.host = host, z.f.values[{"Zone_DED20", "DED10_EnvS_040"}] = Value{Where::live, "On", 1};
+    z.s.receive(T + "s 1 Zone_DED20 DED10_EnvS_040 CallPuzzle", z.g), z.pass();
+    assert(z.f.applied.size() == 1 && z.s.counters.kept == 0);
+  }
+}
 // Her c line read before our newer root reached her (DED20_EnvS_193: Closed at first, Open a kept pair). The asker
 // asks, her walk reads Open, then the asker closes the door. Her answer arrives after the asker's s line reached her:
 // the asker keeps its Closed, host or guest, and sends nothing back, so both worlds end Closed.
@@ -1173,6 +1199,7 @@ int main() {
   test_walk_resume();
   test_unknown_zone();
   test_receive_rule();
+  test_live_held();
   test_stale_answer();
   test_stale_send_back();
   test_receive_applies();
