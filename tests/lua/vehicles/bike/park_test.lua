@@ -65,3 +65,4 @@ assert(P.wire(w)=='park /game/lobby/lobby 1 -3 3 -123 -1 18000' and P.wire(nil)=
 local back=P.from_wire('park /a 1 -3 3 -123 -1 18000')
 assert(back.map=='/a' and back.at.Y==-3 and near(back.rot.Pitch,-1.23) and near(back.rot.Roll,180))
 assert(P.from_wire('none')==nil and P.from_wire('park /a 1 2')==nil and P.from_wire('park /a 1 2 3 4 5 99999')==nil)
+print('park_test ok')
