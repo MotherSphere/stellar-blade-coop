@@ -323,7 +323,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   number after 1 s, the numbers from 32768;
 - `cutmenus/mailbox_test` builds each `coop gift` notice through `tell` from a words table with a mark before every
   gift word. It fails when a notice is not that table's word whole (an English literal). It covers the loopback's own
-  sentences, the words' `friend` when the link gives no name and the reason of a stopped send in the log.
+  sentences, the words' `friend` when the link gives no name and the reason of a stopped send in the log. It also
+  stops a send with `coop off` before and after the remove: after it, the items wait in the gift file as a back entry
+  that a new mailbox (the next game start) gives back, or the log says they could not be given back.
   `main/boot_test` checks that `cutmenus/wiring.lua` hands it `M.tell`;
 - `online/partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked
   once a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes;

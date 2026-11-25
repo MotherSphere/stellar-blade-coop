@@ -20,7 +20,8 @@
 -- which queues SB's remove by alias for its logic thread: asked for more than she has, that remove takes what there is,
 -- so the count comes first); the native part reads again until the count fell by the gift's (SETTLE s of play at most:
 -- SB's logic, and its remove with it, stops while the game is paused or in photo mode, so that time does not count;
--- else nothing is sent and the items may be gone); the gift goes into the file, then its line ("s <id> <alias>
+-- else nothing is sent and the items may be gone; coop off in that wait leaves them in the file to come back, see
+-- stop()); the gift goes into the file, then its line ("s <id> <alias>
 -- <count>", link/protocol.h's gift line).
 -- Her game answers "a <id>" (kept in her mailbox) or "n <id> <why>": slot (not on a co-op save), full (BOX gifts wait
 -- already), item (not one of ITEMS), store (her file cannot be read or written). A refusal, no answer in WAIT s, a
@@ -435,11 +436,24 @@ function Mailbox.new(o)
         if sending then step(raw,t) end
         if pending and file then settle(raw,t) end
     end
-    -- coop off: the toast goes. A send between its remove and its entry in the file stops here with its items gone.
-    -- ponytail: so does one when Lua reloads in that wait (SETTLE s of play at most); an entry written before the
-    -- remove is the upgrade.
+    -- coop off: the toast goes. A send between its remove and its entry in the file stops here. Its items go into the
+    -- file as a back entry, which settle() gives back at the next game start on this co-op save: nothing ticks after
+    -- coop off, and the remove may still wait for SB's logic.
+    -- ponytail: a send stopped by a Lua reload in that wait (SETTLE s of play at most) loses its items; an entry
+    -- written before the remove is the upgrade.
     function self.stop()
+        local s=sending
         sending=nil
+        if s and s.step=='gone' then
+            local st,_,e=load()
+            local ok=false
+            if st then
+                st.back[#st.back+1]={id=new_id(),alias=s.alias,count=s.count}
+                ok,e=save(st)
+            end
+            log(string.format('send stopped by coop off after the remove: %s x%d %s',s.alias,s.count,ok
+                and 'come back at the next game start' or 'could not be given back ('..tostring(e)..')'))
+        end
         unshow()
     end
     -- Her gift: kept in the mailbox and answered a, or refused with n and why. A key already seen gets its first

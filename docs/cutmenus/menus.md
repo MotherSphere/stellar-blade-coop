@@ -252,9 +252,11 @@ These cases can still lose or double a gift:
 - Your friend's answer is lost as she leaves the session, or her link stays lost for more than 60 s while the gift
   line is on its way. The items come back to you, and her game keeps the gift if the line reaches it. The log shows
   `gift <id> comes back: ...`, and an answer that arrives after it shows `answer a <id> for no gift waiting`.
-- The game stops (a crash, `coop off`, a Lua reload) after the remove and before the gift's entry in your file, which
+- The game or the mod stops (a crash, a Lua reload) after the remove and before the gift's entry in your file, which
   can take up to the 10 s of play above plus 5 s for a read. The items are gone and nothing is sent: the log has a
-  `remove asked` line with no `sent` line after it.
+  `remove asked` line with no `sent` line after it. `coop off` in that wait sends nothing either. It writes the items
+  into your mailbox file as coming back, and they return the next time the game starts on that co-op save. The log
+  says `send stopped by coop off after the remove: PulseGrenade x2 come back at the next game start`.
 - The count does not fall by the gift's in those 10 s, because the game ran the remove later still or because an item
   you picked up meanwhile hid the drop. Nothing is sent. The notice says
   `Gift not sent. The items may be gone. UE4SS.log says why.` The log line is

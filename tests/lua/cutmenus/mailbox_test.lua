@@ -6,7 +6,8 @@
 -- its remove and add requests, the clocks and the toast. Covered: the line shapes link/protocol.h takes and the file's;
 -- the remove call's five arguments; a send's refusals with nothing asked, its read, the remove, the reads until the
 -- count fell (time paused not counted), the entry written before its line, and every way it stops with the items still
--- there or maybe gone; her answers (kept, refused, nolink, nolink for a send again, late); sends again every AGAIN s
+-- there or maybe gone; coop off after the remove, which writes them back into the file for the next game start (or
+-- logs that it could not); her answers (kept, refused, nolink, nolink for a send again, late); sends again every AGAIN s
 -- with the same id, the items coming back after WAIT s, when the friend left (not while her link is lost) or with the
 -- loopback gone, through the shop's grant, written out of the file before it (nothing given while the file cannot be
 -- written), tried again after RETRY s when it raises; her gifts kept, answered and shown, refused when off a co-op
@@ -344,6 +345,33 @@ assert(says[#says]=='Gift not sent. The items came back. UE4SS.log says why.',sa
 assert(logs[#logs]:find(' stopped after the remove: the gift file was not written: disk full; the items came back$'),
     logs[#logs])
 assert(not asked[#asked]:find('^gift'),'No line for a gift with no entry')
+-- coop off between the remove and the entry: no line; the items go into the file as a back entry, which the next game
+-- start on this co-op save gives back (nothing ticks after coop off). Before the remove, coop off leaves nothing.
+ask=start('1','2')
+with_items(ask,'7')
+tick()
+assert(#removes==1)
+n=#asked
+mail.stop()
+st=M.read(files[FILE])
+assert(#st.back==1 and st.back[1].alias=='HP_Potion' and st.back[1].count==2 and #asked==n,'A back entry, no line')
+assert(logs[#logs]=='send stopped by coop off after the remove: HP_Potion x2 come back at the next game start',
+    logs[#logs])
+adds={}
+M.new(opts).tick()
+assert(#adds==1 and adds[1][3]:ToString()=='HP_Potion' and adds[1][4]==2 and #M.read(files[FILE]).back==0)
+assert(says[#says]=='Gift returned: 2 HP_Potion are back in your inventory.',says[#says])
+ask=start('1','2')
+mail.stop()
+assert(#removes==0 and #M.read(files[FILE]).back==0,'Stopped before the remove: nothing')
+ask=start('1','2')
+with_items(ask,'7')
+tick()
+write_fails='disk full'
+mail.stop()
+write_fails=nil
+assert(logs[#logs]=='send stopped by coop off after the remove: HP_Potion x2 could not be given back (disk full)',
+    logs[#logs])
 
 -- 6. Answers that bring the items back: refused, nolink; the grant tried again after RETRY s when it raises.
 local function sent(item,count,have)
