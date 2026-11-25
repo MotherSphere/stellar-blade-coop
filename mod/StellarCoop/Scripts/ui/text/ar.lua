@@ -136,7 +136,7 @@ return {
         ['world.daynight']='النهار والليل',['cutmenus']='القوائم المحذوفة',['online.saves']='ملفات الحفظ التعاونية',
         ['world.teamshop']='متجر الفريق',['fight.gunmode']='وضع البندقية',['online.modes.scoreattack']='سباق النقاط',
         ['online.modes.fishing']='بطولة صيد السمك',['online.modes.photohunt']='صيد الصور',
-        ['world.maps.sboxion']='SBO Xion'},
+        ['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     fight={on='مشاركة الأعداء مفعّلة: تم ربط %d من الأعداء.',one='مشاركة الأعداء مفعّلة: تم ربط عدو واحد.',
         scale='نقاط صحة الأعداء %d%%، والتوازن %d%% (إعداد المضيف).',
         off='توقفت مشاركة الأعداء. يذكر coop-link.log السبب.',

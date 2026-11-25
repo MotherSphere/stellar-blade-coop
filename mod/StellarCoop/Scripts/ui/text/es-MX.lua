@@ -145,7 +145,7 @@ return {
         ['online.saves']='Partidas guardadas co-op',
         ['world.teamshop']='Tienda del equipo',['fight.gunmode']='Modo rifle',
         ['online.modes.scoreattack']='Ataque de puntos',['online.modes.fishing']='Torneo de pesca',
-        ['online.modes.photohunt']='Caza de fotos',['world.maps.sboxion']='SBO Xion'},
+        ['online.modes.photohunt']='Caza de fotos',['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     fight={on='Enemigos compartidos activados: %d enemigos vinculados.',
         one='Enemigos compartidos activados: 1 enemigo vinculado.',
         scale='Salud enemiga %d%%, equilibrio %d%% (configuración del anfitrión).',

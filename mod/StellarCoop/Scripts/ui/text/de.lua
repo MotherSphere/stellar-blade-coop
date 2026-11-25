@@ -149,7 +149,7 @@ return {
         ['world.daynight']='Tag und Nacht',['cutmenus']='Entfernte Menüs',['online.saves']='Koop-Speicherstände',
         ['world.teamshop']='Team-Shop',['fight.gunmode']='Gewehrmodus',['online.modes.scoreattack']='Punktejagd',
         ['online.modes.fishing']='Angelturnier',['online.modes.photohunt']='Fotojagd',
-        ['world.maps.sboxion']='SBO Xion'},
+        ['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     fight={on='Gemeinsame Gegner aktiv: %d Gegner verbunden.',one='Gemeinsame Gegner aktiv: 1 Gegner verbunden.',
         scale='LP der Gegner %d %%, Gleichgewicht %d %% (Einstellung des Hosts).',
         off='Gemeinsame Gegner aus. Der Grund steht in coop-link.log.',

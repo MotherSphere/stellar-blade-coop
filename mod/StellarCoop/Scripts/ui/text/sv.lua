@@ -140,7 +140,7 @@ return {
         ['online.saves']='Sparfiler för co-op',
         ['world.teamshop']='Lagets butik',['fight.gunmode']='Gevärsläge',['online.modes.scoreattack']='Poängjakt',
         ['online.modes.fishing']='Fisketävling',['online.modes.photohunt']='Fotojakt',
-        ['world.maps.sboxion']='SBO Xion'},
+        ['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     fight={on='Delade fiender på: %d fiender länkade.',one='Delade fiender på: 1 fiende länkad.',
         scale='Fiendernas hälsa %d %%, balans %d %% (värdens inställning).',
         off='Delade fiender av. coop-link.log säger varför.',

@@ -1,9 +1,9 @@
 # How the code is organised
 
-The Lua scripts and the native sources have one folder per module in each tree. Most modules sit in the category
-folders `online/`, `fight/`, `world/`, `story/` and `vehicles/`. Two modules have a folder of their own at the top of
-each tree: `eve/` and `cutmenus/`. Modules do not depend on each other, so a module that fails to load is off alone
-while the rest of Stellar Blade Online keeps working.
+The Lua scripts and the native sources have one folder per module in each tree. Most modules sit in the category folders
+`online/`, `fight/`, `world/`, `story/` and `vehicles/`. Three modules have a folder of their own at the top of each
+tree: `eve/`, `cutmenus/` and `closet/`. Modules do not depend on each other, so a module that fails to load is off
+alone while the rest of Stellar Blade Online keeps working.
 
 ## Modules
 
@@ -44,6 +44,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `online.modes.fishing` | Fishing tournament | `online/modes/fishing/` | `online/modes/fishing/` | [Fishing tournament](../online/modes/fishing.md) | `online/modes/fishing/records.lua`, its copy of score attack's records; `online/modes/fishing/rows.lua`, the names of SB's 40 fish rows; `native/src/online/modes/fishing/fishing.h`, its copy of the set walk of `cutmenus/items.h` |
 | `online.modes.photohunt` | Photo hunt | `online/modes/photohunt/` | `online/modes/photohunt/` | [Photo hunt](../online/modes/photohunt.md) | `online/modes/photohunt/records.lua`, its copy of score attack's records |
 | `world.maps.sboxion` | SBO Xion | `world/maps/sboxion/` | `world/maps/sboxion/` | [SBO Xion](../world/maps/sboxion.md) | Its rows in `world/maps/sboxion/sboxion_rows.h`; `world/maps/sboxion/recover.lua`, its copy of score attack's in-place respawn and of the group's ground read; `world/maps/sboxion/engine.lua`, its copy of the lobby's black call |
+| `closet` | Stellar Closet | `closet/` | none | [Stellar Closet](../closet/closet.md) | |
 
 ## Shared pieces
 

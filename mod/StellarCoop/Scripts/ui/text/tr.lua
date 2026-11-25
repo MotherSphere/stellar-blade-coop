@@ -145,7 +145,7 @@ return {
         ['online.saves']='Co-op kayıtları',
         ['world.teamshop']='Takım mağazası',['fight.gunmode']='Tüfek modu',['online.modes.scoreattack']='Skor avı',
         ['online.modes.fishing']='Balıkçılık turnuvası',['online.modes.photohunt']='Fotoğraf avı',
-        ['world.maps.sboxion']='SBO Xion'},
+        ['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     fight={on='Ortak düşmanlar açık: %d düşman bağlandı.',one='Ortak düşmanlar açık: 1 düşman bağlandı.',
         scale='Düşman canı %%%d, denge %%%d (ev sahibinin ayarı).',
         off='Ortak düşmanlar kapandı. Nedeni coop-link.log dosyasında.',

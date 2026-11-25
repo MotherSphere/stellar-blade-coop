@@ -143,7 +143,7 @@ return {
         ['world.daynight']='Päivä ja yö',['cutmenus']='Poistetut valikot',['online.saves']='Co-op-tallennukset',
         ['world.teamshop']='Tiimin kauppa',['fight.gunmode']='Kivääritila',['online.modes.scoreattack']='Pistejahti',
         ['online.modes.fishing']='Kalastuskilpailu',['online.modes.photohunt']='Valokuvajahti',
-        ['world.maps.sboxion']='SBO Xion'},
+        ['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     fight={on='Jaetut viholliset päällä: %d vihollista yhdistetty.',
         one='Jaetut viholliset päällä: 1 vihollinen yhdistetty.',
         scale='Vihollisten HP %d %%, tasapaino %d %% (isännän asetus).',

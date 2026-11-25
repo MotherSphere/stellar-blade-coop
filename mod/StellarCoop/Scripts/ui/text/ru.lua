@@ -143,7 +143,7 @@ return {
         ['cutmenus']='Вырезанные меню',['online.saves']='Кооперативные сохранения',
         ['world.teamshop']='Магазин команды',['fight.gunmode']='Режим винтовки',
         ['online.modes.scoreattack']='Погоня за очками',['online.modes.fishing']='Рыболовный турнир',
-        ['online.modes.photohunt']='Фотоохота',['world.maps.sboxion']='SBO Xion'},
+        ['online.modes.photohunt']='Фотоохота',['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     fight={on='Общие враги включены. Связано врагов: %d.',one='Общие враги включены. Связан 1 враг.',
         scale='ОЗ врагов %d%%, устойчивость %d%% (настройка хоста).',
         off='Общие враги выключены. Причина в coop-link.log.',

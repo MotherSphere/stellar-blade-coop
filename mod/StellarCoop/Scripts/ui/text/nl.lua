@@ -144,7 +144,7 @@ return {
         ['world.daynight']='Dag en nacht',['cutmenus']="Geschrapte menu's",['online.saves']='Opgeslagen co-opgames',
         ['world.teamshop']='Teamwinkel',['fight.gunmode']='Geweermodus',['online.modes.scoreattack']='Scorejacht',
         ['online.modes.fishing']='Viswedstrijd',['online.modes.photohunt']='Fotojacht',
-        ['world.maps.sboxion']='SBO Xion'},
+        ['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     fight={on='Gedeelde vijanden aan: %d vijanden gekoppeld.',one='Gedeelde vijanden aan: 1 vijand gekoppeld.',
         scale='HP vijanden %d %%, balans %d %% (instelling van de host).',
         off='Gedeelde vijanden uit. coop-link.log zegt waarom.',

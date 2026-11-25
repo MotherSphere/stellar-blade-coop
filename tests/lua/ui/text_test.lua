@@ -58,11 +58,11 @@ assert(T.fr and next(T.fr),'French stays complete')
 -- Every one of the 22 tables names the ghost's drone, sounds and faces rows.
 for culture,t in pairs(T) do if type(t)=='table' and t.row and t.row.dyes then
     assert(type(t.row.drone)=='string' and type(t.row.sounds)=='string' and type(t.row.faces)=='string',culture) end end
--- The modules' names for the off notice: exactly T.en's 25 keys in every table (tests/tools/modules_test.py checks
+-- The modules' names for the off notice: exactly T.en's 26 keys in every table (tests/tools/modules_test.py checks
 -- them against main.lua's MODULES).
 local MODULE_KEYS=0
 for _ in pairs(T.en.modules) do MODULE_KEYS=MODULE_KEYS+1 end
-assert(MODULE_KEYS==25,'T.en.modules: '..MODULE_KEYS..' names')
+assert(MODULE_KEYS==26,'T.en.modules: '..MODULE_KEYS..' names')
 for name,t in pairs(T) do
     if type(t)=='table' and next(t) then
         local n=0

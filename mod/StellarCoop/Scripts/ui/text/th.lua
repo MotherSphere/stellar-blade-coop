@@ -133,7 +133,7 @@ return {
         ['cutmenus']='เมนูที่ถูกตัด',['online.saves']='เซฟ co-op',
         ['world.teamshop']='ร้านค้าทีม',['fight.gunmode']='โหมดปืนไรเฟิล',['online.modes.scoreattack']='ล่าคะแนน',
         ['online.modes.fishing']='การแข่งขันตกปลา',['online.modes.photohunt']='ล่าภาพถ่าย',
-        ['world.maps.sboxion']='SBO Xion'},
+        ['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     fight={on='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู %d ตัว',one='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู 1 ตัว',
         scale='HP ศัตรู %d%% บาลานซ์ %d%% (ค่าของโฮสต์)',
         off='ปิดศัตรูร่วมแล้ว ดูสาเหตุใน coop-link.log',
