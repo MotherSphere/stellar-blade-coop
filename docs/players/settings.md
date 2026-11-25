@@ -246,7 +246,9 @@ photohunt=on
 | `bike` | `on` or `off`: the [bike](../vehicles/bike.md), on any save; off takes EVE off the bike, removes it from her, takes her parked bike out of every world (its place is kept), hides the other players' parked bikes and frees its loaded files | `on` |
 | `bike_pose` | `rig` or `hold`: how EVE's riding pose shows on the [bike](../vehicles/bike.md), a test of two ways until one is kept. `rig`: a hidden copy of her plays the pose and her body follows it. `hold`: the pose plays on EVE herself, kept above the game's own animations. Read at each mount. Options, Controls, Riding pose (test): Hidden copy or On EVE | `rig` |
 | `gun_key` | same, or `none`: a key that brings the [gun mode](../fight/gunmode.md) rifle out or puts it away; read when the mod loads | `F4` |
-| `gun_mode` | `on` or `off`: [gun mode](../fight/gunmode.md); off, its key and D-pad Right tap do nothing; read when the mod loads. Its other `gun_` lines are test lines, listed on its page | `on` |
+| `gun_mode` | `on` or `off`: [gun mode](../fight/gunmode.md); off, its key and D-pad Right tap do nothing; read when the mod loads. Without the optional `zNGMSpike_P` pak, gun mode is [parked](../fight/gunmode.md#parked-while-it-is-rebuilt): with `on`, the key and the tap only show the notice `Gun mode: rebuilding`. Its other `gun_` lines are test lines, listed on its page | `on` |
+| `emote_key` | same as `menu_key`, or `none`: the key held to open the [emote wheel](interface.md#emote-wheel); releasing it plays the emote you point at. Options, Controls, Emote wheel key; it applies at once | `F2` |
+| `emote_pad` | `dpad_left` or `off`: on a controller, `dpad_left` opens the [emote wheel](interface.md#emote-wheel) while D-pad Left is held 0.3 s and plays the emote you point at on its release. A tap of D-pad Left stays the game's. Options, Controls, Emote wheel on a controller (D-pad Left held or Off); it applies at once | `dpad_left` |
 | `pause_tab` | `on` or `off`: the [Online tab](interface.md#pause-menu) after Settings in the game's pause menu, which opens the co-op menu. Off, RB on Settings goes to Equipment as in the game. Options, Controls, Online tab in the pause menu; it applies from the next pause menu | `on` |
 | `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
 | `friends_ask` | `on` or `off`, with `public` or `invitation`: `on` makes your Steam friends wait for your answer like other players. The co-op menu shows it as Friends join without asking, On while `friends_ask=off` | `off` |
@@ -391,6 +393,9 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](../online/partner.md#mods-you-both-have)) |
 | `coop-cns-aside.txt` | Lua | The mod assets set aside after a crash: `version <mod version>`, then one `<path> <outfit>` line each. Cleared by `coop cns reset` and by another mod version |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
+| `coop-drone.txt` | native, when the drone it finds changes | Your EVE's drone for her capture: `drone 0x<actor>` or `drone none` (see [Capture](../online/partner-internals.md#1-capture)) |
+| `coop-names.txt` | native | The asset names (sounds and world effects) the other player's game sent for their ghost: a head line `book <n>`, then one `name <k> ...` line each. `coop-names-<k>.txt` holds those of the member in ghost slot k, 1 to 6 (see [Her sounds, played](../online/partner-internals.md#her-sounds-played)) |
+| `coop-loaded.txt` | Lua | The objects Lua loaded for those names, one `loaded <k> 0x<object> 0x<class> 0x<a\|0> 0x<b\|0>` line each, for the native part to play the ghost's sounds and effects. `coop-loaded-<k>.txt` is ghost slot k's. `coop off` removes them |
 | `coop-state.txt` | Lua | Whether a save is loaded or the title screen is shown, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
 | `coop-ui.txt` | Lua | The co-op UI's on-screen root, so the next Lua load (Ctrl+R) can remove it and, if the menu was open, give the game its keys back |
@@ -413,6 +418,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-bike-stand.txt` | Lua | While your parked bike stands in the world: its actor path, so the next Lua load (Ctrl+R) can remove it |
 | `coop-bike-copies.txt` | Lua | While the other players' parked bikes show: their actor paths, tab-separated, so the next Lua load (Ctrl+R) can remove them |
 | `coop-xion-rooms.txt` | Lua | While the rooms of [SBO Xion](../world/maps/sboxion.md#the-rooms) are open: the pieces of Stellar Blade hidden in their doorways with the values read before, on one line, so the next Lua load (Ctrl+R) can put them back |
+| `coop-mxiii-mila.txt` | Lua, when Mila's body appears in Matrix XIII ([Lily's signal](../world/lily-signal.md#the-zone-talks)) | Her body's object path, so the next Lua load (Ctrl+R) can remove a body the earlier load left |
+| `coop-sky.txt` | Lua, when the [day and night cycle](../world/daynight-internals.md) reads a world's lights | The originals of that world's lights and SkyCreators, one line: the world's key, then each part's values. A Lua reload (Ctrl+R) puts back the lights as the world had them, not the ones the cycle dimmed |
 | `coop-parked.txt` | Lua | Your parked bike's line (`park <map> <x> <y> <z> <pitch> <yaw> <roll>` or `none`), for a moment: the native part takes and deletes it at its next pass and sends it to the players linked with you |
 | `coop-keep.txt` | Lua | The object paths of the assets the mod keeps in memory, one a line, the whole list each time it grows, for a moment: the native part takes and deletes it at its next pass |
 | `coop-sbo.txt` | Lua | The object path of the SBO lobby's last menu camera, so the next Lua load (Ctrl+R) can remove it if it still stands |
@@ -426,10 +433,11 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-wear.txt` | Lua | While `coop wear` puts a look on: your EVE's object path and, for her hair and her suit, the worn mesh's path and her own look (the mesh's path, the hair's animation Blueprint class, the hair's physics asset and the materials the game set on its slots), so the next Lua load (Ctrl+R) can give it back |
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over it,
-so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display, state,
-chat, night and parked bike line files, `coop-race.txt` and any stale request or report. Then it writes `coop-cns.txt`
-again. The chat files and `coop-race.txt` are also deleted when a session ends and when the game exits. A run without
-`coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the previous run.
+so neither side reads a half-written file. The names and loaded files are appended to instead. Each side reads only the
+whole lines past its last offset. When the native part starts, it deletes the capture, remote, display, state, chat,
+night, parked bike line, drone, names and loaded files, `coop-race.txt` and any stale request or report. Then it writes
+`coop-cns.txt` again. The chat files and `coop-race.txt` are also deleted when a session ends and when the game exits.
+A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the
 release zip adds `INSTALL.md`, `CHANGELOG.md` and `SHA256SUMS.txt`.
