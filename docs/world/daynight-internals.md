@@ -3,8 +3,8 @@
 The player's side is in [Features](../features.md#features), the `daynight` setting in
 [Settings](../players/settings.md#coop-settingstxt) and `coop daynight` in [Keys and commands](../usage.md#console-commands). The
 cycle ran in game on 2026-11-18 on v0.11.0-277-gd9bb23bf. That build switched to SB's light in talk scenes and at choice
-boxes. The light kept through them and the 2 s glides came after it and are not tested in game yet. Every address and
-offset below is build 26123051's, read in Ghidra.
+boxes. Keeping the cycle's light through talks, cutscenes, menus and choice boxes came after that build. So did the 2 s
+glides. Neither has run in game yet. Every address and offset below is build 26123051's, read in Ghidra.
 
 The code:
 
