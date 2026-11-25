@@ -55,7 +55,7 @@
 -- s without a playing death screen the call is made without one. AFTER s later it logs the result. With life 1 or 6
 -- SB's death screen is told that its revival ended (engine.lua's revived), so SB gives back the mouse cursor the
 -- screen holds, with one line for what was told. A death screen that still plays is then hidden until the next death,
--- a stop or the recovery stopping after two failures.
+-- a stop or the recovery stopping after two failures. A hide that raises is one line: the result is still logged.
 -- If EVE is then not walking or is under FLOOR, the fall's put-back runs, in the mode death too. Life still 3 to 5,
 -- or no call in TRY s, is a failure: the next pass starts the death again unless the recovery stopped. TRY, AFTER and
 -- SCREEN count passes, so they run in real time whatever the world's time does. Without a warp= word the call is
@@ -211,12 +211,14 @@ function Recover.new(o)
         local screen=screen_word(up)
         local alive=life==1 or life==6
         if alive then
-            -- SB's dead HUD still holds the cursor: it is told its revival ended. A raise must not lose the result.
+            -- SB's dead HUD still holds the cursor: it is told its revival ended. A raise of that call or of the hide
+            -- must not lose the result.
             local ok,told=pcall(world.revived)
             log('respawn: death screen '..(ok and told and 'told its revival ended' or 'not told its revival ended: '
                 ..(ok and 'no widget' or tostring(told))))
             if up then
-                hidden=world.hide()
+                local hid,back=pcall(world.hide)
+                if hid then hidden=back else log('respawn: death screen not hidden: '..U.why(back)) end
                 screen=hidden and 'hidden' or screen
             end
         end
