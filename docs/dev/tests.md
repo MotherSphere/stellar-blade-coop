@@ -844,7 +844,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words. The DLC notice (`T.dlcs`)
   stays within 200 bytes in every language with 100-byte DLC names. So do the bike's refusals with the paid fetch's
   offer after them, with each side word and a six-digit distance or another map's 32-byte name and the longest key
-  name. So do `coop gift`'s notices with a 32-byte name and alias. Score attack's notices stay within 200 bytes too (each sit-out, a round without a ranking, the end and the
+  name. So do `coop gift`'s notices with a 32-byte name and alias, and the guest's Night Operation start notice with
+  each level's word. Her card's title with each level's word stays within the card's 43 columns. Score attack's notices stay within 200 bytes too (each sit-out, a round without a ranking, the end and the
   place with the UI off). Its screens' words stay within their columns: a board row's name and its score with the wave
   or end word, the result panel's heading, its line with the longest end word, its notes and the difficulty words.
   The fishing tournament's notices stay within 200 bytes with 32-byte names (the start of 60 minutes, each sit-out,

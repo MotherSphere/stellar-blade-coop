@@ -145,18 +145,20 @@ local function notices(w)
         w.saves.manual:format('4','4'),w.chat.no_session,w.chat.alone,
         w.chat.off,w.chat.ui_off,w.join.bad}) do lines[#lines+1]=text end
     -- Night Operation's notices (online/modes/nightop/run.lua, with the UI off): the start, a wave, a clear, the end
-    -- and why; for two players, her notice of his start and his of each refusal, and whose EVE died; the points a run
+    -- and why; for two players, her notice of his start (with each level's word) and his of each refusal, and whose
+    -- EVE died; the points a run
     -- earned, or could not credit; a level picked from Roxanne, by the host or alone and by a guest
     -- (online/modes/nightop/roxanne.lua); the shop's screen that could not open (online/modes/nightop/shop.lua).
     local n=w.night
     for _,text in ipairs({n.start_notice:format(5),n.wave_notice:format(5,5),n.clear_notice:format(5),n.died,
         n.time_up,n.end_notice:format(n.success,5,5,20,9999,'8:00'),n.end_notice:format(n.fail,5,5,20,9999,'8:00'),
-        n.coop_notice:format(NAME,5),n.mate_died,n.you_died,n.earned:format(42,999999999),n.unpaid,n.booked,
+        n.mate_died,n.you_died,n.earned:format(42,999999999),n.unpaid,n.booked,
         n.host_only,n.shop_failed}) do
         lines[#lines+1]=text
     end
     for _,text in pairs(n.why) do lines[#lines+1]=text end
     for _,text in pairs(n.refuse) do lines[#lines+1]=n.refused:format(NAME,text) end
+    for _,level in pairs(n.levels) do lines[#lines+1]=n.coop_notice:format(NAME,level,5) end
     -- A challenge's notices, with its longest name in this language, and the lines under its result.
     local c,long=w.challenge,''
     for _,def in ipairs(C.LIST) do if #c.names[def.id]>#long then long=c.names[def.id] end end
@@ -280,6 +282,7 @@ for name in pairs(R.TEXT) do
     -- the feed's) from 96 units in, a label before its value's 5 Bold 40 columns at the right end.
     local n=w.night
     fits(name..'.night.title',n.title,43)
+    for k,level in pairs(n.levels) do fits(name..'.night.title_level '..k,n.title_level:format(level),43) end
     fits(name..'.night.waiting',n.waiting,43)
     fits(name..'.night.starts',n.starts:format(5),43)
     for _,head in ipairs({n.wave:format(5,5),n.next:format(10)}) do

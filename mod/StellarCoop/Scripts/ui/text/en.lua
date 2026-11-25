@@ -281,7 +281,8 @@ return {
     -- line under it, the rows) and its notices while the UI is off. success, fail and died are the game's own words,
     -- its StringTable_UI rows UI_Night_OperationSuccess, UI_Night_OperationFail and UI_Night_OperationFail_Des, which
     -- the panel reads from the game when it can; why: what ended a stopped run, by its reason. A run for two linked
-    -- players: the host's card while he waits for her answer, her notice when his countdown starts (%s his name), his
+    -- players: her card's title with the host's level (title_level, %s: one of levels, each level's word), the host's
+    -- card while he waits for her answer, her notice when his countdown starts (%s his name, then his level), his
     -- notice when she cannot join (%s her name, then refuse's word), and whose EVE died (named, so no word agrees with
     -- a player's gender). earned: the points a run gave for the shop (online/modes/nightop/shop.lua), then the player's
     -- total; unpaid: a run's points that could not be credited (UE4SS.log says why).
@@ -291,7 +292,9 @@ return {
     -- shows too; record, the line under the heading after a success that wrote a new best; stopped, what ended a
     -- challenge stopped with coop challenge stop; coop_notice, her notice when the host starts a co-op challenge (the
     -- Shooting Range): its name, then his.
-    night={title='NIGHT OPERATION',starts='STARTS IN %d',wave='WAVE %d/%d',next='NEXT WAVE IN %d',score='SCORE %d',
+    night={title='NIGHT OPERATION',title_level='NIGHT OPERATION (%s)',
+        levels={easy='Easy',normal='Normal',hard='Hard',nightmare='Nightmare'},
+        starts='STARTS IN %d',wave='WAVE %d/%d',next='NEXT WAVE IN %d',score='SCORE %d',
         success='Operation Successful',fail='Operation Failed',died='All players have died.',time_up='Time is up.',
         why={stop='Stopped with coop nightop stop.',map='Ended by a map change or a load.',
             left='You were more than 80 m from the start for 10 s.',slot='This save is no longer a co-op save.',
@@ -301,7 +304,7 @@ return {
         waves='Waves cleared',kills='Kills',points='Score',time='Time',start_notice='Night Operation starts in %d s.',
         wave_notice='Night Operation: wave %d/%d.',clear_notice='Night Operation: wave %d cleared.',
         end_notice='%s: %d/%d waves cleared, %d kills, score %d, time %s.',
-        waiting='WAITING FOR PARTNER',coop_notice='%s started Night Operation. It begins in %d s.',
+        waiting='WAITING FOR PARTNER',coop_notice='%s started Night Operation (%s). It begins in %d s.',
         refused='%s cannot join the run: %s.',refuse={far='more than 50 m from you',map='on another map',
         slot='not on a co-op save',busy='already in a run',near='enemies or people within 40 m',
         taken='monsters of an earlier run are still there',none='no answer'},mate_died="Your partner's EVE died.",

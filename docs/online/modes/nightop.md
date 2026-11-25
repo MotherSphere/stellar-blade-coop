@@ -345,12 +345,14 @@ monsters of an earlier run, the host's next starts skip that run number until th
 the wave keys the census lists, which the game does not show outside a networked game, so it does not refuse in
 practice.
 
-When she answers that she is ready, both cards count down from `STARTS IN 5`, and the guest gets the notice
-`<host> started Night Operation. It begins in <n> s.` From then on each game spawns its own copy of each monster.
+When she answers that she is ready, both cards count down from `STARTS IN 5`. The guest gets the notice
+`<host> started Night Operation (<level>). It begins in <n> s.` From then on each game spawns its own copy of each
+monster.
 
 His night line carries the level, and her game builds its waves from it. Her `join:` line in `UE4SS.log` names it
 (`join: run 0x2A seed 0x... at ... map <map> level hard; census: ...`), and so does `coop nightop` on her side while
-the run is on. Her notice and card do not.
+the run is on. Her notice and her card name it in her menu's language: the card's title reads
+`NIGHT OPERATION (Hard)`. The host's card keeps `NIGHT OPERATION`, since he picked the level.
 
 ### During the run
 

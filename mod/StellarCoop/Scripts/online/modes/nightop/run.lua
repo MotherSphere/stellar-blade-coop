@@ -212,13 +212,15 @@ local function notice(def,w,key,...)
     return w.challenge[key]:format(w.challenge.names[def.id],...)
 end
 -- The card's title and line for the run's state s at game time now, in words w (ui/text.lua's): Night Operation's
--- title or the challenge's name, then the host's wait for her answer, the countdown (hers from her answer on), then
+-- title (the guest's with the host's level) or the challenge's name, then the host's wait for her answer, the
+-- countdown (hers from her answer on), then
 -- the wave or, once it is down, the next one's countdown (the wave again once it is due and the cap holds it), each
 -- with the run time left and the score. rv, while one EVE is down in a co-op run: {title=, left=whole seconds, pct=},
 -- whose title takes the card's, followed by the revive's percent once it is above 0, else the time left.
 function Run.card(s,now,w,rv)
     local n=w.night
-    local title=s.def.level and n.title or w.challenge.names[s.def.id]
+    local title=not s.def.level and w.challenge.names[s.def.id]
+        or s.role=='guest' and n.title_level:format(n.levels[s.def.level]) or n.title
     if s.phase=='ask' and s.role=='host' then return title,n.waiting end
     if rv then title=rv.title..'  '..(rv.pct>0 and rv.pct..' %' or clock_text(rv.left)) end
     if s.phase=='countdown' or s.phase=='ask' then return title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
@@ -866,7 +868,12 @@ function Run.new(o)
             local left=math.max(0,math.ceil(-line.rt/1000))
             log(string.format('%s started run 0x%02X: it begins in %d s',name,r.s.run,left))
             local def=r.s.def
-            if tell then tell(function(w) return notice(def,w,'coop_notice',name,left) end) end
+            if tell then
+                tell(function(w)
+                    if def.level then return w.night.coop_notice:format(name,w.night.levels[def.level],left) end
+                    return notice(def,w,'coop_notice',name,left)
+                end)
+            end
             return true
         end
         r.asked=r.asked+1
