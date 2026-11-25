@@ -349,37 +349,55 @@ for _,case in ipairs({
     assert(W.vis==4 and logged('revive: death screen shown again ('..case[1]..')'),case[1]..': '
         ..table.concat(W.logs,'|'))
 end
--- A Lua reload (Ctrl+R) while the screen is hidden: its visibility before is in coop-death-screen.txt. The new load's
--- first tick looks the screen up once and takes it over while it reads Hidden; a second reload does the same. It is
--- shown again as it was at the next death, with no session or at coop off. The file goes then.
+-- A Lua reload (Ctrl+R) while the screen is hidden: its visibility before (0 here, Visible) and its address are in
+-- coop-death-screen.txt. The new load's first tick looks the screen up once and takes it over while it has that address
+-- and reads Hidden; a second reload does the same. It is shown again as it was at the next death, with no session or at
+-- coop off. The file goes then.
+local KEPT='0 '..U.address(dead)
 for _,case in ipairs({
     {'a new death',function() W.life={state=3,hp=0} end},
     {'no session',function() W.life=nil end},
     {'coop off',function(group) group.stop() end},
 }) do
-    g=world(function(w) w.respawn=function() w.life={state=1,hp=1600} end end)
+    g=world(function(w) w.vis,w.respawn=0,function() w.life={state=1,hp=1600} end end)
     run(g,5.25)
-    assert(W.vis==2 and W.file=='4',case[1]..': '..tostring(W.file))
+    assert(W.vis==2 and W.file==KEPT,case[1]..': '..tostring(W.file))
     for _=1,2 do
         g=world(nil,true)
         W.logs,W.finds={},{}
         run(g,0.25)
-        assert(W.vis==2 and W.file=='4' and W.finds.WB_MainHUD_Master_C==1
+        assert(W.vis==2 and W.file==KEPT and W.finds.WB_MainHUD_Master_C==1
             and logged('revive: death screen hidden by an earlier Lua load, taken over'),case[1]..': '
             ..table.concat(W.logs,'|'))
     end
     case[2](g)
     run(g,0.25)
-    assert(W.vis==4 and W.file==nil and logged('revive: death screen shown again ('..case[1]..')'),case[1]..': '
+    assert(W.vis==0 and W.file==nil and logged('revive: death screen shown again ('..case[1]..')'),case[1]..': '
         ..table.concat(W.logs,'|'))
 end
--- A file whose screen no longer reads Hidden (SB showed it, a new game run): the file goes, the screen untouched. A
--- file with no number in it goes with no lookup; no file, no lookup.
-g=world(function(w) w.life,w.file={state=1,hp=1600},'4' end)
+-- A file whose screen no longer reads Hidden (SB showed it, a new game run): the file goes, the screen untouched.
+g=world(function(w) w.life,w.file={state=1,hp=1600},KEPT end)
 run(g,0.25)
 assert(W.file==nil and #W.sets==0 and W.finds.WB_MainHUD_Master_C==1 and not logged('taken over'),
     table.concat(W.logs,'|'))
-for _,file in ipairs({'x',false}) do
+-- SB's death screen is another widget that reads Hidden (a rebuilt HUD, a new game run): the file goes, that widget is
+-- left as it is, with no session too.
+local other=uobject('WB_MainHUD_Dead_C /Engine/Transient.GameEngine_1:WB_MainHUD_Master_C_2.WB_MainHUD_Dead',{
+    IsAnyAnimationPlaying=function() return false end,
+    GetVisibility=function() return 2 end,
+    SetVisibility=function(_,v) W.sets[#W.sets+1]=v end})
+g=world(function(w)
+    w.life,w.file={state=1,hp=1600},KEPT
+    w.huds={uobject('WB_MainHUD_Master_C /Engine/Transient.GameEngine_1:WB_MainHUD_Master_C_2',
+        {WB_MainHUD_Dead=other})}
+end)
+run(g,0.25)
+W.life=nil
+run(g,0.25)
+assert(W.file==nil and #W.sets==0 and W.finds.WB_MainHUD_Master_C==1 and not logged('taken over')
+    and not logged('shown again'),table.concat(W.logs,'|'))
+-- A file without both numbers (words, the visibility alone, no address) goes with no lookup; no file, no lookup.
+for _,file in ipairs({'x','4','4 x',false}) do
     g=world(function(w) w.life,w.file={state=1,hp=1600},file or nil end)
     run(g,0.25)
     assert(W.file==nil and not W.finds.WB_MainHUD_Master_C,tostring(file))

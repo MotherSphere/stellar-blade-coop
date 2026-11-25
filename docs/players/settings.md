@@ -379,7 +379,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-fight.old.log` | native | The previous run's `coop-fight.log` |
 | `coop-fight-record.txt` | native | The last shared-enemies recording (`coop fight record`) |
 | `coop-spectate.txt` | Lua | The [spectate](../fight/enemies.md#down-in-a-boss-fight-spectate) camera's object path, so the next Lua load (Ctrl+R) can give the view back to your EVE and remove it |
-| `coop-death-screen.txt` | Lua | One number while the friend's revive hides the game's death screen: its visibility from before, so the next Lua load (Ctrl+R) can show it again. Removed when the screen is shown again, or when the next Lua load finds it not hidden |
+| `coop-death-screen.txt` | Lua | Two numbers while the friend's revive hides the game's death screen: its visibility from before and its address, so the next Lua load (Ctrl+R) can show it again. Removed when the screen is shown again, or when the next Lua load finds it not hidden or finds another widget |
 | `coop-quests.log` | native | The shared quests' steps made, held and refused, snapshots and stats lines, capped at 4 MB |
 | `coop-quests.old.log` | native | The previous run's `coop-quests.log` |
 | `coop-quests-record.txt` | native | The last shared quests recording (`coop quests record`) |

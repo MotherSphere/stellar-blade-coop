@@ -509,10 +509,12 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   bike's paid fetch, `camp_near` finds an activated Xion camp whose spawn point stands within 10 m on Xion's map,
   walking the spawn points once a map;
 - `online/group/group_test` covers a Lua reload while the revive hides the death screen: `coop-death-screen.txt`
-  written at the hide; the new load's first tick looking the screen up once and taking it over while it reads Hidden,
-  at each of two reloads; the screen shown again as it was at the next death, with no session and at `coop off`, the
-  file removed then. A file whose screen no longer reads Hidden is removed and the screen left as it is. No file, or a
-  file with no number, means no lookup. A file that cannot be written gives one log line;
+  written at the hide with the visibility from before (Visible in the test) and the screen's address; the new load's
+  first tick looking the screen up once and taking it over while it has that address and reads Hidden, at each of two
+  reloads; the screen shown again as it was at the next death, with no session and at `coop off`, the file removed
+  then. A file whose screen no longer reads Hidden is removed and the screen left as it is. A file whose address is not
+  SB's death screen's is removed and the widget that reads Hidden left as it is, with no session too. No file, or a
+  file without both numbers, means no lookup. A file that cannot be written gives one log line;
 - `core/mask_test` checks the masking of `UE4SS.log` on the cases `link_protocol_test` checks for the native part's;
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
