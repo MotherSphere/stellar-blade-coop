@@ -30,7 +30,7 @@ When Join cannot start, a notice says why and nothing changes:
 | `The PvP lobby needs co-op saves (saves=coop).` | One of your own saves is loaded |
 | `The PvP lobby is off (sbo_lobby=off in coop-settings.txt).` | You turned the lobby off |
 | `Steam is not ready.` | The Steam link has not started |
-| `End the co-op session first.` | You are in a co-op session with a friend |
+| `End the online session first.` | You are in an online session with a friend |
 | `Not during a fight.`, `Not during a Night Operation run.`, `Not during a Boss Challenge.` | One of these is under way |
 | `Not now: the game is loading or travelling.` | A load or a travel is under way |
 | `The game cannot save here.` | Stellar Blade's own save is refused where EVE stands |
@@ -172,7 +172,7 @@ Built from source, `tools/install.py --pak <folder>` installs a pak kept on your
 
 ## The PvP test
 
-`coop pvp on` starts a test of PvP damage with the friend linked to you in a co-op session, and both of you type it.
+`coop pvp on` starts a test of PvP damage with the friend linked to you in an online session. Both of you type it.
 Both of you need a co-op save and the shared enemies off (co-op menu, Options, Combat, or `shared_enemies=off`), since
 both run on the same fight code; the shared enemies are on by default. `pvp_spike=on`, which lets the command run, is
 the default.

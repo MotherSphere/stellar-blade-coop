@@ -55,7 +55,7 @@ G.en={
             .."the combat rules, the menu's size and its sounds. The values are stored in coop-settings.txt.\nSet "
             ..'Menu language to English to read the mod in English.'},
         {title='Help',
-         body='Ask questions or find a co-op partner on the Discord: discord.gg/tvFApEEVfj\nTo report a bug, close '
+         body='Ask questions or find a partner for online play on the Discord: discord.gg/tvFApEEVfj\nTo report a bug, close '
             ..'the game. Before you start it again, send coop-report.txt, coop-link.log and UE4SS.log.\nMother '
             ..'Sphere art by timediffer24.'},
     },
@@ -113,7 +113,7 @@ G.fr={
             ..'sauvegardes co-op, les règles de combat, la taille du menu et ses sons. Les valeurs sont enregistrées '
             ..'dans coop-settings.txt.\nRéglez Langue du menu sur Anglais pour lire le mod en anglais.'},
         {title='Aide',
-         body='Posez vos questions ou trouvez un partenaire de co-op sur le Discord : discord.gg/tvFApEEVfj\nPour '
+         body='Posez vos questions ou trouvez un partenaire de jeu en ligne sur le Discord : discord.gg/tvFApEEVfj\nPour '
             ..'signaler un bug, fermez le jeu. Avant de le relancer, envoyez coop-report.txt, coop-link.log et '
             ..'UE4SS.log.\nIllustration de Mother Sphere par timediffer24.'},
     },
@@ -162,7 +162,7 @@ G.ar={
             ..'التعاونية وقواعد القتال وحجم القائمة وأصواتها. تُخزَّن القيم في coop-settings.txt.\nاضبط "لغة القائمة" على '
             ..'"English" لقراءة التعديل بالإنجليزية.'},
         {title='المساعدة',
-         body='اطرح أسئلتك أو ابحث عن شريك لعب تعاوني على Discord: discord.gg/tvFApEEVfj\nللإبلاغ عن خطأ، أغلق اللعبة. '
+         body='اطرح أسئلتك أو ابحث عن شريك للعب عبر الإنترنت على Discord: discord.gg/tvFApEEVfj\nللإبلاغ عن خطأ، أغلق اللعبة. '
             ..'وقبل تشغيلها مجددًا، أرسل coop-report.txt وcoop-link.log وUE4SS.log.\nرسم Mother Sphere: timediffer24.'},
     },
     next='التالي',back='رجوع',close='إغلاق',never='عدم العرض مجددًا',page='الصفحة %d من %d',row='الدليل',
@@ -213,7 +213,7 @@ G.da={
             ..'co-op-spil, kampreglerne samt menuens størrelse og lyde. Værdierne gemmes i coop-settings.txt.\nSæt '
             ..'Menusprog til Engelsk for at læse modden på engelsk.'},
         {title='Hjælp',
-         body='Stil spørgsmål eller find en co-op-partner på Discord: discord.gg/tvFApEEVfj\nLuk spillet for at '
+         body='Stil spørgsmål eller find en partner til onlinespil på Discord: discord.gg/tvFApEEVfj\nLuk spillet for at '
             ..'rapportere en fejl. Send coop-report.txt, coop-link.log og UE4SS.log, før du starter det '
             ..'igen.\nMother Sphere-illustrationen er af timediffer24.'},
     },
@@ -270,7 +270,7 @@ G.de={
             ..'Koop-Speicherstände, die Kampfregeln sowie Größe und Töne des Menüs ein. Die Werte stehen in '
             ..'coop-settings.txt.\nStell „Menüsprache“ auf „Englisch“, um den Mod auf Englisch zu lesen.'},
         {title='Hilfe',
-         body='Stell Fragen oder finde einen Koop-Partner auf dem Discord: discord.gg/tvFApEEVfj\nUm einen Fehler zu '
+         body='Stell Fragen oder finde einen Partner fürs Online-Spiel auf dem Discord: discord.gg/tvFApEEVfj\nUm einen Fehler zu '
             ..'melden, schließ das Spiel. Schick vor dem nächsten Start coop-report.txt, coop-link.log und '
             ..'UE4SS.log.\nBild der Mother Sphere von timediffer24.'},
     },
@@ -325,7 +325,7 @@ G.es={
             ..'partidas co-op, las reglas de combate, el tamaño del menú y sus sonidos. Los valores se guardan en '
             ..'coop-settings.txt.\nPon Idioma del menú en Inglés para ver el mod en inglés.'},
         {title='Ayuda',
-         body='Haz preguntas o busca compañero de co-op en el Discord: discord.gg/tvFApEEVfj\nPara informar de un '
+         body='Haz preguntas o busca compañero para jugar en línea en el Discord: discord.gg/tvFApEEVfj\nPara informar de un '
             ..'error, cierra el juego. Antes de volver a iniciarlo, envía coop-report.txt, coop-link.log y '
             ..'UE4SS.log.\nIlustración de Mother Sphere por timediffer24.'},
     },
@@ -382,7 +382,7 @@ G['es-MX']={
             ..'partidas co-op, las reglas de combate, y el tamaño y los sonidos del menú. Los valores se guardan en '
             ..'coop-settings.txt.\nPon Idioma del menú en Inglés para leer el mod en inglés.'},
         {title='Ayuda',
-         body='Haz preguntas o busca un compañero de co-op en el Discord: discord.gg/tvFApEEVfj\nPara reportar un '
+         body='Haz preguntas o busca un compañero para jugar en línea en el Discord: discord.gg/tvFApEEVfj\nPara reportar un '
             ..'error, cierra el juego. Antes de volver a iniciarlo, envía coop-report.txt, coop-link.log y '
             ..'UE4SS.log.\nArte de Mother Sphere por timediffer24.'},
     },
@@ -436,7 +436,7 @@ G.fi={
             ..'co-op-tallennukset, taistelusäännöt sekä valikon koko ja äänet. Arvot tallentuvat tiedostoon '
             ..'coop-settings.txt.\nValitse kohtaan Valikon kieli arvo Englanti, niin modi näkyy englanniksi.'},
         {title='Ohje',
-         body='Kysy kysymyksiä tai etsi co-op-kumppani Discordista: discord.gg/tvFApEEVfj\nIlmoita virheestä '
+         body='Kysy kysymyksiä tai etsi kumppani verkkopeliin Discordista: discord.gg/tvFApEEVfj\nIlmoita virheestä '
             ..'sulkemalla ensin peli. Lähetä coop-report.txt, coop-link.log ja UE4SS.log ennen kuin käynnistät sen '
             ..'uudelleen.\nMother Sphere -kuvitus: timediffer24.'},
     },
@@ -492,7 +492,7 @@ G.it={
             ..'co-op, le regole di combattimento, la dimensione e i suoni del menu. I valori sono salvati in '
             ..'coop-settings.txt.\nImposta «Lingua del menu» su «Inglese» per leggere la mod in inglese.'},
         {title='Aiuto',
-         body='Fai domande o trova un partner per il co-op sul Discord: discord.gg/tvFApEEVfj\nPer segnalare un bug, '
+         body='Fai domande o trova un partner per il gioco online sul Discord: discord.gg/tvFApEEVfj\nPer segnalare un bug, '
             ..'chiudi il gioco. Prima di riavviarlo, invia coop-report.txt, coop-link.log e '
             ..'UE4SS.log.\nIllustrazione della Mother Sphere di timediffer24.'},
     },
@@ -545,7 +545,7 @@ G.ja={
             ..'戦闘ルール、メニューのサイズと効果音を設定します。設定値はcoop-settings.txtに保存されます。'
             ..'\n「メニューの言語」を「English」にすると、MODが英語で表示されます。'},
         {title='ヘルプ',
-         body='質問や協力プレイの相手探しはDiscordへ：discord.gg/tvFApEEVfj\nバグを報告するときは、'
+         body='質問やオンラインプレイの相手探しはDiscordへ：discord.gg/tvFApEEVfj\nバグを報告するときは、'
             ..'ゲームを終了してください。再び起動する前に、coop-report.txt、coop-link.log、'
             ..'UE4SS.logを送ってください。\nMother Sphereのイラスト：timediffer24'},
     },
@@ -594,7 +594,7 @@ G.ko={
             .."효과음을 설정합니다. 설정값은 coop-settings.txt에 저장됩니다.\n모드를 영어로 보려면 '메뉴 언어'를 "
             .."'English'로 설정하세요."},
         {title='도움말',
-         body='Discord에서 질문하거나 코옵 파트너를 찾을 수 있습니다: discord.gg/tvFApEEVfj\n버그를 제보하려면 게임을 '
+         body='Discord에서 질문하거나 온라인 플레이 파트너를 찾을 수 있습니다: discord.gg/tvFApEEVfj\n버그를 제보하려면 게임을 '
             ..'종료하세요. 게임을 다시 시작하기 전에 coop-report.txt, coop-link.log, UE4SS.log를 보내 주세요.\nMother '
             ..'Sphere 아트: timediffer24.'},
     },
@@ -647,7 +647,7 @@ G.nl={
             ..'opgeslagen co-opgames, de vechtregels en het formaat en de geluiden van het menu. De waarden staan in '
             ..'coop-settings.txt.\nZet Taal menu op Engels om de mod in het Engels te lezen.'},
         {title='Hulp',
-         body='Stel vragen of zoek een co-oppartner op de Discord: discord.gg/tvFApEEVfj\nSluit de game om een bug '
+         body='Stel vragen of zoek een partner voor online spelen op de Discord: discord.gg/tvFApEEVfj\nSluit de game om een bug '
             ..'te melden. Stuur coop-report.txt, coop-link.log en UE4SS.log voordat je de game weer start.\nMother '
             ..'Sphere-illustratie door timediffer24.'},
     },
@@ -699,7 +699,7 @@ G.no={
             ..'co-op-lagringene, kampreglene og menyens størrelse og lyder. Verdiene lagres i '
             ..'coop-settings.txt.\nSett «Menyspråk» til «Engelsk» for å lese modden på engelsk.'},
         {title='Hjelp',
-         body='Still spørsmål eller finn en co-op-partner på Discord: discord.gg/tvFApEEVfj\nFor å melde en feil, '
+         body='Still spørsmål eller finn en partner til nettspill på Discord: discord.gg/tvFApEEVfj\nFor å melde en feil, '
             ..'lukk spillet. Send coop-report.txt, coop-link.log og UE4SS.log før du starter det igjen.\nMother '
             ..'Sphere-illustrasjon av timediffer24.'},
     },
@@ -751,7 +751,7 @@ G.pl={
             ..'zasady walki oraz rozmiar i dźwięki menu. Wartości trafiają do coop-settings.txt.\nUstaw „Język menu” '
             ..'na „English”, aby czytać moda po angielsku.'},
         {title='Pomoc',
-         body='Zadawaj pytania lub znajdź partnera do co-opa na Discordzie: discord.gg/tvFApEEVfj\nAby zgłosić błąd, '
+         body='Zadawaj pytania lub znajdź partnera do gry online na Discordzie: discord.gg/tvFApEEVfj\nAby zgłosić błąd, '
             ..'zamknij grę. Zanim uruchomisz ją ponownie, wyślij coop-report.txt, coop-link.log i '
             ..'UE4SS.log.\nGrafika Mother Sphere: timediffer24.'},
     },
@@ -806,7 +806,7 @@ G.pt={
             ..'co-op, as regras de combate e o tamanho e os sons do menu. Os valores ficam guardados em '
             ..'coop-settings.txt.\nMuda Idioma do menu para Inglês para ler o mod em inglês.'},
         {title='Ajuda',
-         body='Faz perguntas ou encontra um parceiro de co-op no Discord: discord.gg/tvFApEEVfj\nPara comunicar um '
+         body='Faz perguntas ou encontra um parceiro para jogar online no Discord: discord.gg/tvFApEEVfj\nPara comunicar um '
             ..'erro, fecha o jogo. Antes de o voltares a iniciar, envia coop-report.txt, coop-link.log e '
             ..'UE4SS.log.\nArte da Mother Sphere por timediffer24.'},
     },
@@ -861,7 +861,7 @@ G['pt-BR']={
             ..'co-op, as regras de combate e o tamanho e os sons do menu. Os valores ficam em '
             ..'coop-settings.txt.\nMude Idioma do menu para Inglês para ler o mod em inglês.'},
         {title='Ajuda',
-         body='Tire dúvidas ou encontre um parceiro de co-op no Discord: discord.gg/tvFApEEVfj\nPara relatar um bug, '
+         body='Tire dúvidas ou encontre um parceiro para jogar online no Discord: discord.gg/tvFApEEVfj\nPara relatar um bug, '
             ..'feche o jogo. Antes de abrir de novo, envie coop-report.txt, coop-link.log e UE4SS.log.\nArte da '
             ..'Mother Sphere por timediffer24.'},
     },
@@ -916,7 +916,7 @@ G.ru={
             ..'кооперативные сохранения, правила боя, размер меню и его звуки. Значения хранятся в '
             ..'coop-settings.txt.\nЧтобы читать мод на английском, выберите для "Язык меню" значение "English".'},
         {title='Помощь',
-         body='Задавайте вопросы или ищите партнера для кооператива в Discord: discord.gg/tvFApEEVfj\nЧтобы сообщить '
+         body='Задавайте вопросы или ищите партнера для онлайн-игры в Discord: discord.gg/tvFApEEVfj\nЧтобы сообщить '
             ..'об ошибке, закройте игру. Перед следующим запуском отправьте coop-report.txt, coop-link.log и '
             ..'UE4SS.log.\nАрт Mother Sphere: timediffer24.'},
     },
@@ -968,7 +968,7 @@ G.sv={
             ..'co-op-sparfilerna, stridsreglerna, menyns storlek och dess ljud. Värdena sparas i '
             ..'coop-settings.txt.\nSätt Menyspråk till Engelska för att läsa modden på engelska.'},
         {title='Hjälp',
-         body='Ställ frågor eller hitta en medspelare för co-op på Discord: discord.gg/tvFApEEVfj\nStäng spelet om '
+         body='Ställ frågor eller hitta en medspelare för onlinespel på Discord: discord.gg/tvFApEEVfj\nStäng spelet om '
             ..'du vill rapportera ett fel. Skicka coop-report.txt, coop-link.log och UE4SS.log innan du startar det '
             ..'igen.\nMother Sphere-illustration av timediffer24.'},
     },
@@ -1011,7 +1011,7 @@ G.th={
          body='หน้า [ตัวเลือก] ของเมนู co-op ใช้ตั้งปุ่ม HUD ของคู่หู ใครเข้าร่วมได้ เซฟ co-op กฎการต่อสู้ ขนาดเมนู และเสียงเมนู ค่าต่างๆ '
             ..'เก็บไว้ใน coop-settings.txt\nตั้ง [ภาษาเมนู] เป็น [English] เพื่ออ่านม็อดเป็นภาษาอังกฤษ'},
         {title='ช่วยเหลือ',
-         body='ถามคำถามหรือหาคู่หู co-op ได้ใน Discord: discord.gg/tvFApEEVfj\nหากจะรายงานบั๊ก ให้ปิดเกมก่อน และก่อนเปิดเกมอีกครั้ง '
+         body='ถามคำถามหรือหาคู่หูเล่นออนไลน์ได้ใน Discord: discord.gg/tvFApEEVfj\nหากจะรายงานบั๊ก ให้ปิดเกมก่อน และก่อนเปิดเกมอีกครั้ง '
             ..'ให้ส่ง coop-report.txt, coop-link.log และ UE4SS.log\nภาพ Mother Sphere โดย timediffer24'},
     },
     next='ถัดไป',back='กลับ',close='ปิด',never='ไม่ต้องแสดงอีก',page='หน้า %d จาก %d',row='คู่มือ',
@@ -1062,7 +1062,7 @@ G.tr={
             ..'kayıtlarını, çatışma kurallarını, menünün boyutunu ve seslerini ayarlar. Değerler coop-settings.txt '
             ..'dosyasında saklanır.\nModu İngilizce okumak için Menü dili ayarını English yap.'},
         {title='Yardım',
-         body="Discord'da soru sor ya da co-op arkadaşı bul: discord.gg/tvFApEEVfj\nHata bildirmek için oyunu kapat. "
+         body="Discord'da soru sor ya da çevrim içi oyun arkadaşı bul: discord.gg/tvFApEEVfj\nHata bildirmek için oyunu kapat. "
             ..'Oyunu yeniden başlatmadan önce coop-report.txt, coop-link.log ve UE4SS.log dosyalarını '
             ..'gönder.\nMother Sphere çizimi: timediffer24.'},
     },
@@ -1105,7 +1105,7 @@ G['zh-Hans']={
          body='合作菜单的“选项”页可设置按键、队友HUD、谁可以加入、合作存档、战斗规则，以及菜单的大小和音效。'
             ..'这些值保存在coop-settings.txt中。\n将“菜单语言”设为“English”即可用英文显示模组。'},
         {title='帮助',
-         body='可在Discord提问或寻找合作队友：discord.gg/tvFApEEVfj\n报告错误时，请先关闭游戏，'
+         body='可在Discord提问或寻找在线游戏队友：discord.gg/tvFApEEVfj\n报告错误时，请先关闭游戏，'
             ..'并在再次启动前发送coop-report.txt、coop-link.log和UE4SS.log。\nMother Sphere插画：timediffer24。'},
     },
     next='下一页',back='上一页',close='关闭',never='不再显示',page='第%d页，共%d页',row='指南',
@@ -1148,7 +1148,7 @@ G['zh-Hant']={
          body='合作選單的「選項」頁可設定按鍵、隊友介面、誰可以加入、合作存檔、戰鬥規則，以及選單的大小與音效。'
             ..'設定值會存入coop-settings.txt。\n將「選單語言」設為「English」，模組就會以英文顯示。'},
         {title='說明',
-         body='有問題或想找合作隊友，請到Discord：discord.gg/tvFApEEVfj\n要回報錯誤，請先關閉遊戲。再次啟動前，'
+         body='有問題或想找線上遊戲隊友，請到Discord：discord.gg/tvFApEEVfj\n要回報錯誤，請先關閉遊戲。再次啟動前，'
             ..'請傳送coop-report.txt、coop-link.log和UE4SS.log。\nMother Sphere插圖：timediffer24。'},
     },
     next='下一頁',back='上一頁',close='關閉',never='不再顯示',page='第%d頁，共%d頁',row='指南',

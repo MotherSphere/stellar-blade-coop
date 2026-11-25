@@ -211,7 +211,7 @@ four of the game's test choice rows, which no story dialogue lists.
   `Night Operation starts once you leave Xion and no one is within 40 m.` A run never starts in Xion, so it starts on
   its own once EVE is out of Xion, the game plays and no one is within 40 m, as `coop nightop start <level>` would
   (the mod tries every 5 s, through that command's own checks). `coop nightop stop` drops the booking. In a Steam
-  session only the host's pick books a run; a guest's pick shows `In a co-op session, only the host starts Night
+  session only the host's pick books a run; a guest's pick shows `In an online session, only the host starts Night
   Operation.` The host's start asks the guest to join, and the booking holds until the guest's answer. When the guest
   cannot join (another map, more than 50 m away, a game screen up), the host gets a notice with the reason and the
   mod asks again 30 s later, until the run counts down or `coop nightop stop` drops the booking.
