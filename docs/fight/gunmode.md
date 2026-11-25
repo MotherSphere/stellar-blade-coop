@@ -149,8 +149,9 @@ on her normal standing spine. The camera's field of view is 66 (the game's aim u
 in frame. She runs, strafes and backpedals at the aim stance's speed times 1.4.
 
 Every round is the NIKKE shot, whatever drone round is selected. It spends no drone ammo. Each round flies from the
-muzzle to the point under the reticle in the frame it leaves. Gun mode writes that point every frame of firing mode.
-Rounds land at random within `gun_spread` degrees of it, seen from the camera: 0.5 unless set, 0 for none. The `[GM]`
+muzzle to the point under the reticle. Gun mode writes that point ten times a second in firing mode and before each
+round it fires itself. Each write moves the point at random within `gun_spread` degrees, seen from the camera: 0.5
+unless set, 0 for none. Rounds that leave between two writes share one point. The `[GM]`
 lines `round #N` and `shot #N` number the rounds of a rifle out in one count, the game's and gun mode's own. The first
 three and one in fifty get a line. `round #N` is a round of the game's aim. It gives where SB sends that round against
 the reticle point. That place is the destination SB computes from her root when the round spawns, read back from the

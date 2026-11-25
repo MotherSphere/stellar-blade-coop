@@ -20,6 +20,23 @@ function Aim.local_offset(target,loc,yaw)
     local c,s=math.cos(r),math.sin(r)
     return dx*c+dy*s,-dx*s+dy*c,dz
 end
+-- The spread: target moved across the line from `from` by at most deg degrees seen from there, in a direction and to
+-- a share of that given by u and v (each in [0, 1]: math.random()). Uniform over the cone's disc. deg 0, no from or a
+-- target under 1 cm away: target itself.
+function Aim.spread(target,from,deg,u,v)
+    if not (target and from and deg and deg>0) then return target end
+    local dx,dy,dz=target.X-from.X,target.Y-from.Y,target.Z-from.Z
+    local L=math.sqrt(dx*dx+dy*dy+dz*dz)
+    if L<1 then return target end
+    dx,dy,dz=dx/L,dy/L,dz/L
+    local ax,ay=-dy,dx -- across the line, level; straight up or down: along X
+    local al=math.sqrt(ax*ax+ay*ay)
+    if al<1e-6 then ax,ay=1,0 else ax,ay=ax/al,ay/al end
+    local bx,by,bz=-dz*ay,dz*ax,dx*ay-dy*ax -- the line cross the first axis
+    local r=L*math.tan(math.rad(deg))*math.sqrt(u)
+    local c,s=r*math.cos(2*math.pi*v),r*math.sin(2*math.pi*v)
+    return {X=target.X+ax*c+bx*s,Y=target.Y+ay*c+by*s,Z=target.Z+bz*s}
+end
 
 local ROW='P_Eve_GunNikke_ShootSlug1_Projectile1'
 local DRONE_ROW='P_Eve_Gun_ShootSlug1_Projectile1'

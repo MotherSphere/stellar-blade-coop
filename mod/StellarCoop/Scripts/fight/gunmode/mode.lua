@@ -113,6 +113,7 @@ function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local whole=env.read_all or read_all
     local set,bad=Config.parse(env.folder and whole(env.folder..'\\coop-settings.txt'))
+    local spread=set.spread or cfg.spread -- degrees around the reticle point (gun_spread)
     local g={}
     function g.log(m) env.log(m) end
     -- ui/text.lua's gun words in the player's language (env.words), English without one.
@@ -804,7 +805,8 @@ function GunMode.new(env)
         if now<s.next_shot then return end
         s.next_shot=now+cfg.fire_interval
         s.shot_at=now
-        local tgt=s.target
+        -- The round's destination: the reticle point moved at random within the spread. The flip's goes along the bore.
+        local tgt=s.flip and s.target or Aim.spread(s.target,s.cam_loc,spread,math.random(),math.random())
         local mz0=g.valid(s.rifle) and g.try(function() return s.rifle:GetSocketLocation(fx_fire()) end)
         aim.write_start(p,mz0 or nil,cfg.start_min_forward,cfg.start_fallback)
         if s.flip and g.valid(s.rifle) then
@@ -1350,13 +1352,13 @@ function GunMode.new(env)
         if s.prof then s.prof('hide') end
         if set.native and set.upper then pcall(hold_pose,p,inp.fire) end
         -- In firing mode, ten times a second: the NIKKE bullet's start put on the rifle's muzzle and its destination
-        -- on the crosshair point (each shot writes the destination again).
+        -- on the crosshair point, moved at random within the spread (each shot writes the destination again).
         if s.prof then s.prof('pose') end
         if (s.zoom_held or inp.fire) and now-(s.aim_w or 0)>=0.1 then
             s.aim_w=now
             local m=g.valid(s.rifle) and g.try(function() return s.rifle:GetSocketLocation(fx_fire()) end)
             aim.write_start(p,m or nil,cfg.start_min_forward,cfg.start_fallback)
-            aim.write(p,s.target)
+            aim.write(p,Aim.spread(s.target,s.cam_loc,spread,math.random(),math.random()))
         end
         if not set.native then face(p,s.zoom_held) end
         -- Firing mode: fire once the rifle has had a moment to come up (Luke's raise eases in over ~12 frames).

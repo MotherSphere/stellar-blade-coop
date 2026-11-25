@@ -73,7 +73,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   launch only after 0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
 - `fight/gunmode/helpers_test` covers gun mode's pure parts: its settings as `fight/gunmode/config.lua` parses them
   (the defaults with no file, the last line winning, names in any case, a BOM and CRLF, bad values refused), the polled
-  keys' edges and a tap against a hold, the crosshair point in EVE's frame and back to the world, the rifle's magazine
+  keys' edges and a tap against a hold, the crosshair point in EVE's frame and back to the world, the rounds' spread
+  (within `gun_spread` degrees of the reticle point, the edge at that angle, 0 for none, the setting from 0 to 10, both
+  writes of a round's destination in `mode.lua` going through it), the rifle's magazine
   (a round per cool time, the reload when empty, none when lowered part-spent, the HUD count, no round once the spares
   are spent, a refill) and the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
   or row is refused. `mode.lua` calls `CreateSBZoneEvent` once, inside the guarded `zone_event`. `fire_row` reaches it

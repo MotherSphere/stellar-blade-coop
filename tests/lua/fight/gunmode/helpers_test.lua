@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's pure parts with lua5.4 alone: its settings lines, the polled keys' edges and taps, the crosshair point in
--- EVE's frame, and the rifle's magazine (rounds, reloads, the HUD count, running dry, a refill). Also the one zone event
--- gun mode may fire and the NIKKE round's DestTarget over fake tables.
+-- EVE's frame, the rounds' spread with its setting and the rifle's magazine (rounds, reloads, the HUD count, running
+-- dry, a refill). Also the one zone event gun mode may fire and the NIKKE round's DestTarget over fake tables.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Config=require('fight.gunmode.config')
 local Input=require('fight.gunmode.input')
@@ -34,6 +34,46 @@ end
 do
     local f,r,u=Aim.local_offset({X=0,Y=100,Z=50},{X=0,Y=0,Z=0},90)
     assert(close(f,100) and close(r,0) and close(u,50))
+end
+
+-- 3b. The spread: a round lands within gun_spread degrees of the reticle point seen from the camera, every way
+--     round, the edge at exactly that angle; 0 degrees or no camera gives the point itself; a point straight above
+--     the camera works too. The setting takes 0 to 10 degrees, 0.5 unless set. Each write of a round's destination in
+--     mode.lua goes through it.
+do
+    local function apart(a,b,from)
+        local ax,ay,az=a.X-from.X,a.Y-from.Y,a.Z-from.Z
+        local bx,by,bz=b.X-from.X,b.Y-from.Y,b.Z-from.Z
+        local l=math.sqrt((ax*ax+ay*ay+az*az)*(bx*bx+by*by+bz*bz))
+        return math.deg(math.acos(math.max(-1,math.min(1,(ax*bx+ay*by+az*bz)/l))))
+    end
+    local cam,t={X=0,Y=0,Z=100},{X=1000,Y=200,Z=-50}
+    assert(Aim.spread(t,cam,0,0.5,0.5)==t and Aim.spread(t,nil,0.5,0.5,0.5)==t,'No spread: the point itself')
+    for j=0,7 do
+        assert(close(apart(Aim.spread(t,cam,0.5,1,j/8),t,cam),0.5,1e-6),'The edge is at the angle, way '..j)
+        local inside=apart(Aim.spread(t,cam,0.5,0.25,j/8),t,cam)
+        assert(inside>0.2 and inside<0.3,'A quarter of the disc is at half the angle: '..inside)
+    end
+    assert(apart(Aim.spread(t,cam,0.5,0,0.3),t,cam)<1e-6,'u 0 is the point')
+    local up=Aim.spread({X=0,Y=0,Z=1100},cam,1,1,0.25)
+    assert(up.X==up.X and close(apart(up,{X=0,Y=0,Z=1100},cam),1,1e-6),'Straight up')
+    assert(Config.DEFAULTS.spread==0.5)
+    for v,want in pairs({['0']=0,['10']=10,['2.5']=2.5}) do
+        local s,bad=Config.parse('gun_spread='..v..'\n')
+        assert(s.spread==want and #bad==0,'gun_spread='..v)
+    end
+    for _,v in ipairs({'abc','-1','11'}) do
+        local s,bad=Config.parse('gun_spread='..v..'\n')
+        assert(s.spread==nil and #bad==1 and bad[1]=='gun_spread: degrees from 0 to 10','gun_spread='..v)
+    end
+    local f=assert(io.open('mod/StellarCoop/Scripts/fight/gunmode/mode.lua'))
+    local src=f:read('a'); f:close()
+    local writes,spread=0,0
+    for line in src:gmatch('[^\n]+') do
+        if line:find('aim.write(p,',1,true) then writes=writes+1 end
+        if line:find('Aim.spread(',1,true) then spread=spread+1 end
+    end
+    assert(writes==2 and spread==2,("mode.lua writes a round's destination %d times and spreads it %d times"):format(writes,spread))
 end
 
 -- 4. The magazine: a press fires at once, then one round per cool time in whole frames; empty -> a reload (no round
