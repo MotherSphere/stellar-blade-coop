@@ -1019,9 +1019,9 @@ USAGE='Use: coop puppet | host [public|friends|invitation|closed] | invite | lis
     ..'recruiter [off] | '
     ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit|match [status|pick <track>] | '
-    ..'fight on|off|status|probe|test|record|replay|pilot|spawn | '
-    ..'quests on|off|status|probe|record|replay|force <number> | world on|off|status | scenes on|off|status | '
-    ..'keys reset [<name>|all] | '
+    ..'fight on|off|status|probe|test|record|replay|pilot|spawn | spectate on|off|status|test | '
+    ..'quests on|off|status|probe|record|replay|force <number> | world on|off|status | teamshop | '
+    ..'scenes on|off|status | guide | keys reset [<name>|all] | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued

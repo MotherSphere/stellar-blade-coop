@@ -11,8 +11,8 @@ assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread
 -- run in that pass.
 -- The once goes by the function, not the name: a module's other calls under the same name still log their own first
 -- error. A guarded call gives back its first two results, or nothing after an error. Measured with Lua 5.4 on the build
--- machine, the xpcall adds about 40 ns a call: under 2 µs a frame for the per-frame loop's 29 to 45 calls (36 with the
--- UI, plus the inbox while a race is armed and up to 8 pad events).
+-- machine, the xpcall adds about 40 ns a call: under 2.5 µs a frame for the per-frame loop's 38 to 59 calls (50 with
+-- the UI, plus the inbox while a race is armed and up to 8 pad events).
 local escaped={} -- The guarded functions whose error was logged this Lua load.
 local running -- The guarded function under way: its traceback is built only for the error that gets logged.
 local function traced(message)
@@ -104,7 +104,7 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=M.guarded('gun',M.gun.tick)
     if message then M.report(ok,message) end
     local raced=os.clock()
-    if M.link and M.race.armed() then M.guarded('inbox',M.inbox) end
+    if M.link and M.guarded('race',M.race.armed) then M.guarded('inbox',M.inbox) end
     ok,message=M.guarded('race',M.race.tick) -- After the look: its Doros and HUD from where EVE is drawn this frame.
     if message then M.report(ok,message) end
     raced=os.clock()-raced+steered

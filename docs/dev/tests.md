@@ -32,7 +32,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`fishing`, `guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `photohunt`, `race_match`,
+`fishing`, `guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `pass`, `photohunt`, `race_match`,
 `scoreattack`, `session_ui`, `settings`;
 `world/maps/matrix13/`:
 `off`, `words`;
@@ -614,6 +614,15 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   the first second;
 - `main/collide_test` covers the ghost's collision through `main/pass.lua`: as `collide` says, never solid during an SBO
   session. The state's `collide` follows the same rule (`collide=0` stops the enemy contact);
+- `main/pass_test` covers the module exports that `main/pass.lua` and `main/frame.lua` call under `guarded()`. With
+  `fight_asks` raising, the 250 ms pass still says the link's notices, starts the ghost, writes the state and runs the
+  kit's slow pass, the focus watchdog and the menu's slow pass. The error is logged once under `fight`. Then
+  `quests_asks`, `world_asks`, `scenes_asks`, `puppet.active`, `ghost_start`, `race.armed` (in the pass and in the
+  frame), `sbo.active` (before and after `coop off`), `group.photo`, `group.cut`, `booth.near`, `hud.marking`,
+  `photo_pause` and `puppet.rebuild` each raise in two runs of their loop: no error leaves the loop and one line is
+  logged under the module's name;
+- `main/boot_test` checks that the usage line names `coop guide`, `coop teamshop` and `coop spectate`, which
+  `docs/usage.md` lists as player commands;
 - `main/loader_test` covers `main/loader.lua` alone with fake modules: every export the stub before any `new` runs (also
   the exports of a module whose require raises, read from its `wiring.lua`), the modules in list order, an on module's
   exports as its `new` left them, its words in `M.commands` (a word defined twice raises), a require, a `new` or a build
