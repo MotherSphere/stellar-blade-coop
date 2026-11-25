@@ -28,7 +28,7 @@ mod does not ship it and the repository cannot build it: the map tools stay outs
 The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then in `SB/Content/Paks/LogicMods`. The
 `.utoc` must name `SBO_World` and `Xion_P.umap`, with its `.pak` and `.ucas` beside it.
 
-There are six builds of the pak, under the same three file names. Only one of them is installed at a time.
+There are seven builds of the pak, under the same three file names. Only one of them is installed at a time.
 
 | Pak | Packages | Levels listed | `.utoc` | `.ucas` | Version in `coop xion status` |
 | --- | --- | --- | --- | --- | --- |
@@ -38,8 +38,9 @@ There are six builds of the pak, under the same three file names. Only one of th
 | 24 November 2026, rooms, second build | `Xion_P` and the five room levels, rebuilt | 100 | 1203 bytes | 1,545,808 bytes | `1203_1545808` |
 | 24 November 2026, full test, second build | `Xion_P` and the five rebuilt room levels | 161 | 1203 bytes | 1,546,008 bytes | `1203_1546008` |
 | 24 November 2026, full test, third build | `Xion_P` and eleven room levels | 167 | 1863 bytes | 1,918,741 bytes | `1863_1918741` |
+| 25 November 2026, full test, fourth build | `Xion_P` and nineteen room levels | 175 | 2719 bytes | 2,331,195 bytes | `2719_2331195` |
 
-All six pass the check above. The module looks for package paths, never for a version: `self.gate()` in
+All seven pass the check above. The module looks for package paths, never for a version: `self.gate()` in
 `sboxion.lua` hands the version to `coop xion status`, which prints it. Nothing else reads it. Two rebuilds of the
 third full test build, made on 25 November 2026 with pieces turned inside the rooms, read the same version: it is
 made of two sizes. At the first arrival
@@ -51,8 +52,9 @@ list leaves out of its walk-in rooms. With the pak of 23 November the module wor
 
 The list also names nine rooms behind [threshold doors](#the-threshold-doors). The module asks for each of them the
 same way. `D039` is one of them, so the third build holds one threshold room. The level files of the eight others
-are `Xion_Rooms_D111.umap`, `D157`, `D109`, `D029`, `D030`, `D037`, `D163` and `D164`. The build that adds them was
-not finished when this page was written: its sizes and its version are not in the table.
+are `Xion_Rooms_D111.umap`, `D157`, `D109`, `D029`, `D030`, `D037`, `D163` and `D164`. The fourth build holds all
+nine. Its level line reads `175 listed, 141 of 141`. Read that line before the first push on a door: four of the
+new rooms (`D029`, `D030`, `D163`, `D164`) load on streaming slots of a kind no game run has loaded yet.
 
 ## Commands
 
@@ -675,7 +677,7 @@ hold EVE. `rooms/threshold.lua` answers both questions for other code: `may(name
 A threshold door works only when the pak holds its room's level. The module asks the pak gate for each threshold
 room on its own, as for the walk-in rooms. With the pak of 23 November and the five-room builds the arrival logs
 `threshold: none of the 9 rooms is in this pak` and nothing else happens. With the third full test build it logs
-`threshold: this pak holds 1 of 9 rooms: D039; opened: none`.
+`threshold: this pak holds 1 of 9 rooms: D039; opened: none`. With the fourth it logs `this pak holds 9 of 9 rooms`.
 
 The pak holding a room's level does not say the game loaded it. So a way in also reads the streaming list once a
 whole push. It needs the room's level loaded and visible. A level that is not there keeps its door shut: no black,
