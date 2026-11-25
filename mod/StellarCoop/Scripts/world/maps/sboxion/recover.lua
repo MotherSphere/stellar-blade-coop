@@ -53,7 +53,9 @@
 -- 3 to 5, warp=idle with me=<GUID> and no nightop=rule on the engine line, an SB player controller, a standalone
 -- game, EVE and the death screen playing, each reason logged once, then makes the one call. The change: after SCREEN
 -- s without a playing death screen the call is made without one. AFTER s later it logs the result. With life 1 or 6
--- a death screen that still plays is hidden until the next death, a stop or the recovery stopping after two failures.
+-- SB's death screen is told that its revival ended (engine.lua's revived), so SB gives back the mouse cursor the
+-- screen holds, with one line for what was told. A death screen that still plays is then hidden until the next death,
+-- a stop or the recovery stopping after two failures.
 -- If EVE is then not walking or is under FLOOR, the fall's put-back runs, in the mode death too. Life still 3 to 5,
 -- or no call in TRY s, is a failure: the next pass starts the death again unless the recovery stopped. TRY, AFTER and
 -- SCREEN count passes, so they run in real time whatever the world's time does. Without a warp= word the call is
@@ -71,7 +73,7 @@ local function place(at) return string.format('(%.0f, %.0f, %.0f)',at.X,at.Y,at.
 
 -- o: log(m), status() the native status text, photo() main/base.lua's photo_state ('0' out of photo mode; optional)
 -- and world, the engine calls (world/maps/sboxion/engine.lua's move, put, black, controller, standalone, respawn,
--- screen and hide; a fake in the tests).
+-- screen, hide and revived; a fake in the tests).
 function Recover.new(o)
     local log,world=o.log,o.world
     local mode,stopped,fails,arrival='on',false,0,'city'
@@ -208,9 +210,15 @@ function Recover.new(o)
         local b,up=dead.before,playing()
         local screen=screen_word(up)
         local alive=life==1 or life==6
-        if alive and up then
-            hidden=world.hide()
-            screen=hidden and 'hidden' or screen
+        if alive then
+            -- SB's dead HUD still holds the cursor: it is told its revival ended. A raise must not lose the result.
+            local ok,told=pcall(world.revived)
+            log('respawn: death screen '..(ok and told and 'told its revival ended' or 'not told its revival ended: '
+                ..(ok and 'no widget' or tostring(told))))
+            if up then
+                hidden=world.hide()
+                screen=hidden and 'hidden' or screen
+            end
         end
         local said=string.format('respawn result: life %d/%s, death screen %s/%s, EVE pawn %s, mode %s',b.life,
             life or '?',b.screen,screen,not m and 'gone' or m.pawn==b.pawn and 'same' or 'new',

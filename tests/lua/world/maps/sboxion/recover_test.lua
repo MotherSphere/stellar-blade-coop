@@ -24,7 +24,9 @@
 -- The death, with the respawn cases of tests/lua/online/modes/scoreattack/run_test.lua for this module's copy: it
 -- starts while her life reads 3 to 5 (not on the change), each reason the respawn waits for is said once, one call of
 -- SB's respawn with her GUID, the result line 2 s later, a death screen that still plays over a living EVE hidden, then
--- shown again at a new death (in the modes off and death too), at a stop and when two failures stop the recovery; no
+-- shown again at a new death (in the modes off and death too), at a stop and when two failures stop the recovery; the
+-- death screen told once that its revival ended when she lives, never while she is dead, with one line for no widget
+-- and one for a call that raises; no
 -- call in 10 s is a failure. This module's own cases: with no death screen playing the call is made after 5 s; a
 -- respawn that leaves her off the ground puts her back, in the mode death too; life still 3 after the call is a
 -- failure and the death starts again; two failures stop the recovery and the mode word starts it again; a death left
@@ -89,12 +91,20 @@ world.hide=function()
     visible=false
     return function() visible=true end
 end
+-- The end of SB's death screen: each ask; nil with no widget; raises with told_error.
+local tolds,told_error=0,nil
+world.revived=function()
+    tolds=tolds+1
+    if told_error then error(told_error,0) end
+    return there or nil
+end
 local function fresh(at)
     logs,puts={},{}
     blacks,order,black_up,black_error={},{},true,nil
     eve={at=at or {X=0,Y=0,Z=225},yaw=90,mode=1,time=500,pawn=0x7000}
     photo,engine,warp_line,refuse,lands,broken='0',IDLE,'sboxionwarp=entered asks=1 life=1',false,3,nil
     pc,standalone,respawns,revive,there,playing,visible,looks=PC,true,{},nil,true,false,true,0
+    tolds,told_error=0,nil
     local r=Recover.new({log=function(m) logs[#logs+1]=m end,
         status=function() return 'mod=v\n'..engine..'\n'..warp_line..'\nlast=x\n' end,
         photo=function() return photo end,world=world})
@@ -510,12 +520,14 @@ pass(r,3)
 assert(#respawns==1,'Once')
 warp_line,eve.mode='sboxionwarp=entered asks=1 life=1',1 -- Up and standing; the death screen still plays.
 pass(r,4)
-assert(not logged('respawn result'),'Not before 2 s')
+assert(not logged('respawn result') and tolds==0,'Not before 2 s')
 pass(r)
 assert(last()=='respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 1',last())
 assert(visible==false and #respawns==1 and #puts==0 and r.status():find('failures 0',1,true))
+-- told: SB's death screen is told its revival ended, once, before the result line. That frees SB's cursor.
+assert(tolds==1 and logs[#logs-1]=='respawn: death screen told its revival ended',logs[#logs-1])
 pass(r,40)
-assert(#respawns==1 and count('death: life')==1,'Nothing more while she lives')
+assert(#respawns==1 and count('death: life')==1 and tolds==1,'Nothing more while she lives')
 -- A new death shows the screen the part hid, first. With no life read after it started, the respawn is given up
 -- after 10 s as a failure. A life that is not read starts no death.
 die()
@@ -607,6 +619,16 @@ assert(#respawns==1 and looks==1,'One search for the widget')
 warp_line,eve.mode,eve.pawn='sboxionwarp=entered asks=1 life=6',1,0x7100
 pass(r,8)
 assert(last()=='respawn result: life 3/6, death screen gone/gone, EVE pawn new, mode 1',last())
+assert(tolds==1 and logs[#logs-1]=='respawn: death screen not told its revival ended: no widget',logs[#logs-1])
+-- told_raises: a call that raises is one line. The result is still read and the screen still hidden, once.
+r=fresh()
+playing,revive,told_error=true,1,'NotifyBlueprint: bad parameter'
+die()
+pass(r,9)
+assert(logs[#logs-1]=='respawn: death screen not told its revival ended: NotifyBlueprint: bad parameter',logs[#logs-1])
+assert(last()=='respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 1' and visible==false,last())
+pass(r,8)
+assert(tolds==1 and count('respawn result')==1,'Once')
 
 -- off_the_ground: a respawn that leaves her falling under the floor puts her on the ground point, in the mode death
 -- too. The walking read after it is the success.
@@ -667,6 +689,7 @@ die()
 pass(r,9)
 assert(last()=='respawn result: life 3/3, death screen up/up, EVE pawn same, mode 1: failure 1 of 2' and visible,
     last())
+assert(tolds==0,'A dead EVE: the death screen is not told')
 pass(r)
 assert(#respawns==2 and count('death: life 3')==2,'The death starts again on the next pass')
 pass(r,8)
