@@ -446,4 +446,6 @@ return {
         viewer={title='Fjernede modeller',model='Model',part='Del',skin='Udseende',show='Vis',cam='Fri kamera',
         remove='Fjern',nothing='Intet vist',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',
         nier='NieR-maskine',orcal='Orcal-prototype',enya='Enya-prototype'}},
+    xion={says='%s: %s',repairer='Reparatør',
+        repairer_hello='Hvis den summer, slår gnister eller halter, så kom med den. Jeg får den som regel i gang igen.'},
 }

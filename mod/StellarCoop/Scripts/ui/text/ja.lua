@@ -392,4 +392,6 @@ return {
         viewer={title='カットモデル',model='モデル',part='パーツ',skin='スキン',show='表示',cam='フリーカメラ',remove='削除',nothing='何も表示なし',
         leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieRの機械',orcal='Orcalの試作',
         enya='Enyaの試作'}},
+    xion={says='%s：%s',repairer='修理屋',
+        repairer_hello='うなったり、火花を散らしたり、足を引きずったりするなら持ってきな。たいていはまた動くようにしてやれる。'},
 }

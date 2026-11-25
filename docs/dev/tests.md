@@ -40,6 +40,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `world/maps/sboxion/`: `engine`, `off`, `recover`, `rows`, `sboxion`, `tetrapod`, `title`, `world`;
 `world/maps/sboxion/rooms/`: `list`, `rooms`, `threshold`;
+`world/maps/sboxion/npcs/`: `npcs`;
 `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
 `online/partner/`: `assets`, `bench`, `bike_part`, `capture`, `commands`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
@@ -926,8 +927,15 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
   `recover` alone and with `on`, `death` or `off`, `rooms` alone and with `on` or `off`, the use line for `walls`,
   any other word or one too many and the answer without the Steam link. Then `world/maps/sboxion/wiring.lua`: SBO
-  Xion is built with two of the Steam link's stores, `coop-xion-rooms.txt` and `coop-xion-doors.txt`. No store is
-  asked without the link;
+  Xion is built with three of the Steam link's stores, `coop-xion-rooms.txt`, `coop-xion-doors.txt` and
+  `coop-xion-npcs.txt`. An NPC's line is said in the menu's words. `coop xion npc` hands its two words to the
+  module. No store is asked without the link;
+- `world/maps/sboxion/npcs/npcs_test` runs `world/maps/sboxion/npcs/npcs.lua` over a fake world and a fake store:
+  the list with its words in 22 languages and a line within 200 bytes, the repairer's spot worked out from D011's
+  frame, no body far away or while the room's level is not there, the body with its turn and first clip, the line
+  once within 3 m and again after 6 m, the body gone past 35 m, a dropped body made again, a body or a clip that
+  fails, `coop xion npc` with its clips and its turn, the sweep of an earlier load's body, `stop()` and an error in
+  a pass;
 - `world/maps/sboxion/off_test` runs `main/isolation.lua` with `world.maps.sboxion` (see the module tests above);
 - `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return
   from the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry,

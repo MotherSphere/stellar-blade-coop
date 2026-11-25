@@ -459,4 +459,6 @@ return {
         viewer={title='Modelos cortados',model='Modelo',part='Parte',skin='Visual',show='Mostrar',cam='Câmera livre',
         remove='Remover',nothing='Nada mostrado',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='Máquina de NieR',orcal='Protótipo de Orcal',enya='Protótipo de Enya'}},
+    xion={says='%s: %s',repairer='Reparador',
+        repairer_hello='Se zumbir, soltar faíscas ou mancar, traga para mim. Quase sempre consigo fazer funcionar de novo.'},
 }

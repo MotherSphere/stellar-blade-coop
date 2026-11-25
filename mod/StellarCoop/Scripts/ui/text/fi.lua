@@ -459,4 +459,6 @@ return {
         viewer={title='Poistetut mallit',model='Malli',part='Osa',skin='Ulkoasu',show='Näytä',cam='Vapaa kamera',
         remove='Poista',nothing='Ei mitään näkyvissä',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='NieR-kone',orcal='Orcal-prototyyppi',enya='Enya-prototyyppi'}},
+    xion={says='%s: %s',repairer='Korjaaja',
+        repairer_hello='Jos se hurisee, kipinöi tai ontuu, tuo se tänne. Yleensä saan sen taas toimimaan.'},
 }

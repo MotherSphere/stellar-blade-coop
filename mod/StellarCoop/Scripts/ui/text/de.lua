@@ -472,4 +472,6 @@ return {
         viewer={title='Gestrichene Modelle',model='Modell',part='Teil',skin='Skin',show='Zeigen',cam='Freie Kamera',
         remove='Entfernen',nothing='Nichts gezeigt',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='NieR-Maschine',orcal='Orcal-Prototyp',enya='Enya-Prototyp'}},
+    xion={says='%s: %s',repairer='Reparateur',
+        repairer_hello='Wenn es brummt, Funken sprüht oder hinkt, bring es her. Meistens kriege ich es wieder zum Laufen.'},
 }

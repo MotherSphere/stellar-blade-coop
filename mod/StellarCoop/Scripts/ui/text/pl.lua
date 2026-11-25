@@ -449,4 +449,6 @@ return {
         viewer={title='Wycięte modele',model='Model',part='Część',skin='Wygląd',show='Pokaż',cam='Wolna kamera',
         remove='Usuń',nothing='Nic nie pokazano',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='Maszyna z NieR',orcal='Prototyp Orcala',enya='Prototyp Enyi'}},
+    xion={says='%s: %s',repairer='Serwisant',
+        repairer_hello='Jeśli coś buczy, iskrzy albo kuleje, przynieś to do mnie. Zwykle udaje mi się to znowu uruchomić.'},
 }

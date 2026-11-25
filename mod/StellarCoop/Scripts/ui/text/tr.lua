@@ -457,4 +457,6 @@ return {
         cam='Serbest kamera',remove='Kaldır',nothing='Hiçbir şey gösterilmiyor',leviathan='Leviathan',
         gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR makinesi',orcal='Orcal prototipi',
         enya='Enya prototipi'}},
+    xion={says='%s: %s',repairer='Tamirci',
+        repairer_hello='Vızıldıyorsa, kıvılcım saçıyorsa ya da aksıyorsa bana getir. Çoğu zaman yeniden çalıştırırım.'},
 }
