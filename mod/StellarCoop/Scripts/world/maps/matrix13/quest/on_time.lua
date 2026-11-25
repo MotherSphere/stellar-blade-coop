@@ -1,24 +1,25 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Lily's signal (experimental, untested in game): on a co-op save, solo, with the zMXIII_P test pak, in Phase 5 (from
--- "Talk to Lily to decide on the next destination" until "Leave for the Nest", Quest_Epic_11 M04), the mod's prologue
--- "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164) starts by itself and tracks Lily at every Tetrapod; Lily's
--- choice list then offers one more line, "The other signal", above her Travel, Repair and End rows. Picking it plays
--- her goodbye, then the prologue talk (world/maps/matrix13/quest/subtitles.lua), then completes the prologue and starts
--- the mod's long quest "On Time" (Quest_Sub_MX13_01, QuestTable 163) and sends EVE into Matrix XIII through coop
--- mxiii's camp travel (the Tetrapod camp DLC02_00_Camp_00, beside the area's Lily, on the v4 pak). On Time has six
--- steps: reach the station (M01) and zones 2 to 4 (M02 to M04, each SB's own EnterZone), the Fusion Drive room in zone
--- 4 (M05, which this file completes), and telling Lily (M06), when her row returns as "About Matrix 13" and plays the
--- end talk. The pieces, in order:
+-- Lily's signal (experimental; in game on 2026-11-18, build v0.11.0-277-gd9bb23bf, its rows and words went in at the
+-- title, the prologue talk played and On Time started; its later steps have no recorded run): on a co-op save, solo,
+-- with the zMXIII_P test pak, in Phase 5 (from "Talk to Lily to decide on the next destination" until "Leave for the
+-- Nest", Quest_Epic_11 M04), the mod's prologue "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164) starts by itself
+-- and tracks Lily at every Tetrapod; Lily's choice list then offers one more line, "The other signal", above her
+-- Travel, Repair and End rows. Picking it plays her goodbye, then the prologue talk
+-- (world/maps/matrix13/quest/subtitles.lua), then completes the prologue and starts the mod's long quest "On Time"
+-- (Quest_Sub_MX13_01, QuestTable 163) and sends EVE into Matrix XIII through coop mxiii's camp travel (the Tetrapod
+-- camp DLC02_00_Camp_00, beside the area's Lily, on the v4 pak). On Time has six steps: reach the station (M01) and
+-- zones 2 to 4 (M02 to M04, each SB's own EnterZone), the Fusion Drive room in zone 4 (M05, which this file completes),
+-- and telling Lily (M06), when her row returns as "About Matrix 13" and plays the end talk. The pieces, in order:
 -- - The signal rows (world/maps/matrix13/signal_rows.h's kSignalRecipe, through core/enemy.lua's rows flow and read
 --   back): both quests' rows (8 target filters, 7 tasks, 7 groups, the two quests), then Lily's borrowed choice row
 --   TS_GoToTest_2 patched in place (the game's own Phase 5 condition Xion_10_Condition_051, shown or hidden, priority
---   3, her goodbye's exec). Only with the test pak (looked for once a Lua load), since nothing else can use them and no
---   row has gone into these tables in game yet: at the title while the game uses the co-op save files (title(),
---   core/enemy.lua's title_batch), so a co-op save that holds a quest loads with it; on a co-op save in game they are
---   asked, or read back when already in, once a Lua load (also after a title batch that a shut gate refused), too late
---   for a save that holds a quest. They stay for the game run, and nothing goes on until they read back.
+--   3, her goodbye's exec). Only with the test pak (looked for once a Lua load), since nothing else can use them: at
+--   the title while the game uses the co-op save files (title(), core/enemy.lua's title_batch), so a co-op save that
+--   holds a quest loads with it; on a co-op save in game they are asked, or read back when already in, once a Lua load
+--   (also after a title batch that a shut gate refused), too late for a save that holds a quest. They stay for the game
+--   run, and nothing goes on until they read back.
 -- - The words (world/maps/matrix13/quest/text.lua), once the rows read back and again on a change of the game's
 --   language (read every tick once they are in): both quests' titles and descriptions, the 7 group lines, On Time's
 --   task lines 1 to 5 and her choice's first label, as FText in the game's language, each row checked first and read

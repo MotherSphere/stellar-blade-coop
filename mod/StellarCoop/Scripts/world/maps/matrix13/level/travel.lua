@@ -91,7 +91,9 @@ local OVERLAP=64 -- Bytes each window repeats of the last one, so a name across 
 Mxiii.ucas_size=PakGate.ucas_size
 -- SB lists every camp's env-spawn rows in FSBGameWorld::Init (FUN_141c98ef0 makes the zone manager, whose setup runs
 -- FUN_141d1a310 over ZoneEnvSpawnTable), so the world the rows went in on may know neither camp until the next one
--- (not when they went in at the title). Read from the code, untested.
+-- (not when they went in at the title). Read from the code. In game on 2026-10-27 (build v0.6.0-beta.3-250-g51dbdf1)
+-- SB refused the first travel and took it after a reload. A first travel after rows that went in at the title has no
+-- recorded run.
 local function hint(camp,command)
     return 'if [TR] says SB refused '..camp..': SB lists the camps when its world starts, maybe before these rows; '
         ..'load the save or travel to a camp, then run '..command..' again (the rows stay in)'
