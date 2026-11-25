@@ -362,6 +362,7 @@ return {
         cancelled='Runda została anulowana.',
         out={off='Pogoń za punktami jest wyłączona w Opcjach: pomijasz tę rundę.',
             bike='Zsiądź z motocykla, aby zagrać w następnej rundzie.',
+            seat='Wstań z miejsca, aby zagrać w następnej rundzie.',
             night='Trwa Nocna operacja: pomijasz tę rundę.',
             room='Nie jesteś w poczekalni: pomijasz tę rundę.',
             refused='Gra nie mogła rozpocząć wyzwania: pomijasz tę rundę. Powód podaje UE4SS.log.'},

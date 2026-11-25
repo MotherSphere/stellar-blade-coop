@@ -373,6 +373,7 @@ return {
         cancelled='A rodada foi cancelada.',
         out={off='A Corrida por pontos está desligada nas Opções: você fica fora desta rodada.',
             bike='Desça da moto para jogar a próxima rodada.',
+            seat='Levante-se do assento para jogar a próxima rodada.',
             night='Uma Operação noturna está em andamento: você fica fora desta rodada.',
             room='Você não está na sala de espera: fica fora desta rodada.',
             refused='Seu jogo não conseguiu iniciar o desafio: você fica fora desta rodada. O UE4SS.log diz o motivo.'},

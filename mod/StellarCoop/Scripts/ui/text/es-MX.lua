@@ -373,6 +373,7 @@ return {
         cancelled='Se canceló la ronda.',
         out={off='El ataque de puntos está desactivado en Opciones: no juegas esta ronda.',
             bike='Bájate de la moto para jugar la próxima ronda.',
+            seat='Levántate del asiento para jugar la próxima ronda.',
             night='Hay una Operación nocturna en curso: no juegas esta ronda.',
             room='No estás en la sala de espera: no juegas esta ronda.',
             refused='Tu juego no pudo iniciar el desafío: no juegas esta ronda. UE4SS.log dice por qué.'},

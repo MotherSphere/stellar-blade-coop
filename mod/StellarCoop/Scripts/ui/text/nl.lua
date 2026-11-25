@@ -371,6 +371,7 @@ return {
         cancelled='De ronde is geannuleerd.',
         out={off='Scorejacht staat uit in Opties: je slaat deze ronde over.',
             bike='Stap van de motor om de volgende ronde te spelen.',
+            seat='Sta op van je stoel om de volgende ronde te spelen.',
             night='Er loopt een Nachtelijke missie: je slaat deze ronde over.',
             room='Je bent niet in de wachtruimte: je slaat deze ronde over.',
             refused='Je spel kon de uitdaging niet starten: je slaat deze ronde over. UE4SS.log zegt waarom.'},

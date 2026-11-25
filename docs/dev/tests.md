@@ -674,15 +674,17 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   and match end, a guest's go read before its start line, her rank and a void, who may send which line, the pace of
   the now lines, a round that ends early, one replaced by the next, one found playing at a Lua reload, a room that
   offers nothing, a player who leaves, the pick and its cycle. `online/modes/scoreattack/game_test` covers each
-  sit-out reason with its log line and notice key, a hall seat left first, the run at the spot facing the ring centre
-  on the round's seed, the now lines while its waves play only and the done line of each outcome.
+  sit-out reason with its log line and notice key (SB's own chair seating EVE among them), a hall seat left first,
+  the run at the spot facing the ring centre on the round's seed, the now lines while its waves play only and the
+  done line of each outcome.
   `online/modes/scoreattack/run_test`, `challenges_test` and `waves_test` hold their Night Operation originals' cases
   for the copies, with what the copy changes: each start refusal with no spawn, a whole Target Practice run from a
   lobby spot, `best_match_targets` kept in `coop-records.txt` beside the solo bests, every abort and, after a death,
   the in-place respawn (its checks, its 10 s, its result line, the death screen hidden and shown again).
   `online/modes/scoreattack/board_test` covers the card, the in-round board and the result panel on a fake kit, their
   words in the game's language, the notices with the kit off and the HUD's STOP line. `main/scoreattack_test` covers
-  the pass line and the `coop off` stop through `main.lua`, then the wiring on a fake run;
+  the pass line and the `coop off` stop through `main.lua`, then the wiring on a fake run, SB's chair sit-out with
+  its notice included;
 - `online/modes/race/match/model_test` covers Doro races in matches without the game: the dr texts both ways with their
   refusals and sizes, who may send which text, the track coming whole from its lines, the tracks planted rooms offer
   (Xion's training room with its 30 m fence, a hall, a track in Xion's streets left out), the pick and the Random draw,

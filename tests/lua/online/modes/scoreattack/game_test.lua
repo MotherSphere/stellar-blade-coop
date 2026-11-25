@@ -2,14 +2,14 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The game side of a score attack round (online/modes/scoreattack/game.lua) on a fake run and round: each sit-out
--- reason in order, with one log line, its notice key and no ready; a hall seat left first; the run at our spot facing
--- the ring centre on the round's seed, then ready; the now lines while its waves play only; its end as the done line of
--- each outcome; a stop reaches the run.
+-- reason in order (SB's own chair among them), with one log line, its notice key and no ready; a hall seat left
+-- first; the run at our spot facing the ring centre on the round's seed, then ready; the now lines while its waves
+-- play only; its end as the done line of each outcome; a stop reaches the run.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local G=require('online.modes.scoreattack.game')
 local C=require('online.modes.scoreattack.challenges')
 local targets=C.find('targets')
-local env={on=true,riding=false,night=false,seated=false,refuse=nil}
+local env={on=true,riding=false,night=false,resting=false,seated=false,refuse=nil}
 local room={key='xion',spots={{X=100,Y=200,Z=300,Yaw=180},{X=-100,Y=-200,Z=300,Yaw=0}}}
 local calls,logs,sent,outs={},{},{},{}
 local state=nil -- What the fake run's state() gives.
@@ -26,7 +26,8 @@ local round={ready=function() sent[#sent+1]='ready' end,
     done=function(r) sent[#sent+1]=string.format('done %s %d %d',r.ending,r.score,r.tenths) end}
 local game=G.new({run=run,round=round,log=function(m) logs[#logs+1]=m end,
     on=function() return env.on end,riding=function() return env.riding end,night=function() return env.night end,
-    target=function() return env.room end,seated=function() return env.seated end,
+    target=function() return env.room end,resting=function() return env.resting end,
+    seated=function() return env.seated end,
     stand=function() calls[#calls+1]='stand'; env.seated=false end,out=function(key) outs[#outs+1]=key end})
 local function clear() calls,logs,sent,outs={},{},{},{} end
 -- tried: the run's start was asked (and refused); else nothing reached it. key: the notice's (ui/text.lua's
@@ -51,6 +52,10 @@ sat('EVE is not in the lobby room','room')
 env.room=room
 assert(not game.start(targets,7,3) and logs[1]=='sit out: this room has no spot 3' and outs[1]=='room')
 clear()
+-- SB's own hall chair seats EVE: she sits out, not stood up and not teleported (its interaction still runs on her).
+env.resting,env.seated=true,true
+sat('SB\'s chair seats EVE','seat')
+env.resting,env.seated=false,false
 env.refuse='census: 1 living within 40 m (nearest 12.0 m); 0 wave bodies'
 sat(env.refuse,'refused',true)
 env.refuse=nil

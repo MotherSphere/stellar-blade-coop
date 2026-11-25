@@ -376,6 +376,7 @@ return {
         cancelled='Il round è stato annullato.',
         out={off='La Caccia ai punti è disattivata nelle Opzioni: salti questo round.',
             bike='Scendi dalla moto per giocare il prossimo round.',
+            seat='Alzati dal posto per giocare il prossimo round.',
             night="È in corso un'Operazione notturna: salti questo round.",
             room="Non sei nella sala d'attesa: salti questo round.",
             refused='Il gioco non è riuscito ad avviare la sfida: salti questo round. Il motivo è in UE4SS.log.'},

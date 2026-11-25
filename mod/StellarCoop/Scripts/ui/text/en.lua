@@ -446,6 +446,7 @@ return {
         cancelled='The round was cancelled.',
         out={off='Score attack is off in Options: you sit out this round.',
             bike='Get off the bike to play the next round.',
+            seat='Get up from your seat to play the next round.',
             night='A Night Operation run is on: you sit out this round.',
             room='You are not in the waiting room: you sit out this round.',
             refused='Your game could not start the challenge: you sit out this round. UE4SS.log says why.'},
