@@ -41,7 +41,8 @@ URL = 'https://github.com/UE4SS-RE/RE-UE4SS/releases/download/v4.0.0/UE4SS_v4.0.
 SHA256 = '251ad0d1381a241750e036f5918cbf2b5d7ec58ebc608cb2dd09d459d0c81e45'
 CACHE = Path.home() / '.cache/sbo-ue4ss/official-v4.0.0/UE4SS_v4.0.0.zip'
 # SBO's UE4SS.dll, where tools/ue4ss_build.py writes it by default, 27089920 bytes. DLL_SHA256 is the build that was
-# tested in game: no freeze with a mod that loads assets from a hook, F10 opens the console.
+# tested in game: no freeze with a mod that loads assets from a hook, F10 opens the console. It was built by hand from
+# commit 9a61a393. tools/ue4ss_build.py builds commit 4c8e4f4d of the same tree: its DLL is not this pin and is refused.
 DLL = Path.home() / '.cache/sbo-ue4ss/ue4ss-build/build-rel/Game__Shipping__Win64/bin/UE4SS.dll'
 DLL_SHA256 = '791a90ea71c6ffb3743d34f8c1afb239c201984de177286b25ba853e5a1e876b'
 # The release's example mods that change the game: cheats, the console's set and summon commands, split screen. A

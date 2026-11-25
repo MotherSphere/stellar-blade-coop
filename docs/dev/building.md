@@ -150,11 +150,11 @@ the DLL: its version information, the first line of its log and the titles of it
 runs without the user's and the system's Git config, with the patch's author as committer and the author's date as
 commit date. A signing key (`commit.gpgsign`) or `am.messageid` would give another commit. Cargo keeps its downloads in
 `cargo-home/`. The compiler and Rust flags map the local folders to `src`, `build`, `cargo`, `rustup` and `xwin`.
-`/PDBALTPATH:UE4SS.pdb` keeps the PDB's local path out of the DLL. `/Brepro` makes the link reproducible. The tool
-passes these flags through `CFLAGS`, `CXXFLAGS`, `RUSTFLAGS` and `LDFLAGS`: the toolchain file adds its include flags to
-them, which `-DCMAKE_CXX_FLAGS` would replace. The build takes about 8.5 minutes with 6 jobs. It ends with the DLL's
-path and SHA-256 and says whether that is the pin of `tools/ue4ss.py`. Today it is not: [SBO UE4SS](ue4ss.md#ue4ssdll)
-says why.
+`/PDBALTPATH:UE4SS.pdb` keeps the PDB's local path out of the DLL. `/Brepro` puts a hash of the DLL in its PE header in
+place of the link time. The tool passes these flags through `CFLAGS`, `CXXFLAGS`, `RUSTFLAGS` and `LDFLAGS`: the
+toolchain file adds its include flags to them, which `-DCMAKE_CXX_FLAGS` would replace. The build takes about 8.5
+minutes with 6 jobs. It ends with the DLL's path and SHA-256 and says whether that is the pin of `tools/ue4ss.py`. Today
+it is not: [SBO UE4SS](ue4ss.md#ue4ssdll) says why.
 
 Only the `UE4SS` target is built. The `proxy` target (`dwmapi.dll`) would run `proxy_generator.exe` on the build
 machine. No Windows program runs: the package keeps the release's `dwmapi.dll`.
