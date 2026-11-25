@@ -240,9 +240,10 @@ cloud. Then restore your backup.
 
 ## Co-op saves
 
-`coop fight`, `coop nightop`, `coop challenge`, `coop no`, `coop recruiter`, `coop gift`, `coop pvp` and the recruiter's
-Join to the SBO lobby run only on a co-op save, a copy of your save, and never on your own saves (`coop nightop stop`
-and `coop challenge stop` work on any save). The recruiter himself appears near Roxanne at each Xion load on any save,
+`coop fight`, `coop nightop`, `coop challenge`, `coop no`, `coop recruiter`, `coop gift`, `coop pvp`, Doro races
+(`coop race start` and the race rounds of a match), the fishing tournament, the photo hunt and the recruiter's Join to
+the SBO lobby run only on a co-op save, a copy of your save, and never on your own saves (`coop nightop stop` and
+`coop challenge stop` work on any save). The recruiter himself appears near Roxanne at each Xion load on any save,
 your own saves included; there his Join changes nothing and a notice says why. The ghost, the keys and the Steam link
 work on any save. Nothing is copied back to your own saves unless you export a co-op save (below). Items bought in Night
 Operation's shop (`coop nightop shop` or `coop nightop buy`) and gifts (`coop gift`) go into or leave the co-op save you
