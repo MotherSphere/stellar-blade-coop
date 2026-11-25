@@ -92,8 +92,10 @@ Mxiii.ucas_size=PakGate.ucas_size
 -- SB lists every camp's env-spawn rows in FSBGameWorld::Init (FUN_141c98ef0 makes the zone manager, whose setup runs
 -- FUN_141d1a310 over ZoneEnvSpawnTable), so the world the rows went in on may know neither camp until the next one
 -- (not when they went in at the title). Read from the code. In game on 2026-10-27 (build v0.6.0-beta.3-250-g51dbdf1)
--- SB refused the first travel and took it after a reload. A first travel after rows that went in at the title has no
--- recorded run.
+-- SB refused the first travel and took it after a reload. On 2026-11-18 (build v0.11.0-277-gd9bb23bf, v5 pak) the
+-- first world after the title took it: the save loaded at 10:37:20, Lily's pick asked the travel to DLC02_00_Camp_00
+-- at 10:39:01 and it arrived at 10:39:10 (UE4SS.log times). command() asks only on v5 and once the seven batches that
+-- go in at the title only read rows.
 local function hint(camp,command)
     return 'if [TR] says SB refused '..camp..': SB lists the camps when its world starts, maybe before these rows; '
         ..'load the save or travel to a camp, then run '..command..' again (the rows stay in)'

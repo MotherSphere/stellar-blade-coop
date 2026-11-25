@@ -229,8 +229,11 @@ loaded, a travel to a camp), a second `coop mxiii` reads the rows back without a
 it lands in lists the camp objects in `Zone_DLC02_10`. The refusal and the travel after a reload ran in game on
 2026-10-27 (build v0.6.0-beta.3-250-g51dbdf1, test pak v2). When the rows went in at the title, the first world
 started after it lists both camps already. Then the first `coop mxiii` travels. The rows went in at the title in game
-on 2026-10-28 (build v0.6.0-beta.3-258-g9bb5cd5). That the first `coop mxiii` after them travels at once comes from
-reading the code and has no recorded run.
+on 2026-10-28 (build v0.6.0-beta.3-258-g9bb5cd5). On 2026-11-18 (build v0.11.0-277-gd9bb23bf, v5 pak) the first
+world after the title took the travel. The co-op save loaded at 10:37:20. Lily's pick ran `coop mxiii`'s travel:
+`[MX] travel to DLC02_00_Camp_00 asked` came at 10:39:01 and `travel=arrived` at 10:39:10 (`UE4SS.log` times).
+`coop mxiii` asks a travel only on the v5 pak and once its seven other batches read rows. Those batches go in at the
+title only.
 
 ## The save
 
@@ -681,14 +684,17 @@ Runs in game answered these:
   pak v3).
 - The region name shows: on 2026-11-03 (build v0.7.5-110-g5e18200) the region teleport screen gave the area a tab
   named "Matrice 13" ([The camp names](#the-camp-names)).
+- The travel to `DLC02_00_Camp_00` arrives in the v5 map, from the first world after the title: on 2026-11-18 (build
+  v0.11.0-277-gd9bb23bf) `travel=arrived` came 9 s after the travel was asked ([The camp list](#the-camp-list)). No
+  log line of that run gives EVE's place on arrival.
 
 Still open:
 
 - what a co-op save that names a mod camp does when the rows are not in;
-- whether the camp arrival (`FUN_141a8bef0`) finds the spawn points named `DLC02_00_Camp_00`, `DLC02_10_Camp_01` and
-  `DLC02_30_Camp_01` in the v5 map, whether a floor coin spawns in any zone of the map, whether the `mxlily` patch
-  opens Lily's menu and leaves the Great Desert Lily as she was, and whether a death in the third or fourth zone brings
-  EVE back to the second camp;
+- whether the camp arrival (`FUN_141a8bef0`) puts EVE at the spawn point `DLC02_00_Camp_00` and finds
+  `DLC02_10_Camp_01` and `DLC02_30_Camp_01` in the v5 map, whether a floor coin spawns in any zone of the map,
+  whether the `mxlily` patch opens Lily's menu and leaves the Great Desert Lily as she was, and whether a death in the
+  third or fourth zone brings EVE back to the second camp;
 - whether camp blueprints spawned through `EnvBPPath` work as placed ones do (their `CampRespawnActor` is unset; the
   base has no kit attached to its capsule, and its meshes stand on the cook's copies of the same meshes at the five
   full camps until a pak drops those);

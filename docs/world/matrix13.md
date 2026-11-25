@@ -225,7 +225,8 @@ Parts of it ran in game with older test paks. On 2026-10-27 (build v0.6.0-beta.3
 game refused the first travel, since the rows went in after the world started. After a reload the second
 `coop mxiii` travelled and the map loaded. On 2026-10-28 (build v0.6.0-beta.3-258-g9bb5cd5, test pak v3) the rows
 went in at the title, `coop mxiii leave` travelled out and a travel from the camp list worked. On 2026-11-18 (build
-v0.11.0-277-gd9bb23bf) a run of [Lily's signal](lily-signal.md) went on into the area.
+v0.11.0-277-gd9bb23bf, v5 pak) a run of [Lily's signal](lily-signal.md) asked `coop mxiii`'s travel from the first
+world after the title. The travel to `DLC02_00_Camp_00`, the Tetrapod camp beside Lily, arrived.
 
 The checks below are for the v5 pak. Start the game with it installed and the co-op saves on, then check:
 
