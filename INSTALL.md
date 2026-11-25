@@ -1,6 +1,7 @@
 # Installing Stellar Blade Online
 
-Stellar Blade Online is an experimental co-op mod for Stellar Blade on PC. Its folder, its DLL and its zip keep its
+Stellar Blade Online is an experimental online mod for Stellar Blade on PC. Up to 4 players play together in an online
+session linked through Steam. A test lobby runs matches of up to 8 players. Its folder, its DLL and its zip keep its
 first name, StellarCoop. It runs inside UE4SS. These steps cover Windows and Linux with Proton; a Windows PC and a
 Linux PC have played together. The rest of the documentation is in
 [docs/](https://github.com/MotherSphere/stellar-blade-coop/tree/main/docs) in the repository.
