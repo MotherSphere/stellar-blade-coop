@@ -18,9 +18,11 @@
 -- last call, one line: life, HP and the death screen before and after, and whether the EVE pawn is the same. A death
 -- screen that still plays once our life state reads 1 or 6 is hidden (visibility Hidden, as Survival Protocol hides its
 -- parts) and shown again as it was at the next death, once our life is no longer read (no session), once the revive is
--- off for the run, or at coop off (stop()). A Lua error turns the revive off for the run. Notices: the wait (the friend
--- can revive us) once per death, once everything but the distance holds; the revived line after a revive. A link that
--- drops starts the 3 s again.
+-- off for the run, or at coop off (stop()). Its visibility before and its address stay in coop-death-screen.txt while
+-- it is hidden. The first tick of the next Lua load (Ctrl+R) takes the screen over from it while SB's death screen has
+-- that address and reads Hidden, then shows it at the same moments. A Lua error turns the revive off for the run.
+-- Notices: the wait (the friend can revive us) once per death, once everything but the distance holds; the revived line
+-- after a revive. A link that drops starts the 3 s again.
 -- The friend's side, for each member past the handshake whose game can make the call: her down notice once per death
 -- of hers, while our EVE is not down, she is on our map and no boss of ours is in battle; our revive of her when her
 -- vitals go from down to alive while our EVE stands within 3 m of her ghost. Her revive setting reaches no line, so
@@ -111,6 +113,7 @@ function G.new(o)
     end
     local self,now,off={},0,{}
     local screen,look_at,hidden=nil,-math.huge,nil -- hidden: {widget=, was=} while we hide the death screen.
+    local store=link.store('coop-death-screen.txt') -- hidden's was and the widget's address, for the next Lua load.
     -- This death of ours: {at=, since=, waited=, said=, call=, before=, fallback=, probe=, night=, offered= ('shown' or
     -- 'quiet'), due= (always's call), back= (back()'s call: the target's name)}.
     local d=nil
@@ -188,8 +191,25 @@ function G.new(o)
     local function show(reason)
         local h=hidden
         hidden=nil
+        store.clear()
         if U.valid(h.widget) then h.widget:SetVisibility(h.was) end
         log('revive: death screen shown again ('..reason..')')
+    end
+    -- At the first tick, a death screen an earlier Lua load hid (Ctrl+R while it was hidden): taken over as ours while
+    -- SB's death screen is the widget at the file's address and reads Hidden, so it comes back as it was at the same
+    -- moments; else the file goes. Any other widget (a rebuilt HUD, a new game run) is left as it is, as show() leaves
+    -- it. No revive of this load has hidden it yet: after() runs from the tick, after this.
+    local swept=false
+    local function sweep()
+        swept=true
+        local was,at=(store.load() or ''):match('^(%S+) (%S+)$')
+        was,at=tonumber(was),tonumber(at)
+        local s=was and at and U.death_screen()
+        if s and U.address(s)==at and s:GetVisibility()==HIDDEN then
+            screen,hidden=s,{widget=s,was=was}
+            return log('revive: death screen hidden by an earlier Lua load, taken over')
+        end
+        store.clear()
     end
     -- Why the revive waits, or nil when every condition holds now; 'friend far' when only the distance fails. Then our
     -- EVE's GUID, the controller, the metres to the nearest member within 2 m and her name (with 'friend far', the
@@ -286,6 +306,8 @@ function G.new(o)
             hidden={widget=s,was=s:GetVisibility()}
             s:SetVisibility(HIDDEN)
             screen_now='hidden'
+            local saved,e=store.save(tostring(hidden.was)..' '..U.address(s))
+            if not saved then log('revive: coop-death-screen.txt not written: '..tostring(e)) end
         end
         log(string.format('revive result (%s): life %s/%s%s, hp %s/%s, death screen %s/%s, recovery items not read, '
             ..'EVE pawn %s',who(),b.life,a.life,d.moved and not up and ' (up in between)' or '',b.hp,a.hp,b.screen,
@@ -665,6 +687,7 @@ function G.new(o)
         now=t
         local mode=link.mode()
         local linked=(mode=='host' or mode=='guest') and link.others()>0
+        if not swept then guard('screen',sweep) end
         guard('revive',downed,linked)
         guard('return',function() offering(); returning() end)
         if hidden and (off.revive or not link.life()) then
