@@ -15,7 +15,8 @@
 -- whatever the black's call did. After a move nothing is looked at for HOLD passes.
 -- The floor: SB's blueprint gives the ship's 124 parts the profile NoCollision, so in the first game test (25
 -- November 2026) EVE fell through it twice and the recovery brought her back. The way in now asks world.ship(true)
--- before the move: every part blocks. The way out and coop off ask world.ship(false): the ship as SB ships it.
+-- before the move: every part gets SB's profile BlockAll (engine.lua's ship says why the profile). The way out and
+-- coop off ask world.ship(false): the ship as SB ships it.
 -- E04_Area05_B_LD is streamed by volume as SB ships it (data.lua's VOLUMED), so the ship may come in after EVE. After
 -- the way in she is watched until she walks: DROP cm under the point she is put on it again, the ship is asked again
 -- while it was not found and a black that is up at once comes every AGAIN passes. After SETTLE passes with no floor

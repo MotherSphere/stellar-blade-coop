@@ -177,6 +177,12 @@ cutscene and `area=` still names the zone.
 Nothing is saved. The items are refilled in memory and SB's in-game save queues nothing in this zone
 ([Saves](#saves)).
 
+The respawn ran in game for the first time on 25 November 2026, after EVE died in the Tetrapod. It brought her back:
+life 3 to 1, the same pawn, walking, the death screen off by itself. Two faults followed and are not fixed. The mouse
+cursor stayed free during play. Esc pressed 25 s later paused the game for 0.7 s, then the game crashed inside UE4SS:
+a Lua call of a game function on an object that was gone (`UObject::ProcessEvent` under
+`call_ufunction_from_lua`). Which script made the call is not known.
+
 ### When it waits and when it stops
 
 The recovery waits with no EVE, in photo mode, during a cutscene, while a warp is under way and while the `engine=`
@@ -500,7 +506,7 @@ run in `Zone_Xion_10` only, so nothing of this runs in `Zone_SBO_Xion`.
 
 | Step | What the module does |
 | --- | --- |
-| The way in | EVE stands 0.5 s in the doorway of the hangar or on the top of its steps: X -13437 to -13093, Y 19330 to 19771, from Z 150. The doorway itself is the box of SB's entrance fog, from Y 19572. She is put inside at (16638, -24558, -1865), 2.3 m from the ship's right door, facing the cabin |
+| The way in | EVE stands 0.5 s in the doorway of the hangar or on the top of its steps: X -13437 to -13093, Y 19330 to 19771, from Z 150. The doorway itself is the box of SB's entrance fog, from Y 19572. She is put inside at (16638, -24558, -1852), 2.3 m from the ship's right door, facing the cabin |
 | The way out | Inside, EVE stands 0.5 s in front of the right door, the one with a step. She is put at SB's point in front of the Tetrapod, (-13413, 18383, 82), 11.9 m from the doorway |
 | After a move | Nothing is looked at for 2 s |
 
@@ -510,8 +516,13 @@ the recovery waits or handles a fall or a death, the door counts nothing. `coop 
 
 SB ships the ship with no floor to stand on: its blueprint gives all 124 parts the collision profile `NoCollision`.
 In the first game test (25 November 2026) EVE fell through it twice and the recovery brought her back to the hangar.
-The meshes carry collision shapes, so the way in now makes every part block (each channel set to block, query and
-physics collision on). The way out and `coop off` set them back to what SB ships.
+The meshes carry collision shapes and name `BlockAll` as their own profile, so the way in gives every part SB's
+`BlockAll`. The way out and `coop off` give them `NoCollision` again.
+
+The first fix set every channel of each part to block. In the second game test EVE stood in the ship and died in the
+same pass. SB's `DefaultEngine.ini` leaves `BlockAll` at each custom channel's own default: Ignore for `Water`,
+`Volume`, `LogicCollision`, `FluidTrace`, `SoundOcclusion` and `CameraAnim`, Overlap for `Projectile`. The module
+now sets the profile by its name and no channel of its own. Which of those channels killed her was not traced.
 
 The ship's level is loaded by volume, so it may come in after EVE. After the way in the module watches her until
 she walks. When she reads 60 cm under the point, it puts her on the point again and asks the ship again if it was
@@ -520,9 +531,9 @@ outside.
 
 | Line in `UE4SS.log` | Meaning |
 | --- | --- |
-| `sboxion: tetrapod: door on: in at (16638, -24558, -1865), out at (-13413, 18383, 82)` | An arrival in SBO Xion |
+| `sboxion: tetrapod: door on: in at (16638, -24558, -1852), out at (-13413, 18383, 82)` | An arrival in SBO Xion |
 | `sboxion: tetrapod: in asked (EVE stood 2 passes at (x, y, z)); black up in 0.3 s; EVE moves in 2 passes` | EVE stood in the doorway. `out asked` is the same from the ship's door. After `asked (coop xion tetrapod in)` the command asked it |
-| `sboxion: tetrapod: in: EVE at (16638, -24558, -1865), yaw -132.2` | The move was made. `out: EVE at (-13413, 18383, 82), yaw -87.2` is the way out |
+| `sboxion: tetrapod: in: EVE at (16638, -24558, -1852), yaw -132.2` | The move was made. `out: EVE at (-13413, 18383, 82), yaw -87.2` is the way out |
 | `sboxion: tetrapod: in: EVE stands in the ship after n passes, 124 parts solid` | She walks on the ship's floor. `ship not found` in place of the parts: the ship's actor was not in memory |
 | `sboxion: tetrapod: in: no floor yet under EVE at (x, y, z): on the point again (...)` | She fell 60 cm. Said once a way in |
 | `sboxion: tetrapod: in: no floor under EVE after 32 passes (...): back outside` | 8 s with no floor. She is at SB's point in front of the Tetrapod |
@@ -536,7 +547,7 @@ What is not known before the first game test:
 
 - Whether the hull lets EVE into the doorway. In the first test she stood on the steps, 2.2 m short of it, and used
   the command. The box now reaches that place.
-- Whether the parts block once they are set to. The first test showed the fall, not the fix.
+- Whether EVE lives in the ship with SB's `BlockAll`. With every channel blocked she stood on its floor and died.
 - How long the ship takes to show. `E04_Area05_B_LD` is loaded by volume as SB ships it.
 - Whether the point inside is free floor. It was chosen from the boxes of the ship's parts, not seen.
 - Whether EVE can reach the box in front of the right door. The step is on that side by the bounds of the floor
@@ -807,6 +818,8 @@ underground and 47 of the 50 level-design sublevels.
   that starts again, a busy recovery, a refused teleport, an error that turns the door off and the command. Then the
   floor: the ship made solid before the move and put back at the way out and at `coop off`, EVE put on the point
   again while she falls, the end after 32 passes and a recovery that moved her out.
+- `engine_test.lua` holds the call on the ship's parts: SB's `BlockAll` by a name the game has made, `NoCollision`
+  at the put-back, nothing written with no actor in memory.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the

@@ -685,7 +685,7 @@ me=at(D.ARRIVALS.city)
 ok,why=x.tetrapod()
 assert(not ok and why=='coop xion tetrapod: EVE is not in SBO Xion',why)
 pass(x,0.25)
-assert(logged('sboxion: tetrapod: door on: in at (16638, -24558, -1865), out at (-13413, 18383, 82)'),logs[#logs])
+assert(logged('sboxion: tetrapod: door on: in at (16638, -24558, -1852), out at (-13413, 18383, 82)'),logs[#logs])
 ok,why=x.tetrapod()
 assert(ok and why=='coop xion tetrapod: EVE is outside the Tetrapod, door on',why)
 local moves,blacks=calls.move,calls.black or 0
@@ -696,7 +696,7 @@ assert(calls.black==blacks+1 and #puts==0 and logged('sboxion: tetrapod: in aske
     ..'19600, 347)); black up in 0.3 s; EVE moves in 2 passes'),logs[#logs])
 pass(x,0.5)
 assert(#puts==1 and math.abs(puts[1].at.X-16637.5)<0.5 and math.abs(puts[1].at.Y+24557.9)<0.5
-    and math.abs(puts[1].at.Z+1855.2)<0.1 and math.abs(puts[1].yaw+132.19)<0.01,'Inside, 10 cm over the point')
+    and math.abs(puts[1].at.Z+1841.7)<0.1 and math.abs(puts[1].yaw+132.19)<0.01,'Inside, 10 cm over the point')
 assert(#ships==1 and ships[1]==true,'The way in made the ship solid')
 her_at=puts[1].at -- This file's put leaves her where she was since the fall right before the map change.
 pass(x,0.25)

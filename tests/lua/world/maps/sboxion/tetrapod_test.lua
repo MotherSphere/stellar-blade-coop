@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Tetrapod's door of SBO Xion (world/maps/sboxion/tetrapod.lua) over a fake world. The frame: SB's own point
 -- inside the ship reads (81, 624, 332) in the ship frame and a point taken to the world and back is the same. The
--- data: EVE arrives inside 1.2 m from the hatch box, at the height of SB's point, facing the cabin. SB's point
+-- data: EVE arrives inside 1.2 m from the hatch box, 13 cm over SB's point, facing the cabin. SB's point
 -- outside is far from the door box. The way in: one pass in the door box moves nothing; at the second SB's black is
 -- asked (0.3 s in, 1 s black, 0.5 s out) and two passes later EVE goes to the point inside plus 10 cm; nothing is
 -- looked at for the next 8 passes. The way out: two passes in the hatch box, the black, then SB's point in front of
@@ -28,12 +28,12 @@ local sb=Tetrapod.ship({X=16362.827,Y=-24523.453,Z=-1865.1406})
 assert(near(sb.x,81,1) and near(sb.y,624,1) and near(sb.z,332,1),string.format('%.1f %.1f %.1f',sb.x,sb.y,sb.z))
 local back=Tetrapod.world(sb)
 assert(near(back.X,16362.827) and near(back.Y,-24523.453) and near(back.Z,-1865.1406))
--- The data. The point inside: on the ship's right, 1.2 m short of the hatch box, at the height of SB's own point.
-assert(T.IN.x==240 and T.IN.y==397 and near(T.IN.z,sb.z,1) and T.IN.yaw==180)
+-- The data. The point inside: on the ship's right, 1.2 m short of the hatch box, 13 cm over SB's own point.
+assert(T.IN.x==240 and T.IN.y==397 and T.IN.z==345 and T.IN.yaw==180)
 assert(T.HATCH.lo.x-T.IN.x==120 and T.IN.y>T.HATCH.lo.y and T.IN.y<T.HATCH.hi.y)
 assert(sb.x<T.HATCH.lo.x,"SB's own point inside is not in the hatch box")
 local IN=Tetrapod.world(T.IN)
-assert(near(IN.X,16637.5,0.5) and near(IN.Y,-24557.9,0.5) and near(IN.Z,-1865.2,0.1),
+assert(near(IN.X,16637.5,0.5) and near(IN.Y,-24557.9,0.5) and near(IN.Z,-1851.7,0.1),
     string.format('%.1f %.1f %.1f',IN.X,IN.Y,IN.Z))
 assert(T.OUT.Y<T.DOOR.lo.Y-900,"SB's point outside is more than 9 m in front of the door box")
 assert(T.DOOR.hi.X-T.DOOR.lo.X==344 and T.DOOR.hi.Y-T.DOOR.lo.Y==441 and T.DOOR.lo.Z==150)
@@ -111,7 +111,7 @@ pass()
 assert(#puts==1 and table.concat(order,', ')=='black, ship true, put','The ship is made solid before the move')
 assert(near(puts[1].at.X,IN.X) and near(puts[1].at.Y,IN.Y) and near(puts[1].at.Z,IN.Z+10),'inside, 10 cm up')
 assert(near(puts[1].yaw,-132.188366,0.001),'facing the cabin: '..puts[1].yaw)
-assert(logged('tetrapod: in: EVE at (16638, -24558, -1865), yaw -132.2'),logs[#logs])
+assert(logged('tetrapod: in: EVE at (16638, -24558, -1852), yaw -132.2'),logs[#logs])
 -- Where she arrives is no box: standing there moves nothing, during the hold and after it.
 pass(20)
 assert(#puts==1 and #blacks==1,'the point inside is not in the hatch box')
@@ -235,14 +235,14 @@ fresh()
 parts,lands=nil,3
 eve=DOOR
 pass(4)
-assert(#puts==1 and #ships==1 and logged('tetrapod: in: EVE at (16638, -24558, -1865), yaw -132.2'))
+assert(#puts==1 and #ships==1 and logged('tetrapod: in: EVE at (16638, -24558, -1852), yaw -132.2'))
 eve.Z=eve.Z-40
 pass()
 assert(#puts==1 and #ships==2,'40 cm under the point is no fall yet; the ship is asked again')
 eve.Z=eve.Z-40
 pass()
 assert(#puts==2 and near(puts[2].at.Z,IN.Z+10) and #ships==3,'80 cm under: on the point again')
-assert(logged('tetrapod: in: no floor yet under EVE at (16638, -24558, -1935): on the point again (ship not found)'),
+assert(logged('tetrapod: in: no floor yet under EVE at (16638, -24558, -1922): on the point again (ship not found)'),
     logs[#logs])
 local lines=#logs
 eve.Z=eve.Z-80

@@ -950,8 +950,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   by a stop and by the mode `off`, the failures at 0 after a respawn that leaves her walking, a put-back's check
   dropped by a death that starts during it;
 - `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects. The parts of SB's
-  Tetrapod interior get every channel blocked and query and physics collision, then what SB ships again. With no
-  actor in memory nothing is written. The rest: the zone's FName index only for a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
+  Tetrapod interior get SB's collision profile `BlockAll` by a name the game has made, then `NoCollision`, the
+  profile SB ships them with. With no actor in memory nothing is written. The rest: the zone's FName index only for
+  a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
   dead actor never written, the streaming levels by their package's last part, the probes read again on the kept
   objects, the characters' names, classes and places with EVE told apart by her address (one that does not read
   given as `unread`), every world read raising with no EVE. For the recovery: `move` gives EVE's place,
