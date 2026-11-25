@@ -594,7 +594,8 @@ Its first build (`1203_1501548`) ran in game on 24 November 2026 with build v0.1
 save. The `zone:` line read type 1 for the first 5 s after the arrival, then type 5 `Zone_SBO_Xion` for the rest of
 the run, never a zone of Xion's own. No NPC spawned: the characters were EVE, her drone and one
 `CH_NPC_Dororong_BP_Seq_C` 110 m away. The 127 always-loaded levels loaded and the volume levels loaded as EVE
-walked. The five rooms opened. `UE4SS.log` has no Lua error.
+walked. The five rooms opened. SBO logged no Lua error. The 13 Lua errors in `UE4SS.log` (`LUA_ERRRUN`) come from
+another mod.
 
 ### What it loads
 
