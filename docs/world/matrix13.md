@@ -39,13 +39,13 @@ The mod's rows for those camps use these placed objects, so with an older pak th
    unless they went in at the title already. Among them are
    the camp `DLC02_10_Camp_01`, a row in the area's first zone (`Zone_DLC02_10`) that leads the travel there, one
    row for each of the camp's six objects, and the third zone's camp `DLC02_30_Camp_01` with the row in
-   `Zone_DLC02_30` that leads there. It also changes five of the area's own trigger rows in memory, so
-   the enemies of the second and fourth zones that wait for missing props appear (see below). Then it asks the game's
+   `Zone_DLC02_30` that leads there. It also switches on two of the fourth zone's own trigger rows in memory, so
+   the enemies that wait for its drain devices appear (see below). Then it asks the game's
    own camp travel to go there, as `coop travel probe` does for an activated camp. EVE arrives at the Tetrapod camp
    `DLC02_00_Camp_00`, beside Lily, with no camp of the area active. Before any of that it checks that
-   the other five batches (Naytibas; doors, lifts and loot; warps; the Lion's and the Gardener's rows) went
-   in at the title. If one did not, it asks nothing and names it: return to the title with the co-op save files, wait
-   until `coop-link.log` shows all five in, then load the save and type `coop mxiii` again.
+   the other seven batches (Naytibas; loot; the mechanisms of zones 0 to 2, of zone 3 and of zone 4; the Lion's and
+   the Gardener's rows) went in at the title. If one did not, it asks nothing and names it: return to the title with
+   the co-op save files, wait until `coop-link.log` shows all seven in, then load the save and type `coop mxiii` again.
 4. If the log says `travel: SB refused DLC02_00_Camp_00`, the game listed its camps when the map started, before the
    rows went in (they did not go in at the title). Load the save again (or travel to any camp), then type `coop mxiii`
    again: the rows stay until the game exits, so the second time it only travels.
@@ -85,45 +85,29 @@ console and her goodbye, the bike signal once its conditions hold, and the mod's
 "leave" under the bike signal ends the trip for Quest_Epic_11 and there is no row back, so a save with On Time
 running should not take it.
 
-Once activated, the first zone's full camp shows in the camp list under Matrix 11, with the name and picture of Matrix
-11's first full camp, since the game has no text for Matrix XIII. On a save that has activated that camp
-(`ME01_Camp_03`, Matrix 11's start camp), the list shows two entries that look the same, and which one comes first has
-not been checked. The chair rests there, the phone booth opens the camp list for fast travel out and back, and a death
-in the zone brings EVE back to this camp. This was seen with v2, whose camp spawned its objects where EVE arrived,
-near 36624,16140; v1 had no spawn point for them. The mod refuses both builds now.
+Once activated, the first zone's full camp shows in the camp list with the picture of Matrix 11's first full camp,
+`ME01_Camp_03`, whose row it copies. Its name, "Lift Head" ("Tête d'ascenseur"), comes from the `mxnames` batch. Without
+that batch it keeps the Matrix 11 camp's name. The area's camps have a region of their own, so a full camp's list shows
+only the area's full camps. The region teleport screen at a Tetrapod gives the area a tab of its own, "Matrix 13"
+("Matrice 13"), right after Matrix 11's, under the region name the `mxnames` batch writes. That tab was seen in game on
+2026-11-03 (build v0.7.5-110-g5e18200), with Matrix 11's picture. The camps' own names have no recorded run in game.
 
-On v3 the third zone's camp is a way in. EVE arrives at Matrix 11's arrival point for
-`ME03_Camp_01`, facing the room's camp base, which v3 leaves in place. From there the zone goes on through the door
-opening to the south. That spot is off the navigation mesh, like the first zone's camp and most of Matrix 11's
-camps, so enemies do not follow her into the room; the first polygon starts about 42 m south. A death in the third or
-fourth zone should bring EVE back to this camp, since the arrival makes it hers (read from the game's code, not tried).
+`coop mxiii 30` arrives at the third zone's first rest stop, `DLC02_30_Camp_01`, a simple camp with its own coin. The
+arrival makes it the camp EVE respawns at, so a death in the third or fourth zone should bring her back there (read
+from the game's code, not tried).
 
 ## Enemies of the later zones
 
-Some enemies of the area's later zones start from props of the cut map, which no pak holds. In the second zone
+Some enemies of the area's later zones start, in the shipped rows, from props of the cut map. In the second zone
 (`Zone_DLC02_20`), three waves of Antlions (4, 3 and 4) come when three gates open. In the fourth zone
 (`Zone_DLC02_40`), two chains of enemies (5 Antlions, then 3 Clrikets) wait for two zone triggers that stay switched
-off until EVE uses the zone's two drain devices. Without the gates and the devices none of these 19 enemies appears.
-`coop mxiii` moves the waves onto zone triggers that the test pak places at the same spots, and the two triggers of
-the fourth zone start switched on:
+off until EVE uses the zone's two drain devices.
 
-| Zone | Trigger row | Before | With `coop mxiii` |
-| --- | --- | --- | --- |
-| Second | `DLC02_20_ZTrigger_001`, the zone's entry | no event | wave 1: 4 Antlions |
-| Second | `DLC02_20_ZTrigger_005`, the arena's entrance | its gate event | its gate event, then wave 2: 3 Antlions |
-| Second | `DLC02_20_ZTrigger_006`, halfway through the arena | its gate event | its gate event, then wave 3: 4 Antlions |
-| Fourth | `DLC02_40_ZTrigger_001`, the main hall | off until a drain device | on: 5 Antlions, one after another |
-| Fourth | `DLC02_40_ZTrigger_002`, the main hall | off until a drain device | on: 3 Clrikets, one after another |
-
-With the full map's pak, the second zone's waves come from three triggers of their own inside the arena doorways,
-which also shut the arena gate behind EVE; the three triggers above are back to what the game ships.
-
-The rows keep how the game saves each trigger. From the rows (not checked in game): the zone's reset re-arms the
-first wave's trigger, the triggers of waves 2 and 3 fire once per save, and the two in the fourth zone save nothing.
-The change lives in memory for the game run, like the camp's rows, and these rows belong to zones that only this
-area has. Whether EVE can climb from the second zone to the third is still open: in Matrix 11 that climb runs on
-Matrix 11's own triggers and cutscene levels, which the test pak does not stream, and no row of the area can stand
-in for them. `coop mxiii 30` goes around that climb.
+The full map's pak has three triggers of its own inside the second zone's arena doorways. Each starts one wave and
+shuts the arena gate behind EVE. The fourth zone's two triggers in the main hall, `DLC02_40_ZTrigger_001` (the 5
+Antlions, one after another) and `DLC02_40_ZTrigger_002` (the 3 Clrikets), start switched on: the `mxiii` batch
+patches them in memory for the game run, like the camp's rows. They keep the game's save type, which saves nothing for
+them (from the rows, not checked in game). These rows belong to zones that only this area has.
 
 ## Notes on the pak, the save and the rows
 
@@ -195,8 +179,8 @@ Gardener's spawn point, spawns that boss as `coop lion` or `coop gardener fight`
 game spawned none there. The fan levers wait for the Lion's death: a save whose Lion died on a build older than these
 levers needs a new run. A boss that never spawns locks nothing: its doors lock on its first fight.
 
-The link protocol is 19: both players need a build with the same rows. A co-op save that played in the area can no
-longer be exported to your own saves ([players/saves.md](../players/saves.md)).
+This version uses link protocol 29: both players need a build with the same rows. A co-op save that played in the area
+can no longer be exported to your own saves ([players/saves.md](../players/saves.md)).
 
 ## Status lines
 
@@ -237,24 +221,25 @@ longer be exported to your own saves ([players/saves.md](../players/saves.md)).
 
 ## What to check in game
 
-None of it has been tried in game yet. Start the game with the pak installed and the co-op saves on, then check:
+Parts of it ran in game with older test paks. On 2026-10-27 (build v0.6.0-beta.3-250-g51dbdf1, test pak v2) the
+game refused the first travel, since the rows went in after the world started. After a reload the second
+`coop mxiii` travelled and the map loaded. On 2026-10-28 (build v0.6.0-beta.3-258-g9bb5cd5, test pak v3) the rows
+went in at the title, `coop mxiii leave` travelled out and a travel from the camp list worked. On 2026-11-18 (build
+v0.11.0-277-gd9bb23bf, v5 pak) a run of [Lily's signal](lily-signal.md) asked `coop mxiii`'s travel from the first
+world after the title. The travel to `DLC02_00_Camp_00`, the Tetrapod camp beside Lily, arrived.
+
+The checks below are for the v5 pak. Start the game with it installed and the co-op saves on, then check:
 
 1. At the title, before you load a save: `UE4SS.log` shows
-   `[StellarCoop][MX] title: the rows are in, before any save loads` and `coop-link.log` shows `mxiii rows: 15/15 in`.
+   `[StellarCoop][MX] title: the rows are in, before any save loads` and `coop-link.log` shows `mxiii rows: 75/75 in`.
    If it shows `mxiii rows refused -: net mode 4` or `no logic or net-mode global`, note which, then load and use
    `coop mxiii` as before.
 2. With the rows in at the title, the first `coop mxiii` travels at once.
 3. The travel loads the map and EVE stands on its floor at the camp's arrival point. Note which enemies appear.
-4. With v2: the six objects and the coin stand on the floor without clipping, the coin activates the camp, the chair
-   rests, the phone booth travels to a camp of the main game and back from the camp list (with `coop where` showing
-   `map=` ending in `mxiii_p` on the way back), and a death in the zone brings EVE back to the camp.
-5. Walking on: the second zone's three waves come at its entry, at the arena's entrance and halfway through the arena,
-   and the fourth zone's main hall brings its 5 Antlions and 3 Clrikets.
-6. With v3: `coop mxiii 30` puts EVE on the floor of `ME03_Camp_01`'s room (`coop where`: `map=` ending in `mxiii_p`,
-   `eve=` near 26392,-23650), no Matrix 11 camp object stands there, she can walk out to the south into the third zone
-   and its enemies appear, a death there brings her back to that room, and `coop mxiii leave` from there goes back out.
-7. To check that v2 refuses `coop mxiii 30`, swap the pak only after that `coop mxiii leave`, with the game closed.
-8. The game keeps running and saves normally after you leave. Then replace the slot with `coop saves refresh <0-4>` at
+4. The fourth zone's main hall brings its 5 Antlions and 3 Clrikets.
+5. `coop mxiii 30` puts EVE at the third zone's first rest stop (`coop where`: `map=` ending in `mxiii_p`). A death in
+   the third zone brings her back to that camp. `coop mxiii leave` from there goes back out.
+6. The game keeps running and saves normally after you leave. Then replace the slot with `coop saves refresh <0-4>` at
    the title.
 
 ### With the full map's pak

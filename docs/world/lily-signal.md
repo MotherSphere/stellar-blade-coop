@@ -2,8 +2,12 @@
 
 Lily's signal adds two quests of the mod's own near the end of the story. A short prologue, "A Second Signal" ("Un
 second signal"), sends EVE to Lily. A longer quest, "On Time" ("À l'heure"), leads through the cut Matrix XIII area
-and back to her. Three talks between EVE and Lily play in the game's own subtitle box. None of it has been tried in
-game yet. How the mod does it is in [world/lily-signal-internals.md](lily-signal-internals.md).
+and back to her. Three talks between EVE and Lily play in the game's own subtitle box. A run in game on 2026-11-18
+(build v0.11.0-277-gd9bb23bf) went as far as Matrix XIII. The quests' words went in at the title, the prologue talk
+played and "On Time" started. The travel into Matrix XIII arrived. There eight talks started through the game's
+subtitle sequence in under six minutes: Lily's arrival talk first, zone talk 1E among the seven after it. No record
+of the run shows the end talk or a step of "On Time" completed. How the mod does it is in
+[world/lily-signal-internals.md](lily-signal-internals.md).
 
 In Phase 5, after the first Raven fight in burning Xion, Lily asks EVE where to go next. One of her choices, "Follow the
 bike signal and leave", is the point of no return: after it the game goes to the Nest and nothing comes back. Before
