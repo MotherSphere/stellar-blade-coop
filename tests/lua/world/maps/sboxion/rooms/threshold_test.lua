@@ -6,6 +6,9 @@
 -- room's own numbers, so the test holds when a room leaves the list.
 -- The pak: each room asked on its own at an arrival, one line for what the pak holds, a room the pak lacks never
 -- pushed, a gate that raises leaving its room out.
+-- The level: a way in needs the room's level loaded and visible on the streaming list, read once a whole push. Not
+-- visible, not loaded, off the list or a read that raises: no black, no move, nothing opened, one line a door a
+-- stay. The other doors go on and the door works once its level is there. The way out never asks.
 -- The push, way in: EVE on the ground within 100 cm in front of the street door's plane, inside its width, 40 to 160
 -- cm over its floor, turned toward it within 50 degrees, for 3 passes in a row. Each of those limits is tried 1 cm
 -- or 1 degree on both sides. Running along the facade, her back to the door and a pass elsewhere do nothing. Then
@@ -78,6 +81,21 @@ local world={
         return true
     end,
 }
+-- The streaming list: one level of SB, then each room's level, loaded and visible. down, by room name: what the
+-- list says of its level instead ({loaded=, visible=}), or false for a level off the list. levels_error: what the
+-- read raises. level_reads: the reads.
+local down,levels_error,level_reads={},nil,0
+world.levels=function()
+    level_reads=level_reads+1
+    if levels_error then error(levels_error) end
+    local list={{name='E04_Area02_Architecture_A_01',loaded=true,visible=true}}
+    for _,room in ipairs(Threshold.LIST) do
+        local d=down[room.name]
+        if d==nil then d={loaded=true,visible=true} end
+        if d then list[#list+1]={name=room.level,loaded=d.loaded,visible=d.visible} end
+    end
+    return list
+end
 -- The door file: its one line, each save, what a save answers and what a load raises.
 local file,saves,save_fails,load_error=nil,0,nil,nil
 local store={
@@ -112,6 +130,7 @@ local function pass(n,busy) for _=1,n or 1 do door.tick(busy) end end
 local function fresh()
     logs,puts,blacks,order,asked={},{},{},{},{}
     eve,refuse,black_error,broken,lands=nil,false,nil,nil,1
+    down,levels_error,level_reads={},nil,0
     door.arrive()
 end
 -- EVE in front of room's street door, turned toward it, or inside in front of its inner door, turned to the street.
@@ -578,6 +597,61 @@ has,gate_error=nil,A.name
 fresh()
 assert(logs[1]:find('this pak holds '..(#LIST-1)..' of '..#LIST..' rooms: '..B.name,1,true),logs[1])
 gate_error=nil
+
+-- The level. An arrival reads no level. A whole push reads the list once, the two passes before it read nothing.
+file,saves=nil,0
+door=new()
+fresh()
+assert(level_reads==0,'An arrival reads no level')
+street(A)
+pass(2)
+assert(level_reads==0,'Two passes are no push: no read')
+assert(pushes(1) and level_reads==1,'One read of the list a push')
+-- A level that is loaded and not visible: the door stays shut. No black, no move, nothing opened, one line a stay.
+file,saves=nil,0
+door=new()
+fresh()
+down[A.name]={loaded=true,visible=false}
+street(A)
+assert(not pushes(12) and #puts==0 and saves==0 and not door.opened(A.name) and not door.busy(),
+    'A room whose level is not visible keeps its door shut')
+assert(times('threshold: '..A.name..' stays shut: its level '..A.level..' reads loaded true visible false')==1
+    and #logs==2,logs[#logs])
+-- The other doors go on.
+street(B)
+assert(pushes() and door.opened(B.name),'A door whose level is there')
+pass(3)
+-- Once the level is there the door works, in the same stay.
+down[A.name]=nil
+street(A)
+assert(pushes() and door.opened(A.name),'The level came: the door works')
+-- The next arrival says it again. Not loaded reads the same way.
+fresh()
+down[A.name]={loaded=false,visible=true}
+street(A)
+assert(not pushes(6) and logged('threshold: '..A.name..' stays shut: its level '..A.level
+    ..' reads loaded false visible true'),logs[#logs])
+-- A level off the streaming list.
+fresh()
+down[A.name]=false
+street(A)
+assert(not pushes(6) and #puts==0 and logged('threshold: '..A.name..' stays shut: its level '..A.level
+    ..' is not on the streaming list'),logs[#logs])
+-- A read that raises: shut and said once. The part stays on.
+fresh()
+levels_error='no world'
+street(A)
+assert(not pushes(6) and #puts==0 and times('threshold: '..A.name
+    ..' stays shut: the levels did not read (no world)')==1 and not logged('off until the next arrival'),logs[#logs])
+levels_error=nil
+assert(pushes(),'The read is back: the door works with no new arrival')
+-- The way out never asks: no read of the list, whatever it says.
+fresh()
+down[A.name]=false
+inner(A)
+assert(pushes() and level_reads==0,'The way out reads no level')
+file,saves=nil,0
+door=new()
 
 -- Busy (the recovery waits or handles a fall or a death, the Tetrapod's door moves her): nothing is counted.
 fresh()

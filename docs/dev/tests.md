@@ -814,8 +814,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   that spawned, once. `coop xion status` ends with the last look. The threshold doors log one line an arrival and
   have their part of the status: none with the pak of 23 November, `D039` alone with the third build's pak, every
   room with a pak that holds them all. Each street door is a waypoint of the status. A cutscene and a death make the
-  doors wait. Three passes of a push through the module's own wiring ask SB's black with one engine read of EVE a
-  pass. The opened door goes to the store the wiring hands over. The move comes two passes later. `coop xion
+  doors wait. A room whose level does not show on the engine's streaming list keeps its door shut. Three passes of
+  a push through the module's own wiring ask SB's black with one engine read of EVE a pass. The opened door goes
+  to the store the wiring hands over. The move comes two passes later. `coop xion
   tetrapod in` is refused while that move waits and the Tetrapod's door counts nothing. `coop xion rooms off` turns
   the doors off and `on` turns them on. A push counts nothing while the Tetrapod's door moves EVE. No move is made
   after `coop off`. A new Lua load reads the opened door from the store;
@@ -906,8 +907,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   line each. The first push of a door says it opened and writes its name to the file. A later push writes nothing.
   Names the list does not know stay in the file. A new Lua load reads it. A file that cannot be written or read is
   one line. A door whose requirement is not met does nothing and says so once a stay. Met, it opens. Opened, it asks
-  no more. The way out never asks. Busy passes count nothing and a move already asked is still made. Off and on, an
-  arrival that drops a move, an error that turns the part off and the read of EVE handed over;
+  no more. The way out never asks. A way in reads the streaming list once a whole push. A room level that is not
+  visible, not loaded or off the list keeps the door shut with one line a stay: no black, no move, nothing opened.
+  A read that raises does the same. Another door goes on and the door works once its level is there. The way out
+  reads no level. Busy passes count nothing and a move already asked is still made. Off and on, an arrival that
+  drops a move, an error that turns the part off and the read of EVE handed over;
 - `world/maps/sboxion/rooms/rooms_test` runs `world/maps/sboxion/rooms/rooms.lua` over a fake world, a fake pak gate
   and a fake store. The gate is asked for each room on its own. With a pak that holds no room it logs one line with
   the first reason and reads no level. With a pak of the second build one line names the five rooms it holds of the

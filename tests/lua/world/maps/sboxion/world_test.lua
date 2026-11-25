@@ -24,8 +24,8 @@
 -- of the status with the pak of 2026-11-23 (none), with the eleven rooms of build3 (D039's alone) and with a pak that
 -- holds every room; a push through the module's own wiring with the recovery's read of EVE, the black, the move two
 -- passes later and the opened door in the doors' own store; off and on with coop xion rooms; a threshold door and
--- the Tetrapod's door never moving her at once; a cutscene and a death that make the doors wait; nothing after coop
--- off.
+-- the Tetrapod's door never moving her at once; a cutscene and a death that make the doors wait; a door kept shut
+-- while its room's level does not show on the streaming list; nothing after coop off.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -754,6 +754,12 @@ for _,room in ipairs(Threshold.LIST) do
     if room.name~='D039' then ROOMS6[#ROOMS6+1]=room.level..'.umap' end
 end
 pak(ROOMS6)
+-- That pak lists each threshold room's level on Xion_P. The game loads and shows them with the map.
+local listed={}
+for _,room in ipairs(Threshold.LIST) do
+    listed[room.name]={name=room.level,loaded=true,visible=true}
+    levels[#levels+1]=listed[room.name]
+end
 x=new()
 puts,ships,doors_kept,her_mode={},{},nil,1
 world.put=function(to,yaw) puts[#puts+1]={at=to,yaw=yaw}; her_at,her_mode={X=to.X,Y=to.Y,Z=to.Z},1; return true end
@@ -790,6 +796,15 @@ assert(blacked()==0 and logged('sboxion: death: life 3, EVE at '),'A death: the 
 her_at=nil
 pass(x,3)
 assert(blacked()==0 and logged('sboxion: respawn result: life 3/1'),'The death is over')
+-- The module hands the doors the engine's streaming list: a room whose level does not show keeps its door shut.
+listed[R.name].visible=false
+before(R,R.street,-60,0)
+pass(x,1)
+assert(blacked()==0 and #puts==0 and doors_kept==nil and logged('sboxion: threshold: '..R.name
+    ..' stays shut: its level '..R.level..' reads loaded true visible false'),logs[#logs])
+listed[R.name].visible=true
+her_at=nil
+pass(x,0.25)
 before(R,R.street,-60,0)
 moves,blacks=calls.move,blacked()
 pass(x,0.5)

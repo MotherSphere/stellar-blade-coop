@@ -30,6 +30,11 @@
 -- room cannot hold her. No row has a requirement today.
 -- The pak: o.gate is asked for each room's level on its own at each arrival, so a pak works the doors of the rooms
 -- it holds. An older pak holds D039's room alone, or none: one line an arrival and nothing else.
+-- The level: the pak holding a room's level does not say the game loaded it. A way in reads the streaming list
+-- (world.levels) once a whole push and needs the room's level loaded and visible. Else the door stays shut: no
+-- black, no move, nothing opened, one line a door a stay. A read that raises counts as not there. Without this
+-- EVE would be put behind the facade of a room that is not there. Where SB's floor runs on under the room the
+-- watch would say she stands on the room floor. The way out never asks.
 -- busy: the recovery waits (photo mode, a cutscene, a warp, another zone) or handles a fall or a death
 -- (recover.lua's busy), or the Tetrapod's door moves her. Such a pass counts nothing and asks no move. A move already
 -- asked is still made and watched. An error in a pass turns the part off with one log line until the next arrival.
@@ -95,7 +100,8 @@ local function pushed(rooms,skip,m)
     return nil,nil,nil,near
 end
 
--- o: log(m), world, the engine calls (world/maps/sboxion/engine.lua's move, put and black; a fake in the tests),
+-- o: log(m), world, the engine calls (world/maps/sboxion/engine.lua's move, put, black and levels; a fake in the
+-- tests),
 -- gate(umap) (true when the pak holds the room level of that game path, else nil and why), store (core/link.lua's
 -- store for the door file: save(line), load(); optional) and met(requirement) (true once a row's requirement is
 -- met; optional: without it no requirement is).
@@ -106,6 +112,7 @@ function Threshold.new(o)
     local held={} -- The rooms the pak holds, in the list's order.
     local opened={} -- By name: the doors opened for good, from the door file and from this Lua load.
     local dead,said={},{} -- Of the stay, by name: a door that does nothing more; its requirement was said.
+    local shut={} -- Of the stay, by name: its level was said not to be there.
     local told,idling={},nil -- Of the stay: a push that fails, said by room and way; the one counted: {key=, n=}.
     local push=nil -- The push being counted: {room=, way=, n=}.
     local lead=nil -- A move that waits under SB's black: {left=<passes>, room=, way=, from={at=, yaw=}, h=}.
@@ -139,10 +146,34 @@ function Threshold.new(o)
         log('threshold: '..room.name..' opened for good ('..(ok and done~=false and 'kept in the door file'
             or 'the door file was not written: '..(ok and tostring(why) or U.why(done)))..')')
     end
+    -- Is the room's level loaded and visible: true, or false and why.
+    local function level_up(room)
+        local ok,list=pcall(world.levels)
+        if not ok then return false,'the levels did not read ('..U.why(list)..')' end
+        for _,l in ipairs(list) do
+            if l.name==room.level then
+                if l.loaded and l.visible then return true end
+                return false,string.format('its level %s reads loaded %s visible %s',room.level,tostring(l.loaded),
+                    tostring(l.visible))
+            end
+        end
+        return false,'its level '..room.level..' is not on the streaming list'
+    end
     local function floor_of(way) return way=='in' and 'the room floor' or 'the street' end
     local function ended(room) dead[room.name]=true; return '; this door does nothing more until the next arrival' end
-    -- A push is whole: the move is asked, unless the door is locked and may not be opened.
+    -- A push is whole: the move is asked, unless the room's level is not there or the door is locked and may not be
+    -- opened.
     local function start(room,way,m,h)
+        if way=='in' then
+            local up,why=level_up(room)
+            if not up then
+                if not shut[room.name] then
+                    shut[room.name]=true
+                    log('threshold: '..room.name..' stays shut: '..why)
+                end
+                return
+            end
+        end
         if way=='in' and not opened[room.name] then
             local may,why=self.may(room.name)
             if not may then
@@ -255,7 +286,7 @@ function Threshold.new(o)
     -- the pak asked for each room. The part is ticked in SBO Xion only, so a move that waited at a map change is
     -- dropped here.
     function self.arrive()
-        on,off,dead,said,told,idling,push,lead,watch,held=true,nil,{},{},{},nil,nil,nil,nil,{}
+        on,off,dead,said,shut,told,idling,push,lead,watch,held=true,nil,{},{},{},{},nil,nil,nil,nil,{}
         local ok,line=pcall(store.load)
         if ok then
             for name in (line or ''):gmatch('%S+') do opened[name]=true end

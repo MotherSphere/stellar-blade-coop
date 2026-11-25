@@ -52,8 +52,9 @@
 -- The threshold doors, each pass of the stay (world/maps/sboxion/rooms/threshold.lua): a threshold room of
 -- rooms/list.lua stands behind a door of SB that stays shut. EVE pushing that door for three passes is moved inside
 -- under SB's black. A push on the inner door moves her out. The pak gate is asked for each such room as for the
--- others. The doors a player opened are kept in the door file. coop xion rooms off turns these doors off too. They
--- and the Tetrapod's door never move her in the same pass.
+-- others. A way in also needs the room's level loaded and visible on the streaming list. The doors a player opened
+-- are kept in the door file. coop xion rooms off turns these doors off too. They and the Tetrapod's door never
+-- move her in the same pass.
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local D=require('world.maps.sboxion.data')

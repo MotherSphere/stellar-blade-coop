@@ -677,6 +677,12 @@ room on its own, as for the walk-in rooms. With the pak of 23 November and the f
 `threshold: none of the 9 rooms is in this pak` and nothing else happens. With the third full test build it logs
 `threshold: this pak holds 1 of 9 rooms: D039; opened: none`.
 
+The pak holding a room's level does not say the game loaded it. So a way in also reads the streaming list once a
+whole push. It needs the room's level loaded and visible. A level that is not there keeps its door shut: no black,
+no move, nothing opened. The log says `stays shut` once a door a stay. A read that fails counts as not there. The
+door works once the level is there. The way out never asks. Without this check EVE would be put behind the facade
+of a room that is not there. At `D029` SB's floor runs on under the room, so the watch would not catch it.
+
 The doors count nothing while the recovery waits (no EVE, photo mode, a cutscene, a warp, another zone) or handles a
 fall or a death. They count nothing while [the Tetrapod's door](#the-tetrapods-door) moves EVE. The Tetrapod's door
 counts nothing while a threshold door moves her. `coop xion tetrapod in` and `out` are refused for that time. A move
@@ -699,6 +705,7 @@ Nothing is ticked after `coop off`. An error in a pass turns the doors off until
 | `... the move back to (x, y, z) was refused by K2_TeleportTo; this door does nothing more until the next arrival` | The end of the two lines above when the engine refused the put-back |
 | `sboxion: threshold: <room> in: the move to (x, y, z) was refused by K2_TeleportTo; this door does nothing more until the next arrival` | The engine refused the move. EVE stays where she is |
 | `sboxion: threshold: <room> stays locked: its requirement <name> is not met` | A locked door with a requirement, once a stay |
+| `sboxion: threshold: <room> stays shut: its level <level> reads loaded l visible v` | A push on the street door of a room whose level is not loaded and visible, once a stay. `is not on the streaming list` when the map does not list it. `the levels did not read (<why>)` when the read raised |
 | `sboxion: threshold: the door file did not read (<why>): no door is opened from it` | `coop-xion-doors.txt` raised an error at an arrival |
 | `sboxion: threshold: off until the next arrival: error (<why>)` | A pass raised. No threshold door does anything until `coop xion` |
 | `sboxion: at D037: A_01 loaded b visible b, A_03 loaded b visible b` | EVE stood 5 s within 3 m of that room's street door |
@@ -742,7 +749,8 @@ On a co-op save, alone, with a pak that holds the rooms. `D039` can be tested wi
 4. Walk into the door and keep walking into it for a second. The screen fades to black and EVE stands inside,
    looking into the room. The log has `opened for good`, `in asked`, `in: EVE at` and `in: EVE stands on the room
    floor`. If nothing happens, keep walking into the door for 3 s and look for a `no push` line: it names the number
-   that is out of its limit. Try the other half of the door too.
+   that is out of its limit. Try the other half of the door too. A `stays shut` line means the room's level did
+   not load: send it with the `sboxion: levels:` line of that arrival.
 5. Inside, walk along the walls and jump. Note a hole in the floor, a prop in the way, a dark room.
 6. Turn to the door she came in by and walk into it for a second. The screen fades and EVE stands in the street with
    her back to the door. The log has `out asked`, `out: EVE at` and `out: EVE stands on the street`.
@@ -932,8 +940,8 @@ Lua, in `mod/StellarCoop/Scripts/world/maps/sboxion/`:
   block is the module's copy of score attack's. Its ground read is the module's copy of the group's.
 - `rooms/list.lua`: the ten rooms and their 41 rows, then the nine threshold rooms, one block a room.
   `rooms/rooms.lua`: the pass that opens a room once its levels are there, the put-back, `coop xion rooms` and the
-  sweep after a Lua reload. `rooms/threshold.lua`: the push, the move under the black, the watch, the door file and
-  the two questions `may` and `opened`.
+  sweep after a Lua reload. `rooms/threshold.lua`: the push, the level read before a way in, the move under the
+  black, the watch, the door file and the two questions `may` and `opened`.
 - `engine.lua`: the UE4SS calls. Its black call is the module's copy of the lobby's. It also finds, hides and puts
   back a piece of a room's doorway.
   `commands.lua`: `coop xion`. `wiring.lua`: the manifest, export `sboxion`.
@@ -1046,8 +1054,8 @@ underground and 47 of the 50 level-design sublevels.
   the pak of 23 November (none), with the third build (`D039` alone) and with a pak that holds every room, each
   street door a waypoint, a push made through the module's own wiring with one read of EVE a pass, the opened door
   in the doors' own store and read again by a new Lua load, the doors off and on with `coop xion rooms`, a cutscene
-  and a death that make them wait, a threshold door and the Tetrapod's door never moving her at once, no move
-  after `coop off`.
+  and a death that make them wait, a door kept shut while its room's level does not show, a threshold door and
+  the Tetrapod's door never moving her at once, no move after `coop off`.
 - `recover_test.lua`: the ground point, the fall with its black and the move two passes later, a black that is not
   shown, the move dropped or held back like a check, each guard, the check on the world's time, the two failures
   that stop the recovery, then the death with score attack's respawn cases and this module's own (no death screen
@@ -1067,8 +1075,9 @@ underground and 47 of the 50 level-design sublevels.
   what says nothing, the black before the move, the height kept, the watch
   with a late landing, a fall, a floor far below or above, 32 passes without standing and a refused move, the door that
   does nothing more for the stay, the first push that opens a door and writes the file, a new Lua load that reads
-  it, a file that cannot be written or read, a requirement not met and met, busy passes, off and on, an arrival
-  that drops a move, an error in a pass.
+  it, a file that cannot be written or read, a requirement not met and met, a room level that is not loaded, not
+  visible, off the streaming list or unread, busy passes, off and on, an arrival that drops a move, an error in a
+  pass.
 - `rooms/rooms_test.lua`: one line and no read with a pak that has no room, the five rooms opened in one pass, a
   room that waits for a level and closes after 30 looks, a row not found, a row that cannot be hidden with the rows
   before it put back, the put-back with a world that still stands and with one that is gone, `coop xion rooms`,
