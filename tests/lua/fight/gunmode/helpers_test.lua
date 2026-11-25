@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode's pure parts with lua5.4 alone: its settings lines, the polled keys' edges and taps, the crosshair point in
--- EVE's frame, and the rifle's magazine (rounds, reloads, the HUD count, running dry, a refill).
+-- EVE's frame, and the rifle's magazine (rounds, reloads, the HUD count, running dry, a refill). Also the one zone event
+-- gun mode may fire and the NIKKE round's DestTarget over fake tables.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Config=require('fight.gunmode.config')
 local Input=require('fight.gunmode.input')
@@ -83,6 +84,39 @@ do
     local shot=src:match('local function fire_row%(row%)(.-)\r?\n    end')
     assert(shot and shot:find('pcall(zone_event,ATTACH_ACTOR_EFFECT,row)',1,true) and not shot:find('CreateSBZoneEvent',1,true),
         'the shot goes through the guard')
+end
+
+-- 6. The NIKKE round's destination: on EVE (DestTarget MainActor, 0) while the rifle is out, so the offset aim.write
+--    puts in her root's frame is where SB sends it. The row ships StartToDestDirection (3), which put the destination on
+--    the line to SB's own target location (the 11-25 rounds to the side). put_back() gives 3 back.
+do
+    local Data=require('fight.gunmode.data')
+    local nikke={StartTarget=0,DestTarget=3,StartToDestDirectionDistance=50000.0,StartTargetTransformType=1,
+        StartTargetRelativeAxisType=0,DestTargetTransformType=1,DestTargetRelativeAxisType=0,
+        DestTargetRelativeLocation={X=0,Y=0,Z=0},DestTargetRandomRange={X=300,Y=300,Z=300},
+        StartTargetRelativeLocation={X=0,Y=0,Z=0}}
+    local tables={
+        EventActorEffectTable={Nikke_01_E_ActorEff_015={ActorEffectAlias='Nikke_Cover'}},
+        EffectTable={M_Scarlet_CounterLinkStart={ActionValue1='None'}},
+        SkillCommandTable={P_Eve_GunNikke_ShootSlug2_1={CommandActionType=5},
+            P_Eve_GunNikke_ShootSlug1_1={CommandActionType=1},P_Eve_GunNikke_ShootSlug1_2={CommandActionType=1}},
+        ProjectileTable={P_Eve_GunNikke_ShootSlug1_Projectile1=nikke,
+            P_Eve_Gun_ShootSlug1_Projectile1={DestTargetTransformType=0,DestTargetRelativeAxisType=2}}}
+    FName=function(s) return s end
+    StaticFindObject=function(path)
+        local t=tables[path:match('([%w_]+)$')]
+        return t and {FindRow=function(_,name) return t[name] end}
+    end
+    local lines={}
+    local g={log=function(s) lines[#lines+1]=s end,valid=function(o) return o~=nil end,
+        try=function(f) local ok,r=pcall(f); if ok then return r end end}
+    local d=Data.new(g,false)
+    assert(d.take()==true,table.concat(lines,'\n'))
+    assert(nikke.DestTarget==0,'DestTarget '..tostring(nikke.DestTarget)..' while the rifle is out, not MainActor (0)')
+    local said=table.concat(lines,'\n')
+    assert(said:find('data: NIKKE round: dest target 3 -> 0, start target 0, start-to-dest distance 50000.0',1,true),said)
+    d.put_back()
+    assert(nikke.DestTarget==3,'DestTarget '..tostring(nikke.DestTarget)..' after put_back, not as shipped (3)')
 end
 
 print('gunmode helpers: ok')

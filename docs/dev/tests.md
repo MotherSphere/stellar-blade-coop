@@ -77,7 +77,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   (a round per cool time, the reload when empty, none when lowered part-spent, the HUD count, no round once the spares
   are spent, a refill) and the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
   or row is refused. `mode.lua` calls `CreateSBZoneEvent` once, inside the guarded `zone_event`. `fire_row` reaches it
-  only through that guard;
+  only through that guard. Over fake tables, `fight/gunmode/data.lua` sets the NIKKE round's `DestTarget` from the
+  shipped 3 (`StartToDestDirection`) to 0 (`MainActor`) while the rifle is out, logs the change and gives 3 back at
+  `put_back()`;
 - `fight/gunmode/dpad_test` covers the HUD entry's glyph (`fight/gunmode/ui/dpad.lua`): the Right twin of the Xbox or
   PlayStation D-pad glyph the game shows, or the `gun_key` keyboard icon for a keyboard glyph. An unknown or missing
   glyph gives none;

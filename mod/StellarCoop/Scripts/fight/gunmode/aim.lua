@@ -2,10 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Where the rounds go and where the camera looks, standing.
--- * The NIKKE bullet's ProjectileTable row (P_Eve_GunNikke_ShootSlug1_Projectile1) is live data: its Dest takes the
---   drone shot's frame (TransformType and RelativeAxisType copied from P_Eve_Gun_ShootSlug1_Projectile1: EVE's root,
---   yaw only), and before each shot DestTargetRelativeLocation becomes the crosshair point in that frame. Every round
---   then flies to the screen-centre point, pitch included. Only FindRow(string) is used: another lookup crashed.
+-- * The NIKKE bullet's ProjectileTable row (P_Eve_GunNikke_ShootSlug1_Projectile1) is live data: its Dest is on EVE
+--   (DestTarget MainActor, set by fight/gunmode/data.lua) in the drone shot's frame (TransformType and
+--   RelativeAxisType copied from P_Eve_Gun_ShootSlug1_Projectile1: EVE's root, yaw only). Before each shot
+--   DestTargetRelativeLocation becomes the crosshair point in that frame. Every round then flies to the screen-centre point, pitch included. Only FindRow(string) is used: another lookup crashed.
 -- * TPS mode 2 (NIKKE: fixed camera, the mouse moves a reticle) becomes 0 (the drone aim's: the camera follows the
 --   mouse and the game turns EVE with it) while standing, and goes back to 2 crouched and at the exit. If mode 0 ever
 --   drops the gun stance, it is put back to 2 for the rest of the Lua load (dead).

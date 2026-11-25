@@ -94,8 +94,10 @@ rifle changes:
   lines.
 - `ProjectileTable`: the round leaves the rifle's muzzle for the crosshair point. Its destination is an offset from
   EVE's root in her root's frame (`DestTarget` MainActor). The shipped `StartToDestDirection` aimed along SB's own
-  target line and sent the rounds to the side. Its own spread (a random range of 300 cm) is off. Its destination is
-  placed once, when the round spawns, not again while it flies.
+  target line and sent the rounds to the side. `UE4SS.log` has the line
+  `data: NIKKE round: dest target 3 -> 0, start target 0, start-to-dest distance 50000.0` at the rifle out. Its own
+  spread (a random range of 300 cm) is off. Its destination is placed once, when the round spawns, not again while it
+  flies.
 - `CharacterStanceTable` (with `gun_fire=native`): the aim stance is faster. A jump does not end it. The aim plays no
   drone show when it starts or ends. As shipped, SB plays `P_Eve_Gun_E` (in a fight) or `P_Eve_Gun_E_Peaceful` on her
   whole body when the aim stance ends: the drone aim's side-on exit with bent knees. When the aim starts it plays
