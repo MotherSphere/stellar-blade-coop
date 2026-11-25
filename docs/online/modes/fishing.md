@@ -77,10 +77,11 @@ The host's game refuses a catch when:
 - its sender is not a counted player (`sender`);
 - its fish is not one of the host's 40 (`fish`);
 - its points differ from the host's points for that fish (`points`);
-- it comes before the host's GO or more than 10 s after the host's end (`time`);
-- it is the sender's k-th catch line, refused ones included, with k above 1 plus the whole 2 s spans since the host's
-  GO (`rate`). SB waits at least 2.0 s before each bite (its const `FishingWaitingTimeMin`), so an honest player stays
-  under the bound. Her GO also comes after the host's.
+- it comes more than 1 s before the host's GO or more than 10 s after the host's end (`time`). Each game counts its
+  GO from a whole second of its own clock, so an honest guest's GO can come up to 1 s before the host's;
+- it is the sender's k-th catch line, refused ones included, with k above 1 plus the whole 2 s spans since 1 s before
+  the host's GO (`rate`). SB waits at least 2.0 s before each bite (its const `FishingWaitingTimeMin`), so an honest
+  player stays under the bound, her GO up to 1 s before the host's included.
 
 A refused catch does not count. Its player stays in the ranking with her other catches. The host's log gets
 `rank: refused <name>: <why>` once a sender and reason each tournament. The host's own catches go to the same checks
