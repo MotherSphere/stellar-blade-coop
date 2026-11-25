@@ -472,6 +472,16 @@ D.command('on'); D.slow(false); assert(b07[3].RootComponent.hidden==true)
 streamed[package(Rule.MAPS[E04].day_dome)]=uobj({IsLevelVisible=function() error('gone',0) end})
 D=Daynight.new(o); eve=new_eve(0x610,E04); st.el=20; D.slow(false)
 assert(logged('the sublevel of .*SM_SkySphere2 is unreadable: gone; looked up once') and xion_day.hidden==false)
+-- A streaming level kept from the world entry that is no longer valid: never read (an access violation inside
+-- ProcessEvent is not caught by pcall), logged once, dropped.
+local dead=uobj({visible=true,reads=0,IsLevelVisible=function(self) self.reads=self.reads+1; return self.visible end})
+streamed[package(Rule.MAPS[E04].day_dome)]=dead
+D=Daynight.new(o); eve=new_eve(0x611,E04); D.slow(false)
+local reads=dead.reads
+dead.gone=true; for _=1,16 do D.slow(false) end
+assert(dead.reads==reads,'A level that is no longer valid is never read')
+assert(count_logged('the sublevel of .*SM_SkySphere2 is unreadable: it is gone; looked up once')==1)
+assert(xion_day.hidden==false)
 streamed[package(Rule.MAPS[E04].day_dome)],creator_list=nil,nil
 -- 23. The Terrace hall: nothing looked up, nothing written.
 D=Daynight.new(o); local seen,writes=calls.actors_of_lights,calls.set_intensity+calls.rotate
