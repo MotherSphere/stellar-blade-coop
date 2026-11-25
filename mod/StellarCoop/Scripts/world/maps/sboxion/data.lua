@@ -164,5 +164,6 @@ D.TETRAPOD={
 -- point.
 -- After a move she must read walking within DROP cm of the height she was put at, within SETTLE passes. Under it by
 -- more than DROP she fell.
-D.THRESHOLD={REACH=100,TURN=50,PUSH=3,LOW=40,HIGH=160,DROP=60,SETTLE=32}
+-- IDLE, passes in a row: EVE close to a door or turned toward it, with no push, is said once after that many.
+D.THRESHOLD={REACH=100,TURN=50,PUSH=3,LOW=40,HIGH=160,DROP=60,SETTLE=32,IDLE=8}
 return D

@@ -631,6 +631,11 @@ A door opens to a push, with no key to press. A push is three passes in a row (0
 Running along the facade, a jump before the door and standing with her back to it do nothing. A pass that fails one
 of the four starts the count again.
 
+A door that does not answer says why. When EVE stands 2 s before a door, inside its width, either within 100 cm or
+turned toward it, with no push, the log gets one `no push` line with her distance, her turn and her height beside
+their limits. It comes once a door and way a stay. Where a move leaves her she is 150 cm away with her back to the
+door, so standing there logs nothing.
+
 The way in is a push on the street door. The module asks [SB's black](#the-black) and two passes later moves EVE to
 the point 150 cm inside the inner door, turned into the room.
 
@@ -686,6 +691,7 @@ Nothing is ticked after `coop off`. An error in a pass turns the doors off until
 | `sboxion: threshold: none of the 9 rooms is in this pak` | Each arrival with an older pak |
 | `sboxion: threshold: <room> opened for good (kept in the door file)` | The first push of that door. `(the door file was not written: <why>)` when `coop-xion-doors.txt` could not be written: the door is open until the mod reloads |
 | `sboxion: threshold: <room> in asked (EVE pushed 3 passes at (x, y, z)); black up in 0.3 s; EVE moves in 2 passes` | A push on the street door. `out asked` is the push on the inner door. The black's part reads as in [a fall's lines](#what-the-log-shows-after-a-fall-or-a-death) when SB made no black |
+| `sboxion: threshold: <room> in: no push in 8 passes with EVE at (x, y, z): d cm before the door's plane (100 at most), turned t degrees from the door (50 at most), h cm over its floor (40 to 160)` | EVE stood 2 s close to that door or turned toward it and one of the three numbers is out of its limit. Once a door and way a stay |
 | `sboxion: threshold: <room> in: EVE at (x, y, z), yaw y` | The move was made, to the point inside. `out:` names the point outside |
 | `sboxion: threshold: <room> in: EVE stands on the room floor after n passes` | The watch ended well. `out: EVE stands on the street` |
 | `sboxion: threshold: <room> in: EVE fell under the room floor to (x, y, z) after n passes: back at (x, y, z) where she pushed; this door does nothing more until the next arrival` | She read more than 60 cm under the height she was put at |
@@ -719,6 +725,8 @@ game.
 Not known:
 
 - Whether a body gets close enough to every door. The radius of EVE's capsule was not read.
+- Whether the yaw the module reads, her actor's rotation, follows the way EVE walks while she pushes a door. The
+  `no push` line shows both numbers.
 - Whether the engine accepts each point inside and outside.
 - Whether the floors of `D030`, `D163` and `D164` hold EVE.
 - How the rooms are lit in game and what the black looks like over a move of this length.
@@ -733,7 +741,8 @@ On a co-op save, alone, with a pak that holds the rooms. `D039` can be tested wi
 3. Run along the facade past the door. Then stand 3 s with EVE's back to it. Nothing should happen.
 4. Walk into the door and keep walking into it for a second. The screen fades to black and EVE stands inside,
    looking into the room. The log has `opened for good`, `in asked`, `in: EVE at` and `in: EVE stands on the room
-   floor`. If nothing happens, type `coop xion status`, note EVE's place and try the other half of the door.
+   floor`. If nothing happens, keep walking into the door for 3 s and look for a `no push` line: it names the number
+   that is out of its limit. Try the other half of the door too.
 5. Inside, walk along the walls and jump. Note a hole in the floor, a prop in the way, a dark room.
 6. Turn to the door she came in by and walk into it for a second. The screen fades and EVE stands in the street with
    her back to the door. The log has `out asked`, `out: EVE at` and `out: EVE stands on the street`.
@@ -1054,7 +1063,8 @@ underground and 47 of the 50 level-design sublevels.
   no rows, the numbers of each layout one line a room, the inner door 60 to 280 cm behind the street door, each
   standing point 150 cm from its door, a passage at `D039` alone, no requirement.
 - `rooms/threshold_test.lua`: the pak cases (every room, none, one, a gate that raises), the push with each of its
-  limits tried 1 cm or 1 degree on both sides, both ways, the black before the move, the height kept, the watch
+  limits tried 1 cm or 1 degree on both sides, both ways, a push that fails said once a door and way a stay and
+  what says nothing, the black before the move, the height kept, the watch
   with a late landing, a fall, a floor far below, 32 passes without standing and a refused move, the door that
   does nothing more for the stay, the first push that opens a door and writes the file, a new Lua load that reads
   it, a file that cannot be written or read, a requirement not met and met, busy passes, off and on, an arrival

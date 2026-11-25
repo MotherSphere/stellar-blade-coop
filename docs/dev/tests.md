@@ -895,7 +895,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   10 cm. The way out goes to the point outside, turned away from the door. 101 cm in front of the plane, 1 cm behind
   it, 1 cm past the width, 1 cm under or over the height band, 51 degrees off, a falling EVE, a pass elsewhere and a
   pass at another door are no push. 99 cm, 49 degrees and the inside of the band are. The inner door has the same
-  limits and a room with a passage counts the passage. A black that raises changes one line. The watch: a late
+  limits and a room with a passage counts the passage. EVE turned toward a door from 130 cm, or close to it and
+  turned away, for 8 passes gets one `no push` line a door and way a stay with her distance, turn and height. Where
+  a move leaves her, further than 200 cm, a floor above, busy passes and a real push say nothing. A black that raises
+  changes one line. The watch: a late
   landing is said when she walks. 61 cm under the height she was put at, a floor far below and 32 passes without
   standing put her back where she pushed, under a black that is up at once, with one line. That door then does
   nothing until the next arrival while another door goes on. A refused move and a refused move back are said in one

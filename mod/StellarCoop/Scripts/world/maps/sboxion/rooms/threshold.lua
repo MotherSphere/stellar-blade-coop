@@ -12,6 +12,10 @@
 -- street door from the street. The way out is a push on the inner door from inside the room. A room with a passage
 -- (D039, whose own doorway is open behind SB's shutter) counts the passage too. Running along the facade, a jump and
 -- her back to the door are no push.
+-- A push that fails: none of this has run in game, so a door that does not answer must say why. EVE before a door
+-- within twice REACH, inside its width, either within REACH or turned toward it, for IDLE passes in a row with no
+-- push: one log line a door and way a stay gives her place and the three numbers a push needs. Where a move leaves
+-- her she is neither close nor turned toward the door, so standing there says nothing.
 -- The move: to the room's point inside, turned into the room, or to its point outside, turned away from the door.
 -- Her height is not a number of this part: she is put as high over the new floor as she stood over the old one at
 -- the push, plus LIFT. So a ramp or rubble before a door does not put her into the floor.
@@ -60,19 +64,35 @@ local function against(room,p,at)
     local dx,dy=at.X-p.X,at.Y-p.Y
     return dx*room.cos+dy*room.sin,-dx*room.sin+dy*room.cos,at.Z-p.Z
 end
--- The door EVE pushes on this pass, of the rooms given less those of skip (by name): the room, 'in' (its street
--- door) or 'out' (its inner door) and how high over that door's floor she reads. nil with none.
+-- How EVE stands before a door of room, 'in' at its street door or 'out' at its inner door: cm on her side of the
+-- door's plane, degrees she is turned from the door and cm over the door's floor. nil when she is not before it
+-- within twice REACH (the inner door's passage counts) and inside its width.
+local function before(room,way,m)
+    local p=way=='in' and room.street or room.inner
+    local d,u,h=against(room,p,m.at)
+    local front=way=='in' and -d or d
+    if front<-(p.passage or 0) or front>2*T.REACH or math.abs(u)>p.half then return nil end
+    return front,turn(m.yaw,room.yaw+(way=='in' and 0 or 180)),h
+end
+-- The door EVE pushes on this pass, of the rooms given less those of skip (by name): the room, 'in' or 'out' and how
+-- high over that door's floor she reads. With no push, nil three times and then the door she fails to push, if
+-- any: {room=, way=, front=, off=, h=}, close to it or turned toward it, no more than 100 cm off its height band.
+local WAYS={'in','out'}
 local function pushed(rooms,skip,m)
+    local near=nil
     for _,room in ipairs(rooms) do
-        if not skip[room.name] then
-            local d,u,h=against(room,room.street,m.at)
-            if d>=-T.REACH and d<=0 and math.abs(u)<=room.street.half and h>=T.LOW and h<=T.HIGH
-                and turn(m.yaw,room.yaw)<=T.TURN then return room,'in',h end
-            d,u,h=against(room,room.inner,m.at)
-            if d>=-(room.inner.passage or 0) and d<=T.REACH and math.abs(u)<=room.inner.half and h>=T.LOW
-                and h<=T.HIGH and turn(m.yaw,room.yaw+180)<=T.TURN then return room,'out',h end
+        for _,way in ipairs(WAYS) do
+            local front,off,h=before(room,way,m)
+            if front and not skip[room.name] then
+                local far,turned=front>T.REACH,off>T.TURN
+                if not far and not turned and h>=T.LOW and h<=T.HIGH then return room,way,h end
+                if not (far and turned) and h>=T.LOW-100 and h<=T.HIGH+100 then
+                    near=near or {room=room,way=way,front=front,off=off,h=h}
+                end
+            end
         end
     end
+    return nil,nil,nil,near
 end
 
 -- o: log(m), world, the engine calls (world/maps/sboxion/engine.lua's move, put and black; a fake in the tests),
@@ -86,6 +106,7 @@ function Threshold.new(o)
     local held={} -- The rooms the pak holds, in the list's order.
     local opened={} -- By name: the doors opened for good, from the door file and from this Lua load.
     local dead,said={},{} -- Of the stay, by name: a door that does nothing more; its requirement was said.
+    local told,idling={},nil -- Of the stay: a push that fails, said by room and way; the one counted: {key=, n=}.
     local push=nil -- The push being counted: {room=, way=, n=}.
     local lead=nil -- A move that waits under SB's black: {left=<passes>, room=, way=, from={at=, yaw=}, h=}.
     local watch=nil -- A move being watched: {passes=, room=, way=, from=, z=<the height she was put at, less LIFT>}.
@@ -171,10 +192,25 @@ function Threshold.new(o)
             back and 'back at '..place(w.from.at)..' where she pushed'
                 or 'the move back to '..place(w.from.at)..' was refused by K2_TeleportTo',ended(w.room)))
     end
+    -- A pass with no push. near: the door she fails to push (pushed()'s fourth value), said once after IDLE passes.
+    local function idle(near,m)
+        local key=near and near.room.name..' '..near.way
+        if not key or told[key] then
+            idling=nil
+            return
+        end
+        if not idling or idling.key~=key then idling={key=key,n=0} end
+        idling.n=idling.n+1
+        if idling.n<T.IDLE then return end
+        told[key],idling=true,nil
+        log(string.format('threshold: %s: no push in %d passes with EVE at %s: %.0f cm before the door\'s plane (%d at '
+            ..'most), turned %.0f degrees from the door (%d at most), %.0f cm over its floor (%d to %d)',key,T.IDLE,
+            place(m.at),near.front,T.REACH,near.off,T.TURN,near.h,T.LOW,T.HIGH))
+    end
     local function tick(busy,read)
         local m=read or world.move()
         if not m then
-            push=nil
+            push,idling=nil,nil
             return
         end
         if lead then
@@ -188,14 +224,15 @@ function Threshold.new(o)
         end
         if watch then return watching(m) end
         if busy or not on or not GROUND[m.mode] then
-            push=nil
+            push,idling=nil,nil
             return
         end
-        local room,way,h=pushed(held,dead,m)
+        local room,way,h,near=pushed(held,dead,m)
         if not room then
             push=nil
-            return
+            return idle(near,m)
         end
+        idling=nil
         if not push or push.room~=room or push.way~=way then push={room=room,way=way,n=0} end
         push.n=push.n+1
         if push.n<T.PUSH then return end
@@ -217,7 +254,7 @@ function Threshold.new(o)
     -- the pak asked for each room. The part is ticked in SBO Xion only, so a move that waited at a map change is
     -- dropped here.
     function self.arrive()
-        on,off,dead,said,push,lead,watch,held=true,nil,{},{},nil,nil,nil,{}
+        on,off,dead,said,told,idling,push,lead,watch,held=true,nil,{},{},{},nil,nil,nil,nil,{}
         local ok,line=pcall(store.load)
         if ok then
             for name in (line or ''):gmatch('%S+') do opened[name]=true end

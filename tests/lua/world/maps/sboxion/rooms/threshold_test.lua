@@ -14,6 +14,9 @@
 -- line.
 -- The push, way out: the same on the inner door from inside, turned toward the street, then the move to the point
 -- outside, turned away from the door. A room with a passage counts the passage too.
+-- A push that fails: EVE close to a door or turned toward it for 8 passes with no push gets one line a door and way
+-- a stay, with her place, her distance, her turn and her height. Too far and turned away, as a move leaves her, a
+-- floor above, busy passes and a real push say nothing.
 -- The watch: the first pass that reads her walking within 60 cm of that height says she stands. Under it by more
 -- than 60 cm, or not standing after 32 passes, she is put back where she pushed, under a black that is up at once.
 -- One line says so and that door does nothing more until the next arrival. The other doors go on. A refused move
@@ -32,7 +35,7 @@ local Threshold=require('world.maps.sboxion.rooms.threshold')
 local D=require('world.maps.sboxion.data')
 local T=D.THRESHOLD
 assert(T.REACH==100 and T.TURN==50 and T.PUSH==3 and T.LOW==40 and T.HIGH==160 and T.DROP==60 and T.SETTLE==32
-    and D.LEAD==2 and D.LIFT==10)
+    and T.IDLE==8 and D.LEAD==2 and D.LIFT==10)
 local LIST=Threshold.LIST
 assert(#LIST>=2,'Two threshold rooms at least: '..#LIST)
 local NAMES={}
@@ -270,6 +273,65 @@ if P then
     assert(pushes() and logged('threshold: '..P.name..' out asked'),'In the passage')
 end
 
+-- A push that fails. Turned toward the door from 130 cm: after 8 passes one line with the three numbers a push
+-- needs. It comes once a door and way a stay.
+again()
+street(A,-130)
+local stood=eve
+pass(7)
+assert(not logged('no push'),'Not before 8 passes')
+pass()
+assert(logs[#logs]==string.format('threshold: %s in: no push in 8 passes with EVE at (%.0f, %.0f, %.0f): 130 cm '
+    ..'before the door\'s plane (100 at most), turned 0 degrees from the door (50 at most), 97 cm over its floor (40 '
+    ..'to 160)',A.name,stood.X,stood.Y,stood.Z),logs[#logs])
+pass(20)
+assert(times('no push')==1 and #blacks==0,'Said once')
+-- Close to the door and turned away from it: the line gives the turn. The inner door has its own line.
+street(B,-60,0,nil,120)
+pass(8)
+assert(logged('threshold: '..B.name..' in: no push in 8 passes') and logs[#logs]:find('): 60 cm before the door\'s '
+    ..'plane (100 at most), turned 120 degrees from the door (50 at most), ',1,true),logs[#logs])
+inner(A,60,0,T.HIGH+20)
+pass(8)
+assert(logged('threshold: '..A.name..' out: no push in 8 passes') and logs[#logs]:find(', 180 cm over its floor (40 '
+    ..'to 160)',1,true),logs[#logs])
+-- The next arrival says it again.
+door.arrive()
+street(A,-130)
+pass(8)
+assert(times(A.name..' in: no push')==2,'Once a stay')
+-- Nothing is said: too far and turned away (where a move leaves her), more than 200 cm away, a floor above, 7
+-- passes, 7 passes with a busy one or a pass of a real push before the eighth, busy passes, a falling EVE and a
+-- real push.
+again()
+local quiet=#logs
+street(A,-150,0,nil,180)
+pass(20)
+inner(A,150,0,nil,180)
+pass(20)
+street(A,-2*T.REACH-10)
+pass(20)
+street(A,-130,0,T.HIGH+101)
+pass(20)
+street(A,-130)
+pass(7)
+street(A,-300)
+pass()
+street(A,-130)
+pass(7)
+pass(1,true)
+pass(7)
+street(A)
+pass()
+street(A,-130)
+pass(7)
+pass(20,true)
+eve.mode=3
+pass(20)
+assert(#logs==quiet,'Nothing said: '..tostring(logs[#logs]))
+street(A)
+pass(20)
+assert(not logged('no push') and #puts==1,'A real push says no such line')
 -- She is put as high over the new floor as she stood over the old one: a ramp or rubble under her does not put her
 -- into the floor.
 again()
