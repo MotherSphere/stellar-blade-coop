@@ -13,7 +13,9 @@
 -- save, unknown, the mailbox full or the file not written, and a key seen before answered as before; take, all or one,
 -- written before its grant and put back when the grant raises; the toast's end, its path kept for the next Lua load's
 -- sweep, and its first failure; a gift sent from another co-op slot coming back once that slot loads; a save whose
--- rename failed, written once the file itself is gone; a read whose answer was lost, asked again with its number.
+-- rename failed, written once the file itself is gone; a read whose answer was lost, asked again with its number; every
+-- notice built through tell from the words it gets (ui/text.lua's gift table, none an English literal here), with the
+-- loopback's own sentences and the words' friend when the link gives no name.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(text) return {ToString=function() return text end} end
 local removes,adds,remove_raise,add_raise={},{},nil,nil
@@ -100,14 +102,26 @@ local function write(name,content)
     return true
 end
 local asked,logs,says,toasts,untoasts={},{},{},{},0
+-- The notices: tell(build) as main/base.lua's M.tell. Each must come whole from the words it gets: built from a table
+-- whose gift words carry a mark in front, it is the English notice with that mark in front (friend stays unmarked, as
+-- it may stand inside a notice).
+local T=require('ui.text')
+local marked={gift={}}
+for k,v in pairs(T.en.gift) do marked.gift[k]=k=='friend' and v or '\1'..v end
+local function tell(build)
+    local en=build(T.en)
+    assert(build(marked)=='\1'..en,'Not built from the words: '..en)
+    says[#says+1]=en
+end
+local friend_name='Kaanta'
 local linked,lost,loop,paused,clock,now=true,false,false,false,100,5000
 local toast_fails,no_controller=nil,false
 local stored,swept=nil,{} -- coop-gift-toast.txt, and the paths swept.
 local names={}
 for i,alias in ipairs(M.ITEMS) do names[alias]={index=4000+i,number=0} end
-local opts={log=function(t) logs[#logs+1]=t end,say=function(t) says[#says+1]=t end,status=status,
+local opts={log=function(t) logs[#logs+1]=t end,tell=tell,status=status,
     request=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
-    read=read,write=write,friend=function() if peer_id then return 'Kaanta',linked,lost end end,
+    read=read,write=write,friend=function() if peer_id then return friend_name,linked,lost end end,
     loopback=function() return loop end,paused=function() return paused end,name=function(a) return names[a] end,
     clock=function() return clock end,now=function() return now end,
     toast=function(t)
@@ -210,20 +224,21 @@ end
 local ask=start('1','3')
 with_items(ask,'2')
 tick()
-assert(#removes==0 and says[#says]=='Gift not sent: you carry 2 HP_Potion',says[#says])
+assert(#removes==0 and says[#says]=='Gift not sent: you carry 2 HP_Potion.',says[#says])
 ask=start('1','3')
 with_items(ask,'none nobucket')
 tick()
-assert(says[#says]=='Gift not sent: your inventory could not be read (nobucket)',says[#says])
+assert(says[#says]=='Gift not sent. UE4SS.log says why.' and logs[#logs]=='send stopped: your inventory could not be '
+    ..'read (nobucket)',logs[#logs])
 ask=start('1','3')
 tick(Mailbox.READ+0.25)
-assert(says[#says]=='Gift not sent: the native part did not read the inventory',says[#says])
+assert(says[#says]==T.en.gift.failed and logs[#logs]=='send stopped: the native part did not read the inventory')
 ask=start('1','3')
 with_items(ask,'9')
 remove_raise='bad call'
 tick()
 remove_raise=nil
-assert(says[#says]:find('^Gift not sent: the game call failed: bad call'),says[#says])
+assert(says[#says]==T.en.gift.failed and logs[#logs]:find('^send stopped: the game call failed: bad call'),logs[#logs])
 ask=start('1','3')
 with_items(ask,'9')
 tick()
@@ -233,8 +248,9 @@ for _=1,Mailbox.SETTLE*4 do
     local a=asked[#asked]:match('^items (%d+) ')
     with_items(a,'9')
 end
-assert(says[#says]=='Gift not sent: the count did not fall by 3 in 10 s of play (9 before, 9 now); the items may be '
-    ..'gone',says[#says])
+assert(says[#says]=='Gift not sent. The items may be gone. UE4SS.log says why.',says[#says])
+assert(logs[#logs]=='send stopped: the count did not fall by 3 in 10 s of play (9 before, 9 now); the items may be gone',
+    logs[#logs])
 assert(#M.read(files[FILE]).out==0 and not asked[#asked]:find('^gift'),'Nothing in the file, no line')
 -- Paused after the remove (the game's menu, photo mode): SB's logic and its remove wait, and that time does not count.
 ask=start('1','3')
@@ -278,16 +294,16 @@ for _=1,Mailbox.SETTLE*4 do
     tick(0.25)
     with_items(asked[#asked]:match('^items (%d+) '),'none unread')
 end
-assert(says[#says]=='Gift not sent: the count did not fall by 3 in 10 s of play (9 before, unread now); the items '
-    ..'may be gone',says[#says])
+assert(says[#says]==T.en.gift.gone and logs[#logs]=='send stopped: the count did not fall by 3 in 10 s of play (9 '
+    ..'before, unread now); the items may be gone',logs[#logs])
 ask=start('1','3')
 with_items(ask,'9')
 tick()
 tick(0.5)
 with_items(asked[#asked]:match('^items (%d+) '),'none nobucket')
 tick()
-assert(says[#says]=='Gift not sent: your inventory could not be read after the remove (nobucket, the items may be '
-    ..'gone)',says[#says])
+assert(says[#says]==T.en.gift.gone and logs[#logs]=='send stopped: your inventory could not be read after the remove '
+    ..'(nobucket, the items may be gone)',logs[#logs])
 -- A read whose answer is lost (the bike's paid fetch read after it: the engine line holds one answer) goes again with
 -- its number after LOST s, before the remove and after it; the gift then goes.
 ask=start('1','3')
@@ -324,7 +340,9 @@ tick()
 write_fails=nil
 local a=adds[1]
 assert(#adds==1 and a[1]==1 and a[2]==0x51 and a[3]:ToString()=='HP_Potion_Small' and a[4]==1 and a.n==9)
-assert(says[#says]:find('The items came back%.$'),says[#says])
+assert(says[#says]=='Gift not sent. The items came back. UE4SS.log says why.',says[#says])
+assert(logs[#logs]:find(' stopped after the remove: the gift file was not written: disk full; the items came back$'),
+    logs[#logs])
 assert(not asked[#asked]:find('^gift'),'No line for a gift with no entry')
 
 -- 6. Answers that bring the items back: refused, nolink; the grant tried again after RETRY s when it raises.
@@ -342,7 +360,9 @@ id=sent('7','2',2)
 assert(id,'Sent')
 mail.receive('n '..id..' full')
 st=M.read(files[FILE])
-assert(#st.out==0 and #st.back==1 and says[#says]=='Gift refused (full): the 2 FlashGrenade come back.')
+assert(#st.out==0 and #st.back==1 and says[#says]=='Gift refused: the 2 FlashGrenade come back. UE4SS.log says why.',
+    says[#says])
+assert(logs[#logs]=='gift '..id..' refused (full): it comes back',logs[#logs])
 tick()
 assert(#adds==1 and adds[1][3]:ToString()=='FlashGrenade' and adds[1][4]==2 and #M.read(files[FILE]).back==0)
 assert(says[#says]=='Gift returned: 2 FlashGrenade are back in your inventory.')
@@ -528,6 +548,21 @@ mail.receive('s 909 HP_Potion 1')
 write_beside=nil
 assert(asked[#asked]=='gift a 909' and files[FILE2]==nil and #M.read(files[FILE2..'.tmp']).box==2,asked[#asked])
 assert(logs[#logs-1]=='gift file left as its .tmp: cannot write '..FILE2..': Permission denied',logs[#logs-1])
+
+-- 11. The names in the notices: in the loopback, our own sentences; with no name from the link, the words' friend.
+loop,peer_id=true,nil
+mail.receive('s 920 HP_Potion 1')
+assert(says[#says]=='You sent yourself 1 HP_Potion: coop gift take puts them in your inventory.',says[#says])
+id=sent('2','1',5)
+mail.receive('a '..id)
+assert(says[#says]=='You got your 1 HP_Potion_Small.',says[#says])
+loop,peer_id,friend_name=false,HER,''
+mail.receive('s 921 HP_Potion 2')
+assert(says[#says]=='your friend sent you 2 HP_Potion: coop gift take puts them in your inventory.',says[#says])
+id=sent('1','1',5)
+mail.receive('a '..id)
+assert(says[#says]=='your friend got your 1 HP_Potion.',says[#says])
+friend_name='Kaanta'
 mail.stop()
 -- A Lua reload while the toast is up: the next load's first tick takes it off, once; that load's own toast goes at
 -- coop off.

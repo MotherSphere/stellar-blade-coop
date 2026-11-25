@@ -815,9 +815,12 @@ do
     end
 end
 -- coop gift: every word to cutmenus/mailbox.lua on a co-op save only; its lines are [GF] lines, its notices go on
--- screen, its status, requests, files and friend are the link's; her gift lines in coop-chat.txt reach it, and it ticks
--- every 250 ms.
+-- screen through tell (in the menu's words and in English), its status, requests, files and friend are the link's; her
+-- gift lines in coop-chat.txt reach it. It ticks every 250 ms.
 gf.o.log('sent 1'); assert(last()=='[StellarCoop][GF] sent 1\n',last())
+gf.o.tell(function(w) return w.gift.sent:format(2,'PulseGrenade') end)
+assert(said[#said]=="Gift sent: 2 PulseGrenade. It waits for your friend's answer." and said_en[#said]==said[#said],
+    said[#said])
 assert(gf.o.status()==status_text and gf.o.friend()=='Kaanta' and select(2,gf.o.friend())==true)
 gf.o.write('coop-gift-1-4.txt','box 1 HP_Potion 3 2 5 Kaanta\n')
 assert(gf.o.read('coop-gift-1-4.txt')=='box 1 HP_Potion 3 2 5 Kaanta\n','Its file through the link')

@@ -321,6 +321,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `500`, `-1`), paid once the count fell by 500, paused time not counted toward the 10 s, a failure when it does not
   fall or when no answer comes, a read whose answer was lost (`coop gift`'s answered after it) asked again with its
   number after 1 s, the numbers from 32768;
+- `cutmenus/mailbox_test` builds each `coop gift` notice through `tell` from a words table with a mark before every
+  gift word. It fails when a notice is not that table's word whole (an English literal). It covers the loopback's own
+  sentences, the words' `friend` when the link gives no name and the reason of a stopped send in the log.
+  `main/boot_test` checks that `cutmenus/wiring.lua` hands it `M.tell`;
 - `online/partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked
   once a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes;
   getting on or off starts a new generation; another component on the bike's mesh stays a part; her body on the bike's
@@ -838,7 +842,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words. The DLC notice (`T.dlcs`)
   stays within 200 bytes in every language with 100-byte DLC names. So do the bike's refusals with the paid fetch's
   offer after them, with each side word and a six-digit distance or another map's 32-byte name and the longest key
-  name. Score attack's notices stay within 200 bytes too (each sit-out, a round without a ranking, the end and the
+  name. So do `coop gift`'s notices with a 32-byte name and alias. Score attack's notices stay within 200 bytes too (each sit-out, a round without a ranking, the end and the
   place with the UI off). Its screens' words stay within their columns: a board row's name and its score with the wave
   or end word, the result panel's heading, its line with the longest end word, its notes and the difficulty words.
   The fishing tournament's notices stay within 200 bytes with 32-byte names (the start of 60 minutes, each sit-out,

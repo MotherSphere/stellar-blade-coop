@@ -250,6 +250,20 @@ return {
         paying='Paying %d %s for your bike.',paid='Your bike was brought here for %d %s.',
         poor='Not enough %s: %d needed, you carry %d.',
         unpaid='Your bike was not brought here. UE4SS.log says why.'},
+    -- coop gift (cutmenus/mailbox.lua): a send that went (%d, %s: the count and the item's alias); one stopped with the
+    -- items still there, with too few of them (the count carried, the alias), with the items maybe gone after the
+    -- remove, with the items given back or not given back; a gift back in the inventory; her gift (%s: her name, or
+    -- friend), or one to ourselves in coop loopback; our gift kept by her (the same) or by ourselves, or refused. The
+    -- log keeps why.
+    gift={sent="Gift sent: %d %s. It waits for your friend's answer.",failed='Gift not sent. UE4SS.log says why.',
+        few='Gift not sent: you carry %d %s.',gone='Gift not sent. The items may be gone. UE4SS.log says why.',
+        back='Gift not sent. The items came back. UE4SS.log says why.',
+        lost='Gift not sent. The items could not be given back. UE4SS.log says why.',
+        returned='Gift returned: %d %s are back in your inventory.',
+        got='%s sent you %d %s: coop gift take puts them in your inventory.',
+        got_self='You sent yourself %d %s: coop gift take puts them in your inventory.',kept='%s got your %d %s.',
+        kept_self='You got your %d %s.',refused='Gift refused: the %d %s come back. UE4SS.log says why.',
+        friend='your friend'},
     -- Gun mode (fight/gunmode/mode.lua): its notices while it is parked for its rebuild (gun_key shows it and does
     -- nothing else) or during an SBO match; one for each refused toggle: the drone aim held, no EVE, a state of hers or
     -- another module that holds her, a start that failed. round, reload and empty go on the reticle's round slot

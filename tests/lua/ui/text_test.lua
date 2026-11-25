@@ -24,7 +24,8 @@
 -- in every language; its English as main.lua says it; the New Game+ notice (T.cycle) within 200 bytes with every
 -- count word and difficulty on both sides; its English; the bike's refusals with each side word and a six-digit
 -- distance or another map's 32-byte name, the paid fetch's offer after them with the longest key name and betacrystal,
--- the fetch's other lines with a 32-byte money name, within 200 bytes; the 20 module names in every table; the notice
+-- the fetch's other lines with a 32-byte money name, within 200 bytes; coop gift's notices with a 32-byte name and
+-- alias within 200 bytes; the 20 module names in every table; the notice
 -- of a module that failed to load with the longest of them within 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
@@ -106,12 +107,12 @@ local function fill(s)
     for p in s:gmatch('%%(.)') do if p~='%' then args[#args+1]=p=='s' and NAME or 16 end end
     return s:format(table.unpack(args))
 end
--- The lines that go to the feed, as main.lua, online/partner/puppet.lua, online/saves/saves.lua, core/link.lua and
--- online/session/join.lua put them together.
+-- The lines that go to the feed, as main.lua, online/partner/puppet.lua, online/saves/saves.lua, core/link.lua,
+-- online/session/join.lua and cutmenus/mailbox.lua put them together.
 local function notices(w)
     local lines={}
     for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','story','travel','ue4ss',
-        'join_refused','bike','gun'}) do
+        'join_refused','bike','gun','gift'}) do
         for _,text in pairs(w[group]) do if text~=w.group.places then lines[#lines+1]=fill(text) end end
     end
     -- A member in a solo area (online/group/group.lua): each place with a 32-byte name.
