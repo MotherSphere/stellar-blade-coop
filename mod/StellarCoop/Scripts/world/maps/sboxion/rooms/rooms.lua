@@ -6,7 +6,8 @@
 -- The zSBO_Xion test paks of 2026-11-24 add rooms behind closed doors of SB's Xion, each a level of its own that SBO
 -- Xion's persistent level always loads: five in the paks of build2, eleven in the pak of build3. A room has an open
 -- doorway of ours where SB's closed door unit and wall panel stand, with street debris in front. rooms/list.lua names
--- those pieces of SB for ten rooms, 41 rows. This part hides
+-- those pieces of SB for ten rooms, 41 rows. The list's threshold rooms have none: they are rooms/threshold.lua's
+-- and this part never looks at them. This part hides
 -- them (world.piece, world.piece_out: world/maps/sboxion/engine.lua), so EVE walks in through the door with no
 -- loading screen. It puts them back with world.piece_back. Nothing is hidden in any other map and SB's own Xion is
 -- never changed: the pieces are objects of SBO Xion's world, which a map change destroys.
@@ -35,9 +36,9 @@ Rooms.PACE,Rooms.WAIT=4,30 -- Passes between two looks at the levels (one look a
 -- <sublevel>.<actor>.<component> with [<index>] for an instance.
 Rooms.LIST={}
 local ROW={} -- A row by its name.
-for i,r in ipairs(require('world.maps.sboxion.rooms.list')) do
+for _,r in ipairs(require('world.maps.sboxion.rooms.list')) do
     local room,needed={name=r.name,level=r.level,umap='/Game/SBO_World/Rooms/'..r.level,needs={r.level},rows={}},{}
-    for k,v in ipairs(r.rows) do
+    for k,v in ipairs(r.rows or {}) do
         local component=(v[4]<0 and 'StaticMeshComponent_' or 'HierarchicalInstancedStaticMeshComponent_')..v[3]
         local row={name=v[1]..'.'..v[2]..'.'..component..(v[4]<0 and '' or '['..v[4]..']'),level=v[1],actor=v[2],
             component=component,index=v[4],mesh=v[5],at={X=v[6],Y=v[7],Z=v[8]},count=v[9]}
@@ -47,7 +48,7 @@ for i,r in ipairs(require('world.maps.sboxion.rooms.list')) do
             room.needs[#room.needs+1]=row.level
         end
     end
-    Rooms.LIST[i]=room
+    if r.rows then Rooms.LIST[#Rooms.LIST+1]=room end -- A room without rows is a threshold room.
 end
 local LIST=Rooms.LIST
 
