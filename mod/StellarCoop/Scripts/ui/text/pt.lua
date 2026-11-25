@@ -459,5 +459,5 @@ return {
         remove='Remover',nothing='Nada mostrado',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='Máquina de NieR',orcal='Protótipo de Orcal',enya='Protótipo de Enya'}},
     xion={says='%s: %s',repairer='Reparador',
-        repairer_hello='Se zumbir, deitar faíscas ou coxear, traz-mo cá. Normalmente consigo pô-lo a funcionar outra vez.'},
+        repairer_hello='Se zumbir ou deitar faíscas, traz-mo cá. Normalmente consigo pô-lo a funcionar outra vez.'},
 }

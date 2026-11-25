@@ -932,10 +932,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   module. No store is asked without the link;
 - `world/maps/sboxion/npcs/npcs_test` runs `world/maps/sboxion/npcs/npcs.lua` over a fake world and a fake store:
   the list with its words in 22 languages and a line within 200 bytes, the repairer's spot worked out from D011's
-  frame, no body far away or while the room's level is not there, the body with its turn and first clip, the line
-  once within 3 m and again after 6 m, the body gone past 35 m, a dropped body made again, a body or a clip that
-  fails, `coop xion npc` with its clips and its turn, the sweep of an earlier load's body, `stop()` and an error in
-  a pass;
+  frame, no body far away, while the room's level is not there or with a pak that lacks the room, the body with its
+  turn and first clip, the line once within 3 m inside the room and again after 6 m, nothing said through the door
+  wall, the body gone past 35 m, a dropped body made again three times at most, a body or a clip that fails,
+  `coop xion npc` with its clips and its turn, the sweep of an earlier load's body, `stop()` and an error in a
+  pass. `world/maps/sboxion/engine_test` covers the six body calls of the engine behind it;
 - `world/maps/sboxion/off_test` runs `main/isolation.lua` with `world.maps.sboxion` (see the module tests above);
 - `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return
   from the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry,

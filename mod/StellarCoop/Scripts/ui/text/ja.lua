@@ -393,5 +393,5 @@ return {
         leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieRの機械',orcal='Orcalの試作',
         enya='Enyaの試作'}},
     xion={says='%s：%s',repairer='修理屋',
-        repairer_hello='うなったり、火花を散らしたり、足を引きずったりするなら持ってきな。たいていはまた動くようにしてやれる。'},
+        repairer_hello='うなったり火花を散らしたりするなら持ってきな。たいていはまた動くようにしてやれる。'},
 }

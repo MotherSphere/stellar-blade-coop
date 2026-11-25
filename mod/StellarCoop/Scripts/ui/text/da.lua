@@ -447,5 +447,5 @@ return {
         remove='Fjern',nothing='Intet vist',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',
         nier='NieR-maskine',orcal='Orcal-prototype',enya='Enya-prototype'}},
     xion={says='%s: %s',repairer='Reparatør',
-        repairer_hello='Hvis den summer, slår gnister eller halter, så kom med den. Jeg får den som regel i gang igen.'},
+        repairer_hello='Hvis den summer eller slår gnister, så kom med den. Jeg får den som regel i gang igen.'},
 }

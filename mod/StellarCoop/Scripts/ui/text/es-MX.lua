@@ -460,5 +460,5 @@ return {
         remove='Quitar',nothing='Nada mostrado',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='Máquina de NieR',orcal='Prototipo de Orcal',enya='Prototipo de Enya'}},
     xion={says='%s: %s',repairer='Reparador',
-        repairer_hello='Si zumba, saca chispas o cojea, tráemelo. Casi siempre logro que vuelva a funcionar.'},
+        repairer_hello='Si zumba o saca chispas, tráemelo. Casi siempre logro que vuelva a funcionar.'},
 }

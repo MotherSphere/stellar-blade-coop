@@ -360,5 +360,5 @@ return {
         leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR机械',orcal='Orcal原型',
         enya='Enya原型'}},
     xion={says='%s：%s',repairer='修理工',
-        repairer_hello='要是它嗡嗡响、冒火花或者一瘸一拐，就拿过来。我一般都能让它重新转起来。'},
+        repairer_hello='要是它嗡嗡响或者冒火花，就拿过来。我一般都能让它重新转起来。'},
 }

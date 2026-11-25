@@ -12,10 +12,12 @@
 -- plus the spot turned by the room's inward yaw). A skeletal mesh of SB faces its +Y [inference, as Mila's], so the
 -- mesh turns MESH_YAW more.
 -- When it is there: EVE within NEAR cm and the room's level loaded and visible (world.levels, asked again each WAIT
--- passes while it is not). It goes when she is FAR cm away or the engine dropped its actor. A map change takes the
--- actor with the world. coop off removes it.
--- The talk: EVE within TALK cm of a body gets its line once (o.say, the feed or the line above EVE), and again only
--- after she went AGAIN cm away.
+-- passes while it is not). A room the pak does not hold (o.gate, asked at each arrival) has no NPC and reads no
+-- level. The body goes when she is FAR cm away. A body the engine dropped is removed and made again, DROPS times a
+-- stay at most. A map change takes the actor with the world. coop off removes it.
+-- The talk: EVE inside the room (past its door wall, by the room's frame) and within TALK cm of a body gets its line
+-- once (o.say, the feed or the line above EVE). She gets it again only after she went AGAIN cm away. From the street
+-- a wall stands between them, so nothing is said there.
 -- coop xion npc: the clip (a number of the row's clips) and a turn of the mesh in degrees, picked by hand for the NPC
 -- nearest to EVE, for this Lua load only, on its body at once. A pick also lets a body that failed try again.
 -- A body that cannot be made says so once and is not tried again until the next arrival or a pick. An error in a pass
@@ -24,7 +26,7 @@
 -- tests/lua/world/maps/sboxion/npcs/npcs_test.lua covers it.
 local U=require('core.unreal')
 local Keep=require('core.keep')
-local Npcs={NEAR=3000,FAR=3500,TALK=300,AGAIN=600,WAIT=8,MESH_YAW=-90}
+local Npcs={NEAR=3000,FAR=3500,TALK=300,AGAIN=600,WAIT=8,DROPS=3,MESH_YAW=-90}
 local ENGINEER='/Game/Art/Character/NPC/CH_NPC_EngineerMale/'
 local function asset(dir,name) return dir..name..'.'..name end
 local function clips(dir,names)
@@ -32,14 +34,15 @@ local function clips(dir,names)
     for i,name in ipairs(names) do out[i]=asset(dir,name) end
     return out
 end
--- name: the key of its words (ui/text: xion.<name> and xion.<name>_hello). room: the level it stands in.
+-- name: the key of its words (ui/text: xion.<name> and xion.<name>_hello). room: the level it stands in. frame: the
+-- room's origin (the middle of its door wall) and its inward yaw, as its layout gives them.
 Npcs.LIST={
     -- The repairer of the repair shop D011, at the workbench with the tool board: the spot (132, -347) of the room's
     -- layout, facing the bench.
     {name='repairer',room='Xion_Rooms_D011',mesh=asset(ENGINEER,'CH_NPC_EngineerMale'),
         clips=clips(ENGINEER..'Animation/',{'N_Engineer_Work1','N_Engineer_Work2','N_Engineer_Work3',
             'N_Engineer_Dusting','N_Engineer_Snooping','N_Engineer_Idle'}),
-        at={X=-10931.7,Y=3145.4,Z=414.0},yaw=-70},
+        at={X=-10931.7,Y=3145.4,Z=414.0},yaw=-70,frame={X=-10650.4,Y=3388.3,yaw=-70}},
 }
 do
     local paths={}
@@ -52,15 +55,22 @@ end
 local function place(at) return string.format('(%.0f, %.0f, %.0f)',at.X,at.Y,at.Z) end
 local function far(n,at) return math.sqrt((at.X-n.at.X)^2+(at.Y-n.at.Y)^2+(at.Z-n.at.Z)^2) end
 local function short(path) return path:match('[^.]+$') end
+-- Is a place inside the NPC's room: past the door wall along the room's inward yaw.
+local function inside(n,at)
+    local a=math.rad(n.frame.yaw)
+    return (at.X-n.frame.X)*math.cos(a)+(at.Y-n.frame.Y)*math.sin(a)>=0
+end
 
 -- o: log(m), world, the engine calls (world/maps/sboxion/engine.lua's body, body_clip, body_turn, body_same,
--- body_gone, body_sweep and levels; a fake in the tests), say(name) (shows the NPC's line; optional) and store
--- (core/link.lua's store for the bodies' actor paths: save(line), load(); optional).
+-- body_gone, body_sweep and levels; a fake in the tests), say(name) (shows the NPC's line; optional), store
+-- (core/link.lua's store for the bodies' actor paths: save(line), load(); optional) and gate(umap) (true when the pak
+-- holds the room level of that game path; optional: without it every room counts as held).
 function Npcs.new(o)
     local log,world=o.log,o.world
     local store=o.store or {save=function() return true end,load=function() end}
     local off=nil -- The error that turned the part off until the next arrival.
-    local state={} -- By row: {shown=<world.body's display>, failed=, spoke=, shut=<said>, wait=<passes>}.
+    -- By row: {shown=<world.body's display>, failed=, spoke=, shut=<said>, wait=<passes>, drops=, absent=<no room>}.
+    local state={}
     local pick={} -- By row: {clip=<a number of its clips>, turn=<degrees>}, coop xion npc's choice.
     local last=nil -- Where EVE was at the last pass.
     local self={}
@@ -128,10 +138,17 @@ function Npcs.new(o)
         last=at
         for i,n in ipairs(Npcs.LIST) do
             local s,d=state[i],far(n,at)
-            if s.shown and not world.body_same(s.shown) then s.shown=nil end -- The engine dropped its actor.
+            if s.shown and not world.body_same(s.shown) then -- The engine dropped its actor.
+                remove(i)
+                s.drops=(s.drops or 0)+1
+                if s.drops>=Npcs.DROPS then
+                    s.failed=true
+                    log(string.format('npcs: %s lost its body %d times: not made again in this stay',n.name,s.drops))
+                end
+            end
             if s.shown and d>Npcs.FAR then remove(i)
-            elseif not s.shown and not s.failed and d<=Npcs.NEAR then show(i) end
-            if s.shown and d<=Npcs.TALK then
+            elseif not s.shown and not s.failed and not s.absent and d<=Npcs.NEAR then show(i) end
+            if s.shown and d<=Npcs.TALK and inside(n,at) then
                 if not s.spoke then
                     s.spoke=true
                     if o.say then pcall(o.say,n.name) end
@@ -153,7 +170,16 @@ function Npcs.new(o)
     -- gone with its actors. A body the store still names, left by an earlier Lua load, is removed.
     function self.arrive()
         off,last=nil,nil
-        for i in ipairs(Npcs.LIST) do state[i]={} end
+        for i,n in ipairs(Npcs.LIST) do
+            state[i]={}
+            if o.gate then
+                local asked,has=pcall(o.gate,'/Game/SBO_World/Rooms/'..n.room)
+                if not (asked and has) then
+                    state[i].absent=true
+                    log('npcs: '..n.name..' stays away: this pak does not hold '..n.room)
+                end
+            end
+        end
         local ok,line=pcall(store.load)
         if not ok then return end
         for name,path in (line or ''):gmatch('(%S-)=(%S+)') do

@@ -22,7 +22,9 @@
 -- UpdateInstanceTransform, its ten numbers read first; a piece that reads hidden already, an instance the engine
 -- refuses and a call that changes nothing each raise; the put-back writes what was read, leaves an instance alone that
 -- is not hidden and calls nothing on an object that is gone or another one. Then SB's Tetrapod interior
--- (world/maps/sboxion/tetrapod.lua): its static mesh parts made solid and put back as SB ships them.
+-- (world/maps/sboxion/tetrapod.lua): its static mesh parts made solid and put back as SB ships them. Then an NPC's
+-- display body (world/maps/sboxion/npcs/npcs.lua): made, played, turned, checked, removed and swept through
+-- core/actors.lua.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(t)
     t.type=t.type or function() return 'UObject' end
@@ -409,6 +411,49 @@ made.BlockAll=77
 statics[SHIP]=object({dead=true})
 assert(Engine.ship(true)==nil and #floor.calls==2,'No actor in memory: nothing written')
 statics[SHIP]=nil
+
+-- An NPC's display body (world/maps/sboxion/npcs/npcs.lua) goes through core/actors.lua: spawned in EVE's world at
+-- the place, turned to the yaw, showing a skeletal mesh; its clip looped; turned where it stands; checked, removed
+-- and swept by core/actors.lua's own calls, which never touch another object.
+do
+    local Actors=require('core.actors')
+    local keep={spawn=Actors.spawn,resolve=Actors.resolve,same=Actors.same,remove=Actors.remove,sweep=Actors.sweep}
+    local spawned,played,turned,removed,swept=nil,{},{},{},{}
+    local its_world=object({})
+    package.loaded['core.player'].her=function() return object({GetWorld=function() return its_world end}) end
+    local mesh=object({PlayAnimation=function(_,clip,loop) played[#played+1]={clip=clip,loop=loop} end,
+        K2_SetWorldLocationAndRotation=function(_,at,rotation,sweep,_,teleport)
+            turned[#turned+1]={at=at,rotation=rotation,sweep=sweep,teleport=teleport}
+        end})
+    Actors.spawn=function(world,at,rotation,look)
+        spawned={world=world,at=at,rotation=rotation,look=look}
+        return {actor=object({}),path='P1',mesh=mesh}
+    end
+    local d=Engine.body({X=1,Y=2,Z=3},-160,'/Game/A/M.M')
+    assert(spawned.world==its_world and spawned.at.X==1 and spawned.at.Y==2 and spawned.at.Z==3
+        and spawned.rotation.Yaw==-160 and spawned.rotation.Pitch==0 and spawned.rotation.Roll==0
+        and spawned.look.path=='/Game/A/M.M' and spawned.look.static==nil and spawned.look.camera==nil
+        and d.path=='P1','A skeletal mesh at the place, turned to the yaw, in EVE\'s world')
+    local clip=object({})
+    Actors.resolve=function(path) return path=='/Game/A/C.C' and clip or nil end
+    Engine.body_clip(d,'/Game/A/C.C')
+    assert(#played==1 and played[1].clip==clip and played[1].loop==true,'The clip, looped')
+    local ok,why=pcall(Engine.body_clip,d,'/Game/A/None.None')
+    assert(not ok and tostring(why):find('/Game/A/None.None is missing on this PC',1,true) and #played==1,why)
+    Engine.body_turn(d,{X=1,Y=2,Z=3},-70)
+    assert(#turned==1 and turned[1].rotation.Yaw==-70 and turned[1].at.Z==3 and turned[1].sweep==false
+        and turned[1].teleport==true,'Turned where it stands, with no sweep')
+    Actors.same=function(actor,path) return actor==d.actor and path=='P1' and actor or nil end
+    assert(Engine.body_same(d)==true and Engine.body_same({actor=object({}),path='P1'})==false,
+        'The same actor at the same path alone')
+    Actors.remove=function(x) removed[#removed+1]=x end
+    Engine.body_gone(d)
+    assert(#removed==1 and removed[1]==d,'Removed by core/actors.lua, which checks the actor first')
+    Actors.sweep=function(path,m) swept[#swept+1]={path=path,mesh=m}; return true end
+    assert(Engine.body_sweep('P0','/Game/A/M.M')==true and swept[1].path=='P0' and swept[1].mesh=='/Game/A/M.M',
+        'Swept by path only while it shows that mesh')
+    for k,f in pairs(keep) do Actors[k]=f end
+end
 
 -- No EVE: move gives nil, put raises.
 package.loaded['core.player'].her=function() return nil end

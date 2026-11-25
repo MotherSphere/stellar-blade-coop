@@ -789,12 +789,17 @@ SB faces its +Y axis. That last point is an inference, so `coop xion npc turn` e
 
 The body appears when EVE is within 30 m of its place and the room's level is loaded and visible. It goes when she
 is 35 m away, at a map change and at `coop off`. A room whose level is not there keeps it away: the module asks
-again every 2 s. A body that cannot be made is said once and is not tried again until the next arrival or a
-`coop xion npc` pick.
+again every 2 s. A pak that does not hold the room has no NPC for it and reads no level. A body that cannot be made
+is said once and is not tried again until the next arrival or a `coop xion npc` pick. A body the engine dropped is
+made again, three times a stay at most.
 
-When EVE comes within 3 m of the body, the NPC's line shows once in the feed, or on the line above EVE when the
-feed is off, as `<name>: <line>` in the menu's language. It shows again only after she went 6 m away. The words
-are in the 22 language files under `ui/text/` (`xion`).
+When EVE is inside the room and within 3 m of the body, the NPC's line shows once in the feed, or on the line above
+EVE when the feed is off, as `<name>: <line>` in the menu's language. It shows again only after she went 6 m away.
+Nothing is said to EVE in the street: the room's door wall stands between them. The words are in the 22 language
+files under `ui/text/` (`xion`).
+
+The repairer stands at the short end of the workbench, 1.3 m inside the door on its left side. The long side of the
+bench has a stool in the line of the doorway. He has no collision, so EVE walks through him.
 
 `coop-xion-npcs.txt` in the mod folder holds the actor path of each body. The next Lua load (Ctrl+R) removes a body
 the earlier load left.
@@ -804,7 +809,9 @@ the earlier load left.
 | Line in `UE4SS.log` | Meaning |
 | --- | --- |
 | `sboxion: npcs: repairer stands in Xion_Rooms_D011 at (-10932, 3145, 414), yaw -160, clip N_Engineer_Work1` | The body was made |
-| `sboxion: npcs: repairer stays away: its level Xion_Rooms_D011 reads loaded false visible false` | The room's level is not there. `is not on the streaming list` with a pak that has no such room. Once a stay |
+| `sboxion: npcs: repairer stays away: this pak does not hold Xion_Rooms_D011` | Each arrival with a pak that has no such room |
+| `sboxion: npcs: repairer stays away: its level Xion_Rooms_D011 reads loaded false visible false` | The room's level is not there yet. Once a stay |
+| `sboxion: npcs: repairer lost its body 3 times: not made again in this stay` | The engine dropped his actor three times |
 | `sboxion: npcs: repairer has no body: <why>` | The mesh or the clip is missing on this PC, or the engine refused the actor. Once a stay |
 | `sboxion: npcs: repairer spoke, EVE 300 cm away` | The line was shown |
 | `sboxion: npcs: repairer shown, clip 4 N_Engineer_Dusting, turned 90` | A `coop xion npc` pick |
@@ -817,7 +824,8 @@ the earlier load left.
 2. Walk in. Does he stand on the floor in front of the workbench, facing it? If he faces another way, try
    `coop xion npc turn 90`, `-90` or `180` and note the value that is right.
 3. `coop xion npc 1` to `6`: note which clips read as work at a bench.
-4. Walk up to him. His line shows once. Walk 6 m away and come back: it shows again.
+4. Walk up to him. His line shows once. Walk 6 m away and come back: it shows again. In the street, close to the
+   shop's wall, nothing shows.
 5. Open photo mode, then leave it. Walk 40 m away and come back. Type `coop off`. Is a body left anywhere?
 
 Send the `npcs:` lines of `UE4SS.log`.
@@ -1087,9 +1095,11 @@ underground and 47 of the 50 level-design sublevels.
   stores (`coop-xion-rooms.txt`, `coop-xion-doors.txt`, `coop-xion-npcs.txt`) and an NPC's line in the menu's
   words.
 - `npcs/npcs_test.lua`: the list (names with words in 22 languages, a line within the feed's 200 bytes, the
-  repairer's spot from D011's frame), no body far away or without the room's level, the body with its turn and
-  clip, the talk once and again after 6 m, the body gone past 35 m, a dropped body made again, a body or a clip that
-  fails, `coop xion npc`, the sweep of an earlier load's body, `stop()` and an error in a pass.
+  repairer's spot from D011's frame), no body far away, without the room's level or with a pak that lacks the room,
+  the body with its turn and clip, the talk once inside the room and again after 6 m, nothing said through the
+  wall, the body gone past 35 m, a dropped body made again three times at most, a body or a clip that fails,
+  `coop xion npc`, the sweep of an earlier load's body, `stop()` and an error in a pass.
+- `engine_test.lua` also covers the six body calls of `engine.lua`.
 - `tetrapod_test.lua`: the ship frame, the way in and the way out with SB's black, the hold after a move, the count
   that starts again, a busy recovery, a refused teleport, an error that turns the door off and the command. Then the
   floor: the ship made solid before the move and put back at the way out and at `coop off`, EVE put on the point

@@ -450,5 +450,5 @@ return {
         remove='Usuń',nothing='Nic nie pokazano',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='Maszyna z NieR',orcal='Prototyp Orcala',enya='Prototyp Enyi'}},
     xion={says='%s: %s',repairer='Serwisant',
-        repairer_hello='Jeśli coś buczy, iskrzy albo kuleje, przynieś to do mnie. Zwykle udaje mi się to znowu uruchomić.'},
+        repairer_hello='Jeśli coś buczy albo iskrzy, przynieś to do mnie. Zwykle udaje mi się to znowu uruchomić.'},
 }

@@ -457,5 +457,5 @@ return {
         cam='Vrije camera',remove='Weghalen',nothing='Niets getoond',leviathan='Leviathan',gardener='Gardener',
         tendril='Tendril',mann='Mann',nier='NieR-machine',orcal='Orcal-prototype',enya='Enya-prototype'}},
     xion={says='%s: %s',repairer='Reparateur',
-        repairer_hello='Als het zoemt, vonkt of mank loopt, breng het maar hier. Meestal krijg ik het weer aan de praat.'},
+        repairer_hello='Als het zoemt of vonkt, breng het maar hier. Meestal krijg ik het weer aan de praat.'},
 }

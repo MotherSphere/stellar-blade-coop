@@ -393,5 +393,5 @@ return {
         leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR 기계',orcal='Orcal 시제품',
         enya='Enya 시제품'}},
     xion={says='%s: %s',repairer='수리공',
-        repairer_hello='웅웅거리거나 불꽃이 튀거나 절뚝거리면 가져와. 웬만하면 다시 돌아가게 해 줄 수 있어.'},
+        repairer_hello='웅웅거리거나 불꽃이 튀면 가져와. 웬만하면 다시 돌아가게 해 줄 수 있어.'},
 }

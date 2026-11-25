@@ -556,5 +556,5 @@ return {
     -- SBO Xion's NPCs (world/maps/sboxion/npcs/npcs.lua): says is the line with its speaker (%s the name, %s the
     -- words), then each NPC's name and what it says when EVE comes close.
     xion={says='%s: %s',repairer='Repairer',
-        repairer_hello='If it hums, sparks or limps, bring it over. I can usually get it running again.'},
+        repairer_hello='If it hums or throws sparks, bring it over. I can usually get it running again.'},
 }

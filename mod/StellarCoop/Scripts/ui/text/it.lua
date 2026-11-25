@@ -464,5 +464,5 @@ return {
         cam='Telecamera libera',remove='Rimuovi',nothing='Niente mostrato',leviathan='Leviathan',gardener='Gardener',
         tendril='Tendril',mann='Mann',nier='Macchina di NieR',orcal='Prototipo di Orcal',enya='Prototipo di Enya'}},
     xion={says='%s: %s',repairer='Riparatore',
-        repairer_hello='Se ronza, fa scintille o zoppica, portamelo. Di solito riesco a rimetterlo in funzione.'},
+        repairer_hello='Se ronza o fa scintille, portamelo. Di solito riesco a rimetterlo in funzione.'},
 }

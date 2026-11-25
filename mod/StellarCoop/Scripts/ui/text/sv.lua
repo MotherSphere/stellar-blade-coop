@@ -445,5 +445,5 @@ return {
         remove='Ta bort',nothing='Inget visas',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='NieR-maskin',orcal='Orcal-prototyp',enya='Enya-prototyp'}},
     xion={says='%s: %s',repairer='Reparatör',
-        repairer_hello='Om den surrar, slår gnistor eller haltar, kom hit med den. Jag brukar få igång den igen.'},
+        repairer_hello='Om den surrar eller slår gnistor, kom hit med den. Jag brukar få igång den igen.'},
 }

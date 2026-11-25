@@ -120,7 +120,7 @@ end
 -- Is a body still the actor body() made: never a call on another object found at its address.
 function Engine.body_same(d) return Actors.same(d.actor,d.path)~=nil end
 function Engine.body_gone(d) Actors.remove(d) end
--- A body an earlier Lua load left, by its actor's path: gone, and true, only while that actor still shows mesh.
+-- A body an earlier Lua load left, by its actor's path. It is removed, with true, only while that actor shows mesh.
 function Engine.body_sweep(path,mesh) return Actors.sweep(path,mesh) end
 -- SB's black over a put-back: USBBlueprintLibrary::LoadingScreenFadeAuto (exec 0x1426641e0 on build 26123051). It
 -- reads the time the black stands, then a start block and an end block (each a duration and the two values the
