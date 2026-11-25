@@ -118,8 +118,10 @@ achievements, which cannot be taken back.
   as a third-person shooter. `gun_mode=off` (Options, Controls) turns it off. While its rifle layer is rebuilt, the
   key only shows the notice `Gun mode: rebuilding`. It brings the rifle out only with the optional pak `zNGMSpike_P`
   installed. You build that pak on your own PC: SBO does not ship it. Gun mode ran in game on one PC on 2026-11-20 and
-  2026-11-21, on game build 26123051. It has not been played between two players. Its rounds on a co-op save have not
-  run in game (see [fight/gunmode.md](fight/gunmode.md)).
+  2026-11-21, on game build 26123051. It has not been played between two players. An earlier version of its rounds on
+  a co-op save ran in the 2026-11-21 test: the count's first read came 0.37 s after the rifle out. Its page records no
+  game test of the fixes the rounds got after that test (see
+  [fight/gunmode.md](fight/gunmode.md#rounds-on-a-co-op-save)).
 - Day and night: the sun moves across the sky on the maps that can show it, by one clock that every SBO player shares
   through UTC, so players on the same map see the same sky with no network message. One real hour is one game day; the
   night runs from about :52 to :12 past each hour. It runs in solo play, in online sessions, in the hall lobbies, in
