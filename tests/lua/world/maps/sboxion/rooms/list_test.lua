@@ -8,10 +8,24 @@
 -- in both. No piece is listed twice. Every room starts with its door piece, a mesh of Architecture/Door, or D036's door
 -- leaf of Architecture/Bar. A room holds at most one wall panel of Architecture/Building_003. The rows as the level
 -- dumps of build 26123051 gave them are pinned by the sum of their places and by rows written out. D039 is not in the
--- list: two of its rows are physics props. Each room's door is a waypoint of the test walk
+-- ten: two of its rows are physics props. Each room's door is a waypoint of the test walk
 -- (world/maps/sboxion/data.lua), named after the room, after the four older ones.
+-- After the ten come the threshold rooms, D039 among them: a level, no rows and a threshold whose numbers are the
+-- room's layout's, pinned here one line a room. The inner door lies 60 to 280 cm behind the street door's plane and
+-- within 15 cm of its height. The point outside lies 150 cm in front of the street door, inside its width and on the
+-- street floor. The point inside lies 150 cm inside the inner door, on its axis and on the room floor. D039 alone has
+-- a passage, shorter than the way between its two planes. No room is listed twice.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
-local List=require('world.maps.sboxion.rooms.list')
+local Whole=require('world.maps.sboxion.rooms.list')
+local List,Doors={},{} -- The rooms with rows, then the threshold rooms.
+for i,room in ipairs(Whole) do
+    assert((room.rows==nil)~=(room.threshold==nil),tostring(room.name)..' has rows or a threshold, not both')
+    if room.rows then
+        assert(#Doors==0,room.name..' comes before the threshold rooms')
+        List[#List+1]=room
+    else Doors[#Doors+1]=room end
+    for k=1,i-1 do assert(Whole[k].name~=room.name,room.name..' is listed twice') end
+end
 local SUM=2348.536-552.534+606.193-419.767-238.074+642.96-381.014-127.684+573.957-269.94-760.962+549.207-415.099
     +1148.26-36.967-1086.11+921.861-201.769-1078.03+1491.03-957.788-96.172+2021.63-579.016-96.172+1998.62-515.568
     -91.771+75.821+742.762-602.252+223.4+571.77-602.252+146.635+912.153-464.125-1225.65+431.055-78.641-1588.09
@@ -88,6 +102,41 @@ assert(same(List[9].rows[2],{'E04_Area02_Object_F_01','Actor_0',34,6,'Deco/Rubbl
 assert(same(List[10].rows[3],{'E04_Area02_Object_D_01','Actor_2',26,2,'Deco/Rubble/027_A_SM',268.367,1464.11,142.217,
     54}),'The debris of D106')
 for _,room in ipairs(List) do assert(room.name~='D039','D039 waits for a way to hide its physics props') end
+-- The threshold rooms. A line: the street door's centre, its inward yaw and half width, the inner door's centre and
+-- half width, the point outside, the point inside.
+local THRESHOLDS={
+    D039={-4744.64,-5.59,463.1,-146.9,145.0,-4828.5,-60.23,464.04,145.0,-4617.3,73.8,463.1,-4954.16,-142.15,464.04},
+    D111={10642.0,887.9,1463.7,53.0,86.0,10799.7,988.2,1464.56,86.0,10551.7,768.1,1463.7,10890.0,1108.0,1464.56},
+    D157={-3459.2,-2441.3,462.6,130.0,102.2,-3252.3,-2013.0,458.1,112.0,-3332.1,-2530.5,462.6,-3348.7,-1898.1,458.1},
+    D109={9249.9,1493.5,1333.6,40.0,60.0,9300.5,1535.9,1333.42,55.7,9135.0,1397.1,1333.6,9415.3,1632.4,1333.42},
+    D029={-6117.2,4972.6,214.9,108.0,112.0,-6080.1,5126.6,215.81,112.0,-6070.9,4830.0,214.9,-6126.5,5269.3,215.81},
+    D030={-6044.7,2184.1,92.7,175.0,86.0,-6318.7,2208.0,103.16,73.5,-5895.3,2171.0,92.7,-6468.1,2221.1,103.16},
+    D037={-5188.5,4594.9,105.6,-76.9,112.0,-5339.0,4298.2,106.46,105.7,-5290.6,4725.2,105.6,-5305.1,4152.1,106.46},
+    D163={-2129.6,3619.1,220.7,130.0,112.0,-2216.4,3722.5,221.6,112.0,-2033.1,3504.2,220.7,-2312.8,3837.4,221.6},
+    D164={-1243.3,4386.0,220.7,130.0,112.0,-1152.9,4559.7,221.6,112.0,-1146.8,4271.1,220.7,-1249.4,4674.6,221.6},
+}
+assert(#Doors==size(THRESHOLDS),#Doors..' threshold rooms')
+for _,room in ipairs(Doors) do
+    local t,want=room.threshold,THRESHOLDS[room.name]
+    assert(want and room.level=='Xion_Rooms_'..room.name,'The threshold room '..tostring(room.name))
+    local s,i,o,n=t.street,t.inner,t.outside,t.inside
+    assert(same({s.X,s.Y,s.Z,s.Yaw,s.half,i.X,i.Y,i.Z,i.half,o.X,o.Y,o.Z,n.X,n.Y,n.Z},want),
+        room.name..': the numbers of its layout')
+    assert(s.Yaw>-180 and s.Yaw<=180 and s.half>=50 and s.half<=150 and i.half>=50 and i.half<=150,room.name)
+    local c,sn=math.cos(math.rad(s.Yaw)),math.sin(math.rad(s.Yaw))
+    -- A point against a plane's centre: cm along the inward yaw, cm across.
+    local function against(p,q) return (q.X-p.X)*c+(q.Y-p.Y)*sn,-(q.X-p.X)*sn+(q.Y-p.Y)*c end
+    local deep=against(s,i)
+    assert(deep>=60 and deep<=280 and math.abs(i.Z-s.Z)<=15,room.name..': the inner door '..deep..' cm behind')
+    local front,across=against(s,o)
+    assert(math.abs(front+150)<=0.5 and math.abs(across)<=s.half and o.Z==s.Z,
+        room.name..': the point outside, '..front..' and '..across)
+    front,across=against(i,n)
+    assert(math.abs(front-150)<=0.5 and math.abs(across)<=1 and n.Z==i.Z,
+        room.name..': the point inside, '..front..' and '..across)
+    assert(i.passage==(room.name=='D039' and 94 or nil) and (i.passage or 0)<deep,room.name..': its passage')
+    assert(room.requires==nil,room.name..' has no requirement')
+end
 -- The doors: coop xion status names the nearest one and the watch logs a stay of 5 s within 3 m of it.
 local D=require('world.maps.sboxion.data')
 local DOORS={D011={-10901.1,3360.9,411.6},D031={-5853.9,4.2,465.7},D081={-6971.5,1706.1,475.4},

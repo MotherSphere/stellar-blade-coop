@@ -39,7 +39,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `world/maps/sboxion/`: `engine`, `off`, `recover`, `rows`, `sboxion`, `tetrapod`, `title`, `world`;
-`world/maps/sboxion/rooms/`: `list`, `rooms`;
+`world/maps/sboxion/rooms/`: `list`, `rooms`, `threshold`;
 `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
 `online/partner/`: `assets`, `bench`, `bike_part`, `capture`, `commands`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
@@ -811,7 +811,15 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   logged at the arrival and once at each change, within a second. The levels line and the characters line come
   again 10 s later. A look 10 s after that
   reads once and says nothing. The next look says the two levels that changed and the characters line with the two
-  that spawned, once. `coop xion status` ends with the last look;
+  that spawned, once. `coop xion status` ends with the last look. The threshold doors log one line an arrival and
+  have their part of the status: none with the pak of 23 November, `D039` alone with the third build's pak, every
+  room with a pak that holds them all. Each street door is a waypoint of the status. A cutscene and a death make the
+  doors wait. A room whose level does not show on the engine's streaming list keeps its door shut. Three passes of
+  a push through the module's own wiring ask SB's black with one engine read of EVE a pass. The opened door goes
+  to the store the wiring hands over. The move comes two passes later. `coop xion
+  tetrapod in` is refused while that move waits and the Tetrapod's door counts nothing. `coop xion rooms off` turns
+  the doors off and `on` turns them on. A push counts nothing while the Tetrapod's door moves EVE. No move is made
+  after `coop off`. A new Lua load reads the opened door from the store;
 - `world/maps/sboxion/tetrapod_test` runs `world/maps/sboxion/tetrapod.lua` over a fake world. SB's point inside
   the Tetrapod reads (81, 624, 332) in the ship frame. One pass in the doorway of the hangar moves nothing. The
   second asks SB's black. Two passes later EVE goes to the point inside plus 10 cm. Nothing is looked at for the next
@@ -820,7 +828,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   change one log line. An error in a pass turns the door off until the next arrival. `coop xion tetrapod in` and
   `out` ask the move at once. The way in asks the engine to make the ship's parts solid before the move. The way out
   and `coop off` put them back. While EVE reads 60 cm under the point she is put on it again and the ship is asked
-  again if it was not found, with a black every 6 passes. After 32 passes with no floor she is put back outside;
+  again if it was not found, with a black every 6 passes. After 32 passes with no floor she is put back outside.
+  `busy()`, which the threshold doors read, is true while a move waits and while she is watched;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
@@ -874,8 +883,35 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `world/maps/sboxion/rooms/list_test` checks `world/maps/sboxion/rooms/list.lua`: the ten rooms with their levels,
   the 41 rows as the level dumps of build 26123051 gave them, 18 whole components and 23 instances of 18 instanced
   components in 10 sublevels, no piece twice, the instance count of each instanced component (the same in the two
-  rooms that share one), each room starting with its door piece, `D039` left out, each door a waypoint of
-  `data.lua`;
+  rooms that share one), each room starting with its door piece, `D039` left out of the ten, each door a waypoint
+  of `data.lua`. Then the nine threshold rooms: a level and no rows, the numbers of each room's layout pinned one
+  line a room, the inner door 60 to 280 cm behind the street door's plane, the point outside 150 cm in front of the
+  street door and inside its width, the point inside 150 cm inside the inner door, a passage at `D039` alone, no
+  requirement, no room listed twice;
+- `world/maps/sboxion/rooms/threshold_test` runs `world/maps/sboxion/rooms/threshold.lua` over a fake world, a fake
+  pak gate and a fake door file. Every place is worked out from a room's own numbers. The gate is asked for each
+  room on its own. A pak with no room logs one line and no push counts. A pak with one room works that door alone. A
+  room whose ask raises is left out. The push: two passes move nothing, the third asks SB's black, two passes later
+  EVE is at the point inside, turned into the room, as high over the room floor as she stood over the street plus
+  10 cm. The way out goes to the point outside, turned away from the door. 101 cm in front of the plane, 1 cm behind
+  it, 1 cm past the width, 1 cm under or over the height band, 51 degrees off, a falling EVE, a pass elsewhere and a
+  pass at another door are no push. 99 cm, 49 degrees and the inside of the band are. The inner door has the same
+  limits and a room with a passage counts the passage. EVE turned toward a door from 130 cm, or close to it and
+  turned away, for 8 passes gets one `no push` line a door and way a stay with her distance, turn and height. Where
+  a move leaves her, further than 200 cm, a floor above, busy passes and a real push say nothing. A black that raises
+  changes one line. The watch: a late
+  landing is said when she walks. 39 cm over the floor she was put on, a floor far below and 32 passes without
+  standing on it (walking 161 cm over it among them) put her back where she pushed, under a black that is up at
+  once, with one line. That door then does
+  nothing until the next arrival while another door goes on. A refused move and a refused move back are said in one
+  line each. The first push of a door says it opened and writes its name to the file. A later push writes nothing.
+  Names the list does not know stay in the file. A new Lua load reads it. A file that cannot be written or read is
+  one line. A door whose requirement is not met does nothing and says so once a stay. Met, it opens. Opened, it asks
+  no more. The way out never asks. A way in reads the streaming list once a whole push. A room level that is not
+  visible, not loaded or off the list keeps the door shut with one line a stay: no black, no move, nothing opened.
+  A read that raises does the same. Another door goes on and the door works once its level is there. The way out
+  reads no level. Busy passes count nothing and a move already asked is still made. Off and on, an arrival that
+  drops a move, an error that turns the part off and the read of EVE handed over;
 - `world/maps/sboxion/rooms/rooms_test` runs `world/maps/sboxion/rooms/rooms.lua` over a fake world, a fake pak gate
   and a fake store. The gate is asked for each room on its own. With a pak that holds no room it logs one line with
   the first reason and reads no level. With a pak of the second build one line names the five rooms it holds of the
@@ -890,7 +926,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
   `recover` alone and with `on`, `death` or `off`, `rooms` alone and with `on` or `off`, the use line for `walls`,
   any other word or one too many and the answer without the Steam link. Then `world/maps/sboxion/wiring.lua`: SBO
-  Xion is built with the Steam link's store `coop-xion-rooms.txt` alone and no store is asked without the link;
+  Xion is built with two of the Steam link's stores, `coop-xion-rooms.txt` and `coop-xion-doors.txt`. No store is
+  asked without the link;
 - `world/maps/sboxion/off_test` runs `main/isolation.lua` with `world.maps.sboxion` (see the module tests above);
 - `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return
   from the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry,

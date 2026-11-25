@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's data (world/maps/sboxion/sboxion.lua): the test pak, its level, the two table rows, the arrival points,
--- the waypoints of the test walk, the day table, the two probe levels, the recovery's numbers and the Tetrapod's door.
+-- the waypoints of the test walk, the day table, the two probe levels, the recovery's numbers, the Tetrapod's door
+-- and the threshold doors' limits.
 -- Level facts are read from the paks of build 26123051. Units: cm and degrees.
 local D={}
 D.PAK='zSBO_Xion' -- The container: zSBO_Xion.utoc, .ucas and .pak, built outside the repository.
@@ -152,4 +153,17 @@ D.TETRAPOD={
     OUT={X=-13413.319,Y=18382.996,Z=82.0,Yaw=-87.18756},
     STAY=2,HOLD=8,DROP=60,AGAIN=6,SETTLE=32,
 }
+-- The threshold doors (world/maps/sboxion/rooms/threshold.lua). The rooms and their numbers are in rooms/list.lua.
+-- REACH, cm: EVE pushes a door from within that far in front of its plane. On the collision set of Xion (the paks of
+-- build 26123051) the leaf of each street door stands from 18 cm behind the door's plane to 2 cm in front of it. A
+-- post of the unit and props of SB before two of the doors stand up to 67 cm in front. On the room side the leaf of
+-- the inner door stands 13 to 33 cm in front of its plane, its posts 45 cm.
+-- TURN, degrees: she is turned toward the door within that. PUSH, passes in a row: the push.
+-- LOW and HIGH, cm: how far over the door's floor her place reads, which is the middle of her capsule. A floor above
+-- or below the door is out. In two game runs of 24 November 2026 she read 97 cm over the collision floor at the city
+-- point.
+-- After a move she must read walking LOW to HIGH cm over the floor she was put on, within SETTLE passes. Under LOW
+-- she fell.
+-- IDLE, passes in a row: EVE close to a door or turned toward it, with no push, is said once after that many.
+D.THRESHOLD={REACH=100,TURN=50,PUSH=3,LOW=40,HIGH=160,SETTLE=32,IDLE=8}
 return D
