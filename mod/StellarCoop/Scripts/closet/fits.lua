@@ -10,7 +10,8 @@
 --   Mesh     the outfit's mesh, as its pack names it
 --   Skin     {material index = {regions it shows}}: the outfit's own skin, which supplies the body whenever this
 --            outfit supplies the shoes (Phase 0's rule: the shoes are shaped around its own feet)
---   Pieces   {Slot, Name, Materials = {indexes}, Off = true when the pack hides it by default, Occupies = {slots}}
+--   Pieces   {Slot, Name, Materials = {indexes}, Off = true when the pack hides it by default, Occupies = {slots},
+--            Covers = {regions}: the regions it covers, whose skin slots go when all theirs are covered}
 --   Unknown  {indexes}: slots whose piece and place are not known yet (no toggle name says it); they stay hidden
 --            when the outfit is worn as pieces
 local Fits = {}
@@ -50,7 +51,7 @@ Fits.BY_ID = {
             {Slot = 'Outerwear', Name = 'Shadow jacket', Materials = {3, 4, 5}},
             {Slot = 'Chest', Name = 'Kunoichi top', Materials = {6, 7, 8}},
             {Slot = 'ChestHardware', Name = 'Harness', Materials = {9, 13, 10, 11, 14, 12, 15}},
-            {Slot = 'Gloves', Name = 'Long gloves', Materials = {16, 17}},
+            {Slot = 'Gloves', Name = 'Long gloves', Materials = {16, 17}, Covers = {'ArmUpper', 'Forearm', 'Hand'}},
             {Slot = 'BraceletL', Name = 'Watch', Materials = {18}},
             {Slot = 'AnkletL', Name = 'Anklet L', Materials = {22}},
             {Slot = 'AnkletR', Name = 'Anklet R', Materials = {21}},

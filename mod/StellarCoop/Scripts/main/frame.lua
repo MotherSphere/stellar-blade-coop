@@ -48,6 +48,7 @@ LoopInGameThreadWithDelay(1,function()
     M.guarded('leviathan',M.leviathan.restore) -- Likewise for a cut Naytiba display an earlier load left.
     M.guarded('drive',M.drive.restore) -- Likewise for her movement after a reload with the driving on.
     M.guarded('wear',M.wear.restore) -- Likewise for her own meshes after a reload with a coop wear look on.
+    M.guarded('closet',M.closet.restore) -- Likewise after a reload with a coop closet mix on.
     M.guarded('flight',M.flight.restore) -- Likewise for the flight keys after a reload with coop fly on.
     -- Likewise for a scene an earlier load left playing, and the farewell take it lent.
     M.guarded('scene',M.scene.restore)
@@ -114,6 +115,7 @@ LoopInGameThreadWithDelay(1,function()
     M.guarded('recruiter',M.recruiter.tick) -- Likewise for coop recruiter.
     ok,message=M.guarded('wear',M.wear.tick) -- Once a second at most: a worn look the game replaced goes on again.
     if message then M.report(ok,message) end
+    M.guarded('closet',M.closet.tick) -- Likewise for a coop closet mix; it logs its own lines.
     -- The open and close tweens, the game's input back after a close, the chat box focused again, the partner's marker
     -- (each frame, from the ghost's place just set).
     if M.kit then

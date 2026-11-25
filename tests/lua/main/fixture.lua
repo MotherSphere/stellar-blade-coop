@@ -539,6 +539,15 @@ package.loaded['eve.wear']={new=function(o)
         tick=function() wr.ticks=wr.ticks+1; if wr.says then return table.unpack(wr.says) end end,
         stop=function() wr.stops=wr.stops+1 end}
 end}
+-- coop closet (closet/dress.lua; closet/dress_test tests it): what new got (log, store, paused), its wears, restores,
+-- ticks and stops.
+cl={wears={},restores=0,ticks=0,stops=0}
+package.loaded['closet.dress']={USE='Use: coop closet wear',parse=function(w) return w end,new=function(o)
+    cl.o=o
+    return {wear=function(c) cl.wears[#cl.wears+1]=c; return true,'cl wear' end,off=function() return true,'cl off' end,
+        restore=function() cl.restores=cl.restores+1 end,tick=function() cl.ticks=cl.ticks+1 end,
+        stop=function() cl.stops=cl.stops+1 end,status=function() return 'closet: nothing worn' end}
+end}
 -- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
 -- stops, what a tick says; its scenes' words.
 sc={}

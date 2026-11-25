@@ -62,6 +62,8 @@ for _,list in ipairs({{
         M.pause_tab.stop() -- Likewise; the native part gives its slot back.
         stopped,e=pcall(M.wear.stop) -- EVE's own meshes back.
         if not stopped then log('wear: '..tostring(e)) end
+        stopped,e=pcall(M.closet.stop) -- Her own look back from a coop closet mix.
+        if not stopped then log('closet: '..tostring(e)) end
         if M.roxanne then -- Her two choices back before the native part stops taking requests.
             stopped,e=pcall(M.roxanne.stop)
             if not stopped then log('roxanne: '..tostring(e)) end
