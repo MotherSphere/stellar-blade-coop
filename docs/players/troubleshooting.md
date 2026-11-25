@@ -29,8 +29,9 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `Native tick unavailable`: the DLL loaded but its per-frame entry did not. Without it no pose is read or drawn, so
   no ghost shows, and the loopback, record and replay refuse to start.
 - A `settings:` line: a value in `coop-settings.txt` was refused and keeps its default. `F10` is never allowed, and
-  two actions on one key put all five keys back to their defaults: `F5` (menu), `none` (host), `F6` (status), `F8`
-  (leave) and `F9` (race checkpoint). See [settings.md](settings.md#coop-settingstxt).
+  two actions on one key put all nine keys back to their defaults: `F5` (menu), `none` (host), `F6` (status), `F7`
+  (travel to the host), `F8` (leave), `F9` (race checkpoint), `F3` (bike), `F4` (gun mode) and `F2` (emote wheel). See
+  [settings.md](settings.md#coop-settingstxt).
 - `keys: <key> is also bound by a mod loaded earlier; both run`: another mod uses the same key. Pick another key.
 
 ### `Co-op: waiting for Steam.` or `Co-op: the Steam link stopped; coop status says why.`

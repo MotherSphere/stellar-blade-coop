@@ -6,9 +6,10 @@
 -- animation, warp=idle, the friend alive on our map with her ghost shown within 2 m across and 1 m up or down, boss=0,
 -- standalone, no nightop=rule, revive=on), once per death, ServerRequest_ActorRevival only when our life state did not
 -- move 2 s after the respawn and every condition holds again, the result line, the death screen hidden when it stays up
--- after a revive and shown again at the next death, with no session, at coop off and once the revive is off, a Lua
--- error turning the revive off for the run. Together only: no call while the friend is farther than 2 m, down or
--- missing, a dropped link starting the 3 s again, and no fallback call for a death that came after the revive took. The
+-- after a revive and shown again at the next death, with no session, at coop off and once the revive is off (after a
+-- Lua reload too, through coop-death-screen.txt), a Lua error turning the revive off for the run. Together only: no
+-- call while the friend is farther than 2 m, down or missing, a dropped link starting the 3 s again, and no fallback
+-- call for a death that came after the revive took. The
 -- notices on both sides: the wait once per death, the revived line after a revive, her down once per death of hers on
 -- our map outside a boss fight while we are up, and our revive of her only while our EVE stands within 3 m of her
 -- ghost. coop revive test: solo only, at the death screen with life 3 to 5, the same call and the same lines. During a
@@ -111,14 +112,18 @@ local GUEST='fight=on mode=on role=guest pairs=1 claims=0 corrections=0 kills=0 
 local ENGINE='engine=on reason=pinned build 26123051 remote=3 1 peer'
 local clock=0
 local map=uobject('World /Game/Map.Map',{})
-local function world(change)
-    W={life={state=3,hp=0},mate={life=1,hp=900,max_hp=1600,zone=1},fight=GUEST..'0',
-        engine=ENGINE..' warp=idle me=4242',mode='guest',linked=true,at={X=1000,Y=2000,Z=300},ghost={X=1150,Y=2000,Z=300},
-        shown=true,map='/game/e04',her_map='/game/e04',standalone=true,playing=true,vis=4,huds=huds,eve=eve,world=map,
-        settings={revive=true,cutscene_wait=true,follow_host='ask',follow_key={key='F7',name='F7'}},calls={},said={},
-        logs={},sets={},finds={},observers={},gone={},requests={},resets={}}
+-- reload: a new Lua load over the same game (W and its clock kept), as Ctrl+R gives it.
+local function world(change,reload)
+    if not reload then
+        W={life={state=3,hp=0},mate={life=1,hp=900,max_hp=1600,zone=1},fight=GUEST..'0',
+            engine=ENGINE..' warp=idle me=4242',mode='guest',linked=true,at={X=1000,Y=2000,Z=300},
+            ghost={X=1150,Y=2000,Z=300},shown=true,map='/game/e04',her_map='/game/e04',standalone=true,playing=true,
+            vis=4,huds=huds,eve=eve,world=map,
+            settings={revive=true,cutscene_wait=true,follow_host='ask',follow_key={key='F7',name='F7'}},calls={},
+            said={},logs={},sets={},finds={},observers={},gone={},requests={},resets={}}
+        clock=0
+    end
     if change then change(W) end
-    clock=0
     -- The status: the slot line (W.slot, none unless set) before the engine line, which ends with W.rest when set.
     -- request() keeps each line asked of the native part.
     local link={life=function() return W.life end,mate=function() return W.mate end,fight=function() return W.fight end,
@@ -133,6 +138,16 @@ local function world(change)
     -- (W.vits by SteamID), the session's host (W.host).
     function link.members() return W.members or {{id='2',slot=0,linked=W.linked,name='Kaanta'}} end
     function link.vitals(id) return W.vits and W.vits[id] end
+    -- coop-death-screen.txt: its first line in W.file (nil: no file), which a Lua reload keeps.
+    function link.store(name)
+        assert(name=='coop-death-screen.txt',name)
+        return {save=function(text)
+                if W.unsaved then return false,W.unsaved end
+                W.file=text
+                return true
+            end,load=function() return W.file end,
+            clear=function() W.file=nil end}
+    end
     function link.host() return W.host end
     function link.member(id) for _,m in ipairs(link.members()) do if m.id==id then return m end end end
     function link.others()
@@ -334,6 +349,63 @@ for _,case in ipairs({
     assert(W.vis==4 and logged('revive: death screen shown again ('..case[1]..')'),case[1]..': '
         ..table.concat(W.logs,'|'))
 end
+-- A Lua reload (Ctrl+R) while the screen is hidden: its visibility before (0 here, Visible) and its address are in
+-- coop-death-screen.txt. The new load's first tick looks the screen up once and takes it over while it has that address
+-- and reads Hidden; a second reload does the same. It is shown again as it was at the next death, with no session or at
+-- coop off. The file goes then.
+local KEPT='0 '..U.address(dead)
+for _,case in ipairs({
+    {'a new death',function() W.life={state=3,hp=0} end},
+    {'no session',function() W.life=nil end},
+    {'coop off',function(group) group.stop() end},
+}) do
+    g=world(function(w) w.vis,w.respawn=0,function() w.life={state=1,hp=1600} end end)
+    run(g,5.25)
+    assert(W.vis==2 and W.file==KEPT,case[1]..': '..tostring(W.file))
+    for _=1,2 do
+        g=world(nil,true)
+        W.logs,W.finds={},{}
+        run(g,0.25)
+        assert(W.vis==2 and W.file==KEPT and W.finds.WB_MainHUD_Master_C==1
+            and logged('revive: death screen hidden by an earlier Lua load, taken over'),case[1]..': '
+            ..table.concat(W.logs,'|'))
+    end
+    case[2](g)
+    run(g,0.25)
+    assert(W.vis==0 and W.file==nil and logged('revive: death screen shown again ('..case[1]..')'),case[1]..': '
+        ..table.concat(W.logs,'|'))
+end
+-- A file whose screen no longer reads Hidden (SB showed it, a new game run): the file goes, the screen untouched.
+g=world(function(w) w.life,w.file={state=1,hp=1600},KEPT end)
+run(g,0.25)
+assert(W.file==nil and #W.sets==0 and W.finds.WB_MainHUD_Master_C==1 and not logged('taken over'),
+    table.concat(W.logs,'|'))
+-- SB's death screen is another widget that reads Hidden (a rebuilt HUD, a new game run): the file goes, that widget is
+-- left as it is, with no session too.
+local other=uobject('WB_MainHUD_Dead_C /Engine/Transient.GameEngine_1:WB_MainHUD_Master_C_2.WB_MainHUD_Dead',{
+    IsAnyAnimationPlaying=function() return false end,
+    GetVisibility=function() return 2 end,
+    SetVisibility=function(_,v) W.sets[#W.sets+1]=v end})
+g=world(function(w)
+    w.life,w.file={state=1,hp=1600},KEPT
+    w.huds={uobject('WB_MainHUD_Master_C /Engine/Transient.GameEngine_1:WB_MainHUD_Master_C_2',
+        {WB_MainHUD_Dead=other})}
+end)
+run(g,0.25)
+W.life=nil
+run(g,0.25)
+assert(W.file==nil and #W.sets==0 and W.finds.WB_MainHUD_Master_C==1 and not logged('taken over')
+    and not logged('shown again'),table.concat(W.logs,'|'))
+-- A file without both numbers (words, the visibility alone, no address) goes with no lookup; no file, no lookup.
+for _,file in ipairs({'x','4','4 x',false}) do
+    g=world(function(w) w.life,w.file={state=1,hp=1600},file or nil end)
+    run(g,0.25)
+    assert(W.file==nil and not W.finds.WB_MainHUD_Master_C,tostring(file))
+end
+-- A file that cannot be written: one line, the screen hidden all the same.
+g=world(function(w) w.respawn,w.unsaved=function() w.life={state=1,hp=1600} end,'cannot write x.tmp' end)
+run(g,5.25)
+assert(W.vis==2 and logged('revive: coop-death-screen.txt not written: cannot write x.tmp'),table.concat(W.logs,'|'))
 
 -- Why it waits, in the log: a boss of ours in battle, or no shared fight at all (no boss= on the fight line).
 for _,case in ipairs({{GUEST..'1','boss fight'},{nil,'no shared fight'},{'fight=waiting why=x','no shared fight'}}) do

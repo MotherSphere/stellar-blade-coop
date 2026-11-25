@@ -1,11 +1,13 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Lily's talks (experimental, untested in game): SB's own subtitle box showing the mod's lines
--- (world/maps/matrix13/talks/) over an unused subtitle-only sequence that story/scenes/scene.lua's talk() plays through
--- Quinn's borrowed theater. A talk is data: its name, the sequence it borrows, that sequence's subtitle windows and its
--- lines (TALKS below); the lines, one per window, come from the talk's own module in world/maps/matrix13/talks/, and
--- windows past the last line show nothing.
+-- Lily's talks (experimental; in game on 2026-11-18, build v0.11.0-277-gd9bb23bf, the prologue talk played and the
+-- arrival talk and zone talk 1E started, through SB's sequence; the end talk has no recorded run): SB's own subtitle
+-- box showing the mod's lines (world/maps/matrix13/talks/) over
+-- an unused subtitle-only sequence that story/scenes/scene.lua's talk() plays through Quinn's borrowed theater. A talk
+-- is data: its name, the sequence it borrows, that sequence's subtitle windows and its lines (TALKS below); the lines,
+-- one per window, come from the talk's own module in world/maps/matrix13/talks/, and windows past the last line show
+-- nothing.
 -- - The rewrite: a UE4SS hook on the subtitle slot Blueprint's UpdateText (registered once a Lua load, at the first
 --   talk or arm(); UE4SS runs a hook on a Blueprint-only function after it), which returns at once unless a talk runs
 --   or a capture is armed. Window k is the k-th new window of the talk, never skipped (bSkipAllow is false on every POD

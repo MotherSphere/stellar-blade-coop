@@ -5,11 +5,11 @@ challenges](challenges.md).
 
 - The probe, `coop no`, checks whether a heal event, a rule, a wave spawn and one monster from the cut mode still work
   in a solo game.
-- The recruiter stands near Roxanne in Xion: the mod brings back the cut recruiter by itself at each Xion load, and
+- The recruiter stands near Roxanne in Xion: the mod brings back the cut recruiter by itself at each Xion load.
   `coop recruiter` does it by hand. You can talk to him.
 
 Both are research tools. The two commands run only on a co-op save; the recruiter's automatic appearance runs on any
-save. Neither writes a game file, but their changes stay in the running game until it ends.
+save. Neither writes a game file. Their changes stay in the running game until it ends.
 
 ## Before you try a preview
 
@@ -40,7 +40,7 @@ The probe fires only the zone events and the one monster listed below (no achiev
 calls no save, inventory, equip or quest function. No console argument reaches a game call.
 
 1. `coop no` starts the native part's read-only poller and logs a baseline. Every 100 ms the poller reads the game's
-   rule manager and a few of its neighbours, and writes a line to `nightop-probe.txt` on each change, otherwise once a
+   rule manager and a few of its neighbours and writes a line to `nightop-probe.txt` on each change, otherwise once a
    second. `coop status` shows `nightop=on`. Each subcommand below refuses to run until the poller runs.
 2. `coop no heal` fires the game's heal zone event `SE_10_E_ActorEff_011`. EVE's health bar should refill.
 3. `coop no rule` adds a probe row to the game's empty `MultiPlayRuleTable` (no achievement, quest or reward), reads it
@@ -73,7 +73,7 @@ The command runs only in Xion (`/game/art/bg/worldmap/level_p/e04`), with EVE in
 with `STOP:` and changes nothing.
 
 The mod also runs these steps by itself at each Xion load, on any save: he appears once EVE is within 50 m of the
-point, and until then the mod checks again every 5 s. Each Xion load gets one spawn, and a guard already standing there
+point. Until then the mod checks again every 5 s. Each Xion load gets one spawn. A guard already standing there
 is kept. After `coop recruiter off` he stays away until the next Xion load. These log lines start with `auto:`.
 
 ### What it does, in order
@@ -86,7 +86,7 @@ is kept. After `coop recruiter off` he stays away until the next Xion load. Thes
 2. If someone already stands at the spawn point, the command says so and spawns nothing. Otherwise, in memory only, it
    flips the recruiter's network condition (so the question and its two choices show), points one unused test spawn
    row at the cut spawn point (a Xion guard with the recruiter's dialogue, not marked for saving, no walking path), and
-   points one unused test filter at that row, for the despawn. It edits each row in place, field by field, and reads
+   points one unused test filter at that row, for the despawn. It edits each row in place field by field, then reads
    it back. It adds and removes no rows.
 3. The game's Spawn event places him. His Join is armed right away, since he can arrive late while Xion is still
    loading. From +3 s to +30 s the mod looks for him every 3 s. A line says when he stands at the point
@@ -108,7 +108,7 @@ part writes the texts itself. Once they are written, the log says:
 [StellarCoop][RC] text: the native part wrote his 12 texts in fr: TEXT=yes
 ```
 
-If the native part faults while it writes them, it stops writing them until the game restarts, and his texts stay as
+If the native part faults while it writes them, it stops writing them until the game restarts. His texts stay as
 they are:
 
 ```
@@ -127,7 +127,7 @@ despawns him too. A map change removes him.
 Everything the command changes stays in the running game until it ends: the Join event, the network condition, the test
 spawn row and the test filter. The mod neither undoes nor saves any of it. Whether the game saves the spawned recruiter
 is not known yet, so the run ends by killing the game and restoring your backup. His texts are written in memory only
-and never saved, and `coop off` puts the Korean back.
+and never saved. `coop off` puts the Korean back.
 
 ## After a preview run
 
@@ -151,7 +151,7 @@ leaving your game in these ways:
 
 - `coop recruiter` disarms the Join zone event and reads it back before it writes anything else (step 1 above). It also
   checks that the shipped zone event table is the only one in memory, so no other copy of the row can run. If any check
-  fails, it stops, and no recruiter is spawned.
+  fails, it stops and spawns no recruiter.
 - Each preview fires zone events through one guarded function that accepts only its own short list: the heal event and
   eleven safe spawn rows for the probe, and the recruiter's spawn row and despawn filter for `coop recruiter`. A run,
   solo or co-op, fires only the heal, through the probe's function. No console argument reaches that function.

@@ -6,19 +6,19 @@ drawn as a Doro (Dororong): your EVE on your screen and your ghost on the other 
 like a rally car (see [Driving](#driving)); her jumps, dodges and camera stay the game's. Doro races have not been
 tested in game yet.
 
-How the mod draws the Doros and drives EVE is in [online/modes/race-internals.md](race-internals.md), and problems are in
+How the mod draws the Doros and drives EVE is in [online/modes/race-internals.md](race-internals.md). Problems are in
 [players/troubleshooting.md](../../players/troubleshooting.md#doro-races).
 
 ## Recording a track
 
-1. Stand where the race starts, facing the way it goes, and type `coop race record <name>`. The name is 1 to 24
+1. Stand where the race starts, facing the way it goes. Type `coop race record <name>`. The name is 1 to 24
    characters of `a-z`, `0-9`, `_` and `-`. The start line is where EVE's feet are, facing her way.
 2. Run the route. At each checkpoint, press F9 (`race_key`) or type `coop race cp`. The checkpoint is where EVE's feet
    are at that moment, with a 12 m radius. It must be at least 15 m from the one before it (from the start line for
    the first), or it is refused with `Too close: 15 m at least between checkpoints.` A track holds at most 64
-   checkpoints, and the last one is the finish.
+   checkpoints. The last one is the finish.
 3. Type `coop race save` to write the track to `coop-track-<name>.txt` beside `coop-settings.txt`. It replaces a
-   track of the same name, and it needs 2 checkpoints at least. `coop race save <laps>` (1 to 9) makes a circuit,
+   track of the same name. It needs 2 checkpoints at least. `coop race save <laps>` (1 to 9) makes a circuit,
    which needs the last checkpoint within 30 m of the start line. `coop race cancel` drops the recording and writes
    nothing.
 
@@ -31,7 +31,7 @@ mod ships one track, `xion_eight`, for races in a match in Xion's training room.
 ## Starting a race
 
 `coop race start <name>` arms a race on `coop-track-<name>.txt`, on a co-op save only. The host starts every race: a
-guest's `coop race start` is refused, and the guest's game takes part when the host starts one. The start is also
+guest's `coop race start` is refused. The guest's game takes part when the host starts one. The start is also
 refused while a Night Operation run is on, while a track is being recorded, when the track is on another map than
 yours and when your friend is on another map or their map is not known yet. A session of more than 2 players refuses
 it too (`Doro races are for 2 players at most; this session has <n>`). In a match lobby it is refused with
@@ -39,24 +39,24 @@ it too (`Doro races are for 2 players at most; this session has <n>`). In a matc
 
 - With no session, you race alone against the clock.
 - With a friend linked, your game sends the track to theirs, which checks it and joins the race. They need no track
-  file, and their screen says `<host> starts a race: walk to your start.` When their game does not join, you race
-  alone, and your notice says why: they are on another map, their game could not read the track, they do not play a
+  file. Their screen says `<host> starts a race: walk to your start.` When their game does not join, you race
+  alone. Your notice says why: they are on another map, their game could not read the track, they do not play a
   co-op save, or no answer came within 10 s.
 - During `coop loopback` with no friend linked, the loopback ghost races as the second player, which tests the
-  two-player race on one PC. It walks 2 m to your right as you faced when it appeared, and keeps that side. Start the
+  two-player race on one PC. It walks 2 m to your right as you faced when it appeared and keeps that side. Start the
   loopback facing the way the race goes: the ghost then stands in the guest's slot while you stand in yours.
 
 ## Slots and countdown
 
 The start line has two slots, 3 m apart across its facing: the host's on the left and the guest's on the right. Alone,
-you take the left one. A marker labelled `Your start` stands over yours, and a Doro stands at the centre of the line.
-Walk to your slot: the mod moves nobody. You are in it within 2.5 m of its centre, and out of it past 3 m.
+you take the left one. A marker labelled `Your start` stands over yours. A Doro stands at the centre of the line.
+Walk to your slot: the mod moves nobody. You are in it within 2.5 m of its centre. You are out of it past 3 m.
 
 Once every racer has stood in their slot for 1 s, the host's game starts a 4 s countdown: 3, 2, 1, then GO. On the
 guest's PC the countdown starts when the host's line arrives, less half the ping.
 
 Leaving your slot before the countdown holds the start. Leaving it during the countdown is a false start: the
-countdown stops on both screens with `False start: back to your start.`, and the 1 s check starts again. A false
+countdown stops on both screens with `False start: back to your start.` The 1 s check then starts again. A false
 start has no penalty.
 
 ## Driving
@@ -78,7 +78,7 @@ From GO until your own result (your finish or a DNF), EVE drives like a rally ca
   the steering.
 - While a dodge or another of the game's root-motion moves carries EVE, the driving waits.
 
-Both players race with the host's driving values: the host's game sends them after the track, and a guest's game that
+Both players race with the host's driving values: the host's game sends them after the track. A guest's game that
 gets a track without them stays out of the race. They are starting values, not yet tuned in game. A race in a match
 always drives with the default values, so times on one track compare.
 
@@ -114,8 +114,8 @@ photo mode).
 ## Rules
 
 - Checkpoints count only in order. A checkpoint counts when EVE's path from one frame to the next comes within its
-  radius horizontally and within 6 m vertically, at any speed. A marker over the next checkpoint shows its distance,
-  and an arrow at the edge of the screen points to it when it is off screen or behind you. A Doro stands at the next
+  radius horizontally and within 6 m vertically, at any speed. A marker over the next checkpoint shows its distance.
+  An arrow at the edge of the screen points to it when it is off screen or behind you. A Doro stands at the next
   checkpoint and another at the one after it. The Doro at the finish hops in a loop.
 - `MISSED CHECKPOINT <n>`: you entered a later checkpoint while checkpoint `<n>` was still due. Nothing counts until
   you go back through it.
@@ -150,22 +150,22 @@ place comes from laps, checkpoints and the distance to the next checkpoint, your
 Once every racer has finished or is out, `RESULTS` takes the panel's place for 10 s, with each racer's place and time,
 or `DNF`. Times within 10 ms share a place. The host's game sends the ranking, so both screens show the same one. While
 they stand still, the winner's Doro hops in place and the other Doro plays its tired animation. Then the race closes:
-its Doros go, and EVE and the ghost are drawn as themselves again.
+its Doros go. EVE and the ghost are drawn as themselves again.
 
 Two flags can show under `RESULTS` for your own run. Neither changes the ranking.
 
 - `fast run`: for 1 s or more, EVE moved faster than 5.5 m/s horizontally while she was not sprinting and not in the
-  air. The flag was there for Tachy mode, which runs faster. A driven run's speed no longer depends on Tachy mode, and
-  the flag does not show while the race drives EVE.
+  air. The flag was there for Tachy mode, which runs faster. A driven run's speed no longer depends on Tachy mode.
+  The flag does not show while the race drives EVE.
 - `paused`: the game was paused, or showed one of its own screens, for 2 s or more.
 
 Each PC logs one line per race that reaches its results there: `[StellarCoop][DR] result id=<id> track=<name> ms=<ms>
 clock=<s> time=<s> flags=<n> rank=<place>`. `ms` is your time in milliseconds, `clock` and `time` measure the race with
 two different clocks (for a bug report), `flags` adds 1 for a fast run and 2 for paused, and `rank` is your place. `ms`
-and `rank` read `-` after a DNF, and `track` reads `-` on the guest's PC.
+and `rank` read `-` after a DNF. `track` reads `-` on the guest's PC.
 
 The panel, the banners and the results hide while the game is paused or shows one of its own screens. With the
-co-op UI off (`coop ui off`, or after an engine error), they do not show, and the banners other than the countdown
+co-op UI off (`coop ui off`, or after an engine error), they do not show. The banners other than the countdown
 come as notices on the line above EVE.
 
 ## The Doro look
@@ -187,9 +187,9 @@ load. If EVE or the drone stays hidden, see
 [players/troubleshooting.md](../../players/troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
 
 Each Doro keeps its animations loaded while it stands. The first Doro of a race loads them all at once, so it can take
-a moment to appear, and none loads during the race. While the look is on, `UE4SS.log` has a line once a minute,
+a moment to appear. None loads during the race. While the look is on, `UE4SS.log` has a line once a minute,
 `[StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min reload=<n>/min reload_ms=<ms>`. `reload`
-counts the Doro animations loaded again since the look's Doro appeared, and `reload_ms` the total time they took. In
+counts the Doro animations loaded again since the look's Doro appeared. `reload_ms` is the total time they took. In
 0.5.0-beta.1 these loads froze the Doro for a moment when EVE sprinted. It should read 0.
 
 While the look is on, your friend's game receives your EVE's parts as hidden. In a race their game joined, they see
@@ -209,10 +209,10 @@ Two test commands are left out of the usage line. Both need a co-op save, except
   every race. Only the host needs the track file. A match lobby races 2 to 8 players (see
   [Races in a match](#races-in-a-match)).
 - Every racer must be on the track's map.
-- Enemies stay as they are: each game runs its own fights during a race, and shared enemies, same place and same
+- Enemies stay as they are: each game runs its own fights during a race. Shared enemies, same place and same
   spawns work as usual. Record tracks through ground you have cleared.
-- A race gives no reward, item, progress or achievement, and writes nothing to a save. Its Doros are display only,
-  with collision off: nothing can hit them, and they cannot die.
+- A race gives no reward, item, progress or achievement and writes nothing to a save. Its Doros are display only,
+  with collision off: nothing can hit them. They cannot die.
 
 ## Races in a match
 
@@ -291,6 +291,10 @@ There is no false start in a match. At GO, a racer more than 3 m from her slot i
 runs as in a session: the same checkpoints, laps, missed checkpoints, wrong way and DNFs (see [Rules](#rules)), with
 the driving of [Driving](#driving) at its default values. The late rule starts at the first finish your game hears of,
 yours or another racer's: 60 s later you are out with `Not finished 60 s after the winner.` The 15 min limit holds.
+
+At GO, a racer more than 3 m from her slot whom Stellar Blade's own chair seats is not moved back. She sits out with
+`Get up from your seat to race in the next round.` Her game sends a DNF `quit` for her, since the host already counts
+her as ready, then closes her race.
 
 A player who cannot race sits out the round. She gets one notice and one `[StellarCoop][DR] sit out: <why>` line in
 her log. Her game sends nothing:
@@ -393,6 +397,7 @@ Once the round is over it is why the round ended: `host` (the host's `coop match
 | `match round <n>: <track>, seed <seed>, slot <k> of <players>` | The round's track is known: your race starts on slot k |
 | `sit out: <why>` | You sit out the round |
 | `race <seed>: out of slot <k> at GO: put back` | You stood more than 3 m from your slot at GO |
+| `race <seed>: out of slot <k> at GO: sit out: SB's chair seats EVE` | Stellar Blade's own chair seated you more than 3 m from your slot at GO |
 | `rank: rank <seed> <id>:<ms>,...,<id>:dnf` | The host's game sent the ranking (`rank: rank <seed> -` for nobody) |
 | `rank: refused <name>: <why>` | The host's game refused a split or an end |
 | `line refused from <name>: sender` or `malformed` | A line from a player who may not send it, or one that cannot be read (once a player a round) |

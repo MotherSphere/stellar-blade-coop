@@ -31,14 +31,14 @@ the screen shows no price and the bucket cannot hold a seed. The shop batch of `
 The generator refuses a shop item priced in anything but Beta Seeds, with a second price, a gate (achievement,
 condition, condition group) or a linked item, a shop with a tag or a discount, and any name or currency that resolves
 to no row. Items 1 to 4 are the shipped rows with no gate, so no story gate is skipped. Lua opens a screen only once
-the stimpacks' item rows (in the lion rows batch) are in, since both shops list them, and sells the Shock Bolt only
-from the second shop, which it opens once `shock=in`. So every item a screen lists has its row, and a bolt the gun
+the stimpacks' item rows (in the lion rows batch) are in, since both shops list them. It sells the Shock Bolt only
+from the second shop, which it opens once `shock=in`. So every item a screen lists has its row. A bolt the gun
 cannot fire never shows. What the screen does with a shop item whose item row is missing is not checked.
 
 Lua asks for the lion and bolt rows batches before the shop's. The worker takes one request a pass, so the lion rows,
 which have gone in through AddRow in game, usually land first. The rows of every batch share one SEH latch: a fault in
 the shop rows' AddRow turns every batch that is not in yet to fault until the game restarts. A latch for each batch
-would not contain that fault, because the lion, bolt and shop batches all write ItemTable, and a fault inside an
+would not contain that fault: the lion, bolt and shop batches all write ItemTable. A fault inside an
 ItemTable AddRow leaves that table in an unknown state for each of them.
 
 ### The opener
@@ -53,7 +53,7 @@ An open needs the client in game (flow `+0xa00` 2) and playing (phase `+0xb9c` `
 list, no parent, 0, an empty FString, 0) and the shop logic (the entry's `+0x60`) takes the shop alias, the instance
 alias (the same: the rows keep `UnionLimitedItem`) and the title tag (None, as the cut machine leaves it) through
 `FUN_141f49ab0`. A close calls `FUN_141fc9340` with the entry's own type, the virtual at `+0x38` of its `+0x10`, as the
-node does. A new entry with no shop logic is closed the same way at once, and the open answers `logic`. A fault inside
+node does. A new entry with no shop logic is closed the same way at once. The open answers `logic`. A fault inside
 `FUN_141f49ab0` leaves the new screen up without its shop: the latch then stops every read and close, so the player
 closes it.
 
@@ -74,7 +74,7 @@ The wallet file (`coop-night-<steamid>-<index>.txt`) stays the record.
 
 - Before the open, Lua adds the wallet's points to the bucket as Beta Seeds, minus any seeds already there (or takes the
   surplus out), through the player controller's `ServerRequest_ItemBucketItemAdd` (no pickup message) and
-  `ServerRequest_ItemBucketItemRemove` (any pocket), with `Money_NightOperation` only, and asks for the open once the
+  `ServerRequest_ItemBucketItemRemove` (any pocket), with `Money_NightOperation` only. It asks for the open once the
   count matches.
 - While the screen is open, each new count is written to the wallet.
 - After the close, the wallet keeps the last count and the seeds leave the bucket, through the controller and GUID read
@@ -85,7 +85,7 @@ The wallet file (`coop-night-<steamid>-<index>.txt`) stays the record.
   then be another save's.
 - A save made while seeds are in the bucket holds them: from the fill to the removal, or after a removal that failed,
   which the next `coop nightop shop` corrects. A game restarted from that save loads them before the shop's rows are in.
-  A save restore does not change the points, as before. The run's start refuses while the screen runs, and so does a
+  A save restore does not change the points, as before. The run's start refuses while the screen runs. So does a
   guest's answer to the host's run, so no credit lands while seeds are out.
 - When a step fails, Lua asks for the close only once the game opened the screen for it, never after a refused open,
   when the screen up may be the game's own.
@@ -107,7 +107,7 @@ choice list, `TS_Xion_Roxane_Choice`, holds two TheaterSelectDataTable rows (Sho
 read the list from the table when a dialogue starts: `FUN_141b422d0` looks the list's name up in a cache built before
 play, a TMap at the world singleton's (`0x1470373d0`) `+0xe0` object's `+0x5f0` (elements of `0x28` bytes: the name at
 `+0`, its TArray of row names at `+0x10`, count `+0x18`, max `+0x1c`; find `FUN_1417024c0`), then fetches each listed
-row by name and reads its fields live. So writing a row's `SelectDataName` does nothing, and a row added with AddRow is
+row by name and reads its fields live. So writing a row's `SelectDataName` does nothing. A row added with AddRow is
 not listed either.
 
 1. Text: the four labels go into the `DisplayText` of four shipped test rows that no story graph lists
@@ -116,26 +116,26 @@ not listed either.
    unreadable one to `en`; `online/modes/nightop/roxanne_text.lua` has the 23 languages). The rows are armed at a Lua
    load, and again when her choices come back after `coop off` or after a save that is not a co-op save. Going to the
    title and loading a co-op save keeps the labels. No text key is registered: KismetTextLibrary `PolyglotDataToText`
-   takes the languages as a TMap inside its struct parameter, and UE4SS 3.0.1 converts a Lua table there from the wrong
+   takes the languages as a TMap inside its struct parameter. UE4SS 3.0.1 converts a Lua table there from the wrong
    stack slot (`Lua::for_each_in_table` walks slot 1, the outer struct's table), so the call raises, or reads the
    struct's own fields, `CachedText` included.
 2. Rows: each is edited in place through the recruiter's checked edit (its ID and list checked, then
    `InteractionGraphExec` `Success2`, the exec of her End Conversation, so her graph plays a goodbye and ends,
    `NextTaskTagName` `None`, and `DisplayText` `FText(label)`), read back through a fresh FindRow. Either the shipped
-   value or ours is accepted, so a Lua reload goes on. A row that does not read back stops the arm, and every row is
+   value or ours is accepted, so a Lua reload goes on. A row that does not read back stops the arm. Every row is
    put back, that one included. The exception is a Lua reload while the `roxanne=` line still reads `on`: her list
    may show the rows, so they stay ours until the off of step 5.
 3. The list: `online/modes/nightop/roxanne.h` (free of Windows, tested against fake memory) and
    `online/modes/nightop/nightop_game.inc` point her entry at a new array of six FNames, the four rows then her two,
    allocated with the game's GMalloc (`0x1470703c0`, Malloc at its vtable's `+0x10`) so the game may free it like its
-   own. From the moment the entry points at it, the array is the game's: it is used again only after off took it back,
-   and an entry the game rebuilt meanwhile gets a new one (the shape check compares the count too, as GMalloc may hand a
-   freed array out again). The entry is changed only while it holds exactly her two rows in her order; the old array is
-   kept, and off puts the old pointer, count and max back only while the entry still points at the new array. The entry
+   own. From the moment the entry points at it, the array is the game's: it is used again only after off took it back.
+   An entry the game rebuilt meanwhile gets a new one (the shape check compares the count too, as GMalloc may hand a
+   freed array out again). The entry is changed only while it holds exactly her two rows in her order. The old array is
+   kept. Off puts the old pointer, count and max back only while the entry still points at the new array. The entry
    is found again by name at every step. The writes run on the game thread inside the rows' gate under their own SEH
    latch: the pointer before the count when the list grows, the count before the pointer when it shrinks. All six rows
-   read priority 0, so End Conversation stays last whether the choice box sorts by priority with a stable order or not,
-   and the cancel input, which picks the last slot, still ends the talk. The `roxanne=` status line gives the entry's
+   read priority 0, so End Conversation stays last whether the choice box sorts by priority with a stable order or not.
+   The cancel input, which picks the last slot, still ends the talk. The `roxanne=` status line gives the entry's
    shape every 250 ms after the first request; Lua asks again when it reads `off` while it wants it on (a rebuilt
    cache).
 4. The pick: every 250 ms while EVE is in Xion, Lua looks for the choice boxes (`SBSequencerInteractionSelectWidget`)
@@ -145,20 +145,20 @@ not listed either.
    pick. The line's `DisplayText` (from `DataArray`) is matched against the labels in every language. A level is
    booked and started through `coop nightop start <level>` once EVE is out of Xion (every 5 s, with that command's
    co-op save and race checks). A host's start only asks the guest (the run's phase `ask`), so the booking holds until
-   the run leaves that phase: it goes once the run counts down, and a dropped ask is tried again 30 s later. The
+   the run leaves that phase: it goes once the run counts down. A dropped ask is tried again 30 s later. The
    supplies call `coop nightop shop` 5 s after the pick.
 5. Off: on `coop off` and on a save that is not a co-op save, `roxanne off`, asked again every 10 s while the `roxanne=`
-   line reads `on` (Lua's tick goes on after `coop off` for that alone, and the native part still takes an off then).
+   line reads `on` (Lua's tick goes on after `coop off` for that alone; the native part still takes an off then).
    The rows get their shipped values only once the line reads `off` after an off it took, or `absent`: while her entry
-   may still list them, they keep `Success2`, which only plays her goodbye, and after a fault they keep it until the
+   may still list them, they keep `Success2`, which only plays her goodbye. After a fault they keep it until the
    game exits. Going off writes each row's Korean source (from `online/modes/nightop/roxanne_text.lua`'s keys) back into
    `DisplayText` as plain text, not the asset's keyed text. No vanilla list holds these rows, so the difference does not
    show. A load (the title, a map, leaving Xion included) reads `slot=none` or `unknown` for a while: once armed, Lua's
-   tick only runs the drops below then, so the swap holds through it, and a booking and a supplies pick hold through a
-   map load. A supplies pick still goes 30 s after its screen was due (`SHOP_WAIT`), a load included. The title screen
-   (Lua's `puppet.world`, the `world=title` of `coop-state.txt`, since the status line has no such flag) and a co-op
-   save with another index drop the booking and the supplies pick: after the title, the slot loaded may hold another
-   file.
+   tick only runs the drops below then, so the swap holds through it. A booking and a supplies pick hold through a
+   map load too. A supplies pick still goes 30 s after its screen was due (`SHOP_WAIT`), a load included. The title
+   screen (Lua's `puppet.world`, the `world=title` of `coop-state.txt`, since the status line has no such flag) and a
+   co-op save with another index drop the booking and the supplies pick: after the title, the slot loaded may hold
+   another file.
 
 Not checked offline: that UE4SS writes a TextProperty (`FText(label)`) into a row FindRow returns and reads it back
 through `U.text` (if not, the arm logs a `STOP: roxanne` line and puts the rows back), and that the choice box draws
@@ -171,8 +171,8 @@ each talk or keeps one (both are read).
 The cut stimpacks' rows are 4 of the 237 in the cut Lion's batch (see [The
 rows](../../fight/bosses-internals.md#the-rows)). The game ships the Burst Stimpack's consumable row (`HP2Burst_Potion`,
 ID 1004: 400 HP for 600 Burst gauge), the Beta Stimpack's use condition, effects (20% of maximum HP for 50 Beta energy)
-and icon, and English text for both, but no ItemTable row for either. The first 4 rows of the batch make them usable.
-Each is a copy of a shipped row of its table with a few fields changed, and the generator restates every other field
+and icon, and English text for both. It ships no ItemTable row for either. The first 4 rows of the batch make them
+usable. Each is a copy of a shipped row of its table with a few fields changed. The generator restates every other field
 from that row's dump:
 
 | Row | Table | ID | Copy of | Changed |
@@ -206,21 +206,21 @@ table's numbering:
 | `P_Eve_Gun_ShootShockSlug1_Projectile1` | ProjectileTable | 1010051 | `P_Eve_Gun_ShootSlug1_Projectile1` | the shock blueprint and the hit result below |
 | `P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1` | SkillResultTable | 100200801 | `P_Eve_Gun_ShootSlug1_Projectile1_Hit1` | `ShockSlugStun` added to the effects on the target |
 
-ProjectileTable is the fifteenth table every rows request names, and only this batch has a row in it. The batch is apart
+ProjectileTable is the fifteenth table every rows request names. Only this batch has a row in it. The batch is apart
 from the Lion's because nothing in it had run in game when it was added: a refusal stops a batch at its first row that
-fails, and the Lua read-back stops at its first value that differs, so in the lion rows batch a Shock Bolt row would
+fails. The Lua read-back stops at its first value that differs. In the lion rows batch a Shock Bolt row would
 have stopped `coop lion`, `coop chainspin` and the stimpack buys. Only the shop (`online/modes/nightop/shop.lua`,
 through `Lion.rows` with the word `bolt`) asks for it: a Shock Bolt buy, and `coop nightop shop` before it opens the
 screen. Its line in `coop-status.txt` is `bolt=`, in the same forms as `lion=` (`bolt=rows added=4/4 asks=<a> spawns=<s>
-char=0/0 skills=<k>/1 stance=0/0`), and `fight/bosses/lion.lua` reads its 87 fields back as it does the Lion's.
+char=0/0 skills=<k>/1 stance=0/0`). `fight/bosses/lion.lua` reads its 87 fields back as it does the Lion's.
 
 With no stat override (`ActorStatType_None`) the game reads the cap from the row's `MaxAmount`; all six
 `ItemStackBullet` stats belong to shipped ammo. The skill has no acquisition because the game refuses a skill whose
-acquisition the player lacks, and no Shock Bolt Magazine (`Drone_BulletAdd3_1`) ships. The generator checks that every
+acquisition the player lacks. No Shock Bolt Magazine (`Drone_BulletAdd3_1`) ships. The generator checks that every
 projectile the skill's shipped steps fire is a row, and the projectile's blueprint, target filter and results.
 
 The rows alone do not let EVE fire it: her two gun stances (`P_Eve_Gun`, 100104, and `P_Eve_GunBlockSword`, 100110)
-list only the failed shot, and the game's ammo list stops at five. `rows/shock.h` grows both in place, in the same
+list only the failed shot. The game's ammo list stops at five. `rows/shock.h` grows both in place, in the same
 game-thread call as the bolt batch's last AddRow (so inside its gate), under a latch of its own. No other batch runs
 it, so `coop lion`, `coop chainspin` and the stimpack buys leave both lists as the game ships them:
 
@@ -236,12 +236,12 @@ it, so `coop lion`, `coop chainspin` and the stimpack buys leave both lists as t
   while its index is below the 5 entries of `BulletItemAcquisitionSlotArray`, so a sixth, `Bullet_Shock`, is never
   locked. The native part appends it there through the game's allocator and, when the slot manager already exists, to
   the manager's own list. The HUD is a carousel of three slots (`Slot_Left`, `Slot_Center1`, `Slot_Right`) plus the
-  Missile and Railgun slots, filled from the list at its start, and each reader of the selected slot checks it against
+  Missile and Railgun slots, filled from the list at its start. Each reader of the selected slot checks it against
   its list's length.
 
 Every value is checked before the first write: both rows and their IDs, each array's count and capacity, and both ammo
 lists holding exactly the five shipped entries (or those and `Bullet_Shock`: grown already, left as they are). A
-refusal writes nothing, except `why=alloc`: the game's allocator gave nothing partway through the writes, and what went
+refusal writes nothing, except `why=alloc`: the game's allocator gave nothing partway through the writes. What went
 in before it stays (the fire commands appended, and the ammo list's sixth entry when the slot manager's list is the one
 that failed). The status gets a `shock=` line:
 
@@ -255,4 +255,4 @@ shock=fault where=<text>
 `slots=-` means the slot manager did not exist yet; it copies the list when it starts. The native part sets the line
 before the `bolt=` line says `rows`, so whoever reads `rows` reads the final `shock=`. `online/modes/nightop/shop.lua`
 grants Shock Bolts only once it reads `shock=in`. Firing, the bolt count, the cool time and the stun are the game's own
-once the data is in. None of it has run in game, and how the HUD shows a sixth entry is the main unknown.
+once the data is in. None of it has run in game. How the HUD shows a sixth entry is the main unknown.

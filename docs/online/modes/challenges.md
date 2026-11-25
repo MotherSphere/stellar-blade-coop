@@ -4,12 +4,12 @@ Night Operation's other pages are [the run](nightop.md), [the reward shop](night
 previews](nightop-previews.md).
 
 A challenge is a short fight picked from a fixed list. Three of them send waves of the game's monsters at EVE, as the
-solo run does. Target Practice stands the game's target dummies in front of her, and the Shooting Range all around her.
-Each run ends on the result panel with the time, the score and the best run kept on this PC. The challenges run on the
-solo run's code, on a co-op save, and log `[StellarCoop][NR]` lines. Four of them need no Steam session; the Shooting
-Range also runs for two linked players (see [The Shooting Range for two](#the-shooting-range-for-two)). They give no
-shop points. They have not been tested in game yet. In the SBO lobby, [score attack](scoreattack.md) plays the same five
-for 2 to 8 players at once, each in her own game.
+solo run does. Target Practice stands the game's target dummies in front of her. The Shooting Range stands them all
+around her. Each run ends on the result panel with the time, the score and the best run kept on this PC. The challenges
+run on the solo run's code on a co-op save and log `[StellarCoop][NR]` lines. Four of them need no Steam session; the
+Shooting Range also runs for two linked players (see [The Shooting Range for two](#the-shooting-range-for-two)). They
+give no shop points. They have not been tested in game yet. In the SBO lobby, [score attack](scoreattack.md) plays the
+same five for 2 to 8 players at once, each in her own game.
 
 | Command | What it does |
 | --- | --- |
@@ -40,7 +40,7 @@ exists at a time, so a start while a challenge or Night Operation is on gets
 `STOP: unknown challenge: coop challenge lists them`. On a save that is not a co-op save, every form except
 `coop challenge stop` gets the co-op save line (see [usage.md](../../usage.md#commands-that-need-a-co-op-save)).
 
-A start answers `OK: Target Practice starts in 5 s (run 0x2A)`, and its `start:` line in `UE4SS.log` names the
+A start answers `OK: Target Practice starts in 5 s (run 0x2A)`. Its `start:` line in `UE4SS.log` names the
 challenge after the map (`... map <map> challenge targets; census: ...`).
 
 ## The challenges
@@ -76,7 +76,7 @@ challenge after the map (`... map <map> challenge targets; census: ...`).
 | Shooting Range | 2 | 4 `M_DummyA` |
 | Shooting Range | 3 | 5 `M_DummyA` |
 
-The 5 s countdown comes first, and wave 1 comes when it ends. Each later wave comes only once the wave before it is
+The 5 s countdown comes first. Wave 1 comes when it ends. Each later wave comes only once the wave before it is
 down: 5 s after, or 3 s in Target Practice and the Shooting Range. Meanwhile the card counts down to it
 (`NEXT WAVE IN 4`). Unlike Night Operation's waves, a challenge's waves have no set run time, so a slow clear holds the
 next wave back until the time limit. As in the solo run, a wave is down once each of its monsters is dying, is hidden
@@ -106,20 +106,20 @@ Each wave draws its own order of the spots, so the dummies stand in other places
 solo run's ground check (see [The waves](nightop.md#the-waves)): a blocked spot comes back towards the start point, or the dummy
 goes to the next spot that no other dummy of its wave uses (`(ground: spot 3 blocked, spot 6)`). The third wave uses
 all eight spots, so there the dummy stands 2.5 m beside another one's spot. A dummy appears as high above the floor at
-its spot as a monster does, and faces the start point. The mod neither sends it at EVE nor gives it an AI controller.
+its spot as a monster does and faces the start point. The mod neither sends it at EVE nor gives it an AI controller.
 How the dummies look, whether they stand still and how many shots each one takes are not known yet.
 
 Start Target Practice on flat open ground, with nothing in the way for 32 m ahead of EVE. When the ground check cannot
 run (`(ground: unchecked: ...)` in the log), a spot on a slope can lie inside the ground or above it. A dummy more than
 10 m below both the start point and EVE, or more than 40 m from both, is written off where it is at its first check
-(2.5 s after it is found, then every 3 s). It is never moved, its wave stops waiting for it, and shooting it later still
+(2.5 s after it is found, then every 3 s). It is never moved. Its wave stops waiting for it. Shooting it later still
 scores. Dummies left after a run stay in the world, as monsters do (see [Score and the end of a
 run](nightop.md#score-and-the-end-of-a-run)).
 
 ## Shooting Range
 
 The Shooting Range brings back the game's cut shooting test. Its test level, `LV_Test_Shooting_01`, is no longer in
-the game's files, but the game's tables still hold its zone and its quest: 12 `M_DummyA` (character ID 40010) and
+the game's files. The game's tables still hold its zone and its quest: 12 `M_DummyA` (character ID 40010) and
 three rounds that asked for 3, then 4, then 5 kills. The range keeps those rounds. Its dummies stand all around the
 point where EVE started, not only in front of her. Angles are from the way she faced:
 
@@ -134,7 +134,7 @@ Each round draws its own order of the eight spots. The dummies are placed and wr
 EVE.
 
 The range is meant for the gun: switch to the drone's ranged mode and shoot. Ranged mode needs the drone's gun, which
-the story unlocks. Before that, EVE can still reach the dummies with her sword, and they score the same. How many
+the story unlocks. Before that, EVE can still reach the dummies with her sword. They score the same. How many
 shots a dummy takes is not known yet.
 
 The game's own gun targets, the target drones (`BP_TargetDrone_01`), are not used. The game breaks a drone through
@@ -154,13 +154,13 @@ ends as a co-op Night Operation run does (see [The co-op run](nightop.md#the-co-
 too: with shared enemies on, the two copies of a dummy pair as [Shared waves](nightop.md#shared-waves) says. The differences:
 
 - His night line carries `range` in place of a level. Her `join:` line in `UE4SS.log` names it
-  (`... challenge range; census: ...`), and her notice reads `Shooting Range: <host> started the challenge. It begins
+  (`... challenge range; census: ...`). Her notice reads `Shooting Range: <host> started the challenge. It begins
   in 5 s.`
 - `coop challenge range` on the guest's side answers `STOP: the host starts a co-op run`.
 - There is no heal. A co-op run gives no shop points and keeps no best on either PC. Each result panel's Best row
   shows the best already kept on that player's own PC.
-- A death is a down as in a co-op Night Operation run (see [Down and revive](nightop.md#down-and-revive)), but the range gives
-  no self revive: `coop nightop revive` answers `STOP: no self revive left in this run`, and only the partner's hold
+- A death is a down as in a co-op Night Operation run (see [Down and revive](nightop.md#down-and-revive)). The range gives
+  no self revive: `coop nightop revive` answers `STOP: no self revive left in this run`. Only the partner's hold
   gets a downed EVE up.
 
 ## Score
@@ -194,7 +194,7 @@ result: success waves=3/3 kills=18 score=1250 time=0:37 find_ms=0.8/2.1 challeng
 `new` means this run wrote the best and `kept` that the stored best stays. `best=none` means no best is kept, or the
 file could not be read.
 
-With `coop ui off`, the notices name the challenge (`Target Practice: wave 2/3.`), and after the result a new best adds
+With `coop ui off`, the notices name the challenge (`Target Practice: wave 2/3.`). After the result a new best adds
 a `New personal best.` notice.
 
 ## Best runs (`coop-records.txt`)
@@ -221,11 +221,11 @@ yours included, stays. It writes `coop-records.txt.tmp` first, then deletes the 
 `coop-records.txt`, or writes `coop-records.txt` directly if the rename is refused. A write that fails before the
 delete leaves the file as it was. One that fails after it leaves the new text only in `coop-records.txt.tmp`: rename
 that file to `coop-records.txt` before the next run or update, or the bests it holds are lost. A file that cannot be
-read gives a `record: cannot read coop-records.txt (...)` line, and nothing is written. A write that fails gives
+read gives a `record: cannot read coop-records.txt (...)` line. Nothing is written then. A write that fails gives
 `record: cannot write coop-records.txt (...)`.
 
 The file stays on this PC and never goes over the Steam link. `tools/install.py` keeps it, as it keeps every
-`coop-*.txt` file, and `--uninstall` backs it up with the folder. When you update from the zip, copy it out and back
+`coop-*.txt` file. `--uninstall` backs it up with the folder. When you update from the zip, copy it out and back
 with `coop-settings.txt` (see [INSTALL.md: Update](../../../INSTALL.md#update)).
 
 ## What a challenge touches

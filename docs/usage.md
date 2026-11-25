@@ -111,15 +111,15 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](fight/bosses.md#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
 | `coop tendril fight [rows]` | The [cut Tendril](fight/bosses.md#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](eve/eve.md#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
-| `coop mxiii` | A camp travel into the [cut Matrix XIII area](world/matrix13.md) and a camp there (experimental test command; the travel arrived in game with test pak v2 after a reload, the rows at the title are untested; needs the v5 zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
+| `coop mxiii` | A camp travel into the [cut Matrix XIII area](world/matrix13.md) and a camp there (experimental test command; in game its travel arrived with test pak v2 after a reload (2026-10-27, build v0.6.0-beta.3-250-g51dbdf1); its rows went in at the title (2026-10-28, build v0.6.0-beta.3-258-g9bb5cd5); needs the v5 zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
 | `coop mxiii 30` | The same with a travel to a second camp, in the area's third zone (experimental test command, untested in game; needs the v5 test pak; solo, co-op save only) |
-| `coop mxiii leave` | The way out of Matrix XIII: a travel back to the camp where EVE respawned before `coop mxiii`, or to another camp your save has activated (test command, untested in game; solo, co-op save only) |
+| `coop mxiii leave` | The way out of Matrix XIII: a travel back to the camp where EVE respawned before `coop mxiii`, or to another camp your save has activated (test command; ran in game on 2026-10-28, build v0.6.0-beta.3-258-g9bb5cd5, with test pak v3; solo, co-op save only) |
 | `coop xion`, `coop xion gate` | SB's warp into [SBO Xion](world/maps/sboxion.md), an empty copy of Xion in a world of SBO's own, at its city point or its gate point (experimental test command, untested in game; needs the zSBO_Xion test pak, which the mod does not ship; solo, co-op save only) |
 | `coop xion leave` | The way out of SBO Xion: SB's reload of the co-op save, which the native part runs only from SBO Xion (test command, untested in game; solo, co-op save only) |
 | `coop xion status` | One status line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint and, inside SBO Xion, the recovery's state, the rooms' state and the last look (characters, levels, zone, area, EVE's life state) |
 | `coop xion rooms on` or `off` | Inside SBO Xion, with the pak that holds its five [rooms](world/maps/sboxion.md#the-rooms): puts Stellar Blade's closed doors back (`off`, for a look at them) or hides them again so the rooms are open (`on`). Alone, it prints the rooms' state (experimental, untested in game) |
 | `coop xion tetrapod in` or `out` | Inside SBO Xion, with the full test pak: puts EVE inside [the Tetrapod](world/maps/sboxion.md#the-tetrapods-door) or back in front of it. Alone, it says whether she is inside (test command, untested in game) |
-| `coop lily signal` | [Lily's signal](world/lily-signal.md) by hand: the mod's quest "On Time", then `coop mxiii`'s camp travel (experimental test command, untested in game; needs the zMXIII_P test pak; solo, co-op save only) |
+| `coop lily signal` | [Lily's signal](world/lily-signal.md) by hand: the mod's quest "On Time", then `coop mxiii`'s camp travel (experimental test command, no recorded run in game; "On Time" itself started in game on 2026-11-18, build v0.11.0-277-gd9bb23bf; needs the zMXIII_P test pak; solo, co-op save only) |
 | `coop lily signal quest\|travel\|next\|status` | The quest alone, the travel alone, the task of the step "On Time" is at (a test word), or one status line (the status on any save) |
 | `coop lily talk prologue\|arrival\|finale [kit]` | One of Lily's talks by hand, in the game's subtitle box or, with `kit`, in the mod's own subtitles; `coop scene lily` is the prologue talk (same conditions as `coop lily signal`) |
 | `coop lily hold on\|off` | The talks' reading holds on or off until the next Lua load (any save) |
@@ -419,7 +419,8 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 When a `coop devmenu` row ran, `coop off` runs its `clear` and `lockswitch` rows once more, but that `clear` reaches
 only the enemies near EVE at that moment, and both are skipped while a respawn or a warp is under way (see
 [Developer menu](cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after
-the items left your inventory and before the gift reached your mailbox file stops there, and those items are lost. Gift
+the items left your inventory and before the gift reached your mailbox file stops there. Those items go into the
+mailbox file and come back the next time the game starts on that co-op save. Gift
 lines from your friend that arrive after `coop off` are dropped without an answer. Afterwards only `coop status` and
 `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
 menu, host, leave and bike keys. The race key does nothing.

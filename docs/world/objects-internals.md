@@ -200,6 +200,11 @@ SB's load restore reads it at `0x141fe2cdb`: the actor of client `+0x58` in the 
 world `+0xc8`), then its `+0x10`'s vtable `+0x38`. Names are found with FName's find (`FNAME_Find`), which never adds a
 name: a name her game has and ours lacks refuses the line.
 
+Before an `s` line goes to the game, `Sync` reads our value of that env when `kZoneEnvs` has an entry for it in the
+line's zone. When ours is touched into a state that is not a kept pair (a passcode door typed open), the line is not
+applied and counts in `kept`. The catch-up keeps such a state by the same check (`held()`, see
+[Her answer](#her-answer)).
+
 - A1, a state on a live env (`0x141d1e100` on the world's level manager): the env must have the env vtable, not
   already be in that tag (`+0x1f4`), have that tag among its states (`+0x278`, count `+0x280`). That state must have no reward group or one already dropped. Then ChangeState `0x141fe3b70(env, tag, caster, L"", 0, 0, 0, 0)`, as
   R1's run calls it. A tag that does not read back afterwards refuses the line. ChangeState and the runs of R1 and R4
@@ -381,7 +386,7 @@ after a fault.
 | `gaps` | `seq` numbers skipped |
 | `asked` | our `c ask` lines |
 | `caught` | her `c` lines our game made |
-| `kept` | her `c` lines where ours stayed: a newer root of ours, a state held out for us, or the host's touched value |
+| `kept` | her `c` lines where ours stayed (a newer root of ours, a state held out for us, or the host's touched value) and her `s` lines where ours stayed in a state held out for us |
 | `same` | her `c` lines equal to our value |
 | `hooks` | the slots of ours in place, out of 4 |
 | `inbox_dropped` | her lines dropped before the game thread took them |
@@ -410,9 +415,12 @@ come from the `world=` line: on with her each time it reads `on` after anything 
 - An R4 change reaches her game only while its target is live there. A linked env of a zone she is not in is refused
   as `away` and is not written into her records. For a saved object (an entry of `kZoneEnvs`), the catch-up brings
   that change in when she enters the zone. Any other such change stays apart.
-- Her live line can move our env out of a state held out for us, such as a passcode door typed open: her `s` line for
-  that door's `CallPuzzle` puts it back there in our game (A1). The catch-up keeps such a state; phase 1's live lines
-  do not.
+- Only her `s` line meets the check for a state held out for us. The state part of her `l` line goes to A1 without
+  it. The check needs an entry of `kZoneEnvs` for the env in the line's zone: an env the game does not save has no
+  initial tag on the lists, so her `s` line can still move it out of a state held out for us. The line's zone is her
+  client's current zone (client `+0x68`) when she worked the env, not the env's own zone. When the two differ, no entry
+  is found and the line goes to A1 without the check. Each of the 10 passcode doors that
+  `tests/native/game/objects/rows_test.cpp` lists has one entry, in its own zone, so this is the case that reaches them.
 - The check of her `c` line against a newer root of ours looks only at the env that root names. An env its events
   change in turn (the door a lever opens) carries no mark, so her older `c` line for that door is still taken.
 - 212 kept pairs of 106 aliases are spelled `off` and `on` in lowercase, 15 of those aliases on `kZoneEnvs` (`WLB_60`

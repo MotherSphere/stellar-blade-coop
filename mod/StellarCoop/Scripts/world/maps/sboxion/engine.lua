@@ -167,7 +167,8 @@ function Engine.revived()
     return true
 end
 -- A room's pieces (world/maps/sboxion/rooms/rooms.lua): a component of one of SB's art sublevels, or one instance of
--- an instanced component, in a room's doorway. All of it was read on build 26123051. None of it has run in game.
+-- an instanced component, in a room's doorway. All of it was read on build 26123051. It ran in game on 24 November
+-- 2026 (build v0.11.0-986-g9f844a09, full test pak 1203_1501548): the five rooms of that pak opened.
 -- The path. The level dumps give a component's outers: the package /Game/Art/BG/WorldMap/SubLevel/E04/<sublevel>,
 -- its World of the same name, the Level PersistentLevel, the actor, the component. SBO Xion's level lists the
 -- sublevel by that package name, so the path is <package>.<sublevel>:PersistentLevel.<actor>.<component>, the shape

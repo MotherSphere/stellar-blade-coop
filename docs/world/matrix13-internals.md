@@ -226,9 +226,14 @@ row with a `TargetCamp` under that camp at `+0x4a8` and each row to the env list
 no world filter; `FUN_141d1c910` clears the list. Rows added after the current world started are then missing from its
 lists, and the first `coop mxiii` should end in `SB refused DLC02_10_Camp_01`. After the next world start (a save
 loaded, a travel to a camp), a second `coop mxiii` reads the rows back without asking again and travels, and the world
-it lands in lists the camp objects in `Zone_DLC02_10`. When the rows went in at the title, the first world
-started after it lists both camps already, and the first `coop mxiii` travels. This comes from reading the code; it
-has not run in game.
+it lands in lists the camp objects in `Zone_DLC02_10`. The refusal and the travel after a reload ran in game on
+2026-10-27 (build v0.6.0-beta.3-250-g51dbdf1, test pak v2). When the rows went in at the title, the first world
+started after it lists both camps already. Then the first `coop mxiii` travels. The rows went in at the title in game
+on 2026-10-28 (build v0.6.0-beta.3-258-g9bb5cd5). On 2026-11-18 (build v0.11.0-277-gd9bb23bf, v5 pak) the first
+world after the title took the travel. The co-op save loaded at 10:37:20. Lily's pick ran `coop mxiii`'s travel:
+`[MX] travel to DLC02_00_Camp_00 asked` came at 10:39:01 and `travel=arrived` at 10:39:10 (`UE4SS.log` times).
+`coop mxiii` asks a travel only on the v5 pak and once its seven other batches read rows. Those batches go in at the
+title only.
 
 ## The save
 
@@ -623,10 +628,11 @@ existing display string only under the culture `ko`, so on a language change the
 the source directly, under the manager's lock. Saves hold the camp's alias and are not touched: only rows in memory
 and the live table change.
 
-All of this comes from reading build 24463856's code and has not run in game. The first run has to show
-`camptext=ready` at the title in a French and an English boot, `mxnames=rows`, the names on the TeleportCamp title,
-`WB_TeleportSlot`, `WB_Teleport_Preview`, `WB_AreaTeleport_Tab` and the load slot, and no fault over two boots and a
-return to the title.
+All of this comes from reading build 24463856's code. One part ran in game: on 2026-11-03 (build
+v0.7.5-110-g5e18200, French) the region teleport screen showed the Tetrapod under a tab named "Matrice 13", the text of
+`MX13_Region` ([above](#its-rows)). The rest has no recorded run. A run has to show `camptext=ready` at the title in
+a French and an English boot, `mxnames=rows`, the names on the TeleportCamp title, `WB_TeleportSlot`,
+`WB_Teleport_Preview` and the load slot, and no fault over two boots and a return to the title.
 
 ## The records
 
@@ -666,21 +672,34 @@ reading prompt are [inference].
 
 ## Open questions
 
-- whether the native gate opens at the title of a fresh game ([At the title](#at-the-title)), and what a co-op save
-  that names a mod camp does when the rows are not in;
-- whether the game loads `MXIII_P` from a mod container, and whether it accepts retoc's zen output of a renamed map;
-- whether `FSBGameWorld::Init` runs at each map load, and whether `FUN_141d1a310` lists the camps of every world;
-- whether the camp arrival (`FUN_141a8bef0`) finds the spawn points named `DLC02_00_Camp_00`, `DLC02_10_Camp_01` and
-  `DLC02_30_Camp_01` in the test map, whether a floor coin spawns in any zone of the map, whether the `mxlily` patch
-  opens Lily's menu and leaves the Great Desert Lily as she was, and whether a death in the third or fourth zone brings EVE back to the second camp;
+Runs in game answered these:
+
+- The game loads `MXIII_P` from the mod's retoc container. On 2026-10-27 (build v0.6.0-beta.3-250-g51dbdf1, test pak
+  v2) the travel to `DLC02_10_Camp_01` loaded `/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P`.
+- The zone manager's camp list is made again at a world start and holds the camps of another world: the same day the
+  travel the game had refused went through after a reload ([The camp list](#the-camp-list)).
+- The camp list shows the camp once its vending machine has activated it. It did on the same day, under Matrix 11,
+  before the camps had a region of their own.
+- The native gate opens at the title: the rows went in there on 2026-10-28 (build v0.6.0-beta.3-258-g9bb5cd5, test
+  pak v3).
+- The region name shows: on 2026-11-03 (build v0.7.5-110-g5e18200) the region teleport screen gave the area a tab
+  named "Matrice 13" ([The camp names](#the-camp-names)).
+- The travel to `DLC02_00_Camp_00` arrives in the v5 map, from the first world after the title: on 2026-11-18 (build
+  v0.11.0-277-gd9bb23bf) `travel=arrived` came 9 s after the travel was asked ([The camp list](#the-camp-list)). No
+  log line of that run gives EVE's place on arrival.
+
+Still open:
+
+- what a co-op save that names a mod camp does when the rows are not in;
+- whether the camp arrival (`FUN_141a8bef0`) puts EVE at the spawn point `DLC02_00_Camp_00` and finds
+  `DLC02_10_Camp_01` and `DLC02_30_Camp_01` in the v5 map, whether a floor coin spawns in any zone of the map,
+  whether the `mxlily` patch opens Lily's menu and leaves the Great Desert Lily as she was, and whether a death in the
+  third or fourth zone brings EVE back to the second camp;
 - whether camp blueprints spawned through `EnvBPPath` work as placed ones do (their `CampRespawnActor` is unset; the
   base has no kit attached to its capsule, and its meshes stand on the cook's copies of the same meshes at the five
-  full camps until a pak drops those), and
-  whether the camp list shows the camp once the vending machine has activated it: the list takes a camp with a row
-  whose active state is Active ([Following the host](../online/group-internals.md#following-the-host)), and whether the vending machine's graph
-  sets that on the mod's rows was read from the interaction graphs, not run;
-- what the world map, the region name and the loading screen do with a world that has no map data;
+  full camps until a pak drops those);
+- what the world map and the loading screen do with a world that has no map data;
 - what entering `Zone_DLC02_10` writes into the save. Its 15 spawn rows are `EnterZone` rows, so 14 Antlions and a
   data drone should appear;
-- whether the five patched trigger rows start the waves of `Zone_DLC02_20` and the chains of `Zone_DLC02_40`, and
-  whether EVE can reach those zones on the test map at all.
+- whether the two patched trigger rows start the chains of `Zone_DLC02_40`. The three zone 2 patches gave way to the
+  `mxupper` batch's own triggers ([Its event spawns](#its-event-spawns)).

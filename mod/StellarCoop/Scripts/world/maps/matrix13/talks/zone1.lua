@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The zone 1 talks of Matrix XIII (1A to 1E), scene by scene in play order (world/maps/matrix13/quest/zone_talks.lua
--- plays them): the speaker (a StringTable_Seq key, or a plain name for the dungeon's own people), then the English and
+-- plays them): the speaker (a StringTable_Seq key, or a plain name for the area's own people), then the English and
 -- French line.
 -- Each line gets its id talk.zone.<scene>.NN (world/maps/matrix13/words.lua), the key of its line in the other
 -- cultures.

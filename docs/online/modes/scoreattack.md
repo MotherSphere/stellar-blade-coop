@@ -10,9 +10,9 @@ Score attack has not been tested in game yet. Its code has run only in the tests
 
 ## Starting a round
 
-1. In the SBO lobby, open the lobby menu (F5, or View held for 1 s). Its first three rows are the modes: Free-for-all,
-   Score attack and More modes. Score attack is picked when the menu first opens, marked `picked`. Select on
-   Free-for-all or Score attack picks that mode for Search and Private match until the mod reloads.
+1. In the SBO lobby, open the lobby menu (F5, or View held for 1 s). Its first four rows are the modes: Free-for-all,
+   Score attack, Doro race and More modes. Score attack is picked when the menu first opens, marked `picked`. Select on
+   Free-for-all, Score attack or Doro race picks that mode for Search and Private match until the mod reloads.
 2. Search joins an open public score attack lobby, or hosts one
    (`No scoreattack match found (SBO protocol <n>, build 26123051): hosting one.`). Private match hosts one that only
    its join code opens (`Hosting a private scoreattack match. Your join code is <code>.`). Search for one mode never
@@ -49,7 +49,8 @@ does not offer draws as Random. A room that offers none ends the round at once (
 At the countdown's 0 every game closes the lobby menu. The log reads `[StellarCoop] round start: score attack`. The
 host's game fixes the challenge and sends it to every player. Then each game:
 
-1. stands EVE up if she sits on a hall seat;
+1. stands EVE up if she sits on a hall seat through F5. A player that Stellar Blade's own chair seats (its Rest
+   prompt) sits out instead: the mod cannot stand her up from the game's chair;
 2. moves her to her spot of the lobby's ring of 8, facing its centre. Her spot is her place in the round's player list:
    the host first, then the others in Steam's member order;
 3. starts the challenge's 5 s countdown there. The round's seed sets the order of the spots each wave uses, so every
@@ -68,6 +69,7 @@ sends nothing:
 | --- | --- |
 | `Score attack is off in Options: you sit out this round.` | `scoreattack=off` |
 | `Get off the bike to play the next round.` | EVE rides the [bike](../../vehicles/bike.md) |
+| `Get up from your seat to play the next round.` | Stellar Blade's own chair seats EVE in a [hall lobby](../lobby.md#hall-lobbies) |
 | `A Night Operation run is on: you sit out this round.` | A [Night Operation](nightop.md) run or a challenge of `coop challenge` is on |
 | `You are not in the waiting room: you sit out this round.` | EVE is not in the lobby room |
 | `Your game could not start the challenge: you sit out this round. UE4SS.log says why.` | The run's own start check refused: a run already on, her EVE still down after a death, a `coop no` probe rule set in this game run, no EVE or no player controller, the teleport refused, a living character within 40 m of her spot, or every run byte taken (see [Starting a run](nightop.md#starting-a-run)) |
@@ -84,9 +86,14 @@ uses) as soon as its checks hold, for 10 s at most. A death with no run on in th
 in a round's result or between rounds, gets the same respawn. EVE then gets up where she fell with her recovery items
 refilled.
 Press no button on the death screen. 2 s after the call, a death screen still on over a living EVE is hidden; it shows
-again at the next death and at `coop off`. Whether the death screen leaves by itself before the respawn lands is not
-known yet. A player whose EVE is still down when the next round starts sits out that round: her run refuses to start
-while her life state reads dead.
+again at the next death and at `coop off`. The same call ran in game in [SBO Xion](../../world/maps/sboxion.md#a-death)
+on 2026-11-25, on game build 26123051. It brought EVE back: life 3 to 1, the same pawn, walking. The death screen went
+off by itself. The mouse cursor then stayed free during play. SB's death screen gives the cursor back when its logic
+gets the end of its fade or of its revival animation. The in-place respawn plays neither. SBO Xion has since sent the
+death screen `FinishComaRevivalAnimation`, the event SB's revival ends with. That call has not run in game. Score
+attack's respawn (`online/modes/scoreattack/run.lua`) sends no such event. The respawn has not run in a score attack
+lobby room. A player whose EVE is still down when the next round starts sits out that round:
+her run refuses to start while her life state reads dead.
 
 ## The end and the ranking
 
@@ -232,10 +239,10 @@ reaches Shift Up's servers (see
 are in the solo range, `0xD8000000` to `0xD8FFFFFF`: the shared enemies are off in a match lobby, so no key is paired
 between two games.
 
-The wiring reads `online.lobby`'s `sbo` (the room, its spots, the hall seat) and `online.modes.nightop`'s `night`
-(whether a run is on). It exports `scoreattack` (the round) and `scoreattack_board` (the screens). `main/pass.lua`
-ticks the round every 250 ms after the inbox. `coop off` stops it from `main/commands.lua`. `main/ui.lua` builds the
-screens after Night Operation's. The lobby reads `scoreattack`'s pick and cycle for its Challenge row. It opens its
+The wiring reads `online.lobby`'s `sbo` (the room, its spots, the hall seat, SB's chair through `busy()`) and
+`online.modes.nightop`'s `night` (whether a run is on). It exports `scoreattack` (the round) and `scoreattack_board`
+(the screens). `main/pass.lua` ticks the round every 250 ms after the inbox. `coop off` stops it from
+`main/commands.lua`. `main/ui.lua` builds the screens after Night Operation's. The lobby reads `scoreattack`'s pick and cycle for its Challenge row. It opens its
 menu again at the end line of a round its player took part in.
 
 The match lobby's mode is `scoreattack`, with the map word `lobby`: its round plays where the members wait. The round

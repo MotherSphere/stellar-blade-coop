@@ -75,6 +75,9 @@ local function match_lobby()
     local m=M.link and M.link.match()
     return m~=nil and m.state~='searching'
 end
+-- Whether SB's own hall chair seats EVE, for a match round's start and its GO. The lobby's busy():
+-- SBCharacter's IsRunningInteraction (its exec 0x14268cc20 reads byte +0x3493) at its pass.
+local function resting() return sbo.busy()==true end
 -- Doro races (online/modes/race/run.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one
 -- runs, and the driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night
 -- Operation run.
@@ -86,7 +89,7 @@ M.race=require('online.modes.race.run').new({log=M.doro.log,link=M.link,puppet=p
     slot=function() return M.coop_slot('coop race') end,paused=function() return M.kit~=nil and M.kit.paused(true) end,
     settings=M.settings,store=M.link and M.link.store('coop-race-doros.txt'),
     dismount=function(why) return M.bike.stop(why) end,riding=riding,
-    match_lobby=match_lobby,saved=index,
+    match_lobby=match_lobby,resting=resting,saved=index,
     round_tick=function() if M.race_match then M.race_match.tick() end end,
     round_stop=function(why) if M.race_match then M.race_match.stop(why) end end})
 -- Doro races in matches: the round on the Steam link (online/modes/race/match/round.lua, M.race_match, nil without
@@ -113,8 +116,7 @@ if M.link then
             local me=require('core.where').me()
             return me and me.map
         end,
-        -- The lobby's busy(): SBCharacter's IsRunningInteraction (its exec 0x14268cc20 reads byte +0x3493) at its pass.
-        resting=function() return sbo.busy()==true end,
+        resting=resting,
         seated=function() return sbo.seated()~=nil end,stand=function() return sbo.stand() end,
         me=function() return (M.link.saves() or {}).steamid end,
         ghost=function(id)

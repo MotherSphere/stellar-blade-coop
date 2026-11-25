@@ -275,7 +275,11 @@ none is near enough.
   state has not moved 2 s later and every condition holds again, `ServerRequest_ActorRevival` follows once. One call
   per death.
 - A death screen that still plays over a living EVE is hidden, as Survival Protocol hides it, and shown again at the
-  next death, at the end of the session, when the revive turns off for the run and at `coop off`.
+  next death, at the end of the session, when the revive turns off for the run and at `coop off`. While it is hidden,
+  `coop-death-screen.txt` keeps its visibility from before and its address. After a Lua reload (Ctrl+R), the new
+  load's first tick reads that file. If SB's death screen is still the widget at that address and reads Hidden, the
+  new load takes it over (`revive: death screen hidden by an earlier Lua load, taken over`) and shows it again at the
+  same moments. Otherwise the file is removed and the widget left as it is.
 - The log gives one `revive result` line: the life state, HP and death screen before and after, and whether the EVE
   pawn is the same.
 - The friend's game shows its notices from her vitals: `<name> is down. Stand next to them for 3 s to revive them.`

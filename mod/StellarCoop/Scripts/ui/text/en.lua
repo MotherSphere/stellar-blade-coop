@@ -250,6 +250,20 @@ return {
         paying='Paying %d %s for your bike.',paid='Your bike was brought here for %d %s.',
         poor='Not enough %s: %d needed, you carry %d.',
         unpaid='Your bike was not brought here. UE4SS.log says why.'},
+    -- coop gift (cutmenus/mailbox.lua): a send that went (%d, %s: the count and the item's alias); one stopped with the
+    -- items still there, with too few of them (the count carried, the alias), with the items maybe gone after the
+    -- remove, with the items given back or not given back; a gift back in the inventory; her gift (%s: her name, or
+    -- friend), or one to ourselves in coop loopback; our gift kept by her (the same) or by ourselves, or refused. The
+    -- log keeps why.
+    gift={sent="Gift sent: %d %s. It waits for your friend's answer.",failed='Gift not sent. UE4SS.log says why.',
+        few='Gift not sent: you carry %d %s.',gone='Gift not sent. The items may be gone. UE4SS.log says why.',
+        back='Gift not sent. The items came back. UE4SS.log says why.',
+        lost='Gift not sent. The items could not be given back. UE4SS.log says why.',
+        returned='Gift returned: %d %s are back in your inventory.',
+        got='%s sent you %d %s: coop gift take puts them in your inventory.',
+        got_self='You sent yourself %d %s: coop gift take puts them in your inventory.',kept='%s got your %d %s.',
+        kept_self='You got your %d %s.',refused='Gift refused: the %d %s come back. UE4SS.log says why.',
+        friend='your friend'},
     -- Gun mode (fight/gunmode/mode.lua): its notices while it is parked for its rebuild (gun_key shows it and does
     -- nothing else) or during an SBO match; one for each refused toggle: the drone aim held, no EVE, a state of hers or
     -- another module that holds her, a start that failed. round, reload and empty go on the reticle's round slot
@@ -267,7 +281,8 @@ return {
     -- line under it, the rows) and its notices while the UI is off. success, fail and died are the game's own words,
     -- its StringTable_UI rows UI_Night_OperationSuccess, UI_Night_OperationFail and UI_Night_OperationFail_Des, which
     -- the panel reads from the game when it can; why: what ended a stopped run, by its reason. A run for two linked
-    -- players: the host's card while he waits for her answer, her notice when his countdown starts (%s his name), his
+    -- players: her card's title with the host's level (title_level, %s: one of levels, each level's word), the host's
+    -- card while he waits for her answer, her notice when his countdown starts (%s his name, then his level), his
     -- notice when she cannot join (%s her name, then refuse's word), and whose EVE died (named, so no word agrees with
     -- a player's gender). earned: the points a run gave for the shop (online/modes/nightop/shop.lua), then the player's
     -- total; unpaid: a run's points that could not be credited (UE4SS.log says why).
@@ -277,7 +292,9 @@ return {
     -- shows too; record, the line under the heading after a success that wrote a new best; stopped, what ended a
     -- challenge stopped with coop challenge stop; coop_notice, her notice when the host starts a co-op challenge (the
     -- Shooting Range): its name, then his.
-    night={title='NIGHT OPERATION',starts='STARTS IN %d',wave='WAVE %d/%d',next='NEXT WAVE IN %d',score='SCORE %d',
+    night={title='NIGHT OPERATION',title_level='NIGHT OPERATION (%s)',
+        levels={easy='Easy',normal='Normal',hard='Hard',nightmare='Nightmare'},
+        starts='STARTS IN %d',wave='WAVE %d/%d',next='NEXT WAVE IN %d',score='SCORE %d',
         success='Operation Successful',fail='Operation Failed',died='All players have died.',time_up='Time is up.',
         why={stop='Stopped with coop nightop stop.',map='Ended by a map change or a load.',
             left='You were more than 80 m from the start for 10 s.',slot='This save is no longer a co-op save.',
@@ -287,7 +304,7 @@ return {
         waves='Waves cleared',kills='Kills',points='Score',time='Time',start_notice='Night Operation starts in %d s.',
         wave_notice='Night Operation: wave %d/%d.',clear_notice='Night Operation: wave %d cleared.',
         end_notice='%s: %d/%d waves cleared, %d kills, score %d, time %s.',
-        waiting='WAITING FOR PARTNER',coop_notice='%s started Night Operation. It begins in %d s.',
+        waiting='WAITING FOR PARTNER',coop_notice='%s started Night Operation (%s). It begins in %d s.',
         refused='%s cannot join the run: %s.',refuse={far='more than 50 m from you',map='on another map',
         slot='not on a co-op save',busy='already in a run',near='enemies or people within 40 m',
         taken='monsters of an earlier run are still there',none='no answer'},mate_died="Your partner's EVE died.",
@@ -295,7 +312,7 @@ return {
         earned='Night Operation: +%d points, %d in all.',
         unpaid='Night Operation: the points could not be saved. UE4SS.log says why.',
         booked='Night Operation starts once you leave Xion and no one is within 40 m.',
-        host_only='In a co-op session, only the host starts Night Operation.',
+        host_only='In an online session, only the host starts Night Operation.',
         pair_only='Night Operation does not run in a session of more than 2 players.',
         shop_failed='The Night Operation shop could not open. UE4SS.log says why.'},
     challenge={names={swarm='Antlion Swarm',skulls='Skull Squad',gauntlet='Gauntlet',targets='Target Practice',
@@ -366,7 +383,7 @@ return {
     sbo={saving='Saving the co-op game. Leaving the lobby brings you back here.',
         no={coop='The PvP lobby needs co-op saves (saves=coop).',
             lobby='The PvP lobby is off (sbo_lobby=off in coop-settings.txt).',steam='Steam is not ready.',
-            partner='End the co-op session first.',fight='Not during a fight.',
+            partner='End the online session first.',fight='Not during a fight.',
             nightop='Not during a Night Operation run.',busy='Not now: the game is loading or travelling.',
             save='The game cannot save here.',boss='Not during a Boss Challenge.',
             queue='The game is saving. Try again in a moment.',
@@ -446,6 +463,7 @@ return {
         cancelled='The round was cancelled.',
         out={off='Score attack is off in Options: you sit out this round.',
             bike='Get off the bike to play the next round.',
+            seat='Get up from your seat to play the next round.',
             night='A Night Operation run is on: you sit out this round.',
             room='You are not in the waiting room: you sit out this round.',
             refused='Your game could not start the challenge: you sit out this round. UE4SS.log says why.'},

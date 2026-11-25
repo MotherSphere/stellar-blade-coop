@@ -67,7 +67,7 @@ if M.link then
         -- In the SBO lobby (a hall or Xion's room) the chat holds a session alone too.
         local alone=not M.off and chatting~=nil and not heard and M.guarded('sbo',M.sbo.in_lobby)==true
         if M.off or chatting~=nil then M.guarded('chat',M.chat.session,not M.off and (heard or alone)) end
-        if not M.race.armed() then M.guarded('inbox',M.inbox) end -- Each frame while one is.
+        if not M.guarded('race',M.race.armed) then M.guarded('inbox',M.inbox) end -- Each frame while one is.
         -- The score attack's round and run, after the inbox, which keeps its score lines apart: it logs its own lines.
         if not M.off then M.guarded('scoreattack',M.scoreattack.tick) end
         -- The fishing tournament's round and book reads, after the inbox, which keeps its mode lines apart: it logs its
@@ -83,11 +83,14 @@ if M.link then
         if typed and alone then
             if not alone_told then alone_told=true; M.tell(function(w) return w.chat.alone end) end
         elseif typed and not M.link.say(typed) then M.chat.fail() end
-        M.fight_asks() -- The menu's shared_enemies and same_place rows, coop fight on once a load
-        -- (fight/enemies/wiring.lua).
-        M.quests_asks() -- The menu's shared_quests row, coop quests on once a load (story/quests/wiring.lua).
-        M.world_asks() -- The menu's shared_world row, coop world on once a load (world/objects/wiring.lua).
-        M.scenes_asks() -- The menu's shared_story row, coop scenes on or off once a load (story/together/wiring.lua).
+        -- The menu's shared_enemies and same_place rows, coop fight on once a load (fight/enemies/wiring.lua).
+        M.guarded('fight',M.fight_asks)
+        -- The menu's shared_quests row, coop quests on once a load (story/quests/wiring.lua).
+        M.guarded('quests',M.quests_asks)
+        -- The menu's shared_world row, coop world on once a load (world/objects/wiring.lua).
+        M.guarded('world',M.world_asks)
+        -- The menu's shared_story row, coop scenes on or off once a load (story/together/wiring.lua).
+        M.guarded('scenes',M.scenes_asks)
         M.guarded('fight',M.fight_notices)
         M.guarded('pilot',M.pilot_notices)
         M.guarded('quests',M.quest_notices)
@@ -102,7 +105,9 @@ if M.link then
         end
         local mode=M.link.mode()
         if mode then
-            if last_mode=='none' and mode~='none' and not M.off and not M.puppet.active() then M.ghost_start() end
+            if last_mode=='none' and mode~='none' and not M.off and not M.guarded('ghost',M.puppet.active) then
+                M.guarded('ghost',M.ghost_start)
+            end
             last_mode=mode
         end
         -- A join Steam refused in the menu's words, a player who joined or left in SB's (its English for the line
@@ -124,12 +129,13 @@ if M.link then
             M.guarded('ghost',M.puppet.photo,own and not M.settings.photo_ghost,own and not M.settings.photo_name_tag)
             -- The solid partner, as the co-op menu last set it; never in an SBO session (design-lobby 12.7). The
             -- native part pushes enemies out of a ghost under the same rule (collide=0 in the state when false).
-            local solid=M.settings.collide and not M.sbo.active()
+            local solid=M.settings.collide and not M.guarded('sbo',M.sbo.active)
             M.guarded('ghost',M.puppet.collide,solid)
             -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause
             -- (online/group/group.lua).
-            local line=M.link.state(world,M.settings.send_rate,M.group.photo(photo) or photo,M.settings.photo_sync,
-                M.settings.photo_freeze_max,title,M.group.cut(),M.settings.mod_names,M.look.sounds,solid)
+            local line=M.link.state(world,M.settings.send_rate,M.guarded('revive',M.group.photo,photo) or photo,
+                M.settings.photo_sync,M.settings.photo_freeze_max,title,M.guarded('revive',M.group.cut),
+                M.settings.mod_names,M.look.sounds,solid)
             if line then log('state: '..line) end
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             M.hud_shown=shown
@@ -157,7 +163,7 @@ if M.link then
             end
             M.guarded('menu',M.menu.slow,shown,not (M.box.is_open() or M.code_box.is_open() or M.approval.is_open()
                 or M.saves_ui.is_open() or M.open_screen())
-                and (M.booth.near(require('core.where').me()) or M.guarded('sbo',M.seat_hint))
+                and (M.guarded('booth',M.booth.near,require('core.where').me()) or M.guarded('sbo',M.seat_hint))
                 or nil)
             M.guarded('wheel',M.wheel.slow,shown)
             M.guarded('lobby',M.lobby.slow)
@@ -186,8 +192,8 @@ if M.link then
             -- SBO Xion's rows likewise (its test pak only), so coop xion's warp finds its zone.
             M.guarded('sboxion',M.sboxion.title,title==true and world~=true,(M.link.saves() or {}).saves=='coop')
             -- Her marker carries her name: the ghost's tag is its fallback.
-            M.guarded('ghost',M.puppet.marker,M.hud.marking())
-            if world or title then M.photo_pause(M.settings.photo_pause=='scenery' and 1 or 0,
+            M.guarded('ghost',M.puppet.marker,M.guarded('hud',M.hud.marking))
+            if world or title then M.guarded('photo',M.photo_pause,M.settings.photo_pause=='scenery' and 1 or 0,
                 M.settings.photo_pause) end
             -- The race's session and map checks, from the ghost's world read just above.
             local raced,why=M.guarded('race',M.race.slow)
@@ -200,11 +206,11 @@ if M.link then
             -- check of the SBO session records at each title visit still runs then (design-lobby 12.8).
             local world,title=M.guarded('ghost',require('core.where').world)
             local line=M.link.state(world,M.settings.send_rate,'0',M.settings.photo_sync,M.settings.photo_freeze_max,
-                title,false,M.settings.mod_names,M.look.sounds,M.settings.collide and not M.sbo.active())
+                title,false,M.settings.mod_names,M.look.sounds,M.settings.collide and not M.guarded('sbo',M.sbo.active))
             if line then log('state: '..line) end
         end
         -- Withdrawn when the ghost is off, coop off included.
-        local ok,message=M.guarded('capture',M.capture.tick,M.puppet.active())
+        local ok,message=M.guarded('capture',M.capture.tick,M.guarded('ghost',M.puppet.active))
         if message then M.report(ok,message) end
         ok,message=M.guarded('ghost',M.puppet.remote,M.link.remote())
         if message then M.report(ok,message) end
@@ -212,7 +218,7 @@ if M.link then
         -- A new list of mods both players have: the ghost built again with what it may now load (or no longer may).
         if M.link.shared_version()~=shared_seen then
             shared_seen=M.link.shared_version()
-            message=M.puppet.rebuild('shared mods changed')
+            message=M.guarded('ghost',M.puppet.rebuild,'shared mods changed')
             if message then M.report(true,message) end
         end
         M.pass_ended=os.clock()

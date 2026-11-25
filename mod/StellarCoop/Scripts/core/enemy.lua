@@ -3,8 +3,9 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- A cut monster spawned as a real enemy to fight, on the game thread: the flow coop lion, coop gardener fight and coop
 -- tendril fight shared until November 2026, when they took their own copy (fight/bosses/enemy.lua). This file stays
--- for the row batches of world/maps/matrix13/level/travel.lua, world/maps/matrix13/quest/on_time.lua and
--- online/lobby/halls_rows.lua, which use its rows part only. The monster's rows
+-- for the row batches of world/maps/matrix13/level/travel.lua, world/maps/matrix13/quest/on_time.lua,
+-- online/lobby/halls_rows.lua, fight/gunmode/nikke.lua, world/maps/sboxion/sboxion.lua and world/teamshop/shop.lua,
+-- which use its rows part only. The monster's rows
 -- are a batch of the native part (rows/rows.h, rows/rows_game.inc: SB's own AddRow on the game thread with no
 -- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 40) by their fixed
 -- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table

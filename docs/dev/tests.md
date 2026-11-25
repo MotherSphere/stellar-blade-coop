@@ -32,7 +32,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
 `wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
-`fishing`, `guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `photohunt`, `race_match`,
+`fishing`, `guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `pass`, `photohunt`, `race_match`,
 `scoreattack`, `session_ui`, `settings`;
 `world/maps/matrix13/`:
 `off`, `words`;
@@ -321,6 +321,14 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `500`, `-1`), paid once the count fell by 500, paused time not counted toward the 10 s, a failure when it does not
   fall or when no answer comes, a read whose answer was lost (`coop gift`'s answered after it) asked again with its
   number after 1 s, the numbers from 32768;
+- `cutmenus/mailbox_test` builds each `coop gift` notice through `tell` from a words table with a mark before and after
+  every gift word and another mark around `friend`. It fails when a notice has text in front of or behind the word it
+  was built from (an English literal, or English added to a word). With no name from the link, it checks that the
+  notices for a gift got or kept carry the words' `friend`. It covers the loopback's own sentences and the reason of a
+  stopped send in the log. It also
+  stops a send with `coop off` before and after the remove: after it, the items wait in the gift file as a back entry
+  that a new mailbox (the next game start) gives back, or the log says they could not be given back.
+  `main/boot_test` checks that `cutmenus/wiring.lua` hands it `M.tell`;
 - `online/partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked
   once a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes;
   getting on or off starts a new generation; another component on the bike's mesh stays a part; her body on the bike's
@@ -508,6 +516,13 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   later when it found no camp), nothing in a load, as a guest or in a match lobby. A refusal is logged once. For the
   bike's paid fetch, `camp_near` finds an activated Xion camp whose spawn point stands within 10 m on Xion's map,
   walking the spawn points once a map;
+- `online/group/group_test` covers a Lua reload while the revive hides the death screen: `coop-death-screen.txt`
+  written at the hide with the visibility from before (Visible in the test) and the screen's address; the new load's
+  first tick looking the screen up once and taking it over while it has that address and reads Hidden, at each of two
+  reloads; the screen shown again as it was at the next death, with no session and at `coop off`, the file removed
+  then. A file whose screen no longer reads Hidden is removed and the screen left as it is. A file whose address is not
+  SB's death screen's is removed and the widget that reads Hidden left as it is, with no session too. No file, or a
+  file without both numbers, means no lookup. A file that cannot be written gives one log line;
 - `core/mask_test` checks the masking of `UE4SS.log` on the cases `link_protocol_test` checks for the native part's;
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
@@ -600,7 +615,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   after its sublevel came (not before) with the SkyCreators listed again, one dropped when it went, one looked up again
   after it went and came back between two reads, one SB showed again told once across its sublevel's return, a
   SkyCreator sublevel with no dome, nothing read off the live passes and a sublevel that came meanwhile looked up at the
-  first live pass, a streaming level whose read raises; the Terrace hall left alone; with the keep, no star material
+  first live pass, a streaming level whose read raises, one kept from the world entry that is no longer valid (never
+  read, logged once); the Terrace hall left alone; with the keep, no star material
   loaded at dusk until it is in; a dome actor that comes back at the freed address of the old one, whose star layer
   went with the old actor, gets it looked for and made again;
 - `world/objects/wiring_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the
@@ -614,6 +630,15 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   the first second;
 - `main/collide_test` covers the ghost's collision through `main/pass.lua`: as `collide` says, never solid during an SBO
   session. The state's `collide` follows the same rule (`collide=0` stops the enemy contact);
+- `main/pass_test` covers the module exports that `main/pass.lua` and `main/frame.lua` call under `guarded()`. With
+  `fight_asks` raising, the 250 ms pass still says the link's notices, starts the ghost, writes the state and runs the
+  kit's slow pass, the focus watchdog and the menu's slow pass. The error is logged once under `fight`. Then
+  `quests_asks`, `world_asks`, `scenes_asks`, `puppet.active`, `ghost_start`, `race.armed` (in the pass and in the
+  frame), `sbo.active` (before and after `coop off`), `group.photo`, `group.cut`, `booth.near`, `hud.marking`,
+  `photo_pause` and `puppet.rebuild` each raise in two runs of their loop: no error leaves the loop and one line is
+  logged under the module's name;
+- `main/boot_test` checks that the usage line names `coop guide`, `coop teamshop` and `coop spectate`, which
+  `docs/usage.md` lists as player commands;
 - `main/loader_test` covers `main/loader.lua` alone with fake modules: every export the stub before any `new` runs (also
   the exports of a module whose require raises, read from its `wiring.lua`), the modules in list order, an on module's
   exports as its `new` left them, its words in `M.commands` (a word defined twice raises), a require, a `new` or a build
@@ -674,15 +699,17 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   and match end, a guest's go read before its start line, her rank and a void, who may send which line, the pace of
   the now lines, a round that ends early, one replaced by the next, one found playing at a Lua reload, a room that
   offers nothing, a player who leaves, the pick and its cycle. `online/modes/scoreattack/game_test` covers each
-  sit-out reason with its log line and notice key, a hall seat left first, the run at the spot facing the ring centre
-  on the round's seed, the now lines while its waves play only and the done line of each outcome.
+  sit-out reason with its log line and notice key (SB's own chair seating EVE among them), a hall seat left first,
+  the run at the spot facing the ring centre on the round's seed, the now lines while its waves play only and the
+  done line of each outcome.
   `online/modes/scoreattack/run_test`, `challenges_test` and `waves_test` hold their Night Operation originals' cases
   for the copies, with what the copy changes: each start refusal with no spawn, a whole Target Practice run from a
   lobby spot, `best_match_targets` kept in `coop-records.txt` beside the solo bests, every abort and, after a death,
   the in-place respawn (its checks, its 10 s, its result line, the death screen hidden and shown again).
   `online/modes/scoreattack/board_test` covers the card, the in-round board and the result panel on a fake kit, their
   words in the game's language, the notices with the kit off and the HUD's STOP line. `main/scoreattack_test` covers
-  the pass line and the `coop off` stop through `main.lua`, then the wiring on a fake run;
+  the pass line and the `coop off` stop through `main.lua`, then the wiring on a fake run, SB's chair sit-out with
+  its notice included;
 - `online/modes/race/match/model_test` covers Doro races in matches without the game: the dr texts both ways with their
   refusals and sizes, who may send which text, the track coming whole from its lines, the tracks planted rooms offer
   (Xion's training room with its 30 m fence, a hall, a track in Xion's streets left out), the pick and the Random draw,
@@ -699,7 +726,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `online/modes/race/ui/hud_test` covers the race's HUD: the live place among up to 8 racers, the results' note and
   rows (a session's two, a match's own row before the ranking, then the ranking with names cut, `Not ranked.` and
   `New personal best.`) and the 8 result rows on a fake kit. `online/modes/race/run_test` adds the match role: the
-  teleport onto the slot at the start and back at GO past 3 m with the runner starting from the slot, every round
+  teleport onto the slot at the start and back at GO past 3 m with the runner starting from the slot, a racer that
+  SB's chair seats at GO out of her slot sitting out with the seat notice and a DNF quit instead, every round
   player's ghost as a Doro, `coop race start` refused in a match lobby, the round ticked from the 250 ms pass, the
   place notices with the kit off. `online/modes/race/drive_test` and `doro_test` cover the asks to the native part
   (`race hold`, `race tick`), the impulses only while the status says the hold is applied, a hold still applied with
@@ -707,16 +735,16 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   older `coop-look.txt` with a number in its tick field that writes nothing. `main/race_match_test` runs a round through
   `main.lua` and the wiring: the official track read from the Scripts folder, the host's lines one a pass, a hall's
   own tracks from `coop-tracks.txt`, `coop race save` and a pick by name adding to it, the sit-out notices, the host
-  gone, the records file, `coop off`. `main/isolation.lua` checks with the race module off that the lobby menu holds no
-  race and refuses Select on Track;
+  gone, the records file, `coop off`, the wiring's adapters (SB's chair read by the race too). `main/isolation.lua`
+  checks with the race module off that the lobby menu holds no race and refuses Select on Track;
 - `online/modes/fishing/model_test` covers the fishing tournament without the game: the start's length (10 minutes by
   default, 1 to 60), the clock, each fish text's round trip and every malformed one refused whole, who a game takes
-  each text from, the host's checks of each catch (sender, seed, fish, points, time and the rate bound, an honest
-  guest whose clock runs 0 to 3 s behind never refused, a flood cut at the bound), the standings with shared places, a
-  leaver and a link that comes back, the board at most once a second and the rank text with its minutes for 2, 4 and
-  8 players. It covers the catches from book reads too (the baseline, a rise, a fall, a fish gone, two catches in one
-  read, a jump of 3). It also checks the 40 row names of `rows.lua`. `online/modes/fishing/round_test` covers the
-  tournament
+  each text from, the host's checks of each catch (sender, seed, fish, points, time and the rate bound, both from 1 s
+  before the host's GO, an honest guest whose GO comes 1 s before the host's to 3 s after it never refused, a flood
+  cut at the bound), the standings with shared places, a leaver and a link that comes back, the board at most once a
+  second and the rank text with its minutes for 2, 4 and 8 players. It covers the catches from book reads too (the
+  baseline, a rise, a fall, a fish gone, two catches in one read, a jump of 3). It also checks the 40 row names of
+  `rows.lua`. `online/modes/fishing/round_test` covers the tournament
   on a fake link and clock: `coop fish start` and its refusals, the host's go, board, each refusal with one log line a
   sender and reason, the rank and its record, a guest's go, ready, catch, board, rank and record, her sit-out and the
   lines she drops, a guest who is lost and comes back, the host leaving, another host's session, `coop fish stop`, a
@@ -838,7 +866,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words. The DLC notice (`T.dlcs`)
   stays within 200 bytes in every language with 100-byte DLC names. So do the bike's refusals with the paid fetch's
   offer after them, with each side word and a six-digit distance or another map's 32-byte name and the longest key
-  name. Score attack's notices stay within 200 bytes too (each sit-out, a round without a ranking, the end and the
+  name. So do `coop gift`'s notices with a 32-byte name and alias, and the guest's Night Operation start notice with
+  each level's word. Her card's title with each level's word stays within the card's 43 columns. Score attack's notices stay within 200 bytes too (each sit-out, a round without a ranking, the end and the
   place with the UI off). Its screens' words stay within their columns: a board row's name and its score with the wave
   or end word, the result panel's heading, its line with the longest end word, its notes and the difficulty words.
   The fishing tournament's notices stay within 200 bytes with 32-byte names (the start of 60 minutes, each sit-out,
@@ -943,7 +972,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   once, one call with her GUID, the result line 2 s later, the death screen hidden over a living EVE and shown again
   at a new death (in the modes `off` and `death` too), at a stop and when two failures stop the recovery, no call in
   10 s given up. The death screen is told once that its revival ended when she lives and never while she is dead. No
-  widget and a call that raises each change one log line and not the result. The module's own cases: the call after
+  widget and a call that raises each change one log line and not the result. A hide of the death screen that raises
+  is one log line. The result line still comes with the screen `up` and counts no failure. The module's own cases:
+  the call after
   5 s with no death screen, the put-back when the respawn leaves her off the ground (in the mode `death` too, never while a guard waits), life still 3 after the call as a failure
   that starts the death again, a death left from the mode `off`, one read during a wait and one on a world time that
   stands still, a life back at 1 before the call (one line, then the next fall is caught), no call without a `warp=`
@@ -1776,10 +1807,12 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   tags kept through a load and a stream, forgotten at a zone change, a close or a new partner, its line on the gates
   and the shared `seq`) and when an env counts as touched. The catch-up by zone: the ask after its 2 s hold and again
   after a load, her `on` or a close of our side, the walk and its resume after a load, an ask for a zone with no entry,
-  the receiver rule for host and guest (a state held out for us kept, nothing sent back), a `c` line older than a root
-  of ours kept (her answer or her send-back), a `c` line applied as a state then an Enable or Disable, the host's value
-  sent back, a close in the middle of an answer, the walk's filters, one answer per ask, the ObjectState compare and a
-  partner that never answers;
+  the receiver rule for host and guest (a state held out for us kept, nothing sent back), her `s` line kept the same
+  way for a passcode door typed open (live or in its record) and applied when ours is untouched, in a kept pair, not
+  read or without an entry in the line's zone, a `c` line older than a root of ours kept (her answer or her
+  send-back), a `c` line applied as a state then an Enable or Disable, the host's value sent back, a close in the
+  middle of an answer, the walk's filters, one answer per ask, the ObjectState compare and a partner that never
+  answers;
 - `game_objects_engine_test`: `game/objects/engine.h` over fake memory and fake game functions: the four roots read from
   their nodes (a named target, `self` through the owner env, an ObjectState of 0, a linked env inside and outside its
   owner's list or not live in our zone, values no line carries), and her lines applied: A1 and each of its guards, a
@@ -1899,7 +1932,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `LuaMod.hpp`, `LuaMod.cpp` and `UE4SSProgram.cpp`. A tag that is not commit `30afe5ff` is refused. So is a patched
   source that is not commit `4c8e4f4d`. `git am` keeps the author's date as commit date. It runs with the patch's author
   as committer and with no user or system Git config. It checks the clone, configure and build command lines (the
-  `UE4SS` target only) and the variables that map local folders and make the link reproducible. The default output is
+  `UE4SS` target only) and the variables that map local folders and pass `/Brepro` to the linker. The default output is
   the path `tools/ue4ss.py` reads. Over a fake `subprocess.run`: a used work folder, a path with a space, extra
   arguments, a missing tool and a missing xwin folder stop it before any command. A moved tag stops it after the clone.
   Another patched commit stops it after `git am`. A whole run calls clone, tag check, `git am`, patched-commit check,

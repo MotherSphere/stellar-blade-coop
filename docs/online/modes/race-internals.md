@@ -14,7 +14,7 @@ own part, `native/src/online/modes/race/`, holds the two game writes the races n
 Each Doro the mod shows is a plain `Actor` that Lua spawns, with one `SkeletalMeshComponent` that holds Doro's mesh
 (`CH_NPC_Dororong`, at the game's own scale of 1.5, about 59 cm tall) and collision off. It is not an SB character: it
 has no row in the game's tables, no AI and nothing that can die. Doro's own animation Blueprint is never used. The
-component runs the engine's single-node animation (`SetAnimationMode(1)`), and each frame Lua picks what it plays with
+component runs the engine's single-node animation (`SetAnimationMode(1)`). Each frame Lua picks what it plays with
 `PlayAnimation`, `SetBlendSpaceInput`, `SetPlayRate` and `SetPosition`:
 
 - On the ground, the two-legged blend space `IdleRun_BS_Peaceful_2`, with the speed as its input up to 500 cm/s (EVE's
@@ -34,8 +34,8 @@ component runs the engine's single-node animation (`SetAnimationMode(1)`), and e
 The mesh, the two blend spaces and the 7 clips of `Doro.ASSETS` are the keep's (`core/keep.lua`): the native part has
 SB's own async loader bring them in and holds them for the game run, so `Doro.resolve` never loads one. Before the keep
 has settled, or with it off for the Lua load, they come from the game's own files as before (`StaticFindObject`, else
-`LoadAsset`). The engine's garbage collector unloads an asset that nothing in the engine references, and a reference
-held in Lua does not count. In 0.5.0-beta.1, a clip that no Doro had played for a while was unloaded, and the next
+`LoadAsset`). The engine's garbage collector unloads an asset that nothing in the engine references. A reference
+held in Lua does not count. In 0.5.0-beta.1, a clip that no Doro had played for a while was unloaded. The next
 `PlayAnimation` loaded it again synchronously: 5 loads a minute taking 185 ms in all while EVE sprinted, each one a
 short freeze in game. Each Doro now carries one keeper per clip: a second `SkeletalMeshComponent` with Doro's mesh, in
 single-node mode, given the clip with `SetAnimation`. Its animation instance holds the clip through `CurrentAsset`,
@@ -62,12 +62,12 @@ features that write to the player actor. Two things change on her. The look also
   drawn, so a hidden EVE would stop her pose, her animation notifies and the root-motion moves of dodges and ledges.
 - The drone that follows EVE is an SB character of its own, so hiding EVE's parts left it flying beside the Doro. The
   look sets `bHiddenInGame` on the drone's main mesh (`CharacterMesh0`) through `SetHiddenInGame`, only when the mesh
-  does not have it, and writes nothing else on the drone. The actor itself stays shown: hiding it would also turn off
+  does not have it. It writes nothing else on the drone. The actor itself stays shown: hiding it would also turn off
   its spot light, which lights EVE's way in dark places, and its guide ray and wait signal. The look finds the drone
   with one `FindAllOf('CH_Drone_BP_C')`, the drone's Blueprint class: the nearest one of exactly that class within 30 m
   of EVE, whether the game shows it or not. `FindAllOf` walks every object on the game thread (25 to 40 ms in game), so
   it runs at look on and once more each time the drone the look holds goes, and never on a timer. If it finds none, it
-  does not look again until the next look on. Once a second the look checks the held drone's mesh, and hides it if the
+  does not look again until the next look on. Once a second the look checks the held drone's mesh and hides it if the
   game showed it. A mesh the game hid is left alone until the game shows it. The log says
   `[StellarCoop][DR] look drone hid <name> at <m> m` when it hides the drone the first time,
   `[StellarCoop][DR] look drone <name> at <m> m hidden by the game: hidden when it shows` when the game had hidden it,
@@ -103,8 +103,8 @@ option: the native part put it back at that Lua load. A file of an older version
 nothing either. The log says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`, with `and the drone` after
 `parts` when it showed the drone.
 
-The capture is unchanged, and it counts a part with `bHiddenInGame` as hidden. While the look is on, your friend's game
-therefore receives every part of your EVE as hidden, and draws your ghost with no body unless its Doro mode is on.
+The capture is unchanged. It counts a part with `bHiddenInGame` as hidden. While the look is on, your friend's game
+therefore receives every part of your EVE as hidden and draws your ghost with no body unless its Doro mode is on.
 After the look ends, the next capture pass (once a second) publishes the parts as shown again.
 
 ## The ghost's Doro mode
@@ -118,7 +118,7 @@ Doro's mesh, on the ghost's main mesh, where her feet are, and adds the Doro's k
 built in Doro mode resolves Doro's mesh and each clip in a build step of its own, so no frame loads more than one. The
 ghost is the mod's own actor, so nothing of the game's is touched. The Doro's speed and vertical speed come from the
 ghost's feet between poses, measured over 50 ms at least. The pose stream has no sprint or falling flag, so the Doro
-goes on all fours above 560 cm/s and back on two legs below 520 cm/s, and a vertical speed over 400 cm/s, up or down,
+goes on all fours above 560 cm/s and back on two legs below 520 cm/s. A vertical speed over 400 cm/s, up or down,
 counts as being in the air. The ghost's own hiding (no pose for 1 s, another map) covers the Doro too. A Doro that
 cannot be made leaves the ghost drawn as EVE, with the reason in the log. The pose stream is the same during a race: the
 bones still arrive and are written into the hidden parts. While the race drives, the ghost's Doro follows the same
@@ -138,7 +138,7 @@ a check finds one again.
 In SB's movement component, the turn of the velocity toward the stick is the engine's friction step in `CalcVelocity`,
 with `GroundFriction` as the friction. SB's own speed fields (`MaxRunSpeedOverride` and the sprint scales) only set the
 top speed. With `MaxAcceleration`, `GroundFriction`, `BrakingDecelerationWalking` and `BrakingFrictionFactor` at 0,
-`CalcVelocity` neither accelerates, brakes nor turns the velocity, and the component moves EVE with the velocity it has.
+`CalcVelocity` neither accelerates, brakes nor turns the velocity. The component moves EVE with the velocity it has.
 Each frame the race gives it the model's velocity through `AddImpulse`, with the difference from `GetVelocity()` and a
 vertical part of 0. Before each impulse,
 `ClearAccumulatedForces` drops any impulse an earlier frame left unused. In photo mode with `photo_pause=scenery` the
@@ -159,7 +159,7 @@ vertical speed instead of giving a velocity.
 
 The model steps by EVE's world time (`GetGameTimeSinceCreation`): when it has not moved since the last frame (the
 pause menu), nothing is written, since impulses would pile up. Under root motion (`IsPlayingRootMotion`: a dodge) the
-model holds and writes nothing, and starts again from her yaw and velocity.
+model holds and writes nothing. It starts again from her yaw and velocity.
 
 The four values are the native part's: `drive.lua` asks `race hold on` when the drive starts and `race hold off` at
 each end (our result, a quit, a DNF, `coop off`, a map change, the race's first error). With no drive on, a hold the
@@ -208,8 +208,8 @@ the notice `Doro races' hold on EVE stopped until the game restarts (a fault); r
 
 ## Race lines
 
-The host owns a race. Its game sends the track and the start, each game times its own racer from its own GO, and the
-host's game sends the ranking. The guest's game checks each line against fixed bounds before using it, and sends only
+The host owns a race. Its game sends the track and the start. Each game times its own racer from its own GO. The
+host's game sends the ranking. The guest's game checks each line against fixed bounds before using it and sends only
 its own racer's lines. Each line travels as `SBC29 race <text>` on channel 0 (see [Channel 0: text](../steam-link-internals.md#channel-0-text)),
 with whole numbers only, in centimetres and milliseconds. `<id>` is the host's race number:
 
@@ -232,10 +232,10 @@ fails a check is dropped and counted. A track whose `drive` line does not follow
 `have <id> no track`. The guest's countdown starts when `go` arrives, less half the round trip of the link's pings. A host that gets no `have` line within 10 s sends `abort <id> track` and races alone.
 
 In `coop loopback` with no friend linked, the host's lines come back as the friend's. A second, guest instance of the
-race model answers them, run on the loopback ghost's feet, and its lines go straight to the host's.
+race model answers them, run on the loopback ghost's feet. Its lines go straight to the host's.
 
 Each PC logs a `[StellarCoop][DR] result` line per race that reaches its results there, with the race's length by
-`os.clock` and by `os.time`. The race clock is `os.clock`, and the two values show whether it counts wall time on that
+`os.clock` and by `os.time`. The race clock is `os.clock`. The two values show whether it counts wall time on that
 PC.
 
 A race calls no achievement, reward, item, quest or save function and no console command. The only class it spawns is
@@ -259,7 +259,7 @@ line, which a match lobby refuses both ways.
 | `match/round.lua` | The round on the Steam link: the start line, the dr lines sent and read, the host's draw and arbitration. Its first line says it is the race's copy of `online/modes/scoreattack/round.lua` |
 | `match/game.lua` | Between the round and our race: the sit-out checks, the hall seat, the ghosts by SteamID, ready, cp and done, the records write |
 | `match/tracks.lua`, `match/tracks/*.txt` | The official tracks, by room key (`xion` or a hall's), in the `SBR 1` format of [Track files](race.md#track-files) |
-| `run.lua` | A third role, `match`, beside host and guest: the teleport onto the slot at the start and back at GO, every round player's ghost as a Doro, the round's tick at the start of the race's 250 ms pass, no crowd DNF, `coop race start` refused in a match lobby |
+| `run.lua` | A third role, `match`, beside host and guest: the teleport onto the slot at the start and back at GO (a racer that SB's chair seats then sits out with a DNF `quit`), every round player's ghost as a Doro, the round's tick at the start of the race's 250 ms pass, no crowd DNF, `coop race start` refused in a match lobby |
 | `ui/hud.lua` | POS among up to 8 racers, the 8 result rows, the note before the ranking, `Not ranked.` and `New personal best.` |
 
 Lua cannot list a folder, so `match/tracks.lua` names each official track. The wiring finds the folder with

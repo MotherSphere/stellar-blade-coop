@@ -80,8 +80,9 @@ The two games also catch up zone by zone. 2 s after the link, after each zone yo
 game asks your friend's for the doors, levers and switches she changed in the zone you stand in. They come in then. A
 change made while you were in another zone, or while you were not linked, comes in this way too. When both of you
 changed the same one differently, the host's state ends in both games. Only the objects the game saves take part, not
-those it resets when you rest. The catch-up leaves a door you opened with its passcode open in your game, whatever your
-friend's door shows. An object you work while her answer is on its way keeps your new state.
+those it resets when you rest. A door you opened with its passcode stays open in your game, whatever your friend's door
+shows during the catch-up and when she works her door. An object you work while her answer is on its way keeps your
+new state.
 
 ## The setting
 
@@ -123,5 +124,6 @@ others are described in [Shared world: how it works](objects-internals.md#status
   not reached is already open when she gets there (except for the linked objects above).
 - An object whose change counts toward an achievement other than a map's progress stays each player's own even when
   it is a door, so the two games can show it in different states.
-- While you are linked, your friend working the same passcode door in her game can move yours out of its open state:
-  her change reaches your game like any other. Only the catch-up keeps your door open.
+- A door you opened with its passcode can still leave its open state in your game in two cases:
+  - your friend works her door while her game counts her in another zone than the door's;
+  - her change reaches the door through another object linked to it.

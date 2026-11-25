@@ -1,6 +1,7 @@
 # Installing Stellar Blade Online
 
-Stellar Blade Online is an experimental co-op mod for Stellar Blade on PC. Its folder, its DLL and its zip keep its
+Stellar Blade Online is an experimental online mod for Stellar Blade on PC. Up to 4 players play together in an online
+session linked through Steam. A test lobby runs matches of up to 8 players. Its folder, its DLL and its zip keep its
 first name, StellarCoop. It runs inside UE4SS. These steps cover Windows and Linux with Proton; a Windows PC and a
 Linux PC have played together. The rest of the documentation is in
 [docs/](https://github.com/MotherSphere/stellar-blade-coop/tree/main/docs) in the repository.
@@ -93,8 +94,9 @@ another version.
    best challenge runs, every `coop-night-*.txt` (your Night Operation shop points, which no save holds), every
    `coop-gift-*.txt` (your `coop gift` mailbox: gifts that wait for you, gifts you sent that wait for an answer and
    items on their way back to you, which no save holds either), every `coop-track-*.txt` (your Doro race tracks),
-   `coop-blocked.txt` (your block list) and any log you still want to send. The zip has no `coop-settings.txt`; when
-   the file is missing, the mod writes the defaults again.
+   `coop-tracks.txt` (the names of your tracks that a match lobby may offer), every `coop-bike-<steamid>-*.txt` (where
+   your parked bike stands for each save), `coop-blocked.txt` (your block list) and any log you still want to send.
+   The zip has no `coop-settings.txt`; when the file is missing, the mod writes the defaults again.
 3. Delete the old `StellarCoop` folder, so that no file of the old version remains.
 4. Install the new zip with install steps 2 to 4, and put the `coop-*.txt` files from step 2 back into the new folder.
    A file from version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in
@@ -132,9 +134,23 @@ If the game no longer starts at all after a Stellar Blade update, see
 - On a controller, hold View for 1 s to open or close the co-op menu. The D-pad or the left stick moves, A selects
   and B goes back. The mouse works in the menu too: move onto a row, left click to select, right click to go back. See
   [docs/players/interface.md](docs/players/interface.md#controller).
+- The game's pause menu gets an Online tab after Settings. On the Settings tab, RB (E on the keyboard) closes the pause
+  menu and opens the co-op menu. See [docs/players/interface.md](docs/players/interface.md#pause-menu).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
+- `F7`, as the guest on a co-op save, takes you to where the host last stood on solid ground. When the host is on
+  another map, the game's fast travel takes you to the camp nearest him first. On the death screen, with `revive=on`,
+  it takes you back to a living friend on your map. See
+  [docs/players/playing-with-a-friend.md](docs/players/playing-with-a-friend.md#following-the-host).
 - `F8` leaves the session. When the host leaves, the guest leaves too.
 - `F9` sets a checkpoint while you record a Doro race track. See [docs/online/modes/race.md](docs/online/modes/race.md).
+- `F3` puts EVE on the bike or takes her off it, on any save. On a controller, hold D-pad Right for 1 s. See
+  [docs/vehicles/bike.md](docs/vehicles/bike.md).
+- `F4` brings the NIKKE rifle out or puts it away (gun mode, experimental). On a controller, tap D-pad Right. Without
+  the optional `zNGMSpike_P` pak, it only shows the notice `Gun mode: rebuilding`. See
+  [docs/fight/gunmode.md](docs/fight/gunmode.md).
+- Hold `F2` to open the emote wheel, point at an emote with the mouse, then release `F2` to play it. On a controller,
+  hold D-pad Left for 0.3 s, point with the right stick, then release D-pad Left. See
+  [docs/players/interface.md](docs/players/interface.md#emote-wheel).
 - `Enter`, during a session or in the SBO lobby, opens the chat box. See
   [docs/players/interface.md](docs/players/interface.md#session-chat).
 - On a co-op save in Xion, the recruiter near Roxanne in the Scrap Market takes you to the SBO lobby when you choose
@@ -164,8 +180,9 @@ changes one line of the file at a time, and keeps the file as it was before its 
 
 - `menu_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
   `Shift+`, `Ctrl+` or `Alt+` in front, for example `menu_key=Shift+F7`. `host_key` takes the same keys, or `none` (the
-  default); a key set there hosts at once, without the menu. `race_key` (`F9`) takes the same keys, or `none`. If two
-  actions share one key, all five keys go back to their defaults. A file written before the menu existed has no
+  default); a key set there hosts at once, without the menu. `follow_key` (`F7`), `race_key` (`F9`), `bike_key`
+  (`F3`), `gun_key` (`F4`) and `emote_key` (`F2`) take the same keys, or `none`. If two actions share one key, all nine
+  keys go back to their defaults. A file written before the menu existed has no
   `menu_key` line: the menu then opens on that file's `host_key`, and no key hosts at once.
 - `who_can_join`: `public` (the default: any player of your version finds your online session in the session list),
   `friends` (your Steam friends can join from their friends list or Find a session's Friends tab), `invitation` (the
@@ -224,9 +241,10 @@ cloud. Then restore your backup.
 
 ## Co-op saves
 
-`coop fight`, `coop nightop`, `coop challenge`, `coop no`, `coop recruiter`, `coop gift`, `coop pvp` and the recruiter's
-Join to the SBO lobby run only on a co-op save, a copy of your save, and never on your own saves (`coop nightop stop`
-and `coop challenge stop` work on any save). The recruiter himself appears near Roxanne at each Xion load on any save,
+`coop fight`, `coop nightop`, `coop challenge`, `coop no`, `coop recruiter`, `coop gift`, `coop pvp`, Doro races
+(`coop race start` and the race rounds of a match), the fishing tournament, the photo hunt and the recruiter's Join to
+the SBO lobby run only on a co-op save, a copy of your save, and never on your own saves (`coop nightop stop` and
+`coop challenge stop` work on any save). The recruiter himself appears near Roxanne at each Xion load on any save,
 your own saves included; there his Join changes nothing and a notice says why. The ghost, the keys and the Steam link
 work on any save. Nothing is copied back to your own saves unless you export a co-op save (below). Items bought in Night
 Operation's shop (`coop nightop shop` or `coop nightop buy`) and gifts (`coop gift`) go into or leave the co-op save you
@@ -361,9 +379,9 @@ Close the game first.
 
 - Installed from the zip (Windows or Linux): delete the `Mods/StellarCoop` folder. It holds the logs,
   `coop-settings.txt`, `coop-guide.txt`, `coop-records.txt`, the Night Operation shop points (`coop-night-*.txt`), the
-  `coop gift` mailbox (`coop-gift-*.txt`), the Doro race tracks (`coop-track-*.txt`) and the block list
-  (`coop-blocked.txt`), so first copy out what you want to keep. If you added a `StellarCoop` line to
-  `Mods/mods.txt`, remove that line.
+  `coop gift` mailbox (`coop-gift-*.txt`), the Doro race tracks (`coop-track-*.txt` and `coop-tracks.txt`), the
+  places of your parked bike (`coop-bike-<steamid>-*.txt`) and the block list (`coop-blocked.txt`), so first copy out
+  what you want to keep. If you added a `StellarCoop` line to `Mods/mods.txt`, remove that line.
 - Installed with `tools/install.py` (Linux), from the Stellar Blade Online repository:
   `python3 tools/install.py --uninstall` (add `--dry-run` first to see what it would do, and
   `--game <Stellar Blade folder>` if the game is not in the script's default folder). It backs up the whole folder into

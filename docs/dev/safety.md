@@ -130,11 +130,11 @@ feature or drops the input.
   lion: error (logged once until the mod reloads; the other modules go on): <message>`, then `stack traceback:` and its
   lines. The traceback gives the script and the line, which the message alone lacks for most of the mod's errors (raised
   with `error(why,0)`) and for UE4SS's own. Each guarded call logs its first error once a Lua load. Several calls share
-  a name (`ghost` covers seven of `online/partner/puppet.lua`'s, and each restore has its module's name), and each of
+  a name (`ghost` covers eight of `online/partner/puppet.lua`'s, and each restore has its module's name), and each of
   them still logs its own first error. The modules after it still run in that pass, and the module is called again at
   the next one, so one that recovers goes on working. Measured with Lua 5.4 on the build machine, the guard adds about
-  40 ns a call. The per-frame loop makes 29 to 45 guarded calls (36 with the on-screen UI, plus the inbox while a race
-  is armed and up to 8 pad events), under 2 µs a frame.
+  40 ns a call. The per-frame loop makes 38 to 59 guarded calls (50 with the on-screen UI, plus the inbox while a race
+  is armed and up to 8 pad events), under 2.5 µs a frame.
 - The save slot read, the vitals read and the Night Operation poller read through `ReadProcessMemory`, which returns an
   error instead of faulting, and only after a plausibility check of every pointer and count.
 - `coop_tick` never blocks the game thread. It runs once per engine frame (it checks the engine's frame counter) and
@@ -156,7 +156,8 @@ feature or drops the input.
   on live objects only, behind the races' own SEH latch, put back at each end Lua asks, at `coop off`, at a new Lua
   load and at the first fault, also for as long as a cutscene or photo mode lasts ([The native
   hold](../online/modes/race-internals.md#the-native-hold)). A race in a match also teleports EVE onto her grid slot
-  with `K2_TeleportTo` at its start and again at GO when she stands more than 3 m from it.
+  with `K2_TeleportTo` at its start and again at GO when she stands more than 3 m from it. When Stellar Blade's own
+  chair seats her at GO it does not teleport her: she sits out.
 - The [bike](../vehicles/bike-internals.md) writes to the player actor too. It adds one skeletal mesh component to EVE's
   actor, hung on her main mesh and hidden until she rides. While she rides it sets her main mesh's relative rotation for
   the lean and drives her with its own drive (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native

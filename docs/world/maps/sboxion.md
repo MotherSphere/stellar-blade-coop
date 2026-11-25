@@ -88,15 +88,17 @@ falls for `Falling_Time_Dead`, 10 s by the default in the game's code. Her death
 camp respawn ends in SB's zone warp, which refuses a zone of type 5 (`0x141cdfe70`). The player had to quit the
 game.
 
-`recover.lua` handles both cases at each 250 ms pass while EVE is in SBO Xion. Two game tests ran it:
+`recover.lua` handles both cases at each 250 ms pass while EVE is in SBO Xion. Three game tests ran it:
 
 - 2026-11-23: three falls were caught. EVE walked 0.3 s after each move.
 - 2026-11-24: [the black](#the-black) showed over a put-back. EVE also left the city at a second place west of the
   arrival square, near (-11272, 9451). The first one is near (-10823, 9941). Both are on the long bridge between the
   arrival square and the hub. SB's own block walls stand along both sides of it, 210 cm high (`BP_BlockWall33` to
   `54`), in a level SBO Xion keeps. A jumping EVE passes over them.
+- 2026-11-25, build v0.11.0-1070-gcda5c388: the death rule. EVE died in the Tetrapod and the in-place respawn
+  brought her back ([A death](#a-death)).
 
-The death rule and `coop xion leave` have not run in game.
+`coop xion leave` has not run in game.
 
 ### A fall
 
@@ -164,7 +166,8 @@ place: `ServerRequest_ActorRespawn(<EVE's GUID>, false)`. The job's code has no 
 her life state to alive, sets her HP to its maximum and refills her recovery items. With `false` it does not move her
 to a camp. The module waits until the death screen plays, 5 s at most, then makes the call once. Two seconds later
 it logs the result. If EVE lives it tells SB's death screen that its revival ended, so SB gives back the mouse cursor
-the screen holds. It then hides a death screen that still plays. If EVE is not walking, or is under -3275, the
+the screen holds. It then hides a death screen that still plays. A hide that raises gives one line. The result is
+still logged with the screen `up` and counts no failure. If EVE is not walking, or is under -3275, the
 put-back of a fall runs, with the same black and the move two passes later.
 
 The native part writes the `life=` word from an accepted `coop xion` until an accepted `coop xion leave`. Leaving by
@@ -178,7 +181,8 @@ cutscene and `area=` still names the zone.
 Nothing is saved. The items are refilled in memory and SB's in-game save queues nothing in this zone
 ([Saves](#saves)).
 
-The respawn ran in game for the first time on 25 November 2026, after EVE died in the Tetrapod. It brought her back:
+The respawn ran in game for the first time on 25 November 2026 (build v0.11.0-1070-gcda5c388), after EVE died in the
+Tetrapod. It brought her back:
 life 3 to 1, the same pawn, walking, the death screen off by itself. The mouse cursor then stayed free during play.
 SB's death screen takes the cursor when it opens. It gives it back when its logic gets the event that ends its fade
 or its revival animation. The in-place respawn plays neither, so the screen kept the cursor.
@@ -240,6 +244,7 @@ what brings EVE back from those.
 | `sboxion: death: life n, EVE at (x, y, z)` | The death rule started |
 | `sboxion: respawn waits: <reason>` | Why the call is not made yet, each reason once |
 | `sboxion: respawn: ServerRequest_ActorRespawn(<GUID>, false) asked (life n, death screen up)` | The call. It reads `no death screen in 5 s` when none played |
+| `sboxion: respawn: death screen not hidden: <why>` | The hide of a death screen that still plays raised. The result line follows with `death screen up/up` |
 | `sboxion: respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode m` | Before and after, 2 s after the call. `life 3/3` comes with `failure n of 2` |
 | `sboxion: death: EVE at (x, y, z) not on the ground: to the ground point (x, y, z) read t s ago` | The respawn left her off the ground. The move, two passes after its `black:` line |
 | `sboxion: respawn not asked in 10 s: <reason>: failure n of 2` | The call was never made |
@@ -287,9 +292,10 @@ type `coop xion leave`. Last, quit the game.
     wait 5 s. Note what the screen shows. Then `coop xion leave`, with `coop xion recover on` first if it is refused.
 
 The game tests of 2026-11-23 and 2026-11-24 answered two points of this list. A fall is caught, with EVE walking
-0.3 s after the move. `LoadingScreenFadeAuto` called from Lua shows SB's black over the move. Still not known: whether SB's respawn job runs as read
-in a zone of type 5, what the death screen shows after its left button, whether `coop xion leave` passes at all and
-with a dead EVE, whether EVE can move under the black and what SB's pause menu does to it.
+0.3 s after the move. `LoadingScreenFadeAuto` called from Lua shows SB's black over the move. The test of 2026-11-25
+answered a third: SB's respawn job brings EVE back in a zone of type 5 ([A death](#a-death)). Still not known: what
+the death screen shows after its left button, whether `coop xion leave` passes at all and with a dead EVE, whether
+EVE can move under the black and what SB's pause menu does to it.
 
 ## The walls
 
@@ -435,19 +441,19 @@ Reasons a row closes its room: `not found`, `not the class listed`, `another mes
 `another place`, `its instance did not read`, `it is hidden already`, `its collision did not read`,
 `the engine refused its instance`, `it did not hide`, or the message of a call that raised.
 
-### What is not known before the first game test
+### What the first game test left open
 
-Nothing of the rooms has run in game. The pak was built and checked outside the game. The module's calls were read
-in the game's code and run over fakes.
+The rooms ran in game on 24 November 2026. With the rooms pak `1203_1501348` and a build of commit `af340a08` EVE
+walked into the five rooms with no loading screen. With build v0.11.0-986-g9f844a09 and the full test pak
+`1203_1501548` the arrival's pass opened the five rooms: 4, 4, 4, 3 and 8 rows hidden, 0 or 1 ms a room. Each of the
+five has an instance row, so UE4SS read and wrote an instance's transform. The six rooms of the third build were in
+neither pak.
 
 - Light. The check of the pak expects dark rooms. The room levels hold only their own lights, 4 to 9 small ones a
   room. In editor captures of the first build made with those lights alone, 41 to 90 % of each inside view is near
   black. Only `D107` reads as a lit room there. The brighter captures of the build used a sky fill that is not in
   the levels. In the third build `D106`'s door side and `D049`'s back wall read dark. What else lights a room in game
   is not known.
-- UE4SS. `GetInstanceTransform` hands the transform back in a table and `UpdateInstanceTransform` takes one. The
-  mod reads a hit result that way in gun mode. A transform was not tried. If it does not read, the room closes with
-  `its instance did not read` or `it did not hide`. Then every room is closed: each one has an instance row.
 - The path each instanced component takes of the two above. How long the pieces of the 8 components that store
   `CastShadow` false stay drawn while the new tree is built. `D092`'s two shutters are among them.
 - The doorway's look. SB's door unit baked its shadow onto the pieces around it. Our facade has two materials. In
@@ -527,12 +533,14 @@ the recovery waits or handles a fall or a death, the door counts nothing. `coop 
 `coop xion tetrapod out` ask the same move at once from anywhere in SBO Xion.
 
 SB ships the ship with no floor to stand on: its blueprint gives all 124 parts the collision profile `NoCollision`.
-In the first game test (25 November 2026) EVE fell through it twice and the recovery brought her back to the hangar.
+In the first game test (25 November 2026, build v0.11.0-1064-g1f41affb) EVE fell through it twice and the recovery
+brought her back to the hangar.
 The meshes carry collision shapes and name `BlockAll` as their own profile, so the way in gives every part SB's
 `BlockAll`. The way out and `coop off` give them `NoCollision` again.
 
-The first fix set every channel of each part to block. In the second game test EVE stood in the ship and died in the
-same pass. SB's `DefaultEngine.ini` leaves `BlockAll` at each custom channel's own default: Ignore for `Water`,
+The first fix set every channel of each part to block. In the second game test (25 November 2026, build
+v0.11.0-1070-gcda5c388) EVE stood in the ship and died in the same pass. SB's `DefaultEngine.ini` leaves `BlockAll`
+at each custom channel's own default: Ignore for `Water`,
 `Volume`, `LogicCollision`, `FluidTrace`, `SoundOcclusion` and `CameraAnim`, Overlap for `Projectile`. The module
 now sets the profile by its name and no channel of its own. Which of those channels killed her was not traced.
 
@@ -555,13 +563,13 @@ outside.
 | `sboxion: tetrapod: in: the move to (...) was refused by K2_TeleportTo` | The engine refused the teleport. EVE stays where she is |
 | `sboxion: tetrapod: door off until the next arrival: error (...)` | A pass raised. The door does nothing more until `coop xion` |
 
-What is not known before the first game test:
+In the second game test EVE walked in by the doorway: she stood at (-13231, 19490, 368) and the move was asked. The
+log read `EVE stands in the ship after 1 passes, 124 parts solid`, so the ship was there at the first pass. What the
+two tests left open:
 
-- Whether the hull lets EVE into the doorway. In the first test she stood on the steps, 2.2 m short of it, and used
-  the command. The box now reaches that place.
 - Whether EVE lives in the ship with SB's `BlockAll`. With every channel blocked she stood on its floor and died.
-- How long the ship takes to show. `E04_Area05_B_LD` is loaded by volume as SB ships it.
-- Whether the point inside is free floor. It was chosen from the boxes of the ship's parts, not seen.
+- Whether the point inside is free floor. In the second test it lay 10 cm in the floor and the engine pushed her up
+  and aside. It now lies 3 cm over the place where she stood. That point was not seen in game.
 - Whether EVE can reach the box in front of the right door. The step is on that side by the bounds of the floor
   part `001_F_SM4`.
 - How the cabin is lit and what SB's lights there do in `Zone_SBO_Xion`.
@@ -580,7 +588,14 @@ Testing it in game, alone, on a co-op save, with the full test pak:
 
 The third pak of 24 November 2026 is a test build. It loads the levels of Xion as Stellar Blade ships them,
 level-design levels included and nothing removed from them. Its test asks what wakes up in `Zone_SBO_Xion` and
-whether the game holds. The pak was built and checked outside the game. Nothing of it has run in game.
+whether the game holds. The pak was built and checked outside the game.
+
+Its first build (`1203_1501548`) ran in game on 24 November 2026 with build v0.11.0-986-g9f844a09, alone on a co-op
+save. The `zone:` line read type 1 for the first 5 s after the arrival, then type 5 `Zone_SBO_Xion` for the rest of
+the run, never a zone of Xion's own. No NPC spawned: the characters were EVE, her drone and one
+`CH_NPC_Dororong_BP_Seq_C` 110 m away. The 127 always-loaded levels loaded and the volume levels loaded as EVE
+walked. The five rooms opened. SBO logged no Lua error. The 13 Lua errors in `UE4SS.log` (`LUA_ERRRUN`) come from
+another mod.
 
 ### What it loads
 
@@ -625,8 +640,9 @@ what wakes up ([What the log shows](#what-the-log-shows)). Nothing pins the pak'
 
 ### What is not known
 
-- Whether SB changes the current zone from `Zone_SBO_Xion` to one of Xion's own while EVE stands in its volumes. How
-  SB picks one among overlapping zone volumes was not read. The `zone:` lines answer it.
+- Whether SB changes the current zone from `Zone_SBO_Xion` to one of Xion's own while EVE stands in its volumes. In
+  the run of 24 November it did not, where EVE walked. How SB picks one among overlapping zone volumes was not read.
+  Why the zone read type 1 for the first 5 s was not looked at.
 - While the zone is `Zone_SBO_Xion`, SB's zone warp does not run: `0x141cdfe70` writes no warp when `0x141cf7630`
   reads type 5 in the current zone's row. If the zone turns to one of Xion's own, that guard no longer holds. A
   warp trigger, a camp or a teleport machine could then take EVE to SB's own Xion, since its row names the world
@@ -696,7 +712,9 @@ Two things keep the player's story saves untouched, the same two Matrix XIII and
 Never run `coop saves export` on a co-op slot used for this test. The export writes a co-op copy over one of the
 player's own saves. A co-op save made while SBO's rows are in the tables may hold their names. The export's refusal
 knows Matrix XIII's names only. Whether the names reach a save is not proven: the test counts `SBO_Xion` in the co-op
-file with `grep -a -o SBO_Xion <file> | wc -l`.
+file with `grep -a -o SBO_Xion <file> | wc -l`. In the game test of 24 November 2026 (build v0.11.0-986-g9f844a09)
+SB wrote co-op save 00 when it loaded, after the rows went in at the title. Nothing was written inside SBO Xion. The
+count read 0.
 
 ## What the log shows
 
@@ -735,14 +753,14 @@ Christmas sound actors in `E04_Sound`.
 
 Lua, in `mod/StellarCoop/Scripts/world/maps/sboxion/`:
 
-- `data.lua`: the pak's name, the level, the two rows, the two arrival points, the nine waypoints (four of the first
-  test walk and the five doors), the 41 names of the day table, the two probe levels, the 34 levels a pak leaves
+- `data.lua`: the pak's name, the level, the two rows, the two arrival points, the 14 waypoints (four of the first
+  test walk and the ten doors), the 41 names of the day table, the two probe levels, the 34 levels a pak leaves
   streamed by SB's volumes (`VOLUMED`) and the recovery's numbers.
 - `sboxion.lua`: the pak gate, asked a second time for the room levels, the rows at the title, the commands, the
   arrival and the watch.
 - `recover.lua`: the ground point, the black and the put-back after a fall, the respawn after a death. Its respawn
   block is the module's copy of score attack's. Its ground read is the module's copy of the group's.
-- `rooms/list.lua`: the five rooms and their 23 rows. `rooms/rooms.lua`: the pass that opens a room once its levels
+- `rooms/list.lua`: the ten rooms and their 41 rows. `rooms/rooms.lua`: the pass that opens a room once its levels
   are there, the put-back, `coop xion rooms` and the sweep after a Lua reload.
 - `engine.lua`: the UE4SS calls. Its black call is the module's copy of the lobby's. It also finds, hides and puts
   back a piece of a room's doorway.
@@ -847,7 +865,8 @@ underground and 47 of the 50 level-design sublevels.
   death answered with her GUID, the hidden death screen shown again at a map change and at `coop off`, `coop xion
   recover`, the mode back to `on` at an arrival and the status line's part. For the rooms: with the pak of
   23 November one line an arrival, the pak read once more a Lua load, no piece asked; with the five room levels in
-  the pak the five rooms opened in the arrival's pass, their part of the status, `coop xion rooms`, no row called
+  the pak the five rooms opened in the arrival's pass, with two of them those two, with the eleven of the third
+  build the ten of the list, their part of the status, `coop xion rooms`, no row called
   once a map change took the world, every row put back at `coop off`, the recovery ended before the rooms close at
   `coop off` and at a map change.
 - `recover_test.lua`: the ground point, the fall with its black and the move two passes later, a black that is not
@@ -860,8 +879,8 @@ underground and 47 of the 50 level-design sublevels.
   class, mesh, place or instance count, a whole component hidden with its two values read first, an instance
   scaled to nothing where it stands, a piece that reads hidden already refused, the put-back and no call on an
   object that is gone.
-- `rooms/list_test.lua`: the five rooms, their 23 rows as the level dumps gave them, 11 whole components and 12
-  instances of 9 components in 8 sublevels, no piece twice, each door a waypoint.
+- `rooms/list_test.lua`: the ten rooms, their 41 rows as the level dumps gave them, 18 whole components and 23
+  instances of 18 components in 10 sublevels, no piece twice, each door a waypoint.
 - `rooms/rooms_test.lua`: one line and no read with a pak that has no room, the five rooms opened in one pass, a
   room that waits for a level and closes after 30 looks, a row not found, a row that cannot be hidden with the rows
   before it put back, the put-back with a world that still stands and with one that is gone, `coop xion rooms`,

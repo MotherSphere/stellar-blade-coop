@@ -357,9 +357,10 @@ In a session, Chat ends with a row for each other member past the handshake, `Mu
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
 `coop-settings.txt`; comments and other lines stay as they are. Reset all keys rewrites the line of every key setting
 (`host_key` included) and adds those the file lacks. The first change since the mod loaded keeps the file as
-it was as `coop-settings.old.txt`. A change applies at once, except for the name tag and the Enemies attack, Same
-spawns, Extra enemies, Shared bosses, Boss finisher, scaling and kill reward rows. The name tag says `Saved. It takes
-effect when the mod reloads (game start or Ctrl+R).` The other rows count from the next time shared enemies start
+it was as `coop-settings.old.txt`. A change applies at once, except for the Name tag, Gun mode, Bring out or put away
+the rifle, Enemies attack, Same spawns, Extra enemies, Shared bosses, Boss finisher, scaling and kill reward rows. The
+Name tag, Gun mode and Bring out or put away the rifle rows say `Saved. It takes effect when the mod reloads (game
+start or Ctrl+R).` The other rows count from the next time shared enemies start
 (turn the Shared enemies row off and on again, or restart the game). The Same place row applies at once while shared
 enemies wait or run. Otherwise it applies from their next start (as guest, only on your screen while they wait or
 run).

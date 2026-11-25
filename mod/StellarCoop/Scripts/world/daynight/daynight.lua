@@ -232,10 +232,11 @@ function Daynight.new(o)
         end
         w.creators=now
     end
-    -- Whether slot s's sublevel shows (its streaming level's IsLevelVisible). A read that raises is logged, the level
+    -- Whether slot s's sublevel shows (its streaming level's IsLevelVisible). A level no longer valid is never read
+    -- (pcall does not catch an access violation inside ProcessEvent). It and a read that raises are logged, the level
     -- dropped and the sublevel taken as shown: its dome gets one lookup, as with no level.
     local function visible(s)
-        local ok,on=pcall(function() return s.level:IsLevelVisible()==true end)
+        local ok,on=pcall(function() return assert(U.valid(s.level),'it is gone'):IsLevelVisible()==true end)
         if ok then return on end
         o.log('daynight: the sublevel of '..(s.path or s.package)..' is unreadable: '..U.why(on)..'; looked up once')
         s.level=nil

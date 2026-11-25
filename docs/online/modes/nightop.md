@@ -12,9 +12,12 @@ Much of it is still in the game files. Stellar Blade Online has:
 
 Two research previews test other parts of the cut mode; they are not playable modes.
 
-The shop screen opened in game on 2026-10-27, with its rows added. One solo run was played on 2026-10-28: its waves
-spawned, but the mod tracked none of its monsters, so no kill scored, and some monsters stood inside walls. The fixes
-for both have not been tested in game yet, and neither have buying, Roxanne's choices and the challenges.
+The shop screen opened in game on 2026-10-27, with its rows added. One solo run was played on 2026-10-28. Its waves
+spawned. The mod tracked none of its monsters, so no kill scored. Some monsters stood inside walls. The fixes for both
+have not been tested in game yet. Neither have buying and the challenges. Roxanne's choices ran in game on 2026-10-28
+with 0.7.0-beta.1: her four choices showed in French, her supplies choice opened the shop screen, a normal run booked
+from her started on its own outside Xion. They have not been tried in game since the port to Stellar Blade build
+26123051.
 
 The reward shop, the challenges and the two previews have pages of their own:
 [nightop-shop.md](nightop-shop.md), [challenges.md](challenges.md) and
@@ -44,8 +47,8 @@ Stellar Blade Online never contacts those servers. They belong to Shift Up and s
 The plan is to bring Night Operation back as a mode you play with friends over Steam, without Shift Up's servers. These
 parts exist:
 
-- The run, alone or for two linked players. Both games get the same waves, both screens show one timer and one score,
-  and with shared enemies on, each wave monster has one HP bar and one death in both games
+- The run, alone or for two linked players. Both games get the same waves. Both screens show one timer and one score.
+  With shared enemies on, each wave monster has one HP bar and one death in both games
   (see [The co-op run](#the-co-op-run)).
 - The cut mode's revive in a co-op run, with the experimental `revive` setting on: a dead EVE waits 30 s for her
   partner, who revives her with the interact key, or revives herself a few times a run (see
@@ -57,9 +60,10 @@ parts exist:
 
 These parts do not exist yet:
 
-- The recruiter's Join choice starting a Night Operation match. Today the host types `coop nightop start`, and Join
+- The recruiter's Join choice starting a Night Operation match. Today the host types `coop nightop start`. Join
   takes you to the [SBO lobby](../lobby.md), whose match lobbies have no Night Operation mode yet.
-- More players, up to six. A run holds two, though an online session holds up to 4.
+- Runs for more than 2 players. A run holds 2 at most, though an online session holds up to 4 (see
+  [The co-op run](#the-co-op-run)).
 - A boss wave.
 
 The Steam link connects the players of a session and shows each player the others' ghosts (see [players/playing-with-a-friend.md](../../players/playing-with-a-friend.md)). The previews
@@ -74,13 +78,13 @@ with a partner linked, see [The co-op run](#the-co-op-run). Each step is logged 
 lines.
 
 A solo run was played once, on 2026-10-28, before the two fixes described in [The waves](#the-waves): the tracking of
-its monsters and the ground check of their spawn points. The fixed run has not been tested in game yet, and the co-op
-run not at all. Check in game: each wave logs `wave 1 find +1 s: tracked 4/4` with every monster of the wave counted,
-each kill logs a `kill` line, no monster appears inside a wall or under the floor, and a success pays points. On open
-ground no spawn line should end with `(ground: unchecked: ...)`. If every run shows it, the navigation calls do not
-work in this UE4SS build and the monsters spawn at their points unchecked, as on 2026-10-28. In a two-PC run, compare
-both players' spawn lines for the same key. If the points differ and the guest's log shows `missing` with a `nearest
-new body` for that key, report it: her game looks for each copy at its own point, not at the host's.
+its monsters and the ground check of their spawn points. The fixed run has not been tested in game yet. The co-op
+run has not been tested at all. Check in game: each wave logs `wave 1 find +1 s: tracked 4/4` with every monster of the
+wave counted, each kill logs a `kill` line, no monster appears inside a wall or under the floor, and a success pays
+points. On open ground no spawn line should end with `(ground: unchecked: ...)`. If every run shows it, the navigation
+calls do not work in this UE4SS build and the monsters spawn at their points unchecked, as on 2026-10-28. In a two-PC
+run, compare both players' spawn lines for the same key. If the points differ and the guest's log shows `missing` with a
+`nearest new body` for that key, report it: her game looks for each copy at its own point, not at the host's.
 
 The run keeps its own timer in the mod. It adds no row to the game's rule table and starts none of the cut mode's
 rules, so a death goes through the game's usual death screen and respawn. Parts of the run adapt code from Survival
@@ -90,8 +94,8 @@ Protocol, with its author's permission (see [Credits](../../../README.md#credits
 | --- | --- |
 | `coop nightop start` | Start a run where EVE stands, at the normal level |
 | `coop nightop start <level>` | The same at a level: `easy`, `normal`, `hard` or `nightmare` (see [Levels](#levels)). A test switch may follow it: `coop nightop start hard noaggro` |
-| `coop nightop start noaggro` | The same, but the monsters are not sent at EVE (a test switch) |
-| `coop nightop start nomove` | The same, but stuck or fallen monsters are not moved (a test switch) |
+| `coop nightop start noaggro` | The same without sending the monsters at EVE (a test switch) |
+| `coop nightop start nomove` | The same without moving stuck or fallen monsters (a test switch) |
 | `coop nightop stop` | End the run that is on, Night Operation or a challenge, on any save. `coop off` ends it too |
 | `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run (see [Down and revive](#down-and-revive)) |
 | `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world that show a wave key, each with its run number (8 at most are named). The game shows a monster's wave key only in a networked game, so this list is empty in practice |
@@ -108,16 +112,16 @@ Protocol, with its author's permission (see [Credits](../../../README.md#credits
 3. If you used `coop no rule` in this game run, restart the game: a run does not start while the probe's rule is set.
 
 A run edits no game table, so you can quit from the menu afterwards as usual. The co-op save keeps the session's
-progress like any co-op save, and your own saves are not touched.
+progress like any co-op save. Your own saves are not touched.
 
 ### Starting a run
 
-Go to open ground outside Xion, with no enemy or other character within 40 m of EVE, and type `coop nightop start`.
+Go to open ground outside Xion, with no enemy or other character within 40 m of EVE. Type `coop nightop start`.
 On a co-op save you can also pick the level from Roxanne in Xion: see
 [Night Operation at Roxanne's](nightop-shop.md#night-operation-at-roxannes).
 The answer is `OK: Night Operation starts in 5 s (run 0x2A)`, where `0x2A` is the run's number, or
-`OK: Night Operation (hard) starts in 5 s (run 0x2A)` at another level. The command refuses with one `STOP:` line, and
-changes nothing, when:
+`OK: Night Operation (hard) starts in 5 s (run 0x2A)` at another level. The command refuses with one `STOP:` line and
+changes nothing when:
 
 - the save is not a co-op save;
 - the Steam link is not ready yet;
@@ -135,7 +139,7 @@ count them.
 
 ### The waves
 
-A 5 s countdown comes first. Run time starts at 0 when it ends, and wave 1 comes at once. Each later wave comes at its
+A 5 s countdown comes first. Run time starts at 0 when it ends. Wave 1 comes at once. Each later wave comes at its
 run time below, or 10 s after the wave before it is down if that is sooner. A wave also waits while the monsters still
 up plus its own would be more than 8. Run time is game time, so it stops while the game is paused.
 
@@ -154,16 +158,16 @@ variants, which summon no Skullings. Each wave appears at four points 14 m from 
 picks the order of the points for each wave. A fifth monster stands 2.5 m from its point. Each monster faces the start
 point.
 
-The run of 2026-10-28 used these points as they were, and some monsters spawned inside walls. Before each spawn the mod
+The run of 2026-10-28 used these points as they were. Some monsters spawned inside walls. Before each spawn the mod
 now checks the point against the navmesh, the walkable ground the game's AI moves on. It follows the navmesh in a
 straight line from EVE's start towards the point. If a wall, a ledge or a gap stops the line, the point comes back to
 1.5 m short of the stop. The point then goes down or up to the navmesh floor, looked for within 5 m of the start's
 height, or within 15 m on a slope. If the point ends up less than 5 m from the start, or there is no floor, the monster
 goes to another point that holds: first a gate that no other monster of its wave uses, then a point 2.5 m beside
 another monster's point, so two monsters of one wave never get the same point. If no gate holds, the monster goes to
-the farthest point that a blocked line left at least 2 m from the start, and if there is none, to its own point as
-before the check (the spawn line then ends with `raw spot`). The height follows the floor: on flat ground the monster
-appears 1 m above the start point, as before, and on a floor 3 m higher it appears 3 m higher. The spawn line in
+the farthest point that a blocked line left at least 2 m from the start. If there is none, it goes to its own point
+as before the check (the spawn line then ends with `raw spot`). The height follows the floor: on flat ground the monster
+appears 1 m above the start point, as before. On a floor 3 m higher it appears 3 m higher. The spawn line in
 `UE4SS.log` says when a point moved. Three lines of one wave:
 
 ```
@@ -182,7 +186,7 @@ spawn 0xD8510100 M_Antlion at 20226,-9627,3050 yaw 55 (ground: gate 4 blocked, n
 
 A move of less than 1 m adds nothing to the line. The gates are numbered in the order above: 1 and 2 ahead, 3 and 4
 behind. If the game's navigation calls are missing or fail, or EVE's start is not on the navmesh, the run places every
-monster as it did before the check, and its first spawn line ends with `(ground: unchecked: <reason>)`. In a co-op
+monster as it did before the check. Its first spawn line then ends with `(ground: unchecked: <reason>)`. In a co-op
 run each game checks the points against its own copy of the map. Both get the same points unless one side logs
 `unchecked` or its navmesh differs.
 
@@ -203,7 +207,7 @@ monsters: each wave's finds logged 0 (`wave 1 find +2.5 s: tracked 0/4`), every 
 A field enemy that walked onto a point before the wave is never taken. The game reuses its characters, sometimes from
 far away, which is why the 50 m rule exists. A monster not found 2.5 s after its wave's last spawn is logged as
 `missing`, with the distance of the nearest new character left over
-(`missing 0xD82A0103 M_Antlion (nearest new body 6.2 m)`, or `no new body`), and its wave does not wait for it.
+(`missing 0xD82A0103 M_Antlion (nearest new body 6.2 m)`, or `no new body`). Its wave does not wait for it.
 
 The mod then sends each new monster at EVE. 0.6 s after the monster is found, the mod reports a 0.01 damage event and
 a noise from EVE, puts the monster in battle state, and gives it EVE as focus and a move towards her; if it is still
@@ -211,7 +215,7 @@ not fighting 4 s later, the mod does this again. A monster with no AI controller
 
 From 2.5 s after it is found, and then every 3 s, a monster more than 10 m below both the start point and EVE, or more
 than 40 m from both, is moved to 7 m from EVE. This happens at most twice per monster. A monster still out after that
-no longer holds up its wave, and killing it later still scores.
+no longer holds up its wave. Killing it later still scores.
 
 Once wave 2 is down, and again once wave 4 is down, the mod fires the game's full heal (the probe's heal event,
 `SE_10_E_ActorEff_011`).
@@ -230,7 +234,7 @@ earns. With no word the level is normal, the run described above.
 
 A larger wave takes more of its own monsters: it goes through the wave's list in [The waves](#the-waves) again from
 its first monster. Hard's wave 2 is `M_SkullSwordAlone`, `M_SkullSwordAlone`, `M_SkullGunnerAlone`,
-`M_SkullSwordAlone`, `M_SkullSwordAlone`, and nightmare's wave 5 has two `M_SkullHammerAlone`. Easy drops the last
+`M_SkullSwordAlone`, `M_SkullSwordAlone`. Nightmare's wave 5 has two `M_SkullHammerAlone`. Easy drops the last
 monsters of each wave, so its wave 2 has no `M_SkullGunnerAlone`. The extra monsters come through the same spawn
 request and stand at the same four points, the fifth to the eighth of a wave 2.5 m from a point. They are found, sent
 at EVE, moved back and scored like the others. The waves keep their run times, the 10 s after a clear, the heals and
@@ -240,7 +244,8 @@ A monster's HP and damage are the game's at every level: the mod has no way to c
 run with shared enemies on, the host's `enemy_hp_scale` and `enemy_balance_scale` apply at every level, as they do to
 any shared enemy (see [Shared waves](#shared-waves)).
 
-The card counts down the level's time limit but does not name the level, and neither do the notices. The start
+The card counts down the level's time limit. The card and the notices of a solo run or of the host do not name the
+level. The guest's card and her start notice do (see [Starting a run together](#starting-a-run-together)). The start
 answer, `coop nightop` (`run 0x2A level hard: wave, wave 2/5, ...`), the `start:` line in `UE4SS.log`
 (`... map <map> level hard; census: ...`) and the `result:` line (`challenge=night_hard`) name it. Each level keeps its
 own best run (see [Best runs](challenges.md#best-runs-coop-recordstxt)).
@@ -249,7 +254,7 @@ own best run (see [Best runs](challenges.md#best-runs-coop-recordstxt)).
 
 Each kill scores by the monster's rank: 10 for `M_Antlion`, 20 for `M_SkullGunnerAlone` and `M_LurkerA`, 40 for
 `M_SkullSwordAlone`, `M_SkullSpearAlone` and `M_HedgeBoarA`, and 60 for `M_SkullHammerAlone`. A monster counts as down
-for its wave once it is dying or the game hides it, and it scores once it dies.
+for its wave once it is dying or the game hides it. It scores once it dies.
 
 A run ends in one of four ways:
 
@@ -271,15 +276,15 @@ result: success waves=5/5 kills=20 score=731 time=5:28 find_ms=0.9/2.4 challenge
 `find_ms` is the mean and the longest time the mod took to list the game's characters, which it does once a second
 while monsters are tracked, and at each wave's start and finds. It asks the engine for the characters of one class
 (`GetAllActorsOfClass`); up to 0.6.0-beta.3 the run used `FindAllOf`, which walks every object (25 to 80 ms in game).
-A success that beats the best run kept in `coop-records.txt` is written there, and `best=` gives the best after the run
+A success that beats the best run kept in `coop-records.txt` is written there. `best=` gives the best after the run
 (see [Best runs](challenges.md#best-runs-coop-recordstxt)).
 
-Monsters still alive when a run ends, written-off ones after a success included, stay in the world as ordinary enemies,
-and they no longer score. The mod has no safe way to remove them. Ctrl+R during a run ends it with no result, and its
+Monsters still alive when a run ends, written-off ones after a success included, stay in the world as ordinary enemies.
+They no longer score. The mod has no safe way to remove them. Ctrl+R during a run ends it with no result. Its
 monsters stay too. They already stand in the world when the next run's waves begin, so that run never takes them for
 its own.
 
-Resting at a camp during a run is not supported: the rest resets the area's enemies, and the run loses track of its
+Resting at a camp during a run is not supported. The rest resets the area's enemies, so the run loses track of its
 monsters.
 
 ### What you see
@@ -303,7 +308,7 @@ from `0xD8000000` to `0xD8FFFFFF`, a range that none of the game's spawn rows us
 run fires. Before each spawn the run asks the game's navigation system (`NavigationSystemV1`) where the walkable ground
 is; those calls only read the navmesh. A run itself adds or edits no table row (the shop and Roxanne's choices do, see
 their sections), starts no rule, writes no save, and never hides or removes a monster. No word typed after `start`
-reaches a game call: the level only picks the wave sizes, the time limit and the points, and `noaggro` and `nomove` only
+reaches a game call: the level only picks the wave sizes, the time limit and the points. `noaggro` and `nomove` only
 turn off the mod's own steps.
 
 Each kill most likely counts toward the game's general kill achievements, as any kill does: the ones for 10 and 1500
@@ -313,7 +318,7 @@ Restoring a backup does not take an unlocked achievement back.
 ## The co-op run
 
 With a partner linked over the Steam link, the host starts the run for both players. Each game spawns the same waves
-at the same points around the host's start point, and both cards show one timer and one score. The host's level is
+at the same points around the host's start point. Both cards show one timer and one score. The host's level is
 the run's: the waves, the score for each kill, the heals and the time limit are those of a solo run at that level. A
 run has two players at most, each on a co-op save: in an online session of more than 2 players, the host cannot start
 one. A run under way when a third player gets in ends on both games with `Night Operation does not run in a session
@@ -325,16 +330,16 @@ it as soon as the host's game names the third player, even before its own link w
 Both players stand together on open ground outside Xion. The host types `coop nightop start`, with a level if he
 wants one (`coop nightop start hard`). His game makes the checks of [Starting a run](#starting-a-run) on his side and
 answers `OK: Night Operation: waiting for <partner> to join (run 0x2A)`, or at another level
-`OK: Night Operation (hard): waiting for <partner> to join (run 0x2A)`, and his card reads `WAITING FOR PARTNER`. On
+`OK: Night Operation (hard): waiting for <partner> to join (run 0x2A)`. His card reads `WAITING FOR PARTNER`. On
 the guest's game the same command answers `STOP: the host starts a co-op run`.
 
-The guest's game asks her nothing. It checks her side at once, and the first check that fails gives the reason that
-the host gets as a notice, `<partner> cannot join the run: <reason>.`:
+The guest's game asks her nothing. It checks her side at once. The first check that fails gives the reason that the
+host gets as a notice, `<partner> cannot join the run: <reason>.`:
 
 | Check on the guest's game | Reason in the host's notice |
 | --- | --- |
 | A co-op save is loaded | `not on a co-op save` |
-| No run of hers is on, and her game is not paused and shows none of its screens | `already in a run` |
+| No run of hers is on. Her game is not paused and shows none of its screens | `already in a run` |
 | Her EVE is in the world, on the host's map | `on another map` |
 | Her EVE stands within 50 m of the host's start point | `more than 50 m from you` |
 | No living character but her EVE stands within 40 m | `enemies or people within 40 m` |
@@ -345,12 +350,14 @@ monsters of an earlier run, the host's next starts skip that run number until th
 the wave keys the census lists, which the game does not show outside a networked game, so it does not refuse in
 practice.
 
-When she answers that she is ready, both cards count down from `STARTS IN 5`, and the guest gets the notice
-`<host> started Night Operation. It begins in <n> s.` From then on each game spawns its own copy of each monster.
+When she answers that she is ready, both cards count down from `STARTS IN 5`. The guest gets the notice
+`<host> started Night Operation (<level>). It begins in <n> s.` From then on each game spawns its own copy of each
+monster.
 
-His night line carries the level, and her game builds its waves from it. Her `join:` line in `UE4SS.log` names it
-(`join: run 0x2A seed 0x... at ... map <map> level hard; census: ...`), and so does `coop nightop` on her side while
-the run is on. Her notice and card do not.
+His night line carries the level. Her game builds its waves from it. Her `join:` line in `UE4SS.log` names it
+(`join: run 0x2A seed 0x... at ... map <map> level hard; census: ...`). `coop nightop` on her side names it too while
+the run is on. Her notice and her card name it in her menu's language: the card's title reads
+`NIGHT OPERATION (Hard)`. The host's card keeps `NIGHT OPERATION`, since he picked the level.
 
 ### During the run
 
@@ -364,13 +371,13 @@ the run is on. Her notice and card do not.
   Both games fire the full heal once wave 2, and again once wave 4, is down.
 - The timer is the host's game time. His pause stops it on both cards, while the guest's game keeps running and her
   monsters keep fighting. Her pause stops only her spawns and reads; she spawns the waves she missed when it ends. Her
-  card shows his run time plus half the ping's round trip, and moves only when it is more than 1 s off.
+  card shows his run time plus half the ping's round trip and moves only when it is more than 1 s off.
 
 ### Down and revive
 
 In a co-op run a death does not end the run at once when the dead player has the experimental `revive` setting on
 (Options > Session > Friend can revive me, or `revive=on` in `coop-settings.txt`; on by default): the dead EVE is down.
-She lies where she fell with the game's death screen up, and the run goes on for her partner. The cut mode put a
+She lies where she fell with the game's death screen up. The run goes on for her partner. The cut mode put a
 downed player in a coma that its rule set up; the rule table ships empty and the run starts no rule, so the mod keeps
 the game's death screen and revives with the game's in-place respawn. With `revive=off`, a death ends the run as it
 did before the revive.
@@ -384,17 +391,17 @@ did before the revive.
   default interact keys count, not a key rebound in the game's options.
 - Once the hold is full, her game calls the game's in-place respawn on her EVE, the call that `coop revive test` makes
   (see [players/playing-with-a-friend.md](../../players/playing-with-a-friend.md#revive-by-your-friend-experimental)). She gets up where she fell with full health and her
-  recovery items refilled, as after a camp respawn, and the zone does not reset. She reads `Revived by <partner>.`,
+  recovery items refilled, as after a camp respawn. The zone does not reset. She reads `Revived by <partner>.`,
   her partner reads `You revived <name>.` and `<name> has joined the game.`
 - She can revive herself with `coop nightop revive`: 3 times a run at easy, 2 at normal, 1 at hard and none at
   nightmare. The answer is `OK: revive asked: 1 self revives left in this run`. `coop nightop` adds
   `down 24 s, 1 self revives left` to the run's state while she is down. Nobody stands next to her body to show it
   lies on ground she can get up on, so her own revive needs the body within 2 m across and 1 m up or down of the last
   place where her EVE walked, or where her body now lies on a floor. A body that fell through the map, into a pit or
-  off a ledge is refused (`no revive: your EVE lies 0.4 m across and 6.2 m up or down from where she last walked`),
-  and the refusal spends no self revive.
-- One call is made per down. If she is not up 5 s after it, the call did not take: the down asks for no other, and
-  she waits out the 30 s or respawns at a camp, which both end the run as a death. Getting up within those 5 s counts
+  off a ledge is refused (`no revive: your EVE lies 0.4 m across and 6.2 m up or down from where she last walked`).
+  The refusal spends no self revive.
+- One call is made per down. If she is not up 5 s after it, the call did not take: the down asks for no other.
+  She waits out the 30 s or respawns at a camp, which both end the run as a death. Getting up within those 5 s counts
   as the revive, even if it was the death screen's respawn.
 - The heal after waves 2 and 4 skips a downed EVE. The revive gives her full health.
 
@@ -407,7 +414,7 @@ The run fails when:
   asked or after a call that did not take, which is the death screen's own respawn at a camp. The lines are those of a
   death in [How a co-op run ends](#how-a-co-op-run-ends);
 - both EVEs are down at once for 6 s, with no revive call of the host's under way. The guest's line does not say
-  when she has made a call, and a call has 5 s to get her up, so the host's game waits that long and one second more
+  when she has made a call. A call has 5 s to get her up, so the host's game waits that long and one second more
   for her line. Both screens then show the game's own `All players have died.`
 
 The down also needs each game's own life state, the `life=` line that `coop status` shows while a session holds.
@@ -423,8 +430,8 @@ on the partner's side `Kaanta is down`, `revive of Kaanta stopped at 50 %`, `rev
 `Kaanta is up again`. The call's own lines are `[StellarCoop][GR] revive: ...` and `revive result (...)`.
 
 The game's achievement table has no row on a death, a respawn or a revival, so a revive counts toward no achievement
-and against none. Like the rest of the run, it happens only on a co-op save. None of this has been tried in game yet,
-and neither has the in-place respawn itself.
+and against none. Like the rest of the run, it happens only on a co-op save. None of this has been tried in game yet.
+Neither has the in-place respawn itself.
 
 ### How a co-op run ends
 
@@ -468,11 +475,11 @@ enemies run as the guest, same place draws at least one copy (`pilot=on piloted=
 host's night line lists that monster as found and not yet down, killed, written off or lost in his world. `UE4SS.log`
 says so once a monster, for example `[StellarCoop][NR] aggro 0xD82A0200: left to the pilot`. A monster that the host's
 game never found keeps the solo run's rules in her world. Once the host's copy is done, her copy gets the stuck moves
-back, but the pushes towards her EVE that were skipped are not made again.
+back. The pushes towards her EVE that were skipped are not made again.
 
 Same spawns leave wave monsters out, since none of the game's spawn rows holds their keys. No wave has a boss.
 
-With `shared_enemies=off` on either PC, nothing pairs: each player fights the monsters of their own world, and the
+With `shared_enemies=off` on either PC, nothing pairs: each player fights the monsters of their own world. The
 wave starts, the timer and the score are still shared.
 
 ## Credits

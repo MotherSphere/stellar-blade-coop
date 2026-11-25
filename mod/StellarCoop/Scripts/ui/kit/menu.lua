@@ -14,8 +14,9 @@
 -- close it and open the chat's box, the code box (online/session/join.lua) or the Sessions screen
 -- (online/session/ui/sessions.lua); Guide closes it and opens the first-launch guide (ui/kit/guide.lua),
 -- and menu_key does nothing while that is open. A setting changed on the Options page rewrites its own line of
--- coop-settings.txt (core/link.lua keeps the file as it was as coop-settings.old.txt) and applies at once, but the name
--- tag, at the next load; a key row takes the next F-key pressed (capture), checked against the other keys, or with
+-- coop-settings.txt (core/link.lua keeps the file as it was as coop-settings.old.txt) and applies at once, except the
+-- reload rows of ui/kit/model.lua (name_tag, gun_mode and gun_key), which wait for the next load; a key row takes the
+-- next F-key pressed (capture), checked against the other keys, or with
 -- Enter (Space, the pad's A) its default again; Reset all keys (a second Select) puts every key back. Each 250 ms
 -- while open: the status line, the rows of the session's state and, unless a row said something, the newest notice (the
 -- feed hides under the menu); the world gone, the game paused or showing the mouse cursor (UI-DESIGN 7.4), or the kit

@@ -15,8 +15,8 @@
 -- (SBSequencerInteractionSelectWidget, looked for at each tick through the widget library's class lookup, never by
 -- walking every object each tick): a SelectIndex turning from -1 to a line, that line's text matched against our
 -- labels. A level is booked and starts on its own once EVE is out of Xion with no one within 40 m (Night Operation
--- never starts in Xion: its people and quests stay out of a fight); in a co-op session only the host's pick books, and
--- the booking holds until the partner joins (an ask the partner could not join is asked again later). The supplies open
+-- never starts in Xion: its people and quests stay out of a fight); in an online session only the host's pick books.
+-- The booking holds until the partner joins (an ask the partner could not join is asked again later). The supplies open
 -- the Night Operation shop's screen once her goodbye is over. Everything goes back on coop off and on a save that is
 -- not a co-op save: roxanne off (asked again every 10 s while the native part reads on), then the rows' shipped values
 -- once it reads her list off or absent (while it reads on, or after a fault, the rows stay ours: their exec only plays

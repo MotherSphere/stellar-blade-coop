@@ -26,7 +26,7 @@
 -- SB's respawn with her GUID, the result line 2 s later, a death screen that still plays over a living EVE hidden, then
 -- shown again at a new death (in the modes off and death too), at a stop and when two failures stop the recovery; the
 -- death screen told once that its revival ended when she lives, never while she is dead, with one line for no widget
--- and one for a call that raises; no
+-- and one for a call that raises; a hide that raises is one line, with the result line still logged and no failure; no
 -- call in 10 s is a failure. This module's own cases: with no death screen playing the call is made after 5 s; a
 -- respawn that leaves her off the ground puts her back, in the mode death too; life still 3 after the call is a
 -- failure and the death starts again; two failures stop the recovery and the mode word starts it again; a death left
@@ -86,8 +86,10 @@ world.screen=function(look)
     if not there then return nil end
     return playing
 end
+local hide_error=nil -- hide raises with it.
 world.hide=function()
     if not there then return nil end
+    if hide_error then error(hide_error) end
     visible=false
     return function() visible=true end
 end
@@ -104,7 +106,7 @@ local function fresh(at)
     eve={at=at or {X=0,Y=0,Z=225},yaw=90,mode=1,time=500,pawn=0x7000}
     photo,engine,warp_line,refuse,lands,broken='0',IDLE,'sboxionwarp=entered asks=1 life=1',false,3,nil
     pc,standalone,respawns,revive,there,playing,visible,looks=PC,true,{},nil,true,false,true,0
-    tolds,told_error=0,nil
+    tolds,told_error,hide_error=0,nil,nil
     local r=Recover.new({log=function(m) logs[#logs+1]=m end,
         status=function() return 'mod=v\n'..engine..'\n'..warp_line..'\nlast=x\n' end,
         photo=function() return photo end,world=world})
@@ -629,6 +631,16 @@ assert(logs[#logs-1]=='respawn: death screen not told its revival ended: NotifyB
 assert(last()=='respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 1' and visible==false,last())
 pass(r,8)
 assert(tolds==1 and count('respawn result')==1,'Once')
+-- hide_raises: a hide that raises is one line. The result is still read with the screen up and no failure is counted.
+r=fresh()
+playing,revive,hide_error=true,1,'SetVisibility: the widget is gone'
+die()
+pass(r,9)
+assert(logs[#logs-1]=='respawn: death screen not hidden: SetVisibility: the widget is gone',logs[#logs-1])
+assert(last()=='respawn result: life 3/1, death screen up/up, EVE pawn same, mode 1' and visible==true,last())
+assert(not logged('failure') and r.status():find('failures 0',1,true),r.status())
+pass(r,8)
+assert(count('respawn result')==1 and count('not hidden')==1,'Once')
 
 -- off_the_ground: a respawn that leaves her falling under the floor puts her on the ground point, in the mode death
 -- too. The walking read after it is the success.

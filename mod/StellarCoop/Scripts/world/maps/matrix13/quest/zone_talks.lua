@@ -1,16 +1,19 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The zone talks of Matrix XIII (world/maps/matrix13/talks/zone1.lua to zone4.lua) in game (experimental, untested in
--- game): on a co-op save, solo, in world 2800 with "On Time" in progress (world/maps/matrix13/quest/on_time.lua's look
--- calls tick). Each scene has one trigger: a box around its room in the plan frame (Lily.plan; the design plans' rooms,
--- markers and routes), a boss's death (world/maps/matrix13/level/boss.lua's Boss.dead), an env actor's state
--- (GetStateTagname: the water row 001 that pipe panels 006 and 007 set, the fan 1 switch 023), or leaving a box once an
--- earlier scene played. A trigger latches, so a box crossed during a fight still plays. A latched scene starts when no
--- talk or quest step runs, no screen of the game shows and no enemy has been engaged for CALM s; its talk then waits
--- for a theater of the game to end (no limit, subtitles' AGAIN s between two looks). Scenes marked fight also need a
--- fight seen in their box since they latched, or SETTLE s in it: they are "after the fight" scenes, and one left with
--- no fight lets go of its latch, so it says nothing about a place EVE left behind.
+-- The zone talks of Matrix XIII (world/maps/matrix13/talks/zone1.lua to zone4.lua) in game (experimental; scenes 1A to
+-- 1D played to their end in game on 2026-11-03, build v0.7.5-110-g5e18200, in SB's box or the kit: the record does not
+-- tell which; on 2026-11-18, build v0.11.0-277-gd9bb23bf, seven talks followed the arrival talk through SB's sequence,
+-- scene 1E among them, the others not known): on a co-op save, solo, in world 2800 with "On Time" in progress
+-- (world/maps/matrix13/quest/on_time.lua's look calls tick). Each scene has one trigger: a box around its room in the
+-- plan frame (Lily.plan; the design plans' rooms, markers and routes), a boss's death
+-- (world/maps/matrix13/level/boss.lua's Boss.dead), an env actor's state (GetStateTagname: the water row 001 that pipe
+-- panels 006 and 007 set, the fan 1 switch 023), or leaving a box once an earlier scene played. A trigger latches, so a
+-- box crossed during a fight still plays. A latched scene starts when no talk or quest step runs, no screen of the game
+-- shows and no enemy has been engaged for CALM s; its talk then waits for a theater of the game to end (no limit,
+-- subtitles' AGAIN s between two looks). Scenes marked fight also need a fight seen in their box since they latched, or
+-- SETTLE s in it: they are "after the fight" scenes, and one left with no fight lets go of its latch, so it says
+-- nothing about a place EVE left behind.
 -- Order: after names the scene that must have played first (3B before 3C, 3I before 3J; 4L after 4K, 4N after 4M).
 -- needs names one that must have played before the trigger counts at all (4E's lamp, beside the door the Lion's room is
 -- entered by, needs 4D). before names one that closes the scene (4K and 4L say nothing once 4M has shown the room). 3K

@@ -3,11 +3,11 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The score attack's two runtime lines through main.lua: the 250 ms loop reads its score lines once a pass and plays
 -- its round (a guest who is not in the lobby room sits out the host's go with one [SA] line); coop off ends the round
--- for it. No pass reads its lines after that. Then its wiring on a fake run: scoreattack=off, the bike and a Night
--- Operation run each sit a round out with its notice; a hall seat is left first and the run starts at our spot, then
--- ready goes; each pass ticks the run; the run's end goes as the done line; the run's reads (status, pause, life, the
--- lobby room) and its records file; coop off stops the run. The screens (online/modes/scoreattack/ui/board.lua) are
--- built on the kit's hud step and tick each pass.
+-- for it. No pass reads its lines after that. Then its wiring on a fake run: scoreattack=off, the bike, a Night
+-- Operation run and SB's own hall chair each sit a round out with its notice; a hall seat is left first and the run
+-- starts at our spot, then ready goes; each pass ticks the run; the run's end goes as the done line; the run's reads
+-- (status, pause, life, the lobby room) and its records file; coop off stops the run. The screens
+-- (online/modes/scoreattack/ui/board.lua) are built on the kit's hud step and tick each pass.
 dofile('tests/lua/main/fixture.lua')
 local Round=require('online.modes.scoreattack.round')
 local new,round=Round.new,nil
@@ -78,7 +78,12 @@ nr.running=true
 go()
 assert(sat_out('a Night Operation run is on') and #fake.starts==0)
 nr.running=false
-sb.sitting={n=3}
+-- SB's own hall chair seats her (the lobby's busy): she sits out with its notice, not stood up.
+sb.busy,sb.sitting=true,{n=3}
+go()
+assert(sat_out('SB\'s chair seats EVE') and #fake.starts==0 and sb.stands==0)
+assert(told(require('ui.text').en.scoreattack.out.seat),'Its notice')
+sb.busy=false
 local sent=#fake_link.scores
 go()
 assert(sb.stands==1 and fake.starts[1]=='targets '..n..' -100 0',tostring(fake.starts[1]))

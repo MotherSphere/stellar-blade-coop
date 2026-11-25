@@ -74,7 +74,10 @@ if M.link then
             local n=night()
             return n~=nil and n.running()==true
         end,
-        target=function() return sbo.target() end,seated=function() return sbo.seated()~=nil end,
+        target=function() return sbo.target() end,
+        -- The lobby's busy(): SBCharacter's IsRunningInteraction (its exec 0x14268cc20 reads byte +0x3493) at its pass.
+        resting=function() return sbo.busy()==true end,
+        seated=function() return sbo.seated()~=nil end,
         stand=function() return sbo.stand() end,
         out=function(key) M.tell(function(w) return w.scoreattack.out[key] end) end})
 end

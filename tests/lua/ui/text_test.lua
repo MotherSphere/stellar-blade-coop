@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- ui/text.lua, pure (no fakes): a language's table only under one of the 23 culture names
--- online/modes/nightop/recruiter_text.lua's culture() gives, and either empty or with exactly T.en's keys at every
+-- ui/text/culture.lua's culture() gives, and either empty or with exactly T.en's keys at every
 -- level, each word with T.en's format placeholders in T.en's order (Lua's format has no positional arguments; a percent
 -- sign, %%, may stand anywhere, as Turkish puts it first); T.pick's choice (the game's culture through culture(),
 -- English with ui_language=english, for a culture with no table and for a word a table lacks); in every language, every
@@ -24,7 +24,8 @@
 -- in every language; its English as main.lua says it; the New Game+ notice (T.cycle) within 200 bytes with every
 -- count word and difficulty on both sides; its English; the bike's refusals with each side word and a six-digit
 -- distance or another map's 32-byte name, the paid fetch's offer after them with the longest key name and betacrystal,
--- the fetch's other lines with a 32-byte money name, within 200 bytes; the 20 module names in every table; the notice
+-- the fetch's other lines with a 32-byte money name, within 200 bytes; coop gift's notices with a 32-byte name and
+-- alias within 200 bytes; the 25 module names in every table; the notice
 -- of a module that failed to load with the longest of them within 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
@@ -106,12 +107,12 @@ local function fill(s)
     for p in s:gmatch('%%(.)') do if p~='%' then args[#args+1]=p=='s' and NAME or 16 end end
     return s:format(table.unpack(args))
 end
--- The lines that go to the feed, as main.lua, online/partner/puppet.lua, online/saves/saves.lua, core/link.lua and
--- online/session/join.lua put them together.
+-- The lines that go to the feed, as main.lua, online/partner/puppet.lua, online/saves/saves.lua, core/link.lua,
+-- online/session/join.lua and cutmenus/mailbox.lua put them together.
 local function notices(w)
     local lines={}
     for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','story','travel','ue4ss',
-        'join_refused','bike','gun'}) do
+        'join_refused','bike','gun','gift'}) do
         for _,text in pairs(w[group]) do if text~=w.group.places then lines[#lines+1]=fill(text) end end
     end
     -- A member in a solo area (online/group/group.lua): each place with a 32-byte name.
@@ -144,18 +145,20 @@ local function notices(w)
         w.saves.manual:format('4','4'),w.chat.no_session,w.chat.alone,
         w.chat.off,w.chat.ui_off,w.join.bad}) do lines[#lines+1]=text end
     -- Night Operation's notices (online/modes/nightop/run.lua, with the UI off): the start, a wave, a clear, the end
-    -- and why; for two players, her notice of his start and his of each refusal, and whose EVE died; the points a run
+    -- and why; for two players, her notice of his start (with each level's word) and his of each refusal, and whose
+    -- EVE died; the points a run
     -- earned, or could not credit; a level picked from Roxanne, by the host or alone and by a guest
     -- (online/modes/nightop/roxanne.lua); the shop's screen that could not open (online/modes/nightop/shop.lua).
     local n=w.night
     for _,text in ipairs({n.start_notice:format(5),n.wave_notice:format(5,5),n.clear_notice:format(5),n.died,
         n.time_up,n.end_notice:format(n.success,5,5,20,9999,'8:00'),n.end_notice:format(n.fail,5,5,20,9999,'8:00'),
-        n.coop_notice:format(NAME,5),n.mate_died,n.you_died,n.earned:format(42,999999999),n.unpaid,n.booked,
+        n.mate_died,n.you_died,n.earned:format(42,999999999),n.unpaid,n.booked,
         n.host_only,n.shop_failed}) do
         lines[#lines+1]=text
     end
     for _,text in pairs(n.why) do lines[#lines+1]=text end
     for _,text in pairs(n.refuse) do lines[#lines+1]=n.refused:format(NAME,text) end
+    for _,level in pairs(n.levels) do lines[#lines+1]=n.coop_notice:format(NAME,level,5) end
     -- A challenge's notices, with its longest name in this language, and the lines under its result.
     local c,long=w.challenge,''
     for _,def in ipairs(C.LIST) do if #c.names[def.id]>#long then long=c.names[def.id] end end
@@ -279,6 +282,7 @@ for name in pairs(R.TEXT) do
     -- the feed's) from 96 units in, a label before its value's 5 Bold 40 columns at the right end.
     local n=w.night
     fits(name..'.night.title',n.title,43)
+    for k,level in pairs(n.levels) do fits(name..'.night.title_level '..k,n.title_level:format(level),43) end
     fits(name..'.night.waiting',n.waiting,43)
     fits(name..'.night.starts',n.starts:format(5),43)
     for _,head in ipairs({n.wave:format(5,5),n.next:format(10)}) do
