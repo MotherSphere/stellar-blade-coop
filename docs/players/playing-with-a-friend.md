@@ -449,7 +449,8 @@ Bolts as the selected ammo, or names the cut Matrix XIII area as its map, its ca
 simple camp, and `coop-link.log` says what to use up, sell or switch, or to rest at a full camp (one with a phone booth)
 outside the area. A co-op save that started New Game+ with any of these keeps them in a copy that playing does not
 change: the export keeps refusing it. It refuses a co-op copy that names an item of the
-[team shop](../world/teamshop.md) (a name that starts with `SBOTeam_`) anywhere in the save, EVE's inventory included.
+[team shop](../world/teamshop.md) (a name that starts with `SBOTeam_`) in an item name field (`ItemAlias`), which the
+inventory and a pickup left in the world use, or on a quick slot.
 Some co-op saves can never be exported, since the game keeps these names in the save for good. The refusal says so for
 each: one that holds rows of the Matrix XIII area's zones (names that start with `DLC02_`, kept once it has played
 there), one that names Lily's quests A Second Signal or On Time ([world/lily-signal.md](../world/lily-signal.md)) and
