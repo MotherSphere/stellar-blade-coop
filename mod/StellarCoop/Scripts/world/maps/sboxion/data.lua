@@ -135,6 +135,9 @@ D.BLACK_IN,D.BLACK,D.BLACK_OUT,D.LEAD=0.3,1,0.5,2
 -- E04_LD_Respawn), the target of SB's warp rows Xion_10_E_ZoneWarp_019, 020 and 024. It lies 11.9 m from the door.
 -- STAY, passes: how long EVE stands in a box before the move is asked. HOLD, passes: after a move, nothing is looked
 -- at for that long.
+-- After the way in the ship's level may still be coming in, so its floor is not there yet. DROP, cm: EVE that far
+-- under IN is put on it again. AGAIN, passes: between two of SB's blacks while that lasts. SETTLE, passes: with no
+-- floor under her by then she is put back outside.
 D.TETRAPOD={
     SHIP={X=16770.477,Y=-25002.33,Z=-2196.6687,Yaw=47.811634},
     CABIN={lo={x=-727,y=-915,z=-7},hi={x=727,y=1318,z=831}},
@@ -142,6 +145,6 @@ D.TETRAPOD={
     IN={x=240,y=397,z=331.5,yaw=180},
     HATCH={lo={x=360,y=300,z=150},hi={x=600,y=494,z=650}},
     OUT={X=-13413.319,Y=18382.996,Z=82.0,Yaw=-87.18756},
-    STAY=2,HOLD=8,
+    STAY=2,HOLD=8,DROP=60,AGAIN=6,SETTLE=32,
 }
 return D

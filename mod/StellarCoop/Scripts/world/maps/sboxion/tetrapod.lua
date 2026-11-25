@@ -13,8 +13,13 @@
 -- point in front of the Tetrapod (OUT). Each move is the recovery's: SB's black first (world.black, the fade of SB's
 -- own warps), then world.put (K2_TeleportTo, then StopMovementImmediately) LEAD passes later, LIFT cm over the point,
 -- whatever the black's call did. After a move nothing is looked at for HOLD passes.
--- E04_Area05_B_LD is streamed by volume as SB ships it (data.lua's VOLUMED). Whether the ship shows at once when EVE
--- arrives was not seen in game.
+-- The floor: SB's blueprint gives the ship's 124 parts the profile NoCollision, so in the first game test (25
+-- November 2026) EVE fell through it twice and the recovery brought her back. The way in now asks world.ship(true)
+-- before the move: every part blocks. The way out and coop off ask world.ship(false): the ship as SB ships it.
+-- E04_Area05_B_LD is streamed by volume as SB ships it (data.lua's VOLUMED), so the ship may come in after EVE. After
+-- the way in she is watched until she walks: DROP cm under the point she is put on it again, the ship is asked again
+-- while it was not found and a black that is up at once comes every AGAIN passes. After SETTLE passes with no floor
+-- she is put back outside. A recovery that moved her out of the ship ends the watch.
 -- busy: the recovery waits (photo mode, a cutscene, a warp, another zone) or handles a fall or a death
 -- (recover.lua's busy). Such a pass counts nothing and asks no move. A move already asked is still made.
 -- An error in a pass turns the door off with one log line until the next arrival.
@@ -24,6 +29,7 @@ local D=require('world.maps.sboxion.data')
 local T=D.TETRAPOD
 local Tetrapod={}
 local USE='Use: coop xion tetrapod [in|out]'
+local GROUND={[1]=true,[2]=true} -- EMovementMode: Walking, NavWalking.
 local function place(at) return string.format('(%.0f, %.0f, %.0f)',at.X,at.Y,at.Z) end
 local function turn() local a=math.rad(T.SHIP.Yaw); return math.cos(a),math.sin(a) end
 -- A point of the ship frame in the world.
@@ -52,30 +58,89 @@ local function target(to)
     return Tetrapod.world(T.IN),(T.SHIP.Yaw+T.IN.yaw+180)%360-180
 end
 
--- o: log(m) and world, the engine calls (world/maps/sboxion/engine.lua's move, put and black; a fake in the tests).
+-- o: log(m) and world, the engine calls (world/maps/sboxion/engine.lua's move, put, black and ship; a fake in the
+-- tests).
 function Tetrapod.new(o)
     local log,world=o.log,o.world
     local box,seen=nil,0 -- The box EVE stands in and for how many passes in a row.
     local lead=nil -- A move that waits under SB's black: {left=<passes>, to='in' or 'out'}.
     local hold=0 -- Passes left after a move on which nothing is looked at.
     local off=nil -- The error that turned the door off until the next arrival.
+    local solid=false -- This stay asked the ship to be solid.
+    local parts,unread=nil,false -- The parts the ship's last call wrote; its error was said.
+    -- After the way in, until EVE walks in the ship: {passes=, again=<her fall was said>}.
+    local settle=nil
     local self={}
+    -- The ship made solid or put back as SB ships it: the parts written, or nil (not in memory, or the call raised).
+    local function ship(on)
+        local ok,n=pcall(world.ship,on)
+        if not ok then
+            if not unread then
+                unread=true
+                log('tetrapod: ship: unread ('..U.why(n)..')')
+            end
+            n=nil
+        end
+        if on then solid,parts=true,n else solid=false end
+        return n
+    end
+    local function ship_text() return parts and parts..' parts solid' or 'ship not found' end
+    local function back()
+        local n=ship(false)
+        log('tetrapod: ship as SB ships it again: '..(n and n..' parts' or 'not found'))
+    end
+    -- SB's black, asked once and never waited for. fade: the s it fades in over, 0 for a black that is up at once.
+    local function black(fade)
+        local ok,up=pcall(world.black,D.BLACK,fade,D.BLACK_OUT)
+        return not ok and 'not shown: '..U.why(up) or up==false and 'not shown: SB made no loading screen'
+            or up==nil and 'asked, its handle did not read' or fade>0 and string.format('up in %.1f s',fade)
+            or 'up at once'
+    end
     local function put(to)
         local at,yaw=target(to)
-        box,seen,hold=nil,0,T.HOLD
+        box,seen,hold,settle=nil,0,T.HOLD,nil
+        if to=='in' then ship(true) end
         if world.put({X=at.X,Y=at.Y,Z=at.Z+D.LIFT},yaw)==false then
             log(string.format('tetrapod: %s: the move to %s was refused by K2_TeleportTo',to,place(at)))
-        else
-            log(string.format('tetrapod: %s: EVE at %s, yaw %.1f',to,place(at),yaw))
+            if to=='in' then back() end
+            return
         end
+        log(string.format('tetrapod: %s: EVE at %s, yaw %.1f',to,place(at),yaw))
+        if to=='in' then settle={passes=0} else back() end
     end
-    -- SB's black, asked once and never waited for, then the move LEAD passes later.
     local function start(to,why)
-        local ok,up=pcall(world.black,D.BLACK,D.BLACK_IN,D.BLACK_OUT)
-        log(string.format('tetrapod: %s asked (%s); black %s; EVE moves in %d passes',to,why,
-            not ok and 'not shown: '..U.why(up) or up==false and 'not shown: SB made no loading screen'
-                or up==nil and 'asked, its handle did not read' or string.format('up in %.1f s',D.BLACK_IN),D.LEAD))
-        lead,box,seen={left=D.LEAD,to=to},nil,0
+        log(string.format('tetrapod: %s asked (%s); black %s; EVE moves in %d passes',to,why,black(D.BLACK_IN),D.LEAD))
+        lead,box,seen,settle={left=D.LEAD,to=to},nil,0,nil
+    end
+    -- A pass of the watch after the way in.
+    local function settling(m)
+        settle.passes=settle.passes+1
+        if not within(Tetrapod.ship(m.at),T.CABIN,'x','y','z') then
+            settle=nil
+            log('tetrapod: in: EVE is out of the ship at '..place(m.at)..' before she stood: the watch ends')
+            return back()
+        end
+        local at=Tetrapod.world(T.IN)
+        local low=m.at.Z<at.Z-T.DROP
+        if GROUND[m.mode] and not low then
+            log(string.format('tetrapod: in: EVE stands in the ship after %d passes, %s',settle.passes,ship_text()))
+            settle=nil
+            return
+        end
+        if not parts then ship(true) end
+        if settle.passes>=T.SETTLE then
+            log(string.format('tetrapod: in: no floor under EVE after %d passes (%s): back outside',settle.passes,
+                ship_text()))
+            return put('out')
+        end
+        if not low then return end
+        if not settle.again then
+            settle.again=true
+            log(string.format('tetrapod: in: no floor yet under EVE at %s: on the point again (%s)',place(m.at),
+                ship_text()))
+        end
+        world.put({X=at.X,Y=at.Y,Z=at.Z+D.LIFT},(T.SHIP.Yaw+T.IN.yaw+180)%360-180)
+        if settle.passes%T.AGAIN==0 then black(0) end
     end
     local function tick(busy,read)
         local m=read or world.move()
@@ -91,6 +156,10 @@ function Tetrapod.new(o)
                 put(to)
             end
             return
+        end
+        if settle then
+            settling(m)
+            if settle then return end
         end
         if hold>0 then
             hold=hold-1
@@ -110,14 +179,19 @@ function Tetrapod.new(o)
         if off then return end
         local ok,e=pcall(tick,busy,read)
         if ok then return end
-        off,lead=U.why(e),nil
+        off,lead,settle=U.why(e),nil,nil
         log('tetrapod: door off until the next arrival: error ('..off..')')
     end
     -- Each arrival in SBO Xion: the door on, nothing kept of the stay before. The door is ticked in SBO Xion only, so
-    -- a move that waited at a map change is dropped here.
+    -- a move that waited at a map change is dropped here. The world before is gone with its ship.
     function self.arrive()
-        box,seen,lead,hold,off=nil,0,nil,0,nil
+        box,seen,lead,hold,off,settle,solid,parts,unread=nil,0,nil,0,nil,nil,false,nil,false
         log(string.format('tetrapod: door on: in at %s, out at %s',place(Tetrapod.world(T.IN)),place(T.OUT)))
+    end
+    -- coop off: the ship as SB ships it, when this stay made it solid.
+    function self.stop()
+        lead,settle=nil,nil
+        if solid then back() end
     end
     -- coop xion tetrapod [in|out]: the move asked at once, wherever EVE stands. With no word: where she is.
     function self.go(word)

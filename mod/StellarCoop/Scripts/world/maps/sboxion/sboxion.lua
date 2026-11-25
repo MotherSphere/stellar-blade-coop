@@ -46,8 +46,9 @@
 -- arrival, so a test sees SB's closed doors again. Alone, it prints the rooms' state.
 -- The Tetrapod's door, each pass of the stay (world/maps/sboxion/tetrapod.lua): EVE standing in the doorway of the
 -- Tetrapod of the hangar is put inside SB's own Tetrapod interior, 540 m away, and standing at its right door she is
--- put back in front of the ship. coop xion tetrapod [in|out], inside SBO Xion, asks the same move from anywhere.
--- Alone, it says whether she is inside.
+-- put back in front of the ship. SB ships that interior with no collision: the way in makes its parts solid and the
+-- way out and coop off put them back. coop xion tetrapod [in|out], inside SBO Xion, asks the same move from
+-- anywhere. Alone, it says whether she is inside.
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local D=require('world.maps.sboxion.data')
@@ -507,11 +508,13 @@ function Xion.new(o)
             log('sboxion: left, map '..(me and me.map or 'none'))
         end
     end
-    -- coop off: the title's wait, the watch and the recovery ended, then the rooms' rows put back. The rooms come last,
+    -- coop off: the title's wait, the watch and the recovery ended, the Tetrapod's parts as SB ships them when the door
+    -- made them solid, then the rooms' rows put back. The rooms come last,
     -- so a put-back that raises skips none of the others. Rows already in stay for the game run.
     function self.stop()
         off,stay,awaited=true,nil,nil
         recover.stop('coop off')
+        tetrapod.stop()
         title_stop()
         e.stop()
         rooms.close('coop off')

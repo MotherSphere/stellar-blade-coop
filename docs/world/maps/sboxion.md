@@ -508,11 +508,27 @@ Each move is made as [a fall's put-back](#a-fall) is: [SB's black](#the-black) f
 the recovery waits or handles a fall or a death, the door counts nothing. `coop xion tetrapod in` and
 `coop xion tetrapod out` ask the same move at once from anywhere in SBO Xion.
 
+SB ships the ship with no floor to stand on: its blueprint gives all 124 parts the collision profile `NoCollision`.
+In the first game test (25 November 2026) EVE fell through it twice and the recovery brought her back to the hangar.
+The meshes carry collision shapes, so the way in now makes every part block (each channel set to block, query and
+physics collision on). The way out and `coop off` set them back to what SB ships.
+
+The ship's level is loaded by volume, so it may come in after EVE. After the way in the module watches her until
+she walks. When she reads 60 cm under the point, it puts her on the point again and asks the ship again if it was
+not found. A black that is up at once comes every 1.5 s while that lasts. After 8 s with no floor she is put back
+outside.
+
 | Line in `UE4SS.log` | Meaning |
 | --- | --- |
 | `sboxion: tetrapod: door on: in at (16638, -24558, -1865), out at (-13413, 18383, 82)` | An arrival in SBO Xion |
 | `sboxion: tetrapod: in asked (EVE stood 2 passes at (x, y, z)); black up in 0.3 s; EVE moves in 2 passes` | EVE stood in the doorway. `out asked` is the same from the ship's door. After `asked (coop xion tetrapod in)` the command asked it |
 | `sboxion: tetrapod: in: EVE at (16638, -24558, -1865), yaw -132.2` | The move was made. `out: EVE at (-13413, 18383, 82), yaw -87.2` is the way out |
+| `sboxion: tetrapod: in: EVE stands in the ship after n passes, 124 parts solid` | She walks on the ship's floor. `ship not found` in place of the parts: the ship's actor was not in memory |
+| `sboxion: tetrapod: in: no floor yet under EVE at (x, y, z): on the point again (...)` | She fell 60 cm. Said once a way in |
+| `sboxion: tetrapod: in: no floor under EVE after 32 passes (...): back outside` | 8 s with no floor. She is at SB's point in front of the Tetrapod |
+| `sboxion: tetrapod: in: EVE is out of the ship at (x, y, z) before she stood: the watch ends` | The recovery moved her |
+| `sboxion: tetrapod: ship as SB ships it again: 124 parts` | The way out or `coop off` |
+| `sboxion: tetrapod: ship: unread (...)` | The call on the ship's parts raised. Said once a stay |
 | `sboxion: tetrapod: in: the move to (...) was refused by K2_TeleportTo` | The engine refused the teleport. EVE stays where she is |
 | `sboxion: tetrapod: door off until the next arrival: error (...)` | A pass raised. The door does nothing more until `coop xion` |
 
@@ -520,7 +536,8 @@ What is not known before the first game test:
 
 - Whether the doorway box is where EVE can stand. The hull may stop her short of it. Then `coop xion tetrapod in`
   still works. Send where she stood (`coop xion status`).
-- Whether the ship shows at once. `E04_Area05_B_LD` is loaded by volume as SB ships it.
+- Whether the parts block once they are set to. The first test showed the fall, not the fix.
+- How long the ship takes to show. `E04_Area05_B_LD` is loaded by volume as SB ships it.
 - Whether the point inside is free floor. It was chosen from the boxes of the ship's parts, not seen.
 - Whether EVE can reach the box in front of the right door. The step is on that side by the bounds of the floor
   part `001_F_SM4`.
@@ -787,7 +804,9 @@ underground and 47 of the 50 level-design sublevels.
 - `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes, `rooms` with `on` and `off` and
   `tetrapod` with `in` and `out` included, `walls` refused, then the wiring's one store, `coop-xion-rooms.txt`.
 - `tetrapod_test.lua`: the ship frame, the way in and the way out with SB's black, the hold after a move, the count
-  that starts again, a busy recovery, a refused teleport, an error that turns the door off and the command.
+  that starts again, a busy recovery, a refused teleport, an error that turns the door off and the command. Then the
+  floor: the ship made solid before the move and put back at the way out and at `coop off`, EVE put on the point
+  again while she falls, the end after 32 passes and a recovery that moved her out.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the
