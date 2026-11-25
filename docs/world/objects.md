@@ -124,5 +124,6 @@ others are described in [Shared world: how it works](objects-internals.md#status
   not reached is already open when she gets there (except for the linked objects above).
 - An object whose change counts toward an achievement other than a map's progress stays each player's own even when
   it is a door, so the two games can show it in different states.
-- Your friend's change can still move a door you opened with its passcode out of its open state in two cases: the game
-  does not save that door, or her change reaches it through another object linked to it.
+- A door you opened with its passcode can still leave its open state in your game in two cases:
+  - your friend works her door while her game counts her in another zone than the door's;
+  - her change reaches the door through another object linked to it.

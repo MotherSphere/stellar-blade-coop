@@ -417,7 +417,10 @@ come from the `world=` line: on with her each time it reads `on` after anything 
   that change in when she enters the zone. Any other such change stays apart.
 - Only her `s` line meets the check for a state held out for us. The state part of her `l` line goes to A1 without
   it. The check needs an entry of `kZoneEnvs` for the env in the line's zone: an env the game does not save has no
-  initial tag on the lists, so her `s` line can still move it out of a state held out for us.
+  initial tag on the lists, so her `s` line can still move it out of a state held out for us. The line's zone is her
+  client's current zone (client `+0x68`) when she worked the env, not the env's own zone. When the two differ, no entry
+  is found and the line goes to A1 without the check. Each of the 10 passcode doors that
+  `tests/native/game/objects/rows_test.cpp` lists has one entry, in its own zone, so this is the case that reaches them.
 - The check of her `c` line against a newer root of ours looks only at the env that root names. An env its events
   change in turn (the door a lever opens) carries no mark, so her older `c` line for that door is still taken.
 - 212 kept pairs of 106 aliases are spelled `off` and `on` in lowercase, 15 of those aliases on `kZoneEnvs` (`WLB_60`
