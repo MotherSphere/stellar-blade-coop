@@ -214,7 +214,9 @@ in the co-op menu's language; NIKKE RAPID stays as it is.
 
 A gun mode entry sits in SB's HUD to the right of the D-pad marker, below the SH bar. It shows the button that brings
 the rifle out: on a pad the D-pad Right glyph of the pad the game shows, on the keyboard the `gun_key` icon on the
-game's own key cell. Then comes the NIKKE rifle icon. While the rifle is out it also reads `rounds | magazines`: the
+game's own key cell. That cell is the D-pad marker's `btn` image, found by name in the marker's widget tree. Without
+it the icon shows alone. The log says `dpad: rifle entry built, key cell found` or `key cell not found`. Then comes
+the NIKKE rifle icon. While the rifle is out it also reads `rounds | magazines`: the
 rounds in the magazine, then the magazines left (a part-spent one counted). The icon is the game's NIKKE rifle texture,
 `Icon_Nikke_LostItem_AssaultRifle`, the icon of the item table's `Nikke_AR` row. Gun mode loads it from the game.
 While the native part runs, SBO's keep holds it across map changes. No image file ships with SBO. The entry is a child

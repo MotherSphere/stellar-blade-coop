@@ -84,7 +84,12 @@ function Dpad.new(g)
         local dpad=leaf_find('UserWidget','WB_MainHUD_Dpad')
         local up=leaf_find('Image','btn_up','WB_MainHUD_Dpad')
         local pad_layer=leaf_find('Overlay','Overlay_ps','WB_MainHUD_Dpad') -- shown while a gamepad is in use
-        local cell=leaf_find('Image','BTN','WB_MainHUD_Dpad')
+        -- the marker's key cell: its Image btn (the name in the paks of 26123051), found by name in the marker's
+        -- widget tree, where names match in any case as FNames do
+        local cell=g.try(function()
+            local o=StaticFindObject(StaticFindObject('/Script/UMG.Image'),dpad.WidgetTree,'btn',false)
+            return g.valid(o) and o or nil
+        end)
         if not (overlay and dpad and up) then
             if not ui.logged then ui.logged=true; g.log('dpad: HUD item column not found') end
             return false
@@ -131,9 +136,10 @@ function Dpad.new(g)
             ui.overlay,ui.dpad,ui.up,ui.thumb,ui.box,ui.slot=overlay,dpad,up,thumb,box,slot
             ui.pad_layer=pad_layer
             ui.keyo,ui.bg,ui.glyph,ui.img,ui.txt=keyo,bg,glyph,img,txt
+            ui.cell=cell~=nil
             ui.k,ui.i=Dpad.KEY_SIZE,Dpad.ICON_SIZE
         end)
-        g.log('dpad: rifle entry '..(ok and 'built' or ('not built: '..tostring(err))))
+        g.log('dpad: rifle entry '..(ok and ('built, key cell '..(ui.cell and 'found' or 'not found')) or ('not built: '..tostring(err))))
         return ok
     end
 
@@ -183,9 +189,10 @@ function Dpad.new(g)
             local t=path and tex(path)
             if t then pcall(function() ui.glyph:SetBrushFromTexture(t,false); ui.glyph:SetBrushSize({X=ui.k,Y=ui.k}) end) end
             if not t and not ui.glyph_logged then ui.glyph_logged=true; g.log('dpad: no glyph for '..tostring(path)..' (from '..up..')') end
-            -- the key cell only with the keyboard (the marker's own cells belong to its keyboard layer)
+            -- the key cell only with the keyboard (the marker's own cells belong to its keyboard layer). Never without
+            -- the marker's cell: an Image with no brush draws a white square
             local kb=up:find('KeyBoard',1,true)~=nil
-            pcall(function() ui.bg:SetVisibility(kb and 4 or 1) end)
+            pcall(function() ui.bg:SetVisibility((kb and ui.cell) and 4 or 1) end)
             g.log('dpad: glyph '..tostring(path)..(t and '' or ' (missing)'))
         end
         -- place: the holder takes the marker's size, the row is moved right of the marker by a render translation
