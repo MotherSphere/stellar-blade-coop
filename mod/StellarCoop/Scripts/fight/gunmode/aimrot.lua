@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The layer's chest turn (AimRot, added to Bip001-Spine2 in component space since the v3c pak): a closed loop that turns
--- her chest until the rifle's real bore points at the aim point. The layer clip's arms and the rifle in her hands turn
--- with it. Pure maths (vectors {X,Y,Z}, quaternions {x,y,z,w} in UE conventions) so lua5.4 tests it.
+-- her chest until the rifle's real bore points at the aim point. The NIKKE clip's arms and the rifle in her hands turn
+-- with her chest. Pure maths (vectors {X,Y,Z}, quaternions {x,y,z,w} in UE conventions) so lua5.4 tests it.
 local A={}
 
 local function dot(a,b) return a.X*b.X+a.Y*b.Y+a.Z*b.Z end

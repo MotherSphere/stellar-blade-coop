@@ -15,7 +15,7 @@ local function valid(o)return o and o:IsValid() end
 function Stance.new(laser,trace)
  local function crumb(t) if trace then trace('crumb '..t) end end -- (gun_probe=on) steps around reloads and aim changes
  local grip={Translation={X=-2.110698699951172,Z=2.090805768966675,Y=-6.265880107879639},Rotation={X=-0.4851755201816559,W=-0.5130578875541687,Z=-0.4808891713619232,Y=-0.5197325944900513},Scale3D={X=1.000000238418579,Z=1.0000001192092896,Y=1}}
- local stop,frame,reloadFn,copyPart,recordsFn
+ local stop,frame,reloadFn,copyPart
  local owned={} -- gun mode: the parts of the stance running now.
  local function begin(pc,held_fn,beam_target,turn,torso,camAnchor,chestFix,aimNative,upright) -- gun mode: turn false leaves EVE's facing to
   -- the game; torso (0 to 1): how much her spine takes the donor pose while aim is held; camAnchor: the arms along
@@ -36,7 +36,6 @@ function Stance.new(laser,trace)
   local extras={} -- gun mode: poseable copies of her head parts (face, hair, ear, hairpin): {real, copy, was, tick}
   local restoreInput
   local beam,finish
-  local holder -- gun mode: the actor the donor and its keeper stand on (M10)
   stop=function()
    frame=nil
    if restoreInput then pcall(restoreInput);restoreInput=nil end
@@ -47,29 +46,9 @@ function Stance.new(laser,trace)
    end
    extras={}
    for i=#parts,1,-1 do local c=parts[i];if valid(c) then c:K2_DestroyComponent(c) end end
-   if valid(holder) then holder:K2_DestroyActor() end
-   holder=nil
    stop=nil
    reloadFn=nil
    copyPart=nil
-   recordsFn=nil
-  end
-  -- gun mode: what this stance has changed, as coop-gun.txt's records (fight/gunmode/journal.lua), so that the next
-  -- Lua load puts it back after a Ctrl+R (fight/gunmode/mode.lua's restore): her real body and head parts hidden from
-  -- her camera (each with its own bOwnerNoSee and tick option), its parts and the holder they stand on.
-  recordsFn=function()
-   local out={}
-   local function path(o) return valid(o) and o:GetFullName():match('^%S+ (.+)$') or nil end
-   local function see(c,was,t)
-    local at=path(c)
-    if at then out[#out+1]={'see',at,tostring(was==true),tostring(t)} end
-   end
-   see(src,hide,tick)
-   for _,e in ipairs(extras) do see(e.real,e.was,e.tick) end
-   for _,c in ipairs(parts) do local at=path(c); if at then out[#out+1]={'part',at} end end
-   local at=path(holder)
-   if at then out[#out+1]={'holder',at} end
-   return out
   end
   -- gun mode: the head parts copied like her body. They follow her real body's pose in the same frame while the
   -- posed copy shows the pose one frame old (the game finishes her animation after this loop), so her neck went
@@ -91,12 +70,11 @@ function Stance.new(laser,trace)
    end)
    return ok,err
   end
-  local function component(kind,asset,owner) -- gun mode: owner, the actor it goes on (EVE when nil)
-   owner=owner or pawn
+  local function component(kind,asset)
    local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
-   local c=owner:AddComponentByClass(StaticFindObject('/Script/Engine.'..kind),true,id,true)
+   local c=pawn:AddComponentByClass(StaticFindObject('/Script/Engine.'..kind),true,id,true)
    assert(valid(c));parts[#parts+1]=c;c:SetVisibility(false,false);c:SetCollisionEnabled(0)
-   owner:FinishAddComponent(c,true,id);c:SetSkeletalMesh(asset,true)
+   pawn:FinishAddComponent(c,true,id);c:SetSkeletalMesh(asset,true)
    pcall(function() c.bPerBoneMotionBlur=false end) -- gun mode: per-bone motion blur smeared the posed copy
    return c
   end
@@ -114,24 +92,11 @@ function Stance.new(laser,trace)
   local weapon=assert(LoadAsset('/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'))
   local gun=component('PoseableMeshComponent',weapon)
   gun:K2_AttachToComponent(body,hand,2,2,2,false);gun:K2_SetRelativeTransform(grip,false,{},true)
-  -- gun mode: the donor and its keeper stand on a plain actor of their own, at the origin as before (unattached). On
-  -- EVE, online/partner/capture.lua took the hidden donor as one of her parts: its bones went to every partner and
-  -- could push a part of her outfit off the ghost (M10). The poseable body and rifle are no skeletal mesh components,
-  -- which the capture never lists. core/actors.lua's Doro animates on such an actor.
-  holder=pawn:GetWorld():SpawnActor(StaticFindObject('/Script/Engine.Actor'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0})
-  assert(valid(holder),'no actor for the posed copy')
-  local donor=component('SkeletalMeshComponent',src.SkeletalMesh,holder)
+  local donor=component('SkeletalMeshComponent',src.SkeletalMesh)
   donor.VisibilityBasedAnimTickOption=0
   local hideAnim=assert(LoadAsset('/Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Hide.P_Eve_GunNikke_Hide'))
   donor:PlayAnimation(hideAnim,false)
   donor:Stop();donor:SetPosition(0,false)
-  -- gun mode: the hide clip held while the donor plays the reload. Nothing else holds it then, so the engine could
-  -- collect it and the reload's end would play a freed clip. A keeper as core/actors.lua's Doro keepers: never drawn,
-  -- never ticking, its single-node instance's CurrentAsset holds the clip (UAnimSingleNodeInstance's object property
-  -- at +0x2c8, its params at 0x1464efa58 on 26123051).
-  local keeper=component('SkeletalMeshComponent',src.SkeletalMesh,holder)
-  keeper:SetComponentTickEnabled(false);keeper.VisibilityBasedAnimTickOption=3
-  keeper:SetAnimationMode(1);keeper:SetAnimation(hideAnim)
   -- gun mode: the reload. The donor plays the NIKKE squad's reload (P_Eve_GunNikke_Reload) at the rate that fits
   -- the reload time, and her arms (and the rifle in her right hand) follow the donor's arms from its chest each frame
   -- instead of the held hide pose; the rifle comes down from the aim while it plays. Then the hide pose again.
@@ -185,25 +150,14 @@ function Stance.new(laser,trace)
     end
    end
    local aimBones={}
-   local aimNames={} -- gun mode: their names as text, read without a game call (M13)
    for _,side in ipairs({'L','R'})do
     local candidates={'Clavicle','UpperArm','Forearm','Hand'}
     for digit=0,4 do for _,suffix in ipairs({'','1','2'})do candidates[#candidates+1]='Finger'..digit..suffix end end
     for _,partName in ipairs(candidates) do
      local bone=FName('Bip001-'..side..'-'..partName)
-     if src:GetBoneIndex(bone)>=0 then aimBones[#aimBones+1]=bone;aimNames[#aimBones]='Bip001-'..side..'-'..partName
+     if src:GetBoneIndex(bone)>=0 then aimBones[#aimBones+1]=bone
      elseif partName=='Hand' or partName=='UpperArm' or partName=='Forearm' then error('Missing arm bone '..bone:ToString()) end
     end
-   end
-   -- gun mode: the places in aimBones of her right hand (hand) and left arm with the muzzle's name, worked out once.
-   -- Each bone name read back (ToString) or made (FName) is a game call: 84 a carrying frame in the loops below (M13).
-   local muzzleName=FName('FX_Fire')
-   local iHand,iLUpper,iLFore,iLHand
-   for i,name in ipairs(aimNames) do
-    if name=='Bip001-R-Hand' then iHand=i
-    elseif name=='Bip001-L-UpperArm' then iLUpper=i
-    elseif name=='Bip001-L-Forearm' then iLFore=i
-    elseif name=='Bip001-L-Hand' then iLHand=i end
    end
 
   local age,aimBlend=0,0
@@ -271,13 +225,14 @@ function Stance.new(laser,trace)
     end
     if onReal then
      -- gun mode: the rifle on her hand turned (at most 30 degrees) so its barrel points where the rounds go: the
-     -- baked aim holds it along her facing. From over her shoulder that missed the laser's end.
+     -- baked aim holds it along her facing, and from over her shoulder that missed the laser's end.
      gun:K2_SetRelativeTransform(grip,false,{},true)
      local t=beam_target()
      local onTarget=false
      if t then pcall(function()
-      local m=gun:GetSocketLocation(muzzleName)
-      local have=mathlib:GetForwardVector(gun:GetSocketRotation(muzzleName))
+      local fire=FName('FX_Fire')
+      local m=gun:GetSocketLocation(fire)
+      local have=mathlib:GetForwardVector(gun:GetSocketRotation(fire))
       local dx,dy,dz=t.X-m.X,t.Y-m.Y,t.Z-m.Z
       local len=math.sqrt(dx*dx+dy*dy+dz*dz)
       if len<50 then return end
@@ -344,7 +299,7 @@ function Stance.new(laser,trace)
      -- and head stay where her real body's are (her face and hair follow her real body). Luke's aim then runs on that.
      -- The frame is her actor's location and yaw, not her pelvis: the copied pose is one frame old on some frames and
      -- new on others (the game finishes her animation on its own schedule), so anything anchored to it flipped
-     -- between two poses. Her actor's transform is steady. In the game's aim her yaw follows the camera.
+     -- between two poses; her actor's transform is steady, and in the game's aim her yaw follows the camera.
      if upright then
       local yaw=pawn:K2_GetActorRotation().Yaw
       -- gun mode: her hips' facing (the line between her thighs) from her actor's yaw, against what it was when her
@@ -418,10 +373,13 @@ function Stance.new(laser,trace)
      local coverPoses
      if coverOffsets and (aimBlend<1 or freeAimMovement) then
       if freeAimMovement then
-       local socket=muzzleName
+       local socket=FName('FX_Fire')
        assert(gun:DoesSocketExist(socket),'Visual muzzle unavailable')
        local muzzleLocal=mathlib:MakeRelativeTransform(gun:GetSocketTransform(socket,0),gun:K2_GetComponentToWorld())
-       local handPose=iHand and mathlib:ComposeTransforms(coverOffsets[iHand],chest)
+       local handPose
+       for i,bone in ipairs(aimBones) do
+        if bone:ToString()==hand:ToString() then handPose=mathlib:ComposeTransforms(coverOffsets[i],chest);break end
+       end
        assert(handPose,'Right hand pose unavailable')
        local weapon=mathlib:ComposeTransforms(grip,handPose)
        local muzzle=mathlib:ComposeTransforms(muzzleLocal,weapon)
@@ -447,8 +405,15 @@ function Stance.new(laser,trace)
        chest.Translation=position
       end
       local poses={}
-      for i in ipairs(aimBones) do poses[i]=mathlib:ComposeTransforms(coverOffsets[i],chest) end
-      local shoulder,elbow,wrist=poses[iLUpper],poses[iLFore],poses[iLHand]
+      local shoulder,elbow,wrist
+      for i,bone in ipairs(aimBones) do
+       local pose=mathlib:ComposeTransforms(coverOffsets[i],chest)
+       poses[i]=pose
+       local name=bone:ToString()
+       if name=='Bip001-L-UpperArm' then shoulder=pose
+       elseif name=='Bip001-L-Forearm' then elbow=pose
+       elseif name=='Bip001-L-Hand' then wrist=pose end
+      end
       if leftElbowAngle~=0 and shoulder and elbow and wrist then
        turnLeftElbow(shoulder,elbow,wrist,right)
       end
@@ -474,8 +439,11 @@ function Stance.new(laser,trace)
        body:SetBoneTransformByName(b,mathlib:TLerp(coverPoses[i],goal,aimBlend,0),0)
       end
      elseif freeAimMovement and coverPoses and aimBlend>0 then
-      local rightHand=coverPoses[iHand]
-      local muzzleSocket=muzzleName
+      local rightHand
+      for i,bone in ipairs(aimBones) do
+       if bone:ToString()==hand:ToString() then rightHand=coverPoses[i];break end
+      end
+      local muzzleSocket=FName('FX_Fire')
       local muzzleLocal=mathlib:MakeRelativeTransform(gun:GetSocketTransform(muzzleSocket,0),gun:K2_GetComponentToWorld())
       local weapon=mathlib:ComposeTransforms(grip,rightHand)
       local muzzle=mathlib:ComposeTransforms(muzzleLocal,weapon)
@@ -511,7 +479,7 @@ function Stance.new(laser,trace)
       -- rifle), not read back from the rifle: the rifle follows the hand only on the next frame, so the stale reading
       -- overcorrected every frame and swung the rifle round behind her.
       if not muzzleRel then
-       muzzleRel=mathlib:MakeRelativeTransform(gun:GetSocketTransform(muzzleName,0),gun:K2_GetComponentToWorld())
+       muzzleRel=mathlib:MakeRelativeTransform(gun:GetSocketTransform(FName('FX_Fire'),0),gun:K2_GetComponentToWorld())
       end
       local muzzle=mathlib:ComposeTransforms(muzzleRel,mathlib:ComposeTransforms(grip,body:GetBoneTransformByName(hand,0)))
       local q=muzzle.Rotation
@@ -589,9 +557,7 @@ function Stance.new(laser,trace)
  function self.reload(on,duration) if reloadFn and frame then return reloadFn(on,duration) end return false end
  function self.stop() if stop then stop() end end
  function self.running() return frame~=nil end
- -- gun mode: coop-gun.txt's records of the stance running now (none when it is not).
- function self.records() if recordsFn and frame then return recordsFn() end return {} end
- -- gun mode: whether component c is one of the stance's own (its poseable body and rifle, the donor, the keeper).
+ -- gun mode: whether component c is one of the stance's own (its poseable body and rifle, the donor).
  function self.owns(c)
   for _,part in ipairs(owned) do if part==c then return true end end
   return false

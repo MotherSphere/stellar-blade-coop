@@ -4,60 +4,24 @@
 -- Where the rounds go and where the camera looks, standing.
 -- * The NIKKE bullet's ProjectileTable row (P_Eve_GunNikke_ShootSlug1_Projectile1) is live data: its Dest is on EVE
 --   (DestTarget MainActor, set by fight/gunmode/data.lua) in the drone shot's frame (TransformType and
---   RelativeAxisType copied from P_Eve_Gun_ShootSlug1_Projectile1). In each frame of firing mode
---   DestTargetRelativeLocation becomes the crosshair point in that frame. Every round then flies to the screen-centre
---   point of the frame it spawns in, pitch included. Only FindRow(string) is used: another lookup crashed.
--- * The frame, read in Ghidra on 26123051. DestTarget is a byte at 0x1dd (ESBProjectileTarget, enum params
---   0x146d34f70: MainActor 0, OtherActor 1, StartToDestDirection 3). The shot (0x141c4be30) builds an actor target
---   through 0x14228c020 for 0 and 1 only. The shipped StartToDestDirection put the destination on the line to SB's own
---   target location with the offset in world axes (the zero rotator 0x147112ca8). Its rounds went to the side.
---   The row's fields (property params of DestTargetTransformType at 0x145dfff80, DestTargetRelativeAxisType at
---   0x145dffdc0): DestTargetTransformType a byte at 0x1e0 (ESBTargetLocationTransformType, enum params 0x146d374f0:
---   Base 0, Socket 1, Component 2), DestTargetRelativeLocation an FVector at 0x1f8, DestTargetRelativeAxisType a byte
---   at 0x228 (ESBMovementTargetRelativeAxisType, 0x146d336b0: World 0, ParentAxis 1, RootAxis 2, InputDirection 3).
---   The drone row's pair reads 0/2 in game: Base and RootAxis. The projectile's start (0x141c4ab60) builds its target
---   through 0x14228c020; the target's update (0x142431530) takes, for Base, the actor's RootComponent (AActor+0x178,
---   params 0x1464ca8f0) world location (ComponentToWorld translation, component+0x200) and, for RootAxis, turns the
---   offset by that component's world rotation (its quaternion, component+0x1f0). That is K2_GetActorLocation and
---   K2_GetActorRotation, pitch and roll included. Her mesh's own turn (gun mode's aim_mesh_yaw) is not in it.
+--   RelativeAxisType copied from P_Eve_Gun_ShootSlug1_Projectile1: EVE's root, yaw only). Before each shot
+--   DestTargetRelativeLocation becomes the crosshair point in that frame. Every round then flies to the screen-centre point, pitch included. Only FindRow(string) is used: another lookup crashed.
 -- * TPS mode 2 (NIKKE: fixed camera, the mouse moves a reticle) becomes 0 (the drone aim's: the camera follows the
 --   mouse and the game turns EVE with it) while standing, and goes back to 2 crouched and at the exit. If mode 0 ever
 --   drops the gun stance, it is put back to 2 for the rest of the Lua load (dead).
 -- * CameraBoom.CustomOffset moves the camera over the shoulder while standing.
--- No struct goes to the game as a call's argument from here many times a second: those calls are what the crashes had
--- in common. The row's two vectors are memory writes, so firing mode writes them every frame.
+-- No struct goes to the game from EVE's tick many times a second: those calls are what the crashes had in common.
 local Aim={}
 
--- The forward, right and up axes of a rotator ({Pitch, Yaw, Roll}, or a yaw in degrees), as UE's FRotationMatrix
--- rows: nine numbers.
-local function axes(rot)
-    if type(rot)=='number' then rot={Pitch=0,Yaw=rot,Roll=0} end
-    local p,y,r=math.rad(rot.Pitch),math.rad(rot.Yaw),math.rad(rot.Roll)
-    local SP,CP,SY,CY,SR,CR=math.sin(p),math.cos(p),math.sin(y),math.cos(y),math.sin(r),math.cos(r)
-    return CP*CY,CP*SY,SP, SR*SP*CY-CR*SY,SR*SP*SY+CR*CY,-SR*CP, -(CR*SP*CY+SR*SY),CY*SR-CR*SP*SY,CR*CP
-end
--- target's offset from loc in the frame turned rot (EVE's root): forward, right, up.
-function Aim.local_offset(target,loc,rot)
+-- target's offset from loc in a frame turned yaw degrees (EVE's root, yaw only): forward, right, up.
+function Aim.local_offset(target,loc,yaw)
     local dx,dy,dz=target.X-loc.X,target.Y-loc.Y,target.Z-loc.Z
-    local fx,fy,fz,rx,ry,rz,ux,uy,uz=axes(rot)
-    return dx*fx+dy*fy+dz*fz,dx*rx+dy*ry+dz*rz,dx*ux+dy*uy+dz*uz
-end
--- The world point of offset (x forward, y right, z up) from loc in the frame turned rot: local_offset backwards, as
--- SB places the round's destination.
-function Aim.world_point(x,y,z,loc,rot)
-    local fx,fy,fz,rx,ry,rz,ux,uy,uz=axes(rot)
-    return {X=loc.X+x*fx+y*rx+z*ux,Y=loc.Y+x*fy+y*ry+z*uy,Z=loc.Z+x*fz+y*rz+z*uz}
-end
--- The angle in degrees between the lines from `from` to a and to b.
-function Aim.apart(a,b,from)
-    local ax,ay,az=a.X-from.X,a.Y-from.Y,a.Z-from.Z
-    local bx,by,bz=b.X-from.X,b.Y-from.Y,b.Z-from.Z
-    local l=math.sqrt((ax*ax+ay*ay+az*az)*(bx*bx+by*by+bz*bz))
-    if l<1e-9 then return 0 end
-    return math.deg(math.acos(math.max(-1,math.min(1,(ax*bx+ay*by+az*bz)/l))))
+    local r=math.rad(yaw)
+    local c,s=math.cos(r),math.sin(r)
+    return dx*c+dy*s,-dx*s+dy*c,dz
 end
 -- The spread: target moved across the line from `from` by at most deg degrees seen from there, in a direction and to
--- a share of that given by u and v (each in [0, 1): math.random()). Uniform over the cone's disc. deg 0, no from or a
+-- a share of that given by u and v (each in [0, 1]: math.random()). Uniform over the cone's disc. deg 0, no from or a
 -- target under 1 cm away: target itself.
 function Aim.spread(target,from,deg,u,v)
     if not (target and from and deg and deg>0) then return target end
@@ -98,48 +62,29 @@ function Aim.new(g)
         return okw
     end
 
-    -- The row's destination = target (world) in EVE's root frame. loc, rot: her root's, when the caller read them.
-    function self.write(p,target,loc,rot)
+    -- Before a shot: the row's destination = target (world) in EVE's root frame.
+    function self.write(p,target)
         if not (self.row and target) then return end
-        loc=loc or g.try(function() return p:K2_GetActorLocation() end)
-        rot=rot or g.try(function() return p:K2_GetActorRotation() end)
+        local loc=g.try(function() return p:K2_GetActorLocation() end)
+        local rot=g.try(function() return p:K2_GetActorRotation() end)
         if not (loc and rot) then return end
-        local x,y,z=Aim.local_offset(target,loc,rot)
+        local x,y,z=Aim.local_offset(target,loc,rot.Yaw)
         local ok=pcall(function() local v=self.row.DestTargetRelativeLocation; v.X=x; v.Y=y; v.Z=z end)
-        if ok then self.dx,self.dy,self.dz=x,y,z end
         if self.writes<6 then self.writes=self.writes+1; g.log(('aim: shot at (%.0f, %.0f, %.0f) %s'):format(x,y,z,
             ok and 'written' or 'refused')) end
     end
-    -- Where a round that spawns now goes: the row's destination as SB reads it, placed from her root as it is now
-    -- (SB does the same at the round's spawn). It reads the row back, not the last write: a row that does not put the
-    -- destination in her root frame (DestTarget MainActor 0, DestTargetTransformType Base 0, DestTargetRelativeAxisType
-    -- RootAxis 2) gives nil and the fields it holds. nil before a write.
-    function self.went(p)
-        local r=self.row
-        if not (r and self.dx) then return nil end
-        local f=g.try(function() return {r.DestTarget,r.DestTargetTransformType,r.DestTargetRelativeAxisType} end)
-        if not (f and f[1]==0 and f[2]==0 and f[3]==2) then
-            f=f or {}
-            return nil,('dest target %s, transform %s, axis %s: not her root frame'):format(tostring(f[1]),
-                tostring(f[2]),tostring(f[3]))
-        end
-        local d=g.try(function() local v=r.DestTargetRelativeLocation; return {v.X,v.Y,v.Z} end)
-        local loc=g.try(function() return p:K2_GetActorLocation() end)
-        local rot=g.try(function() return p:K2_GetActorRotation() end)
-        return d and loc and rot and Aim.world_point(d[1],d[2],d[3],loc,rot)
-    end
 
-    -- Native fire: the bullet's start (fight/gunmode/data.lua made it EVE's base and an offset in her root's frame,
-    -- pitch and roll included, like its destination) put on the point muzzle (world), the rifle's FX_Fire socket.
+    -- Native fire: the bullet's start (fight/gunmode/data.lua made it EVE's base and an offset in her yaw frame, like its
+    -- destination) put on the point muzzle (world), the rifle's FX_Fire socket.
     -- A muzzle less than min_forward ahead of her (the rifle not up yet, or posed wrong: the shot then started on
     -- her body) gives way to fallback, a point at her right shoulder in her frame.
-    function self.write_start(p,muzzle,min_forward,fallback,loc,rot)
+    function self.write_start(p,muzzle,min_forward,fallback)
         if not self.row then return end
-        loc=loc or g.try(function() return p:K2_GetActorLocation() end)
-        rot=rot or g.try(function() return p:K2_GetActorRotation() end)
+        local loc=g.try(function() return p:K2_GetActorLocation() end)
+        local rot=g.try(function() return p:K2_GetActorRotation() end)
         if not (loc and rot) then return end
         local x,y,z
-        if muzzle then x,y,z=Aim.local_offset(muzzle,loc,rot) end
+        if muzzle then x,y,z=Aim.local_offset(muzzle,loc,rot.Yaw) end
         if not x or x<(min_forward or 0) then x,y,z=fallback.X,fallback.Y,fallback.Z end
         local ok=pcall(function() local v=self.row.StartTargetRelativeLocation; v.X=x; v.Y=y; v.Z=z end)
         if (self.starts or 0)<3 then self.starts=(self.starts or 0)+1

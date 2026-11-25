@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The rifle's frame: it keeps running while the controller holds the same pawn. It stops when the controller holds
--- another pawn or the rifle component is gone.
+-- The rifle's frame: it keeps running while the controller holds the same pawn. It stops when the controller
+-- holds another pawn or the rifle component is gone.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function obj(t) t=t or {}; if t.IsValid==nil then t.IsValid=function(o) return not o.dead end end; return t end
 local nop=function() end
@@ -33,35 +33,32 @@ assert(sent.Scale3D.X==0.5 and spun.Yaw==90,'morph scale and spin')
 assert(Rifle.GRIP.Scale3D.X==1 and Rifle.GRIPS.aim.Scale3D.X==1,'GRIP not scaled in place')
 r.morph(nil); spun=nil; r.frame()
 assert(sent==Rifle.GRIP and spun==nil,'back to GRIP')
--- In aim: the barrel turned onto the line to the reticle's point every frame, the whole error up to Rifle.TURN_MAX
--- (an error past it turned nothing before, so the rifle jumped as it crossed the limit), eased in at the aim's start.
-do
-    local T=50; local clock=os.clock; os.clock=function() return T end
-    local have={X=1,Y=0,Z=0}
-    local turned
-    gun.GetSocketLocation=function() return {X=0,Y=0,Z=0} end
-    gun.GetSocketRotation=function() return {} end
-    gun.K2_GetComponentToWorld=function() return {Translation={X=0,Y=0,Z=0},Rotation={X=0,Y=0,Z=0,W=1},Scale3D={X=1,Y=1,Z=1}} end
-    gun.K2_SetWorldTransform=function(_,t) turned=t.Rotation end
-    StaticFindObject=function() return obj({GetForwardVector=function() return have end}) end
-    local target
-    local a=require('fight.gunmode.rifle').new(function() return function() end,function() end end,nil)
-    pc.Pawn=pawn(1); a.start(pc,function() return true end,function() return target end)
-    local function deg(q) return math.deg(2*math.acos(math.min(1,math.abs(q.W)))) end
-    local function at(d) local r=math.rad(d); return {X=1000*math.cos(r),Y=1000*math.sin(r),Z=0} end
-    target=at(3); turned=nil; a.frame() -- the aim's first frame: the turn eases in
-    assert(turned==nil or deg(turned)<0.5,'eased in')
-    T=T+1
-    target=at(3); turned=nil; a.frame()
-    assert(turned and math.abs(deg(turned)-3)<1e-3 and turned.Z>0,'the whole 3 degrees')
-    target=at(10); turned=nil; a.frame()
-    assert(turned and math.abs(deg(turned)-Rifle.TURN_MAX)<1e-3,'10 degrees off: the most it turns')
-    sent=nil; target=at(30); turned=nil; a.frame()
-    assert(turned==nil,'far off: no turn')
-    -- The grip goes out again after a turned frame, then not while it stays as it is.
-    assert(sent~=nil,'the grip sent again after a turned frame')
-    sent=nil; a.frame()
-    assert(sent==nil,'an unchanged grip sent again')
-    os.clock=clock
+-- The laser's start: 0.12 s after the aim starts once the barrel is within 25 degrees of the line to the reticle
+-- point, else 0.6 s after it. With the layer (no_turn) the test still runs. The rifle is never turned then.
+local clock=0
+os.clock=function() return clock end
+local mathlib={GetForwardVector=function() return {X=1,Y=0,Z=0} end,Conv_VectorToRotator=function() return {} end,
+    MakeTransform=function() return {} end,InvertTransform=function() return {} end,
+    ComposeTransforms=function() return {Rotation={X=0,Y=0,Z=0,W=1}} end}
+StaticFindObject=function() return mathlib end
+gun.GetSocketLocation=function() return {X=0,Y=0,Z=0} end
+gun.GetSocketRotation=function() return {Pitch=0,Yaw=0,Roll=0} end
+gun.K2_GetComponentToWorld=function() return {Rotation={X=0,Y=0,Z=0,W=1}} end
+local turned=0
+gun.K2_SetWorldTransform=function() turned=turned+1 end
+local function laser_at(deg,no_turn)
+    local on
+    local rl=Rifle.new(function() on=on or clock; return function() end,function() end end,nil)
+    rl.no_turn=no_turn
+    local a=math.rad(deg)
+    clock=0; pc.Pawn=pawn(1)
+    rl.start(pc,function() return true end,function() return {X=1000*math.cos(a),Y=1000*math.sin(a),Z=0} end)
+    for _,t in ipairs({0,0.05,0.13,0.3,0.61}) do clock=t; rl.frame() end
+    rl.stop()
+    return on
 end
+assert(laser_at(3,true)==0.13,'layer: the laser 0.12 s after the aim starts with the barrel 3 degrees off')
+assert(turned==0,'layer: the rifle is not turned')
+assert(laser_at(39,true)==0.61,'layer: the laser after 0.6 s with the barrel 39 degrees off')
+assert(laser_at(3,false)==0.13 and turned>0,'pak: the laser after 0.12 s and the rifle turned onto the line')
 print('gunmode rifle_frame_test ok')

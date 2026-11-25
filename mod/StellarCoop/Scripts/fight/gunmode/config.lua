@@ -1,13 +1,9 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- Gun mode's settings: its fixed values (DEFAULTS) and its coop-settings.txt lines as main.lua read them (from):
+-- Gun mode's settings: its fixed values (DEFAULTS) and the coop-settings.txt lines it reads itself (parse):
 --   gun_mode=on|off       the module at all (on by default; off: no key, no hook, nothing)
---   gun_key=<key>         the keyboard toggle, F4 unless set: core/keybind.lua's F-key, or none. G is Stellar
---                         Blade's: its DefaultInput.ini on 26123051 maps the action UI_RightThumbstick (name at
---                         0x145c4ec00, read by the photo mode UI, 0x141f09c80) to G on both layouts. It maps no F-key.
--- Both are SBO's own settings (core/link.lua: the template, Options rows, the two-actions rule). The lines below are
--- test lines: core/link.lua keeps them as written and gun mode checks them here.
+--   gun_key=<key>         the keyboard toggle, G unless set: one letter A to Z or F1 to F12 but F10
 --   gun_aim_key=<key>    the keyboard key the game's aim moves to while the rifle is out (UE's name; RightMouseButton)
 --   gun_upper=nikke|off   test: firing mode shows the game's aim with the NIKKE rifle's upper-body animations
 --                         (nikke) instead of Luke's aim on her normal stance's spine (off, the default)
@@ -19,33 +15,24 @@ local Config={}
 
 Config.DEFAULTS={
     -- false while gun mode is being rebuilt (2026-11-18): the toggle only says so and nothing of gun mode runs, unless
-    -- the rifle layer (fight/gunmode/overlay.lua's class, in zNGMSpike_P) is installed, which is the rebuilt path.
+    -- the rifle layer (fight/gunmode/overlay.lua's class, in gunmode's pak) is installed, which is the rebuilt path.
     enabled=false,
+    key='G',
     pad_tap=0.4,
     fire_interval=0.045, -- The NIKKE shot skill's cool time while the rifle is out (SB ships 0.11 s).
-    -- s the shot's borrowed rows stay armed after its last zone event (fight/gunmode/data.lua's arm). On 26123051 the
-    -- blueprint library's zone event call (exec 0x142669a50) only queues the event (made by 0x1422d7de0, pushed under
-    -- a lock); SB runs it later (0x141abdd80 calls RunEvent 0x141ca5a10), so the rows must still read armed then.
-    arm_hold=1.0,
-    -- The rifle's round (fight/gunmode/ammo.lua): its colours on the reticle's round slot (its words: ui/text.lua's
-    -- gun round, reload and empty), the magazine, the reload.
-    round_color={0.35,0.85,1.0},reload_color={1.0,0.62,0.15},
-    mag_size=60,spare_mags=5,reload_time=1.6,
-    -- The HUD entry beside SB's D-pad marker (fight/gunmode/ui/dpad.lua): the gun mode key, the rifle icon, the rounds
-    -- while the rifle is out. The hip-fire crosshair too. false: none.
-    hud_entry=true,
-    hide_drone=true, -- The drone hidden while the rifle is out (its lights and effects with it). false: it stays.
-    hip_cam=0.5, -- Hip fire: the share of aim_cam the aim camera moves (the game's aim takes all of it).
+    -- The rifle's round (fight/gunmode/ammo.lua): its name on the reticle's round slot, the magazine, the reload.
+    round_name='NIKKE RAPID',reload_text='RELOADING',empty_text='NO AMMO',round_color={0.35,0.85,1.0},
+    reload_color={1.0,0.62,0.15},
+    mag_size=60,spare_mags=5,reload_time=1.6,reload_delay=1.0,
     -- The reload's sounds (the NIKKE squad's), each at this share of the reload time.
     reload_sounds={{'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_1_Cue.P_Eve_GunNikke_Reload_1_Cue',0.0},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_2_Cue.P_Eve_GunNikke_Reload_2_Cue',0.6},
         {'/Game/DLC_2/Sound/SFX_D2/PC/Gun/P_Eve_GunNikke_Reload_3_Cue.P_Eve_GunNikke_Reload_3_Cue',0.85}},
+    -- The gun mode animation pak: one of its animations (to find it) and its blend space, which the
+    -- aim stance's animation set points at while the rifle is out.
     muzzle_every=0.09,muzzle_scale=0.45, -- the flash: at most this often (s), at this size (it stacked into a blaze)
     muzzle_fx='/Game/DLC_2/Art/FX/MiniGame/NS_A_NikkeGunFire.NS_A_NikkeGunFire', -- the NIKKE rifle's flash
-    -- The rifle clips without the rifle layer (fight/gunmode/mode.lua's enable): pak_probe, one of the NGM_R_ clips,
-    -- finds them (in zNGMSpike_P when tools/gunmode/rebuild/ngm_spike_build_a4.py's NGM_REL names their folder). The
-    -- aim stance's animation set then points at the blend spaces below while the rifle is out. New assets only. No
-    -- script in this repository makes these clips or blend spaces.
+    -- The animation pak (11-18 rebuild): EVE's rifle animation set, new assets only.
     pak_probe='/Game/Art/Character/PC/CH_P_EVE_01/Animation/NGM/NGM_R_AimIdle.NGM_R_AimIdle',
     pak_bs='Animation/BlendSpace/P_Eve_NGM_R_BS', -- aiming: 8-way walk + run (her lock-on layout), rifle shouldered
     pak={aim_offset='Animation/Additive/NGM_R_Aim_BS', -- aiming up/down/left/right
@@ -66,16 +53,15 @@ Config.DEFAULTS={
     zoom_arm=0.55, -- Firing mode on her normal stance: the camera arm this share of the game's, SocketOffset +Y/+Z above.
     trace_range=10000, -- How far the crosshair's trace looks for what the rounds hit.
     spread=0.5, -- Degrees: each round lands at random within this angle of the reticle point (gun_spread). 0: none.
-    -- Masked while the rifle is out (in memory only, lifted while the game is paused, put back when it goes away; SB's
-    -- key options save the mappings, see fight/gunmode/mode.lua's tick): the sword's attacks and the drone's aim, fire
-    -- and pad combat keys on the fire and zoom keys (mask_keys). The drone's aim and fire go on any key too (Luke
-    -- masked TPSMode). Menus, pick-ups, fishing and the death screen keep their keys.
+    -- Masked while the rifle is out (in memory only, put back when it goes away, never saved): the sword's attacks and
+    -- the drone's aim, fire and pad combat keys on the fire and zoom keys (mask_keys), and the drone's aim and fire on
+    -- any key (Luke masked TPSMode). Menus, pick-ups, fishing and the death screen keep their keys.
     mask_keys={'LeftMouseButton','RightMouseButton','Gamepad_LeftTrigger','Gamepad_RightTrigger'},
     mask_on_keys={'AttackLight','AttackStrong','SpecialCommand1','SpecialCommand2','CommandKey7','CommandKey8',
         'LeftTriggerKey','RightTriggerKey','Item_UseBullet'},
     mask_actions={'TPSMode','TPSFire'},
     -- The rifle's reload keys (keyboard B, gamepad Triangle): every game action on them is masked while the rifle is
-    -- out; a press tops the magazine up from the spares (fight/gunmode/ammo.lua manual). B is free in
+    -- out; a press throws the rest of the magazine away and loads a full one (fight/gunmode/ammo.lua manual). B is free in
     -- the game's own bindings (11-20 log: R throws grenades; B, N, O, Y and 5-0 are unbound).
     reload_keys={'B','Gamepad_FaceButton_Top'},
     -- gun_fire=native (a test): firing mode is the game's own aim (TPSMode on its own keys, Ctrl / LT, and TPSFire,
@@ -100,69 +86,90 @@ Config.DEFAULTS={
     -- and any whose mesh name has one of these (the sword). Co-op partners still see them.
     hide_names={'Sword','CH_W_'},
     -- Head parts copied with the posed body: none. They follow her body through its leader pose and hold no pose of
-    -- their own. Copying a pose from one crashed the game.
+    -- their own, and copying a pose from one crashed the game.
     copy_names={},
 }
 
--- The settings from core/link.lua's parse_settings (fight/gunmode/wiring.lua's: main.lua's M.settings, or the file's
--- without the native part; nil: the defaults): {on, key (core/keybind.lua's: {key='F4', mod=nil, name='F4'}, key nil
--- for none; taken(): the modifiers another key setting holds now with a plain gun_key, as {SHIFT=true}; the co-op
--- menu changes main.lua's settings in place), ...} and the test lines it refused, as 'name: why'.
-function Config.from(settings)
-    settings=settings or require('core.link').parse_settings('')
-    local function get(name) local v=settings[name]; if v~='' then return v end end
-    local k=settings.gun_key
-    local key={key=k.key,mod=k.mod,name=k.name,taken=function()
-        local taken={}
-        for _,other in pairs(k.key and not k.mod and settings or {}) do -- Key settings: tables with a key and a mod.
-            if type(other)=='table' and other.key==k.key and other.mod then taken[other.mod]=true end
-        end
-        return taken
-    end}
-    local out,bad={on=settings.gun_mode,key=key,zoom_toggle=false,native=true,
-        aim_key=Config.DEFAULTS.aim_to,upper=false},{}
-    local v=get('gun_bs')
-    if v then out.bs=v end
-    v=get('gun_carry_ovr') -- auto (default with the pak): the rifle carry set; off: her own walk; or an animation set row (testing)
+local LETTER_OR_F='^[A-Z]$'
+-- A key name as UE4SS's Key table spells it ('G', 'F4'), or nil and why.
+function Config.key(text)
+    local t=text:upper()
+    if t:find(LETTER_OR_F) then return t end
+    local n=tonumber(t:match('^F([1-9]%d?)$'))
+    if n and n<=12 and n~=10 then return 'F'..n end
+    if n==10 then return nil,'F10 opens the console' end
+    return nil,'use one letter A to Z or F1 to F12'
+end
+
+local function onoff(v) local l=v:lower(); return l=='on' or l=='off' end
+-- The value of the last line naming key in a settings text (name=value, names in any case, a BOM, CRs and spaces
+-- around the value ignored), or nil. Gun mode reads its own lines: it uses nothing of the rest of the mod.
+function Config.get(text,key)
+    local found
+    for line in (text:gsub('^\239\187\191','')..'\n'):gmatch('([^\n]*)\n') do
+        local name,value=line:gsub('\r',''):match('^%s*([%w_]+)%s*=%s*(.-)%s*$')
+        if name and name:lower()==key then found=value end
+    end
+    return found
+end
+
+-- The settings from coop-settings.txt's text (nil: the file is missing): {on, key} and the lines it refused, as
+-- 'name: why'.
+function Config.parse(text)
+    local get=Config.get
+    local out,bad={on=true,key=Config.DEFAULTS.key,zoom_toggle=false,native=true,aim_key=Config.DEFAULTS.aim_to,upper=false},{}
+    if not text then return out,bad end
+    local v=get(text,'gun_mode')
+    if v then
+        if onoff(v) then out.on=v:lower()=='on' else bad[#bad+1]='gun_mode: use on or off' end
+    end
+    v=get(text,'gun_key')
+    if v then
+        local k,why=Config.key(v)
+        if k then out.key=k else bad[#bad+1]='gun_key: '..why end
+    end
+    v=get(text,'gun_bs')
+    if v and v~='' then out.bs=v end
+    v=get(text,'gun_carry_ovr') -- auto (default with the pak): the rifle carry set; off: her own walk; or an animation set row (testing)
     if v and v:match('^[%w_]+$') then out.carry_ovr=v end
-    v=get('gun_carry_spare'); if v and tonumber(v) then out.carry_spare=tonumber(v) end
-    v=get('gun_carry_idle'); if v and tonumber(v) then out.carry_idle_type=tonumber(v) end
-    v=get('gun_probe')
+    v=get(text,'gun_carry_spare'); if v and tonumber(v) then out.carry_spare=tonumber(v) end
+    v=get(text,'gun_carry_idle'); if v and tonumber(v) then out.carry_idle_type=tonumber(v) end
+    v=get(text,'gun_probe')
     if v then out.probe=v:lower()=='on' end
-    v=get('gun_facts') -- (dev only) the facts probe, fight/gunmode/facts.lua
+    v=get(text,'gun_facts') -- (dev only) the facts probe, fight/gunmode/facts.lua
     if v=='on' then out.facts=true end
-    v=get('gun_g0') -- (dev only) the rifle layer's measurements and capture pictures, fight/gunmode/g0.lua
+    v=get(text,'gun_g0') -- (dev only) gate G0 measurements and capture pictures, fight/gunmode/g0.lua
     if v=='on' then out.g0=true end
-    v=get('gun_airtrace') -- (dev only) air state trace for the flip work (fight/gunmode/mode.lua)
+    v=get(text,'gun_airtrace') -- (dev only) air state trace for the flip work (fight/gunmode/mode.lua)
     if v=='on' then out.airtrace=true end
-    v=get('gun_g1') -- (dev only) the v3 plan's G1 gate numbers, AimRot test and fixed captures, fight/gunmode/g1.lua
+    v=get(text,'gun_g1') -- (dev only) the v3 plan's G1 gate numbers, AimRot test and fixed captures, fight/gunmode/g1.lua
     if v=='on' then out.g1=true end
-    v=get('gun_g1_tag') -- (dev only) a label for G1's log lines and capture files, e.g. red or v3a
+    v=get(text,'gun_g1_tag') -- (dev only) a label for G1's log lines and capture files, e.g. red or v3a
     if v and v:match('^[%w_]+$') then out.g1_tag=v end
-    v=get('gun_trace') -- (testing) step log around reloads and aim changes
+    v=get(text,'gun_trace') -- (testing) step log around reloads and aim changes
     if v then out.trace=v:lower()=='on' end
-    v=get('gun_fire_key') -- (testing) one more fire key, as F
+    v=get(text,'gun_fire_key') -- (testing) one more fire key, as F
     if v and v:match('^%w+$') then out.fire_key=v end
-    v=get('gun_upper')
+    v=get(text,'gun_upper')
     if v then
         local l=v:lower()
         if l=='nikke' or l=='off' then out.upper=l=='nikke' else bad[#bad+1]='gun_upper: use nikke or off' end
     end
-    v=get('gun_aim_key')
+    v=get(text,'gun_aim_key')
     if v then
         if v:match('^%w+$') then out.aim_key=v else bad[#bad+1]='gun_aim_key: one UE key name, as RightMouseButton' end
     end
-    v=get('gun_fire')
+    v=get(text,'gun_fire')
     if v then
         local l=v:lower()
         if l=='native' or l=='own' then out.native=l=='native' else bad[#bad+1]='gun_fire: use native or own' end
     end
-    v=get('gun_spread')
+    v=get(text,'gun_spread')
     if v then
         local n=tonumber(v)
         if n and n>=0 and n<=10 then out.spread=n else bad[#bad+1]='gun_spread: degrees from 0 to 10' end
     end
-    v=get('gun_zoom')
+    v=get(text,'gun_zoom')
     if v then
         local l=v:lower()
         if l=='hold' or l=='toggle' then out.zoom_toggle=l=='toggle' else bad[#bad+1]='gun_zoom: use hold or toggle' end
