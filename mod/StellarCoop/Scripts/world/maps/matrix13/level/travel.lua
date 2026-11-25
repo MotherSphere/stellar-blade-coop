@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop mxiii (a test tool, experimental, left out of the usage line): SB's own camp travel into Zone_DLC02_10, the
--- first zone of the cut Matrix XIII dungeon (WorldTable DLCMatrix13, ID 2800), and a camp there. No pak of the game
+-- first zone of the cut Matrix XIII area (WorldTable DLCMatrix13, ID 2800), and a camp there. No pak of the game
 -- holds its map, /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, and no row of the game leads to its world. The zMXIII_P
 -- test pak, built outside the mod and never shipped with it, adds a map at that path. On the game thread, in order: the
 -- checks the travel needs, once a command (the follow's own guards: solo, a co-op save, the native travel there and
@@ -16,7 +16,7 @@
 -- through core/enemy.lua's rows flow (the tables, the ask, the wait, the read-back); then SB's camp travel to the
 -- Tetrapod camp DLC02_00_Camp_00, beside Lily, through the follow's probe (online/group/travel.lua; the native part's
 -- game/travel.h). The travel activates no camp: only a coin at a vending machine does. coop mxiii 30 is
--- the same with the travel to DLC02_30_Camp_01, which reaches the dungeon's upper half without the zone 20 climb (it
+-- the same with the travel to DLC02_30_Camp_01, which reaches the area's upper half without the zone 20 climb (it
 -- runs on Matrix 11 triggers and sequences the test pak leaves out). Both ask nothing on a pak before v5: its two
 -- zone 10 camps would have no kit. Each step logs an [MX] line, the travel's result a [TR] line. A warp into
 -- a world the save has never been in may write that world into the save: main.lua lets it run on a co-op save only. The
@@ -35,7 +35,7 @@
 -- fallback: no switch stands in the map, as in Matrix 11). The way out is coop mxiii
 -- leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the read lists:
 -- the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the read's first.
--- Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in the dungeon
+-- Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in the area
 -- (FUN_141a8bef0) makes it DLC02_00_Camp_00, DLC02_10_Camp_01 or DLC02_30_Camp_01, which are in no travel table, and so
 -- does a rest at the zone 10 camp.
 -- The test pak's check makes no StaticFindObject (a package that is not loaded is never found that way, and each miss
@@ -181,7 +181,7 @@ function Mxiii.new(o)
         {word='mxiii',name='Matrix XIII',command='coop mxiii',tag='[MX]',rows=Mxiii.ROWS,ids={}})
     local self={}
     -- The travel camp EVE respawned at when coop mxiii last asked its travel: once there, she respawns at Matrix XIII.
-    -- shortcut: kept in this Lua state only, so a Lua reload in the dungeon loses it and leave takes the read's first
+    -- shortcut: kept in this Lua state only, so a Lua reload in the area loses it and leave takes the read's first
     -- camp; upgrade to a native read of a camp the arrival leaves alone if a test needs it.
     local back=nil
     -- Once the rows are in (ok, message: the rows flow's end): the camp travel to camp, coop mxiii's or coop mxiii

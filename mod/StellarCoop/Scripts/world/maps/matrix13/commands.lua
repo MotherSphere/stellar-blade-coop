@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop mxiii, the camp travel into the cut Matrix XIII dungeon (world/maps/matrix13/level/travel.lua, o.mxiii; a test
+-- coop mxiii, the camp travel into the cut Matrix XIII area (world/maps/matrix13/level/travel.lua, o.mxiii; a test
 -- tool left out of the usage line, needing the zMXIII_P test pak), coop mxiii 30, the same to its third zone's camp,
 -- and coop mxiii leave, its way out, and coop mxiii boss, the key-0 Lion or Gardener of the arena EVE stands in
 -- (world/maps/matrix13/level/boss.lua), run on a co-op save only. coop mxiii mila, Mila's pose and scale

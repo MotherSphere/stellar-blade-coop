@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The zone 3 talks of Matrix XIII (3A to 3K; 3E was cut), scene by scene in play order
 -- (world/maps/matrix13/quest/zone_talks.lua plays them): the speaker (a StringTable_Seq key, or a plain name for the
--- dungeon's own people), then the English and French line.
+-- area's own people), then the English and French line.
 -- Each line gets its id talk.zone.<scene>.NN (world/maps/matrix13/words.lua), the key of its line in the other
 -- cultures.
 -- oblivion=true: only when Quest_Sub_030 (Oblivion) is complete. No line plays during a fight.

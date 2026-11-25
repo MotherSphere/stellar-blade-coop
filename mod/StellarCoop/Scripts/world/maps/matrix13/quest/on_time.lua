@@ -7,7 +7,7 @@
 -- choice list then offers one more line, "The other signal", above her Travel, Repair and End rows. Picking it plays
 -- her goodbye, then the prologue talk (world/maps/matrix13/quest/subtitles.lua), then completes the prologue and starts
 -- the mod's long quest "On Time" (Quest_Sub_MX13_01, QuestTable 163) and sends EVE into Matrix XIII through coop
--- mxiii's camp travel (the Tetrapod camp DLC02_00_Camp_00, beside the dungeon's Lily, on the v4 pak). On Time has six
+-- mxiii's camp travel (the Tetrapod camp DLC02_00_Camp_00, beside the area's Lily, on the v4 pak). On Time has six
 -- steps: reach the station (M01) and zones 2 to 4 (M02 to M04, each SB's own EnterZone), the Fusion Drive room in zone
 -- 4 (M05, which this file completes), and telling Lily (M06), when her row returns as "About Matrix 13" and plays the
 -- end talk. The pieces, in order:
@@ -72,7 +72,7 @@ Lily.MAP='/game/art/bg/worldmap_dlc_01/level_p/mxiii_p' -- U.map_of of Matrix XI
 -- the camp travel's warp ended about 2 s and the new world's characters loaded about 2.5 s after the map turned; a
 -- talk asked 1 s after it got no subtitle window in time); in the drive room before signal zone4.
 Lily.AFTER,Lily.WAIT,Lily.FALLBACK,Lily.ASK_EVERY,Lily.QUIET,Lily.ARRIVAL,Lily.ROOM=5,15,10,10,5,4,2
--- Zone 4's Fusion Drive room (Z4R18) as the cooked dungeon's plan places it [design numbers, not checked in a cooked
+-- Zone 4's Fusion Drive room (Z4R18) as the cooked area's plan places it [design numbers, not checked in a cooked
 -- map yet]: in zone 1's plan frame (metres from the zone 1 surface lift cab floor at world (40585, 35615, -939) cm,
 -- plan +y along world yaw 175, plan +x along world yaw 265), x -95 to -80, y -150 to -110, floor -156.29 m, 16.29 m
 -- high. Whether a world position (cm) is inside it.
