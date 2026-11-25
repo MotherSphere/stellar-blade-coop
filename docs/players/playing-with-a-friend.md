@@ -43,7 +43,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (26) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (29) and game build. A mismatch shows a notice on screen (see
   [Notices](interface.md#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
