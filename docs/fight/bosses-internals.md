@@ -278,14 +278,13 @@ runs. The copy is in no file, so a Lua reload during its 13 s leaves it until th
 
 ### Open questions about the Lion
 
+The tests of 2026-10-23 and 2026-10-24, on game build 24463856, settled the rows, the Lion's skills, its walk and its
+idle pose. The rows read back as written and the Lion spawned from them. It ran its skills, ran at EVE and hit her. It
+stayed in its idle pose because its mesh had no animation instance (see
+[Cut boss: `coop lion`](bosses.md#cut-boss-coop-lion)). None of this has been checked on build 26123051.
+
 Only the game can settle these:
 
-- whether the game's lookups by ID see the rows and the read-back matches on this build;
-- whether the stance's command list builds the Lion's command set and `M_Skulling_AI_Test` runs on it;
-- why the Lion stays in its idle pose: the game never plays its Shows on that body, the Shows play and their clips do
-  not load, or the clips load and the animation blueprint does not blend them in (the follow line's skill flag and anim
-  alphas narrow it down, and `coop lion control` tells the spawn call from the rows);
-- whether the Lion walks to EVE or stands while she moves around it (the follow line now logs its place);
 - where the lock-on marker sits, whether its feet meet the ground and whether its hit sounds play;
 - what a key-0 death does to the spawn manager's counter;
 - each AddRow runs the game's table-changed handling over the whole table, so 220 of them in one frame may cause a short

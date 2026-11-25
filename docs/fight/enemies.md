@@ -7,11 +7,12 @@ Shared enemies and every option that builds on them are experimental. Their sett
 
 ## Shared enemies (experimental)
 
-`coop fight` is the first stage of shared enemies. It has not been tested in game yet. With a friend linked, each
-enemy that both games spawned at the same spawn point, with the same character id and maximum HP, shares one HP bar,
-balance gauge and death, decided by the host. Each player who took part in its fight gets the kill and the loot in
-their own game (`kill_credit` below). Each screen's enemy still fights only its own EVE, and positions are not shared
-unless [same place](#same-place-experimental) is on.
+`coop fight` is the first stage of shared enemies. Two players played with it on two PCs on 2026-10-21, with 0.4.0 on
+game build 24463856 (see [Features: Status](../features.md#status)). It has not been tested in game on build 26123051.
+With a friend linked, each enemy that both games spawned at the same spawn point, with the same character id and maximum
+HP, shares one HP bar, balance gauge and death, decided by the host. Each player who took part in its fight gets the
+kill and the loot in their own game (`kill_credit` below). Each screen's enemy still fights only its own EVE, and
+positions are not shared unless [same place](#same-place-experimental) is on.
 It changes enemy stats through the game's own code, so it shares enemies only on a co-op save, and kills count in the
 co-op save. Back up your saves first (see [players/saves.md](../players/saves.md)). When an enemy becomes shared, or shared again after a
 death, a load or photo mode, the guest's copy takes the host's HP without a damage number; later drops from the host's
@@ -271,7 +272,8 @@ player who hit it last. After 10 s without a hit, it goes to the other player on
 3 m nearer to it, and within 30 m of it, for 2 s. An enemy changes hands at most once in 4 s, and never during one of
 its attacks, while it is down, groggy, in the air or in a takedown, or while it dies. An enemy the guest's game refuses
 or gives back stays with the host's game for 30 s. With `aggro=host`, every enemy stays with the host's game and never
-attacks the guest. Same place is on by default and has not been tested in game yet.
+attacks the guest. Same place is on by default. Two players played with it on two PCs on 2026-10-21, with 0.4.0 on game
+build 24463856 (see [Features: Status](../features.md#status)). It has not been tested in game on build 26123051.
 
 A takedown moves the enemy at once. When either player starts a takedown on a groggy enemy, that player's game takes
 the enemy for it, without the 4 s wait, and the other game shows the takedown from its stream, on the same timeline as

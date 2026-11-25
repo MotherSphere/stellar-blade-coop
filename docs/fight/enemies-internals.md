@@ -697,9 +697,9 @@ ends each window itself.
 ### Lines and counters
 
 The changed cc line and the two new lines ride channel 2, reliable, in fight pairs only (never in match lobbies, the
-SBO lobby or the PvP test). They joined protocol 23, which no release has used yet, so the number did not change. An
-earlier protocol-23 build drops them as malformed lines (said once a session). This build drops that build's
-three-field cc line the same way.
+SBO lobby or the PvP test). They came with protocol 23, which no release used. This build sends them under protocol 29
+(`SBF29`). A game on another protocol does not link with it (see
+[Steam link: protocol versions](../online/steam-link-internals.md#protocol-versions)).
 
 - `SBF29 cc <gen> <hguid> <effect> <level> <ms>`, both sides: a crowd control or a flinch that rose on the sender's
   copy, with the hit's level (0 to 99) and the reaction's time: 0 for a crowd control (its row's own), 0 to 10000 ms

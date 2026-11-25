@@ -36,7 +36,7 @@ QTE owner in boss fights. It does not link with 0.11.0 or older: every player ha
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the
 revive, the solid partner, the Load Shortcut saves, the PvP test, the SBO lobby, score attack, the fishing tournament,
-Doro races in matches, the photo hunt, the bike and the day and night cycle.
+Doro races in matches, the photo hunt, the bike, gun mode and the day and night cycle.
 The status strip shows its
 compact form, and F7's travel to the host is on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the
 old off values is changed once at the next load (see [Settings](players/settings.md#coop-settingstxt)). Most of these features
@@ -114,6 +114,12 @@ achievements, which cannot be taken back.
   items are off while she rides. Your friend's ghost of you and the match-lobby ghosts show the bike. It stays where she
   gets off, one place for each save, where the players linked with you see it too. Its riding model adapts dCharisma1's
   Eve On Wheels, with his consent. It is not tested in game yet (see [vehicles/bike.md](vehicles/bike.md)).
+- Gun mode: F4 (`gun_key`) or a tap of D-pad Right gives EVE the NIKKE DLC's rifle outside its missions, on any save,
+  as a third-person shooter. `gun_mode=off` (Options, Controls) turns it off. While its rifle layer is rebuilt, the
+  key only shows the notice `Gun mode: rebuilding`. It brings the rifle out only with the optional pak `zNGMSpike_P`
+  installed. You build that pak on your own PC: SBO does not ship it. Gun mode ran in game on one PC on 2026-11-20 and
+  2026-11-21, on game build 26123051. It has not been played between two players. Its rounds on a co-op save have not
+  run in game (see [fight/gunmode.md](fight/gunmode.md)).
 - Day and night: the sun moves across the sky on the maps that can show it, by one clock that every SBO player shares
   through UTC, so players on the same map see the same sky with no network message. One real hour is one game day; the
   night runs from about :52 to :12 past each hour. It runs in solo play, in online sessions, in the hall lobbies, in
@@ -195,7 +201,8 @@ achievements, which cannot be taken back.
   [docs/players/saves.md](players/saves.md)).
 
 The ghost is display only, and items are not shared, except the consumables sent with `coop gift`. The experimental
-Shared enemies option (co-op menu, Options, Combat) is on by default and untested in game. It shares common enemies only
+Shared enemies option (co-op menu, Options, Combat) is on by default. It ran with same place on two PCs on 2026-10-21,
+with 0.4.0 (see [Status](#status)). It has not been tested in game on build 26123051. It shares common enemies only
 while both players play a co-op save (see [fight/enemies.md](fight/enemies.md#shared-enemies-experimental)). Same place, same
 spawns, shared bosses, shared flinches and stagger resistance build on it. They are experimental and on by default too.
 A shared boss ends with the first finisher press on any screen (the host's `boss_finish`). With story together on, its
@@ -247,9 +254,11 @@ Doro races in matches, the PvP test and the black screen held over each arrival.
 
 This project found Night Operation in the game files: a multiplayer wave-survival mode that Shift Up prototyped and cut
 before release. Its recruiter was meant to stand next to Roxanne in Xion's Scrap Market. The plan is to bring the mode
-back for friends over Steam, started from the recruiter's Join choice, for up to six players. A Night Operation run holds
-two players today; the match lobbies hold eight but run no Night Operation yet, and Join takes you to the
-[SBO lobby](online/lobby.md) instead. The mod never contacts the cut mode's online services (Shift Up's servers).
+back for friends over Steam, started from the recruiter's Join choice. A Night Operation run holds two players at most
+today: in an online session of more than 2 players the host cannot start one (see
+[More than 2 players](players/playing-with-a-friend.md#more-than-2-players)). The match lobbies hold eight players but
+run no Night Operation yet. Join takes you to the [SBO lobby](online/lobby.md) instead. The mod never contacts the
+cut mode's online services (Shift Up's servers).
 
 `coop nightop start` runs five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and a
 score, on a co-op save. `coop nightop start easy`, `hard` or `nightmare` changes the number of monsters (15 to 40 in

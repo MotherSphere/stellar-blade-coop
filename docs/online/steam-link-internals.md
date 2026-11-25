@@ -31,7 +31,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 
   `ask` after the word (`host public ask`, from `friends_ask=on`) makes the host's Steam friends wait for her answer
   too (see [Players who are not Steam friends](#players-who-are-not-steam-friends)). The lobby carries a tag under the
-  key `stellarcoop`: the protocol and the game's Steam build (`26:<build>`). A lobby from another protocol or game
+  key `stellarcoop`: the protocol and the game's Steam build (`29:<build>`). A lobby from another protocol or game
   build is refused on joining, with both versions in the joiner's log and on screen. A lobby with no tag is another
   game's. It is refused as such.
 - Anyone who has an invisible lobby's id can join it. The host's friends do not see it. Steamworks documents that a
