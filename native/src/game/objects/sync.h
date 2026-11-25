@@ -7,7 +7,8 @@
 // linked env node (l). The game thread's hooks push each root they see into a Ring; each pass drains it, keeps what
 // game/objects/rows.h lists while both players have the feature on, and sends one line per root. Her lines wait in
 // arrival order until she is in game, then each one goes to the Engine, which replays it through the function the graph
-// used.
+// used. Her s line for a saved env of ours (an entry of kZoneEnvs for the line's zone) held in a state the lists keep
+// out (held(): a passcode door typed open) is not applied: it counts in kept, as the catch-up's rule below does.
 // The cascades that follow (the lever's own events opening its door) run in each world from its own tables, so they
 // are never sent. Nothing here reads memory or calls the game: game/objects/engine.h does, behind Engine, and
 // tests/native/game/objects/sync_test.cpp drives this file on the build machine with a fake one. No Windows types.
@@ -307,6 +308,9 @@ inline bool touched(const Value &v, const ZoneEnv &e) {
   return v.where != Where::none &&
          (!detail::same_name(v.tag, e.tag) || (object_state_allowed(e.alias) && v.object != e.object));
 }
+// v touched into a state that is not a kept pair, held out for its player (a passcode door typed open): neither her
+// c line nor her s line moves it.
+inline bool held(const Value &v, const ZoneEnv &e) { return touched(v, e) && !state_allowed(e.alias, v.tag); }
 
 // The game side, behind game/objects/engine.h.
 class Engine {
@@ -342,7 +346,7 @@ struct Counters {
   uint64_t received = 0, applied = 0, refused = 0, gated = 0, overflow = 0, bad = 0, gaps = 0;
   // Catch-up: asked (our c ask lines), caught (her c lines applied), kept (ours kept: a newer root of ours, a state
   // held out for us, or the host's touched value), same (hers equal to ours). Her c lines count in received or refused
-  // too, never in applied.
+  // too, never in applied. Her s lines kept for a state held out for us count in kept too.
   uint64_t asked = 0, caught = 0, kept = 0, same = 0;
 };
 
@@ -617,6 +621,11 @@ private:
       return end(m);
     if (m.type == Type::catchup)
       return catch_up(m, now_ms);
+    if (m.type == Type::state) { // A state held out for us stays ours, as in the catch-up.
+      const ZoneEnv *e = zone_env(m.zone, m.alias);
+      if (e && held(e_.read(m.zone, m.alias), *e))
+        return void(++counters.kept);
+    }
     if (const char *why = e_.apply(m))
       refuse(m, why);
     else
@@ -696,7 +705,7 @@ private:
     const ZoneEnv &e = *zone_env(m.zone, m.alias); // allowed() found it at receive
     Tally &t = tallies_[m.zone];
     Value v = e_.read(m.zone, m.alias);
-    const bool live = v.where == Where::live, ours = touched(v, e);
+    const bool live = v.where == Where::live, ours = touched(v, e), keep = held(v, e);
     if (v.where == Where::none)
       v.tag = e.tag, v.object = e.object;
     const bool tag_same = detail::same_name(v.tag, m.name);
@@ -706,11 +715,11 @@ private:
       return;
     }
     const bool newer = newer_root(m);
-    if (newer || (ours && (!state_allowed(m.alias, v.tag) || gates_.host))) {
+    if (newer || keep || (ours && gates_.host)) {
       ++counters.kept, ++t.kept;
       // A newer root of ours and a state held out for us (a passcode door typed open) stay ours, sent nowhere. The
       // host's value goes back, only for its own ask, so two sides that both host cannot ping-pong.
-      if (!newer && state_allowed(m.alias, v.tag) && waiting_.count(m.zone))
+      if (!newer && !keep && waiting_.count(m.zone))
         ++sent_back_[m.zone], send_catchup(e, v);
       return;
     }
