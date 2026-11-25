@@ -321,9 +321,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `500`, `-1`), paid once the count fell by 500, paused time not counted toward the 10 s, a failure when it does not
   fall or when no answer comes, a read whose answer was lost (`coop gift`'s answered after it) asked again with its
   number after 1 s, the numbers from 32768;
-- `cutmenus/mailbox_test` builds each `coop gift` notice through `tell` from a words table with a mark before every
-  gift word. It fails when a notice is not that table's word whole (an English literal). It covers the loopback's own
-  sentences, the words' `friend` when the link gives no name and the reason of a stopped send in the log. It also
+- `cutmenus/mailbox_test` builds each `coop gift` notice through `tell` from a words table with a mark before and after
+  every gift word and another mark around `friend`. It fails when a notice has text in front of or behind the word it
+  was built from (an English literal, or English added to a word). With no name from the link, it checks that the
+  notices for a gift got or kept carry the words' `friend`. It covers the loopback's own sentences and the reason of a
+  stopped send in the log. It also
   stops a send with `coop off` before and after the remove: after it, the items wait in the gift file as a back entry
   that a new mailbox (the next game start) gives back, or the log says they could not be given back.
   `main/boot_test` checks that `cutmenus/wiring.lua` hands it `M.tell`;

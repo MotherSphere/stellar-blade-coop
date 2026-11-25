@@ -104,15 +104,17 @@ local function write(name,content)
 end
 local asked,logs,says,toasts,untoasts={},{},{},{},0
 -- The notices: tell(build) as main/base.lua's M.tell. Each must come whole from the words it gets: built from a table
--- whose gift words carry a mark in front, it is the English notice with that mark in front (friend stays unmarked, as
--- it may stand inside a notice).
+-- whose gift words carry a mark in front and one behind, it is the English notice between those marks. friend, which
+-- stands inside a notice, carries its own mark on both sides; said_friend says whether the last notice used it.
 local T=require('ui.text')
 local marked={gift={}}
-for k,v in pairs(T.en.gift) do marked.gift[k]=k=='friend' and v or '\1'..v end
+for k,v in pairs(T.en.gift) do marked.gift[k]=k=='friend' and '\2'..v..'\2' or '\1'..v..'\3' end
+local said_friend
 local function tell(build)
     local en=build(T.en)
-    assert(build(marked)=='\1'..en,'Not built from the words: '..en)
-    says[#says+1]=en
+    local whole,friends=build(marked):gsub('\2','')
+    assert(whole=='\1'..en..'\3','Not built from the words: '..en)
+    says[#says+1],said_friend=en,friends==2
 end
 local friend_name='Kaanta'
 local linked,lost,loop,paused,clock,now=true,false,false,false,100,5000
@@ -586,10 +588,11 @@ mail.receive('a '..id)
 assert(says[#says]=='You got your 1 HP_Potion_Small.',says[#says])
 loop,peer_id,friend_name=false,HER,''
 mail.receive('s 921 HP_Potion 2')
-assert(says[#says]=='your friend sent you 2 HP_Potion: coop gift take puts them in your inventory.',says[#says])
+assert(says[#says]=='your friend sent you 2 HP_Potion: coop gift take puts them in your inventory.' and said_friend,
+    says[#says])
 id=sent('1','1',5)
 mail.receive('a '..id)
-assert(says[#says]=='your friend got your 1 HP_Potion.',says[#says])
+assert(says[#says]=='your friend got your 1 HP_Potion.' and said_friend,says[#says])
 friend_name='Kaanta'
 mail.stop()
 -- A Lua reload while the toast is up: the next load's first tick takes it off, once; that load's own toast goes at
