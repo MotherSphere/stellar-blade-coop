@@ -11,18 +11,20 @@
 --   coop closet fits                                  the fit maps and their pieces' slots
 local Dress=require('closet.dress')
 local Commands={}
+-- main/commands.lua's M.run passes six words, nil-padded: an extra word is a first one that is not nil.
 Commands.USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits]'
 function Commands.new(o)
     local self={}
     function self.closet(sub,...)
+        local extra=(...)~=nil
         if sub==nil or sub=='status' then
-            if select('#',...)>0 then return false,Commands.USE end
+            if extra then return false,Commands.USE end
             return true,o.dress.status()
         elseif sub=='off' then
-            if select('#',...)>0 then return false,Commands.USE end
+            if extra then return false,Commands.USE end
             return o.dress.off()
         elseif sub=='fits' then
-            if select('#',...)>0 then return false,Commands.USE end
+            if extra then return false,Commands.USE end
             local lines={}
             local ids={}
             for id in pairs(o.fits.BY_ID) do ids[#ids+1]=id end
@@ -34,7 +36,7 @@ function Commands.new(o)
             end
             return true,#lines>0 and table.concat(lines,'\n') or 'closet: no fit maps'
         elseif sub=='wear' then
-            if select('#',...)==0 then return false,Dress.USE end
+            if not extra then return false,Dress.USE end
             local choices,why=Dress.parse({...})
             if not choices then return false,why end
             return o.dress.wear(choices)

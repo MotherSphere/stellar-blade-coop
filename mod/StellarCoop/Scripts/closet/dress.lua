@@ -205,13 +205,13 @@ function Dress.new(o)
         return store.save(table.concat({state.eve_path or '',state.own or '',state.materials or '',
             table.concat(added,';')},'\t'))
     end
-    -- Removes the added components wearing the given mesh paths (ours, also from an earlier load) and gives the body
-    -- its own mesh and materials back.
-    local function give_back(eve,own,materials,added_paths)
+    -- Removes every component on EVE but her body that wears one of the given mesh paths: ours, also one an earlier
+    -- mix or Lua load left (a map load can make the game set her body twice, and each change got the mix again).
+    local function sweep(eve,paths)
         local body=valid(eve.Mesh)
         local removed=0
         local wanted={}
-        for _,p in ipairs(added_paths) do wanted[p]=true end
+        for _,p in ipairs(paths) do wanted[p]=true end
         each(eve:K2_GetComponentsByClass(StaticFindObject(SKINNED)),function(_,c)
             c=valid(c)
             local mesh=c and valid(c.SkeletalMesh)
@@ -220,6 +220,12 @@ function Dress.new(o)
                 removed=removed+1
             end
         end)
+        return removed
+    end
+    -- Removes the added components wearing the given mesh paths and gives the body its own mesh and materials back.
+    local function give_back(eve,own,materials,added_paths)
+        local body=valid(eve.Mesh)
+        local removed=sweep(eve,added_paths)
         if body and own and own~='' then
             local mesh=usable(own)
             if mesh then
@@ -248,9 +254,12 @@ function Dress.new(o)
         end
         -- Her own look first, kept across a mix that changes (the first mix's).
         local own,materials=state and state.own,state and state.materials
-        if state then
-            for _,a in ipairs(state.added) do pcall(function() a.c:K2_DestroyComponent(a.c) end) end
-        else
+        -- No added mesh of an earlier mix stays: the old one's and this plan's outfits are swept off EVE first.
+        local paths={}
+        for _,a in ipairs(state and state.added or {}) do paths[#paths+1]=a.mesh end
+        for _,a in ipairs(plan.added) do paths[#paths+1]=a.mesh end
+        sweep(eve,paths)
+        if not state then
             local mesh=valid(body.SkeletalMesh)
             own,materials=mesh and path_of(mesh) or '',current_materials(body)
         end

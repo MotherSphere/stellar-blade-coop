@@ -230,6 +230,36 @@ local tests = {
         ok(not ok_ and line:find('Use: coop closet'), line)
         ok_, line = C.closet('off')
         ok(ok_ and line == 'closet: off', line)
+        -- As main/commands.lua's M.run calls it: six words, nil-padded.
+        ok_, line = C.closet('wear', 'AiK_CH46_xSH_14462', nil, nil, nil, nil)
+        ok(ok_, line)
+        ok_, line = C.closet('status', nil, nil, nil, nil, nil)
+        ok(ok_ and line:find('^closet: 8 pieces'), line)
+        ok_, line = C.closet('off', nil, nil, nil, nil, nil)
+        ok(ok_ and line == 'closet: off', line)
+        ok_, line = C.closet('fits', nil, nil, nil, nil, nil)
+        ok(ok_, line)
+        ok_, line = C.closet('wear', nil, nil, nil, nil, nil)
+        ok(not ok_ and line:find('Use: coop closet wear'), line)
+        ok_, line = C.closet(nil, nil, nil, nil, nil, nil)
+        ok(ok_ and line == 'closet: nothing worn', line)
+    end,
+    two_body_changes_in_a_row_leave_one_added_mesh = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH27_14595', slots = {'Chest'}}, {fit = 'AiK_CH46_xSH_14462',
+            slots = {'Shoes'}}}))
+        -- A map load: the added mesh stays for once, the game sets her body to one mesh, then to her suit.
+        w.eve.Mesh:SetSkeletalMesh(w.assets[TACHY .. 'x'] or w.assets[OWN])
+        second(w) second(w)
+        eq(#w.eve.comps, 2, 'mixed again')
+        w.eve.Mesh:SetSkeletalMesh(w.assets[OWN])
+        second(w) second(w)
+        eq(#w.eve.comps, 2, 'still one added mesh, not two')
+        -- Wearing another mix sweeps any added mesh of the old one.
+        assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))
+        eq(#w.eve.comps, 1, 'the whole outfit alone: no added mesh left')
+        w.d.off()
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN) eq(#w.eve.comps, 1)
     end,
 }
 run('dress_test', tests)
