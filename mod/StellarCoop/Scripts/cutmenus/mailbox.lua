@@ -20,7 +20,8 @@
 -- which queues SB's remove by alias for its logic thread: asked for more than she has, that remove takes what there is,
 -- so the count comes first); the native part reads again until the count fell by the gift's (SETTLE s of play at most:
 -- SB's logic, and its remove with it, stops while the game is paused or in photo mode, so that time does not count;
--- else nothing is sent and the items may be gone); the gift goes into the file, then its line ("s <id> <alias>
+-- else nothing is sent and the items may be gone; coop off in that wait leaves them in the file to come back, see
+-- stop()); the gift goes into the file, then its line ("s <id> <alias>
 -- <count>", link/protocol.h's gift line).
 -- Her game answers "a <id>" (kept in her mailbox) or "n <id> <why>": slot (not on a co-op save), full (BOX gifts wait
 -- already), item (not one of ITEMS), store (her file cannot be read or written). A refusal, no answer in WAIT s, a
@@ -171,7 +172,8 @@ function Mailbox.sweep(path)
     w:RemoveFromParent()
     return true
 end
--- o: log(text) writes a [GF] line; say(text) puts a notice on screen; status() is the native part's status text;
+-- o: log(text) writes a [GF] line; tell(build) puts a notice on screen that build(words) makes from ui/text.lua's gift
+-- table (main/base.lua's M.tell: in the menu's words, in English above EVE); status() is the native part's status text;
 -- request(line) asks the native part (link.request); read(name) and write(name, text) are link.read_file and
 -- link.write_file; friend() is link.friend (her name, linked, lost); loopback() whether coop loopback runs; paused()
 -- whether the game is paused (photo mode included, ours or the friend's that pauses ours) or shows one of its screens;
@@ -180,7 +182,7 @@ end
 -- through link.store) keeps the toast's path while it is up, so the next Lua load's first tick takes it off through
 -- sweep(path), Mailbox.sweep unless given.
 function Mailbox.new(o)
-    local log,say,status,request,read,write=o.log,o.say,o.status,o.request,o.read,o.write
+    local log,tell,status,request,read,write=o.log,o.tell,o.status,o.request,o.read,o.write
     local friend,loopback,paused,name_of=o.friend,o.loopback,o.paused,o.name
     local clock,now,toast,sweep=o.clock or os.clock,o.now or os.time,o.toast or Mailbox.toast,o.sweep or Mailbox.sweep
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
@@ -266,7 +268,9 @@ function Mailbox.new(o)
         toast_off=true -- The first failure: no toast for this Lua load.
         log('toast off until the mod reloads: '..why(ok and e or off))
     end
-    local function her_name() local name=friend(); return name and name~='' and name or 'your friend' end
+    -- Her name from the link. Without one: none (a notice gives the words' friend), else 'your friend' (the log, the
+    -- file).
+    local function her_name(none) local name=friend(); return name and name~='' and name or none or 'your friend' end
     local function linked_to(raw,to)
         if to=='0' then return loopback(),false end
         local _,linked,lost=friend()
@@ -274,11 +278,12 @@ function Mailbox.new(o)
         return same and linked==true,same and lost==true
     end
     -- A send's end before its line: nothing left the inventory, or it was given back, or (said so) a read after the
-    -- remove failed.
-    local function fail(text)
+    -- remove failed. The log keeps why; the notice is build's, else the one for the send's step.
+    local function fail(text,build)
         log('send stopped: '..text)
+        local gone=sending.step=='gone'
         sending=nil
-        say('Gift not sent: '..text)
+        tell(build or function(w) return gone and w.gift.gone or w.gift.failed end)
     end
     -- The items gone from the inventory: into the file, then the line. Written first, so a gift that left always has
     -- its entry; a file that cannot be written gives the items back at once.
@@ -292,7 +297,7 @@ function Mailbox.new(o)
                 sending=nil
                 request(string.format('gift s %s %s %d',id,s.alias,s.count))
                 log(string.format('sent %s: %s x%d to %s (had %d)',id,s.alias,s.count,s.to,s.before))
-                say(string.format('Gift sent: %d %s. It waits for your friend\'s answer.',s.count,s.alias))
+                tell(function(w) return w.gift.sent:format(s.count,s.alias) end)
                 return
             end
             e='the gift file was not written: '..tostring(se)
@@ -302,8 +307,7 @@ function Mailbox.new(o)
         log(string.format('send %s stopped after the remove: %s; the items %s',id,tostring(e),back and 'came back'
             or 'could not be given back'))
         sending=nil
-        say(string.format('Gift not sent: %s. %s',tostring(e),back and 'The items came back.'
-            or 'The items could not be given back: see UE4SS.log.'))
+        tell(function(w) return back and w.gift.back or w.gift.lost end)
     end
     -- A send under way, each tick: the native part's reads and the game's remove. After the remove, a read that fails
     -- sends nothing: with no proof the items left, a gift could make items out of none, so a lost gift is the risk
@@ -338,7 +342,10 @@ function Mailbox.new(o)
         end
         have=have and math.tointeger(tonumber(have))
         if s.step=='count' then
-            if have<s.count then return fail(string.format('you carry %d %s',have,s.alias)) end
+            if have<s.count then
+                return fail(string.format('you carry %d %s',have,s.alias),
+                    function(w) return w.gift.few:format(have,s.alias) end)
+            end
             local r,e=ready()
             if not r then return fail(e) end
             local called,ce=pcall(Mailbox.remove,r.pc,r.guid,s.alias,s.count)
@@ -396,7 +403,7 @@ function Mailbox.new(o)
                 if ok then
                     tried[e.id]=nil
                     log(string.format('gift %s came back: %s x%d',e.id,e.alias,e.count))
-                    say(string.format('Gift returned: %d %s are back in your inventory.',e.count,e.alias))
+                    tell(function(w) return w.gift.returned:format(e.count,e.alias) end)
                 else
                     table.insert(st.back,i,e)
                     if saved then changed=true end -- The file lost it: written again below.
@@ -429,11 +436,26 @@ function Mailbox.new(o)
         if sending then step(raw,t) end
         if pending and file then settle(raw,t) end
     end
-    -- coop off: the toast goes. A send between its remove and its entry in the file stops here with its items gone.
-    -- ponytail: so does one when Lua reloads in that wait (SETTLE s of play at most); an entry written before the
-    -- remove is the upgrade.
+    -- coop off: the toast goes. A send between its remove and its entry in the file stops here. Its items go into the
+    -- file as a back entry, which settle() gives back at the next game start on this co-op save: nothing ticks after
+    -- coop off. The remove may also still wait for SB's logic.
+    -- ponytail: a send stopped by a Lua reload in that wait (SETTLE s of play at most) loses its items; an entry
+    -- written before the remove is the upgrade.
+    -- shortcut: the back entry is written with no proof the remove ran. coop off while the game is paused, then a quit
+    -- before it plays again, can give the items twice. Upgrade when a doubled gift is reported.
     function self.stop()
+        local s=sending
         sending=nil
+        if s and s.step=='gone' then
+            local st,_,e=load()
+            local ok=false
+            if st then
+                st.back[#st.back+1]={id=new_id(),alias=s.alias,count=s.count}
+                ok,e=save(st)
+            end
+            log(string.format('send stopped by coop off after the remove: %s x%d %s',s.alias,s.count,ok
+                and 'come back at the next game start' or 'could not be given back ('..tostring(e)..')'))
+        end
         unshow()
     end
     -- Her gift: kept in the mailbox and answered a, or refused with n and why. A key already seen gets its first
@@ -461,7 +483,10 @@ function Mailbox.new(o)
         st.box[#st.box+1]={id=m.id,alias=m.alias,count=m.count,from=from,at=now(),name=name}
         if not save(st) then return answer('store') end
         answer('a')
-        say(string.format('%s sent you %d %s: coop gift take puts them in your inventory.',name,m.count,m.alias))
+        tell(function(w)
+            if from=='0' then return w.gift.got_self:format(m.count,m.alias) end
+            return w.gift.got:format(her_name(w.gift.friend),m.count,m.alias)
+        end)
         show(string.format('%s: %d %s',name,m.count,m.alias))
     end
     -- Her answer to one of ours (or the native part's nolink): kept, or refused and coming back.
@@ -478,11 +503,14 @@ function Mailbox.new(o)
                 table.remove(st.out,i)
                 if m.kind=='a' then
                     log(string.format('gift %s kept by %s: %s x%d',e.id,her_name(),e.alias,e.count))
-                    say(string.format('%s got your %d %s.',e.to=='0' and 'You' or her_name(),e.count,e.alias))
+                    tell(function(w)
+                        if e.to=='0' then return w.gift.kept_self:format(e.count,e.alias) end
+                        return w.gift.kept:format(her_name(w.gift.friend),e.count,e.alias)
+                    end)
                 else
                     st.back[#st.back+1]={id=e.id,alias=e.alias,count=e.count}
                     log(string.format('gift %s refused (%s): it comes back',e.id,m.why))
-                    say(string.format('Gift refused (%s): the %d %s come back.',m.why,e.count,e.alias))
+                    tell(function(w) return w.gift.refused:format(e.count,e.alias) end)
                 end
                 save(st)
                 return

@@ -419,7 +419,8 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 When a `coop devmenu` row ran, `coop off` runs its `clear` and `lockswitch` rows once more, but that `clear` reaches
 only the enemies near EVE at that moment, and both are skipped while a respawn or a warp is under way (see
 [Developer menu](cutmenus/menus.md#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after
-the items left your inventory and before the gift reached your mailbox file stops there, and those items are lost. Gift
+the items left your inventory and before the gift reached your mailbox file stops there. Those items go into the
+mailbox file and come back the next time the game starts on that co-op save. Gift
 lines from your friend that arrive after `coop off` are dropped without an answer. Afterwards only `coop status` and
 `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
 menu, host, leave and bike keys. The race key does nothing.

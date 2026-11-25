@@ -221,12 +221,19 @@ a stat), drone ammo and the cut stimpacks are left out, and none of the seven co
   That wait lasts 10 s of play at most: time with the game paused or in photo mode (yours, or your friend's when it
   pauses your game) does not count, since the game runs the remove only once it plays again.
   `OK: reading how many PulseGrenade you carry; the gift of 2 follows` answers the command, then a notice says
-  `Gift sent: 2 PulseGrenade. It waits for your friend's answer.` or why it was not sent.
+  `Gift sent: 2 PulseGrenade. It waits for your friend's answer.` A send that stops says `Gift not sent: you carry 1
+  PulseGrenade.` when you have too few, else `Gift not sent. UE4SS.log says why.` When the items had already left,
+  the notice puts `The items came back.`, `The items could not be given back.` or `The items may be gone.` before
+  `UE4SS.log says why.` The log line gives the reason: `send stopped: <why>`, or
+  `send <id> stopped after the remove: <why>; the items came back`.
+- The notices come in the menu's language, from the `gift` table of each `ui/text/` file. The console replies stay in
+  English.
 - Your friend's game keeps the gift in her mailbox and answers, and you get `Kaanta got your 2 PulseGrenade.` She gets
   `<your name> sent you 2 PulseGrenade: coop gift take puts them in your inventory.` and the cut toast for 4 s. A Lua
   reload (Ctrl+R) in those 4 s takes the toast off at once.
 - Her game refuses a gift when she is not on a co-op save, when 20 gifts already wait in her mailbox, or when it cannot
-  write its mailbox file. The items then come back to you: `Gift refused (full): the 2 PulseGrenade come back.`
+  write its mailbox file. The items then come back to you: `Gift refused: the 2 PulseGrenade come back. UE4SS.log says
+  why.` The log has her reason: `gift <id> refused (full): it comes back`.
 - The items also come back when she leaves the session before answering, when no answer came in 60 s, or when the
   gift could not be sent at all. They come back through the same request the
   [Night Operation shop](../online/modes/nightop-shop.md) adds items with, as soon as EVE is in the world and the
@@ -245,12 +252,18 @@ These cases can still lose or double a gift:
 - Your friend's answer is lost as she leaves the session, or her link stays lost for more than 60 s while the gift
   line is on its way. The items come back to you, and her game keeps the gift if the line reaches it. The log shows
   `gift <id> comes back: ...`, and an answer that arrives after it shows `answer a <id> for no gift waiting`.
-- The game stops (a crash, `coop off`, a Lua reload) after the remove and before the gift's entry in your file, which
+- The game or the mod stops (a crash, a Lua reload) after the remove and before the gift's entry in your file, which
   can take up to the 10 s of play above plus 5 s for a read. The items are gone and nothing is sent: the log has a
-  `remove asked` line with no `sent` line after it.
+  `remove asked` line with no `sent` line after it. `coop off` in that wait sends nothing either. It writes the items
+  into your mailbox file as coming back. They return the next time the game starts on that co-op save. The log
+  says `send stopped by coop off after the remove: PulseGrenade x2 come back at the next game start`.
+- You run `coop off` in that wait while the game is paused, from the co-op menu for example, then close the game
+  before it plays again. If the game had not run the remove yet, the items are still in your inventory. The mailbox
+  file gives them back anyway at the next game start: you have them twice. The log line is the same as above.
 - The count does not fall by the gift's in those 10 s, because the game ran the remove later still or because an item
-  you picked up meanwhile hid the drop. Nothing is sent, and the notice says the items may be gone:
-  `Gift not sent: the count did not fall by 2 in 10 s of play (5 before, 4 now); the items may be gone`. Check your
+  you picked up meanwhile hid the drop. Nothing is sent. The notice says
+  `Gift not sent. The items may be gone. UE4SS.log says why.` The log line is
+  `send stopped: the count did not fall by 2 in 10 s of play (5 before, 4 now); the items may be gone`. Check your
   inventory.
 - You use the same item between the remove request and the game's turn that runs it. The use can look like the drop,
   so the gift goes, and the remove then takes only what is left.

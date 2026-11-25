@@ -43,7 +43,7 @@
 -- the result, with the kit off, at coop off and after a HUD error, and never for another challenge.
 -- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
 -- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
--- sides' spots and wallets. The Shooting Range for two: the host's ask, his line's range word, her run's waves and
+-- sides' spots and wallets, in her notice of his start and in her card's title (not in his). The Shooting Range for two: the host's ask, his line's range word, her run's waves and
 -- notices, the same dummies on the same spots, one score, no points, no best written and each panel's Best row read
 -- from its own PC's records; a host ask that names a solo
 -- challenge (targets, swarm) refused, with no join.
@@ -1429,6 +1429,11 @@ assert(table.concat({Run.card({phase='wave',t0=0,wave=1,score=0,def=W.LEVEL.hard
 -- The ask: the host waits for her; her card counts down from her answer.
 assert(select(2,Run.card({phase='ask',role='host',t0=10,def=W.NIGHT},7,Tx.en))=='WAITING FOR PARTNER')
 assert(select(2,Run.card({phase='ask',role='guest',t0=10,def=W.NIGHT},7,Tx.en))=='STARTS IN 3')
+-- Her card's title names the host's level, in her words; his own does not (he picked it).
+assert(Run.card({phase='ask',role='guest',t0=10,def=W.NIGHT},7,Tx.en)=='NIGHT OPERATION (Normal)')
+assert(table.concat({Run.card({phase='wave',role='guest',t0=0,wave=1,score=0,def=W.LEVEL.hard},10,Tx.fr)},'|')
+    =='OPÉRATION NOCTURNE (difficile)|VAGUE 1/5  7:20  SCORE 0')
+assert(Run.card({phase='wave',role='host',t0=0,wave=1,score=0,def=W.LEVEL.hard},10,Tx.en)=='NIGHT OPERATION')
 -- A down: the revive's title in the card's place, with the time left, or the revive's percent once above 0; the line
 -- stays the run's.
 assert(table.concat({Run.card({phase='wave',t0=0,wave=1,score=0,def=W.NIGHT},10,Tx.en,
@@ -1676,8 +1681,8 @@ assert(state(Hs).phase=='ask' and state(Gs).phase=='ask')
 round()
 assert(Hs.sent[2]:find(string.format('^h 2 %d %d count 0 %%-5000 ',run,seed)),Hs.sent[2])
 assert(has(Hs.lines,string.format('Kaanta is ready: run 0x%02X starts in 5 s',run)))
-assert(Hs.told[1]=='Night Operation starts in 5 s.' and Gs.told[1]=='Me started Night Operation. It begins in 5 s.',
-    tostring(Gs.told[1]))
+assert(Hs.told[1]=='Night Operation starts in 5 s.'
+    and Gs.told[1]=='Me started Night Operation (Normal). It begins in 5 s.',tostring(Gs.told[1]))
 assert(state(Gs).phase=='countdown' and math.abs(state(Gs).rt-state(Hs).rt)<=1)
 round(26)
 assert(#Hs.bodies==4 and #Gs.bodies==4,#Gs.bodies)
@@ -1883,7 +1888,7 @@ assert(has(Gs.lines,'up: revived (friend)') and has(Hs.lines,'Kaanta is up again
 assert(Hs.told[#Hs.told]=='Kaanta has joined the game.' and not state(Gs).down and state(Gs).phase=='wave')
 assert(Hs.told[#Hs.told-1]=='You revived Kaanta.','His hold was full: his revived notice')
 assert(Hs.sent[#Hs.sent]:find(' 0 0$') and Gs.sent[#Gs.sent]:find(' 0 0$'),'Both lines: nobody down')
-assert(Hk.groups.night.title.text=='OPÉRATION NOCTURNE' and Gk.groups.night.title.text=='NIGHT OPERATION')
+assert(Hk.groups.night.title.text=='OPÉRATION NOCTURNE' and Gk.groups.night.title.text=='NIGHT OPERATION (Normal)')
 assert(not find(Gs.lines,'^result: ') and not find(Hs.lines,'^result: '))
 -- His own revive (coop nightop revive): the level's count a run, one call a down; refused while he is up, and once
 -- none is left. His game's refusal is logged once and spends none.
@@ -2046,6 +2051,7 @@ assert(not find(Gs.lines,'^down ') and find(Gs.lines,'^result: failed %(guest%) 
 pair()
 host_start('nightmare')
 round(30)
+assert(has(Gs.told,'Me started Night Operation (Nightmare). It begins in 5 s.'),'Her notice names his level')
 Hs.life,Gs.life=ALIVE,ALIVE
 round(1)
 fall(Gs)

@@ -12,11 +12,11 @@ M.devmenu=require('cutmenus.devmenu').new({log=function(m) print('[StellarCoop][
     status=function() return M.link and M.link.status() end,store=M.link and M.link.store('coop-devmenu.txt')})
 -- coop gift (cutmenus/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link
 -- only. Its tick runs in the 250 ms loop of main/pass.lua, her gift lines come through inbox(), and coop gift runs on a
--- co-op save only (cutmenus/commands.lua). Its FName and pause rules are the bike's paid fetch's (main/base.lua's
--- fname and logic_paused).
+-- co-op save only (cutmenus/commands.lua). Its notices come in the menu's words (tell, ui/text.lua's gift table). Its
+-- FName and pause rules are the bike's paid fetch's (main/base.lua's fname and logic_paused).
 M.mailbox=M.link and require('cutmenus.mailbox').new({
     log=function(m) print('[StellarCoop][GF] '..tostring(m)..'\n') end,
-    say=function(text) M.say(text) end,status=function() return M.link.status() end,
+    tell=M.tell,status=function() return M.link.status() end,
     request=function(line) return M.link.request(line) end,read=function(name) return M.link.read_file(name) end,
     write=function(name,text) return M.link.write_file(name,text) end,friend=function() return M.link.friend() end,
     loopback=function() return M.link.loopback() end,store=M.link.store('coop-gift-toast.txt'),
