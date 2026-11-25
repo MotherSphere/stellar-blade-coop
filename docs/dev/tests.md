@@ -1899,7 +1899,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `LuaMod.hpp`, `LuaMod.cpp` and `UE4SSProgram.cpp`. A tag that is not commit `30afe5ff` is refused. So is a patched
   source that is not commit `4c8e4f4d`. `git am` keeps the author's date as commit date. It runs with the patch's author
   as committer and with no user or system Git config. It checks the clone, configure and build command lines (the
-  `UE4SS` target only) and the variables that map local folders and make the link reproducible. The default output is
+  `UE4SS` target only) and the variables that map local folders and pass `/Brepro` to the linker. The default output is
   the path `tools/ue4ss.py` reads. Over a fake `subprocess.run`: a used work folder, a path with a space, extra
   arguments, a missing tool and a missing xwin folder stop it before any command. A moved tag stops it after the clone.
   Another patched commit stops it after `git am`. A whole run calls clone, tag check, `git am`, patched-commit check,

@@ -77,7 +77,7 @@ assert tool.configure(work, '/usr/bin/llvm-ml') == [
 assert tool.build(work) == ['cmake', '--build', '/w/build-rel', '--target', 'UE4SS', '-j6']
 
 # The flags go through the environment, never -DCMAKE_CXX_FLAGS: the toolchain file adds its include flags to them.
-# Each local folder is mapped to a short name, the PDB path is only its name, the link is reproducible.
+# Each local folder is mapped to a short name, the PDB path is only its name, the link gets /Brepro.
 env = tool.environment(work, {'PATH': '/bin', 'XWIN_DIR': '/x', 'RUSTUP_HOME': '/r', 'CFLAGS': '-O0'})
 flags = ('/clang:-ffile-prefix-map=/w/src=src /clang:-ffile-prefix-map=/w/build-rel=build '
          '/clang:-ffile-prefix-map=/x=xwin')

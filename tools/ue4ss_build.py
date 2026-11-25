@@ -8,9 +8,14 @@ the Game__Shipping__Win64 configuration of the official release.
 It clones the tag with its submodules into <work>/src, checks that the tag is commit COMMIT, applies PATCH with git am
 and checks that this gives commit PATCHED, then configures and builds the UE4SS target into <work>/build-rel with
 clang-cl, lld-link and Ninja through the repository's xwin toolchain file. Cargo builds patternsleuth for
-x86_64-pc-windows-msvc with CARGO_HOME in <work>/cargo-home. The compiler, Rust and linker flags map the local folders
-to src, build, cargo, rustup and xwin and make the link reproducible, so no local path lands in the DLL. It prints the
-DLL's path and SHA-256. tools/ue4ss.py packages the DLL only when that SHA-256 is its pin.
+x86_64-pc-windows-msvc with CARGO_HOME in <work>/cargo-home. The compiler and Rust flags map the local folders to src,
+build, cargo, rustup and xwin. /PDBALTPATH keeps the PDB's local path out of the DLL. /Brepro puts a hash of the DLL in
+its PE header in place of the link time. No local path is written into the DLL as text. It prints the DLL's path and
+SHA-256. tools/ue4ss.py packages the DLL only when that SHA-256 is its pin.
+
+This build does not give the pinned DLL, so tools/ue4ss.py refuses its output. The pin was built by hand from commit
+9a61a393, a commit of the same tree as PATCHED. The DLL holds the short hash of its commit: 4c8e4f4d from this tool,
+9a61a393 in the pin. docs/dev/ue4ss.md names the other differences.
 
 The proxy target (dwmapi.dll) is not built: its sources come from a Windows program that the build would run. No
 Windows binary runs here. The package keeps the release's dwmapi.dll.
