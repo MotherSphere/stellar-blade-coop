@@ -415,4 +415,6 @@ return {
         viewer={title='โมเดลที่ถูกตัด',model='โมเดล',part='ส่วน',skin='สกิน',show='แสดง',cam='กล้องอิสระ',
         remove='นำออก',nothing='ไม่มีที่แสดง',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',
         nier='เครื่องจักร NieR',orcal='ต้นแบบ Orcal',enya='ต้นแบบ Enya'}},
+    xion={says='%s: %s',repairer='ช่างซ่อม',
+        repairer_hello='ถ้ามันหึ่งหรือมีประกายไฟ เอามานี่ ฉันมักซ่อมได้'},
 }

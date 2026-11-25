@@ -456,4 +456,6 @@ return {
         viewer={title='Geschrapte modellen',model='Model',part='Deel',skin='Uiterlijk',show='Tonen',
         cam='Vrije camera',remove='Weghalen',nothing='Niets getoond',leviathan='Leviathan',gardener='Gardener',
         tendril='Tendril',mann='Mann',nier='NieR-machine',orcal='Orcal-prototype',enya='Enya-prototype'}},
+    xion={says='%s: %s',repairer='Reparateur',
+        repairer_hello='Als het zoemt of vonkt, breng het maar hier. Meestal krijg ik het weer aan de praat.'},
 }

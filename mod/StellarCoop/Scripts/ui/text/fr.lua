@@ -463,4 +463,6 @@ return {
         viewer={title='Modèles coupés',model='Modèle',part='Partie',skin='Apparence',show='Afficher',
         cam='Caméra libre',remove='Retirer',nothing='Rien d\'affiché',leviathan='Leviathan',gardener='Gardener',
         tendril='Tendril',mann='Mann',nier='Machine NieR',orcal='Prototype d\'Orcal',enya='Prototype d\'Enya'}},
+    xion={says='%s : %s',repairer='Réparateur',
+        repairer_hello='Si ça bourdonne ou que ça crache des étincelles, apporte-le-moi. En général j\'arrive à le remettre en marche.'},
 }

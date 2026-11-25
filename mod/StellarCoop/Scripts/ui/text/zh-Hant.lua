@@ -358,4 +358,6 @@ return {
         viewer={title='刪減模型',model='模型',part='部位',skin='外觀',show='顯示',cam='自由鏡頭',remove='移除',nothing='未顯示',
         leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR機械',orcal='Orcal原型',
         enya='Enya原型'}},
+    xion={says='%s：%s',repairer='修理工',
+        repairer_hello='要是它嗡嗡響或者冒火花，就拿過來。我一般都能讓它重新轉起來。'},
 }

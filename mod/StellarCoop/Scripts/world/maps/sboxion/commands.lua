@@ -5,17 +5,23 @@
 -- the city point, coop xion gate at the gate point, coop xion leave its way out, coop xion status its status line,
 -- coop xion recover [on|death|off] the mode of its recovery after a fall or a death, coop xion rooms [on|off] SB's
 -- pieces put back in the doorways of its rooms or hidden again and coop xion tetrapod [in|out] EVE put inside the
--- Tetrapod or back in front of it (world/maps/sboxion/sboxion.lua, o.xion; nil without the Steam link).
+-- Tetrapod or back in front of it and coop xion npc [<n> | turn <degrees>] the clip or the turn of the NPC nearest
+-- to EVE (world/maps/sboxion/sboxion.lua, o.xion; nil without the Steam link).
 -- world/maps/sboxion/wiring.lua builds it with new(o) at each Lua load and main/loader.lua merges it into the command
 -- table.
 local Commands={}
-local USE='Use: coop xion [city|gate|leave|status|recover [on|death|off]|rooms [on|off]|tetrapod [in|out]]'
+local USE='Use: coop xion [city|gate|leave|status|recover [on|death|off]|rooms [on|off]|tetrapod [in|out]'
+    ..'|npc [<n>|turn <degrees>]]'
 local MODE={on=true,death=true,off=true}
 local SWITCH={on=true,off=true}
 local WAY={['in']=true,out=true}
 function Commands.new(o)
     local self={}
     function self.xion(sub,extra,more)
+        if sub=='npc' then
+            if not o.xion then return false,'coop xion needs the Steam link and the native part' end
+            return o.xion.npc(extra,more)
+        end
         local second=sub=='recover' and MODE[extra] or sub=='rooms' and SWITCH[extra] or sub=='tetrapod' and WAY[extra]
         if more~=nil or extra~=nil and not second then return false,USE end
         if not o.xion then return false,'coop xion needs the Steam link and the native part' end

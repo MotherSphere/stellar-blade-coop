@@ -15,7 +15,8 @@ sublevels loaded and the day light applied. In the same test EVE fell out of the
 [Falls and deaths](#falls-and-deaths) describes the fix. [The rooms](#the-rooms) are rooms of SBO's own behind
 closed doors of Xion, which later test paks add: five, then eleven. [The Tetrapod's door](#the-tetrapods-door) leads
 into SB's own Tetrapod interior. [The threshold doors](#the-threshold-doors) lead into rooms behind doors that stay
-shut. The commands are left out of the usage line.
+shut. [The NPCs](#the-npcs) are display bodies in those rooms: one today. The commands are left out of the usage
+line.
 They run only alone (not in a session) on a [co-op save](../../players/playing-with-a-friend.md#co-op-saves). Their
 lines go to `UE4SS.log` as `[StellarCoop][SX]` and the native part's to `coop-link.log`.
 
@@ -63,10 +64,11 @@ new rooms (`D029`, `D030`, `D163`, `D164`) load on streaming slots of a kind no 
 | `coop xion` or `coop xion city` | Warps EVE into SBO Xion at the city point (-8304, 7201, 225) |
 | `coop xion gate` | The same at the gate point (-23393, 17287, 1285) |
 | `coop xion leave` | Asks SB's reload of the co-op save. The native part runs it only from SBO Xion |
-| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state, the rooms' state, the threshold doors' state and the last look: its age, the characters with the nearest one, the levels, the zone, the area and EVE's life state |
+| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state, the rooms' state, the threshold doors' state, the NPCs' state and the last look: its age, the characters with the nearest one, the levels, the zone, the area and EVE's life state |
 | `coop xion recover on`, `death` or `off` | Inside SBO Xion: what the module does after a fall or a death, until the next arrival ([Falls and deaths](#falls-and-deaths)). Alone, it prints the recovery's state |
 | `coop xion rooms on` or `off` | Inside SBO Xion: `off` puts SB's pieces back in the doorways of [the rooms](#the-rooms) until `on` or the next arrival, so the doors are closed as SB ships them. It turns [the threshold doors](#the-threshold-doors) off for the same time. Alone, it prints the rooms' state and the threshold doors' state |
 | `coop xion tetrapod in` or `out` | Inside SBO Xion: puts EVE inside the Tetrapod or back in front of it, from wherever she stands ([The Tetrapod's door](#the-tetrapods-door)). Alone, it says whether she is inside |
+| `coop xion npc`, `coop xion npc <n>` or `coop xion npc turn <degrees>` | Inside SBO Xion: the clip, by its number, or the turn of the mesh, -180 to 180, of [the NPC](#the-npcs) nearest to EVE, on its body at once and until the mod reloads. Alone, it prints that NPC's state and its clips |
 
 `coop xion` refuses with nothing asked when the save is not a co-op save, when a session is open, without the pak,
 when the rows were refused and when EVE is already in SBO Xion. The native part then refuses the warp during a
@@ -765,6 +767,69 @@ On a co-op save, alone, with a pak that holds the rooms. `D039` can be tested wi
 
 Send the `threshold:` lines of `UE4SS.log`.
 
+## The NPCs
+
+A room can hold an NPC. None of this has run in game.
+
+An NPC is a display body: a plain engine actor with one skeletal mesh of Stellar Blade that loops one animation
+clip. It has no collision. It is no character of SB: no table row, no AI, no Talk prompt of SB, nothing that can
+fight, die or reach a save. Each game makes its own body. `world/maps/matrix13/level/mila.lua` shows Mila the same
+way.
+
+`npcs/npcs.lua` lists one NPC, the pilot:
+
+| NPC | Room | Where | Mesh | Clips |
+| --- | --- | --- | --- | --- |
+| The repairer | `D011`, the repair shop | At the workbench with the tool board, (-10932, 3145, 414), facing the bench | `CH_NPC_EngineerMale` | 1 `N_Engineer_Work1`, 2 `_Work2`, 3 `_Work3`, 4 `_Dusting`, 5 `_Snooping`, 6 `_Idle` |
+
+The mesh and the six clips are on one skeleton. Their entries in the game's `pakchunk0` (build 26123051) all import
+`CH_NPC_EngineerMale_Skeleton`. The place comes from the room's layout: the room's origin plus the spot (132, -347)
+turned by the room's inward yaw of -70 degrees. The module turns the mesh 90 degrees more, since a skeletal mesh of
+SB faces its +Y axis. That last point is an inference, so `coop xion npc turn` exists.
+
+The body appears when EVE is within 30 m of its place and the room's level is loaded and visible. It goes when she
+is 35 m away, at a map change and at `coop off`. A room whose level is not there keeps it away: the module asks
+again every 2 s. A pak that does not hold the room has no NPC for it and reads no level. A body that cannot be made
+is said once and is not tried again until the next arrival or a `coop xion npc` pick. A body the engine dropped is
+made again, three times a stay at most.
+
+When EVE is inside the room and within 3 m of the body, the NPC's line shows once in the feed, or on the line above
+EVE when the feed is off, as `<name>: <line>` in the menu's language. It shows again only after she went 6 m away.
+Nothing is said to EVE in the street: the room's door wall stands between them. The words are in the 22 language
+files under `ui/text/` (`xion`).
+
+The repairer stands at the short end of the workbench, 1.3 m inside the door on its left side. The long side of the
+bench has a stool in the line of the doorway. He has no collision, so EVE walks through him.
+
+`coop-xion-npcs.txt` in the mod folder holds the actor path of each body. The next Lua load (Ctrl+R) removes a body
+the earlier load left.
+
+### What the log shows for an NPC
+
+| Line in `UE4SS.log` | Meaning |
+| --- | --- |
+| `sboxion: npcs: repairer stands in Xion_Rooms_D011 at (-10932, 3145, 414), yaw -160, clip N_Engineer_Work1` | The body was made |
+| `sboxion: npcs: repairer stays away: this pak does not hold Xion_Rooms_D011` | Each arrival with a pak that has no such room |
+| `sboxion: npcs: repairer stays away: its level Xion_Rooms_D011 reads loaded false visible false` | The room's level is not there yet. Once a stay |
+| `sboxion: npcs: repairer lost its body 3 times: not made again in this stay` | The engine dropped his actor three times |
+| `sboxion: npcs: repairer has no body: <why>` | The mesh or the clip is missing on this PC, or the engine refused the actor. Once a stay |
+| `sboxion: npcs: repairer spoke, EVE 300 cm away` | The line was shown |
+| `sboxion: npcs: repairer shown, clip 4 N_Engineer_Dusting, turned 90` | A `coop xion npc` pick |
+| `sboxion: npcs: off until the next arrival: error (...)` | A pass raised. Every body is removed |
+
+### Testing the NPC in game
+
+1. `coop xion`, then walk to `D011`, 46 m from the city point. The log has the `stands in` line when EVE is within
+   30 m.
+2. Walk in. Does he stand on the floor in front of the workbench, facing it? If he faces another way, try
+   `coop xion npc turn 90`, `-90` or `180` and note the value that is right.
+3. `coop xion npc 1` to `6`: note which clips read as work at a bench.
+4. Walk up to him. His line shows once. Walk 6 m away and come back: it shows again. In the street, close to the
+   shop's wall, nothing shows.
+5. Open photo mode, then leave it. Walk 40 m away and come back. Type `coop off`. Is a body left anywhere?
+
+Send the `npcs:` lines of `UE4SS.log`.
+
 ## The full test pak
 
 The third pak of 24 November 2026 is a test build. It loads the levels of Xion as Stellar Blade ships them,
@@ -1025,9 +1090,16 @@ underground and 47 of the 50 level-design sublevels.
 ## Tests
 
 - `tests/lua/world/maps/sboxion/off_test.lua`: a failure of this module at load turns this module off alone.
-- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes, `rooms` with `on` and `off` and
-  `tetrapod` with `in` and `out` included, `walls` refused, then the wiring's two stores, `coop-xion-rooms.txt` and
-  `coop-xion-doors.txt`.
+- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes, `rooms` with `on` and `off`,
+  `tetrapod` with `in` and `out` and `npc` with its two words included, `walls` refused, then the wiring's three
+  stores (`coop-xion-rooms.txt`, `coop-xion-doors.txt`, `coop-xion-npcs.txt`) and an NPC's line in the menu's
+  words.
+- `npcs/npcs_test.lua`: the list (names with words in 22 languages, a line within the feed's 200 bytes, the
+  repairer's spot from D011's frame), no body far away, without the room's level or with a pak that lacks the room,
+  the body with its turn and clip, the talk once inside the room and again after 6 m, nothing said through the
+  wall, the body gone past 35 m, a dropped body made again three times at most, a body or a clip that fails,
+  `coop xion npc`, the sweep of an earlier load's body, `stop()` and an error in a pass.
+- `engine_test.lua` also covers the six body calls of `engine.lua`.
 - `tetrapod_test.lua`: the ship frame, the way in and the way out with SB's black, the hold after a move, the count
   that starts again, a busy recovery, a refused teleport, an error that turns the door off and the command. Then the
   floor: the ship made solid before the move and put back at the way out and at `coop off`, EVE put on the point

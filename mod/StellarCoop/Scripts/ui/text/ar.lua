@@ -431,4 +431,6 @@ return {
         viewer={title='نماذج محذوفة',model='النموذج',part='الجزء',skin='المظهر',show='اعرض',cam='كاميرا حرة',
         remove='أزل',nothing='لا شيء معروض',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',
         nier='آلة NieR',orcal='نموذج Orcal الأولي',enya='نموذج Enya الأولي'}},
+    xion={says='%s: %s',repairer='المصلّح',
+        repairer_hello='إذا كان يطنّ أو يُطلق شررًا فأحضره إليّ. في الغالب أستطيع تشغيله من جديد.'},
 }

@@ -103,6 +103,25 @@ function Engine.put(at,yaw)
     if move then move:StopMovementImmediately() end
     return true
 end
+-- A display body for an NPC of the rooms (world/maps/sboxion/npcs/npcs.lua): core/actors.lua's plain actor with one
+-- SkeletalMeshComponent showing mesh, collision off, in EVE's world, at a place and turned to yaw. No SB character, no
+-- row, no AI. Raises, with nothing left, when it cannot be made.
+function Engine.body(at,yaw,mesh)
+    return Actors.spawn(eve():GetWorld(),{X=at.X,Y=at.Y,Z=at.Z},{Pitch=0,Yaw=yaw,Roll=0},{path=mesh})
+end
+-- A clip looped on a body. Raises when the clip is missing on this PC.
+function Engine.body_clip(d,clip)
+    d.mesh:PlayAnimation(assert(Actors.resolve(clip),clip..' is missing on this PC'),true)
+end
+-- A body turned to yaw at its place.
+function Engine.body_turn(d,at,yaw)
+    d.mesh:K2_SetWorldLocationAndRotation({X=at.X,Y=at.Y,Z=at.Z},{Pitch=0,Yaw=yaw,Roll=0},false,{},true)
+end
+-- Is a body still the actor body() made: never a call on another object found at its address.
+function Engine.body_same(d) return Actors.same(d.actor,d.path)~=nil end
+function Engine.body_gone(d) Actors.remove(d) end
+-- A body an earlier Lua load left, by its actor's path. It is removed, with true, only while that actor shows mesh.
+function Engine.body_sweep(path,mesh) return Actors.sweep(path,mesh) end
 -- SB's black over a put-back: USBBlueprintLibrary::LoadingScreenFadeAuto (exec 0x1426641e0 on build 26123051). It
 -- reads the time the black stands, then a start block and an end block (each a duration and the two values the
 -- widget's fade runs between), then a tag. Its impl 0x14c91ad10 is the one SB's own fall warp calls for its fade

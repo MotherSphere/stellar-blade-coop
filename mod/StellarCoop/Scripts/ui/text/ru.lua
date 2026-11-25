@@ -448,4 +448,6 @@ return {
         viewer={title='Вырезанные модели',model='Модель',part='Часть',skin='Облик',show='Показать',
         cam='Свободная камера',remove='Убрать',nothing='Ничего не показано',leviathan='Leviathan',gardener='Gardener',
         tendril='Tendril',mann='Mann',nier='Машина NieR',orcal='Прототип Оркала',enya='Прототип Энии'}},
+    xion={says='%s: %s',repairer='Мастер',
+        repairer_hello='Если что-то гудит или искрит, неси сюда. Обычно я могу это снова запустить.'},
 }
