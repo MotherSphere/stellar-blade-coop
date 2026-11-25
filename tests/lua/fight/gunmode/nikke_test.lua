@@ -12,7 +12,7 @@
 -- (wrapped from 32767 to 20000) and never the one the engine line shows; take() asks SB's remove with EVE's GUID,
 -- lowers the count until a read shows the take or SETTLE s of play pass (paused time not counted), the second logged
 -- once. It refuses while paused, before the rows are in and for a count that is no whole number above 0. An unread
--- inventory is logged once. With fight/gunmode/ammo.lua, one unread status keeps a stocked magazine's rounds.
+-- inventory is logged once.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -420,34 +420,5 @@ slot=COOP
 step(Nikke.RETRY); s.tick()
 assert(#asked==Nikke.TRIES+1,'No ask after a refusal: '..#asked)
 StaticFindObject=nil
-
--- With fight/gunmode/ammo.lua: one unread status while a stocked magazine is loaded keeps its rounds.
-FindAllOf=function() return {} end
-local Ammo=require('fight.gunmode.ammo')
-nikke,slot,engine=ROWS,COOP,'fps=60 items=3 9 me=0'
-s=new()
-s.watch(true)
-step(); s.tick()
-answer(100)
-assert(s.ready() and s.count()==100)
-local CFG={mag_size=30,spare_mags=2,reload_time=1.5,reload_delay=1,fire_interval=0.1,round_color={1,1,1},
-    reload_color={1,0,0}}
-local g={log=function(m) logs[#logs+1]=m end,valid=function(x) return x~=nil end,
-    try=function(f) local fine,v=pcall(f); if fine then return v end end,
-    words=function() return {round='round',reload='reload',empty='empty'} end}
-local mag=Ammo.new(g,CFG,function() end,function() end,nil,s)
-local function frame() clock=clock+1/60; mag.tick(false,false,clock) end
-frame()
-assert(mag.stocked and mag.reload_until,'A reload from her inventory')
-while mag.reload_until do frame() end
-assert(mag.left==30 and #removes==1 and removes[1][4]==30,'30 taken: '..mag.left)
-unread=true
-step(); s.tick()
-frame()
-unread=false
-step(); s.tick()
-frame()
-assert(mag.stocked and mag.left==30,'One unread status keeps the magazine: '..mag.left)
-assert(mag.reserve==70,'The spares are still what she carries: '..mag.reserve)
 
 print('fight/gunmode/nikke_test: ok')

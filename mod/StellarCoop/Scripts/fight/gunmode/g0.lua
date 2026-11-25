@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- (dev only, setting gun_g0=on) The rifle layer's landmark numbers measured at the right places, plus side,
+-- (dev only, setting gun_g0=on) Gate G0: landmark numbers measured at the right places, plus side,
 -- front and top pictures of the same moment from a hidden SceneCapture2D, so a pose is never judged on numbers alone.
 --   * once: the rifle's own sockets and bones in rifle space (to find the handguard, grip and bore points)
 --   * twice a second while gun mode is on: facing (actor vs control yaw), left palm to the handguard, IK reach of both

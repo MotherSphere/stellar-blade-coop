@@ -1,15 +1,15 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The rifle-first solver. Each tick, in her body mesh's component space:
+-- The rifle-first solver (gate G0). Each tick, in her body mesh's component space:
 --   1. place the rifle: its grip a little in front of her right shoulder; in aim the bore points at the spot 20 m down
 --      the camera line, in carry it hangs at low ready (pitched down, across her body)
 --   2. right hand = rifle composed with the inverse of the attach GRIP (the attached rifle then lands exactly there)
 --   3. left hand = the hand placement that puts her palm on the handguard point (its palm offset measured live)
 --   4. elbow poles below and outside each shoulder
 -- and writes the layer's variables in one batch (ArmsAlpha, RHandLoc_S2, RHandRot_CS, RElbowPole_S2, LHandLoc_RH,
--- LHandRot_RH, LElbowPole_S2). Whatever their suffixes say, every value here is in component space, which is how the
--- graph's nodes are set. Only property writes reach the post-process instance.
+-- LHandRot_RH, LElbowPole_S2). The names come from the first design. Every value here is in component space,
+-- which is how the graph's nodes are set. Only property writes reach the post-process instance.
 local IK={}
 
 -- quaternions {x,y,z,w}, UE conventions
@@ -75,10 +75,8 @@ local function frame_q(x,z) -- quaternion of the basis (x, y=z cross x, z)
     return q
 end
 local function ortho(x,z) x=nrm(x); z=nrm(sub(z,mul(x,dot(z,x)))); return x,z end
--- The math above, for tests/lua/fight/gunmode/helpers_test.lua.
-IK.math={qmul=qmul,qinv=qinv,qrot=qrot,rot2q=rot2q,q2rot=q2rot,frame_q=frame_q,ortho=ortho}
 
--- tuning (cm / degrees), refined in game
+-- tuning (cm / degrees); starting values from the first design, refined in game
 IK.CFG={
     grip_aim={fwd=22,right=3,up=3},     -- rifle grip point from her right shoulder joint, aim (stock in the shoulder pocket)
     grip_carry={fwd=16,right=-5,up=-3}, -- (carry places the grip from butt_carry instead)
@@ -87,7 +85,7 @@ IK.CFG={
     pole_r={right=40,fwd=5,up=-5}, pole_l={right=-25,fwd=20,up=-35}, -- elbows out, clear of her chest
     aim_dist=2000, head_turn=1.0, aim_mesh_yaw=-75, -- her mesh turned back this far while aiming (the aim stance blades her ~105 deg)
     lhand={x_fwd=0.85,x_right=0.4,x_up=0.15,z_up=1,below=3.5}, -- (z_up -1 put the palm face down, G1 v3a2: 178 deg) left hand axes in rifle space; palm this far under the bore line
-    rel=false, -- was {q={0.2301,0.6314,0.3212,0.6672},t={X=1.91,Y=-24.67,Z=10.52}}: put her hand through the rifle (in a flip); the support hand in the right hand's frame {q={x,y,z,w},t={X,Y,Z}} once measured (Blender: P_Eve_GunNikke_Shoot_Idle frame 0, Y mirrored to UE; nil: measure in game)
+    rel=false, -- was {q={0.2301,0.6314,0.3212,0.6672},t={X=1.91,Y=-24.67,Z=10.52}}: put her hand through the rifle; the support hand in the right hand's frame {q={x,y,z,w},t={X,Y,Z}} once measured (Blender: P_Eve_GunNikke_Shoot_Idle frame 0, Y mirrored to UE; nil: measure in game)
     lhand_nudge={X=-4,Y=0,Z=4}, -- (rifle space, cm) the NIKKE support hand moved onto this rifle's handguard
     handguard_frac=0.62,                  -- the handguard as a fraction of the grip->muzzle distance, until measured
     -- v3 aim (round 2): the butt plate centre at the pocket point, 3.5 cm medial, 4.5 forward and 1.5 up from the right
@@ -157,7 +155,7 @@ function IK.new(g)
 
     -- rifle-space geometry, measured once from the attached rifle: bore axis, up, muzzle, handguard point
     local function measure(rifle,Rifle)
-        local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
+        local ml=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
         local T=rifle:K2_GetComponentToWorld()
         local mz=ml:InverseTransformLocation(T,rifle:GetSocketLocation(FName('FX_Fire')))
         local fwdW=ml:GetForwardVector(rifle:GetSocketRotation(FName('FX_Fire')))
@@ -256,7 +254,7 @@ function IK.new(g)
             local Rp=add(np,qrot(nq,rel.r.t))
             local nd=(IK.CFG.pin_nudge or {})[self.want]
             if nd then Rp=add(Rp,qrot(Rq,nd)) end
-            local rk=self.reload_k -- (a reload on the carry pose, or in firing mode on the aim's)
+            local rk=self.want=='reload' and self.reload_k
             local w=rk and math.sin(math.pi*math.max(0,math.min(1,rk))) or 0
             if w>0 then
                 -- reload tilt: roll about the bore (rifle X), then muzzle down about its right (Y), both through the butt
@@ -289,7 +287,7 @@ function IK.new(g)
         end
         local lq=qmul(rq,rel.q)
         local lloc=add(rp,qrot(rq,rel.t))
-        local rk=self.reload_k
+        local rk=self.want=='reload' and self.reload_k
         if rk and G and self.rifle_now then
             -- the left hand's trip: handguard -> magazine (k 0..0.3), pull down (0.3..0.5), push up (0.5..0.7), back (0.7..1)
             local RL=IK.CFG.pin_reload; local R=self.rifle_now
@@ -334,7 +332,8 @@ function IK.new(g)
         local b_rp,b_rq,b_rpole,b_l,b_lq,b_pole=sm[1],sm[2],sm[3],sm[4],sm[5],sm[6]
         local rc=st.recoil or 0
         if rc>0.01 and G then
-            -- recoil in the anchor frame: about the rifle's right (Y) through its butt, plus back along its stock (+X)
+            -- recoil in the anchor frame: a turn about the rifle's right (Y) through its butt.
+            -- It also moves back along its stock (+X).
             local gq={G.Rotation.X,G.Rotation.Y,G.Rotation.Z,G.Rotation.W}
             local Rq=qmul(b_rq,gq); local Rp=add(b_rp,qrot(b_rq,G.Translation))
             local bw=add(Rp,qrot(Rq,IK.CFG.pin_butt))
@@ -359,10 +358,9 @@ function IK.new(g)
         return st.last
     end
 
-    -- mode: 'aim' | 'carry' | 'off'; returns a table of numbers for the log. mesh: her body mesh as the caller read it
-    -- this frame (fight/gunmode/mode.lua's tick), else read here.
-    function self.tick(pc,p,rifle,mode,pp,mesh)
-        mesh=mesh or p.Mesh
+    -- mode: 'aim' | 'carry' | 'off'; returns a table of numbers for the log
+    function self.tick(pc,p,rifle,mode,pp)
+        local mesh=p.Mesh
         if not valid(pp) then return end
         if mode=='off' then
             if st.alpha~=0 then pcall(function() pp.ArmsAlpha=0 end); st.alpha=0 end
@@ -373,7 +371,7 @@ function IK.new(g)
         if st.rel==nil and IK.CFG.rel==false then st.rel=false end
         if st.rel==nil and IK.CFG.rel then st.rel={q=IK.CFG.rel.q,t=IK.CFG.rel.t} end
         if st.rel==nil then measure_rel(mesh,pp); if st.rel==nil then return end end
-        local ml=g.find('/Script/Engine.Default__KismetMathLibrary')
+        local ml=StaticFindObject('/Script/Engine.Default__KismetMathLibrary')
         local CT=mesh:K2_GetComponentToWorld()
         -- her axes in component space
         local fwd=nrm(ml:InverseTransformDirection(CT,p:GetActorForwardVector()))
@@ -383,7 +381,7 @@ function IK.new(g)
         local C=IK.CFG
         if mode~='aim' then
             -- carry (and firing in the air) follows her upper body, not the actor: turns and the run twist her shoulders
-            -- away from the actor's facing (seen on a test video). In a flip the whole frame turns over with her
+            -- away from the actor's facing (seen on video). In a flip the whole frame turns over with her
             local neck=cs(mesh,'Bip001-Neck'); local pel=cs(mesh,'Bip001-Pelvis')
             local sr=nrm(sub(rsh,lsh)); local su=nrm(sub(neck,pel))
             local f2=nrm(cross(sr,su))

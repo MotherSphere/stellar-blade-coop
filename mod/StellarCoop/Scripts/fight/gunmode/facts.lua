@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The facts probe (dev builds only: gun_facts=on in coop-settings.txt; release_check.lua refuses it). Read-only
+-- Facts probe (dev builds only: gun_facts=on in coop-settings.txt; release_check.lua refuses it). Read-only
 -- except F8, which plays one vanilla clip through a montage slot on a key press. Runs from fight/gunmode/mode.lua's tick
 -- (the game thread), never from a key bind. Logs [GM] facts ... lines.
 --   F5/F6  once, 5 s after EVE is in the world: her mesh components, anim classes (with parents), the post-process
@@ -98,10 +98,9 @@ function Facts.new(g)
             ..', active montage now '..name(g.try(function() return ai:GetCurrentActiveMontage() end)))
     end
 
-    -- F11 (a test before the rifle layer): can Lua swap the mesh asset's PostProcessAnimBlueprint and have the game
-    -- build that instance? At +25 s: the field set to another game post-process class (EVE_08's), then
-    -- SetAnimClass(same class) to re-init; at +40 s the original put back the same way. Each step logs the instance
-    -- class it finds.
+    -- F11 (an early test): can Lua swap the mesh asset's PostProcessAnimBlueprint and have the game build that
+    -- instance? At +25 s: the field set to another game post-process class (EVE_08's), then SetAnimClass(same class)
+    -- to re-init; at +40 s the original put back the same way. Each step logs the instance class it finds.
     local OTHER='/Game/Art/Character/PC/CH_P_EVE_08/Blueprints/CH_P_EVE_08_AnimBP.CH_P_EVE_08_AnimBP_C'
     local function ppname(mesh) local pp=g.try(function() return mesh:GetPostProcessInstance() end); return valid(pp) and name(pp:GetClass()) or 'none' end
     local function swap(p,cls,label)
@@ -121,7 +120,7 @@ function Facts.new(g)
         if pn~=st.pawn then st.pawn,st.seen_at,st.done,st.d8=pn,now,false,3 end
         if not st.done and now-st.seen_at>=5 then st.done=true; local ok,e=pcall(snapshot,p); if not ok then g.log('facts snapshot: '..tostring(e)) end end
         local ai=g.try(function() return p.Mesh:GetAnimInstance() end)
-        -- F14 (the rifle layer's test): fight/gunmode/overlay.lua installs the post-process layer at +15 s on a
+        -- F14 (M1 layer test, replaces the F13 spike): fight/gunmode/overlay.lua installs the post-process layer at +15 s on a
         -- non-lobby pawn, then plays rifle clips on its arms-only slot on a timer so screenshots can be matched to the
         -- logged times, with the rifle in her right hand (rifle.lua's grip) from +18 s: carry (ShootReady_Start nearly
         -- frozen) +20 s, aim (Shoot_Idle looped) +35 s, reload looped +50 s, stop +65 s, rifle and layer removed +72 s.
@@ -148,8 +147,8 @@ function Facts.new(g)
                     ok and name(r) or 'error',tostring(ok and e or r),tostring(g.try(function() return st.ov.active(p) end))))
             end
         end
-        -- F11 retired (2026-11-18): holding a mesh asset and a class across a level load left stale wrappers. The
-        -- put-back then wrote a level object into the field. Any install test must re-fetch everything by path within
+        -- F11 retired (2026-11-18): holding a mesh asset and a class across a level load left stale wrappers.
+        -- The put-back wrote a level object into the field. Any install test must re-fetch everything by path within
         -- one load. It must never write after a load through an object found before it.
         if not valid(ai) then return end
         if now-st.poll>=0.1 then st.poll=now; pcall(montage,ai) end

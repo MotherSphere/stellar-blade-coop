@@ -20,12 +20,10 @@ function Morph.at(dir,t)
     local u=clamp(t/T)
     if dir=='out' then u=1-u end -- out is in played backwards
     local r={done=t>=T,spin=0,cube=0,rifle=0,flash=false}
-    -- One whole turn in all: three quarters while the cube grows, the last quarter while it folds. The rifle then
-    -- ends the fold where the settle starts (spin 0), with no snap of the full-size rifle.
     if u<0.33 then -- the cube grows and spins
-        local k=u/0.33; r.cube=back_out(k); r.spin=270*ease_out(k)
+        local k=u/0.33; r.cube=back_out(k); r.spin=360*ease_out(k)
     elseif u<0.66 then -- the cube folds away while the rifle unfolds
-        local k=(u-0.33)/0.33; r.cube=1-ease_out(k); r.rifle=ease_out(k); r.spin=270+90*k
+        local k=(u-0.33)/0.33; r.cube=1-ease_out(k); r.rifle=ease_out(k); r.spin=360+90*k
         r.flash=k<0.25
     else -- the rifle settles
         local k=(u-0.66)/0.34; r.rifle=1+0.06*math.sin(math.pi*k)

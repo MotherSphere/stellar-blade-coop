@@ -204,7 +204,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'fight/gunmode/commands',
                               *(f'fight/gunmode/{name}' for name in ('aim', 'aimrot', 'ammo', 'config', 'data',
                                                                      'facts', 'g0', 'g1', 'g1_gates', 'ik', 'input',
-                                                                     'journal', 'laser', 'mode', 'morph', 'nikke',
+                                                                     'laser', 'mode', 'morph', 'nikke',
                                                                      'overlay', 'probe', 'release_check', 'rifle',
                                                                      'rows', 'stance', 'ui/dpad')),
                               'core/keybind', 'core/link',

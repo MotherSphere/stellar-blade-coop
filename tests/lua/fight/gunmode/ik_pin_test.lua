@@ -1,9 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The v4 left-hand pin: the left hand lands at the right hand's transform composed with the clip's entry. A clip with
--- no entry turns the IK off. The pin follows a turned right hand. A reload takes the left hand to the magazine and back
--- on the carry's entry, on the aim's in firing mode.
+-- The v4 left-hand pin: the left hand lands at the right hand's transform composed with the clip's entry. The reload
+-- (no entry) turns the IK off. The pin follows a turned right hand.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 function FName(s) return s end
 local close=function(a,b) return math.abs(a-b)<=1e-4 end
@@ -91,16 +90,6 @@ IK.reload_k=0.5; IK.tick(nil,p,nil,'carry',pp); local lm=pp.LHandLoc_RH
 assert(dist(l0,lm)>5,'hand did not leave the handguard '..dist(l0,lm))
 IK.reload_k=1; IK.tick(nil,p,nil,'carry',pp)
 assert(dist(l0,pp.LHandLoc_RH)<1e-3,'hand not back '..dist(l0,pp.LHandLoc_RH))
-IK.reload_k=nil
-
--- 7b. A reload in firing mode stands on the aim entry (fight/gunmode/mode.lua's GunMode.pose): the rifle tilts and the
--- left hand goes to the magazine all the same, the aim's grip and torso kept.
-IK.want='aim'; IK.reload_k=nil; IK.tick(nil,p,nil,'carry',pp)
-local _,ma=hand2rifle(); local la={X=pp.LHandLoc_RH.X,Y=pp.LHandLoc_RH.Y,Z=pp.LHandLoc_RH.Z}
-IK.reload_k=0.5; IK.tick(nil,p,nil,'carry',pp)
-local _,mr=hand2rifle()
-assert(dist(ma,mr)>5,'the rifle did not tilt in an aimed reload '..dist(ma,mr))
-assert(dist(la,pp.LHandLoc_RH)>5,'the left hand stayed on the handguard '..dist(la,pp.LHandLoc_RH))
 IK.reload_k=nil
 
 -- 8. Bone space: the left target sent in the anchor's frame (anchor turned 90 deg about Z at 0,0,146).

@@ -214,7 +214,7 @@ function G1.new(g)
         local F,Rt=p:GetActorForwardVector(),p:GetActorRightVector(); local U={X=0,Y=0,Z=1}
         local function at(o,f,r,u) return add(add(add(o,mul(F,f)),mul(Rt,r)),mul(U,u)) end
         local lh=W(mesh,'Bip001-L-Hand'); local rn=mul(add(W(mesh,'Bip001-R-Hand'),W(mesh,'Bip001-Neck')),0.5)
-        -- the four fixed views: right profile and front at 3 m with a 20 deg lens; 80 cm close-ups at 45 deg
+        -- four views: right profile and front at 3 m with a 20 deg lens; 80 cm close-ups at 45 deg
         local d80=80/math.sqrt(3)
         local views={
             {'side',at(chest,0,300,0),chest,20},
