@@ -19,10 +19,10 @@
 -- The move: to the room's point inside, turned into the room, or to its point outside, turned away from the door.
 -- Her height is not a number of this part: she is put as high over the new floor as she stood over the old one at
 -- the push, plus LIFT. So a ramp or rubble before a door does not put her into the floor.
--- The watch: after a move she must read walking within DROP cm of that height. Some rooms stand on a floor of their
--- own that has not run in game. Under that height by more than DROP, or not standing after SETTLE passes, she is put
--- back where she pushed, under a black that is up at once. One log line says so and that door does nothing more
--- until the next arrival. A move the engine refuses ends the same way.
+-- The watch: after a move she must read walking LOW to HIGH cm over the floor she was put on. Some rooms stand on a
+-- floor of their own that has not run in game. Under LOW over that floor, or not standing after SETTLE passes, she
+-- is put back where she pushed, under a black that is up at once. One log line says so and that door does nothing
+-- more until the next arrival. A move the engine refuses ends the same way.
 -- Locked and opened: a door starts locked. The first push opens it for good: one log line and its name in the door
 -- file (the store, coop-xion-doors.txt in the mod folder, which tools/install.py keeps like every coop-*.txt). Each
 -- arrival reads the file. A row may carry a requirement: may(name) asks o.met for it and a locked door whose
@@ -109,7 +109,7 @@ function Threshold.new(o)
     local told,idling={},nil -- Of the stay: a push that fails, said by room and way; the one counted: {key=, n=}.
     local push=nil -- The push being counted: {room=, way=, n=}.
     local lead=nil -- A move that waits under SB's black: {left=<passes>, room=, way=, from={at=, yaw=}, h=}.
-    local watch=nil -- A move being watched: {passes=, room=, way=, from=, z=<the height she was put at, less LIFT>}.
+    local watch=nil -- A move being watched: {passes=, room=, way=, from=, floor=<the Z of the floor she was put on>}.
     local self={}
     -- May this door be opened: true, or false and why. A door with no requirement may.
     function self.may(name)
@@ -168,14 +168,15 @@ function Threshold.new(o)
             return
         end
         log(string.format('threshold: %s %s: EVE at %s, yaw %.1f',l.room.name,l.way,place(to),yaw))
-        watch={passes=0,room=l.room,way=l.way,from=l.from,z=to.Z+l.h}
+        watch={passes=0,room=l.room,way=l.way,from=l.from,floor=to.Z}
     end
     -- A pass of the watch after a move.
     local function watching(m)
         local w=watch
         w.passes=w.passes+1
-        local low=m.at.Z<w.z-T.DROP
-        if GROUND[m.mode] and math.abs(m.at.Z-w.z)<=T.DROP then
+        local h=m.at.Z-w.floor
+        local low=h<T.LOW
+        if GROUND[m.mode] and not low and h<=T.HIGH then
             watch=nil
             log(string.format('threshold: %s %s: EVE stands on %s after %d passes',w.room.name,w.way,
                 floor_of(w.way),w.passes))

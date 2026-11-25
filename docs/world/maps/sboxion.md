@@ -650,10 +650,10 @@ push, plus 10 cm. A ramp or rubble before a door then does not put her into the 
 
 ### After a move
 
-The module watches EVE for 8 s after each move. The first pass that reads her walking within 60 cm of the height she
-was put at ends the watch. If she reads more than 60 cm under that height, or does not stand after 8 s, the module
-asks a black that is up at once and puts her back where she pushed. One line says so. That door then does nothing
-until the next arrival. A teleport the engine refuses ends the same way, with EVE left where she is.
+The module watches EVE for 8 s after each move. The first pass that reads her walking 40 to 160 cm over the floor
+she was put on ends the watch. If she reads under 40 cm over that floor, or does not stand after 8 s, the module asks
+a black that is up at once and puts her back where she pushed. One line says so. That door then does nothing until
+the next arrival. A teleport the engine refuses ends the same way, with EVE left where she is.
 
 `D030`, `D163` and `D164` stand on a floor of their own. No such floor has run in game: the watch is what brings EVE
 back if one does not hold her.
@@ -694,8 +694,8 @@ Nothing is ticked after `coop off`. An error in a pass turns the doors off until
 | `sboxion: threshold: <room> in: no push in 8 passes with EVE at (x, y, z): d cm before the door's plane (100 at most), turned t degrees from the door (50 at most), h cm over its floor (40 to 160)` | EVE stood 2 s close to that door or turned toward it and one of the three numbers is out of its limit. Once a door and way a stay |
 | `sboxion: threshold: <room> in: EVE at (x, y, z), yaw y` | The move was made, to the point inside. `out:` names the point outside |
 | `sboxion: threshold: <room> in: EVE stands on the room floor after n passes` | The watch ended well. `out: EVE stands on the street` |
-| `sboxion: threshold: <room> in: EVE fell under the room floor to (x, y, z) after n passes: back at (x, y, z) where she pushed; this door does nothing more until the next arrival` | She read more than 60 cm under the height she was put at |
-| `sboxion: threshold: <room> in: EVE does not stand on the room floor after 32 passes, at (x, y, z) in mode m: back at (x, y, z) where she pushed; this door does nothing more until the next arrival` | 8 s without a walking read at that height |
+| `sboxion: threshold: <room> in: EVE fell under the room floor to (x, y, z) after n passes: back at (x, y, z) where she pushed; this door does nothing more until the next arrival` | She read under 40 cm over the room floor: at least 57 cm under where she stands |
+| `sboxion: threshold: <room> in: EVE does not stand on the room floor after 32 passes, at (x, y, z) in mode m: back at (x, y, z) where she pushed; this door does nothing more until the next arrival` | 8 s without a walking read 40 to 160 cm over the room floor |
 | `... the move back to (x, y, z) was refused by K2_TeleportTo; this door does nothing more until the next arrival` | The end of the two lines above when the engine refused the put-back |
 | `sboxion: threshold: <room> in: the move to (x, y, z) was refused by K2_TeleportTo; this door does nothing more until the next arrival` | The engine refused the move. EVE stays where she is |
 | `sboxion: threshold: <room> stays locked: its requirement <name> is not met` | A locked door with a requirement, once a stay |
@@ -1065,7 +1065,7 @@ underground and 47 of the 50 level-design sublevels.
 - `rooms/threshold_test.lua`: the pak cases (every room, none, one, a gate that raises), the push with each of its
   limits tried 1 cm or 1 degree on both sides, both ways, a push that fails said once a door and way a stay and
   what says nothing, the black before the move, the height kept, the watch
-  with a late landing, a fall, a floor far below, 32 passes without standing and a refused move, the door that
+  with a late landing, a fall, a floor far below or above, 32 passes without standing and a refused move, the door that
   does nothing more for the stay, the first push that opens a door and writes the file, a new Lua load that reads
   it, a file that cannot be written or read, a requirement not met and met, busy passes, off and on, an arrival
   that drops a move, an error in a pass.

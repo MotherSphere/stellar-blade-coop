@@ -17,8 +17,8 @@
 -- A push that fails: EVE close to a door or turned toward it for 8 passes with no push gets one line a door and way
 -- a stay, with her place, her distance, her turn and her height. Too far and turned away, as a move leaves her, a
 -- floor above, busy passes and a real push say nothing.
--- The watch: the first pass that reads her walking within 60 cm of that height says she stands. Under it by more
--- than 60 cm, or not standing after 32 passes, she is put back where she pushed, under a black that is up at once.
+-- The watch: the first pass that reads her walking 40 to 160 cm over the floor she was put on says she stands. Under
+-- 40 cm, or not standing after 32 passes, she is put back where she pushed, under a black that is up at once.
 -- One line says so and that door does nothing more until the next arrival. The other doors go on. A refused move
 -- ends the same way.
 -- Locked and opened: the first push of a door says it opened and writes its name to the door file. A later push
@@ -34,7 +34,7 @@ package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Threshold=require('world.maps.sboxion.rooms.threshold')
 local D=require('world.maps.sboxion.data')
 local T=D.THRESHOLD
-assert(T.REACH==100 and T.TURN==50 and T.PUSH==3 and T.LOW==40 and T.HIGH==160 and T.DROP==60 and T.SETTLE==32
+assert(T.REACH==100 and T.TURN==50 and T.PUSH==3 and T.LOW==40 and T.HIGH==160 and T.SETTLE==32
     and T.IDLE==8 and D.LEAD==2 and D.LIFT==10)
 local LIST=Threshold.LIST
 assert(#LIST>=2,'Two threshold rooms at least: '..#LIST)
@@ -360,18 +360,17 @@ assert(not logged('stands') and door.busy(),'Not standing yet')
 eve.mode=1
 pass()
 assert(logged('threshold: '..A.name..' in: EVE stands on the room floor after 5 passes'),logs[#logs])
--- She falls through the floor: 60 cm under is no fall yet, 61 cm is. She is put back where she pushed, under a black
+-- She falls through the floor: 40 cm over it is no fall yet, 39 cm is. She is put back where she pushed, under a black
 -- that is up at once. One line. That door does nothing more for the stay. Another door goes on.
 again()
 lands=3
 street(A,-70,20)
 pushed=eve
 pass(5)
-local put_at=puts[1].at.Z-10
-eve.Z=put_at-60
+eve.Z=A.inside.Z+T.LOW
 pass()
-assert(#puts==1,'60 cm under the height she was put at is no fall yet')
-eve.Z=put_at-61
+assert(#puts==1,'40 cm over the room floor is no fall yet')
+eve.Z=A.inside.Z+T.LOW-1
 local fell=eve
 local lines=#logs
 lands=1
@@ -405,6 +404,17 @@ pass()
 assert(#puts==2 and puts[2].at.X==pushed.X and logged('threshold: '..A.name..' in: EVE does not stand on the room '
     ..'floor after 32 passes'),logs[#logs])
 assert(logs[#logs]:find('where she pushed; this door does nothing more until the next arrival',1,true),logs[#logs])
+-- Walking more than 160 cm over the room floor is no standing on it: after 32 passes she is put back.
+again()
+street(A)
+pushed=eve
+pass(5)
+eve.Z=A.inside.Z+T.HIGH+1
+pass(31)
+assert(#puts==1 and not logged('stands'),'Walking over the band is not standing on the room floor')
+pass()
+assert(#puts==2 and puts[2].at.X==pushed.X and logged('does not stand on the room floor after 32 passes'),
+    logs[#logs])
 -- Walking on a floor far under the room is no standing in the room: she is put back.
 again()
 street(A)

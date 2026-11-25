@@ -899,8 +899,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   turned away, for 8 passes gets one `no push` line a door and way a stay with her distance, turn and height. Where
   a move leaves her, further than 200 cm, a floor above, busy passes and a real push say nothing. A black that raises
   changes one line. The watch: a late
-  landing is said when she walks. 61 cm under the height she was put at, a floor far below and 32 passes without
-  standing put her back where she pushed, under a black that is up at once, with one line. That door then does
+  landing is said when she walks. 39 cm over the floor she was put on, a floor far below and 32 passes without
+  standing on it (walking 161 cm over it among them) put her back where she pushed, under a black that is up at
+  once, with one line. That door then does
   nothing until the next arrival while another door goes on. A refused move and a refused move back are said in one
   line each. The first push of a door says it opened and writes its name to the file. A later push writes nothing.
   Names the list does not know stay in the file. A new Lua load reads it. A file that cannot be written or read is

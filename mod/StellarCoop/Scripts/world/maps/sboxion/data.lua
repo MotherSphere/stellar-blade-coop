@@ -162,8 +162,8 @@ D.TETRAPOD={
 -- LOW and HIGH, cm: how far over the door's floor her place reads, which is the middle of her capsule. A floor above
 -- or below the door is out. In two game runs of 24 November 2026 she read 97 cm over the collision floor at the city
 -- point.
--- After a move she must read walking within DROP cm of the height she was put at, within SETTLE passes. Under it by
--- more than DROP she fell.
+-- After a move she must read walking LOW to HIGH cm over the floor she was put on, within SETTLE passes. Under LOW
+-- she fell.
 -- IDLE, passes in a row: EVE close to a door or turned toward it, with no push, is said once after that many.
-D.THRESHOLD={REACH=100,TURN=50,PUSH=3,LOW=40,HIGH=160,DROP=60,SETTLE=32,IDLE=8}
+D.THRESHOLD={REACH=100,TURN=50,PUSH=3,LOW=40,HIGH=160,SETTLE=32,IDLE=8}
 return D
