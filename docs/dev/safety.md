@@ -156,7 +156,8 @@ feature or drops the input.
   on live objects only, behind the races' own SEH latch, put back at each end Lua asks, at `coop off`, at a new Lua
   load and at the first fault, also for as long as a cutscene or photo mode lasts ([The native
   hold](../online/modes/race-internals.md#the-native-hold)). A race in a match also teleports EVE onto her grid slot
-  with `K2_TeleportTo` at its start and again at GO when she stands more than 3 m from it.
+  with `K2_TeleportTo` at its start and again at GO when she stands more than 3 m from it. When Stellar Blade's own
+  chair seats her at GO it does not teleport her: she sits out.
 - The [bike](../vehicles/bike-internals.md) writes to the player actor too. It adds one skeletal mesh component to EVE's
   actor, hung on her main mesh and hidden until she rides. While she rides it sets her main mesh's relative rotation for
   the lean and drives her with its own drive (`coop-drive.txt`, the four values, a velocity and a yaw). Through the native

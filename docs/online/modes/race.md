@@ -292,6 +292,10 @@ runs as in a session: the same checkpoints, laps, missed checkpoints, wrong way 
 the driving of [Driving](#driving) at its default values. The late rule starts at the first finish your game hears of,
 yours or another racer's: 60 s later you are out with `Not finished 60 s after the winner.` The 15 min limit holds.
 
+At GO, a racer more than 3 m from her slot whom Stellar Blade's own chair seats is not moved back. She sits out with
+`Get up from your seat to race in the next round.` Her game sends a DNF `quit` for her, since the host already counts
+her as ready, then closes her race.
+
 A player who cannot race sits out the round. She gets one notice and one `[StellarCoop][DR] sit out: <why>` line in
 her log. Her game sends nothing:
 
@@ -393,6 +397,7 @@ Once the round is over it is why the round ended: `host` (the host's `coop match
 | `match round <n>: <track>, seed <seed>, slot <k> of <players>` | The round's track is known: your race starts on slot k |
 | `sit out: <why>` | You sit out the round |
 | `race <seed>: out of slot <k> at GO: put back` | You stood more than 3 m from your slot at GO |
+| `race <seed>: out of slot <k> at GO: sit out: SB's chair seats EVE` | Stellar Blade's own chair seated you more than 3 m from your slot at GO |
 | `rank: rank <seed> <id>:<ms>,...,<id>:dnf` | The host's game sent the ranking (`rank: rank <seed> -` for nobody) |
 | `rank: refused <name>: <why>` | The host's game refused a split or an end |
 | `line refused from <name>: sender` or `malformed` | A line from a player who may not send it, or one that cannot be read (once a player a round) |

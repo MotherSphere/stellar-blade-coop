@@ -699,7 +699,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `online/modes/race/ui/hud_test` covers the race's HUD: the live place among up to 8 racers, the results' note and
   rows (a session's two, a match's own row before the ranking, then the ranking with names cut, `Not ranked.` and
   `New personal best.`) and the 8 result rows on a fake kit. `online/modes/race/run_test` adds the match role: the
-  teleport onto the slot at the start and back at GO past 3 m with the runner starting from the slot, every round
+  teleport onto the slot at the start and back at GO past 3 m with the runner starting from the slot, a racer that
+  SB's chair seats at GO out of her slot sitting out with the seat notice and a DNF quit instead, every round
   player's ghost as a Doro, `coop race start` refused in a match lobby, the round ticked from the 250 ms pass, the
   place notices with the kit off. `online/modes/race/drive_test` and `doro_test` cover the asks to the native part
   (`race hold`, `race tick`), the impulses only while the status says the hold is applied, a hold still applied with
@@ -707,8 +708,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   older `coop-look.txt` with a number in its tick field that writes nothing. `main/race_match_test` runs a round through
   `main.lua` and the wiring: the official track read from the Scripts folder, the host's lines one a pass, a hall's
   own tracks from `coop-tracks.txt`, `coop race save` and a pick by name adding to it, the sit-out notices, the host
-  gone, the records file, `coop off`. `main/isolation.lua` checks with the race module off that the lobby menu holds no
-  race and refuses Select on Track;
+  gone, the records file, `coop off`, the wiring's adapters (SB's chair read by the race too). `main/isolation.lua`
+  checks with the race module off that the lobby menu holds no race and refuses Select on Track;
 - `online/modes/fishing/model_test` covers the fishing tournament without the game: the start's length (10 minutes by
   default, 1 to 60), the clock, each fish text's round trip and every malformed one refused whole, who a game takes
   each text from, the host's checks of each catch (sender, seed, fish, points, time and the rate bound, an honest

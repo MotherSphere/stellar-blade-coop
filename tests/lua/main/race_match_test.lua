@@ -199,14 +199,16 @@ for k=1,6 do assert(m.by_id[tostring(3000+k)]==slot_ghost[k],'Slot '..k) end
 for k=1,6 do assert(m.by_id['2002']~=nil and m.by_id['2002']~=slot_ghost[k],'Slot 0: the puppet') end
 
 -- The wiring's adapters, each read at its call: the bike, a Night Operation run, the co-op save (the slot line), SB's
--- chair, the mod's seat and its stand-up, a member's name; the round's clock in milliseconds (round.lua's waits).
+-- chair (the race's at GO too), the mod's seat and its stand-up, a member's name; the round's clock in milliseconds
+-- (round.lua's waits).
 load()
 local g=game_o
 bk.riding=true; assert(g.riding()==true); bk.riding=false; assert(g.riding()==false)
 nr.running=true; assert(g.night()==true); nr.running=nil; assert(g.night()==false)
 assert(g.slot()==true)
 status_text=plain; assert(g.slot()==false,'No slot line: not a co-op save'); status_text=COOP
-sb.busy=true; assert(g.resting()==true); sb.busy=false; assert(g.resting()==false)
+sb.busy=true; assert(g.resting()==true and ra.o.resting()==true,'The race reads it at GO too')
+sb.busy=false; assert(g.resting()==false and ra.o.resting()==false)
 sb.sitting={n=3}; assert(g.seated()==true); sb.sitting=nil; assert(g.seated()==false)
 g.stand(); assert(sb.stands==1)
 local member=fake_link.member
