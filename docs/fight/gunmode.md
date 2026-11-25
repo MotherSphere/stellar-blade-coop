@@ -220,7 +220,8 @@ the NIKKE rifle icon. While the rifle is out it also reads `rounds | magazines`:
 rounds in the magazine, then the magazines left (a part-spent one counted). The icon is the game's NIKKE rifle texture,
 `Icon_Nikke_LostItem_AssaultRifle`, the icon of the item table's `Nikke_AR` row. Gun mode loads it from the game.
 While the native part runs, SBO's keep holds it across map changes. No image file ships with SBO. The entry is a child
-of the HUD's own D-pad marker, so it shows and hides with the HUD. A box the marker's size holds it, so the item column
+of the HUD's own D-pad marker, so it shows and hides with the HUD. A new HUD (after a map change) gets the
+entry built again with its key, cell, sizes and place. A box the marker's size holds it, so the item column
 never grows. In hip fire (the rifle up without the
 game's aim) a small crosshair shows at the screen's centre. `hud_entry=false` in `fight/gunmode/config.lua` turns the
 entry off.

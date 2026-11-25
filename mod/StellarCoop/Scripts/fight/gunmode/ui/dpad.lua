@@ -132,12 +132,16 @@ function Dpad.new(g)
             local slot=overlay:AddChildToOverlay(holder)
             pcall(function() slot:SetHorizontalAlignment(1); slot:SetVerticalAlignment(2) end)
             box:SetVisibility(4); holder:SetVisibility(4) -- SelfHitTestInvisible
+            bg:SetVisibility(1) -- Collapsed until follow shows it: a new Image with no brush draws a white square
             ui.holder=holder
             ui.overlay,ui.dpad,ui.up,ui.thumb,ui.box,ui.slot=overlay,dpad,up,thumb,box,slot
             ui.pad_layer=pad_layer
             ui.keyo,ui.bg,ui.glyph,ui.img,ui.txt=keyo,bg,glyph,img,txt
             ui.cell=cell~=nil
             ui.k,ui.i=Dpad.KEY_SIZE,Dpad.ICON_SIZE
+            -- what follow last applied was applied to the last HUD's widgets: a new HUD gets its glyph, cell, sizes
+            -- and place at once
+            ui.up_path,ui.sized,ui.x,ui.placed,ui.follow_at=nil,nil,nil,nil,nil
         end)
         g.log('dpad: rifle entry '..(ok and ('built, key cell '..(ui.cell and 'found' or 'not found')) or ('not built: '..tostring(err))))
         return ok

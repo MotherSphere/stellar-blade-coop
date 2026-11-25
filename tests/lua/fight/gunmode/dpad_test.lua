@@ -36,6 +36,7 @@ local function world()
     function Obj.IsInViewport(o) return o.viewport==true end
     function Obj.SetBrushFromTexture(o,t) o.tex=t end
     function Obj.SetBrush(o,b) o.brush=b end
+    function Obj.SetBrushSize(o,s) o.bsize=s end
     function Obj.IsA(o,c) return c.short==o.class or c.short=='Widget' or (c.short=='UserWidget' and o.user==true) end
     local function add(p,c) p.kids[#p.kids+1]=c; return any() end
     Obj.AddChildToOverlay,Obj.AddChildToHorizontalBox,Obj.AddChild=add,add,add
@@ -77,27 +78,35 @@ local function hud()
     local inst=W.new('GameInstance',nil,'/Engine/Transient.GameEngine_0:Instance_0')
     local h=W.new('WB_MainHUD_Master_C',inst,'WB_MainHUD_Master_C_1',{user=true,viewport=true})
     local ht=W.new('WidgetTree',h,'WidgetTree'); h.WidgetTree=ht
-    W.new('WB_MainHUD_ItemSlot_C',ht,'WB_MainHUD_HealItem',{user=true,size={X=256,Y=256}})
+    h.heal=W.new('WB_MainHUD_ItemSlot_C',ht,'WB_MainHUD_HealItem',{user=true,size={X=256,Y=256}})
     local dpad=W.new('WB_MainHUD_Dpad_C',ht,'WB_MainHUD_Dpad',{user=true,size={X=256,Y=256}})
     local dt=W.new('WidgetTree',dpad,'WidgetTree'); dpad.WidgetTree=dt
     h.overlay=W.new('Overlay',dt,'Overlay_0')
-    W.new('Image',dt,'btn_up',{Brush={ResourceObject=W.kq,ImageSize={X=150,Y=150}}})
+    h.up=W.new('Image',dt,'btn_up',{Brush={ResourceObject=W.kq,ImageSize={X=150,Y=150}}})
     W.new('Overlay',dt,'Overlay_ps',{vis=1})
     h.cell=W.new('Image',dt,'btn',{Brush={ResourceObject=W.cell_tex}})
     return h
 end
--- One tick with the keyboard and key G: the entry's key cell, its glyph and the log.
-local function entry(no_cell)
-    world()
-    local h=hud()
-    if no_cell then h.cell.dead=true end
-    local logs={}
+local function key_of(h)
+    local key=h.overlay.named.gunmoderifleslot.named.gunmoderiflekey.named
+    return key.gunmoderiflekeycell,key.gunmoderiflekeyglyph
+end
+local function new_g(logs)
     local g={log=function(m) logs[#logs+1]=m end}
     function g.valid(o) if o==nil then return false end local ok,r=pcall(function() return o:IsValid() end); return ok and r==true end
     function g.try(f) local ok,r=pcall(f); if ok then return r end end
-    D.new(g).tick('G','60 | 5',{1,1,1})
-    local key=h.overlay.named.gunmoderifleslot.named.gunmoderiflekey.named
-    return h,key.gunmoderiflekeycell,key.gunmoderiflekeyglyph,table.concat(logs,'\n')
+    return g
+end
+-- One tick with the keyboard and key G: the entry's key cell, its glyph and the log. prep(h) changes the HUD first.
+local function entry(no_cell,prep)
+    world()
+    local h=hud()
+    if no_cell then h.cell.dead=true end
+    if prep then prep(h) end
+    local logs={}
+    D.new(new_g(logs)).tick('G','60 | 5',{1,1,1})
+    local cell,glyph=key_of(h)
+    return h,cell,glyph,table.concat(logs,'\n')
 end
 do
     local h,cell,glyph,log=entry()
@@ -111,4 +120,37 @@ do
     assert(cell.vis==1,'no cell shown without the marker\'s: an empty Image is a white square')
     assert(log:find('dpad: rifle entry built, key cell not found',1,true),log)
 end
+-- The marker's up button with no texture yet: no glyph is known, so the cell stays collapsed.
+do
+    local _,cell=entry(false,function(h) h.up.Brush.ResourceObject=nil end)
+    assert(cell.vis==1,'no cell shown before a glyph is known: '..cell.vis)
+end
+-- A new HUD (map change): SB frees the first one, the entry is built again 0.3 s after the last follow. The new
+-- widgets get the G glyph, the cell, the sizes and the place in that same tick. The new HUD's key and icon have the
+-- entry's default sizes (Dpad.KEY_SIZE, Dpad.ICON_SIZE), so no size change asks for the sizing.
+local clock=os.clock
+for _,no_cell in ipairs({false,true}) do
+    local now=0
+    os.clock=function() return now end
+    world()
+    local h=hud()
+    if no_cell then h.cell.dead=true end
+    local logs={}
+    local d=D.new(new_g(logs))
+    for _,t in ipairs({0,1.8}) do now=t; d.tick('G','60 | 5',{1,1,1}) end
+    for _,o in pairs(W.paths) do if o.class~='Texture2D' then o.dead=true end end
+    local h2=hud()
+    if no_cell then h2.cell.dead=true end
+    h2.up.Brush.ImageSize={X=D.KEY_SIZE,Y=D.KEY_SIZE}; h2.heal.size={X=D.ICON_SIZE,Y=D.ICON_SIZE}
+    now=2.1; d.tick('G','60 | 5',{1,1,1})
+    local cell,glyph=key_of(h2)
+    local log=table.concat(logs,'\n')
+    assert(glyph.tex==W.kg,'the G key icon on the new HUD')
+    if no_cell then assert(cell.vis==1,'no cell on the new HUD without the marker\'s: '..cell.vis)
+    else assert(cell.brush==h2.cell.Brush and cell.vis==4,'the new HUD\'s key cell: '..tostring(cell.brush)..' '..cell.vis) end
+    assert(cell.bsize and cell.bsize.X==D.KEY_SIZE*1.25,'the cell sized from btn_up on the new HUD')
+    local _,placed=log:gsub('dpad: placed ','')
+    assert(placed==2,'placed on each HUD: '..log)
+end
+os.clock=clock
 print('gunmode dpad_test ok')

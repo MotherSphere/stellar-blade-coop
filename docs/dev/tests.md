@@ -83,7 +83,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `fight/gunmode/dpad_test` covers the HUD entry's glyph (`fight/gunmode/ui/dpad.lua`): the Right twin of the Xbox or
   PlayStation D-pad glyph the game shows, or the `gun_key` keyboard icon for a keyboard glyph. An unknown or missing
   glyph gives none. Over a fake UMG the real entry puts the G icon on the marker's own key cell (`btn`). With no such
-  cell it shows no cell at all, since an image with no brush draws a white square;
+  cell it shows no cell at all, since an image with no brush draws a white square. The cell also stays hidden while
+  the marker's up button has no texture. An entry built again in a new HUD gets the G icon, the cell, the sizes and
+  the place in the same tick;
 - `fight/gunmode/v4_rules_test` covers the layer clip choice (hip fire raises the rifle, a ground move carries it,
   the flip keeps the aim), the aimed reload on the aim's pose, the aim bridge through a dodge, her body tilt, the aim
   clip by rifle pitch, the recoil, the hip-fire turn, the comeback after an interaction, the chest turn's ease back (a
