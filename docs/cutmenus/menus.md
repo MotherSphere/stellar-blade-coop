@@ -257,6 +257,9 @@ These cases can still lose or double a gift:
   `remove asked` line with no `sent` line after it. `coop off` in that wait sends nothing either. It writes the items
   into your mailbox file as coming back. They return the next time the game starts on that co-op save. The log
   says `send stopped by coop off after the remove: PulseGrenade x2 come back at the next game start`.
+- You run `coop off` in that wait while the game is paused, from the co-op menu for example, then close the game
+  before it plays again. If the game had not run the remove yet, the items are still in your inventory. The mailbox
+  file gives them back anyway at the next game start: you have them twice. The log line is the same as above.
 - The count does not fall by the gift's in those 10 s, because the game ran the remove later still or because an item
   you picked up meanwhile hid the drop. Nothing is sent. The notice says
   `Gift not sent. The items may be gone. UE4SS.log says why.` The log line is

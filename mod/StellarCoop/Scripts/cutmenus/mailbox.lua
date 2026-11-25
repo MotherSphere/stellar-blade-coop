@@ -441,6 +441,8 @@ function Mailbox.new(o)
     -- coop off. The remove may also still wait for SB's logic.
     -- ponytail: a send stopped by a Lua reload in that wait (SETTLE s of play at most) loses its items; an entry
     -- written before the remove is the upgrade.
+    -- shortcut: the back entry is written with no proof the remove ran. coop off while the game is paused, then a quit
+    -- before it plays again, can give the items twice. Upgrade when a doubled gift is reported.
     function self.stop()
         local s=sending
         sending=nil
