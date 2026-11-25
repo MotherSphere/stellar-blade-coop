@@ -164,7 +164,8 @@ place: `ServerRequest_ActorRespawn(<EVE's GUID>, false)`. The job's code has no 
 her life state to alive, sets her HP to its maximum and refills her recovery items. With `false` it does not move her
 to a camp. The module waits until the death screen plays, 5 s at most, then makes the call once. Two seconds later
 it logs the result. If EVE lives it tells SB's death screen that its revival ended, so SB gives back the mouse cursor
-the screen holds. It then hides a death screen that still plays. If EVE is not walking, or is under -3275, the
+the screen holds. It then hides a death screen that still plays. A hide that raises gives one line. The result is
+still logged with the screen `up` and counts no failure. If EVE is not walking, or is under -3275, the
 put-back of a fall runs, with the same black and the move two passes later.
 
 The native part writes the `life=` word from an accepted `coop xion` until an accepted `coop xion leave`. Leaving by
@@ -240,6 +241,7 @@ what brings EVE back from those.
 | `sboxion: death: life n, EVE at (x, y, z)` | The death rule started |
 | `sboxion: respawn waits: <reason>` | Why the call is not made yet, each reason once |
 | `sboxion: respawn: ServerRequest_ActorRespawn(<GUID>, false) asked (life n, death screen up)` | The call. It reads `no death screen in 5 s` when none played |
+| `sboxion: respawn: death screen not hidden: <why>` | The hide of a death screen that still plays raised. The result line follows with `death screen up/up` |
 | `sboxion: respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode m` | Before and after, 2 s after the call. `life 3/3` comes with `failure n of 2` |
 | `sboxion: death: EVE at (x, y, z) not on the ground: to the ground point (x, y, z) read t s ago` | The respawn left her off the ground. The move, two passes after its `black:` line |
 | `sboxion: respawn not asked in 10 s: <reason>: failure n of 2` | The call was never made |
