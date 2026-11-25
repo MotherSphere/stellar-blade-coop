@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop xion (world/maps/sboxion/commands.lua): alone and with city it asks the warp to the city point, with gate to
 -- the gate point; leave and status go to their own calls; recover goes to its call alone or with on, death or off;
--- rooms goes to its call alone or with on or off; walls, the word of the walls taken out on 24 November 2026, another
+-- rooms goes to its call alone or with on or off; tetrapod goes to its call alone or with in or out; walls, the word of the walls taken out on 24 November 2026, another
 -- word or one too many is refused with the use line; without the Steam link every word says so. The wiring
 -- (world/maps/sboxion/wiring.lua) builds SBO Xion with one of the Steam link's stores, coop-xion-rooms.txt, the file
 -- the rooms keep their hidden rows in. It asks for no store without the link.
@@ -14,8 +14,9 @@ local Cmd=Commands.new({xion={enter=function(name) calls[#calls+1]='enter '..nam
     leave=function() calls[#calls+1]='leave'; return true,'out' end,
     status=function() calls[#calls+1]='status'; return true,'line' end,
     recover=function(word) calls[#calls+1]='recover '..tostring(word); return true,'mode' end,
-    rooms=function(word) calls[#calls+1]='rooms '..tostring(word); return true,'doors' end}})
-local USE='Use: coop xion [city|gate|leave|status|recover [on|death|off]|rooms [on|off]]'
+    rooms=function(word) calls[#calls+1]='rooms '..tostring(word); return true,'doors' end,
+    tetrapod=function(word) calls[#calls+1]='tetrapod '..tostring(word); return true,'ship' end}})
+local USE='Use: coop xion [city|gate|leave|status|recover [on|death|off]|rooms [on|off]|tetrapod [in|out]]'
 local ok,line=Cmd.xion()
 assert(ok and line=='in' and calls[1]=='enter city',line)
 ok,line=Cmd.xion('city')
@@ -54,6 +55,16 @@ end
 for _,words in ipairs({{'rooms','death'},{'rooms','off','now'},{'rooms','D011'}}) do
     ok,line=Cmd.xion(table.unpack(words))
     assert(not ok and line==USE and #calls==12,line)
+end
+ok,line=Cmd.xion('tetrapod')
+assert(ok and line=='ship' and calls[13]=='tetrapod nil',calls[13])
+for i,word in ipairs({'in','out'}) do
+    ok,line=Cmd.xion('tetrapod',word)
+    assert(ok and line=='ship' and calls[13+i]=='tetrapod '..word,calls[13+i])
+end
+for _,words in ipairs({{'tetrapod','on'},{'tetrapod','in','now'},{'in'}}) do
+    ok,line=Cmd.xion(table.unpack(words))
+    assert(not ok and line==USE and #calls==15,line)
 end
 ok,line=Commands.new({}).xion('status')
 assert(not ok and line=='coop xion needs the Steam link and the native part',line)

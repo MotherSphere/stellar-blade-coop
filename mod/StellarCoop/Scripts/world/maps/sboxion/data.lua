@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's data (world/maps/sboxion/sboxion.lua): the test pak, its level, the two table rows, the arrival points,
--- the waypoints of the test walk, the day table, the two probe levels and the recovery's numbers. Level facts are read
--- from the paks of build 26123051. Units: cm and degrees.
+-- the waypoints of the test walk, the day table, the two probe levels, the recovery's numbers and the Tetrapod's door.
+-- Level facts are read from the paks of build 26123051. Units: cm and degrees.
 local D={}
 D.PAK='zSBO_Xion' -- The container: zSBO_Xion.utoc, .ucas and .pak, built outside the repository.
 D.UMAP='/Game/SBO_World/Xion_P' -- Its one package: SBO's copy of Xion's persistent level, World object Xion_P.
@@ -117,4 +117,31 @@ D.CHECK,D.TRY,D.AFTER,D.SCREEN=3,10,2,5
 -- passes: how long after the black is asked a first put-back moves EVE. The black is full after 0.3 s and a pass comes
 -- every 0.25 s.
 D.BLACK_IN,D.BLACK,D.BLACK_OUT,D.LEAD=0.3,1,0.5,2
+-- The Tetrapod's door (world/maps/sboxion/tetrapod.lua).
+-- SHIP: SB's Tetrapod interior, the actor BP_Env_TetraPod3_2 of E04_Area05_B_LD: the place and yaw of its root. A
+-- point (x, y, z) of the ship frame (x to the ship's right, y to its cockpit, z up) lies at SHIP + Rz(Yaw) * (x, y,
+-- z). SB's own point inside, TeleportPoint_XionTetrapodInside (SBSpawnPoint43 of E04_LD_Respawn, the target of SB's
+-- warp row WLA_40_E_ZoneWarp_001), reads (81, 624, 332) in that frame. The ship stands about 540 m from the Tetrapod
+-- of the hangar and 19 m lower.
+-- CABIN: the box of the ship's 124 parts in the ship frame (the blueprint's part offsets and the bounds of its 79
+-- meshes). EVE inside it is inside the Tetrapod.
+-- DOOR: the box of SB's entrance fog on the Tetrapod of the hangar (SM_ShipEntranceFog_2 of E04_Area03_FX_A_01: X
+-- -13387 to -13143, Y 19572 to 19771, Z 257 to 607), 30 cm longer toward the steps and 50 cm more under and over.
+-- IN: where EVE arrives inside, in the ship frame: 2.3 m inside the right door (Door/001_B_SM, part 001_B_SM2, x 468
+-- to 524, y 316 to 478), the door with a step (Floor/001_F_SM, part 001_F_SM4), at the height of SB's own point,
+-- turned yaw degrees from the ship's x: 180 faces the cabin.
+-- HATCH: the box in front of that door, in the ship frame. It starts 1.2 m from IN.
+-- OUT: SB's own point in front of the Tetrapod of the hangar, Xion_Camp_10 (SBSpawnPoint_Xion_Camp_10 of
+-- E04_LD_Respawn), the target of SB's warp rows Xion_10_E_ZoneWarp_019, 020 and 024. It lies 11.9 m from the door.
+-- STAY, passes: how long EVE stands in a box before the move is asked. HOLD, passes: after a move, nothing is looked
+-- at for that long.
+D.TETRAPOD={
+    SHIP={X=16770.477,Y=-25002.33,Z=-2196.6687,Yaw=47.811634},
+    CABIN={lo={x=-727,y=-915,z=-7},hi={x=727,y=1318,z=831}},
+    DOOR={lo={X=-13387,Y=19542,Z=207},hi={X=-13143,Y=19771,Z=657}},
+    IN={x=240,y=397,z=331.5,yaw=180},
+    HATCH={lo={x=360,y=300,z=150},hi={x=600,y=494,z=650}},
+    OUT={X=-13413.319,Y=18382.996,Z=82.0,Yaw=-87.18756},
+    STAY=2,HOLD=8,
+}
 return D

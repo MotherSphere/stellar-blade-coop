@@ -13,7 +13,8 @@ The module `world.maps.sboxion` is a test tool. Its first game test answered one
 a container of SBO's stream SB's sublevels, with EVE standing in a lit, empty city. It can: the 93 always-loaded
 sublevels loaded and the day light applied. In the same test EVE fell out of the city and stayed dead.
 [Falls and deaths](#falls-and-deaths) describes the fix. [The rooms](#the-rooms) are rooms of SBO's own behind
-closed doors of Xion, which later test paks add: five, then eleven. The commands are left out of the usage line.
+closed doors of Xion, which later test paks add: five, then eleven. [The Tetrapod's door](#the-tetrapods-door) leads
+into SB's own Tetrapod interior. The commands are left out of the usage line.
 They run only alone (not in a session) on a [co-op save](../../players/playing-with-a-friend.md#co-op-saves). Their
 lines go to `UE4SS.log` as `[StellarCoop][SX]` and the native part's to `coop-link.log`.
 
@@ -55,6 +56,7 @@ list leaves out. With the pak of 23 November the module works as before [the roo
 | `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state, the rooms' state and the last look: its age, the characters with the nearest one, the levels, the zone, the area and EVE's life state |
 | `coop xion recover on`, `death` or `off` | Inside SBO Xion: what the module does after a fall or a death, until the next arrival ([Falls and deaths](#falls-and-deaths)). Alone, it prints the recovery's state |
 | `coop xion rooms on` or `off` | Inside SBO Xion: `off` puts SB's pieces back in the doorways of [the rooms](#the-rooms) until `on` or the next arrival, so the doors are closed as SB ships them. Alone, it prints the rooms' state |
+| `coop xion tetrapod in` or `out` | Inside SBO Xion: puts EVE inside the Tetrapod or back in front of it, from wherever she stands ([The Tetrapod's door](#the-tetrapods-door)). Alone, it says whether she is inside |
 
 `coop xion` refuses with nothing asked when the save is not a co-op save, when a session is open, without the pak,
 when the rows were refused and when EVE is already in SBO Xion. The native part then refuses the warp during a
@@ -484,6 +486,56 @@ On a co-op save, alone.
 
 A room whose line reads `closed` keeps SB's door. Send that line: it names the row and the reason.
 
+## The Tetrapod's door
+
+The Tetrapod of the hangar has an open doorway that shows a dark fog. In SBO Xion it led nowhere. Since 25 November
+2026 the module moves EVE through it. It needs the full test pak: the two levels below are level-design levels.
+
+SB keeps the inside of the ship in another place. It is one blueprint actor, `BP_Env_TetraPod3_2` of the level
+`E04_Area05_B_LD`, about 540 m from the hangar and 19 m lower. It has 124 parts: a cockpit with two pilot seats, a
+table, a desk, beds and two side doors. The cabin is about 10.5 m wide and 16 m long. SB sends the player there with
+a warp from the Wasteland (`EventZoneWarpTable` row `WLA_40_E_ZoneWarp_001`, to the point
+`TeleportPoint_XionTetrapodInside`). It brings her back to the hangar at the point `Xion_Camp_10`. SB's zone events
+run in `Zone_Xion_10` only, so nothing of this runs in `Zone_SBO_Xion`.
+
+| Step | What the module does |
+| --- | --- |
+| The way in | EVE stands 0.5 s in the doorway of the hangar: the box of SB's entrance fog, X -13387 to -13143, Y 19542 to 19771. She is put inside at (16638, -24558, -1865), 2.3 m from the ship's right door, facing the cabin |
+| The way out | Inside, EVE stands 0.5 s in front of the right door, the one with a step. She is put at SB's point in front of the Tetrapod, (-13413, 18383, 82), 11.9 m from the doorway |
+| After a move | Nothing is looked at for 2 s |
+
+Each move is made as [a fall's put-back](#a-fall) is: [SB's black](#the-black) first, the teleport 0.5 s later. While
+the recovery waits or handles a fall or a death, the door counts nothing. `coop xion tetrapod in` and
+`coop xion tetrapod out` ask the same move at once from anywhere in SBO Xion.
+
+| Line in `UE4SS.log` | Meaning |
+| --- | --- |
+| `sboxion: tetrapod: door on: in at (16638, -24558, -1865), out at (-13413, 18383, 82)` | An arrival in SBO Xion |
+| `sboxion: tetrapod: in asked (EVE stood 2 passes at (x, y, z)); black up in 0.3 s; EVE moves in 2 passes` | EVE stood in the doorway. `out asked` is the same from the ship's door. After `asked (coop xion tetrapod in)` the command asked it |
+| `sboxion: tetrapod: in: EVE at (16638, -24558, -1865), yaw -132.2` | The move was made. `out: EVE at (-13413, 18383, 82), yaw -87.2` is the way out |
+| `sboxion: tetrapod: in: the move to (...) was refused by K2_TeleportTo` | The engine refused the teleport. EVE stays where she is |
+| `sboxion: tetrapod: door off until the next arrival: error (...)` | A pass raised. The door does nothing more until `coop xion` |
+
+What is not known before the first game test:
+
+- Whether the doorway box is where EVE can stand. The hull may stop her short of it. Then `coop xion tetrapod in`
+  still works. Send where she stood (`coop xion status`).
+- Whether the ship shows at once. `E04_Area05_B_LD` is loaded by volume as SB ships it.
+- Whether the point inside is free floor. It was chosen from the boxes of the ship's parts, not seen.
+- Whether EVE can reach the box in front of the right door. The step is on that side by the bounds of the floor
+  part `001_F_SM4`.
+- How the cabin is lit and what SB's lights there do in `Zone_SBO_Xion`.
+
+Testing it in game, alone, on a co-op save, with the full test pak:
+
+1. `coop xion`, then walk to the hangar and up the steps of the Tetrapod into the dark doorway. Stand still. Within
+   1 s the screen fades to black and EVE stands inside the ship.
+2. If nothing happens after 3 s, type `coop xion status`, note EVE's place, then `coop xion tetrapod in`.
+3. Inside, walk around. `coop xion tetrapod` answers `EVE is inside the Tetrapod, door on`.
+4. Walk to the door on the ship's right side and stand in front of it. The screen fades and EVE stands in front of
+   the Tetrapod of the hangar. If nothing happens, `coop xion tetrapod out`.
+5. Send `UE4SS.log` with the `tetrapod:` lines.
+
 ## The full test pak
 
 The third pak of 24 November 2026 is a test build. It loads the levels of Xion as Stellar Blade ships them,
@@ -732,8 +784,10 @@ underground and 47 of the 50 level-design sublevels.
 ## Tests
 
 - `tests/lua/world/maps/sboxion/off_test.lua`: a failure of this module at load turns this module off alone.
-- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes and `rooms` with `on` and `off`
-  included, `walls` refused, then the wiring's one store, `coop-xion-rooms.txt`.
+- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes, `rooms` with `on` and `off` and
+  `tetrapod` with `in` and `out` included, `walls` refused, then the wiring's one store, `coop-xion-rooms.txt`.
+- `tetrapod_test.lua`: the ship frame, the way in and the way out with SB's black, the hold after a move, the count
+  that starts again, a busy recovery, a refused teleport, an error that turns the door off and the command.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the
