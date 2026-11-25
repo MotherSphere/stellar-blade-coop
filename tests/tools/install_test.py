@@ -296,7 +296,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'world/maps/sboxion/engine', 'world/maps/sboxion/recover',
                               'world/maps/sboxion/sboxion', 'world/maps/sboxion/rooms/list',
                               'world/maps/sboxion/rooms/rooms', 'world/maps/sboxion/tetrapod',
-                              'closet/cns_import', 'closet/commands', 'closet/json', 'closet/manifest',
+                              'closet/cns_import', 'closet/commands', 'closet/fits', 'closet/json', 'closet/manifest',
                               'closet/resolver', 'closet/slots',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',

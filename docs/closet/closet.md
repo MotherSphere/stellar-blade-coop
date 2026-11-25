@@ -27,6 +27,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua. They make no engine
 | `json.lua` | A JSON decoder for packs: comments, trailing commas, a BOM, `\u` escapes. It never raises |
 | `manifest.lua` | Reads and checks a `*.stellarcloset.json` pack |
 | `cns_import.lua` | Reads a `*.dekcns.json` pack into items, with piece hints from its material toggle names |
+| `fits.lua` | Fit maps: which material slots of a CNS full outfit make each piece and which show the skin (Ocean Maid, Kunoichi Shadow) |
 
 `wiring.lua` builds only `commands.lua` for now. The module reads no other module.
 
@@ -41,6 +42,6 @@ on the ghost only when `link.mod_assets()` lists it. The native scan (`native/sr
 
 - `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.
 - `tests/lua/closet/closet_test.lua` checks `coop closet`.
-- `tests/lua/closet/slots_test.lua` (7 checks), `resolver_test.lua` (23), `manifest_test.lua` (13) and
-  `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`, with the assertions of
+- `tests/lua/closet/slots_test.lua` (7 checks), `fits_test.lua` (4), `resolver_test.lua` (23), `manifest_test.lua` (13)
+  and `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`, with the assertions of
   `tests/lua/closet/helpers.lua`.
