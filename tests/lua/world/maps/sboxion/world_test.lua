@@ -671,4 +671,41 @@ pass(x,30)
 assert(#logs==said,'Said once: '..logs[#logs])
 ENGINE=ENGINE:gsub('zonetype=1 area=Zone_Xion_10','zonetype=5 area=Zone_SBO_Xion')
 x.stop()
+
+-- tetrapod_door: the module's own wiring ticks the door (world/maps/sboxion/tetrapod.lua) after the recovery, with
+-- the recovery's read of EVE, so a pass reads her once. Two passes in the doorway of the Tetrapod of the hangar ask
+-- SB's black and two more put her inside. coop xion tetrapod says where she is and is refused out of SBO Xion. A map
+-- change and the arrival after it drop a move that waits.
+x=new()
+puts,her_at,her_mode={},nil,1
+warp_line='sboxionwarp=entered asks=6 life=1'
+me=at(D.ARRIVALS.city)
+ok,why=x.tetrapod()
+assert(not ok and why=='coop xion tetrapod: EVE is not in SBO Xion',why)
+pass(x,0.25)
+assert(logged('sboxion: tetrapod: door on: in at (16638, -24558, -1865), out at (-13413, 18383, 82)'),logs[#logs])
+ok,why=x.tetrapod()
+assert(ok and why=='coop xion tetrapod: EVE is outside the Tetrapod, door on',why)
+local moves,blacks=calls.move,calls.black or 0
+her_at={X=-13265,Y=19600,Z=347}
+pass(x,0.5)
+assert(calls.move==moves+2,'One engine read of EVE a pass: '..(calls.move-moves))
+assert(calls.black==blacks+1 and #puts==0 and logged('sboxion: tetrapod: in asked (EVE stood 2 passes at (-13265, '
+    ..'19600, 347)); black up in 0.3 s; EVE moves in 2 passes'),logs[#logs])
+pass(x,0.5)
+assert(#puts==1 and math.abs(puts[1].at.X-16637.5)<0.5 and math.abs(puts[1].at.Y+24557.9)<0.5
+    and math.abs(puts[1].at.Z+1855.2)<0.1 and math.abs(puts[1].yaw+132.19)<0.01,'Inside, 10 cm over the point')
+her_at=puts[1].at -- This file's put leaves her where she was since the fall right before the map change.
+ok,why=x.tetrapod()
+assert(ok and why=='coop xion tetrapod: EVE is inside the Tetrapod, door on',why)
+ok,why=x.tetrapod('out')
+assert(ok and why=='coop xion tetrapod: out: the move is asked' and calls.black==blacks+2,why)
+me={at={X=0,Y=0,Z=0},map=SB_XION}
+pass(x,1)
+assert(#puts==1 and logged('sboxion: left, map'),'The door is not ticked in another map')
+her_at=nil
+me=at(D.ARRIVALS.city)
+pass(x,1)
+assert(#puts==1 and times('sboxion: tetrapod: door on')==2,'The next arrival dropped the move that waited')
+x.stop()
 print('sboxion_world_test ok')

@@ -38,7 +38,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `off`, `words`;
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
-`world/maps/sboxion/`: `engine`, `off`, `recover`, `rows`, `sboxion`, `title`, `world`;
+`world/maps/sboxion/`: `engine`, `off`, `recover`, `rows`, `sboxion`, `tetrapod`, `title`, `world`;
 `world/maps/sboxion/rooms/`: `list`, `rooms`;
 `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
@@ -911,6 +911,13 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   again 10 s later. A look 10 s after that
   reads once and says nothing. The next look says the two levels that changed and the characters line with the two
   that spawned, once. `coop xion status` ends with the last look;
+- `world/maps/sboxion/tetrapod_test` runs `world/maps/sboxion/tetrapod.lua` over a fake world. SB's point inside
+  the Tetrapod reads (81, 624, 332) in the ship frame. One pass in the doorway of the hangar moves nothing. The
+  second asks SB's black. Two passes later EVE goes to the point inside plus 10 cm. Nothing is looked at for the next
+  8 passes. Two passes in front of the ship's right door bring her to SB's point in front of the Tetrapod. A pass
+  outside the box starts the count again. A busy recovery counts nothing. A refused teleport and a black that raises
+  change one log line. An error in a pass turns the door off until the next arrival. `coop xion tetrapod in` and
+  `out` ask the move at once;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:

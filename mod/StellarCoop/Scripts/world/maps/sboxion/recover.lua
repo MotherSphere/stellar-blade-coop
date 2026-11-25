@@ -84,6 +84,7 @@ function Recover.new(o)
     local dead=nil
     local hidden=nil -- The call that shows the death screen this part hid.
     local passes,look_at=0,0 -- Every pass; the death screen's widget is looked for again at most every 10 s.
+    local here=nil -- EVE as the last pass read her, for the Tetrapod's door; nil when the pass read nothing.
     local self={}
     -- The death screen we hid comes back as it was.
     local function show(reason)
@@ -227,6 +228,7 @@ function Recover.new(o)
         local line=text:match('\nengine=([^\r\n]*)') or ''
         local life=tonumber(text:match('\nsboxionwarp=[^\r\n]- life=(%d+)'))
         local m=world.move()
+        here=m
         local moving=m~=nil and m.time~=last
         local dt=m and last and m.time>last and m.time-last or 0
         last=m and m.time or nil
@@ -290,6 +292,7 @@ function Recover.new(o)
     end
     -- Each 250 ms pass while EVE's map is SBO Xion.
     function self.tick()
+        here=nil
         if stopped then return end
         local ok,e=pcall(tick)
         if not ok then
@@ -310,6 +313,10 @@ function Recover.new(o)
         check,dead,lead=nil,nil,nil
         if hidden then show(reason) end
     end
+    -- For the Tetrapod's door (tetrapod.lua): a guard waits, or a put-back or a death is being handled, as of the last
+    -- pass. Then EVE as that pass read her (world.move's table), or nil when it read nothing (a stopped recovery, an
+    -- error before the read).
+    function self.busy() return waiting~=nil or check~=nil or lead~=nil or dead~=nil,here end
     -- One part of coop xion status.
     function self.status()
         return string.format('recovery %s, %s, failures %d',stopped and 'stopped' or mode,

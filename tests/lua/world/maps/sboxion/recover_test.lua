@@ -32,6 +32,8 @@
 -- back at 1 before the call ends the death with one line and no failure, then the next fall is caught; without a warp=
 -- word the respawn is never asked; an arrival, a stop and the mode off drop a death being handled; a respawn that
 -- leaves her walking sets the failures to 0; a death that starts while a put-back is checked drops the check.
+-- busy, for the Tetrapod's door (tetrapod.lua): whether a guard waits or a put-back or a death is handled, with the
+-- pass's read of EVE.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Recover=require('world.maps.sboxion.recover')
 local D=require('world.maps.sboxion.data')
@@ -879,4 +881,33 @@ broken=nil
 pass(r)
 assert(#puts==1 and puts[1].at.X==-8303.969,'After the failure the move is made at once, to the arrival point')
 assert(#blacks==2 and last()=='black: up at once','It is a new put-back with its own black: '..last())
+
+-- busy, for the Tetrapod's door: false with the pass's own read of EVE while she walks; true while a guard waits,
+-- while a move waits under the black and while a put-back is checked; no read once the recovery stopped.
+r=fresh()
+walk(r,4)
+local busy,read=r.busy()
+assert(busy==false and read.at.X==eve.at.X and read.mode==1 and read.time==eve.time,'Free, with the read of the pass')
+photo='1'
+pass(r)
+busy,read=r.busy()
+assert(busy==true and read.at.X==eve.at.X,'A guard waits')
+photo='0'
+pass(r)
+assert(r.busy()==false)
+fall()
+pass(r)
+assert(r.busy()==true and #puts==0,'A move waits under the black')
+pass(r,2)
+assert(#puts==1 and r.busy()==true,'A put-back is checked')
+eve.mode=1
+pass(r)
+assert(r.busy()==false,'She walks again: '..last())
+broken='lost pawn'
+pass(r,2)
+assert(logged('recovery stopped after 2 failures in a row'),last())
+broken=nil
+pass(r)
+busy,read=r.busy()
+assert(read==nil,'A stopped recovery reads nothing')
 print('sboxion_recover_test ok')

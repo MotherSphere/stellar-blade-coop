@@ -295,7 +295,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'world/maps/sboxion/commands', 'world/maps/sboxion/data',
                               'world/maps/sboxion/engine', 'world/maps/sboxion/recover',
                               'world/maps/sboxion/sboxion', 'world/maps/sboxion/rooms/list',
-                              'world/maps/sboxion/rooms/rooms',
+                              'world/maps/sboxion/rooms/rooms', 'world/maps/sboxion/tetrapod',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',

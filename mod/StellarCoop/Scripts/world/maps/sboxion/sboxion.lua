@@ -44,11 +44,16 @@
 -- death leaves falls alone, so EVE can die of one on purpose. off does nothing, as before the recovery existed.
 -- coop xion rooms [on|off], inside SBO Xion: off puts SB's pieces back in the doorways until on or the next
 -- arrival, so a test sees SB's closed doors again. Alone, it prints the rooms' state.
+-- The Tetrapod's door, each pass of the stay (world/maps/sboxion/tetrapod.lua): EVE standing in the doorway of the
+-- Tetrapod of the hangar is put inside SB's own Tetrapod interior, 540 m away, and standing at its right door she is
+-- put back in front of the ship. coop xion tetrapod [in|out], inside SBO Xion, asks the same move from anywhere.
+-- Alone, it says whether she is inside.
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local D=require('world.maps.sboxion.data')
 local Recover=require('world.maps.sboxion.recover')
 local Rooms=require('world.maps.sboxion.rooms.rooms')
+local Tetrapod=require('world.maps.sboxion.tetrapod')
 local Xion={}
 Xion.ROWS=Enemy.rows(D.ROWS)
 -- rows/rows.h's refusals of a gate that stayed shut (busy, net, unread): the title asks again, so nothing is decided.
@@ -73,6 +78,7 @@ function Xion.new(o)
     local log=o.log
     local world=o.world
     local recover=Recover.new({log=function(m) log('sboxion: '..m) end,status=o.status,photo=o.photo,world=world})
+    local tetrapod=Tetrapod.new({log=function(m) log('sboxion: '..m) end,world=world})
     local asked_point=nil -- The arrival point of the last coop xion asked, for the recovery of the stay it starts.
     local e=Enemy.new({log=function(m) log('sboxion '..m) end,ask=o.ask,status=o.status},
         {word='sboxion',name='SBO Xion',command='coop xion',tag='[SX]',rows=Xion.ROWS,ids={}})
@@ -302,6 +308,7 @@ function Xion.new(o)
         guarded('characters',characters,me,true)
         zone_and_life(me,true)
         rooms.arrive()
+        tetrapod.arrive()
     end
     local function watch(me,now)
         if stay.back and now>=stay.back then
@@ -468,10 +475,17 @@ function Xion.new(o)
         local ok,line=rooms.switch(word)
         return ok,ok and 'coop xion rooms: '..line or line
     end
+    -- coop xion tetrapod [in|out]: EVE put inside the Tetrapod or back in front of it, or where she is with no word.
+    function self.tetrapod(word)
+        if not stay then return false,'coop xion tetrapod: EVE is not in SBO Xion' end
+        local ok,line=tetrapod.go(word)
+        return ok,ok and 'coop xion tetrapod: '..line or line
+    end
     -- Each 250 ms pass: the wait for the rows and their read-back, the native answer awaited, then the arrival, the
-    -- watch, the recovery and the rooms while EVE's map is SBO Xion. In any other map, with nothing asked, it reads
-    -- nothing. A map change ends the recovery first, then closes the rooms: a put-back that raises leaves no recovery
-    -- running. A row of a world that is gone is not called.
+    -- watch, the recovery, the Tetrapod's door and the rooms while EVE's map is SBO Xion. In any other map, with
+    -- nothing asked, it reads nothing. A map change ends the recovery first, then closes the rooms: a put-back that
+    -- raises leaves no recovery running. A row of a world that is gone is not called. The door is not ticked in
+    -- another map and each arrival resets it.
     local off=false
     function self.tick()
         if off then return end
@@ -484,6 +498,7 @@ function Xion.new(o)
             if not stay then arrive(me,now) end
             watch(me,now)
             guarded('recovery',recover.tick)
+            tetrapod.tick(recover.busy())
             rooms.tick()
         elseif stay then
             stay=nil
