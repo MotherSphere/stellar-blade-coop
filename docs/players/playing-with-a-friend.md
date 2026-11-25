@@ -43,7 +43,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (26) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (29) and game build. A mismatch shows a notice on screen (see
   [Notices](interface.md#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
@@ -448,7 +448,14 @@ refuses a co-op copy that still holds the mod's items (the two cut stimpacks, th
 Bolts as the selected ammo, or names the cut Matrix XIII area as its map, its camp, its last full camp or its last
 simple camp, and `coop-link.log` says what to use up, sell or switch, or to rest at a full camp (one with a phone booth)
 outside the area. A co-op save that started New Game+ with any of these keeps them in a copy that playing does not
-change: the export keeps refusing it. It also refuses a developer save that
+change: the export keeps refusing it. It refuses a co-op copy that names an item of the
+[team shop](../world/teamshop.md) (a name that starts with `SBOTeam_`) in an item name field (`ItemAlias`), which the
+inventory and a pickup left in the world use, or on a quick slot.
+Some co-op saves can never be exported, since the game keeps these names in the save for good. The refusal says so for
+each: one that holds rows of the Matrix XIII area's zones (names that start with `DLC02_`, kept once it has played
+there), one that names Lily's quests A Second Signal or On Time ([world/lily-signal.md](../world/lily-signal.md)) and
+one that names a Matrix XIII record (`Records_MX13_...` or `Ach_Album_Unlock_MX13_...`). It also refuses a developer
+save that
 [`coop shortcut load`](../cutmenus/menus.md#loading-one-coop-shortcut-load) wrote in co-op slot 5 (`StellarBladeCoop04.sav`, so N is 4),
 played or not, since the developer's progress and cut items would land in your own save. The rules are in
 [saves.md](saves.md#co-op-saves). The export has not been tested in game yet.
