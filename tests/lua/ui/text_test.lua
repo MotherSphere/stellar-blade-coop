@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- ui/text.lua, pure (no fakes): a language's table only under one of the 23 culture names
--- online/modes/nightop/recruiter_text.lua's culture() gives, and either empty or with exactly T.en's keys at every
+-- ui/text/culture.lua's culture() gives, and either empty or with exactly T.en's keys at every
 -- level, each word with T.en's format placeholders in T.en's order (Lua's format has no positional arguments; a percent
 -- sign, %%, may stand anywhere, as Turkish puts it first); T.pick's choice (the game's culture through culture(),
 -- English with ui_language=english, for a culture with no table and for a word a table lacks); in every language, every
@@ -25,7 +25,7 @@
 -- count word and difficulty on both sides; its English; the bike's refusals with each side word and a six-digit
 -- distance or another map's 32-byte name, the paid fetch's offer after them with the longest key name and betacrystal,
 -- the fetch's other lines with a 32-byte money name, within 200 bytes; coop gift's notices with a 32-byte name and
--- alias within 200 bytes; the 20 module names in every table; the notice
+-- alias within 200 bytes; the 25 module names in every table; the notice
 -- of a module that failed to load with the longest of them within 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')

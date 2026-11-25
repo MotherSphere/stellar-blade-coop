@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- A pak of ours in SB/Content/Paks, found with no engine call: the Matrix XIII test pak
--- (world/maps/matrix13/level/travel.lua) and the hall lobby pak (online/lobby/sbo.lua). No StaticFindObject: a package
+-- (world/maps/matrix13/level/travel.lua), the hall lobby pak (online/lobby/sbo.lua) and the zSBO_Xion test pak
+-- (world/maps/sboxion/sboxion.lua). No StaticFindObject: a package
 -- that is not loaded is never found that way, and each miss costs 4 to 35 ms. The container's .utoc in ~mods, else
 -- LogicMods, read once a call (its first 1 MB), must name the names asked in its directory index (plain text in a .utoc
 -- that is not encrypted, as retoc writes it), with its .pak and .ucas beside it (UE 4.26 mounts an IoStore container
