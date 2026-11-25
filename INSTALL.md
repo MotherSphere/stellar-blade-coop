@@ -132,9 +132,23 @@ If the game no longer starts at all after a Stellar Blade update, see
 - On a controller, hold View for 1 s to open or close the co-op menu. The D-pad or the left stick moves, A selects
   and B goes back. The mouse works in the menu too: move onto a row, left click to select, right click to go back. See
   [docs/players/interface.md](docs/players/interface.md#controller).
+- In the game's pause menu, RB on the Settings tab (E on the keyboard) or a click on the Online tab after it closes the
+  pause menu and opens the co-op menu. See [docs/players/interface.md](docs/players/interface.md#pause-menu).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
+- `F7`, as the guest on a co-op save, takes you to where the host last stood on solid ground. When the host is on
+  another map, the game's fast travel takes you to the camp nearest him first. On the death screen, with `revive=on`,
+  it takes you back to a living friend on your map. See
+  [docs/players/playing-with-a-friend.md](docs/players/playing-with-a-friend.md#following-the-host).
 - `F8` leaves the session. When the host leaves, the guest leaves too.
 - `F9` sets a checkpoint while you record a Doro race track. See [docs/online/modes/race.md](docs/online/modes/race.md).
+- `F3` puts EVE on the bike or takes her off it, on any save. On a controller, hold D-pad Right for 1 s. See
+  [docs/vehicles/bike.md](docs/vehicles/bike.md).
+- `F4` brings the NIKKE rifle out or puts it away (gun mode, experimental). On a controller, tap D-pad Right. Without
+  the optional `zNGMSpike_P` pak, it only shows the notice `Gun mode: rebuilding`. See
+  [docs/fight/gunmode.md](docs/fight/gunmode.md).
+- Hold `F2` to open the emote wheel, point at an emote with the mouse, then release `F2` to play it. On a controller,
+  hold D-pad Left for 0.3 s, point with the right stick, then release D-pad Left. See
+  [docs/players/interface.md](docs/players/interface.md#emote-wheel).
 - `Enter`, during a session or in the SBO lobby, opens the chat box. See
   [docs/players/interface.md](docs/players/interface.md#session-chat).
 - On a co-op save in Xion, the recruiter near Roxanne in the Scrap Market takes you to the SBO lobby when you choose
@@ -164,8 +178,9 @@ changes one line of the file at a time, and keeps the file as it was before its 
 
 - `menu_key`, `status_key`, `leave_key`: `F1` to `F12` except `F10` (it opens the console), with at most one of
   `Shift+`, `Ctrl+` or `Alt+` in front, for example `menu_key=Shift+F7`. `host_key` takes the same keys, or `none` (the
-  default); a key set there hosts at once, without the menu. `race_key` (`F9`) takes the same keys, or `none`. If two
-  actions share one key, all five keys go back to their defaults. A file written before the menu existed has no
+  default); a key set there hosts at once, without the menu. `follow_key` (`F7`), `race_key` (`F9`), `bike_key`
+  (`F3`), `gun_key` (`F4`) and `emote_key` (`F2`) take the same keys, or `none`. If two actions share one key, all nine
+  keys go back to their defaults. A file written before the menu existed has no
   `menu_key` line: the menu then opens on that file's `host_key`, and no key hosts at once.
 - `who_can_join`: `public` (the default: any player of your version finds your online session in the session list),
   `friends` (your Steam friends can join from their friends list or Find a session's Friends tab), `invitation` (the

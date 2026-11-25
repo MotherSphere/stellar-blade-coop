@@ -317,7 +317,7 @@ Rules:
 - A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
   setting is ignored with a note.
 - If two actions share one key, all the keys go back to their defaults: `F5` for the menu, `none` to host, `F6`, `F7`,
-  `F8`, `F9`, `F3` and `F4`.
+  `F8`, `F9`, `F3`, `F4` and `F2`.
 - A file written before `follow_key` existed that already holds `F7` for another action keeps it there: `follow_key`
   then reads `none`, with no log line.
 - A file with no `race_key` line (one written before Doro races) whose other keys already use `F9`: `race_key` reads
