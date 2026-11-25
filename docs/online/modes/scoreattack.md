@@ -10,9 +10,9 @@ Score attack has not been tested in game yet. Its code has run only in the tests
 
 ## Starting a round
 
-1. In the SBO lobby, open the lobby menu (F5, or View held for 1 s). Its first three rows are the modes: Free-for-all,
-   Score attack and More modes. Score attack is picked when the menu first opens, marked `picked`. Select on
-   Free-for-all or Score attack picks that mode for Search and Private match until the mod reloads.
+1. In the SBO lobby, open the lobby menu (F5, or View held for 1 s). Its first four rows are the modes: Free-for-all,
+   Score attack, Doro race and More modes. Score attack is picked when the menu first opens, marked `picked`. Select on
+   Free-for-all, Score attack or Doro race picks that mode for Search and Private match until the mod reloads.
 2. Search joins an open public score attack lobby, or hosts one
    (`No scoreattack match found (SBO protocol <n>, build 26123051): hosting one.`). Private match hosts one that only
    its join code opens (`Hosting a private scoreattack match. Your join code is <code>.`). Search for one mode never
@@ -86,9 +86,14 @@ uses) as soon as its checks hold, for 10 s at most. A death with no run on in th
 in a round's result or between rounds, gets the same respawn. EVE then gets up where she fell with her recovery items
 refilled.
 Press no button on the death screen. 2 s after the call, a death screen still on over a living EVE is hidden; it shows
-again at the next death and at `coop off`. Whether the death screen leaves by itself before the respawn lands is not
-known yet. A player whose EVE is still down when the next round starts sits out that round: her run refuses to start
-while her life state reads dead.
+again at the next death and at `coop off`. The same call ran in game in [SBO Xion](../../world/maps/sboxion.md#a-death)
+on 2026-11-25, on game build 26123051. It brought EVE back: life 3 to 1, the same pawn, walking. The death screen went
+off by itself. The mouse cursor then stayed free during play. SB's death screen gives the cursor back when its logic
+gets the end of its fade or of its revival animation. The in-place respawn plays neither. SBO Xion has since sent the
+death screen `FinishComaRevivalAnimation`, the event SB's revival ends with. That call has not run in game. Score
+attack's respawn (`online/modes/scoreattack/run.lua`) sends no such event. The respawn has not run in a score attack
+lobby room. A player whose EVE is still down when the next round starts sits out that round:
+her run refuses to start while her life state reads dead.
 
 ## The end and the ranking
 

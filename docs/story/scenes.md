@@ -19,6 +19,9 @@ characters are hidden. It has not been tried in game yet. Its lines go to `UE4SS
 - `coop scene <name>` plays one. It runs only on a [co-op save](../players/playing-with-a-friend.md#co-op-saves), with
   EVE on the scene's map within 50 m of its spot (`coop where` prints where you stand) and not while a cutscene of the
   game plays. The scene moves EVE to its own spot.
+- `coop scene lily` plays Lily's prologue talk. It is the same as `coop lily talk prologue`, with the same conditions:
+  a co-op save, solo, with the test pak (see [Lily's signal](../world/lily-signal.md#the-console-commands)).
+  `coop scene` does not list it.
 - `coop scene stop` ends the scene. The game gives the camera, your input and the HUD back as after a skipped
   cutscene. Any save.
 
