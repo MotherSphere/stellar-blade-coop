@@ -85,8 +85,12 @@ in a round's result or between rounds, gets the same respawn. EVE then gets up w
 refilled.
 Press no button on the death screen. 2 s after the call, a death screen still on over a living EVE is hidden; it shows
 again at the next death and at `coop off`. The same call ran in game in [SBO Xion](../../world/maps/sboxion.md#a-death)
-on 2026-11-25, on game build 26123051: EVE got up where she fell and the death screen went off by itself. It has not
-run in a score attack lobby room. A player whose EVE is still down when the next round starts sits out that round:
+on 2026-11-25, on game build 26123051. It brought EVE back: life 3 to 1, the same pawn, walking. The death screen went
+off by itself. The mouse cursor then stayed free during play. SB's death screen gives the cursor back when its logic
+gets the end of its fade or of its revival animation. The in-place respawn plays neither. SBO Xion has since sent the
+death screen `FinishComaRevivalAnimation`, the event SB's revival ends with. That call has not run in game. Score
+attack's respawn (`online/modes/scoreattack/run.lua`) sends no such event. The respawn has not run in a score attack
+lobby room. A player whose EVE is still down when the next round starts sits out that round:
 her run refuses to start while her life state reads dead.
 
 ## The end and the ranking
