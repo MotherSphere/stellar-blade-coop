@@ -500,7 +500,7 @@ run in `Zone_Xion_10` only, so nothing of this runs in `Zone_SBO_Xion`.
 
 | Step | What the module does |
 | --- | --- |
-| The way in | EVE stands 0.5 s in the doorway of the hangar: the box of SB's entrance fog, X -13387 to -13143, Y 19542 to 19771. She is put inside at (16638, -24558, -1865), 2.3 m from the ship's right door, facing the cabin |
+| The way in | EVE stands 0.5 s in the doorway of the hangar or on the top of its steps: X -13437 to -13093, Y 19330 to 19771, from Z 150. The doorway itself is the box of SB's entrance fog, from Y 19572. She is put inside at (16638, -24558, -1865), 2.3 m from the ship's right door, facing the cabin |
 | The way out | Inside, EVE stands 0.5 s in front of the right door, the one with a step. She is put at SB's point in front of the Tetrapod, (-13413, 18383, 82), 11.9 m from the doorway |
 | After a move | Nothing is looked at for 2 s |
 
@@ -534,8 +534,8 @@ outside.
 
 What is not known before the first game test:
 
-- Whether the doorway box is where EVE can stand. The hull may stop her short of it. Then `coop xion tetrapod in`
-  still works. Send where she stood (`coop xion status`).
+- Whether the hull lets EVE into the doorway. In the first test she stood on the steps, 2.2 m short of it, and used
+  the command. The box now reaches that place.
 - Whether the parts block once they are set to. The first test showed the fall, not the fix.
 - How long the ship takes to show. `E04_Area05_B_LD` is loaded by volume as SB ships it.
 - Whether the point inside is free floor. It was chosen from the boxes of the ship's parts, not seen.
