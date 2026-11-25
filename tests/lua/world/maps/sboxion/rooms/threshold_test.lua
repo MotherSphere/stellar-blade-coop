@@ -468,7 +468,7 @@ fresh()
 assert(door.may(A.name)==true and needs[1]=='badge','The row\'s requirement is what is asked')
 street(A)
 assert(pushes() and door.opened(A.name) and logged('threshold: '..A.name..' opened for good'),logs[#logs])
--- Opened for good: it is asked no more, and the way out never asks.
+-- Opened for good: it is asked no more. The way out asks nothing either.
 met=nil
 pass(3)
 inner(A)
@@ -514,7 +514,7 @@ pass(6,true)
 assert(#blacks==0,'Busy passes count nothing')
 assert(not pushes(2),'The count started again')
 assert(pushes(1))
--- A move already asked is still made, and watched, on busy passes.
+-- A move already asked is still made on a busy pass. It is watched on one too.
 pass(2,true)
 assert(#puts==1,'The move is made on a busy pass')
 pass(1,true)

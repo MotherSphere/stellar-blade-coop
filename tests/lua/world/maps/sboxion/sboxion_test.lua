@@ -5,8 +5,9 @@
 -- the gate point; leave and status go to their own calls; recover goes to its call alone or with on, death or off;
 -- rooms goes to its call alone or with on or off; tetrapod goes to its call alone or with in or out; walls, the word of the walls taken out on 24 November 2026, another
 -- word or one too many is refused with the use line; without the Steam link every word says so. The wiring
--- (world/maps/sboxion/wiring.lua) builds SBO Xion with one of the Steam link's stores, coop-xion-rooms.txt, the file
--- the rooms keep their hidden rows in. It asks for no store without the link.
+-- (world/maps/sboxion/wiring.lua) builds SBO Xion with two of the Steam link's stores. coop-xion-rooms.txt is the
+-- file the rooms keep their hidden rows in. coop-xion-doors.txt is the file of the threshold doors a player opened.
+-- It asks for no store without the link.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Commands=require('world.maps.sboxion.commands')
 local calls={}
@@ -68,7 +69,7 @@ for _,words in ipairs({{'tetrapod','on'},{'tetrapod','in','now'},{'in'}}) do
 end
 ok,line=Commands.new({}).xion('status')
 assert(not ok and line=='coop xion needs the Steam link and the native part',line)
--- wiring: SBO Xion is built with the rooms' store alone and the commands reach it.
+-- wiring: SBO Xion is built with the rooms' store and the doors' store alone and the commands reach it.
 package.loaded.UEHelpers={}
 local built,names,stores=nil,{},{}
 package.loaded['world.maps.sboxion.sboxion']={new=function(o)
@@ -82,13 +83,14 @@ local M={print=function() end,folder='C:/SB/Mods/StellarCoop',coop_slot=function
         store=function(name) names[#names+1]=name; stores[name]={}; return stores[name] end}}
 local Wiring=require('world.maps.sboxion.wiring')
 local wired=Wiring.new(M)
-assert(#names==1 and built.rooms_store==stores['coop-xion-rooms.txt'] and built.store==nil,
-    'The rooms\' store alone: '..table.concat(names,' '))
+assert(#names==2 and built.rooms_store==stores['coop-xion-rooms.txt'] and built.rooms_store
+    and built.doors_store==stores['coop-xion-doors.txt'] and built.doors_store and built.store==nil,
+    'The rooms\' store and the doors\' store: '..table.concat(names,' '))
 ok,line=wired.xion('status')
 assert(ok and line=='wired' and M.sboxion,'The commands reach the module the wiring built')
 M.link=nil
 wired=Wiring.new(M)
-assert(not M.sboxion and #names==1,'No store is asked without the Steam link')
+assert(not M.sboxion and #names==2,'No store is asked without the Steam link')
 ok,line=wired.xion('status')
 assert(not ok and line=='coop xion needs the Steam link and the native part',line)
 print('sboxion_test ok')
