@@ -134,8 +134,8 @@ If the game no longer starts at all after a Stellar Blade update, see
 - On a controller, hold View for 1 s to open or close the co-op menu. The D-pad or the left stick moves, A selects
   and B goes back. The mouse works in the menu too: move onto a row, left click to select, right click to go back. See
   [docs/players/interface.md](docs/players/interface.md#controller).
-- In the game's pause menu, RB on the Settings tab (E on the keyboard) or a click on the Online tab after it closes the
-  pause menu and opens the co-op menu. See [docs/players/interface.md](docs/players/interface.md#pause-menu).
+- The game's pause menu gets an Online tab after Settings. On the Settings tab, RB (E on the keyboard) closes the pause
+  menu and opens the co-op menu. See [docs/players/interface.md](docs/players/interface.md#pause-menu).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F7`, as the guest on a co-op save, takes you to where the host last stood on solid ground. When the host is on
   another map, the game's fast travel takes you to the camp nearest him first. On the death screen, with `revive=on`,
