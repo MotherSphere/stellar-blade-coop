@@ -20,7 +20,8 @@
 -- SetCollisionEnabled(0) after both values are read; an instance scaled to nothing where it stands through
 -- UpdateInstanceTransform, its ten numbers read first; a piece that reads hidden already, an instance the engine
 -- refuses and a call that changes nothing each raise; the put-back writes what was read, leaves an instance alone that
--- is not hidden and calls nothing on an object that is gone or another one.
+-- is not hidden and calls nothing on an object that is gone or another one. Then SB's Tetrapod interior
+-- (world/maps/sboxion/tetrapod.lua): its static mesh parts made solid and put back as SB ships them.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(t)
     t.type=t.type or function() return 'UObject' end
@@ -368,6 +369,28 @@ door.dead=true
 rubble.GetFullName=function() return 'HierarchicalInstancedStaticMeshComponent /Game/O.O:PersistentLevel.A.B' end
 assert(Engine.piece_back(dp)==false and Engine.piece_back(rp)==false and #door.calls+#rubble.calls==calls)
 assert(rubble.instances[2][8]==0,'Left as it was')
+
+-- ship: SB's Tetrapod interior made solid and put back. Each living static mesh part of the actor gets every
+-- channel blocked and query and physics collision; false writes what SB ships; a dead part is not called; with no
+-- actor in memory (its level is not loaded) nothing is written and the answer is nil.
+local SHIP=BG..'E04_Area05_B_LD.E04_Area05_B_LD:PersistentLevel.BP_Env_TetraPod3_2'
+local function part()
+    local p=object({calls={}})
+    p.SetCollisionResponseToAllChannels=function(self,r) self.calls[#self.calls+1]='response '..r end
+    p.SetCollisionEnabled=function(self,e) self.calls[#self.calls+1]='enabled '..e end
+    return p
+end
+local floor,wall,gone=part(),part(),part()
+gone.dead=true
+local asked_class
+statics[SHIP]=object({K2_GetComponentsByClass=function(_,class) asked_class=class.path; return {floor,wall,gone} end})
+assert(Engine.ship(true)==2 and asked_class=='/Script/Engine.StaticMeshComponent',tostring(asked_class))
+assert(table.concat(floor.calls,', ')=='response 2, enabled 3' and table.concat(wall.calls,', ')=='response 2, '
+    ..'enabled 3' and #gone.calls==0,table.concat(floor.calls,', '))
+assert(Engine.ship(false)==2 and floor.calls[3]=='response 0' and floor.calls[4]=='enabled 0','As SB ships it')
+statics[SHIP]=object({dead=true})
+assert(Engine.ship(true)==nil and #floor.calls==4,'No actor in memory: nothing written')
+statics[SHIP]=nil
 
 -- No EVE: move gives nil, put raises.
 package.loaded['core.player'].her=function() return nil end

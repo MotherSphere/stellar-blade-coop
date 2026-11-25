@@ -917,7 +917,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   8 passes. Two passes in front of the ship's right door bring her to SB's point in front of the Tetrapod. A pass
   outside the box starts the count again. A busy recovery counts nothing. A refused teleport and a black that raises
   change one log line. An error in a pass turns the door off until the next arrival. `coop xion tetrapod in` and
-  `out` ask the move at once;
+  `out` ask the move at once. The way in asks the engine to make the ship's parts solid before the move. The way out
+  and `coop off` put them back. While EVE reads 60 cm under the point she is put on it again and the ship is asked
+  again if it was not found, with a black every 6 passes. After 32 passes with no floor she is put back outside;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
@@ -947,8 +949,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   word, the `life=` word read on the refused and fault forms, a death dropped by an arrival,
   by a stop and by the mode `off`, the failures at 0 after a respawn that leaves her walking, a put-back's check
   dropped by a death that starts during it;
-- `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects: the zone's FName
-  index only for a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
+- `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects. The parts of SB's
+  Tetrapod interior get every channel blocked and query and physics collision, then what SB ships again. With no
+  actor in memory nothing is written. The rest: the zone's FName index only for a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
   dead actor never written, the streaming levels by their package's last part, the probes read again on the kept
   objects, the characters' names, classes and places with EVE told apart by her address (one that does not read
   given as `unread`), every world read raising with no EVE. For the recovery: `move` gives EVE's place,

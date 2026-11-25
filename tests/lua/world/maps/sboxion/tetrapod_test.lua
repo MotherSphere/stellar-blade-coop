@@ -11,11 +11,16 @@
 -- nothing is counted. A refused teleport and a black that raises each change one log line. An error in a pass turns
 -- the door off with one line until the next arrival. coop xion tetrapod in and out ask the move at once, refuse a
 -- second one under way and say where EVE is with no word. An arrival drops a move that waits. No EVE: nothing.
+-- The floor: SB ships the ship with no collision, so the way in asks the engine to make its parts solid before the
+-- move and the way out and coop off put them back. After the way in EVE is watched until she stands: under the point
+-- by more than 60 cm she is put on it again, the ship is asked again while it was not found and a black that is up
+-- at once comes every 6 passes. After 32 passes with no floor she is put back outside with the ship as SB ships it.
+-- A recovery that moved her out of the ship ends the watch.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Tetrapod=require('world.maps.sboxion.tetrapod')
 local D=require('world.maps.sboxion.data')
 local T=D.TETRAPOD
-assert(T.STAY==2 and T.HOLD==8 and D.LEAD==2 and D.LIFT==10)
+assert(T.STAY==2 and T.HOLD==8 and D.LEAD==2 and D.LIFT==10 and T.DROP==60 and T.AGAIN==6 and T.SETTLE==32)
 
 local function near(a,b,by) return math.abs(a-b)<=(by or 0.01) end
 -- The frame. SB's point inside, SBSpawnPoint43 of E04_LD_Respawn, in the ship frame.
@@ -35,17 +40,26 @@ assert(T.DOOR.hi.X-T.DOOR.lo.X==244 and T.DOOR.hi.Y-T.DOOR.lo.Y==229)
 
 local logs,puts,blacks,order={},{},{},{}
 local eve,refuse,black_error,broken=nil,false,nil,nil
+-- The ship: each ask (true or false); the parts it answers (nil: not in memory) or the error it raises. lands: the
+-- movement mode a put leaves EVE in (1 walking, 3 falling).
+local ships,parts,ship_error,lands={},124,nil,1
 local world={
     move=function()
         if broken then error(broken) end
-        return eve and {at={X=eve.X,Y=eve.Y,Z=eve.Z},yaw=0,mode=1,time=0,pawn=1}
+        return eve and {at={X=eve.X,Y=eve.Y,Z=eve.Z},yaw=0,mode=eve.mode or 1,time=0,pawn=1}
     end,
     put=function(at,yaw)
         puts[#puts+1]={at=at,yaw=yaw}
         order[#order+1]='put'
         if refuse then return false end
-        eve={X=at.X,Y=at.Y,Z=at.Z}
+        eve={X=at.X,Y=at.Y,Z=at.Z,mode=lands}
         return true
+    end,
+    ship=function(solid)
+        ships[#ships+1]=solid
+        order[#order+1]='ship '..tostring(solid)
+        if ship_error then error(ship_error) end
+        return parts
     end,
     black=function(hold,fade,out)
         blacks[#blacks+1]={hold=hold,fade=fade,out=out}
@@ -64,7 +78,11 @@ local DOOR={X=-13265,Y=19600,Z=347} -- In the doorway of the Tetrapod of the han
 local STEPS={X=-13265,Y=19400,Z=200} -- On the steps, short of the box.
 local HATCH=Tetrapod.world({x=400,y=397,z=340}) -- At the ship's right door, inside.
 local CABIN=Tetrapod.world({x=0,y=0,z=340})
-local function fresh() logs,puts,blacks,order={},{},{},{}; refuse,black_error,broken=false,nil,nil; door.arrive() end
+local function fresh()
+    logs,puts,blacks,order,ships={},{},{},{},{}
+    refuse,black_error,broken,parts,ship_error,lands=false,nil,nil,124,nil,1
+    door.arrive()
+end
 
 -- No EVE: nothing.
 fresh()
@@ -85,7 +103,7 @@ assert(logged('tetrapod: in asked'),logs[#logs])
 pass()
 assert(#puts==0,'the move waits under the black')
 pass()
-assert(#puts==1 and order[1]=='black' and order[2]=='put')
+assert(#puts==1 and table.concat(order,', ')=='black, ship true, put','The ship is made solid before the move')
 assert(near(puts[1].at.X,IN.X) and near(puts[1].at.Y,IN.Y) and near(puts[1].at.Z,IN.Z+10),'inside, 10 cm up')
 assert(near(puts[1].yaw,-132.188366,0.001),'facing the cabin: '..puts[1].yaw)
 assert(logged('tetrapod: in: EVE at (16638, -24558, -1865), yaw -132.2'),logs[#logs])
@@ -191,6 +209,98 @@ assert(not ok and line=='Use: coop xion tetrapod [in|out]',line)
 eve=nil
 ok,line=door.go('in')
 assert(not ok and line=='coop xion tetrapod: no EVE',line)
+-- The floor. The way in makes the ship solid, the first pass that reads her walking says so.
+fresh()
+eve=DOOR
+pass(4)
+assert(#ships==1 and ships[1]==true and not logged('stands in the ship'))
+pass()
+assert(logged('tetrapod: in: EVE stands in the ship after 1 passes, 124 parts solid'),logs[#logs])
+pass(20)
+assert(#ships==1 and #puts==1,'Nothing more once she stands')
+-- The way out puts the ship back as SB ships it, after the move.
+eve=HATCH
+pass(2)
+pass(2)
+assert(#puts==2 and ships[2]==false and order[#order]=='ship false' and order[#order-1]=='put')
+assert(logged('tetrapod: ship as SB ships it again: 124 parts'),logs[#logs])
+-- The ship's level comes in late: it is not found at the move and EVE falls. Each pass that reads her 60 cm under
+-- the point puts her on it again and asks the ship again; once it is solid she stands.
+fresh()
+parts,lands=nil,3
+eve=DOOR
+pass(4)
+assert(#puts==1 and #ships==1 and logged('tetrapod: in: EVE at (16638, -24558, -1865), yaw -132.2'))
+eve.Z=eve.Z-40
+pass()
+assert(#puts==1 and #ships==2,'40 cm under the point is no fall yet; the ship is asked again')
+eve.Z=eve.Z-40
+pass()
+assert(#puts==2 and near(puts[2].at.Z,IN.Z+10) and #ships==3,'80 cm under: on the point again')
+assert(logged('tetrapod: in: no floor yet under EVE at (16638, -24558, -1935): on the point again (ship not found)'),
+    logs[#logs])
+local lines=#logs
+eve.Z=eve.Z-80
+pass()
+assert(#puts==3 and #logs==lines,'Said once')
+parts,lands=124,1
+eve.Z=eve.Z-80
+pass()
+assert(#puts==4 and #ships==5 and ships[5]==true,'Found: made solid. She is put on the point once more')
+pass()
+assert(logged('tetrapod: in: EVE stands in the ship after 5 passes, 124 parts solid'),logs[#logs])
+-- A black that is up at once every 6 passes while she has no floor.
+fresh()
+lands=3
+eve=DOOR
+pass(4)
+local function drop() eve.Z=eve.Z-100; pass() end
+for _=1,5 do drop() end
+assert(#blacks==1,'5 passes: the first black still stands')
+drop()
+assert(#blacks==2 and blacks[2].fade==0 and blacks[2].hold==1,'The sixth pass asks a black that is up at once')
+for _=1,6 do drop() end
+assert(#blacks==3)
+-- No floor after 32 passes: back outside, the ship as SB ships it.
+for _=13,31 do drop() end
+assert(#puts==32 and not logged('back outside'))
+lands=1
+drop()
+assert(puts[#puts].at.X==T.OUT.X and ships[#ships]==false,'Outside at SB\'s point')
+assert(logged('tetrapod: in: no floor under EVE after 32 passes (124 parts solid): back outside'),logs[#logs])
+local n=#puts
+pass(20)
+assert(#puts==n,'Nothing more')
+-- The recovery moved her out of the ship while she was watched: the watch ends, the ship is put back.
+fresh()
+lands=3
+eve=DOOR
+pass(4)
+eve={X=-12973,Y=19176,Z=85,mode=1}
+pass()
+assert(logged('tetrapod: in: EVE is out of the ship at (-12973, 19176, 85) before she stood: the watch ends')
+    and ships[#ships]==false and #puts==1,logs[#logs])
+-- The ship's call raises: said once, the move is made all the same.
+fresh()
+ship_error='no actor'
+lands=3
+eve=DOOR
+pass(4)
+eve.Z=eve.Z-100
+pass(3)
+local said=0
+for _,l in ipairs(logs) do if l:find('tetrapod: ship: unread (no actor)',1,true) then said=said+1 end end
+assert(#puts>=2 and said==1,'One line: '..said)
+-- coop off puts the ship back when this stay made it solid. Otherwise it asks nothing.
+fresh()
+door.stop()
+assert(#ships==0,'Nothing was made solid')
+eve=DOOR
+pass(5)
+door.stop()
+assert(ships[#ships]==false and #ships==2)
+door.stop()
+assert(#ships==2,'Once')
 -- An arrival drops a move that waits.
 fresh()
 eve=DOOR

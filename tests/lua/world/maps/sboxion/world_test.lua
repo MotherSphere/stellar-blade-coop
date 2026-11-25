@@ -165,6 +165,8 @@ world.move=function()
 end
 world.put=function(to,yaw) puts[#puts+1]={at=to,yaw=yaw}; her_at,her_mode={X=to.X,Y=to.Y,Z=to.Z},1; return true end
 world.black=function() count('black'); return true end -- SB's black over a put-back: SB made it.
+local ships={} -- Each ask to make the Tetrapod's parts solid (true) or to put them back (false).
+world.ship=function(solid) ships[#ships+1]=solid; return 124 end
 -- The respawn's fakes: SB's request sets the life word to 1; the death screen plays until hidden.
 local PC,respawns,screen_shown={},{},true
 world.controller=function() return PC end
@@ -675,7 +677,7 @@ x.stop()
 -- tetrapod_door: the module's own wiring ticks the door (world/maps/sboxion/tetrapod.lua) after the recovery, with
 -- the recovery's read of EVE, so a pass reads her once. Two passes in the doorway of the Tetrapod of the hangar ask
 -- SB's black and two more put her inside. coop xion tetrapod says where she is and is refused out of SBO Xion. A map
--- change and the arrival after it drop a move that waits.
+-- change and the arrival after it drop a move that waits. The way in makes the ship solid and coop off puts it back.
 x=new()
 puts,her_at,her_mode={},nil,1
 warp_line='sboxionwarp=entered asks=6 life=1'
@@ -695,7 +697,10 @@ assert(calls.black==blacks+1 and #puts==0 and logged('sboxion: tetrapod: in aske
 pass(x,0.5)
 assert(#puts==1 and math.abs(puts[1].at.X-16637.5)<0.5 and math.abs(puts[1].at.Y+24557.9)<0.5
     and math.abs(puts[1].at.Z+1855.2)<0.1 and math.abs(puts[1].yaw+132.19)<0.01,'Inside, 10 cm over the point')
+assert(#ships==1 and ships[1]==true,'The way in made the ship solid')
 her_at=puts[1].at -- This file's put leaves her where she was since the fall right before the map change.
+pass(x,0.25)
+assert(logged('sboxion: tetrapod: in: EVE stands in the ship after 1 passes, 124 parts solid'),logs[#logs])
 ok,why=x.tetrapod()
 assert(ok and why=='coop xion tetrapod: EVE is inside the Tetrapod, door on',why)
 ok,why=x.tetrapod('out')
@@ -707,5 +712,11 @@ her_at=nil
 me=at(D.ARRIVALS.city)
 pass(x,1)
 assert(#puts==1 and times('sboxion: tetrapod: door on')==2,'The next arrival dropped the move that waited')
+-- coop off puts the ship back as SB ships it when the stay made it solid.
+her_at={X=-13265,Y=19600,Z=347}
+pass(x,1)
+assert(#puts==2 and #ships==2 and ships[2]==true,'In again')
 x.stop()
+assert(#ships==3 and ships[3]==false and logged('sboxion: tetrapod: ship as SB ships it again: 124 parts'),logs[#logs])
+her_at=nil
 print('sboxion_world_test ok')

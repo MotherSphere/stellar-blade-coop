@@ -202,6 +202,25 @@ local function placed(c,index,n,by)
     return c:UpdateInstanceTransform(index,{Rotation={X=n[1],Y=n[2],Z=n[3],W=n[4]},
         Translation={X=n[5],Y=n[6],Z=n[7]},Scale3D={X=n[8]*by,Y=n[9]*by,Z=n[10]*by}},false,true,true)==true
 end
+-- SB's Tetrapod interior (tetrapod.lua): the actor BP_Env_TetraPod3_2 of E04_Area05_B_LD. Its blueprint
+-- (/Game/Art/Character/ETC/TETRAPOD/Blueprints/BP_Env_TetraPod3) gives each of its 124 static mesh parts the
+-- collision profile NoCollision: no collision and every channel ignored, so EVE falls through its floor. The meshes
+-- themselves carry collision shapes. solid true: each part blocks every channel (ECR_Block) with query and physics
+-- collision (QueryAndPhysics). solid false: back to what SB ships (ECR_Ignore, NoCollision). Returns the number of
+-- parts written, or nil when the actor is not in memory (its level is not loaded yet).
+local SHIP=E04..'E04_Area05_B_LD.E04_Area05_B_LD:PersistentLevel.BP_Env_TetraPod3_2'
+function Engine.ship(solid)
+    local a=U.valid(StaticFindObject(SHIP))
+    if not a then return nil end
+    local n=0
+    U.each(a:K2_GetComponentsByClass(U.find(SOLID)),function(_,c)
+        if not U.valid(c) then return end
+        c:SetCollisionResponseToAllChannels(solid and 2 or 0)
+        c:SetCollisionEnabled(solid and 3 or 0)
+        n=n+1
+    end)
+    return n
+end
 -- The piece of a row of rooms.lua ({level=, actor=, component=, index=, mesh=, at=, count=}): {row=, c=<the
 -- component>, path=<as it reads>}. Raises when no object is at the row's path, when its class is not the row's kind
 -- (index -1: a StaticMeshComponent that holds no instances), when it shows another mesh, when it stores a place more
