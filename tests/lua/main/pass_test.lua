@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The module exports main/pass.lua and main/frame.lua call, each under guarded() (fixture.lua): one that raises is
--- logged once a Lua load under its module's name, and the rest of its loop still runs. With fight_asks raising, the
+-- The module exports main/pass.lua and main/frame.lua call, each under guarded() (main/frame.lua). One that raises is
+-- logged once a Lua load under its module's name. The rest of its loop still runs. With fight_asks raising, the
 -- 250 ms pass still says the link's notices, starts the ghost, writes the state and runs the kit's slow pass, the focus
 -- watchdog and the menu's slow pass. Then each other export the loops call raises in turn: quests_asks, world_asks,
 -- scenes_asks, puppet.active, ghost_start, race.armed (in the pass and in the frame), sbo.active (before and after
