@@ -133,9 +133,11 @@ end
 -- A text d (Fm.decode) from player id while the host plays: nil when taken, else the reason for its log line. A ready
 -- counts within Fm.READY of the go line; the host and each guest whose ready counted are the counted players. A catch
 -- counts when its sender is counted (else sender), its item is one of the host's fish (fish) at the host's points for
--- it (points), it comes from the host's GO to its end + Fm.LATE (time) and it is her k-th catch text, refused ones
--- included, with k at most 1 + the whole Fm.BITE spans since the host's GO (rate). A refused catch is dropped: she
--- stays ranked with the others. The host's own catches come here too. Every other word is no business of the host's.
+-- it (points), it comes from the host's GO - 1 s to its end + Fm.LATE (time) and it is her k-th catch text, refused
+-- ones included, with k at most 1 + the whole Fm.BITE spans since the host's GO - 1 s (rate). Each game's GO counts
+-- from a whole second of its own clock, so an honest guest's GO can come up to 1 s before the host's. A refused catch
+-- is dropped: she stays ranked with the others. The host's own catches come here too. Every other word is no business
+-- of the host's.
 function Fm.hear(h,id,d,now)
     if h.phase~='play' or (d.word~='ready' and d.word~='catch') then return nil end
     local player=false
@@ -152,8 +154,9 @@ function Fm.hear(h,id,d,now)
     local points=h.points[d.item]
     if points==nil then return 'fish' end
     if points~=d.points then return 'points' end
-    if now<h.start or now>h.ends+Fm.LATE then return 'time' end
-    if k>1+(now-h.start)//Fm.BITE then return 'rate' end
+    local from=h.start-1
+    if now<from or now>h.ends+Fm.LATE then return 'time' end
+    if k>1+(now-from)//Fm.BITE then return 'rate' end
     h.score[id],h.catches[id]=(h.score[id] or 0)+points,(h.catches[id] or 0)+1
     return nil
 end

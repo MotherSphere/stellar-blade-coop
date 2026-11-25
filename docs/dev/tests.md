@@ -731,12 +731,12 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   checks with the race module off that the lobby menu holds no race and refuses Select on Track;
 - `online/modes/fishing/model_test` covers the fishing tournament without the game: the start's length (10 minutes by
   default, 1 to 60), the clock, each fish text's round trip and every malformed one refused whole, who a game takes
-  each text from, the host's checks of each catch (sender, seed, fish, points, time and the rate bound, an honest
-  guest whose clock runs 0 to 3 s behind never refused, a flood cut at the bound), the standings with shared places, a
-  leaver and a link that comes back, the board at most once a second and the rank text with its minutes for 2, 4 and
-  8 players. It covers the catches from book reads too (the baseline, a rise, a fall, a fish gone, two catches in one
-  read, a jump of 3). It also checks the 40 row names of `rows.lua`. `online/modes/fishing/round_test` covers the
-  tournament
+  each text from, the host's checks of each catch (sender, seed, fish, points, time and the rate bound, both from 1 s
+  before the host's GO, an honest guest whose GO comes 1 s before the host's to 3 s after it never refused, a flood
+  cut at the bound), the standings with shared places, a leaver and a link that comes back, the board at most once a
+  second and the rank text with its minutes for 2, 4 and 8 players. It covers the catches from book reads too (the
+  baseline, a rise, a fall, a fish gone, two catches in one read, a jump of 3). It also checks the 40 row names of
+  `rows.lua`. `online/modes/fishing/round_test` covers the tournament
   on a fake link and clock: `coop fish start` and its refusals, the host's go, board, each refusal with one log line a
   sender and reason, the rank and its record, a guest's go, ready, catch, board, rank and record, her sit-out and the
   lines she drops, a guest who is lost and comes back, the host leaving, another host's session, `coop fish stop`, a

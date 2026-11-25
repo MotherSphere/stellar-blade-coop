@@ -100,12 +100,12 @@ assert(said(o,'tournament '..seed..': 10 minutes, 3 players, ours')==1)
 assert(select(2,r.start())=='on')
 r.tick()
 assert(last(L.sent)=='board '..seed..' 1001:0:0',last(L.sent))
--- P2's ready comes within 10 s; P3's after it, so she is not counted. A catch of P2's before GO is refused for time,
--- then three more with the same second's bound: one counted, then a fish not in our table, points that differ from
--- ours, and one past the rate (her 5th text 6 s after GO, at most 4). P3 is refused as sender. So is a stranger.
--- One log line a sender and reason.
-t=1003; L.from(P2,'ready '..seed); r.tick()
-t=1004; L.from(P2,'catch '..seed..' 9220 138'); r.tick()
+-- P2's ready comes within 10 s; P3's after it, so she is not counted. A catch of P2's more than 1 s before GO is
+-- refused for time, then three more with the same second's bound: one counted, then a fish not in our table, points
+-- that differ from ours, and one past the rate (her 5th text 6 s after GO, at most 4). P3 is refused as sender. So is
+-- a stranger. One log line a sender and reason.
+t=1002; L.from(P2,'ready '..seed); r.tick()
+t=1003; L.from(P2,'catch '..seed..' 9220 138'); r.tick()
 t=1011
 L.from(P3,'ready '..seed)
 L.from(P2,'catch '..seed..' 9220 138')

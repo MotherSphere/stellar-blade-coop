@@ -74,8 +74,8 @@ assert(not Fm.decode('board 1 '..table.concat(nine,',')),'8 at most')
 local ids9={}
 for i=1,9 do ids9[i]=tostring(i) end
 assert(Fm.decode('go 1 10 '..table.concat(ids9,',',1,8)) and not Fm.decode('go 1 10 '..table.concat(ids9,',')))
--- A full rank text for 8 players stays far under the link's 512 bytes. The rate bound lets 1 + (3600 + 10) // 2 catches
--- through in 60 minutes, at most 450 points each: 6 digits of points, 4 of catches.
+-- A full rank text for 8 players stays far under the link's 512 bytes. The rate bound lets 1 + (1 + 3600 + 10) // 2
+-- catches through in 60 minutes, at most 450 points each: 6 digits of points, 4 of catches.
 local full={}
 for i=1,8 do full[i]={id='7656119800000000'..i,points=999999,catches=9999} end
 local text=Fm.encode({word='rank',seed=2147483647,minutes=60,list=full})
@@ -109,34 +109,34 @@ assert(Fm.hear(h,C,ready(),1011)==nil and not h.ready[C],'A late ready')
 assert(Fm.hear(h,D,ready(),1002)=='sender','Not on the go line')
 assert(Fm.hear(h,B,ready(54),1002)=='seed')
 -- Each refusal: a sender not counted (late ready, not a player), another seed, a fish not in the table, other points,
--- before GO or after end + 10, too many catches for the time.
+-- more than 1 s before GO or after end + 10, too many catches for the time.
 assert(Fm.hear(h,C,catch(9220,138),1100)=='sender','Her ready came late')
 assert(Fm.hear(h,D,catch(9220,138),1100)=='sender')
 assert(Fm.hear(h,B,catch(9220,138,54),1100)=='seed')
-assert(Fm.hear(h,B,catch(9220,138),1004)=='time','Before the host\'s GO')
+assert(Fm.hear(h,B,catch(9220,138),1003)=='time','More than 1 s before the host\'s GO')
 assert(Fm.hear(h,B,catch(9999,138),1100)=='fish')
 assert(Fm.hear(h,B,catch(9220,450),1100)=='points')
 assert(h.score[B]==nil and h.texts[B]==3,'Refused texts count toward the rate, another seed\'s does not')
--- B's 4th text at 1100: 1 + 95 // 2 = 48 allowed. The host's own catch counts the same way.
+-- B's 4th text at 1100: 1 + 96 // 2 = 49 allowed. The host's own catch counts the same way.
 assert(Fm.hear(h,B,catch(9220,138),1100)==nil and h.score[B]==138 and h.catches[B]==1)
 assert(Fm.hear(h,A,catch(9227,0),1100)==nil and h.score[A]==0 and h.catches[A]==1,'A tire: 0 points, one catch')
 assert(Fm.hear(h,A,catch(9201,30),1135)==nil and h.score[A]==30,'At end + 10 still taken')
 assert(Fm.hear(h,A,catch(9201,30),1136)=='time' and h.score[A]==30,'After end + 10')
 assert(Fm.hear(h,A,{word='board',seed=55,list={}},1100)==nil and Fm.hear(h,A,{word='go',seed=55},1100)==nil)
--- The rate: the k-th catch text needs k <= 1 + (seconds since GO) // 2. One at GO, a second at 1006 is refused; the
--- refused text still counts, so the third waits for 4 s (k 3 <= 1 + 2) and the fourth for 6 s.
+-- The rate: the k-th catch text needs k <= 1 + (seconds since 1 s before GO) // 2. One at 1004, a second at 1005 is
+-- refused; the refused text still counts, so the third waits for 4 s (k 3 <= 1 + 2) and the fourth for 6 s.
 h=host()
 Fm.hear(h,B,ready(),1001)
-assert(Fm.hear(h,B,catch(9201,30),1005)==nil,'One at GO')
-assert(Fm.hear(h,B,catch(9201,30),1006)=='rate')
-assert(Fm.hear(h,B,catch(9201,30),1008)=='rate','k 3 at 3 s: 1 + 1 allowed')
-assert(Fm.hear(h,B,catch(9201,30),1011)==nil,'k 4 at 6 s: 1 + 3 allowed')
+assert(Fm.hear(h,B,catch(9201,30),1004)==nil,'One 1 s before GO')
+assert(Fm.hear(h,B,catch(9201,30),1005)=='rate','k 2 at 1 s: 1 allowed')
+assert(Fm.hear(h,B,catch(9201,30),1007)=='rate','k 3 at 3 s: 1 + 1 allowed')
+assert(Fm.hear(h,B,catch(9201,30),1010)==nil,'k 4 at 6 s: 1 + 3 allowed')
 assert(h.score[B]==60 and h.catches[B]==2 and h.texts[B]==4)
--- An honest guest, whose GO comes after the host's, is never refused: one catch every 2 s of her clock for the whole
--- round, her clock 0 to 3 s behind the host's.
-for lag=0,3 do
+-- An honest guest is never refused: one catch every 2 s of her clock for the whole round, her GO from 1 s before the
+-- host's to 3 s after it. Each game counts its GO from a whole second of its own clock, so hers can come first.
+for lag=-1,3 do
     h=host()
-    Fm.hear(h,B,ready(),1000+lag)
+    Fm.hear(h,B,ready(),1001)
     for t=1005+lag,1125+lag,2 do assert(Fm.hear(h,B,catch(9220,138),t)==nil,'lag '..lag..' at '..t) end
     assert(h.catches[B]==61,h.catches[B])
 end
