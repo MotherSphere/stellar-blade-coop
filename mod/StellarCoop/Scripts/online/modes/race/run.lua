@@ -21,6 +21,7 @@
 -- and, while it drives, four values of her movement component (the native part's, online/modes/race/hold.h), her
 -- velocity and her yaw. Never a pawn, a reward, an achievement, an item, a quest or a save: a race gives nothing. It
 -- writes its track file only; in a match lobby a match round also teleports EVE onto her slot, at its start and at GO.
+-- At GO a racer out of her slot whom SB's chair seats sits out instead of the teleport.
 -- Its first Lua error ends the race and its look for this Lua load. The display Doros' paths stay in
 -- coop-race-doros.txt while they stand, so the next Lua load (Ctrl+R mid-race) destroys them at its first tick; the
 -- native part puts her movement values and tick option back at that load.
@@ -70,7 +71,8 @@ local why_of=U.why
 -- which also ends its drive), riding() (whether EVE rides the bike, which drives with its own copy of
 -- online/modes/race/drive.lua). No race starts while she rides; the guest's answer to a track line takes her off the
 -- bike first. Optional: match_lobby() (we are in a match lobby: coop race start is refused), round_tick() (the match
--- round's 250 ms work, online/modes/race/match/round.lua's tick), round_stop(why) (its stop, at coop off) and
+-- round's 250 ms work, online/modes/race/match/round.lua's tick), round_stop(why) (its stop, at coop off),
+-- resting() (SB's own interaction runs on EVE: a hall chair of SB seats her, read at GO of a match race) and
 -- saved(name) (a track saved: online/modes/race/wiring.lua adds it to coop-tracks.txt).
 function Race.new(o)
     local log,link,puppet,look,tell,drive=o.log,o.link,o.puppet,o.look,o.tell,o.drive
@@ -204,6 +206,15 @@ function Race.new(o)
             sound('move')
         elseif w=='go' then
             local e=r.role=='match' and r.pos and not R.in_slot(m.track,m.slot,r.pos,true) and eve()
+            -- SB's chair seated her during the countdown: a teleport would land while its interaction still runs on
+            -- her (match/game.lua's sit-out at the start). She sits out: her DNF quit goes to the round, the race
+            -- closes here.
+            if e and o.resting and o.resting() then
+                log('race '..m.id..': out of slot '..(m.slot+1)..' at GO: sit out: SB\'s chair seats EVE')
+                for _,l in ipairs((Mm.frame(m,{dnf='quit'},clock()))) do r.line(l) end
+                tell(function(t) return t.race.match.seat end)
+                return close(r,'seat')
+            end
             if e then
                 local ok,why=put(e,m.track,m.slot)
                 -- The runner's first step starts from her slot: the way back is no move of hers.

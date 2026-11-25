@@ -384,6 +384,7 @@ return {
         cancelled='A ronda foi cancelada.',
         out={off='A Corrida aos pontos está desligada nas Opções: ficas de fora desta ronda.',
             bike='Sai da mota para jogar a próxima ronda.',
+            seat='Levanta-te do lugar para jogar a próxima ronda.',
             night='Está a decorrer uma Operação noturna: ficas de fora desta ronda.',
             room='Não estás na sala de espera: ficas de fora desta ronda.',
             refused='O teu jogo não conseguiu iniciar o desafio: ficas de fora desta ronda. O UE4SS.log diz porquê.'},

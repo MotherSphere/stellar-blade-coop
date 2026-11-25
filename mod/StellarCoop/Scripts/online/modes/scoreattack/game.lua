@@ -5,13 +5,16 @@
 -- run (online/modes/scoreattack/run.lua). At the round's challenge our run starts at our lobby spot, facing the ring
 -- centre, then the ready line goes. While it plays, its score and wave go as now lines; at its end, its result goes as
 -- the done line. A player who cannot play sits out the round with one log line and one notice and sends nothing:
--- scoreattack=off, EVE on the bike, a Night Operation run on, EVE not in the lobby room, or the run's own start check
--- refuses. EVE gets up from a hall seat first. tests/lua/online/modes/scoreattack/game_test.lua covers it on fakes.
+-- scoreattack=off, EVE on the bike, a Night Operation run on, EVE not in the lobby room, SB's own hall chair seating
+-- her or the run's own start check refuses. EVE gets up from the mod's hall seat first. The lobby's stand cannot end
+-- SB's chair interaction, so the run's teleport to her spot would land while it still runs on her.
+-- tests/lua/online/modes/scoreattack/game_test.lua covers it on fakes.
 local Sa=require('online.modes.scoreattack.model')
 local G={}
 -- o: run (run.lua's), round (round.lua's), log(text), on() (scoreattack=on), riding(), night() (a Night Operation
--- run is on), target() (the lobby room EVE stands in, as online/lobby/sbo.lua gives it, or nil), seated(), stand(),
--- out(key) (the sit-out notice: off, bike, night, room or refused, ui/text.lua's scoreattack.out), optional.
+-- run is on), target() (the lobby room EVE stands in, as online/lobby/sbo.lua gives it, or nil), resting() (SB's own
+-- interaction runs on EVE: a hall chair of SB seats her), seated() (the mod's seat), stand(), out(key) (the sit-out
+-- notice: off, bike, night, room, seat or refused, ui/text.lua's scoreattack.out), optional.
 function G.new(o)
     local self={}
     local function sit(key,why)
@@ -27,6 +30,7 @@ function G.new(o)
         local t=o.target()
         local p=t and t.spots[k]
         if not p then return sit('room',t and 'this room has no spot '..k or 'EVE is not in the lobby room') end
+        if o.resting() then return sit('seat','SB\'s chair seats EVE') end
         if o.seated() then o.stand() end
         local ok,why=o.run.start(def,seed,{X=p.X,Y=p.Y,Z=p.Z},p.Yaw)
         if not ok then return sit('refused',why) end

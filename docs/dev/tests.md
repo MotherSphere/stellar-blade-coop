@@ -691,15 +691,17 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   and match end, a guest's go read before its start line, her rank and a void, who may send which line, the pace of
   the now lines, a round that ends early, one replaced by the next, one found playing at a Lua reload, a room that
   offers nothing, a player who leaves, the pick and its cycle. `online/modes/scoreattack/game_test` covers each
-  sit-out reason with its log line and notice key, a hall seat left first, the run at the spot facing the ring centre
-  on the round's seed, the now lines while its waves play only and the done line of each outcome.
+  sit-out reason with its log line and notice key (SB's own chair seating EVE among them), a hall seat left first,
+  the run at the spot facing the ring centre on the round's seed, the now lines while its waves play only and the
+  done line of each outcome.
   `online/modes/scoreattack/run_test`, `challenges_test` and `waves_test` hold their Night Operation originals' cases
   for the copies, with what the copy changes: each start refusal with no spawn, a whole Target Practice run from a
   lobby spot, `best_match_targets` kept in `coop-records.txt` beside the solo bests, every abort and, after a death,
   the in-place respawn (its checks, its 10 s, its result line, the death screen hidden and shown again).
   `online/modes/scoreattack/board_test` covers the card, the in-round board and the result panel on a fake kit, their
   words in the game's language, the notices with the kit off and the HUD's STOP line. `main/scoreattack_test` covers
-  the pass line and the `coop off` stop through `main.lua`, then the wiring on a fake run;
+  the pass line and the `coop off` stop through `main.lua`, then the wiring on a fake run, SB's chair sit-out with
+  its notice included;
 - `online/modes/race/match/model_test` covers Doro races in matches without the game: the dr texts both ways with their
   refusals and sizes, who may send which text, the track coming whole from its lines, the tracks planted rooms offer
   (Xion's training room with its 30 m fence, a hall, a track in Xion's streets left out), the pick and the Random draw,
@@ -716,7 +718,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `online/modes/race/ui/hud_test` covers the race's HUD: the live place among up to 8 racers, the results' note and
   rows (a session's two, a match's own row before the ranking, then the ranking with names cut, `Not ranked.` and
   `New personal best.`) and the 8 result rows on a fake kit. `online/modes/race/run_test` adds the match role: the
-  teleport onto the slot at the start and back at GO past 3 m with the runner starting from the slot, every round
+  teleport onto the slot at the start and back at GO past 3 m with the runner starting from the slot, a racer that
+  SB's chair seats at GO out of her slot sitting out with the seat notice and a DNF quit instead, every round
   player's ghost as a Doro, `coop race start` refused in a match lobby, the round ticked from the 250 ms pass, the
   place notices with the kit off. `online/modes/race/drive_test` and `doro_test` cover the asks to the native part
   (`race hold`, `race tick`), the impulses only while the status says the hold is applied, a hold still applied with
@@ -724,8 +727,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   older `coop-look.txt` with a number in its tick field that writes nothing. `main/race_match_test` runs a round through
   `main.lua` and the wiring: the official track read from the Scripts folder, the host's lines one a pass, a hall's
   own tracks from `coop-tracks.txt`, `coop race save` and a pick by name adding to it, the sit-out notices, the host
-  gone, the records file, `coop off`. `main/isolation.lua` checks with the race module off that the lobby menu holds no
-  race and refuses Select on Track;
+  gone, the records file, `coop off`, the wiring's adapters (SB's chair read by the race too). `main/isolation.lua`
+  checks with the race module off that the lobby menu holds no race and refuses Select on Track;
 - `online/modes/fishing/model_test` covers the fishing tournament without the game: the start's length (10 minutes by
   default, 1 to 60), the clock, each fish text's round trip and every malformed one refused whole, who a game takes
   each text from, the host's checks of each catch (sender, seed, fish, points, time and the rate bound, an honest

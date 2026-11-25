@@ -198,7 +198,7 @@ local function side(o)
         slot=function() if s.slot_ok then return true end return false,'not a co-op save' end,
         paused=function() return s.paused end,settings=s.settings,riding=function() return s.riding end,
         dismount=function(why) s.dismounted,s.riding=why,false end,
-        match_lobby=function() return s.match_lobby end,
+        match_lobby=function() return s.match_lobby end,resting=function() return s.resting end,
         saved=function(name) s.saved_names=(s.saved_names or '')..name end,
         round_tick=o.round_tick,round_stop=o.round_stop})
     return s
@@ -1054,6 +1054,17 @@ do
         frames({S},10)
         assert(#S.lines==0 and S.race.armed() and find(S.logs,'out of slot 4 at GO: put back'),words(S))
     end
+    -- SB's chair seated her during the countdown (resting): out of her slot at GO she sits out with the seat notice and
+    -- is not teleported. Her DNF quit goes to the round, the race closes here, the drive never goes on.
+    S=match()
+    S.move=function(s) if not s.go_at then put(s,{x=s3.x+500,y=s3.y,z=s3.z}) end end
+    S.resting=true
+    run({S},function() return not S.race.armed() end)
+    assert(S.eve.teleports==1 and words(S)=='done dnf quit' and S.drive.ons==0 and not S.look.on
+        and not S.by['2002'].on,words(S))
+    assert(find(S.logs,'^race 7: out of slot 4 at GO: sit out: SB\'s chair seats EVE$')
+        and find(S.logs,'^race 7 closed %(seat%)$'))
+    assert(table.concat(S.told,'|')==T.en.race.match.seat,table.concat(S.told,'|'))
     -- Results 20 s after the list with no end line: the race closes by itself.
     S=match()
     S.move=racer(3)

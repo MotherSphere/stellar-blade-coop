@@ -388,6 +388,7 @@ return {
         cancelled='La manche a été annulée.',
         out={off='La course au score est désactivée dans les Options : vous ne jouez pas cette manche.',
             bike='Descendez de la moto pour jouer la prochaine manche.',
+            seat='Levez-vous de votre siège pour jouer la prochaine manche.',
             night='Une Opération nocturne est en cours : vous ne jouez pas cette manche.',
             room="Vous n'êtes pas dans la salle d'attente : vous ne jouez pas cette manche.",
             refused="Votre jeu n'a pas pu lancer le défi : vous ne jouez pas cette manche. UE4SS.log dit pourquoi."},

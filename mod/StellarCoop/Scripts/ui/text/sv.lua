@@ -373,6 +373,7 @@ return {
         cancelled='Rundan avbröts.',
         out={off='Poängjakt är avstängd i Alternativ: du står över den här rundan.',
             bike='Kliv av motorcykeln för att spela nästa runda.',
+            seat='Res dig från platsen för att spela nästa runda.',
             night='En Nattinsats pågår: du står över den här rundan.',
             room='Du är inte i väntrummet: du står över den här rundan.',
             refused='Ditt spel kunde inte starta utmaningen: du står över den här rundan. UE4SS.log säger varför.'},

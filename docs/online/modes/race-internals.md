@@ -259,7 +259,7 @@ line, which a match lobby refuses both ways.
 | `match/round.lua` | The round on the Steam link: the start line, the dr lines sent and read, the host's draw and arbitration. Its first line says it is the race's copy of `online/modes/scoreattack/round.lua` |
 | `match/game.lua` | Between the round and our race: the sit-out checks, the hall seat, the ghosts by SteamID, ready, cp and done, the records write |
 | `match/tracks.lua`, `match/tracks/*.txt` | The official tracks, by room key (`xion` or a hall's), in the `SBR 1` format of [Track files](race.md#track-files) |
-| `run.lua` | A third role, `match`, beside host and guest: the teleport onto the slot at the start and back at GO, every round player's ghost as a Doro, the round's tick at the start of the race's 250 ms pass, no crowd DNF, `coop race start` refused in a match lobby |
+| `run.lua` | A third role, `match`, beside host and guest: the teleport onto the slot at the start and back at GO (a racer that SB's chair seats then sits out with a DNF `quit`), every round player's ghost as a Doro, the round's tick at the start of the race's 250 ms pass, no crowd DNF, `coop race start` refused in a match lobby |
 | `ui/hud.lua` | POS among up to 8 racers, the 8 result rows, the note before the ranking, `Not ranked.` and `New personal best.` |
 
 Lua cannot list a folder, so `match/tracks.lua` names each official track. The wiring finds the folder with

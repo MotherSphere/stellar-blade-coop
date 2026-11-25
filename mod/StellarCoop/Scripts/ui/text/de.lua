@@ -398,6 +398,7 @@ return {
         cancelled='Die Runde wurde abgebrochen.',
         out={off='Punktejagd ist in den Optionen aus: Du setzt diese Runde aus.',
             bike='Steig vom Motorrad ab, um die nächste Runde zu spielen.',
+            seat='Steh vom Sitz auf, um die nächste Runde zu spielen.',
             night='Ein Nächtlicher Einsatz läuft: Du setzt diese Runde aus.',
             room='Du bist nicht im Warteraum: Du setzt diese Runde aus.',
             refused='Dein Spiel konnte die Herausforderung nicht starten: Du setzt diese Runde aus. UE4SS.log nennt '

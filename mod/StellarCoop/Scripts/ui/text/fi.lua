@@ -386,6 +386,7 @@ return {
         cancelled='Kierros peruttiin.',
         out={off='Pistejahti on pois päältä asetuksissa: jäät pois tältä kierrokselta.',
             bike='Nouse moottoripyörän selästä pelataksesi seuraavan kierroksen.',
+            seat='Nouse istuimelta pelataksesi seuraavan kierroksen.',
             night='Yöoperaatio on käynnissä: jäät pois tältä kierrokselta.',
             room='Et ole odotushuoneessa: jäät pois tältä kierrokselta.',
             refused='Pelisi ei voinut aloittaa haastetta: jäät pois tältä kierrokselta. UE4SS.log kertoo syyn.'},

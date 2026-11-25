@@ -376,6 +376,7 @@ return {
         cancelled='Runden ble avlyst.',
         out={off='Poengjakt er slått av i Alternativer: du står over denne runden.',
             bike='Gå av motorsykkelen for å spille neste runde.',
+            seat='Reis deg fra setet for å spille neste runde.',
             night='En Nattoperasjon pågår: du står over denne runden.',
             room='Du er ikke i venterommet: du står over denne runden.',
             refused='Spillet ditt kunne ikke starte utfordringen: du står over denne runden. UE4SS.log sier hvorfor.'},

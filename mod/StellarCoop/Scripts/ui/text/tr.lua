@@ -383,6 +383,7 @@ return {
         cancelled='Tur iptal edildi.',
         out={off='Skor avı Seçeneklerde kapalı: bu turda oynamıyorsun.',
             bike='Sonraki turu oynamak için motosikletten in.',
+            seat='Sonraki turu oynamak için oturduğun yerden kalk.',
             night='Bir Gece Operasyonu sürüyor: bu turda oynamıyorsun.',
             room='Bekleme odasında değilsin: bu turda oynamıyorsun.',
             refused='Oyunun meydan okumayı başlatamadı: bu turda oynamıyorsun. Nedeni UE4SS.log içinde.'},

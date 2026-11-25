@@ -49,7 +49,8 @@ does not offer draws as Random. A room that offers none ends the round at once (
 At the countdown's 0 every game closes the lobby menu. The log reads `[StellarCoop] round start: score attack`. The
 host's game fixes the challenge and sends it to every player. Then each game:
 
-1. stands EVE up if she sits on a hall seat;
+1. stands EVE up if she sits on a hall seat through F5. A player that Stellar Blade's own chair seats (its Rest
+   prompt) sits out instead: the mod cannot stand her up from the game's chair;
 2. moves her to her spot of the lobby's ring of 8, facing its centre. Her spot is her place in the round's player list:
    the host first, then the others in Steam's member order;
 3. starts the challenge's 5 s countdown there. The round's seed sets the order of the spots each wave uses, so every
@@ -68,6 +69,7 @@ sends nothing:
 | --- | --- |
 | `Score attack is off in Options: you sit out this round.` | `scoreattack=off` |
 | `Get off the bike to play the next round.` | EVE rides the [bike](../../vehicles/bike.md) |
+| `Get up from your seat to play the next round.` | Stellar Blade's own chair seats EVE in a [hall lobby](../lobby.md#hall-lobbies) |
 | `A Night Operation run is on: you sit out this round.` | A [Night Operation](nightop.md) run or a challenge of `coop challenge` is on |
 | `You are not in the waiting room: you sit out this round.` | EVE is not in the lobby room |
 | `Your game could not start the challenge: you sit out this round. UE4SS.log says why.` | The run's own start check refused: a run already on, her EVE still down after a death, a `coop no` probe rule set in this game run, no EVE or no player controller, the teleport refused, a living character within 40 m of her spot, or every run byte taken (see [Starting a run](nightop.md#starting-a-run)) |
@@ -232,10 +234,10 @@ reaches Shift Up's servers (see
 are in the solo range, `0xD8000000` to `0xD8FFFFFF`: the shared enemies are off in a match lobby, so no key is paired
 between two games.
 
-The wiring reads `online.lobby`'s `sbo` (the room, its spots, the hall seat) and `online.modes.nightop`'s `night`
-(whether a run is on). It exports `scoreattack` (the round) and `scoreattack_board` (the screens). `main/pass.lua`
-ticks the round every 250 ms after the inbox. `coop off` stops it from `main/commands.lua`. `main/ui.lua` builds the
-screens after Night Operation's. The lobby reads `scoreattack`'s pick and cycle for its Challenge row. It opens its
+The wiring reads `online.lobby`'s `sbo` (the room, its spots, the hall seat, SB's chair through `busy()`) and
+`online.modes.nightop`'s `night` (whether a run is on). It exports `scoreattack` (the round) and `scoreattack_board`
+(the screens). `main/pass.lua` ticks the round every 250 ms after the inbox. `coop off` stops it from
+`main/commands.lua`. `main/ui.lua` builds the screens after Night Operation's. The lobby reads `scoreattack`'s pick and cycle for its Challenge row. It opens its
 menu again at the end line of a round its player took part in.
 
 The match lobby's mode is `scoreattack`, with the map word `lobby`: its round plays where the members wait. The round
