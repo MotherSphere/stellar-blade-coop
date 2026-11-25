@@ -11,7 +11,7 @@
 -- it among her components by its mesh and that tag, whatever the bike= word or the setting says. That load uses it
 -- again; its first 250 ms pass removes it at bike=off. While she rides, the capture sends it to every ghost like any
 -- part of her outfit. While she does not, self.idle_part names it and the capture leaves it out (main.lua): hidden, it
--- would take one of the ghost's 16 parts.
+-- would take one of the ghost's 32 parts.
 -- A mount (self.toggle) checks EVE first and refuses with its reason; then, in this order: coop-bike.txt (her object
 -- path, her main mesh's relative rotation and location, or those of a file this Lua load kept for her),
 -- vehicles/bike/drive.lua's drive with vehicles/bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her

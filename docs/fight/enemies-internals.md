@@ -15,7 +15,7 @@ enemies: the same pairs, the same host and the same Steam channel 2. Each pair h
 the enemy's AI and moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner.
 HP, Shield, balance and death stay with the host's game whoever owns the pair.
 
-- The host's `same_place` decides for both games. The host sends it as `SBF29 place <gen> <0|1>` after its world line
+- The host's `same_place` decides for both games. The host sends it as `SBF30 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
   guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
   off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
@@ -28,12 +28,12 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   an AI task runs on the owner's copy, during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the
   host draws a copy that the game froze before the mod did (below: its AI would not run once the host owns it); the
   start of a takedown is the exception (below). Each change moves the owner epoch one up and goes to her as
-  `SBF29 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
-  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF29 aggro <gen> <game|host>`.
+  `SBF30 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
+  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF30 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
   except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
-  `SBF29 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
+  `SBF30 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
   `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
   other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
   pauses.
@@ -74,7 +74,7 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
   (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
-  with `aggro=game`, she sends `SBF29 exec <gen> <hguid> 1`, then `SBF29 exec <gen> <hguid> 0` once her copy has held
+  with `aggro=game`, she sends `SBF30 exec <gen> <hguid> 1`, then `SBF30 exec <gen> <hguid> 0` once her copy has held
   none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
   one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
   holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
@@ -161,16 +161,16 @@ pairs through its spawn key like any other.
 - Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
 - Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
   manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
-  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF29
+  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF30
   epoch <gen> <zone> <n>` at each change and every 5 s, so a line lost on the way stalls nothing for long, and each
   side drops a line of another epoch.
 - The zone is shared while both games are in the host's zone, each settled 3 s after its last epoch began with no
   spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
-  `SBF29 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
-  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF29 spawn <gen> <n> <spawnId> <idx>
+  `SBF30 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
+  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF30 spawn <gen> <n> <spawnId> <idx>
   <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
   the host's world; never a dying one), where it stands in whole
-  centimetres. It also sends `SBF29 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+  centimetres. It also sends `SBF30 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
 - The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km of
   her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's spawn
   function on its spawn manager (`FUN_141c1dbf0`, as `FSBCreateActor` does) and removes one through the game's despawn
@@ -315,7 +315,7 @@ The log lines are in [Shared enemies](enemies.md#extra-enemies-experimental).
 Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
 Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
 any common enemy and its maximum HP takes the host's `boss_hp_scale`. With same place on its AI changes hands by the
-aggro rule since phase 3 ([Boss hand-overs](#boss-hand-overs)). The host sends `SBF29 bosses <gen> <percent>
+aggro rule since phase 3 ([Boss hand-overs](#boss-hand-overs)). The host sends `SBF30 bosses <gen> <percent>
 <first|host>` with its list: the last word is its `boss_finish` ([The finisher press](#the-finisher-press)).
 
 With same place on, the copy a game draws is frozen and never casts a skill, so on its own it would never enter battle
@@ -323,7 +323,7 @@ mode, change phase or summon anything. The owner's job reads them on its own cop
 applies them to its copy. The list below says host for the owner and guest for the side that draws, as it was before
 phase 3; with the guest as owner the roles swap:
 
-- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF29 bstart <gen> <hguid>` when it turns on,
+- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF30 bstart <gen> <hguid>` when it turns on,
   then every second while it stays on.
   - The guest calls the game's SetBattleMode wrapper (`FUN_141a7db20`) on her copy, once while the copy stays in battle
     mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on, then `0, 0, 0, 1`. The fifth
@@ -340,7 +340,7 @@ phase 3; with the guest as owner the roles swap:
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 26123051: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
   thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as
-  `SBF29 phase <gen> <hguid> <oe> <id,id,...|->` when they change and every second in battle mode.
+  `SBF30 phase <gen> <hguid> <oe> <id,id,...|->` when they change and every second in battle mode.
   - The guest refuses a line with an ID her own table does not hold for that boss (a bad line), of another owner epoch,
     or for a copy her game does not draw. Through the game's effect call (`FUN_141ad1af0`), her copy its own caster as
     for the boss's own skill step, she applies each row that came into the host's set since her last line for that copy,
@@ -360,7 +360,7 @@ phase 3; with the guest as owner the roles swap:
   - A summon gets a key in the summon range, EventSpawnId `0xF0000000 | member << 24 | n` and SpawnIndex 0, where
     member is the owner's (0 the host, 1 the guest) and n counts that side's summons since the game started (1 to
     2^24 - 1). It joins the shared list under it. After its up the host sends
-    `SBF29 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner hguid> <row>`, with epoch 1 when same spawns do not
+    `SBF30 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner hguid> <row>`, with epoch 1 when same spawns do not
     run, and sends it again every second while it follows the summon: her game takes a repeat as one it has, and a line
     it refused for a passing reason (its boss not paired yet) can go through later.
   - The guest makes it through `NewActor`, as for extra enemies, with that key where the host's stands: only within 1 km
@@ -425,7 +425,7 @@ the default, adds nothing. A bosses line without its fourth word reads as `host`
 - With `first`, a press is a takedown marker on the host's copy in its Finish stance (`Host::own_press`, called before
   her lines are drained) or her `exec 1` for a pair whose host copy holds that stance. In one turn the host's own
   wins, then the lowest member number. The winner (`Host::finisher()`) stays until the pair dies or leaves. Her off
-  forgets a win of hers. The host sends `SBF29 fin <gen> <hguid> <member>` once, then again in each whole list after
+  forgets a win of hers. The host sends `SBF30 fin <gen> <hguid> <member>` once, then again in each whole list after
   her on or world, after the up lines.
 - The guest's `takedowns()` sends exec 1 for a boss copy in its Finish stance with `first` even when same place does
   not run on her side or with `aggro=host`. `Host::exec()` skips its stale check for a boss pair with bosses on.
@@ -461,7 +461,7 @@ the exact theater alias (`QTE_THEATERS` in the tool). It also lists the 15 `LV_D
   A member in Coma is not up here, since she cannot press.
 - After the turn's claims, `qte_check` names an owner once for a pair whose spawn has a QTE row and whose HP is 1 or
   less: hers when one of her claims took it there in this turn, the host otherwise. When that member is not up, the
-  next member up by number takes it; with nobody up, `qte none`. It sends `SBF29 qte-own <gen> <hguid> <spawnId>
+  next member up by number takes it; with nobody up, `qte none`. It sends `SBF30 qte-own <gen> <hguid> <spawnId>
   <member> <try>` with try 0 (event `qte owner`).
 - A QTE scene of that spawn that ends in the host's game with the pair alive is a miss. Story together reports the
   ended scene (`qte_ended`). The hub hands it to the job as a local `qte_end` message. The next member up after
@@ -534,7 +534,7 @@ asks the respawn. Every address below was read in Ghidra on build 26123051.
 - The game thread publishes spectate's state as one 64-bit atomic word (on, watched, up, upn, out, state), the only
   thing the worker reads. The worker writes ` spec=<0|1> watch=<member|-> up=<-|boss|phase|scene> upn=<n>
   her_spec=<member|-> mem=<0|1>` on the `fight=` line. The status adds ` spectate=<on|off|faulted> hud=<n|->` to the
-  `engine=` line. The worker sends `SBF29 spec <member> <watched|->` at each change of the member watched and again
+  `engine=` line. The worker sends `SBF30 spec <member> <watched|->` at each change of the member watched and again
   after her on. It logs `spectate on: watching member <n>`, `spectate: up (<reason>), reason <n>` and `spectate off:
   <reason>, the death screen back` or `spectate off: our EVE is up`.
 - The pit: once our life goes from 3 to 1 or 6 after a spectate revive with an `LV_Dead` row at the death, the engine
@@ -697,17 +697,17 @@ ends each window itself.
 ### Lines and counters
 
 The changed cc line and the two new lines ride channel 2, reliable, in fight pairs only (never in match lobbies, the
-SBO lobby or the PvP test). They came with protocol 23, which no release used. This build sends them under protocol 29
-(`SBF29`). A game on another protocol does not link with it (see
+SBO lobby or the PvP test). They came with protocol 23, which no release used. This build sends them under protocol 30
+(`SBF30`). A game on another protocol does not link with it (see
 [Steam link: protocol versions](../online/steam-link-internals.md#protocol-versions)).
 
-- `SBF29 cc <gen> <hguid> <effect> <level> <ms>`, both sides: a crowd control or a flinch that rose on the sender's
+- `SBF30 cc <gen> <hguid> <effect> <level> <ms>`, both sides: a crowd control or a flinch that rose on the sender's
   copy, with the hit's level (0 to 99) and the reaction's time: 0 for a crowd control (its row's own), 0 to 10000 ms
   for a flinch (0: its row's own).
-- `SBF29 stagger <gen> <0|1> <0|1>`, the host: its `hit_reactions` and `stagger_resist`, after its bosses line in each
+- `SBF30 stagger <gen> <0|1> <0|1>`, the host: its `hit_reactions` and `stagger_resist`, after its bosses line in each
   whole list while either is on, then again at each change. A recording keeps it. The guest reads both as off until
   it comes. She reads them as off again after the host's next world line.
-- `SBF29 poise <gen> <hguid> <oe> <k> <ms>`, the owner of a same-place enemy: a window it started on its copy, k 1 or
+- `SBF30 poise <gen> <hguid> <oe> <k> <ms>`, the owner of a same-place enemy: a window it started on its copy, k 1 or
   2, 1 to 16000 ms, at owner epoch oe. Never recorded.
 
 Lua asks for both settings with the words `reactions` and `resist` after `bosses <n>` in `coop fight on` and

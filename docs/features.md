@@ -28,10 +28,10 @@ with a local pak. No match lobby has held two players in game yet (see
 0.6.0-beta.1 to beta.3 use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses
 protocol 18 and does not link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). Builds after it, 0.8.0
 to 0.10.0, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5. 0.11.0 uses protocol 20, for the
-PvP test and the match lobbies. It does not link with 0.10.0 or older. This version uses protocol 29, for the shared
+PvP test and the match lobbies. It does not link with 0.10.0 or older. This version uses protocol 30, for the shared
 world, story together, sessions of up to 4 players, the score attack, the travel to the host, the fishing tournament,
-Doro races in matches, the ghost's drone, sounds, effects and faces, then spectate, the first-press finisher and the
-QTE owner in boss fights. It does not link with 0.11.0 or older: every player has to update.
+Doro races in matches, the ghost's drone, sounds, effects and faces, then spectate, the first-press finisher and the QTE
+owner in boss fights, then ghosts of up to 32 parts. It does not link with 0.11.0 or older: every player has to update.
 
 In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
 dyes and effects, the spawn filter, the name tag in your photos, shared quests, the shared world, story together, the

@@ -279,7 +279,7 @@ void test_asset_line() {
 void test_namebook_late_member() { // Review Focus 1
   NameBook book;
   for (int k = 1; k <= 100; ++k)
-    book.add("SBA29 " + std::to_string(k) + " niagara /Game/Art/FX/A.A - -");
+    book.add("SBA30 " + std::to_string(k) + " niagara /Game/Art/FX/A.A - -");
   auto bytes = [&](size_t from, size_t to) {
     size_t n = 0;
     for (size_t i = from; i < to; ++i)
@@ -302,7 +302,7 @@ void test_namebook_late_member() { // Review Focus 1
   budget = kNamesBytesPerSecond;
   auto busy = [&](const std::string &) { return ++n <= 5; }; // the member's share of the channel-2 queue fills after 5
   assert(send_from(book, full, budget, busy) == 5 && full == 69);
-  book.add("SBA29 101 sound /Game/Sound/A.A - - -");
+  book.add("SBA30 101 sound /Game/Sound/A.A - - -");
   budget = kNamesBytesPerSecond;
   assert(send_from(book, early, budget, all) == 1 && early == 101); // a new name reaches everyone
   book.clear();

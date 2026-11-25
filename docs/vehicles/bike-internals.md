@@ -554,7 +554,7 @@ no mesh gives no table. So does a rig that `pose_source` does not name (after Ct
 players keep the table published before. On the hold way `pose_source` answers nil and the capture works as above.
 
 While she rides, the part has no `MasterPoseComponent`, so `capture.lua` ranks it with the leaders, ahead of every
-follower. With `MAX_PARTS` at 16, an EVE with 16 skeletal parts or more loses the last follower of her outfit from every
+follower. With `MAX_PARTS` at 32, an EVE with 32 skeletal parts or more loses the last follower of her outfit from every
 ghost until she gets off. Over the pose size, `capture.lua` drops the last leader in `K2_GetComponentsByClass` order,
 which follows her actor's component set: the bike is a part like any other there. Parts added after it go first.
 

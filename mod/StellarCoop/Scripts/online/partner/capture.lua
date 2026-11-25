@@ -44,7 +44,7 @@ local UE=require('UEHelpers')
 local U=require('core.unreal')
 local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U.text,U.find,U.address,U.hex,U.word
 local Capture={}
-local MAX_PARTS,MAX_BONES=16,1024 -- The native part's kMaxParts and kMaxBones: past them it refuses the whole table.
+local MAX_PARTS,MAX_BONES=32,1024 -- The native part's kMaxParts and kMaxBones: past them it refuses the whole table.
 local MAX_MATERIALS,MAX_SLOTS=16,64 -- Its kMaxMaterials and kMaxSlots too.
 local MAX_VALUES,MAX_SLOT_VALUES,MAX_NUMBER=512,32,1e5 -- Its kMaxValues, kMaxSlotValues and kMaxValue.
 -- Value lines stop here: past the native part's 64 KiB it would refuse the whole table, and the ghost with it.

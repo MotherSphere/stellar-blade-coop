@@ -75,7 +75,7 @@
 #include "link/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 29; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 30; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -136,11 +136,13 @@ constexpr int kProtocol = 29; // Bump on any wire change. 1 was the first link (
                               // boss fight's fin, qte-own and spec lines on channel 2, the host's boss_finish as the
                               // bosses line's last word and a summon's owner in its key; a guest sends the boss lines
                               // of a boss her game runs and the SBS lines of a boss QTE scene she leads. A protocol-28
-                              // peer would count the new lines invalid. An older peer (6: v0.1.1, 7: v0.2.0, 9:
+                              // peer would count the new lines invalid; 30 takes up to 32 parts in the component
+                              // table (kMaxParts, game/core.h) for outfits worn as pieces, whose table a protocol-29
+                              // parser refuses whole past 16 parts. An older peer (6: v0.1.1, 7: v0.2.0, 9:
                               // v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1
                               // to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to
-                              // v0.10.0, 20: v0.11.0; 15, 16, 21, 22, 23, 24, 25, 26, 27 and 28 were never released) is
-                              // told why: the lobby tag, then the hello's reject, name both.
+                              // v0.10.0, 20: v0.11.0; 15, 16, 21, 22, 23, 24, 25, 26, 27, 28 and 29 were never
+                              // released) is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -558,8 +560,8 @@ inline std::string let_line(uint64_t pair, const std::vector<uint64_t> &ids, int
 inline std::string wait_line(uint64_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " wait " + std::to_string(seconds);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF29" for the shared fight, "SBQ29" for the shared quests, "SBW29"
-// for the shared world, "SBS29" for story together, "SBA29" for the asset names of a ghost's events (game/events.h).
+// Channel 2's tags, versioned like channel 0's: "SBF30" for the shared fight, "SBQ30" for the shared quests, "SBW30"
+// for the shared world, "SBS30" for story together, "SBA30" for the asset names of a ghost's events (game/events.h).
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
