@@ -30,7 +30,10 @@ ghost, it only has to learn the new file extension. It does not know it yet.
 | `HidesSlots` | slots | no | Slots it hides without taking them off (a long coat: `["Belt"]`) |
 | `HidesBodyRegions` | regions | no | Regions it covers; hidden on every shown piece on a lower layer |
 | `KeepsSlots` | slots | no | `FullOutfit` only: body slots left showing (piercings over a full suit) |
-| `Mesh` | soft ref | yes | `/Game/<folders>/<Asset>.<Asset>`, weighted to `CH_P_EVE_01_Skeleton` |
+| `Mesh` | soft ref | mesh, swap, body | `/Game/<folders>/<Asset>.<Asset>`, weighted to `CH_P_EVE_01_Skeleton`. Not on a skin or colour piece |
+| `Texture` | soft ref | skin | The texture it paints on the base body |
+| `Regions` | regions | skin | The base body regions it paints |
+| `Color` | text | colour | `#RRGGBB` |
 | `Materials` | soft refs | no | One per material slot; `null` or `""` keeps the mesh's own |
 | `RegionMap` | object | no | `{"Calf": [3], "Foot": [4]}`: which of this mesh's material slots show each region. Needed on any piece that can be covered (base body, skin suits, stockings, inner layers) |
 | `Image` | soft ref | no | Icon texture |
@@ -39,15 +42,34 @@ ghost, it only has to learn the new file extension. It does not know it yet.
 Unknown keys load with a warning, so newer packs still work on older versions. A broken item is skipped and named in
 the log; the rest of the pack still loads.
 
-## Slots and layers
+## Slots
 
-| Layer | Slots |
+Each slot has a layer, a kind and a menu region. A shown piece hides the body regions that shown pieces on higher
+layers cover. Only `mesh` pieces are components of their own: each one is one of the ghost's parts.
+
+| Kind | What it is |
 | --- | --- |
-| 0 base | `BaseBody`, `SkinSuit` |
-| 1 mid | `UndergarmentTop`, `UndergarmentBottom`, `Legs` |
-| 2 outer | `Chest`, `Pants`, `Shoes`, `Gloves`, `Belt`, `Outerwear`, `Cape` |
-| 3 accents | body: `Neck`, `Navel`, `ChestHardware`, `PelvicHardware`, `Dermal` · head: `Face`, `Hair`, `Ponytail`, `Ears`, `Eyes`, `FacePiercings` · `Weapon` |
-| override | `FullOutfit` |
+| `mesh` | A component of its own |
+| `swap` | Replaces one of EVE's own meshes (her face, hair, ponytail, ears, weapon) |
+| `skin` | Painted on the base body: tattoos, makeup, tan lines, glows |
+| `colour` | A colour on what is there: eyes, nails, skin tone |
+| `body` | The base body, or one of its own details |
+
+| Menu | Layer 0 (on the body) | Layers 1 to 3 |
+| --- | --- | --- |
+| Head | | `Face`, `Hair`, `Ponytail`, `Ears` (swap) · `Eyes` (colour) · `Makeup`, `FaceTattoo` (skin) · `HairAccessory`, `Headwear`, `Mask`, `Glasses`, `EarringL`, `EarringR`, `BrowPiercing`, `NosePiercing`, `SeptumPiercing`, `LipPiercing`, `TonguePiercing` |
+| Torso | `TattooChest`, `TattooStomach`, `TattooBack`, `TattooShoulders` | 1: `UndergarmentTop` · 2: `Chest`, `Outerwear`, `Cape` · 3: `Collar`, `Necklace`, `ChestHardware`, `NippleL`, `NippleR`, `Navel` |
+| Arms | `TattooUpperArm`, `TattooForearm`, `TattooHand`, `Fingernails` (colour) | 2: `Gloves`, `Sleeves` · 3: `BraceletL`, `BraceletR`, `Rings`, `Armbands` |
+| Hips | `TattooHips`, `TattooLowerBack`, `TattooButt` | 1: `UndergarmentBottom` · 2: `Pants`, `Belt`, `Garter` |
+| Intimate | `PubicHair`, `TattooPubic` (skin) · `Anus` (body) | 3: `ClitPiercing`, `LabiaPiercing`, `AnalPlug` |
+| Legs | `TattooThigh`, `TattooCalf`, `TattooFoot`, `Toenails` (colour) | 1: `Legs` · 2: `Shoes`, `ThighStraps` · 3: `AnkletL`, `AnkletR` |
+| Body | `BaseBody` (body), `SkinSuit` (mesh), `SkinTone` (colour), `TanLines`, `SkinShine`, `Dermal`, `TattooFull` (skin) | |
+| Weapon | | `Weapon` (swap) |
+| Full outfits | | `FullOutfit` (layer 99) |
+
+Head and weapon slots survive a `FullOutfit`; every other slot is a body slot it suppresses. The Intimate menu is
+adult: it stays hidden until the player turns it on. A pair of earrings, nipple piercings, bracelets or anklets is
+one item in the `L` slot with the `R` slot in its `Occupies`.
 
 A `SkinSuit` that includes skin and should replace the base body declares `"Occupies": ["BaseBody"]`. One that is
 worn over the body leaves it alone and lists `HidesBodyRegions` instead.

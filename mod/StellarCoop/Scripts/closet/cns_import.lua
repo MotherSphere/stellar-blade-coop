@@ -34,15 +34,25 @@ local KNOWN_KEYS = {UniqueFitID = true, Requirement = true, DisplayName = true, 
 local USER_CONFIG_KINDS = {'ShapeKeys', 'MaterialToggles', 'ScalarControls', 'VectorControls', 'TextureOptions'}
 
 -- Keyword -> slot, checked in order (first match wins), against a toggle's name in lower case. Order matters:
--- 'nipple piercing' must hit ChestHardware before a bare 'piercing' falls through.
+-- 'nipple piercing' must hit NippleL before a bare 'piercing' falls through, 'plugsuit' must not read as a plug,
+-- 'toenail' must not read as a fingernail. A pair (both nipples, both ears) goes in the L slot.
 CnsImport.PIECE_WORDS = {
-    {'nipple', 'ChestHardware'}, {'clit', 'PelvicHardware'}, {'navel', 'Navel'}, {'belly', 'Navel'},
-    {'dermal', 'Dermal'}, {'pubic', 'BaseBody'}, {'nail', 'BaseBody'},
-    {'choker', 'Neck'}, {'collar', 'Neck'}, {'necklace', 'Neck'}, {'neck', 'Neck'},
+    {'nipple', 'NippleL'}, {'clit', 'ClitPiercing'}, {'labia', 'LabiaPiercing'}, {'navel', 'Navel'},
+    {'belly', 'Navel'}, {'plugsuit', 'SkinSuit'}, {'anal plug', 'AnalPlug'}, {'butt plug', 'AnalPlug'},
+    {'plug', 'AnalPlug'}, {'septum', 'SeptumPiercing'}, {'tongue', 'TonguePiercing'}, {'nose', 'NosePiercing'},
+    {'eyebrow', 'BrowPiercing'}, {'lip piercing', 'LipPiercing'}, {'lip ring', 'LipPiercing'},
+    {'lipstick', 'Makeup'}, {'makeup', 'Makeup'}, {'earring', 'EarringL'},
+    {'dermal', 'Dermal'}, {'glow', 'Dermal'}, {'leds', 'Dermal'}, {'pubic', 'PubicHair'},
+    {'toenail', 'Toenails'}, {'nails foot', 'Toenails'}, {'nail', 'Fingernails'},
+    {'tan line', 'TanLines'}, {'tanline', 'TanLines'}, {'oil', 'SkinShine'}, {'tattoo', 'TattooFull'},
+    {'choker', 'Collar'}, {'collar', 'Collar'}, {'necklace', 'Necklace'}, {'neck', 'Collar'},
+    {'harness', 'ChestHardware'}, {'harnais', 'ChestHardware'}, {'garter', 'Garter'}, {'anklet', 'AnkletL'},
     {'stocking', 'Legs'}, {'tights', 'Legs'}, {'sock', 'Legs'}, {'leggings', 'Legs'},
     {'panties', 'UndergarmentBottom'}, {'panty', 'UndergarmentBottom'}, {'thong', 'UndergarmentBottom'},
     {'boot', 'Shoes'}, {'heel', 'Shoes'}, {'shoe', 'Shoes'}, {'sandal', 'Shoes'}, {'sneaker', 'Shoes'},
-    {'glove', 'Gloves'}, {'gauntlet', 'Gloves'}, {'bracer', 'Gloves'}, {'bracelet', 'Gloves'},
+    {'glove', 'Gloves'}, {'gauntlet', 'Gloves'}, {'bracer', 'Gloves'}, {'bracelet', 'BraceletL'},
+    {'armband', 'Armbands'}, {'sleeve', 'Sleeves'}, {'glasses', 'Glasses'}, {'helmet', 'Headwear'},
+    {'crown', 'Headwear'},
     {'bra', 'UndergarmentTop'}, -- after bracer/bracelet, which contain it
     {'belt', 'Belt'}, {'holster', 'Belt'},
     {'cape', 'Cape'}, {'cloak', 'Cape'}, {'scarf', 'Cape'},

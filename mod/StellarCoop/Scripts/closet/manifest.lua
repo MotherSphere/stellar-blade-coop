@@ -17,7 +17,7 @@ Manifest.MAX_MATERIAL_INDEX = 63 -- native/src/game/table.h kMaxSlots - 1
 
 local ITEM_KEYS = {Id = true, DisplayName = true, Description = true, CharacterID = true, Slot = true,
     Occupies = true, HidesSlots = true, HidesBodyRegions = true, KeepsSlots = true, Mesh = true, Materials = true,
-    RegionMap = true, Requirement = true, Image = true}
+    RegionMap = true, Requirement = true, Image = true, Texture = true, Regions = true, Color = true}
 local TOP_KEYS = {Format = true, FormatVersion = true, Items = true, Author = true, Name = true}
 
 -- /Game/<folders>/<Asset>.<Asset>, the same shape the ghost's asset gate takes
@@ -139,9 +139,42 @@ function Manifest.parse(text, source)
                     end
                 end
             end
-            -- Assets
-            if not Manifest.soft_ref(raw.Mesh) then fail('Mesh', 'must be /Game/<folders>/<Asset>.<Asset>') end
+            -- Assets, by the slot's kind: a mesh, swap or body piece names its Mesh; a skin piece paints a Texture
+            -- on Regions of the base body; a colour piece is one Color.
+            local kind = Slots.kind(raw.Slot)
+            local painted = kind == 'skin' or kind == 'colour'
+            if painted then
+                if raw.Mesh ~= nil then fail('Mesh', 'a ' .. kind .. ' piece has no mesh') end
+            elseif not Manifest.soft_ref(raw.Mesh) then
+                fail('Mesh', 'must be /Game/<folders>/<Asset>.<Asset>')
+            end
             item.Mesh = raw.Mesh
+            item.Kind = kind
+            if kind == 'skin' then
+                if not Manifest.soft_ref(raw.Texture) then
+                    fail('Texture', 'must be /Game/<folders>/<Asset>.<Asset>')
+                end
+                item.Texture = raw.Texture
+                item.Regions = {}
+                if not is_array(raw.Regions) or #raw.Regions == 0 then
+                    fail('Regions', 'must be an array of the regions it paints')
+                else
+                    for i, region in ipairs(raw.Regions) do
+                        if Slots.IS_REGION[region] then item.Regions[#item.Regions + 1] = region
+                        else fail('Regions', ('[%d] unknown region %s'):format(i, tostring(region))) end
+                    end
+                end
+            elseif raw.Texture ~= nil or raw.Regions ~= nil then
+                fail(raw.Texture ~= nil and 'Texture' or 'Regions', 'only a skin piece paints a texture')
+            end
+            if kind == 'colour' then
+                if type(raw.Color) ~= 'string' or not raw.Color:match('^#%x%x%x%x%x%x$') then
+                    fail('Color', 'must be #RRGGBB')
+                end
+                item.Color = raw.Color
+            elseif raw.Color ~= nil then
+                fail('Color', 'only a colour piece has a Color')
+            end
             item.Materials = {}
             if raw.Materials ~= nil then
                 if not is_array(raw.Materials) then

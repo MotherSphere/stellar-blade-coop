@@ -67,17 +67,27 @@ local tests={
             "ShapeKeys":[],"ScalarControls":[],"VectorControls":[],"TextureOptions":[]}}]]=])
         eq(#item.PieceHints, 4)
         eq(item.PieceHints[1].Slot, 'Shoes') eq(item.PieceHints[1].MaterialIndex, 4)
-        eq(item.PieceHints[2].Slot, 'Outerwear') eq(item.PieceHints[3].Slot, 'ChestHardware')
+        eq(item.PieceHints[2].Slot, 'Outerwear') eq(item.PieceHints[3].Slot, 'NippleL')
         eq(item.PieceHints[4].Slot, nil, 'no guess for an unknown name') eq(item.PieceHints[4].Name, 'Sparkles')
     end,
     piece_words = function()
         eq(CnsImport.piece_slot('Bracer'), 'Gloves', 'bracer is not a bra')
-        eq(CnsImport.piece_slot('Bracelet L'), 'Gloves')
+        eq(CnsImport.piece_slot('Bracelet L'), 'BraceletL')
         eq(CnsImport.piece_slot('Sports Bra'), 'UndergarmentTop')
-        eq(CnsImport.piece_slot('Stockings'), 'Legs') eq(CnsImport.piece_slot('Choker'), 'Neck')
+        eq(CnsImport.piece_slot('Stockings'), 'Legs') eq(CnsImport.piece_slot('Choker'), 'Collar')
         eq(CnsImport.piece_slot('Navel piercing: ring'), 'Navel') eq(CnsImport.piece_slot('Clit piercing: x'),
-            'PelvicHardware')
+            'ClitPiercing')
         eq(CnsImport.piece_slot(nil), nil)
+        -- Names from installed packs that would land wrong without the word order.
+        eq(CnsImport.piece_slot('plugsuit'), 'SkinSuit', 'a plugsuit is not a plug')
+        eq(CnsImport.piece_slot('Anal plug-Main'), 'AnalPlug') eq(CnsImport.piece_slot('Butt Plug'), 'AnalPlug')
+        eq(CnsImport.piece_slot('Nails Foot'), 'Toenails') eq(CnsImport.piece_slot('Nails'), 'Fingernails')
+        eq(CnsImport.piece_slot('Ruffled skirt'), 'Pants', 'ruffled is not an LED')
+        eq(CnsImport.piece_slot('Pussy Piercing'), nil, 'no guess where the place is unclear')
+        eq(CnsImport.piece_slot('Pubic Hair'), 'PubicHair') eq(CnsImport.piece_slot('Necklace'), 'Necklace')
+        eq(CnsImport.piece_slot('Earrings'), 'EarringL')
+        -- Every hint names a slot that exists.
+        for _, pair in ipairs(CnsImport.PIECE_WORDS) do ok(Slots.known(pair[2]), pair[2]) end
     end,
     head_items_get_no_piece_hints = function()
         local item = one([=[[{"UniqueFitID":"a","FitMeshType":"Hair","OutfitPaths":["/Game/M/A.A"],

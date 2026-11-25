@@ -122,6 +122,28 @@ local tests={
         has(errors(MESH .. ',"RegionMap":{"Calf":["1"]}'), 'not a material index')
         has(errors(MESH .. ',"RegionMap":{"Knee":[1]}'), 'unknown region Knee')
     end,
+    kinds_name_their_assets = function()
+        local function parse(slot, fields)
+            return Manifest.parse(pack('{"Id":"x","DisplayName":"X","Slot":"' .. slot .. '",' .. fields .. '}'))
+        end
+        local tex = '"Texture":"/Game/A/T.T"'
+        -- A skin piece: a texture on regions, no mesh.
+        local out = parse('TattooBack', tex .. ',"Regions":["TorsoUpper","TorsoLower"]')
+        same(out.errors, {}) eq(out.items[1].Kind, 'skin') same(out.items[1].Regions, {'TorsoUpper', 'TorsoLower'})
+        has(parse('TattooBack', tex).errors, 'Regions')
+        has(parse('TattooBack', tex .. ',"Regions":["Knee"]').errors, 'unknown region Knee')
+        has(parse('TattooBack', '"Regions":["Calf"]').errors, 'Texture')
+        has(parse('TattooBack', MESH .. ',' .. tex .. ',"Regions":["Calf"]').errors, 'has no mesh')
+        -- A colour piece: one #RRGGBB.
+        out = parse('Fingernails', '"Color":"#ADD1C4"')
+        same(out.errors, {}) eq(out.items[1].Color, '#ADD1C4')
+        has(parse('Fingernails', '"Color":"teal"').errors, 'must be #RRGGBB')
+        has(parse('Fingernails', '').errors, 'Color')
+        -- A mesh piece takes neither.
+        has(parse('Belt', MESH .. ',"Color":"#000000"').errors, 'only a colour piece')
+        has(parse('Belt', MESH .. ',' .. tex).errors, 'only a skin piece')
+        same(parse('Hair', MESH).errors, {}, 'a swap names a mesh')
+    end,
     unknown_keys_warn = function()
         local out = Manifest.parse('{"Format":"StellarCloset","FormatVersion":1,"Future":1,"Items":[' ..
             '{"Id":"x","DisplayName":"X","Slot":"Belt",' .. MESH .. ',"Sparkle":true}]}')

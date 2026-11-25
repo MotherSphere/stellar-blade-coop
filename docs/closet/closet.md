@@ -22,7 +22,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua. They make no engine
 
 | File | Holds |
 | --- | --- |
-| `slots.lua` | The slot list: layers 0 to 3 and the `FullOutfit` override (99), the ten body regions, the apply order |
+| `slots.lua` | The slot list: each slot's layer, kind and menu region, the ten body regions, the apply order |
 | `resolver.lua` | What is worn and what shows: occupancy, `FullOutfit` suppression, `HidesSlots`, body regions by layer, loadouts |
 | `json.lua` | A JSON decoder for packs: comments, trailing commas, a BOM, `\u` escapes. It never raises |
 | `manifest.lua` | Reads and checks a `*.stellarcloset.json` pack |
@@ -41,5 +41,6 @@ on the ghost only when `link.mod_assets()` lists it. The native scan (`native/sr
 
 - `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.
 - `tests/lua/closet/closet_test.lua` checks `coop closet`.
-- `tests/lua/closet/resolver_test.lua` (23 checks), `manifest_test.lua` (12) and `cns_import_test.lua` (15) run their
-  named checks through `tests/lua/closet/run.lua`, with the assertions of `tests/lua/closet/helpers.lua`.
+- `tests/lua/closet/slots_test.lua` (7 checks), `resolver_test.lua` (23), `manifest_test.lua` (13) and
+  `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`, with the assertions of
+  `tests/lua/closet/helpers.lua`.
