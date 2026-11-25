@@ -2,7 +2,9 @@
 
 The player's side is in [Features](../features.md#features), the `daynight` setting in
 [Settings](../players/settings.md#coop-settingstxt) and `coop daynight` in [Keys and commands](../usage.md#console-commands). The
-cycle is not tested in game yet. Every address and offset below is build 26123051's, read in Ghidra.
+cycle ran in game on 2026-11-18 on v0.11.0-277-gd9bb23bf. That build switched to SB's light in talk scenes and at choice
+boxes. Keeping the cycle's light through talks, cutscenes, menus and choice boxes came after that build. So did the 2 s
+glides. Neither has run in game yet. Every address and offset below is build 26123051's, read in Ghidra.
 
 The code:
 
@@ -279,7 +281,10 @@ streamed is looked up once, as before. Every 2 s while the sky is ours (at once 
 streaming level's `IsLevelVisible` is read again: a sublevel that came gets its dome looked up (a hit) and hidden, one
 that went drops its dome; a dome that died while its sublevel still shows (out and in between two reads) is looked up
 again. Then the SkyCreators are listed again, so those of `_02` and `_05` get our time. The row's `levels` names
-`_05`, which has a SkyCreator and no dome. One log line says what moved and the time it took.
+`_05`, which has a SkyCreator and no dome. One log line says what moved and the time it took. A streaming level that is
+no longer valid is never read: an access violation inside the call is not caught by `pcall`. That level is dropped with
+one line (`daynight: the sublevel of <dome> is unreadable: it is gone; looked up once`), as is one whose read raises.
+Its dome gets one lookup.
 
 An off puts SB's look back: the domes shown, each SkyCreator's own time, the star layer hidden, Xion's two domes as SB
 ships them (except during its story night, which SB owns), the engine maps' lights and bias as the world had them. A
