@@ -21,8 +21,9 @@
 -- the push, plus LIFT. So a ramp or rubble before a door does not put her into the floor.
 -- The watch: after a move she must read walking LOW to HIGH cm over the floor she was put on. Some rooms stand on a
 -- floor of their own that has not run in game. Under LOW over that floor, or not standing after SETTLE passes, she
--- is put back where she pushed, under a black that is up at once. One log line says so and that door does nothing
--- more until the next arrival. A move the engine refuses ends the same way.
+-- is put back where she pushed, under a black that is up at once. One log line says so and that door's way in does
+-- nothing more until the next arrival. A move the engine refuses ends the same way. The way out never dies: after a
+-- way out that fails she is back inside and the next push on the inner door tries again, so a room cannot hold her.
 -- Locked and opened: a door starts locked. The first push opens it for good: one log line and its name in the door
 -- file (the store, coop-xion-doors.txt in the mod folder, which tools/install.py keeps like every coop-*.txt). Each
 -- arrival reads the file. A row may carry a requirement: may(name) asks o.met for it and a locked door whose
@@ -79,8 +80,8 @@ local function before(room,way,m)
     if front<-(p.passage or 0) or front>2*T.REACH or math.abs(u)>p.half then return nil end
     return front,turn(m.yaw,room.yaw+(way=='in' and 0 or 180)),h
 end
--- The door EVE pushes on this pass, of the rooms given less those of skip (by name): the room, 'in' or 'out' and how
--- high over that door's floor she reads. With no push, nil three times and then the door she fails to push, if
+-- The door EVE pushes on this pass, of the rooms given less the ways in of skip (by name): the room, 'in' or 'out'
+-- and how high over that door's floor she reads. With no push, nil three times and then the door she fails to push, if
 -- any: {room=, way=, front=, off=, h=}, close to it or turned toward it, no more than 100 cm off its height band.
 local WAYS={'in','out'}
 local function pushed(rooms,skip,m)
@@ -88,7 +89,7 @@ local function pushed(rooms,skip,m)
     for _,room in ipairs(rooms) do
         for _,way in ipairs(WAYS) do
             local front,off,h=before(room,way,m)
-            if front and not skip[room.name] then
+            if front and not (way=='in' and skip[room.name]) then
                 local far,turned=front>T.REACH,off>T.TURN
                 if not far and not turned and h>=T.LOW and h<=T.HIGH then return room,way,h end
                 if not (far and turned) and h>=T.LOW-100 and h<=T.HIGH+100 then
@@ -111,7 +112,7 @@ function Threshold.new(o)
     local on,off=true,nil -- coop xion rooms on or off. off: the error that turned the part off until the next arrival.
     local held={} -- The rooms the pak holds, in the list's order.
     local opened={} -- By name: the doors opened for good, from the door file and from this Lua load.
-    local dead,said={},{} -- Of the stay, by name: a door that does nothing more; its requirement was said.
+    local dead,said={},{} -- Of the stay, by name: a door whose way in does nothing more; its requirement was said.
     local shut={} -- Of the stay, by name: its level was said not to be there.
     local told,idling={},nil -- Of the stay: a push that fails, said by room and way; the one counted: {key=, n=}.
     local push=nil -- The push being counted: {room=, way=, n=}.
@@ -160,7 +161,11 @@ function Threshold.new(o)
         return false,'its level '..room.level..' is not on the streaming list'
     end
     local function floor_of(way) return way=='in' and 'the room floor' or 'the street' end
-    local function ended(room) dead[room.name]=true; return '; this door does nothing more until the next arrival' end
+    local function ended(room,way)
+        if way=='out' then return '; the way out stays open' end
+        dead[room.name]=true
+        return '; this door does nothing more until the next arrival'
+    end
     -- A push is whole: the move is asked, unless the room's level is not there or the door is locked and may not be
     -- opened.
     local function start(room,way,m,h)
@@ -195,7 +200,7 @@ function Threshold.new(o)
         local yaw=facing(l.room.yaw+(l.way=='in' and 0 or 180))
         if world.put({X=to.X,Y=to.Y,Z=to.Z+l.h+D.LIFT},yaw)==false then
             log(string.format('threshold: %s %s: the move to %s was refused by K2_TeleportTo%s',l.room.name,l.way,
-                place(to),ended(l.room)))
+                place(to),ended(l.room,l.way)))
             return
         end
         log(string.format('threshold: %s %s: EVE at %s, yaw %.1f',l.room.name,l.way,place(to),yaw))
@@ -222,7 +227,7 @@ function Threshold.new(o)
                 or string.format('does not stand on %s after %d passes, at %s in mode %s',floor_of(w.way),w.passes,
                     place(m.at),tostring(m.mode)),
             back and 'back at '..place(w.from.at)..' where she pushed'
-                or 'the move back to '..place(w.from.at)..' was refused by K2_TeleportTo',ended(w.room)))
+                or 'the move back to '..place(w.from.at)..' was refused by K2_TeleportTo',ended(w.room,w.way)))
     end
     -- A pass with no push. near: the door she fails to push (pushed()'s fourth value), said once after IDLE passes.
     local function idle(near,m)

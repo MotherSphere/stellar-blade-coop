@@ -704,6 +704,7 @@ Nothing is ticked after `coop off`. An error in a pass turns the doors off until
 | `sboxion: threshold: <room> in: EVE does not stand on the room floor after 32 passes, at (x, y, z) in mode m: back at (x, y, z) where she pushed; this door does nothing more until the next arrival` | 8 s without a walking read 40 to 160 cm over the room floor |
 | `... the move back to (x, y, z) was refused by K2_TeleportTo; this door does nothing more until the next arrival` | The end of the two lines above when the engine refused the put-back |
 | `sboxion: threshold: <room> in: the move to (x, y, z) was refused by K2_TeleportTo; this door does nothing more until the next arrival` | The engine refused the move. EVE stays where she is |
+| `sboxion: threshold: <room> out: ...; the way out stays open` | The end of the four lines above for a way out that failed. EVE is back inside. The next push on the inner door tries again, so a room cannot hold her |
 | `sboxion: threshold: <room> stays locked: its requirement <name> is not met` | A locked door with a requirement, once a stay |
 | `sboxion: threshold: <room> stays shut: its level <level> reads loaded l visible v` | A push on the street door of a room whose level is not loaded and visible, once a stay. `is not on the streaming list` when the map does not list it. `the levels did not read (<why>)` when the read raised |
 | `sboxion: threshold: the door file did not read (<why>): no door is opened from it` | `coop-xion-doors.txt` raised an error at an arrival |
@@ -1073,8 +1074,9 @@ underground and 47 of the 50 level-design sublevels.
 - `rooms/threshold_test.lua`: the pak cases (every room, none, one, a gate that raises), the push with each of its
   limits tried 1 cm or 1 degree on both sides, both ways, a push that fails said once a door and way a stay and
   what says nothing, the black before the move, the height kept, the watch
-  with a late landing, a fall, a floor far below or above, 32 passes without standing and a refused move, the door that
-  does nothing more for the stay, the first push that opens a door and writes the file, a new Lua load that reads
+  with a late landing, a fall, a floor far below or above, 32 passes without standing and a refused move, the door
+  whose way in does nothing more for the stay while its way out still answers, the first push that opens a door
+  and writes the file, a new Lua load that reads
   it, a file that cannot be written or read, a requirement not met and met, a room level that is not loaded, not
   visible, off the streaming list or unread, busy passes, off and on, an arrival that drops a move, an error in a
   pass.

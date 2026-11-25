@@ -402,9 +402,7 @@ assert(#logs==lines+1 and logs[#logs]==string.format('threshold: %s in: EVE fell
     ..'arrival',A.name,fell.X,fell.Y,fell.Z,pushed.X,pushed.Y,pushed.Z),logs[#logs])
 assert(not door.busy())
 street(A)
-assert(not pushes(10),'That door does nothing more for this stay')
-inner(A)
-assert(not pushes(10),'Neither way')
+assert(not pushes(10),'Its way in does nothing more for this stay')
 street(B)
 assert(pushes(),'Another door goes on')
 door.arrive()
@@ -453,6 +451,24 @@ eve.Z=eve.Z-200
 pass()
 assert(#puts==2 and puts[2].at.X==pushed.X and puts[2].at.Y==pushed.Y
     and logged('threshold: '..A.name..' out: EVE fell under the street to'),logs[#logs])
+-- A way out that fails stays open, so a room cannot hold her: the next push on the inner door asks a move again.
+assert(logs[#logs]:find('where she pushed; the way out stays open',1,true),logs[#logs])
+lands=1
+inner(A)
+assert(pushes(),'The way out answers again after a failed move')
+-- A door whose way in died keeps its way out.
+again()
+lands=3
+street(A)
+pass(5)
+eve.Z=eve.Z-300
+pass()
+assert(logged('in: EVE fell under the room floor') and logged('this door does nothing more until the next arrival'))
+lands=1
+street(A)
+assert(not pushes(10),'The way in is dead')
+inner(A)
+assert(pushes(),'The way out of a door whose way in died')
 -- A move back that the engine refuses is said in the same line.
 again()
 lands=3
