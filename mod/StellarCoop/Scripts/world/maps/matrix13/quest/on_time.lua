@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Lily's signal (experimental; in game on 2026-11-18, build v0.11.0-277-gd9bb23bf, its rows and words went in at the
--- title, the prologue talk played and On Time started; its later steps have no recorded run): on a co-op save, solo,
+-- title, the prologue talk played, On Time started, the travel arrived in Matrix XIII and the arrival talk started;
+-- no record shows a step of M01 to M06 done or the end talk): on a co-op save, solo,
 -- with the zMXIII_P test pak, in Phase 5 (from "Talk to Lily to decide on the next destination" until "Leave for the
 -- Nest", Quest_Epic_11 M04), the mod's prologue "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164) starts by itself
 -- and tracks Lily at every Tetrapod; Lily's choice list then offers one more line, "The other signal", above her

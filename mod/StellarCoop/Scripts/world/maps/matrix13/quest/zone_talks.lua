@@ -2,8 +2,9 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The zone talks of Matrix XIII (world/maps/matrix13/talks/zone1.lua to zone4.lua) in game (experimental; scenes 1A to
--- 1D played to their end in game on 2026-11-03, build v0.7.5-110-g5e18200; the other scenes have no recorded run in
--- SB's subtitle box): on a co-op save, solo, in world 2800 with "On Time" in progress
+-- 1D played to their end in game on 2026-11-03, build v0.7.5-110-g5e18200, in SB's box or the kit: the record does not
+-- tell which; on 2026-11-18, build v0.11.0-277-gd9bb23bf, seven talks followed the arrival talk through SB's sequence,
+-- scene 1E among them, the others not known): on a co-op save, solo, in world 2800 with "On Time" in progress
 -- (world/maps/matrix13/quest/on_time.lua's look calls tick). Each scene has one trigger: a box around its room in the
 -- plan frame (Lily.plan; the design plans' rooms, markers and routes), a boss's death
 -- (world/maps/matrix13/level/boss.lua's Boss.dead), an env actor's state (GetStateTagname: the water row 001 that pipe
