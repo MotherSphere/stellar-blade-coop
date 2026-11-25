@@ -153,11 +153,13 @@ end
 -- revived(): tells SB's death screen that its revival animation ended, the event SB's own revival closes it with.
 -- The in-place respawn above plays no such animation, so the dead HUD kept its hold on the mouse cursor: after a
 -- respawn in SBO Xion the cursor stayed free in play (25 November 2026). SBUserWidget::NotifyBlueprint (exec
--- 0x1427e3920) reads one FString and hands it to 0x142537100, which queues it for the widget's logic. The dead HUD's
--- handler 0x141e46350 compares it with six names. For FinishComaRevivalAnimation (0x146f4d628) it calls the widget's
--- release 0x142538e50, then sets its own state (+0xb0) to 0 through 0x141e46b70. The release gives back the cursor
--- count the widget holds (+0x5bc, taken only with bUseShowMouseCursor +0x5a1). It does nothing on a widget that
--- holds none. true when the widget was told, nil with no widget. Read on build 26123051. It has not run in game.
+-- 0x1427e3920) reads one FString and hands it to 0x142537100. That first offers it to the widget's blueprint
+-- (ConsumeNotifyBlueprint, FName at 0x146f825b8). If the blueprint does not consume it, the event is queued for the
+-- widget's logic. The dead HUD's handler 0x141e46350 compares it with six names. For FinishComaRevivalAnimation
+-- (0x146f4d628) it calls the widget's release 0x142538e50, then sets its own state (+0xb0) to 0 through 0x141e46b70.
+-- The release acts only while the widget holds the cursor (flags +0x5a1 and +0x5bc set) and clears +0x5bc. true when
+-- the call was made, nil with no widget. Read on build 26123051. It has not run in game: what the blueprint does
+-- with the event is not readable in Ghidra.
 local REVIVED='FinishComaRevivalAnimation'
 function Engine.revived()
     if Engine.screen(true)==nil then return nil end
