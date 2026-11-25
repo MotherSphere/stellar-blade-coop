@@ -942,7 +942,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   cases of `online/modes/scoreattack/run_test` for the module's copy: each reason the respawn waits for is logged
   once, one call with her GUID, the result line 2 s later, the death screen hidden over a living EVE and shown again
   at a new death (in the modes `off` and `death` too), at a stop and when two failures stop the recovery, no call in
-  10 s given up. The module's own cases: the call after 5 s with no death screen, the put-back when the respawn leaves
+  10 s given up. The death screen is told once that its revival ended when she lives and never while she is dead. No
+  widget and a call that raises each change one log line and not the result. The module's own cases: the call after 5 s with no death screen, the put-back when the respawn leaves
   her off the ground (in the mode `death` too, never while a guard waits), life still 3 after the call as a failure
   that starts the death again, a death left from the mode `off`, one read during a wait and one on a world time that
   stands still, a life back at 1 before the call (one line, then the next fall is caught), no call without a `warp=`
@@ -959,7 +960,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   yaw, movement mode, world time and address from one EVE with each read made once; `put` teleports then stops her
   movement, with no stop call after a refusal; the respawn's controller, standalone test and request with the GUID
   and `false`; the death screen looked for only on request, read playing or not, hidden and shown again as it was
-  (visibility 4, not 0), a dead widget left as it is. For SB's black, the module's copy of the lobby's call: one
+  (visibility 4, not 0), a dead widget left as it is; the widget told once that its revival ended, by the event name
+  SB's dead HUD compares, a dead widget looked for again and not told. For SB's black, the module's copy of the lobby's call: one
   `LoadingScreenFadeAuto` call with the time the black stands, a fade-in from 0 to 1, a fade-out from 1 to 0 and
   tag 0; a fade-in of 0 s goes from 1 to 1; `true` for a GUID that is not zero, `false` for a zero GUID, `nil` for
   one that does not read; a raise of the call reaches the caller. No wall call is left. For a piece of a room's

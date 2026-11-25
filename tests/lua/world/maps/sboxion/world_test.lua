@@ -173,6 +173,8 @@ world.controller=function() return PC end
 world.standalone=function() return true end
 world.screen=function() return true end
 world.hide=function() screen_shown=false; return function() screen_shown=true end end
+local tolds=0 -- Each time SB's death screen is told its revival ended.
+world.revived=function() tolds=tolds+1; return true end
 local world_gone=false -- A map change destroyed SBO Xion's world.
 -- The rooms' fakes: each piece asked by its row's name, the rows hidden now and the rooms' own store.
 local pieces_asked,rows_hidden,rooms_kept=0,{},nil
@@ -474,6 +476,7 @@ assert(#respawns==1 and respawns[1]==2610 and logged('sboxion: death: life 3, EV
 pass(x,2)
 assert(logged('sboxion: respawn result: life 3/1, death screen up/hidden, EVE pawn same, mode 1') and not screen_shown,
     logs[#logs])
+assert(tolds==1 and logged('sboxion: respawn: death screen told its revival ended'),'The engine call is wired')
 me={at={X=0,Y=0,Z=0},map=SB_XION}
 pass(x,0.25)
 assert(screen_shown and logs[#logs-1]=='sboxion: respawn: death screen shown again (a map change)'

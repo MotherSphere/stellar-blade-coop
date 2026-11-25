@@ -163,7 +163,8 @@ While the `sboxionwarp=` line of `coop-status.txt` reads `life=3`, `4` or `5`, t
 place: `ServerRequest_ActorRespawn(<EVE's GUID>, false)`. The job's code has no test for a zone of type 5. It sets
 her life state to alive, sets her HP to its maximum and refills her recovery items. With `false` it does not move her
 to a camp. The module waits until the death screen plays, 5 s at most, then makes the call once. Two seconds later
-it logs the result and hides a death screen that still plays. If EVE is then not walking, or is under -3275, the
+it logs the result. If EVE lives it tells SB's death screen that its revival ended, so SB gives back the mouse cursor
+the screen holds. It then hides a death screen that still plays. If EVE is not walking, or is under -3275, the
 put-back of a fall runs, with the same black and the move two passes later.
 
 The native part writes the `life=` word from an accepted `coop xion` until an accepted `coop xion leave`. Leaving by
@@ -178,10 +179,18 @@ Nothing is saved. The items are refilled in memory and SB's in-game save queues 
 ([Saves](#saves)).
 
 The respawn ran in game for the first time on 25 November 2026, after EVE died in the Tetrapod. It brought her back:
-life 3 to 1, the same pawn, walking, the death screen off by itself. Two faults followed and are not fixed. The mouse
-cursor stayed free during play. Esc pressed 25 s later paused the game for 0.7 s, then the game crashed inside UE4SS:
-a Lua call of a game function on an object that was gone (`UObject::ProcessEvent` under
-`call_ufunction_from_lua`). Which script made the call is not known.
+life 3 to 1, the same pawn, walking, the death screen off by itself. The mouse cursor then stayed free during play.
+SB's death screen takes the cursor when it opens. It gives it back when its logic gets the event that ends its fade
+or its revival animation. The in-place respawn plays neither, so the screen kept the cursor.
+
+Since then the module calls `NotifyBlueprint("FinishComaRevivalAnimation")` on the death screen's widget once the
+result reads alive. That is the event SB's own revival ends with. SB's handler for it gives the cursor back and sets
+the screen's logic to its idle state. A screen that holds no cursor loses nothing. The log says
+`respawn: death screen told its revival ended`, or why it was not told: no widget, or the error of the call. The
+call has not run in game.
+
+In that same run, Esc pressed 25 s later crashed the game inside UE4SS. That call did not come from this module. It
+came from a test build of the pause menu's Online page, which took the shown cursor for a paused game.
 
 ### When it waits and when it stops
 

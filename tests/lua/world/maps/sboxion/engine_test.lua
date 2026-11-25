@@ -9,7 +9,8 @@
 -- the recovery's calls (world/maps/sboxion/recover.lua): move gives EVE's place, yaw, movement mode, world time and
 -- address from one EVE with each read made once, nil with no EVE; put teleports then stops her movement, with no stop
 -- call after a refusal; the respawn's controller, standalone test and call; the death screen found once, read
--- playing or not, hidden and shown again as it was (4, not 0), a dead widget left as it is. SB's black, with the call
+-- playing or not, hidden and shown again as it was (4, not 0), a dead widget left as it is; the widget told once that
+-- its revival ended, by SB's event name, a dead widget looked for again and not told. SB's black, with the call
 -- case of tests/lua/online/lobby/wiring_test.lua and the raise of tests/lua/online/lobby/arrival_test.lua for this
 -- module's copy: one LoadingScreenFadeAuto call with the hold, the fade-in from 0 to 1, the fade-out from 1 to 0 and
 -- tag 0; with a fade-in of 0 the start block is 0 s from 1 to 1; true for a GUID that is not zero, false for a zero
@@ -181,8 +182,13 @@ local show=Engine.hide()
 assert(visibility==2 and type(show)=='function','Hidden: ESlateVisibility 2')
 show()
 assert(visibility==4,'Shown as it was')
+-- revived: the kept widget is told the event SB's revival animation ends with, by the name SB's dead HUD compares.
+local notes={}
+dead.NotifyBlueprint=function(_,name) notes[#notes+1]=name end
+assert(Engine.revived()==true and #notes==1 and notes[1]=='FinishComaRevivalAnimation' and looks==1,notes[1])
 dead.dead=true
 assert(Engine.screen(false)==nil and Engine.screen(true)==nil and looks==2,'A dead widget is looked for again')
+assert(Engine.revived()==nil and looks==3 and #notes==1,'A dead widget is looked for again and not told')
 visibility=2
 show()
 assert(visibility==2,'A dead widget is not touched')
