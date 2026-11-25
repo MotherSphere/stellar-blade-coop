@@ -35,8 +35,8 @@ assert(sb.x<T.HATCH.lo.x,"SB's own point inside is not in the hatch box")
 local IN=Tetrapod.world(T.IN)
 assert(near(IN.X,16637.5,0.5) and near(IN.Y,-24557.9,0.5) and near(IN.Z,-1865.2,0.1),
     string.format('%.1f %.1f %.1f',IN.X,IN.Y,IN.Z))
-assert(T.OUT.Y<T.DOOR.lo.Y-1000,"SB's point outside is more than 10 m in front of the door box")
-assert(T.DOOR.hi.X-T.DOOR.lo.X==244 and T.DOOR.hi.Y-T.DOOR.lo.Y==229)
+assert(T.OUT.Y<T.DOOR.lo.Y-900,"SB's point outside is more than 9 m in front of the door box")
+assert(T.DOOR.hi.X-T.DOOR.lo.X==344 and T.DOOR.hi.Y-T.DOOR.lo.Y==441 and T.DOOR.lo.Z==150)
 
 local logs,puts,blacks,order={},{},{},{}
 local eve,refuse,black_error,broken=nil,false,nil,nil
@@ -75,7 +75,8 @@ end
 local door=Tetrapod.new({log=function(m) logs[#logs+1]=m end,world=world})
 local function pass(n,busy) for _=1,n or 1 do door.tick(busy) end end
 local DOOR={X=-13265,Y=19600,Z=347} -- In the doorway of the Tetrapod of the hangar.
-local STEPS={X=-13265,Y=19400,Z=200} -- On the steps, short of the box.
+local STEPS={X=-13265,Y=19200,Z=120} -- On the lower steps, short of the box.
+local STOOD={X=-13156,Y=19351,Z=250} -- Where EVE stood on the steps in the first game test.
 local HATCH=Tetrapod.world({x=400,y=397,z=340}) -- At the ship's right door, inside.
 local CABIN=Tetrapod.world({x=0,y=0,z=340})
 local function fresh()
@@ -92,7 +93,11 @@ assert(#puts==0 and #blacks==0)
 -- The way in.
 eve=STEPS
 pass(5)
-assert(#blacks==0,'the steps are not the doorway')
+assert(#blacks==0,'the lower steps are not the doorway')
+eve=STOOD
+pass(2)
+assert(#blacks==1,'the top of the steps, where she stood in the first game test, is')
+fresh()
 eve=DOOR
 pass()
 assert(#blacks==0 and #puts==0,'one pass in the doorway moves nothing')
