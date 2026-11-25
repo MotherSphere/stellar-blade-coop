@@ -130,8 +130,10 @@ D.BLACK_IN,D.BLACK,D.BLACK_OUT,D.LEAD=0.3,1,0.5,2
 -- game test (25 November 2026) EVE stood on the steps at (-13156, 19351, 250), 2.2 m short of it. The box reaches
 -- 20 cm past that place: 50 cm wider each side, from Y 19330 and Z 150, 50 cm over the fog.
 -- IN: where EVE arrives inside, in the ship frame: 2.3 m inside the right door (Door/001_B_SM, part 001_B_SM2, x 468
--- to 524, y 316 to 478), the door with a step (Floor/001_F_SM, part 001_F_SM4), at the height of SB's own point,
--- turned yaw degrees from the ship's x: 180 faces the cabin.
+-- to 524, y 316 to 478), the door with a step (Floor/001_F_SM, part 001_F_SM4), turned yaw degrees from the ship's
+-- x: 180 faces the cabin. Its height: in the second game test (25 November 2026) EVE stood on that floor at z 352.
+-- Put at SB's own point she was 10 cm in the floor and the engine pushed her up and aside. z 345 plus LIFT is 3 cm
+-- over where she stood.
 -- HATCH: the box in front of that door, in the ship frame. It starts 1.2 m from IN.
 -- OUT: SB's own point in front of the Tetrapod of the hangar, Xion_Camp_10 (SBSpawnPoint_Xion_Camp_10 of
 -- E04_LD_Respawn), the target of SB's warp rows Xion_10_E_ZoneWarp_019, 020 and 024. It lies 11.9 m from the doorway
@@ -145,7 +147,7 @@ D.TETRAPOD={
     SHIP={X=16770.477,Y=-25002.33,Z=-2196.6687,Yaw=47.811634},
     CABIN={lo={x=-727,y=-915,z=-7},hi={x=727,y=1318,z=831}},
     DOOR={lo={X=-13437,Y=19330,Z=150},hi={X=-13093,Y=19771,Z=657}},
-    IN={x=240,y=397,z=331.5,yaw=180},
+    IN={x=240,y=397,z=345,yaw=180},
     HATCH={lo={x=360,y=300,z=150},hi={x=600,y=494,z=650}},
     OUT={X=-13413.319,Y=18382.996,Z=82.0,Yaw=-87.18756},
     STAY=2,HOLD=8,DROP=60,AGAIN=6,SETTLE=32,

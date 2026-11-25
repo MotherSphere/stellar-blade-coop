@@ -370,26 +370,38 @@ rubble.GetFullName=function() return 'HierarchicalInstancedStaticMeshComponent /
 assert(Engine.piece_back(dp)==false and Engine.piece_back(rp)==false and #door.calls+#rubble.calls==calls)
 assert(rubble.instances[2][8]==0,'Left as it was')
 
--- ship: SB's Tetrapod interior made solid and put back. Each living static mesh part of the actor gets every
--- channel blocked and query and physics collision; false writes what SB ships; a dead part is not called; with no
--- actor in memory (its level is not loaded) nothing is written and the answer is nil.
+-- ship: SB's Tetrapod interior made solid and put back. Each living static mesh part of the actor gets SB's own
+-- collision profile BlockAll, by a name the game has made, with its overlaps updated; false gives NoCollision, the
+-- profile SB ships it with; a dead part is not called; a part that keeps another profile is not counted; a profile
+-- name the game has not made raises before any write; with no actor in memory (its level is not loaded) nothing is
+-- written and the answer is nil.
 local SHIP=BG..'E04_Area05_B_LD.E04_Area05_B_LD:PersistentLevel.BP_Env_TetraPod3_2'
-local function part()
-    local p=object({calls={}})
-    p.SetCollisionResponseToAllChannels=function(self,r) self.calls[#self.calls+1]='response '..r end
-    p.SetCollisionEnabled=function(self,e) self.calls[#self.calls+1]='enabled '..e end
+local function part(stuck)
+    local p=object({calls={},profile='NoCollision'})
+    p.SetCollisionProfileName=function(self,name,overlaps)
+        self.calls[#self.calls+1]=name:ToString()..' '..tostring(overlaps)
+        if not stuck then self.profile=name:ToString() end
+    end
+    p.GetCollisionProfileName=function(self) return fname(self.profile,1) end
     return p
 end
-local floor,wall,gone=part(),part(),part()
+local floor,wall,gone,odd=part(),part(),part(),part(true)
 gone.dead=true
 local asked_class
-statics[SHIP]=object({K2_GetComponentsByClass=function(_,class) asked_class=class.path; return {floor,wall,gone} end})
+statics[SHIP]=object({K2_GetComponentsByClass=function(_,class)
+    asked_class=class.path
+    return {floor,wall,gone,odd}
+end})
+made.BlockAll,made.NoCollision=77,78
 assert(Engine.ship(true)==2 and asked_class=='/Script/Engine.StaticMeshComponent',tostring(asked_class))
-assert(table.concat(floor.calls,', ')=='response 2, enabled 3' and table.concat(wall.calls,', ')=='response 2, '
-    ..'enabled 3' and #gone.calls==0,table.concat(floor.calls,', '))
-assert(Engine.ship(false)==2 and floor.calls[3]=='response 0' and floor.calls[4]=='enabled 0','As SB ships it')
+assert(table.concat(floor.calls,', ')=='BlockAll true' and table.concat(wall.calls,', ')=='BlockAll true'
+    and #gone.calls==0 and #odd.calls==1,table.concat(floor.calls,', '))
+assert(Engine.ship(false)==3 and floor.calls[2]=='NoCollision true' and floor.profile=='NoCollision','As SB ships it')
+made.BlockAll=nil
+assert(not pcall(Engine.ship,true) and #floor.calls==2,'No such profile name in this game: nothing written')
+made.BlockAll=77
 statics[SHIP]=object({dead=true})
-assert(Engine.ship(true)==nil and #floor.calls==4,'No actor in memory: nothing written')
+assert(Engine.ship(true)==nil and #floor.calls==2,'No actor in memory: nothing written')
 statics[SHIP]=nil
 
 -- No EVE: move gives nil, put raises.

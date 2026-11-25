@@ -204,20 +204,28 @@ local function placed(c,index,n,by)
 end
 -- SB's Tetrapod interior (tetrapod.lua): the actor BP_Env_TetraPod3_2 of E04_Area05_B_LD. Its blueprint
 -- (/Game/Art/Character/ETC/TETRAPOD/Blueprints/BP_Env_TetraPod3) gives each of its 124 static mesh parts the
--- collision profile NoCollision: no collision and every channel ignored, so EVE falls through its floor. The meshes
--- themselves carry collision shapes. solid true: each part blocks every channel (ECR_Block) with query and physics
--- collision (QueryAndPhysics). solid false: back to what SB ships (ECR_Ignore, NoCollision). Returns the number of
--- parts written, or nil when the actor is not in memory (its level is not loaded yet).
+-- collision profile NoCollision, so EVE falls through its floor. The meshes themselves carry collision shapes and
+-- name BlockAll as their own profile. solid true: each part gets SB's BlockAll (SetCollisionProfileName). solid
+-- false: NoCollision again, as SB ships it. Both names are found, never made.
+-- The profile, not a response written to every channel: SB's DefaultEngine.ini (build 26123051) leaves BlockAll at
+-- each custom channel's own default, which is Ignore for Water, Volume, LogicCollision, FluidTrace, SoundOcclusion and
+-- CameraAnim and Overlap for Projectile. With all 32 channels set to Block (the first fix of 25 November 2026) EVE
+-- died the moment she stood in the ship.
+-- Returns the number of parts that read the profile back, or nil when the actor is not in memory (its level is not
+-- loaded yet). Raises when the game has no such profile name.
 local SHIP=E04..'E04_Area05_B_LD.E04_Area05_B_LD:PersistentLevel.BP_Env_TetraPod3_2'
 function Engine.ship(solid)
     local a=U.valid(StaticFindObject(SHIP))
     if not a then return nil end
+    local want=solid and 'BlockAll' or 'NoCollision'
+    local name=U.value_of(FName(want,EFindName.FNAME_Find))
+    local index=name:GetComparisonIndex()
+    assert(index and index~=0 and U.text(name)==want,'no collision profile '..want..' in this game')
     local n=0
     U.each(a:K2_GetComponentsByClass(U.find(SOLID)),function(_,c)
         if not U.valid(c) then return end
-        c:SetCollisionResponseToAllChannels(solid and 2 or 0)
-        c:SetCollisionEnabled(solid and 3 or 0)
-        n=n+1
+        c:SetCollisionProfileName(name,true)
+        if U.text(c:GetCollisionProfileName())==want then n=n+1 end
     end)
     return n
 end
