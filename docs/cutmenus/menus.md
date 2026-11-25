@@ -255,7 +255,7 @@ These cases can still lose or double a gift:
 - The game or the mod stops (a crash, a Lua reload) after the remove and before the gift's entry in your file, which
   can take up to the 10 s of play above plus 5 s for a read. The items are gone and nothing is sent: the log has a
   `remove asked` line with no `sent` line after it. `coop off` in that wait sends nothing either. It writes the items
-  into your mailbox file as coming back, and they return the next time the game starts on that co-op save. The log
+  into your mailbox file as coming back. They return the next time the game starts on that co-op save. The log
   says `send stopped by coop off after the remove: PulseGrenade x2 come back at the next game start`.
 - The count does not fall by the gift's in those 10 s, because the game ran the remove later still or because an item
   you picked up meanwhile hid the drop. Nothing is sent. The notice says

@@ -438,7 +438,7 @@ function Mailbox.new(o)
     end
     -- coop off: the toast goes. A send between its remove and its entry in the file stops here. Its items go into the
     -- file as a back entry, which settle() gives back at the next game start on this co-op save: nothing ticks after
-    -- coop off, and the remove may still wait for SB's logic.
+    -- coop off. The remove may also still wait for SB's logic.
     -- ponytail: a send stopped by a Lua reload in that wait (SETTLE s of play at most) loses its items; an entry
     -- written before the remove is the upgrade.
     function self.stop()
