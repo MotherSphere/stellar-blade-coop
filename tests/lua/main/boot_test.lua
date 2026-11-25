@@ -43,6 +43,10 @@
 dofile('tests/lua/main/fixture.lua')
 load_main(true)
 assert(last()=='[StellarCoop] Loaded version v9-test. '..USAGE..'\n',last())
+-- coop guide, coop teamshop and coop spectate are player commands (docs/usage.md): in the usage line.
+for _,words in ipairs({' | guide | ',' | teamshop | ',' | spectate on|off|status|test | '}) do
+    assert(last():find(words,1,true),'The usage line names'..words)
+end
 assert(withdrawn[1]=='components' and withdrawn[2]=='display','A new load withdraws what an older one published')
 -- Keys (N5): the callback runs on UE4SS's key thread, so it only queues the action for the game thread.
 assert(logged('keys: menu=F5 host=none status=F6 leave=F8 race=F9, name tag on, 60 poses a second'),

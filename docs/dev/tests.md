@@ -621,6 +621,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   frame), `sbo.active` (before and after `coop off`), `group.photo`, `group.cut`, `booth.near`, `hud.marking`,
   `photo_pause` and `puppet.rebuild` each raise in two runs of their loop: no error leaves the loop and one line is
   logged under the module's name;
+- `main/boot_test` checks that the usage line names `coop guide`, `coop teamshop` and `coop spectate`, which
+  `docs/usage.md` lists as player commands;
 - `main/loader_test` covers `main/loader.lua` alone with fake modules: every export the stub before any `new` runs (also
   the exports of a module whose require raises, read from its `wiring.lua`), the modules in list order, an on module's
   exports as its `new` left them, its words in `M.commands` (a word defined twice raises), a require, a `new` or a build
