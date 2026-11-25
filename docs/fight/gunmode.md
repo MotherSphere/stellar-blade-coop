@@ -177,8 +177,10 @@ LMB / RT without the aim button is hip fire. On the rifle layer the rifle comes 
 camera through her own movement. Gun mode fires the NIKKE shot itself once the rifle points within 10 degrees of the
 reticle point. Without the layer hip fire fires nothing.
 
-In firing mode the laser sight runs from the rifle's muzzle to the reticle point. The rifle turns in her hands onto
-that line every frame, up to 6 degrees. The beam hangs from the muzzle socket through a component of its own, so a
+In firing mode the laser sight runs from the rifle's muzzle to the reticle point. It comes on 0.12 s after the aim
+starts once the barrel points within 25 degrees of that point. When the barrel is further off it comes on 0.6 s after
+the aim starts. With the rifle clips alone the rifle turns in her hands onto that line when it is 6 degrees off or
+less. On the rifle layer her upper body turns to the aim and the rifle is not turned. The beam hangs from the muzzle socket through a component of its own, so a
 partner's game never copies it. The laser shows on your screen only: its end is a value each game keeps for its own
 world, so a copy on another player's screen would point elsewhere. During the double-jump flip the laser and the
 rounds both run along the rifle's bore.

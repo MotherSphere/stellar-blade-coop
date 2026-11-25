@@ -90,7 +90,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   magazine's rounds and tops it up from the spares;
 - `fight/gunmode/aimrot_test`, `ik_pin_test`, `morph_test`, `rifle_frame_test`, `laser_test`, `input_memo_test` and
   `g1_gates_test` cover the chest-turn loop, the v4 left-hand pin, the rifle's arrival and departure timing, the
-  rifle's frame and its morph scale, the laser end sent only when it moved, one key read a frame and the G1 gates;
+  rifle's frame and its morph scale, the laser's start (0.12 s on target, 0.6 s off it, the rifle not turned on the
+  rifle layer), the laser end sent only when it moved, one key read a frame and the G1 gates;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
   layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.

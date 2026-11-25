@@ -33,4 +33,32 @@ assert(sent.Scale3D.X==0.5 and spun.Yaw==90,'morph scale and spin')
 assert(Rifle.GRIP.Scale3D.X==1 and Rifle.GRIPS.aim.Scale3D.X==1,'GRIP not scaled in place')
 r.morph(nil); spun=nil; r.frame()
 assert(sent==Rifle.GRIP and spun==nil,'back to GRIP')
+-- The laser's start: 0.12 s after the aim starts once the barrel is within 25 degrees of the line to the reticle
+-- point, else 0.6 s after it. With the layer (no_turn) the test still runs. The rifle is never turned then.
+local clock=0
+os.clock=function() return clock end
+local mathlib={GetForwardVector=function() return {X=1,Y=0,Z=0} end,Conv_VectorToRotator=function() return {} end,
+    MakeTransform=function() return {} end,InvertTransform=function() return {} end,
+    ComposeTransforms=function() return {Rotation={X=0,Y=0,Z=0,W=1}} end}
+StaticFindObject=function() return mathlib end
+gun.GetSocketLocation=function() return {X=0,Y=0,Z=0} end
+gun.GetSocketRotation=function() return {Pitch=0,Yaw=0,Roll=0} end
+gun.K2_GetComponentToWorld=function() return {Rotation={X=0,Y=0,Z=0,W=1}} end
+local turned=0
+gun.K2_SetWorldTransform=function() turned=turned+1 end
+local function laser_at(deg,no_turn)
+    local on
+    local rl=Rifle.new(function() on=on or clock; return function() end,function() end end,nil)
+    rl.no_turn=no_turn
+    local a=math.rad(deg)
+    clock=0; pc.Pawn=pawn(1)
+    rl.start(pc,function() return true end,function() return {X=1000*math.cos(a),Y=1000*math.sin(a),Z=0} end)
+    for _,t in ipairs({0,0.05,0.13,0.3,0.61}) do clock=t; rl.frame() end
+    rl.stop()
+    return on
+end
+assert(laser_at(3,true)==0.13,'layer: the laser 0.12 s after the aim starts with the barrel 3 degrees off')
+assert(turned==0,'layer: the rifle is not turned')
+assert(laser_at(39,true)==0.61,'layer: the laser after 0.6 s with the barrel 39 degrees off')
+assert(laser_at(3,false)==0.13 and turned>0,'pak: the laser after 0.12 s and the rifle turned onto the line')
 print('gunmode rifle_frame_test ok')

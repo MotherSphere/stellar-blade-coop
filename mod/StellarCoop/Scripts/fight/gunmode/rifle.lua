@@ -106,8 +106,10 @@ function Rifle.new(laser,trace,grip)
             local t=st.target()
             -- the barrel on the line to where the rounds go (the reticle's point): a small turn of the rifle in her hands
             -- (at most 6 degrees; the pak's aim already holds it on the camera's line, this takes up the shoulder offset)
+            -- With the layer (no_turn) the layer turns her upper body: the rifle is not turned, only the on-target test
+            -- runs, until the laser is on.
             local onTarget=false
-            if t and not st.reloading and not self.no_turn then pcall(function()
+            if t and not st.reloading and not (self.no_turn and st.beam) then pcall(function()
                 local fire=FName('FX_Fire')
                 local m=gun:GetSocketLocation(fire)
                 local have=mathlib:GetForwardVector(gun:GetSocketRotation(fire))
@@ -118,7 +120,7 @@ function Rifle.new(laser,trace,grip)
                 local dot=have.X*want.X+have.Y*want.Y+have.Z*want.Z
                 if dot<math.cos(math.rad(25)) then return end
                 onTarget=true
-                if dot>0.99999 or dot<math.cos(math.rad(6)) then return end
+                if self.no_turn or dot>0.99999 or dot<math.cos(math.rad(6)) then return end
                 local one={X=1,Y=1,Z=1}
                 local th=mathlib:MakeTransform({X=0,Y=0,Z=0},mathlib:Conv_VectorToRotator(have),one)
                 local tw=mathlib:MakeTransform({X=0,Y=0,Z=0},mathlib:Conv_VectorToRotator(want),one)
@@ -128,7 +130,8 @@ function Rifle.new(laser,trace,grip)
                 gt.Rotation=r.Rotation
                 gun:K2_SetWorldTransform(gt,false,{},true)
             end) end
-            -- the laser once the rifle is up (the aim blends in over ~0.2 s), then it stays on until aim is let go
+            -- the laser once the rifle is up (the aim blends in over ~0.2 s), then it stays on until aim is let go:
+            -- 0.12 s after the aim starts with the barrel within 25 degrees of the reticle line, 0.6 s after it otherwise
             if st.beam or (onTarget and now-st.aimAt>=0.12) or now-st.aimAt>=0.6 then
                 if not st.beam then st.beam,st.finish=laser(pawn,gun,mathlib); crumb('laser on') end
                 st.beam(t) -- (no target, in the flip: fight/gunmode/laser.lua traces along the barrel)
