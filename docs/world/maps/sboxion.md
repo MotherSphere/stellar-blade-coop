@@ -185,9 +185,12 @@ or its revival animation. The in-place respawn plays neither, so the screen kept
 
 Since then the module calls `NotifyBlueprint("FinishComaRevivalAnimation")` on the death screen's widget once the
 result reads alive. That is the event SB's own revival ends with. SB's handler for it gives the cursor back and sets
-the screen's logic to its idle state. A screen that holds no cursor loses nothing. The log says
-`respawn: death screen told its revival ended`, or why it was not told: no widget, or the error of the call. The
-call has not run in game.
+the screen's logic to its idle state. On a screen that holds no cursor the give-back does nothing. The log says
+`respawn: death screen told its revival ended`, or why it was not told: no widget, or the error of the call.
+
+The call has not run in game. SB first offers the event to the widget's blueprint (`ConsumeNotifyBlueprint`). Its
+handler gets the event only when the blueprint does not consume it. Blueprints are not readable in Ghidra, so the log
+line says that the call was made, not that the cursor came back.
 
 In that same run, Esc pressed 25 s later crashed the game inside UE4SS. That call did not come from this module. It
 came from a test build of the pause menu's Online page, which took the shown cursor for a paused game.
