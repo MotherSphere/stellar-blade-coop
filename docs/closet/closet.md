@@ -85,9 +85,22 @@ widget parts in the kit group `closet_menu`:
 | Key hints | `WB_Common_IndicatorBtnDefault` |
 
 The tab shown is kept until the next Lua load. The first open shows the first tab with a row of pieces. While the menu
-is open it holds the input with the mouse cursor. Back or `coop closet menu` closes it and gives back the look worn
-before. Every close removes every game part first: the game holds EVE still while one of its widgets is up. `coop off`
-closes it without changing the look.
+is open it holds the input with the mouse cursor. E and Q change the tab. Up and down walk the rows. Right or Select on
+a row of pieces goes into its grid. A tile focused for 250 ms is worn on EVE as a live preview. Select wears it at once.
+F (the pad's Y) wears the whole outfit of the focused piece. Each grid starts with a None tile that takes that slot's
+piece off; on the last piece worn EVE shows her own look. On the Full outfit tab, Select or F wears the row's outfit.
+The hints show Wear on a row of pieces and Whole outfit on a Full outfit row.
+
+Back with nothing changed since the open closes the menu and gives back the look worn before. After a change, Back asks
+"Keep this look?" with the game's Yes/No popup. Yes keeps the look: it is saved and survives a reload. No gives back
+the look worn before and closes. Back on the popup stays in the menu. With the keyboard and the pad, Select is Yes and
+F (the pad's Y) is No. `coop closet menu` typed while it is open closes it with the look worn before. A map change,
+photo mode, a cutscene, combat or `coop ui reset` closes it without saving. A `coop closet wear` or `coop closet off`
+typed during a preview closes it and keeps the typed look.
+
+Every close removes every game part first: the game holds EVE still while one of its widgets is up. The game gets its
+input back 150 ms after the close, so the Esc that closed the menu does not open the pause menu. `coop off` closes the
+menu at once. It runs `coop closet off` too: EVE gets her own look back and `coop-closet.txt` is cleared.
 
 ## Online sessions
 
