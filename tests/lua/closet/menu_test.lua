@@ -694,6 +694,33 @@ local tests = {
         all_gone(r)
     end,
 
+    a_raising_dress_tick_still_runs_the_menu_tick = function()
+        -- closet/wiring.lua's frame tick under main/frame.lua's guard (run below as frame.lua runs it: an error is
+        -- logged, the frame goes on).
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring'}) do saved[name] = package.loaded[name] end
+        local runs, errors = {}, {}
+        package.loaded['closet.dress'] = {new = function()
+            return {tick = function() runs[#runs + 1] = 'dress'; error('dress broke') end, stop = function() end}
+        end}
+        package.loaded['closet.ui.probe'] = {new = function()
+            return {tick = function() runs[#runs + 1] = 'probe'; error('probe broke') end, stop = function() end}
+        end}
+        package.loaded['closet.wiring'] = nil
+        local M = {print = function() end}
+        function M.guarded(name, f, ...)
+            local ran, why = pcall(f, ...)
+            if not ran then errors[#errors + 1] = name .. ': ' .. tostring(why) end
+        end
+        require('closet.wiring').new(M)
+        M.closet_menu = {tick = function() runs[#runs + 1] = 'menu' end}
+        M.guarded('closet', M.closet.tick)
+        for name, mod in pairs(saved) do package.loaded[name] = mod end
+        same(runs, {'dress', 'probe', 'menu'}, 'every tick ran')
+        eq(#errors, 2, 'both errors reported: ' .. table.concat(errors, ' | '))
+        ok(errors[1]:find('dress broke', 1, true) and errors[2]:find('probe broke', 1, true), table.concat(errors, ' | '))
+    end,
+
     every_close_path_drops_every_part = function()
         local paths = {
             back = function(r) at(r, 1, 'back') end,

@@ -14,12 +14,17 @@ local print=M.print
 -- goes on again while the game is paused or shows one of its screens (its wardrobe among them).
 M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
     store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end})
--- coop closet probe (closet/ui/probe.lua) and the closet menu: their ticks run each frame after the dress watchdog's.
--- coop off stops them with the dress.
+-- coop closet probe (closet/ui/probe.lua) and the closet menu: their ticks run each frame after the dress watchdog's,
+-- each under main/frame.lua's guard of its own, so one that raises never skips the others (the menu's guards drop the
+-- game's parts that hold EVE still). coop off stops them with the dress.
 local probe=require('closet.ui.probe').new({kit=function() return M.kit end,world=function() return M.hud_shown end,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 local dress_tick,dress_stop=M.closet.tick,M.closet.stop
-M.closet.tick=function() dress_tick(); probe.tick(); if M.closet_menu then M.closet_menu.tick() end end
+M.closet.tick=function()
+    M.guarded('closet',dress_tick)
+    M.guarded('closet probe',probe.tick)
+    if M.closet_menu then M.guarded('closet menu',M.closet_menu.tick) end
+end
 M.closet.stop=function() dress_stop(); probe.stop(); if M.closet_menu then M.closet_menu.stop() end end
 return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,
     menu=function() return M.closet_menu end})
