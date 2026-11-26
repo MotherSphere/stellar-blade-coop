@@ -60,8 +60,8 @@ end
 
 -- Why the rifle cannot come out now, or nil (a6523766). e: EVE (an SBCharacter). On 26123051:
 -- IsAttachedToLevelSequenceWithoutPlayable and IsRunningInteraction are SBCharacter natives (exec 0x142686f40,
--- 0x14268cc20; registered by 0x14cef8000 with its other 233), bEnableInteractionBlock an SBCharacter bool (params
--- 0x145d77b78). The tick's held check reads the same three with the rifle out. No other state keeps the rifle away, as
+-- 0x14268cc20; among the 236 natives 0x14cef8000 registers from 0x145d8a760), bEnableInteractionBlock an SBCharacter
+-- bool (params 0x145d77b78). The tick's held check reads the same three with the rifle out. No other state keeps the rifle away, as
 -- in luke's version: a swim, the photo and selfie modes, SB's movement modes, a hall seat, coop fly and the bike allow
 -- it. IsMoveInputBlock is not read: the game raises it around its own drone aim, gun mode's firing mode (ad9dbe19).
 function GunMode.blocked(e)

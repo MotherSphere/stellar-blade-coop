@@ -112,7 +112,9 @@ function Data.new(g,native,opts)
 
     -- Native fire's shot with no cover animation (Data.SHOT_KEY): the anim key's AnimResourcePath emptied (an FString
     -- at 0x70 of SBShowAnimKey: its property params at 0x145ee01e8 on 26123051). SB's anim key start (0x1424397b0)
-    -- builds the clip's path with 0x142439300, which leaves an empty one empty. Its play on the whole body
+    -- builds the clip's path with 0x142439300, which leaves an empty one empty while the key's bUseCharacterCustomAnim
+    -- (a bool at 0x68, params 0x145ee01b0) is off. With it on, the path comes from the character's CustomAnim entry
+    -- and this emptying stops nothing. Whether SHOT_KEY has it off is in the paks. Its play on the whole body
     -- (0x1420b7800) returns -1 for a path of no characters: no clip plays. Not with gun_upper=nikke, whose test wants
     -- the NIKKE animations. The show is in memory (the keep holds it: fight/gunmode/mode.lua), else loaded now, as the
     -- shot would load it. A failure is logged and the rifle comes out with the cover animation (84f3554b).
