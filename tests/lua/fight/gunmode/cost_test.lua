@@ -70,7 +70,7 @@ local function typed(o) if o then o.type=o.type or function() return 'UObject' e
 local function kept_world()
     local U=require('core.unreal')
     local w=world()
-    local mem={}
+    local mem={[Fake.RIFLE]=w.rifle}
     local cfg=Config.DEFAULTS
     local paths={Fake.BASE,'/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C',cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx}
     for _,c in pairs(Overlay.CLIPS) do paths[#paths+1]=c end
@@ -287,6 +287,34 @@ do
     assert(count(w,'CH_Drone_BP_C')==0,count(w,'CH_Drone_BP_C')..' drone walks after a new map')
     assert(hashed==2 and part2.bHiddenInGame==true,'the new drone listed by the class hash and hidden')
     U.class_at,U.actors_of=class_at,actors_of
+end
+
+-- 9. The rifle's mesh and the aim stance's two turn clips (hip fire's shuffle) are kept by the keep too (17a166fa):
+--    the rifle out takes the mesh in memory with no LoadAsset (a walk in UE4SS for a path not in memory). The mesh
+--    and the clips are the same: only their lookup changed (rifle.lua and the turn code are lookup-only here).
+do
+    local Keep=require('core.keep')
+    local Rifle=require('fight.gunmode.rifle')
+    local want,wanted=Keep.want,{}
+    Keep.want=function(paths) for _,p in ipairs(paths) do wanted[p]=true end end
+    world()
+    quiet()
+    Keep.want=want
+    local clip='/Game/Art/Character/PC/CH_P_EVE_01/Animation/%s.%s'
+    for _,p in ipairs({Rifle.WEAPON,clip:format('P_Eve_Gun_RotateLw','P_Eve_Gun_RotateLw'),
+            clip:format('P_Eve_Gun_RotateRw','P_Eve_Gun_RotateRw')}) do
+        assert(wanted[p],'the keep does not hold '..tostring(p))
+    end
+    assert(Fake.RIFLE==Rifle.WEAPON,'the fake\'s rifle is the rifle\'s mesh')
+    local w=kept_world()
+    local gun=quiet()
+    Keep.slow(); w.keep.settle()
+    frames(gun,1)
+    w.n.load={}
+    for _=1,2 do out(gun); frames(gun,30); clock=clock+1; gun.toggle_now(); frames(gun,60) end
+    assert((w.n.load[Rifle.WEAPON] or 0)==0,'the rifle loaded '..tostring(w.n.load[Rifle.WEAPON])..' times')
+    assert(#w.rifles()==0,'the rifle taken off')
+    w.done()
 end
 
 print('gunmode cost_test ok')

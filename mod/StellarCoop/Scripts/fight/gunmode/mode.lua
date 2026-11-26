@@ -36,6 +36,8 @@ local CAMMOD='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
 -- resources): packages of pakchunk0 on 26123051 (e0038fcc). Nothing else holds them between two aims.
 local LASER={'/Game/DLC_2/Art/FX/MiniGame/NS_A_GuideLaser.NS_A_GuideLaser',
     '/Game/DLC_2/Art/FX/MiniGame/NC_NikkeMinigame.NC_NikkeMinigame'}
+-- The aim stance's turn clips (a big turn from standing in hip fire), kept with the others (17a166fa).
+local function turn_clip(nm) return '/Game/Art/Character/PC/CH_P_EVE_01/Animation/'..nm..'.'..nm end
 
 -- Zone event kind 2 is ZoneEvent_AttachActorEffect (ESBZoneEventType's names at 0x145e29b00 on 26123051). RunEvent
 -- (0x141ca5a10) hands it to 0x141c9e690, which applies the row's actor effect; no chain of direct calls from it reaches
@@ -197,7 +199,7 @@ function GunMode.new(env)
     -- The rifle: with the animation pak, fight/gunmode/rifle.lua (the rifle in her real hand; the pak's rifle animations play on
     -- her real body); without it, Luke's posed stance (fight/gunmode/stance.lua).
     local posed=Stance.new(Laser,set.trace and g.log or nil)
-    local single=Rifle.new(Laser,set.trace and g.log or nil)
+    local single=Rifle.new(Laser,set.trace and g.log or nil,nil,g.loaded)
     local stance=posed
     local probe=set.probe and Probe.new(g)
     -- M1 (11-18 rebuild): the post-process layer (fight/gunmode/overlay.lua, ABP in gunmode's pak) plays the NIKKE rifle clips
@@ -209,7 +211,8 @@ function GunMode.new(env)
     -- gun_mode=off.
     if set.on then
         local want={Overlay.CLASS,Overlay.CLIPS.carry,Overlay.CLIPS.aim,Overlay.CLIPS.aimup,Overlay.CLIPS.aimdown,
-            CAMMOD,cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx}
+            CAMMOD,cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx,Rifle.WEAPON,turn_clip('P_Eve_Gun_RotateLw'),
+            turn_clip('P_Eve_Gun_RotateRw')}
         for _,e in ipairs(cfg.reload_sounds) do want[#want+1]=e[1] end
         for _,b in ipairs(Overlay.BASES) do want[#want+1]=b end
         -- (after a collection the aim start loaded the laser's system: e0038fcc)
@@ -1366,8 +1369,7 @@ function GunMode.new(env)
                         s.shuffle_at=now
                         pcall(function()
                             local nm=(s.chest.Yaw or 0)<0 and 'P_Eve_Gun_RotateLw' or 'P_Eve_Gun_RotateRw'
-                            local path='/Game/Art/Character/PC/CH_P_EVE_01/Animation/'..nm..'.'..nm
-                            local seq=StaticFindObject(path); if not g.valid(seq) then pcall(LoadAsset,path); seq=StaticFindObject(path) end
+                            local seq=g.asset(turn_clip(nm)) -- (kept by the keep, checked by its path: b812f708)
                             if g.valid(seq) then p.Mesh:GetAnimInstance():PlaySlotAnimationAsDynamicMontage(seq,FName('DefaultSlot'),0.1,0.15,1.0,1,-1,0)
                             elseif not s.shuffle_err then s.shuffle_err=true; g.log('turn: no '..nm) end
                         end)
