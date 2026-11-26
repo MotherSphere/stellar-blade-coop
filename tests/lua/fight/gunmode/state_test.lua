@@ -338,10 +338,11 @@ do
     assert(not gun.state.aim_hold and #w.changed()==0,'back at the LT release: '..table.concat(w.changed(),'; '))
 end
 
--- 9. The rifle does not come out while a cutscene holds EVE, in an interaction or its block, while she swims, flies or
---    is in one of SB's moves (a custom movement mode), in the photo or selfie mode. Once it is out, a swim, one of
---    SB's moves or the photo or selfie mode puts it away within 0.1 s, with no comeback (cutscenes and interactions
---    already did, with one). The game's hold of her movement and a jump (falling) are no reason (a6523766, ad9dbe19).
+-- 9. The rifle does not come out while a cutscene holds EVE, in an interaction or its block, while she swims, in the
+--    photo or selfie mode. Once it is out, a swim or the photo or selfie mode puts it away within 0.1 s, with no
+--    comeback (cutscenes and interactions already did, with one). The game's hold of her movement, a jump (falling)
+--    and the other movement modes are no reason: SBO's hall seat sets mode 0, the rifle stays allowed there
+--    (a6523766, ad9dbe19).
 do
     local w=Fake.new(); w.install()
     local keys=w.keys()
@@ -353,8 +354,7 @@ do
             {function(e,on) e.talk=on end,'EVE is in an interaction','EVE is in an interaction or a cutscene'},
             {function(e,on) e.bEnableInteractionBlock=on end,'EVE is in an interaction',
                 'EVE is in an interaction or a cutscene'},
-            {mode(4),'EVE is swimming'},{mode(5),"EVE is in one of SB's moves (movement mode 5)"},
-            {mode(6),"EVE is in one of SB's moves (movement mode 6)"},
+            {mode(4),'EVE is swimming'},
             {function(_,on) photo=on and '1' or '0' end,'the photo mode is open'},
             {function(_,on) photo=on and 's' or '0' end,'the selfie mode is open'}}) do
         local set,why,off=case[1],case[2],case[3] or case[2]
@@ -381,8 +381,16 @@ do
     w.pawn.CharacterMovement.MovementMode=3
     frames(gun,20)
     assert(gun.state.on,'a jump keeps the rifle out')
-    w.pawn.CharacterMovement.MovementMode=1
+    for _,m in ipairs({0,5,6}) do
+        w.pawn.CharacterMovement.MovementMode=m
+        frames(gun,20)
+        assert(gun.state.on,'movement mode '..m..' keeps the rifle out')
+    end
     toggle(gun,false)
+    w.pawn.CharacterMovement.MovementMode=0 -- (a hall seat)
+    toggle(gun,true)
+    toggle(gun,false)
+    w.pawn.CharacterMovement.MovementMode=1
 end
 
 -- 10. The comeback after an interaction: the rifle comes back 1 s after she is free. A refused comeback (the drone aim

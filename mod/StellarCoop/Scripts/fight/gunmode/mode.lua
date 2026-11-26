@@ -64,19 +64,16 @@ end
 -- IsAttachedToLevelSequenceWithoutPlayable and IsRunningInteraction are SBCharacter natives (exec 0x142686f40,
 -- 0x14268cc20; registered by 0x14cef8000 with its other 233), bEnableInteractionBlock an SBCharacter bool (params
 -- 0x145d77b78). EMovementMode (enumerators at 0x146548c80): 1 walking, 2 nav walking, 3 falling, 4 swimming, 5 flying,
--- 6 custom (a move of SB's own). IsMoveInputBlock is not read: the game raises it around its own drone aim, gun mode's
--- firing mode (ad9dbe19).
-local WALKING,NAV_WALKING,FALLING,SWIMMING=1,2,3,4
+-- 6 custom (a move of SB's own). Only swimming is a reason here: SBO's hall seat sets mode 0
+-- (online/lobby/sbo.lua) and the rifle stays allowed there and in coop fly, as it is on the bike. IsMoveInputBlock is
+-- not read: the game raises it around its own drone aim, gun mode's firing mode (ad9dbe19).
+local SWIMMING=4
 function GunMode.blocked(e,photo)
     if photo=='s' then return 'the selfie mode is open' end
     if photo=='1' then return 'the photo mode is open' end
     if e:IsAttachedToLevelSequenceWithoutPlayable()==true then return 'a cutscene holds EVE' end
     if e:IsRunningInteraction()==true or e.bEnableInteractionBlock==true then return 'EVE is in an interaction' end
-    local mode=U.value_of(e.CharacterMovement.MovementMode)
-    if mode==SWIMMING then return 'EVE is swimming' end
-    if mode~=WALKING and mode~=NAV_WALKING and mode~=FALLING then
-        return "EVE is in one of SB's moves (movement mode "..tostring(mode)..')'
-    end
+    if U.value_of(e.CharacterMovement.MovementMode)==SWIMMING then return 'EVE is swimming' end
 end
 
 local SETTINGS='/Script/Engine.Default__InputSettings'
@@ -1137,7 +1134,7 @@ function GunMode.new(env)
                 s.resume,s.free_at,s.resume_n=not (s.morph and s.morph.dir=='out'),nil,nil
                 disable('EVE is in an interaction or a cutscene'); return
             end
-            -- a swim, one of SB's own moves, the photo or selfie mode: the rifle goes away with no comeback (a6523766)
+            -- a swim, the photo or selfie mode: the rifle goes away with no comeback (a6523766)
             local busy=s.on and g.try(function() return GunMode.blocked(p0,photo()) end)
             if busy then disable(busy); return end
             if not s.on and s.resume then
