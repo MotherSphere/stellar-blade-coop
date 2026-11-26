@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode put back over a fake UE4SS (fake.lua), on the rifle layer's path: a start that fails gives back what it
 -- took; stop (coop off) gives back the input mask, SB's rows, the rifle, her body's own post-process class and the FOV
--- lock, then nothing more runs. The cases are stop_test's of 5492c007 fitted to luke's gun mode. Its coop-gun.txt cases are left out: no
+-- lock, then nothing more runs; a new controller drops the old pawn's state and its deferred reset gives back the rest.
+-- The cases are stop_test's of 5492c007 fitted to luke's gun mode. Its coop-gun.txt cases are left out: no
 -- journal is kept.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
@@ -124,6 +125,72 @@ do
     gun.stop('coop off')
     w.mesh=p2.Mesh
     as_shipped(w,keys)
+end
+
+-- 6. A new controller (a map load: a new EVE on the same body mesh) resets the old pawn's state at once. The deferred
+--    reset gives back the rows, shows the drone, puts her facing back, drops the morph's cube and takes the layer off
+--    her new body (67ea7e8c L3).
+do
+    local w=Fake.new(); w.install()
+    local keys=w.keys()
+    local gun=new()
+    clock=clock+1; gun.toggle_now()
+    local s=gun.state
+    local part=w.component(w.pawn); part.bHiddenInGame=true
+    local move={IsValid=function() return true end,
+        GetFullName=function() return 'CharacterMovementComponent Old.Move' end,
+        bOrientRotationToMovement=false,bUseControllerDesiredRotation=true}
+    local cube=w.component(w.pawn)
+    s.drone={actor=w.pawn,parts={{c=part,hidden=false,visible=true}}}
+    s.facing={cm=move,orient=true,desired=false,at='Old.Move'}
+    s.ovr,s.ovr_row,s.flash_fx,s.pose_m,s.cube=true,'N_Test_Dead',{},{},cube
+    local p2=w.new_pawn()
+    gun.new_controller(w.pc)
+    assert(not s.on and not s.ovr and s.ovr_row==nil and s.flash_fx==nil and s.pose_m==nil and not s.layer)
+    assert(w.keys()==keys,'the mask off at once')
+    assert(p2.Mesh.pp.cls==w.layer_class,'her new body still has the layer until the deferred reset')
+    clock=clock+5; gun.tick()
+    w.mesh=p2.Mesh
+    as_shipped(w,keys)
+    assert(part.bHiddenInGame==false and s.drone==nil,'the drone shown')
+    assert(move.bOrientRotationToMovement==true and move.bUseControllerDesiredRotation==false and s.facing==nil)
+    assert(cube.dead and s.cube==nil,'the morph\'s cube destroyed')
+    clock=clock+1; gun.toggle_now()
+    assert(#w.rifles()==1)
+end
+
+-- 7. Her facing flags go back only to the movement they were taken from. A map change frees it. Another object can
+--    then sit at its address and pass IsValid, so its path is checked before the write (2702a557).
+do
+    local w=Fake.new(); w.install()
+    local gun=new('gun_fire=own\n')
+    local function frames(n) for _=1,n do clock=clock+1/60; gun.tick() end end
+    clock=clock+1; gun.toggle_now()
+    frames(60)
+    w.down.RightMouseButton=true
+    frames(10)
+    local move=w.pawn.CharacterMovement
+    assert(move.bOrientRotationToMovement==false and move.bUseControllerDesiredRotation==true,'facing the camera')
+    move.full='SkeletalMeshComponent Test.Other'
+    move.bOrientRotationToMovement,move.bUseControllerDesiredRotation='other','other'
+    w.down.RightMouseButton=nil
+    clock=clock+1; gun.toggle_now(); frames(120)
+    assert(not gun.state.on and gun.state.facing==nil,'the rifle away, no facing kept')
+    assert(move.bOrientRotationToMovement=='other' and move.bUseControllerDesiredRotation=='other',
+        'the facing flags written to another object')
+end
+
+-- 8. A new map ends the comeback after an interaction: the rifle away for a talk, then a map load (29e92c98).
+do
+    local w=Fake.new(); w.install()
+    local gun=new()
+    local function frames(n) for _=1,n do clock=clock+1/60; gun.tick() end end
+    clock=clock+1; gun.toggle_now(); frames(60)
+    w.pawn.talk=true; frames(12)
+    assert(not gun.state.on and gun.state.resume,'away for the talk, its comeback set')
+    w.new_pawn(); gun.new_controller(w.pc)
+    frames(60*6)
+    assert(not gun.state.on,'a new map ends the comeback')
 end
 
 print('gunmode stop: ok')

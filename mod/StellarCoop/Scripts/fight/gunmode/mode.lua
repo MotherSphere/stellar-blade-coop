@@ -595,6 +595,15 @@ function GunMode.new(env)
         end
     end
 
+    -- Her facing flags back, only to the movement they were taken from (its path, f.at): after a map change another
+    -- object can sit at its address and pass IsValid (2702a557).
+    local function unface()
+        local f=s.facing
+        s.facing=nil
+        if f and f.at~=nil and g.path(f.cm)==f.at then
+            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
+        end
+    end
     -- Firing mode (Luke's aim on her normal stance): the game itself keeps her facing the camera, through her
     -- movement's own settings (no yaw written from Lua each frame: two writers made her legs twitch in game).
     local function face(p,on)
@@ -602,13 +611,9 @@ function GunMode.new(env)
         local cm=g.get(p,'CharacterMovement')
         if not g.valid(cm) then return end
         if on and not s.facing then
-            s.facing={cm=cm,orient=cm.bOrientRotationToMovement,desired=cm.bUseControllerDesiredRotation}
+            s.facing={cm=cm,orient=cm.bOrientRotationToMovement,desired=cm.bUseControllerDesiredRotation,at=g.path(cm)}
             pcall(function() cm.bOrientRotationToMovement=false; cm.bUseControllerDesiredRotation=true end)
-        elseif not on and s.facing then
-            local f=s.facing
-            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
-            s.facing=nil
-        end
+        elseif not on and s.facing then unface() end
     end
 
     -- Firing mode on the game's aim: its camera's field of view eased to cfg.aim_fov (the game's 45 shows her from the
@@ -675,11 +680,7 @@ function GunMode.new(env)
         pcall(stance.stop)
         if s.mask then pcall(s.mask); s.mask=nil end
         camera_back()
-        if s.facing then
-            local f=s.facing
-            pcall(function() f.cm.bOrientRotationToMovement=f.orient; f.cm.bUseControllerDesiredRotation=f.desired end)
-            s.facing=nil
-        end
+        unface()
         local pw=g.pawn()
         if pw then carry(pw,false) end
         if s.layer and pw then pcall(layer.stop,pw); local ok,e=pcall(layer.uninstall,pw); if not ok then g.log('layer off: '..tostring(e)) end end
@@ -952,7 +953,11 @@ function GunMode.new(env)
         if now<s.pause then return end
         if s.give_back then s.give_back=false; pcall(data.put_back); aim.row=nil end
         if s.stop_stance then s.stop_stance=false; pcall(stance.stop) end
-        if s.show_back then s.show_back=false; show_others() end
+        -- (a new controller's: the old pawn's drone parts, her facing and the morph's cube too, 67ea7e8c L3)
+        if s.show_back then
+            s.show_back=false; show_others(); show_drone(); unface()
+            cube_drop(); require('fight.gunmode.ik').fade=1; if single.morph then pcall(single.morph,nil) end
+        end
         if s.ammo_reset then s.ammo_reset=false; pcall(ammo.stop); pcall(ammo.refill) end
         -- left over by a new controller or a lost pawn: her body asset's own post-process and her mesh's turn put back
         if (s.layer_back or s.mesh_back) and not s.on then
@@ -1528,6 +1533,12 @@ function GunMode.new(env)
             s.stop_stance=true
             s.show_back=true
         end
+        -- The old pawn's state goes with it (67ea7e8c L3): the next start begins clean on the new one. Its drone parts,
+        -- her facing and the morph's cube go back at the deferred reset (show_back). The comeback after an interaction
+        -- ends here: a new map is no place to bring the rifle back (29e92c98).
+        s.drone_keep,s.flash_fx,s.pose_m,s.pose_on,s.morph=nil,nil,nil,nil,nil
+        s.ovr,s.ovr_row=false,nil
+        s.resume,s.free_at=false,nil
     end
 
     -- One frame of gun mode: main/frame.lua calls this from its frame loop.
