@@ -19,8 +19,10 @@
 -- coop off ask world.ship(false): the ship as SB ships it.
 -- E04_Area05_B_LD is streamed by volume as SB ships it (data.lua's VOLUMED), so the ship may come in after EVE. After
 -- the way in she is watched until she walks: DROP cm under the point she is put on it again, the ship is asked again
--- while it was not found and a black that is up at once comes every AGAIN passes. After SETTLE passes with no floor
--- she is put back outside. A recovery that moved her out of the ship ends the watch.
+-- on each pass while its last call wrote no part and a black that is up at once comes every AGAIN passes. After SETTLE
+-- passes with no floor she is put back outside. A recovery that moved her out of the ship ends the watch.
+-- No part written is not only a ship not found: after a respawn in the game test of 26 November 2026 the actor was in
+-- memory and the call before the move wrote 0 parts. SB showed E04_Area05_B_LD only once she was inside.
 -- busy: the recovery waits (photo mode, a cutscene, a warp, another zone) or handles a fall or a death
 -- (recover.lua's busy). Such a pass counts nothing and asks no move. A move already asked is still made.
 -- An error in a pass turns the door off with one log line until the next arrival.
@@ -128,7 +130,12 @@ function Tetrapod.new(o)
             settle=nil
             return
         end
-        if not parts then ship(true) end
+        if not parts or parts==0 then
+            ship(true)
+            if parts and parts>0 then
+                log(string.format('tetrapod: in: ship solid after %d passes: %d parts',settle.passes,parts))
+            end
+        end
         if settle.passes>=T.SETTLE then
             log(string.format('tetrapod: in: no floor under EVE after %d passes (%s): back outside',settle.passes,
                 ship_text()))

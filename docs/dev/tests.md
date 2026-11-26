@@ -822,8 +822,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   outside the box starts the count again. A busy recovery counts nothing. A refused teleport and a black that raises
   change one log line. An error in a pass turns the door off until the next arrival. `coop xion tetrapod in` and
   `out` ask the move at once. The way in asks the engine to make the ship's parts solid before the move. The way out
-  and `coop off` put them back. While EVE reads 60 cm under the point she is put on it again and the ship is asked
-  again if it was not found, with a black every 6 passes. After 32 passes with no floor she is put back outside.
+  and `coop off` put them back. While EVE reads 60 cm under the point she is put on it again, with a black every
+  6 passes. The ship is asked again on each pass while its last call wrote no part: not found, or 0 parts, then
+  124 with one line. After 32 passes with no floor she is put back outside.
   The door has no `busy()`: no other part waits for it;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step

@@ -13,10 +13,10 @@
 -- second one under way and say where EVE is with no word. An arrival drops a move that waits. No EVE: nothing.
 -- The floor: SB ships the ship with no collision, so the way in asks the engine to make its parts solid before the
 -- move and the way out and coop off put them back. After the way in EVE is watched until she stands: under the point
--- by more than 60 cm she is put on it again, the ship is asked again while it was not found and a black that is up
--- at once comes every 6 passes. After 32 passes with no floor she is put back outside with the ship as SB ships it.
--- A recovery that moved her out of the ship ends the watch. No other part of the module waits for this door, so it
--- has no busy().
+-- by more than 60 cm she is put on it again, the ship is asked again on each pass while its last call wrote no part
+-- (not found, or 0 parts) and a black that is up at once comes every 6 passes. After 32 passes with no floor she is
+-- put back outside with the ship as SB ships it. A recovery that moved her out of the ship ends the watch. No other
+-- part of the module waits for this door, so it has no busy().
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Tetrapod=require('world.maps.sboxion.tetrapod')
 local D=require('world.maps.sboxion.data')
@@ -255,6 +255,22 @@ pass()
 assert(#puts==4 and #ships==5 and ships[5]==true,'Found: made solid. She is put on the point once more')
 pass()
 assert(logged('tetrapod: in: EVE stands in the ship after 5 passes, 124 parts solid'),logs[#logs])
+-- After a respawn SB shows the ship's level only once EVE is inside (game test of 26 November 2026): the call before
+-- the move writes 0 parts. Each pass asks again while the last call wrote none. Once it writes 124 she stands.
+fresh()
+parts,lands=0,3
+eve=DOOR
+pass(4)
+assert(#ships==1 and logged('tetrapod: in: EVE at (16638, -24558, -1852), yaw -132.2'))
+eve.Z=eve.Z-100
+pass()
+assert(#ships==2 and logged('on the point again (0 parts solid)'),'0 parts written: asked again')
+parts,lands=124,1
+eve.Z=eve.Z-100
+pass()
+assert(#ships==3 and logged('tetrapod: in: ship solid after 2 passes: 124 parts'),logs[#logs])
+pass()
+assert(#ships==3 and logged('tetrapod: in: EVE stands in the ship after 3 passes, 124 parts solid'),logs[#logs])
 -- A black that is up at once every 6 passes while she has no floor.
 fresh()
 lands=3

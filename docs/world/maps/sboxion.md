@@ -640,9 +640,14 @@ at each custom channel's own default: Ignore for `Water`,
 now sets the profile by its name and no channel of its own. Which of those channels killed her was not traced.
 
 The ship's level is loaded by volume, so it may come in after EVE. After the way in the module watches her until
-she walks. When she reads 60 cm under the point, it puts her on the point again and asks the ship again if it was
-not found. A black that is up at once comes every 1.5 s while that lasts. After 8 s with no floor she is put back
-outside.
+she walks. It asks the ship again on each pass while its last call made no part solid. When she reads 60 cm under
+the point, it puts her on the point again. A black that is up at once comes every 1.5 s while that lasts. After 8 s
+with no floor she is put back outside.
+
+In the third game test (26 November 2026, build v0.11.0-1202) EVE came back from a death in the ship and walked in
+again. After the respawn SB showed `E04_Area05_B_LD` only once she was inside, so the call before the move made
+0 parts solid. The watch then asked again only for a ship not found and she fell for 8 s. It now asks again while
+the call writes no part.
 
 | Line in `UE4SS.log` | Meaning |
 | --- | --- |
@@ -650,6 +655,7 @@ outside.
 | `sboxion: tetrapod: in asked (EVE stood 2 passes at (x, y, z)); black up in 0.3 s; EVE moves in 2 passes` | EVE stood in the doorway. `out asked` is the same from the ship's door. After `asked (coop xion tetrapod in)` the command asked it |
 | `sboxion: tetrapod: in: EVE at (16638, -24558, -1852), yaw -132.2` | The move was made. `out: EVE at (-13413, 18383, 82), yaw -87.2` is the way out |
 | `sboxion: tetrapod: in: EVE stands in the ship after n passes, 124 parts solid` | She walks on the ship's floor. `ship not found` in place of the parts: the ship's actor was not in memory |
+| `sboxion: tetrapod: in: ship solid after n passes: 124 parts` | The call at the move made no part solid. A later one did |
 | `sboxion: tetrapod: in: no floor yet under EVE at (x, y, z): on the point again (...)` | She fell 60 cm. Said once a way in |
 | `sboxion: tetrapod: in: no floor under EVE after 32 passes (...): back outside` | 8 s with no floor. She is at SB's point in front of the Tetrapod |
 | `sboxion: tetrapod: in: EVE is out of the ship at (x, y, z) before she stood: the watch ends` | The recovery moved her |
@@ -1018,7 +1024,8 @@ underground and 47 of the 50 level-design sublevels.
 - `tetrapod_test.lua`: the ship frame, the way in and the way out with SB's black, the hold after a move, the count
   that starts again, a busy recovery, a refused teleport, an error that turns the door off and the command. Then the
   floor: the ship made solid before the move and put back at the way out and at `coop off`, EVE put on the point
-  again while she falls, the end after 32 passes and a recovery that moved her out. The door has no `busy()`.
+  again while she falls, the ship asked again while a call wrote no part, the end after 32 passes and a recovery
+  that moved her out. The door has no `busy()`.
 - `engine_test.lua` holds the call on the ship's parts: SB's `BlockAll` by a name the game has made, `NoCollision`
   at the put-back, nothing written with no actor in memory.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
