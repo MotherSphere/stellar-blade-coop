@@ -26,7 +26,9 @@
 -- distance or another map's 32-byte name, the paid fetch's offer after them with the longest key name and betacrystal,
 -- the fetch's other lines with a 32-byte money name, within 200 bytes; coop gift's notices with a 32-byte name and
 -- alias within 200 bytes; the 25 module names in every table; the notice
--- of a module that failed to load with the longest of them within 200 bytes.
+-- of a module that failed to load with the longest of them within 200 bytes; Stellar Closet's menu words: a slot name
+-- for each of closet/slots.lua's Slots.LIST ids, a tab for each Slots.MENUS id and a region for each Slots.REGIONS
+-- name, each tab within 16 columns, each key hint within 14, its notices within 200 bytes.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('online.modes.nightop.recruiter_text')
@@ -237,6 +239,12 @@ local function notices(w)
     local longest=''
     for _,name in pairs(w.modules) do if #name>#longest then longest=name end end
     lines[#lines+1]=w.module_off:format(longest)
+    -- Stellar Closet's notices (closet/ui/menu.lua): each refused open, each close, the save and the failed wear.
+    for _,group in ipairs({'refused','closed'}) do
+        for _,text in pairs(w.closet[group]) do lines[#lines+1]=text end
+    end
+    lines[#lines+1]=w.closet.saved
+    lines[#lines+1]=w.closet.failed
     return lines
 end
 -- Columns a word takes: an East Asian wide character two, a combining mark none, any other one.
@@ -439,7 +447,29 @@ for name in pairs(R.TEXT) do
     local pt=w.pause_tab
     fits(name..'.pause_tab.tab',pt.tab,16)
     assert(Chat.clean(pt.stuck)==pt.stuck,name..'.pause_tab.stuck: '..#pt.stuck..' bytes or a control')
+    -- Stellar Closet's menu (closet/ui/view.lua): a tab's word within the game's tab button (16 columns, as the
+    -- Online tab's), a key hint within the menu's hint cell (HINT).
+    for k,text in pairs(w.closet.tabs) do fits(name..'.closet.tabs.'..k,text,16) end
+    for k,text in pairs(w.closet.hints) do fits(name..'.closet.hints.'..k,text,HINT) end
 end
+-- Stellar Closet's names: a slot name for each Slots.LIST id, a tab for each Slots.MENUS id, a region for each
+-- Slots.REGIONS name, and no other (the other tables have T.en's keys, checked above).
+local Slots=require('closet.slots')
+local function keys_are(at,words,list)
+    local want={}
+    for _,id in ipairs(list) do
+        want[id]=true
+        assert(type(words[id])=='string',at..id..': missing')
+    end
+    for id in pairs(words) do assert(want[id],at..id..': no such id') end
+end
+local slot_ids,menu_ids={},{}
+for _,entry in ipairs(Slots.LIST) do slot_ids[#slot_ids+1]=entry[1] end
+for _,menu in ipairs(Slots.MENUS) do menu_ids[#menu_ids+1]=menu[1] end
+assert(#slot_ids==73 and #menu_ids==9 and #Slots.REGIONS==10,'closet/slots.lua: '..#slot_ids..' slots')
+keys_are('T.en.closet.slots.',T.en.closet.slots,slot_ids)
+keys_are('T.en.closet.tabs.',T.en.closet.tabs,menu_ids)
+keys_are('T.en.closet.regions.',T.en.closet.regions,Slots.REGIONS)
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)
     for k,v in pairs(t) do
