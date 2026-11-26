@@ -1157,6 +1157,17 @@ pc=held_pc
 taken=count(LIB..'SetInputMode_UIOnlyEx')
 pc.bShowMouseCursor=false; k.tick(clock+20)
 assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,'Nothing taken after coop ui reset')
+-- Our root gone (a map change, until the next step rebuilds it) while the input is still ours: nothing taken, nothing
+-- said.
+k.input(false)
+k.input(true)
+local root=viewport[#viewport]
+stores[root].alive=false
+taken,n=count(LIB..'SetInputMode_UIOnlyEx'),#logs
+pc.bShowMouseCursor=false; k.tick(clock+30)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken and #logs==n,'Nothing taken for a root that is gone')
+stores[root].alive=true
+k.input(false)
 -- A group that asks for it (the guide, in a world) shows it too; one that takes the input from it without asking hides
 -- it again.
 k.input(true,'guide',true); assert(pc.bShowMouseCursor==true and k.paused()==false,'The guide asks: shown')

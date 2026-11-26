@@ -776,20 +776,18 @@ function Ui.kit(opts)
         -- 0x1425bbbb0, which applies FInputModeGameOnly (vtable 0x145a7fa28) when no SB screen counts as showing the
         -- cursor (ours never does). Then 0x1424f6c30 clears bShowMouseCursor (PC+0x4e0 bit 0). E then reaches the game
         -- and a click captures the mouse for the camera. While the menu, or a holder that shows the cursor, holds the
-        -- input for a UI of ours that is up, a cleared cursor takes the input again, at most once each RETAKE s.
-        if took and inputting and not hidden and not off and now>=retake_at and (holder==nil or pointing)
-            and built and alive(built.root) then
+        -- input for a UI of ours, a cleared cursor takes the input again (input_mode refuses a root that is gone), at
+        -- most once each RETAKE s, a failed take too.
+        if took and inputting and built and not hidden and not off and now>=retake_at and (holder==nil or pointing) then
             local read,taken=pcall(function()
                 local pc=controller()
                 if not pc or pc.bShowMouseCursor~=false then return false end
                 local g=holder and built.groups[holder]
                 return input_mode(true,g and g.field)==true
             end)
+            if not read or taken then retake_at=now+RETAKE end
             if not read and not retake_said then retake_said=true; log('input: not taken again: '..tostring(taken))
-            elseif read and taken then
-                retake_at=now+RETAKE
-                log('input: the game cleared our mouse cursor and took its input back: taken again')
-            end
+            elseif read and taken then log('input: the game cleared our mouse cursor and took its input back: taken again') end
         end
         if not off and next(tweens) then
             run(function()
