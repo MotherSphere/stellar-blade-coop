@@ -185,7 +185,8 @@ function Data.new(g,native,opts)
                 saved[#saved+1]={fire,'ActionValue1',was}
                 fire.ActionValue1=Data.FIRE_SKILL
             end
-            -- The NIKKE shot's cool time: the rifle's rate of fire (opts.cool s between rounds).
+            -- The NIKKE shot's cool time: opts.cool at the rifle out (fight/gunmode/mode.lua gives 0, which
+            -- fight/gunmode/ammo.lua turns into the rate of fire at the first round: 4f755c24).
             if self.opts.cool then
                 local sk=row(tbl('SkillTable'),Data.FIRE_SKILL)
                 saved[#saved+1]={sk,'CoolTime',sk.CoolTime}

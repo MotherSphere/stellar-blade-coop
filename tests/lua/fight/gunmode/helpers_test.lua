@@ -78,7 +78,8 @@ end
 
 -- 4. The magazine: a press fires at once, then one round per cool time in whole frames; empty -> a reload (no round
 --    until it is done), the count jumping when the magazine goes in; lowered part-spent -> reloaded after a moment;
---    spares spent -> no rounds (cool time 999) until a refill.
+--    spares spent -> no rounds (cool time 999) until a refill. A reload's end and a refill write cool time 0, the rate
+--    of fire once a cool time and Ammo.OPEN_FRAMES frames went by after the first round (4f755c24, 7f3932fe).
 do
     assert(close(Ammo.step(0.045,1/60),0.05) and close(Ammo.step(0.01,1/60),1/60))
     assert(Ammo.lower_text(60,300,60)=='60 | 5' and Ammo.lower_text(12,250,60)=='12 | 5' and Ammo.lower_text(0,0,60)=='0 | 0')
@@ -93,16 +94,20 @@ do
     run(31,true,true)
     assert(a.left<1 and a.reload_until and reloads[1]==true and cools[1]==1.2)
     run(62,true,false)
-    assert(a.left==10 and a.reserve==10 and not a.reload_until and reloads[2]==false and cools[2]==0.05)
-    run(31,true,true); run(62,true,false)
+    assert(a.left==10 and a.reserve==10 and not a.reload_until and reloads[2]==false and cools[2]==0,
+        'the reload ends on cool time 0: '..tostring(cools[2]))
+    run(31,true,true)
+    assert(cools[3]==0.05,'the rate of fire after the first round: '..tostring(cools[3]))
+    run(62,true,false)
     assert(a.left==10 and a.reserve==0)
     run(31,true,true)
     assert(a.left==0 and a.reserve==0 and cools[#cools]==999)
     a.refill()
-    assert(a.left==10 and a.reserve==20 and cools[#cools]==0.05)
+    assert(a.left==10 and a.reserve==20 and cools[#cools]==0,'the refill writes 0: '..tostring(cools[#cools]))
     run(1,true,false); run(1,true,true)
     run(120,false,false)
     assert(a.left==9 and a.reserve==20,'no reload when lowered (11-20): '..a.left..' '..a.reserve)
+    assert(cools[#cools]==0.05,'the rate of fire after the refill\'s first round: '..tostring(cools[#cools]))
 end
 
 -- The one zone event gun mode may fire: kind 2 on the shot's row. Never matchmaking's kinds 15, 16 or 19, another

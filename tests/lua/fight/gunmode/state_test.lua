@@ -213,4 +213,26 @@ do
     assert(r.ConditionActive_ItemCount==60,'back: '..tostring(r.ConditionActive_ItemCount))
 end
 
+-- 5. The rifle out writes 0 to the NIKKE shot's cool time, so SB's copy of a longer one (999 from an earlier rifle out
+--    fired dry, a reload's wait) refuses no round. One cool time and Ammo.OPEN_FRAMES frames after the first round the
+--    row holds the rate of fire. The off puts the shipped value back (4f755c24, 7f3932fe).
+do
+    local w=Fake.new(); w.install()
+    local sk=w.tables.SkillTable.P_Eve_GunNikke_ShootSlug1_1
+    local gun=new()
+    toggle(gun,true)
+    assert(sk.CoolTime==0,'the rifle out writes 0: '..tostring(sk.CoolTime))
+    w.pawn.bTPSMode,w.down.RightMouseButton=true,true
+    frames(gun,30)
+    assert(sk.CoolTime==0,'0 until the first round: '..tostring(sk.CoolTime))
+    w.down.LeftMouseButton=true
+    frames(gun,30)
+    local rate=require('fight.gunmode.config').DEFAULTS.fire_interval
+    assert(sk.CoolTime==rate,'the rate of fire after the first round: '..tostring(sk.CoolTime))
+    w.down.LeftMouseButton=nil
+    w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
+    toggle(gun,false)
+    assert(sk.CoolTime==0.11,'the shipped cool time back: '..tostring(sk.CoolTime))
+end
+
 print('gunmode state: ok')
