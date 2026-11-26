@@ -317,4 +317,45 @@ do
     w.done()
 end
 
+-- 10. Names made once (b812f708): the muzzle flash's socket FX_Fire in mode.lua and the layer's DefaultSlot in
+--     overlay.lua, not at each flash or each clip played.
+do
+    local w=world()
+    local spawned=0
+    local lib={IsValid=function() return true end,
+        GetFullName=function() return 'NiagaraFunctionLibrary /Script/Niagara.Default__NiagaraFunctionLibrary' end,
+        SpawnSystemAttached=function() spawned=spawned+1 end}
+    w.paths['/Script/Niagara.Default__NiagaraFunctionLibrary']=lib
+    local fx=Config.DEFAULTS.muzzle_fx
+    w.paths[fx]={IsValid=function() return true end,GetFullName=function() return 'NiagaraSystem '..fx end}
+    for _,c in pairs(Overlay.CLIPS) do
+        w.paths[c]={IsValid=function() return true end,GetFullName=function() return 'AnimSequence '..c end}
+    end
+    local made={}
+    local fname=FName
+    FName=function(text,...)
+        local src=debug.getinfo(2,'S').source:match('([%w_]+)%.lua$') or '?'
+        made[src..' '..text]=(made[src..' '..text] or 0)+1
+        return fname(text,...)
+    end
+    local gun=quiet()
+    frames(gun,1)
+    out(gun); frames(gun,60)
+    w.mesh.pp.PlaySlotAnimationAsDynamicMontage=function() return {} end
+    w.mesh.pp.IsPlayingSlotAnimation=function() return true end
+    for _=1,3 do
+        w.pawn.bTPSMode,w.down.RightMouseButton=true,true
+        w.down.LeftMouseButton=true
+        frames(gun,120)
+        w.down.LeftMouseButton=nil
+        w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
+        frames(gun,60)
+    end
+    FName=fname
+    assert(spawned>3,spawned..' flashes')
+    assert((made['mode FX_Fire'] or 0)<=1,tostring(made['mode FX_Fire'])..' FX_Fire names made in mode.lua')
+    local slots=made['overlay DefaultSlot'] or 0
+    assert(slots<=1,slots..' DefaultSlot names made in overlay.lua')
+end
+
 print('gunmode cost_test ok')

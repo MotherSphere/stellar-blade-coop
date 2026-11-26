@@ -153,7 +153,8 @@ function Overlay.new(g)
         local pp=pp_of(p.Mesh); if not pp then return nil,'layer not installed' end
         local seq=clip_of(clip); if not seq then return nil,'clip not found '..tostring(clip) end
         local ok,m=pcall(function()
-            return pp:PlaySlotAnimationAsDynamicMontage(seq,FName('DefaultSlot'),blend_in or 0.15,blend_out or 0.15,
+            slot=slot or FName('DefaultSlot') -- (made once: b812f708)
+            return pp:PlaySlotAnimationAsDynamicMontage(seq,slot,blend_in or 0.15,blend_out or 0.15,
                 rate or 1.0,(loops and loops>0) and loops or 100000,-1.0,0.0)
         end)
         if not ok then return nil,tostring(m) end
@@ -162,7 +163,8 @@ function Overlay.new(g)
 
     function self.stop(p,blend_out)
         local pp=pp_of(p.Mesh); if not pp then return end
-        pcall(function() pp:StopSlotAnimation(blend_out or 0.15,FName('DefaultSlot')) end)
+        slot=slot or FName('DefaultSlot')
+        pcall(function() pp:StopSlotAnimation(blend_out or 0.15,slot) end)
     end
 
     -- the layer's upper-body turn (AimRot, added to Bip001-Spine1 in component space): a property write only
