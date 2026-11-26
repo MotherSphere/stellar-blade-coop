@@ -16,10 +16,11 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet wear <fit>[:<Slot>,...] ...` | Wears pieces of one or more outfits by fit map. A fit alone wears the outfit as its pack shows it by default |
 | `coop closet off` | Gives EVE her own look back |
 | `coop closet fits` | Lists the fit maps and the slots of their pieces |
+| `coop closet menu` | Opens the closet menu. When it is open, closes it and gives back the look worn before |
 | `coop closet probe <1-5\|off>` | Runs one in-game test of the game's widget parts for the closet menu and writes `probe:` PASS/FAIL lines to UE4SS.log. `off` ends it |
 
 For example, `coop closet wear AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462:Shoes` wears Ocean Maid's top and
-stockings with Kunoichi Shadow's boots. The words are not in the usage line yet: the closet menu is to come first.
+stockings with Kunoichi Shadow's boots.
 
 The outfit that supplies the shoes goes on EVE's body mesh with its own skin, so its shoes sit on the feet they were
 shaped for. Each other outfit goes on one added mesh that follows her pose and shows only its chosen pieces. A friend's
@@ -52,8 +53,41 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua. They make no engine
 | `dress.lua` | `coop closet wear`: the plan from fit maps, the mix on EVE, the once-a-second watchdog, her own look kept and given back |
 | `fits.lua` | Fit maps: which material slots of a CNS full outfit make each piece and which show the skin (Ocean Maid, Kunoichi Shadow) |
 
-`wiring.lua` builds `dress.lua` as `M.closet` and `commands.lua`. `main/frame.lua` runs its restore at the first tick
-and its tick each frame. `coop off` stops it. The module reads no other module.
+The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
+
+| File | Holds |
+| --- | --- |
+| `ui/model.lua` | What the menu lists: its tabs, each tab's rows, each slot's tiles (the None tile first) and the choice edits |
+| `ui/menu.lua` | `coop closet menu`: the guards that keep it shut, open, draw and close |
+| `ui/view.lua` | The menu's screen, made of the game's widget parts |
+| `ui/probe.lua` | `coop closet probe` |
+
+`wiring.lua` builds `dress.lua` as `M.closet` and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with
+the Steam link only, builds `ui/menu.lua` as `M.closet_menu`. `main/frame.lua` runs the restore at the first tick and
+the dress, probe and menu ticks each frame. `coop off` stops them. The module reads no other module.
+
+## The closet menu
+
+`coop closet menu` opens the menu in the game world, the SBO lobby world included. It needs the Steam link (the kit
+needs it). It does not open while the UI is not up, outside the game world, while another SBO screen holds the input,
+while the game is paused or shows one of its screens, in photo mode, during a cutscene, in combat or in Tachy Mode.
+One notice says why.
+
+The menu covers the left two thirds of the screen. The right third stays clear for EVE. It is made of the game's own
+widget parts in the kit group `closet_menu`:
+
+| Part | Game widget |
+| --- | --- |
+| Tabs | `WB_Common_Tab_Btn`, one a tab. The Intimate tab is left out |
+| Slot rows | `WB_Setting_Button_Slot`, a window of 10. A slot with no piece type yet shows as locked "Coming soon" |
+| Pieces | The hair salon's `WB_HairSalonGridList` TileView, fed with `BP_HairSalonItemData_Tile` data objects. The None tile comes first. Every tile shows the hair salon's default icon until packs give thumbnails |
+| Detail | `WB_NanoSuit_Detail` with its hold button hidden |
+| Key hints | `WB_Common_IndicatorBtnDefault` |
+
+The tab shown is kept until the next Lua load. The first open shows the first tab with a row of pieces. While the menu
+is open it holds the input with the mouse cursor. Back or `coop closet menu` closes it and gives back the look worn
+before. Every close removes every game part first: the game holds EVE still while one of its widgets is up. `coop off`
+closes it without changing the look.
 
 ## Online sessions
 
@@ -85,6 +119,8 @@ keys back before the fast travel. The probe touches only its own widgets: never 
 
 - `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.
 - `tests/lua/closet/closet_test.lua` checks `coop closet`.
+- `tests/lua/closet/menu_test.lua` (5 checks) runs the closet menu on the fake kit and parts of
+  `tests/lua/closet/menu_fakes.lua`: what open draws, `coop closet menu`, the close paths and a draw that fails.
 - `tests/lua/closet/slots_test.lua` (7 checks), `fits_test.lua` (4), `dress_test.lua` (12), `resolver_test.lua` (23),
   `manifest_test.lua` (13) and `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`,
   with the assertions of `tests/lua/closet/helpers.lua`.

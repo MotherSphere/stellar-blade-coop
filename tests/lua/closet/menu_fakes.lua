@@ -1,0 +1,127 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+-- Closet's copy of tests/lua/closet/probe_test.lua's fake kit, with add and view running a group's build through a
+-- builder copied from tests/lua/online/lobby/ui/lobby_test.lua:99-151 (November 2026): its own from then on.
+-- The fake game side of the closet menu's tests (tests/lua/closet/menu_test.lua): the engine globals the view calls
+-- (FText, FName, StaticFindObject, LoadAsset, StaticConstructObject), fake widget parts that record every call, the
+-- hair salon grid's TileView (probe_test.lua's). F.kit() gives a new fake kit; k.events lists the drops and the
+-- TileView's clears in order.
+local F = {}
+FText = function(s) return {text = s, ToString = function(self) return self.text end} end
+FName = function(s) return s end
+LoadAsset = function() end
+StaticFindObject = function(path) return {path = path, IsValid = function() return true end} end
+StaticConstructObject = function(class, outer)
+    return {class = class, outer = outer, IsValid = function() return true end}
+end
+
+F.TAB = '/Game/Art/UI/Widget/GameMenu/Common/WB_Common_Tab_Btn.WB_Common_Tab_Btn_C'
+F.GRID = '/Game/Art/UI/Widget/HairSalon/WB_HairSalonGridList.WB_HairSalonGridList_C'
+F.DETAIL = '/Game/Art/UI/Widget/GameMenu/WorkShop/WB_NanoSuit_Detail.WB_NanoSuit_Detail_C'
+F.ICON = '/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_000.Deco_Item_Hair_000'
+F.OPTION = '/Game/Art/UI/Widget/GameMenu/Setting/Slot/WB_Setting_Button_Slot.WB_Setting_Button_Slot_C'
+F.HINT = '/Game/Art/UI/Widget/GameMenu/Common/Indicator/WB_Common_IndicatorBtnDefault.WB_Common_IndicatorBtnDefault_C'
+F.POPUP = '/Game/Art/UI/Widget/GameMenu/Common/WB_Common_Popup.WB_Common_Popup_C'
+
+-- A widget part: fields written are kept, every method call is recorded in calls as {name, args...}.
+local function widget(class)
+    local w = {class = class, calls = {}}
+    return setmetatable(w, {__index = function(t, k)
+        return function(_, ...) local c = rawget(t, 'calls'); c[#c + 1] = {k, ...} end
+    end})
+end
+F.widget = widget
+-- Whether w got the call name (with first argument arg when given).
+function F.called(w, name, arg)
+    for _, c in ipairs(w.calls) do if c[1] == name and (arg == nil or c[2] == arg) then return true end end
+    return false
+end
+
+-- The hair salon grid's TileView (probe_test.lua's game()).
+local function tileview(events)
+    local tv = {items = {}, SelectionMode = 0, cleared = 0, calls = {}}
+    function tv:IsValid() return true end
+    function tv:SetVisibility(v) self.v = v end
+    function tv:SetSelectionMode(m) self.SelectionMode = m end
+    function tv:ClearListItems() self.items = {}; self.cleared = self.cleared + 1; events[#events + 1] = 'clear' end
+    function tv:AddItem(item) self.items[#self.items + 1] = item end
+    function tv:GetNumItems() return #self.items end
+    function tv:GetItemAt(i) return self.items[i + 1] end
+    function tv:SetSelectedIndex(i) self.sel = self.items[i + 1] end
+    function tv:BP_GetSelectedItem() return self.sel end
+    return tv
+end
+
+-- The lobby test's builder: texts, images and mouse zones (b.row) recorded.
+local function builder(g)
+    local b = {}
+    function b.text(x, y, str, style, color, align, o)
+        local t = {x = x, y = y, s = str or '', color = color, shown = true, style = style, o = o}
+        g.texts[#g.texts + 1] = t
+        return {set = function(s) t.s = s or '' end, color = function(c) t.color = c end,
+            show = function(on) t.shown = on end}
+    end
+    function b.image(x, y, w, h, tex, tint)
+        local i = {x = x, y = y, w = w, h = h, tex = tex, tint = tint, shown = true}
+        g.images[#g.images + 1] = i
+        return {show = function(on) i.shown = on end, tint = function(c) i.tint = c end, turn = function() end,
+            texture = function() return true end}
+    end
+    function b.row(x, y, width)
+        local z = {x = x, y = y, w = width, hover = false, label = '', value = '', state = 'normal'}
+        g.zones[#g.zones + 1] = z
+        return {set = function(l, v, st) z.label, z.value, z.state = l or '', v or '', st or 'normal' end,
+            hovered = function() return z.hover end}
+    end
+    function b.shade(x, y, w, h, color) g.shade = {x = x, y = y, w = w, h = h, color = color} end
+    return b
+end
+
+function F.kit()
+    local k = {up = true, groups = {}, shown = {}, made = {}, dropped = 0, held = nil, inputs = {}, sounds = {},
+        refocused = 0, paused_now = false, fail = {}, events = {}}
+    function k.ready() return k.up end
+    function k.off() return false end
+    function k.add(name, place, build) k.groups[name] = {place = place, build = build, texts = {}, images = {}, zones = {}} end
+    function k.view(name)
+        local g = k.up and k.groups[name]
+        if not g then return nil end
+        if not g.view then g.view = g.build(builder(g)) or {} end
+        return g.view
+    end
+    function k.show(name, on) k.shown[name] = on == true end
+    function k.part(group, class_path, x, y, w, h, fill, hit)
+        local short = class_path:match('[^.]+$')
+        if not k.up or not k.groups[group] then return nil, 'part ' .. short .. ': the UI is not up' end
+        if k.fail[class_path] then return nil, 'part ' .. short .. ': not in this game build' end
+        local o = widget(class_path)
+        if class_path == F.GRID then o.TileView_ItemList = tileview(k.events) end
+        if class_path == F.DETAIL then o.WB_Common_HoldButton = widget('hold') end
+        if fill then fill(o) end
+        local rec = {o = o, live = true, class = class_path, x = x, y = y, w = w, h = h, hit = hit}
+        k.made[#k.made + 1] = rec
+        return rec
+    end
+    function k.alive(rec) return rec and rec.live and rec.o or nil end
+    function k.drop(rec)
+        if rec and rec.live then rec.live = false; k.dropped = k.dropped + 1; k.events[#k.events + 1] = 'drop' end
+    end
+    function k.input(on, who, mouse)
+        k.inputs[#k.inputs + 1] = {on, who, mouse}
+        if on then k.held = who elseif k.held == who then k.held = nil end
+    end
+    function k.holding() return k.held ~= nil end
+    function k.refocus() k.refocused = k.refocused + 1 end
+    function k.paused() return k.paused_now end
+    function k.sound(name) k.sounds[#k.sounds + 1] = name end
+    -- The live parts of a class, in the order made.
+    function k.live(class_path)
+        local out = {}
+        for _, rec in ipairs(k.made) do if rec.live and rec.class == class_path then out[#out + 1] = rec end end
+        return out
+    end
+    return k
+end
+
+return F

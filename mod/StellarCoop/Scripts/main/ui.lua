@@ -65,6 +65,7 @@ if M.settings then
     end
     M.wheel=wheel
     require('main.loader').build(M,'online.session','create',Ui)
+    require('main.loader').build(M,'closet','menu',Ui)
     require('main.loader').build(M,'online.saves','saves',Ui)
     require('main.loader').build(M,'online.lobby','screens',Ui)
 end
