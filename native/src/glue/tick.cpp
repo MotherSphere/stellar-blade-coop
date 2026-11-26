@@ -316,6 +316,7 @@
 #include "online/lobby/loading.h"
 #include "game/memory.h"
 #include "online/session/options.h"
+#include "ui/keys.h"
 #include "ui/pad.h"
 #include "ui/pause_tab.h"
 #include "online/photo/photo_freeze.h"
@@ -532,6 +533,18 @@ extern "C" __declspec(dllexport) int coop_levels(void *) noexcept {
   const int answer = coop::pad_level(game_in_front() ? pad.read() : coop::PadState{}, which);
   which = (which + 1) % 4;
   return answer;
+}
+// coop_keys (Lua passes 512): 1 + ui/keys.h's held_keys bits of the keys held now (GetAsyncKeyState): 1 right mouse,
+// 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O; 1 when no window of SB's is in front. The closet
+// camera's held keys and drags: UE4SS's binds see a key's press only.
+static_assert(coop::kHeldKeys[0] == VK_RBUTTON && coop::kHeldKeys[1] == VK_MBUTTON && coop::kHeldKeys[2] == VK_SHIFT);
+extern "C" __declspec(dllexport) int coop_keys(void *) noexcept {
+  using namespace coop::pose;
+  // GetAsyncKeyState reads the physical buttons: with the buttons swapped, the right (logical) one is VK_LBUTTON.
+  const bool swapped = GetSystemMetrics(SM_SWAPBUTTON) != 0;
+  return coop::held_keys(game_in_front(), [swapped](int vk) {
+    return (GetAsyncKeyState(swapped && vk == VK_RBUTTON ? VK_LBUTTON : vk) & 0x8000) != 0;
+  });
 }
 
 // Called by Lua on the game thread when the pause menu's Online tab closes the pause menu (package.loadlib(dll,
