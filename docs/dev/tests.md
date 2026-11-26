@@ -527,7 +527,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves'
   question, the two boxes and the host's question, which ignores them for 1 s and never takes View held; LB, RB and Y
   taken and doing nothing there; the Online tab's event 12 going to the pause tab only, the open menu and the host's
-  question keeping their focus; at most 8 a frame; an older DLL without it), the Online tab's close from a fake
+  question keeping their focus; at most 8 a frame; an older DLL without it; the closet's event 14 toggling the closet
+  menu, closed under the bike's refusals, open as its Back paused or not, nothing under the host's question), the
+  Online tab's close from a fake
   `coop_pause_close` (its three answers, an older DLL without it), the mouse in the menu and on the host's question (a
   left click going to the pause menu's Online tab while a pause menu holds it), the focus watchdog's reset, the Lua
   frame time line with its longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call
@@ -1609,7 +1611,12 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   posted into the queue in order with the pad's, a full queue dropping the newest; the emote wheel's reads: the right
   stick's sector (0 inside half its range, 1 to 72 clockwise from up), D-pad Left held 300 ms making event 13 once a
   hold (not at 299 ms, again after a release, forgotten with no pad), the right stick from XInput's slots and from
-  `PadKeys` (the controller pushed furthest, `clear()`);
+  `PadKeys` (the controller pushed furthest, `clear()`); the closet's reads: LB held + D-pad Left making event 14 once
+  (after its left, both in one step too, from `PadKeys` too) and never the wheel's event, LB let go first or not,
+  D-pad Left alone still the wheel's, D-pad Left held before LB no chord and no wheel, the stick held left no chord;
+  X, L3 and R3 as `pad_bits` (1, 2, 4) from XInput's slots and `PadKeys`; the right stick and triggers as `pad_level`'s
+  `1 + 65 * which + level` (at rest, the ends, 260 at most), the triggers from XInput's first pad and from `PadKeys`
+  (0 to 1 as 0 to 255, clamped, the one pulled furthest, `clear()`);
 - `ui_pause_tab_test`: the Online tab's decision on the GameMenu logic's input (RB on the highest enabled tab while the
   game's tab lock is off opens it; any other tab, action or lock passes the action on to the game; a tab list the game
   never builds passes too; a press and its release within 500 ms open once) and its pinned slot, function, FName

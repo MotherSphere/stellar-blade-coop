@@ -520,6 +520,57 @@ end)()
     assert(not logged('error'),'the stub takes no key and raises nothing')
 end)()
 
+-- The pad's closet event (LB held + D-pad Left, the native part's 14) runs the closet menu's toggle as closet_key does.
+-- Closed, it opens under the bike's refusals (our HUD hidden, one of our screens open, the game paused or on one of
+-- its screens: logged only), a refused open reported; open, it is the menu's Back, paused or not. The loader stub of an
+-- off closet module takes it and raises nothing.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    Loader.run=run
+    kit_ready=true; quarter()
+    local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
+    local up,toggles,answer=false,0,{true,'closet menu: open'}
+    M.closet_menu={is_open=function() return up end,nav=function() end,close=function() up=false end,
+        tick=function() end,stop=function() end,
+        toggle=function() toggles=toggles+1; if answer[1] then up=not up end; return table.unpack(answer) end}
+    -- the_closet_pad_event_toggles_the_menu
+    assert(M.PAD[14]=='closet')
+    pad(14)
+    assert(toggles==1 and up and logged('pad: closet'),'closed: it opens')
+    kit_paused=true
+    pad(14)
+    assert(toggles==2 and not up,'open: its Back, paused or not')
+    pad(14)
+    assert(toggles==2 and logged('pad: closet ignored: the game is paused or shows one of its screens'))
+    kit_paused=false
+    key('F5'); assert(kit_shown.menu)
+    pad(14)
+    assert(toggles==2 and logged('pad: closet ignored: one of our screens is open'),'the co-op menu open')
+    key('F5'); assert(not kit_shown.menu)
+    M.hud_shown=false
+    pad(14)
+    assert(toggles==2 and logged('pad: closet ignored: our HUD is not shown'))
+    M.hud_shown=true
+    answer={false,'Stellar Closet does not open in combat.'}
+    pad(14)
+    assert(toggles==3 and not up and last()=='[StellarCoop] STOP: Stellar Closet does not open in combat.\n',last())
+    -- The host's question over the open menu: the chord does nothing.
+    up,answer=true,{true,'closet menu: closed'}
+    link_mode,link_pending='host',{id='76561198000000030',name='Nine'}
+    quarter(); assert(kit_shown.ask)
+    pad(14)
+    assert(toggles==3 and up and kit_shown.ask,'under the host\'s question: nothing')
+    coop('ui','reset'); link_mode,link_pending='none',nil
+    M.closet_menu=Loader.STUB
+    pad(14)
+    assert(not logged('pad: error'),'the stub takes it and raises nothing')
+end)()
+
 -- The controllers the mod reads, said the same way in INSTALL.md and docs/players/interface.md (any controller the game
 -- reads, XInput only as the fallback); no comment still says only an XInput pad can answer the saves' question or the
 -- guide.

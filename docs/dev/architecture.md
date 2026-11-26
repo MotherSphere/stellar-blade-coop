@@ -23,6 +23,10 @@ Stellar Blade Online has two parts, both in the mod folder `Mods/StellarCoop/`:
     frame while it is open: the right stick's 5 degree sector at the pads' last read, whether D-pad Left is held, and
     the lowest F-key held (`GetAsyncKeyState`). Each answers how many of its arguments it hands back (73, 2 and 13
     arguments), with its last value when no window of the game's is in front. They read no game memory.
+  - `coop_padbits` and `coop_levels`, exported functions for the closet's pad reads (`main/boot.lua`'s `M.pad_bits`
+    and `M.pad_levels`): X, L3 and R3 held as `1 +` bits (1 X, 2 L3, 4 R3; 8 arguments). The right stick's x and y
+    and the two triggers come one level a call in turn as `1 + 65 * which + level` (260 arguments), so each answer says
+    which it is. Not in front: nothing held, at rest. They read no game memory.
   - `coop_pause_close`, an exported function that Lua calls on the game thread when the pause menu's Online tab closes
     the pause menu. It runs the game's own close, the one Back uses (see [Pause
     menu](../players/interface.md#pause-menu)).
@@ -460,7 +464,7 @@ from the game.
 - Slate's message handler (the Slate application at `0x146faa4d0`, its handler at `+0x118` with the vtable
   `0x145fe5430`) has three controller slots: analog `+0x88`, button pressed `+0x90` and released `+0x98`. The engine's
   XInput poll and SB's DualSense module both call them, so they see every controller the game reads. Once a run the
-  worker finds the twelve key names `ui/pad.h`'s `PadKeys` reads (`Gamepad_DPad_Up` to `Gamepad_LeftY`) with FName's
+  worker finds the key names `ui/pad.h`'s `PadKeys` reads (`Gamepad_DPad_Up` to `Gamepad_RightTriggerAxis`) with FName's
   find, which never makes a name, checks the handler's vtable, then swaps the three slots by compare-and-swap, all or
   none. Each hook records the key into `PadKeys` (relaxed atomics) and runs the game's function with the same
   arguments; it never drops or changes an event. `PadKeys` keeps each controller's held buttons in XInput's bit layout
@@ -483,12 +487,15 @@ from the game.
   degrees does not switch at each read), up and down repeating after 400 ms then every 120 ms, A for select, B for back,
   View held 1000 ms for the menu, once a hold, LB and RB for the tab to the left and right and Y for the Sessions
   screen's Refresh, once a press. D-pad Right held 1000 ms gives the [bike](../vehicles/bike-internals.md)'s event, once
-  a hold, after its right. D-pad Left held 300 ms gives the emote wheel's event (13), once a hold, after its left. A ring
-  of 8 holds them; a full ring drops the newest. `PadKeys` and the XInput slots also read the right stick
-  (`Gamepad_RightX`, `Gamepad_RightY`; `sThumbRX`, `sThumbRY`), which makes no event.
+  a hold, after its right. D-pad Left held 300 ms gives the emote wheel's event (13), once a hold, after its left.
+  D-pad Left pressed while LB is held gives the closet's event (14), after its left. Neither that hold nor any D-pad
+  Left hold while LB is held gives the wheel's event. A ring of 8 holds them; a full ring drops the newest. `PadKeys`
+  and the XInput slots also read the right stick (`Gamepad_RightX`, `Gamepad_RightY`; `sThumbRX`, `sThumbRY`), the
+  triggers (`Gamepad_LeftTriggerAxis`, `Gamepad_RightTriggerAxis`; `bLeftTrigger`, `bRightTrigger`) and X, L3 and R3
+  (`Gamepad_FaceButton_Left`, `Gamepad_LeftThumbstick`, `Gamepad_RightThumbstick`), which make no event.
 - The DLL links no Lua, so each event travels as a result count. Lua calls
-  `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n. Lua hands
-  back the top n of the 13 arguments on its stack. n is the event, 1 to 13, or 0 when the ring is empty. `main/frame.lua`
+  `select('#', native_pad(0,0,0,0,0,0,0,0,0,0,0,0,0,0))`: `coop_pad`, called as a Lua C function, returns n. Lua hands
+  back the top n of the 14 arguments on its stack. n is the event, 1 to 14, or 0 when the ring is empty. `main/frame.lua`
   takes at most 8 events a frame and `main/input.lua` routes them as the keys route theirs: the join popups get every
   word first while one is open, the SBO lobby's screens get the six navigation words while one is open and View closes
   it to the waiting room, the Sessions screen and the Create a session screen get every word while one is open (Y is the
@@ -498,7 +505,9 @@ from the game.
   menu in the SBO lobby's world and the co-op menu elsewhere, through the same path as `menu_key`. LB and RB change the
   tab of the lobby's settings screen or of the Sessions screen while one is open and do nothing anywhere else. The
   bike's event goes the path of `bike_key` in a world with the HUD shown while none of these screens is open and the
-  game is neither paused nor showing one of its screens; it does nothing otherwise (the log says why).
+  game is neither paused nor showing one of its screens; it does nothing otherwise (the log says why). The closet's
+  event runs the closet menu's toggle as `closet_key` does: closed, under the bike's refusals; open, it is the menu's
+  Back unless the host's question is open.
 - The worker logs each change of the connected slots (`pad: XInput pads connected: <slots>`, `pad: no XInput pad`).
 
 ### Mouse

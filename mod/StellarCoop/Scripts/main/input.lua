@@ -94,7 +94,11 @@ end
 -- wheel (D-pad Left held 0.3 s, the native part's event 13) opens the emote wheel (eve/ui/wheel.lua) with
 -- emote_pad=dpad_left, in a world with our HUD shown and none of our screens open; otherwise it logs why and does
 -- nothing. While the wheel is open it takes LB and RB (its pages), A (play) and B (cancel); every other word is dropped.
-M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab','wheel'}
+-- closet (D-pad Left pressed while LB is held, the native part's event 14) runs the closet menu's toggle as closet_key
+-- does (closet/ui/menu.lua). Closed, it opens under the bike's refusals (logged only); open, it is the menu's Back,
+-- unless the host's question is open.
+M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab','wheel',
+    'closet'}
 -- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
 -- English as the bike gives it, since the press shows nothing else.
 function M.bike_press(by)
@@ -137,6 +141,19 @@ function M.pad_event(what)
         if why then log('pad: bike ignored: '..why); return end
         log('pad: bike')
         M.bike_press('the pad')
+        return
+    end
+    if what=='closet' then
+        local why=M.approval.is_open() and 'one of our screens is open'
+            or not M.closet_menu.is_open() and (not M.hud_shown and 'our HUD is not shown'
+                or (M.lobby.is_open() or M.code_box.is_open() or M.box.is_open() or M.menu.is_open()
+                    or M.saves_ui.is_open() or M.open_screen()~=nil) and 'one of our screens is open'
+                or M.kit~=nil and M.kit.paused(true) and 'the game is paused or shows one of its screens')
+        if why then log('pad: closet ignored: '..why); return end
+        log('pad: closet')
+        if M.off then return M.report(false,M.OFF) end
+        local ok,refused=M.closet_menu.toggle()
+        if ok==false then M.report(ok,refused) end
         return
     end
     if M.approval.is_open() then return M.approval.nav(what) end

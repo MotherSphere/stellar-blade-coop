@@ -1327,6 +1327,32 @@ status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
     assert(not table.concat(printed,'|'):find('key F1',1,true),'closet_key=none: F1 does nothing')
 end)()
 
+-- The pad reads for the closet: M.pad_bits() gives X, L3 and R3 held as bits (1, 2, 4) from coop_padbits' 8 arguments,
+-- M.pad_levels() the right stick's x and y (-1 to 1) and the triggers (0 to 1) from four coop_levels calls of 260, each
+-- answer saying which level it is. An older DLL without them: one log line, both nil, the wheel's reads still load.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    assert(M.pad_bits()==0,'nothing held')
+    pr.bits=5
+    assert(M.pad_bits()==5,'X and R3')
+    local rx,ry,lt,rt=M.pad_levels()
+    assert(rx==0 and ry==0 and lt==0 and rt==0 and pr.calls==4,'at rest, in four calls')
+    pr.levels={1+130+64,1+195+16,1+64,1+65} -- Out of order: each answer says which level it is.
+    rx,ry,lt,rt=M.pad_levels()
+    assert(rx==1 and ry==-1 and lt==1 and rt==0.25,table.concat({rx,ry,lt,rt},' '))
+    pr.missing=true
+    load_main(true)
+    Loader.run=run
+    assert(M.pad_bits==nil and M.pad_levels==nil and M.wheel_reads~=nil
+        and logged('Native pad bits and levels unavailable: coop_padbits: not exported'),table.concat(printed,'|'))
+    pr.missing=false
+end)()
+
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true
 package.loadlib=function(_,name) if name=='coop_tick' then return nil,'not exported' end return true end

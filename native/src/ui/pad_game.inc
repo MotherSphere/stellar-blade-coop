@@ -9,7 +9,10 @@
 namespace coop::pose {
 
 namespace {
-// The pads, the game thread's (coop_pad): ui/pad.h's PadSlots picks the slots to ask.
+// The pads, the game thread's (coop_pad): ui/pad.h's PadSlots picks the slots to ask. XInput's wButtons is copied as
+// it is, so PadState's bits must be XInput's.
+static_assert(coop::PadState::X == XINPUT_GAMEPAD_X && coop::PadState::LEFT_THUMB == XINPUT_GAMEPAD_LEFT_THUMB &&
+              coop::PadState::RIGHT_THUMB == XINPUT_GAMEPAD_RIGHT_THUMB);
 constexpr uint64_t kPadPollMs = 8;
 coop::Pad pad;
 coop::PadSlots pad_slots;
@@ -66,6 +69,8 @@ void poll_pad(uint64_t now) {
     one.ly = x.Gamepad.sThumbLY;
     one.rx = x.Gamepad.sThumbRX;
     one.ry = x.Gamepad.sThumbRY;
+    one.lt = x.Gamepad.bLeftTrigger;
+    one.rt = x.Gamepad.bRightTrigger;
     return true;
   });
   pad_seen = pad_slots.answered();
