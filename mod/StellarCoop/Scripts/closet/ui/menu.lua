@@ -27,7 +27,8 @@
 -- No. Select does nothing for ARM s after the open: the console's Enter that typed coop closet menu reaches our Enter
 -- bind too (main/base.lua's M.typed_at note). The None tile on the last piece worn previews her own look; when the menu
 -- opened on her own look, it reverts instead: nothing changed since the open.
--- Mouse: a click on a hint chip runs that hint's word (view.hint_hovered); a tile the mouse picked is worn at once.
+-- Mouse: a click on a hint chip runs that hint's word (view.hint_hovered); a tile a left click picked is worn at once,
+-- a tile the grid picked otherwise (hover, focus) once it stayed picked PREVIEW s.
 -- The Body tab's Body row (BaseBody) lists None (the body rule picks the body) then each outfit with skin: its tile
 -- picks that outfit's body. The row's value is the body in use: the picked one, else the one the look on EVE wears
 -- (dress.plan). A tile's detail and the Full tab's rows name the origin: Original, or Custom and the pack.
@@ -76,6 +77,7 @@ function Menu.new(o)
     -- frame: ticks so far; undo: the focus before the last tab_left while only left followed it ({tab, row, col, tile,
     -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle).
     local frame,undo=0,nil
+    local clicked -- The frame of the last left click (nav 'click'), until a tile pick uses it.
     local function words() return o.words and o.words() or T.en end
 
     local function cutscene(eve)
@@ -376,6 +378,7 @@ function Menu.new(o)
             return
         end
         if word=='click' then -- The row under the mouse takes the focus and Select runs, as in the lobby.
+            clicked=frame -- A tile the click picks is worn at once (self.tick).
             local i=view.tab_hovered()
             if i then set_tab(i); return redraw() end
             local chip=view.hint_hovered() -- A hint chip runs its word.
@@ -452,7 +455,11 @@ function Menu.new(o)
         local _,tiles=focused()
         local picked=tiles and view.picked()
         if picked then
-            col,tile,due='grid',picked,t -- A click wears at once: the same tick's due check below.
+            -- A left click in this frame or the last wears at once (the same tick's due check below): the click bind
+            -- (through ExecuteInGameThread) and Slate's selection can land a frame apart, on either side of this tick.
+            -- Any other pick (SB's grid on hover or focus) waits PREVIEW s, so a tile passed over is never worn.
+            local click=clicked~=nil and frame-clicked<=2
+            col,tile,due,clicked='grid',picked,click and t or t+Menu.PREVIEW,nil
             redraw()
         end
         if due and t>=due then

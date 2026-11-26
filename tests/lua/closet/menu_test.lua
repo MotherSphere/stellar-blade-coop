@@ -440,9 +440,41 @@ local tests = {
     a_click_on_a_tile_previews_at_once = function()
         local r = rig()
         on_top(r)
+        at(r, 0.6, 'click') -- Over the grid: no tab, chip or row under the mouse.
         grid(r):SetSelectedIndex(1)
         tick(r, 0.6)
-        same(r.previews, {{{fit = MAID, slots = {'Chest'}}}}, 'the picked tile is worn in the same tick')
+        same(r.previews, {{{fit = MAID, slots = {'Chest'}}}}, 'the clicked tile is worn in the same tick')
+        -- The click bind and Slate's selection can land a frame apart: a click the frame before counts too.
+        at(r, 0.7, 'click')
+        tick(r, 0.7)
+        grid(r):SetSelectedIndex(2)
+        tick(r, 0.71)
+        same(r.previews[2], {{fit = KUNOICHI, slots = {'Chest'}}}, 'a click the frame before: at once')
+    end,
+
+    -- SB's grid may select a tile on hover or keyboard focus: with no click, the selection waits PREVIEW s as the
+    -- keys do, so a tile passed over is never worn.
+    a_selection_without_a_click_waits_250_ms = function()
+        local r = rig()
+        on_top(r)
+        grid(r):SetSelectedIndex(1)
+        tick(r, 0.6)
+        eq((detail(r)), 'Maid top', 'the selected tile takes the focus')
+        eq(#r.previews, 0, 'no click: not worn at once')
+        grid(r):SetSelectedIndex(2) -- Passed over: the timer starts again.
+        tick(r, 0.7)
+        tick(r, 0.9)
+        eq(#r.previews, 0, 'not before 250 ms')
+        tick(r, 0.95)
+        same(r.previews, {{{fit = KUNOICHI, slots = {'Chest'}}}}, 'the last tile worn after 250 ms')
+        -- A click two frames before the selection is not this one's.
+        at(r, 1, 'click')
+        tick(r, 1) tick(r, 1.01)
+        grid(r):SetSelectedIndex(1)
+        tick(r, 1.02)
+        eq(#r.previews, 1, 'an older click: the wait')
+        tick(r, 1.3)
+        eq(#r.previews, 2, 'worn after it')
     end,
 
     a_click_on_a_hint_runs_it = function()
