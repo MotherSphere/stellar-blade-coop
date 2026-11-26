@@ -155,8 +155,8 @@ frame.
 
 ### Preview lighting
 
-The closet camera can light EVE with lights of its own. V, L3 on a controller or a click on its hint takes the next
-preset:
+The closet camera can light EVE with lights of its own. V, a click on its hint or L3 on a controller (pressed and
+released with no trigger pulled) takes the next preset:
 
 | Preset | Lights |
 | --- | --- |
@@ -166,7 +166,8 @@ preset:
 | Cool | The same two lights in a cool colour |
 | Rim | A white back light behind EVE for her outline and a weak key light |
 
-Shift+O and Shift+U step the intensity up and down by 0.25, from x0.25 to x2. The hint shows the preset and its
+Shift+O and Shift+U step the intensity up and down by 0.25, from x0.25 to x2. On a controller, hold L3 and pull RT
+or LT: each pull steps it up or down. While L3 is held, the triggers do not zoom. The hint shows the preset and its
 intensity. The lights are point lights on the camera, placed from the camera and EVE, so they follow the camera in
 both modes. They leave with the camera on every close. The preset and the intensity are saved with the camera pose in
 `coop-closet-camera.txt` and survive a restart. Reset Stellar Closet sets Game at x1 again. The intensities are

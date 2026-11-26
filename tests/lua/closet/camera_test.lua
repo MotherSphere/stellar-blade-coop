@@ -626,19 +626,64 @@ local tests = {
         W.bits = 2
         c.open()
         frames(c, 0.1, 'full')
-        eq(c.light(), 'game', 'L3 held at the open: no press')
         W.bits = 0
         c.tick(1 / 60, 'full')
+        eq(c.light(), 'game', 'L3 held at the open: no press')
         W.bits = 2
         frames(c, 0.3, 'full')
-        eq(c.light(), 'studio', 'one step a press, in region mode too')
-        eq(fields().preset, 'studio', 'written')
+        eq(c.light(), 'game', 'the preset changes at the release')
         W.bits = 0
         c.tick(1 / 60, 'full')
+        eq(c.light(), 'studio', 'one step a press, in region mode too')
+        eq(fields().preset, 'studio', 'written')
+        frames(c, 0.1, 'full')
+        eq(c.light(), 'studio', 'once')
         W.bits = 2
+        c.tick(1 / 60, 'full')
+        W.bits = 0
         c.tick(1 / 60, 'full')
         eq(c.light(), 'warm', 'the next press')
         eq(c.mode(), 'region', 'L3 is not X')
+    end,
+
+    the_pad_l3_held_with_a_trigger_steps_the_intensity = function()
+        local c = world(function(w) w.file = '\tfree\t0\t0\t300\t100\t0\tstudio\t1.00' end)
+        local function step(bits, levels)
+            W.bits, W.levels = bits, levels
+            c.tick(1 / 60, 'full')
+        end
+        W.bits, W.levels = 2, {0, 0, 0, 1}
+        c.open()
+        frames(c, 0.1, 'full')
+        step(0, {0, 0, 0, 0})
+        local p, x = c.light()
+        ok(p == 'studio' and x == 1, 'L3 and RT held at the open: no step, no next preset')
+        step(2, {0, 0, 0, 0})
+        step(2, {0, 0, 0, 1})
+        p, x = c.light()
+        ok(p == 'studio' and x == 1.25, 'L3 held, RT pulled: x1.25')
+        frames(c, 0.3, 'full')
+        eq(select(2, c.light()), 1.25, 'one step a pull')
+        step(2, {0, 0, 0, 0})
+        step(2, {0, 0, 1, 0})
+        eq(select(2, c.light()), 1, 'L3 held, LT pulled: x1')
+        frames(c, 0.3, 'full')
+        step(2, {0, 0, 0, 0})
+        step(2, {0, 0, 1, 0})
+        eq(select(2, c.light()), 0.75, 'the next LT pull: x0.75')
+        eq(fields().factor, 0.75, 'written')
+        step(2, {0, 0, 0, 0})
+        step(0, {0, 0, 0, 0})
+        eq(c.light(), 'studio', 'L3 released after a trigger: no next preset')
+        c.word('cam_left')
+        near(fields().dist, 300, 0.01, 'no zoom while L3 is held')
+        eq(c.mode(), 'free', 'L3 is not X')
+        -- Without L3 the triggers zoom again.
+        W.levels = {0, 0, 0, 1}
+        frames(c, 0.5, 'full')
+        step(0, {0, 0, 0, 0})
+        ok(fields().dist < 300, 'RT alone zooms in')
+        eq(select(2, c.light()), 0.75, 'RT alone: no step')
     end,
 
     reset_stellar_closet_also_forgets_the_lights = function()

@@ -20,8 +20,9 @@
 -- triggers move nothing. X released after a hold with no stick toggles region and free (cam_mode too); R3 and cam_reset
 -- set the free pose to the region's framing and go to free mode. The mode and the free pose are written to the file
 -- at each change (a stick move once the stick is back at rest) and read once a Lua load: only Reset replaces the pose.
--- The preview lights (closet/ui/lights.lua) go on the camera actor at the open and follow its pose: light_next and a
--- press of the pad's L3 (in both modes) take the next preset; light_up and light_down step its intensity. Their preset
+-- The preview lights (closet/ui/lights.lua) go on the camera actor at the open and follow its pose: light_next and the
+-- pad's L3 released after a hold with no trigger (in both modes) take the next preset; light_up and light_down step its
+-- intensity, as does each pull of RT (up) or LT (down) while L3 is held, when the triggers zoom nothing. Their preset
 -- and intensity are written to the same line at each change and read with the pose.
 -- forget() (the menu's Reset Stellar Closet, after its close) goes back to region mode with no free pose and the Game
 -- preset at x1. It clears the file: at once, or once a closed camera is removed (its path stays in the file while it
@@ -113,7 +114,8 @@ function Camera.new(o)
     local clock=0
     local dirty=false -- The stick moved the free pose since the last write.
     local forgot=false -- forget() ran: a write with nothing to keep clears the file.
-    local x_held,x_moved,r3_held,l3_held=true,true,true,true -- Read as held at an open: a hold from before is no press.
+    -- Read as held at an open: a hold from before is no press.
+    local x_held,x_moved,r3_held,l3_held,l3_used,lt_held,rt_held=true,true,true,true,true,true,true
     local lights=Lights.new({unreal=U,log=log})
 
     local function is(a,b) return a~=nil and b~=nil and U.address(a)==U.address(b) end
@@ -221,8 +223,13 @@ function Camera.new(o)
         local stick=sx~=0 or sy~=0
         if r3 and not r3_held then reset() end
         r3_held=r3
-        if l3 and not l3_held then lights.next(); write() end
-        l3_held=l3
+        if l3 and not l3_held then l3_used=false end
+        if l3 and rt~=0 and not rt_held then lights.step(1); write() end
+        if l3 and lt~=0 and not lt_held then lights.step(-1); write() end
+        if l3 and (lt~=0 or rt~=0) then l3_used=true end
+        if not l3 and l3_held and not l3_used then lights.next(); write() end
+        l3_held,lt_held,rt_held=l3,lt~=0,rt~=0
+        if l3 then lt,rt=0,0 end -- The triggers are the light's while L3 is held: no zoom.
         if x and not x_held then x_moved=false end
         if x and stick then x_moved=true end
         if not x and x_held and not x_moved then toggle() end
@@ -294,7 +301,7 @@ function Camera.new(o)
             if write()==false then cam=nil; remove(d); d=nil; return 'the file could not be written' end
             d.mesh:SetFieldOfView(fov)
             pc:SetViewTargetWithBlend(d.actor,Camera.BLEND,0,0,false)
-            cur,x_held,x_moved,r3_held,l3_held=nil,true,true,true,true
+            cur,x_held,x_moved,r3_held,l3_held,l3_used,lt_held,rt_held=nil,true,true,true,true,true,true,true
             lights.on(d.actor)
             log(string.format('camera: on (%s), FOV %.1f, her height %.0f cm, lights %s x%g',mode,fov,cam.h,
                 lights.preset(),lights.factor()))
