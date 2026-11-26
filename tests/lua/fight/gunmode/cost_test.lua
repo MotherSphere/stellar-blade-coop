@@ -361,4 +361,22 @@ do
     assert(slots<=1,slots..' DefaultSlot names made in overlay.lua')
 end
 
+-- 11. An asset that never loads (here the muzzle flash, asked at each round) is looked for and loaded once in 5 s, not
+--     at each use: each miss was a StaticFindObject walk and a LoadAsset (b812f708).
+do
+    local w=world()
+    local fx=Config.DEFAULTS.muzzle_fx
+    local gun=quiet()
+    frames(gun,1)
+    out(gun); frames(gun,60)
+    w.pawn.bTPSMode,w.down.RightMouseButton,w.down.LeftMouseButton=true,true,true
+    w.n.load[fx]=0
+    frames(gun,120)
+    assert(w.n.load[fx]==1,w.n.load[fx]..' loads of a missing asset in 2 s of fire')
+    frames(gun,240)
+    assert(w.n.load[fx]==2,w.n.load[fx]..' loads of a missing asset in 6 s of fire')
+    w.down.LeftMouseButton=nil
+    w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
+end
+
 print('gunmode cost_test ok')

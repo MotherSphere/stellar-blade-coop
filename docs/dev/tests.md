@@ -104,10 +104,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   rifle outs through aims, bursts, reloads and departures look for no asset with StaticFindObject and load none of
   the kept ones. A layer pose or a rebuild body the paks lack is looked for once a Lua load. The camera modifier is
   tried once a rifle out. The reticle's text is walked for at the rifle out and after an aim, never in one, at most
-  once in 10 s. The
-  laser's two assets, the rifle's mesh and the two turn clips are asked of the keep. A drone near EVE is hidden and
-  kept: the next rifle out finds it with no list, unless it is 3000 or more away. The drones come from the engine's
-  class hash through `GunMode.DRONE_CLASS`. The flash's `FX_Fire` and the layer's `DefaultSlot` names are made once;
+  once in 10 s. The laser's two assets, the rifle's mesh and the two turn clips are asked of the keep. A drone near
+  EVE is hidden and kept: the next rifle out finds it with no list, unless it is 3000 or more away. The drones come
+  from the engine's class hash through `GunMode.DRONE_CLASS`. The flash's `FX_Fire` and the layer's `DefaultSlot`
+  names are made once. An asset that never loads (the muzzle flash, asked at each round) is looked for and loaded
+  once in 5 s;
 - `fight/gunmode/state_test` covers SB's NIKKE behaviour that gun mode holds off, over `fight/gunmode/fake.lua`. With
   native fire the NIKKE shot's show has an empty anim key while the rifle is out, back at the rifle away, with no
   write to a show the engine collected. Own fire and `gun_upper=nikke` keep it. `P_Eve_GunNikke_ReloadCompleted`'s
