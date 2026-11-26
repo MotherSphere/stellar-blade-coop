@@ -1,0 +1,142 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+-- The menu's data model (closet/ui/model.lua): tabs, rows, tiles and the pure choice edits.
+local run = dofile('tests/lua/closet/run.lua')
+package.loaded.UEHelpers = {GetPlayer = function() return nil end} -- dress.lua needs it to load
+local Model = require('closet.ui.model')
+local Slots = require('closet.slots')
+local Fits = require('closet.fits')
+local Dress = require('closet.dress')
+
+local CH27, CH46 = 'AiK_CH27_14595', 'AiK_CH46_xSH_14462'
+
+local function new(o)
+    o = o or {}
+    return Model.new({slots = Slots, fits = Fits, installed = o.installed or function() return true end,
+        adult = o.adult})
+end
+
+local function slots_of(choices, fit)
+    for _, c in ipairs(choices) do
+        if c.fit == fit then
+            local out = {}
+            for _, s in ipairs(c.slots or {}) do out[#out + 1] = s end
+            table.sort(out)
+            return out
+        end
+    end
+    return nil
+end
+
+local tests = {
+    tabs_leave_out_the_adult_menu = function()
+        local t = new().tabs()
+        eq(#t, 8, 'tab count')
+        for _, id in ipairs(t) do ok(id ~= 'intimate', 'intimate listed') end
+        eq(t[1], 'head', 'first') eq(t[#t], 'full', 'last')
+        local a = new({adult = true}).tabs()
+        eq(#a, 9, 'adult count') eq(a[5], 'intimate', 'intimate place')
+    end,
+
+    rows_mark_soon_and_empty = function()
+        local m = new()
+        local function state(tab, slot)
+            for _, r in ipairs(m.rows(tab)) do if r.slot == slot then return r.state end end
+        end
+        eq(state('head', 'Face'), 'soon') eq(state('torso', 'Necklace'), 'empty')
+        eq(state('torso', 'Chest'), 'pieces') eq(state('arms', 'Fingernails'), 'pieces')
+        eq(#m.rows('torso'), #Slots.in_menu('torso'), 'one row per slot')
+    end,
+
+    full_tab_lists_outfits = function()
+        local m = new({installed = function(f) return f == CH27 end})
+        local rows = m.rows('full')
+        eq(#rows, 2, 'rows')
+        same(rows[1], {whole = CH27, outfit = 'Ocean Maid', pack = 'AiK', locked = false}, 'first')
+        same(rows[2], {whole = CH46, outfit = 'Kunoichi Shadow', pack = 'AiK', locked = true}, 'second')
+    end,
+
+    tiles_start_with_none_and_lock_missing_packs = function()
+        local m = new({installed = function(f) return f == CH27 end})
+        local t = m.tiles('Chest')
+        eq(#t, 3, 'tiles')
+        same(t[1], {none = true}, 'none')
+        eq(t[2].fit, CH27) eq(t[2].name, 'Maid top') eq(t[2].outfit, 'Ocean Maid') eq(t[2].pack, 'AiK')
+        eq(t[2].locked, false) eq(t[3].fit, CH46) eq(t[3].locked, true)
+        eq(m.tiles('Legs')[2].off, true, 'stockings off by default')
+        same(m.tiles('Gloves')[3].covers, {'ArmUpper', 'Forearm', 'Hand'}, 'covers')
+        same(m.tiles('UndergarmentTop')[2].also, {'UndergarmentBottom'}, 'also')
+        eq(#m.tiles('Face'), 1, 'none only')
+    end,
+
+    choose_replaces_a_slot_across_outfits = function()
+        local m = new()
+        local start = {{fit = CH27, slots = {'Chest', 'Shoes'}}}
+        eq(m.worn(start, 'Chest'), CH27)
+        local out = m.choose(start, 'Chest', CH46)
+        eq(m.worn(out, 'Chest'), CH46) eq(m.worn(out, 'Shoes'), CH27)
+        same(slots_of(out, CH27), {'Shoes'}) same(slots_of(out, CH46), {'Chest'})
+        same(start, {{fit = CH27, slots = {'Chest', 'Shoes'}}}, 'input untouched')
+        ok(Dress.plan(out), 'plans')
+    end,
+
+    choose_expands_a_whole_outfit = function()
+        local m = new()
+        local start = m.whole(CH27)
+        same(start, {{fit = CH27}}, 'whole')
+        eq(m.worn(start, 'Chest'), CH27) eq(m.worn(start, 'Legs'), nil, 'Off piece not worn')
+        local out = m.choose(start, 'Chest', CH46)
+        eq(m.worn(out, 'Collar'), CH27) eq(m.worn(out, 'Chest'), CH46) eq(m.worn(out, 'Legs'), nil)
+        ok(out[1].slots, 'expanded')
+        ok(Dress.plan(out), 'plans')
+        same(start, {{fit = CH27}}, 'input untouched')
+    end,
+
+    choose_frees_occupied_slots = function()
+        local m = new()
+        -- CH27's Leotard (UndergarmentTop) occupies UndergarmentBottom.
+        local out = m.choose({{fit = CH46, slots = {'Chest'}}}, 'UndergarmentTop', CH27)
+        eq(m.worn(out, 'UndergarmentTop'), CH27)
+        local worn = {{fit = CH27, slots = {'UndergarmentTop', 'Shoes'}}}
+        -- Picking a piece for the occupied slot takes the Leotard off.
+        local off = m.choose(worn, 'UndergarmentBottom', nil)
+        eq(m.worn(off, 'UndergarmentTop'), nil) eq(m.worn(off, 'Shoes'), CH27)
+        ok(Dress.plan(off), 'plans')
+        -- Picking the Leotard frees the slot it occupies in another outfit.
+        local both = m.choose({{fit = CH46, slots = {'Chest'}}, {fit = CH27, slots = {'Shoes'}}}, 'UndergarmentTop',
+            CH27)
+        eq(m.worn(both, 'UndergarmentTop'), CH27) eq(m.worn(both, 'Chest'), CH46)
+        ok(Dress.plan(both), 'plans')
+    end,
+
+    none_takes_a_slot_off = function()
+        local m = new()
+        local out = m.choose({{fit = CH27, slots = {'Chest', 'Shoes'}}}, 'Chest', nil)
+        eq(m.worn(out, 'Chest'), nil) eq(m.worn(out, 'Shoes'), CH27)
+        same(m.choose({{fit = CH27, slots = {'Chest'}}}, 'Chest', nil), {}, 'empty choices dropped')
+        local w = m.choose(m.whole(CH27), 'Chest', nil)
+        eq(m.worn(w, 'Chest'), nil) eq(m.worn(w, 'Collar'), CH27)
+    end,
+
+    choose_always_plans = function()
+        local m = new()
+        local starts = {m.whole(CH27), m.whole(CH46),
+            {{fit = CH27, slots = {'Chest'}}, {fit = CH46, slots = {'Gloves'}}}}
+        local n = 0
+        for _, start in ipairs(starts) do
+            for _, slot in ipairs(Slots.LIST) do
+                for _, tile in ipairs(m.tiles(slot[1])) do
+                    local out = m.choose(start, slot[1], tile.fit)
+                    n = n + 1
+                    if #out > 0 then
+                        local plan, why = Dress.plan(out)
+                        ok(plan, ('%s %s: %s'):format(slot[1], tostring(tile.fit), tostring(why)))
+                    end
+                end
+            end
+        end
+        ok(n > 0, 'ran')
+    end,
+}
+run('model_test', tests)

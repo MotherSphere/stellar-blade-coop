@@ -7,6 +7,7 @@
 -- which show the skin. It holds only slot numbers and names: nothing of the creator's pack is copied. The numbers come
 -- from the mesh's material slots (the spike's slot dump, 25 Nov 2026) and the names from the pack's own
 -- UserConfigs.MaterialToggles.
+--   Outfit   the outfit's name on screen, Pack the pack that makes it
 --   Mesh     the outfit's mesh, as its pack names it
 --   Skin     {material index = {regions it shows}}: the outfit's own skin, which supplies the body whenever this
 --            outfit supplies the shoes (Phase 0's rule: the shoes are shaped around its own feet)
@@ -22,6 +23,8 @@ local ALL_SKIN = {'HeadNeck', 'TorsoUpper', 'TorsoLower', 'Pelvis', 'ArmUpper', 
 Fits.BY_ID = {
     -- AiK: Ocean Maid. One skin slot (Body_P1, 14) for the whole body.
     AiK_CH27_14595 = {
+        Outfit = 'Ocean Maid',
+        Pack = 'AiK',
         Mesh = '/Game/OutfitMods/AiK_CH27/CH27_NRS.CH27_NRS',
         Skin = {[14] = ALL_SKIN},
         Pieces = {
@@ -44,6 +47,8 @@ Fits.BY_ID = {
     -- AiK: Kunoichi Shadow. Skin in three slots: body (0), arms (1) and hands (2); the pack hides the arms and hands
     -- skin while its gloves are on.
     AiK_CH46_xSH_14462 = {
+        Outfit = 'Kunoichi Shadow',
+        Pack = 'AiK',
         Mesh = '/Game/OutfitMods/AiK_CH46/CH46_xSH_NRS.CH46_xSH_NRS',
         Skin = {[0] = {'HeadNeck', 'TorsoUpper', 'TorsoLower', 'Pelvis', 'Thigh', 'Calf', 'Foot'},
             [1] = {'ArmUpper', 'Forearm'}, [2] = {'Hand'}},
