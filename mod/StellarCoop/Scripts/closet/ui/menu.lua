@@ -29,11 +29,13 @@
 -- opened on her own look, it reverts instead: nothing changed since the open.
 -- Mouse: a click on a hint chip runs that hint's word (view.hint_hovered); a tile the mouse picked is worn at once.
 -- The Body tab's Body row (BaseBody) lists None (the body rule picks the body) then each outfit with skin: its tile
--- picks that outfit's body. A tile's detail and the Full tab's rows name the origin: Original, or Custom and the pack.
+-- picks that outfit's body. The row's value is the body in use: the picked one, else the one the look on EVE wears
+-- (dress.plan). A tile's detail and the Full tab's rows name the origin: Original, or Custom and the pack.
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
--- once until that changes. The Full tab's last row, Reset Stellar Closet (hint Select), asks with the game's Yes/No
--- popup: Yes runs coop closet off (dress.off), tells closet.reset_done and closes without the Keep popup or a revert;
--- No and Back stay.
+-- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
+-- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
+-- game's Yes/No popup: Yes runs coop closet off (dress.off), tells closet.reset_done and closes without the Keep
+-- popup or a revert; No and Back stay.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -154,6 +156,7 @@ function Menu.new(o)
         row=math.max(1,math.min(row,#list))
         s.row=#list>0 and row or nil
         local choices=dress.choices() or {}
+        local plan=dress.plan() -- The look on EVE now: its body and notice.
         for i,item in ipairs(list) do
             if item.whole then
                 s.rows[i]={title=item.outfit,value=item.pack,locked=item.locked}
@@ -161,8 +164,10 @@ function Menu.new(o)
                 s.rows[i]={title=w.row.reset,value=''}
             else
                 local worn=model.worn(choices,item.slot)
+                -- The Body row names the body in use: the picked one, else the plan's (switched or the rule's).
+                local body=item.slot=='BaseBody' and not worn and plan and Fits.get(plan.body.fit).Outfit
                 local value=item.state=='soon' and w.row.soon or item.state=='empty' and '' or
-                    worn and model.piece(worn,item.slot).Name or w.row.none
+                    worn and model.piece(worn,item.slot).Name or body or w.row.none
                 s.rows[i]={title=w.slots[item.slot] or item.slot,value=value,locked=item.state=='soon'}
             end
         end
@@ -200,6 +205,11 @@ function Menu.new(o)
         end
         -- Move last, on the D-pad's up and down icons, as the lobby shows it (the keyboard's keys or the pad's buttons).
         s.hints[#s.hints+1]={t.hint.move,'UI_DPad_Up','UI_DPad_Down'}
+        -- The plan's body switch and clip warning, shown as long as the look on EVE has them.
+        local notes={}
+        if plan and plan.switched then notes[1]=w.switched:format(Fits.get(plan.switched).Outfit) end
+        if plan and plan.clips then notes[#notes+1]=w.clips:format(names(plan.clips,w.regions)) end
+        s.notice=table.concat(notes,'\n')
         if asking=='reset' then s.popup={title=w.popup.reset_title,desc=w.popup.reset_desc}
         elseif asking then s.popup={title=w.popup.title,desc=w.popup.desc} end
         return s

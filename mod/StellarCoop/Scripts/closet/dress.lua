@@ -686,6 +686,9 @@ function Dress.new(o)
             p.parts==1 and '' or 'es',state.paused and ', paused (a game look is on)' or '')
     end
     function self.worn() return state~=nil end
+    -- The plan on EVE now (Dress.plan's, the preview's or the confirmed look's), or nil: the menu shows its body and
+    -- its switched and clips.
+    function self.plan() return state and state.plan end
     return self
 end
 

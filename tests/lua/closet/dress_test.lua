@@ -648,8 +648,10 @@ local tests = {
     end,
     a_switched_body_is_not_saved = function()
         local w = world()
+        eq(w.d.plan(), nil, 'nothing worn: no plan')
         assert(w.d.wear(GLOVES))
         eq(w.eve.Mesh.SkeletalMesh.path, KS, 'the body switched to Kunoichi')
+        eq(w.d.plan().switched, NINJA, 'the plan on EVE names the switch (the menu shows it)')
         eq(fields(w.file)[5], w.Dress.words(GLOVES), 'the file holds the picks only')
         w.d = w.new() -- A reload computes the switch again.
         second(w)

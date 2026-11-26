@@ -25,7 +25,7 @@ local function rig(o)
         preview = function(c) -- An empty look is her own look (closet/dress.lua's own_look).
             r.previews[#r.previews + 1] = c; r.choices, r.previewing = c, true; return true
         end,
-        previewing = function() return r.previewing end,
+        previewing = function() return r.previewing end, plan = function() return r.plan end,
         confirm = function() r.confirmed = r.confirmed + 1; r.previewing = false; return true, 'closet: confirmed' end,
         revert = function() r.reverted = r.reverted + 1; r.previewing = false; return true, 'closet: reverted' end,
         off = function() r.offs = r.offs + 1; r.choices, r.previewing = nil, false; return true, 'closet: off' end,
@@ -835,6 +835,49 @@ local tests = {
         at(r, 0.5, 'right', 'right', 'select')
         eq(#r.previews, 4, 'a fourth preview')
         same(r.told[3], T.en.closet.switched:format('Kunoichi Shadow'), 'the switch again: told again')
+    end,
+
+    -- The chat feed draws under the closet's shade: the switch and clips show in the menu itself, under the rows, as
+    -- long as the look on EVE has them; the Body row names the body in use.
+    the_menu_shows_the_body_in_use_and_its_notice = function()
+        local r = rig()
+        local preview = r.dress.preview
+        r.dress.preview = function(c) preview(c); r.plan = r.next; return true, 'closet: previewing', r.plan end
+        r.menu.open()
+        local text = r.kit.groups.closet_menu.texts[1]
+        ok(text and text.x >= 0 and text.x + text.o.wrap <= 2112, 'the notice inside the menu, left of x 2112')
+        eq(text.s, '', 'no look: no notice')
+        local function body_row()
+            at(r, r.t, 'tab_left', 'tab_left') -- The Body tab, from the Full tab.
+            eq((detail(r)), T.en.closet.slots.BaseBody, 'the Body row')
+            local rows = r.kit.live(F.OPTION)
+            table.sort(rows, function(a, b) return a.y < b.y end)
+            local value = rows[1].o.Text_ItemValue.text
+            at(r, r.t, 'tab_right', 'tab_right') -- Back on the Full tab.
+            return value
+        end
+        eq(body_row(), T.en.closet.row.none, 'no look: None')
+        -- Ocean Maid whole, with a plan that switched the body to Kunoichi Shadow.
+        r.next = {body = {fit = KUNOICHI}, switched = KUNOICHI}
+        at(r, 0.5, 'select')
+        eq(#r.previews, 1, 'worn')
+        eq(text.s, T.en.closet.switched:format('Kunoichi Shadow'), 'the switch shown in the menu')
+        eq(body_row(), 'Kunoichi Shadow', 'the Body row names the switched body, not None')
+        tick(r, 20)
+        eq(text.s, T.en.closet.switched:format('Kunoichi Shadow'), 'no fade while the plan has it')
+        -- A plan that leaves skin showing: the clips line; the Body row the plan's body.
+        r.next = {body = {fit = MAID}, clips = {'Calf', 'Foot'}}
+        at(r, 20, 'select')
+        eq(text.s, T.en.closet.clips:format('Calves, Feet'), 'the clips line')
+        eq(body_row(), 'Ocean Maid', "the plan's body")
+        r.next = {body = {fit = MAID}, switched = KUNOICHI, clips = {'Foot'}}
+        at(r, 20, 'select')
+        eq(text.s, T.en.closet.switched:format('Kunoichi Shadow') .. '\n' .. T.en.closet.clips:format('Feet'), 'both')
+        -- Neither: no notice.
+        r.next = {body = {fit = MAID}}
+        at(r, 20, 'select')
+        eq(text.s, '', 'no switch, no clips: no notice')
+        eq(body_row(), 'Ocean Maid', 'the body in use')
     end,
 
     select_is_ignored_right_after_open = function()

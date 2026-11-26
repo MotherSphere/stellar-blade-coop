@@ -18,7 +18,7 @@
 -- v.draw(s), s: {tabs={labels}, tab=focused index, tab_top=the first tab shown (1 when nil), rows={{title, value,
 -- locked}}, row=focused index, tiles=nil or {{name, equipped, locked}}, tile=selected index, detail={title, desc,
 -- equipped}, hints={{label, icon, icon2, word=the menu word a click runs or nil}} (the menu's), camera_hints=nil or
--- the same shape, popup=nil or {title, desc}}.
+-- the same shape, popup=nil or {title, desc}, notice=nil or the text under the rows (a kit text, wrapped at ROW_W)}.
 local Parts=require('ui.kit.parts')
 local View={}
 View.GROUP='closet_menu'
@@ -48,6 +48,7 @@ local SINGLE=1 -- ESelectionMode Single (None is 0).
 local TAB_X,TAB_Y,TAB_STEP=160,120,266 -- TABS tabs from 160, a tab key's icon at each end (the lobby's settings tabs).
 local TAB_ICON_X=86 -- The left tab key's icon (UI_LeftShoulder: Q, the pad's LB); the right one after the last tab.
 local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: a window of 10.
+local NOTICE_Y=1640 -- The notice's top: under the rows' window (it ends at y 1600), above the hints.
 local GRID_X,GRID_Y,GRID_W,GRID_H=1100,300,1000,820
 -- The TileView's entry size: 5 columns of 200 in GRID_W, 3 rows of 270 in GRID_H. SetEntryWidth and SetEntryHeight
 -- (one float each) are in /Script/UMG.TileView's native table 0x1461ff110 (registered by FUN_143d66670), execs
@@ -78,7 +79,8 @@ function View.new(kit,log)
         for i=1,WINDOW do zones[i]=b.row(ROW_X,ROW_Y+(i-1)*PITCH+27,ROW_W) end
         -- A chip over each menu hint (the SB hint part never takes the mouse, ui/kit/parts.lua): a clear kit row.
         for i=1,HINTS do zones[WINDOW+i]=b.row(View.EDGE-HINT_STEP*i,HINT_Y,HINT_STEP-20) end
-        return {zones=zones}
+        -- s.notice under the rows: the chat feed, where notices go, draws under this group's shade.
+        return {zones=zones,notice=b.text(ROW_X,NOTICE_Y,'','name',nil,nil,{wrap=ROW_W})}
     end)
     -- What is made and what it shows. top: the rows above the window; count: the rows of the last draw; tab_top: the
     -- first tab shown; camera: the camera's hint row.
@@ -232,6 +234,7 @@ function View.new(kit,log)
         if not view then error('the UI is not up',0) end
         draw_tabs(s)
         draw_rows(s,view.zones)
+        view.notice.set(s.notice)
         draw_grid(s)
         draw_detail(s)
         words={}
