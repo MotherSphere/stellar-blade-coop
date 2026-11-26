@@ -484,6 +484,7 @@ return {
         origin={original='Оригинал',custom='Пользовательский: %s'},
         hints={wear='Надеть',take_off='Снять',whole='Весь костюм'},
         camera={region='Зона',free='Свободная',reset='Сбросить камеру'},
+        light={game='Игра',studio='Студия',warm='Тёплый',cool='Холодный',rim='Контровой'},
         popup={title='Оставить этот образ?',desc='«Да» сохраняет его. «Нет» возвращает EVE прежний образ.',
             yes='Оставить',no='Отменить',reset_title='Сбросить Stellar Closet?',
             reset_desc='Все детали Stellar Closet снимаются с EVE. Сохранённый образ удаляется. '

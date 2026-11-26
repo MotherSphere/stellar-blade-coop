@@ -514,8 +514,19 @@ end)()
     for _,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE'}) do key(k) end
     assert(table.concat(c.words,' ')=='cam_left cam_right cam_up cam_down cam_in cam_out cam_mode cam_reset',
         table.concat(c.words,' '))
+    -- the_light_keys_reach_the_closet_menu: V the next preset, Shift+U and Shift+O the intensity; a plain U or O that
+    -- UE4SS may also call for the same press (within 0.2 s) is dropped, a later one zooms.
+    c.words={}
+    key('V'); key('U','SHIFT'); key('O','SHIFT')
+    assert(table.concat(c.words,' ')=='light_next light_down light_up',table.concat(c.words,' '))
+    c.words={}
+    key('U','SHIFT'); key('U')
+    assert(table.concat(c.words,' ')=='light_down','the plain U of a Shift+U: dropped')
+    clock=clock+0.3; key('U')
+    assert(table.concat(c.words,' ')=='light_down cam_in','a later U zooms')
     c.up=false; c.words={}
-    for _,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE'}) do key(k) end
+    for _,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE','V'}) do key(k) end
+    key('U','SHIFT'); key('O','SHIFT')
     assert(#c.words==0,'closed: the camera keys do nothing')
     c.up=true
     -- ui_reset_closes_the_closet_menu

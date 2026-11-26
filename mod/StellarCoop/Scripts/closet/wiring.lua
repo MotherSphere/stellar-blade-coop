@@ -31,8 +31,8 @@ return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'
 end,
 build={
 -- coop closet menu (closet/ui/menu.lua) on the kit: its group added before the first slow. Its camera
--- (closet/ui/camera.lua) keeps its path, mode and free pose in coop-closet-camera.txt and reads the kit's screen and
--- main/boot.lua's pad reads (nil with an older DLL: the keys only).
+-- (closet/ui/camera.lua) keeps its path, mode, free pose and light preset in coop-closet-camera.txt and reads the kit's
+-- screen and main/boot.lua's pad reads (nil with an older DLL: the keys only).
 menu=function(M,Ui)
     local log=function(m) M.print('[StellarCoop][CL] '..tostring(m)..'\n') end
     local Camera=require('closet.ui.camera')

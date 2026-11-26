@@ -425,6 +425,7 @@ return {
         origin={original='오리지널',custom='커스텀: %s'},
         hints={wear='입기',take_off='벗기',whole='의상 전체'},
         camera={region='부위',free='자유',reset='카메라 초기화'},
+        light={game='게임',studio='스튜디오',warm='웜',cool='쿨',rim='림'},
         popup={title='이 모습을 유지할까요?',
             desc='예를 누르면 저장합니다. 아니요를 누르면 EVE가 이전 모습으로 돌아갑니다.',yes='유지',
             no='되돌리기',reset_title='Stellar Closet을 초기화할까요?',

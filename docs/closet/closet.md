@@ -74,6 +74,7 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/menu.lua` | `coop closet menu`: the guards that keep it shut, open, draw and close |
 | `ui/view.lua` | The menu's screen, made of the game's widget parts |
 | `ui/camera.lua` | The menu's camera: region and free modes, its pose kept in `coop-closet-camera.txt` |
+| `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
 
 `wiring.lua` builds `dress.lua` as `M.closet` and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with
@@ -151,6 +152,25 @@ The mode and the free pose are saved in `coop-closet-camera.txt` at each change 
 gives the view back while it is still the closet's, then removes the camera. When the game takes the view (a
 cutscene, photo mode), the camera stops and the menu closes. A camera left by a Lua reload is removed at the next
 frame.
+
+### Preview lighting
+
+The closet camera can light EVE with lights of its own. V, L3 on a controller or a click on its hint takes the next
+preset:
+
+| Preset | Lights |
+| --- | --- |
+| Game (the default) | No added light: the game's own lighting |
+| Studio | A white key light above the camera on the left and a cool white fill light on the right |
+| Warm | The same two lights in a warm colour |
+| Cool | The same two lights in a cool colour |
+| Rim | A white back light behind EVE for her outline and a weak key light |
+
+Shift+O and Shift+U step the intensity up and down by 0.25, from x0.25 to x2. The hint shows the preset and its
+intensity. The lights are point lights on the camera, placed from the camera and EVE, so they follow the camera in
+both modes. They leave with the camera on every close. The preset and the intensity are saved with the camera pose in
+`coop-closet-camera.txt` and survive a restart. Reset Stellar Closet sets Game at x1 again. The intensities are
+starting values, to tune in game.
 
 ## Online sessions
 

@@ -500,6 +500,7 @@ return {
         origin={original='Original',custom='Personnalisé : %s'},
         hints={wear='Porter',take_off='Retirer',whole='Tenue complète'},
         camera={region='Zone',free='Libre',reset='Réinitialiser la caméra'},
+        light={game='Jeu',studio='Studio',warm='Chaud',cool='Froid',rim='Contre-jour'},
         popup={title='Garder ce look ?',desc="Oui l'enregistre. Non rend à EVE le look d'avant.",yes='Garder',
             no='Annuler',reset_title='Réinitialiser Stellar Closet ?',
             reset_desc='Toutes les pièces de Stellar Closet quittent EVE. Le look enregistré est effacé. '

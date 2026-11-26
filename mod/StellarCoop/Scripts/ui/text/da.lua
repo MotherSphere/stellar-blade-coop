@@ -481,6 +481,7 @@ return {
         origin={original='Original',custom='Tilpasset: %s'},
         hints={wear='Tag på',take_off='Tag af',whole='Hele dragten'},
         camera={region='Område',free='Fri',reset='Nulstil kamera'},
+        light={game='Spil',studio='Studie',warm='Varm',cool='Kølig',rim='Modlys'},
         popup={title='Behold dette look?',desc='Ja gemmer det. Nej giver EVE det look, hun havde før.',yes='Behold',
             no='Fortryd',reset_title='Nulstil Stellar Closet?',
             reset_desc='Alle dele fra Stellar Closet tages af EVE. Det gemte look slettes. '

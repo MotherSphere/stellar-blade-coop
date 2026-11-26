@@ -298,7 +298,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'world/maps/sboxion/rooms/rooms', 'world/maps/sboxion/tetrapod',
                               'closet/cns_import', 'closet/commands', 'closet/dress', 'closet/fits', 'closet/json',
                               'closet/manifest', 'closet/resolver', 'closet/slots', 'closet/ui/menu', 'closet/ui/model',
-                              'closet/ui/probe', 'closet/ui/view', 'closet/ui/camera',
+                              'closet/ui/probe', 'closet/ui/view', 'closet/ui/camera', 'closet/ui/lights',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',

@@ -39,7 +39,7 @@ local function rig(o)
 end
 -- A fake closet camera (closet/ui/camera.lua's face): its calls in order, its ticks' dt and region.
 local function fake_camera()
-    local c = {calls = {}, ticks = {}, on = false, now = 'region'}
+    local c = {calls = {}, ticks = {}, on = false, now = 'region', preset = 'game', factor = 1}
     c.open = function() c.calls[#c.calls + 1] = 'open'; c.on = true end
     c.close = function() c.calls[#c.calls + 1] = 'close'; c.on = false end
     c.stop = function() c.calls[#c.calls + 1] = 'stop'; c.on = false end
@@ -48,6 +48,7 @@ local function fake_camera()
     c.forget = function() c.calls[#c.calls + 1] = 'forget'; c.now = 'region' end
     c.running = function() return c.on end
     c.mode = function() return c.now end
+    c.light = function() return c.preset, c.factor end
     return c
 end
 
@@ -1375,11 +1376,13 @@ local tests = {
         r.menu.nav('cam_left')
         same(cam.calls, {}, 'closed: no word')
         r.menu.open()
-        at(r, 0.1, 'cam_left', 'cam_right', 'cam_up', 'cam_down', 'cam_in', 'cam_out', 'cam_mode', 'cam_reset')
+        at(r, 0.1, 'cam_left', 'cam_right', 'cam_up', 'cam_down', 'cam_in', 'cam_out', 'cam_mode', 'cam_reset',
+            'light_next', 'light_up', 'light_down')
         same(cam.calls, {'open', 'cam_left', 'cam_right', 'cam_up', 'cam_down', 'cam_in', 'cam_out', 'cam_mode',
-            'cam_reset'}, 'every camera word')
+            'cam_reset', 'light_next', 'light_up', 'light_down'}, 'every camera and light word')
         ok(r.menu.is_open(), 'still open')
-        -- The camera hint row at y 1890 right to left from x 2112: C (the pad's X) and the mode, then Reset.
+        -- The camera hint row at y 1890 right to left from x 2112: C (the pad's X) and the mode, Reset, then V (the
+        -- pad's L3) and the light preset.
         local function camera_hints()
             local out = {}
             for _, h in ipairs(r.kit.live(F.HINT)) do
@@ -1395,7 +1398,8 @@ local tests = {
             return out
         end
         same(camera_hints(), {{x = 2112 - 420, text = 'C  ' .. T.en.closet.camera.region, icon = 'UI_FaceButton_Left'},
-            {x = 2112 - 840, text = 'Backspace  ' .. T.en.closet.camera.reset, icon = 'UI_RightThumbstick'}},
+            {x = 2112 - 840, text = 'Backspace  ' .. T.en.closet.camera.reset, icon = 'UI_RightThumbstick'},
+            {x = 2112 - 1260, text = 'V  ' .. T.en.closet.light.game, icon = 'UI_LeftThumbstick'}},
             'camera hints')
         -- A click on a camera chip runs its word.
         local zones = r.kit.groups.closet_menu.zones
@@ -1406,10 +1410,21 @@ local tests = {
         zones[15].hover, zones[16].hover = false, true
         at(r, 0.6, 'click')
         eq(cam.calls[#cam.calls], 'cam_reset', 'the reset chip')
+        zones[16].hover, zones[17].hover = false, true
+        at(r, 0.65, 'click')
+        eq(cam.calls[#cam.calls], 'light_next', 'the light chip')
+        zones[17].hover = false
         -- The pad's X switched the mode inside the camera: the next tick shows it.
         cam.now = 'free'
         tick(r, 0.7)
         eq(camera_hints()[1].text, 'C  ' .. T.en.closet.camera.free, 'the mode word follows the camera')
+        -- The pad's L3 changed the preset, Shift+O the intensity: the next tick shows them.
+        cam.preset, cam.factor = 'studio', 1.25
+        tick(r, 0.75)
+        eq(camera_hints()[3].text, 'V  ' .. T.en.closet.light.studio .. ' x1.25', 'the preset and its intensity')
+        cam.factor = 1
+        tick(r, 0.76)
+        eq(camera_hints()[3].text, 'V  ' .. T.en.closet.light.studio .. ' x1', 'x1')
         -- A camera that stopped (the game took the view) shows no hints.
         cam.on = false
         tick(r, 0.8)

@@ -6,12 +6,29 @@
 -- (an earlier Lua load's camera swept once, the view taken from EVE only, the path kept before the view changes), the
 -- region framing (EVE's look point at 0.55 of the half width right of centre, her band filling the height), the FOV
 -- axis, the easing, the free mode's keys and pad, the reset, the file, the give-back on every close path and no fight
--- for the view.
+-- for the view; the preview lights (closet/ui/lights.lua) on the camera actor: their words, the pad's L3, their preset
+-- and intensity in the camera's line (an older line without them still read), their end with the camera.
 local run = dofile('tests/lua/closet/run.lua')
 local Camera = require('closet.ui.camera')
 
 local W -- One case's world.
 local function object(path) return {path = path} end
+-- A light component of the camera actor: its calls by name, in order.
+local LIGHT = {__index = function(_, name)
+    return function(self, ...) self.calls[#self.calls + 1] = {name, ...} end
+end}
+-- The camera actor: object(path) that takes light components (closet/ui/lights.lua's calls).
+local function camera_actor(path)
+    local a = object(path)
+    a.lights = {}
+    a.AddComponentByClass = function(self)
+        local c = setmetatable({calls = {}}, LIGHT)
+        self.lights[#self.lights + 1] = c
+        return c
+    end
+    a.FinishAddComponent = function() end
+    return a
+end
 -- A camera mesh whose moves and FOV are recorded.
 local function mesh()
     return {K2_SetWorldLocationAndRotation = function(_, at, rot, sweep, hit, teleport)
@@ -24,7 +41,7 @@ end
 local actors = {
     spawn = function(world, at, rot, look)
         assert(world == 'world' and look.camera == true)
-        local d = {actor = object('cam path ' .. (#W.spawned + 1)), mesh = mesh()}
+        local d = {actor = camera_actor('cam path ' .. (#W.spawned + 1)), mesh = mesh()}
         d.path = d.actor.path
         W.spawned[#W.spawned + 1] = {at = at, rot = rot, d = d}
         return d
@@ -33,7 +50,10 @@ local actors = {
     sweep = function(p, kind) W.swept[#W.swept + 1] = p .. ' ' .. kind; return W.old_exists end,
     remove = function(d) W.removed[#W.removed + 1] = d.path; W.dead[d.path] = true end}
 local unreal = {valid = function(o) return o end, address = function(o) return o end,
-    value_of = function(v) return v end}
+    value_of = function(v) return v end, find = function(path)
+        if path == '/Script/Engine.Default__KismetMathLibrary' then return {MakeTransform = function() return {} end} end
+        return path
+    end}
 
 -- A new world and camera. change(W) runs before the camera is made.
 local function world(change)
@@ -71,12 +91,19 @@ local function frames(c, s, region)
     for _ = 1, math.floor(s * 60 + 0.5) do c.tick(1 / 60, region) end
 end
 local function last() return W.moves[#W.moves] end
--- The file's fields: path, mode, then the free pose (yaw, pitch, dist, height, pan) as numbers.
+-- The file's fields: path, mode, then the free pose (yaw, pitch, dist, height, pan) as numbers, the light preset and
+-- its intensity factor.
 local function fields()
     local f = {}
     for x in ((W.file or '') .. '\t'):gmatch('([^\t]*)\t') do f[#f + 1] = x end
     return {path = f[1], mode = f[2], yaw = tonumber(f[3]), pitch = tonumber(f[4]), dist = tonumber(f[5]),
-        height = tonumber(f[6]), pan = tonumber(f[7])}
+        height = tonumber(f[6]), pan = tonumber(f[7]), preset = f[8], factor = tonumber(f[9]), count = #f}
+end
+-- The calls named name on light component c, each as its argument list.
+local function calls(c, name)
+    local out = {}
+    for _, call in ipairs(c.calls) do if call[1] == name then out[#out + 1] = {table.unpack(call, 2)} end end
+    return out
 end
 local function near(got, want, tol, what)
     if math.abs(got - want) > tol then error(('%s: got %.4f, want %.4f'):format(what, got, want), 2) end
@@ -525,6 +552,105 @@ local tests = {
         eq(n, 1, 'one log line')
         ok(not c.running(), 'dropped')
         ok(W.views[2] and W.views[2].target == W.eve, 'the view given back')
+    end,
+
+    the_light_words_set_the_preset_and_the_intensity_kept_in_the_line = function()
+        local c = world()
+        c.word('light_next')
+        eq(c.light(), 'game', 'no camera: no light word')
+        c.open()
+        frames(c, 0.05, 'full')
+        local a = W.spawned[1].d.actor
+        eq(#a.lights, 0, 'Game: no light')
+        c.word('light_next')
+        eq(#a.lights, 2, 'Studio: two lights on the camera actor')
+        local f = fields()
+        eq(f.preset, 'studio', 'the preset in the line')
+        eq(f.factor, 1, 'x1 in the line')
+        eq(f.count, 9, 'nine fields')
+        eq(f.yaw, nil, 'no free pose: empty pose fields')
+        c.word('light_up')
+        eq(fields().factor, 1.25, 'light_up: x1.25')
+        c.word('light_down') c.word('light_down')
+        eq(fields().factor, 0.75, 'light_down twice: x0.75')
+        local p, x = c.light()
+        ok(p == 'studio' and x == 0.75, 'the hint\'s preset and intensity')
+        -- They follow the camera: placed in its frame as it moves.
+        frames(c, 0.05, 'feet')
+        ok(#calls(a.lights[1], 'K2_SetRelativeLocation') > 0, 'placed')
+        c.close()
+        frames(c, 0.35)
+        same(W.removed, {'cam path 1'}, 'the lights go with the camera actor')
+        for _, l in ipairs(a.lights) do eq(#calls(l, 'K2_DestroyComponent'), 0, 'no call: they went with it') end
+        c.word('light_next')
+        eq(#a.lights, 2, 'closed: no light word')
+        eq(c.light(), 'studio', 'closed: the preset kept')
+        -- A new camera (a restart) reads them back with the pose.
+        local file = W.file
+        c = world(function(w) w.file = file end)
+        c.open()
+        local b = W.spawned[1].d.actor
+        eq(#b.lights, 2, 'Studio again')
+        same(calls(b.lights[1], 'SetIntensity'), {{30 * 0.75}}, 'at x0.75')
+        -- Game removes them.
+        for _ = 1, 4 do c.word('light_next') end
+        eq(fields().preset, 'game', 'back to Game')
+        eq(#b.lights, 8, 'Warm, Cool and Rim made theirs')
+        for _, l in ipairs(b.lights) do eq(#calls(l, 'K2_DestroyComponent'), 1, 'each removed once') end
+    end,
+
+    an_older_line_without_the_light_fields_still_loads = function()
+        local c = world(function(w) w.file = '\tfree\t0\t0\t300\t100\t0' end)
+        c.open()
+        eq(c.mode(), 'free', 'the mode read')
+        local p, x = c.light()
+        ok(p == 'game' and x == 1, 'Game x1')
+        eq(#W.spawned[1].d.actor.lights, 0, 'no light')
+        c.word('cam_left')
+        local f = fields()
+        near(f.dist, 300, 0.01, 'the pose read')
+        near(f.yaw, 10, 0.01, 'the step on the pose read')
+        ok(f.preset == 'game' and f.factor == 1, 'Game x1 written')
+        -- A line with no free pose and lights: the empty pose fields read as none.
+        c = world(function(w) w.file = '\tregion\t\t\t\t\t\twarm\t1.50' end)
+        c.open()
+        p, x = c.light()
+        ok(p == 'warm' and x == 1.5, 'Warm x1.5 read')
+        eq(#W.spawned[1].d.actor.lights, 2, 'its lights')
+        c.word('cam_mode')
+        near(fields().dist, Camera.framing('full', 180, 0.55, TANV).dist, 0.01, 'no free pose read')
+    end,
+
+    the_pad_l3_cycles_the_preset_once_a_press = function()
+        local c = world()
+        W.bits = 2
+        c.open()
+        frames(c, 0.1, 'full')
+        eq(c.light(), 'game', 'L3 held at the open: no press')
+        W.bits = 0
+        c.tick(1 / 60, 'full')
+        W.bits = 2
+        frames(c, 0.3, 'full')
+        eq(c.light(), 'studio', 'one step a press, in region mode too')
+        eq(fields().preset, 'studio', 'written')
+        W.bits = 0
+        c.tick(1 / 60, 'full')
+        W.bits = 2
+        c.tick(1 / 60, 'full')
+        eq(c.light(), 'warm', 'the next press')
+        eq(c.mode(), 'region', 'L3 is not X')
+    end,
+
+    reset_stellar_closet_also_forgets_the_lights = function()
+        local c = world(function(w) w.file = '\tregion\t\t\t\t\t\twarm\t1.50' end)
+        c.open()
+        frames(c, 0.05, 'full')
+        c.close()
+        c.forget()
+        local p, x = c.light()
+        ok(p == 'game' and x == 1, 'Game x1')
+        frames(c, 0.35)
+        eq(W.file, nil, 'the file cleared once the camera is removed')
     end,
 
     regions_of_slots_and_tabs = function()

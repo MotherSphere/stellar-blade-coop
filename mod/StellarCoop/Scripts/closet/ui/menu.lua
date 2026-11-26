@@ -43,8 +43,9 @@
 -- The camera (closet/ui/camera.lua, when given): opened after a good open, closed on every close path (stopped by coop
 -- off, also while the menu is closed), ticked each frame with the region of the focused slot (of the tab on the tab
 -- row or a row with no slot; nil while closed). The camera words (cam_left, cam_right, cam_up, cam_down, cam_in,
--- cam_out, cam_mode, cam_reset) go to it; while it runs, the camera hint row shows its mode on C (the pad's X) and
--- Reset camera on Backspace (the pad's R3), each a chip a click runs.
+-- cam_out, cam_mode, cam_reset) and the light words (light_next, light_up, light_down) go to it; while it runs, the
+-- camera hint row shows its mode on C (the pad's X), Reset camera on Backspace (the pad's R3) and the light preset on V
+-- (the pad's L3), each a chip a click runs. The preset's intensity shows after its name on every preset but Game.
 -- o: {kit=ui/kit/kit.lua's, dress=closet/dress.lua's, words=function() the ui/text table to show, tell=function(build)
 -- (main/base.lua's M.tell), log=, world=function() M.hud_shown, photo=function() M.photo_state(), status=function()
 -- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
@@ -85,10 +86,17 @@ function Menu.new(o)
     -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle).
     local frame,undo=0,nil
     local clicked -- The frame of the last left click (nav 'click'), until a tile pick uses it.
-    -- camera: closet/ui/camera.lua's or nil; region: the focused one, as of the last draw; hinted: the camera's mode
-    -- the camera hints show (false: none); ticked: the last tick's time.
+    -- camera: closet/ui/camera.lua's or nil; region: the focused one, as of the last draw; hinted: the camera's mode,
+    -- light preset and intensity the camera hints show (false: none); ticked: the last tick's time.
     local camera,region,hinted,ticked=o.camera,'full',false,nil
     local function words() return o.words and o.words() or T.en end
+    -- What the camera hints show now: false with no camera running.
+    local function camera_shown()
+        if not (camera and camera.running()) then return false end
+        local preset,factor=camera.light()
+        return camera.mode()..'|'..preset..'|'..factor
+    end
+    local function camera_word(w) return w:sub(1,4)=='cam_' or w:sub(1,6)=='light_' end
 
     local function cutscene(eve)
         local theater=(o.status() or ''):match('theater=(%S+)')
@@ -188,13 +196,17 @@ function Menu.new(o)
         end
         local item,shown=list[row],s.rows[row]
         region=Camera.region(col~='tabs' and item and item.slot or ids[tab])
-        hinted=camera~=nil and camera.running() and camera.mode()
+        hinted=camera_shown()
         if hinted then
+            local preset,factor=camera.light()
+            local light=w.light[preset]..(preset~='game' and (' x%g'):format(factor) or '')
             -- UI_FaceButton_Left: SB's UI action for the left face button (the pad's X), the 26123051 exe's
-            -- FUN_14254baf0 case 0; UI_RightThumbstick: an action name of the same exe (FName at FUN_1407f2100). The
-            -- keyboard keys are in the labels: SB's own key map for those actions is not read.
-            s.camera_hints={{'C  '..w.camera[hinted],'UI_FaceButton_Left',word='cam_mode'},
-                {'Backspace  '..w.camera.reset,'UI_RightThumbstick',word='cam_reset'}}
+            -- FUN_14254baf0 case 0; UI_RightThumbstick and UI_LeftThumbstick: action names of the same exe (FNames at
+            -- FUN_1407f2100 and FUN_1407f2050, strings 0x145c4ec00 and 0x145c4ebd8). The keyboard keys are in the
+            -- labels: SB's own key map for those actions is not read.
+            s.camera_hints={{'C  '..w.camera[camera.mode()],'UI_FaceButton_Left',word='cam_mode'},
+                {'Backspace  '..w.camera.reset,'UI_RightThumbstick',word='cam_reset'},
+                {'V  '..light,'UI_LeftThumbstick',word='light_next'}}
         end
         s.detail={title=shown and shown.title or '',desc=''}
         if item and item.whole then
@@ -389,17 +401,17 @@ function Menu.new(o)
         if col=='grid' then col,due='rows',nil end -- As the grid's Back: a tile preview due is dropped.
         return self.nav('back')
     end
-    -- A camera word to the camera, then drawn again (the mode's hint).
+    -- A camera or light word to the camera, then drawn again (the mode's and the preset's hints).
     local function cam_word(word)
         if camera then camera.word(word) end
         return redraw()
     end
-    -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, a camera word,
-    -- or click (a left click: the tab, row, hint chip or popup button under the mouse). yes and no answer the popup
-    -- too; refresh is its No.
+    -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, a camera or
+    -- light word, or click (a left click: the tab, row, hint chip or popup button under the mouse). yes and no answer
+    -- the popup too; refresh is its No.
     function self.nav(word)
         if not open then return end
-        if word:sub(1,4)=='cam_' then return cam_word(word) end
+        if camera_word(word) then return cam_word(word) end
         if word=='tab_left' then undo={tab,row,col,tile,tab_top,at=frame} -- For the pad chord (self.toggle).
         elseif word=='left' and undo then undo.at=frame
         else undo=nil end
@@ -416,7 +428,7 @@ function Menu.new(o)
             local i=view.tab_hovered()
             if i then set_tab(i); return redraw() end
             local chip=view.hint_hovered() -- A hint chip runs its word.
-            if chip and chip:sub(1,4)=='cam_' then return cam_word(chip)
+            if chip and camera_word(chip) then return cam_word(chip)
             elseif chip then word=chip
             else
                 i=view.row_hovered()
@@ -488,8 +500,8 @@ function Menu.new(o)
             end
             if changed and not dress.previewing() then return self.close('keep') end
         end
-        -- The camera's mode changed by the pad, or the camera stopped: its hints drawn again.
-        if camera and (camera.running() and camera.mode())~=hinted then redraw() end
+        -- The camera's mode or light preset changed by the pad, or the camera stopped: its hints drawn again.
+        if camera and camera_shown()~=hinted then redraw() end
         if asking then return end
         local _,tiles=focused()
         local picked=tiles and view.picked()

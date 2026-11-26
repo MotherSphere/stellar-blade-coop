@@ -478,6 +478,7 @@ return {
         origin={original='Original',custom='Anpassad: %s'},
         hints={wear='Bär',take_off='Ta av',whole='Hela dräkten'},
         camera={region='Område',free='Fri',reset='Återställ kamera'},
+        light={game='Spel',studio='Studio',warm='Varm',cool='Sval',rim='Motljus'},
         popup={title='Behålla den här looken?',desc='Ja sparar den. Nej ger EVE looken hon hade innan.',yes='Behåll',
             no='Ångra',reset_title='Återställa Stellar Closet?',
             reset_desc='Alla plagg från Stellar Closet tas av EVE. Den sparade looken raderas. '

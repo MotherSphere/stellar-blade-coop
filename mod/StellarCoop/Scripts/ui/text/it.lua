@@ -500,6 +500,7 @@ return {
         origin={original='Originale',custom='Personalizzato: %s'},
         hints={wear='Indossa',take_off='Togli',whole='Outfit intero'},
         camera={region='Zona',free='Libera',reset='Ripristina telecamera'},
+        light={game='Gioco',studio='Studio',warm='Calda',cool='Fredda',rim='Controluce'},
         popup={title='Tenere questo look?',desc='Sì lo salva. No ridà a EVE il look di prima.',yes='Tieni',
             no='Annulla',reset_title='Reimpostare Stellar Closet?',
             reset_desc='Tutti i capi di Stellar Closet vengono tolti a EVE. Il look salvato viene cancellato. '

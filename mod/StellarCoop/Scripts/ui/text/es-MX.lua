@@ -495,6 +495,7 @@ return {
         origin={original='Original',custom='Personalizado: %s'},
         hints={wear='Poner',take_off='Quitar',whole='Atuendo entero'},
         camera={region='Zona',free='Libre',reset='Restablecer cámara'},
+        light={game='Juego',studio='Estudio',warm='Cálida',cool='Fría',rim='Contraluz'},
         popup={title='¿Conservar este look?',desc='Sí lo guarda. No devuelve a EVE el look que tenía antes.',
             yes='Conservar',no='Deshacer',reset_title='¿Restablecer Stellar Closet?',
             reset_desc='Todas las piezas de Stellar Closet se le quitan a EVE. El look guardado se borra. '

@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The key binds, with the Steam link only: the F-keys, Enter, the navigation keys, the closet camera's keys, Esc and
--- the mouse buttons.
+-- The key binds, with the Steam link only: the F-keys, Enter, the navigation keys, the closet camera's and lights'
+-- keys, Esc and the mouse buttons.
 return function(M)
 local print,log=M.print,M.log
 -- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once
@@ -155,12 +155,19 @@ if M.settings then
         end)
     end
     -- The closet camera's keys (closet/ui/camera.lua), only while the closet menu is the open screen: J, L, I and K
-    -- orbit, U and O zoom, C switches region and free, Backspace resets the free camera. Nothing anywhere else.
-    for _,cam in ipairs({{'J','cam_left'},{'L','cam_right'},{'I','cam_up'},{'K','cam_down'},{'U','cam_in'},
-            {'O','cam_out'},{'C','cam_mode'},{'BACKSPACE','cam_reset'}}) do
-        bind(cam[1],nil,function()
+    -- orbit, U and O zoom, C switches region and free, Backspace resets the free camera; its lights
+    -- (closet/ui/lights.lua): V the next preset, Shift+U and Shift+O the intensity down and up. Nothing anywhere else.
+    -- Shift+U and Shift+O are bound before the plain U and O: a plain press within 0.2 s after one of them, if UE4SS
+    -- also calls the plain bind for it, is the same press, dropped (as an F-key's).
+    local shifted={} -- U or O to when it was last pressed with Shift (os.clock).
+    for _,cam in ipairs({{'U','light_down','SHIFT'},{'O','light_up','SHIFT'},{'J','cam_left'},{'L','cam_right'},
+            {'I','cam_up'},{'K','cam_down'},{'U','cam_in'},{'O','cam_out'},{'C','cam_mode'},{'BACKSPACE','cam_reset'},
+            {'V','light_next'}}) do
+        bind(cam[1],cam[3],function()
             if M.open_screen()~=M.closet_menu then return end
             ExecuteInGameThread(function()
+                if cam[3] then shifted[cam[1]]=os.clock()
+                elseif shifted[cam[1]] and os.clock()-shifted[cam[1]]<0.2 then return end
                 if M.open_screen()==M.closet_menu then M.closet_menu.nav(cam[2]) end -- Still open on the game thread.
             end)
         end)

@@ -491,6 +491,7 @@ return {
         origin={original='Orijinal',custom='Özel: %s'},
         hints={wear='Giy',take_off='Çıkar',whole='Tüm kıyafet'},
         camera={region='Bölge',free='Serbest',reset='Kamerayı sıfırla'},
+        light={game='Oyun',studio='Stüdyo',warm='Sıcak',cool='Soğuk',rim='Kontra'},
         popup={title='Bu görünüm kalsın mı?',desc="Evet kaydeder. Hayır EVE'e önceki görünümünü geri verir.",
             yes='Kalsın',no='Geri al',reset_title='Stellar Closet sıfırlansın mı?',
             reset_desc="Stellar Closet'ın tüm parçaları EVE'den çıkarılır. Kaydedilen görünüm silinir. "

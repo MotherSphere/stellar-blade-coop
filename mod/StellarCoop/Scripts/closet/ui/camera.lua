@@ -20,15 +20,19 @@
 -- triggers move nothing. X released after a hold with no stick toggles region and free (cam_mode too); R3 and cam_reset
 -- set the free pose to the region's framing and go to free mode. The mode and the free pose are written to the file
 -- at each change (a stick move once the stick is back at rest) and read once a Lua load: only Reset replaces the pose.
--- forget() (the menu's Reset Stellar Closet, after its close) goes back to region mode with no free pose and clears
--- the file: at once, or once a closed camera is removed (its path stays in the file while it blends out).
+-- The preview lights (closet/ui/lights.lua) go on the camera actor at the open and follow its pose: light_next and a
+-- press of the pad's L3 (in both modes) take the next preset; light_up and light_down step its intensity. Their preset
+-- and intensity are written to the same line at each change and read with the pose.
+-- forget() (the menu's Reset Stellar Closet, after its close) goes back to region mode with no free pose and the Game
+-- preset at x1. It clears the file: at once, or once a closed camera is removed (its path stays in the file while it
+-- blends out).
 -- close() gives the view back while it is still ours, to the view target from before the open or the pawn, with a BLEND
 -- s blend; the actor goes BLEND s later, in tick. stop() (coop off) gives it back with no blend and removes the actor at
 -- once. A camera gone with its world (a map change) or whose view the game took (a cutscene, photo mode) stops with no
 -- call on the view: it never fights for it; the menu's guards then close the menu. The first engine error of an open
 -- is logged and closes the camera.
 -- o: {store=link.store(Camera.FILE), log=, screen=function() the kit's {w, h} or nil, pad_bits=function() bits (1 X,
--- 4 R3) or nil, pad_levels=function() right stick x, y (-1..1, right and up positive), LT, RT (0..1) or nil; tests
+-- 2 L3, 4 R3) or nil, pad_levels=function() right stick x, y (-1..1, right and up positive), LT, RT (0..1) or nil; tests
 -- give unreal= (core/unreal.lua), actors= (core/actors.lua), pc=function() the player controller, her=function() EVE}.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
@@ -50,6 +54,7 @@
 --   USceneComponent.K2_SetWorldLocationAndRotation(NewLocation, NewRotation, bSweep, SweepHitResult, bTeleport):
 --     params 0x146e68500.
 local Slots=require('closet.slots')
+local Lights=require('closet.ui.lights')
 local Camera={}
 Camera.FILE='coop-closet-camera.txt'
 Camera.BLEND=0.3 -- s: the view's blend onto the camera and back (leviathan's); the actor goes after it.
@@ -108,7 +113,8 @@ function Camera.new(o)
     local clock=0
     local dirty=false -- The stick moved the free pose since the last write.
     local forgot=false -- forget() ran: a write with nothing to keep clears the file.
-    local x_held,x_moved,r3_held=true,true,true -- Read as held at an open: a hold from before is no press.
+    local x_held,x_moved,r3_held,l3_held=true,true,true,true -- Read as held at an open: a hold from before is no press.
+    local lights=Lights.new({unreal=U,log=log})
 
     local function is(a,b) return a~=nil and b~=nil and U.address(a)==U.address(b) end
     local function clamp(p)
@@ -119,12 +125,17 @@ function Camera.new(o)
         if cam then p.height=math.max(-10,math.min(cam.h+30,p.height)) end
         return p
     end
-    -- The file: <camera path or empty>\t<region|free>[\t<yaw>\t<pitch>\t<dist>\t<height>\t<pan>]. Its answer.
+    -- The file: <camera path or empty>\t<region|free>\t<yaw>\t<pitch>\t<dist>\t<height>\t<pan>\t<preset>\t<intensity>,
+    -- the pose fields empty with no free pose. Its answer. An older line ends after the pose: Game at x1.
     local function write()
         dirty=false
         local f={cam and cam.d.path or dying and dying.d.path or '',mode}
-        if forgot and f[1]=='' and mode=='region' and not free then store.clear(); return true end
-        for _,k in ipairs(free and POSE or {}) do f[#f+1]=string.format('%.3f',free[k]) end
+        if forgot and f[1]=='' and mode=='region' and not free and lights.preset()=='game' and lights.factor()==1 then
+            store.clear()
+            return true
+        end
+        for i,k in ipairs(POSE) do f[i+2]=free and string.format('%.3f',free[k]) or '' end
+        f[8],f[9]=lights.preset(),string.format('%.2f',lights.factor())
         local saved,why=store.save(table.concat(f,'\t'))
         if saved==false then log('camera: '..Camera.FILE..' not written: '..tostring(why)) end
         return saved
@@ -135,6 +146,7 @@ function Camera.new(o)
         for x in ((store.load() or '')..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=x end
         left=f[1]~='' and f[1] or nil
         if f[2]=='free' or f[2]=='region' then mode=f[2] end
+        lights.set(f[8],f[9])
         local p={}
         for i,k in ipairs(POSE) do
             local v=tonumber(f[i+2])
@@ -205,10 +217,12 @@ function Camera.new(o)
         local sx,sy,lt,rt=0,0,0,0
         if o.pad_levels then sx,sy,lt,rt=o.pad_levels() end
         sx,sy,lt,rt=dead(sx),dead(sy),dead(lt),dead(rt)
-        local x,r3=bits%2==1,bits//4%2==1
+        local x,l3,r3=bits%2==1,bits//2%2==1,bits//4%2==1
         local stick=sx~=0 or sy~=0
         if r3 and not r3_held then reset() end
         r3_held=r3
+        if l3 and not l3_held then lights.next(); write() end
+        l3_held=l3
         if x and not x_held then x_moved=false end
         if x and stick then x_moved=true end
         if not x and x_held and not x_moved then toggle() end
@@ -233,14 +247,16 @@ function Camera.new(o)
     -- One frame: the camera alive and the view ours, else it stops; the pad; the pose eased and placed.
     local function drive(dt)
         local d=cam.d
-        if not actors.same(d.actor,d.path) then -- Gone with its world (a map change).
+        if not actors.same(d.actor,d.path) then -- Gone with its world (a map change), its lights with it.
             cam=nil
+            lights.off()
             log('camera: gone with its world')
             return write()
         end
         local pc=pc_of()
         if not is(pc and U.valid(pc:GetViewTarget()),d.actor) then -- The game took the view: never fought for.
             cam,dying=nil,{d=d,at=clock+Camera.BLEND}
+            lights.off()
             return log('camera: the game took the view')
         end
         local eve=her()
@@ -253,6 +269,7 @@ function Camera.new(o)
         cur=cur and ease(cur,target,1-math.exp(-4*dt/Camera.EASE)) or ease(target,target,0)
         local at,rot=Camera.place(cur,L,yaw,L.Z-cam.h/2,cam.k)
         d.mesh:K2_SetWorldLocationAndRotation(at,rot,false,{},false)
+        lights.place(cur.dist,cam.k)
     end
 
     -- A camera on the menu's open, while the view is on EVE (else none, quietly: the menu works without it).
@@ -277,8 +294,10 @@ function Camera.new(o)
             if write()==false then cam=nil; remove(d); d=nil; return 'the file could not be written' end
             d.mesh:SetFieldOfView(fov)
             pc:SetViewTargetWithBlend(d.actor,Camera.BLEND,0,0,false)
-            cur,x_held,x_moved,r3_held=nil,true,true,true
-            log(string.format('camera: on (%s), FOV %.1f, her height %.0f cm',mode,fov,cam.h))
+            cur,x_held,x_moved,r3_held,l3_held=nil,true,true,true,true
+            lights.on(d.actor)
+            log(string.format('camera: on (%s), FOV %.1f, her height %.0f cm, lights %s x%g',mode,fov,cam.h,
+                lights.preset(),lights.factor()))
         end)
         if not ran then
             log('camera: not on: '..tostring(why))
@@ -293,6 +312,7 @@ function Camera.new(o)
         end
         local c=cam
         cam=nil
+        lights.off() -- They go with the actor.
         local ran,why=pcall(give_back,c,Camera.BLEND)
         if not ran then log('camera: the view not given back: '..tostring(why)) end
         dying={d=c.d,at=clock+Camera.BLEND}
@@ -302,6 +322,7 @@ function Camera.new(o)
     function self.stop()
         local c=cam
         cam=nil
+        lights.off()
         if c then
             local ran,why=pcall(give_back,c,0)
             if not ran then log('camera: the view not given back: '..tostring(why)) end
@@ -329,12 +350,14 @@ function Camera.new(o)
             self.close()
         end
     end
-    -- A camera word of the menu's: cam_mode, cam_reset, or in free mode a step (cam_left, cam_right, cam_up,
-    -- cam_down, cam_in, cam_out). Nothing without a camera.
+    -- A camera word of the menu's: cam_mode, cam_reset, light_next, light_up, light_down, or in free mode a step
+    -- (cam_left, cam_right, cam_up, cam_down, cam_in, cam_out). Nothing without a camera.
     function self.word(w)
         if not cam then return end
         if w=='cam_mode' then return toggle() end
         if w=='cam_reset' then return reset() end
+        if w=='light_next' then lights.next(); return write() end
+        if w=='light_up' or w=='light_down' then lights.step(w=='light_up' and 1 or -1); return write() end
         if mode~='free' then return end
         local p,s=free,Camera.STEP
         if w=='cam_left' then p.yaw=p.yaw+s elseif w=='cam_right' then p.yaw=p.yaw-s
@@ -344,13 +367,16 @@ function Camera.new(o)
         clamp(p)
         write()
     end
-    -- Reset Stellar Closet (after the menu's close): region mode, no free pose, the file cleared.
+    -- Reset Stellar Closet (after the menu's close): region mode, no free pose, Game at x1, the file cleared.
     function self.forget()
         mode,free,forgot='region',nil,true
+        lights.set('game',1)
         write()
     end
     function self.running() return cam~=nil end
     function self.mode() return mode end
+    -- The light preset (closet/ui/lights.lua Lights.ORDER) and its intensity factor.
+    function self.light() return lights.preset(),lights.factor() end
     return self
 end
 

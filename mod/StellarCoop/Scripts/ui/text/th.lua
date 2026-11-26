@@ -448,6 +448,7 @@ return {
         origin={original='ต้นฉบับ',custom='กำหนดเอง: %s'},
         hints={wear='สวม',take_off='ถอด',whole='ทั้งชุด'},
         camera={region='ส่วน',free='อิสระ',reset='รีเซ็ตกล้อง'},
+        light={game='เกม',studio='สตูดิโอ',warm='อบอุ่น',cool='เย็น',rim='ไฟขอบ'},
         popup={title='เก็บลุคนี้ไว้ไหม',desc='ใช่ จะบันทึกลุคนี้ ไม่ จะให้ EVE กลับไปใช้ลุคเดิม',yes='เก็บไว้',
             no='ย้อนกลับ',reset_title='รีเซ็ต Stellar Closet ไหม',
             reset_desc='ชิ้นส่วนทั้งหมดของ Stellar Closet จะถูกถอดออกจาก EVE และลุคที่บันทึกไว้จะถูกลบ '
