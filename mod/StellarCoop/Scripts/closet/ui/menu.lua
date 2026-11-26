@@ -11,14 +11,15 @@
 -- the kit has given it (no player controller at the close); an open before then takes it on. close('revert') wears the
 -- confirmed look again (dress.revert), close('keep') leaves the look as it is, close('stop') (coop off) does neither,
 -- plays no sound and gives the input back at once. A revert that fails at the close (no EVE during a map change) is
--- asked again each GUARD s while closed until it works; an open or coop off drops it. A draw that raises closes the menu with a revert and one log line.
+-- asked again each RETRY s while closed and not paused until it works; an open or coop off drops it. A draw that
+-- raises closes the menu with a revert and one log line.
 -- Focus: the tabs, the rows or the grid (col). E and Q change the tab. Up and down walk the rows; up on the first row
 -- reaches the tabs. Right or select on a row of pieces goes into its grid; left and right walk its tiles; left on the
 -- first tile or back returns to the rows. A tile focused for PREVIEW s is worn as a preview (dress.preview); select
 -- wears it at once and returns to the rows; refresh wears the whole outfit of the focused tile (the worn one in the
 -- rows) or of the Full tab's row, which select wears too. Locked tiles and soon or empty rows never wear. The hints:
--- Back, then Wear on a row of pieces or Whole outfit on the Full tab's row (both on Select's icon; refresh shows no
--- hint: its icon is not one this module reads). Back in the rows or the tabs closes
+-- Back, then Wear on a row of pieces or Whole outfit on the Full tab's row (both on Select's icon), then Whole outfit
+-- on the top face button's icon when refresh has an outfit to wear. Back in the rows or the tabs closes
 -- with a revert when nothing changed since the open. Else the popup asks "Keep this look?": Yes confirms
 -- (dress.confirm), No reverts, Back stays. For the keyboard and the pad, Select is Yes and refresh (F, the pad's Y) is
 -- No. Select does nothing for ARM s after the open: the console's Enter that typed coop closet menu reaches our Enter
@@ -41,6 +42,7 @@ local Menu={}
 Menu.NEAR=3000 -- cm: an engaged enemy that near is combat (online/lobby/wiring.lua's fight check; no source).
 Menu.PREVIEW,Menu.ARM,Menu.GUARD,Menu.COMBAT=0.25,0.3,0.25,1 -- s.
 Menu.BACK=0.15 -- s before the game's input comes back after a close (ui/kit/menu.lua's BACK).
+Menu.RETRY=1 -- s between two asks of a failed close revert (the dress watchdog's pace).
 
 function Menu.new(o)
     local kit,dress=o.kit,o.dress
@@ -56,7 +58,7 @@ function Menu.new(o)
     -- bare: the menu opened on her own look (nothing worn, no preview going).
     local col,tile,asking,changed,due,opened,guard_at,combat_at,bare='rows',1,false,false,nil,0,0,0,false
     -- back_at: when the input is given back after a close; owed: the kit still holds it for us since a close;
-    -- unreverted: a close's revert failed (no EVE during a map change), asked again each GUARD s while closed.
+    -- unreverted: a close's revert failed (no EVE during a map change), asked again each RETRY s while closed.
     local back_at,owed,unreverted=nil,false,false
     local function words() return o.words and o.words() or T.en end
 
@@ -178,6 +180,10 @@ function Menu.new(o)
                 if worn then s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit) end
             end
             s.hints[2]={w.hints.wear,'Positive'}
+            -- UI_FaceButton_Top: the game's UI action for the top face button (F, the pad's Y), as in
+            -- online/session/ui/sessions.lua; the 26123051 exe names it in FUN_14254baf0 (case 1) beside UI_LeftShoulder.
+            local one=tiles[col=='grid' and tile or at]
+            if one and one.fit and not one.locked then s.hints[3]={w.hints.whole,'UI_FaceButton_Top'} end
         end
         if asking then s.popup={title=w.popup.title,desc=w.popup.desc} end
         return s
@@ -343,8 +349,9 @@ function Menu.new(o)
             -- shortcut: kit.holding() does not say for whom, so a panel that took the input meanwhile keeps owed set
             -- (open then skips the panel guard); read the holder once the kit says it.
             if owed and t>=back_at then kit.input(false,View.GROUP); owed=kit.holding() end
-            if unreverted and t>=guard_at then
-                guard_at=t+Menu.GUARD
+            -- Like the dress's restore, it waits while the game is paused or shows a screen (a loading screen).
+            if unreverted and t>=guard_at and not kit.paused(true) then
+                guard_at=t+Menu.RETRY
                 local ran,good=pcall(function() return not dress.previewing() or dress.revert() end)
                 unreverted=not (ran and good)
                 if not unreverted then log('menu: the owed revert is done') end

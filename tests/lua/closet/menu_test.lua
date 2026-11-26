@@ -490,7 +490,15 @@ local tests = {
         end
         same(shown(), {T.en.hint.back, T.en.closet.hints.wear}, 'a row of pieces: Back, Wear')
         at(r, 0.5, 'right')
-        same(shown(), {T.en.hint.back, T.en.closet.hints.wear}, 'the grid: Back, Wear')
+        same(shown(), {T.en.hint.back, T.en.closet.hints.wear}, 'the grid on None: Back, Wear')
+        at(r, 0.5, 'right')
+        same(shown(), {T.en.hint.back, T.en.closet.hints.wear, T.en.closet.hints.whole},
+            'a piece tile: Back, Wear, Whole outfit (refresh)')
+        local icons = {}
+        for _, h in ipairs(r.kit.live(F.HINT)) do
+            for _, c in ipairs(h.o.calls) do if c[1] == 'SetResourceAction' then icons[#icons + 1] = c[2] end end
+        end
+        eq(tostring(icons[3]), 'UI_FaceButton_Top', 'refresh shows the top face button')
         at(r, 0.5, 'back', 'tab_left', 'tab_left')
         eq((detail(r)), 'Ocean Maid', 'the Full tab')
         same(shown(), {T.en.hint.back, T.en.closet.hints.whole}, 'the Full tab: Back, Whole outfit')
@@ -713,11 +721,18 @@ local tests = {
         tick(r, 1.0)
         eq(r.reverted, 2, 'asked again')
         tick(r, 1.25)
-        eq(r.reverted, 3, 'asked again')
-        tick(r, 1.5)
+        eq(r.reverted, 2, 'not again before RETRY s')
+        -- A loading screen pauses the game: no ask, as the dress's restore waits too.
+        r.kit.paused_now = true
+        tick(r, 2.0)
+        eq(r.reverted, 2, 'not while paused')
+        r.kit.paused_now = false
+        tick(r, 2.0)
+        eq(r.reverted, 3, 'asked again once the screen is gone')
+        tick(r, 3.0)
         eq(r.reverted, 4, 'the confirmed look is back')
         eq(r.previewing, false, 'preview over')
-        tick(r, 1.75) tick(r, 2)
+        tick(r, 4.0) tick(r, 5.0)
         eq(r.reverted, 4, 'no more asks once it worked')
         -- coop off and an open drop the owed revert: off ends the look, the open shows the preview again.
         for _, how in ipairs({'stop', 'open'}) do
