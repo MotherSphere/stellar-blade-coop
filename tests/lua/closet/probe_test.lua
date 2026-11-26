@@ -41,6 +41,7 @@ local function fake_kit()
     function k.holding() return k.held ~= nil end
     function k.refocus() k.refocused = k.refocused + 1 end
     function k.paused() return k.paused_now end
+    function k.screen() return {w = 3840, h = 2160, s = 1.5} end
     return k
 end
 
@@ -52,6 +53,7 @@ local function rig(tests, kit)
     r.p = Probe.new({kit = function() return r.kit end, log = function(m) r.log[#r.log + 1] = m end,
         clock = function() return r.now end, tests = tests, find = function(path) return r.found[path] end,
         world = function() return r.world end,
+        eve = function() return r.eve end, controller = function() return r.pc end,
         construct = function(class, outer)
             local item = {class = class, outer = outer, IsValid = function(self) return not self.lost end}
             r.made[#r.made + 1] = item
@@ -157,6 +159,25 @@ local function panels(r, opts)
         r.detail = d
         return d
     end
+end
+-- The game's side for test 6: EVE with three named bones in Ocean Maid's mesh, the player's camera, every mesh path
+-- loading as a mesh with two slots and two LODs, a skin material with one texture parameter.
+local OCEAN_MAID = '/Game/OutfitMods/AiK_CH27/CH27_NRS.CH27_NRS'
+local function reads(r)
+    local bones = {'pelvis', 'Head', 'upperarm_l'}
+    local skin = uobj('MI_Skin', {TextureParameterValues = {{ParameterInfo = {Name = 'Body_A'}}},
+        VectorParameterValues = {}})
+    local body = {SkeletalMesh = uobj(OCEAN_MAID)}
+    function body:GetNumBones() return #bones end
+    function body:GetBoneName(i) return bones[i + 1] end
+    function body:GetMaterial(i) return i == 14 and skin or nil end
+    r.eve = {Mesh = body}
+    r.pc = {Player = {AspectRatioAxisConstraint = 1},
+        PlayerCameraManager = {GetFOVAngle = function() return 70 end}}
+    setmetatable(r.found, {__index = function(_, path)
+        return uobj(path, {Materials = {{MaterialSlotName = 'Body'}, {MaterialSlotName = 'Skin'}},
+            LODInfo = {{LODMaterialMap = {}}, {LODMaterialMap = {0, 1}}}})
+    end})
 end
 -- Runs a test to its end: frames, then the clock past any watch window.
 local function play(r, n)
@@ -410,6 +431,39 @@ local tests = {
         local r = rig()
         eq(r.Probe.TESTS['5'].timeout, 90)
     end,
+    test6_logs_bones_fov_slots_lods_skin = function()
+        local r = rig()
+        reads(r)
+        play(r, '6')
+        ok(has(r, 'probe: END 6 5/5'))
+        ok(has(r, 'probe: PASS 6 bones: 3 bones; head=1 neck=- spine=- upperarm_l=2 upperarm_r=-'))
+        ok(has(r, 'pelvis=0'))
+        ok(has(r, 'probe: NOTE 6 bones 0-2: pelvis Head upperarm_l'))
+        ok(has(r, 'probe: PASS 6 fov: aspect ratio axis constraint 1, camera FOV 70, UI viewport 3840x2160 units at DPI scale 1.5'))
+        ok(has(r, 'probe: NOTE 6 slots: ' .. OCEAN_MAID .. ' 0=Body 1=Skin') == false, 'Ocean Maid is not in the slot list')
+        ok(has(r, 'probe: NOTE 6 slots: /Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10 0=Body 1=Skin'))
+        ok(has(r, 'probe: NOTE 6 slots: /Game/OutfitMods/FitBase/fitbase/SK_fitbase_v1.SK_fitbase_v1 0=Body 1=Skin'))
+        ok(has(r, 'probe: PASS 6 slots: ' .. #r.Probe.MESHES .. ' meshes, 0 not found'))
+        ok(has(r, 'probe: PASS 6 lods: Ocean Maid ' .. OCEAN_MAID .. ' 2 LODs, LOD1 map 2; Kunoichi Shadow '))
+        ok(has(r, 'probe: PASS 6 skin: AiK_CH27_14595 14 Object MI_Skin tex=Body_A vec='))
+        eq(#r.kit.made, 0, 'no game widget made')
+    end,
+    test6_unverified_step_skips = function()
+        local r = rig()
+        reads(r)
+        r.eve.Mesh.GetNumBones = function() error('no GetNumBones') end
+        play(r, '6')
+        ok(has(r, 'probe: SKIP 6 bones: not verified: '))
+        ok(has(r, 'no GetNumBones'))
+        ok(has(r, 'probe: PASS 6 skin')) ok(has(r, 'probe: END 6 4/5'))
+    end,
+    test6_skin_without_a_closet_fit = function()
+        local r = rig()
+        reads(r)
+        r.eve.Mesh.SkeletalMesh = uobj('/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10')
+        play(r, '6')
+        ok(has(r, 'probe: PASS 6 skin: no closet fit on the body (/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10)'))
+    end,
     refuses_on_the_title = function()
         local r = rig({['1'] = {steps = {{frames = 0, name = 'a', run = PASS}}}})
         r.world = false
@@ -484,7 +538,8 @@ local tests = {
         ok((C.closet('probe', 'off', nil, nil, nil, nil)))
         eq((C.closet('probe', '3', 'x', nil, nil, nil)), false)
         same(calls, {'run 3', 'off'})
-        ok(require('closet.commands').USE:find('probe', 1, true))
+        ok(require('closet.commands').USE:find('probe <1-6|off>', 1, true))
+        eq(Probe.USE, 'Use: coop closet probe <1-6|off>')
     end,
 }
 run('probe_test', tests)

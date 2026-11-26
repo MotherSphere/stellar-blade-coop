@@ -1,13 +1,15 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop closet probe <1-5|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts (the
--- piece grid, a grid slot alone, the tab buttons, the detail panel, focus and input), one at a time, each check a
--- "probe: PASS <n> <check>" or "probe: FAIL <n> <check>: <why>" line in UE4SS.log. Their results decide how the closet
--- menu builds its piece grid. Only UI: EVE, saves and the closet's look are never touched.
+-- coop closet probe <1-6|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts (the
+-- piece grid, a grid slot alone, the tab buttons, the detail panel, focus and input) and test 6, the reads for the
+-- camera and fit work (EVE's bones, the camera's FOV, mesh slot names, LODs, skin parameters), one at a time, each
+-- check a "probe: PASS <n> <check>" or "probe: FAIL <n> <check>: <why>" line in UE4SS.log. Their results decide how the
+-- closet menu builds its piece grid. Tests 1-5 touch only UI. Test 6 reads EVE and loads meshes. No test writes to EVE,
+-- saves or the closet's look.
 -- A test is a list of steps {frames=<frames to wait after the step before>, name=<check>, run=function(ctx)}. run
--- returns true (PASS), false and why (FAIL), or 'wait' (run again next frame: a check that watches the mouse or a map
--- change). The first FAIL ends the test. Before each step every part the test made must still be ours (kit.alive),
+-- returns true (PASS), false and why (FAIL), 'skip' and why (SKIP: the test goes on) or 'wait' (run again next frame:
+-- a check that watches the mouse or a map change). The first FAIL ends the test. Before each step every part the test made must still be ours (kit.alive),
 -- unless a step set ctx.free_parts (a map change it waits for). A test ends by itself after TIMEOUT s (or its own
 -- timeout), on coop closet probe off, a second run or coop off (stop). While a step holds the kit's input, coop ui
 -- reset or the focus watchdog taking it back ends the test too. It runs only in the game world (world()), never while
@@ -21,7 +23,7 @@ local Probe={}
 Probe.TIMEOUT=30 -- Seconds a test may run unless it sets its own.
 Probe.WATCH=10 -- Seconds a check watches the mouse.
 Probe.RELEASE_TRIES=600 -- Frames the probe tries again to give the input back (about 10 s).
-Probe.USE='Use: coop closet probe <1-5|off>'
+Probe.USE='Use: coop closet probe <1-6|off>'
 Probe.GROUP='closet_probe'
 Probe.TESTS={}
 -- The game's parts and assets, read in the widget JSON and Ghidra (build 26123051) on 25 Nov 2026.
@@ -348,6 +350,242 @@ Probe.TESTS['5']={timeout=90,steps={grid_steps[1],grid_steps[2],grid_steps[3],
         return not kit.holding(),'parts gone with the old root; input held after the change: '..tostring(kit.holding())
     end}},
     cleanup=function(ctx) if ctx.data.tv and live(ctx.data.tv) then ctx.data.tv:ClearListItems() end end}
+
+-- Test 6: the reads the camera and fit work needs, each check a PASS line with its data (NOTE lines hold the long
+-- lists): EVE's bones, the camera's FOV, the material slot names of the body-only and game suit meshes, the LODs of the
+-- fit-mapped outfits and the skin slots' material parameters. It only reads: nothing of the game is written. A read
+-- that raises logs "probe: SKIP 6 <check>: not verified: <why>" and the test goes on.
+-- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
+--   ACharacter.Mesh: object property (SkeletalMeshComponent) at 0x328, params 0x14651b540 in Character's ClassParams
+--     0x14651b720.
+--   USkinnedMeshComponent natives GetNumBones (exec 0x14492a8d0) and GetBoneName(int) (exec 0x14492a680: the FName of
+--     bone i of its SkeletalMesh, None out of range), native table 0x14665efd0; its SkeletalMesh: object property at
+--     0x568, params 0x14665d7e0 in its ClassParams 0x14665e3f0.
+--   UPrimitiveComponent native GetMaterial(int), native table 0x14662ad40 (entry 0x14662af60).
+--   APlayerController.Player (object, UPlayer, at 0x340, params 0x1466164d0) and .PlayerCameraManager (object at
+--     0x360, params 0x146616598), ClassParams 0x1466169a0.
+--   ULocalPlayer.AspectRatioAxisConstraint: byte enum (EAspectRatioAxisConstraint) at 0x94, params 0x1465c49e8 in
+--     LocalPlayer's ClassParams 0x1465c4a20.
+--   APlayerCameraManager native GetFOVAngle, native table 0x14661c960 (exec 0x1448d35b0).
+--   USkeletalMesh.Materials: TArray<FSkeletalMaterial> at 0xe0 (params 0x146650de0); FSkeletalMaterial.MaterialSlotName:
+--     FName at 0x8 (params 0x146650eb8). USkeletalMesh.LODInfo: TArray<FSkeletalMeshLODInfo> at 0x100 (params
+--     0x146650908); FSkeletalMeshLODInfo.LODMaterialMap: TArray<int32> at 0x8 (params 0x146651270). USkeletalMesh's
+--     ClassParams 0x14664fac0.
+--   UMaterialInstance.TextureParameterValues: TArray<FTextureParameterValue> at 0x100 (params 0x1465da0b0) and
+--     .VectorParameterValues: TArray<FVectorParameterValue> at 0xf0 (params 0x1465da110), ClassParams 0x1465da670.
+--     Both structs' ParameterInfo: FMaterialParameterInfo at 0x0 (params 0x1465d9d50, 0x1465d9f88);
+--     FMaterialParameterInfo.Name: FName at 0x0 (params 0x1465e0d48).
+local Fits=require('closet.fits')
+local PC,DLC='/Game/Art/Character/PC/','/Game/DLC_2/Art/Character/PC/'
+-- The four body-only fits' meshes, as the packs' body table names them (research of 26 Nov 2026).
+local BODIES={
+    '/Game/CNSRepacked/f2e1960b2ec3c99d/Art/Character/PC/CH_P_EVE_09/CH_P_EVE_09.CH_P_EVE_09',
+    '/Game/OutfitMods/FitBase/fitbase/SK_fitbase_v1.SK_fitbase_v1',
+    '/Game/OutfitMods/MuseBody/muse_body/SK_muse_body_v1.SK_muse_body_v1',
+    '/Game/OutfitMods/UnifiedProjectionSuit/Body/SK_UPS_Skin.SK_UPS_Skin',
+}
+-- The game suits' meshes: every CH_P_EVE_* mesh asset in the base paks' listing (pakchunk0) less the hair, face,
+-- teeth, shadow, IK and cloth assets, as {folder, {asset names}}. A path that is no skeletal mesh logs its reason.
+local SUITS={
+    {PC..'CH_P_EVE_01',{'CH_P_EVE_01_Body','CH_P_EVE_01_TypeB','CH_P_EVE_01_Var01_Body'}},
+    {PC..'CH_P_EVE_02',{'CH_P_EVE_02_Body','CH_P_EVE_02_TypeB'}},
+    {PC..'CH_P_EVE_03',{'CH_P_EVE_03_Body'}},
+    {PC..'CH_P_EVE_04',{'CH_P_EVE_04_Body','CH_P_EVE_04_TypeB'}},
+    {PC..'CH_P_EVE_05',{'CH_P_EVE_05NH','CH_P_EVE_05_Body','CH_P_EVE_05_TypeB','CH_P_EVE_05_TypeBNH'}},
+    {PC..'CH_P_EVE_06',{'CH_P_EVE_06NH','CH_P_EVE_06_Body','CH_P_EVE_06_TypeB','CH_P_EVE_06_TypeBNH'}},
+    {PC..'CH_P_EVE_07',{'CH_P_EVE_07','CH_P_EVE_07_Type_B'}},
+    {PC..'CH_P_EVE_08',{'CH_P_EVE_08','CH_P_EVE_08_TypeC','CH_P_EVE_08_Type_B_OrangeRed','CH_P_EVE_08_sample'}},
+    {PC..'CH_P_EVE_09',{'CH_P_EVE_09','CH_P_EVE_09_Taper','CH_P_EVE_09_TypeB','CH_P_EVE_09_TypeC'}},
+    {PC..'CH_P_EVE_09_V02',{'CH_P_EVE_09_V02','CH_P_EVE_09_V02_TypeB'}},
+    {PC..'CH_P_EVE_10',{'CH_P_EVE_10'}},
+    {PC..'CH_P_EVE_11',{'CH_P_EVE_11','CH_P_EVE_11_1','CH_P_EVE_11_SkirtTest'}},
+    {PC..'CH_P_EVE_14',{'CH_P_EVE_14','CH_P_EVE_14_1','CH_P_EVE_14_1_TypeB','CH_P_EVE_14_TypeB'}},
+    {PC..'CH_P_EVE_15',{'CH_P_EVE_15','CH_P_EVE_15_V02','CH_P_EVE_15_V02_TypeB'}},
+    {PC..'CH_P_EVE_16',{'CH_P_EVE_16','CH_P_EVE_16_TypeB'}},
+    {PC..'CH_P_EVE_17',{'CH_P_EVE_17','CH_P_EVE_17NH','CH_P_EVE_17NH_TypeB','CH_P_EVE_17_TypeB'}},
+    {PC..'CH_P_EVE_18',{'CH_P_EVE_18','CH_P_EVE_18_TypeB'}},
+    {PC..'CH_P_EVE_19',{'CH_P_EVE_19','CH_P_EVE_19_TypeB'}},
+    {PC..'CH_P_EVE_20',{'CH_P_EVE_20','CH_P_EVE_20_TypeB','CH_P_EVE_20_TypeC'}},
+    {PC..'CH_P_EVE_21',{'CH_P_EVE_21','CH_P_EVE_21_TypeB'}},
+    {PC..'CH_P_EVE_22',{'CH_P_EVE_22'}},
+    {PC..'CH_P_EVE_23',{'CH_P_EVE_23'}},
+    {PC..'CH_P_EVE_24',{'CH_P_EVE_24','CH_P_EVE_24_TypeB'}},
+    {PC..'CH_P_EVE_25',{'CH_P_EVE_25','CH_P_EVE_25_TypeB'}},
+    {PC..'CH_P_EVE_26',{'CH_P_EVE_26','CH_P_EVE_26_TypeB'}},
+    {PC..'CH_P_EVE_27',{'CH_P_EVE_27','CH_P_EVE_27_TypeB'}},
+    {PC..'CH_P_EVE_28',{'CH_P_EVE_28','CH_P_EVE_28NH','CH_P_EVE_28NH_typeB','CH_P_EVE_28_typeB'}},
+    {PC..'CH_P_EVE_29',{'CH_P_EVE_29','CH_P_EVE_29_TypeB','CH_P_EVE_29_TypeC'}},
+    {PC..'CH_P_EVE_30',{'CH_P_EVE_30','CH_P_EVE_30_TypeB'}},
+    {PC..'CH_P_EVE_31',{'CH_P_EVE_31','CH_P_EVE_31_TypeB'}},
+    {PC..'CH_P_EVE_32',{'CH_P_EVE_32','CH_P_EVE_32_TypeB'}},
+    {PC..'CH_P_EVE_33',{'CH_P_EVE_33_Body','CH_P_EVE_33_Body_02'}},
+    {PC..'CH_P_EVE_34',{'CH_P_EVE_34_body','CH_P_EVE_34_body_02'}},
+    {PC..'CH_P_EVE_35',{'CH_P_EVE_35','CH_P_EVE_35_TypeB'}},
+    {PC..'CH_P_EVE_36',{'CH_P_EVE_36','CH_P_EVE_36_TypeB'}},
+    {PC..'CH_P_EVE_37',{'CH_P_EVE_37','CH_P_EVE_37_TypeB'}},
+    {PC..'CH_P_EVE_39',{'CH_P_EVE_39','CH_P_EVE_39_TypeB'}},
+    {PC..'CH_P_EVE_40',{'CH_P_EVE_40','CH_P_EVE_40_TypeB','CH_P_EVE_40_TypeC'}},
+    {PC..'CH_P_EVE_41',{'CH_P_EVE_41','CH_P_EVE_41NH','CH_P_EVE_41NH_TypeB','CH_P_EVE_41_TypeB'}},
+    {PC..'CH_P_EVE_42',{'CH_P_EVE_42','CH_P_EVE_42_TypeB'}},
+    {PC..'CH_P_EVE_43',{'CH_P_EVE_43','CH_P_EVE_43_TypeB'}},
+    {PC..'CH_P_EVE_45',{'CH_P_EVE_45','CH_P_EVE_45_TypeB'}},
+    {PC..'CH_P_EVE_46',{'CH_P_EVE_46','CH_P_EVE_46_TypeB'}},
+    {PC..'CH_P_EVE_47',{'CH_P_EVE_47'}},
+    {PC..'CH_P_EVE_48',{'CH_P_EVE_48'}},
+    {PC..'CH_P_EVE_49',{'CH_P_EVE_49','CH_P_EVE_49_TypeB'}},
+    {PC..'CH_P_EVE_50',{'CH_P_EVE_50','CH_P_EVE_50_TypeB'}},
+    {PC..'CH_P_EVE_51',{'CH_P_EVE_51'}},
+    {PC..'CH_P_EVE_52',{'CH_P_EVE_52','CH_P_EVE_52_TypeB'}},
+    {PC..'CH_P_EVE_53',{'CH_P_EVE_53','CH_P_EVE_53_TypeB'}},
+    {PC..'CH_P_EVE_54',{'CH_P_EVE_54'}},
+    {PC..'CH_P_EVE_55',{'CH_P_EVE_55','CH_P_EVE_55_TypeB'}},
+    {PC..'CH_P_EVE_56',{'CH_P_EVE_56'}},
+    {PC..'CH_P_EVE_57',{'CH_P_EVE_57','CH_P_EVE_57_TypeB'}},
+    {PC..'CH_P_EVE_58',{'CH_P_EVE_58'}},
+    {PC..'CH_P_EVE_59',{'CH_P_EVE_59','CH_P_EVE_59_TypeB'}},
+    {PC..'CH_P_EVE_60',{'CH_P_EVE_60','CH_P_EVE_60NH'}},
+    {PC..'CH_P_EVE_61',{'CH_P_EVE_61'}},
+    {PC..'CH_P_EVE_62',{'CH_P_EVE_62'}},
+    {PC..'CH_P_EVE_63',{'CH_P_EVE_63'}},
+    {PC..'CH_P_EVE_Bayonetta_01',{'CH_P_EVE_Bayonetta_01'}},
+    {PC..'CH_P_EVE_Bayonetta_02',{'CH_P_EVE_Bayonetta_02'}},
+    {PC..'CH_P_EVE_Bayonetta_03',{'CH_P_EVE_Bayonetta_03'}},
+    {PC..'CH_P_EVE_Bayonetta_04',{'CH_P_EVE_Bayonetta_04'}},
+    {PC..'CH_P_EVE_Christmas_01',{'CH_P_EVE_Christmas_01'}},
+    {PC..'CH_P_EVE_DX',{'CH_P_EVE_DX','CH_P_EVE_DX_TypeB'}},
+    {PC..'CH_P_EVE_Fusion',{'CH_P_EVE_Fusion','CH_P_EVE_Fusion_NoAcc'}},
+    {PC..'CH_P_EVE_IberisCostume',{'CH_P_EVE_IberisCos'}},
+    {PC..'CH_P_EVE_InnerSuit',{'CH_P_EVE_InnerSuit','CH_P_EVE_InnerSuit1'}},
+    {PC..'CH_P_EVE_OneMillion_01',{'CH_P_EVE_OneMillion_01'}},
+    {PC..'CH_P_EVE_RoyalGuard_01',{'CH_P_EVE_RoyalGuard_01'}},
+    {DLC..'CH_P_EVE_Nikke_01',{'CH_P_EVE_Nikke_01'}},
+}
+-- The object paths the slots check reads, the body-only meshes first.
+Probe.MESHES={table.unpack(BODIES)}
+for _,s in ipairs(SUITS) do
+    for _,n in ipairs(s[2]) do Probe.MESHES[#Probe.MESHES+1]=s[1]..'/'..n..'.'..n end
+end
+-- The bone parts the bones check finds by the first name that holds the word (case-insensitive); true: one per side.
+local PARTS={{'head'},{'neck'},{'spine'},{'upperarm',true},{'hand',true},{'pelvis'},{'thigh',true},{'calf',true},
+    {'foot',true}}
+local BONE_LINE=40 -- Bone names per NOTE line.
+local function path_of(o) return text(o:GetFullName()):match('^%S+ (.+)$') end
+local function count(array) local n=0; each(array,function() n=n+1 end); return n end
+-- The side of a lower-case bone name: a word l/left or r/right in it (upperarm_l, bip001 l upperarm), else nil.
+local function side(name)
+    for word in name:gmatch('%a+') do
+        if word=='l' or word=='left' then return 'l' end
+        if word=='r' or word=='right' then return 'r' end
+    end
+end
+-- A check whose reads run in pcall: a raise is a SKIP with its reason, the test goes on.
+local function soft(name,read)
+    return {frames=0,name=name,run=function(ctx)
+        local ok,result,why=pcall(read,ctx)
+        if not ok then return 'skip','not verified: '..tostring(result) end
+        return result,why
+    end}
+end
+local function her_body(ctx) return assert(ctx.eve(),'no EVE').Mesh end -- ACharacter.Mesh
+Probe.TESTS['6']={timeout=300,steps={
+    soft('bones',function(ctx)
+        local body=her_body(ctx)
+        local n=body:GetNumBones()
+        local all,at={},{}
+        for i=0,n-1 do
+            local name=text(body:GetBoneName(i))
+            all[#all+1]=name
+            local low=name:lower()
+            for _,part in ipairs(PARTS) do
+                local key=part[2] and side(low) and part[1]..'_'..side(low) or not part[2] and part[1]
+                if key and at[key]==nil and low:find(part[1],1,true) then at[key]=i end
+            end
+        end
+        for i=1,#all,BONE_LINE do
+            local last=math.min(i+BONE_LINE-1,#all)
+            ctx.log(string.format('NOTE 6 bones %d-%d: %s',i-1,last-1,table.concat(all,' ',i,last)))
+        end
+        local out={}
+        for _,part in ipairs(PARTS) do
+            for _,key in ipairs(part[2] and {part[1]..'_l',part[1]..'_r'} or {part[1]}) do
+                out[#out+1]=key..'='..tostring(at[key] or '-')
+            end
+        end
+        return true,n..' bones; '..table.concat(out,' ')
+    end),
+    soft('fov',function(ctx)
+        local pc=assert(ctx.controller(),'no player controller')
+        local axis=U.value_of(pc.Player.AspectRatioAxisConstraint)
+        local fov=U.value_of(pc.PlayerCameraManager:GetFOVAngle())
+        local v=ctx.kit.screen() -- The kit's own read of the viewport (ui/kit/kit.lua).
+        return true,string.format('aspect ratio axis constraint %s, camera FOV %s, UI viewport %s',tostring(axis),
+            tostring(fov),v and string.format('%.0fx%.0f units at DPI scale %.3g',v.w,v.h,v.s) or 'unread')
+    end),
+    -- One mesh a frame: each load is synchronous.
+    soft('slots',function(ctx)
+        local d=ctx.data
+        d.slot=(d.slot or 0)+1
+        local path=Probe.MESHES[d.slot]
+        if not path then return true,#Probe.MESHES..' meshes, '..(d.missing or 0)..' not found' end
+        local mesh=ctx.find(path)
+        if not mesh then
+            d.missing=(d.missing or 0)+1
+            ctx.log('NOTE 6 slots: '..path..' not found')
+            return 'wait'
+        end
+        local ok,why=pcall(function()
+            local out={}
+            each(mesh.Materials,function(i,slot) out[#out+1]=(i-1)..'='..text(slot.MaterialSlotName) end)
+            return table.concat(out,' ')
+        end)
+        ctx.log('NOTE 6 slots: '..path..' '..(ok and why or ('unreadable: '..tostring(why))))
+        return 'wait'
+    end),
+    soft('lods',function(ctx)
+        local ids={}
+        for id in pairs(Fits.BY_ID) do ids[#ids+1]=id end
+        table.sort(ids)
+        local out={}
+        for _,id in ipairs(ids) do
+            local fit=Fits.BY_ID[id]
+            local mesh=ctx.find(fit.Mesh)
+            local line=fit.Outfit..' '..fit.Mesh..' not found'
+            if mesh then
+                local n,maps=0,{}
+                each(mesh.LODInfo,function(i,lod)
+                    n=n+1
+                    if i>1 then maps[#maps+1]='LOD'..(i-1)..' map '..count(lod.LODMaterialMap) end
+                end)
+                line=fit.Outfit..' '..fit.Mesh..' '..n..' LODs'..(#maps>0 and ', '..table.concat(maps,', ') or '')
+            end
+            out[#out+1]=line
+        end
+        return true,table.concat(out,'; ')
+    end),
+    soft('skin',function(ctx)
+        local body=her_body(ctx)
+        local mesh=path_of(body.SkeletalMesh)
+        local id,fit
+        for k,f in pairs(Fits.BY_ID) do if f.Mesh==mesh then id,fit=k,f end end
+        if not fit then return true,'no closet fit on the body ('..tostring(mesh)..')' end
+        local slots={}
+        for i in pairs(fit.Skin) do slots[#slots+1]=i end
+        table.sort(slots)
+        local out={}
+        for _,i in ipairs(slots) do
+            local ok,why=pcall(function()
+                local m=body:GetMaterial(i)
+                local tex,vec={},{}
+                each(m.TextureParameterValues,function(_,p) tex[#tex+1]=text(p.ParameterInfo.Name) end)
+                each(m.VectorParameterValues,function(_,p) vec[#vec+1]=text(p.ParameterInfo.Name) end)
+                return string.format('%s tex=%s vec=%s',text(m:GetFullName()),table.concat(tex,','),
+                    table.concat(vec,','))
+            end)
+            out[#out+1]=i..' '..(ok and why or ('unreadable: '..tostring(why)))
+        end
+        return true,id..' '..table.concat(out,'; ')
+    end)}}
+
 -- A game object by path: in memory, else after a synchronous LoadAsset (a class path loads its asset path without
 -- _C), as ui/kit/kit.lua's load does.
 local function default_find(path)
@@ -365,6 +603,9 @@ function Probe.new(o)
     local find=o.find or default_find
     local construct=o.construct or function(class,outer) return StaticConstructObject(class,outer) end
     local world=o.world or function() return true end
+    -- EVE (test 6 reads her body) and the player controller (her camera).
+    local eve=o.eve or function() return U.her(U.valid(require('UEHelpers').GetPlayer())) end
+    local controller=o.controller or U.controller
     local self={}
     local added=false
     local cur -- The running test: {n, test, i, wait, parts, passed, total, deadline, shown, held, ctx}
@@ -420,7 +661,7 @@ function Probe.new(o)
         end
         local c={n=n,test=test,i=1,wait=test.steps[1].frames or 0,parts={},passed=0,total=#test.steps,
             deadline=clock()+(test.timeout or Probe.TIMEOUT),shown=false}
-        c.ctx={log=log,find=find,construct=construct,data={},kit=kit,now=clock}
+        c.ctx={log=log,find=find,construct=construct,data={},kit=kit,now=clock,eve=eve,controller=controller}
         -- A game widget made in the probe's group, kept for the end; it throws when the kit refuses.
         function c.ctx.make(class_path,x,y,w,h,fill,hit)
             local rec,why=kit.part(Probe.GROUP,class_path,x,y,w,h,fill,hit)
@@ -482,8 +723,12 @@ function Probe.new(o)
         if not ran then return fail(step.name,result) end
         if result=='wait' then return end
         if not result then return fail(step.name,why or 'no') end
-        log(string.format('PASS %s %s%s',cur.n,step.name,why and (': '..tostring(why)) or ''))
-        cur.passed=cur.passed+1
+        if result=='skip' then
+            log(string.format('SKIP %s %s: %s',cur.n,step.name,tostring(why)))
+        else
+            log(string.format('PASS %s %s%s',cur.n,step.name,why and (': '..tostring(why)) or ''))
+            cur.passed=cur.passed+1
+        end
         cur.i=cur.i+1
         local next_step=cur.test.steps[cur.i]
         if not next_step then return finish() end

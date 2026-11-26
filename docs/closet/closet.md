@@ -17,7 +17,7 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet off` | Gives EVE her own look back |
 | `coop closet fits` | Lists the fit maps and the slots of their pieces |
 | `coop closet menu` | Opens the closet menu. When it is open, closes it and gives back the look worn before |
-| `coop closet probe <1-5\|off>` | Runs one in-game test of the game's widget parts for the closet menu and writes `probe:` PASS/FAIL lines to UE4SS.log. `off` ends it |
+| `coop closet probe <1-6\|off>` | Runs one in-game test of the game's widget parts for the closet menu (1-5) or of the reads for its camera and fit (6). It writes `probe:` PASS/FAIL lines to UE4SS.log. `off` ends it |
 
 For example, `coop closet wear AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462:Shoes` wears Ocean Maid's top and
 stockings with Kunoichi Shadow's boots.
@@ -128,10 +128,27 @@ ends with `probe: END <n> <passed>/<total>`. `NOTE` lines say what to do or what
 | 3 | 9 pause-menu tab buttons: labels, the focus walked along them | Move the mouse over the tabs for 10 s at the end |
 | 4 | The NanoSuit detail panel in its three craft states | Nothing |
 | 5 | Focus and input with the parts on screen, then a map change | Press Esc when asked, then fast travel |
+| 6 | Reads for the camera and fit work: EVE's bones, the camera's FOV, mesh slot names, LODs, skin parameters | Nothing |
 
-A test ends by itself after 30 s (test 5: 90 s). `coop closet probe off` ends it at once. While a test holds the input
-(the mouse windows of tests 1, 3 and 5), `coop ui reset` gives it back and ends the test. In test 5 the game gets its
-keys back before the fast travel. The probe touches only its own widgets: never EVE, the closet's look or a save.
+A test ends by itself after 30 s (test 5: 90 s, test 6: 300 s). `coop closet probe off` ends it at once. While a test
+holds the input (the mouse windows of tests 1, 3 and 5), `coop ui reset` gives it back and ends the test. In test 5 the
+game gets its keys back before the fast travel. Tests 1-5 touch only their own widgets. Test 6 reads EVE and loads
+meshes. No test writes to EVE, the closet's look or a save.
+
+Test 6 logs one line per check:
+
+- `PASS 6 bones: <n> bones; head=<i> neck=<i> spine=<i> upperarm_l=<i> ...`: the index of the first bone whose name
+  holds each part (`-` when none). `NOTE 6 bones <first>-<last>:` lines list every bone name, 40 to a line.
+- `PASS 6 fov:` the local player's `AspectRatioAxisConstraint`, the camera's `GetFOVAngle()` and the kit's UI
+  viewport.
+- `NOTE 6 slots: <path> <index>=<slot name> ...` for each of the four body-only meshes and the game suits' meshes
+  (`Probe.MESHES`, one load a frame), then `PASS 6 slots: <n> meshes, <k> not found`.
+- `PASS 6 lods:` for each fit-mapped outfit (Ocean Maid, Kunoichi Shadow), its LOD count and the size of each
+  LOD1+ `LODMaterialMap`.
+- `PASS 6 skin: <fit> <slot> <material> tex=<names> vec=<names>; ...` for each skin slot of the fit on EVE's body,
+  or `no closet fit on the body (<mesh>)`.
+
+A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes on. A SKIP does not count as passed.
 
 ## Tests
 

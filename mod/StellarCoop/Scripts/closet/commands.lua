@@ -11,12 +11,12 @@
 --   coop closet off                                   her own look back
 --   coop closet fits                                  the fit maps and their pieces' slots
 --   coop closet menu                                  opens the closet menu, or closes it with the look undone
---   coop closet probe <1-5|off>                       one in-game test of the game's widget parts (UE4SS.log)
+--   coop closet probe <1-6|off>                       one in-game test of the game's widget parts or reads (UE4SS.log)
 local Dress=require('closet.dress')
 local Probe=require('closet.ui.probe')
 local Commands={}
 -- main/commands.lua's M.run passes six words, nil-padded: an extra word is a first one that is not nil.
-Commands.USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|probe <1-5|off>]'
+Commands.USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|probe <1-6|off>]'
 function Commands.new(o)
     local self={}
     function self.closet(sub,...)
