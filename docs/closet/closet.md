@@ -58,7 +58,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua. They make no engine
 
 | File | Holds |
 | --- | --- |
-| `slots.lua` | The slot list: each slot's layer, kind and menu region, the ten body regions, the apply order |
+| `slots.lua` | The slot list: each slot's layer, kind, menu region and glyph, the ten body regions, the apply order |
 | `resolver.lua` | What is worn and what shows: occupancy, `FullOutfit` suppression, `HidesSlots`, body regions by layer, loadouts |
 | `json.lua` | A JSON decoder for packs: comments, trailing commas, a BOM, `\u` escapes. It never raises |
 | `manifest.lua` | Reads and checks a `*.stellarcloset.json` pack |
@@ -97,8 +97,8 @@ widget parts in the kit group `closet_menu`:
 | --- | --- |
 | Tabs | `WB_Common_Tab_Btn`, one a tab. The Intimate tab is left out |
 | Slot rows | `WB_Setting_Button_Slot`, a window of 10. A slot with no piece type yet shows as locked "Coming soon" |
-| Pieces | The hair salon's `WB_HairSalonGridList` TileView, fed with `BP_HairSalonItemData_Tile` data objects. The None tile comes first. Every tile shows the hair salon's default icon until packs give thumbnails |
-| Detail | `WB_NanoSuit_Detail` with its hold button hidden |
+| Pieces | The hair salon's `WB_HairSalonGridList` TileView, fed with `BP_HairSalonItemData_Tile` data objects. The None tile comes first. Each tile shows its slot's glyph, the None tile the None glyph |
+| Detail | `WB_NanoSuit_Detail` with its hold button hidden. The origin badge (the Original or Custom glyph) sits right of it, by its title |
 | Key hints | `WB_Common_IndicatorBtnDefault` |
 
 The tab shown is kept until the next Lua load. The first open shows the first tab, Full outfit. LB + D-pad Left that
@@ -133,6 +133,19 @@ look.
 Every close removes every game part first: the game holds EVE still while one of its widgets is up. The game gets its
 input back 150 ms after the close, so the Esc that closed the menu does not open the pause menu. `coop off` closes the
 menu at once. It runs `coop closet off` too: EVE gets her own look back and `coop-closet.txt` is cleared.
+
+### Glyphs
+
+The closet draws its own glyphs: white line art, 41 tile glyphs for the 73 slots (`slots.lua` names each slot's), the
+None glyph and 9 small glyphs (Original, Custom, the camera modes, the light presets). The sources are SVG files in
+`tools/closet_icons/svg/`. `python3 -I tools/closet_icons/render.py` renders them with headless Edge or Chrome to
+`mod/StellarCoop/Scripts/closet/ui/icons/<name>.png` (256 px, the small glyphs 64 px). The PNGs ship with the mod.
+Render again after a change to an SVG; `tests/tools/closet_icons_test.py` checks each PNG against its SVG.
+
+The menu imports each glyph it shows once with the engine's `ImportFileAsTexture2D` and gives a tile the texture's
+object path as its icon. A hidden kit image holds each texture, so the engine does not free it while the root lives.
+After each fill the menu looks at the shown tiles. A tile without its glyph gets it on its own image from then on,
+with one log line. A glyph that does not load leaves its tiles on the hair salon's default icon, with one log line.
 
 ### The closet camera
 
@@ -222,6 +235,7 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
 - `tests/lua/closet/closet_test.lua` checks `coop closet`.
 - `tests/lua/closet/menu_test.lua` (5 checks) runs the closet menu on the fake kit and parts of
   `tests/lua/closet/menu_fakes.lua`: what open draws, `coop closet menu`, the close paths and a draw that fails.
-- `tests/lua/closet/slots_test.lua` (7 checks), `fits_test.lua` (4), `dress_test.lua` (12), `resolver_test.lua` (23),
+- `tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style.
+- `tests/lua/closet/slots_test.lua` (8 checks), `fits_test.lua` (4), `dress_test.lua` (12), `resolver_test.lua` (23),
   `manifest_test.lua` (13) and `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`,
   with the assertions of `tests/lua/closet/helpers.lua`.

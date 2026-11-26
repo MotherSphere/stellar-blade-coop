@@ -4,16 +4,49 @@
 -- Closet's copy of tests/lua/closet/probe_test.lua's fake kit, with add and view running a group's build through a
 -- builder copied from tests/lua/online/lobby/ui/lobby_test.lua:99-151 (November 2026): its own from then on.
 -- The fake game side of the closet menu's tests (tests/lua/closet/menu_test.lua): the engine globals the view calls
--- (FText, FName, StaticFindObject, LoadAsset, StaticConstructObject), fake widget parts that record every call, the
--- hair salon grid's TileView (probe_test.lua's, its entry size kept in entry_w and entry_h). F.kit() gives a new fake
+-- (FText, FName, StaticFindObject, LoadAsset, StaticConstructObject), the rendering library's texture import and the
+-- player controller, fake widget parts that record every call, the hair salon grid's TileView (probe_test.lua's, its
+-- entry size kept in entry_w and entry_h, its shown entries). F.kit() gives a new fake
 -- kit; k.events lists the drops and the
 -- TileView's clears in order. Tab buttons and the popup's buttons answer IsHovered from their hover field.
 local F = {}
 FText = function(s) return {text = s, ToString = function(self) return self.text end} end
 FName = function(s) return s end
 LoadAsset = function() end
+-- The rendering library's ImportFileAsTexture2D: each call a new transient texture, recorded in F.imports (its file);
+-- a glyph named in F.refuse gives none. A texture's valid=false is the engine having freed it. F.made[glyph]: its
+-- last texture; F.path(glyph): that texture's object path, as a tile's IconAssetPath names it.
+F.RENDER = '/Script/Engine.Default__KismetRenderingLibrary'
+F.imports, F.refuse, F.made, F.by_path = {}, {}, {}, {}
+local count = 0
+F.render = {IsValid = function() return true end, type = function() return 'UObject' end,
+    ImportFileAsTexture2D = function(_, pc, file)
+        assert(pc == F.pc, 'imported with the player controller')
+        F.imports[#F.imports + 1] = file
+        local glyph = file:match('([%w_]+)%.png$')
+        if F.refuse[glyph] then return nil end
+        count = count + 1
+        local path = '/Engine/Transient.Texture2D_' .. count
+        local t = {file = file, glyph = glyph, path = path, valid = true, IsValid = function(t) return t.valid end,
+            type = function() return 'UObject' end, GetFullName = function() return 'Texture2D ' .. path end}
+        F.made[glyph], F.by_path[path] = t, t
+        return t
+    end}
+function F.path(glyph) return F.made[glyph].path end
+-- The grid slot's own icon object, which an entry keeps when a tile's IconAssetPath does not load.
+F.icon = {IsValid = function() return true end, type = function() return 'UObject' end,
+    GetFullName = function() return 'Texture2D ' .. F.ICON end}
+-- The player controller (core/unreal.lua's U.controller asks UEHelpers for it, then IsA PlayerController).
+F.pc = {IsValid = function() return true end, type = function() return 'UObject' end, IsA = function() return true end}
+-- The file names of F.imports from i on.
+function F.imported(i)
+    local out = {}
+    for n = i or 1, #F.imports do out[#out + 1] = F.imports[n]:match('([%w_]+)%.png$') end
+    return out
+end
 -- type: core/unreal.lua's U.valid reads it (U.her finds SBCharacter through U.find).
 StaticFindObject = function(path)
+    if path == F.RENDER then return F.render end
     return {path = path, IsValid = function() return true end, type = function() return 'UObject' end}
 end
 StaticConstructObject = function(class, outer)
@@ -63,6 +96,30 @@ local function tileview(events)
         return -1
     end
     function tv:BP_GetSelectedItem() return self.sel end
+    -- The entries Slate shows, one a shown item, kept across calls (WB_HairSalon_GridSlot's Data and Image_Icon): an
+    -- entry's icon is the texture its item's IconAssetPath names (the slot's LoadAsset_Blocking), else the slot's own
+    -- icon, always so while tv.path_fails. tv.hidden: none built yet. tv.displayed counts the calls.
+    tv.entries, tv.displayed = {}, 0
+    function tv:GetDisplayedEntryWidgets()
+        self.displayed = self.displayed + 1
+        local out = {}
+        if self.hidden then return out end
+        for k, item in ipairs(self.items) do
+            local e = self.entries[item]
+            if not e then
+                local shown = not self.path_fails and F.by_path[item.IconAssetPath] or F.icon
+                local icon = {Brush = {ResourceObject = shown}, set = {}}
+                function icon:SetBrushFromTexture(t, match)
+                    self.Brush.ResourceObject = t
+                    self.set[#self.set + 1] = {t, match}
+                end
+                e = {Data = item, Image_Icon = icon}
+                self.entries[item] = e
+            end
+            out[k] = e
+        end
+        return out
+    end
     return tv
 end
 
@@ -75,11 +132,12 @@ local function builder(g)
         return {set = function(s) t.s = s or '' end, color = function(c) t.color = c end,
             show = function(on) t.shown = on end}
     end
+    -- texture(t) keeps t in the image (a run-time texture: the kit's SetBrushFromTexture).
     function b.image(x, y, w, h, tex, tint)
         local i = {x = x, y = y, w = w, h = h, tex = tex, tint = tint, shown = true}
         g.images[#g.images + 1] = i
         return {show = function(on) i.shown = on end, tint = function(c) i.tint = c end, turn = function() end,
-            texture = function() return true end}
+            texture = function(t) i.texture = t; return true end}
     end
     function b.row(x, y, width)
         local z = {x = x, y = y, w = width, hover = false, label = '', value = '', state = 'normal'}

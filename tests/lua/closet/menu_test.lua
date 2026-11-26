@@ -6,8 +6,9 @@
 -- and closes it; every close path drops every part and gives the input back; coop off does not revert; a draw that
 -- raises closes the menu; the Body row, the origin line, the body switch notices and the Reset Stellar Closet row.
 local run = dofile('tests/lua/closet/run.lua')
-package.loaded.UEHelpers = {GetPlayer = function() return nil end}
 local F = dofile('tests/lua/closet/menu_fakes.lua')
+package.loaded.UEHelpers = {GetPlayer = function() return nil end, GetPlayerController = function() return F.pc end}
+local Slots = require('closet.slots')
 local T = require('ui.text')
 local Fits = require('closet.fits')
 -- No enemy near EVE in these tests: core/player.lua's engaged walks the game's actors.
@@ -66,6 +67,28 @@ local function detail(r)
 end
 local function grid(r) return r.kit.live(F.GRID)[1].o.TileView_ItemList end
 local function popups(r) return #r.kit.live(F.POPUP) end
+-- The kit images of the menu's group as last built that are 64 by 64 (the origin badge) or 1 by 1 (the holders).
+local function images(r, size)
+    local out = {}
+    for _, i in ipairs(r.kit.groups.closet_menu.images) do if i.w == size and i.h == size then out[#out + 1] = i end end
+    return out
+end
+-- The glyph the origin badge shows, nil while it is hidden.
+local function badge(r)
+    local b = images(r, 64)
+    eq(#b, 1, 'one badge')
+    return b[1].shown and b[1].texture and b[1].texture.glyph or nil
+end
+-- The glyphs the hidden holders keep, sorted.
+local function held(r)
+    local out = {}
+    for _, i in ipairs(images(r, 1)) do
+        eq(i.shown, false, 'a holder is hidden')
+        if i.texture then out[#out + 1] = i.texture.glyph end
+    end
+    table.sort(out)
+    return out
+end
 -- The Top row (Chest, the 6th) of the torso tab (the 3rd), open: tiles None, Maid top (Ocean Maid), Kunoichi top
 -- (Kunoichi Shadow).
 local MAID, KUNOICHI = 'AiK_CH27_14595', 'AiK_CH46_xSH_14462'
@@ -171,7 +194,8 @@ local tests = {
         eq(tv.items[1].ItemName.text, 'None', 'None first')
         eq(tv.items[2].ItemName.text, Fits.piece('AiK_CH27_14595', 'UndergarmentTop').Name, 'leotard')
         for i, item in ipairs(tv.items) do
-            eq(item.IconAssetPath, F.ICON, 'icon ' .. i) eq(item.Index, i - 1, 'index ' .. i)
+            eq(item.IconAssetPath, F.path(i == 1 and 'none' or 'bra'), 'glyph ' .. i)
+            eq(item.Index, i - 1, 'index ' .. i)
             eq(item.Purchased, true, 'purchased ' .. i)
         end
         eq(tv.items[1].Equiped, true, 'None worn') eq(tv.items[2].Equiped, false, 'leotard not worn')
@@ -899,13 +923,18 @@ local tests = {
         r.menu.open()
         local title, desc = detail(r)
         ok(desc:find(custom, 1, true), 'a Full outfit row: ' .. desc)
+        eq(badge(r), 'custom', 'the custom badge beside the origin line')
         -- The Body tab's Body row: None (the body rule) then each outfit with skin, named after the outfit.
         at(r, 0.5, 'tab_left', 'tab_left')
         eq((detail(r)), T.en.closet.slots.BaseBody, 'the Body row first')
-        at(r, 0.5, 'right', 'right')
+        eq(badge(r), nil, 'no origin line, no badge')
+        at(r, 0.5, 'right')
+        eq((detail(r)), 'None', 'the None tile') eq(badge(r), nil, 'the None tile has no origin')
+        at(r, 0.5, 'right')
         title, desc = detail(r)
         eq(title, 'Ocean Maid', 'a body tile')
         ok(desc:find('Slot: Body', 1, true) and desc:find(custom, 1, true), 'a body tile: ' .. desc)
+        eq(badge(r), 'custom', 'a tile of a custom outfit')
         at(r, 0.5, 'select')
         same(r.previews, {{{fit = MAID, slots = {'BaseBody'}}}}, 'the body picked')
         local rows = r.kit.live(F.OPTION)
@@ -913,6 +942,7 @@ local tests = {
         eq(rows[1].o.Text_ItemValue.text, 'Ocean Maid', 'the Body row shows the picked body')
         title, desc = detail(r)
         ok(desc:find('Outfit: Ocean Maid', 1, true) and desc:find(custom, 1, true), 'the worn body: ' .. desc)
+        eq(badge(r), 'custom', 'the worn piece of a row')
         -- Shift Up's own suits are Original, worn whole only: their Full outfit row names it.
         eq(Fits.origin(MAID), 'custom', 'custom by default')
         Fits.BY_ID[MAID].Origin = 'original'
@@ -922,9 +952,149 @@ local tests = {
             title, desc = detail(r)
             eq(title, 'Ocean Maid', 'the Full outfit row')
             ok(desc:find(T.en.closet.origin.original, 1, true) and not desc:find('Custom', 1, true), desc)
+            eq(badge(r), 'original', 'the original badge')
+            at(r, 0.5, 'down', 'down')
+            eq((detail(r)), T.en.closet.row.reset, 'the Reset row') eq(badge(r), nil, 'the Reset row has no origin')
         end)
         Fits.BY_ID[MAID].Origin = nil
         ok(good, why)
+    end,
+
+    tiles_show_their_slot_glyph = function()
+        -- A tile's IconAssetPath is the object path of its glyph's imported texture: None's on the None tile, else
+        -- its slot's (closet/slots.lua's glyph). The Top row (Chest): None, Maid top, Kunoichi top.
+        local r = rig()
+        on_top(r)
+        eq(Slots.glyph('Chest'), 'top', 'the Top row glyph')
+        local tv = grid(r)
+        eq(#tv.items, 3, 'tiles')
+        eq(tv.items[1].IconAssetPath, F.path('none'), 'None')
+        for i = 2, 3 do eq(tv.items[i].IconAssetPath, F.path('top'), 'tile ' .. i) end
+        -- The Jacket row (Outerwear) below it: its own glyph.
+        at(r, 0.5, 'down')
+        eq((detail(r)), 'Jacket', 'the Jacket row')
+        eq(Slots.glyph('Outerwear'), 'jacket', 'the Jacket row glyph')
+        tv = grid(r)
+        ok(#tv.items > 1, 'jacket tiles')
+        eq(tv.items[1].IconAssetPath, F.path('none'), 'None again')
+        for i = 2, #tv.items do eq(tv.items[i].IconAssetPath, F.path('jacket'), 'jacket tile ' .. i) end
+    end,
+
+    glyphs_are_imported_once_and_kept = function()
+        -- ImportFileAsTexture2D once a glyph (closet/ui/icons/<glyph>.png beside view.lua) as it is first drawn; a
+        -- hidden kit image of the group holds each texture, so the engine keeps it while the menu shows.
+        local from = #F.imports + 1
+        local r = rig()
+        on_top(r)
+        same(F.imported(from), {'custom', 'none', 'bra', 'top'}, 'imported as first drawn')
+        -- package.searchpath writes the folder with the system's separator.
+        local file = F.imports[from + 1]
+        ok(file:find('^mod/StellarCoop/Scripts/closet[\\/]ui[\\/]icons[\\/]none%.png$'), file)
+        same(held(r), {'bra', 'custom', 'none', 'top'}, 'held')
+        at(r, 0.5, 'up', 'down', 'up', 'down')
+        r.menu.close()
+        r.menu.open()
+        eq((detail(r)), 'Top', 'the Top row again')
+        same(F.imported(from), {'custom', 'none', 'bra', 'top'}, 'kept: never imported again')
+        -- A root built again (a map change) has new holders; a texture the engine freed meanwhile is imported again,
+        -- the others are held by the new build as they are drawn.
+        r.menu.close()
+        F.made.top.valid = false
+        r.kit.groups.closet_menu.view, r.kit.groups.closet_menu.images = nil, {}
+        r.menu.open()
+        same(F.imported(from), {'custom', 'none', 'bra', 'top', 'top'}, 'only the freed one again')
+        eq(grid(r).items[2].IconAssetPath, F.path('top'), 'the tiles name the new texture')
+        same(held(r), {'none', 'top'}, 'held by the new build')
+        at(r, 0.5, 'up')
+        same(held(r), {'bra', 'none', 'top'}, 'the Bra glyph held again, not imported')
+        same(F.imported(from), {'custom', 'none', 'bra', 'top', 'top'}, 'no more imports')
+    end,
+
+    a_refused_glyph_shows_the_game_icon = function()
+        -- An import that gives nothing: its tiles keep the grid slot's own icon, said once, never tried again.
+        local from = #F.imports + 1
+        F.refuse.top = true
+        local r = rig()
+        local good, why = pcall(function()
+            on_top(r)
+            local tv = grid(r)
+            eq(tv.items[1].IconAssetPath, F.path('none'), 'None has its glyph')
+            eq(tv.items[2].IconAssetPath, F.ICON, 'the game icon instead')
+            at(r, 0.5, 'up', 'down')
+            same(F.imported(from), {'custom', 'none', 'bra', 'top'}, 'not tried again')
+            local said = 0
+            for _, line in ipairs(r.log) do if line:find('glyph top', 1, true) then said = said + 1 end end
+            eq(said, 1, 'said once')
+        end)
+        F.refuse.top = nil
+        ok(good, why)
+    end,
+
+    a_glyph_waits_for_the_player_controller = function()
+        -- No player controller (a map loads): the game icon meanwhile, the import at a later draw.
+        local from = #F.imports + 1
+        package.loaded.UEHelpers.GetPlayerController = function() return nil end
+        local r = rig()
+        local good, why = pcall(function()
+            on_top(r)
+            eq(grid(r).items[2].IconAssetPath, F.ICON, 'the game icon meanwhile')
+            same(F.imported(from), {}, 'nothing imported')
+        end)
+        package.loaded.UEHelpers.GetPlayerController = function() return F.pc end
+        ok(good, why)
+        at(r, 0.5, 'up', 'down')
+        eq(grid(r).items[2].IconAssetPath, F.path('top'), 'imported at a later draw')
+    end,
+
+    a_tile_without_its_glyph_gets_it_on_the_tile = function()
+        -- The path works (the slot's LoadAsset_Blocking finds the texture): a look at the shown tiles each CHECK s
+        -- after a fill until one finds them all right, then none until the next fill.
+        local View = require('closet.ui.view')
+        eq(View.CHECK, 0.25, 'CHECK')
+        local r = rig()
+        on_top(r)
+        local tv = grid(r)
+        tv.hidden = true -- Slate builds the entries on a later frame.
+        tick(r, 1)
+        eq(tv.displayed, 1, 'a look after the fill')
+        tv.hidden = false
+        tick(r, 1.1)
+        eq(tv.displayed, 1, 'not before CHECK s')
+        tick(r, 1.25)
+        eq(tv.displayed, 2, 'a look CHECK s later')
+        for _, e in pairs(tv.entries) do eq(#e.Image_Icon.set, 0, 'nothing set on a right tile') end
+        tick(r, 2)
+        eq(tv.displayed, 2, 'no look once every shown tile was right')
+        at(r, 2, 'down')
+        tick(r, 3)
+        eq(tv.displayed, 3, 'a fill looks again')
+        -- The path fails: each shown tile gets its glyph on its Image_Icon (SetBrushFromTexture, no size match),
+        -- said once; from then on every look sets the tiles still wrong.
+        r = rig()
+        on_top(r)
+        tv = grid(r)
+        tv.path_fails = true
+        tick(r, 1)
+        local n = 0
+        for _, e in pairs(tv.entries) do
+            n = n + 1
+            local want = e.Data.Index == 0 and F.made.none or F.made.top
+            same(e.Image_Icon.set, {{want, false}}, 'set on tile ' .. e.Data.Index)
+        end
+        eq(n, 3, 'three tiles shown')
+        tick(r, 1.25)
+        tick(r, 1.5)
+        eq(tv.displayed, 3, 'it keeps looking')
+        for _, e in pairs(tv.entries) do eq(#e.Image_Icon.set, 1, 'set once while it stays right') end
+        local said = 0
+        for _, line in ipairs(r.log) do if line:find('SetBrushFromTexture', 1, true) then said = said + 1 end end
+        eq(said, 1, 'said once')
+        -- A grid with no glyph to show (the Full tab's, empty): never looked at.
+        r = rig()
+        r.menu.open()
+        tick(r, 1)
+        tick(r, 2)
+        eq(grid(r).displayed, 0, 'no look at a grid without glyphs')
     end,
 
     switched_and_clips_are_told = function()

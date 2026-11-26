@@ -31,7 +31,8 @@
 -- a tile the grid picked otherwise (hover, focus) once it stayed picked PREVIEW s.
 -- The Body tab's Body row (BaseBody) lists None (the body rule picks the body) then each outfit with skin: its tile
 -- picks that outfit's body. The row's value is the body in use: the picked one, else the one the look on EVE wears
--- (dress.plan). A tile's detail and the Full tab's rows name the origin: Original, or Custom and the pack.
+-- (dress.plan). A tile's detail and the Full tab's rows name the origin: Original, or Custom and the pack, with the
+-- origin's badge. Each tile shows its slot's glyph (closet/slots.lua), the None tile None's.
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
 -- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
 -- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
@@ -54,6 +55,7 @@ local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player=require('core.player')
 local Fits=require('closet.fits')
+local Slots=require('closet.slots')
 local Model=require('closet.ui.model')
 local View=require('closet.ui.view')
 local Camera=require('closet.ui.camera')
@@ -68,7 +70,7 @@ function Menu.new(o)
     local kit,dress=o.kit,o.dress
     local log=o.log or function() end
     local now=o.now or os.clock
-    local model=Model.new({slots=require('closet.slots'),fits=Fits,installed=dress.installed,adult=o.adult==true})
+    local model=Model.new({slots=Slots,fits=Fits,installed=dress.installed,adult=o.adult==true})
     local view=View.new(kit,log)
     local self={}
     local open=false
@@ -211,6 +213,7 @@ function Menu.new(o)
         s.detail={title=shown and shown.title or '',desc=''}
         if item and item.whole then
             s.detail.desc=(item.locked and w.row.locked:format(item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
+            s.detail.badge=Fits.origin(item.whole)
             if not item.locked then s.hints[2]={w.hints.whole,'Positive',word='select'} end
         elseif item and item.reset then
             s.detail.desc=w.popup.reset_desc
@@ -222,16 +225,21 @@ function Menu.new(o)
             local _,tiles,at=focused(choices)
             s.tiles={}
             for i,one in ipairs(tiles) do
-                s.tiles[i]={name=one.none and w.row.none or one.name,equipped=i==at,locked=one.locked}
+                s.tiles[i]={name=one.none and w.row.none or one.name,equipped=i==at,locked=one.locked,
+                    icon=one.none and 'none' or Slots.glyph(item.slot)}
             end
             if col=='grid' then
                 tile=math.max(1,math.min(tile,#tiles))
                 s.tile=tile
-                s.detail={title=s.tiles[tile].name,desc=lines(w,tiles[tile],item.slot),equipped=tile==at}
+                s.detail={title=s.tiles[tile].name,desc=lines(w,tiles[tile],item.slot),equipped=tile==at,
+                    badge=tiles[tile].fit and Fits.origin(tiles[tile].fit)}
             else
                 s.tile=at
                 s.detail.equipped=worn~=nil
-                if worn then s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit)..'\n'..origin(w,worn) end
+                if worn then
+                    s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit)..'\n'..origin(w,worn)
+                    s.detail.badge=Fits.origin(worn)
+                end
             end
             s.hints[2]={w.hints.wear,'Positive',word='select'}
             -- UI_FaceButton_Top: the game's UI action for the top face button (F, the pad's Y), as in
@@ -487,6 +495,7 @@ function Menu.new(o)
         end
         -- The grid builds its entries on later frames too, and they take the keyboard focus: back to the kit's root.
         kit.refocus()
+        view.tick(t) -- The shown tiles' glyphs after a fill.
         if t>=guard_at then
             guard_at=t+Menu.GUARD
             local read,key=pcall(closing,t)

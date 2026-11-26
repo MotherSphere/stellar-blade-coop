@@ -13,6 +13,8 @@
 --          details). Only "mesh" costs a ghost part.
 --   menu   the region of the closet menu that lists it (Slots.MENUS). The "intimate" menu is adult and off until the
 --          player turns it on.
+--   glyph  the picture its menu tiles show: closet/ui/icons/<glyph>.png (tools/closet_icons/ renders it). Slots of
+--          one kind share one (every tattoo slot shows "tattoo").
 -- A left and a right piece have a slot each (EarringL, EarringR). A pair is one item in the L slot that also occupies
 -- the R slot. The order of Slots.LIST is the deterministic apply order inside a layer.
 local Slots = {}
@@ -25,87 +27,87 @@ Slots.MENUS = {
     {'legs', false}, {'body', false}, {'weapon', false},
 }
 
--- {id, layer, group, kind, menu}
+-- {id, layer, group, kind, menu, glyph}
 Slots.LIST = {
     -- Layer 0: the base body and what is painted on it.
-    {'BaseBody', 0, 'body', 'body', 'body'},
-    {'SkinSuit', 0, 'body', 'mesh', 'body'},
-    {'SkinTone', 0, 'body', 'colour', 'body'},
-    {'TanLines', 0, 'body', 'skin', 'body'},
-    {'SkinShine', 0, 'body', 'skin', 'body'},
-    {'Dermal', 0, 'body', 'skin', 'body'},          -- body glows and LEDs
-    {'TattooFull', 0, 'body', 'skin', 'body'},
-    {'TattooChest', 0, 'body', 'skin', 'torso'},
-    {'TattooStomach', 0, 'body', 'skin', 'torso'},
-    {'TattooBack', 0, 'body', 'skin', 'torso'},
-    {'TattooShoulders', 0, 'body', 'skin', 'torso'},
-    {'TattooUpperArm', 0, 'body', 'skin', 'arms'},
-    {'TattooForearm', 0, 'body', 'skin', 'arms'},
-    {'TattooHand', 0, 'body', 'skin', 'arms'},
-    {'Fingernails', 0, 'body', 'colour', 'arms'},
-    {'TattooHips', 0, 'body', 'skin', 'hips'},
-    {'TattooLowerBack', 0, 'body', 'skin', 'hips'},
-    {'TattooButt', 0, 'body', 'skin', 'hips'},
-    {'PubicHair', 0, 'body', 'skin', 'intimate'},
-    {'Anus', 0, 'body', 'body', 'intimate'},
-    {'TattooPubic', 0, 'body', 'skin', 'intimate'},
-    {'TattooThigh', 0, 'body', 'skin', 'legs'},
-    {'TattooCalf', 0, 'body', 'skin', 'legs'},
-    {'TattooFoot', 0, 'body', 'skin', 'legs'},
-    {'Toenails', 0, 'body', 'colour', 'legs'},
+    {'BaseBody', 0, 'body', 'body', 'body', 'body'},
+    {'SkinSuit', 0, 'body', 'mesh', 'body', 'skin_suit'},
+    {'SkinTone', 0, 'body', 'colour', 'body', 'skin_tone'},
+    {'TanLines', 0, 'body', 'skin', 'body', 'tan_lines'},
+    {'SkinShine', 0, 'body', 'skin', 'body', 'shine'},
+    {'Dermal', 0, 'body', 'skin', 'body', 'glow'},          -- body glows and LEDs
+    {'TattooFull', 0, 'body', 'skin', 'body', 'tattoo'},
+    {'TattooChest', 0, 'body', 'skin', 'torso', 'tattoo'},
+    {'TattooStomach', 0, 'body', 'skin', 'torso', 'tattoo'},
+    {'TattooBack', 0, 'body', 'skin', 'torso', 'tattoo'},
+    {'TattooShoulders', 0, 'body', 'skin', 'torso', 'tattoo'},
+    {'TattooUpperArm', 0, 'body', 'skin', 'arms', 'tattoo'},
+    {'TattooForearm', 0, 'body', 'skin', 'arms', 'tattoo'},
+    {'TattooHand', 0, 'body', 'skin', 'arms', 'tattoo'},
+    {'Fingernails', 0, 'body', 'colour', 'arms', 'nails'},
+    {'TattooHips', 0, 'body', 'skin', 'hips', 'tattoo'},
+    {'TattooLowerBack', 0, 'body', 'skin', 'hips', 'tattoo'},
+    {'TattooButt', 0, 'body', 'skin', 'hips', 'tattoo'},
+    {'PubicHair', 0, 'body', 'skin', 'intimate', 'curl'},
+    {'Anus', 0, 'body', 'body', 'intimate', 'body'},
+    {'TattooPubic', 0, 'body', 'skin', 'intimate', 'tattoo'},
+    {'TattooThigh', 0, 'body', 'skin', 'legs', 'tattoo'},
+    {'TattooCalf', 0, 'body', 'skin', 'legs', 'tattoo'},
+    {'TattooFoot', 0, 'body', 'skin', 'legs', 'tattoo'},
+    {'Toenails', 0, 'body', 'colour', 'legs', 'nails'},
     -- Layer 1: mid
-    {'UndergarmentTop', 1, 'body', 'mesh', 'torso'},
-    {'UndergarmentBottom', 1, 'body', 'mesh', 'hips'},
-    {'Legs', 1, 'body', 'mesh', 'legs'},             -- stockings, socks, leggings
+    {'UndergarmentTop', 1, 'body', 'mesh', 'torso', 'bra'},
+    {'UndergarmentBottom', 1, 'body', 'mesh', 'hips', 'underwear'},
+    {'Legs', 1, 'body', 'mesh', 'legs', 'legwear'},             -- stockings, socks, leggings
     -- Layer 2: outer
-    {'Chest', 2, 'body', 'mesh', 'torso'},
-    {'Pants', 2, 'body', 'mesh', 'hips'},
-    {'Shoes', 2, 'body', 'mesh', 'legs'},
-    {'Gloves', 2, 'body', 'mesh', 'arms'},
-    {'Sleeves', 2, 'body', 'mesh', 'arms'},
-    {'Belt', 2, 'body', 'mesh', 'hips'},
-    {'Garter', 2, 'body', 'mesh', 'hips'},
-    {'ThighStraps', 2, 'body', 'mesh', 'legs'},
-    {'Outerwear', 2, 'body', 'mesh', 'torso'},
-    {'Cape', 2, 'body', 'mesh', 'torso'},
+    {'Chest', 2, 'body', 'mesh', 'torso', 'top'},
+    {'Pants', 2, 'body', 'mesh', 'hips', 'bottoms'},
+    {'Shoes', 2, 'body', 'mesh', 'legs', 'shoes'},
+    {'Gloves', 2, 'body', 'mesh', 'arms', 'gloves'},
+    {'Sleeves', 2, 'body', 'mesh', 'arms', 'sleeves'},
+    {'Belt', 2, 'body', 'mesh', 'hips', 'belt'},
+    {'Garter', 2, 'body', 'mesh', 'hips', 'band'},
+    {'ThighStraps', 2, 'body', 'mesh', 'legs', 'band'},
+    {'Outerwear', 2, 'body', 'mesh', 'torso', 'jacket'},
+    {'Cape', 2, 'body', 'mesh', 'torso', 'cape'},
     -- Layer 3: accents and hardware
-    {'Collar', 3, 'body', 'mesh', 'torso'},
-    {'Necklace', 3, 'body', 'mesh', 'torso'},
-    {'ChestHardware', 3, 'body', 'mesh', 'torso'},   -- harness, straps
-    {'NippleL', 3, 'body', 'mesh', 'torso'},
-    {'NippleR', 3, 'body', 'mesh', 'torso'},
-    {'Navel', 3, 'body', 'mesh', 'torso'},
-    {'BraceletL', 3, 'body', 'mesh', 'arms'},
-    {'BraceletR', 3, 'body', 'mesh', 'arms'},
-    {'Rings', 3, 'body', 'mesh', 'arms'},
-    {'Armbands', 3, 'body', 'mesh', 'arms'},
-    {'ClitPiercing', 3, 'body', 'mesh', 'intimate'},
-    {'LabiaPiercing', 3, 'body', 'mesh', 'intimate'},
-    {'AnalPlug', 3, 'body', 'mesh', 'intimate'},
-    {'AnkletL', 3, 'body', 'mesh', 'legs'},
-    {'AnkletR', 3, 'body', 'mesh', 'legs'},
+    {'Collar', 3, 'body', 'mesh', 'torso', 'collar'},
+    {'Necklace', 3, 'body', 'mesh', 'torso', 'necklace'},
+    {'ChestHardware', 3, 'body', 'mesh', 'torso', 'harness'},   -- harness, straps
+    {'NippleL', 3, 'body', 'mesh', 'torso', 'piercing'},
+    {'NippleR', 3, 'body', 'mesh', 'torso', 'piercing'},
+    {'Navel', 3, 'body', 'mesh', 'torso', 'piercing'},
+    {'BraceletL', 3, 'body', 'mesh', 'arms', 'bracelet'},
+    {'BraceletR', 3, 'body', 'mesh', 'arms', 'bracelet'},
+    {'Rings', 3, 'body', 'mesh', 'arms', 'ring'},
+    {'Armbands', 3, 'body', 'mesh', 'arms', 'band'},
+    {'ClitPiercing', 3, 'body', 'mesh', 'intimate', 'piercing'},
+    {'LabiaPiercing', 3, 'body', 'mesh', 'intimate', 'piercing'},
+    {'AnalPlug', 3, 'body', 'mesh', 'intimate', 'jewel'},
+    {'AnkletL', 3, 'body', 'mesh', 'legs', 'bracelet'},
+    {'AnkletR', 3, 'body', 'mesh', 'legs', 'bracelet'},
     -- Head: survives a FullOutfit.
-    {'Face', 3, 'head', 'swap', 'head'},
-    {'Hair', 3, 'head', 'swap', 'head'},
-    {'Ponytail', 3, 'head', 'swap', 'head'},
-    {'Ears', 3, 'head', 'swap', 'head'},
-    {'Eyes', 3, 'head', 'colour', 'head'},
-    {'Makeup', 3, 'head', 'skin', 'head'},
-    {'FaceTattoo', 3, 'head', 'skin', 'head'},
-    {'HairAccessory', 3, 'head', 'mesh', 'head'},
-    {'Headwear', 3, 'head', 'mesh', 'head'},
-    {'Mask', 3, 'head', 'mesh', 'head'},
-    {'Glasses', 3, 'head', 'mesh', 'head'},
-    {'EarringL', 3, 'head', 'mesh', 'head'},
-    {'EarringR', 3, 'head', 'mesh', 'head'},
-    {'BrowPiercing', 3, 'head', 'mesh', 'head'},
-    {'NosePiercing', 3, 'head', 'mesh', 'head'},
-    {'SeptumPiercing', 3, 'head', 'mesh', 'head'},
-    {'LipPiercing', 3, 'head', 'mesh', 'head'},
-    {'TonguePiercing', 3, 'head', 'mesh', 'head'},
-    {'Weapon', 3, 'weapon', 'swap', 'weapon'},
+    {'Face', 3, 'head', 'swap', 'head', 'face'},
+    {'Hair', 3, 'head', 'swap', 'head', 'hair'},
+    {'Ponytail', 3, 'head', 'swap', 'head', 'ponytail'},
+    {'Ears', 3, 'head', 'swap', 'head', 'ears'},
+    {'Eyes', 3, 'head', 'colour', 'head', 'eyes'},
+    {'Makeup', 3, 'head', 'skin', 'head', 'makeup'},
+    {'FaceTattoo', 3, 'head', 'skin', 'head', 'tattoo'},
+    {'HairAccessory', 3, 'head', 'mesh', 'head', 'hair_accessory'},
+    {'Headwear', 3, 'head', 'mesh', 'head', 'headwear'},
+    {'Mask', 3, 'head', 'mesh', 'head', 'mask'},
+    {'Glasses', 3, 'head', 'mesh', 'head', 'glasses'},
+    {'EarringL', 3, 'head', 'mesh', 'head', 'earring'},
+    {'EarringR', 3, 'head', 'mesh', 'head', 'earring'},
+    {'BrowPiercing', 3, 'head', 'mesh', 'head', 'piercing'},
+    {'NosePiercing', 3, 'head', 'mesh', 'head', 'piercing'},
+    {'SeptumPiercing', 3, 'head', 'mesh', 'head', 'piercing'},
+    {'LipPiercing', 3, 'head', 'mesh', 'head', 'piercing'},
+    {'TonguePiercing', 3, 'head', 'mesh', 'head', 'piercing'},
+    {'Weapon', 3, 'weapon', 'swap', 'weapon', 'weapon'},
     -- Override
-    {Slots.FULL_OUTFIT, 99, 'override', 'mesh', 'full'},
+    {Slots.FULL_OUTFIT, 99, 'override', 'mesh', 'full', 'full_outfit'},
 }
 
 -- Anatomical regions of a base or inner mesh (its material slots are named Mat_<Region> by convention).
@@ -115,7 +117,7 @@ Slots.REGIONS = {'HeadNeck', 'TorsoUpper', 'TorsoLower', 'Pelvis', 'ArmUpper', '
 Slots.BY_ID = {}
 for index, entry in ipairs(Slots.LIST) do
     Slots.BY_ID[entry[1]] = {id = entry[1], layer = entry[2], group = entry[3], kind = entry[4], menu = entry[5],
-        order = index}
+        glyph = entry[6], order = index}
 end
 
 Slots.IS_REGION = {}
@@ -130,6 +132,7 @@ function Slots.group(id) return Slots.BY_ID[id] and Slots.BY_ID[id].group end
 function Slots.order(id) return Slots.BY_ID[id] and Slots.BY_ID[id].order end
 function Slots.kind(id) return Slots.BY_ID[id] and Slots.BY_ID[id].kind end
 function Slots.menu(id) return Slots.BY_ID[id] and Slots.BY_ID[id].menu end
+function Slots.glyph(id) return Slots.BY_ID[id] and Slots.BY_ID[id].glyph end
 -- Whether a piece in this slot is a component of its own, one of the ghost's parts.
 function Slots.costs_part(id) return Slots.kind(id) == 'mesh' end
 -- Whether the slot sits in the adult menu.

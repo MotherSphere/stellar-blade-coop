@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The slot taxonomy (closet/slots.lua): unique ids, apply order by layer, each slot's kind and menu, the ghost-part
--- rule, the adult menu, the menu lists and the pairs of left and right slots.
+-- rule, the adult menu, the menu lists, the pairs of left and right slots and each slot's glyph PNG.
 local run = dofile('tests/lua/closet/run.lua')
 local Slots = require('closet.slots')
 
@@ -54,6 +54,29 @@ local tests = {
         for _, menu in ipairs(Slots.MENUS) do ok(#Slots.in_menu(menu[1]) > 0, menu[1] .. ' is empty') end
         same(Slots.in_menu('full'), {Slots.FULL_OUTFIT})
         same(Slots.in_menu('weapon'), {'Weapon'})
+    end,
+    every_slot_has_a_glyph_png = function()
+        -- Each slot's glyph (Slots.glyph) is a 256 px RGBA PNG in closet/ui/icons/ (tools/closet_icons/render.py's):
+        -- the PNG signature, then IHDR's width and height (4 bytes each, big end), bit depth 8 and colour type 6.
+        local glyphs = {}
+        for _, entry in ipairs(Slots.LIST) do
+            local name = Slots.glyph(entry[1])
+            ok(type(name) == 'string' and name:match('^[a-z_]+$'), entry[1] .. ' glyph ' .. tostring(name))
+            if not glyphs[name] then
+                glyphs[name], glyphs[#glyphs + 1] = true, name
+                local f = io.open('mod/StellarCoop/Scripts/closet/ui/icons/' .. name .. '.png', 'rb')
+                ok(f, entry[1] .. ': no ' .. name .. '.png')
+                local head = f:read(26)
+                f:close()
+                eq(head:sub(1, 8), '\137PNG\r\n\26\n', name .. ' signature')
+                same({string.unpack('>I4I4BB', head, 17)}, {256, 256, 8, 6, 27}, name .. ' size and colour')
+            end
+        end
+        eq(#glyphs, 41, 'glyphs for the 73 slots')
+        eq(#Slots.LIST, 73, 'slots')
+        eq(Slots.glyph(Slots.FULL_OUTFIT), 'full_outfit') eq(Slots.glyph('TattooBack'), 'tattoo')
+        eq(Slots.glyph('FaceTattoo'), 'tattoo') eq(Slots.glyph('NippleL'), 'piercing') eq(Slots.glyph('Anus'), 'body')
+        eq(Slots.glyph('AnkletR'), 'bracelet') eq(Slots.glyph('Garter'), 'band') eq(Slots.glyph('Nope'), nil)
     end,
     left_slots_have_right_twins = function()
         for _, entry in ipairs(Slots.LIST) do
