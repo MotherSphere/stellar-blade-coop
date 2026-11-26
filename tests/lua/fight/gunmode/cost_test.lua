@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- What gun mode looks up, over a fake UE4SS (fake.lua) that counts its engine calls: UE4SS 3.0.1's StaticFindObject
--- and FindAllOf walk the object array, FindFirstOf too. Each case counts the finds of one walk that today's gun mode
--- made each frame, each round or at each rifle out, and fails when that walk comes back.
+-- and FindAllOf walk the object array, FindFirstOf too. Each case counts the finds of one walk that luke's gun mode
+-- made each frame, each round or at each rifle out. It fails when that walk comes back.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 -- The laser sight needs Niagara's objects, which the fake lacks: here a laser that draws nothing.
