@@ -217,4 +217,76 @@ do
     assert(n==2,n..' laser assets')
 end
 
+-- 7. A drone near EVE is hidden at the rifle out and held: no look while it lives. The rifle out again finds the same
+--    drone with no list of every drone (e9b6f439), unless that drone is now 3000 or more from her (1cad571f). A drone
+--    that goes is looked for again.
+do
+    local w=world()
+    local function drone(name,x)
+        local part={IsValid=function() return true end,bHiddenInGame=false,
+            SetHiddenInGame=function(o,h) o.bHiddenInGame=h end,SetVisibility=function() end,
+            IsVisible=function() return true end}
+        local d={IsValid=function(o) return not o.dead end,K2_GetActorLocation=function() return {X=x,Y=0,Z=0} end,
+            K2_GetComponentsByClass=function() return {part} end,
+            GetFullName=function() return 'CH_Drone_BP_C /Game/Map.'..name end}
+        return d,part
+    end
+    local d1,p1=drone('Drone_1',100)
+    w.drones={d1}
+    local gun=quiet()
+    frames(gun,1)
+    out(gun)
+    assert(p1.bHiddenInGame==true,'the drone is hidden')
+    frames(gun,60*30)
+    assert(count(w,'CH_Drone_BP_C')==1,count(w,'CH_Drone_BP_C')..' drone walks while it lives')
+    clock=clock+1; gun.toggle_now(); frames(gun,120) -- (the departure's morph)
+    assert(not gun.state.on and p1.bHiddenInGame==false,'the rifle away, the drone shown')
+    out(gun); frames(gun,60)
+    assert(p1.bHiddenInGame==true,'the drone hidden again')
+    assert(count(w,'CH_Drone_BP_C')==1,count(w,'CH_Drone_BP_C')..' drone walks after the rifle came out again')
+    clock=clock+1; gun.toggle_now(); frames(gun,120)
+    d1.K2_GetActorLocation=function() return {X=9000,Y=0,Z=0} end
+    local d2,p2=drone('Drone_2',50)
+    w.drones={d1,d2}
+    out(gun); frames(gun,60)
+    assert(count(w,'CH_Drone_BP_C')==2,count(w,'CH_Drone_BP_C')..' drone walks with the kept drone far away')
+    assert(p2.bHiddenInGame==true,'the near drone hidden')
+    d2.dead=true; w.drones={}
+    frames(gun,60*6)
+    assert(count(w,'CH_Drone_BP_C')>=3,'a drone that went is looked for again')
+end
+
+-- 8. The drone's class by its path (GunMode.DRONE_CLASS, in the base paks of 26123051, 235542ea): the rifle out lists
+--    the drones through the engine's class hash (core/unreal.lua's class_at and actors_of) with no FindAllOf walk (36 ms
+--    at the first F4 of the 2026-11-21 test), as does a rifle out on a new map. Each drone is hidden.
+do
+    local U=require('core.unreal')
+    local w=world()
+    local path=GunMode.DRONE_CLASS
+    assert(path=='/Game/Art/Character/NPC/CH_NPC_Drone/BluePrints/CH_Drone_BP.CH_Drone_BP_C',tostring(path))
+    local cls={IsValid=function() return true end,GetFullName=function() return 'BlueprintGeneratedClass '..path end}
+    local d,part=w.drone()
+    local class_at,actors_of=U.class_at,U.actors_of
+    local hashed=0
+    U.class_at=function(p) assert(p==path,p); return cls,'soft path' end
+    U.actors_of=function(c,name)
+        assert(c==cls and name=='CH_Drone_BP_C'); hashed=hashed+1; return w.drones,'class hash'
+    end
+    local gun=quiet()
+    frames(gun,1)
+    out(gun)
+    frames(gun,60)
+    assert(count(w,'CH_Drone_BP_C')==0,count(w,'CH_Drone_BP_C')..' drone walks at the first rifle out')
+    assert(hashed==1 and part.bHiddenInGame==true,'the drone listed by the class hash and hidden')
+    gun.new_controller(w.pc) -- a new map: its own drone, the old one gone
+    frames(gun,5*60)
+    d.dead=true; w.drones={}
+    local _,part2=w.drone()
+    out(gun)
+    frames(gun,60)
+    assert(count(w,'CH_Drone_BP_C')==0,count(w,'CH_Drone_BP_C')..' drone walks after a new map')
+    assert(hashed==2 and part2.bHiddenInGame==true,'the new drone listed by the class hash and hidden')
+    U.class_at,U.actors_of=class_at,actors_of
+end
+
 print('gunmode cost_test ok')

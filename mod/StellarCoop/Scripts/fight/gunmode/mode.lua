@@ -44,6 +44,10 @@ local LASER={'/Game/DLC_2/Art/FX/MiniGame/NS_A_GuideLaser.NS_A_GuideLaser',
 -- (Data.row('Fire'), read at the call).
 local U=require('core.unreal')
 local ATTACH_ACTOR_EFFECT=2
+-- Her drone's class (hide_drone below, 235542ea). The base paks of 26123051 (pakchunk0) hold the package
+-- /Game/Art/Character/NPC/CH_NPC_Drone/BluePrints/CH_Drone_BP, whose names include CH_Drone_BP_C and
+-- Default__CH_Drone_BP_C.
+GunMode.DRONE_CLASS='/Game/Art/Character/NPC/CH_NPC_Drone/BluePrints/CH_Drone_BP.CH_Drone_BP_C'
 function GunMode.allowed(kind,name) return kind==ATTACH_ACTOR_EFFECT and name~=nil and name==Data.row('Fire') end
 local function find_name(t) return FName(t,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
 local function zone_event(kind,name)
@@ -483,17 +487,37 @@ function GunMode.new(env)
     end
 
     -- The drone (it fires the shots in the game's aim) hidden while the rifle is out: its mesh components
-    -- bHiddenInGame, as race/doro.lua hides it; put back as they were. FindAllOf walks every object, so it is looked
-    -- for when the rifle comes out and again only when the one held goes.
+    -- bHiddenInGame, as race/doro.lua hides it; put back as they were. It is looked for when the rifle comes out and
+    -- again only when the one held goes.
     local DRONE='CH_Drone_BP_C'
+    -- The drones in her world: the drone's class by its path (GunMode.DRONE_CLASS), then the engine's class hash
+    -- (core/unreal.lua's class_at, then actors_of: GetAllActorsOfClass, exec 0x144773110 on 26123051, lists them
+    -- through ForEachObjectOfClass 0x142ba5920) instead of FindAllOf's walk (36 ms at the first F4 of the 2026-11-21
+    -- test: 17a166fa, 235542ea). That class not in memory: no drone. Anything that fails walks as before.
+    local function drones()
+        local pc=g.pc()
+        local ok,cls=pcall(U.class_at,GunMode.DRONE_CLASS,pc)
+        if ok and not g.valid(cls) then return {} end
+        local ok2,list=false,nil
+        if ok then ok2,list=pcall(U.actors_of,cls,DRONE,pc) end
+        if ok2 and type(list)=='table' then return list end
+        return g.try(function() return FindAllOf(DRONE) end) or {}
+    end
     local function hide_drone(p)
         if s.drone and g.valid(s.drone.actor) then return end
-        -- FindAllOf walks every object: with no drone near, look again only every 5 s (each look was a stutter)
+        -- with no drone near, look again only every 5 s (each walk was a stutter)
         local t=os.clock(); if t-(s.drone_look or -99)<5 then return end; s.drone_look=t
         local best,best_d
         local loc=g.try(function() return p:K2_GetActorLocation() end)
         if not loc then return end
-        local all=g.try(function() return FindAllOf(DRONE) end) or {}
+        -- the drone of the last time the rifle was out, when it is still that actor and near her: no list of every
+        -- drone (e9b6f439, 1cad571f)
+        local k=s.drone_keep
+        local kq=k and g.valid(k.actor) and g.try(function() return k.actor:GetFullName() end)==k.name
+            and g.try(function() return k.actor:K2_GetActorLocation() end)
+        local near=kq and (kq.X-loc.X)^2+(kq.Y-loc.Y)^2+(kq.Z-loc.Z)^2<3000*3000
+        if not near then s.drone_keep=nil end -- gone, another actor now, or far from her: every drone listed again
+        local all=near and {k.actor} or drones()
         for _,d in ipairs(all) do
             local q=g.valid(d) and g.try(function() return d:K2_GetActorLocation() end)
             if q then
@@ -503,7 +527,7 @@ function GunMode.new(env)
         end
         if not best then return end
         -- every scene component, not only its meshes: its light, glows and effects go with it (11-20: the light stayed)
-        local cls=StaticFindObject('/Script/Engine.SceneComponent')
+        local cls=g.cdo('/Script/Engine.SceneComponent')
         local parts={}
         local list=g.try(function() return best:K2_GetComponentsByClass(cls) end)
         local function each(fn)
@@ -521,6 +545,7 @@ function GunMode.new(env)
             end
         end)
         s.drone={actor=best,parts=parts}
+        s.drone_keep={actor=best,name=g.try(function() return best:GetFullName() end)}
         g.log('drone: '..#parts..' parts hidden ('..#all..' drones)')
     end
     local function show_drone()
