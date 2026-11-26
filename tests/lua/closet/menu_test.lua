@@ -22,8 +22,7 @@ local function rig(o)
     local Menu = require('closet.ui.menu')
     -- The dress: a preview wears its choices and starts previewing; confirm and revert end it.
     r.dress = {installed = o.installed or function() return true end, choices = function() return r.choices end,
-        preview = function(c)
-            if #c == 0 then return false, 'nothing to wear' end -- closet/dress.lua's Dress.plan refuses an empty look.
+        preview = function(c) -- An empty look is her own look (closet/dress.lua's own_look).
             r.previews[#r.previews + 1] = c; r.choices, r.previewing = c, true; return true
         end,
         previewing = function() return r.previewing end,
@@ -443,6 +442,20 @@ local tests = {
         all_gone(r)
     end,
 
+    none_tile_on_the_only_piece_of_a_confirmed_look_previews_her_own_look = function()
+        local r = rig({before = function(r) r.choices = {{fit = MAID, slots = {'Chest'}}} end})
+        on_top(r)
+        at(r, 0.5, 'right')
+        eq(grid(r):BP_GetSelectedItem(), grid(r).items[2], 'the worn Maid top focused')
+        at(r, 0.5, 'left', 'select')
+        same(r.previews, {{}}, 'her own look previewed')
+        eq(r.reverted, 0, 'no revert')
+        same(r.told, {}, 'no failed notice')
+        at(r, 0.5, 'back')
+        eq(popups(r), 1, 'Back asks Keep this look?')
+        ok(r.menu.is_open(), 'still open')
+    end,
+
     refresh_wears_the_whole_outfit = function()
         local r = rig()
         on_top(r)
@@ -698,7 +711,9 @@ local tests = {
         -- closet/wiring.lua's frame tick under main/frame.lua's guard (run below as frame.lua runs it: an error is
         -- logged, the frame goes on).
         local saved = {}
-        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring'}) do saved[name] = package.loaded[name] end
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring'}) do
+            saved[name] = package.loaded[name]
+        end
         local runs, errors = {}, {}
         package.loaded['closet.dress'] = {new = function()
             return {tick = function() runs[#runs + 1] = 'dress'; error('dress broke') end, stop = function() end}
@@ -718,7 +733,8 @@ local tests = {
         for name, mod in pairs(saved) do package.loaded[name] = mod end
         same(runs, {'dress', 'probe', 'menu'}, 'every tick ran')
         eq(#errors, 2, 'both errors reported: ' .. table.concat(errors, ' | '))
-        ok(errors[1]:find('dress broke', 1, true) and errors[2]:find('probe broke', 1, true), table.concat(errors, ' | '))
+        ok(errors[1]:find('dress broke', 1, true) and errors[2]:find('probe broke', 1, true),
+            table.concat(errors, ' | '))
     end,
 
     every_close_path_drops_every_part = function()

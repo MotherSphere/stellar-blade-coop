@@ -21,8 +21,8 @@
 -- with a revert when nothing changed since the open. Else the popup asks "Keep this look?": Yes confirms
 -- (dress.confirm), No reverts, Back stays. For the keyboard and the pad, Select is Yes and refresh (F, the pad's Y) is
 -- No. Select does nothing for ARM s after the open: the console's Enter that typed coop closet menu reaches our Enter
--- bind too (main/base.lua's M.typed_at note). The None tile on the last piece worn, when the menu opened on her own
--- look, reverts: the dress wears no empty look.
+-- bind too (main/base.lua's M.typed_at note). The None tile on the last piece worn previews her own look; when the menu
+-- opened on her own look, it reverts instead: nothing changed since the open.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -253,7 +253,8 @@ function Menu.new(o)
         due=nil
         if not one or one.locked or tile==at then return end
         local to=model.choose(choices,item.slot,one.fit)
-        -- The dress wears no empty look (Dress.plan): the last piece off on a bare open is her own look again.
+        -- The last piece off on a bare open is the look it opened on: reverted, so Back asks no popup. Else the empty
+        -- look is a preview of her own look (dress.preview({})).
         if #to==0 and bare then dress.revert(); changed=false; return end
         wear(to)
     end

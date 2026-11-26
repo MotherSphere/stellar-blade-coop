@@ -20,7 +20,8 @@
 -- Preview (the closet menu's live look): preview(choices) puts a look on without saving it. The first call remembers the
 -- confirmed choices (state.kept, false when none). During a preview coop-closet.txt holds EVE's leftovers to sweep and
 -- the confirmed words, so a reload gives the confirmed look. confirm() saves the previewed look, revert() wears the
--- confirmed one again (her own look when none). wear and off end a preview.
+-- confirmed one again (her own look when none). wear and off end a preview. preview({}) while a look is on previews
+-- her own look; confirm() of it clears the file, as off does.
 -- The resolve (find, LoadAsset, AssetRegistryHelpers:GetAsset for a mod pack's asset) and the skeleton guard are copies
 -- of online/partner/puppet.lua's (resolve and its SetSkeletalMesh guard).
 local UE=require('UEHelpers')
@@ -314,6 +315,21 @@ function Dress.new(o)
         return true
     end
 
+    -- Her own look as a preview (the menu's None tile on the last piece worn): the added meshes off, her body's own
+    -- mesh and materials back, no plan; kept stays, so the file keeps the confirmed words.
+    local function own_look(kept)
+        local eve=her()
+        if not eve then return false,'no EVE in the world' end
+        local paths={}
+        for _,a in ipairs(state.added) do paths[#paths+1]=a.mesh end
+        local removed=give_back(eve,state.own,state.materials,paths)
+        state={choices={},kept=kept,eve_path=path_of(eve),own=state.own,materials=state.materials,added={},
+            paused=false,wrong=0}
+        local saved,e=keep()
+        if saved==false then return false,'coop-closet.txt not written: '..tostring(e) end
+        log('preview: her own look, '..removed..' added mesh(es) removed')
+        return true,'closet: previewing her own look'
+    end
     -- coop closet wear: the plan for choices, put on now.
     function self.wear(choices)
         self.restore()
@@ -328,11 +344,13 @@ function Dress.new(o)
         log(line)
         return true,line
     end
-    -- A look put on without saving it: the confirmed choices stay in the file until confirm.
+    -- A look put on without saving it: the confirmed choices stay in the file until confirm. No choices while a look is
+    -- on: her own look (own_look).
     function self.preview(choices)
         self.restore()
         local kept=state and state.kept
         if kept==nil then kept=state and state.choices or false end
+        if #choices==0 and state then return own_look(kept) end
         local plan,why=Dress.plan(choices,fits)
         if not plan then return false,why end
         local ok,e=apply(plan,choices,kept)
@@ -346,6 +364,11 @@ function Dress.new(o)
     -- Ends the preview and saves the worn choices.
     function self.confirm()
         if not self.previewing() then return true,'closet: nothing to confirm' end
+        if not state.plan then -- Her own look kept: as coop closet off.
+            self.off()
+            log('confirm: her own look is saved, the kept look is cleared')
+            return true,'closet: confirmed'
+        end
         local was=state.kept
         state.kept=nil
         local saved,e=keep()
@@ -479,7 +502,7 @@ function Dress.new(o)
     -- Once a second at most, on the game thread: the watchdog.
     function self.tick()
         if not restored then self.restore() end
-        if not state or paused() then return end
+        if not state or not state.plan or paused() then return end -- No plan: her own look previewed, nothing mixed.
         local now=clock()
         if now<due then return end
         due=now+1
@@ -534,6 +557,7 @@ function Dress.new(o)
     end
     function self.status()
         if not state then return 'closet: nothing worn' end
+        if not state.plan then return 'closet: previewing her own look' end
         local p=state.plan
         return string.format('closet: %d pieces, body %s, %d added mesh%s%s',p.pieces,p.body.fit,p.parts,
             p.parts==1 and '' or 'es',state.paused and ', paused (a game look is on)' or '')
