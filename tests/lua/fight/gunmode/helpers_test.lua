@@ -128,7 +128,8 @@ do
     local hud='TextBlock /Engine/Transient.GameEngine_0:Instance_0.WB_MainHUD_Master_C_1.WidgetTree.'
     local name=block(hud..'WB_Tps_Bullet3.WidgetTree.TextBlock_bullet_name')
     local count=block(hud..'WB_Tps_Bullet3.WidgetTree.TextBlock_ItemCount')
-    local lower=block(hud..'WB_MainHUD_Lower1Item.WidgetTree.WB_MainHUD_ItemSlotGeneral.WidgetTree.TextBlock_Item_Count')
+    local lower=block(hud..'WB_MainHUD_Lower1Item.WidgetTree.WB_MainHUD_ItemSlotGeneral.WidgetTree.'
+        ..'TextBlock_Item_Count')
     local walks=0
     FindAllOf=function(class) if class=='TextBlock' then walks=walks+1; return {lower,name,count} end return {} end
     FText=function(t) return t end

@@ -57,7 +57,8 @@ do
     end
     LoadAsset=function(path)
         if path==fx then
-            live=live or {IsValid=function(o) return not o.dead end,GetFullName=function() return 'NiagaraSystem '..fx end}
+            live=live or {IsValid=function(o) return not o.dead end,
+                GetFullName=function() return 'NiagaraSystem '..fx end}
             return live
         end
         return load(path)
