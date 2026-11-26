@@ -1357,6 +1357,30 @@ end)()
     pr.missing=false
 end)()
 
+-- The held keys for the closet camera: M.held_keys() gives the bits of coop_keys' 512 arguments (1 right mouse, 2
+-- middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O). An older DLL without it: one log line, nil, the pad's
+-- reads still load.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    assert(M.held_keys()==0,'nothing held')
+    kh.bits=1+4+64
+    assert(M.held_keys()==69,'right mouse, Shift and L')
+    assert(cc.o.held_keys()==69 and cc.o.pointer~=nil and cc.o.pointer==M.kit.pointer,'the closet camera reads them and the kit\'s mouse')
+    kh.bits=511
+    assert(M.held_keys()==511,'all nine')
+    kh.missing=true
+    load_main(true)
+    Loader.run=run
+    assert(M.held_keys==nil and M.pad_bits~=nil and logged('Native held keys unavailable: coop_keys: not exported'),
+        table.concat(printed,'|'))
+    kh.missing=false
+end)()
+
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true
 package.loadlib=function(_,name) if name=='coop_tick' then return nil,'not exported' end return true end

@@ -1080,6 +1080,9 @@ wh={stick=0,held=0,fkey=0,missing=false,mouse={1920,1080},centred=0}
 -- R3), coop_levels the next of levels in turn of its 260 (1 + 65 * which + the level, ui/pad.h's pad_level); calls:
 -- coop_levels' calls; missing: an older DLL without them.
 pr={bits=0,levels={},calls=0,missing=false}
+-- The native part's held keys for the closet camera: coop_keys hands back 1 + bits of its 512 arguments (bits: 1 right
+-- mouse, 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O); missing: an older DLL without it.
+kh={bits=0,missing=false}
 -- The native part's pause menu close (coop_pause_close): each call hands back answer of its three arguments (1 closed,
 -- 2 no pause menu, 3 off); calls: how often it was called; missing: an older DLL without it.
 pc={answer=1,calls=0,missing=false}
@@ -1116,6 +1119,13 @@ function load_main(with_native,no_folder,source)
                 return table.unpack({...},1,pr.levels[(pr.calls-1)%4+1])
             end
         end
+        if name=='coop_keys' then
+            if kh.missing then return nil,'not exported' end
+            return function(...)
+                assert(select('#',...)==512,'coop_keys: 512 arguments, the most it hands back')
+                return table.unpack({...},1,1+kh.bits)
+            end
+        end
         if name=='coop_pad' then
             if pd.missing then return nil,'not exported' end
             return function(...)
@@ -1129,6 +1139,7 @@ function load_main(with_native,no_folder,source)
     pd.q,pd.calls,pc.calls,kit_lost={},0,0,nil
     wh.stick,wh.held,wh.fkey,wh.mouse,wh.centred=0,0,0,{1920,1080},0
     pr.bits,pr.levels,pr.calls=0,{1+32,1+65+32,1+130,1+195},0 -- At rest: the sticks centred, the triggers let go.
+    kh.bits=0
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
     pausetabs,popup_asks={},{}
     state_names={} -- link.state's mod_names argument, each call.
