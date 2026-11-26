@@ -509,13 +509,22 @@ end)()
     assert(table.concat(c.words,' ')=='tab_right tab_left refresh select up up right',table.concat(c.words,' '))
     c.words={}; key('ESCAPE')
     assert(c.words[1]=='back','Esc is back')
+    -- the_camera_keys_reach_the_closet_menu (closet/ui/camera.lua through the menu's nav), only while it is open
+    c.words={}
+    for _,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE'}) do key(k) end
+    assert(table.concat(c.words,' ')=='cam_left cam_right cam_up cam_down cam_in cam_out cam_mode cam_reset',
+        table.concat(c.words,' '))
+    c.up=false; c.words={}
+    for _,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE'}) do key(k) end
+    assert(#c.words==0,'closed: the camera keys do nothing')
+    c.up=true
     -- ui_reset_closes_the_closet_menu
     c.up=true; M.ui_reset()
     assert(c.closes==1 and not c.up,'coop ui reset closes the closet menu')
     -- an_off_closet_gets_no_keys (the loader stub)
     M.closet_menu=Loader.STUB
     assert(M.open_screen()==nil,'the stub is no screen')
-    for _,k in ipairs({'E','Q','F','SPACE','ESCAPE'}) do key(k) end
+    for _,k in ipairs({'E','Q','F','SPACE','ESCAPE','J','C','BACKSPACE'}) do key(k) end
     M.ui_reset()
     assert(not logged('error'),'the stub takes no key and raises nothing')
 end)()

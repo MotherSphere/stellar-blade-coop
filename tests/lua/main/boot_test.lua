@@ -78,15 +78,19 @@ assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and no
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
 -- Every F-key but F10 bound once, with Shift, Ctrl, Alt, then alone (a modified press first); then Alt+Enter, Enter
 -- and the fourteen navigation keys (E for the tabs of the lobby's settings and of the Sessions screen, F for its
--- Refresh), then the left mouse button (the co-op menu, the co-op saves' question) and the right one (the co-op menu).
-assert(#binds==44+2+14+2,#binds)
+-- Refresh; Esc last of them, after the closet camera's eight keys), then the left mouse button (the co-op menu, the
+-- co-op saves' question) and the right one (the co-op menu).
+assert(#binds==44+2+14+8+2,#binds)
 assert(binds[1].key=='Key.F1' and binds[1].modifiers[1]==0x10 and binds[2].modifiers[1]==0x11
     and binds[3].modifiers[1]==0x12 and binds[4].key=='Key.F1' and not binds[4].modifiers and binds[44].key=='Key.F12')
 for _,b in ipairs(binds) do assert(b.key~='Key.F10','F10 opens the console') end
+for i,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE'}) do
+    assert(binds[59+i].key=='Key.'..k and not binds[59+i].modifiers,'camera key '..k)
+end
 assert(binds[45].key=='Key.RETURN' and binds[45].modifiers[1]==0x12 and binds[46].key=='Key.RETURN'
-    and not binds[46].modifiers and binds[58].key=='Key.E' and binds[59].key=='Key.F' and binds[60].key=='Key.ESCAPE'
-    and binds[61].key=='Key.LEFT_MOUSE_BUTTON' and binds[62].key=='Key.RIGHT_MOUSE_BUTTON' and not binds[61].modifiers
-    and not binds[62].modifiers)
+    and not binds[46].modifiers and binds[58].key=='Key.E' and binds[59].key=='Key.F' and binds[68].key=='Key.ESCAPE'
+    and binds[69].key=='Key.LEFT_MOUSE_BUTTON' and binds[70].key=='Key.RIGHT_MOUSE_BUTTON' and not binds[69].modifiers
+    and not binds[70].modifiers)
 local executed=executes
 press('F8'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
 flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-1]=='[StellarCoop] key F8: leave\n')

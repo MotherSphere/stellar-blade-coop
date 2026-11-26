@@ -1,7 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The key binds, with the Steam link only: the F-keys, Enter, the navigation keys, Esc and the mouse buttons.
+-- The key binds, with the Steam link only: the F-keys, Enter, the navigation keys, the closet camera's keys, Esc and
+-- the mouse buttons.
 return function(M)
 local print,log=M.print,M.log
 -- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once
@@ -151,6 +152,17 @@ if M.settings then
                 and not M.code_box.is_open() and M.spectate and M.spectate.watching() then
                 ExecuteInGameThread(function() M.spectate.switch(nav[2]) end)
             end
+        end)
+    end
+    -- The closet camera's keys (closet/ui/camera.lua), only while the closet menu is the open screen: J, L, I and K
+    -- orbit, U and O zoom, C switches region and free, Backspace resets the free camera. Nothing anywhere else.
+    for _,cam in ipairs({{'J','cam_left'},{'L','cam_right'},{'I','cam_up'},{'K','cam_down'},{'U','cam_in'},
+            {'O','cam_out'},{'C','cam_mode'},{'BACKSPACE','cam_reset'}}) do
+        bind(cam[1],nil,function()
+            if M.open_screen()~=M.closet_menu then return end
+            ExecuteInGameThread(function()
+                if M.open_screen()==M.closet_menu then M.closet_menu.nav(cam[2]) end -- Still open on the game thread.
+            end)
         end)
     end
     bind('ESCAPE',nil,function()
