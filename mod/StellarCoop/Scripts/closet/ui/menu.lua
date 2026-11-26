@@ -15,8 +15,10 @@
 -- wears it at once and returns to the rows; refresh wears the whole outfit of the focused tile (the worn one in the
 -- rows) or of the Full tab's row. Locked tiles and soon or empty rows never wear. Back in the rows or the tabs closes
 -- with a revert when nothing changed since the open. Else the popup asks "Keep this look?": Yes confirms
--- (dress.confirm), No reverts, Back stays. Select does nothing for ARM s after the open: the console's Enter that typed
--- coop closet menu reaches our Enter bind too (main/base.lua's M.typed_at note).
+-- (dress.confirm), No reverts, Back stays. For the keyboard and the pad, Select is Yes and refresh (F, the pad's Y) is
+-- No. Select does nothing for ARM s after the open: the console's Enter that typed coop closet menu reaches our Enter
+-- bind too (main/base.lua's M.typed_at note). The None tile on the last piece worn, when the menu opened on her own
+-- look, reverts: the dress wears no empty look.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -44,8 +46,9 @@ function Menu.new(o)
     local open=false
     local tab,row -- Kept across opens; nil until the first.
     -- col: 'tabs', 'rows' or 'grid'; tile: the focused tile in the grid; asking: the popup shows; changed: a preview
-    -- since the open; due: when the focused tile is worn (nil: none waits); opened, guard_at, combat_at: times in s.
-    local col,tile,asking,changed,due,opened,guard_at,combat_at='rows',1,false,false,nil,0,0,0
+    -- since the open; due: when the focused tile is worn (nil: none waits); opened, guard_at, combat_at: times in s;
+    -- bare: the menu opened on her own look (nothing worn, no preview going).
+    local col,tile,asking,changed,due,opened,guard_at,combat_at,bare='rows',1,false,false,nil,0,0,0,false
     local function words() return o.words and o.words() or T.en end
 
     local function cutscene(eve)
@@ -210,6 +213,7 @@ function Menu.new(o)
         end
         if not tab then tab,row=first() end
         col,tile,asking,changed,due='rows',1,false,false,nil
+        bare=not dress.previewing() and #(dress.choices() or {})==0
         opened=now()
         guard_at,combat_at=opened+Menu.GUARD,opened+Menu.COMBAT
         kit.input(true,View.GROUP,true)
@@ -238,7 +242,10 @@ function Menu.new(o)
         local one=tiles and tiles[tile]
         due=nil
         if not one or one.locked or tile==at then return end
-        wear(model.choose(choices,item.slot,one.fit))
+        local to=model.choose(choices,item.slot,one.fit)
+        -- The dress wears no empty look (Dress.plan): the last piece off on a bare open is her own look again.
+        if #to==0 and bare then dress.revert(); changed=false; return end
+        wear(to)
     end
     -- refresh: the whole outfit of the focused tile (the worn one in the rows) or of the Full tab's row.
     local function wear_whole()
@@ -266,14 +273,14 @@ function Menu.new(o)
 
     function self.is_open() return open end
     -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, or click (a
-    -- left click: the tab, row or popup button under the mouse). yes and no answer the popup too.
+    -- left click: the tab, row or popup button under the mouse). yes and no answer the popup too; refresh is its No.
     function self.nav(word)
         if not open then return end
         if word=='select' and now()<opened+Menu.ARM then return end
         if asking then
             if word=='click' then word=view.popup_hit() end
             if word=='select' or word=='yes' then answer(true)
-            elseif word=='no' then answer(false)
+            elseif word=='no' or word=='refresh' then answer(false)
             elseif word=='back' then asking=false; redraw() end
             return
         end

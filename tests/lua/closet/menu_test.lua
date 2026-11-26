@@ -22,7 +22,10 @@ local function rig(o)
     local Menu = require('closet.ui.menu')
     -- The dress: a preview wears its choices and starts previewing; confirm and revert end it.
     r.dress = {installed = o.installed or function() return true end, choices = function() return r.choices end,
-        preview = function(c) r.previews[#r.previews + 1] = c; r.choices, r.previewing = c, true; return true end,
+        preview = function(c)
+            if #c == 0 then return false, 'nothing to wear' end -- closet/dress.lua's Dress.plan refuses an empty look.
+            r.previews[#r.previews + 1] = c; r.choices, r.previewing = c, true; return true
+        end,
         previewing = function() return r.previewing end,
         confirm = function() r.confirmed = r.confirmed + 1; r.previewing = false; return true, 'closet: confirmed' end,
         revert = function() r.reverted = r.reverted + 1; r.previewing = false; return true, 'closet: reverted' end,
@@ -361,6 +364,22 @@ local tests = {
         eq(#r.previews, 1, 'the timer was dropped')
     end,
 
+    none_tile_on_the_only_piece_gives_the_open_look_back = function()
+        local r = rig()
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'select')
+        same(r.previews, {{{fit = MAID, slots = {'Chest'}}}}, 'Maid top worn on a bare look')
+        at(r, 0.5, 'right', 'left', 'select')
+        eq(r.reverted, 1, 'None on the only piece: the bare look the menu opened on')
+        eq(#r.previews, 1, 'no empty preview')
+        same(r.told, {}, 'no failed notice')
+        tick(r, 1)
+        ok(r.menu.is_open(), 'the revert does not close the menu')
+        at(r, 1, 'back')
+        eq(popups(r), 0, 'nothing changed since the open: no popup')
+        all_gone(r)
+    end,
+
     refresh_wears_the_whole_outfit = function()
         local r = rig()
         on_top(r)
@@ -405,7 +424,7 @@ local tests = {
         eq(p.ButtonType, 3, 'Yes and No')
         eq(r.kit.refocused, refocused + 1, 'focus back to the kit')
         -- Other words do nothing while it asks.
-        at(r, 0.5, 'down', 'tab_left', 'refresh', 'left')
+        at(r, 0.5, 'down', 'tab_left', 'left', 'right', 'up')
         eq(#r.previews, 1, 'nothing worn')
         eq(popups(r), 1, 'still asking')
         eq(r.reverted + r.confirmed, 0, 'no answer')
@@ -422,7 +441,7 @@ local tests = {
         -- The yes word too.
         r.t = 1
         r.menu.open()
-        at(r, 1.5, 'right', 'left', 'select', 'back', 'yes')
+        at(r, 1.5, 'right', 'right', 'select', 'back', 'yes')
         eq(r.confirmed, 2, 'yes')
         all_gone(r)
     end,
@@ -434,6 +453,13 @@ local tests = {
         eq(r.reverted, 1, 'reverted')
         eq(r.confirmed, 0, 'not confirmed')
         same(r.told, {}, 'no notice')
+        all_gone(r)
+        -- refresh (F, the pad's Y) is No for the keyboard and the pad: select is Yes and back stays.
+        r.t = 1
+        r.menu.open()
+        at(r, 1.5, 'right', 'right', 'select', 'back', 'refresh')
+        eq(r.reverted, 2, 'refresh reverts')
+        eq(r.confirmed, 0, 'refresh does not confirm')
         all_gone(r)
     end,
 
