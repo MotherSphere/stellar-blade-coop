@@ -4,11 +4,9 @@
 -- Gun mode and SB's NIKKE behaviour, over a fake UE4SS (fake.lua) on the rifle layer's path: the NIKKE shot's cover
 -- animation emptied while the rifle is out; SB's refill, its cover stance at 0 rounds and its own reload held off
 -- while the rifle is out, back 3 s of play after it; the input mask lifted while the game is paused; an off during
--- the game's aim holding its key and SB's rows until that aim ends; the game's states that keep the rifle away. The
--- cases are
--- state_test's of 5492c007 fitted to luke's gun mode.
--- The cases of features that did not come back with it are left out, as are the coop-gun.txt checks: no journal is
--- kept.
+-- the game's aim holding its key and SB's rows until that aim ends; the game's states that keep the rifle away; the
+-- comeback after an interaction. The cases are state_test's of 5492c007 fitted to luke's gun mode. The cases of
+-- features that did not come back with it are left out, as are the coop-gun.txt checks: no journal is kept.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Fake=dofile('tests/lua/fight/gunmode/fake.lua')
 -- The laser sight needs Niagara's objects, which the fake lacks: here a laser that draws nothing.
@@ -385,6 +383,54 @@ do
     assert(gun.state.on,'a jump keeps the rifle out')
     w.pawn.CharacterMovement.MovementMode=1
     toggle(gun,false)
+end
+
+-- 10. The comeback after an interaction: the rifle comes back 1 s after she is free. A refused comeback (the drone aim
+--     on) is tried again 2, 4 and 8 s later, then given up: four tries in all. It waits while the game is paused. A
+--     put-away press during the departure sets none (29e92c98).
+do
+    local w=Fake.new(); w.install()
+    local logs={}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end})
+    local function count(text)
+        local n=0
+        for _,l in ipairs(logs) do if l:find(text,1,true) then n=n+1 end end
+        return n
+    end
+    local function talk() -- a talk with the rifle out: it goes away, then she is free again
+        toggle(gun,true); frames(gun,60)
+        w.pawn.talk=true; frames(gun,12)
+        assert(not gun.state.on,'away for the talk')
+        w.pawn.talk=false
+    end
+    talk(); frames(gun,50)
+    assert(not gun.state.on,'not before 1 s')
+    frames(gun,20)
+    assert(gun.state.on,'back 1 s after the talk')
+    toggle(gun,false)
+    -- the drone aim on as she gets free
+    talk(); w.pawn.bTPSMode=true; logs={}
+    frames(gun,150) -- 2.5 s: refused at 1 s, the next try 2 s after it
+    assert(count('not now: release the drone aim first')==1,table.concat(logs,'|'))
+    frames(gun,300) -- 7.5 s: refused again at 3 s and 7 s
+    assert(count('not now: release the drone aim first')==3,table.concat(logs,'|'))
+    frames(gun,60*20-450)
+    assert(count('not now: release the drone aim first')==4 and count('no comeback')==1,table.concat(logs,'|'))
+    w.pawn.bTPSMode=false; frames(gun,120)
+    assert(not gun.state.on,'given up: the rifle stays away')
+    -- paused as she gets free
+    talk(); w.paused=true; frames(gun,120)
+    assert(not gun.state.on,'no comeback while the game is paused')
+    w.paused=false; frames(gun,70) -- (luke's tick asks nothing while paused: her free second starts after it)
+    assert(gun.state.on,'back once the game runs')
+    toggle(gun,false)
+    -- the gun mode key during the departure, then a talk
+    toggle(gun,true); frames(gun,60)
+    w.down.G=true; frames(gun,1); w.down.G=nil; frames(gun,2)
+    assert(gun.state.on and gun.state.morph and gun.state.morph.dir=='out','the departure plays')
+    w.pawn.talk=true; frames(gun,12); w.pawn.talk=false
+    frames(gun,120)
+    assert(not gun.state.on,'put away by the key: no comeback')
 end
 
 print('gunmode state: ok')

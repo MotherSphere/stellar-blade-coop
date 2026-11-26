@@ -135,8 +135,10 @@ function GunMode.turn(was,yaw,on_deg,off_deg)
     return was==true
 end
 
--- Back after an interaction (a camp seat, a rest, a door): once she has been free for settle seconds.
-function GunMode.resume_due(free_at,now,settle) return free_at~=nil and now-free_at>=settle end
+-- Back after an interaction (a camp seat, a rest, a door): once she has been free for settle seconds. After n refused
+-- tries, settle*2^n seconds after the last one (free_at is then its time).
+function GunMode.resume_due(free_at,now,settle,n) return free_at~=nil and now-free_at>=settle*2^(n or 0) end
+local RESUME_TRIES=4 -- tries of the comeback after an interaction: at 1 s, then 2, 4 and 8 s after each refusal
 
 function GunMode.want(reload,zoom,fire,move,falling)
     if reload then return 'reload' end
@@ -1122,24 +1124,37 @@ function GunMode.new(env)
         end
         -- camps, seats, rests, doors and cutscenes: gun mode steps aside (rifle away, layer off, her own pose) while
         -- the game holds EVE in an interaction or a level sequence. It comes back 1 s after she is free (SBCharacter's
-        -- reflected calls, as bike/ride.lua uses them). A press of the gun mode key cancels the comeback.
+        -- reflected calls, as bike/ride.lua uses them). A press of the gun mode key cancels the comeback. So do a press
+        -- that started the departure and a new map (new_controller). A refused comeback is tried again 2, 4 and 8 s
+        -- later, then given up (RESUME_TRIES tries in all).
         if now-(s.held_at or 0)>=0.1 then
             s.held_at=now
             local p0=g.pawn()
             s.is_held=p0~=nil and g.try(function() return p0:IsAttachedToLevelSequenceWithoutPlayable()==true
                 or p0:IsRunningInteraction()==true or p0.bEnableInteractionBlock==true end)==true
-            if s.on and s.is_held then s.resume=true; s.free_at=nil; disable('EVE is in an interaction or a cutscene'); return end
+            if s.on and s.is_held then
+                -- (no comeback after a put-away press whose departure an interaction cut short: 29e92c98)
+                s.resume,s.free_at,s.resume_n=not (s.morph and s.morph.dir=='out'),nil,nil
+                disable('EVE is in an interaction or a cutscene'); return
+            end
             -- a swim, one of SB's own moves, the photo or selfie mode: the rifle goes away with no comeback (a6523766)
             local busy=s.on and g.try(function() return GunMode.blocked(p0,photo()) end)
             if busy then disable(busy); return end
             if not s.on and s.resume then
                 if p0 and not s.is_held then
                     s.free_at=s.free_at or now
-                    if GunMode.resume_due(s.free_at,now,1.0) then
+                    -- a refused comeback is tried again 2, 4 and 8 s later, then given up (29e92c98)
+                    if GunMode.resume_due(s.free_at,now,1.0,s.resume_n) then
                         if not pcall(enable,'back after the interaction') then give_all_back() end
-                        if s.on then s.resume,s.free_at=false,nil end
+                        if s.on then s.resume,s.free_at,s.resume_n=false,nil,nil
+                        else
+                            s.free_at,s.resume_n=now,(s.resume_n or 0)+1
+                            if s.resume_n>=RESUME_TRIES then
+                                s.resume=false; g.log('no comeback: refused '..s.resume_n..' times')
+                            end
+                        end
                     end
-                else s.free_at=nil end
+                else s.free_at,s.resume_n=nil,nil end
             end
         end
         if not s.on then return end
@@ -1645,7 +1660,7 @@ function GunMode.new(env)
         -- ends here: a new map is no place to bring the rifle back (29e92c98).
         s.drone_keep,s.flash_fx,s.pose_m,s.pose_on,s.morph=nil,nil,nil,nil,nil
         s.ovr,s.ovr_row=false,nil
-        s.resume,s.free_at=false,nil
+        s.resume,s.free_at,s.resume_n=false,nil,nil
     end
 
     -- One frame of gun mode: main/frame.lua calls this from its frame loop.
