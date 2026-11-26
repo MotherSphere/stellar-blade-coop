@@ -500,6 +500,10 @@ return {
             swatches={off='Wyłączony',white='Biały',black='Czarny',charcoal='Grafitowy',silver='Srebrny',gold='Złoty',
                 crimson='Karmazynowy',wine='Winny',rose='Różowy',violet='Fioletowy',navy='Granatowy',azure='Lazurowy',
                 teal='Morski',emerald='Szmaragdowy',sand='Piaskowy'}},
+        shape={value='%d%%',
+            about='Zmienia kształt jej ciała i każdej noszonej części zrobionej z tym kształtem. Część bez niego '
+                ..'zachowuje swój kształt.',
+            help='Lewo i prawo zmieniają go co 10. Jest zapisywany osobno od wyglądu.'},
         popup={title='Zachować ten wygląd?',desc='Tak go zapisuje. Nie przywraca EVE poprzedni wygląd.',
             yes='Zachowaj',no='Cofnij',reset_title='Zresetować Stellar Closet?',
             reset_desc='Wszystkie elementy Stellar Closet zostają zdjęte z EVE. Zapisany wygląd zostaje usunięty. '

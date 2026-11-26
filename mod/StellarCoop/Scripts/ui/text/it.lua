@@ -514,6 +514,10 @@ return {
             swatches={off='Spento',white='Bianco',black='Nero',charcoal='Antracite',silver='Argento',gold='Oro',
                 crimson='Cremisi',wine='Vinaccia',rose='Rosa',violet='Viola',navy='Blu navy',azure='Azzurro',
                 teal='Verde acqua',emerald='Smeraldo',sand='Sabbia'}},
+        shape={value='%d%%',
+            about='Cambia la forma del suo corpo e di ogni pezzo indossato fatto con questa forma. Un pezzo senza di '
+                ..'essa mantiene la sua forma.',
+            help='Sinistra e destra la cambiano a passi di 10. Viene salvata a parte dal look.'},
         popup={title='Tenere questo look?',desc='Sì lo salva. No ridà a EVE il look di prima.',yes='Tieni',
             no='Annulla',reset_title='Reimpostare Stellar Closet?',
             reset_desc='Tutti i capi di Stellar Closet vengono tolti a EVE. Il look salvato viene cancellato. '

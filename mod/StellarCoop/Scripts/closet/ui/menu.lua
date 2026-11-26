@@ -43,11 +43,15 @@
 -- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
 -- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
 -- game's Yes/No popup: Yes runs coop closet off (dress.off), turns every colour off (colour.off: its file cleared),
--- tells closet.reset_done, closes without the Keep popup or a revert and has the camera forget its mode and pose (its
--- file cleared); No and Back stay.
+-- sets every shape value to 0 (shape.off: its file cleared), tells closet.reset_done, closes without the Keep popup or
+-- a revert and has the camera forget its mode and pose (its file cleared); No and Back stay.
 -- The Colour tab (after Body) has a row for each role of closet/colour.lua; its value is the role's swatch. Right and
 -- Select (a click on the row too) take the next swatch, left the one before (colour.step): the palette is saved at
 -- once, apart from the look, so it never asks Keep this look? Its detail says what the role colours and how to pick.
+-- The Body tab lists, below its Body row, a row for each name of closet/shape.lua's rows (the look as last put on);
+-- its value is the name's value in percent. Left and right step it by Shape.STEP from 0 to 100, Select (a click on the
+-- row too) takes the next step, 0 after 100: the value is saved at once, apart from the look. Rows that change with the
+-- look are drawn again at the next tick.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -62,7 +66,7 @@
 -- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
 -- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
 -- thumbs=closet/thumbs.lua's or nil, colour=closet/colour.lua's or nil (the Colour rows then show Off and pick
--- nothing)}.
+-- nothing), shape=closet/shape.lua's or nil (no shape row then)}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player=require('core.player')
@@ -72,6 +76,7 @@ local Model=require('closet.ui.model')
 local View=require('closet.ui.view')
 local Camera=require('closet.ui.camera')
 local Thumbs=require('closet.thumbs')
+local Shape=require('closet.shape')
 local T=require('ui.text')
 local Menu={}
 Menu.NEAR=3000 -- cm: an engaged enemy that near is combat (online/lobby/wiring.lua's fight check; no source).
@@ -83,7 +88,8 @@ function Menu.new(o)
     local kit,dress=o.kit,o.dress
     local log=o.log or function() end
     local now=o.now or os.clock
-    local model=Model.new({slots=Slots,fits=Fits,installed=dress.installed,adult=o.adult==true})
+    local model=Model.new({slots=Slots,fits=Fits,installed=dress.installed,adult=o.adult==true,
+        shapes=o.shape and o.shape.rows})
     local view=View.new(kit,log)
     local self={}
     local open=false
@@ -98,9 +104,10 @@ function Menu.new(o)
     -- unreverted: a close's revert failed (no EVE during a map change), asked again each RETRY s while closed.
     local back_at,owed,unreverted=nil,false,false
     -- frame: ticks so far; undo: the focus before the last tab_left while only left followed it ({tab, row, col, tile,
-    -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle); stepped: the role a left on a Colour
-    -- row stepped back a swatch ({role, at=its frame}), stepped forward again by the chord.
+    -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle); stepped: a left on a Colour or
+    -- shape row ({at=its frame, back=what puts the swatch or value back}), given back by the chord.
     local frame,undo,stepped=0,nil,nil
+    local listed -- closet/shape.lua's rows as of the last draw: new ones are drawn at the next tick.
     local clicked -- The frame of the last left click (nav 'click'), until a tile pick uses it.
     -- camera: closet/ui/camera.lua's or nil; region: the focused one, as of the last draw; hinted: the camera's mode,
     -- light preset and intensity the camera hints show (false: none); ticked: the last tick's time.
@@ -200,6 +207,7 @@ function Menu.new(o)
         tab_top=math.max(1,math.min(math.max(tab_top,tab-View.TABS+1),tab,#ids-View.TABS+1))
         local s={tabs={},tab=tab,tab_top=tab_top,rows={},hints={{t.hint.back,'Negative',word='back'}},camera_hints={}}
         for i,id in ipairs(ids) do s.tabs[i]=w.tabs[id] or id end
+        listed=o.shape and o.shape.rows()
         local list=model.rows(ids[tab])
         row=math.max(1,math.min(row,#list))
         s.row=#list>0 and row or nil
@@ -212,6 +220,8 @@ function Menu.new(o)
                 s.rows[i]={title=item.reset and w.row.reset or w.row.thumbs,value=''}
             elseif item.role then
                 s.rows[i]={title=w.colour.roles[item.role],value=w.colour.swatches[swatch(item.role)]}
+            elseif item.morph then -- The morph name as its mesh writes it.
+                s.rows[i]={title=item.morph,value=w.shape.value:format(o.shape.get(item.morph))}
             else
                 local worn=model.worn(choices,item.slot)
                 -- The Body row names the body in use: the picked one, else the plan's (switched or the rule's).
@@ -247,6 +257,9 @@ function Menu.new(o)
             s.hints[2]={t.hint.select,'Positive',word='select'}
         elseif item and item.role then
             s.detail.desc=w.colour.about[item.role]..'\n'..w.colour.help
+            s.hints[2]={t.hint.select,'Positive',word='select'}
+        elseif item and item.morph then
+            s.detail.desc=w.shape.about..'\n'..w.shape.help
             s.hints[2]={t.hint.select,'Positive',word='select'}
         elseif item and item.state~='pieces' then
             s.detail.desc=w.row[item.state]
@@ -430,6 +443,7 @@ function Menu.new(o)
                 return self.close('revert')
             end
             if o.colour then o.colour.off() end
+            if o.shape then o.shape.off() end
             o.tell(function(t) return t.closet.reset_done end)
             self.close('reset')
             if camera then camera.forget() end -- After its close, which writes the camera file.
@@ -450,15 +464,16 @@ function Menu.new(o)
     -- revert close when not; on the popup, its Back). The pad chord LB + D-pad Left (main/input.lua's closet) reaches
     -- the open menu as tab_left at LB's press, then left and this toggle in one frame at D-pad Left's (native pad.h;
     -- both pressed in one poll: left, tab_left, toggle). That toggle first puts the focus back as it was before the
-    -- tab_left, so the chord leaves the tab and row as they were. A swatch the chord's left took on a Colour row (saved
-    -- at once) is stepped forward again, so the palette stays as it was. Q, then F1 in a later frame, keeps Q's tab.
+    -- tab_left, so the chord leaves the tab and row as they were. A swatch or shape value the chord's left took on a
+    -- Colour or shape row (saved at once) is put back, so the palette and the shape stay as they were. Q, then F1 in a
+    -- later frame, keeps Q's tab.
     -- shortcut: a chord whose D-pad Left comes with no left (D-pad Up or Down held too) keeps LB's tab move; read the
     -- pad's held LB in Lua if players hit it.
     function self.toggle()
         if not open then return self.open() end
         if undo and undo.at==frame then
             tab,row,col,tile,tab_top=table.unpack(undo,1,5)
-            if stepped and stepped.at==frame then o.colour.step(stepped[1],1) end
+            if stepped and stepped.at==frame then stepped.back() end
             stepped=nil
         end
         if col=='grid' then col,due='rows',nil end -- As the grid's Back: a tile preview due is dropped.
@@ -523,10 +538,18 @@ function Menu.new(o)
             elseif word=='down' then col='rows'; kit.sound('move') end
         elseif item and item.role and (word=='left' or word=='right' or word=='select') then
             if o.colour then
-                o.colour.step(item.role,word=='left' and -1 or 1)
-                if word=='left' then stepped={item.role,at=frame} end -- For the pad chord (self.toggle).
+                local role=item.role
+                o.colour.step(role,word=='left' and -1 or 1)
+                -- For the pad chord (self.toggle).
+                if word=='left' then stepped={at=frame,back=function() o.colour.step(role,1) end} end
                 kit.sound('change')
             end
+        elseif item and item.morph and (word=='left' or word=='right' or word=='select') then
+            local name,was=item.morph,o.shape.get(item.morph)
+            if word=='select' then o.shape.set(name,was>=100 and 0 or was+Shape.STEP)
+            else o.shape.step(name,word=='left' and -1 or 1) end
+            if word=='left' then stepped={at=frame,back=function() o.shape.set(name,was) end} end -- The pad chord.
+            kit.sound('change')
         elseif word=='up' or word=='down' then
             local n=#model.rows(model.tabs()[tab])
             if word=='up' and row==1 then col='tabs' else row=math.max(1,math.min(row+(word=='up' and -1 or 1),n)) end
@@ -573,6 +596,8 @@ function Menu.new(o)
         end
         -- The camera's mode or light preset changed by the pad, or the camera stopped: its hints drawn again.
         if camera and camera_shown()~=hinted then redraw() end
+        -- The shape layer put a new look's shape on (its tick runs before this one): its rows drawn again.
+        if o.shape and o.shape.rows()~=listed then redraw() end
         if asking then return end
         local _,tiles=focused()
         local picked=tiles and view.picked()

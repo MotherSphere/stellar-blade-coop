@@ -4,6 +4,7 @@
 -- Stellar Closet: the menu's data model. Pure Lua, no engine calls: what the tabs, rows and tiles list, and the edits
 -- of a list of choices {{fit=<UniqueFitID>, slots=<Slot ids, or nil for every piece the fit shows by default>}}
 -- (the shape of Dress.plan's input). Edits never touch their input. The Colour tab lists closet/colour.lua's roles.
+-- The Body tab lists a shape row for each name of o.shapes (closet/shape.lua's rows) right below its Body row.
 local Colour = require('closet.colour')
 local Model = {}
 
@@ -17,7 +18,8 @@ local function sorted_fits(fits, custom)
     return ids
 end
 
--- o = {slots=closet.slots, fits=closet.fits, installed=function(fit)->bool, adult=bool}
+-- o = {slots=closet.slots, fits=closet.fits, installed=function(fit)->bool, adult=bool,
+-- shapes=function()->morph names or nil}
 function Model.new(o)
     local Slots, Fits = o.slots, o.fits
     local m = {}
@@ -70,6 +72,9 @@ function Model.new(o)
             end
             local state = has and 'pieces' or (Slots.kind(slot) == 'mesh' and 'empty' or 'soon')
             out[#out + 1] = {slot = slot, state = state}
+            if slot == 'BaseBody' and o.shapes then
+                for _, name in ipairs(o.shapes()) do out[#out + 1] = {morph = name} end
+            end
         end
         return out
     end

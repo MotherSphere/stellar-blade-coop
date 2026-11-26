@@ -36,8 +36,22 @@ local function rig(o)
         tell = function(build) r.told[#r.told + 1] = build(T.en) end, log = function(m) r.log[#r.log + 1] = m end,
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
-        camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour})
+        camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape})
     return r
+end
+-- A fake shape layer (closet/shape.lua's face): its rows (names), values, sets and offs.
+local function fake_shape(names)
+    local s = {names = names or {}, values = {}, sets = {}, offs = 0}
+    s.rows = function() return s.names end
+    s.get = function(n) return s.values[n] or 0 end
+    s.set = function(n, v)
+        s.sets[#s.sets + 1] = n .. ' ' .. v
+        s.values[n] = math.max(0, math.min(100, v))
+        return true
+    end
+    s.step = function(n, dir) return s.set(n, s.get(n) + 10 * dir) end
+    s.off = function() s.offs = s.offs + 1; s.values = {}; return true end
+    return s
 end
 -- A fake colour layer (closet/colour.lua's face): its palette, its steps and offs.
 local function fake_colour()
@@ -862,6 +876,27 @@ local tests = {
         r.menu.toggle()
         all_gone(r)
         eq(col.get('primary'), 'gold', 'left, then F1: the swatch before crimson')
+        -- On a shape row of the Body tab, both pressed in one poll: the chord's left stepped the value down (saved at
+        -- once); the close sets it back, so the shape and coop-closet-shape.txt stay as they were.
+        local sh = fake_shape({'Butt'})
+        sh.values.Butt = 50
+        r = rig({shape = sh})
+        r.menu.open()
+        at(r, 0.4, 'tab_left', 'tab_left', 'tab_left', 'down') -- Weapon, Colour, Body; the Butt row.
+        eq((detail(r)), 'Butt', 'on the Butt row')
+        at(r, 0.5, 'left', 'tab_left')
+        r.menu.toggle()
+        all_gone(r)
+        eq(sh.get('Butt'), 50, 'one poll on a shape row: the value as it was')
+        r.t = 1
+        r.menu.open()
+        eq((detail(r)), 'Butt', 'the Butt row kept')
+        -- left, then F1 a frame later: no chord, the step stays.
+        at(r, 1.4, 'left')
+        tick(r, 1.5)
+        r.menu.toggle()
+        all_gone(r)
+        eq(sh.get('Butt'), 40, 'left, then F1: one step down')
     end,
 
     popup_yes_keeps_and_saves = function()
@@ -930,9 +965,10 @@ local tests = {
     -- Reset Stellar Closet, the Full tab's last row: the game's Yes/No popup; Yes runs coop closet off and closes the
     -- menu without the Keep popup or a revert, so nothing of the closet stays on EVE for its watchdog.
     reset_row_clears_and_stops_the_watchdog = function()
-        local col = fake_colour()
+        local col, sh = fake_colour(), fake_shape({'Butt'})
         col.palette.primary = 'crimson'
-        local r = rig({colour = col, before = function(r) r.choices = {{fit = MAID}} end})
+        sh.values.Butt = 50
+        local r = rig({colour = col, shape = sh, before = function(r) r.choices = {{fit = MAID}} end})
         r.menu.open()
         at(r, 0.5, 'down', 'down', 'down')
         local title, desc = detail(r)
@@ -950,12 +986,13 @@ local tests = {
         eq(popups(r), 0, 'No: the popup goes') ok(r.menu.is_open(), 'No: the menu stays')
         at(r, 0.5, 'select', 'back')
         eq(popups(r), 0, 'Back: the popup goes') ok(r.menu.is_open(), 'Back: the menu stays')
-        eq(r.offs, 0, 'nothing reset yet') eq(col.offs, 0, 'the palette kept')
+        eq(r.offs, 0, 'nothing reset yet') eq(col.offs, 0, 'the palette kept') eq(sh.offs, 0, 'the shape kept')
         -- A preview, then Yes.
         at(r, 0.5, 'up', 'up', 'refresh', 'down', 'down', 'select', 'select')
         same(r.previews, {{{fit = KUNOICHI}}}, 'previewed before the reset')
         eq(r.offs, 1, 'coop closet off ran')
         eq(col.offs, 1, 'the palette cleared (coop-closet-colour.txt)') eq(col.get('primary'), 'off')
+        eq(sh.offs, 1, 'the shape cleared (coop-closet-shape.txt)') eq(sh.get('Butt'), 0)
         eq(r.reverted + r.confirmed, 0, 'no revert, no confirm')
         same(r.told, {T.en.closet.reset_done}, 'the notice')
         for _, rec in ipairs(r.kit.made) do
@@ -1491,6 +1528,68 @@ local tests = {
             w.roles.glow .. '=Off'}, 'no layer: Off')
     end,
 
+    -- The Body tab: below the Body row, one row per shape name of closet/shape.lua, its value in percent. Left and
+    -- right step it by 10 (from 0 to 100), Select and a click take the next step (after 100: 0). Nothing is previewed,
+    -- so Back asks nothing. The rows follow the look: a change shows at the next tick.
+    the_body_tab_lists_the_shape_rows = function()
+        local sh = fake_shape({'Butt', 'Hips'})
+        local r = rig({shape = sh})
+        r.menu.open()
+        at(r, 0.5, 'tab_left', 'tab_left', 'tab_left') -- Full, Weapon, Colour, Body.
+        local function rows()
+            local out = r.kit.live(F.OPTION)
+            table.sort(out, function(a, b) return a.y < b.y end)
+            local list = {}
+            for i, rec in ipairs(out) do list[i] = rec.o.Text_TitleValue.text .. '=' .. rec.o.Text_ItemValue.text end
+            return list
+        end
+        local w = T.en.closet
+        local shown = rows()
+        eq(shown[1]:match('^[^=]+'), w.slots.BaseBody, 'the Body row first')
+        eq(shown[2], 'Butt=0%', 'then the shape rows') eq(shown[3], 'Hips=0%')
+        eq(shown[4]:match('^[^=]+'), w.slots.SkinSuit, 'then the other body slots')
+        at(r, 0.5, 'down')
+        local title, desc = detail(r)
+        eq(title, 'Butt', 'the detail names the shape')
+        eq(desc, w.shape.about .. '\n' .. w.shape.help, 'what it does and how to change it')
+        local hints = {} -- The menu's hint row (y 1990) right to left from the menu's edge, each part's last text.
+        local live = r.kit.live(F.HINT)
+        table.sort(live, function(a, b) return a.x > b.x end)
+        for _, h in ipairs(live) do
+            local text
+            for _, c in ipairs(h.o.calls) do if c[1] == 'SetText' then text = c[2].text or c[2] end end
+            if h.y == 1990 then hints[#hints + 1] = text end
+        end
+        same(hints, {T.en.hint.back, T.en.hint.select, T.en.hint.move}, 'Back, Select, Move')
+        at(r, 0.5, 'right')
+        eq(rows()[2], 'Butt=10%', 'right: up a step')
+        at(r, 0.5, 'left', 'left')
+        eq(rows()[2], 'Butt=0%', 'left: down a step, never under 0')
+        at(r, 0.5, 'select')
+        eq(rows()[2], 'Butt=10%', 'Select: up a step')
+        sh.values.Butt = 100
+        at(r, 0.5, 'select')
+        eq(rows()[2], 'Butt=0%', 'Select after 100: 0')
+        eq(#r.previews, 0, 'nothing previewed')
+        -- A click on the Hips row takes the focus and steps it.
+        r.kit.groups.closet_menu.zones[3].hover = true
+        at(r, 0.5, 'click')
+        r.kit.groups.closet_menu.zones[3].hover = false
+        eq((detail(r)), 'Hips', 'the clicked row focused') eq(rows()[3], 'Hips=10%', 'and stepped')
+        -- The look changed: the next tick shows its rows.
+        sh.names = {'Legs'}
+        tick(r, 0.6)
+        eq(rows()[2], 'Legs=0%', 'the new look\'s rows')
+        at(r, 0.7, 'back')
+        eq(popups(r), 0, 'no Keep popup') eq(r.menu.is_open(), false, 'closed')
+        eq(sh.values.Hips, 10, 'the shape stays: it is saved apart from the look')
+        -- Without a shape layer: no shape row.
+        r = rig()
+        r.menu.open()
+        at(r, 0.5, 'tab_left', 'tab_left', 'tab_left')
+        eq(rows()[2]:match('^[^=]+'), w.slots.SkinSuit, 'no layer: no shape row')
+    end,
+
     grid_up_down_walk_rows_of_five = function()
         -- 9 more outfits with a top: the Top row's grid has 12 tiles (None, Maid, Kunoichi, Top 1-9), 3 rows of 5.
         local added = {}
@@ -1718,11 +1817,13 @@ local tests = {
     a_raising_dress_tick_still_runs_the_menu_tick = function()
         -- closet/wiring.lua's frame tick under main/frame.lua's guard (run below as frame.lua runs it: an error is
         -- logged, the frame goes on).
-        local saved = {}
-        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.colour', 'closet.wiring'}) do
-            saved[name] = package.loaded[name]
-        end
+        -- Each fake is put back as it was, a module not loaded before included (nil: pairs would skip it).
+        local saved, faked = {}, {'closet.dress', 'closet.ui.probe', 'closet.colour', 'closet.shape', 'closet.wiring'}
+        for _, name in ipairs(faked) do saved[name] = package.loaded[name] end
         local runs, errors = {}, {}
+        package.loaded['closet.shape'] = {FILE = 'coop-closet-shape.txt', new = function()
+            return {tick = function() runs[#runs + 1] = 'shape' end, stop = function() end}
+        end}
         package.loaded['closet.dress'] = {new = function()
             return {tick = function() runs[#runs + 1] = 'dress'; error('dress broke') end, stop = function() end}
         end}
@@ -1741,8 +1842,8 @@ local tests = {
         require('closet.wiring').new(M)
         M.closet_menu = {tick = function() runs[#runs + 1] = 'menu' end}
         M.guarded('closet', M.closet.tick)
-        for name, mod in pairs(saved) do package.loaded[name] = mod end
-        same(runs, {'dress', 'colour', 'probe', 'menu'}, 'every tick ran')
+        for _, name in ipairs(faked) do package.loaded[name] = saved[name] end
+        same(runs, {'dress', 'colour', 'shape', 'probe', 'menu'}, 'every tick ran')
         eq(#errors, 2, 'both errors reported: ' .. table.concat(errors, ' | '))
         ok(errors[1]:find('dress broke', 1, true) and errors[2]:find('probe broke', 1, true),
             table.concat(errors, ' | '))
@@ -1893,7 +1994,7 @@ local tests = {
         kit.screen = function() return {w = 3840, h = 2160} end
         local M = {print = function() end, kit = kit, closet = dress, words = function() return T.en end,
             tell = function() end, photo_state = function() return '0' end, closet_thumbs = {run = function() end},
-            closet_colour = fake_colour(),
+            closet_colour = fake_colour(), closet_shape = fake_shape(),
             link = {status = function() return '' end, store = function(name)
                 stored[#stored + 1] = name
                 return {save = function() return true end, load = function() end, clear = function() end}
@@ -1911,6 +2012,62 @@ local tests = {
         ok(menu_got.camera ~= nil and menu_got.camera.word ~= nil, 'the menu has the camera')
         ok(menu_got.thumbs == M.closet_thumbs, 'the menu has coop closet thumbs (its Make preview pictures row)')
         ok(menu_got.colour == M.closet_colour, 'the menu has the colour layer (its Colour tab)')
+        ok(menu_got.shape == M.closet_shape, 'the menu has the shape layer (the Body tab\'s shape rows)')
+    end,
+
+    the_wiring_builds_the_shape_layer = function()
+        -- closet/wiring.lua's new: the shape layer over the dress with coop-closet-shape.txt through the link, as
+        -- M.closet_shape; ticked each frame right after the colour layer (menu open or not), stopped by coop off; the
+        -- values of coop closet shape.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring'}) do
+            saved[name] = package.loaded[name]
+        end
+        local runs = {}
+        package.loaded['closet.dress'] = {new = function()
+            return {tick = function() runs[#runs + 1] = 'dress' end, stop = function() end,
+                installed = function() return true end, applied = function() return 0 end,
+                parts = function() return {} end}
+        end}
+        package.loaded['closet.ui.probe'] = {new = function()
+            return {tick = function() end, stop = function() end}
+        end}
+        package.loaded['closet.wiring'] = nil
+        local Shape = require('closet.shape')
+        local shape_new, got = Shape.new, nil
+        Shape.new = function(o) got = o; return shape_new(o) end
+        local stored, files = {}, {}
+        local M = {print = function() end, guarded = function(_, f, ...) return f(...) end,
+            link = {status = function() return '' end, store = function(name)
+                stored[#stored + 1] = name
+                return {save = function(line) files[name] = line; return true end,
+                    load = function() return files[name] end, clear = function() files[name] = nil end}
+            end}}
+        local ran, why = pcall(function()
+            local commands = require('closet.wiring').new(M)
+            ok(M.closet_shape ~= nil, 'M.closet_shape')
+            ok(got.dress == M.closet, 'over the dress')
+            local named = false
+            for _, name in ipairs(stored) do named = named or name == 'coop-closet-shape.txt' end
+            ok(named, 'coop-closet-shape.txt through the link: ' .. table.concat(stored, ', '))
+            local colour_tick, shape_tick = M.closet_colour.tick, M.closet_shape.tick
+            M.closet_colour.tick = function() runs[#runs + 1] = 'colour'; return colour_tick() end
+            M.closet_shape.tick = function() runs[#runs + 1] = 'shape'; return shape_tick() end
+            M.closet.tick()
+            same({runs[1], runs[2], runs[3]}, {'dress', 'colour', 'shape'}, 'the shape tick right after the colour')
+            local good, line = commands.closet('shape', 'Butt', '50', nil, nil, nil)
+            ok(good, line)
+            eq(files['coop-closet-shape.txt'], 'Butt=50', 'coop closet shape sets the value')
+            local stop = M.closet_shape.stop
+            M.closet_shape.stop = function() runs[#runs + 1] = 'shape stop'; return stop() end
+            M.closet.stop()
+            local stopped = false
+            for _, r in ipairs(runs) do stopped = stopped or r == 'shape stop' end
+            ok(stopped, 'coop off stops it')
+        end)
+        Shape.new = shape_new
+        for name, mod in pairs(saved) do package.loaded[name] = mod end
+        ok(ran, tostring(why))
     end,
 
     the_wiring_builds_the_colour_layer = function()

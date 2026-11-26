@@ -511,6 +511,10 @@ return {
             swatches={off='Desligado',white='Branco',black='Preto',charcoal='Carvão',silver='Prata',gold='Dourado',
                 crimson='Carmesim',wine='Vinho',rose='Rosa',violet='Violeta',navy='Azul-marinho',azure='Azul-celeste',
                 teal='Verde-azulado',emerald='Esmeralda',sand='Areia'}},
+        shape={value='%d%%',
+            about='Muda a forma do corpo dela e de cada peça usada feita com essa forma. Uma peça sem ela mantém a '
+                ..'própria forma.',
+            help='Esquerda e direita mudam a forma em passos de 10. Ela é salva separada do visual.'},
         popup={title='Manter este visual?',desc='Sim salva. Não devolve a EVE o visual que tinha antes.',
             yes='Manter',no='Desfazer',reset_title='Redefinir o Stellar Closet?',
             reset_desc='Todas as peças do Stellar Closet saem de EVE. O visual salvo é apagado. '

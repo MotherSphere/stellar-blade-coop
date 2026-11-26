@@ -514,6 +514,10 @@ return {
             swatches={off='Aucune',white='Blanc',black='Noir',charcoal='Anthracite',silver='Argent',gold='Or',
                 crimson='Cramoisi',wine='Bordeaux',rose='Rose',violet='Violet',navy='Marine',azure='Azur',
                 teal='Sarcelle',emerald='Émeraude',sand='Sable'}},
+        shape={value='%d %%',
+            about='Change la forme de son corps et de chaque pièce portée faite avec cette forme. Une pièce sans '
+                ..'elle garde sa forme.',
+            help='Gauche et droite la changent par pas de 10. Elle est enregistrée à part du look.'},
         popup={title='Garder ce look ?',desc="Oui l'enregistre. Non rend à EVE le look d'avant.",yes='Garder',
             no='Annuler',reset_title='Réinitialiser Stellar Closet ?',
             reset_desc='Toutes les pièces de Stellar Closet quittent EVE. Le look enregistré est effacé. '

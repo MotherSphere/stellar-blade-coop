@@ -3,14 +3,15 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop closet (closet/commands.lua): alone and with status it answers the dress's status line; another word is
 -- refused with the use line. thumbs [redo] [<fit>] runs closet/thumbs.lua's run. The wear, off and fits words are
--- checked in dress_test, the colour words in colour_test.
+-- checked in dress_test, the colour words in colour_test, the shape words in shape_test.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 package.loaded.UEHelpers={GetPlayer=function() return nil end}
 local runs={}
 local Cmd=require('closet.commands').new({dress={status=function() return 'closet: nothing worn' end},
     fits=require('closet.fits'),thumbs={run=function(redo,fit) runs[#runs+1]={redo,fit}; return true,'ran' end}})
 local USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|thumbs [redo] [<fit>]|'..
-    'probe <1-6|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <swatch|off>|colour off]'
+    'probe <1-6|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <swatch|off>|colour off|'..
+    'shape <morph> <0-100>|shape off]'
 local ok,line=Cmd.closet()
 assert(ok and line=='closet: nothing worn',line)
 ok,line=Cmd.closet('status')

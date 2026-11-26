@@ -575,6 +575,15 @@ package.loaded['closet.colour']={FILE='coop-closet-colour.txt',ROLES={'primary',
         get=function() return 'off' end,set=function() return true,'co set' end,step=function() return true end,
         off=function() return true,'co off' end}
 end}
+-- The closet's shape layer (closet/shape.lua; closet/shape_test tests it, closet/menu_test its wiring): what new got,
+-- its ticks and stops. No row, every value 0. It never runs: link.store here gives a name, not a file.
+sh={ticks=0,stops=0}
+package.loaded['closet.shape']={FILE='coop-closet-shape.txt',STEP=10,USE='Use: coop closet shape',new=function(o)
+    sh.o=o
+    return {tick=function() sh.ticks=sh.ticks+1 end,stop=function() sh.stops=sh.stops+1 end,
+        rows=function() return {} end,get=function() return 0 end,set=function() return true,'sh set' end,
+        step=function() return true end,off=function() return true,'sh off' end}
+end}
 -- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
 -- stops, what a tick says; its scenes' words.
 sc={}

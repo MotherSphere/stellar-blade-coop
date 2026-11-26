@@ -30,7 +30,7 @@
 -- for each of closet/slots.lua's Slots.LIST ids, a tab for each Slots.MENUS id and a region for each Slots.REGIONS
 -- name, each tab within 16 columns, each key hint within 14, its notices within 200 bytes, the Colour tab's name and
 -- about line for each closet/colour.lua role and a name for Off and each swatch, the roles within a row's title column,
--- the swatches within its value column.
+-- the swatches within its value column, the Body tab's shape value (closet/shape.lua) at 100 within its value column.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('online.modes.nightop.recruiter_text')
@@ -469,6 +469,8 @@ for name in pairs(R.TEXT) do
     -- The Colour tab's rows: a role's name within a row's title column, a swatch's name within its value column.
     for k,text in pairs(w.closet.colour.roles) do fits(name..'.closet.colour.roles.'..k,text,LABEL) end
     for k,text in pairs(w.closet.colour.swatches) do fits(name..'.closet.colour.swatches.'..k,text,VALUE) end
+    -- The Body tab's shape rows (closet/shape.lua): a value of 100 within a row's value column.
+    fits(name..'.closet.shape.value',w.closet.shape.value:format(100),VALUE)
 end
 -- Stellar Closet's names: a slot name for each Slots.LIST id, a tab for each Slots.MENUS id, a region for each
 -- Slots.REGIONS name, and no other (the other tables have T.en's keys, checked above).

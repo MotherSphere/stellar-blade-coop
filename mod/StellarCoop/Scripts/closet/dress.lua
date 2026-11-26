@@ -749,11 +749,12 @@ function Dress.new(o)
     -- its switched and clips.
     function self.plan() return state and state.plan end
     -- How many times her look was put on or given back (each apply, her own look previewed, off): closet/colour.lua
-    -- puts its palette on again when it grows.
+    -- puts its palette on again when it grows, closet/shape.lua its shape.
     function self.applied() return applied end
-    -- The worn components with their shown material slots and the closet slot each belongs to (closet/colour.lua):
-    -- {{c=<component, nil when gone>, slots={[index]=<Slot id>}}}, her body first, then the added meshes in the plan's
-    -- order. {} with no look mixed; nil while the mix is paused or stopped, or EVE is not there.
+    -- The worn components with their mesh paths, their shown material slots and the closet slot each belongs to
+    -- (closet/colour.lua, closet/shape.lua): {{c=<component, nil when gone>, mesh=<path>, slots={[index]=<Slot id>}}},
+    -- her body first, then the added meshes in the plan's order. {} with no look mixed; nil while the mix is paused or
+    -- stopped, or EVE is not there.
     function self.parts()
         if not (state and state.plan) then return {} end
         local eve=not (state.paused or state.stopped) and her()
@@ -763,7 +764,7 @@ function Dress.new(o)
             c=valid(c)
             local slots={}
             for index,slot in pairs(c and a.slots or {}) do if a.show[index] then slots[index]=slot end end
-            out[#out+1]={c=c,slots=slots}
+            out[#out+1]={c=c,mesh=a.mesh,slots=slots}
         end
         add(eve.Mesh,state.plan.body)
         for i,a in ipairs(state.plan.added) do add(state.added[i] and state.added[i].c,a) end

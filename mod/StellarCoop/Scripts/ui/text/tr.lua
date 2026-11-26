@@ -506,6 +506,10 @@ return {
             swatches={off='Kapalı',white='Beyaz',black='Siyah',charcoal='Antrasit',silver='Gümüş',gold='Altın',
                 crimson='Kızıl',wine='Şarap',rose='Gül',violet='Mor',navy='Lacivert',azure='Gök mavisi',
                 teal='Camgöbeği',emerald='Zümrüt',sand='Kum'}},
+        shape={value='%%%d',
+            about='Vücudunun ve bu şekille yapılmış her giyilen parçanın şeklini değiştirir. Bu şekli olmayan bir '
+                ..'parça kendi şeklini korur.',
+            help="Sol ve sağ onu 10'luk adımlarla değiştirir. Görünümden ayrı kaydedilir."},
         popup={title='Bu görünüm kalsın mı?',desc="Evet kaydeder. Hayır EVE'e önceki görünümünü geri verir.",
             yes='Kalsın',no='Geri al',reset_title='Stellar Closet sıfırlansın mı?',
             reset_desc="Stellar Closet'ın tüm parçaları EVE'den çıkarılır. Kaydedilen görünüm silinir. "

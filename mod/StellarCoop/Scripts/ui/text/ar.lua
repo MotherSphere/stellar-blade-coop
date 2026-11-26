@@ -481,6 +481,9 @@ return {
             swatches={off='إيقاف',white='أبيض',black='أسود',charcoal='فحمي',silver='فضي',gold='ذهبي',crimson='قرمزي',
                 wine='نبيذي',rose='وردي',violet='بنفسجي',navy='كحلي',azure='لازوردي',teal='أزرق مخضر',emerald='زمردي',
                 sand='رملي'}},
+        shape={value='%d%%',
+            about='يغيّر شكل جسمها وكل قطعة ملبوسة صُنعت بهذا الشكل. القطعة التي لا تملكه تحتفظ بشكلها.',
+            help='اليسار واليمين يغيّرانه بخطوات من 10. يُحفظ منفصلًا عن المظهر.'},
         popup={title='الاحتفاظ بهذا المظهر؟',desc='نعم يحفظه. لا يعيد إلى EVE مظهرها السابق.',yes='احتفاظ',
             no='تراجع',reset_title='إعادة ضبط Stellar Closet؟',
             reset_desc='تُزال كل قطع Stellar Closet عن EVE ويُحذف المظهر المحفوظ. لن يغيّر Stellar Closet شيئًا حتى '

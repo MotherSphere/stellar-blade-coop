@@ -511,6 +511,10 @@ return {
             swatches={off='Pois',white='Valkoinen',black='Musta',charcoal='Hiilenharmaa',silver='Hopea',gold='Kulta',
                 crimson='Karmiininpunainen',wine='Viininpunainen',rose='Ruusu',violet='Violetti',
                 navy='Laivastonsininen',azure='Taivaansininen',teal='Sinivihreä',emerald='Smaragdi',sand='Hiekka'}},
+        shape={value='%d %%',
+            about='Muuttaa hänen vartalonsa ja jokaisen tällä muodolla tehdyn puetun osan muotoa. Osa ilman sitä '
+                ..'pitää muotonsa.',
+            help='Vasen ja oikea muuttavat sitä 10:n askelin. Se tallennetaan erillään tyylistä.'},
         popup={title='Pidetäänkö tämä tyyli?',desc='Kyllä tallentaa sen. Ei palauttaa EVElle aiemman tyylin.',
             yes='Pidä',no='Kumoa',reset_title='Nollataanko Stellar Closet?',
             reset_desc='Kaikki Stellar Closetin osat riisutaan EVEltä. Tallennettu tyyli poistetaan. '

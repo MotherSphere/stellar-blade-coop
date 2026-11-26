@@ -14,7 +14,7 @@ local CH27, CH46 = 'AiK_CH27_14595', 'AiK_CH46_xSH_14462'
 local function new(o)
     o = o or {}
     return Model.new({slots = Slots, fits = Fits, installed = o.installed or function() return true end,
-        adult = o.adult})
+        adult = o.adult, shapes = o.shapes})
 end
 
 local function slots_of(choices, fit)
@@ -42,6 +42,23 @@ local tests = {
     the_colour_tab_lists_the_four_roles = function()
         same(new().rows('colour'), {{role = 'primary'}, {role = 'secondary'}, {role = 'accent'}, {role = 'glow'}},
             'Primary, Secondary, Accent, Glow')
+    end,
+
+    -- The Body tab: one row per shape name (closet/shape.lua's rows) right below the Body row; none without names.
+    the_body_tab_lists_the_shape_rows_below_the_body = function()
+        local names = {'Butt', 'Hips'}
+        local rows = new({shapes = function() return names end}).rows('body')
+        eq(rows[1].slot, 'BaseBody', 'the body choice first')
+        same(rows[2], {morph = 'Butt'}, 'then the shape rows') same(rows[3], {morph = 'Hips'})
+        eq(rows[4].slot, 'SkinSuit', 'then the other body slots')
+        eq(#rows, #Slots.in_menu('body') + 2, 'one row per name')
+        names = {}
+        rows = new({shapes = function() return names end}).rows('body')
+        eq(rows[2].slot, 'SkinSuit', 'no name: no shape row')
+        eq(new().rows('body')[2].slot, 'SkinSuit', 'no shape layer: no shape row')
+        for _, r in ipairs(new({shapes = function() return {'Butt'} end}).rows('torso')) do
+            eq(r.morph, nil, 'other tabs list no shape row')
+        end
     end,
 
     rows_mark_soon_and_empty = function()

@@ -559,8 +559,8 @@ return {
     -- panel, an outfit's origin (Original, or Custom and its pack), key hints (Back and Select are hint.back,
     -- hint.select), the Keep this look? and Reset Stellar Closet? popups, why it does not open (refused) and why it
     -- closed (closed), the answers of Make preview pictures (thumbs), the body switched to an outfit (switched), the
-    -- regions whose skin shows on a picked body (clips), the reset done and the Colour tab's words (colour). Outfit,
-    -- pack and piece names stay as their pack writes them.
+    -- regions whose skin shows on a picked body (clips), the reset done, the Colour tab's words (colour) and the Body
+    -- tab's shape rows (shape). Outfit, pack, piece and morph names stay as their pack writes them.
     closet={
         tabs={head='Head',torso='Torso',arms='Arms',hips='Hips',intimate='Intimate',legs='Legs',body='Body',
             colour='Colour',weapon='Weapon',full='Full outfit'},
@@ -606,6 +606,11 @@ return {
             swatches={off='Off',white='White',black='Black',charcoal='Charcoal',silver='Silver',gold='Gold',
                 crimson='Crimson',wine='Wine',rose='Rose',violet='Violet',navy='Navy',azure='Azure',teal='Teal',
                 emerald='Emerald',sand='Sand'}},
+        -- The Body tab's shape rows (closet/shape.lua): a value in percent, what a row changes and how to change it.
+        shape={value='%d%%',
+            about='Changes the shape of her body and of each worn piece made with this shape. A piece without it '
+                ..'keeps its shape.',
+            help='Left and right change it in steps of 10. It is saved apart from the look.'},
         popup={title='Keep this look?',desc='Yes saves it. No gives EVE the look she had before.',yes='Keep',no='Undo',
             reset_title='Reset Stellar Closet?',
             reset_desc='Every closet piece comes off EVE and the saved look is deleted. Stellar Closet changes nothing '

@@ -504,6 +504,10 @@ return {
             swatches={off='Uit',white='Wit',black='Zwart',charcoal='Antraciet',silver='Zilver',gold='Goud',
                 crimson='Karmozijn',wine='Wijnrood',rose='Roze',violet='Violet',navy='Marineblauw',azure='Azuur',
                 teal='Petrol',emerald='Smaragd',sand='Zand'}},
+        shape={value='%d%%',
+            about='Verandert de vorm van haar lichaam en van elk gedragen stuk dat met deze vorm is gemaakt. Een stuk '
+                ..'zonder deze vorm houdt zijn vorm.',
+            help='Links en rechts veranderen hem in stappen van 10. Hij wordt los van de look opgeslagen.'},
         popup={title='Deze look houden?',desc='Ja slaat hem op. Nee geeft EVE haar vorige look terug.',yes='Houden',
             no='Ongedaan maken',reset_title='Stellar Closet resetten?',
             reset_desc='Alle stukken van Stellar Closet gaan van EVE af. De opgeslagen look wordt gewist. '

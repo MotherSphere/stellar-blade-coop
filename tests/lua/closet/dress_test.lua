@@ -929,6 +929,7 @@ local tests = {
         local parts = w.d.parts()
         eq(#parts, 2, 'her body, then the added mesh')
         ok(parts[1].c == w.eve.Mesh, 'her body first') ok(parts[2].c == w.eve.comps[2], 'the added mesh')
+        eq(parts[1].mesh, KS, 'her body\'s mesh path') eq(parts[2].mesh, OM, 'the added mesh\'s path')
         same(parts[1].slots, {[0] = 'BaseBody', [1] = 'BaseBody', [2] = 'BaseBody', [19] = 'Shoes', [20] = 'Shoes',
             [33] = 'Shoes', [35] = 'Shoes'}, 'the boots and the skin')
         local top = {}

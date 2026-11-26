@@ -438,6 +438,8 @@ return {
             swatches={off='끄기',white='흰색',black='검은색',charcoal='차콜',silver='은색',gold='금색',crimson='진홍색',
                 wine='와인색',rose='장미색',violet='보라색',navy='남색',azure='하늘색',teal='청록색',emerald='에메랄드',
                 sand='모래색'}},
+        shape={value='%d%%',about='몸과 이 형태로 만들어진 착용 중인 각 파츠의 형태를 바꿉니다. 이 형태가 없는 파츠는 형태를 유지합니다.',
+            help='왼쪽과 오른쪽으로 10씩 바꿉니다. 모습과 따로 저장됩니다.'},
         popup={title='이 모습을 유지할까요?',
             desc='예를 누르면 저장합니다. 아니요를 누르면 EVE가 이전 모습으로 돌아갑니다.',yes='유지',
             no='되돌리기',reset_title='Stellar Closet을 초기화할까요?',

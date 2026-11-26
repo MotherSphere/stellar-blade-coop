@@ -398,6 +398,8 @@ return {
             help='左右鍵選擇顏色。「關閉」保留模組包的顏色。',
             swatches={off='關閉',white='白色',black='黑色',charcoal='炭灰',silver='銀色',gold='金色',crimson='緋紅',
                 wine='酒紅',rose='玫瑰粉',violet='紫羅蘭',navy='藏青',azure='天藍',teal='青綠',emerald='翠綠',sand='沙色'}},
+        shape={value='%d%%',about='改變她的身體以及用此形態製作的每件穿戴部件的形態。沒有此形態的部件保持原樣。',
+            help='左右鍵以10為步長調整。與造型分開儲存。'},
         popup={title='保留這個造型嗎？',desc='選「是」儲存。選「否」讓EVE恢復之前的造型。',yes='保留',no='復原',
             reset_title='要重設Stellar Closet嗎？',
             reset_desc='Stellar Closet的所有部件都會從EVE身上移除，已儲存的造型會被刪除。'

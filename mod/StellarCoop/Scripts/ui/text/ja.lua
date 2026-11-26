@@ -440,6 +440,8 @@ return {
             swatches={off='オフ',white='白',black='黒',charcoal='チャコール',silver='シルバー',gold='ゴールド',
                 crimson='クリムゾン',wine='ワイン',rose='ローズ',violet='バイオレット',navy='ネイビー',azure='アジュール',
                 teal='ティール',emerald='エメラルド',sand='サンド'}},
+        shape={value='%d%%',about='体と、この形で作られた着用中の各パーツの形を変えます。この形がないパーツは形を保ちます。',
+            help='左右で10ずつ変えます。見た目とは別に保存されます。'},
         popup={title='この見た目にしますか？',desc='「はい」で保存します。「いいえ」でEVEを前の見た目に戻します。',
             yes='保存',no='元に戻す',reset_title='Stellar Closetをリセットしますか？',
             reset_desc='Stellar ClosetのパーツをすべてEVEから外し、保存した見た目を消去します。'

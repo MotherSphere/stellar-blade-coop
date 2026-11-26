@@ -23,6 +23,8 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet skin <fit> <slot> on\|off` | Shows or hides one material slot (a number) of that outfit's mesh now, on every LOD, for trying a setup in game. The next wear clears it |
 | `coop closet colour <role> <swatch\|off>` | Sets one role of the colour palette (`primary`, `secondary`, `accent` or `glow`) to a swatch, or back to the packs' own colours with `off`. See [Colours](#colours) |
 | `coop closet colour off` | Sets every role back to the packs' own colours and deletes `coop-closet-colour.txt` |
+| `coop closet shape <morph> <0-100>` | Sets one body shape value (a morph target name of the worn meshes) in percent, in steps of 10. `0` takes it off. See [Body shape](#body-shape) |
+| `coop closet shape off` | Sets every body shape value back to 0 and deletes `coop-closet-shape.txt` |
 
 For example, `coop closet wear AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462:Shoes` wears Ocean Maid's top and
 stockings with Kunoichi Shadow's boots.
@@ -57,8 +59,8 @@ it can no longer wear (an outfit pack removed) are dropped with one log line. He
 
 ## How it works
 
-The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`, `thumbs.lua` and `colour.lua`, which
-make engine calls.
+The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`, `thumbs.lua`, `colour.lua` and
+`shape.lua`, which make engine calls.
 
 | File | Holds |
 | --- | --- |
@@ -71,6 +73,7 @@ make engine calls.
 | `fits.lua` | Fit maps: which material slots of a CNS full outfit make each piece and which show the skin (Ocean Maid, Kunoichi Shadow). Each outfit's own picture (its pack's `OutfitImage`) |
 | `thumbs.lua` | `coop closet thumbs`: the capture rig (one picture a frame) and the picture cache's folders, files and stamps |
 | `colour.lua` | `coop closet colour`: the palette, each slot's role, the swatches and the dynamic material instances on the worn pieces |
+| `shape.lua` | `coop closet shape`: the morph names of the worn meshes, the Body tab's shape rows and the morph values on EVE's body and the added pieces |
 
 The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
 
@@ -83,10 +86,11 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
 
-`wiring.lua` builds `dress.lua` as `M.closet`, `colour.lua` as `M.closet_colour`, `thumbs.lua` as `M.closet_thumbs`
-and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as
-`M.closet_menu` (with `M.closet_thumbs` for its Make preview pictures row and `M.closet_colour` for its Colour tab).
-`main/frame.lua` runs the restore at the first tick and the dress, colour, probe, thumbs and menu ticks each frame.
+`wiring.lua` builds `dress.lua` as `M.closet`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`,
+`thumbs.lua` as `M.closet_thumbs` and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with the Steam
+link only, builds `ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its Make preview pictures row,
+`M.closet_colour` for its Colour tab and `M.closet_shape` for the Body tab's shape rows). `main/frame.lua` runs the
+restore at the first tick and the dress, colour, shape, probe, thumbs and menu ticks each frame.
 `coop off` stops them. The module reads no other module.
 
 ## The closet menu
@@ -130,7 +134,8 @@ starts `coop closet thumbs` for every picture not there yet (see [Preview pictur
 of the Full outfit tab, Reset Stellar Closet, asks with
 the game's Yes/No popup. Yes runs `coop closet off`: every closet piece leaves EVE, `coop-closet.txt` is cleared and
 the menu closes without asking to keep the look. It also sets every colour role back to Off (`coop-closet-colour.txt`
-is deleted) and clears the camera file. From then on the closet changes nothing until a look is worn again.
+is deleted), sets every body shape value back to 0 (`coop-closet-shape.txt` is deleted) and clears the camera file.
+From then on the closet changes nothing until a look is worn again.
 
 Back with nothing changed since the open closes the menu and gives back the look worn before. After a change, Back asks
 "Keep this look?" with the game's Yes/No popup. Yes keeps the look: it is saved and survives a reload. No gives back
@@ -262,6 +267,26 @@ The palette goes on again after every wear, preview, revert and mix again, in th
 gives each slot its own material back. Nothing changes while Tachy Mode pauses the mix. `coop off` and
 `coop closet off` give EVE her own materials back. Reset Stellar Closet sets every role back to Off.
 
+### Body shape
+
+A pack's meshes can carry morph targets: the FitBase family, Muse and UPS, Minervha and Ayane's body and outfit
+pairs declare them. The closet reads the morph target names of each worn mesh once per mesh path. The Body tab lists,
+below the Body row, one row per name that EVE's body mesh has or that two worn meshes share. The row shows its value
+from 0 to 100% in steps of 10. Left and right change it by 10. Select or a click on the row takes the next step, with
+0 after 100. Neither fit map of today (Ocean Maid, Kunoichi Shadow) has morph targets: their looks show no shape row.
+A mesh without morph targets cannot be refitted at run time.
+
+A name EVE's body has goes on her body with `SetMorphTarget`. Every added piece whose mesh has the same name follows
+it: the engine adds the body's morphs to each follower by name. A name her body lacks goes on each added piece that
+has it. A value of 0 takes the name off. The shape goes on again in the same frame after every wear, preview, revert
+and mix again. It also goes on again when a value changes. A look that drops a name takes it off. Her own look
+(`coop closet off`, the None tile on the last piece) and `coop off` take the closet's names off her body. A morph set
+by another mod stays. Nothing changes while Tachy Mode pauses the mix.
+
+A shape change is saved at once in `coop-closet-shape.txt`, apart from the look. The menu does not ask "Keep this
+look?" for it. A revert does not undo it. The shape survives a restart. The pad chord LB + D-pad Left that closes the
+menu on a shape row leaves the value as it was. Reset Stellar Closet sets every value back to 0.
+
 ## Online sessions
 
 The ghost's capture (`online/partner/capture.lua`) reads every skeletal mesh component on EVE. Pieces on EVE show on
@@ -312,6 +337,10 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
 - `tests/lua/closet/colour_test.lua` runs the colour layer on a fake dress and fake components: every slot's role, the
   swatch cycle, instances only where a set role reaches, the parameter names, the palette put on again after a wear,
   Off giving the materials back, the palette file and `coop closet colour`.
+- `tests/lua/closet/shape_test.lua` runs the shape layer on a fake dress and fake components and meshes: the morph
+  names read once per mesh path, the rows the rule allows, the steps from 0 to 100, the values on the body and on the
+  pieces for the names the body lacks, the shape put on again after a wear, her own look, the shape file, `coop off`
+  and `coop closet shape`.
 - `tests/lua/closet/thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
   sections, the rig's settings and its removal on each end path, the refusals, a run from the menu that waits for its
   close and the framing.

@@ -496,6 +496,10 @@ return {
             swatches={off='Av',white='Hvit',black='Svart',charcoal='Koksgrå',silver='Sølv',gold='Gull',
                 crimson='Karmosin',wine='Vinrød',rose='Rosa',violet='Fiolett',navy='Marineblå',azure='Asurblå',
                 teal='Petrol',emerald='Smaragd',sand='Sand'}},
+        shape={value='%d %%',
+            about='Endrer formen på kroppen hennes og på hvert plagg hun har på som er laget med denne formen. Et '
+                ..'plagg uten den beholder formen sin.',
+            help='Venstre og høyre endrer den i trinn på 10. Den lagres atskilt fra utseendet.'},
         popup={title='Beholde dette utseendet?',desc='Ja lagrer det. Nei gir EVE utseendet hun hadde før.',
             yes='Behold',no='Angre',reset_title='Tilbakestille Stellar Closet?',
             reset_desc='Alle delene fra Stellar Closet tas av EVE. Det lagrede utseendet slettes. '
