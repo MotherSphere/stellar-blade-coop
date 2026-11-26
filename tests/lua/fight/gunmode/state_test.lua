@@ -343,26 +343,20 @@ do
     assert(not gun.state.aim_hold and #w.changed()==0,'back at the LT release: '..table.concat(w.changed(),'; '))
 end
 
--- 9. The rifle does not come out while a cutscene holds EVE, in an interaction or its block, while she swims, in the
---    photo or selfie mode. Once it is out, a swim or the photo or selfie mode puts it away within 0.1 s, with no
---    comeback (cutscenes and interactions already did, with one). The game's hold of her movement, a jump (falling)
---    and the other movement modes are no reason: SBO's hall seat sets mode 0, the rifle stays allowed there
+-- 9. The rifle does not come out while a cutscene holds EVE, in an interaction or its block. Once it is out, they put
+--    it away within 0.1 s with a comeback. The game's hold of her movement, a jump (falling), a swim and the other
+--    movement modes are no reason, as in luke's version: SBO's hall seat sets mode 0, the rifle stays allowed there
 --    (a6523766, ad9dbe19).
 do
     local w=Fake.new(); w.install()
     local keys=w.keys()
-    local photo,logs='0',{}
-    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,photo=function() return photo end})
-    local function mode(m) return function(e,on) e.CharacterMovement.MovementMode=on and m or 1 end end
+    local logs={}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end})
     for _,case in ipairs({
-            {function(e,on) e.cutscene=on end,'a cutscene holds EVE','EVE is in an interaction or a cutscene'},
-            {function(e,on) e.talk=on end,'EVE is in an interaction','EVE is in an interaction or a cutscene'},
-            {function(e,on) e.bEnableInteractionBlock=on end,'EVE is in an interaction',
-                'EVE is in an interaction or a cutscene'},
-            {mode(4),'EVE is swimming'},
-            {function(_,on) photo=on and '1' or '0' end,'the photo mode is open'},
-            {function(_,on) photo=on and 's' or '0' end,'the selfie mode is open'}}) do
-        local set,why,off=case[1],case[2],case[3] or case[2]
+            {function(e,on) e.cutscene=on end,'a cutscene holds EVE'},
+            {function(e,on) e.talk=on end,'EVE is in an interaction'},
+            {function(e,on) e.bEnableInteractionBlock=on end,'EVE is in an interaction'}}) do
+        local set,why=case[1],case[2]
         logs={}
         set(w.pawn,true)
         clock=clock+1; gun.toggle_now()
@@ -372,12 +366,13 @@ do
         toggle(gun,true)
         set(w.pawn,true)
         frames(gun,7)
-        assert(not gun.state.on and said(logs,'off ('..off),why..': '..table.concat(logs,'|'))
+        assert(not gun.state.on and said(logs,'off (EVE is in an interaction or a cutscene'),
+            why..': '..table.concat(logs,'|'))
         assert(#w.changed()==0 and w.keys()==keys,why..': everything back')
         set(w.pawn,false)
         frames(gun,120)
-        assert(gun.state.on==(case[3]~=nil),why..': a comeback only after a cutscene or an interaction')
-        if gun.state.on then toggle(gun,false) end
+        assert(gun.state.on,why..': the comeback')
+        toggle(gun,false)
     end
     toggle(gun,true)
     w.pawn.held=true; frames(gun,20)
@@ -386,15 +381,17 @@ do
     w.pawn.CharacterMovement.MovementMode=3
     frames(gun,20)
     assert(gun.state.on,'a jump keeps the rifle out')
-    for _,m in ipairs({0,5,6}) do
+    for _,m in ipairs({0,4,5,6}) do
         w.pawn.CharacterMovement.MovementMode=m
         frames(gun,20)
         assert(gun.state.on,'movement mode '..m..' keeps the rifle out')
     end
     toggle(gun,false)
-    w.pawn.CharacterMovement.MovementMode=0 -- (a hall seat)
-    toggle(gun,true)
-    toggle(gun,false)
+    for _,m in ipairs({0,4}) do -- (0: a hall seat, 4: a swim)
+        w.pawn.CharacterMovement.MovementMode=m
+        toggle(gun,true)
+        toggle(gun,false)
+    end
     w.pawn.CharacterMovement.MovementMode=1
 end
 

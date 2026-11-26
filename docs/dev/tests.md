@@ -119,9 +119,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   input mask is lifted while the game is paused and put back at the first frame after it. An off during the game's
   aim holds the aim key on RMB and SB's rows with cool time 999 until that aim ends with the aim key and LT up, also
   when the off comes on a frame the aim dropped; a new controller and `coop off` end the hold. The rifle does not
-  come out in a cutscene, an interaction, a swim, the photo mode or the selfie mode. Out, a swim or the photo or
-  selfie mode puts it away with no comeback. The game's hold of her movement, a jump and the other movement modes
-  (0 on a hall seat) keep it out. A refused comeback after an interaction is tried again 2, 4 and 8 s later, then
+  come out in a cutscene or an interaction. Out, either puts it away with a comeback. The game's hold of her
+  movement, a jump, a swim and the other movement modes (0 on a hall seat) keep it out. A refused comeback after an interaction is tried again 2, 4 and 8 s later, then
   given up. It waits for the pause to end. A put-away press during the departure sets none;
 - `fight/gunmode/stop_test` covers what gun mode puts back over `fight/gunmode/fake.lua`. A start that fails at the
   input mask or at the rifle, or raises once the layer is on, gives back the rows, the mask and the layer. `coop off`
@@ -486,9 +485,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `story/quests/wiring_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared
   quests' notices;
 - `main/gun_test` covers gun mode's wiring through `main.lua` with a fake `fight/gunmode/mode.lua`: the mod folder
-  it reads its `gun_` lines from, the rounds' store (none without the native part), its start, the words, the notice
-  and the photo state it gets, the new-controller hook, no unknown-setting line for its `gun_` lines, the restore at
-  the first tick, `coop off`'s stop, the restore alone after a Lua reload with `coop off` still on;
+  it reads its `gun_` lines from, the rounds' store (none without the native part), its start, the words and the
+  notice it gets, the new-controller hook, no unknown-setting line for its `gun_` lines, the restore at the first
+  tick, `coop off`'s stop, the restore alone after a Lua reload with `coop off` still on;
 - `main/bike_test` covers the bike's wiring (`vehicles/bike/wiring.lua`) through `main.lua` with a fake
   `vehicles/bike/ride.lua`: the load line, what the ride gets (its asks, `coop-bike.txt`, the driving, the settings,
   SBO's busy reasons with coop fly, gun mode's rifle and our open screens), `coop bike` and its words, F3 and the pad's
