@@ -223,9 +223,15 @@ rounds in the magazine, then the magazines left (a part-spent one counted). The 
 While the native part runs, SBO's keep holds it across map changes. No image file ships with SBO. The entry is a child
 of the HUD's own D-pad marker, so it shows and hides with the HUD. A new HUD (after a map change) gets the
 entry built again with its key, cell, sizes and place. A box the marker's size holds it, so the item column
-never grows. In hip fire (the rifle up without the
-game's aim) a small crosshair shows at the screen's centre. `hud_entry=false` in `fight/gunmode/config.lua` turns the
-entry off.
+never grows. The entry's parts are found by their names in the HUD's widget trees. A HUD without the D-pad marker is
+tried once. While the native part runs, the keep also holds SB's HUD class (`WB_MainHUD_Master_C`). A hook on its
+Construct, registered in `fight/gunmode/wiring.lua` once a Lua load, then names each new HUD. The entry is built
+within a tenth of a second of that HUD coming on screen, with no walk of the game's objects. The log line then ends
+with `(HUD from its Construct)`. Gun mode waits 4 s after a new map, a death or a camp warp: a HUD shown sooner gets the
+entry when that wait ends. Without the hook (a Lua reload before the next map, the keep off, a hook that failed)
+gun mode looks for the HUD on screen: once 2 s after the entry was built, then every 10 s while it finds none it can
+use. In hip fire (the rifle up without the game's aim) a small crosshair shows at the screen's centre, on the HUD the
+entry was built in. `hud_entry=false` in `fight/gunmode/config.lua` turns the entry off.
 
 ### Free magazines
 
@@ -287,6 +293,39 @@ Gun mode calls no item add, save, shop or drop function. SB's own buy and drops 
 (once, until rounds come), `ammo: N rounds not taken (<why>): nothing loaded`,
 `ammo: free magazines (the round store is not ready)`, `rounds: a co-op save loaded: the rows asked (try N of 4)` and
 `rounds: N taken but the count did not fall in 10 s`.
+
+## Frame cost
+
+With `gun_mode=on`, gun mode asks SBO's keep for the assets of the rifle out, the aim, the rounds and the reload when
+it loads: the rifle layer's class and its four poses, the camera modifier, the rifle mesh, the morph's cube and flash,
+the muzzle flash, the three reload sounds, the two turn clips, the laser sight's Niagara system and parameter
+collection (`NS_A_GuideLaser`, `NC_NikkeMinigame`) and the two bodies the layer's rebuild swaps in for a moment
+(`Overlay.BASES` in `fight/gunmode/overlay.lua`). While the native part runs, the keep loads them off the frame and
+holds them for the game run. Any other asset, or one the keep does not hold, is found in memory through the engine's
+name hash before it is loaded. UE4SS's own lookup walks the game's objects for each asset not in memory: the first
+rifle out on a map froze the game for 100 to 340 ms in the 2026-11-21 test. The assets gun mode uses again (the reload
+sounds, the cube, the morph's flash, the muzzle flash, the turn clips, the laser's five objects) are kept between uses.
+Each is checked by its path before it is used, since a collection can free it.
+
+The second body of `Overlay.BASES` is `CH_P_EVE_01/CH_P_EVE_01`, which no pak of build 26123051 holds. With EVE in
+`CH_P_EVE_29` the layer finds no other body and the rifle comes out without it, as before. That missing body, like a
+pose the pak lacks, is looked for once a Lua load.
+
+Gun mode walks the game's objects at these times only:
+
+- the player controller, once a second while there is none (a title screen, a load);
+- the HUD on screen, as the HUD entry above says;
+- the pad's `Gamepad_DPad_Up` glyph, once each time the pad layer comes up until one is found, kept for that HUD;
+- the reticle's round slot, at the rifle out and when firing mode starts, at most once in 10 s while it is missing;
+- the drone, only when the engine's list of actors of its class (`CH_Drone_BP_C`, found by its path) cannot be read.
+  The drone of the last rifle out is used again while it is within 30 m of her. With no drone that close gun mode
+  looks again every 5 s.
+
+The camera modifier is tried once a rifle out. The names `FX_Fire` (the muzzle flash) and `DefaultSlot` (the layer's
+clips) are made once.
+
+While the rifle is out, `UE4SS.log` has a `[GM]` line every 10 s: `perf: tick <average> ms average, <worst> ms worst,
+<n> ticks, Lua <heap> KB; ms a tick:` and the six costliest parts of the tick.
 
 ## coop gun
 

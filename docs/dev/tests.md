@@ -54,7 +54,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
-`fight/gunmode/`: `aimrot`, `dpad`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`, `morph`, `nikke`,
+`fight/gunmode/`: `aimrot`, `cost`, `dpad`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`, `morph`, `nikke`,
 `off`, `release`, `rifle_frame`, `texts`, `v4_rules`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
@@ -88,7 +88,20 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   glyph gives none. Over a fake UMG the real entry puts the G icon on the marker's own key cell (`btn`). With no such
   cell it shows no cell at all, since an image with no brush draws a white square. The cell also stays hidden while
   the marker's up button has no texture. An entry built again in a new HUD gets the G icon, the cell, the sizes and
-  the place in the same tick;
+  the place in the same tick. With the object walks counted, the entry is built with one walk (the look for the HUD)
+  and none while it lives. The crosshair goes on that HUD with no walk. With no HUD on screen, or a HUD without the
+  item column, the look comes every 10 s and the column is tried once. The pad glyph is walked for once each time the
+  pad layer comes up, then kept for the HUD. With the keep serving SB's HUD class, its Construct is hooked once and
+  the HUD it names gets the entry with no walk. A hook that fails gives one line and the looks go on;
+- `fight/gunmode/cost_test` counts gun mode's engine lookups over `fight/gunmode/fake.lua`, a fake UE4SS world with
+  EVE, her controller, her body's post-process instance, the input mappings and SB's rows. With no controller,
+  FindFirstOf runs once a second. With the keep serving gun mode's assets and the engine's name hash proven, two
+  rifle outs through aims, bursts, reloads and departures look for no asset with StaticFindObject and load none of
+  the kept ones. A layer pose or a rebuild body the paks lack is looked for once a Lua load. The camera modifier is
+  tried once a rifle out. The reticle's text is walked for at the rifle out and at an aim, at most once in 10 s. The
+  laser's two assets, the rifle's mesh and the two turn clips are asked of the keep. A drone near EVE is hidden and
+  kept: the next rifle out finds it with no list, unless it is 3000 or more away. The drones come from the engine's
+  class hash through `GunMode.DRONE_CLASS`. The flash's `FX_Fire` and the layer's `DefaultSlot` names are made once;
 - `fight/gunmode/v4_rules_test` covers the layer clip choice (hip fire raises the rifle, a ground move carries it,
   the flip keeps the aim), the aimed reload on the aim's pose, the aim bridge through a dodge, her body tilt, the aim
   clip by rifle pitch, the recoil, the hip-fire turn, the comeback after an interaction, the chest turn's ease back (a
@@ -97,7 +110,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `fight/gunmode/aimrot_test`, `ik_pin_test`, `morph_test`, `rifle_frame_test`, `laser_test`, `input_memo_test` and
   `g1_gates_test` cover the chest-turn loop, the v4 left-hand pin, the rifle's arrival and departure timing, the
   rifle's frame and its morph scale, the laser's start (0.12 s on target, 0.6 s off it, the rifle not turned on the
-  rifle layer), the laser end sent only when it moved, one key read a frame and the G1 gates;
+  rifle layer), the laser end sent only when it moved, the laser's objects looked up at its first start only, one key
+  read a frame and the G1 gates;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
   layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.
