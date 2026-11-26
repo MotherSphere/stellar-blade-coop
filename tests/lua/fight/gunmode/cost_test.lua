@@ -173,4 +173,28 @@ do
     assert((w.n.asset[CAMMOD] or 0)>n,'the next rifle out tries again')
 end
 
+-- 5. No reticle text in the HUD: its text blocks are walked for at the rifle out and when firing mode is entered, at
+--    most once in 10 s (468f7ab6, b812f708), not once a second while the rifle is out. Only the reticle's round slot
+--    is looked for, with no list of the bottom-left texts that grew at each walk (a5556d87).
+do
+    local w=world()
+    local logs={}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end})
+    frames(gun,1)
+    out(gun)
+    frames(gun,60)
+    assert(count(w,'TextBlock')==1,count(w,'TextBlock')..' text walks at the rifle out')
+    frames(gun,60*60)
+    assert(count(w,'TextBlock')==1,count(w,'TextBlock')..' text walks in 60 s carried')
+    for _=1,2 do
+        w.pawn.bTPSMode,w.down.RightMouseButton=true,true
+        frames(gun,120)
+        w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
+        frames(gun,120)
+    end
+    assert(count(w,'TextBlock')==2,count(w,'TextBlock')..' text walks after two aims 4 s apart')
+    local said=table.concat(logs,'\n')
+    assert(not said:find('bottom-left',1,true),said)
+end
+
 print('gunmode cost_test ok')

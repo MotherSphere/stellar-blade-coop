@@ -4,10 +4,10 @@
 -- The rifle's own round: NIKKE rapid rounds, a magazine of cfg.mag_size and cfg.spare_mags spare magazines, fired
 -- at the NIKKE shot's cool time. A reload (cfg.reload_time, the NIKKE squad's reload animation) comes when the
 -- magazine runs dry or while the rifle is lowered with a part-spent one. The reticle's round slot (WB_Tps_Bullet3,
--- under the drone's reticle) shows the round's name and the rounds in the magazine while firing mode is held; the
--- drone's round count at the bottom left (WB_MainHUD_Lower1Item, beside D-pad Right) shows rounds | magazines while
--- the rifle is out. The game's own text goes back when the rifle goes away. A new world (a map, a death, a camp's
--- travel) gives full magazines again.
+-- under the drone's reticle) shows the round's name and the rounds in the magazine while firing mode is held. The
+-- drone's round count at the bottom left keeps the game's own text: gun mode's HUD entry beside the D-pad marker shows
+-- the rifle's rounds (a5556d87). The game's own text goes back when the rifle goes away. A new world (a map, a death,
+-- a camp's travel) gives full magazines again.
 -- Rounds are counted at the rate the game fires them: one at the press, then one per cool time (rounded up to whole
 -- frames, as the game checks the cool time once a frame). While reloading the shot's cool time is the reload's, so
 -- the trigger fires nothing until the magazine is full again.
@@ -15,9 +15,8 @@ local Ammo={}
 
 Ammo.SLOT='WB_Tps_Bullet3'
 Ammo.NAME_TEXT,Ammo.COUNT_TEXT='TextBlock_bullet_name','TextBlock_ItemCount'
-Ammo.LOWER,Ammo.LOWER_TEXT='WB_MainHUD_Lower1Item','TextBlock_Item_Count'
 
--- The bottom-left text: rounds in the magazine | magazines left (a part-spent one counted).
+-- The HUD entry's text: rounds in the magazine | magazines left (a part-spent one counted).
 function Ammo.lower_text(left,reserve,mag)
     return ('%d | %d'):format(math.floor(left),math.ceil(reserve/mag))
 end
@@ -35,31 +34,27 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
     local self={left=cfg.mag_size,reserve=cfg.mag_size*cfg.spare_mags,reload_until=nil,acc=0,dt=1/60,held=false}
     on_reload=on_reload or function() end
     local ui={} -- name, count: the slot's text blocks; saved: their own text and colour.
+    local was_aiming=false
 
     local function find()
         if g.valid(ui.name) and g.valid(ui.count) then return true end
-        ui.name,ui.count,ui.lower=nil,nil,nil
-        if (ui.retry or 0)>os.clock() then return false end
-        ui.retry=os.clock()+1.0 -- FindAllOf walks every text block: once a second at most.
+        ui.name,ui.count=nil,nil
+        -- FindAllOf walks every object: only after an event (ui.look: the rifle out, firing mode entered), at most
+        -- once in 10 s while the slot is missing (468f7ab6, b812f708: a walk costs 60-90 ms)
+        if not ui.look or (ui.retry or 0)>os.clock() then return false end
+        ui.look,ui.retry=false,os.clock()+10.0
         pcall(function()
             for _,t in ipairs(FindAllOf('TextBlock') or {}) do
                 local full=t:GetFullName()
                 if full:find(Ammo.SLOT,1,true) and full:find('MainHUD',1,true) then
                     local leaf=full:match('([%w_]+)$')
                     if leaf==Ammo.NAME_TEXT then ui.name=t elseif leaf==Ammo.COUNT_TEXT then ui.count=t end
-                elseif full:find(Ammo.LOWER,1,true) and full:find('MainHUD_Master',1,true) then
-                    local leaf=full:match('([%w_]+)$')
-                    local txt=g.try(function() return t:GetText():ToString() end)
-                    ui.lower_all=ui.lower_all or {}
-                    ui.lower_all[#ui.lower_all+1]=full:match('Lower1Item%.(.*)$')..'="'..tostring(txt)..'"'
                 end
             end
         end)
         if not ui.logged then
             ui.logged=true
-            g.log('ammo: bottom-left texts: '..table.concat(ui.lower_all or {},' | '))
-            g.log('ammo: reticle round slot '..((ui.name and ui.count) and 'found' or 'not found')..', bottom-left count '..
-                (ui.lower and 'found' or 'not found'))
+            g.log('ammo: reticle round slot '..((ui.name and ui.count) and 'found' or 'not found'))
         end
         return ui.name~=nil and ui.count~=nil
     end
@@ -80,13 +75,11 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
         if not find() then return end
         if not ui.saved then
             ui.saved={}
-            for _,k in ipairs({'name','count','lower'}) do
+            for _,k in ipairs({'name','count'}) do
                 local t=ui[k]
-                if t then
                 local text=g.try(function() return t:GetText():ToString() end)
                 local c=g.try(function() local v=t.ColorAndOpacity.SpecifiedColor; return {v.R,v.G,v.B,v.A} end)
                 ui.saved[k]={text=text,col=c}
-                end
             end
         end
         local empty=self.left<=0 and self.reserve<=0
@@ -102,52 +95,13 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
         if ui.shown_count~=count then
             if set_text(ui.count,count) then ui.shown_count=count end
         end
-        -- The bottom-left slot shown while the rifle is out (the game shows it only in its aim and in fights): the
-        -- count's text block and every panel and widget above it up to the HUD made visible, each put back after.
-        if g.valid(ui.lower) and not ui.chain then
-            ui.chain={}
-            local w=ui.lower
-            for _=1,12 do
-                local parent=g.try(function() return w:GetParent() end)
-                if not g.valid(parent) then
-                    -- The top of a widget tree: its user widget (the tree's outer's outer).
-                    parent=g.try(function() return w:GetOuter():GetOuter() end)
-                    if not (g.valid(parent) and g.try(function() return parent:IsA(StaticFindObject('/Script/UMG.UserWidget')) end)) then break end
-                end
-                local name=g.try(function() return parent:GetFName():ToString() end) or '?'
-                if name:find('MainHUD_Master') then break end
-                ui.chain[#ui.chain+1]={w=parent,vis=g.try(function() return parent:GetVisibility() end),
-                    op=g.try(function() return parent:GetRenderOpacity() end),name=name}
-                w=parent
-            end
-            local names={}
-            for _,e in ipairs(ui.chain) do names[#names+1]=e.name..'('..tostring(e.vis)..','..tostring(e.op)..')' end
-            g.log('ammo: bottom-left slot chain: '..table.concat(names,' < '))
-        end
-        if ui.chain and (ui.vis_at or 0)<os.clock() then
-            ui.vis_at=os.clock()+0.1
-            for _,e in ipairs(ui.chain) do
-                if g.valid(e.w) then
-                    pcall(function() if e.w:GetVisibility()==1 or e.w:GetVisibility()==2 then e.w:SetVisibility(4) end end)
-                    pcall(function() if e.w:GetRenderOpacity()<1 then e.w:SetRenderOpacity(1.0) end end)
-                end
-            end
-        end
-        if g.valid(ui.lower) then
-            local low=Ammo.lower_text(math.max(0,self.left),self.reserve,cfg.mag_size)
-            if ui.shown_lower~=low or (ui.check_low or 0)<os.clock() then -- every 0.1 s: the game writes its count
-                if set_text(ui.lower,low) then ui.shown_lower=low end
-                pcall(function() ui.lower:SetColorAndOpacity(colour(empty and cfg.reload_color or cfg.round_color)) end)
-                ui.check_low=os.clock()+0.1
-            end
-        end
     end
 
     -- The game's own text and colour back in the slot.
     function self.restore()
         if dpad then pcall(dpad.hide) end
         if ui.saved then
-            for _,k in ipairs({'name','count','lower'}) do
+            for _,k in ipairs({'name','count'}) do
                 local t,sv=ui[k],ui.saved[k]
                 if g.valid(t) and sv then
                     if sv.text then set_text(t,sv.text) end
@@ -155,14 +109,7 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
                 end
             end
         end
-        for _,e in ipairs(ui.chain or {}) do
-            if g.valid(e.w) then
-                if e.vis then pcall(function() e.w:SetVisibility(e.vis) end) end
-                if e.op then pcall(function() e.w:SetRenderOpacity(e.op) end) end
-            end
-        end
-        ui.chain=nil
-        ui.saved,ui.shown_name,ui.shown_count,ui.shown_lower=nil,nil,nil,nil
+        ui.saved,ui.shown_name,ui.shown_count=nil,nil,nil
     end
 
     local function start_reload(now,why)
@@ -178,6 +125,9 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
 
     -- Every frame while the rifle is out. aiming: firing mode; firing: the trigger held.
     function self.tick(aiming,firing,now)
+        -- Firing mode entered: the slot looked for if not found yet.
+        if aiming and not was_aiming then ui.look=true end
+        was_aiming=aiming
         local dt=now-(self.last or now)
         self.last=now
         if dt>0 and dt<0.2 then self.dt=self.dt+(dt-self.dt)*0.1 end
@@ -242,7 +192,9 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
     end
 
     -- After the rows are taken again (the rifle out): no round if both magazine and spares are spent.
+    -- The reticle's slot looked for at the next tick.
     function self.sync()
+        ui.look=true
         if self.left<=0 and self.reserve<=0 then pcall(cool,999) end
     end
 
