@@ -110,6 +110,60 @@ do
     assert(cools[#cools]==0.05,'the rate of fire after the refill\'s first round: '..tostring(cools[#cools]))
 end
 
+-- 4c. The reticle's round slot on the first frame of each aim: the game writes its own round's name when its aim
+--     starts, here also on the aim's second frame. The slot found at the first aim is kept. A block whose address
+--     another object took (a freed HUD) gets no write. Only the reticle's slot is written: the bottom-left count keeps
+--     the game's text (f60b4d27).
+do
+    local function block(full)
+        local b={text='game',full=full,ColorAndOpacity={SpecifiedColor={R=1,G=1,B=1,A=1}},writes=0}
+        function b.GetFullName(o) return o.full end
+        function b.IsValid() return true end
+        function b.SetText(o,t) o.text=t; o.writes=o.writes+1 end
+        function b.GetText(o) return {ToString=function() return o.text end} end
+        function b.SetColorAndOpacity() end
+        return b
+    end
+    local hud='TextBlock /Engine/Transient.GameEngine_0:Instance_0.WB_MainHUD_Master_C_1.WidgetTree.'
+    local name=block(hud..'WB_Tps_Bullet3.WidgetTree.TextBlock_bullet_name')
+    local count=block(hud..'WB_Tps_Bullet3.WidgetTree.TextBlock_ItemCount')
+    local lower=block(hud..'WB_MainHUD_Lower1Item.WidgetTree.WB_MainHUD_ItemSlotGeneral.WidgetTree.TextBlock_Item_Count')
+    local walks=0
+    FindAllOf=function(class) if class=='TextBlock' then walks=walks+1; return {lower,name,count} end return {} end
+    FText=function(t) return t end
+    local clock=10
+    local real_clock=os.clock
+    os.clock=function() return clock end
+    local g={log=function() end,valid=function(o) return o~=nil and o:IsValid() end,
+        try=function(f) local ok,r=pcall(f); if ok then return r end end}
+    function g.path(o) local f=g.valid(o) and o:GetFullName(); return f and f:match('^%S+ (.+)$') or nil end
+    local cfg={mag_size=30,spare_mags=2,reload_time=1,fire_interval=0.05,round_name='NIKKE RAPID',reload_text='R',
+        empty_text='E',round_color={1,1,1},reload_color={1,0,0}}
+    local a=Ammo.new(g,cfg,function() end,function() end)
+    local function run(n,aim) for _=1,n do clock=clock+1/60; a.tick(aim,false,clock) end end
+    run(5,true)
+    assert(name.text=='NIKKE RAPID' and walks==1,'the first aim: '..tostring(name.text)..', '..walks..' walks')
+    run(30,false)
+    name.text='DRONE ROUND' -- The game's aim starts: its own round's name.
+    run(1,true)
+    assert(name.text=='NIKKE RAPID','the first frame of the next aim: '..tostring(name.text))
+    name.text='DRONE ROUND' -- Written again by the game on the aim's second frame.
+    run(1,true)
+    assert(name.text=='NIKKE RAPID','the second frame of the aim: '..tostring(name.text))
+    assert(walks==1,'the slot found at the first aim is kept: '..walks..' walks')
+    assert(lower.text=='game' and lower.writes==0,'the bottom-left count keeps the game\'s text')
+    -- A map change frees the HUD. A text block of another widget takes the name block's address: it passes IsValid.
+    run(30,false)
+    name.full='TextBlock /Engine/Transient.GameEngine_0:Instance_0.WB_Other_C_7.WidgetTree.TextBlock_Title'
+    name.text,name.writes='Title',0
+    clock=clock+1
+    run(10,true)
+    a.stop()
+    assert(name.text=='Title' and name.writes==0,'no write to another object at the old address: '..name.writes)
+    os.clock=real_clock
+    FindAllOf=function() return {} end
+end
+
 -- The one zone event gun mode may fire: kind 2 on the shot's row. Never matchmaking's kinds 15, 16 or 19, another
 -- kind or another row. mode.lua calls CreateSBZoneEvent once, inside the guarded zone_event, and the shot (fire_row)
 -- reaches it only through that guard.
