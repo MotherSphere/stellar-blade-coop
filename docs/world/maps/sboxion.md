@@ -40,7 +40,7 @@ There are eight builds of the pak, under the same three file names. Only one of 
 | 24 November 2026, full test, second build | `Xion_P` and the five rebuilt room levels | 161 | 1203 bytes | 1,546,008 bytes | `1203_1546008` |
 | 24 November 2026, full test, third build | `Xion_P` and eleven room levels | 167 | 1863 bytes | 1,918,741 bytes | `1863_1918741` |
 | 25 November 2026, full test, fourth build | `Xion_P` and nineteen room levels | 175 | 2719 bytes | 2,331,195 bytes | `2719_2331195` |
-| 26 November 2026, full test, fifth build | `Xion_P` and fifteen room levels | 171 | 2303 bytes | 2,266,129 bytes | `2303_2266129` |
+| 26 November 2026, full test, fifth build | `Xion_P` and fifteen room levels | 171 | 2303 bytes | 2,267,202 bytes | `2303_2267202` |
 
 All eight pass the check above. The module looks for package paths, never for a version: `self.gate()` in
 `sboxion.lua` hands the version to `coop xion status`, which prints it. Nothing else reads it. Two rebuilds of the
@@ -333,7 +333,7 @@ In the module and in its log a room is one such level, so a suite counts as one 
 levels, 98 of them always loaded. The third full test build lists 167, 133 of them always loaded. The fifth lists 171,
 137 of them always loaded. In the second and third builds the first five rooms hold 510 actors: 476 pieces and 34
 movable lights. The six rooms the third build adds hold 688: 647 pieces and 41 lights. The four levels the fifth
-build adds hold 631: 588 pieces and 43 lights, 22 of which cast shadows. A piece names one of Stellar Blade's meshes
+build adds hold 633: 589 pieces and 44 lights, 23 of which cast shadows. A piece names one of Stellar Blade's meshes
 by its path. The mesh loads from the player's own game files. No `/Script/SB` class is in a room.
 
 A room has an open doorway of ours at the place of SB's closed door. SB's door stays where it is unless the module hides
@@ -357,7 +357,7 @@ screen: the room was loaded with the map.
 | `D087` | Canteen, with doorways to the kitchen back room and the wash house | `Xion_Rooms_D087` | (-2313, -1273, 457) | 104 m | 204 pieces, 20 lights | 2 |
 | `D111` | Radio room, with a doorway to the watch post | `Xion_Rooms_D111` | (10640, 890, 1462) | 200 m | 99 pieces, 8 lights | 6 |
 | `D109` | Bookshop, with a doorway to the goods store | `Xion_Rooms_D109` | (9250, 1494, 1354) | 185 m | 197 pieces, 8 lights | 9 |
-| `D029` | Courier office | `Xion_Rooms_D029` | (-6118, 4972, 212) | 31 m | 88 pieces, 7 lights | 3 |
+| `D029` | Courier office | `Xion_Rooms_D029` | (-6118, 4972, 212) | 31 m | 89 pieces, 8 lights | 3 |
 
 The first five rooms are in every pak that holds rooms. The next six are in the third, fourth and fifth builds. The
 last four are in the fifth build only. The actors are those of the second build and later: the first build's five
@@ -555,7 +555,7 @@ On a co-op save, alone.
    third build it reads `11 of 15 rooms`, then eleven lines with 4, 4, 4, 3, 8, 4, 5, 2, 3, 4 and 1 rows. With the
    fifth it reads `15 of 15 rooms`, then fifteen lines, the last four with 2, 6, 9 and 3 rows. Note each ms figure
    and any hitch.
-2. `coop xion status` reads `pak 1203_1501348` (`1863_1918741` with the third build, `2303_2266129` with the fifth)
+2. `coop xion status` reads `pak 1203_1501348` (`1863_1918741` with the third build, `2303_2267202` with the fifth)
    and ends with `rooms 5 of 5 open` (`rooms 11 of 11 open`, `rooms 15 of 15 open`). It names the nearest waypoint.
    Walk until it reads `nearest waypoint D158`, 35 m east of the city point and 3.7 m higher, near
    (-4798, 6917, 596).
@@ -798,7 +798,7 @@ The same as with the rooms pak. The rooms open as before. The recovery catches E
 `Zone_SBO_Xion` and waits while it is another. The levels line counts the 34 volume levels apart. The look lines say
 what wakes up ([What the log shows](#what-the-log-shows)). Nothing pins the pak's version: `coop xion status` prints
 `pak 1203_1501548`, `pak 1203_1546008` for the second build, `pak 1863_1918741` for the third, `pak 2719_2331195`
-for the fourth and `pak 2303_2266129` for the fifth.
+for the fourth and `pak 2303_2267202` for the fifth.
 
 ### What is not known
 
