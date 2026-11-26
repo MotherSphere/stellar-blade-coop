@@ -519,7 +519,8 @@ Probe.TESTS['6']={timeout=300,steps={
         local pc=assert(ctx.controller(),'no player controller')
         local axis=U.value_of(pc.Player.AspectRatioAxisConstraint)
         local fov=U.value_of(pc.PlayerCameraManager:GetFOVAngle())
-        local v=ctx.kit.screen() -- The kit's own read of the viewport (ui/kit/kit.lua).
+        -- The kit's own read of the viewport (ui/kit/kit.lua); an older kit has none, so the camera reads still log.
+        local v=ctx.kit.screen and ctx.kit.screen()
         return true,string.format('aspect ratio axis constraint %s, camera FOV %s, UI viewport %s',tostring(axis),
             tostring(fov),v and string.format('%.0fx%.0f units at DPI scale %.3g',v.w,v.h,v.s) or 'unread')
     end),

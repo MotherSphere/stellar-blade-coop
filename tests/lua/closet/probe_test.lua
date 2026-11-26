@@ -457,6 +457,14 @@ local tests = {
         ok(has(r, 'no GetNumBones'))
         ok(has(r, 'probe: PASS 6 skin')) ok(has(r, 'probe: END 6 4/5'))
     end,
+    test6_fov_on_a_kit_without_a_screen_read = function() -- an older kit (no kit.screen): the camera reads still pass
+        local r = rig()
+        reads(r)
+        r.kit.screen = nil
+        play(r, '6')
+        ok(has(r, 'probe: PASS 6 fov: aspect ratio axis constraint 1, camera FOV 70, UI viewport unread'))
+        ok(has(r, 'probe: END 6 5/5'))
+    end,
     test6_skin_without_a_closet_fit = function()
         local r = rig()
         reads(r)
