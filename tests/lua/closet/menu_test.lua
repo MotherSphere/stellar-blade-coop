@@ -680,6 +680,70 @@ local tests = {
         all_gone(r)
     end,
 
+    -- The pad chord LB + D-pad Left (main/input.lua's closet): LB's press reaches the open menu first as tab_left;
+    -- frames later D-pad Left's press comes as left, then the toggle, in one frame (native pad.h: kCloset after its
+    -- kLeft). The close leaves the tab, the row and the focus where they were; Q then F1 (closet_key) keeps Q's move.
+    the_pad_chord_that_closes_keeps_the_tab = function()
+        local r = rig()
+        r.menu.open()
+        at(r, 0.4, 'tab_right', 'tab_right', 'down', 'down')
+        local title = detail(r)
+        local function chord(t)
+            at(r, t, 'tab_left') -- LB down.
+            tick(r, t + 0.1) -- LB held.
+            r.t = t + 0.2
+            r.menu.nav('left') -- D-pad Left: left, then closet, before the next frame.
+            r.menu.toggle()
+        end
+        chord(0.5)
+        all_gone(r)
+        r.t = 1
+        r.menu.open()
+        eq((detail(r)), title, 'the same tab and row after a reopen')
+        ok(F.called(r.kit.live(F.TAB)[3].o, 'FocusTabButton'), 'the torso tab focused')
+        -- In the tabs: left moves the tab too; the chord undoes both.
+        at(r, 1.4, 'up', 'up', 'up')
+        chord(1.5)
+        all_gone(r)
+        r.t = 2
+        r.menu.open()
+        eq((detail(r)), 'Chest tattoo', 'the torso tab again')
+        -- In the grid with a preview: the chord's Back asks Keep this look? on the same tab and tile.
+        at(r, 2.4, 'down', 'down', 'down', 'down', 'down', 'right', 'right', 'select', 'right')
+        eq((detail(r)), 'Maid top', 'on the worn tile')
+        chord(2.5)
+        eq(popups(r), 1, 'the chord asks')
+        at(r, 2.7, 'back')
+        eq((detail(r)), 'Top', 'the popup Back: the Top row of the torso tab')
+        -- Q, then F1 a frame later: the tab Q chose stays.
+        at(r, 3, 'tab_left')
+        tick(r, 3.1)
+        r.menu.toggle()
+        at(r, 3.1, 'no')
+        all_gone(r)
+        r.t = 4
+        r.menu.open()
+        eq((detail(r)), 'Face', 'Q then F1: the head tab')
+        -- left and F1 in other frames: no chord either.
+        at(r, 4.4, 'tab_right', 'tab_left')
+        tick(r, 4.5)
+        at(r, 4.5, 'left')
+        tick(r, 4.6)
+        r.menu.toggle()
+        all_gone(r)
+        r.t = 5
+        r.menu.open()
+        eq((detail(r)), 'Face', 'Q, left, then F1: the head tab')
+        -- LB and D-pad Left pressed in one poll: left, tab_left, then closet (pad.h's event order).
+        at(r, 5.4, 'tab_right')
+        at(r, 5.5, 'left', 'tab_left')
+        r.menu.toggle()
+        all_gone(r)
+        r.t = 6
+        r.menu.open()
+        eq((detail(r)), 'Chest tattoo', 'one poll: the torso tab kept')
+    end,
+
     popup_yes_keeps_and_saves = function()
         local r = rig()
         on_top(r)

@@ -73,6 +73,9 @@ function Menu.new(o)
     -- back_at: when the input is given back after a close; owed: the kit still holds it for us since a close;
     -- unreverted: a close's revert failed (no EVE during a map change), asked again each RETRY s while closed.
     local back_at,owed,unreverted=nil,false,false
+    -- frame: ticks so far; undo: the focus before the last tab_left while only left followed it ({tab, row, col, tile,
+    -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle).
+    local frame,undo=0,nil
     local function words() return o.words and o.words() or T.en end
 
     local function cutscene(eve)
@@ -261,7 +264,7 @@ function Menu.new(o)
             return false,T.en.closet.refused[key]
         end
         if not tab then tab,row=1,1 end
-        col,tile,asking,changed,due,said='rows',1,false,false,nil,nil
+        col,tile,asking,changed,due,said,undo='rows',1,false,false,nil,nil,nil
         bare=not dress.previewing() and #(dress.choices() or {})==0
         back_at,owed,unreverted=nil,false,false -- An owed revert: Back or No on this open reverts.
         opened=now()
@@ -345,9 +348,15 @@ function Menu.new(o)
 
     function self.is_open() return open end
     -- closet_key (main/keys.lua): closed, open(); open, the Back of the rows level (the popup when the look changed, a
-    -- revert close when not; on the popup, its Back).
+    -- revert close when not; on the popup, its Back). The pad chord LB + D-pad Left (main/input.lua's closet) reaches
+    -- the open menu as tab_left at LB's press, then left and this toggle in one frame at D-pad Left's (native pad.h;
+    -- both pressed in one poll: left, tab_left, toggle). That toggle first puts the focus back as it was before the
+    -- tab_left, so the chord leaves the tab and row as they were. Q, then F1 in a later frame, keeps Q's tab.
+    -- shortcut: a chord whose D-pad Left comes with no left (D-pad Up or Down held too) keeps LB's tab move; read the
+    -- pad's held LB in Lua if players hit it.
     function self.toggle()
         if not open then return self.open() end
+        if undo and undo.at==frame then tab,row,col,tile,tab_top=table.unpack(undo,1,5) end
         if col=='grid' then col,due='rows',nil end -- As the grid's Back: a tile preview due is dropped.
         return self.nav('back')
     end
@@ -355,6 +364,9 @@ function Menu.new(o)
     -- left click: the tab, row or popup button under the mouse). yes and no answer the popup too; refresh is its No.
     function self.nav(word)
         if not open then return end
+        if word=='tab_left' then undo={tab,row,col,tile,tab_top,at=frame} -- For the pad chord (self.toggle).
+        elseif word=='left' and undo then undo.at=frame
+        else undo=nil end
         if word=='select' and now()<opened+Menu.ARM then return end
         if asking then
             if word=='click' then word=view.popup_hit() end
@@ -407,6 +419,7 @@ function Menu.new(o)
     -- off, a tile the mouse picked, the focused tile worn once due.
     function self.tick()
         local t=now()
+        frame=frame+1
         if not open then
             -- shortcut: kit.holding() does not say for whom, so a panel that took the input meanwhile keeps owed set
             -- (open then skips the panel guard); read the holder once the kit says it.
