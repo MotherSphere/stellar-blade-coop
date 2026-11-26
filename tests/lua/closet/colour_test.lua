@@ -10,10 +10,13 @@ local run = dofile('tests/lua/closet/run.lua')
 package.loaded.UEHelpers = {GetPlayer = function() return nil end} -- closet/dress.lua (commands.lua) needs it to load
 local Slots = require('closet.slots')
 
+local addresses = 0
 local function obj(name)
-    local o = {name = name, alive = true}
+    addresses = addresses + 1
+    local o = {name = name, alive = true, address = addresses}
     o.type = function() return 'UObject' end
     function o:IsValid() return self.alive end
+    function o:GetAddress() return self.address end
     return o
 end
 local function material(name, defaults)
@@ -27,6 +30,7 @@ local function instance_of(parent)
     local m = obj('MID of ' .. parent.name)
     m.mid, m.Parent, m.values, m.sets = true, parent, {}, {}
     function m:SetVectorParameterValue(name, v)
+        if not self.alive then self.freed_use = true end
         self.values[name] = {R = v.R, G = v.G, B = v.B, A = v.A}
         self.sets[#self.sets + 1] = name
     end
@@ -42,7 +46,10 @@ local function component(name, mats)
     local c = obj(name)
     c.mats, c.creates = mats, 0
     function c:GetMaterial(i) return self.mats[i] end
-    function c:SetMaterial(i, m) self.mats[i] = m end
+    function c:SetMaterial(i, m)
+        if not self.alive then self.freed_use = true end
+        self.mats[i] = m
+    end
     function c:CreateDynamicMaterialInstance(i, source, optional)
         if source then self.mats[i] = source end
         local now = self.mats[i]
@@ -247,6 +254,33 @@ local tests = {
         r.c.tick()
         ok(r.body.mats[3] == game, 'still the game\'s')
         near(game.values[TINT], {R = 0.2, G = 0.3, B = 0.4, A = 1}, 'its values back')
+    end,
+
+    a_map_change_before_the_watchdog_never_touches_the_old_body = function()
+        local r = rig()
+        r.c.set('primary', 'crimson')
+        r.c.tick()
+        local old, old_mid = r.body, r.body.mats[3]
+        -- A map change: the old world's objects are gone, dress.parts() gives the new EVE's Mesh at once while
+        -- applied() stays the same until the dress's watchdog mixes again.
+        old.alive, old_mid.alive = false, false
+        r.body = component('NewBody', {[3] = r.top, [4] = r.glove})
+        r.parts = {{c = r.body, slots = {[3] = 'Chest', [4] = 'Gloves'}}}
+        r.c.set('primary', 'navy')
+        r.c.tick()
+        ok(not old.freed_use and not old_mid.freed_use, 'nothing sent to the old body or its instance')
+        eq(r.body.creates, 1, 'the top of the new body coloured')
+        near(r.body.mats[3].values[TINT], {R = rgb('navy'), G = select(2, rgb('navy')), B = select(3, rgb('navy')),
+            A = 1}, 'navy on the new top')
+        -- The same with a slot given back: the old record of a gone component is dropped, not given back.
+        r.c.tick()
+        local gone = r.body
+        gone.alive, gone.mats[3].alive = false, false
+        r.body = component('ThirdBody', {[3] = r.top})
+        r.parts = {{c = r.body, slots = {[3] = 'Chest'}}}
+        r.c.set('primary', 'off')
+        r.c.tick()
+        ok(not gone.freed_use and not gone.mats[3].freed_use, 'Off sends nothing to a gone component')
     end,
 
     a_slot_that_fails_is_left_alone = function()

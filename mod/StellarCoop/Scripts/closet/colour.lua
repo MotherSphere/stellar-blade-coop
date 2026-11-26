@@ -164,9 +164,19 @@ function Colour.new(o)
     end
     -- A slot no set role reaches: its values from before, then its material from before.
     local function give_back(s)
+        -- Gone with the old world (a map change): nothing to give back.
+        if not (U.valid(s.c) and U.valid(s.mid)) then return end
         for name in pairs(s.set) do put(s,name,nil) end
         local done,why=pcall(function() s.c:SetMaterial(s.index,s.original) end)
         if not done then log('colour: slot '..s.index..' not given back: '..tostring(why)) end
+    end
+    -- A record still on the worn component: after a map change dress.parts() gives the new EVE's Mesh before applied()
+    -- grows, while the record's component and instance went with the old world.
+    local function mine(s,c)
+        local ok,same=pcall(function()
+            return U.valid(s.c) and U.valid(s.mid) and U.valid(c) and U.address(s.c)==U.address(c)
+        end)
+        return s and ok and same and s or nil
     end
     -- The palette on the worn parts; the slots it no longer reaches given back.
     local function paint(parts)
@@ -177,7 +187,7 @@ function Colour.new(o)
                 local tint=role~='glow' and palette[role]
                 local glow=role=='glow' and palette.glow
                 local key=i..':'..index
-                local s=(tint or glow) and (slots[key] or instance(part.c,index))
+                local s=(tint or glow) and (mine(slots[key],part.c) or part.c and instance(part.c,index))
                 if s then
                     kept[key],coloured=s,coloured+1
                     local r,g,b=Colour.swatch(tint)
