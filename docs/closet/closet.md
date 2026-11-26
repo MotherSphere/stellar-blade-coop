@@ -77,8 +77,9 @@ ends with `probe: END <n> <passed>/<total>`. `NOTE` lines say what to do or what
 | 4 | The NanoSuit detail panel in its three craft states | Nothing |
 | 5 | Focus and input with the parts on screen, then a map change | Press Esc when asked, then fast travel |
 
-A test ends by itself after 30 s (test 5: 90 s). `coop closet probe off` or `coop ui reset` ends it at once. The probe
-touches only its own widgets: never EVE, the closet's look or a save.
+A test ends by itself after 30 s (test 5: 90 s). `coop closet probe off` ends it at once. While a test holds the input
+(the mouse windows of tests 1, 3 and 5), `coop ui reset` gives it back and ends the test. In test 5 the game gets its
+keys back before the fast travel. The probe touches only its own widgets: never EVE, the closet's look or a save.
 
 ## Tests
 

@@ -27,10 +27,15 @@ local function fake_kit()
         k.made[#k.made + 1] = rec
         return rec
     end
-    function k.alive(rec) return rec and rec.live and k.up and rec.o or nil end
+    -- As the real kit: a part stays ours while the root is only hidden (a pause); a rebuild (live=false) ends it.
+    function k.alive(rec) return rec and rec.live and rec.o or nil end
     function k.drop(rec) if rec.live then rec.live = false; k.dropped = k.dropped + 1 end end
     function k.input(on, who)
         k.inputs[#k.inputs + 1] = {on, who}
+        if not on and k.ignore_release and k.ignore_release > 0 then -- no player controller yet: input_mode returns
+            k.ignore_release = k.ignore_release - 1
+            return
+        end
         if on then k.held = who elseif k.held == who then k.held = nil end
     end
     function k.holding() return k.held ~= nil end
@@ -40,12 +45,13 @@ local function fake_kit()
 end
 
 local function rig(tests, kit)
-    local r = {log = {}, now = 10, kit = kit or fake_kit(), found = {}, made = {}}
+    local r = {log = {}, now = 10, kit = kit or fake_kit(), found = {}, made = {}, world = true}
     package.loaded['closet.ui.probe'] = nil
     local Probe = require('closet.ui.probe')
     r.Probe = Probe
     r.p = Probe.new({kit = function() return r.kit end, log = function(m) r.log[#r.log + 1] = m end,
         clock = function() return r.now end, tests = tests, find = function(path) return r.found[path] end,
+        world = function() return r.world end,
         construct = function(class, outer)
             local item = {class = class, outer = outer, IsValid = function(self) return not self.lost end}
             r.made[#r.made + 1] = item
@@ -376,10 +382,16 @@ local tests = {
         r.now = r.now + 9
         r.ticks(5)
         ok(has(r, 'probe: PASS 5 game_ignores_keys')) ok(has(r, 'NOTE 5 map_change'))
+        ok(not r.kit.holding(), 'input given back before asking for a fast travel')
+        r.kit.up = false -- a pause first: the root hides, its parts stay
+        r.ticks(3)
+        r.kit.up = true
+        r.ticks(3)
+        ok(has(r, 'not a map change')) ok(not has(r, 'FAIL'))
         r.kit.up = false -- the map change: the root goes, its parts with it
         for _, rec in ipairs(r.kit.made) do rec.live = false end
         r.ticks(3)
-        ok(not r.kit.holding(), 'input given back during the change') ok(not has(r, 'FAIL'))
+        ok(not has(r, 'FAIL'))
         r.kit.up = true
         r.ticks(3)
         ok(has(r, 'probe: PASS 5 map_change')) ok(has(r, 'probe: END 5 7/7')) ok(released(r))
@@ -397,6 +409,67 @@ local tests = {
     test5_has_a_long_timeout = function()
         local r = rig()
         eq(r.Probe.TESTS['5'].timeout, 90)
+    end,
+    refuses_on_the_title = function()
+        local r = rig({['1'] = {steps = {{frames = 0, name = 'a', run = PASS}}}})
+        r.world = false
+        eq((r.p.run('1')), false) eq(r.log[1], 'probe: FAIL 1 world: not in the game world') eq(#r.kit.added, 0)
+    end,
+    refuses_while_another_screen_holds_input = function()
+        local r = rig({['1'] = {steps = {{frames = 0, name = 'a', run = PASS}}}})
+        r.kit.held = 'lobby'
+        eq((r.p.run('1')), false) ok(has(r, 'probe: FAIL 1 kit: another screen holds the input'))
+        eq(r.kit.held, 'lobby')
+    end,
+    a_reset_of_the_input_ends_the_test = function()
+        local r = rig({['1'] = {steps = {
+            {frames = 0, name = 'take', run = function(ctx) ctx.take_input(); return true end},
+            {frames = 50, name = 'b', run = PASS}}}})
+        r.p.run('1')
+        r.ticks(2)
+        ok(r.kit.holding())
+        r.kit.held = nil -- coop ui reset, or the focus watchdog
+        r.ticks(1)
+        ok(has(r, 'probe: FAIL 1 input: taken back')) eq(r.p.running(), nil)
+    end,
+    steps_wait_while_the_ui_is_hidden = function()
+        local ran = 0
+        local r = rig({['1'] = {steps = {{frames = 2, name = 'a', run = function() ran = ran + 1; return true end}}}})
+        r.p.run('1')
+        r.ticks(1) -- shown, waiting its frames
+        r.kit.up = false -- paused before the first step
+        r.ticks(5)
+        eq(ran, 0)
+        r.kit.up = true
+        r.ticks(2)
+        eq(ran, 1)
+    end,
+    a_lost_input_release_is_tried_again = function()
+        local r = rig({['1'] = {steps = {
+            {frames = 0, name = 'take', run = function(ctx) ctx.take_input(); return true end},
+            {frames = 50, name = 'b', run = PASS}}}})
+        r.p.run('1')
+        r.ticks(2)
+        r.kit.ignore_release = 2
+        r.p.off()
+        ok(r.kit.holding(), 'the first release was lost')
+        r.ticks(3)
+        ok(not r.kit.holding(), 'tried again until it held')
+    end,
+    the_group_hides_at_the_end = function()
+        local r = rig({['1'] = {steps = {{frames = 0, name = 'a', run = PASS}}}})
+        r.p.run('1')
+        r.ticks(2)
+        eq(r.kit.shown.closet_probe, false)
+    end,
+    test5_drops_its_parts = function()
+        local r = rig()
+        game(r)
+        r.tv.SetKeyboardFocus = function() end
+        r.p.run('5')
+        r.ticks(30)
+        r.p.off()
+        eq(r.kit.dropped, #r.kit.made) ok(#r.kit.made > 0)
     end,
     commands = function()
         local calls = {}

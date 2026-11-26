@@ -15,7 +15,7 @@ M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '
     store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end})
 -- coop closet probe (closet/ui/probe.lua): its tick runs each frame after the dress watchdog's. coop off stops it with
 -- the dress.
-local probe=require('closet.ui.probe').new({kit=function() return M.kit end,
+local probe=require('closet.ui.probe').new({kit=function() return M.kit end,world=function() return M.hud_shown end,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 local dress_tick,dress_stop=M.closet.tick,M.closet.stop
 M.closet.tick=function() dress_tick(); probe.tick() end

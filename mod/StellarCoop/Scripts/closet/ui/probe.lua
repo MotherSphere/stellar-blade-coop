@@ -9,7 +9,9 @@
 -- returns true (PASS), false and why (FAIL), or 'wait' (run again next frame: a check that watches the mouse or a map
 -- change). The first FAIL ends the test. Before each step every part the test made must still be ours (kit.alive),
 -- unless a step set ctx.free_parts (a map change it waits for). A test ends by itself after TIMEOUT s (or its own
--- timeout), on coop closet probe off, a second run, coop off (stop) or coop ui reset (the kit gives the input back).
+-- timeout), on coop closet probe off, a second run or coop off (stop). While a step holds the kit's input, coop ui
+-- reset or the focus watchdog taking it back ends the test too. It runs only in the game world (world()), never while
+-- another SBO screen holds the input. Its steps wait while the world is hidden (a pause, a load, a game screen).
 -- Each end runs the test's cleanup, drops its parts, gives the kit's input back and logs "probe: END <n> <passed>/
 -- <total>". The parts go in the kit group closet_probe (screen-sized, added once a Lua load at the first run). Every
 -- step runs in pcall on the game thread (closet/wiring.lua runs tick each frame through main/frame.lua's guard).
@@ -18,6 +20,7 @@ local text,each=U.text,U.each
 local Probe={}
 Probe.TIMEOUT=30 -- Seconds a test may run unless it sets its own.
 Probe.WATCH=10 -- Seconds a check watches the mouse.
+Probe.RELEASE_TRIES=600 -- Frames the probe tries again to give the input back (about 10 s).
 Probe.USE='Use: coop closet probe <1-5|off>'
 Probe.GROUP='closet_probe'
 Probe.TESTS={}
@@ -122,7 +125,7 @@ Probe.TESTS['1']={steps={grid_steps[1],grid_steps[2],grid_steps[3],
     {frames=1,name='mouse',run=function(ctx)
         local d=ctx.data
         if not d.watch then
-            ctx.kit.input(true,Probe.GROUP,true)
+            ctx.take_input()
             d.watch=ctx.now()+Probe.WATCH
             ctx.log('NOTE 1 mouse: click tiles for '..Probe.WATCH..' s')
         end
@@ -223,7 +226,7 @@ end
 tab_steps[#tab_steps+1]={frames=1,name='hover',run=function(ctx)
     local d=ctx.data
     if not d.watch then
-        ctx.kit.input(true,Probe.GROUP,true)
+        ctx.take_input()
         d.watch=ctx.now()+Probe.WATCH
         ctx.log('NOTE 3 hover: move the mouse over the tabs for '..Probe.WATCH..' s')
     end
@@ -291,7 +294,7 @@ local function focus_line(w)
 end
 Probe.TESTS['5']={timeout=90,steps={grid_steps[1],grid_steps[2],grid_steps[3],
     {frames=0,name='input',run=function(ctx)
-        ctx.kit.input(true,Probe.GROUP,true)
+        ctx.take_input()
         return ctx.kit.holding()==true,'holding '..tostring(ctx.kit.holding())
     end},
     {frames=0,name='focus',run=function(ctx)
@@ -316,27 +319,32 @@ Probe.TESTS['5']={timeout=90,steps={grid_steps[1],grid_steps[2],grid_steps[3],
         if ctx.now()<d.keys then return 'wait' end
         return true
     end},
+    -- The input goes back to the game first, so Schizo can open the map. A UI that hides and comes back with its parts
+    -- was a pause or a game screen, not a map change: the step waits on. After a map change the parts are gone (the
+    -- kit rebuilt its root) and the probe holds no input.
     {frames=0,name='map_change',run=function(ctx)
         local d,kit=ctx.data,ctx.kit
         if not d.phase then
             d.phase='before'
             ctx.free_parts=true
-            ctx.log('NOTE 5 map_change: fast travel now')
+            ctx.give_input()
+            ctx.log('NOTE 5 map_change: fast travel now (the game has its keys back)')
         end
         if d.phase=='before' then
             if kit.ready() then return 'wait' end
-            kit.input(false,Probe.GROUP)
-            d.old=ctx.forget()
-            d.tv=nil
             d.phase='during'
-            ctx.log('NOTE 5 map_change: the UI went, input given back')
+            ctx.log('NOTE 5 map_change: the UI went')
             return 'wait'
         end
         if not kit.ready() then return 'wait' end
-        for _,rec in ipairs(d.old) do
-            if kit.alive(rec) then return false,'a part outlived the rebuild' end
+        if ctx.parts_alive()>0 then
+            d.phase='before'
+            ctx.log('NOTE 5 map_change: the UI came back with its parts, not a map change (a pause or a game screen); '
+                ..'waiting for a fast travel')
+            return 'wait'
         end
-        return not kit.holding(),'input held after the change: '..tostring(kit.holding())
+        d.tv=nil
+        return not kit.holding(),'parts gone with the old root; input held after the change: '..tostring(kit.holding())
     end}},
     cleanup=function(ctx) if ctx.data.tv and live(ctx.data.tv) then ctx.data.tv:ClearListItems() end end}
 -- A game object by path: in memory, else after a synchronous LoadAsset (a class path loads its asset path without
@@ -355,9 +363,16 @@ function Probe.new(o)
     local tests=o.tests or Probe.TESTS
     local find=o.find or default_find
     local construct=o.construct or function(class,outer) return StaticConstructObject(class,outer) end
+    local world=o.world or function() return true end
     local self={}
     local added=false
-    local cur -- The running test: {n, test, i, wait, parts, passed, total, deadline, shown, ctx}
+    local cur -- The running test: {n, test, i, wait, parts, passed, total, deadline, shown, held, ctx}
+    -- Frames left to try the input's give-back again: the kit drops one made with no player controller (a load).
+    local releasing=0
+    local function release(kit)
+        pcall(kit.input,false,Probe.GROUP)
+        releasing=kit.holding() and Probe.RELEASE_TRIES or 0
+    end
 
     local function finish()
         local c=cur
@@ -370,7 +385,8 @@ function Probe.new(o)
         local kit=o.kit()
         if kit then
             for _,rec in ipairs(c.parts) do pcall(kit.drop,rec) end
-            pcall(kit.input,false,Probe.GROUP)
+            pcall(kit.show,Probe.GROUP,false)
+            if c.held then release(kit) else pcall(kit.input,false,Probe.GROUP) end
         end
         log(string.format('END %s %d/%d',c.n,c.passed,c.total))
     end
@@ -389,6 +405,14 @@ function Probe.new(o)
             log('FAIL '..n..' kit: the UI is not up')
             return false,'closet probe: the UI is not up (it needs the Steam link and the game world)'
         end
+        if not world() then
+            log('FAIL '..n..' world: not in the game world')
+            return false,'closet probe: load a save first (not on the title screen)'
+        end
+        if kit.holding() then
+            log('FAIL '..n..' kit: another screen holds the input')
+            return false,'closet probe: close the open SBO screen first'
+        end
         if not added then
             kit.add(Probe.GROUP,{x=0,y=0,w=3840,h=2160,fixed=true,hit=true},function() return {} end)
             added=true
@@ -403,8 +427,16 @@ function Probe.new(o)
             c.parts[#c.parts+1]=rec
             return rec.o
         end
-        -- Forgets the parts (a map change freed them) and returns them.
-        function c.ctx.forget() local old=c.parts; c.parts={}; return old end
+        -- How many of the parts are still ours (a map change frees them; a pause keeps them).
+        function c.ctx.parts_alive()
+            local n=0
+            for _,rec in ipairs(c.parts) do if c.ctx.kit.alive(rec) then n=n+1 end end
+            return n
+        end
+        -- The kit's input for the probe (the mouse shown) and back. A reset of it (coop ui reset, the focus watchdog)
+        -- ends the test.
+        function c.ctx.take_input() c.ctx.kit.input(true,Probe.GROUP,true); c.held=true end
+        function c.ctx.give_input() c.held=false; release(c.ctx.kit) end
         cur=c
         log('START '..n..' ('..c.total..' checks)')
         return true,'closet probe '..n..': running, its lines go to UE4SS.log'
@@ -419,11 +451,20 @@ function Probe.new(o)
     function self.running() return cur and cur.n or nil end
     -- Each frame, on the game thread.
     function self.tick()
-        if not cur then return end
         local kit=o.kit()
+        if releasing>0 and kit then
+            releasing=releasing-1
+            if kit.holding() then pcall(kit.input,false,Probe.GROUP) else releasing=0 end
+        end
+        if not cur then return end
         if clock()>cur.deadline then return fail('timeout','after '..(cur.test.timeout or Probe.TIMEOUT)..' s') end
         if not kit then return fail('kit','gone') end
         cur.ctx.kit=kit
+        if cur.held and not kit.holding() then
+            return fail('input','taken back (coop ui reset or the focus watchdog)')
+        end
+        -- While the world is hidden (a pause, a load, a game screen) the steps wait, unless one watches for that.
+        if not cur.ctx.free_parts and not kit.ready() then return end
         if not cur.shown then
             if not kit.view(Probe.GROUP) then return end
             kit.show(Probe.GROUP,true)
