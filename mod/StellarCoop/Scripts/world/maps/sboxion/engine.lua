@@ -250,20 +250,63 @@ end
 -- Returns the number of parts that read the profile back, or nil when the actor is not in memory (its level is not
 -- loaded yet). Raises when the game has no such profile name.
 local SHIP=E04..'E04_Area05_B_LD.E04_Area05_B_LD:PersistentLevel.BP_Env_TetraPod3_2'
-function Engine.ship(solid)
+-- The ship's living static mesh parts in the order the engine gives them, or nil when the actor is not in memory.
+local function ship_parts()
     local a=U.valid(StaticFindObject(SHIP))
     if not a then return nil end
+    local out={}
+    U.each(a:K2_GetComponentsByClass(U.find(SOLID)),function(_,c)
+        c=U.valid(c)
+        if c then out[#out+1]=c end
+    end)
+    return out
+end
+-- The profile's FName (found, never made) and its text.
+local function profile(solid)
     local want=solid and 'BlockAll' or 'NoCollision'
     local name=U.value_of(FName(want,EFindName.FNAME_Find))
     local index=name:GetComparisonIndex()
     assert(index and index~=0 and U.text(name)==want,'no collision profile '..want..' in this game')
+    return name,want
+end
+function Engine.ship(solid)
+    local list=ship_parts()
+    if not list then return nil end
+    local name,want=profile(solid)
     local n=0
-    U.each(a:K2_GetComponentsByClass(U.find(SOLID)),function(_,c)
-        if not U.valid(c) then return end
+    for _,c in ipairs(list) do
         c:SetCollisionProfileName(name,true)
         if U.text(c:GetCollisionProfileName())==want then n=n+1 end
-    end)
+    end
     return n
+end
+-- For tetrapod.lua's probe: the same parts in the same order, {index=, component=, mesh=, profile=} each. The names
+-- are the last word of the component's and of its mesh's path, as the rooms read them ('no mesh' with none). profile
+-- is what the part reads now. nil when the actor is not in memory.
+local function last_word(o) return path_of(o):match('[^.:]+$') or '?' end
+function Engine.parts()
+    local list=ship_parts()
+    if not list then return nil end
+    local out={}
+    for i,c in ipairs(list) do
+        local mesh=U.valid(c.StaticMesh)
+        out[i]={index=i,component=last_word(c),mesh=mesh and last_word(mesh) or 'no mesh',
+            profile=U.text(c:GetCollisionProfileName())}
+    end
+    return out
+end
+-- One part of parts() by its index made solid (BlockAll) or put back (NoCollision): the profile it reads afterwards.
+-- name: the component's name parts() gave for that index, when the caller has it. nil when the actor is not in
+-- memory. Raises, with nothing written, when no part has that index, when it has another name (the engine lists the
+-- parts in another order now) or when the game has no such profile name.
+function Engine.part(index,solid,name)
+    local list=ship_parts()
+    if not list then return nil end
+    local c=assert(list[index],'no part '..tostring(index)..' in the ship, which has '..#list)
+    local now=name and last_word(c)
+    assert(now==name,'part '..tostring(index)..' is '..tostring(now)..' now: the list had '..tostring(name))
+    c:SetCollisionProfileName((profile(solid)),true)
+    return U.text(c:GetCollisionProfileName())
 end
 -- The piece of a row of rooms.lua ({level=, actor=, component=, index=, mesh=, at=, count=}): {row=, c=<the
 -- component>, path=<as it reads>}. Raises when no object is at the row's path, when its class is not the row's kind

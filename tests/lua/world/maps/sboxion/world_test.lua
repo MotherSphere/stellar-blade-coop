@@ -732,6 +732,27 @@ x.stop()
 assert(#ships==3 and ships[3]==false and logged('sboxion: tetrapod: ship as SB ships it again: 124 parts'),logs[#logs])
 her_at=nil
 
+-- tetrapod_probe: coop xion tetrapod probe's words reach the door and the door reads EVE's life in the module's
+-- status text.
+x=new()
+warp_line='sboxionwarp=entered asks=6 life=1'
+world.parts=function() return {{index=1,component='C1',mesh='M1',profile='NoCollision'}} end
+world.part=function(i,on) return i==1 and on and 'BlockAll' or nil end
+me=at(D.ARRIVALS.city)
+pass(x,0.25)
+ok,why=x.tetrapod('probe','only','1')
+assert(ok and why=='coop xion tetrapod: probe: the move is asked',why)
+pass(x,0.5)
+assert(#puts>0 and logged('sboxion: tetrapod: probe: EVE at (16638, -24558, -1852), yaw -132.2'),logs[#logs])
+her_at=puts[#puts].at -- This file's put leaves her where she was.
+pass(x,0.25)
+assert(logged('sboxion: tetrapod: probe: part 1/1 C1 (M1): NoCollision, now BlockAll; EVE at (16638, -24558, -1842), '
+    ..'mode 1, life 1'),logs[#logs])
+ok,why=x.tetrapod('probe','only','125')
+assert(not ok and why=='Use: coop xion tetrapod [in|out|probe [<n>|only <n>]]',why)
+x.stop()
+her_at,world.parts,world.part=nil,nil,nil
+
 -- paks_4_and_5: the room levels each build lists, the sublevels of the list's rows, SB's other levels up to the
 -- build's count, then the 34 levels streamed by volume.
 local ELEVEN={'D011','D031','D081','D107','D158','D009','D049','D092','D036','D106','D039'}
