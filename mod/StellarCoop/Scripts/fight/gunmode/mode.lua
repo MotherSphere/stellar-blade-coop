@@ -666,8 +666,9 @@ function GunMode.new(env)
         s.cube=nil
     end
 
-    local function disable(why)
-        if not s.on then return end
+    -- What the rifle out changes, put back; also the parts a start took before it failed (67ea7e8c). SB's rows are the
+    -- callers'.
+    local function put_away()
         s.morph=nil; cube_drop(); require('fight.gunmode.ik').fade=1
         if single.morph then pcall(single.morph,nil) end
         s.on=false
@@ -694,8 +695,17 @@ function GunMode.new(env)
         pcall(ammo.stop)
         local pc=g.pc()
         if pc then pcall(fov,pc,false) end
+    end
+    local function disable(why)
+        if not s.on then return end
+        put_away()
         if s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
         g.log('off ('..why..'), '..s.shots..' shots')
+    end
+    -- Everything back, SB's rows too: a start that failed (67ea7e8c L2).
+    local function give_all_back(now)
+        put_away()
+        pcall(data.put_back,now); s.native_taken=false; aim.row=nil
     end
 
     local function enable(why)
@@ -722,13 +732,14 @@ function GunMode.new(env)
         data.opts.carry_idle_type=set.carry_idle_type
         stance=(s.pak or s.layer) and single or posed
         single.no_turn=s.layer==true
+        -- Each way out below gives back all it took (67ea7e8c L2).
         if not data.take() then
-            if s.layer then pcall(layer.uninstall,p); s.layer=false end
+            give_all_back()
             g.log('off: SB\'s rows could not be taken (see above)'); return
         end
         aim.setup()
         local ok,err=pcall(function() s.mask=mask() end)
-        if not ok then g.log('off: the input mask failed ('..tostring(err)..')'); return end
+        if not ok then give_all_back(); g.log('off: the input mask failed ('..tostring(err)..')'); return end
         ok,err=pcall(function()
             -- Held for Luke's aim: the aim key itself, not the game's aim stance, which drops for a frame now and
             -- then (each shot's skill, a jump) and made his arms jerk between carry and aim. Off the stance (a
@@ -753,9 +764,7 @@ function GunMode.new(env)
                 0,false,false,set.native and (set.upper or s.pak),set.native and not set.upper and not s.pak)
         end)
         if not ok then
-            if s.mask then pcall(s.mask); s.mask=nil end
-            pcall(stance.stop)
-            if s.layer then pcall(layer.uninstall,p); s.layer=false end
+            give_all_back()
             g.log('off: Luke\'s stance did not start ('..tostring(err)..')')
             return
         end
@@ -888,7 +897,11 @@ function GunMode.new(env)
                 return
             end
             disable(why)
-        else enable(why) end
+            return
+        end
+        -- (an unexpected raise in a start gives back what it took, then raises again: 67ea7e8c L2)
+        local ok,e=pcall(enable,why)
+        if not ok then give_all_back(); g.log('off: the start failed'); error(e,0) end
     end
 
     -- Each shot: the bullet's start on the muzzle and its destination on the crosshair point, then the shot's row.
@@ -1020,7 +1033,7 @@ function GunMode.new(env)
                 if p0 and not s.is_held then
                     s.free_at=s.free_at or now
                     if GunMode.resume_due(s.free_at,now,1.0) then
-                        enable('back after the interaction')
+                        if not pcall(enable,'back after the interaction') then give_all_back() end
                         if s.on then s.resume,s.free_at=false,nil end
                     end
                 else s.free_at=nil end
