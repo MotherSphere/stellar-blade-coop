@@ -208,11 +208,12 @@ function GunMode.new(env)
     -- The assets of the rifle out, the arrival, the rounds and the reload, asked of the keep (g.loaded): none is looked
     -- for or loaded on the frame of a press (17a166fa). The layer's rebuild bodies (Overlay.BASES) too: neither was in
     -- memory at the first rifle out of the 2026-11-21 test, so one loaded on that frame (9cf80f75). Nothing with
-    -- gun_mode=off.
+    -- gun_mode=off. The NIKKE shot's show too: held, the anim key fight/gunmode/data.lua empties at a rifle out stays
+    -- the one each round plays (84f3554b).
     if set.on then
         local want={Overlay.CLASS,Overlay.CLIPS.carry,Overlay.CLIPS.aim,Overlay.CLIPS.aimup,Overlay.CLIPS.aimdown,
             CAMMOD,cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx,Rifle.WEAPON,turn_clip('P_Eve_Gun_RotateLw'),
-            turn_clip('P_Eve_Gun_RotateRw')}
+            turn_clip('P_Eve_Gun_RotateRw'),Data.SHOT_SHOW}
         for _,e in ipairs(cfg.reload_sounds) do want[#want+1]=e[1] end
         for _,b in ipairs(Overlay.BASES) do want[#want+1]=b end
         -- (after a collection the aim start loaded the laser's system: e0038fcc)

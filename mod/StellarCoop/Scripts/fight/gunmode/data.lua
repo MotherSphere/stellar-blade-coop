@@ -13,7 +13,8 @@
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).
 -- * Native fire (fight/gunmode/mode.lua's firing mode on the game's own aim): the drone's normal fire commands
 --   (P_Eve_Gun_Shoot*, every round's) start the NIKKE shot skill instead of the drone's, with the burst's command type
---   (no round spent) and no "not while jumping" check (bJumping takes bWallRun's None).
+--   (no round spent) and no "not while jumping" check (bJumping takes bWallRun's None). The NIKKE shot's show plays
+--   no animation (Data.SHOT_KEY), the one field changed outside the tables.
 -- Neither Survival Protocol's pak nor any gun mode pak is needed.
 local Data={}
 
@@ -37,6 +38,14 @@ for _,kind in ipairs({'Slug1','Missile1','Railgun1','Railgun2','Railgun3','Railg
     for _,n in ipairs({'_1','_2'}) do Data.DRONE_COMMANDS[#Data.DRONE_COMMANDS+1]='P_Eve_Gun_Shoot'..kind..n end
 end
 Data.HIT_STEP,Data.CAST_STEP='P_Eve_GunNikke_ShootSlug1_1_Hit1','P_Eve_GunNikke_ShootSlug1_1_Cast1'
+-- The show of the Hit1 step (its ShowPath CH_P_EVE_01/Skill/P_Eve_GunNikke_ShootSlug1, under /Game/Art/Show/) and its
+-- one anim key. In 26123051's base pak the key plays
+-- /Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Shoot on her whole body for 0.47 s: the NIKKE
+-- missions' shot from behind cover, which bent her body down at each round of native fire. The show's other keys
+-- (the two projectile keys, the NS_A_NikkeGunFire flash on FX_Fire, the shell, the sound, the camera shake) play as
+-- shipped (84f3554b).
+Data.SHOT_SHOW='/Game/Art/Show/CH_P_EVE_01/Skill/P_Eve_GunNikke_ShootSlug1.P_Eve_GunNikke_ShootSlug1'
+Data.SHOT_KEY=Data.SHOT_SHOW..':SBShowAnimKey_1'
 
 -- The row name for logical name k ('GunOn', 'Fire', ...), or nil.
 function Data.row(k)
@@ -59,6 +68,37 @@ function Data.new(g,native,opts)
         local r=g.try(function() return t:FindRow(name) end)
         assert(r,'no row '..name)
         return r
+    end
+
+    -- Native fire's shot with no cover animation (Data.SHOT_KEY): the anim key's AnimResourcePath emptied (an FString
+    -- at 0x70 of SBShowAnimKey: its property params at 0x145ee01e8 on 26123051). SB's anim key start (0x1424397b0)
+    -- builds the clip's path with 0x142439300, which leaves an empty one empty. Its play on the whole body
+    -- (0x1420b7800) returns -1 for a path of no characters: no clip plays. Not with gun_upper=nikke, whose test wants
+    -- the NIKKE animations. The show is in memory (the keep holds it: fight/gunmode/mode.lua), else loaded now, as the
+    -- shot would load it. A failure is logged and the rifle comes out with the cover animation (84f3554b).
+    -- shortcut: emptied at each rifle out only; with the keep off, a show the engine collects while the rifle is out
+    -- comes back as shipped until the next rifle out. Check it at each shot if a game test shows that.
+    local function quiet()
+        if not self.native or self.opts.upper then return end
+        local ok,err=pcall(function()
+            assert(g.asset(Data.SHOT_SHOW),'the show does not load')
+            local key=assert(g.loaded(Data.SHOT_KEY),'no SBShowAnimKey_1 in it')
+            local was=text(key.AnimResourcePath)
+            assert(was~='','its AnimResourcePath is empty already')
+            key.AnimResourcePath=''
+            self.show={key,was}
+            g.log('data: NIKKE shot show P_Eve_GunNikke_ShootSlug1: SBShowAnimKey_1 AnimResourcePath emptied (was '..was
+                ..'), no cover animation')
+        end)
+        if not ok then g.log('data: NIKKE shot show not changed ('..tostring(err)..'): the cover animation plays') end
+    end
+    -- Put back while it is still that key (a show the engine collected is not written to; a new one is as shipped).
+    local function loud()
+        local sh=self.show
+        self.show=nil
+        if sh and g.path(sh[1])==Data.SHOT_KEY and pcall(function() sh[1].AnimResourcePath=sh[2] end) then
+            g.log('data: NIKKE shot show\'s animation back')
+        end
     end
 
     function self.take()
@@ -288,6 +328,7 @@ function Data.new(g,native,opts)
             return false,err
         end
         self.saved=saved
+        quiet()
         g.log('data: '..#saved..' fields of SB\'s rows taken for gun mode')
         return true
     end
@@ -298,6 +339,7 @@ function Data.new(g,native,opts)
     end
 
     function self.put_back()
+        loud()
         self.cool_row=nil
         local saved=self.saved
         self.saved=nil
