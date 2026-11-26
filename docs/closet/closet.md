@@ -81,12 +81,14 @@ the dress, probe and menu ticks each frame. `coop off` stops them. The module re
 
 ## The closet menu
 
-`coop closet menu` opens the menu in the game world, the SBO lobby world included. It needs the Steam link (the kit
-needs it). It does not open while the UI is not up, outside the game world, while another SBO screen holds the input,
-while the game is paused or shows one of its screens, in photo mode, during a cutscene, in combat or in Tachy Mode.
-One notice says why.
+F1 (`closet_key`, which you can change in the co-op menu's Options page or in
+[coop-settings.txt](../players/settings.md#coop-settingstxt)), LB held + D-pad Left on a controller and
+`coop closet menu` open the menu in the game world, the SBO lobby world included. Pressed while the menu is open, F1
+and LB + D-pad Left go back as Esc does. It needs the Steam link (the kit needs it). It does not open while the UI is
+not up, outside the game world, while another SBO screen holds the input, while the game is paused or shows one of its
+screens, in photo mode, during a cutscene, in combat or in Tachy Mode. One notice says why.
 
-The menu covers the left two thirds of the screen. The right third stays clear for EVE. It is made of the game's own
+The menu covers the left 55% of the screen. The rest stays clear for EVE. It is made of the game's own
 widget parts in the kit group `closet_menu`:
 
 | Part | Game widget |
@@ -97,9 +99,10 @@ widget parts in the kit group `closet_menu`:
 | Detail | `WB_NanoSuit_Detail` with its hold button hidden |
 | Key hints | `WB_Common_IndicatorBtnDefault` |
 
-The tab shown is kept until the next Lua load. The first open shows the first tab with a row of pieces. While the menu
-is open it holds the input with the mouse cursor. E and Q change the tab. Up and down walk the rows. Right or Select on
-a row of pieces goes into its grid. A tile focused for 250 ms is worn on EVE as a live preview. Select wears it at once.
+The tab shown is kept until the next Lua load. The first open shows the first tab, Full outfit. LB + D-pad Left that
+closes the menu leaves the tab where it was. While the menu is open it holds the input with the mouse cursor. Q and E
+(LB and RB) change the tab. Up and down walk the rows. Right or Select on a row of pieces goes into its grid. A tile
+focused for 250 ms is worn on EVE as a live preview. Select or a left click on the tile wears it at once.
 F (the pad's Y) wears the whole outfit of the focused piece. Each grid starts with a None tile that takes that slot's
 piece off; on the last piece worn EVE shows her own look. On the Full outfit tab, Select or F wears the row's outfit.
 The hints show Wear on a row of pieces and Whole outfit on a Full outfit row. When F has an outfit to wear, a third
@@ -108,11 +111,13 @@ Each hint shows the keyboard's key or the pad's button, whichever was used last.
 keyboard focus back to the kit's root: on the game's grid a key reached EVE (E fired a skill).
 
 The Body tab's Body row lists None, where the body rule picks the body, then each outfit with skin. Its tile picks
-that outfit's body (`<fit>:BaseBody`). The detail panel names each outfit's origin: Original (Shift Up's own suits) or
-Custom with its pack ("Custom: AiK"). When a preview switches the body or leaves skin showing under a piece, one notice
-says so until that changes. The last row of the Full outfit tab, Reset Stellar Closet, asks with the game's Yes/No
-popup. Yes runs `coop closet off`: every closet piece leaves EVE, `coop-closet.txt` is cleared and the menu closes
-without asking to keep the look. From then on the closet changes nothing until a look is worn again.
+that outfit's body (`<fit>:BaseBody`). The row shows the body in use: the picked one, else the one the body rule chose.
+The detail panel names each outfit's origin: Original (Shift Up's own suits) or Custom with its pack ("Custom: AiK").
+Original suits are worn whole only: they are listed on the Full outfit tab only. The other tabs list Custom pieces.
+When the look switches the body or leaves skin showing under a piece, a line under the rows says so as long as the
+look stays that way. A notice says it once too. The last row of the Full outfit tab, Reset Stellar Closet, asks with
+the game's Yes/No popup. Yes runs `coop closet off`: every closet piece leaves EVE, `coop-closet.txt` is cleared and
+the menu closes without asking to keep the look. From then on the closet changes nothing until a look is worn again.
 
 Back with nothing changed since the open closes the menu and gives back the look worn before. After a change, Back asks
 "Keep this look?" with the game's Yes/No popup. Yes keeps the look: it is saved and survives a reload. No gives back

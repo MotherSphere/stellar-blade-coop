@@ -20,7 +20,8 @@ The file the mod writes:
 # the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
 # below), or none. race_key drops a checkpoint while you record a race track (coop race record). bike_key gets EVE on
 # the bike or off it (bike below), or none. gun_key brings the rifle out or puts it away (gun_mode below), or none.
-# emote_key, held, opens the emote wheel; releasing it plays the emote you point at; or none.
+# emote_key, held, opens the emote wheel; releasing it plays the emote you point at; or none. closet_key opens
+# Stellar Closet; pressed while it is open, it goes back as Esc does; or none.
 menu_key=F5
 host_key=none
 status_key=F6
@@ -30,6 +31,7 @@ race_key=F9
 bike_key=F3
 gun_key=F4
 emote_key=F2
+closet_key=F1
 # The emote wheel on a controller: dpad_left (D-pad Left held 0.3 s opens it, its release plays) or off.
 emote_pad=dpad_left
 # The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
@@ -248,6 +250,7 @@ photohunt=on
 | `gun_key` | same, or `none`: a key that brings the [gun mode](../fight/gunmode.md) rifle out or puts it away; read when the mod loads | `F4` |
 | `gun_mode` | `on` or `off`: [gun mode](../fight/gunmode.md); off, its key and D-pad Right tap do nothing; read when the mod loads. Without the optional `zNGMSpike_P` pak, gun mode is [parked](../fight/gunmode.md#parked-while-it-is-rebuilt): with `on`, the key and the tap only show the notice `Gun mode: rebuilding`. Its other `gun_` lines are test lines, listed on its page | `on` |
 | `emote_key` | same as `menu_key`, or `none`: the key held to open the [emote wheel](interface.md#emote-wheel); releasing it plays the emote you point at. Options, Controls, Emote wheel key; it applies at once | `F2` |
+| `closet_key` | same as `menu_key`, or `none`: the key that opens the [Stellar Closet](../closet/closet.md#the-closet-menu) menu; pressed while it is open, it goes back as Esc does. On a controller, LB held + D-pad Left does the same. Options, Controls, Open Stellar Closet; it applies at once | `F1` |
 | `emote_pad` | `dpad_left` or `off`: on a controller, `dpad_left` opens the [emote wheel](interface.md#emote-wheel) while D-pad Left is held 0.3 s and plays the emote you point at on its release. A tap of D-pad Left stays the game's. Options, Controls, Emote wheel on a controller (D-pad Left held or Off); it applies at once | `dpad_left` |
 | `pause_tab` | `on` or `off`: the [Online tab](interface.md#pause-menu) after Settings in the game's pause menu, which opens the co-op menu. Off, RB on Settings goes to Equipment as in the game. Options, Controls, Online tab in the pause menu; it applies from the next pause menu | `on` |
 | `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
@@ -319,7 +322,7 @@ Rules:
 - A refused value keeps its default, and `UE4SS.log` gives the reason in a `[StellarCoop] settings:` line. An unknown
   setting is ignored with a note.
 - If two actions share one key, all the keys go back to their defaults: `F5` for the menu, `none` to host, `F6`, `F7`,
-  `F8`, `F9`, `F3`, `F4` and `F2`.
+  `F8`, `F9`, `F3`, `F4`, `F2` and `F1`.
 - A file written before `follow_key` existed that already holds `F7` for another action keeps it there: `follow_key`
   then reads `none`, with no log line.
 - A file with no `race_key` line (one written before Doro races) whose other keys already use `F9`: `race_key` reads
@@ -330,6 +333,9 @@ Rules:
   works.
 - A file with no `gun_key` line whose other keys already use `F4`: `gun_key` reads `none` the same way, for example
   `[StellarCoop] settings: F4 is leave_key: gun_key has no key`. `coop gun` and a tap of D-pad Right still work.
+- A file with no `closet_key` line whose other keys already use `F1`: `closet_key` reads `none` the same way, for
+  example `[StellarCoop] settings: F1 is status_key: closet_key has no key`. `coop closet menu` and LB + D-pad Left
+  still open the closet menu.
 - A file with no `menu_key` line (one written before the menu existed): the menu takes `host_key`'s key, and
   `host_key` counts as `none`. The first `menu_key` that the menu writes into such a file also writes `host_key=none`.
 - A file from a version that sent at most 30 poses a second and still says `send_rate=20`, the old default, reads
