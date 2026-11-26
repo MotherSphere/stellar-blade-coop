@@ -57,8 +57,10 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
         if ours() then return true end
         ui.name,ui.count,ui.seen_at=nil,nil,nil
         -- FindAllOf walks every object: only after an event (ui.look: the rifle out, firing mode entered), at most
-        -- once in 10 s while the slot is missing (468f7ab6, b812f708: a walk costs 60-90 ms)
-        if not ui.look or (ui.retry or 0)>os.clock() then return false end
+        -- once in 10 s while the slot is missing (468f7ab6, b812f708: a walk costs 60-90 ms). Never in firing mode:
+        -- a walk at its start lands where she watches her body turn to the front. The look an aim asks waits for its
+        -- end.
+        if not ui.look or was_aiming or (ui.retry or 0)>os.clock() then return false end
         ui.look,ui.retry=false,os.clock()+10.0
         pcall(function()
             for _,t in ipairs(FindAllOf('TextBlock') or {}) do
@@ -153,7 +155,8 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
 
     -- Every frame while the rifle is out. aiming: firing mode; firing: the trigger held.
     function self.tick(aiming,firing,now)
-        -- Firing mode entered: the slot looked for if not found yet. Its text is written each frame for FRESH s.
+        -- Firing mode entered: the slot looked for once it ends, if not found yet. Its text is written each frame for
+        -- FRESH s.
         if aiming and not was_aiming then ui.look,ui.fresh_until=true,os.clock()+Ammo.FRESH end
         was_aiming=aiming
         local dt=now-(self.last or now)

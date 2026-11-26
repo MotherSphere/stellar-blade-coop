@@ -79,8 +79,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   writes of a round's destination in `mode.lua` going through it), the rifle's magazine
   (a round per cool time, the reload when empty, none when lowered part-spent, the HUD count, no round once the spares
   are spent, a refill, cool time 0 at a reload's end and at a refill, then the rate of fire after the first round), the
-  reticle's round slot (written on each frame of an aim's first 0.25 s, kept by its path: no write to another object
-  at a freed address) and the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
+  reticle's round slot (looked for at an aim's end, not in it; written on each frame of an aim's first 0.25 s, kept
+  by its path: no write to another object at a freed address) and the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
   or row is refused. `mode.lua` calls `CreateSBZoneEvent` once, inside the guarded `zone_event`. `fire_row` reaches it
   only through that guard. Over fake tables, `fight/gunmode/data.lua` sets the NIKKE round's `DestTarget` from the
   shipped 3 (`StartToDestDirection`) to 0 (`MainActor`) while the rifle is out, logs the change and gives 3 back at
@@ -103,7 +103,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   FindFirstOf runs once a second. With the keep serving gun mode's assets and the engine's name hash proven, two
   rifle outs through aims, bursts, reloads and departures look for no asset with StaticFindObject and load none of
   the kept ones. A layer pose or a rebuild body the paks lack is looked for once a Lua load. The camera modifier is
-  tried once a rifle out. The reticle's text is walked for at the rifle out and at an aim, at most once in 10 s. The
+  tried once a rifle out. The reticle's text is walked for at the rifle out and after an aim, never in one, at most
+  once in 10 s. The
   laser's two assets, the rifle's mesh and the two turn clips are asked of the keep. A drone near EVE is hidden and
   kept: the next rifle out finds it with no list, unless it is 3000 or more away. The drones come from the engine's
   class hash through `GunMode.DRONE_CLASS`. The flash's `FX_Fire` and the layer's `DefaultSlot` names are made once;

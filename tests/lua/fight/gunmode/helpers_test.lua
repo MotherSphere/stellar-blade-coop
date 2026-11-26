@@ -111,9 +111,10 @@ do
 end
 
 -- 4c. The reticle's round slot on the first frame of each aim: the game writes its own round's name when its aim
---     starts, here also on the aim's second frame. The slot found at the first aim is kept. A block whose address
---     another object took (a freed HUD) gets no write. Only the reticle's slot is written: the bottom-left count keeps
---     the game's text (f60b4d27).
+--     starts, here also on the aim's second frame. An aim with the slot not found yet looks for it at its end, not in
+--     the aim: a 60-90 ms walk there landed where she watches her body turn to the front. The slot found is kept. A
+--     block whose address another object took (a freed HUD) gets no write. Only the reticle's slot is written: the
+--     bottom-left count keeps the game's text (f60b4d27).
 do
     local function block(full)
         local b={text='game',full=full,ColorAndOpacity={SpecifiedColor={R=1,G=1,B=1,A=1}},writes=0}
@@ -141,8 +142,10 @@ do
         empty_text='E',round_color={1,1,1},reload_color={1,0,0}}
     local a=Ammo.new(g,cfg,function() end,function() end)
     local function run(n,aim) for _=1,n do clock=clock+1/60; a.tick(aim,false,clock) end end
-    run(5,true)
-    assert(name.text=='NIKKE RAPID' and walks==1,'the first aim: '..tostring(name.text)..', '..walks..' walks')
+    run(30,true)
+    assert(walks==0 and name.text=='game','no walk in the first aim: '..walks..' walks')
+    run(1,false)
+    assert(walks==1,'the slot looked for at the aim\'s end: '..walks..' walks')
     run(30,false)
     name.text='DRONE ROUND' -- The game's aim starts: its own round's name.
     run(1,true)
@@ -150,7 +153,7 @@ do
     name.text='DRONE ROUND' -- Written again by the game on the aim's second frame.
     run(1,true)
     assert(name.text=='NIKKE RAPID','the second frame of the aim: '..tostring(name.text))
-    assert(walks==1,'the slot found at the first aim is kept: '..walks..' walks')
+    assert(walks==1,'the slot found is kept: '..walks..' walks')
     assert(lower.text=='game' and lower.writes==0,'the bottom-left count keeps the game\'s text')
     -- A map change frees the HUD. A text block of another widget takes the name block's address: it passes IsValid.
     run(30,false)

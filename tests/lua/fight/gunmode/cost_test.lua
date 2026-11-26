@@ -173,9 +173,10 @@ do
     assert((w.n.asset[CAMMOD] or 0)>n,'the next rifle out tries again')
 end
 
--- 5. No reticle text in the HUD: its text blocks are walked for at the rifle out and when firing mode is entered, at
---    most once in 10 s (468f7ab6, b812f708), not once a second while the rifle is out. Only the reticle's round slot
---    is looked for, with no list of the bottom-left texts that grew at each walk (a5556d87).
+-- 5. No reticle text in the HUD: its text blocks are walked for at the rifle out and after firing mode, at most once
+--    in 10 s (468f7ab6, b812f708), not once a second while the rifle is out. No walk in firing mode: one at its start
+--    landed where she watches her body turn to the front. Only the reticle's round slot is looked for, with no list
+--    of the bottom-left texts that grew at each walk (a5556d87).
 do
     local w=world()
     local logs={}
@@ -186,13 +187,14 @@ do
     assert(count(w,'TextBlock')==1,count(w,'TextBlock')..' text walks at the rifle out')
     frames(gun,60*60)
     assert(count(w,'TextBlock')==1,count(w,'TextBlock')..' text walks in 60 s carried')
-    for _=1,2 do
+    for i=1,2 do -- (two aims 4 s apart: one walk after the first, none after the second within 10 s)
         w.pawn.bTPSMode,w.down.RightMouseButton=true,true
         frames(gun,120)
+        assert(count(w,'TextBlock')==i,count(w,'TextBlock')..' text walks in firing mode '..i)
         w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
         frames(gun,120)
+        assert(count(w,'TextBlock')==2,count(w,'TextBlock')..' text walks after aim '..i)
     end
-    assert(count(w,'TextBlock')==2,count(w,'TextBlock')..' text walks after two aims 4 s apart')
     local said=table.concat(logs,'\n')
     assert(not said:find('bottom-left',1,true),said)
 end

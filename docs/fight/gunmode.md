@@ -143,8 +143,8 @@ with an error gives back what it took and logs `off: the comeback failed (...)`.
 `[GM]` line. The rifle does not come out with no EVE in the game world, while the drone aim is held, in a cutscene or
 in an interaction: a press then gives a `not now:` line. The game's hold of her movement, a jump, a swim and SB's
 other movement modes keep it allowed. Gun mode checks no other state: the rifle can come out on the bike, in a Doro
-race, on a hall seat, in flight, in the photo and selfie modes or during an SBO match. The bike does not mount while the rifle is out. SBO's PvP rule counts a hit only from
-15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther than 15 m costs the other player
+race, on a hall seat, in flight, in the photo and selfie modes or during an SBO match. The bike does not mount while
+the rifle is out. SBO's PvP rule counts a hit only from 15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther than 15 m costs the other player
 nothing.
 
 `coop off` puts the rifle away at once, with no departure, also right after a press or while a new map's reset still
@@ -332,7 +332,8 @@ Gun mode walks the game's objects at these times only:
 - the player controller, once a second while there is none (a title screen, a load);
 - the HUD on screen, as the HUD entry above says;
 - the pad's `Gamepad_DPad_Up` glyph, once each time the pad layer comes up until one is found, kept for that HUD;
-- the reticle's round slot, at the rifle out and when firing mode starts, at most once in 10 s while it is missing;
+- the reticle's round slot, at the rifle out and after firing mode, at most once in 10 s while it is missing. Never
+  in firing mode: a walk at its start would land where she watches her body turn to the front;
 - the drone, only when the engine's list of actors of its class (`CH_Drone_BP_C`, found by its path) cannot be read.
   The drone of the last rifle out is used again while it is within 30 m of her. With no drone that close gun mode
   looks again every 5 s.
