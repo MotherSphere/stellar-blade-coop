@@ -1135,7 +1135,8 @@ function GunMode.new(env)
                     s.free_at=s.free_at or now
                     -- a refused comeback is tried again 2, 4 and 8 s later, then given up (29e92c98)
                     if GunMode.resume_due(s.free_at,now,1.0,s.resume_n) then
-                        if not pcall(enable,'back after the interaction') then give_all_back() end
+                        local ok,e=pcall(enable,'back after the interaction')
+                        if not ok then give_all_back(); g.log('off: the comeback failed ('..tostring(e)..')') end
                         if s.on then s.resume,s.free_at,s.resume_n=false,nil,nil
                         else
                             s.free_at,s.resume_n=now,(s.resume_n or 0)+1

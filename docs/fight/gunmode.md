@@ -138,8 +138,9 @@ map load another object can sit at its address. The next rifle out starts clean 
 While the game holds EVE in an interaction or a cutscene (a camp, a seat, a rest, a door, a level sequence), the
 rifle goes away. It comes back 1 s after she is free. A press of `gun_key` in that second cancels the comeback. So do
 a press whose departure the interaction cut short and a new map. A comeback the game refuses (the drone aim held, a
-cutscene again) is tried again 2, 4 and 8 s later, then given up with a `no comeback` line. `UE4SS.log` names the
-reason on a `[GM]` line. The rifle does not come out with no EVE in the game world, while the drone aim is held, in a cutscene or
+cutscene again) is tried again 2, 4 and 8 s later, then given up with a `no comeback` line. A comeback that fails
+with an error gives back what it took and logs `off: the comeback failed (...)`. `UE4SS.log` names the reason on a
+`[GM]` line. The rifle does not come out with no EVE in the game world, while the drone aim is held, in a cutscene or
 in an interaction: a press then gives a `not now:` line. The game's hold of her movement, a jump, a swim and SB's
 other movement modes keep it allowed. Gun mode checks no other state: the rifle can come out on the bike, in a Doro
 race, on a hall seat, in flight, in the photo and selfie modes or during an SBO match. The bike does not mount while the rifle is out. SBO's PvP rule counts a hit only from

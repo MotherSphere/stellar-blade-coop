@@ -209,4 +209,26 @@ do
     assert(writes==0 and gun.state.drone==nil,'no write to another component at the old address')
 end
 
+-- 10. An unexpected raise in the comeback after an interaction, once the rifle layer is on: the start gives back what
+--     it took and the log names the raise. In luke's tick it reached the frame loop's error line (67ea7e8c L2).
+do
+    local w=Fake.new(); w.install()
+    local keys=w.keys()
+    local logs,armed={},false
+    local gun=GunMode.new({log=function(m)
+        logs[#logs+1]=m
+        if armed and m:sub(1,14)=='rifle layer on' then armed=false; error('test raise',0) end
+    end})
+    local function frames(n) for _=1,n do clock=clock+1/60; gun.tick() end end
+    clock=clock+1; gun.toggle_now(); frames(60)
+    w.pawn.talk=true; frames(12)
+    assert(not gun.state.on and gun.state.resume,'away for the talk, its comeback set')
+    w.pawn.talk=false
+    armed=true
+    frames(70)
+    assert(not armed and not gun.state.on,'the comeback raised')
+    assert(said(logs,'off: the comeback failed (test raise)'),table.concat(logs,'|'))
+    as_shipped(w,keys)
+end
+
 print('gunmode stop: ok')
