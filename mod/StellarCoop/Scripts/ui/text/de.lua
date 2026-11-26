@@ -501,7 +501,10 @@ return {
             ArmUpper='Oberarme',Forearm='Unterarme',Hand='Hände',Thigh='Oberschenkel',Calf='Waden',Foot='Füße'},
         row={whole='Ganzes Outfit tragen',soon='Bald verfügbar',
             empty='Kein installiertes Outfit hat ein Teil für diesen Platz.',none='Nichts',
-            locked='Gesperrt: %s ist nicht installiert.',reset='Stellar Closet zurücksetzen'},
+            locked='Gesperrt: %s ist nicht installiert.',reset='Stellar Closet zurücksetzen',
+            thumbs='Vorschaubilder erstellen',
+            thumbs_desc='Macht ein Bild von jedem Teil, das noch keins hat, eins pro Frame. Es beginnt, sobald das '
+                ..'Menü geschlossen ist, außerhalb des Kampfes. Die Kacheln zeigen die Bilder beim nächsten Öffnen.'},
         detail={outfit='Outfit: %s',slot='Platz: %s',covers='Bedeckt: %s',also='Belegt auch: %s',
             off='Im Outfit standardmäßig ausgeblendet'},
         origin={original='Original',custom='Benutzerdefiniert: %s'},
@@ -528,5 +531,8 @@ return {
         saved='Look gespeichert.',failed='Dieses Teil ließ sich nicht anziehen. UE4SS.log sagt, warum.',
         switched='Körper auf %s gewechselt, damit keine Haut durch die Teile scheint.',
         clips='Die Haut dieses Körpers scheint durch die Teile an: %s.',
+        thumbs={started='Die Vorschaubilder beginnen, sobald das Menü geschlossen ist.',
+            cached='Jedes Teil hat schon sein Vorschaubild.',
+            failed='Die Vorschaubilder konnten nicht starten. UE4SS.log sagt, warum.'},
         reset_done='Stellar Closet ist zurückgesetzt. EVE trägt ihren eigenen Look.'},
 }

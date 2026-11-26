@@ -17,7 +17,7 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet off` | Gives EVE her own look back |
 | `coop closet fits` | Lists the fit maps and the slots of their pieces |
 | `coop closet menu` | Opens the closet menu. When it is open, closes it and gives back the look worn before |
-| `coop closet thumbs [redo] [<fit>]` | Makes a picture of each piece of every installed outfit with a fit map (or of one fit) for the menu's tiles: the ones not cached yet, or all of them again with `redo`. See [Preview pictures](#preview-pictures) |
+| `coop closet thumbs [redo] [<fit>]` | Makes a picture of each piece of every installed outfit with a fit map (or of one fit) for the menu's tiles: the ones not cached yet, or all of them again with `redo`. The menu's Make preview pictures row runs it without `redo`. See [Preview pictures](#preview-pictures) |
 | `coop closet probe <1-6\|off>` | Runs one in-game test of the game's widget parts for the closet menu (1-5) or of the reads for its camera and fit (6). It writes `probe:` PASS/FAIL lines to UE4SS.log. `off` ends it |
 | `coop closet body <auto\|shoes\|first\|<fit>>` | Sets the body rule of the next wears until the next Lua load: `auto` (the default, below), `shoes` (the outfit that supplies the shoes, else the first), `first` (the first outfit) or a fit id with skin, which forces that body |
 | `coop closet skin <fit> <slot> on\|off` | Shows or hides one material slot (a number) of that outfit's mesh now, on every LOD, for trying a setup in game. The next wear clears it |
@@ -80,8 +80,9 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
 
-`wiring.lua` builds `dress.lua` as `M.closet`, `thumbs.lua` and `commands.lua`. Its build step `menu`, which
-`main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu`. `main/frame.lua` runs the restore
+`wiring.lua` builds `dress.lua` as `M.closet`, `thumbs.lua` as `M.closet_thumbs` and `commands.lua`. Its build step
+`menu`, which `main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu` (with
+`M.closet_thumbs` for its Make preview pictures row). `main/frame.lua` runs the restore
 at the first tick and the dress, probe, thumbs and menu ticks each frame. `coop off` stops them. The module reads no
 other module.
 
@@ -121,7 +122,9 @@ that outfit's body (`<fit>:BaseBody`). The row shows the body in use: the picked
 The detail panel names each outfit's origin: Original (Shift Up's own suits) or Custom with its pack ("Custom: AiK").
 Original suits are worn whole only: they are listed on the Full outfit tab only. The other tabs list Custom pieces.
 When the look switches the body or leaves skin showing under a piece, a line under the rows says so as long as the
-look stays that way. A notice says it once too. The last row of the Full outfit tab, Reset Stellar Closet, asks with
+look stays that way. A notice says it once too. The row before the last of the Full outfit tab, Make preview pictures,
+starts `coop closet thumbs` for every picture not there yet (see [Preview pictures](#preview-pictures)). The last row
+of the Full outfit tab, Reset Stellar Closet, asks with
 the game's Yes/No popup. Yes runs `coop closet off`: every closet piece leaves EVE, `coop-closet.txt` is cleared and
 the menu closes without asking to keep the look. From then on the closet changes nothing until a look is worn again.
 
@@ -159,7 +162,10 @@ texture), the slot's glyph. A picture or an outfit picture that does not load is
 looks again at which pictures are there each time it opens.
 
 `coop closet thumbs` makes the pictures in game. It runs in the game world only, out of combat, with the closet menu
-closed and no cutscene. It does not start while one runs. Each picture is 256x256 (the size of the grid's own icons):
+closed and no cutscene. It does not start while one runs. The menu's Make preview pictures row (Select, the pad's A or
+a click) starts the same run while the menu is open: that run waits for the menu's close. A notice says it starts once
+the menu is closed, that every picture is there or that it could not start (the reason in UE4SS.log). Each picture is
+256x256 (the size of the grid's own icons):
 
 - A capture rig stands 50 m above EVE: a `SceneCapture2D` that draws only its list with the game's final colours. The
   list holds one skeletal mesh, turned as EVE is, with every material section hidden on every LOD but the piece's.
@@ -269,7 +275,8 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
 - `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.
 - `tests/lua/closet/closet_test.lua` checks `coop closet`.
 - `tests/lua/closet/thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
-  sections, the rig's settings and its removal on each end path, the refusals and the framing.
+  sections, the rig's settings and its removal on each end path, the refusals, a run from the menu that waits for its
+  close and the framing.
 - `tests/lua/closet/menu_test.lua` (5 checks) runs the closet menu on the fake kit and parts of
   `tests/lua/closet/menu_fakes.lua`: what open draws, `coop closet menu`, the close paths and a draw that fails.
 - `tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style.

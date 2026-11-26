@@ -19,8 +19,10 @@
 -- its folder made and one more export; then it counts as failed. A fit's stamp is written once all its files are there.
 -- It logs a line a fit and the count. It waits (looked at once a second) while the closet menu is open, the game is
 -- paused or shows a screen, EVE is not in the world, in a cutscene or in combat; a run refuses to start then, or while
--- one runs. The rig goes, its target released, at the end, at coop off (stop) and with its world (a map change). Its
--- path is kept in coop-closet-thumbs.txt (link.store): the next Lua load's first tick removes a rig a reload left.
+-- one runs. The closet menu's Make preview pictures row (closet/ui/menu.lua) starts one while the menu is open: that
+-- run waits for the close. The rig goes, its target released, at the end, at coop off (stop) and with its world (a
+-- map change). Its path is kept in coop-closet-thumbs.txt (link.store): the next Lua load's first tick removes a rig a
+-- reload left.
 -- o: {log=, folder=M.folder, installed=function(fit id) (dress.installed), store=link.store(Thumbs.FILE),
 -- world=function() M.hud_shown, paused=function() the game paused or showing a screen, menu_open=function(),
 -- status=function() the link's status text or nil}; tests give fits=, fs=, her=, find=, usable=, clock=.
@@ -44,8 +46,14 @@
 --   USkinnedMeshComponent.SetForcedLOD(int): entry 0x14665f160, exec 0x14492ac00 (0 automatic, else LOD n-1, clamped
 --     to the LOD count). UMeshComponent.PrestreamTextures(Seconds, bPrioritizeCharacterTextures, CookieMask): entry
 --     0x1465e6cb0, exec 0x1448891f0. UPrimitiveComponent.bForceMipStreaming bool (params 0x146626d20).
---   AActor.AddComponentByClass: entry 0x1464cb818, exec 0x1446be900; K2_SetActorLocationAndRotation: entry 0x1464cbcf8,
---     exec 0x1446bf7a0; K2_DestroyActor: entry 0x1464cbc48, exec 0x1446bf590.
+--   AActor, its FClassFunctionLinkInfo entries {CreateFuncPtr, Name} (16 bytes each), each constructor building the
+--   function's FFunctionParams, whose name is the entry's:
+--     AddComponentByClass: link entry 0x1464cb810, constructor 0x1446be8d0, FFunctionParams 0x146e19150, name
+--       0x1464d0868; its exec 0x1446b9010 (closet/ui/lights.lua's).
+--     K2_SetActorLocationAndRotation: link entry 0x1464cbcf0, constructor 0x1446bf770, FFunctionParams 0x146e1a9b0,
+--       name 0x1464d1178.
+--     K2_DestroyActor: link entry 0x1464cbc40, constructor 0x1446bf560 (a jump to 0x152e7db40), FFunctionParams
+--       0x146e1a640, name 0x1464d1518.
 --   USceneComponent K2_GetComponentLocation, K2_GetComponentRotation, GetSocketLocation: native entries 0x14664bb30,
 --     0x14664bb40, 0x14664b9f0. UPrimitiveComponent.GetNumMaterials: entry 0x14662af80.
 local U=require('core.unreal')
@@ -174,9 +182,9 @@ function Thumbs.new(o)
     local run
     local swept=false
 
-    -- The key of the first wait (WHY), or nil.
-    local function busy()
-        if o.menu_open and o.menu_open() then return 'menu' end
+    -- The key of the first wait (WHY), or nil; the menu left out with skip_menu.
+    local function busy(skip_menu)
+        if not skip_menu and o.menu_open and o.menu_open() then return 'menu' end
         if o.paused and o.paused() then return 'screen' end
         if o.world and not o.world() then return 'loading' end
         local eve=her()
@@ -297,13 +305,14 @@ function Thumbs.new(o)
         shoot(job)
     end
 
-    -- coop closet thumbs: the pictures to make queued, the run started; or why not.
-    function self.run(redo,only)
+    -- coop closet thumbs: the pictures to make queued, the run started; or why not. menu: from the closet menu's row,
+    -- which is open then: the run waits for its close.
+    function self.run(redo,only,menu)
         if run then return false,'closet thumbs: already running' end
         if only and not fits.get(only) then return false,'closet thumbs: no fit map for '..tostring(only) end
         if only and not o.installed(only) then return false,'closet thumbs: '..only..' is not installed' end
         if not o.folder then return false,'closet thumbs: the mod folder is not known' end
-        local why=busy()
+        local why=busy(menu)
         if why then return false,'closet thumbs: '..WHY[why] end
         local ids={}
         for id in pairs(fits.BY_ID) do if (not only or id==only) and o.installed(id) then ids[#ids+1]=id end end

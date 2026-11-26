@@ -52,10 +52,11 @@ local tests = {
     full_tab_lists_outfits = function()
         local m = new({installed = function(f) return f == CH27 end})
         local rows = m.rows('full')
-        eq(#rows, 3, 'rows: the outfits, then Reset Stellar Closet')
+        eq(#rows, 4, 'rows: the outfits, Make preview pictures, then Reset Stellar Closet')
         same(rows[1], {whole = CH27, outfit = 'Ocean Maid', pack = 'AiK', locked = false}, 'first')
         same(rows[2], {whole = CH46, outfit = 'Kunoichi Shadow', pack = 'AiK', locked = true}, 'second')
-        same(rows[3], {reset = true}, 'the Reset row last')
+        same(rows[3], {thumbs = true}, 'the Make preview pictures row after the outfits')
+        same(rows[4], {reset = true}, 'the Reset row last')
     end,
 
     basebody_lists_fits_with_skin = function()

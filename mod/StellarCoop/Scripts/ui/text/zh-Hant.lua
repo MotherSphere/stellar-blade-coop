@@ -382,7 +382,9 @@ return {
         regions={HeadNeck='頭頸',TorsoUpper='上軀幹',TorsoLower='下軀幹',Pelvis='骨盆',ArmUpper='上臂',
             Forearm='前臂',Hand='手',Thigh='大腿',Calf='小腿',Foot='腳'},
         row={whole='穿上整套服裝',soon='即將推出',empty='已安裝的服裝中沒有適合此欄位的部件。',none='無',
-            locked='已鎖定：未安裝%s。',reset='重設Stellar Closet'},
+            locked='已鎖定：未安裝%s。',reset='重設Stellar Closet',
+            thumbs='產生預覽圖',
+            thumbs_desc='為每個還沒有圖片的部件拍一張圖，每幀一張。選單關閉後在非戰鬥狀態下開始。下次開啟時方塊會顯示這些圖片。'},
         detail={outfit='服裝：%s',slot='欄位：%s',covers='覆蓋：%s',also='同時佔用：%s',off='在所屬服裝中預設隱藏'},
         origin={original='原版',custom='自訂：%s'},
         hints={wear='穿上',take_off='脫下',whole='整套服裝'},
@@ -402,5 +404,7 @@ return {
         saved='造型已儲存。',failed='無法穿上這個部件。原因請見UE4SS.log。',
         switched='身體已換成%s，皮膚不會透出部件。',
         clips='這個身體會在這些部位透出皮膚：%s。',
+        thumbs={started='選單關閉後開始產生預覽圖。',cached='每個部件都已有預覽圖。',
+            failed='無法開始產生預覽圖。原因請見UE4SS.log。'},
         reset_done='Stellar Closet已重設。EVE恢復了自己的造型。'},
 }

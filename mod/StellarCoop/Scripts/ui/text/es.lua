@@ -490,7 +490,10 @@ return {
             ArmUpper='Brazos',Forearm='Antebrazos',Hand='Manos',Thigh='Muslos',Calf='Pantorrillas',Foot='Pies'},
         row={whole='Ponerse el traje completo',soon='Próximamente',
             empty='Ningún traje instalado tiene una pieza para esta ranura.',none='Nada',
-            locked='Bloqueado: %s no está instalado.',reset='Restablecer Stellar Closet'},
+            locked='Bloqueado: %s no está instalado.',reset='Restablecer Stellar Closet',
+            thumbs='Crear imágenes de vista previa',
+            thumbs_desc='Saca una imagen de cada pieza que aún no tiene, una por fotograma. Empieza cuando se cierra '
+                ..'el menú, fuera de combate. Las casillas muestran las imágenes la próxima vez que lo abras.'},
         detail={outfit='Traje: %s',slot='Ranura: %s',covers='Cubre: %s',also='También ocupa: %s',
             off='Oculto por defecto en su traje'},
         origin={original='Original',custom='Personalizado: %s'},
@@ -516,5 +519,8 @@ return {
         saved='Look guardado.',failed='No se pudo poner esta pieza. UE4SS.log dice por qué.',
         switched='Cuerpo cambiado a %s para que la piel no se vea a través de las piezas.',
         clips='La piel de este cuerpo se ve a través de las piezas en: %s.',
+        thumbs={started='Las imágenes de vista previa empiezan cuando se cierre el menú.',
+            cached='Cada pieza ya tiene su imagen de vista previa.',
+            failed='No se pudieron iniciar las imágenes de vista previa. UE4SS.log dice por qué.'},
         reset_done='Stellar Closet restablecido. EVE lleva su propio look.'},
 }

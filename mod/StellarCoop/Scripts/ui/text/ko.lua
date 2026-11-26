@@ -419,7 +419,10 @@ return {
             Forearm='아래팔',Hand='손',Thigh='허벅지',Calf='종아리',Foot='발'},
         row={whole='의상 전체 입기',soon='추후 지원',
             empty='이 슬롯에 맞는 부위가 있는 설치된 의상이 없습니다.',none='없음',
-            locked='잠김: %s이(가) 설치되어 있지 않습니다.',reset='Stellar Closet 초기화'},
+            locked='잠김: %s이(가) 설치되어 있지 않습니다.',reset='Stellar Closet 초기화',
+            thumbs='미리보기 이미지 만들기',
+            thumbs_desc='아직 이미지가 없는 각 부위를 프레임마다 한 장씩 촬영합니다. 메뉴를 닫은 뒤 전투 중이 아닐 때 '
+                ..'시작합니다. 다음에 열 때 타일에 이미지가 표시됩니다.'},
         detail={outfit='의상: %s',slot='슬롯: %s',covers='가리는 부위: %s',also='함께 차지하는 슬롯: %s',
             off='의상에서 기본적으로 숨김'},
         origin={original='오리지널',custom='커스텀: %s'},
@@ -447,5 +450,8 @@ return {
         saved='모습을 저장했습니다.',failed='이 부위를 입을 수 없었습니다. 이유는 UE4SS.log에 있습니다.',
         switched='부위 사이로 피부가 비치지 않도록 몸을 %s(으)로 바꿨습니다.',
         clips='이 몸은 다음 부위에서 피부가 비칩니다: %s.',
+        thumbs={started='메뉴를 닫으면 미리보기 이미지 만들기가 시작됩니다.',
+            cached='모든 부위에 이미 미리보기 이미지가 있습니다.',
+            failed='미리보기 이미지 만들기를 시작하지 못했습니다. 이유는 UE4SS.log에 있습니다.'},
         reset_done='Stellar Closet을 초기화했습니다. EVE가 원래 모습으로 돌아갔습니다.'},
 }

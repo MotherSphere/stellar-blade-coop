@@ -4,7 +4,8 @@
 -- The closet menu (closet/ui/menu.lua over closet/ui/view.lua) on menu_fakes.lua's fake kit and parts: open draws the
 -- tab row, the slot rows, the grid with the None tile first, the detail panel and the hints; coop closet menu opens
 -- and closes it; every close path drops every part and gives the input back; coop off does not revert; a draw that
--- raises closes the menu; the Body row, the origin line, the body switch notices and the Reset Stellar Closet row.
+-- raises closes the menu; the Body row, the origin line, the body switch notices, the Make preview pictures row and
+-- the Reset Stellar Closet row.
 local run = dofile('tests/lua/closet/run.lua')
 local F = dofile('tests/lua/closet/menu_fakes.lua')
 package.loaded.UEHelpers = {GetPlayer = function() return nil end, GetPlayerController = function() return F.pc end}
@@ -35,7 +36,7 @@ local function rig(o)
         tell = function(build) r.told[#r.told + 1] = build(T.en) end, log = function(m) r.log[#r.log + 1] = m end,
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
-        camera = o.camera, folder = o.folder})
+        camera = o.camera, folder = o.folder, thumbs = o.thumbs})
     return r
 end
 -- A fake closet camera (closet/ui/camera.lua's face): its calls in order, its ticks' dt and region.
@@ -146,11 +147,12 @@ local tests = {
             ok(F.called(tabs[i].o, i == 1 and 'FocusTabButton' or 'DefocusTabButton'), 'tab focus ' .. i)
             eq(tabs[i].x, 160 + (i - 1) * 266, 'tab x ' .. i)
         end
-        -- The Full tab's rows: one an outfit, then Reset Stellar Closet, Ocean Maid focused; the hints Back, Whole
-        -- outfit, Move.
+        -- The Full tab's rows: one an outfit, then Make preview pictures and Reset Stellar Closet, Ocean Maid focused;
+        -- the hints Back, Whole outfit, Move.
         local rows = r.kit.live(F.OPTION)
-        eq(#rows, 3, 'outfit rows and the Reset row')
-        eq(rows[3].o.Text_TitleValue.text, T.en.closet.row.reset, 'the Reset row last')
+        eq(#rows, 4, 'outfit rows, the Make preview pictures row and the Reset row')
+        eq(rows[3].o.Text_TitleValue.text, T.en.closet.row.thumbs, 'the Make preview pictures row after the outfits')
+        eq(rows[4].o.Text_TitleValue.text, T.en.closet.row.reset, 'the Reset row last')
         eq(rows[1].o.Text_TitleValue.text, 'Ocean Maid', 'outfit row 1')
         eq(rows[1].o.Text_ItemValue.text, 'AiK', 'outfit row 1 pack')
         eq((detail(r)), 'Ocean Maid', 'the outfit detail')
@@ -270,8 +272,9 @@ local tests = {
         local r = rig()
         r.menu.open()
         local tv = r.kit.live(F.GRID)[1].o.TileView_ItemList
-        -- The Full tab: 7 tabs, 2 outfit rows and the Reset row, the grid, the detail, 2 tab keys and 3 hints.
-        eq(#r.kit.made, 17, 'parts made')
+        -- The Full tab: 7 tabs, 2 outfit rows, the Make preview pictures and Reset rows, the grid, the detail, 2 tab
+        -- keys and 3 hints.
+        eq(#r.kit.made, 18, 'parts made')
         local good = r.menu.close()
         ok(good, 'close')
         all_gone(r)
@@ -884,7 +887,7 @@ local tests = {
     reset_row_clears_and_stops_the_watchdog = function()
         local r = rig({before = function(r) r.choices = {{fit = MAID}} end})
         r.menu.open()
-        at(r, 0.5, 'down', 'down')
+        at(r, 0.5, 'down', 'down', 'down')
         local title, desc = detail(r)
         eq(title, T.en.closet.row.reset, 'the last row of the Full tab')
         eq(desc, T.en.closet.popup.reset_desc, 'its detail')
@@ -902,7 +905,7 @@ local tests = {
         eq(popups(r), 0, 'Back: the popup goes') ok(r.menu.is_open(), 'Back: the menu stays')
         eq(r.offs, 0, 'nothing reset yet')
         -- A preview, then Yes.
-        at(r, 0.5, 'up', 'refresh', 'down', 'select', 'select')
+        at(r, 0.5, 'up', 'up', 'refresh', 'down', 'down', 'select', 'select')
         same(r.previews, {{{fit = KUNOICHI}}}, 'previewed before the reset')
         eq(r.offs, 1, 'coop closet off ran')
         eq(r.reverted + r.confirmed, 0, 'no revert, no confirm')
@@ -915,6 +918,66 @@ local tests = {
         all_gone(r)
         tick(r, 2) tick(r, 3)
         eq(r.reverted, 0, 'no revert owed after it')
+    end,
+
+    -- Make preview pictures, the Full tab's row before Reset Stellar Closet: Select (Enter, the pad's A or a click)
+    -- starts coop closet thumbs from the menu (closet/thumbs.lua: it waits for the close) and tells what it did. The
+    -- menu stays open; a run already going is not started again.
+    the_pictures_row_starts_a_capture = function()
+        local th = {runs = {}, on = false, answer = {true, 'closet thumbs: 24 picture(s)'}}
+        th.running = function() return th.on end
+        th.run = function(redo, only, menu)
+            th.runs[#th.runs + 1] = {redo, only or false, menu}
+            th.on = th.answer[1] and th.starts ~= false
+            return table.unpack(th.answer)
+        end
+        local r = rig({thumbs = th})
+        r.menu.open()
+        at(r, 0.5, 'down', 'down')
+        local title, desc = detail(r)
+        eq(title, T.en.closet.row.thumbs, 'the row after the outfits')
+        eq(desc, T.en.closet.row.thumbs_desc, 'its detail')
+        eq(#grid(r).items, 0, 'no tile')
+        eq(badge(r), nil, 'no origin')
+        local hints = {}
+        for _, h in ipairs(r.kit.live(F.HINT)) do
+            local text
+            for _, c in ipairs(h.o.calls) do if c[1] == 'SetText' then text = c[2].text end end
+            if text ~= '' then hints[text] = true end
+        end
+        ok(hints[T.en.hint.select] and not hints[T.en.closet.hints.whole], 'the Select hint, no Whole outfit hint')
+        at(r, 0.5, 'refresh')
+        eq(#th.runs + #r.previews, 0, 'refresh starts and wears nothing')
+        at(r, 0.5, 'select')
+        same(th.runs, {{false, false, true}}, 'every missing picture, from the menu')
+        same(r.told, {T.en.closet.thumbs.started}, 'told it starts after the close')
+        ok(r.menu.is_open(), 'the menu stays open')
+        at(r, 0.5, 'select')
+        eq(#th.runs, 1, 'a run going: not started again')
+        eq(r.told[2], T.en.closet.thumbs.started, 'told again')
+        th.on, th.starts = false, false
+        at(r, 0.5, 'select')
+        eq(r.told[3], T.en.closet.thumbs.cached, 'every picture there: told')
+        th.answer = {false, 'closet thumbs: the mod folder is not known'}
+        at(r, 0.5, 'select')
+        eq(r.told[4], T.en.closet.thumbs.failed, 'a refusal: told')
+        has(r.log, 'the mod folder is not known', 'its reason logged')
+        -- The mouse: a click on the row runs Select.
+        th.answer, th.starts = {true, 'x'}, nil
+        local zones = r.kit.groups.closet_menu.zones
+        zones[1].hover = true
+        at(r, 0.5, 'click')
+        zones[1].hover = false
+        zones[3].hover = true
+        at(r, 0.5, 'click')
+        eq(#th.runs, 4, 'the click ran it')
+        eq(r.told[5], T.en.closet.thumbs.started, 'told')
+        eq(#r.previews, 1, 'only the first click wore an outfit')
+        -- No thumbs given: a refusal, told.
+        r = rig()
+        r.menu.open()
+        at(r, 0.5, 'down', 'down', 'select')
+        same(r.told, {T.en.closet.thumbs.failed}, 'no thumbs: told')
     end,
 
     the_detail_names_the_origin = function()
@@ -954,7 +1017,7 @@ local tests = {
             eq(title, 'Ocean Maid', 'the Full outfit row')
             ok(desc:find(T.en.closet.origin.original, 1, true) and not desc:find('Custom', 1, true), desc)
             eq(badge(r), 'original', 'the original badge')
-            at(r, 0.5, 'down', 'down')
+            at(r, 0.5, 'down', 'down', 'down')
             eq((detail(r)), T.en.closet.row.reset, 'the Reset row') eq(badge(r), nil, 'the Reset row has no origin')
         end)
         Fits.BY_ID[MAID].Origin = nil
@@ -1094,7 +1157,7 @@ local tests = {
         -- A grid with no glyph to show (the Reset row's, empty): never looked at.
         r = rig()
         r.menu.open()
-        at(r, 0.05, 'down', 'down')
+        at(r, 0.05, 'down', 'down', 'down')
         eq(#grid(r).items, 0, 'the Reset row has no tile')
         tick(r, 1)
         tick(r, 2)
@@ -1597,7 +1660,7 @@ local tests = {
             typed = function(r) at(r, 1, 'right', 'right', 'select'); r.previewing = false; tick(r, 1.5) end,
             close = function(r) r.menu.close() end,
             keep = function(r) r.menu.close('keep') end,
-            reset = function(r) at(r, 1, 'tab_left', 'tab_left', 'down', 'down', 'select', 'select') end,
+            reset = function(r) at(r, 1, 'tab_left', 'tab_left', 'down', 'down', 'down', 'select', 'select') end,
             draw = function(r) r.kit.up = false; at(r, 1, 'up') end,
             stop = function(r) r.menu.stop() end,
         }
@@ -1726,7 +1789,7 @@ local tests = {
         local kit = F.kit()
         kit.screen = function() return {w = 3840, h = 2160} end
         local M = {print = function() end, kit = kit, closet = dress, words = function() return T.en end,
-            tell = function() end, photo_state = function() return '0' end,
+            tell = function() end, photo_state = function() return '0' end, closet_thumbs = {run = function() end},
             link = {status = function() return '' end, store = function(name)
                 stored[#stored + 1] = name
                 return {save = function() return true end, load = function() end, clear = function() end}
@@ -1742,6 +1805,7 @@ local tests = {
         eq(got.pad_bits(), 5, 'the pad bits')
         same({got.pad_levels()}, {0.5, -0.5, 0, 1}, 'the pad levels')
         ok(menu_got.camera ~= nil and menu_got.camera.word ~= nil, 'the menu has the camera')
+        ok(menu_got.thumbs == M.closet_thumbs, 'the menu has coop closet thumbs (its Make preview pictures row)')
     end,
 
     every_close_path_drops_every_part = function()
@@ -1755,7 +1819,7 @@ local tests = {
             stop = function(r) r.menu.stop() end,
             close = function(r) r.menu.close() end,
             keep = function(r) r.menu.close('keep') end,
-            reset = function(r) at(r, 1, 'tab_left', 'tab_left', 'down', 'down', 'select', 'select') end,
+            reset = function(r) at(r, 1, 'tab_left', 'tab_left', 'down', 'down', 'down', 'select', 'select') end,
         }
         for name, path in pairs(paths) do
             local r = rig()

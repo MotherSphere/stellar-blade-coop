@@ -246,9 +246,10 @@ local function notices(w)
     local longest=''
     for _,name in pairs(w.modules) do if #name>#longest then longest=name end end
     lines[#lines+1]=w.module_off:format(longest)
-    -- Stellar Closet's notices (closet/ui/menu.lua): each refused open, each close, the save, the failed wear and the
-    -- reset, the body switched to a 32-byte outfit name and the clipping limbs.
-    for _,group in ipairs({'refused','closed'}) do
+    -- Stellar Closet's notices (closet/ui/menu.lua): each refused open, each close, each answer of Make preview
+    -- pictures, the save, the failed wear and the reset, the body switched to a 32-byte outfit name and the clipping
+    -- limbs.
+    for _,group in ipairs({'refused','closed','thumbs'}) do
         for _,text in pairs(w.closet[group]) do lines[#lines+1]=text end
     end
     lines[#lines+1]=w.closet.saved

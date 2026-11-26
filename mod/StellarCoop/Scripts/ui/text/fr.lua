@@ -494,7 +494,10 @@ return {
             ArmUpper='Haut des bras',Forearm='Avant-bras',Hand='Mains',Thigh='Cuisses',Calf='Mollets',Foot='Pieds'},
         row={whole='Porter la tenue complète',soon='Bientôt',
             empty="Aucune tenue installée n'a de pièce pour cet emplacement.",none='Aucun',
-            locked="Verrouillé : %s n'est pas installé.",reset='Réinitialiser Stellar Closet'},
+            locked="Verrouillé : %s n'est pas installé.",reset='Réinitialiser Stellar Closet',
+            thumbs='Créer les aperçus',
+            thumbs_desc="Prend une image de chaque pièce qui n'en a pas encore, une par frame. Cela commence une fois "
+                ..'le menu fermé, hors combat. Les vignettes montrent les images à la prochaine ouverture.'},
         detail={outfit='Tenue : %s',slot='Emplacement : %s',covers='Couvre : %s',also='Prend aussi : %s',
             off='Masqué par défaut dans sa tenue'},
         origin={original='Original',custom='Personnalisé : %s'},
@@ -520,5 +523,7 @@ return {
         saved='Look enregistré.',failed='Impossible de porter cette pièce. UE4SS.log dit pourquoi.',
         switched='Corps changé pour %s afin que la peau ne traverse pas les pièces.',
         clips='La peau de ce corps traverse les pièces ici : %s.',
+        thumbs={started='Les aperçus commencent une fois le menu fermé.',cached='Chaque pièce a déjà son aperçu.',
+            failed='Impossible de lancer les aperçus. UE4SS.log dit pourquoi.'},
         reset_done='Stellar Closet est réinitialisé. EVE porte son propre look.'},
 }

@@ -54,6 +54,7 @@ function Model.new(o)
                 local fit = Fits.get(id)
                 out[#out + 1] = {whole = id, outfit = fit.Outfit, pack = fit.Pack, locked = not o.installed(id)}
             end
+            out[#out + 1] = {thumbs = true} -- Make preview pictures (coop closet thumbs).
             out[#out + 1] = {reset = true} -- Reset Stellar Closet, last.
             return out
         end

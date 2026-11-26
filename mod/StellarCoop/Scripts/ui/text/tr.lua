@@ -485,7 +485,10 @@ return {
         regions={HeadNeck='Baş ve boyun',TorsoUpper='Üst gövde',TorsoLower='Alt gövde',Pelvis='Leğen',
             ArmUpper='Üst kollar',Forearm='Ön kollar',Hand='Eller',Thigh='Uyluklar',Calf='Baldırlar',Foot='Ayaklar'},
         row={whole='Tüm kıyafeti giy',soon='Yakında',empty='Kurulu hiçbir kıyafette bu yuva için parça yok.',
-            none='Hiçbiri',locked='Kilitli: %s kurulu değil.',reset="Stellar Closet'ı sıfırla"},
+            none='Hiçbiri',locked='Kilitli: %s kurulu değil.',reset="Stellar Closet'ı sıfırla",
+            thumbs='Önizleme resimleri oluştur',
+            thumbs_desc='Henüz resmi olmayan her parçanın resmini çeker, kare başına bir tane. Menü kapandığında, '
+                ..'savaş dışında başlar. Kutular resimleri bir sonraki açılışta gösterir.'},
         detail={outfit='Kıyafet: %s',slot='Yuva: %s',covers='Örter: %s',also='Ayrıca kaplar: %s',
             off='Kıyafetinde varsayılan olarak gizli'},
         origin={original='Orijinal',custom='Özel: %s'},
@@ -510,5 +513,7 @@ return {
         saved='Görünüm kaydedildi.',failed='Bu parça giyilemedi. Nedeni UE4SS.log içinde.',
         switched='Ten parçalardan görünmesin diye vücut %s olarak değiştirildi.',
         clips='Bu vücudun teni şu bölgelerde parçalardan görünüyor: %s.',
+        thumbs={started='Önizleme resimleri menü kapandığında başlar.',cached='Her parçanın zaten önizleme resmi var.',
+            failed='Önizleme resimleri başlatılamadı. Nedeni UE4SS.log içinde.'},
         reset_done='Stellar Closet sıfırlandı. EVE kendi görünümünde.'},
 }

@@ -35,7 +35,10 @@
 -- origin's badge. Each tile shows its piece's picture (closet/thumbs.lua's cached PNG), else its outfit's Image, else
 -- its slot's glyph (closet/slots.lua); the None tile None's glyph. The Full tab's outfit row shows one tile, its
 -- outfit's whole picture (full.png), else its Image, else the Full outfit glyph; Select still wears the row. Which
--- pictures are there is read again at each open.
+-- pictures are there is read again at each open. The Full tab's row before the last, Make preview pictures (hint
+-- Select), starts coop closet thumbs (closet/thumbs.lua) for every picture not there yet. That run waits for the
+-- menu's close. It tells closet.thumbs.started (also when a run is going), cached (every picture is there) or failed
+-- (the reason logged); the menu stays open.
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
 -- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
 -- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
@@ -53,7 +56,8 @@
 -- o: {kit=ui/kit/kit.lua's, dress=closet/dress.lua's, words=function() the ui/text table to show, tell=function(build)
 -- (main/base.lua's M.tell), log=, world=function() M.hud_shown, photo=function() M.photo_state(), status=function()
 -- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
--- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil}.
+-- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
+-- thumbs=closet/thumbs.lua's or nil}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player=require('core.player')
@@ -197,8 +201,8 @@ function Menu.new(o)
         for i,item in ipairs(list) do
             if item.whole then
                 s.rows[i]={title=item.outfit,value=item.pack,locked=item.locked}
-            elseif item.reset then
-                s.rows[i]={title=w.row.reset,value=''}
+            elseif item.reset or item.thumbs then
+                s.rows[i]={title=item.reset and w.row.reset or w.row.thumbs,value=''}
             else
                 local worn=model.worn(choices,item.slot)
                 -- The Body row names the body in use: the picked one, else the plan's (switched or the rule's).
@@ -229,8 +233,8 @@ function Menu.new(o)
             s.tiles={{name=item.outfit,locked=item.locked,picture=picture(item.whole,Thumbs.FULL),
                 image=Fits.get(item.whole).Image,icon=Slots.glyph(Slots.FULL_OUTFIT)}}
             if not item.locked then s.hints[2]={w.hints.whole,'Positive',word='select'} end
-        elseif item and item.reset then
-            s.detail.desc=w.popup.reset_desc
+        elseif item and (item.reset or item.thumbs) then
+            s.detail.desc=item.reset and w.popup.reset_desc or w.row.thumbs_desc
             s.hints[2]={t.hint.select,'Positive',word='select'}
         elseif item and item.state~='pieces' then
             s.detail.desc=w.row[item.state]
@@ -384,6 +388,22 @@ function Menu.new(o)
         if one and one.fit and not one.locked then wear(model.whole(one.fit)) end
     end
 
+    -- Make preview pictures: coop closet thumbs started from the menu (it waits for the close), told; a run going is
+    -- told the same way, not started again.
+    local function pictures()
+        local thumbs=o.thumbs
+        local ran,good,why=true,true,nil
+        if not (thumbs and thumbs.running()) then
+            ran,good,why=pcall(function() return thumbs.run(false,nil,true) end)
+        end
+        if not (ran and good) then
+            log('menu: preview pictures not started: '..tostring(ran and why or good))
+            return o.tell(function(t) return t.closet.thumbs.failed end)
+        end
+        local key=thumbs.running() and 'started' or 'cached' -- Not running after a good run: every picture is there.
+        o.tell(function(t) return t.closet.thumbs[key] end)
+    end
+
     local function set_tab(i)
         tab,row,due=(i-1)%#model.tabs()+1,1,nil
         if col=='grid' then col='rows' end
@@ -464,6 +484,7 @@ function Menu.new(o)
         local item,tiles,at=focused()
         if word=='tab_left' or word=='tab_right' then set_tab(tab+(word=='tab_left' and -1 or 1))
         elseif word=='select' and col=='rows' and item and item.reset then asking='reset'
+        elseif word=='select' and col=='rows' and item and item.thumbs then pictures()
         elseif word=='refresh' or word=='select' and col=='rows' and item and item.whole then wear_whole()
         elseif col=='grid' then
             local C=View.COLUMNS

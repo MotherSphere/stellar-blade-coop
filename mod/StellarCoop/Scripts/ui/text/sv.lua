@@ -472,7 +472,10 @@ return {
             ArmUpper='Överarmar',Forearm='Underarmar',Hand='Händer',Thigh='Lår',Calf='Vader',Foot='Fötter'},
         row={whole='Bär hela dräkten',soon='Kommer snart',
             empty='Ingen installerad dräkt har ett plagg för den här platsen.',none='Inget',
-            locked='Låst: %s är inte installerad.',reset='Återställ Stellar Closet'},
+            locked='Låst: %s är inte installerad.',reset='Återställ Stellar Closet',
+            thumbs='Skapa förhandsbilder',
+            thumbs_desc='Tar en bild av varje plagg som inte har någon än, en per bildruta. Det börjar när menyn är '
+                ..'stängd, utanför strid. Rutorna visar bilderna nästa gång menyn öppnas.'},
         detail={outfit='Dräkt: %s',slot='Plats: %s',covers='Täcker: %s',also='Tar även: %s',
             off='Dold som standard i sin dräkt'},
         origin={original='Original',custom='Anpassad: %s'},
@@ -498,5 +501,7 @@ return {
         saved='Looken sparad.',failed='Plagget gick inte att ta på. UE4SS.log säger varför.',
         switched='Kroppen bytt till %s så att ingen hud syns genom plaggen.',
         clips='Den här kroppens hud syns genom plaggen på: %s.',
+        thumbs={started='Förhandsbilderna börjar när menyn är stängd.',cached='Varje plagg har redan sin förhandsbild.',
+            failed='Förhandsbilderna kunde inte starta. UE4SS.log säger varför.'},
         reset_done='Stellar Closet är återställd. EVE bär sin egen look.'},
 }

@@ -490,7 +490,11 @@ return {
             Foot='Jalkaterät'},
         row={whole='Pue koko asu',soon='Tulossa pian',
             empty='Millään asennetulla asulla ei ole osaa tähän paikkaan.',none='Ei mitään',
-            locked='Lukittu: %s ei ole asennettu.',reset='Nollaa Stellar Closet'},
+            locked='Lukittu: %s ei ole asennettu.',reset='Nollaa Stellar Closet',
+            thumbs='Luo esikatselukuvat',
+            thumbs_desc='Ottaa kuvan jokaisesta osasta, jolla ei vielä ole kuvaa, yhden ruutua kohden. Se alkaa, kun '
+                ..'valikko on suljettu, taistelun ulkopuolella. Ruudut näyttävät kuvat, kun valikko avataan seuraavan '
+                ..'kerran.'},
         detail={outfit='Asu: %s',slot='Paikka: %s',covers='Peittää: %s',also='Vie myös: %s',
             off='Piilotettu oletuksena asussaan'},
         origin={original='Alkuperäinen',custom='Mukautettu: %s'},
@@ -516,5 +520,8 @@ return {
         saved='Tyyli tallennettu.',failed='Osaa ei voitu pukea. UE4SS.log kertoo syyn.',
         switched='Vartalo vaihdettu: %s, jotta iho ei näy osien läpi.',
         clips='Tämän vartalon iho näkyy osien läpi kohdissa: %s.',
+        thumbs={started='Esikatselukuvat alkavat, kun valikko on suljettu.',
+            cached='Jokaisella osalla on jo esikatselukuva.',
+            failed='Esikatselukuvia ei voitu aloittaa. UE4SS.log kertoo syyn.'},
         reset_done='Stellar Closet on nollattu. EVEllä on oma tyylinsä.'},
 }

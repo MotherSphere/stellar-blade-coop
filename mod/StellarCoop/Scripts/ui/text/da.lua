@@ -475,7 +475,10 @@ return {
             ArmUpper='Overarme',Forearm='Underarme',Hand='Hænder',Thigh='Lår',Calf='Lægge',Foot='Fødder'},
         row={whole='Tag hele dragten på',soon='Kommer snart',
             empty='Ingen installeret dragt har en del til denne plads.',none='Ingen',
-            locked='Låst: %s er ikke installeret.',reset='Nulstil Stellar Closet'},
+            locked='Låst: %s er ikke installeret.',reset='Nulstil Stellar Closet',
+            thumbs='Lav forhåndsvisningsbilleder',
+            thumbs_desc='Tager et billede af hver del, der ikke har et endnu, ét pr. frame. Det starter, når menuen '
+                ..'er lukket, uden for kamp. Felterne viser billederne, næste gang menuen åbnes.'},
         detail={outfit='Dragt: %s',slot='Plads: %s',covers='Dækker: %s',also='Optager også: %s',
             off='Skjult som standard i sin dragt'},
         origin={original='Original',custom='Tilpasset: %s'},
@@ -501,5 +504,8 @@ return {
         saved='Look gemt.',failed='Delen kunne ikke tages på. UE4SS.log siger hvorfor.',
         switched='Kroppen er skiftet til %s, så ingen hud skinner igennem delene.',
         clips='Denne krops hud skinner igennem delene på: %s.',
+        thumbs={started='Forhåndsvisningsbillederne starter, når menuen er lukket.',
+            cached='Hver del har allerede sit forhåndsvisningsbillede.',
+            failed='Forhåndsvisningsbillederne kunne ikke starte. UE4SS.log siger hvorfor.'},
         reset_done='Stellar Closet er nulstillet. EVE har sit eget look på.'},
 }

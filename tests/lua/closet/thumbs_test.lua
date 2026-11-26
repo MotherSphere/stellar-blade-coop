@@ -4,8 +4,8 @@
 -- coop closet thumbs (closet/thumbs.lua) on a fake game: the cache folder and file names, the capture queue (every
 -- installed fit's pieces and full, cached ones skipped unless redo, a changed stamp captured again), one capture a
 -- frame after the textures' wait, the sections shown per picture, the rig's settings, the rig removed on each end path
--- (done, coop off, a map change, a Lua reload), the refusals and the waits, a missing mesh, a folder the export did not
--- make, the framing.
+-- (done, coop off, a map change, a Lua reload), the refusals and the waits, a run from the menu's row that waits for
+-- its close, a missing mesh, a folder the export did not make, the framing, the AActor link entries the header cites.
 local run = dofile('tests/lua/closet/run.lua')
 package.loaded.UEHelpers = {GetPlayer = function() return nil end}
 FName = function(s) return s end
@@ -437,6 +437,43 @@ local tests = {
         r.battle = false
         drain(r)
         eq(#named(r, 'export'), 24, 'every picture after the fight')
+    end,
+
+    a_run_from_the_menu_waits_for_its_close = function()
+        -- The closet menu's row (closet/ui/menu.lua) starts a run while the menu is open: it waits for the close.
+        -- The console's run is still refused while the menu is open; every other refusal still holds for the row.
+        local r = game()
+        r.menu = true
+        local good, line = r.thumbs.run(false)
+        ok(not good and line:find('menu', 1, true), 'the console: ' .. tostring(line))
+        r.battle = true
+        good, line = r.thumbs.run(false, nil, true)
+        ok(not good and line:find('combat', 1, true), 'the row in combat: ' .. tostring(line))
+        r.battle = false
+        good, line = r.thumbs.run(false, nil, true)
+        ok(good and r.thumbs.running(), tostring(line))
+        for _ = 1, 30 do r.t = r.t + 0.1; r.thumbs.tick() end
+        eq(#r.calls, 0, 'nothing while the menu is open')
+        r.menu = false
+        drain(r)
+        eq(#named(r, 'export'), 24, 'every picture after the close')
+    end,
+
+    -- The header cites each AActor function by its FClassFunctionLinkInfo entry {CreateFuncPtr, Name}, 16 bytes, and
+    -- that entry's constructor and FFunctionParams: never an entry's Name field or the next function's constructor.
+    the_actor_functions_are_cited_by_their_link_entries = function()
+        local f = assert(io.open('mod/StellarCoop/Scripts/closet/thumbs.lua', 'rb'))
+        local src = f:read('a')
+        f:close()
+        for _, want in ipairs({'AddComponentByClass: link entry 0x1464cb810, constructor 0x1446be8d0',
+            'K2_SetActorLocationAndRotation: link entry 0x1464cbcf0, constructor 0x1446bf770',
+            'K2_DestroyActor: link entry 0x1464cbc40, constructor 0x1446bf560'}) do
+            ok(src:find(want, 1, true), 'cited: ' .. want)
+        end
+        for _, wrong in ipairs({'0x1464cb818', '0x1464cbcf8', '0x1464cbc48', '0x1446be900', '0x1446bf7a0',
+            '0x1446bf590'}) do
+            ok(not src:find(wrong, 1, true), 'not cited: ' .. wrong)
+        end
     end,
 
     the_framing = function()

@@ -491,7 +491,10 @@ return {
             Calf='Panturrilhas',Foot='Pés'},
         row={whole='Vestir a roupa completa',soon='Em breve',
             empty='Nenhuma roupa instalada tem uma peça para este espaço.',none='Nada',
-            locked='Bloqueado: %s não está instalado.',reset='Redefinir o Stellar Closet'},
+            locked='Bloqueado: %s não está instalado.',reset='Redefinir o Stellar Closet',
+            thumbs='Criar imagens de prévia',
+            thumbs_desc='Tira uma imagem de cada peça que ainda não tem, uma por quadro. Começa quando o menu é '
+                ..'fechado, fora de combate. Os blocos mostram as imagens na próxima abertura.'},
         detail={outfit='Roupa: %s',slot='Espaço: %s',covers='Cobre: %s',also='Ocupa também: %s',
             off='Escondido por padrão na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
@@ -516,5 +519,8 @@ return {
         saved='Visual salvo.',failed='Não foi possível vestir esta peça. UE4SS.log diz por quê.',
         switched='Corpo trocado para %s para a pele não aparecer através das peças.',
         clips='A pele deste corpo aparece através das peças em: %s.',
+        thumbs={started='As imagens de prévia começam quando o menu for fechado.',
+            cached='Cada peça já tem sua imagem de prévia.',
+            failed='Não foi possível iniciar as imagens de prévia. UE4SS.log diz por quê.'},
         reset_done='Stellar Closet redefinido. EVE usa o próprio visual.'},
 }

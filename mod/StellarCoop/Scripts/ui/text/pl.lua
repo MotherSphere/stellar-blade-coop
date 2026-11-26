@@ -481,7 +481,10 @@ return {
             Foot='Stopy'},
         row={whole='Załóż cały strój',soon='Wkrótce',
             empty='Żaden zainstalowany strój nie ma elementu na to miejsce.',none='Brak',
-            locked='Zablokowane: %s nie jest zainstalowany.',reset='Zresetuj Stellar Closet'},
+            locked='Zablokowane: %s nie jest zainstalowany.',reset='Zresetuj Stellar Closet',
+            thumbs='Utwórz podglądy',
+            thumbs_desc='Robi zdjęcie każdego elementu, który go jeszcze nie ma, jedno na klatkę. Zaczyna po '
+                ..'zamknięciu menu, poza walką. Kafelki pokażą zdjęcia przy następnym otwarciu.'},
         detail={outfit='Strój: %s',slot='Miejsce: %s',covers='Zakrywa: %s',also='Zajmuje też: %s',
             off='Domyślnie ukryte w swoim stroju'},
         origin={original='Oryginalny',custom='Własny: %s'},
@@ -508,5 +511,7 @@ return {
         saved='Wygląd zapisany.',failed='Nie udało się założyć tego elementu. UE4SS.log mówi dlaczego.',
         switched='Ciało zmienione na %s, aby skóra nie prześwitywała przez elementy.',
         clips='Skóra tego ciała prześwituje przez elementy w miejscach: %s.',
+        thumbs={started='Podglądy zaczną się po zamknięciu menu.',cached='Każdy element ma już swój podgląd.',
+            failed='Nie udało się uruchomić podglądów. UE4SS.log mówi dlaczego.'},
         reset_done='Stellar Closet zresetowany. EVE ma swój własny wygląd.'},
 }

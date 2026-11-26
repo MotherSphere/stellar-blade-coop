@@ -421,7 +421,10 @@ return {
             Forearm='前腕',Hand='手',Thigh='太もも',Calf='ふくらはぎ',Foot='足'},
         row={whole='衣装一式を着る',soon='近日対応',
             empty='このスロットのパーツがあるインストール済み衣装はありません。',none='なし',
-            locked='ロック中：%sがインストールされていません。',reset='Stellar Closetをリセット'},
+            locked='ロック中：%sがインストールされていません。',reset='Stellar Closetをリセット',
+            thumbs='プレビュー画像を作成',
+            thumbs_desc='まだ画像のない各パーツを1フレームに1枚ずつ撮影します。メニューを閉じた後、戦闘外で始まります。'
+                ..'次に開いたときにタイルに表示されます。'},
         detail={outfit='衣装：%s',slot='スロット：%s',covers='覆う部位：%s',also='他に使うスロット：%s',
             off='衣装では初期状態で非表示'},
         origin={original='オリジナル',custom='カスタム：%s'},
@@ -446,5 +449,8 @@ return {
         saved='見た目を保存しました。',failed='このパーツを着られませんでした。理由はUE4SS.logにあります。',
         switched='肌がパーツから透けないよう、体を%sに切り替えました。',
         clips='この体はパーツから肌が透けます：%s。',
+        thumbs={started='メニューを閉じるとプレビュー画像の作成が始まります。',
+            cached='すべてのパーツにプレビュー画像があります。',
+            failed='プレビュー画像の作成を開始できませんでした。理由はUE4SS.logにあります。'},
         reset_done='Stellar Closetをリセットしました。EVEは自分の見た目に戻りました。'},
 }

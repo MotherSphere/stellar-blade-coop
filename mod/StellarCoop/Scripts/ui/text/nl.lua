@@ -485,7 +485,10 @@ return {
             ArmUpper='Bovenarmen',Forearm='Onderarmen',Hand='Handen',Thigh='Dijen',Calf='Kuiten',Foot='Voeten'},
         row={whole='Hele outfit dragen',soon='Binnenkort',
             empty='Geen geïnstalleerde outfit heeft een stuk voor dit vak.',none='Geen',
-            locked='Vergrendeld: %s is niet geïnstalleerd.',reset='Stellar Closet resetten'},
+            locked='Vergrendeld: %s is niet geïnstalleerd.',reset='Stellar Closet resetten',
+            thumbs='Voorbeeldafbeeldingen maken',
+            thumbs_desc='Maakt een afbeelding van elk stuk dat er nog geen heeft, één per frame. Het begint zodra het '
+                ..'menu dicht is, buiten gevechten. De tegels tonen de afbeeldingen als je het menu weer opent.'},
         detail={outfit='Outfit: %s',slot='Vak: %s',covers='Bedekt: %s',also='Neemt ook: %s',
             off='Standaard verborgen in zijn outfit'},
         origin={original='Origineel',custom='Aangepast: %s'},
@@ -511,5 +514,8 @@ return {
         saved='Look opgeslagen.',failed='Dit stuk kon niet aan. UE4SS.log zegt waarom.',
         switched='Lichaam gewisseld naar %s, zodat er geen huid door de stukken komt.',
         clips='De huid van dit lichaam komt door de stukken bij: %s.',
+        thumbs={started='De voorbeeldafbeeldingen beginnen zodra het menu dicht is.',
+            cached='Elk stuk heeft al een voorbeeldafbeelding.',
+            failed='De voorbeeldafbeeldingen konden niet starten. UE4SS.log zegt waarom.'},
         reset_done='Stellar Closet is gereset. EVE draagt haar eigen look.'},
 }

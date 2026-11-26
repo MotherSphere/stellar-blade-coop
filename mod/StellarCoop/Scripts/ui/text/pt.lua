@@ -490,7 +490,10 @@ return {
             Calf='Barrigas das pernas',Foot='Pés'},
         row={whole='Vestir a roupa completa',soon='Em breve',
             empty='Nenhuma roupa instalada tem uma peça para este espaço.',none='Nada',
-            locked='Bloqueado: %s não está instalado.',reset='Repor o Stellar Closet'},
+            locked='Bloqueado: %s não está instalado.',reset='Repor o Stellar Closet',
+            thumbs='Criar pré-visualizações',
+            thumbs_desc='Tira uma imagem de cada peça que ainda não tem, uma por fotograma. Começa quando o menu é '
+                ..'fechado, fora de combate. Os quadrados mostram as imagens na próxima abertura.'},
         detail={outfit='Roupa: %s',slot='Espaço: %s',covers='Cobre: %s',also='Ocupa também: %s',
             off='Escondido por predefinição na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
@@ -515,5 +518,8 @@ return {
         saved='Visual guardado.',failed='Não foi possível vestir esta peça. UE4SS.log diz porquê.',
         switched='Corpo trocado para %s para a pele não aparecer através das peças.',
         clips='A pele deste corpo aparece através das peças em: %s.',
+        thumbs={started='As pré-visualizações começam quando o menu for fechado.',
+            cached='Cada peça já tem a sua pré-visualização.',
+            failed='Não foi possível iniciar as pré-visualizações. UE4SS.log diz porquê.'},
         reset_done='Stellar Closet reposto. EVE usa o seu próprio visual.'},
 }

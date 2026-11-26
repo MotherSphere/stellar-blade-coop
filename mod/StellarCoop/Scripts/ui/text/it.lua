@@ -494,7 +494,10 @@ return {
             ArmUpper='Braccia',Forearm='Avambracci',Hand='Mani',Thigh='Cosce',Calf='Polpacci',Foot='Piedi'},
         row={whole="Indossa l'outfit completo",soon='In arrivo',
             empty='Nessun outfit installato ha un capo per questo slot.',none='Nessuno',
-            locked='Bloccato: %s non è installato.',reset='Reimposta Stellar Closet'},
+            locked='Bloccato: %s non è installato.',reset='Reimposta Stellar Closet',
+            thumbs='Crea anteprime',
+            thumbs_desc="Scatta un'immagine di ogni capo che non ne ha ancora una, una per frame. Inizia quando il "
+                ..'menu è chiuso, fuori dal combattimento. Le caselle mostrano le immagini alla prossima apertura.'},
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Copre: %s',also='Occupa anche: %s',
             off='Nascosto di default nel suo outfit'},
         origin={original='Originale',custom='Personalizzato: %s'},
@@ -520,5 +523,7 @@ return {
         saved='Look salvato.',failed='Impossibile indossare questo capo. UE4SS.log dice perché.',
         switched='Corpo cambiato in %s perché la pelle non trapassi i capi.',
         clips='La pelle di questo corpo trapassa i capi su: %s.',
+        thumbs={started='Le anteprime iniziano quando il menu è chiuso.',cached='Ogni capo ha già la sua anteprima.',
+            failed='Impossibile avviare le anteprime. UE4SS.log dice perché.'},
         reset_done='Stellar Closet reimpostato. EVE indossa il suo look.'},
 }

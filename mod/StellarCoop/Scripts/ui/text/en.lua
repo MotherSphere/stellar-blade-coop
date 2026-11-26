@@ -555,11 +555,12 @@ return {
         remove='Remove',nothing='Nothing shown',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='NieR machine',orcal='Orcal prototype',enya='Enya prototype'}},
     -- Stellar Closet's menu (closet/ui/): a tab for each closet/slots.lua Slots.MENUS id, a name for each Slots.LIST
-    -- slot and Slots.REGIONS region, its rows (reset: the Full tab's last row), detail panel, an outfit's origin
-    -- (Original, or Custom and its pack), key hints (Back and Select are hint.back, hint.select), the Keep this look?
-    -- and Reset Stellar Closet? popups, why it does not open (refused) and why it closed (closed), the body switched to
-    -- an outfit (switched), the regions whose skin shows on a picked body (clips) and the reset done. Outfit, pack and
-    -- piece names stay as their pack writes them.
+    -- slot and Slots.REGIONS region, its rows (reset: the Full tab's last row; thumbs: the one before it), detail
+    -- panel, an outfit's origin (Original, or Custom and its pack), key hints (Back and Select are hint.back,
+    -- hint.select), the Keep this look? and Reset Stellar Closet? popups, why it does not open (refused) and why it
+    -- closed (closed), the answers of Make preview pictures (thumbs), the body switched to an outfit (switched), the
+    -- regions whose skin shows on a picked body (clips) and the reset done. Outfit, pack and piece names stay as their
+    -- pack writes them.
     closet={
         tabs={head='Head',torso='Torso',arms='Arms',hips='Hips',intimate='Intimate',legs='Legs',body='Body',
             weapon='Weapon',full='Full outfit'},
@@ -585,7 +586,10 @@ return {
         regions={HeadNeck='Head and neck',TorsoUpper='Upper torso',TorsoLower='Lower torso',Pelvis='Pelvis',
             ArmUpper='Upper arms',Forearm='Forearms',Hand='Hands',Thigh='Thighs',Calf='Calves',Foot='Feet'},
         row={whole='Wear whole outfit',soon='Coming soon',empty='No installed outfit has a piece for this slot.',
-            none='None',locked='Locked: %s is not installed.',reset='Reset Stellar Closet'},
+            none='None',locked='Locked: %s is not installed.',reset='Reset Stellar Closet',
+            thumbs='Make preview pictures',
+            thumbs_desc='Takes a picture of each piece that has none yet, one a frame. It starts once the menu is '
+                ..'closed, out of combat. The tiles show the pictures at the next open.'},
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Covers: %s',also='Also takes: %s',
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
@@ -611,5 +615,8 @@ return {
         saved='Look saved.',failed='Could not wear this piece. UE4SS.log says why.',
         switched='Body switched to %s so no skin shows through the pieces.',
         clips='Skin of this body shows through the pieces on: %s.',
+        thumbs={started='Preview pictures start once the menu is closed.',
+            cached='Every piece already has its preview picture.',
+            failed='Preview pictures could not start. UE4SS.log says why.'},
         reset_done='Stellar Closet is reset. EVE wears her own look.'},
 }
