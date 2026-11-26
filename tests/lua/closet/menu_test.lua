@@ -188,6 +188,18 @@ local tests = {
         for _, rec in ipairs(r.kit.made) do ok(rec.x >= 0 and rec.x < 2112, 'part x ' .. tostring(rec.x)) end
     end,
 
+    tabs_and_grid_take_the_mouse = function()
+        -- kit.part makes a part HitTestInvisible unless hit: Slate then keeps its whole subtree out of the hit test, so
+        -- no tab hover and no tile click would reach them (closet/ui/probe.lua tests 1 and 3 made them with hit).
+        local r = rig()
+        r.menu.open()
+        at(r, 0.05, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down')
+        local tabs, grids = r.kit.live(F.TAB), r.kit.live(F.GRID)
+        eq(#tabs, 7, 'tabs') eq(#grids, 1, 'grid')
+        for i, rec in ipairs(tabs) do eq(rec.hit, true, 'tab ' .. i .. ' takes the mouse') end
+        eq(grids[1].hit, true, 'the grid takes the mouse')
+    end,
+
     typed_menu_toggles = function()
         local r = rig()
         local Cmd = require('closet.commands').new({dress = r.dress, fits = Fits, probe = {},

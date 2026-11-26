@@ -103,7 +103,7 @@ function View.new(kit,log)
             for _,rec in ipairs(tabs) do kit.drop(rec) end
             tabs,tabs_sig,focus={},sig,nil
             for i,label in ipairs(shown) do
-                tabs[i]=make(TAB,TAB_X+(i-1)*TAB_STEP,TAB_Y)
+                tabs[i]=make(TAB,TAB_X+(i-1)*TAB_STEP,TAB_Y,nil,nil,nil,true) -- hit: else no hover reaches it.
                 call(tabs[i],'tab label',function(w) w.TextValue=FText(label); w:RefreshDesign() end)
             end
         end
@@ -151,7 +151,8 @@ function View.new(kit,log)
 
     local function draw_grid(s)
         if not kit.alive(grid) then
-            grid,tiles_sig,selected=make(GRID,GRID_X,GRID_Y,GRID_W,GRID_H),nil,nil
+            -- hit: a HitTestInvisible grid keeps every tile out of Slate's hit test (no click picks one).
+            grid,tiles_sig,selected=make(GRID,GRID_X,GRID_Y,GRID_W,GRID_H,nil,true),nil,nil
             call(grid,'grid Set Goods',function(w) w['Set Goods'](w) end)
             call(grid,'grid list',function(w)
                 local tv=w.TileView_ItemList
