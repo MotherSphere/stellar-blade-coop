@@ -130,7 +130,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   the layer off her new body. A new controller drops the old pawn's state at once. Its deferred reset gives back the
   rows, shows the drone, puts her facing back and drops the morph's cube. Her facing flags go back only to the
   movement they came from, checked by its path. The drone's parts go back only while their paths still name them.
-  A new map ends a waiting comeback;
+  A new map ends a waiting comeback. A comeback that raises once the layer is on gives back what it took and logs
+  the raise;
 - `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames over `fight/gunmode/fake.lua`.
   The masked keys go back into the action mappings as they are after coop fly moved them to a new buffer, with
   nothing written into the old one. The muzzle flash's asset collected between two rounds is found again by its path
