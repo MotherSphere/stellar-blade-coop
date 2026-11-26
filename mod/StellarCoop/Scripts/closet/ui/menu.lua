@@ -27,6 +27,7 @@
 -- No. Select does nothing for ARM s after the open: the console's Enter that typed coop closet menu reaches our Enter
 -- bind too (main/base.lua's M.typed_at note). The None tile on the last piece worn previews her own look; when the menu
 -- opened on her own look, it reverts instead: nothing changed since the open.
+-- Mouse: a click on a hint chip runs that hint's word (view.hint_hovered); a tile the mouse picked is worn at once.
 -- The Body tab's Body row (BaseBody) lists None (the body rule picks the body) then each outfit with skin: its tile
 -- picks that outfit's body. A tile's detail and the Full tab's rows name the origin: Original, or Custom and the pack.
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
@@ -147,7 +148,7 @@ function Menu.new(o)
         tab=math.min(tab,#ids)
         -- The window moves only when the focused tab leaves it, as the rows' window does.
         tab_top=math.max(1,math.min(math.max(tab_top,tab-View.TABS+1),tab,#ids-View.TABS+1))
-        local s={tabs={},tab=tab,tab_top=tab_top,rows={},hints={{t.hint.back,'Negative'}},camera_hints={}}
+        local s={tabs={},tab=tab,tab_top=tab_top,rows={},hints={{t.hint.back,'Negative',word='back'}},camera_hints={}}
         for i,id in ipairs(ids) do s.tabs[i]=w.tabs[id] or id end
         local list=model.rows(ids[tab])
         row=math.max(1,math.min(row,#list))
@@ -169,10 +170,10 @@ function Menu.new(o)
         s.detail={title=shown and shown.title or '',desc=''}
         if item and item.whole then
             s.detail.desc=(item.locked and w.row.locked:format(item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
-            if not item.locked then s.hints[2]={w.hints.whole,'Positive'} end
+            if not item.locked then s.hints[2]={w.hints.whole,'Positive',word='select'} end
         elseif item and item.reset then
             s.detail.desc=w.popup.reset_desc
-            s.hints[2]={t.hint.select,'Positive'}
+            s.hints[2]={t.hint.select,'Positive',word='select'}
         elseif item and item.state~='pieces' then
             s.detail.desc=w.row[item.state]
         elseif item then
@@ -191,11 +192,11 @@ function Menu.new(o)
                 s.detail.equipped=worn~=nil
                 if worn then s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit)..'\n'..origin(w,worn) end
             end
-            s.hints[2]={w.hints.wear,'Positive'}
+            s.hints[2]={w.hints.wear,'Positive',word='select'}
             -- UI_FaceButton_Top: the game's UI action for the top face button (F, the pad's Y), as in
             -- online/session/ui/sessions.lua; the 26123051 exe names it in FUN_14254baf0 (case 1) beside UI_LeftShoulder.
             local one=tiles[col=='grid' and tile or at]
-            if one and one.fit and not one.locked then s.hints[3]={w.hints.whole,'UI_FaceButton_Top'} end
+            if one and one.fit and not one.locked then s.hints[3]={w.hints.whole,'UI_FaceButton_Top',word='refresh'} end
         end
         -- Move last, on the D-pad's up and down icons, as the lobby shows it (the keyboard's keys or the pad's buttons).
         s.hints[#s.hints+1]={t.hint.move,'UI_DPad_Up','UI_DPad_Down'}
@@ -355,9 +356,13 @@ function Menu.new(o)
         if word=='click' then -- The row under the mouse takes the focus and Select runs, as in the lobby.
             local i=view.tab_hovered()
             if i then set_tab(i); return redraw() end
-            i=view.row_hovered()
-            if not i then return end
-            row,col,due,word=i,'rows',nil,'select'
+            local chip=view.hint_hovered() -- A hint chip runs its word.
+            if chip then word=chip
+            else
+                i=view.row_hovered()
+                if not i then return end
+                row,col,due,word=i,'rows',nil,'select'
+            end
         end
         local item,tiles,at=focused()
         if word=='tab_left' or word=='tab_right' then set_tab(tab+(word=='tab_left' and -1 or 1))
@@ -424,7 +429,7 @@ function Menu.new(o)
         local _,tiles=focused()
         local picked=tiles and view.picked()
         if picked then
-            col,tile,due='grid',picked,t+Menu.PREVIEW
+            col,tile,due='grid',picked,t -- A click wears at once: the same tick's due check below.
             redraw()
         end
         if due and t>=due then

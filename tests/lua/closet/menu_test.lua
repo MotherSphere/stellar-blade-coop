@@ -139,8 +139,11 @@ local tests = {
         for _, c in ipairs(rows[4].o.calls) do if c[1] == 'EventNotification' then looks[#looks + 1] = c[2] end end
         eq(looks[#looks], 'StateNormal', 'row 4 left: not focused')
         -- A transparent kit row over each slot row takes the mouse; it shows nothing while the part is there.
-        eq(#g.zones, 10, 'zones')
-        for i, z in ipairs(g.zones) do eq(z.label, '', 'zone label ' .. i) eq(z.y, rows[i].y + 27, 'zone y ' .. i) end
+        eq(#g.zones, 14, 'zones: 10 rows, 4 hint chips')
+        for i, z in ipairs(g.zones) do
+            eq(z.label, '', 'zone label ' .. i)
+            if i <= 10 then eq(z.y, rows[i].y + 27, 'zone y ' .. i) end
+        end
         -- The grid: the hair salon's TileView, cleared, then the None tile and Ocean Maid's leotard, None selected.
         local grids = r.kit.live(F.GRID)
         eq(#grids, 1, 'grid')
@@ -415,17 +418,44 @@ local tests = {
         at(r, 1.2, 'left', 'right')
         tick(r, 1.5)
         eq(#r.previews, 1, 'the worn tile is not worn again')
-        -- A tile the mouse picked waits the same.
-        grid(r):SetSelectedIndex(1)
-        tick(r, 1.6)
-        eq(#r.previews, 1, 'mouse: not yet')
-        tick(r, 1.9)
-        same(r.previews[2], {{fit = MAID, slots = {'Chest'}}}, 'mouse: Maid top worn')
         -- Leaving the grid before 250 ms wears nothing.
         at(r, 2, 'left')
         at(r, 2.1, 'back')
         tick(r, 2.5)
-        eq(#r.previews, 2, 'left the grid')
+        eq(#r.previews, 1, 'left the grid')
+    end,
+
+    a_click_on_a_tile_previews_at_once = function()
+        local r = rig()
+        on_top(r)
+        grid(r):SetSelectedIndex(1)
+        tick(r, 0.6)
+        same(r.previews, {{{fit = MAID, slots = {'Chest'}}}}, 'the picked tile is worn in the same tick')
+    end,
+
+    a_click_on_a_hint_runs_it = function()
+        local r = rig()
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'right') -- Kunoichi top focused in the grid: Back, Wear, Whole outfit, Move.
+        r.previews = {}
+        local zones = r.kit.groups.closet_menu.zones
+        local chips = {} -- The chip zones follow the 10 row zones, right to left from the menu's edge.
+        for i = 1, 4 do chips[i] = zones[10 + i] end
+        eq(chips[1].x, 2112 - 420, 'first chip place') eq(chips[1].y, 1990, 'chip row')
+        chips[3].hover = true -- The third hint: Whole outfit (refresh).
+        at(r, 0.6, 'click')
+        chips[3].hover = false
+        same(r.previews, {{{fit = KUNOICHI}}}, 'a click on Whole outfit wears the whole outfit')
+        chips[4].hover = true -- Move: no word, nothing.
+        at(r, 0.7, 'click')
+        chips[4].hover = false
+        eq(#r.previews, 1, 'a click on Move does nothing')
+        chips[1].hover = true -- Back leaves the grid.
+        at(r, 0.8, 'click')
+        chips[1].hover = false
+        eq(r.menu.is_open(), true, 'Back in the grid stays open')
+        at(r, 0.8, 'click')
+        eq(r.menu.is_open(), true, 'a click on no chip does nothing')
     end,
 
     a_locked_tile_is_never_previewed = function()
