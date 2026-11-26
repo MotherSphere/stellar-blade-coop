@@ -17,6 +17,10 @@
 -- Once a second (tick), unless the game is paused or shows one of its screens: a body mesh in GAME_LOOKS (Tachy Mode's
 -- suit) pauses the mix (the added meshes hidden) until it goes; any other changed look for 2 s (a map load, a game
 -- reset) gets the mix again; a hidden section the game showed again (Tachy Mode's end) is hidden again.
+-- Preview (the closet menu's live look): preview(choices) puts a look on without saving it. The first call remembers the
+-- confirmed choices (state.kept, false when none). During a preview coop-closet.txt holds EVE's leftovers to sweep and
+-- the confirmed words, so a reload gives the confirmed look. confirm() saves the previewed look, revert() wears the
+-- confirmed one again (her own look when none). wear and off end a preview.
 -- The resolve (find, LoadAsset, AssetRegistryHelpers:GetAsset for a mod pack's asset) and the skeleton guard are copies
 -- of online/partner/puppet.lua's (resolve and its SetSkeletalMesh guard).
 local UE=require('UEHelpers')
@@ -30,6 +34,7 @@ local SKINNED,MID='/Script/Engine.SkeletalMeshComponent','/Script/Engine.Materia
 -- UE4SS.log at 11:33 and 11:39 on 25 Nov 2026, the mix paused and back as it ended).
 Dress.GAME_LOOKS={['/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10']=true}
 Dress.USE='Use: coop closet wear <fit>[:<Slot>,<Slot>...] [<fit>[:...]] | coop closet off | coop closet fits'
+local installed_cache={} -- fit id -> whether its mesh loads; once per fit per Lua load (installed).
 -- Tries of restore's wear of the kept look while EVE spawns, a second apart, before it is dropped.
 Dress.RETRIES=5
 
@@ -216,7 +221,8 @@ function Dress.new(o)
         local added={}
         for _,a in ipairs(state.added) do added[#added+1]=a.mesh end
         return store.save(table.concat({state.eve_path or '',state.own or '',state.materials or '',
-            table.concat(added,';'),Dress.words(state.choices or {})},'\t'))
+            table.concat(added,';'),
+            Dress.words(state.kept==nil and state.choices or (state.kept or {}))},'\t'))
     end
     -- Removes every component on EVE but her body that wears one of the given mesh paths: ours, also one an earlier
     -- mix or Lua load left (a map load can make the game set her body twice, and each change got the mix again).
@@ -253,7 +259,8 @@ function Dress.new(o)
         return removed
     end
 
-    local function apply(plan,choices)
+    -- kept: the confirmed choices of a preview (or false), nil when none is going.
+    local function apply(plan,choices,kept)
         local eve=her()
         if not eve then return nil,'no EVE in the world' end
         local body=valid(eve.Mesh)
@@ -276,7 +283,7 @@ function Dress.new(o)
             local mesh=valid(body.SkeletalMesh)
             own,materials=mesh and path_of(mesh) or '',current_materials(body)
         end
-        state={plan=plan,choices=choices,eve_path=path_of(eve),own=own,materials=materials,added={},paused=false,
+        state={plan=plan,choices=choices,kept=kept,eve_path=path_of(eve),own=own,materials=materials,added={},paused=false,
             wrong=0}
         for _,a in ipairs(plan.added) do state.added[#state.added+1]={mesh=a.mesh} end
         local saved,e=keep()
@@ -312,7 +319,7 @@ function Dress.new(o)
         self.restore()
         local plan,why=Dress.plan(choices,fits)
         if not plan then return false,why end
-        local ok,e=apply(plan,choices)
+        local ok,e=apply(plan,choices,nil)
         if not ok then return false,e end
         local names={}
         for _,c in ipairs(choices) do names[#names+1]=c.fit end
@@ -320,6 +327,66 @@ function Dress.new(o)
             table.concat(names,' + '),plan.body.fit,plan.parts,plan.parts==1 and '' or 'es')
         log(line)
         return true,line
+    end
+    -- A look put on without saving it: the confirmed choices stay in the file until confirm.
+    function self.preview(choices)
+        self.restore()
+        local kept=state and state.kept
+        if kept==nil then kept=state and state.choices or false end
+        local plan,why=Dress.plan(choices,fits)
+        if not plan then return false,why end
+        local ok,e=apply(plan,choices,kept)
+        if not ok then return false,e end
+        local line=string.format('closet: previewing %d pieces, body %s, %d added mesh%s',plan.pieces,plan.body.fit,
+            plan.parts,plan.parts==1 and '' or 'es')
+        log('preview: '..line)
+        return true,line
+    end
+    function self.previewing() return state~=nil and state.kept~=nil end
+    -- Ends the preview and saves the worn choices.
+    function self.confirm()
+        if not self.previewing() then return true,'closet: nothing to confirm' end
+        local was=state.kept
+        state.kept=nil
+        local saved,e=keep()
+        if saved==false then state.kept=was; return false,'coop-closet.txt not written: '..tostring(e) end
+        log('confirm: the previewed look is saved')
+        return true,'closet: confirmed'
+    end
+    -- Ends the preview: the confirmed look worn again, her own look when none was confirmed.
+    function self.revert()
+        if not self.previewing() then return true,'closet: nothing to revert' end
+        local was=state.kept
+        if was then
+            local ok,line=self.wear(was)
+            if ok then log('revert: the confirmed look is back'); return true,line end
+        end
+        local ok,line=self.off()
+        log('revert: the confirmed look is gone: her own look')
+        return ok,line
+    end
+    function self.choices()
+        if not state then return nil end
+        local out={}
+        for i,c in ipairs(state.choices) do
+            out[i]={fit=c.fit,slots=c.slots and {table.unpack(c.slots)} or nil}
+        end
+        return out
+    end
+    -- The body mesh path when the game put one of GAME_LOOKS on EVE (Tachy Mode), else nil.
+    function self.game_look()
+        local eve=her()
+        local body=eve and valid(eve.Mesh)
+        local mesh=body and valid(body.SkeletalMesh)
+        local path=mesh and path_of(mesh)
+        return path and Dress.GAME_LOOKS[path] and path or nil
+    end
+    -- Whether the fit's mesh loads here (its outfit is installed). Cached.
+    function self.installed(fit_id)
+        local fit=fits.get(fit_id)
+        if not fit then return false end
+        if installed_cache[fit_id]==nil then installed_cache[fit_id]=usable(fit.Mesh)~=nil end
+        return installed_cache[fit_id]
     end
     -- coop closet off and coop off: her own look back, the added meshes gone, the file cleared.
     function self.off()
@@ -441,11 +508,11 @@ function Dress.new(o)
             state.wrong=state.wrong+1
             if state.wrong<2 and not was_paused then return end
             log(string.format('the game changed EVE (body %s): mix again',tostring(path)))
-            local plan,choices=state.plan,state.choices
+            local plan,choices,kept=state.plan,state.choices,state.kept
             state.own,state.materials=path or state.own,body and current_materials(body) or state.materials
             local own,materials=state.own,state.materials
             state=nil
-            local ok,why=apply(plan,choices)
+            local ok,why=apply(plan,choices,kept)
             if ok then state.own,state.materials=own,materials; keep()
             else log('mix again failed: '..tostring(why)) end
             return

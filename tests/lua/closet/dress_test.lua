@@ -110,7 +110,109 @@ local function fields(line)
     return f
 end
 
+local A = {{fit = 'AiK_CH27_14595', slots = {'Chest'}}, {fit = 'AiK_CH46_xSH_14462', slots = {'Shoes'}}}
+local B = {{fit = 'AiK_CH46_xSH_14462'}}
+
 local tests = {
+    preview_keeps_the_confirmed_words = function()
+        local w = world()
+        assert(w.d.wear(A))
+        local ok_, line = w.d.preview(B)
+        ok(ok_, line)
+        ok(w.d.previewing())
+        eq(fields(w.file)[5], 'AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes', 'the file holds the confirmed words')
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'EVE wears B')
+        eq(#w.eve.comps, 1, 'B has no added mesh')
+        ok(logged(w, 'preview:'))
+        ok(w.d.preview(B)) -- A second preview keeps the first confirmed look.
+        eq(fields(w.file)[5], 'AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes')
+    end,
+    revert_wears_the_confirmed_look_again = function()
+        local w = world()
+        assert(w.d.wear(A))
+        assert(w.d.preview(B))
+        local ok_, line = w.d.revert()
+        ok(ok_, line)
+        ok(not w.d.previewing())
+        eq(#w.eve.comps, 2, 'A again, one added mesh')
+        eq(w.d.choices()[1].fit, 'AiK_CH27_14595')
+        eq(fields(w.file)[5], 'AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes')
+    end,
+    revert_with_nothing_confirmed_gives_her_own_look_and_clears_the_file = function()
+        local w = world()
+        assert(w.d.preview(A))
+        ok(w.d.previewing())
+        eq(fields(w.file)[5], '', 'nothing confirmed')
+        assert(w.d.revert())
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN) eq(#w.eve.comps, 1) eq(w.file, nil)
+        ok(not w.d.previewing() and not w.d.worn())
+    end,
+    confirm_saves_the_previewed_words = function()
+        local w = world()
+        assert(w.d.wear(A))
+        assert(w.d.preview(B))
+        local ok_, line = w.d.confirm()
+        ok(ok_, line)
+        ok(not w.d.previewing())
+        eq(fields(w.file)[5], 'AiK_CH46_xSH_14462')
+        ok(w.d.revert()) -- Nothing to revert now.
+        eq(w.eve.Mesh.SkeletalMesh.path, KS)
+        local ok2, line2 = w.d.confirm()
+        ok(ok2 and line2 == 'closet: nothing to confirm', line2)
+    end,
+    a_reload_mid_preview_gives_the_confirmed_look = function()
+        local w = world()
+        assert(w.d.wear(A))
+        assert(w.d.preview({{fit = 'AiK_CH27_14595'}}))
+        w.d = w.new() -- A new Lua state reads the file.
+        second(w)
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'A: the shoes outfit on the body')
+        eq(#w.eve.comps, 2, 'one added mesh')
+        ok(not w.d.previewing())
+    end,
+    a_map_change_mid_preview_keeps_the_preview_going = function()
+        local w = world()
+        assert(w.d.wear(A))
+        assert(w.d.preview(B))
+        w.eve.Mesh:SetSkeletalMesh(w.assets[OWN])
+        second(w) second(w)
+        ok(w.d.previewing(), 'still previewing after the re-mix')
+        eq(w.eve.Mesh.SkeletalMesh.path, KS)
+        assert(w.d.revert())
+        eq(#w.eve.comps, 2) eq(w.d.choices()[1].fit, 'AiK_CH27_14595')
+    end,
+    wear_and_off_end_the_preview = function()
+        local w = world()
+        assert(w.d.wear(A))
+        assert(w.d.preview(B))
+        assert(w.d.wear(A))
+        ok(not w.d.previewing())
+        assert(w.d.preview(B))
+        w.d.off()
+        ok(not w.d.previewing())
+        local ok_, line = w.d.revert()
+        ok(ok_ and line:find('nothing'), line)
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN)
+    end,
+    game_look_names_the_tachy_suit = function()
+        local w = world()
+        eq(w.d.game_look(), nil)
+        w.eve.Mesh:SetSkeletalMesh(w.assets[TACHY])
+        eq(w.d.game_look(), TACHY)
+    end,
+    installed_is_cached_per_fit = function()
+        local w = world()
+        local finds, real = 0, StaticFindObject
+        StaticFindObject = function(path) finds = finds + 1; return real(path) end
+        ok(w.d.installed('AiK_CH27_14595'))
+        ok(w.d.installed('AiK_CH27_14595'))
+        eq(finds, 1, 'found once')
+        ok(not w.d.installed('nope'), 'unknown fit')
+        w.assets[KS] = nil
+        ok(not w.d.installed('AiK_CH46_xSH_14462'), 'a missing mesh')
+        w.assets[KS] = mesh(KS, 44)
+        ok(not w.d.installed('AiK_CH46_xSH_14462'), 'cached')
+    end,
     plan_puts_the_shoes_outfit_on_the_body = function()
         local Dress = require('closet.dress')
         local plan = assert(Dress.plan({{fit = 'AiK_CH27_14595', slots = {'Chest', 'Legs'}},
