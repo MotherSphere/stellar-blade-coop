@@ -128,6 +128,7 @@ local VISIBLE,COLLAPSED,SELF_HIT=0,1,4 -- ESlateVisibility: hit, none, children 
 -- inside group keeps from the viewport's edges.
 local ROW,OPEN,CLOSE,SLIDE,LOSSES,SAFE=76,0.16,0.12,32,3,48
 local REFOCUS=0.05 -- Seconds from a mouse button to our focus put back (Slate moves the focus as it takes the press).
+local RETAKE=0.5 -- Seconds between two take-agains of the game's input (tick): a cursor kept cleared costs no call a frame.
 -- A key hint's icon, square, as the game's photo mode draws these icons beside its text; its label's top below the
 -- icon's, so the hint style's line sits on the icon's middle.
 local KEY_ICON,KEY_TEXT=66,9
@@ -167,6 +168,8 @@ function Ui.kit(opts)
     local watch,fired,unfocusable_said,never_said=nil,nil,false,false
     local refocus_at=nil -- A mouse button pressed while our UI holds the game's input: when our focus goes back.
     local retake_said=false -- tick's take-again read failed and said so, once a Lua load.
+    local took=false -- input_mode last took the game's input for a UI of ours (reset's give-back clears it).
+    local retake_at=0 -- tick's next take-again at the earliest (RETAKE after the last one).
     local clicked_at=nil -- That button's clock, for the watchdog's focus line.
     local parts,warmed={},{} -- warm_part's object paths in order; those looked up.
     -- SB's last keyboard answer, AZERTY or not: its device byte (opts.uidev) reads 1 for a QWERTY keyboard and 2 for one
@@ -208,7 +211,7 @@ function Ui.kit(opts)
         local pc,root=controller(),on and alive(built.root)
         if not pc or (on and not root) then return end
         local box=on and field and alive(field)
-        inputting=on
+        inputting,took=on,on
         if on then
             U.find(WIDGETS):SetInputMode_UIOnlyEx(pc,box or root,0)
             if box then box:SetKeyboardFocus() end
@@ -227,6 +230,7 @@ function Ui.kit(opts)
             cursor=nil
         end
         keep()
+        return true
     end
     local function close_all()
         if inputting then pcall(input_mode,false) end -- A fault or coop off never leaves the game deaf.
@@ -772,17 +776,20 @@ function Ui.kit(opts)
         -- 0x1425bbbb0, which applies FInputModeGameOnly (vtable 0x145a7fa28) when no SB screen counts as showing the
         -- cursor (ours never does). Then 0x1424f6c30 clears bShowMouseCursor (PC+0x4e0 bit 0). E then reaches the game
         -- and a click captures the mouse for the camera. While the menu, or a holder that shows the cursor, holds the
-        -- input, a cleared cursor takes the input again.
-        if inputting and not hidden and not off and built and (holder==nil or pointing) then
+        -- input for a UI of ours that is up, a cleared cursor takes the input again, at most once each RETAKE s.
+        if took and inputting and not hidden and not off and now>=retake_at and (holder==nil or pointing)
+            and built and alive(built.root) then
             local read,taken=pcall(function()
                 local pc=controller()
                 if not pc or pc.bShowMouseCursor~=false then return false end
                 local g=holder and built.groups[holder]
-                input_mode(true,g and g.field)
-                return true
+                return input_mode(true,g and g.field)==true
             end)
             if not read and not retake_said then retake_said=true; log('input: not taken again: '..tostring(taken))
-            elseif read and taken then log('input: the game took its input back (SB applied its own input mode): taken again') end
+            elseif read and taken then
+                retake_at=now+RETAKE
+                log('input: the game cleared our mouse cursor and took its input back: taken again')
+            end
         end
         if not off and next(tweens) then
             run(function()
@@ -1075,7 +1082,7 @@ function Ui.kit(opts)
     -- load thinks the game has it, and the menu's mouse cursor put back (a later input(false) tries again while there
     -- is no player controller).
     function self.reset()
-        inputting,holder=true,nil
+        inputting,holder,took=true,nil,false
         if off then pcall(input_mode,false) else run(input_mode,false) end
     end
     -- coop off and coop ui off: the root goes now (the game's input back first); no engine call after.

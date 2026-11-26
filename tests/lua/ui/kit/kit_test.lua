@@ -1132,6 +1132,31 @@ taken=count(LIB..'SetInputMode_UIOnlyEx')
 k.tick(clock)
 assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,"Not for the chat's box")
 k.input(false,'chat')
+-- At most once each half second: a cursor the game keeps clearing never costs a call each frame.
+k.input(true)
+taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false; k.tick(clock+10)
+pc.bShowMouseCursor=false; k.tick(clock+10.2)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken+1,'Once in half a second')
+pc.bShowMouseCursor=false; k.tick(clock+10.6)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken+2,'Again after it')
+-- Hidden (a game screen, photo mode, a map load): the game's screen has the cursor, nothing taken.
+k.slow(false)
+taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false; k.tick(clock+11.2)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,'Nothing taken while hidden')
+k.slow(true)
+k.input(false)
+-- coop ui reset with no player controller leaves the kit thinking it holds the input: no take-again for a UI that holds
+-- nothing.
+k.input(true)
+local held_pc=pc
+pc=nil
+k.reset()
+pc=held_pc
+taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false; k.tick(clock+20)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,'Nothing taken after coop ui reset')
 -- A group that asks for it (the guide, in a world) shows it too; one that takes the input from it without asking hides
 -- it again.
 k.input(true,'guide',true); assert(pc.bShowMouseCursor==true and k.paused()==false,'The guide asks: shown')
