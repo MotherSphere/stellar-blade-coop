@@ -866,13 +866,8 @@ function GunMode.new(env)
         g.log('on ('..why..')')
     end
 
-    -- (test harness) this instance off for good: gun mode put away, its loop idle; a fresh one takes over.
-    function self.kill()
-        if s.on then pcall(self.toggle,'reload') end
-        s.dead=true
-    end
-
     function self.toggle(why)
+        if s.dead then return end
         local now=os.clock()
         if now-s.toggle_at<0.3 then return end
         s.toggle_at=now
@@ -1584,11 +1579,26 @@ function GunMode.new(env)
     end
 
     function self.out() return s.on==true end
-    -- (coop off) gun mode put away for good. SB's rows back, the held NIKKE fields too: no tick runs after it
-    -- (4389defd, 6f1ef41e).
+    -- coop off (main/commands.lua): the rifle away at once with no departure, everything back. SB's held NIKKE fields
+    -- go back too, as no tick runs after it (4389defd, 6f1ef41e). A new controller's reset still waiting runs now. The
+    -- HUD entry and the crosshair come off SB's HUD. From then on gun mode does nothing (no key, no toggle, no reset)
+    -- until the mod reloads (67ea7e8c H3).
     function self.stop(why)
-        self.kill()
-        pcall(data.put_back,true)
+        local was=s.on
+        s.dead=true
+        give_all_back(true)
+        local p=g.pawn()
+        if p and s.layer_back then
+            local ok,e=pcall(layer.uninstall,p)
+            if not ok then g.log('layer off: '..tostring(e)) end
+        end
+        if p and s.mesh_back then
+            local b=s.mesh_back
+            pcall(function() p.Mesh:K2_SetRelativeRotation(b,false,{},false) end)
+        end
+        s.layer_back,s.mesh_back,s.give_back,s.stop_stance,s.show_back=false,nil,false,false,false
+        if s.dpad then pcall(s.dpad.hide) end
+        g.log('stopped ('..tostring(why)..')'..(was and ', '..s.shots..' shots' or ''))
     end
     -- Nothing to put back: gun mode keeps no file of its own.
     function self.restore() end
