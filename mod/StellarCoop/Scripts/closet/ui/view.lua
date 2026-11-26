@@ -260,8 +260,9 @@ function View.new(kit,log)
     -- The slot row under the mouse (its index in s.rows), or nil.
     function v.row_hovered()
         local view=kit.view(View.GROUP)
-        for i,zone in ipairs(view and view.zones or {}) do
-            if top+i<=count and zone.hovered() then return top+i end
+        for i=1,WINDOW do -- Only the row zones: zones WINDOW+1.. are the hint chips.
+            local zone=view and view.zones[i]
+            if zone and top+i<=count and zone.hovered() then return top+i end
         end
     end
     -- The menu hint under the mouse: its word (s.hints[i].word), or nil (a hint with no word, none hovered).

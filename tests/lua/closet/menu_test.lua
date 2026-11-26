@@ -458,6 +458,21 @@ local tests = {
         eq(r.menu.is_open(), true, 'a click on no chip does nothing')
     end,
 
+    a_click_on_a_chip_never_hits_a_row = function()
+        -- The torso tab has 14 rows: chip zone 12 (Move, no word) must not read as row 12.
+        local r = rig()
+        r.menu.open()
+        at(r, 0.1, 'tab_right', 'tab_right')
+        eq((detail(r)), 'Chest tattoo', 'the torso tab, row 1')
+        local before = #r.previews
+        local zones = r.kit.groups.closet_menu.zones
+        zones[12].hover = true
+        at(r, 0.6, 'click')
+        zones[12].hover = false
+        eq((detail(r)), 'Chest tattoo', 'a click on the Move chip keeps the focused row')
+        eq(#r.previews, before, 'a click on the Move chip selects nothing')
+    end,
+
     a_locked_tile_is_never_previewed = function()
         local r = rig({installed = function(fit) return fit ~= KUNOICHI end})
         on_top(r)
