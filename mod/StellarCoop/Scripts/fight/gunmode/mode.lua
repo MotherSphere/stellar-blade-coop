@@ -58,6 +58,27 @@ local function zone_event(kind,name)
     U.find('/Script/SB.Default__SBBlueprintLibrary'):CreateSBZoneEvent(kind,find_name(name))
 end
 
+-- Why the rifle cannot be out now, or nil (a6523766). e: EVE (an SBCharacter); photo: main/base.lua's photo_state
+-- ('0', '1' in the photo mode, 's' in the selfie mode; with SB.PhotoMode.PauseMethod 1 its start, 0x142381f90, sets a
+-- time dilation of 1e-8 and asks no pause, so IsGamePaused stays false there). On 26123051:
+-- IsAttachedToLevelSequenceWithoutPlayable and IsRunningInteraction are SBCharacter natives (exec 0x142686f40,
+-- 0x14268cc20; registered by 0x14cef8000 with its other 233), bEnableInteractionBlock an SBCharacter bool (params
+-- 0x145d77b78). EMovementMode (enumerators at 0x146548c80): 1 walking, 2 nav walking, 3 falling, 4 swimming, 5 flying,
+-- 6 custom (a move of SB's own). IsMoveInputBlock is not read: the game raises it around its own drone aim, gun mode's
+-- firing mode (ad9dbe19).
+local WALKING,NAV_WALKING,FALLING,SWIMMING=1,2,3,4
+function GunMode.blocked(e,photo)
+    if photo=='s' then return 'the selfie mode is open' end
+    if photo=='1' then return 'the photo mode is open' end
+    if e:IsAttachedToLevelSequenceWithoutPlayable()==true then return 'a cutscene holds EVE' end
+    if e:IsRunningInteraction()==true or e.bEnableInteractionBlock==true then return 'EVE is in an interaction' end
+    local mode=U.value_of(e.CharacterMovement.MovementMode)
+    if mode==SWIMMING then return 'EVE is swimming' end
+    if mode~=WALKING and mode~=NAV_WALKING and mode~=FALLING then
+        return "EVE is in one of SB's moves (movement mode "..tostring(mode)..')'
+    end
+end
+
 local SETTINGS='/Script/Engine.Default__InputSettings'
 local TRACE='/Script/Engine.Default__KismetSystemLibrary'
 
@@ -125,7 +146,7 @@ end
 
 -- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given), hook_hud
 -- (path, callback: a hook on the Construct of the widget class at path, registered by fight/gunmode/wiring.lua; nil:
--- the HUD entry looks for the HUD on screen alone)}.
+-- the HUD entry looks for the HUD on screen alone), photo (main/base.lua's photo_state; '0' when not given)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local whole=env.read_all or read_all
@@ -225,6 +246,7 @@ function GunMode.new(env)
         Keep.want(want)
     end
     local keys=Input.state()
+    local function photo() return env.photo and env.photo() or '0' end
     local self={}
     local s={hidden={},followed={},on=false,pause=0,next_shot=0,shots=0,zoom=0,zoom_held=false,target=nil,cam=nil,mask=nil,
         toggle_at=-1,hooked=false,errors=0}
@@ -770,6 +792,8 @@ function GunMode.new(env)
             g.log('not now: release the drone aim first'); return
         end
         if s.aim_hold then release_hold('the rifle comes out') end
+        local busy=g.try(function() return GunMode.blocked(p,photo()) end)
+        if busy then g.log('not now: '..busy); return end
         -- The gun mode animation pak (zNGMSpike_P): when it is installed, the aim stance's blend spaces point at
         -- its firing-stance animations while the rifle is out. Her real body shows while aiming (nothing posed).
         local okl,inst,why_not=pcall(layer.install,p)
@@ -1105,6 +1129,9 @@ function GunMode.new(env)
             s.is_held=p0~=nil and g.try(function() return p0:IsAttachedToLevelSequenceWithoutPlayable()==true
                 or p0:IsRunningInteraction()==true or p0.bEnableInteractionBlock==true end)==true
             if s.on and s.is_held then s.resume=true; s.free_at=nil; disable('EVE is in an interaction or a cutscene'); return end
+            -- a swim, one of SB's own moves, the photo or selfie mode: the rifle goes away with no comeback (a6523766)
+            local busy=s.on and g.try(function() return GunMode.blocked(p0,photo()) end)
+            if busy then disable(busy); return end
             if not s.on and s.resume then
                 if p0 and not s.is_held then
                     s.free_at=s.free_at or now

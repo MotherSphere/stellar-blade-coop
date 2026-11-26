@@ -4,7 +4,8 @@
 -- Gun mode and SB's NIKKE behaviour, over a fake UE4SS (fake.lua) on the rifle layer's path: the NIKKE shot's cover
 -- animation emptied while the rifle is out; SB's refill, its cover stance at 0 rounds and its own reload held off
 -- while the rifle is out, back 3 s of play after it; the input mask lifted while the game is paused; an off during
--- the game's aim holding its key and SB's rows until that aim ends. The cases are
+-- the game's aim holding its key and SB's rows until that aim ends; the game's states that keep the rifle away. The
+-- cases are
 -- state_test's of 5492c007 fitted to luke's gun mode.
 -- The cases of features that did not come back with it are left out, as are the coop-gun.txt checks: no journal is
 -- kept.
@@ -337,6 +338,53 @@ do
     assert(gun.state.aim_hold and cool.CoolTime==999,'held through a drop with LT down, cool time '..cool.CoolTime)
     w.down.Gamepad_LeftTrigger,w.pawn.bTPSMode=nil,false; frames(gun,1)
     assert(not gun.state.aim_hold and #w.changed()==0,'back at the LT release: '..table.concat(w.changed(),'; '))
+end
+
+-- 9. The rifle does not come out while a cutscene holds EVE, in an interaction or its block, while she swims, flies or
+--    is in one of SB's moves (a custom movement mode), in the photo or selfie mode. Once it is out, a swim, one of
+--    SB's moves or the photo or selfie mode puts it away within 0.1 s, with no comeback (cutscenes and interactions
+--    already did, with one). The game's hold of her movement and a jump (falling) are no reason (a6523766, ad9dbe19).
+do
+    local w=Fake.new(); w.install()
+    local keys=w.keys()
+    local photo,logs='0',{}
+    local gun=GunMode.new({log=function(m) logs[#logs+1]=m end,photo=function() return photo end})
+    local function mode(m) return function(e,on) e.CharacterMovement.MovementMode=on and m or 1 end end
+    for _,case in ipairs({
+            {function(e,on) e.cutscene=on end,'a cutscene holds EVE','EVE is in an interaction or a cutscene'},
+            {function(e,on) e.talk=on end,'EVE is in an interaction','EVE is in an interaction or a cutscene'},
+            {function(e,on) e.bEnableInteractionBlock=on end,'EVE is in an interaction',
+                'EVE is in an interaction or a cutscene'},
+            {mode(4),'EVE is swimming'},{mode(5),"EVE is in one of SB's moves (movement mode 5)"},
+            {mode(6),"EVE is in one of SB's moves (movement mode 6)"},
+            {function(_,on) photo=on and '1' or '0' end,'the photo mode is open'},
+            {function(_,on) photo=on and 's' or '0' end,'the selfie mode is open'}}) do
+        local set,why,off=case[1],case[2],case[3] or case[2]
+        logs={}
+        set(w.pawn,true)
+        clock=clock+1; gun.toggle_now()
+        assert(not gun.state.on and said(logs,'not now: '..why),why..': '..table.concat(logs,'|'))
+        assert(#w.changed()==0 and w.keys()==keys,why..': nothing taken')
+        set(w.pawn,false)
+        toggle(gun,true)
+        set(w.pawn,true)
+        frames(gun,7)
+        assert(not gun.state.on and said(logs,'off ('..off),why..': '..table.concat(logs,'|'))
+        assert(#w.changed()==0 and w.keys()==keys,why..': everything back')
+        set(w.pawn,false)
+        frames(gun,120)
+        assert(gun.state.on==(case[3]~=nil),why..': a comeback only after a cutscene or an interaction')
+        if gun.state.on then toggle(gun,false) end
+    end
+    toggle(gun,true)
+    w.pawn.held=true; frames(gun,20)
+    assert(gun.state.on,'the game\'s hold of her movement keeps the rifle out')
+    w.pawn.held=false
+    w.pawn.CharacterMovement.MovementMode=3
+    frames(gun,20)
+    assert(gun.state.on,'a jump keeps the rifle out')
+    w.pawn.CharacterMovement.MovementMode=1
+    toggle(gun,false)
 end
 
 print('gunmode state: ok')

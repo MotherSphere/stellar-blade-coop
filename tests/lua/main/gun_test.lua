@@ -3,8 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode through main.lua (fixture.lua's fake fight/gunmode/mode.lua; fight/gunmode/hosted_test tests the mode): the
 -- mod folder it reads its gun_ lines from, the rounds' store (none without the native part), the menu's words, its
--- notice, its start, the new-controller hook, its restore at the first tick before its tick, coop off's stop and after
--- a Lua reload with coop off still on its restore alone. It has no hud build step: its HUD entry
+-- notice, the photo state, its start, the new-controller hook, its restore at the first tick before its tick, coop
+-- off's stop and after a Lua reload with coop off still on its restore alone. It has no hud build step: its HUD entry
 -- (fight/gunmode/ui/dpad.lua) lives in SB's own HUD, not on the kit.
 dofile('tests/lua/main/fixture.lua')
 settings_text,status_text,in_world='',plain,true
@@ -17,6 +17,11 @@ assert(gm.hud==nil,'no hud build step')
 assert(gm.o.words().gun.reload=='RELOADING','gun mode gets the menu words')
 gm.o.notice()
 assert(said_en[#said_en]=='Gun mode: rebuilding',tostring(said_en[#said_en]))
+-- The photo and selfie modes keep the rifle away: gun mode reads main/base.lua's photo_state.
+assert(gm.o.photo()=='0','photo_state out of the photo mode')
+selfie_mode=true
+assert(gm.o.photo()=='s','photo_state in the selfie mode')
+selfie_mode=false
 -- A new controller reaches gun mode through wiring.lua's hook.
 local pc={}
 news['/Script/SB.SBPlayerController'](pc)
