@@ -14,7 +14,15 @@ local function log(m) M.print('[StellarCoop][GM] '..tostring(m)..'\n') end
 -- rows.lua (SB's Bullet_Nikke as the rifle's rounds) are not started: main.lua's gunrounds stays nil.
 M.gunrounds=nil
 M.gun=require('fight.gunmode.mode').new({log=log,folder=M.folder,words=M.words,
-    notice=function(key) M.tell(function(w) return w.gun[key or 'rebuilding'] end) end})
+    notice=function(key) M.tell(function(w) return w.gun[key or 'rebuilding'] end) end,
+    -- The HUD entry's hook on SB's HUD Construct (fight/gunmode/ui/dpad.lua), once a Lua load (d2de021b). It raises
+    -- when UE4SS cannot hook the function. The hook stays registered while the module is off.
+    hook_hud=function(path,cb)
+        RegisterHook(path..':Construct',function(ctx)
+            if M.off_modules['fight.gunmode'] then return end
+            cb(ctx)
+        end)
+    end})
 M.gun.start()
 -- A new controller (map load, death, camp warp) resets gun mode. The hook stays registered while the module is off.
 local hooked,why=pcall(NotifyOnNewObject,'/Script/SB.SBPlayerController',function(pc)

@@ -257,8 +257,8 @@ do
 end
 
 -- 8. The drone's class by its path (GunMode.DRONE_CLASS, in the base paks of 26123051, 235542ea): the rifle out lists
---    the drones through the engine's class hash (core/unreal.lua's class_at and actors_of) with no FindAllOf walk (36 ms
---    at the first F4 of the 2026-11-21 test), as does a rifle out on a new map. Each drone is hidden.
+--    the drones through the engine's class hash (core/unreal.lua's class_at and actors_of) with no FindAllOf walk
+--    (36 ms at the first F4 of the 2026-11-21 test), as does a rifle out on a new map. Each drone is hidden.
 do
     local U=require('core.unreal')
     local w=world()
