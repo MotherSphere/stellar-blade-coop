@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode and SB's NIKKE behaviour, over a fake UE4SS (fake.lua) on the rifle layer's path: the NIKKE shot's cover
 -- animation emptied while the rifle is out; SB's refill, its cover stance at 0 rounds and its own reload held off
--- while the rifle is out, back 3 s of play after it; the input mask lifted while the game is paused. The cases are
+-- while the rifle is out, back 3 s of play after it; the input mask lifted while the game is paused; an off during
+-- the game's aim holding its key and SB's rows until that aim ends. The cases are
 -- state_test's of 5492c007 fitted to luke's gun mode.
 -- The cases of features that did not come back with it are left out, as are the coop-gun.txt checks: no journal is
 -- kept.
@@ -256,6 +257,86 @@ do
     assert(w.keys()==masked,'masked again: '..w.keys())
     toggle(gun,false)
     assert(w.keys()==keys)
+end
+
+-- 7. An off while the game's aim is on (gun_fire=native) holds the aim key on RMB and SB's rows taken, with the NIKKE
+--    shot's cool time at 999 (no round), until the aim ends: letting RMB go reaches the game's TPSMode release. Then
+--    everything goes back. A new controller in between puts it all back too (0970580e, e9badecf).
+do
+    local w=Fake.new(); w.install()
+    local keys=w.keys()
+    local gun,logs=new()
+    local cool=w.tables.SkillTable.P_Eve_GunNikke_ShootSlug1_1
+    local function aim_off()
+        toggle(gun,true); frames(gun,40)
+        w.down.RightMouseButton=true; w.pawn.bTPSMode=true; frames(gun,5)
+        toggle(gun,false)
+    end
+    aim_off()
+    assert(cool.CoolTime==999 and #w.changed()>0,'rows held, no round: '..tostring(cool.CoolTime))
+    assert(w.keys():find('TPSMode=RightMouseButton',1,true) and said(logs,'wait for its end'),w.keys())
+    frames(gun,30)
+    assert(not gun.state.on and cool.CoolTime==999,'held while the aim lasts')
+    clock=clock+1; gun.toggle_now()
+    assert(not gun.state.on and said(logs,'not now: release the drone aim first'),'no rifle while the aim lasts')
+    -- The aim drops for a few frames with RMB still down (a shot's skill, a jump): the hold lasts until RMB is up too.
+    -- Put back then, TPSMode would go to Ctrl under the held RMB again.
+    w.pawn.bTPSMode=false; frames(gun,3); w.pawn.bTPSMode=true; frames(gun,2)
+    assert(w.keys():find('TPSMode=RightMouseButton',1,true) and cool.CoolTime==999,'held through a drop: '..w.keys())
+    w.down.RightMouseButton=nil; w.pawn.bTPSMode=false
+    frames(gun,1)
+    assert(#w.changed()==0 and w.keys()==keys and said(logs,'drone aim hold over (the drone aim ended)'),
+        table.concat(w.changed(),'; ')..' / '..w.keys())
+    toggle(gun,true); frames(gun,40); toggle(gun,false)
+    assert(#w.changed()==0 and w.keys()==keys,'out and away again')
+    -- a new controller (a map load, a death) while held: the keys back at once, the rows at its deferred reset
+    aim_off()
+    gun.new_controller(w.pc)
+    assert(w.keys()==keys,'keys back at the new controller: '..w.keys())
+    w.pawn.bTPSMode=false; w.down.RightMouseButton=nil
+    clock=clock+5; frames(gun,2)
+    assert(#w.changed()==0,table.concat(w.changed(),'; '))
+    -- coop off while held: everything back at once
+    clock=clock+1
+    aim_off()
+    gun.stop('coop off')
+    assert(#w.changed()==0 and w.keys()==keys,table.concat(w.changed(),'; ')..' / '..w.keys())
+    w.pawn.bTPSMode=false; w.down.RightMouseButton=nil
+end
+
+-- 8. The game's aim drops bTPSMode for a frame on each shot's skill while its key is held. An off on such a frame
+--    holds the aim key and SB's rows as an off in the aim does (7): here the last frame of the departure (a press in
+--    the aim). On a pad the hold lasts while LT is down, through a drop too. Put back there, TPSMode went to Ctrl under
+--    the held RMB or SB's rows came back during the aim: the drone fired NIKKE rounds with no ammo (8a4981b4).
+do
+    local w=Fake.new(); w.install()
+    local keys=w.keys()
+    local gun=new()
+    local cool=w.tables.SkillTable.P_Eve_GunNikke_ShootSlug1_1
+    local Morph=require('fight.gunmode.morph')
+    local function held() return w.keys():find('TPSMode=RightMouseButton',1,true)~=nil and cool.CoolTime==999 end
+    toggle(gun,true); frames(gun,40)
+    w.down.RightMouseButton,w.pawn.bTPSMode=true,true; frames(gun,5)
+    clock=clock+1; gun.toggle_now()
+    assert(gun.state.morph and gun.state.morph.dir=='out','the departure plays')
+    while gun.state.on do
+        local m=gun.state.morph
+        w.pawn.bTPSMode=not (m and clock+1/60-m.t0>=Morph.OUT) -- its last frame drops bTPSMode
+        frames(gun,1)
+    end
+    assert(gun.state.aim_hold and held(),'held at an off on a drop frame: '..w.keys()..', cool time '..cool.CoolTime)
+    w.pawn.bTPSMode=true; frames(gun,5)
+    assert(held(),'held in the aim: '..w.keys())
+    w.down.RightMouseButton,w.pawn.bTPSMode=nil,false; frames(gun,1)
+    assert(not gun.state.aim_hold and w.keys()==keys and #w.changed()==0,'back at the aim end: '..w.keys())
+    -- a pad: the off in the aim with LT held, then a drop frame with LT still down
+    toggle(gun,true); frames(gun,40)
+    w.down.Gamepad_LeftTrigger,w.pawn.bTPSMode=true,true; frames(gun,5)
+    toggle(gun,false)
+    w.pawn.bTPSMode=false; frames(gun,1); w.pawn.bTPSMode=true; frames(gun,3)
+    assert(gun.state.aim_hold and cool.CoolTime==999,'held through a drop with LT down, cool time '..cool.CoolTime)
+    w.down.Gamepad_LeftTrigger,w.pawn.bTPSMode=nil,false; frames(gun,1)
+    assert(not gun.state.aim_hold and #w.changed()==0,'back at the LT release: '..table.concat(w.changed(),'; '))
 end
 
 print('gunmode state: ok')

@@ -701,13 +701,13 @@ function GunMode.new(env)
     end
 
     -- What the rifle out changes, put back; also the parts a start took before it failed (67ea7e8c). SB's rows are the
-    -- callers'.
-    local function put_away()
+    -- callers'. hold: the input mask stays (disable, SB's aim still on).
+    local function put_away(hold)
         s.morph=nil; cube_drop(); require('fight.gunmode.ik').fade=1
         if single.morph then pcall(single.morph,nil) end
         s.on=false
         pcall(stance.stop)
-        if s.mask then pcall(s.mask); s.mask=nil end
+        if s.mask and not hold then pcall(s.mask); s.mask=nil end
         camera_back()
         unface()
         local pw=g.pawn()
@@ -726,16 +726,41 @@ function GunMode.new(env)
         local pc=g.pc()
         if pc then pcall(fov,pc,false) end
     end
+    -- The game's own aim is on: its drone aim (bTPSMode, a byte at SBCharacter+0x1528: its SetBit 0x142691e80 on
+    -- 26123051) or a TPS mode other than the drone's (TPSModeType at +0x1531, ESBTPSModeType: 0 Default, 1 MiniGame,
+    -- 2 Nikke; enumerators at 0x145e2e370) (0970580e).
+    local function aim_on(p) return g.try(function() return p.TPSModeType~=0 or p.bTPSMode==true end)==true end
+    -- The game's aim dropped for a moment with its key still held: bTPSMode seen in the last 0.4 s with the aim key or
+    -- LT down (the tick's s.aim_seen and s.key_held, gun_fire=native). It drops for a frame on each shot's skill and
+    -- through a jump while the key is held (8a4981b4).
+    local function aim_dropped(now) return s.key_held==true and s.aim_seen~=nil and now-s.aim_seen<0.4 end
+    -- The held input mask and SB's rows back once the game's aim has ended (disable's hold).
+    local function release_hold(why)
+        s.aim_hold=false
+        if s.mask then pcall(s.mask); s.mask=nil end
+        if s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
+        g.log('drone aim hold over ('..why..')')
+    end
+    -- An off while the game's aim runs (gun_fire=native) holds the input mask and SB's rows until that aim ends with
+    -- the aim key up, with no round to fire (the NIKKE shot's cool time 999, as with an empty magazine). The aim key
+    -- stays on RMB, so letting it go ends the aim: SB binds TPSMode's press and release (0x1420473b0 hands both to
+    -- 0x14209f660, command key 0x2b). Put back under a held RMB, the key moved to Ctrl, the release never came and the
+    -- plain drone aim stayed on, firing (0970580e). An off on a frame where the aim dropped with its key held
+    -- (aim_dropped: about one frame in three while firing) holds too (8a4981b4).
     local function disable(why)
         if not s.on then return end
-        put_away()
-        if s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
-        g.log('off ('..why..'), '..s.shots..' shots')
+        local p=g.pawn()
+        local hold=s.native_taken==true and p~=nil and (aim_on(p) or aim_dropped(os.clock()))
+        put_away(hold)
+        if hold then s.aim_hold=true; pcall(data.cool,999)
+        elseif s.native_taken then pcall(data.put_back); s.native_taken=false; aim.row=nil end
+        g.log('off ('..why..'), '..s.shots..' shots'
+            ..(hold and '; the drone aim is on: its key and SB\'s rows wait for its end' or ''))
     end
-    -- Everything back, SB's rows too: a start that failed (67ea7e8c L2).
+    -- Everything back, SB's rows too: a start that failed (67ea7e8c L2), or coop off (now: SB's held fields at once).
     local function give_all_back(now)
         put_away()
-        pcall(data.put_back,now); s.native_taken=false; aim.row=nil
+        pcall(data.put_back,now); s.native_taken=false; aim.row=nil; s.aim_hold=false
     end
 
     local function enable(why)
@@ -744,6 +769,7 @@ function GunMode.new(env)
         if g.try(function() return p.TPSModeType~=0 or p.bTPSMode end) then
             g.log('not now: release the drone aim first'); return
         end
+        if s.aim_hold then release_hold('the rifle comes out') end
         -- The gun mode animation pak (zNGMSpike_P): when it is installed, the aim stance's blend spaces point at
         -- its firing-stance animations while the rifle is out. Her real body shows while aiming (nothing posed).
         local okl,inst,why_not=pcall(layer.install,p)
@@ -1030,9 +1056,21 @@ function GunMode.new(env)
             return
         end
         dn_pc,dn_frame=pc,dn_frame+1
-        if s.on and not s.mask then -- (masked again at the first frame after a pause)
+        -- disable's hold ends once the game's aim is off with the aim key and LT up: bTPSMode drops for a frame on a
+        -- shot's skill and through a jump while either is held (e9badecf)
+        if s.aim_hold and not s.on then
+            local p=g.pawn()
+            if not (p and aim_on(p)) and not down(set.aim_key) and not down('Gamepad_LeftTrigger') then
+                release_hold('the drone aim ended')
+            end
+        end
+        if (s.on or s.aim_hold) and not s.mask then -- (masked again at the first frame after a pause)
             local ok,err=pcall(function() s.mask=mask() end)
-            if not ok then disable('the input mask failed ('..tostring(err)..')'); return end
+            if not ok then
+                if s.on then disable('the input mask failed ('..tostring(err)..')')
+                else release_hold('the input mask failed') end
+                return
+            end
         end
         if s.prof then s.prof('head') end
         local inp=Input.read(keys,down,now,cfg,set.key,inp_buf)
@@ -1570,6 +1608,10 @@ function GunMode.new(env)
             s.ammo_reset=true
             s.stop_stance=true
             s.show_back=true
+        end
+        if s.aim_hold then -- disable's hold: its mask back now, SB's rows at the deferred reset (give_back)
+            s.aim_hold=false
+            if s.mask then pcall(s.mask); s.mask=nil end
         end
         -- The old pawn's state goes with it (67ea7e8c L3): the next start begins clean on the new one. Its drone parts,
         -- her facing and the morph's cube go back at the deferred reset (show_back). The comeback after an interaction
