@@ -102,6 +102,12 @@ local function logged(w, needle)
     return false
 end
 local function second(w) w.now = w.now + 1.01; w.d.tick() end
+-- A coop-closet.txt line's tab-separated fields, empty ones kept (as restore reads it).
+local function fields(line)
+    local f = {}
+    for x in (line .. '\t'):gmatch('([^\t]*)\t') do f[#f + 1] = x end
+    return f
+end
 
 local tests = {
     plan_puts_the_shoes_outfit_on_the_body = function()
@@ -143,6 +149,19 @@ local tests = {
         same(Dress.parse({'AiK_CH27_14595:Chest,Legs', 'AiK_CH46_xSH_14462'}),
             {{fit = 'AiK_CH27_14595', slots = {'Chest', 'Legs'}}, {fit = 'AiK_CH46_xSH_14462'}})
         eq(Dress.parse({'a b'}), nil)
+    end,
+    words_are_the_inverse_of_parse = function()
+        local Dress = require('closet.dress')
+        local line = 'AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462'
+        local words = {}
+        for x in line:gmatch('%S+') do words[#words + 1] = x end
+        eq(Dress.words(assert(Dress.parse(words))), line)
+    end,
+    the_worn_choices_are_kept = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH27_14595', slots = {'Chest'}}, {fit = 'AiK_CH46_xSH_14462',
+            slots = {'Shoes'}}}))
+        eq(fields(w.file)[5], 'AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes')
     end,
     wear_then_off = function()
         local w = world()
@@ -189,6 +208,7 @@ local tests = {
         second(w)
         eq(w.eve.Mesh.SkeletalMesh.path, KS, 'two seconds: mixed again') eq(#w.eve.comps, 2)
         ok(logged(w, 'mix again'))
+        ok(w.file:find('AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes', 1, true), 'choices kept after mix again')
         w.d.off()
         eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off still gives her own look')
     end,

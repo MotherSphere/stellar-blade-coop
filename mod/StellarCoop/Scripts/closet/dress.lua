@@ -11,8 +11,9 @@
 --     part per extra outfit, however many of its pieces are worn.
 --   - A skin slot whose every region a worn piece covers (a piece's Covers) is hidden too.
 --   - Sections are hidden on every LOD; the ghost's capture reads LOD 0.
--- Before the first change, her own body mesh and overridden materials go into coop-closet.txt (link.store), so coop
--- closet off, coop off and the next Lua load (at its first tick) give her look back and remove the added meshes.
+-- Before the first change, her own body mesh and overridden materials go into coop-closet.txt (link.store), with the
+-- worn choices as console words, so coop closet off, coop off and the next Lua load (at its first tick) give her look
+-- back and remove the added meshes.
 -- Once a second (tick), unless the game is paused or shows one of its screens: a body mesh in GAME_LOOKS (Tachy Mode's
 -- suit) pauses the mix (the added meshes hidden) until it goes; any other changed look for 2 s (a map load, a game
 -- reset) gets the mix again; a hidden section the game showed again (Tachy Mode's end) is hidden again.
@@ -186,6 +187,14 @@ function Dress.parse(words)
     end
     return choices
 end
+-- choices -> "fit:Slot,Slot fit2", the words parse reads back (split on spaces).
+function Dress.words(choices)
+    local out={}
+    for _,c in ipairs(choices) do
+        out[#out+1]=c.slots and c.fit..':'..table.concat(c.slots,',') or c.fit
+    end
+    return table.concat(out,' ')
+end
 
 function Dress.new(o)
     local log=o.log
@@ -203,7 +212,7 @@ function Dress.new(o)
         local added={}
         for _,a in ipairs(state.added) do added[#added+1]=a.mesh end
         return store.save(table.concat({state.eve_path or '',state.own or '',state.materials or '',
-            table.concat(added,';')},'\t'))
+            table.concat(added,';'),Dress.words(state.choices or {})},'\t'))
     end
     -- Removes every component on EVE but her body that wears one of the given mesh paths: ours, also one an earlier
     -- mix or Lua load left (a map load can make the game set her body twice, and each change got the mix again).
@@ -240,7 +249,7 @@ function Dress.new(o)
         return removed
     end
 
-    local function apply(plan)
+    local function apply(plan,choices)
         local eve=her()
         if not eve then return nil,'no EVE in the world' end
         local body=valid(eve.Mesh)
@@ -263,7 +272,8 @@ function Dress.new(o)
             local mesh=valid(body.SkeletalMesh)
             own,materials=mesh and path_of(mesh) or '',current_materials(body)
         end
-        state={plan=plan,eve_path=path_of(eve),own=own,materials=materials,added={},paused=false,wrong=0}
+        state={plan=plan,choices=choices,eve_path=path_of(eve),own=own,materials=materials,added={},paused=false,
+            wrong=0}
         for _,a in ipairs(plan.added) do state.added[#state.added+1]={mesh=a.mesh} end
         local saved,e=keep()
         if saved==false then state=nil; return nil,'coop-closet.txt not written: '..tostring(e) end
@@ -298,7 +308,7 @@ function Dress.new(o)
         self.restore()
         local plan,why=Dress.plan(choices,fits)
         if not plan then return false,why end
-        local ok,e=apply(plan)
+        local ok,e=apply(plan,choices)
         if not ok then return false,e end
         local names={}
         for _,c in ipairs(choices) do names[#names+1]=c.fit end
@@ -375,11 +385,11 @@ function Dress.new(o)
             state.wrong=state.wrong+1
             if state.wrong<2 and not was_paused then return end
             log(string.format('the game changed EVE (body %s): mix again',tostring(path)))
-            local plan=state.plan
+            local plan,choices=state.plan,state.choices
             state.own,state.materials=path or state.own,body and current_materials(body) or state.materials
             local own,materials=state.own,state.materials
             state=nil
-            local ok,why=apply(plan)
+            local ok,why=apply(plan,choices)
             if ok then state.own,state.materials=own,materials; keep()
             else log('mix again failed: '..tostring(why)) end
             return
