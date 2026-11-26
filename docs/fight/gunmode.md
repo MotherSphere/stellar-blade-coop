@@ -132,7 +132,8 @@ so the game's key options never save them off. The first frame after the pause m
 back, gun mode finds each mapping again by its action name: coop fly may have moved the mappings in memory meanwhile.
 
 A new map, a death or a camp warp puts the rifle away. The hidden drone shows again, her facing goes back and the
-arrival's cube goes, once the new EVE is there. The next rifle out starts clean on her.
+arrival's cube goes, once the new EVE is there. A drone part whose path no longer names it is left alone: after a
+map load another object can sit at its address. The next rifle out starts clean on her.
 
 While the game holds EVE in an interaction or a cutscene (a camp, a seat, a rest, a door, a level sequence), the
 rifle goes away. It comes back 1 s after she is free. A press of `gun_key` in that second cancels the comeback. So do

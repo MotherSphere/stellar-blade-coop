@@ -141,7 +141,7 @@ do
         GetFullName=function() return 'CharacterMovementComponent Old.Move' end,
         bOrientRotationToMovement=false,bUseControllerDesiredRotation=true}
     local cube=w.component(w.pawn)
-    s.drone={actor=w.pawn,parts={{c=part,hidden=false,visible=true}}}
+    s.drone={actor=w.pawn,parts={{c=part,at=part.full:match('^%S+ (.+)$'),hidden=false,visible=true}}}
     s.facing={cm=move,orient=true,desired=false,at='Old.Move'}
     s.ovr,s.ovr_row,s.flash_fx,s.pose_m,s.cube=true,'N_Test_Dead',{},{},cube
     local p2=w.new_pawn()
@@ -191,6 +191,22 @@ do
     w.new_pawn(); gun.new_controller(w.pc)
     frames(60*6)
     assert(not gun.state.on,'a new map ends the comeback')
+end
+
+-- 9. The drone's parts go back only while their paths still name them. A new controller's deferred reset comes after
+--    a map load: another component can then sit at a part's freed address and pass IsValid.
+do
+    local w=Fake.new(); w.install()
+    local _,part=w.drone()
+    local gun=new()
+    clock=clock+1; gun.toggle_now()
+    assert(gun.state.on and part.bHiddenInGame==true,'the drone hidden')
+    w.new_pawn(); gun.new_controller(w.pc)
+    part.full='SkeletalMeshComponent Test.Other_Actor.Part'
+    local writes,hide=0,part.SetHiddenInGame
+    part.SetHiddenInGame=function(o,h) writes=writes+1; hide(o,h) end
+    clock=clock+5; gun.tick()
+    assert(writes==0 and gun.state.drone==nil,'no write to another component at the old address')
 end
 
 print('gunmode stop: ok')

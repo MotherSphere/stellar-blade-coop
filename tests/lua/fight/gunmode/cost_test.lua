@@ -225,7 +225,8 @@ do
     local function drone(name,x)
         local part={IsValid=function() return true end,bHiddenInGame=false,
             SetHiddenInGame=function(o,h) o.bHiddenInGame=h end,SetVisibility=function() end,
-            IsVisible=function() return true end}
+            IsVisible=function() return true end,
+            GetFullName=function() return 'StaticMeshComponent /Game/Map.'..name..'.Mesh' end}
         local d={IsValid=function(o) return not o.dead end,K2_GetActorLocation=function() return {X=x,Y=0,Z=0} end,
             K2_GetComponentsByClass=function() return {part} end,
             GetFullName=function() return 'CH_Drone_BP_C /Game/Map.'..name end}

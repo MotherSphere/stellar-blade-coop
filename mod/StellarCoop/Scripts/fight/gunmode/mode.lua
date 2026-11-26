@@ -592,7 +592,7 @@ function GunMode.new(env)
                 local was_hidden=g.try(function() return c.bHiddenInGame end)==true
                 local was_visible=g.try(function() return c:IsVisible() end)~=false
                 if (not was_hidden or was_visible) and pcall(function() c:SetHiddenInGame(true,false); c:SetVisibility(false,false) end) then
-                    parts[#parts+1]={c=c,hidden=was_hidden,visible=was_visible}
+                    parts[#parts+1]={c=c,at=g.path(c),hidden=was_hidden,visible=was_visible}
                 end
             end
         end)
@@ -600,11 +600,15 @@ function GunMode.new(env)
         s.drone_keep={actor=best,name=g.try(function() return best:GetFullName() end)}
         g.log('drone: '..#parts..' parts hidden ('..#all..' drones)')
     end
+    -- Each part back only while its path still names it (e.at): a new controller's deferred reset comes after a map
+    -- load, where the old drone's parts are usually gone. Another component at a freed address passes IsValid.
     local function show_drone()
         if s.drone then
             for _,e in ipairs(s.drone.parts) do
                 local c=e.c
-                if g.valid(c) then pcall(function() c:SetHiddenInGame(e.hidden,false); c:SetVisibility(e.visible,false) end) end
+                if e.at~=nil and g.path(c)==e.at then
+                    pcall(function() c:SetHiddenInGame(e.hidden,false); c:SetVisibility(e.visible,false) end)
+                end
             end
         end
         s.drone=nil; s.drone_look=nil
