@@ -263,6 +263,33 @@ function GunMode.new(env)
         return ok
     end
 
+    -- Masked keys given back ({name, key, to, at}: the action, its key, the key it was masked to (None unless to), its
+    -- index), each on a mapping of its action that still has the masked key: the one at its index, else the first not
+    -- yet given back. Then the keymaps rebuilt. How many. The array is walked again at each call, its rows written in
+    -- that call only: coop fly's AddActionMapping (its exec at 0x14478b400 on 26123051, an AddUnique on
+    -- InputSettings' array) grows it through 0x140e6c0d0, which reallocates its buffer. A row kept from an earlier
+    -- frame can point into freed memory (48e10f34).
+    local function keys_back(want)
+        if #want==0 then return 0 end
+        local settings=StaticFindObject(SETTINGS)
+        assert(g.valid(settings),'input settings unavailable')
+        local rows={}
+        settings.ActionMappings:ForEach(function(at,wrapped)
+            local row=wrapped:get()
+            rows[#rows+1]={at=at,row=row,name=row.ActionName:ToString(),key=row.Key.KeyName:ToString()}
+        end)
+        local n=0
+        for _,k in ipairs(want) do
+            local pick
+            for _,m in ipairs(rows) do
+                local fits=not m.used and m.name==k.name and m.key==(k.to or 'None')
+                if fits and (not pick or m.at==k.at) then pick=m end
+            end
+            if pick then pick.used=true; pick.row.Key.KeyName=FName(k.key); n=n+1 end
+        end
+        settings:ForceRebuildKeymaps()
+        return n
+    end
     -- The input mask, as Luke's maskAim makes it: cfg.mask_on_keys on cfg.mask_keys plus cfg.mask_actions on any key,
     -- set to key None and the keymaps rebuilt; restore() puts each one back. Axis mappings on those keys are only
     -- logged (the first time) so a later build can mask them if the game reads one.
@@ -275,15 +302,17 @@ function GunMode.new(env)
         for _,k in ipairs(cfg.mask_keys) do masked_key[k]=true end
         for _,n in ipairs(set.native and cfg.native_mask_on_keys or cfg.mask_on_keys) do on_keys[n]=true end
         if not set.native then for _,n in ipairs(cfg.mask_actions) do masked_name[n]=true end end
-        local saved,names={},{}
-        settings.ActionMappings:ForEach(function(_,wrapped)
+        local saved,names,rows={},{},{} -- rows: the mappings to mask, written in this call only (keys_back)
+        settings.ActionMappings:ForEach(function(at,wrapped)
             local row=wrapped:get()
             local name,key=row.ActionName:ToString(),row.Key.KeyName:ToString()
             if key~='None' and ((masked_key[key] and on_keys[name]) or masked_name[name] or reload_key[key]) then
-                saved[#saved+1]={row=row,key=key,name=name}
+                saved[#saved+1]={key=key,name=name,at=at}
+                rows[#saved]=row
                 names[#names+1]=name..'('..key..')'
             elseif set.native and name=='TPSMode' and key==cfg.aim_from then -- The game's aim moved to RMB.
-                saved[#saved+1]={row=row,key=key,name=name,to=set.aim_key}
+                saved[#saved+1]={key=key,name=name,to=set.aim_key,at=at}
+                rows[#saved]=row
                 names[#names+1]=name..'('..key..' -> '..set.aim_key..')'
             end
         end)
@@ -312,17 +341,16 @@ function GunMode.new(env)
             g.log('input: keyboard keys bound: '..table.concat(list,' '))
         end
         local function restore()
+            local back={}
             for _,e in ipairs(saved) do
-                if e.changed then
-                    pcall(function() e.row.Key.KeyName=FName(e.key) end)
-                    e.changed=false
-                end
+                if e.changed then back[#back+1]=e; e.changed=false end
             end
-            pcall(function() settings:ForceRebuildKeymaps() end)
-            g.log('input: '..#saved..' mappings put back')
+            local done,n=pcall(keys_back,back)
+            g.log('input: '..(done and n..' of '..#back..' mappings put back'
+                or 'mappings not put back ('..tostring(n)..')'))
         end
         local ok,err=pcall(function()
-            for _,e in ipairs(saved) do e.changed=true; e.row.Key.KeyName=FName(e.to or 'None') end
+            for i,e in ipairs(saved) do e.changed=true; rows[i].Key.KeyName=FName(e.to or 'None') end
             settings:ForceRebuildKeymaps()
         end)
         if not ok then restore(); error(err) end
