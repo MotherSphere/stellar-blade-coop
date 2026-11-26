@@ -55,7 +55,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
 `fight/gunmode/`: `aimrot`, `cost`, `dpad`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`, `morph`, `nikke`,
-`off`, `release`, `rifle_frame`, `texts`, `v4_rules`)
+`off`, `release`, `rifle_frame`, `state`, `stock`, `texts`, `v4_rules`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -78,7 +78,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   (within `gun_spread` degrees of the reticle point, the edge at that angle, 0 for none, the setting from 0 to 10, both
   writes of a round's destination in `mode.lua` going through it), the rifle's magazine
   (a round per cool time, the reload when empty, none when lowered part-spent, the HUD count, no round once the spares
-  are spent, a refill) and the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
+  are spent, a refill, cool time 0 at a reload's end and at a refill, then the rate of fire after the first round) and
+  the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
   or row is refused. `mode.lua` calls `CreateSBZoneEvent` once, inside the guarded `zone_event`. `fire_row` reaches it
   only through that guard. Over fake tables, `fight/gunmode/data.lua` sets the NIKKE round's `DestTarget` from the
   shipped 3 (`StartToDestDirection`) to 0 (`MainActor`) while the rifle is out, logs the change and gives 3 back at
@@ -102,6 +103,20 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   laser's two assets, the rifle's mesh and the two turn clips are asked of the keep. A drone near EVE is hidden and
   kept: the next rifle out finds it with no list, unless it is 3000 or more away. The drones come from the engine's
   class hash through `GunMode.DRONE_CLASS`. The flash's `FX_Fire` and the layer's `DefaultSlot` names are made once;
+- `fight/gunmode/state_test` covers SB's NIKKE behaviour that gun mode holds off, over `fight/gunmode/fake.lua`. With
+  native fire the NIKKE shot's show has an empty anim key while the rifle is out, back at the rifle away, with no
+  write to a show the engine collected. Own fire and `gun_upper=nikke` keep it. `P_Eve_GunNikke_ReloadCompleted`'s
+  `Action1` reads 0, `P_Eve_GunNikke_BulletZero`'s `ConditionActive_ItemCount` -1 and `P_Eve_GunNikke_Reload`'s 0
+  while the rifle is out, in both fire modes. They go back 3 s of play after the off or after a new world, a pause not
+  counted. A rifle out during that time keeps the shipped values. `coop off` puts them back at once, also part way
+  through the 3 s. A missing row or a field that cannot be written is logged and the rifle still comes out. The rifle
+  out writes cool time 0. The rate of fire follows the first round. The off gives the shipped cool time back;
+- `fight/gunmode/stock_test` runs the free magazines (`fight/gunmode/ammo.lua`) against a fake of SB's NIKKE shot
+  that copies the cool time at each start and refuses a start while the row and the copy are both above 0. After a
+  reload held through, SB's first round comes within 2 frames of its end. After every magazine was fired dry (SB
+  holding 999) a refill lets SB fire again at about 10 rounds a second. A slow frame of 0.12 s after the press still
+  lets SB's late start through (`Ammo.OPEN_FRAMES`). At the rifle out `sync()` writes nothing over the take's 0. The
+  first round, the game's or gun mode's own, puts the rate of fire back;
 - `fight/gunmode/v4_rules_test` covers the layer clip choice (hip fire raises the rifle, a ground move carries it,
   the flip keeps the aim), the aimed reload on the aim's pose, the aim bridge through a dodge, her body tilt, the aim
   clip by rifle pitch, the recoil, the hip-fire turn, the comeback after an interaction, the chest turn's ease back (a
@@ -130,7 +145,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   The page has no ", and" or ", but", no bold-label bullet and no
   "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
   The same holds for each run of comment lines in `input.lua`, `ik.lua`, `mode.lua`, `aimrot.lua`, `ui/dpad.lua`,
-  `rifle.lua`, `ik_pin_test`, `input_memo_test`, `rifle_frame_test`, `morph_test` and `cost_test`. No sentence ends
+  `rifle.lua`, `ik_pin_test`, `input_memo_test`, `rifle_frame_test`, `morph_test`, `cost_test`, `state_test` and
+  `stock_test`. No sentence ends
   inside a parenthesis in those runs.
   Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
 - `fight/gunmode/release_test` runs `fight/gunmode/release_check.lua` on gun mode's shipped defaults: no debug flag

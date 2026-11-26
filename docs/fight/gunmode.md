@@ -60,35 +60,36 @@ rifle changes:
 - `SkillCommandTable`: the NIKKE fire commands take the burst shot's command type, which checks no equipped round.
   With `gun_fire=native` (the default) every drone fire command starts the NIKKE shot too, also in a jump.
 - `SkillTable`: the NIKKE shot's cool time. It is the rate of fire (0.045 s), the reload's wait during a reload and
-  999 with no round. SB keeps its own copy of the cool time from each shot's start and counts that copy down. It
-  refuses a shot while the row's cool time and that copy are both above 0. So the rifle out, the end of a reload and a
-  new world write 0. One cool time and at least 4 frames after the first round the row holds the rate of fire again.
-  The 4 frames cover a slow frame or 30 fps, where SB's first start can come after one cool time. Without the 0, a
-  magazine fired dry with the trigger held leaves SB a copy of 999. The next magazine then fires no round and no shot
-  sound for up to 999 s, while gun mode's flash, recoil and count go on.
+  999 once every magazine is spent. SB keeps its own copy of the cool time from each shot's start and counts that copy
+  down. It refuses a shot while the row's cool time and that copy are both above 0. So the rifle out, the end of a
+  reload and a refill of the magazines write 0. One cool time and at least 4 frames after the first round (the game's
+  aim or gun mode's own) the row holds the rate of fire again. The 4 frames cover a slow frame or 30 fps, where SB's
+  first start can come after one cool time. Without the 0, every magazine fired dry with the trigger held left SB a
+  copy of 999. The next rifle out then fired no SB round and no shot sound for up to 999 s, while gun mode's flash,
+  recoil and count went on. A reload's wait copied the same way held SB's rounds back for a moment after a reload with
+  the trigger held through it.
 - `SkillActiveStepTable`: the shot's `Hit1` step takes the `Type` of its `Cast1` step. It fires its projectile and
   spends no round.
-- `EffectTable` `P_Eve_GunNikke_ReloadCompleted`: SB's own NIKKE reload adds no rounds, in both fire modes. As
-  shipped, its `Action1` adds 60 `Bullet_Nikke` about 1 s after the last NIKKE shot while EVE carries fewer than 60.
-  Each reload of gun mode leaves her with fewer than 60, so every pause in the fire gave a free magazine (4 of them in
-  the 2026-11-21 test). While the rifle is out the action is `EffectAction_None`. The magazine then loads only the rounds
-  she buys or picks up. The action goes back 3 s of play after the other rows (paused time not counted). SB reads it
-  when the effect starts, about 1.07 s after its last NIKKE shot. Put back at once, an off right after a shot gave 60
-  free rounds. `coop off` and a Lua reload put it back at once. `UE4SS.log` has the lines
+- `EffectTable` `P_Eve_GunNikke_ReloadCompleted`: SB's own NIKKE reload adds no rounds to her bag, in both fire
+  modes. As shipped, its `Action1` adds 60 `Bullet_Nikke` about 1 s after the last NIKKE shot while EVE carries fewer
+  than 60. While the rifle is out the action is `EffectAction_None`. Gun mode's free magazines do not use
+  `Bullet_Nikke`. The action goes back 3 s of play after the other rows (paused time not counted), with the rifle away
+  too. SB reads it when the effect starts, about 1.07 s after its last NIKKE shot. Put back at once, an off right after
+  a shot gave 60 rounds. `coop off` puts it back at once. Gun mode keeps no file of these fields: a Lua reload during
+  the 3 s leaves them held until the game restarts. `UE4SS.log` has the lines
   `data: P_Eve_GunNikke_ReloadCompleted Action1 22 -> 0: SB's NIKKE reload adds no rounds` and
   `data: P_Eve_GunNikke_ReloadCompleted Action1 back to 22`.
 - `EffectTable` `P_Eve_GunNikke_BulletZero` and `P_Eve_GunNikke_Reload`: no NIKKE cover stance and no NIKKE reload of
   SB's own, in both fire modes. Every gun mode shot is SB's NIKKE shot. Its `P_Eve_GunNikke_SkillUseCheck` chains
-  `BulletZero` and `Reload`. Gun mode's reload takes the whole magazine out of `Bullet_Nikke`, so the count is often 0
-  after a shot. As shipped, `BulletZero` then starts at 0 rounds. Its stance `P_Eve_GunNikkeHide` is the NIKKE cover
-  stance, low with the rifle down. Its end condition is `Bullet_Nikke` above 0. In 805 SB's refill of 60 rounds met it
-  about 1 s later. With the refill off only a round she picks up or buys meets it, so she stayed in it (the 826 test).
+  `BulletZero` and `Reload`. Gun mode's free magazines add nothing to `Bullet_Nikke`, so her count can be 0 after a
+  shot. As shipped, `BulletZero` then starts at 0 rounds. Its stance `P_Eve_GunNikkeHide` is the NIKKE cover stance,
+  low with the rifle down. Its end condition is `Bullet_Nikke` above 0, so she stayed in it.
   `P_Eve_GunNikke_ReloadCompleted`'s `DispelFlagsArray` also names `P_Eve_GunNikke_BulletZero`. Whether that name
   matches the effect's flag (`Nikke_BulletZero`) was not read. `Reload` plays SB's NIKKE reload show on her whole body.
   While the rifle is out the item check of `BulletZero` needs a count of -1 and the one of `Reload` a count below 0. No
   count passes, so SB applies neither. The two `ConditionActive_ItemCount` fields go back with the refill field, 3 s of
-  play after the other rows. At `coop off` or a Lua reload all three go back at once. A shot SB is still running at that
-  moment can then start the cover stance. SB's own refill of 60 rounds ends it about 1 s later. `UE4SS.log` has the
+  play after the other rows. At `coop off` all three go back at once. A shot SB is still running at that moment can
+  then start the cover stance. SB's own refill of 60 rounds ends it about 1 s later. `UE4SS.log` has the
   lines `data: P_Eve_GunNikke_BulletZero ConditionActive_ItemCount 0 -> -1: no NIKKE cover stance at 0 rounds`,
   `data: P_Eve_GunNikke_Reload ConditionActive_ItemCount 60 -> 0: no NIKKE reload of SB's own` and the two `back to`
   lines.
@@ -112,7 +113,8 @@ rifle changes:
 - The NIKKE shot's show `P_Eve_GunNikke_ShootSlug1` (with `gun_fire=native`): its animation key plays no animation.
   As shipped it plays `P_Eve_GunNikke_Shoot` on her whole body, the NIKKE missions' shot from behind cover, which bent
   her body down at each round. The round, its sound, its flash and the camera shake play as before. The test line
-  `gun_upper=nikke` keeps the animation. `UE4SS.log` has the line `SBShowAnimKey_1 AnimResourcePath emptied`.
+  `gun_upper=nikke` keeps the animation, as does `gun_fire=own`. A show the engine collected while the rifle was out is
+  not written to. `UE4SS.log` has the line `SBShowAnimKey_1 AnimResourcePath emptied`.
 
 ## Keys
 
@@ -299,13 +301,14 @@ Gun mode calls no item add, save, shop or drop function. SB's own buy and drops 
 With `gun_mode=on`, gun mode asks SBO's keep for the assets of the rifle out, the aim, the rounds and the reload when
 it loads: the rifle layer's class and its four poses, the camera modifier, the rifle mesh, the morph's cube and flash,
 the muzzle flash, the three reload sounds, the two turn clips, the laser sight's Niagara system and parameter
-collection (`NS_A_GuideLaser`, `NC_NikkeMinigame`) and the two bodies the layer's rebuild swaps in for a moment
-(`Overlay.BASES` in `fight/gunmode/overlay.lua`). While the native part runs, the keep loads them off the frame and
-holds them for the game run. Any other asset, or one the keep does not hold, is found in memory through the engine's
-name hash before it is loaded. UE4SS's own lookup walks the game's objects for each asset not in memory: the first
-rifle out on a map froze the game for 100 to 340 ms in the 2026-11-21 test. The assets gun mode uses again (the reload
-sounds, the cube, the morph's flash, the muzzle flash, the turn clips, the laser's five objects) are kept between uses.
-Each is checked by its path before it is used, since a collection can free it.
+collection (`NS_A_GuideLaser`, `NC_NikkeMinigame`), the NIKKE shot's show `P_Eve_GunNikke_ShootSlug1` and the two
+bodies the layer's rebuild swaps in for a moment (`Overlay.BASES` in `fight/gunmode/overlay.lua`). While the native
+part runs, the keep loads them off the frame and holds them for the game run. Any other asset, or one the keep does
+not hold, is found in memory through the engine's name hash before it is loaded. UE4SS's own lookup walks the game's
+objects for each asset not in memory: the first rifle out on a map froze the game for 100 to 340 ms in the 2026-11-21
+test. The assets gun mode uses again (the reload sounds, the cube, the morph's flash, the muzzle flash, the turn clips,
+the laser's five objects) are kept between uses. Each is checked by its path before it is used, since a collection can
+free it.
 
 The second body of `Overlay.BASES` is `CH_P_EVE_01/CH_P_EVE_01`, which no pak of build 26123051 holds. With EVE in
 `CH_P_EVE_29` the layer finds no other body and the rifle comes out without it, as before. That missing body, like a
