@@ -78,6 +78,10 @@ local function fake_camera()
     c.running = function() return c.on end
     c.mode = function() return c.now end
     c.light = function() return c.preset, c.factor end
+    -- held: right mouse held at a Back (its release decides); due: that release was a click, taken once.
+    c.held, c.due = false, false
+    c.hold_back = function() return c.held end
+    c.take_back = function() local d = c.due; c.due = false; return d end
     return c
 end
 
@@ -1916,6 +1920,25 @@ local tests = {
         r.menu.close()
         tick(r, 1.6)
         eq(cam.ticks[#cam.ticks].region, nil, 'closed: ticked without a region')
+    end,
+
+    a_back_while_right_mouse_is_held_waits_for_the_camera = function()
+        -- A right press may start a camera drag: its Back waits until the camera says the release was a click.
+        local cam = fake_camera()
+        local r = rig({camera = cam})
+        r.menu.open()
+        cam.held = true
+        at(r, 0.5, 'back')
+        ok(r.menu.is_open(), 'right mouse held: no Back yet')
+        tick(r, 0.6)
+        ok(r.menu.is_open(), 'still held or dragged: no Back')
+        cam.held, cam.due = false, true
+        tick(r, 0.7)
+        ok(not r.menu.is_open(), 'released with no drag: Back closes the unchanged menu')
+        r.t = 1
+        r.menu.open()
+        at(r, 1.5, 'back')
+        ok(not r.menu.is_open(), 'right mouse not held (Esc, B): Back at once')
     end,
 
     camera_words_and_hints_reach_the_camera = function()

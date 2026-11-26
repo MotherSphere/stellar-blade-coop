@@ -84,7 +84,9 @@ local function world(change)
         store = {save = function(line) W.saves[#W.saves + 1] = line; W.file = line; return W.save_result ~= false end,
             load = function() return W.file end, clear = function() W.file = nil end},
         pc = function() return W.pc end, her = function() return W.eve end, screen = function() return W.screen end,
-        pad_bits = function() return W.bits end, pad_levels = function() return table.unpack(W.levels) end})
+        pad_bits = function() return W.bits end, pad_levels = function() return table.unpack(W.levels) end,
+        held_keys = function() return W.keys end,
+        pointer = function() if W.ptr then return W.ptr[1], W.ptr[2] end end})
 end
 -- dt s of ticks at 60 fps, region given.
 local function frames(c, s, region)
@@ -335,6 +337,120 @@ local tests = {
         W.levels = {0, 0, 0, 0}
         c.tick(1 / 60, 'full')
         eq(#W.saves, saves, 'region mode: the stick moves nothing')
+    end,
+
+    held_keys_orbit_zoom_and_pan_at_a_rate = function()
+        -- The native held read (bits: 1 right mouse, 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O):
+        -- the step words move nothing; held keys move at the stick's full rates; Shift + I/J/K/L slide.
+        local c = world(function(w) w.file = '\tfree\t0\t0\t300\t100\t0'; w.keys = 0 end)
+        c.open()
+        frames(c, 0.05, 'full')
+        local saves = #W.saves
+        c.word('cam_left') c.word('cam_in')
+        eq(#W.saves, saves, 'the held read is live: the step words move nothing')
+        local function hold(bits, s)
+            W.keys = bits
+            frames(c, s, 'full')
+            W.keys = 0
+            c.tick(1 / 60, 'full')
+        end
+        hold(16, 0.5)
+        near(fields().yaw, 60, 0.01, 'J held 0.5 s: 120 degrees a second to the left')
+        hold(64, 0.25)
+        near(fields().yaw, 30, 0.01, 'L held: to the right')
+        hold(8, 0.25)
+        near(fields().pitch, 20, 0.01, 'I held 0.25 s: 80 degrees a second up')
+        hold(32, 0.5)
+        near(fields().pitch, -20, 0.01, 'K held: down')
+        hold(128, 1)
+        near(fields().dist, 150, 0.5, 'U held 1 s: half the distance')
+        hold(256, 1)
+        near(fields().dist, 300, 0.5, 'O held 1 s: twice')
+        hold(4 + 64, 0.25)
+        near(fields().pan, 30, 0.01, 'Shift + L: pan, 120 cm a second')
+        near(fields().yaw, 30, 0.01, 'Shift + L: no orbit')
+        hold(4 + 8, 0.25)
+        near(fields().height, 130, 0.01, 'Shift + I: height')
+        hold(4 + 128, 1)
+        near(fields().dist, 300, 0.5, 'Shift + U is the light\'s: no zoom')
+        saves = #W.saves
+        W.keys = 16
+        frames(c, 0.5, 'full')
+        eq(#W.saves, saves, 'written once the keys are let go')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        eq(#W.saves, saves + 1, 'written at the release')
+        c.word('cam_mode')
+        saves = #W.saves
+        hold(16 + 8 + 128, 0.5)
+        eq(#W.saves, saves, 'region mode: the held keys move nothing')
+    end,
+
+    the_right_drag_orbits_and_the_middle_drag_pans = function()
+        local c = world(function(w) w.file = '\tfree\t0\t0\t300\t100\t0'; w.keys = 0; w.ptr = {500, 500} end)
+        c.open()
+        frames(c, 0.05, 'full')
+        W.keys = 1
+        c.tick(1 / 60, 'full')
+        W.ptr = {540, 520}
+        c.tick(1 / 60, 'full')
+        W.ptr = {580, 540}
+        c.tick(1 / 60, 'full')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        near(fields().yaw, -80 * Camera.MOUSE, 1e-6, 'a drag to the right: the camera to its right, as the stick')
+        near(fields().pitch, 40 * Camera.MOUSE, 1e-6, 'a drag down raises the camera')
+        W.ptr = {0, 0}
+        c.tick(1 / 60, 'full')
+        near(fields().yaw, -80 * Camera.MOUSE, 1e-6, 'a move with no button moves nothing')
+        W.keys = 2
+        c.tick(1 / 60, 'full')
+        W.ptr = {40, 20}
+        c.tick(1 / 60, 'full')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        near(fields().pan, -40 * Camera.MPAN, 1e-6, 'a middle drag to the right moves the look point left')
+        near(fields().height, 100 + 20 * Camera.MPAN, 1e-6, 'a middle drag down moves it up')
+        -- No mouse position (the kit hidden): no drag.
+        W.ptr = nil
+        W.keys = 1
+        frames(c, 0.1, 'full')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        near(fields().yaw, -80 * Camera.MOUSE, 1e-6, 'no mouse position: nothing')
+    end,
+
+    a_right_click_without_a_drag_is_back_at_its_release = function()
+        local c = world(function(w) w.keys = 0; w.ptr = {500, 500} end)
+        eq(c.hold_back(), false, 'no camera: Back at once')
+        c.open()
+        frames(c, 0.05, 'full')
+        eq(c.hold_back(), false, 'right mouse not held: Back at once')
+        W.keys = 1
+        eq(c.hold_back(), true, 'held: Back waits for the release')
+        W.ptr = {503, 504}
+        c.tick(1 / 60, 'full')
+        eq(c.take_back(), false, 'not yet released')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        eq(c.take_back(), true, 'released after 7 units: Back')
+        eq(c.take_back(), false, 'once')
+        W.keys = 1
+        eq(c.hold_back(), true, 'held again')
+        W.ptr = {520, 504}
+        c.tick(1 / 60, 'full')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        eq(c.take_back(), false, 'a drag of 17 units is no Back')
+        -- A pending Back goes with the close.
+        W.keys = 1
+        c.hold_back()
+        c.close()
+        eq(c.take_back(), false, 'closed: no Back left')
+        -- An older DLL (no held read): Back at once.
+        c = world(function(w) w.ptr = {500, 500} end)
+        c.open()
+        eq(c.hold_back(), false, 'no held read: Back at once')
     end,
 
     x_toggles_on_release_only_without_the_stick = function()

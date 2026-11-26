@@ -62,7 +62,7 @@ end,
 build={
 -- coop closet menu (closet/ui/menu.lua) on the kit: its group added before the first slow. Its camera
 -- (closet/ui/camera.lua) keeps its path, mode, free pose and light preset in coop-closet-camera.txt and reads the kit's
--- screen and main/boot.lua's pad reads (nil with an older DLL: the keys only). The menu's tiles show coop closet
+-- screen and mouse position and main/boot.lua's pad reads and held keys (nil with an older DLL: the key steps only). The menu's tiles show coop closet
 -- thumbs' pictures from the mod folder; its Make preview pictures row starts coop closet thumbs. Its Colour tab sets
 -- M.closet_colour's palette, its Body tab's shape rows M.closet_shape's values; Reset Stellar Closet turns both off.
 menu=function(M,Ui)
@@ -70,7 +70,8 @@ menu=function(M,Ui)
     local Camera=require('closet.ui.camera')
     local camera=Camera.new({store=M.link.store(Camera.FILE),log=log,screen=M.kit.screen,
         pad_bits=function() return M.pad_bits and M.pad_bits() end,
-        pad_levels=function() if M.pad_levels then return M.pad_levels() end end})
+        pad_levels=function() if M.pad_levels then return M.pad_levels() end end,
+        held_keys=function() return M.held_keys and M.held_keys() end,pointer=M.kit.pointer})
     M.closet_menu=require('closet.ui.menu').new({kit=M.kit,dress=M.closet,words=M.words,tell=M.tell,log=log,
         world=function() return M.hud_shown end,photo=M.photo_state,status=function() return M.link and M.link.status() end,
         camera=camera,folder=M.folder,thumbs=M.closet_thumbs,colour=M.closet_colour,shape=M.closet_shape})

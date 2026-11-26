@@ -554,7 +554,8 @@ cc={}
 package.loaded['closet.ui.camera']={FILE='coop-closet-camera.txt',region=function() return 'full' end,new=function(o)
     cc.o=o
     return {open=function() end,close=function() end,stop=function() end,tick=function() end,word=function() end,
-        running=function() return false end,mode=function() return 'region' end}
+        running=function() return false end,mode=function() return 'region' end,
+        hold_back=function() return false end,take_back=function() return false end}
 end}
 -- coop closet thumbs (closet/thumbs.lua; closet/thumbs_test tests it, closet/menu_test the tiles' pictures): what new
 -- got, its ticks and stops. No picture is there. It never runs: link.store here gives a name, not a file.

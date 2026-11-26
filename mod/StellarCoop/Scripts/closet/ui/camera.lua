@@ -18,8 +18,12 @@
 -- right stick orbits (ORBIT, TILT deg/s at full), LT and RT zoom (a factor 2 a second at full), X held with the stick
 -- moves the height and the pan (SLIDE cm/s); DEAD of each axis is ignored. In region mode the steps, the stick and the
 -- triggers move nothing. X released after a hold with no stick toggles region and free (cam_mode too); R3 and cam_reset
--- set the free pose to the region's framing and go to free mode. The mode and the free pose are written to the file
--- at each change (a stick move once the stick is back at rest) and read once a Lua load: only Reset replaces the pose.
+-- set the free pose to the region's framing and go to free mode. With the native held read (main/boot.lua's
+-- held_keys), the step words move nothing: I/J/K/L held orbit and U/O held zoom at the stick's full rates, Shift +
+-- I/J/K/L move the height and the pan, a right mouse drag orbits (MOUSE deg a layout unit) and a middle drag pans
+-- (MPAN cm). A right press is Back at its release unless the mouse moved CLICK units (hold_back, take_back). The mode
+-- and the free pose are written to the file at each change (a stick, key or drag move once all are back at rest) and
+-- read once a Lua load: only Reset replaces the pose.
 -- The preview lights (closet/ui/lights.lua) go on the camera actor at the open and follow its pose: light_next and the
 -- pad's L3 released after a hold with no trigger (in both modes) take the next preset; light_up and light_down step its
 -- intensity, as does each pull of RT (up) or LT (down) while L3 is held, when the triggers zoom nothing. Their preset
@@ -33,7 +37,9 @@
 -- call on the view: it never fights for it; the menu's guards then close the menu. The first engine error of an open
 -- is logged and closes the camera.
 -- o: {store=link.store(Camera.FILE), log=, screen=function() the kit's {w, h} or nil, pad_bits=function() bits (1 X,
--- 2 L3, 4 R3) or nil, pad_levels=function() right stick x, y (-1..1, right and up positive), LT, RT (0..1) or nil; tests
+-- 2 L3, 4 R3) or nil, pad_levels=function() right stick x, y (-1..1, right and up positive), LT, RT (0..1) or nil,
+-- held_keys=function() bits (1 right mouse, 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O) or nil,
+-- pointer=function() the kit's mouse x, y in layout units or nil; tests
 -- give unreal= (core/unreal.lua), actors= (core/actors.lua), pc=function() the player controller, her=function() EVE}.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
@@ -67,7 +73,9 @@ Camera.PITCH={-60,60} -- degrees, free mode.
 Camera.DIST={40,500} -- cm, free mode.
 Camera.PAN=80 -- cm either side, free mode.
 Camera.DEAD=0.2 -- of each stick axis and trigger; the rest is rescaled to 0..1.
-Camera.ORBIT,Camera.TILT,Camera.SLIDE=120,80,120 -- deg/s, deg/s, cm/s at full stick.
+Camera.ORBIT,Camera.TILT,Camera.SLIDE=120,80,120 -- deg/s, deg/s, cm/s at full stick (and for the held keys).
+Camera.MOUSE,Camera.MPAN=0.25,0.25 -- degrees a right drag orbits, cm a middle drag pans, per unit of the kit's layout.
+Camera.CLICK=8 -- layout units: a right press released with less mouse movement is Back.
 -- Each region's framing (starting values, to tune in game): {centre, span} in parts of her height from her feet, the
 -- span filling the screen's height; {yaw, pitch} in degrees.
 Camera.REGIONS={head={0.92,0.20,15,5},torso={0.70,0.34,15,8},arms={0.64,0.46,25,8},hands={0.47,0.20,25,12},
@@ -112,7 +120,10 @@ function Camera.new(o)
     local cam,dying,cur=nil,nil,nil
     local region='full'
     local clock=0
-    local dirty=false -- The stick moved the free pose since the last write.
+    local dirty=false -- The stick, a held key or a drag moved the free pose since the last write.
+    -- px, py: the mouse at the last tick while the right or middle button was held, else nil; back: {travel=} a right
+    -- press hold_back took, until its release; back_due: that release was a click (Back), until take_back.
+    local px,py,back,back_due=nil,nil,nil,false
     local forgot=false -- forget() ran: a write with nothing to keep clears the file.
     -- Read as held at an open: a hold from before is no press.
     local x_held,x_moved,r3_held,l3_held,l3_used,lt_held,rt_held=true,true,true,true,true,true,true
@@ -239,8 +250,39 @@ function Camera.new(o)
         if x and stick then p.height,p.pan=p.height+sy*Camera.SLIDE*dt,p.pan+sx*Camera.SLIDE*dt
         elseif stick then p.yaw,p.pitch=p.yaw-sx*Camera.ORBIT*dt,p.pitch+sy*Camera.TILT*dt end
         if lt~=0 or rt~=0 then p.dist=p.dist*2^((lt-rt)*dt) end
-        if stick or lt~=0 or rt~=0 then clamp(p); dirty=true
-        elseif dirty then write() end
+        return stick or lt~=0 or rt~=0
+    end
+    -- The native held read (nil with an older DLL): in free mode I/J/K/L held orbit and U/O zoom at the stick's full
+    -- rates, Shift + I/J/K/L move the height and the pan; a right drag orbits, a middle drag pans (the kit's mouse
+    -- position, read while one of them is held). A right press hold_back took ends here: Back at its release unless the
+    -- mouse moved CLICK units or more. Whether the free pose moved.
+    local function keys(dt)
+        local bits=o.held_keys and o.held_keys()
+        if not bits then return false end
+        local function on(b) return bits//b%2==1 end
+        local rmb,mmb,shift=on(1),on(2),on(4)
+        local x,y
+        if (rmb or mmb) and o.pointer then x,y=o.pointer() end
+        local dx,dy=0,0
+        if x and px then dx,dy=x-px,y-py end
+        px,py=x,y
+        if back then
+            back.travel=back.travel+math.abs(dx)+math.abs(dy)
+            if not rmb then back_due,back=back.travel<Camera.CLICK,nil end
+        end
+        if mode~='free' then return false end
+        local p=free
+        local kx=(on(64) and 1 or 0)-(on(16) and 1 or 0) -- L right, J left.
+        local ky=(on(8) and 1 or 0)-(on(32) and 1 or 0) -- I up, K down.
+        local kz=shift and 0 or (on(256) and 1 or 0)-(on(128) and 1 or 0) -- O out, U in; Shift + U/O are the light's.
+        if shift then p.height,p.pan=p.height+ky*Camera.SLIDE*dt,p.pan+kx*Camera.SLIDE*dt
+        else p.yaw,p.pitch=p.yaw-kx*Camera.ORBIT*dt,p.pitch+ky*Camera.TILT*dt end
+        p.dist=p.dist*2^(kz*dt)
+        -- A right drag turns as the stick does (right: the camera to its right); down raises the camera. A middle drag
+        -- moves the look point against the mouse, as if the scene were grabbed.
+        if rmb then p.yaw,p.pitch=p.yaw-dx*Camera.MOUSE,p.pitch+dy*Camera.MOUSE
+        elseif mmb then p.pan,p.height=p.pan-dx*Camera.MPAN,p.height+dy*Camera.MPAN end
+        return kx~=0 or ky~=0 or kz~=0 or dx~=0 or dy~=0
     end
     local function ease(a,b,k)
         local out={}
@@ -268,7 +310,10 @@ function Camera.new(o)
         end
         local eve=her()
         if not eve then return end
-        pad(dt)
+        local moved=pad(dt)
+        moved=keys(dt) or moved
+        -- Written once the stick, the keys and the drags are back at rest.
+        if moved then clamp(free); dirty=true elseif dirty then write() end
         local L=U.value_of(eve:K2_GetActorLocation())
         local yaw=U.value_of(eve:K2_GetActorRotation()).Yaw
         local target=mode=='free' and free or framing()
@@ -302,6 +347,7 @@ function Camera.new(o)
             d.mesh:SetFieldOfView(fov)
             pc:SetViewTargetWithBlend(d.actor,Camera.BLEND,0,0,false)
             cur,x_held,x_moved,r3_held,l3_held,l3_used,lt_held,rt_held=nil,true,true,true,true,true,true,true
+            px,py,back,back_due=nil,nil,nil,false
             lights.on(d.actor)
             log(string.format('camera: on (%s), FOV %.1f, her height %.0f cm, lights %s x%g',mode,fov,cam.h,
                 lights.preset(),lights.factor()))
@@ -313,6 +359,7 @@ function Camera.new(o)
     end
     -- The menu's close: the view back while it is still ours, the actor removed BLEND s later (tick).
     function self.close()
+        back,back_due=nil,false
         if not cam then
             if dirty then write() end
             return
@@ -328,7 +375,7 @@ function Camera.new(o)
     -- coop off: the view back with no blend, every camera removed at once, the path field cleared.
     function self.stop()
         local c=cam
-        cam=nil
+        cam,back,back_due=nil,nil,false
         lights.off()
         if c then
             local ran,why=pcall(give_back,c,0)
@@ -366,6 +413,7 @@ function Camera.new(o)
         if w=='light_next' then lights.next(); return write() end
         if w=='light_up' or w=='light_down' then lights.step(w=='light_up' and 1 or -1); return write() end
         if mode~='free' then return end
+        if o.held_keys and o.held_keys() then return end -- The held read is live: the held keys move it (tick).
         local p,s=free,Camera.STEP
         if w=='cam_left' then p.yaw=p.yaw+s elseif w=='cam_right' then p.yaw=p.yaw-s
         elseif w=='cam_up' then p.pitch=p.pitch+s elseif w=='cam_down' then p.pitch=p.pitch-s
@@ -379,6 +427,21 @@ function Camera.new(o)
         mode,free,forgot='region',nil,true
         lights.set('game',1)
         write()
+    end
+    -- The menu's Back from a right press: true while the camera runs and the held read says right mouse is held, so
+    -- the press may start a drag; the release then decides (take_back). False: Back at once.
+    function self.hold_back()
+        local bits=cam and o.held_keys and o.held_keys()
+        if not bits or bits%2==0 then return false end
+        back={travel=0}
+        if o.pointer then px,py=o.pointer() end
+        return true
+    end
+    -- True once after a right press hold_back took was released with less than CLICK units of mouse movement.
+    function self.take_back()
+        local due=back_due
+        back_due=false
+        return due
     end
     function self.running() return cam~=nil end
     function self.mode() return mode end

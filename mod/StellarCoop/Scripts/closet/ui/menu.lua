@@ -60,7 +60,9 @@
 -- row or a row with no slot; nil while closed). The camera words (cam_left, cam_right, cam_up, cam_down, cam_in,
 -- cam_out, cam_mode, cam_reset) and the light words (light_next, light_up, light_down) go to it; while it runs, the
 -- camera hint row shows its mode on C (the pad's X), Reset camera on Backspace (the pad's R3) and the light preset on V
--- (the pad's L3), each a chip a click runs. The preset's intensity shows after its name on every preset but Game.
+-- (the pad's L3), each a chip a click runs. The preset's intensity shows after its name on every preset but Game. A
+-- Back while the camera says right mouse is held (hold_back) waits: the camera runs it at the release when the mouse
+-- did not drag (take_back, read each tick).
 -- o: {kit=ui/kit/kit.lua's, dress=closet/dress.lua's, words=function() the ui/text table to show, tell=function(build)
 -- (main/base.lua's M.tell), log=, world=function() M.hud_shown, photo=function() M.photo_state(), status=function()
 -- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
@@ -490,6 +492,8 @@ function Menu.new(o)
     function self.nav(word)
         if not open then return end
         if camera_word(word) then return cam_word(word) end
+        -- A right press may start a camera drag: its Back waits for the release (self.tick, camera.take_back).
+        if word=='back' and camera and camera.hold_back() then return end
         if word=='tab_left' then undo={tab,row,col,tile,tab_top,at=frame} -- For the pad chord (self.toggle).
         elseif word=='left' and undo then undo.at=frame
         else undo=nil end
@@ -565,6 +569,7 @@ function Menu.new(o)
         frame=frame+1
         if camera then camera.tick(t-(ticked or t),open and region or nil) end
         ticked=t
+        if camera and camera.take_back() then self.nav('back') end -- A right click with no drag.
         if not open then
             -- shortcut: kit.holding() does not say for whom, so a panel that took the input meanwhile keeps owed set
             -- (open then skips the panel guard); read the holder once the kit says it.
