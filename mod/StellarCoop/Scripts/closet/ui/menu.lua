@@ -6,9 +6,11 @@
 -- choices). It opens out of combat in the game world, the SBO lobby world included; it refuses on the first guard that
 -- fails, with one notice. Open, it holds the kit's input as closet_menu with the mouse cursor. The tab shown is kept
 -- across opens; the first open shows the first tab with a row of pieces. Each close drops every game part first (the
--- game holds EVE still while one is up), hides the group and gives the input back. close('revert') wears the confirmed
--- look again (dress.revert), close('keep') leaves the look as it is, close('stop') (coop off) does neither and plays no
--- sound. A draw that raises closes the menu with a revert and one log line.
+-- game holds EVE still while one is up) and hides the group. The input comes back BACK s after the close, so the key
+-- that closed it (Esc would open the pause menu) never reaches the game. It is asked again each tick while closed until
+-- the kit has given it (no player controller at the close); an open before then takes it on. close('revert') wears the
+-- confirmed look again (dress.revert), close('keep') leaves the look as it is, close('stop') (coop off) does neither,
+-- plays no sound and gives the input back at once. A draw that raises closes the menu with a revert and one log line.
 -- Focus: the tabs, the rows or the grid (col). E and Q change the tab. Up and down walk the rows; up on the first row
 -- reaches the tabs. Right or select on a row of pieces goes into its grid; left and right walk its tiles; left on the
 -- first tile or back returns to the rows. A tile focused for PREVIEW s is worn as a preview (dress.preview); select
@@ -35,6 +37,7 @@ local T=require('ui.text')
 local Menu={}
 Menu.NEAR=3000 -- cm: an engaged enemy that near is combat (online/lobby/wiring.lua's fight check; no source).
 Menu.PREVIEW,Menu.ARM,Menu.GUARD,Menu.COMBAT=0.25,0.3,0.25,1 -- s.
+Menu.BACK=0.15 -- s before the game's input comes back after a close (ui/kit/menu.lua's BACK).
 
 function Menu.new(o)
     local kit,dress=o.kit,o.dress
@@ -49,6 +52,8 @@ function Menu.new(o)
     -- since the open; due: when the focused tile is worn (nil: none waits); opened, guard_at, combat_at: times in s;
     -- bare: the menu opened on her own look (nothing worn, no preview going).
     local col,tile,asking,changed,due,opened,guard_at,combat_at,bare='rows',1,false,false,nil,0,0,0,false
+    -- back_at: when the input is given back after a close; owed: the kit still holds it for us since a close.
+    local back_at,owed=nil,false
     local function words() return o.words and o.words() or T.en end
 
     local function cutscene(eve)
@@ -62,7 +67,7 @@ function Menu.new(o)
     local function refused()
         if not (kit and kit.ready() and not kit.off()) then return 'ui' end
         if not o.world() then return 'loading' end
-        if kit.holding() then return 'panel' end
+        if kit.holding() and not owed then return 'panel' end -- Held for us since a close: not another panel.
         if kit.paused(true) then return 'screen' end
         if o.photo()~='0' then return 'photo' end
         local eve=U.her(UE.GetPlayer())
@@ -182,7 +187,8 @@ function Menu.new(o)
         local dropped,why=pcall(view.drop_all)
         if not dropped then log('menu: drop failed: '..tostring(why)) end
         kit.show(View.GROUP,false)
-        kit.input(false,View.GROUP)
+        if how=='stop' then kit.input(false,View.GROUP); back_at,owed=nil,false
+        else back_at,owed=now()+Menu.BACK,true end
         if how~='stop' then kit.sound('close') end
         if how=='revert' then dress.revert() end
         log('menu: closed ('..how..')')
@@ -214,6 +220,7 @@ function Menu.new(o)
         if not tab then tab,row=first() end
         col,tile,asking,changed,due='rows',1,false,false,nil
         bare=not dress.previewing() and #(dress.choices() or {})==0
+        back_at,owed=nil,false
         opened=now()
         guard_at,combat_at=opened+Menu.GUARD,opened+Menu.COMBAT
         kit.input(true,View.GROUP,true)
@@ -315,11 +322,17 @@ function Menu.new(o)
         elseif (word=='right' or word=='select') and tiles then col,tile='grid',at end
         redraw()
     end
-    -- Each frame (closet/wiring.lua, through main/frame.lua's guard): the guards each GUARD s, a preview ended by a
-    -- typed coop closet wear or off, a tile the mouse picked, the focused tile worn once due.
+    -- Each frame (closet/wiring.lua, through main/frame.lua's guard): closed, the input given back once due and asked
+    -- again until the kit has given it; open, the guards each GUARD s, a preview ended by a typed coop closet wear or
+    -- off, a tile the mouse picked, the focused tile worn once due.
     function self.tick()
-        if not open then return end
         local t=now()
+        if not open then
+            -- shortcut: kit.holding() does not say for whom, so a panel that took the input meanwhile keeps owed set
+            -- (open then skips the panel guard); read the holder once the kit says it.
+            if owed and t>=back_at then kit.input(false,View.GROUP); owed=kit.holding() end
+            return
+        end
         if t>=guard_at then
             guard_at=t+Menu.GUARD
             local read,key=pcall(closing,t)
@@ -345,8 +358,11 @@ function Menu.new(o)
             redraw()
         end
     end
-    -- coop off: closed without a revert (the dress gives EVE her own look back).
-    function self.stop() self.close('stop') end
+    -- coop off: closed without a revert (the dress gives EVE her own look back), the input given back at once.
+    function self.stop()
+        self.close('stop')
+        back_at,owed=nil,false -- kit.stop gives the input back.
+    end
     return self
 end
 

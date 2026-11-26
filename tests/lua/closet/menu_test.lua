@@ -59,13 +59,24 @@ local function on_top(r)
     eq((detail(r)), 'Top', 'on the Top row')
 end
 
--- Every part dropped, the input given back, the group hidden, the menu closed.
+-- Every part dropped, the group hidden, the menu closed; the input given back by a tick 150 ms later.
 local function all_gone(r)
     eq(r.kit.dropped, #r.kit.made, 'parts dropped')
-    eq(r.kit.held, nil, 'input held')
-    eq(r.kit.inputs[#r.kit.inputs][1], false, 'last input call')
     eq(r.kit.shown.closet_menu, false, 'group shown')
     eq(r.menu.is_open(), false, 'is_open')
+    tick(r, r.t + 0.15)
+    eq(r.kit.held, nil, 'input held')
+    eq(r.kit.inputs[#r.kit.inputs][1], false, 'last input call')
+end
+-- A kit with no player controller while r.kit.no_pc: its give-back is refused, the input stays held (ui/kit/kit.lua's
+-- input_mode returns before it changes anything).
+local function no_pc(r)
+    local input = r.kit.input
+    r.kit.no_pc = true
+    r.kit.input = function(on, who, mouse)
+        if not on and r.kit.no_pc then r.kit.inputs[#r.kit.inputs + 1] = {on, who, mouse}; return end
+        input(on, who, mouse)
+    end
 end
 
 local tests = {
@@ -203,11 +214,63 @@ local tests = {
         eq(k.dropped, #k.made, 'view parts dropped')
     end,
 
+    input_comes_back_150_ms_after_a_close = function()
+        local r = rig()
+        r.menu.open()
+        at(r, 1, 'back')
+        eq(r.menu.is_open(), false, 'closed')
+        eq(r.kit.held, 'closet_menu', 'the Esc that closed it does not reach the game')
+        tick(r, 1.1)
+        eq(r.kit.held, 'closet_menu', 'still held before 150 ms')
+        tick(r, 1.15)
+        eq(r.kit.held, nil, 'given back after 150 ms')
+        -- An open before the give-back cancels it.
+        at(r, 2, 'back')
+        r.t = 2.05
+        ok(r.menu.open(), 'open again at once')
+        tick(r, 2.3)
+        eq(r.kit.held, 'closet_menu', 'the open menu keeps the input')
+        ok(r.menu.is_open(), 'still open')
+    end,
+
+    a_refused_give_back_is_asked_again = function()
+        local r = rig()
+        no_pc(r)
+        r.menu.open()
+        at(r, 1, 'back')
+        tick(r, 1.2)
+        eq(r.kit.held, 'closet_menu', 'refused: no player controller')
+        local calls = #r.kit.inputs
+        tick(r, 1.3)
+        eq(#r.kit.inputs, calls + 1, 'asked again on the next tick')
+        r.kit.no_pc = false
+        tick(r, 1.4)
+        eq(r.kit.held, nil, 'given back once the kit can')
+        calls = #r.kit.inputs
+        tick(r, 1.5)
+        eq(#r.kit.inputs, calls, 'not asked after that')
+    end,
+
+    open_after_a_refused_give_back_is_not_refused = function()
+        local r = rig()
+        no_pc(r)
+        r.menu.open()
+        at(r, 1, 'back')
+        tick(r, 1.2)
+        eq(r.kit.held, 'closet_menu', 'still held for the closet')
+        r.t = 2
+        local good, line = r.menu.open()
+        ok(good, line)
+        ok(r.menu.is_open(), 'open')
+        same(r.told, {}, 'no another-menu notice')
+    end,
+
     stop_drops_without_revert = function()
         local r = rig()
         r.menu.open()
         local sounds = #r.kit.sounds
         r.menu.stop()
+        eq(r.kit.held, nil, 'coop off gives the input back at once')
         all_gone(r)
         eq(r.reverted, 0, 'no revert')
         eq(#r.kit.sounds, sounds, 'no sound')
@@ -581,6 +644,8 @@ local tests = {
         eq(r.reverted, 1, 'part gone reverted')
         eq(r.kit.dropped, #r.kit.made - 1, 'the others dropped')
         eq(r.menu.is_open(), false, 'closed')
+        eq(r.kit.held, 'closet_menu', 'input kept 150 ms')
+        tick(r, 0.4)
         eq(r.kit.held, nil, 'input back')
         package.loaded.UEHelpers.GetPlayer = function() return nil end
     end,
