@@ -44,6 +44,7 @@ local tests = {
                 for _, region in ipairs(regions) do ok(Slots.IS_REGION[region], id .. ': region ' .. region) end
             end
             ok(fit.Mesh:match('^/Game/'), id .. ': mesh path')
+            ok(fit.Origin == nil or fit.Origin == 'original' or fit.Origin == 'custom', id .. ': origin')
         end
     end,
     kunoichi_skin_covers_each_region_once = function()
@@ -60,6 +61,7 @@ local tests = {
         eq(Fits.piece('AiK_CH46_xSH_14462', 'Shoes').Name, 'Shadow heel boots')
         same(Fits.piece('AiK_CH27_14595', 'Chest').Materials[1], 15)
         eq(Fits.piece('AiK_CH27_14595', 'Mask'), nil) eq(Fits.get('nope'), nil) eq(Fits.piece('nope', 'Shoes'), nil)
+        eq(Fits.piece('AiK_CH27_14595', 'BaseBody'), nil, 'BaseBody is a pseudo slot of every fit with Skin')
     end,
 }
 run('fits_test', tests)

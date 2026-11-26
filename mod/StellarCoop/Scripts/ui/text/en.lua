@@ -556,8 +556,9 @@ return {
         mann='Mann',nier='NieR machine',orcal='Orcal prototype',enya='Enya prototype'}},
     -- Stellar Closet's menu (closet/ui/): a tab for each closet/slots.lua Slots.MENUS id, a name for each Slots.LIST
     -- slot and Slots.REGIONS region, its rows, detail panel, key hints (Back and Select are hint.back, hint.select),
-    -- the Keep this look? popup, why it does not open (refused) and why it closed (closed). Outfit, pack and piece
-    -- names stay as their pack writes them.
+    -- the Keep this look? popup, why it does not open (refused) and why it closed (closed), the body switched to an
+    -- outfit (switched) and the regions whose skin shows on a picked body (clips). Outfit, pack and piece names stay as
+    -- their pack writes them.
     closet={
         tabs={head='Head',torso='Torso',arms='Arms',hips='Hips',intimate='Intimate',legs='Legs',body='Body',
             weapon='Weapon',full='Full outfit'},
@@ -600,5 +601,7 @@ return {
             map='The map changed: Stellar Closet closed without saving.',
             photo='Photo mode opened: Stellar Closet closed without saving.',
             input='The game took the controls back: Stellar Closet closed without saving.'},
-        saved='Look saved.',failed='Could not wear this piece. UE4SS.log says why.'},
+        saved='Look saved.',failed='Could not wear this piece. UE4SS.log says why.',
+        switched='Body switched to %s so no skin shows through the pieces.',
+        clips='Skin of this body shows through the pieces on: %s.'},
 }

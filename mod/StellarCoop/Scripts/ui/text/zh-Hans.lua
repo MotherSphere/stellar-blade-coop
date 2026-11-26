@@ -394,5 +394,7 @@ return {
         closed={combat='战斗开始：Stellar Closet已关闭，未保存。',cutscene='过场动画开始：Stellar Closet已关闭，未保存。',
             map='地图已切换：Stellar Closet已关闭，未保存。',photo='拍照模式已打开：Stellar Closet已关闭，未保存。',
             input='游戏收回了操作：Stellar Closet已关闭，未保存。'},
-        saved='造型已保存。',failed='无法穿上这个部件。原因见UE4SS.log。'},
+        saved='造型已保存。',failed='无法穿上这个部件。原因见UE4SS.log。',
+        switched='身体已换成%s，皮肤不会透出部件。',
+        clips='这个身体会在这些部位透出皮肤：%s。'},
 }

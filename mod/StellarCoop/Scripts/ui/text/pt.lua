@@ -507,5 +507,7 @@ return {
             map='O mapa mudou: Stellar Closet fechou sem guardar.',
             photo='Abriu-se o modo de fotografia: Stellar Closet fechou sem guardar.',
             input='O jogo retomou os controlos: Stellar Closet fechou sem guardar.'},
-        saved='Visual guardado.',failed='Não foi possível vestir esta peça. UE4SS.log diz porquê.'},
+        saved='Visual guardado.',failed='Não foi possível vestir esta peça. UE4SS.log diz porquê.',
+        switched='Corpo trocado para %s para a pele não aparecer através das peças.',
+        clips='A pele deste corpo aparece através das peças em: %s.'},
 }

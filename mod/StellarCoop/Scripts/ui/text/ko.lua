@@ -439,5 +439,7 @@ return {
             map='맵이 바뀌어 Stellar Closet을 저장하지 않고 닫았습니다.',
             photo='포토 모드가 열려 Stellar Closet을 저장하지 않고 닫았습니다.',
             input='게임이 조작을 가져가 Stellar Closet을 저장하지 않고 닫았습니다.'},
-        saved='모습을 저장했습니다.',failed='이 부위를 입을 수 없었습니다. 이유는 UE4SS.log에 있습니다.'},
+        saved='모습을 저장했습니다.',failed='이 부위를 입을 수 없었습니다. 이유는 UE4SS.log에 있습니다.',
+        switched='부위 사이로 피부가 비치지 않도록 몸을 %s(으)로 바꿨습니다.',
+        clips='이 몸은 다음 부위에서 피부가 비칩니다: %s.'},
 }

@@ -494,5 +494,7 @@ return {
             map='Kartet byttet: Stellar Closet lukket uten å lagre.',
             photo='Fotomodus åpnet: Stellar Closet lukket uten å lagre.',
             input='Spillet tok tilbake kontrollen: Stellar Closet lukket uten å lagre.'},
-        saved='Utseendet er lagret.',failed='Delen kunne ikke tas på. UE4SS.log sier hvorfor.'},
+        saved='Utseendet er lagret.',failed='Delen kunne ikke tas på. UE4SS.log sier hvorfor.',
+        switched='Kroppen er byttet til %s, så ingen hud synes gjennom delene.',
+        clips='Huden på denne kroppen synes gjennom delene på: %s.'},
 }

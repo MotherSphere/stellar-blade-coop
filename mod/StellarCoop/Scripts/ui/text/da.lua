@@ -493,5 +493,7 @@ return {
             map='Kortet skiftede: Stellar Closet lukkede uden at gemme.',
             photo='Fototilstand åbnede: Stellar Closet lukkede uden at gemme.',
             input='Spillet tog styringen tilbage: Stellar Closet lukkede uden at gemme.'},
-        saved='Look gemt.',failed='Delen kunne ikke tages på. UE4SS.log siger hvorfor.'},
+        saved='Look gemt.',failed='Delen kunne ikke tages på. UE4SS.log siger hvorfor.',
+        switched='Kroppen er skiftet til %s, så ingen hud skinner igennem delene.',
+        clips='Denne krops hud skinner igennem delene på: %s.'},
 }

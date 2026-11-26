@@ -4,7 +4,9 @@
 -- coop closet wear (closet/dress.lua) over fake UE4SS objects: the plan (the shoes' outfit on the body with its skin,
 -- one added mesh per other outfit, covered skin hidden, the refusals), the mix on EVE, her own look kept and given
 -- back by off and by the next Lua load, and the watchdog: Tachy Mode's suit pauses the mix, a changed look for 2 s gets
--- it again, a section the game showed again is hidden again. The words of coop closet (closet/commands.lua).
+-- it again, a section the game showed again is hidden again. The body rule: a single-skin body switched under foreign
+-- gloves, a picked BaseBody never switched, the modes, nails under foreign gloves, sections hidden by material slot.
+-- The words of coop closet (closet/commands.lua).
 local run = dofile('tests/lua/closet/run.lua')
 package.loaded.UEHelpers = {GetPlayer = function() return nil end} -- world() replaces it
 
@@ -112,6 +114,9 @@ end
 
 local A = {{fit = 'AiK_CH27_14595', slots = {'Chest'}}, {fit = 'AiK_CH46_xSH_14462', slots = {'Shoes'}}}
 local B = {{fit = 'AiK_CH46_xSH_14462'}}
+local MAID, NINJA = 'AiK_CH27_14595', 'AiK_CH46_xSH_14462' -- Ocean Maid (one skin slot), Kunoichi Shadow (three).
+-- Ocean Maid's nails (and shoes) with Kunoichi's gloves: Ocean Maid's single skin slot cannot hide the arms.
+local GLOVES = {{fit = MAID, slots = {'Fingernails'}}, {fit = NINJA, slots = {'Gloves'}}}
 
 local tests = {
     preview_keeps_the_confirmed_words = function()
@@ -542,6 +547,134 @@ local tests = {
         ok(not ok_ and line:find('Use: coop closet wear'), line)
         ok_, line = C.closet(nil, nil, nil, nil, nil, nil)
         ok(ok_ and line == 'closet: nothing worn', line)
+    end,
+    foreign_gloves_switch_a_single_skin_body = function()
+        local Dress = require('closet.dress')
+        local plan = assert(Dress.plan(GLOVES))
+        eq(plan.body.fit, NINJA, 'the body whose skin hides arms and hands') eq(plan.switched, NINJA)
+        eq(plan.clips, nil, 'nothing clips')
+        ok(plan.body.show[0] and plan.body.show[16] and plan.body.show[17], 'body skin and gloves')
+        ok(not plan.body.show[1] and not plan.body.show[2], 'no arms or hands skin under the gloves')
+        eq(plan.parts, 1) eq(plan.added[1].fit, MAID)
+        ok(not plan.added[1].show[0], 'Ocean Maid nails hidden under the gloves')
+        ok(not plan.added[1].show[14], 'no Ocean Maid skin')
+        -- Her own gloves over her own nails: the nails stay (Kunoichi's nails are off by default, so picked).
+        plan = assert(Dress.plan({{fit = NINJA, slots = {'Gloves', 'Fingernails'}}}))
+        ok(plan.body.show[25], 'own nails under own gloves stay') eq(plan.switched, nil)
+    end,
+    a_picked_body_is_never_switched = function()
+        local Dress = require('closet.dress')
+        local picked = {{fit = MAID, slots = {'BaseBody'}}, {fit = NINJA, slots = {'Gloves'}}}
+        local plan = assert(Dress.plan(picked))
+        eq(plan.body.fit, MAID, 'the picked body') eq(plan.switched, nil)
+        same(plan.clips, {'ArmUpper', 'Forearm', 'Hand'}, 'the regions that clip')
+        ok(plan.body.show[14], 'its one skin slot shows') eq(plan.pieces, 1) eq(plan.parts, 1)
+        eq(assert(Dress.plan(picked, nil, NINJA)).body.fit, MAID, 'a forced body does not beat a picked one')
+        plan = assert(Dress.plan({{fit = MAID, slots = {'BaseBody'}}, {fit = NINJA, slots = {'Gloves', 'Shoes'}}}))
+        eq(plan.body.fit, MAID, 'the picked body beats the shoes')
+    end,
+    a_switched_body_is_not_saved = function()
+        local w = world()
+        assert(w.d.wear(GLOVES))
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'the body switched to Kunoichi')
+        eq(fields(w.file)[5], w.Dress.words(GLOVES), 'the file holds the picks only')
+        w.d = w.new() -- A reload computes the switch again.
+        second(w)
+        eq(w.eve.Mesh.SkeletalMesh.path, KS) eq(fields(w.file)[5], w.Dress.words(GLOVES))
+    end,
+    basebody_needs_skin = function()
+        local Dress = require('closet.dress')
+        local fits = {get = function(id) return id == 'Bare' and {Mesh = '/Game/Bare.Bare', Pieces = {}} or nil end,
+            piece = function() return nil end}
+        local plan, why = Dress.plan({{fit = 'Bare', slots = {'BaseBody'}}}, fits)
+        eq(plan, nil) ok(why and why:find('Bare has no skin', 1, true), why)
+        plan, why = Dress.plan({{fit = MAID, slots = {'BaseBody'}}, {fit = NINJA, slots = {'BaseBody'}}})
+        eq(plan, nil) ok(why and why:find('BaseBody is worn twice', 1, true), why)
+        plan = assert(Dress.plan({{fit = NINJA, slots = {'BaseBody'}}}))
+        eq(plan.pieces, 0) ok(plan.body.show[0] and plan.body.show[1] and not plan.body.show[19], 'its skin only')
+    end,
+    sections_hide_by_slot = function()
+        local w = world()
+        local calls, real = {}, w.eve.Mesh.ShowMaterialSection
+        w.eve.Mesh.ShowMaterialSection = function(c, i, section, show, lod)
+            calls[#calls + 1] = {i, section, show, lod}
+            return real(c, i, section, show, lod)
+        end
+        assert(w.d.wear({{fit = NINJA, slots = {'Shoes'}}}))
+        ok(#calls > 0, 'sections hidden')
+        local seen = {}
+        for _, c in ipairs(calls) do
+            eq(c[2], -1, 'the slot itself, no section index to remap') eq(c[3], false)
+            seen[c[4] .. ':' .. c[1]] = true
+        end
+        ok(seen['0:3'] and seen['1:3'], 'the jacket slot on every LOD')
+    end,
+    body_modes_change_the_rule = function()
+        local Dress = require('closet.dress')
+        same(Dress.BODY_MODES, {'auto', 'shoes', 'first'})
+        local look = {{fit = NINJA, slots = {'Gloves'}}, {fit = MAID, slots = {'Shoes', 'Fingernails'}}}
+        eq(assert(Dress.plan(look)).body.fit, NINJA, 'auto by default')
+        eq(assert(Dress.plan(look, nil, 'auto')).switched, NINJA)
+        local plan = assert(Dress.plan(look, nil, 'shoes'))
+        eq(plan.body.fit, MAID, "today's rule: the shoes' outfit") eq(plan.switched, nil)
+        same(plan.clips, {'ArmUpper', 'Forearm', 'Hand'})
+        plan = assert(Dress.plan({{fit = MAID, slots = {'Chest'}}, {fit = NINJA, slots = {'Shoes'}}}, nil, 'first'))
+        eq(plan.body.fit, MAID, 'the first choice')
+        plan = assert(Dress.plan({{fit = MAID}}, nil, NINJA))
+        eq(plan.body.fit, NINJA, 'a forced body, even one not in the look') eq(plan.switched, nil)
+        eq(plan.parts, 1) eq(plan.added[1].fit, MAID)
+        ok(plan.body.show[0] and not plan.body.show[19], 'its skin only')
+        local w = world()
+        local good, why = w.d.body_mode('nope')
+        eq(good, false) ok(why:find('no fit map for nope', 1, true), why)
+        ok(w.d.body_mode('shoes'))
+        assert(w.d.wear(look))
+        eq(w.eve.Mesh.SkeletalMesh.path, OM, 'the shoes rule for this Lua load')
+        ok(w.d.body_mode(NINJA))
+        assert(w.d.wear({{fit = MAID, slots = {'Chest', 'Shoes'}}}))
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'the forced body') eq(#w.eve.comps, 2)
+        ok(w.d.body_mode('auto'))
+    end,
+    body_and_skin_words = function()
+        local w = world()
+        local Commands = require('closet.commands')
+        local C = Commands.new({dress = w.d, fits = require('closet.fits')})
+        local USE = Commands.USE
+        ok(USE:find('body <auto|shoes|first|<fit>>', 1, true) and USE:find('skin <fit> <slot> on|off', 1, true), USE)
+        local good, line = C.closet('body', 'first', nil, nil, nil, nil)
+        ok(good, line)
+        good, line = C.closet('body', 'nope', nil, nil, nil, nil)
+        eq(good, false) ok(line:find('no fit map', 1, true), line)
+        good, line = C.closet('skin', NINJA, '3', 'off', nil, nil)
+        eq(good, false) ok(line:find('nothing worn', 1, true), line)
+        assert(w.d.wear(A))
+        eq(w.eve.Mesh.SkeletalMesh.path, OM, 'body first: Ocean Maid')
+        ok(C.closet('body', 'auto', nil, nil, nil, nil))
+        assert(w.d.wear(A)) -- Kunoichi's shoes on the body, Ocean Maid's top on an added mesh.
+        ok(w.eve.Mesh.hidden['0:3'] and not w.eve.Mesh.hidden['0:1'], 'the plan: no jacket, bare arms')
+        good, line = C.closet('skin', NINJA, '3', 'on', nil, nil)
+        ok(good, line) ok(not w.eve.Mesh.hidden['0:3'] and not w.eve.Mesh.hidden['1:3'], 'slot 3 shown on every LOD')
+        good, line = C.closet('skin', NINJA, '1', 'off', nil, nil)
+        ok(good, line) ok(w.eve.Mesh.hidden['0:1'] and w.eve.Mesh.hidden['1:1'], 'slot 1 hidden on every LOD')
+        second(w)
+        ok(not w.eve.Mesh.hidden['0:3'] and not logged(w, 'hidden again'), 'the watchdog keeps the shown slot')
+        local added = w.eve.comps[2]
+        good, line = C.closet('skin', MAID, '15', 'off', nil, nil)
+        ok(good, line) ok(added.hidden['0:15'] and added.hidden['1:15'], "Ocean Maid's added mesh")
+        good, line = C.closet('skin', NINJA, '44', 'off', nil, nil)
+        eq(good, false) ok(line:find('no material slot 44', 1, true), line)
+        good, line = C.closet('skin', 'AiK_Other', '3', 'off', nil, nil)
+        eq(good, false) ok(line:find('not worn', 1, true), line)
+        w.eve.Mesh:SetSkeletalMesh(w.assets[TACHY]) -- Tachy Mode pauses the mix: her body wears the game's suit.
+        second(w)
+        good, line = C.closet('skin', NINJA, '0', 'off', nil, nil)
+        eq(good, false) ok(line:find('paused', 1, true), line) eq(w.eve.Mesh.hidden['0:0'], nil, "the suit's slot 0")
+        for _, bad in ipairs({{'body'}, {'body', 'first', 'x'}, {'skin'}, {'skin', NINJA, '3'},
+            {'skin', NINJA, 'x', 'off'}, {'skin', NINJA, '3', 'maybe'}, {'skin', NINJA, '3', 'off', 'more'}}) do
+            eq(select(2, C.closet(table.unpack(bad))), USE, table.concat(bad, ' '))
+        end
+        assert(w.d.wear(A)) -- The next wear clears the tries.
+        ok(w.eve.Mesh.hidden['0:1'] == nil and w.eve.Mesh.hidden['0:3'], 'the plan again')
     end,
     two_body_changes_in_a_row_leave_one_added_mesh = function()
         local w = world()

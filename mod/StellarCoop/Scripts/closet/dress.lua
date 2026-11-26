@@ -4,12 +4,16 @@
 -- coop closet wear: pieces of several CNS-format outfits worn at once on EVE, by fit map (closet/fits.lua). Display
 -- only: her equipment, inventory and saves are never read or written. Built on the Phase 0 spike's tested way
 -- (Stellar-Closet repository, spike/, 25 Nov 2026):
---   - The outfit that supplies the shoes goes on her body mesh (eve.Mesh, the animation leader), with its own skin:
---     its feet are the ones its shoes were shaped around. It shows its skin and its chosen pieces only.
+--   - One outfit goes on her body mesh (eve.Mesh, the animation leader), with its own skin. It shows its skin and its
+--     chosen pieces only. The body is the one picked (<fit>:BaseBody), else the body rule's (Dress.plan): by default
+--     the outfit that supplies the shoes (its feet are the ones its shoes were shaped around), else the first, unless
+--     its skin cannot hide a region another outfit's piece covers; then the look's outfit whose skin hides the most.
+--     The switch is computed at each wear: coop-closet.txt keeps the picks only.
 --   - Each other outfit goes on one added SkeletalMeshComponent, attached to the body and following its pose
 --     (SetMasterPoseComponent), with no collision. It shows its chosen pieces only. So the friend's ghost pays one
 --     part per extra outfit, however many of its pieces are worn.
---   - A skin slot whose every region a worn piece covers (a piece's Covers) is hidden too.
+--   - A skin slot whose every region a worn piece covers (a piece's Covers) is hidden too. Fingernails and Toenails
+--     pieces are hidden under a piece of another outfit that covers the hands or feet.
 --   - Sections are hidden on every LOD; the ghost's capture reads LOD 0.
 -- Before the first change, her own body mesh and overridden materials go into coop-closet.txt (link.store), with the
 -- worn choices as console words, so coop closet off, coop off and the next Lua load (at its first tick) give her look
@@ -73,15 +77,21 @@ local function lods(c)
     local ok,n=pcall(function() return c:GetNumLODs() end)
     return ok and n and n>0 and n or 1
 end
+-- ShowMaterialSection(MaterialID, SectionIndex, bShow, LODIndex): Ghidra, build 26123051, native table entry
+-- 0x14665f240 (name 0x14665bad8) -> exec 0x144927700 -> FUN_14412c640. A SectionIndex >= 0 inside the LOD's
+-- LODMaterialMap replaces MaterialID with that map entry; -1 skips the remap, so the material slot itself is hidden.
 local function show_only(c,count,show)
     for lod=0,lods(c)-1 do
         pcall(function() c:ShowAllMaterialSections(lod) end)
         for i=0,count-1 do
-            if not show[i] then pcall(function() c:ShowMaterialSection(i,0,false,lod) end) end
+            if not show[i] then pcall(function() c:ShowMaterialSection(i,-1,false,lod) end) end
         end
     end
 end
 -- The sections of c the mix hid that it shows at LOD 0 again.
+-- IsMaterialSectionShown(MaterialID, LODIndex) takes no SectionIndex: Ghidra, build 26123051, native table entry
+-- 0x14665f110 (name 0x14665bf58) -> exec 0x144927490 reads LODInfo[LODIndex] (component +0x798, 0x48 a LOD) and
+-- answers not HiddenMaterials[MaterialID], with no LODMaterialMap remap. So (i,0) is slot i at LOD 0, as written.
 local function shown_again(c,count,show)
     local out={}
     for i=0,count-1 do
@@ -116,58 +126,122 @@ local function current_materials(c)
     return table.concat(out,',')
 end
 
+-- The body rules of Dress.plan: auto (the switch below), shoes (the Shoes' outfit, else the first), first (the first
+-- choice). A fit id with Skin forces that body. Schizo, 26 Nov 2026: the rule needs trying in game.
+Dress.BODY_MODES={'auto','shoes','first'}
+local NAILS={Fingernails='Hand',Toenails='Foot'} -- Hidden under a covering piece of another outfit.
+-- Whether a skin slot can be hidden: each of its regions is covered.
+local function hidden(regions,covered)
+    local all=#regions>0
+    for _,region in ipairs(regions) do all=all and covered[region]~=nil end
+    return all
+end
+-- An outfit worn as the body: the covered regions its skin keeps showing (Slots.REGIONS order), and how many it hides.
+local function skin_of(o,covered)
+    local clips,hides={},0
+    for _,region in ipairs(Slots.REGIONS) do
+        for _,regions in pairs(covered[region] and o.map.Skin or {}) do
+            for _,r in ipairs(regions) do
+                if r==region and hidden(regions,covered) then hides=hides+1
+                elseif r==region then clips[#clips+1]=region end
+            end
+        end
+    end
+    return clips,hides
+end
+
 -- The plan for a list of choices {{fit=<UniqueFitID>, slots=<list of Slot ids, or nil for every piece it shows by
--- default>}}: {body={fit,mesh,show,count?}, added={{fit,mesh,show}}, pieces=n, parts=<added meshes>} or nil and why.
--- Pure: no engine call. The fit that supplies Shoes goes on the body, else the first.
-function Dress.plan(choices,fits)
+-- default>}}: {body={fit,mesh,show}, added={{fit,mesh,show}}, pieces=n, parts=<added meshes>, switched=<fit the
+-- auto rule put on the body instead of the Shoes'/first one>?, clips=<covered regions the body's skin shows>?} or nil
+-- and why. Pure: no engine call; choices are never changed. The slot BaseBody of a fit with Skin (no piece) picks its
+-- body, which is never switched. Else the body rule mode (Dress.BODY_MODES, default auto, or a fit id): auto keeps
+-- the Shoes' outfit, else the first, unless a covered region's skin slot on it is not a whole slot; then the look's
+-- outfit with Skin that hides the most covered regions (ties: the Shoes' outfit, then choice order).
+function Dress.plan(choices,fits,mode)
     fits=fits or Fits
     if #choices==0 then return nil,'nothing to wear' end
-    local taken,by_fit,order={},{},{}
+    local taken,by_fit,order,picked={},{},{},nil
     for _,choice in ipairs(choices) do
         local fit=fits.get(choice.fit)
         if not fit then return nil,'no fit map for '..tostring(choice.fit) end
         if by_fit[choice.fit] then return nil,choice.fit..' named twice' end
-        local pieces={}
+        local pieces,body={},false
         if choice.slots then
             for _,slot in ipairs(choice.slots) do
                 if not Slots.known(slot) then return nil,'unknown slot '..tostring(slot) end
-                local piece=fits.piece(choice.fit,slot)
-                if not piece then return nil,choice.fit..' has no '..slot end
-                pieces[#pieces+1]=piece
+                if slot=='BaseBody' then
+                    if next(fit.Skin or {})==nil then return nil,choice.fit..' has no skin' end
+                    body=true
+                else
+                    local piece=fits.piece(choice.fit,slot)
+                    if not piece then return nil,choice.fit..' has no '..slot end
+                    pieces[#pieces+1]=piece
+                end
             end
         else
             for _,piece in ipairs(fit.Pieces) do if not piece.Off then pieces[#pieces+1]=piece end end
         end
+        local claims=body and {'BaseBody'} or {}
         for _,piece in ipairs(pieces) do
-            for _,slot in ipairs({piece.Slot,table.unpack(piece.Occupies or {})}) do
-                if taken[slot] then return nil,slot..' is worn twice ('..taken[slot]..' and '..choice.fit..')' end
-                taken[slot]=choice.fit
-            end
+            for _,slot in ipairs({piece.Slot,table.unpack(piece.Occupies or {})}) do claims[#claims+1]=slot end
+        end
+        for _,slot in ipairs(claims) do
+            if taken[slot] then return nil,slot..' is worn twice ('..taken[slot]..' and '..choice.fit..')' end
+            taken[slot]=choice.fit
         end
         by_fit[choice.fit]={fit=choice.fit,map=fit,pieces=pieces}
         order[#order+1]=by_fit[choice.fit]
+        if body then picked=by_fit[choice.fit] end
     end
-    local body=order[1]
-    if taken.Shoes then body=by_fit[taken.Shoes] end
-    -- Regions the worn pieces cover: a body skin slot all of whose regions are covered is hidden.
+    -- Regions the worn pieces cover, each with the outfits covering it: a body skin slot all of whose regions are
+    -- covered is hidden.
     local covered={}
     for _,o in ipairs(order) do
         for _,piece in ipairs(o.pieces) do
-            for _,region in ipairs(piece.Covers or {}) do covered[region]=true end
+            for _,region in ipairs(piece.Covers or {}) do
+                covered[region]=covered[region] or {}
+                covered[region][o.fit]=true
+            end
         end
     end
-    local plan={added={},pieces=0}
+    local base=taken.Shoes and by_fit[taken.Shoes] or order[1]
+    local body,switched=picked,nil
+    if not body and mode=='first' then body=order[1]
+    elseif not body and mode=='shoes' then body=base
+    elseif not body and mode and mode~='auto' then -- A forced body: worn with its skin only when not in the look.
+        body=by_fit[mode]
+        if not body and fits.get(mode) then
+            body={fit=mode,map=fits.get(mode),pieces={}}
+            order[#order+1]=body
+        end
+        body=body or base
+    elseif not body then
+        body=base
+        local clips,most=skin_of(base,covered)
+        if #clips>0 then
+            for _,o in ipairs(order) do
+                local _,hides=skin_of(o,covered)
+                if hides>most then body,most=o,hides end
+            end
+            if body~=base then switched=body.fit end
+        end
+    end
+    local plan={added={},pieces=0,switched=switched}
+    local clips=skin_of(body,covered)
+    if #clips>0 then plan.clips=clips end
     for _,o in ipairs(order) do
         local show={}
         for _,piece in ipairs(o.pieces) do
-            for _,index in ipairs(piece.Materials) do show[index]=true end
+            local under=false
+            for by in pairs(covered[NAILS[piece.Slot] or ''] or {}) do under=under or by~=o.fit end
+            if not under then
+                for _,index in ipairs(piece.Materials) do show[index]=true end
+            end
             plan.pieces=plan.pieces+1
         end
         if o==body then
-            for index,regions in pairs(o.map.Skin) do
-                local all=#regions>0
-                for _,region in ipairs(regions) do all=all and covered[region]==true end
-                if not all then show[index]=true end
+            for index,regions in pairs(o.map.Skin or {}) do
+                if not hidden(regions,covered) then show[index]=true end
             end
             plan.body={fit=o.fit,mesh=o.map.Mesh,show=show}
         else
@@ -215,6 +289,7 @@ function Dress.new(o)
                 -- count=, paused=, wrong=}
     local restored,due=false,0
     local pending,tries,retry_at=nil,0,0 -- The kept line's fields once read; restore's failed wears; its next try.
+    local mode='auto' -- Dress.plan's body rule for this Lua load (body_mode).
     local kept_fields,undo_kept -- Set with restore below; off uses them too.
 
     local function keep()
@@ -330,17 +405,22 @@ function Dress.new(o)
         log('preview: her own look, '..removed..' added mesh(es) removed')
         return true,'closet: previewing her own look'
     end
+    -- What the body rule did, for the log lines: the switch and the regions whose skin shows under a piece.
+    local function body_notes(plan)
+        return (plan.switched and ' (switched by the auto body rule)' or '')..
+            (plan.clips and ', skin shows on '..table.concat(plan.clips,',') or '')
+    end
     -- coop closet wear: the plan for choices, put on now.
     function self.wear(choices)
         self.restore()
-        local plan,why=Dress.plan(choices,fits)
+        local plan,why=Dress.plan(choices,fits,mode)
         if not plan then return false,why end
         local ok,e=apply(plan,choices,nil)
         if not ok then return false,e end
         local names={}
         for _,c in ipairs(choices) do names[#names+1]=c.fit end
-        local line=string.format('closet: %d pieces of %s; body %s, %d added mesh%s', plan.pieces,
-            table.concat(names,' + '),plan.body.fit,plan.parts,plan.parts==1 and '' or 'es')
+        local line=string.format('closet: %d pieces of %s; body %s%s, %d added mesh%s', plan.pieces,
+            table.concat(names,' + '),plan.body.fit,body_notes(plan),plan.parts,plan.parts==1 and '' or 'es')
         log(line)
         return true,line
     end
@@ -351,12 +431,12 @@ function Dress.new(o)
         local kept=state and state.kept
         if kept==nil then kept=state and state.choices or false end
         if #choices==0 and state then return own_look(kept) end
-        local plan,why=Dress.plan(choices,fits)
+        local plan,why=Dress.plan(choices,fits,mode)
         if not plan then return false,why end
         local ok,e=apply(plan,choices,kept)
         if not ok then return false,e end
-        local line=string.format('closet: previewing %d pieces, body %s, %d added mesh%s',plan.pieces,plan.body.fit,
-            plan.parts,plan.parts==1 and '' or 'es')
+        local line=string.format('closet: previewing %d pieces, body %s%s, %d added mesh%s',plan.pieces,plan.body.fit,
+            body_notes(plan),plan.parts,plan.parts==1 and '' or 'es')
         log('preview: '..line)
         return true,line
     end
@@ -382,7 +462,7 @@ function Dress.new(o)
     function self.revert()
         if not self.previewing() then return true,'closet: nothing to revert' end
         local was=state.kept
-        if was and Dress.plan(was,fits) then
+        if was and Dress.plan(was,fits,mode) then
             local ok,line=self.wear(was)
             if ok then log('revert: the confirmed look is back'); return true,line end
             log('revert: the confirmed look could not be worn now: '..tostring(line))
@@ -414,6 +494,40 @@ function Dress.new(o)
         if not fit then return false end
         if installed_cache[fit_id]==nil then installed_cache[fit_id]=usable(fit.Mesh)~=nil end
         return installed_cache[fit_id]
+    end
+    -- coop closet body: the body rule of the next wears in this Lua load: one of Dress.BODY_MODES, or a fit id with
+    -- Skin (that body forced).
+    function self.body_mode(word)
+        local known=false
+        for _,m in ipairs(Dress.BODY_MODES) do known=known or m==word end
+        local fit=not known and fits.get(word)
+        if not known and not fit then return false,'no fit map for '..tostring(word) end
+        if fit and next(fit.Skin or {})==nil then return false,word..' has no skin' end
+        mode=word
+        log('body rule: '..word)
+        return true,'closet: body rule '..word..' from the next wear'
+    end
+    -- coop closet skin: one material slot of the component that wears fit_id's mesh shown or hidden now, on every LOD,
+    -- for trying a setup in game. The watchdog keeps it; the next wear's plan replaces it.
+    function self.skin(fit_id,index,on)
+        if not (state and state.plan) then return false,'closet: nothing worn' end
+        if state.paused then return false,'closet: paused while a game look is on' end -- Her body wears its mesh.
+        local c,count,show
+        if state.plan.body.fit==fit_id then
+            local eve=her()
+            c,count,show=eve and eve.Mesh,state.count,state.plan.body.show
+        end
+        for i,a in ipairs(state.plan.added) do
+            if a.fit==fit_id then c,count,show=state.added[i].c,state.added[i].count,state.added[i].show end
+        end
+        c=valid(c)
+        if not c then return false,'closet: '..tostring(fit_id)..' is not worn' end
+        if index>=count then return false,'closet: '..fit_id..' has no material slot '..index end
+        show[index]=on or nil
+        show_only(c,count,show)
+        local line=string.format('closet: slot %d of %s %s',index,fit_id,on and 'shown' or 'hidden')
+        log(line)
+        return true,line
     end
     -- coop closet off and coop off: her own look back, the added meshes gone, the file cleared.
     function self.off()
@@ -491,7 +605,7 @@ function Dress.new(o)
         for x in kept:gmatch('%S+') do words[#words+1]=x end
         local choices,why=Dress.parse(words)
         local plan
-        if choices then plan,why=Dress.plan(choices,fits) end
+        if choices then plan,why=Dress.plan(choices,fits,mode) end
         if not plan then return done(true,'could not wear '..kept..' again: '..tostring(why)) end
         local ran,worn,e=pcall(apply,plan,choices)
         if ran and worn then return done(false,'worn again: '..kept) end

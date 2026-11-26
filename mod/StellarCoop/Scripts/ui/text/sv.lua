@@ -490,5 +490,7 @@ return {
             map='Kartan byttes: Stellar Closet stängdes utan att spara.',
             photo='Fotoläget öppnades: Stellar Closet stängdes utan att spara.',
             input='Spelet tog tillbaka kontrollerna: Stellar Closet stängdes utan att spara.'},
-        saved='Looken sparad.',failed='Plagget gick inte att ta på. UE4SS.log säger varför.'},
+        saved='Looken sparad.',failed='Plagget gick inte att ta på. UE4SS.log säger varför.',
+        switched='Kroppen bytt till %s så att ingen hud syns genom plaggen.',
+        clips='Den här kroppens hud syns genom plaggen på: %s.'},
 }

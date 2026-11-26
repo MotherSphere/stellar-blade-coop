@@ -12,11 +12,15 @@
 --   coop closet fits                                  the fit maps and their pieces' slots
 --   coop closet menu                                  opens the closet menu, or closes it with the look undone
 --   coop closet probe <1-6|off>                       one in-game test of the game's widget parts or reads (UE4SS.log)
+--   coop closet body <auto|shoes|first|<fit>>         the body rule of the next wears in this Lua load (dress.lua)
+--   coop closet skin <fit> <slot> on|off              shows or hides one material slot of that outfit's mesh now,
+--                                                      until the next wear (for trying setups in game)
 local Dress=require('closet.dress')
 local Probe=require('closet.ui.probe')
 local Commands={}
 -- main/commands.lua's M.run passes six words, nil-padded: an extra word is a first one that is not nil.
-Commands.USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|probe <1-6|off>]'
+Commands.USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|probe <1-6|off>|'..
+    'body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off]'
 function Commands.new(o)
     local self={}
     function self.closet(sub,...)
@@ -55,6 +59,16 @@ function Commands.new(o)
             if word==nil or select(2,...)~=nil then return false,Probe.USE end
             if word=='off' then return o.probe.off() end
             return o.probe.run(word)
+        elseif sub=='body' then
+            local word=(...)
+            if word==nil or select(2,...)~=nil then return false,Commands.USE end
+            return o.dress.body_mode(word)
+        elseif sub=='skin' then
+            local fit,slot,word=...
+            if not (fit and slot and slot:match('^%d+$') and (word=='on' or word=='off')) or select(4,...)~=nil then
+                return false,Commands.USE
+            end
+            return o.dress.skin(fit,tonumber(slot),word=='on')
         end
         return false,Commands.USE
     end

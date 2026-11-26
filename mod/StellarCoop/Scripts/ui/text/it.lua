@@ -512,5 +512,7 @@ return {
             map='La mappa è cambiata: Stellar Closet chiuso senza salvare.',
             photo='Modalità foto aperta: Stellar Closet chiuso senza salvare.',
             input='Il gioco ha ripreso i comandi: Stellar Closet chiuso senza salvare.'},
-        saved='Look salvato.',failed='Impossibile indossare questo capo. UE4SS.log dice perché.'},
+        saved='Look salvato.',failed='Impossibile indossare questo capo. UE4SS.log dice perché.',
+        switched='Corpo cambiato in %s perché la pelle non trapassi i capi.',
+        clips='La pelle di questo corpo trapassa i capi su: %s.'},
 }

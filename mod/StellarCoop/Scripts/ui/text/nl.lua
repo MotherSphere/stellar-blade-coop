@@ -503,5 +503,7 @@ return {
             map='Kaart gewisseld: Stellar Closet gesloten zonder opslaan.',
             photo='Fotomodus geopend: Stellar Closet gesloten zonder opslaan.',
             input='Het spel nam de besturing terug: Stellar Closet gesloten zonder opslaan.'},
-        saved='Look opgeslagen.',failed='Dit stuk kon niet aan. UE4SS.log zegt waarom.'},
+        saved='Look opgeslagen.',failed='Dit stuk kon niet aan. UE4SS.log zegt waarom.',
+        switched='Lichaam gewisseld naar %s, zodat er geen huid door de stukken komt.',
+        clips='De huid van dit lichaam komt door de stukken bij: %s.'},
 }

@@ -520,5 +520,7 @@ return {
             map='Karte gewechselt: Stellar Closet ohne Speichern geschlossen.',
             photo='Fotomodus geöffnet: Stellar Closet ohne Speichern geschlossen.',
             input='Das Spiel hat die Steuerung zurückgenommen: Stellar Closet ohne Speichern geschlossen.'},
-        saved='Look gespeichert.',failed='Dieses Teil ließ sich nicht anziehen. UE4SS.log sagt, warum.'},
+        saved='Look gespeichert.',failed='Dieses Teil ließ sich nicht anziehen. UE4SS.log sagt, warum.',
+        switched='Körper auf %s gewechselt, damit keine Haut durch die Teile scheint.',
+        clips='Die Haut dieses Körpers scheint durch die Teile an: %s.'},
 }

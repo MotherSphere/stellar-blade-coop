@@ -512,5 +512,7 @@ return {
             map='La carte a changé : Stellar Closet fermé sans enregistrer.',
             photo='Mode photo ouvert : Stellar Closet fermé sans enregistrer.',
             input='Le jeu a repris les commandes : Stellar Closet fermé sans enregistrer.'},
-        saved='Look enregistré.',failed='Impossible de porter cette pièce. UE4SS.log dit pourquoi.'},
+        saved='Look enregistré.',failed='Impossible de porter cette pièce. UE4SS.log dit pourquoi.',
+        switched='Corps changé pour %s afin que la peau ne traverse pas les pièces.',
+        clips='La peau de ce corps traverse les pièces ici : %s.'},
 }

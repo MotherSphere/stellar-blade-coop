@@ -500,5 +500,7 @@ return {
             map='Zmieniła się mapa: Stellar Closet zamknięty bez zapisu.',
             photo='Otwarto tryb fotograficzny: Stellar Closet zamknięty bez zapisu.',
             input='Gra przejęła sterowanie: Stellar Closet zamknięty bez zapisu.'},
-        saved='Wygląd zapisany.',failed='Nie udało się założyć tego elementu. UE4SS.log mówi dlaczego.'},
+        saved='Wygląd zapisany.',failed='Nie udało się założyć tego elementu. UE4SS.log mówi dlaczego.',
+        switched='Ciało zmienione na %s, aby skóra nie prześwitywała przez elementy.',
+        clips='Skóra tego ciała prześwituje przez elementy w miejscach: %s.'},
 }

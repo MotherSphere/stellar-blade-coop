@@ -8,9 +8,11 @@
 -- from the mesh's material slots (the spike's slot dump, 25 Nov 2026) and the names from the pack's own
 -- UserConfigs.MaterialToggles.
 --   Outfit   the outfit's name on screen, Pack the pack that makes it
+--   Origin   'original' (Shift Up's own suits, CH_P_EVE_*) or 'custom' (an installed pack's outfit); nil is custom
 --   Mesh     the outfit's mesh, as its pack names it
 --   Skin     {material index = {regions it shows}}: the outfit's own skin, which supplies the body whenever this
---            outfit supplies the shoes (Phase 0's rule: the shoes are shaped around its own feet)
+--            outfit is the body (closet/dress.lua's Dress.plan: picked as <fit>:BaseBody, else its body rule). A fit
+--            with Skin has the pseudo slot BaseBody, which no piece fills
 --   Pieces   {Slot, Name, Materials = {indexes}, Off = true when the pack hides it by default, Occupies = {slots},
 --            Covers = {regions}: the regions it covers, whose skin slots go when all theirs are covered}
 --   Unknown  {indexes}: slots whose piece and place are not known yet (no toggle name says it); they stay hidden

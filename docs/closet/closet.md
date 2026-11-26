@@ -18,13 +18,24 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet fits` | Lists the fit maps and the slots of their pieces |
 | `coop closet menu` | Opens the closet menu. When it is open, closes it and gives back the look worn before |
 | `coop closet probe <1-6\|off>` | Runs one in-game test of the game's widget parts for the closet menu (1-5) or of the reads for its camera and fit (6). It writes `probe:` PASS/FAIL lines to UE4SS.log. `off` ends it |
+| `coop closet body <auto\|shoes\|first\|<fit>>` | Sets the body rule of the next wears until the next Lua load: `auto` (the default, below), `shoes` (the outfit that supplies the shoes, else the first), `first` (the first outfit) or a fit id with skin, which forces that body |
+| `coop closet skin <fit> <slot> on\|off` | Shows or hides one material slot (a number) of that outfit's mesh now, on every LOD, for trying a setup in game. The next wear clears it |
 
 For example, `coop closet wear AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462:Shoes` wears Ocean Maid's top and
 stockings with Kunoichi Shadow's boots.
 
-The outfit that supplies the shoes goes on EVE's body mesh with its own skin, so its shoes sit on the feet they were
-shaped for. Each other outfit goes on one added mesh that follows her pose and shows only its chosen pieces. A friend's
-ghost pays one part per added outfit, however many of its pieces are worn.
+One outfit goes on EVE's body mesh with its own skin. Each other outfit goes on one added mesh that follows her pose
+and shows only its chosen pieces. A friend's ghost pays one part per added outfit, however many of its pieces are worn.
+
+The body is the outfit picked with the slot `BaseBody` (`<fit>:BaseBody`, any fit with skin): it shows that outfit's
+skin and is never switched. Without a pick the `auto` rule puts the outfit that supplies the shoes on the body, so its
+shoes sit on the feet they were shaped for, else the first outfit. A skin slot all of whose regions worn pieces cover
+is hidden. When a covered region's skin slot on that body also shows other regions (Ocean Maid has one skin slot for
+the whole body), the rule takes the look's outfit whose skin hides the most covered regions instead (Kunoichi
+Shadow's arms and hands are slots of their own). Ties go to the shoes' outfit, then to the first. The plan names the
+switched body and the covered regions whose skin still shows. Fingernails and Toenails pieces are hidden under a piece
+of another outfit that covers the hands or feet. `coop-closet.txt` keeps the picks only: the switch is computed
+again at each wear.
 
 Once a second the mix is checked. Tachy Mode's suit (`CH_P_EVE_10`) pauses it, with the added meshes hidden, until
 Tachy Mode ends. Any other look the game puts on for 2 s, after a map load or a game reset, gets the mix again. A

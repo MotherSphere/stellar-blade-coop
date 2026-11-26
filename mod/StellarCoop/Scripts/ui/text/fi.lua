@@ -508,5 +508,7 @@ return {
             map='Kartta vaihtui: Stellar Closet suljettiin tallentamatta.',
             photo='Kuvaustila avattiin: Stellar Closet suljettiin tallentamatta.',
             input='Peli otti ohjauksen takaisin: Stellar Closet suljettiin tallentamatta.'},
-        saved='Tyyli tallennettu.',failed='Osaa ei voitu pukea. UE4SS.log kertoo syyn.'},
+        saved='Tyyli tallennettu.',failed='Osaa ei voitu pukea. UE4SS.log kertoo syyn.',
+        switched='Vartalo vaihdettu: %s, jotta iho ei näy osien läpi.',
+        clips='Tämän vartalon iho näkyy osien läpi kohdissa: %s.'},
 }

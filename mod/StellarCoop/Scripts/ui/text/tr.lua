@@ -502,5 +502,7 @@ return {
             map='Harita değişti: Stellar Closet kaydetmeden kapandı.',
             photo='Fotoğraf modu açıldı: Stellar Closet kaydetmeden kapandı.',
             input='Oyun kontrolleri geri aldı: Stellar Closet kaydetmeden kapandı.'},
-        saved='Görünüm kaydedildi.',failed='Bu parça giyilemedi. Nedeni UE4SS.log içinde.'},
+        saved='Görünüm kaydedildi.',failed='Bu parça giyilemedi. Nedeni UE4SS.log içinde.',
+        switched='Ten parçalardan görünmesin diye vücut %s olarak değiştirildi.',
+        clips='Bu vücudun teni şu bölgelerde parçalardan görünüyor: %s.'},
 }
