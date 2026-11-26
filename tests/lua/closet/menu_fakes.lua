@@ -5,7 +5,8 @@
 -- builder copied from tests/lua/online/lobby/ui/lobby_test.lua:99-151 (November 2026): its own from then on.
 -- The fake game side of the closet menu's tests (tests/lua/closet/menu_test.lua): the engine globals the view calls
 -- (FText, FName, StaticFindObject, LoadAsset, StaticConstructObject), fake widget parts that record every call, the
--- hair salon grid's TileView (probe_test.lua's). F.kit() gives a new fake kit; k.events lists the drops and the
+-- hair salon grid's TileView (probe_test.lua's, its entry size kept in entry_w and entry_h). F.kit() gives a new fake
+-- kit; k.events lists the drops and the
 -- TileView's clears in order. Tab buttons and the popup's buttons answer IsHovered from their hover field.
 local F = {}
 FText = function(s) return {text = s, ToString = function(self) return self.text end} end
@@ -50,6 +51,8 @@ local function tileview(events)
     function tv:IsValid() return true end
     function tv:SetVisibility(v) self.v = v end
     function tv:SetSelectionMode(m) self.SelectionMode = m end
+    function tv:SetEntryWidth(w) self.entry_w = w end
+    function tv:SetEntryHeight(h) self.entry_h = h end
     function tv:ClearListItems() self.items = {}; self.cleared = self.cleared + 1; events[#events + 1] = 'clear' end
     function tv:AddItem(item) self.items[#self.items + 1] = item end
     function tv:GetNumItems() return #self.items end

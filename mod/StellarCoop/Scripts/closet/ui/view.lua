@@ -2,24 +2,28 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Stellar Closet's menu screen (closet/ui/menu.lua draws it): Stellar Blade's own widget parts in the kit group
--- closet_menu, inside x 86 to 2560 (the right third stays clear for EVE). A row of tab buttons between the tab keys'
--- icons; the tab's slot rows
--- (ui/kit/parts.lua kind option) in a window of 10, a transparent kit row over each for the mouse, as the lobby does;
--- the hair salon's grid of the focused slot's pieces (its TileView fed with data objects, as closet probe test 1 did);
--- the NanoSuit detail panel; the key hints; the popup. Each part is made on the first draw after an open and filled
--- again only when what it shows changes. Every call on a part runs in pcall (ui/kit/parts.lua's call: a refusal is
--- logged once). A tab, grid or detail part the kit cannot make raises, so the menu closes. drop_all clears the grid
--- and drops every part: the game holds EVE still while one of its widgets is up (the probe's test 5).
+-- closet_menu, inside x 86 to EDGE (the left 55%: x EDGE to 3840 stays clear for EVE). A window of TABS tab buttons
+-- between the tab keys' icons; the tab's slot rows (ui/kit/parts.lua kind option) in a window of 10, a transparent kit
+-- row over each for the mouse, as the lobby does; the hair salon's grid of the focused slot's pieces, COLUMNS a row
+-- (its TileView fed with data objects, as closet probe test 1 did); the NanoSuit detail panel; two rows of key hints
+-- (menu, camera); the popup. Each part is made on the first draw after an open and filled again only when what it
+-- shows changes. Every call on a part runs in pcall (ui/kit/parts.lua's call: a refusal is logged once). A tab, grid
+-- or detail part the kit cannot make raises, so the menu closes. drop_all clears the grid and drops every part: the
+-- game holds EVE still while one of its widgets is up (the probe's test 5).
 -- The mouse, read by the menu: tab_hovered (a tab's Button_Action:IsHovered, the probe's test 3), row_hovered (the kit
 -- row over a slot row), picked (a tile the mouse selected in the TileView, BP_GetSelectedItem as the probe's test 1),
 -- popup_hit (the popup's Button_Positive or Button_Negative:IsHovered, as online/lobby/ui/lobby.lua reads them).
 -- alive is false once a made part is gone (the root rebuilt by a map change).
--- v.draw(s), s: {tabs={labels}, tab=focused index, rows={{title, value, locked}}, row=focused index, tiles=nil or
--- {{name, equipped, locked}}, tile=selected index, detail={title, desc, equipped}, hints={{label, icon, icon2}},
--- popup=nil or {title, desc}}.
+-- v.draw(s), s: {tabs={labels}, tab=focused index, tab_top=the first tab shown (1 when nil), rows={{title, value,
+-- locked}}, row=focused index, tiles=nil or {{name, equipped, locked}}, tile=selected index, detail={title, desc,
+-- equipped}, hints={{label, icon, icon2}} (the menu's), camera_hints=nil or the same shape, popup=nil or
+-- {title, desc}}.
 local Parts=require('ui.kit.parts')
 local View={}
 View.GROUP='closet_menu'
+View.EDGE=2112 -- Kit units: the menu's right edge (55% of 3840).
+View.TABS=7 -- Tab buttons shown at once.
+View.COLUMNS=5 -- Grid tiles a row: GRID_W over the entry width.
 -- Copied from closet/ui/probe.lua (read in the widget JSON and Ghidra, build 26123051, on 25 Nov 2026):
 -- The hair salon's tile data object (super /Script/SB.SBUITileViewBaseDataObject): ItemName Text, IconAssetPath Str
 -- (a full object path the slot loads), Purchased bool, ItemAlias Name, Equiped bool (the game's spelling), Index int
@@ -40,12 +44,17 @@ local RARE=3 -- ESBItemRarityType Rare (the probe's).
 local VISIBLE,COLLAPSED=0,1 -- ESlateVisibility.
 local SINGLE=1 -- ESelectionMode Single (None is 0).
 -- The builder's layout in kit units.
-local TAB_X,TAB_Y,TAB_STEP=236,120,266 -- 9 tabs from 236, a tab key's icon at each end (the lobby's settings tabs).
+local TAB_X,TAB_Y,TAB_STEP=160,120,266 -- TABS tabs from 160, a tab key's icon at each end (the lobby's settings tabs).
 local TAB_ICON_X=86 -- The left tab key's icon (UI_LeftShoulder: Q, the pad's LB); the right one after the last tab.
 local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: a window of 10.
-local GRID_X,GRID_Y,GRID_W,GRID_H=1100,300,1460,1000
-local DETAIL_X,DETAIL_Y=1100,1340
-local HINT_RIGHT,HINT_STEP,HINT_Y,HINTS=2560,420,1990,4 -- Key hints, right to left (the lobby's step and y).
+local GRID_X,GRID_Y,GRID_W,GRID_H=1100,300,1000,820
+-- The TileView's entry size: 5 columns of 200 in GRID_W, 3 rows of 270 in GRID_H. SetEntryWidth and SetEntryHeight
+-- (one float each) are in /Script/UMG.TileView's native table 0x1461ff110 (registered by FUN_143d66670), execs
+-- 0x143d66330 and 0x143d66440 (Ghidra, build 26123051, 26 Nov 2026).
+local ENTRY_W,ENTRY_H=200,270
+local DETAIL_X,DETAIL_Y=1100,1160
+-- Key hints, right to left from EDGE (the lobby's step): the menu's row and the camera's row above it.
+local HINT_STEP,HINT_Y,CAMERA_Y,HINTS=420,1990,1890,4
 
 -- A game object by path: in memory, else after a synchronous LoadAsset (closet/ui/probe.lua's default_find).
 local function find(path)
@@ -61,14 +70,17 @@ function View.new(kit,log)
     local call,sync,look=P.call,P.sync,P.look
     local v={}
     kit.add(View.GROUP,{x=0,y=0,w=3840,h=2160,fixed=true,hit=true},function(b)
-        b.shade(0,0,2560,2160,{A=0.72})
+        b.shade(0,0,1700,2160,{A=0.72})
+        b.image(1700,0,800,2160,'shade_left') -- online/lobby/ui/lobby.lua's left gradient: the shade fades out.
         b.image(0,1860,2560,300,'dither',{A=0.8})
         local zones={}
         for i=1,WINDOW do zones[i]=b.row(ROW_X,ROW_Y+(i-1)*PITCH+27,ROW_W) end
         return {zones=zones}
     end)
-    -- What is made and what it shows. top: the rows above the window; count: the rows of the last draw.
+    -- What is made and what it shows. top: the rows above the window; count: the rows of the last draw; tab_top: the
+    -- first tab shown; camera: the camera's hint row.
     local tabs,tabs_sig,focus,rows,top,hints,count,keys={},nil,nil,{},0,{},0,{}
+    local tab_top,camera=1,{}
     local grid,tiles_sig,selected,detail,detail_sig,popup
     local function make(class,x,y,w,h,fill,hit)
         local rec,why=kit.part(View.GROUP,class,x,y,w,h,fill,hit)
@@ -76,26 +88,32 @@ function View.new(kit,log)
         return rec
     end
 
+    -- The tabs s.tab_top (1 when nil) to s.tab_top+TABS-1; tabs[i] shows tab tab_top+i-1.
     local function draw_tabs(s)
-        local sig=table.concat(s.tabs,'|')
-        local whole=sig==tabs_sig and #tabs==#s.tabs
+        local first=s.tab_top or 1
+        local shown={table.unpack(s.tabs,first,math.min(#s.tabs,first+View.TABS-1))}
+        local sig=table.concat(shown,'|')
+        local whole=sig==tabs_sig and #tabs==#shown
         for _,rec in ipairs(tabs) do whole=whole and kit.alive(rec)~=nil end
         if not whole then
             for _,rec in ipairs(tabs) do kit.drop(rec) end
             tabs,tabs_sig,focus={},sig,nil
-            for i,label in ipairs(s.tabs) do
+            for i,label in ipairs(shown) do
                 tabs[i]=make(TAB,TAB_X+(i-1)*TAB_STEP,TAB_Y)
                 call(tabs[i],'tab label',function(w) w.TextValue=FText(label); w:RefreshDesign() end)
             end
         end
+        tab_top=first
         -- The tab keys' icons, as online/lobby/ui/lobby.lua shows them beside its settings tabs; the hint shows the
         -- keyboard's key or the pad's button, whichever was used last.
         sync(keys,View.GROUP,{Parts.hint(TAB_ICON_X,TAB_Y,'','UI_LeftShoulder'),
-            Parts.hint(TAB_X+#s.tabs*TAB_STEP,TAB_Y,'','UI_RightShoulder')},2)
+            Parts.hint(TAB_X+#shown*TAB_STEP,TAB_Y,'','UI_RightShoulder')},2)
         if focus==s.tab then return end
         focus=s.tab
         for i,rec in ipairs(tabs) do
-            call(rec,'tab focus',function(w) if i==s.tab then w:FocusTabButton() else w:DefocusTabButton() end end)
+            call(rec,'tab focus',function(w)
+                if tab_top+i-1==s.tab then w:FocusTabButton() else w:DefocusTabButton() end
+            end)
         end
     end
 
@@ -135,6 +153,8 @@ function View.new(kit,log)
                 local tv=w.TileView_ItemList
                 tv:SetVisibility(VISIBLE)
                 if tv.SelectionMode==0 then tv:SetSelectionMode(SINGLE) end
+                tv:SetEntryWidth(ENTRY_W)
+                tv:SetEntryHeight(ENTRY_H)
             end)
         end
         local names={}
@@ -209,23 +229,25 @@ function View.new(kit,log)
         draw_rows(s,view.zones)
         draw_grid(s)
         draw_detail(s)
-        local specs={}
-        for i=1,HINTS do
-            local h=s.hints[i]
-            specs[i]=h and Parts.hint(HINT_RIGHT-HINT_STEP*i,HINT_Y,h[1],h[2],h[3]) or false
+        for _,row in ipairs({{hints,s.hints,HINT_Y},{camera,s.camera_hints or {},CAMERA_Y}}) do
+            local specs={}
+            for i=1,HINTS do
+                local h=row[2][i]
+                specs[i]=h and Parts.hint(View.EDGE-HINT_STEP*i,row[3],h[1],h[2],h[3]) or false
+            end
+            sync(row[1],View.GROUP,specs,HINTS)
         end
-        sync(hints,View.GROUP,specs,HINTS)
         draw_popup(s)
         -- The grid's entries (a fill, a selection) and the popup's Construct take the keyboard focus; on them a key
         -- reaches EVE (E fired a skill). On the kit's root the game ignores keys (closet/ui/probe.lua test 5).
         kit.refocus()
     end
 
-    -- The tab under the mouse, or nil.
+    -- The tab under the mouse (its index in s.tabs), or nil.
     function v.tab_hovered()
         local hit
         for i,rec in ipairs(tabs) do
-            call(rec,'tab hover',function(w) if w.Button_Action:IsHovered() then hit=hit or i end end)
+            call(rec,'tab hover',function(w) if w.Button_Action:IsHovered() then hit=hit or tab_top+i-1 end end)
         end
         return hit
     end
@@ -258,7 +280,7 @@ function View.new(kit,log)
     end
     -- false once a part made since the open is gone.
     function v.alive()
-        for _,set in ipairs({tabs,rows,hints,keys}) do
+        for _,set in ipairs({tabs,rows,hints,keys,camera}) do
             for i=1,math.max(#set,WINDOW) do if set[i] and not kit.alive(set[i]) then return false end end
         end
         for _,rec in ipairs({grid or false,detail or false,popup or false}) do
@@ -272,12 +294,13 @@ function View.new(kit,log)
         if grid then call(grid,'grid clear',function(w) w.TileView_ItemList:ClearListItems() end) end
         for _,rec in ipairs(tabs) do kit.drop(rec) end
         for i=1,WINDOW do kit.drop(rows[i]) end
-        for i=1,HINTS do kit.drop(hints[i]) end
+        for i=1,HINTS do kit.drop(hints[i]); kit.drop(camera[i]) end
         for i=1,2 do kit.drop(keys[i]) end
         kit.drop(grid)
         kit.drop(detail)
         kit.drop(popup)
         tabs,tabs_sig,focus,rows,top,hints,count,keys={},nil,nil,{},0,{},0,{}
+        tab_top,camera=1,{}
         grid,tiles_sig,selected,detail,detail_sig,popup=nil,nil,nil,nil,nil,nil
     end
     return v

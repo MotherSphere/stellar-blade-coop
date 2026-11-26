@@ -5,7 +5,7 @@
 -- tiles are closet/ui/model.lua's over closet/fits.lua, with what is worn read from the dress (closet/dress.lua's
 -- choices). It opens out of combat in the game world, the SBO lobby world included; it refuses on the first guard that
 -- fails, with one notice. Open, it holds the kit's input as closet_menu with the mouse cursor. The tab shown is kept
--- across opens; the first open shows the first tab with a row of pieces. Each close drops every game part first (the
+-- across opens; the first open shows the first tab, Full outfit. Each close drops every game part first (the
 -- game holds EVE still while one is up) and hides the group. The input comes back BACK s after the close, so the key
 -- that closed it (Esc would open the pause menu) never reaches the game. It is asked again each tick while closed until
 -- the kit has given it (no player controller at the close); an open before then takes it on. close('revert') wears the
@@ -13,11 +13,13 @@
 -- plays no sound and gives the input back at once. A revert that fails at the close (no EVE during a map change) is
 -- asked again each RETRY s while closed and not paused until it works; an open or coop off drops it. A draw that
 -- raises closes the menu with a revert and one log line.
--- Focus: the tabs, the rows or the grid (col). E and Q change the tab. Up and down walk the rows; up on the first row
--- reaches the tabs. Right or select on a row of pieces goes into its grid; left and right walk its tiles; left on the
--- first tile or back returns to the rows. A tile focused for PREVIEW s is worn as a preview (dress.preview); select
--- wears it at once and returns to the rows; refresh wears the whole outfit of the focused tile (the worn one in the
--- rows) or of the Full tab's row, which select wears too. Locked tiles and soon or empty rows never wear. The hints:
+-- Focus: the tabs, the rows or the grid (col). E and Q change the tab; the window of View.TABS tabs follows the
+-- focused tab. Up and down walk the rows; up on the first row reaches the tabs. Right or select on a row of pieces goes
+-- into its grid; left and right walk its tiles, up and down its rows of View.COLUMNS tiles (down to a shorter last row
+-- stops on its last tile; up on the first row and down on the last stay); left on the first tile or back returns to the
+-- rows. A tile focused for PREVIEW s is worn as a preview (dress.preview); select wears it at once and returns to the
+-- rows; refresh wears the whole outfit of the focused tile (the worn one in the rows) or of the Full tab's row, which
+-- select wears too. Locked tiles and soon or empty rows never wear. The hints:
 -- Back, then Wear on a row of pieces or Whole outfit on the Full tab's row (both on Select's icon), then Whole outfit
 -- on the top face button's icon when refresh has an outfit to wear. Back in the rows or the tabs closes
 -- with a revert when nothing changed since the open. Else the popup asks "Keep this look?": Yes confirms
@@ -53,6 +55,7 @@ function Menu.new(o)
     local self={}
     local open=false
     local tab,row -- Kept across opens; nil until the first.
+    local tab_top=1 -- The first tab shown, kept across opens.
     -- col: 'tabs', 'rows' or 'grid'; tile: the focused tile in the grid; asking: the popup shows; changed: a preview
     -- since the open; due: when the focused tile is worn (nil: none waits); opened, guard_at, combat_at: times in s;
     -- bare: the menu opened on her own look (nothing worn, no preview going).
@@ -96,16 +99,6 @@ function Menu.new(o)
         return nil
     end
 
-    -- The first tab with a row of pieces and that row, else the first tab and row.
-    local function first()
-        for i,id in ipairs(model.tabs()) do
-            for r,item in ipairs(model.rows(id)) do
-                if item.state=='pieces' then return i,r end
-            end
-        end
-        return 1,1
-    end
-
     -- The focused row's item; on a row of pieces also its tiles and the worn tile's index (None when none is worn).
     local function focused(choices)
         local item=model.rows(model.tabs()[tab])[row]
@@ -140,7 +133,9 @@ function Menu.new(o)
         local w=t.closet
         local ids=model.tabs()
         tab=math.min(tab,#ids)
-        local s={tabs={},tab=tab,rows={},hints={{t.hint.back,'Negative'}}}
+        -- The window moves only when the focused tab leaves it, as the rows' window does.
+        tab_top=math.max(1,math.min(math.max(tab_top,tab-View.TABS+1),tab,#ids-View.TABS+1))
+        local s={tabs={},tab=tab,tab_top=tab_top,rows={},hints={{t.hint.back,'Negative'}},camera_hints={}}
         for i,id in ipairs(ids) do s.tabs[i]=w.tabs[id] or id end
         local list=model.rows(ids[tab])
         row=math.max(1,math.min(row,#list))
@@ -236,7 +231,7 @@ function Menu.new(o)
             o.tell(function(t) return t.closet.refused[key] end)
             return false,T.en.closet.refused[key]
         end
-        if not tab then tab,row=first() end
+        if not tab then tab,row=1,1 end
         col,tile,asking,changed,due='rows',1,false,false,nil
         bare=not dress.previewing() and #(dress.choices() or {})==0
         back_at,owed,unreverted=nil,false,false -- An owed revert: Back or No on this open reverts.
@@ -322,11 +317,14 @@ function Menu.new(o)
         if word=='tab_left' or word=='tab_right' then set_tab(tab+(word=='tab_left' and -1 or 1))
         elseif word=='refresh' or word=='select' and col=='rows' and item and item.whole then wear_whole()
         elseif col=='grid' then
-            -- shortcut: one row of tiles, up/down in the grid wait for more than one row of pieces (needs the
-            -- TileView's EntryWidth from Ghidra).
+            local C=View.COLUMNS
             if word=='back' or word=='left' and tile==1 then col,due='rows',nil
-            elseif word=='left' or word=='right' then
+            elseif word=='left' or word=='right' or word=='up' or word=='down' then
                 local to=math.max(1,math.min(tile+(word=='left' and -1 or 1),#tiles))
+                if word=='up' then to=tile>C and tile-C or tile
+                elseif word=='down' then
+                    to=math.ceil(tile/C)<math.ceil(#tiles/C) and math.min(tile+C,#tiles) or tile -- A row below only.
+                end
                 if to~=tile then tile,due=to,now()+Menu.PREVIEW; kit.sound('move') end
             elseif word=='select' then wear_tile(); col='rows' end
         elseif word=='back' then

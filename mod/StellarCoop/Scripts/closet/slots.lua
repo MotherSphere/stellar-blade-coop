@@ -21,8 +21,8 @@ Slots.FULL_OUTFIT = 'FullOutfit'
 
 -- The menu's regions, in screen order: {id, adult}.
 Slots.MENUS = {
-    {'head', false}, {'torso', false}, {'arms', false}, {'hips', false}, {'intimate', true}, {'legs', false},
-    {'body', false}, {'weapon', false}, {'full', false},
+    {'full', false}, {'head', false}, {'torso', false}, {'arms', false}, {'hips', false}, {'intimate', true},
+    {'legs', false}, {'body', false}, {'weapon', false},
 }
 
 -- {id, layer, group, kind, menu}

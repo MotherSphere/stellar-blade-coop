@@ -34,9 +34,9 @@ local tests = {
         local t = new().tabs()
         eq(#t, 8, 'tab count')
         for _, id in ipairs(t) do ok(id ~= 'intimate', 'intimate listed') end
-        eq(t[1], 'head', 'first') eq(t[#t], 'full', 'last')
+        eq(t[1], 'full', 'first') eq(t[#t], 'weapon', 'last')
         local a = new({adult = true}).tabs()
-        eq(#a, 9, 'adult count') eq(a[5], 'intimate', 'intimate place')
+        eq(#a, 9, 'adult count') eq(a[6], 'intimate', 'intimate place')
     end,
 
     rows_mark_soon_and_empty = function()
