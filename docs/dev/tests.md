@@ -54,8 +54,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
-`fight/gunmode/`: `aimrot`, `cost`, `dpad`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`, `morph`, `nikke`,
-`off`, `release`, `rifle_frame`, `state`, `stock`, `texts`, `v4_rules`)
+`fight/gunmode/`: `aimrot`, `cost`, `dpad`, `engine`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`, `morph`,
+`nikke`, `off`, `release`, `rifle_frame`, `state`, `stock`, `stop`, `texts`, `v4_rules`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -78,8 +78,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   (within `gun_spread` degrees of the reticle point, the edge at that angle, 0 for none, the setting from 0 to 10, both
   writes of a round's destination in `mode.lua` going through it), the rifle's magazine
   (a round per cool time, the reload when empty, none when lowered part-spent, the HUD count, no round once the spares
-  are spent, a refill, cool time 0 at a reload's end and at a refill, then the rate of fire after the first round) and
-  the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
+  are spent, a refill, cool time 0 at a reload's end and at a refill, then the rate of fire after the first round), the
+  reticle's round slot (written on each frame of an aim's first 0.25 s, kept by its path: no write to another object
+  at a freed address) and the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
   or row is refused. `mode.lua` calls `CreateSBZoneEvent` once, inside the guarded `zone_event`. `fire_row` reaches it
   only through that guard. Over fake tables, `fight/gunmode/data.lua` sets the NIKKE round's `DestTarget` from the
   shipped 3 (`StartToDestDirection`) to 0 (`MainActor`) while the rifle is out, logs the change and gives 3 back at
@@ -93,7 +94,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   and none while it lives. The crosshair goes on that HUD with no walk. With no HUD on screen, or a HUD without the
   item column, the look comes every 10 s and the column is tried once. The pad glyph is walked for once each time the
   pad layer comes up, then kept for the HUD. With the keep serving SB's HUD class, its Construct is hooked once and
-  the HUD it names gets the entry with no walk. A hook that fails gives one line and the looks go on;
+  the HUD it names gets the entry with no walk. A hook that fails gives one line and the looks go on. Another object
+  at a freed entry's address gets no write: the entry is built anew in the next HUD. After a Lua reload a new load
+  takes the earlier load's entry and crosshair again: no widget is made over a live one, the overlay holds the entry
+  once. `hide` takes both off and touches no object at a freed address;
 - `fight/gunmode/cost_test` counts gun mode's engine lookups over `fight/gunmode/fake.lua`, a fake UE4SS world with
   EVE, her controller, her body's post-process instance, the input mappings and SB's rows. With no controller,
   FindFirstOf runs once a second. With the keep serving gun mode's assets and the engine's name hash proven, two
@@ -110,7 +114,26 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   while the rifle is out, in both fire modes. They go back 3 s of play after the off or after a new world, a pause not
   counted. A rifle out during that time keeps the shipped values. `coop off` puts them back at once, also part way
   through the 3 s. A missing row or a field that cannot be written is logged and the rifle still comes out. The rifle
-  out writes cool time 0. The rate of fire follows the first round. The off gives the shipped cool time back;
+  out writes cool time 0. The rate of fire follows the first round. The off gives the shipped cool time back. The
+  input mask is lifted while the game is paused and put back at the first frame after it. An off during the game's
+  aim holds the aim key on RMB and SB's rows with cool time 999 until that aim ends with the aim key and LT up, also
+  when the off comes on a frame the aim dropped; a new controller and `coop off` end the hold. The rifle does not
+  come out in a cutscene, an interaction, a swim, the photo mode or the selfie mode. Out, a swim or the photo or
+  selfie mode puts it away with no comeback. The game's hold of her movement, a jump and the other movement modes
+  (0 on a hall seat) keep it out. A refused comeback after an interaction is tried again 2, 4 and 8 s later, then
+  given up. It waits for the pause to end. A put-away press during the departure sets none;
+- `fight/gunmode/stop_test` covers what gun mode puts back over `fight/gunmode/fake.lua`. A start that fails at the
+  input mask or at the rifle, or raises once the layer is on, gives back the rows, the mask and the layer. `coop off`
+  with the rifle out, 0.1 s after the press, gives back the rows, the keys, the rifle, her body's own post-process
+  class and the FOV lock. It takes the HUD entry off. After it no key, toggle or new controller runs gun mode. With
+  `gun_fire=own` it gives back the rows the rifle away still holds. During a new controller's waiting reset it takes
+  the layer off her new body. A new controller drops the old pawn's state at once. Its deferred reset gives back the
+  rows, shows the drone, puts her facing back and drops the morph's cube. Her facing flags go back only to the
+  movement they came from, checked by its path. A new map ends a waiting comeback;
+- `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames over `fight/gunmode/fake.lua`.
+  The masked keys go back into the action mappings as they are after coop fly moved them to a new buffer, with
+  nothing written into the old one. The muzzle flash's asset collected between two rounds is found again by its path
+  or loaded again, never spawned through a kept reference another object now sits behind;
 - `fight/gunmode/stock_test` runs the free magazines (`fight/gunmode/ammo.lua`) against a fake of SB's NIKKE shot
   that copies the cool time at each start and refuses a start while the row and the copy are both above 0. After a
   reload held through, SB's first round comes within 2 frames of its end. After every magazine was fired dry (SB
@@ -462,9 +485,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `story/quests/wiring_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared
   quests' notices;
 - `main/gun_test` covers gun mode's wiring through `main.lua` with a fake `fight/gunmode/mode.lua`: the mod folder
-  it reads its `gun_` lines from, the rounds' store (none without the native part), its start, the words and the
-  notice it gets, the new-controller hook, no unknown-setting line for its `gun_` lines, the restore at the first
-  tick, `coop off`'s stop, the restore alone after a Lua reload with `coop off` still on;
+  it reads its `gun_` lines from, the rounds' store (none without the native part), its start, the words, the notice
+  and the photo state it gets, the new-controller hook, no unknown-setting line for its `gun_` lines, the restore at
+  the first tick, `coop off`'s stop, the restore alone after a Lua reload with `coop off` still on;
 - `main/bike_test` covers the bike's wiring (`vehicles/bike/wiring.lua`) through `main.lua` with a fake
   `vehicles/bike/ride.lua`: the load line, what the ride gets (its asks, `coop-bike.txt`, the driving, the settings,
   SBO's busy reasons with coop fly, gun mode's rifle and our open screens), `coop bike` and its words, F3 and the pad's
