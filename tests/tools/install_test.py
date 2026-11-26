@@ -185,6 +185,15 @@ with tempfile.TemporaryDirectory() as tmp:
     docs = {'INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md', 'CHANGELOG.md', 'SHA256SUMS.txt'}
     shipped = {'enabled.txt', 'StellarCoop.dll', *docs,
                'Assets/MotherSphere.png', 'Scripts/online/modes/race/match/tracks/xion_eight.txt',
+               # Stellar Closet's glyphs (tools/closet_icons/render.py's PNGs).
+               *(f'Scripts/closet/ui/icons/{name}.png'
+                 for name in ('band', 'belt', 'body', 'bottoms', 'bra', 'bracelet', 'camera_free', 'camera_region',
+                              'cape', 'collar', 'curl', 'custom', 'earring', 'ears', 'eyes', 'face', 'full_outfit',
+                              'glasses', 'gloves', 'glow', 'hair', 'hair_accessory', 'harness', 'headwear', 'jacket',
+                              'jewel', 'legwear', 'light_cool', 'light_game', 'light_rim', 'light_studio', 'light_warm',
+                              'makeup', 'mask', 'nails', 'necklace', 'none', 'original', 'piercing', 'ponytail', 'ring',
+                              'shine', 'shoes', 'skin_suit', 'skin_tone', 'sleeves', 'tan_lines', 'tattoo', 'top',
+                              'underwear', 'weapon')),
                *(f'Scripts/{name}.lua' for name in ('ui/kit/commands', 'ui/kit/guide', 'ui/text/guide')),
                *(f'Scripts/{name}.lua'
                  for name in ('vehicles/bike/fetch', 'vehicles/bike/model', 'vehicles/bike/others',
