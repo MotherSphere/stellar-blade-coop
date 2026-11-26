@@ -219,11 +219,50 @@ local tests = {
         second(w)
         ok(w.eve.Mesh.hidden['0:3'], 'hidden again') ok(logged(w, 'hidden again'))
     end,
-    the_next_lua_load_gives_her_look_back = function()
+    a_lua_reload_wears_the_look_again = function()
         local w = world()
         assert(w.d.wear({{fit = 'AiK_CH27_14595', slots = {'Chest'}}, {fit = 'AiK_CH46_xSH_14462',
             slots = {'Shoes'}}}))
         local d2 = w.new() -- Ctrl+R: a new Lua state, the mix still on EVE
+        d2.tick()
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'worn again') eq(#w.eve.comps, 2, 'one added mesh, no orphan')
+        ok(logged(w, 'worn again: AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes'))
+        d2.off()
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off still gives her own look') eq(w.file, nil)
+    end,
+    a_restart_wears_the_look_again = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))
+        local kept = w.file
+        local w2 = world() -- a new game: EVE in her own look, no added mesh
+        w2.file = kept
+        w2.d.tick()
+        eq(w2.eve.Mesh.SkeletalMesh.path, KS) ok(w2.file and w2.file:find('AiK_CH46_xSH_14462', 1, true))
+    end,
+    restore_waits_for_eve = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))
+        local kept, eve = w.file, w.eve
+        w.eve = nil -- the title screen
+        local d2 = w.new()
+        d2.tick()
+        eq(w.file, kept, 'file untouched while there is no EVE')
+        w.eve = eve
+        d2.tick()
+        eq(w.eve.Mesh.SkeletalMesh.path, KS) ok(logged(w, 'worn again'))
+    end,
+    a_kept_look_that_cannot_be_worn_is_dropped = function()
+        local w = world()
+        w.file = '\t' .. OWN .. '\t\t\tNoSuchFit'
+        w.d.tick()
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN) eq(w.file, nil) ok(logged(w, 'could not wear NoSuchFit again'))
+    end,
+    an_old_four_field_line_only_gives_her_look_back = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH27_14595', slots = {'Chest'}}, {fit = 'AiK_CH46_xSH_14462',
+            slots = {'Shoes'}}}))
+        w.file = w.file:match('^(.*)\t[^\t]*$') -- drop field 5, as the build before it writes
+        local d2 = w.new()
         d2.tick()
         eq(w.eve.Mesh.SkeletalMesh.path, OWN) eq(#w.eve.comps, 1) eq(w.file, nil)
         ok(logged(w, 'restore from coop-closet.txt: 1 added mesh(es) removed'))

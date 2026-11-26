@@ -26,8 +26,10 @@ ghost pays one part per added outfit, however many of its pieces are worn.
 
 Once a second the mix is checked. Tachy Mode's suit (`CH_P_EVE_10`) pauses it, with the added meshes hidden, until
 Tachy Mode ends. Any other look the game puts on for 2 s, after a map load or a game reset, gets the mix again. A
-hidden section the game shows again is hidden again. Her own look is kept in `coop-closet.txt`: `coop closet off`,
-`coop off` and the next Lua load give it back.
+hidden section the game shows again is hidden again. Her own look and the worn words are kept in `coop-closet.txt`.
+`coop closet off` and `coop off` give her own look back and clear the file. At the next Lua load or game start, once
+EVE is in the world, the closet gives her own look back and wears the kept words again. Words it can no longer wear
+(an outfit pack removed) are dropped with one log line, and her own look stays.
 
 ## Packs
 

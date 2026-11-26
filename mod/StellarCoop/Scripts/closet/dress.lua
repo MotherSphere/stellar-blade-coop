@@ -330,24 +330,43 @@ function Dress.new(o)
         return true,'closet: off'
     end
     self.stop=self.off
-    -- What an earlier Lua load left: her own look back and its added meshes removed, then the file goes. Once, on the
-    -- game thread (the first tick, or a command).
+    -- What an earlier Lua load or game left: her own look back and its added meshes removed, then the kept choices
+    -- worn again (the file rewritten), or the file goes when there are none or they cannot be worn. Once EVE exists
+    -- (not on the title screen: the file waits), on the game thread (a tick, or a command).
     function self.restore()
         if restored then return end
-        restored=true
         local line=store.load()
-        if not line or line=='' then return end
+        if not line or line=='' then restored=true; return end
+        local found,eve=pcall(her)
+        if not (found and eve) then return end
+        restored=true
         local f={}
         for x in (line..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=x end
         local paths={}
         for p in (f[4] or ''):gmatch('[^;]+') do paths[#paths+1]=p end
-        local ok,removed=pcall(function()
-            local eve=her()
-            return eve and give_back(eve,f[2],f[3],paths) or 0
+        local ok,removed=pcall(give_back,eve,f[2],f[3],paths)
+        local kept=f[5] or ''
+        if kept=='' then
+            store.clear()
+            log('restore from coop-closet.txt: '..(ok and (removed..' added mesh(es) removed, her own look back')
+                or tostring(removed)))
+            return
+        end
+        local words={}
+        for x in kept:gmatch('%S+') do words[#words+1]=x end
+        local ran,worn,why=pcall(function()
+            local choices,e=Dress.parse(words)
+            if not choices then return nil,e end
+            local plan,e2=Dress.plan(choices,fits)
+            if not plan then return nil,e2 end
+            return apply(plan,choices)
         end)
-        store.clear()
-        log('restore from coop-closet.txt: '..(ok and (removed..' added mesh(es) removed, her own look back')
-            or tostring(removed)))
+        if ran and worn then
+            log('restore from coop-closet.txt: worn again: '..kept)
+            return
+        end
+        if not state then store.clear() end
+        log('restore from coop-closet.txt: could not wear '..kept..' again: '..tostring(ran and why or worn))
     end
     -- Once a second at most, on the game thread: the watchdog.
     function self.tick()
