@@ -353,13 +353,17 @@ function Dress.new(o)
         log('confirm: the previewed look is saved')
         return true,'closet: confirmed'
     end
-    -- Ends the preview: the confirmed look worn again, her own look when none was confirmed.
+    -- Ends the preview: the confirmed look worn again, her own look when none was confirmed or it no longer plans. A
+    -- wear that fails now (no EVE during a map change, a mesh that does not load) keeps the preview going. The file
+    -- keeps the confirmed words: the next revert or Lua load wears them.
     function self.revert()
         if not self.previewing() then return true,'closet: nothing to revert' end
         local was=state.kept
-        if was then
+        if was and Dress.plan(was,fits) then
             local ok,line=self.wear(was)
             if ok then log('revert: the confirmed look is back'); return true,line end
+            log('revert: the confirmed look could not be worn now: '..tostring(line))
+            return false,line
         end
         local ok,line=self.off()
         log('revert: the confirmed look is gone: her own look')

@@ -138,6 +138,37 @@ local tests = {
         eq(w.d.choices()[1].fit, 'AiK_CH27_14595')
         eq(fields(w.file)[5], 'AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes')
     end,
+    a_revert_without_eve_keeps_the_confirmed_words = function()
+        local w = world()
+        assert(w.d.wear(A))
+        assert(w.d.preview(B))
+        local eve = w.eve
+        w.eve = nil -- A map change: no EVE.
+        local ok_, line = w.d.revert()
+        eq(ok_, false, 'the revert failed')
+        ok(line:find('no EVE', 1, true), line)
+        eq(fields(w.file)[5], 'AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes', 'the file keeps the confirmed words')
+        ok(w.d.previewing(), 'still previewing')
+        eq(w.d.choices()[1].fit, 'AiK_CH46_xSH_14462', 'the preview stays')
+        ok(logged(w, 'revert:'), 'logged')
+        w.eve = eve
+        assert(w.d.revert())
+        ok(not w.d.previewing())
+        eq(#w.eve.comps, 2, 'A again')
+    end,
+    a_revert_to_a_look_that_no_longer_plans_gives_her_own_look = function()
+        local w = world()
+        assert(w.d.wear(A))
+        assert(w.d.preview(B))
+        local Fits = require('closet.fits')
+        local get = Fits.get
+        Fits.get = function(id) if id ~= 'AiK_CH27_14595' then return get(id) end end
+        local done, why = pcall(w.d.revert)
+        Fits.get = get
+        ok(done, why)
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN) eq(#w.eve.comps, 1) eq(w.file, nil)
+        ok(not w.d.previewing() and not w.d.worn())
+    end,
     revert_with_nothing_confirmed_gives_her_own_look_and_clears_the_file = function()
         local w = world()
         assert(w.d.preview(A))
