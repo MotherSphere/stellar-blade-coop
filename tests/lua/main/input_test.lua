@@ -478,6 +478,48 @@ in_world=false
     assert(last()=='[StellarCoop] STOP: '..'coop off is active until the game restarts\n' and not kit_shown.wheel)
 end)()
 
+-- The closet menu (closet/ui/menu.lua) is one of the screens main/base.lua's open_screen hands the keys to: Enter, Space,
+-- the arrows, WASD and E, Q (A on AZERTY) and F reach its nav; Esc goes back; coop ui reset closes it. Off, its loader stub
+-- answers nothing: no screen, no key.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    Loader.run=run
+    kit_ready=true; quarter()
+    local function spy()
+        local c={words={},closes=0,up=true}
+        c.is_open=function() return c.up end
+        c.nav=function(word) c.words[#c.words+1]=word end
+        c.close=function() c.closes=c.closes+1; c.up=false end
+        return c
+    end
+    local c=spy()
+    M.closet_menu=c
+    -- open_screen_routes_the_closet_menu
+    assert(M.open_screen()==c,'open_screen gives the closet menu while it is open')
+    c.up=false
+    assert(M.open_screen()==nil,'closed: no screen')
+    c.up=true
+    -- e_q_f_reach_the_closet_menu
+    for _,k in ipairs({'E','Q','F','SPACE','UP_ARROW','W','RIGHT_ARROW'}) do key(k) end
+    assert(table.concat(c.words,' ')=='tab_right tab_left refresh select up up right',table.concat(c.words,' '))
+    c.words={}; key('ESCAPE')
+    assert(c.words[1]=='back','Esc is back')
+    -- ui_reset_closes_the_closet_menu
+    c.up=true; M.ui_reset()
+    assert(c.closes==1 and not c.up,'coop ui reset closes the closet menu')
+    -- an_off_closet_gets_no_keys (the loader stub)
+    M.closet_menu=Loader.STUB
+    assert(M.open_screen()==nil,'the stub is no screen')
+    for _,k in ipairs({'E','Q','F','SPACE','ESCAPE'}) do key(k) end
+    M.ui_reset()
+    assert(not logged('error'),'the stub takes no key and raises nothing')
+end)()
+
 -- The controllers the mod reads, said the same way in INSTALL.md and docs/players/interface.md (any controller the game
 -- reads, XInput only as the fallback); no comment still says only an XInput pad can answer the saves' question or the
 -- guide.

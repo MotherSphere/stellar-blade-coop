@@ -118,10 +118,10 @@ if M.settings then
     -- a session screen takes the navigation keys only. E and F do nothing anywhere else.
     local function lobby_key(key,word)
         local screen=M.lobby.is_open() and M.lobby or M.open_screen()
-        if M.lobby.is_open()=='settings' or screen==M.sessions then
+        if M.lobby.is_open()=='settings' or screen==M.sessions or screen==M.closet_menu then
             if key=='E' then word='tab_right' elseif key==(M.kit.azerty() and 'A' or 'Q') then word='tab_left' end
         end
-        if key=='F' then word=screen==M.sessions and 'refresh' or nil end
+        if key=='F' then word=(screen==M.sessions or screen==M.closet_menu) and 'refresh' or nil end
         if word and screen then screen.nav(word) end -- Closed on the game thread meanwhile: nothing.
     end
     for _,nav in ipairs({{'UP_ARROW','up'},{'W','up'},{'Z','up'},{'DOWN_ARROW','down'},{'S','down'},
