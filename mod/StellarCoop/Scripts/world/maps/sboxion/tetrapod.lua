@@ -22,8 +22,7 @@
 -- while it was not found and a black that is up at once comes every AGAIN passes. After SETTLE passes with no floor
 -- she is put back outside. A recovery that moved her out of the ship ends the watch.
 -- busy: the recovery waits (photo mode, a cutscene, a warp, another zone) or handles a fall or a death
--- (recover.lua's busy), or a threshold door moves her (rooms/threshold.lua's busy). Such a pass counts nothing and
--- asks no move. A move already asked is still made.
+-- (recover.lua's busy). Such a pass counts nothing and asks no move. A move already asked is still made.
 -- An error in a pass turns the door off with one log line until the next arrival.
 -- tests/lua/world/maps/sboxion/tetrapod_test.lua covers it.
 local U=require('core.unreal')
@@ -190,9 +189,6 @@ function Tetrapod.new(o)
         box,seen,lead,hold,off,settle,solid,parts,unread=nil,0,nil,0,nil,nil,false,nil,false
         log(string.format('tetrapod: door on: in at %s, out at %s',place(Tetrapod.world(T.IN)),place(T.OUT)))
     end
-    -- A move waits under the black or EVE is watched after the way in: the threshold doors (rooms/threshold.lua) count
-    -- nothing on such a pass.
-    function self.busy() return lead~=nil or settle~=nil end
     -- coop off: the ship as SB ships it, when this stay made it solid.
     function self.stop()
         lead,settle=nil,nil

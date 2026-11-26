@@ -5,10 +5,9 @@
 -- the gate point; leave and status go to their own calls; recover goes to its call alone or with on, death or off;
 -- rooms goes to its call alone or with on or off; tetrapod goes to its call alone or with in or out; walls, the word of the walls taken out on 24 November 2026, another
 -- word or one too many is refused with the use line; without the Steam link every word says so. The wiring
--- (world/maps/sboxion/wiring.lua) builds SBO Xion with three of the Steam link's stores. coop-xion-rooms.txt is the
--- file the rooms keep their hidden rows in. coop-xion-doors.txt is the file of the threshold doors a player opened.
--- coop-xion-npcs.txt is the file of the NPC bodies' actor paths. It asks for no store without the link. An NPC's
--- line is said in the menu's words.
+-- (world/maps/sboxion/wiring.lua) builds SBO Xion with two of the Steam link's stores. coop-xion-rooms.txt is the
+-- file the rooms keep their hidden rows in. coop-xion-npcs.txt is the file of the NPC bodies' actor paths. It asks
+-- for no store without the link. An NPC's line is said in the menu's words.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Commands=require('world.maps.sboxion.commands')
 local calls={}
@@ -79,7 +78,7 @@ ok,line=Commands.new({}).xion('status')
 assert(not ok and line=='coop xion needs the Steam link and the native part',line)
 ok,line=Commands.new({}).xion('npc')
 assert(not ok and line=='coop xion needs the Steam link and the native part',line)
--- wiring: SBO Xion is built with the rooms' store and the doors' store alone and the commands reach it.
+-- wiring: SBO Xion is built with the rooms' store and the NPCs' store alone and the commands reach it.
 package.loaded.UEHelpers={}
 local built,names,stores=nil,{},{}
 package.loaded['world.maps.sboxion.sboxion']={new=function(o)
@@ -95,10 +94,9 @@ local M={print=function() end,folder='C:/SB/Mods/StellarCoop',coop_slot=function
         store=function(name) names[#names+1]=name; stores[name]={}; return stores[name] end}}
 local Wiring=require('world.maps.sboxion.wiring')
 local wired=Wiring.new(M)
-assert(#names==3 and built.rooms_store==stores['coop-xion-rooms.txt'] and built.rooms_store
-    and built.doors_store==stores['coop-xion-doors.txt'] and built.doors_store
-    and built.npcs_store==stores['coop-xion-npcs.txt'] and built.npcs_store and built.store==nil,
-    'The rooms\' store, the doors\' store and the NPCs\' store: '..table.concat(names,' '))
+assert(#names==2 and built.rooms_store==stores['coop-xion-rooms.txt'] and built.rooms_store
+    and built.npcs_store==stores['coop-xion-npcs.txt'] and built.npcs_store and built.doors_store==nil
+    and built.store==nil,'The rooms\' store and the NPCs\' store: '..table.concat(names,' '))
 -- An NPC's line is built from the menu's words: its name, then what it says.
 built.say('repairer')
 assert(#told==1 and told[1]:find('^Réparateur : Si ça bourdonne') ,told[1])
@@ -106,7 +104,7 @@ ok,line=wired.xion('status')
 assert(ok and line=='wired' and M.sboxion,'The commands reach the module the wiring built')
 M.link=nil
 wired=Wiring.new(M)
-assert(not M.sboxion and #names==3,'No store is asked without the Steam link')
+assert(not M.sboxion and #names==2,'No store is asked without the Steam link')
 ok,line=wired.xion('status')
 assert(not ok and line=='coop xion needs the Steam link and the native part',line)
 print('sboxion_test ok')

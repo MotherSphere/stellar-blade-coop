@@ -15,8 +15,8 @@
 -- move and the way out and coop off put them back. After the way in EVE is watched until she stands: under the point
 -- by more than 60 cm she is put on it again, the ship is asked again while it was not found and a black that is up
 -- at once comes every 6 passes. After 32 passes with no floor she is put back outside with the ship as SB ships it.
--- A recovery that moved her out of the ship ends the watch. busy(), for the threshold doors: true while a move waits
--- under the black and while she is watched after the way in, false during the hold and at rest.
+-- A recovery that moved her out of the ship ends the watch. No other part of the module waits for this door, so it
+-- has no busy().
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Tetrapod=require('world.maps.sboxion.tetrapod')
 local D=require('world.maps.sboxion.data')
@@ -90,7 +90,7 @@ end
 fresh()
 assert(logged('tetrapod: door on'),logs[1])
 pass(5)
-assert(#puts==0 and #blacks==0 and not door.busy())
+assert(#puts==0 and #blacks==0 and door.busy==nil)
 -- The way in.
 eve=STEPS
 pass(5)
@@ -106,19 +106,15 @@ pass()
 assert(#blacks==1 and blacks[1].hold==1 and blacks[1].fade==0.3 and blacks[1].out==0.5 and #puts==0,
     'the second pass asks the black')
 assert(logged('tetrapod: in asked'),logs[#logs])
-assert(door.busy(),'A move waits: the threshold doors count nothing')
 pass()
 assert(#puts==0,'the move waits under the black')
 pass()
 assert(#puts==1 and table.concat(order,', ')=='black, ship true, put','The ship is made solid before the move')
-assert(door.busy(),'She is watched after the way in')
 assert(near(puts[1].at.X,IN.X) and near(puts[1].at.Y,IN.Y) and near(puts[1].at.Z,IN.Z+10),'inside, 10 cm up')
 assert(near(puts[1].yaw,-132.188366,0.001),'facing the cabin: '..puts[1].yaw)
 assert(logged('tetrapod: in: EVE at (16638, -24558, -1852), yaw -132.2'),logs[#logs])
 -- Where she arrives is no box: standing there moves nothing, during the hold and after it.
-pass()
-assert(not door.busy(),'She stands: the hold is not busy')
-pass(19)
+pass(20)
 assert(#puts==1 and #blacks==1,'the point inside is not in the hatch box')
 -- The hold: 8 passes after a move look at nothing, the ninth counts again.
 eve=HATCH
