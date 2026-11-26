@@ -443,7 +443,7 @@ function Menu.new(o)
             local read,key=pcall(closing,t)
             if not read then
                 log('menu: a guard could not be read: '..tostring(key))
-                return self.close('revert')
+                return self.close('revert','guard unread')
             end
             if key then
                 o.tell(function(w) return w.closet.closed[key] end)

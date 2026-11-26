@@ -1106,6 +1106,18 @@ local tests = {
         package.loaded.UEHelpers.GetPlayer = function() return nil end
     end,
 
+    -- A guard that raises while open closes the menu with a revert, the log naming it.
+    an_unread_guard_closes_and_says_so = function()
+        local r = rig()
+        on_top(r)
+        tick(r, 0.25)
+        package.loaded.UEHelpers.GetPlayer = function() error('no player read') end
+        tick(r, 0.5)
+        package.loaded.UEHelpers.GetPlayer = function() return nil end
+        ok(not r.menu.is_open(), 'closed') eq(r.reverted, 1, 'reverted')
+        has(r.log, 'menu: a guard could not be read', 'the error')
+        has(r.log, 'menu: closed (revert, guard unread)', 'the close names it')
+    end,
     combat_cutscene_photo_and_map_change_close_and_revert = function()
         local eve = {IsA = function() return true end, IsBattle = function() return false end}
         package.loaded.UEHelpers.GetPlayer = function() return eve end
