@@ -38,11 +38,13 @@ of another outfit that covers the hands or feet. `coop-closet.txt` keeps the pic
 again at each wear.
 
 Once a second the mix is checked. Tachy Mode's suit (`CH_P_EVE_10`) pauses it, with the added meshes hidden, until
-Tachy Mode ends. Any other look the game puts on for 2 s, after a map load or a game reset, gets the mix again. A
-hidden section the game shows again is hidden again. Her own look and the worn words are kept in `coop-closet.txt`.
-`coop closet off` and `coop off` give her own look back and clear the file. At the next Lua load or game start, once
-EVE is in the world, the closet gives her own look back and wears the kept words again. Words it can no longer wear
-(an outfit pack removed) are dropped with one log line. Her own look stays.
+Tachy Mode ends. Any other look the game puts on for 2 s, after a map load or a game reset, gets the mix again. So
+does an outfit CNS puts on. That body mesh becomes her own look, which `coop closet off` gives back; a closet mesh
+never does. The closet's own wears and previews never count as a change. After `coop closet off` nothing is watched
+until the next wear. A hidden section the game shows again is hidden again. Her own look and the worn words are kept
+in `coop-closet.txt`. `coop closet off` and `coop off` give her own look back and clear the file. At the next Lua
+load or game start, once EVE is in the world, the closet gives her own look back and wears the kept words again. Words
+it can no longer wear (an outfit pack removed) are dropped with one log line. Her own look stays.
 
 ## Packs
 
@@ -104,6 +106,13 @@ The hints show Wear on a row of pieces and Whole outfit on a Full outfit row. Wh
 hint shows Whole outfit on the top face button. Move comes last. The tab keys' icons sit at both ends of the tab row.
 Each hint shows the keyboard's key or the pad's button, whichever was used last. Each draw and each frame give the
 keyboard focus back to the kit's root: on the game's grid a key reached EVE (E fired a skill).
+
+The Body tab's Body row lists None, where the body rule picks the body, then each outfit with skin. Its tile picks
+that outfit's body (`<fit>:BaseBody`). The detail panel names each outfit's origin: Original (Shift Up's own suits) or
+Custom with its pack ("Custom: AiK"). When a preview switches the body or leaves skin showing under a piece, one notice
+says so until that changes. The last row of the Full outfit tab, Reset Stellar Closet, asks with the game's Yes/No
+popup. Yes runs `coop closet off`: every closet piece leaves EVE, `coop-closet.txt` is cleared and the menu closes
+without asking to keep the look. From then on the closet changes nothing until a look is worn again.
 
 Back with nothing changed since the open closes the menu and gives back the look worn before. After a change, Back asks
 "Keep this look?" with the game's Yes/No popup. Yes keeps the look: it is saved and survives a reload. No gives back

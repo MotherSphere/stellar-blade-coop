@@ -20,7 +20,10 @@
 -- back and remove the added meshes.
 -- Once a second (tick), unless the game is paused or shows one of its screens: a body mesh in GAME_LOOKS (Tachy Mode's
 -- suit) pauses the mix (the added meshes hidden) until it goes; any other changed look for 2 s (a map load, a game
--- reset) gets the mix again; a hidden section the game showed again (Tachy Mode's end) is hidden again.
+-- reset, CNS) gets the mix again; a hidden section the game showed again (Tachy Mode's end) is hidden again. The body
+-- mesh put on from outside becomes her own look, which off gives back; a closet mesh never does. The closet's own
+-- changes (wear, preview, revert) set the plan the watchdog compares with, so they never count. After off nothing is
+-- watched until the next wear.
 -- Preview (the closet menu's live look): preview(choices) puts a look on without saving it. The first call remembers the
 -- confirmed choices (state.kept, false when none). During a preview coop-closet.txt holds EVE's leftovers to sweep and
 -- the confirmed words, so a reload gives the confirmed look. confirm() saves the previewed look, revert() wears the
@@ -430,7 +433,7 @@ function Dress.new(o)
         return true,line
     end
     -- A look put on without saving it: the confirmed choices stay in the file until confirm. No choices while a look is
-    -- on: her own look (own_look).
+    -- on: her own look (own_look). Gives true, the line and the plan (the menu tells its switched and clips).
     function self.preview(choices)
         self.restore()
         local kept=state and state.kept
@@ -443,7 +446,7 @@ function Dress.new(o)
         local line=string.format('closet: previewing %d pieces, body %s%s, %d added mesh%s',plan.pieces,plan.body.fit,
             body_notes(plan),plan.parts,plan.parts==1 and '' or 'es')
         log('preview: '..line)
-        return true,line
+        return true,line,plan
     end
     function self.previewing() return state~=nil and state.kept~=nil end
     -- Ends the preview and saves the worn choices.
@@ -655,7 +658,8 @@ function Dress.new(o)
             if state.wrong<2 and not was_paused then return end
             log(string.format('the game changed EVE (body %s): mix again',tostring(path)))
             local plan,choices,kept=state.plan,state.choices,state.kept
-            state.own,state.materials=path or state.own,body and current_materials(body) or state.materials
+            -- A look put on from outside is hers from now on; a closet mesh still on her body is the closet's own.
+            if path and not closet_mesh(path) then state.own,state.materials=path,current_materials(body) end
             local own,materials=state.own,state.materials
             state=nil
             local ok,why=apply(plan,choices,kept)

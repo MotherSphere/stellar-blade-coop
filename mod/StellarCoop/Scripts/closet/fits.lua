@@ -8,7 +8,8 @@
 -- from the mesh's material slots (the spike's slot dump, 25 Nov 2026) and the names from the pack's own
 -- UserConfigs.MaterialToggles.
 --   Outfit   the outfit's name on screen, Pack the pack that makes it
---   Origin   'original' (Shift Up's own suits, CH_P_EVE_*) or 'custom' (an installed pack's outfit); nil is custom
+--   Origin   'original' (Shift Up's own suits, CH_P_EVE_*) or 'custom' (an installed pack's outfit, the default when
+--            left out: Fits.origin)
 --   Mesh     the outfit's mesh, as its pack names it
 --   Skin     {material index = {regions it shows}}: the outfit's own skin, which supplies the body whenever this
 --            outfit is the body (closet/dress.lua's Dress.plan: picked as <fit>:BaseBody, else its body rule). A fit
@@ -75,6 +76,9 @@ Fits.BY_ID = {
 
 -- The fit map of an outfit, or nil.
 function Fits.get(fit_id) return Fits.BY_ID[fit_id] end
+
+-- An outfit's origin: 'original' or 'custom' (the default).
+function Fits.origin(fit_id) return (Fits.BY_ID[fit_id] or {}).Origin or 'custom' end
 
 -- The piece of a fit map in a slot, or nil.
 function Fits.piece(fit_id, slot)

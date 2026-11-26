@@ -28,6 +28,14 @@ function Model.new(o)
         return out
     end
 
+    -- A fit's piece in a slot, or nil. The pseudo slot BaseBody has no piece: a fit with Skin gives one named after
+    -- its outfit (closet/dress.lua's Dress.plan wears that outfit's body).
+    function m.piece(fit_id, slot)
+        local fit = Fits.get(fit_id)
+        if slot == 'BaseBody' and fit and next(fit.Skin or {}) ~= nil then return {Name = fit.Outfit} end
+        return Fits.piece(fit_id, slot)
+    end
+
     function m.tabs()
         local out = {}
         for _, menu in ipairs(Slots.MENUS) do
@@ -43,12 +51,13 @@ function Model.new(o)
                 local fit = Fits.get(id)
                 out[#out + 1] = {whole = id, outfit = fit.Outfit, pack = fit.Pack, locked = not o.installed(id)}
             end
+            out[#out + 1] = {reset = true} -- Reset Stellar Closet, last.
             return out
         end
         for _, slot in ipairs(Slots.in_menu(tab)) do
             local has = false
             for _, id in ipairs(sorted_fits(Fits)) do
-                if Fits.piece(id, slot) then has = true break end
+                if m.piece(id, slot) then has = true break end
             end
             local state = has and 'pieces' or (Slots.kind(slot) == 'mesh' and 'empty' or 'soon')
             out[#out + 1] = {slot = slot, state = state}
@@ -59,7 +68,7 @@ function Model.new(o)
     function m.tiles(slot)
         local out = {{none = true}}
         for _, id in ipairs(sorted_fits(Fits)) do
-            local piece = Fits.piece(id, slot)
+            local piece = m.piece(id, slot)
             if piece then
                 local fit = Fits.get(id)
                 out[#out + 1] = {fit = id, name = piece.Name, outfit = fit.Outfit, pack = fit.Pack, off = piece.Off,
@@ -82,9 +91,9 @@ function Model.new(o)
 
     -- Wear fit's piece in slot (fit=nil: wear nothing there). Every worn piece that uses slot, or a slot the new piece
     -- occupies, comes off, whatever outfit it belongs to. A whole-outfit choice that loses a piece becomes an explicit
-    -- list of its slots first.
+    -- list of its slots first. slot BaseBody picks fit's body (nil: the body rule's).
     function m.choose(choices, slot, fit)
-        local piece = fit and Fits.piece(fit, slot)
+        local piece = fit and m.piece(fit, slot)
         assert(not fit or piece, tostring(fit) .. ' has no piece in ' .. tostring(slot))
         local taken = {[slot] = true}
         for _, s in ipairs(piece and piece.Occupies or {}) do taken[s] = true end

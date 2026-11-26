@@ -4,7 +4,7 @@
 -- The closet menu (closet/ui/menu.lua over closet/ui/view.lua) on menu_fakes.lua's fake kit and parts: open draws the
 -- tab row, the slot rows, the grid with the None tile first, the detail panel and the hints; coop closet menu opens
 -- and closes it; every close path drops every part and gives the input back; coop off does not revert; a draw that
--- raises closes the menu.
+-- raises closes the menu; the Body row, the origin line, the body switch notices and the Reset Stellar Closet row.
 local run = dofile('tests/lua/closet/run.lua')
 package.loaded.UEHelpers = {GetPlayer = function() return nil end}
 local F = dofile('tests/lua/closet/menu_fakes.lua')
@@ -15,7 +15,7 @@ require('core.player').engaged = function() return false end
 
 local function rig(o)
     o = o or {}
-    local r = {told = {}, log = {}, reverted = 0, confirmed = 0, previews = {}, previewing = false, t = 0,
+    local r = {told = {}, log = {}, reverted = 0, confirmed = 0, offs = 0, previews = {}, previewing = false, t = 0,
         world = true, photo = '0', status = 'mod=1 theater=none', kit = F.kit()}
     if o.before then o.before(r) end
     package.loaded['closet.ui.menu'], package.loaded['closet.ui.view'] = nil, nil
@@ -28,6 +28,7 @@ local function rig(o)
         previewing = function() return r.previewing end,
         confirm = function() r.confirmed = r.confirmed + 1; r.previewing = false; return true, 'closet: confirmed' end,
         revert = function() r.reverted = r.reverted + 1; r.previewing = false; return true, 'closet: reverted' end,
+        off = function() r.offs = r.offs + 1; r.choices, r.previewing = nil, false; return true, 'closet: off' end,
         game_look = function() return r.game_look end}
     r.menu = Menu.new({kit = r.kit, dress = r.dress, words = function() return T.en end,
         tell = function(build) r.told[#r.told + 1] = build(T.en) end, log = function(m) r.log[#r.log + 1] = m end,
@@ -107,9 +108,11 @@ local tests = {
             ok(F.called(tabs[i].o, i == 1 and 'FocusTabButton' or 'DefocusTabButton'), 'tab focus ' .. i)
             eq(tabs[i].x, 160 + (i - 1) * 266, 'tab x ' .. i)
         end
-        -- The Full tab's rows: one an outfit, Ocean Maid focused; the hints Back, Whole outfit, Move.
+        -- The Full tab's rows: one an outfit, then Reset Stellar Closet, Ocean Maid focused; the hints Back, Whole
+        -- outfit, Move.
         local rows = r.kit.live(F.OPTION)
-        eq(#rows, 2, 'outfit rows')
+        eq(#rows, 3, 'outfit rows and the Reset row')
+        eq(rows[3].o.Text_TitleValue.text, T.en.closet.row.reset, 'the Reset row last')
         eq(rows[1].o.Text_TitleValue.text, 'Ocean Maid', 'outfit row 1')
         eq(rows[1].o.Text_ItemValue.text, 'AiK', 'outfit row 1 pack')
         eq((detail(r)), 'Ocean Maid', 'the outfit detail')
@@ -212,8 +215,8 @@ local tests = {
         local r = rig()
         r.menu.open()
         local tv = r.kit.live(F.GRID)[1].o.TileView_ItemList
-        -- The Full tab: 7 tabs, 2 outfit rows, the grid, the detail, 2 tab keys and 3 hints.
-        eq(#r.kit.made, 16, 'parts made')
+        -- The Full tab: 7 tabs, 2 outfit rows and the Reset row, the grid, the detail, 2 tab keys and 3 hints.
+        eq(#r.kit.made, 17, 'parts made')
         local good = r.menu.close()
         ok(good, 'close')
         all_gone(r)
@@ -683,6 +686,100 @@ local tests = {
         end
     end,
 
+    -- Reset Stellar Closet, the Full tab's last row: the game's Yes/No popup; Yes runs coop closet off and closes the
+    -- menu without the Keep popup or a revert, so nothing of the closet stays on EVE for its watchdog.
+    reset_row_clears_and_stops_the_watchdog = function()
+        local r = rig({before = function(r) r.choices = {{fit = MAID}} end})
+        r.menu.open()
+        at(r, 0.5, 'down', 'down')
+        local title, desc = detail(r)
+        eq(title, T.en.closet.row.reset, 'the last row of the Full tab')
+        eq(desc, T.en.closet.popup.reset_desc, 'its detail')
+        at(r, 0.5, 'refresh')
+        eq(#r.previews, 0, 'refresh wears nothing on it')
+        -- Select asks; No and Back leave the menu and the look as they are.
+        at(r, 0.5, 'select')
+        eq(popups(r), 1, 'the popup')
+        local p = r.kit.live(F.POPUP)[1].o
+        eq(p.TitleText.text, T.en.closet.popup.reset_title, 'title') eq(p.DescText.text, T.en.closet.popup.reset_desc)
+        eq(p.ButtonType, 3, 'Yes and No')
+        at(r, 0.5, 'no')
+        eq(popups(r), 0, 'No: the popup goes') ok(r.menu.is_open(), 'No: the menu stays')
+        at(r, 0.5, 'select', 'back')
+        eq(popups(r), 0, 'Back: the popup goes') ok(r.menu.is_open(), 'Back: the menu stays')
+        eq(r.offs, 0, 'nothing reset yet')
+        -- A preview, then Yes.
+        at(r, 0.5, 'up', 'refresh', 'down', 'select', 'select')
+        same(r.previews, {{{fit = KUNOICHI}}}, 'previewed before the reset')
+        eq(r.offs, 1, 'coop closet off ran')
+        eq(r.reverted + r.confirmed, 0, 'no revert, no confirm')
+        same(r.told, {T.en.closet.reset_done}, 'the notice')
+        for _, rec in ipairs(r.kit.made) do
+            if rec.class == F.POPUP then eq(rec.o.TitleText.text, T.en.closet.popup.reset_title, 'no Keep popup') end
+        end
+        has(r.log, 'closed (reset)', 'log')
+        eq(r.kit.sounds[#r.kit.sounds], 'close', 'the close sound')
+        all_gone(r)
+        tick(r, 2) tick(r, 3)
+        eq(r.reverted, 0, 'no revert owed after it')
+    end,
+
+    the_detail_names_the_origin = function()
+        local custom = T.en.closet.origin.custom:format('AiK')
+        eq(custom, 'Custom: AiK', 'the custom origin names the pack')
+        local r = rig()
+        r.menu.open()
+        local title, desc = detail(r)
+        ok(desc:find(custom, 1, true), 'a Full outfit row: ' .. desc)
+        -- The Body tab's Body row: None (the body rule) then each outfit with skin, named after the outfit.
+        at(r, 0.5, 'tab_left', 'tab_left')
+        eq((detail(r)), T.en.closet.slots.BaseBody, 'the Body row first')
+        at(r, 0.5, 'right', 'right')
+        title, desc = detail(r)
+        eq(title, 'Ocean Maid', 'a body tile')
+        ok(desc:find('Slot: Body', 1, true) and desc:find(custom, 1, true), 'a body tile: ' .. desc)
+        at(r, 0.5, 'select')
+        same(r.previews, {{{fit = MAID, slots = {'BaseBody'}}}}, 'the body picked')
+        local rows = r.kit.live(F.OPTION)
+        table.sort(rows, function(a, b) return a.y < b.y end)
+        eq(rows[1].o.Text_ItemValue.text, 'Ocean Maid', 'the Body row shows the picked body')
+        title, desc = detail(r)
+        ok(desc:find('Outfit: Ocean Maid', 1, true) and desc:find(custom, 1, true), 'the worn body: ' .. desc)
+        -- Shift Up's own suits are Original.
+        eq(Fits.origin(MAID), 'custom', 'custom by default')
+        Fits.BY_ID[MAID].Origin = 'original'
+        local good, why = pcall(function()
+            eq(Fits.origin(MAID), 'original')
+            at(r, 0.5, 'right')
+            title, desc = detail(r)
+            eq(title, 'Ocean Maid', 'the worn tile')
+            ok(desc:find(T.en.closet.origin.original, 1, true) and not desc:find('Custom', 1, true), desc)
+        end)
+        Fits.BY_ID[MAID].Origin = nil
+        ok(good, why)
+    end,
+
+    switched_and_clips_are_told = function()
+        local r = rig()
+        local plan = {switched = KUNOICHI, clips = {'Calf', 'Foot'}}
+        local preview = r.dress.preview
+        r.dress.preview = function(c) preview(c); return true, 'closet: previewing', plan end
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'select')
+        same(r.told, {T.en.closet.switched:format('Kunoichi Shadow'), T.en.closet.clips:format('Calves, Feet')},
+            'the switch and the clipping regions')
+        at(r, 0.5, 'right', 'right', 'select')
+        eq(#r.previews, 2, 'a second preview')
+        eq(#r.told, 2, 'the same switch is told once')
+        plan = {}
+        at(r, 0.5, 'right', 'left', 'select')
+        eq(#r.told, 2, 'no switch: nothing told')
+        plan = {switched = KUNOICHI}
+        at(r, 0.5, 'right', 'right', 'select')
+        eq(#r.previews, 4, 'a fourth preview')
+        same(r.told[3], T.en.closet.switched:format('Kunoichi Shadow'), 'the switch again: told again')
+    end,
+
     select_is_ignored_right_after_open = function()
         local r = rig()
         r.menu.open()
@@ -990,6 +1087,7 @@ local tests = {
             stop = function(r) r.menu.stop() end,
             close = function(r) r.menu.close() end,
             keep = function(r) r.menu.close('keep') end,
+            reset = function(r) at(r, 1, 'tab_left', 'tab_left', 'down', 'down', 'select', 'select') end,
         }
         for name, path in pairs(paths) do
             local r = rig()

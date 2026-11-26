@@ -4,7 +4,8 @@
 -- coop closet wear (closet/dress.lua) over fake UE4SS objects: the plan (the shoes' outfit on the body with its skin,
 -- one added mesh per other outfit, covered skin hidden, the refusals), the mix on EVE, her own look kept and given
 -- back by off and by the next Lua load, and the watchdog: Tachy Mode's suit pauses the mix, a changed look for 2 s gets
--- it again, a section the game showed again is hidden again. The body rule: a single-skin body switched under foreign
+-- it again (an outside one becomes her own look, a closet mesh never does; after off nothing is watched), a section
+-- the game showed again is hidden again. The body rule: a single-skin body switched under foreign
 -- gloves (never under its own covering pieces), a picked BaseBody never switched, the modes, nails under foreign
 -- gloves, sections hidden by material slot.
 -- The words of coop closet (closet/commands.lua).
@@ -123,8 +124,9 @@ local tests = {
     preview_keeps_the_confirmed_words = function()
         local w = world()
         assert(w.d.wear(A))
-        local ok_, line = w.d.preview(B)
+        local ok_, line, plan = w.d.preview(B)
         ok(ok_, line)
+        eq(plan and plan.body.fit, 'AiK_CH46_xSH_14462', 'the plan for the menu (its body switch notice)')
         ok(w.d.previewing())
         eq(fields(w.file)[5], 'AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes', 'the file holds the confirmed words')
         eq(w.eve.Mesh.SkeletalMesh.path, KS, 'EVE wears B')
@@ -392,6 +394,52 @@ local tests = {
         ok(w.file:find('AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes', 1, true), 'choices kept after mix again')
         w.d.off()
         eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off still gives her own look')
+    end,
+    -- Stellar Closet keeps control over CNS (design 9): a look changed from outside while one is kept is worn again.
+    -- A change the closet made itself (a preview, its own mesh still on her body) is never taken as her own look.
+    an_outside_body_change_remixes_a_kept_look = function()
+        local w = world()
+        local function mixes()
+            local n = 0
+            for _, line in ipairs(w.log) do if line:find('mix again', 1, true) then n = n + 1 end end
+            return n
+        end
+        assert(w.d.wear(A))
+        local other = '/Game/Art/Character/PC/CH_P_EVE_31/CH_P_EVE_31.CH_P_EVE_31'
+        w.assets[other] = mesh(other, 6)
+        w.eve.Mesh:SetSkeletalMesh(w.assets[other]) -- CNS puts its outfit on her body.
+        second(w)
+        eq(w.eve.Mesh.SkeletalMesh.path, other, 'one second: wait')
+        second(w)
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'the kept look again') eq(#w.eve.comps, 2, 'one added mesh')
+        eq(mixes(), 1, 'mixed again once')
+        -- The closet's own preview is not an outside change.
+        assert(w.d.preview({{fit = MAID}}))
+        second(w) second(w) second(w)
+        eq(mixes(), 1, 'the preview is left alone') eq(w.eve.Mesh.SkeletalMesh.path, OM)
+        assert(w.d.revert())
+        -- Its added mesh gone while her body still wears the closet's mesh: mixed again, the closet's mesh is not hers.
+        w.eve.comps[2]:K2_DestroyComponent()
+        second(w) second(w)
+        eq(mixes(), 2, 'mixed again') eq(#w.eve.comps, 2, 'the added mesh back')
+        eq(fields(w.file)[2], other, 'her own look kept, not the closet mesh')
+        w.d.off()
+        eq(w.eve.Mesh.SkeletalMesh.path, other, 'off gives back the outside look, never a closet mesh')
+    end,
+    after_off_an_outside_change_is_left_alone = function()
+        local w = world()
+        assert(w.d.wear(A))
+        assert(w.d.preview(B)) -- Reset Stellar Closet from the menu: coop closet off mid-preview.
+        w.d.off()
+        local other = '/Game/Art/Character/PC/CH_P_EVE_31/CH_P_EVE_31.CH_P_EVE_31'
+        w.assets[other] = mesh(other, 6)
+        w.eve.Mesh:SetSkeletalMesh(w.assets[other])
+        second(w) second(w) second(w)
+        eq(w.eve.Mesh.SkeletalMesh.path, other, 'the outside look stays') eq(#w.eve.comps, 1, 'nothing added')
+        eq(w.file, nil, 'nothing kept') ok(not logged(w, 'mix again'), 'no mix')
+        w.d = w.new() -- The next Lua load wears nothing either.
+        second(w) second(w)
+        eq(w.eve.Mesh.SkeletalMesh.path, other, 'still the outside look after a reload')
     end,
     hidden_sections_shown_again_are_hidden = function()
         local w = world()

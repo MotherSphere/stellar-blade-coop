@@ -27,6 +27,12 @@
 -- No. Select does nothing for ARM s after the open: the console's Enter that typed coop closet menu reaches our Enter
 -- bind too (main/base.lua's M.typed_at note). The None tile on the last piece worn previews her own look; when the menu
 -- opened on her own look, it reverts instead: nothing changed since the open.
+-- The Body tab's Body row (BaseBody) lists None (the body rule picks the body) then each outfit with skin: its tile
+-- picks that outfit's body. A tile's detail and the Full tab's rows name the origin: Original, or Custom and the pack.
+-- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
+-- once until that changes. The Full tab's last row, Reset Stellar Closet (hint Select), asks with the game's Yes/No
+-- popup: Yes runs coop closet off (dress.off), tells closet.reset_done and closes without the Keep popup or a revert;
+-- No and Back stay.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -56,10 +62,11 @@ function Menu.new(o)
     local open=false
     local tab,row -- Kept across opens; nil until the first.
     local tab_top=1 -- The first tab shown, kept across opens.
-    -- col: 'tabs', 'rows' or 'grid'; tile: the focused tile in the grid; asking: the popup shows; changed: a preview
-    -- since the open; due: when the focused tile is worn (nil: none waits); opened, guard_at, combat_at: times in s;
-    -- bare: the menu opened on her own look (nothing worn, no preview going).
-    local col,tile,asking,changed,due,opened,guard_at,combat_at,bare='rows',1,false,false,nil,0,0,0,false
+    -- col: 'tabs', 'rows' or 'grid'; tile: the focused tile in the grid; asking: the popup shows (true: Keep this
+    -- look?, 'reset': Reset Stellar Closet?); changed: a preview since the open; due: when the focused tile is worn
+    -- (nil: none waits); opened, guard_at, combat_at: times in s; bare: the menu opened on her own look (nothing worn,
+    -- no preview going); said: the body switch and clips last told since the open.
+    local col,tile,asking,changed,due,opened,guard_at,combat_at,bare,said='rows',1,false,false,nil,0,0,0,false,nil
     -- back_at: when the input is given back after a close; owed: the kit still holds it for us since a close;
     -- unreverted: a close's revert failed (no EVE during a map change), asked again each RETRY s while closed.
     local back_at,owed,unreverted=nil,false,false
@@ -110,16 +117,21 @@ function Menu.new(o)
         return item,tiles,1
     end
 
-    -- A tile's detail lines: its outfit, slot, covers, what else it takes, hidden by default, locked.
+    local function names(ids,from)
+        local out={}
+        for i,id in ipairs(ids) do out[i]=from[id] or id end
+        return table.concat(out,', ')
+    end
+    -- An outfit's origin line: Original, or Custom and its pack.
+    local function origin(w,fit)
+        return Fits.origin(fit)=='original' and w.origin.original or w.origin.custom:format(Fits.get(fit).Pack)
+    end
+    -- A tile's detail lines: its outfit, slot, origin, covers, what else it takes, hidden by default, locked.
     local function lines(w,one,slot)
-        local function names(ids,from)
-            local out={}
-            for i,id in ipairs(ids) do out[i]=from[id] or id end
-            return table.concat(out,', ')
-        end
         local out={}
         if not one.none then out[#out+1]=w.detail.outfit:format(one.outfit) end
         out[#out+1]=w.detail.slot:format(w.slots[slot] or slot)
+        if one.fit then out[#out+1]=origin(w,one.fit) end
         if one.covers then out[#out+1]=w.detail.covers:format(names(one.covers,w.regions)) end
         if one.also then out[#out+1]=w.detail.also:format(names(one.also,w.slots)) end
         if one.off then out[#out+1]=w.detail.off end
@@ -144,18 +156,23 @@ function Menu.new(o)
         for i,item in ipairs(list) do
             if item.whole then
                 s.rows[i]={title=item.outfit,value=item.pack,locked=item.locked}
+            elseif item.reset then
+                s.rows[i]={title=w.row.reset,value=''}
             else
                 local worn=model.worn(choices,item.slot)
                 local value=item.state=='soon' and w.row.soon or item.state=='empty' and '' or
-                    worn and Fits.piece(worn,item.slot).Name or w.row.none
+                    worn and model.piece(worn,item.slot).Name or w.row.none
                 s.rows[i]={title=w.slots[item.slot] or item.slot,value=value,locked=item.state=='soon'}
             end
         end
         local item,shown=list[row],s.rows[row]
         s.detail={title=shown and shown.title or '',desc=''}
         if item and item.whole then
-            s.detail.desc=item.locked and w.row.locked:format(item.pack) or w.row.whole
+            s.detail.desc=(item.locked and w.row.locked:format(item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
             if not item.locked then s.hints[2]={w.hints.whole,'Positive'} end
+        elseif item and item.reset then
+            s.detail.desc=w.popup.reset_desc
+            s.hints[2]={t.hint.select,'Positive'}
         elseif item and item.state~='pieces' then
             s.detail.desc=w.row[item.state]
         elseif item then
@@ -172,7 +189,7 @@ function Menu.new(o)
             else
                 s.tile=at
                 s.detail.equipped=worn~=nil
-                if worn then s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit) end
+                if worn then s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit)..'\n'..origin(w,worn) end
             end
             s.hints[2]={w.hints.wear,'Positive'}
             -- UI_FaceButton_Top: the game's UI action for the top face button (F, the pad's Y), as in
@@ -182,12 +199,13 @@ function Menu.new(o)
         end
         -- Move last, on the D-pad's up and down icons, as the lobby shows it (the keyboard's keys or the pad's buttons).
         s.hints[#s.hints+1]={t.hint.move,'UI_DPad_Up','UI_DPad_Down'}
-        if asking then s.popup={title=w.popup.title,desc=w.popup.desc} end
+        if asking=='reset' then s.popup={title=w.popup.reset_title,desc=w.popup.reset_desc}
+        elseif asking then s.popup={title=w.popup.title,desc=w.popup.desc} end
         return s
     end
 
     -- Every part dropped first, then the group hidden and the input given back; how: 'revert' (default), 'keep',
-    -- 'stop'.
+    -- 'stop', 'reset' (after coop closet off: as keep).
     function self.close(how)
         how=how or 'revert'
         if not open then return true,'closet menu: not open' end
@@ -232,7 +250,7 @@ function Menu.new(o)
             return false,T.en.closet.refused[key]
         end
         if not tab then tab,row=1,1 end
-        col,tile,asking,changed,due='rows',1,false,false,nil
+        col,tile,asking,changed,due,said='rows',1,false,false,nil,nil
         bare=not dress.previewing() and #(dress.choices() or {})==0
         back_at,owed,unreverted=nil,false,false -- An owed revert: Back or No on this open reverts.
         opened=now()
@@ -246,13 +264,24 @@ function Menu.new(o)
         return true,'closet menu: open'
     end
 
-    -- choices worn as a preview; a failure is told and logged.
+    -- choices worn as a preview; a failure is told and logged, so is the plan's body switch or skin under a piece.
     local function wear(choices)
         due=nil
-        local ran,good,why=pcall(dress.preview,choices)
+        local ran,good,why,plan=pcall(dress.preview,choices)
         if not (ran and good) then
             log('menu: preview failed: '..tostring(ran and why or good))
             o.tell(function(t) return t.closet.failed end)
+        elseif plan then
+            local key=(plan.switched or '')..'|'..table.concat(plan.clips or {},',')
+            if key~=said then
+                said=key
+                if plan.switched then
+                    o.tell(function(t) return t.closet.switched:format(Fits.get(plan.switched).Outfit) end)
+                end
+                if plan.clips then
+                    o.tell(function(t) return t.closet.clips:format(names(plan.clips,t.closet.regions)) end)
+                end
+            end
         end
         changed=changed or dress.previewing()
     end
@@ -283,6 +312,16 @@ function Menu.new(o)
         kit.sound('change')
     end
     local function answer(yes)
+        if asking=='reset' and not yes then asking=false; return redraw() end
+        if asking=='reset' then -- coop closet off: the kept look cleared, nothing of the closet left on EVE.
+            local ran,why=pcall(dress.off)
+            if not ran then
+                log('menu: reset failed: '..tostring(why))
+                return self.close('revert')
+            end
+            o.tell(function(t) return t.closet.reset_done end)
+            return self.close('reset')
+        end
         if not yes then return self.close('revert') end
         local good,why=dress.confirm()
         if not good then
@@ -322,6 +361,7 @@ function Menu.new(o)
         end
         local item,tiles,at=focused()
         if word=='tab_left' or word=='tab_right' then set_tab(tab+(word=='tab_left' and -1 or 1))
+        elseif word=='select' and col=='rows' and item and item.reset then asking='reset'
         elseif word=='refresh' or word=='select' and col=='rows' and item and item.whole then wear_whole()
         elseif col=='grid' then
             local C=View.COLUMNS

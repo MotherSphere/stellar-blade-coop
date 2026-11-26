@@ -52,9 +52,42 @@ local tests = {
     full_tab_lists_outfits = function()
         local m = new({installed = function(f) return f == CH27 end})
         local rows = m.rows('full')
-        eq(#rows, 2, 'rows')
+        eq(#rows, 3, 'rows: the outfits, then Reset Stellar Closet')
         same(rows[1], {whole = CH27, outfit = 'Ocean Maid', pack = 'AiK', locked = false}, 'first')
         same(rows[2], {whole = CH46, outfit = 'Kunoichi Shadow', pack = 'AiK', locked = true}, 'second')
+        same(rows[3], {reset = true}, 'the Reset row last')
+    end,
+
+    basebody_lists_fits_with_skin = function()
+        local m = new({installed = function(f) return f == CH27 end})
+        local state
+        for _, r in ipairs(m.rows('body')) do if r.slot == 'BaseBody' then state = r.state end end
+        eq(state, 'pieces', 'a fit with Skin gives the Body row tiles')
+        local t = m.tiles('BaseBody')
+        eq(#t, 3, 'None, then each fit with Skin')
+        same(t[1], {none = true}, 'None: the body rule picks the body')
+        same(t[2], {fit = CH27, name = 'Ocean Maid', outfit = 'Ocean Maid', pack = 'AiK', locked = false}, 'Ocean Maid')
+        eq(t[3].fit, CH46) eq(t[3].name, 'Kunoichi Shadow') eq(t[3].locked, true, 'not installed: locked')
+        eq(m.piece(CH46, 'BaseBody').Name, 'Kunoichi Shadow', 'the body pseudo piece')
+        eq(m.piece(CH46, 'Gloves').Name, 'Long gloves', 'a real piece')
+    end,
+
+    choose_sets_and_clears_basebody = function()
+        local m = new()
+        local start = {{fit = CH46, slots = {'Gloves'}}}
+        local out = m.choose(start, 'BaseBody', CH27)
+        eq(m.worn(out, 'BaseBody'), CH27) eq(m.worn(out, 'Gloves'), CH46)
+        eq(assert(Dress.plan(out)).body.fit, CH27, 'the picked body')
+        out = m.choose(out, 'BaseBody', CH46)
+        eq(m.worn(out, 'BaseBody'), CH46) eq(#out, 1, "Ocean Maid's choice goes with its body")
+        same(slots_of(out, CH46), {'BaseBody', 'Gloves'})
+        out = m.choose(out, 'BaseBody', nil)
+        same(out, {{fit = CH46, slots = {'Gloves'}}}, 'None: no body picked')
+        same(start, {{fit = CH46, slots = {'Gloves'}}}, 'input untouched')
+        -- A whole outfit keeps its pieces when its body is picked.
+        out = m.choose(m.whole(CH27), 'BaseBody', CH27)
+        eq(m.worn(out, 'Chest'), CH27) eq(m.worn(out, 'BaseBody'), CH27)
+        eq(assert(Dress.plan(out)).body.fit, CH27)
     end,
 
     tiles_start_with_none_and_lock_missing_packs = function()
