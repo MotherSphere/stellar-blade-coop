@@ -90,7 +90,9 @@ a row of pieces goes into its grid. A tile focused for 250 ms is worn on EVE as 
 F (the pad's Y) wears the whole outfit of the focused piece. Each grid starts with a None tile that takes that slot's
 piece off; on the last piece worn EVE shows her own look. On the Full outfit tab, Select or F wears the row's outfit.
 The hints show Wear on a row of pieces and Whole outfit on a Full outfit row. When F has an outfit to wear, a third
-hint shows Whole outfit on the top face button.
+hint shows Whole outfit on the top face button. Move comes last. The tab keys' icons sit at both ends of the tab row.
+Each hint shows the keyboard's key or the pad's button, whichever was used last. Each draw and each frame give the
+keyboard focus back to the kit's root: on the game's grid a key reached EVE (E fired a skill).
 
 Back with nothing changed since the open closes the menu and gives back the look worn before. After a change, Back asks
 "Keep this look?" with the game's Yes/No popup. Yes keeps the look: it is saved and survives a reload. No gives back

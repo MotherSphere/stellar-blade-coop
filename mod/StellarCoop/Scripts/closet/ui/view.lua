@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Stellar Closet's menu screen (closet/ui/menu.lua draws it): Stellar Blade's own widget parts in the kit group
--- closet_menu, inside x 160 to 2560 (the right third stays clear for EVE). A row of tab buttons; the tab's slot rows
+-- closet_menu, inside x 86 to 2560 (the right third stays clear for EVE). A row of tab buttons between the tab keys'
+-- icons; the tab's slot rows
 -- (ui/kit/parts.lua kind option) in a window of 10, a transparent kit row over each for the mouse, as the lobby does;
 -- the hair salon's grid of the focused slot's pieces (its TileView fed with data objects, as closet probe test 1 did);
 -- the NanoSuit detail panel; the key hints; the popup. Each part is made on the first draw after an open and filled
@@ -39,7 +40,8 @@ local RARE=3 -- ESBItemRarityType Rare (the probe's).
 local VISIBLE,COLLAPSED=0,1 -- ESlateVisibility.
 local SINGLE=1 -- ESelectionMode Single (None is 0).
 -- The builder's layout in kit units.
-local TAB_X,TAB_Y,TAB_STEP=160,120,266 -- 9 tabs fit in 160 to 2560.
+local TAB_X,TAB_Y,TAB_STEP=236,120,266 -- 9 tabs from 236, a tab key's icon at each end (the lobby's settings tabs).
+local TAB_ICON_X=86 -- The left tab key's icon (UI_LeftShoulder: Q, the pad's LB); the right one after the last tab.
 local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: a window of 10.
 local GRID_X,GRID_Y,GRID_W,GRID_H=1100,300,1460,1000
 local DETAIL_X,DETAIL_Y=1100,1340
@@ -66,7 +68,7 @@ function View.new(kit,log)
         return {zones=zones}
     end)
     -- What is made and what it shows. top: the rows above the window; count: the rows of the last draw.
-    local tabs,tabs_sig,focus,rows,top,hints,count={},nil,nil,{},0,{},0
+    local tabs,tabs_sig,focus,rows,top,hints,count,keys={},nil,nil,{},0,{},0,{}
     local grid,tiles_sig,selected,detail,detail_sig,popup
     local function make(class,x,y,w,h,fill,hit)
         local rec,why=kit.part(View.GROUP,class,x,y,w,h,fill,hit)
@@ -86,6 +88,10 @@ function View.new(kit,log)
                 call(tabs[i],'tab label',function(w) w.TextValue=FText(label); w:RefreshDesign() end)
             end
         end
+        -- The tab keys' icons, as online/lobby/ui/lobby.lua shows them beside its settings tabs; the hint shows the
+        -- keyboard's key or the pad's button, whichever was used last.
+        sync(keys,View.GROUP,{Parts.hint(TAB_ICON_X,TAB_Y,'','UI_LeftShoulder'),
+            Parts.hint(TAB_X+#s.tabs*TAB_STEP,TAB_Y,'','UI_RightShoulder')},2)
         if focus==s.tab then return end
         focus=s.tab
         for i,rec in ipairs(tabs) do
@@ -193,10 +199,7 @@ function View.new(kit,log)
             w.MessageText=FText('')
             w.ButtonType=3 -- Yes and No.
         end,true)
-        if popup then
-            call(popup,'popup RefreshAll',function(w) w:EventNotification('RefreshAll') end)
-            kit.refocus() -- The popup's Construct took the focus.
-        end
+        if popup then call(popup,'popup RefreshAll',function(w) w:EventNotification('RefreshAll') end) end
     end
 
     function v.draw(s)
@@ -213,6 +216,9 @@ function View.new(kit,log)
         end
         sync(hints,View.GROUP,specs,HINTS)
         draw_popup(s)
+        -- The grid's entries (a fill, a selection) and the popup's Construct take the keyboard focus; on them a key
+        -- reaches EVE (E fired a skill). On the kit's root the game ignores keys (closet/ui/probe.lua test 5).
+        kit.refocus()
     end
 
     -- The tab under the mouse, or nil.
@@ -252,7 +258,7 @@ function View.new(kit,log)
     end
     -- false once a part made since the open is gone.
     function v.alive()
-        for _,set in ipairs({tabs,rows,hints}) do
+        for _,set in ipairs({tabs,rows,hints,keys}) do
             for i=1,math.max(#set,WINDOW) do if set[i] and not kit.alive(set[i]) then return false end end
         end
         for _,rec in ipairs({grid or false,detail or false,popup or false}) do
@@ -267,10 +273,11 @@ function View.new(kit,log)
         for _,rec in ipairs(tabs) do kit.drop(rec) end
         for i=1,WINDOW do kit.drop(rows[i]) end
         for i=1,HINTS do kit.drop(hints[i]) end
+        for i=1,2 do kit.drop(keys[i]) end
         kit.drop(grid)
         kit.drop(detail)
         kit.drop(popup)
-        tabs,tabs_sig,focus,rows,top,hints,count={},nil,nil,{},0,{},0
+        tabs,tabs_sig,focus,rows,top,hints,count,keys={},nil,nil,{},0,{},0,{}
         grid,tiles_sig,selected,detail,detail_sig,popup=nil,nil,nil,nil,nil,nil
     end
     return v

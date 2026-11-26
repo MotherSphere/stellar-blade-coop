@@ -185,6 +185,8 @@ function Menu.new(o)
             local one=tiles[col=='grid' and tile or at]
             if one and one.fit and not one.locked then s.hints[3]={w.hints.whole,'UI_FaceButton_Top'} end
         end
+        -- Move last, on the D-pad's up and down icons, as the lobby shows it (the keyboard's keys or the pad's buttons).
+        s.hints[#s.hints+1]={t.hint.move,'UI_DPad_Up','UI_DPad_Down'}
         if asking then s.popup={title=w.popup.title,desc=w.popup.desc} end
         return s
     end
@@ -358,6 +360,8 @@ function Menu.new(o)
             end
             return
         end
+        -- The grid builds its entries on later frames too, and they take the keyboard focus: back to the kit's root.
+        kit.refocus()
         if t>=guard_at then
             guard_at=t+Menu.GUARD
             local read,key=pcall(closing,t)

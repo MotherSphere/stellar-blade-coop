@@ -138,11 +138,20 @@ local tests = {
         eq(d.CraftState, 0, 'craft state')
         ok(F.called(d, 'EventNotification', 'Refresh'), 'detail Refresh')
         ok(F.called(d.WB_Common_HoldButton, 'SetVisibility', 1), 'hold button hidden')
-        -- The hints: Back, then Wear on a row with pieces.
+        -- The tab keys' icons at both ends of the tab row, then the hints: Back, Wear on a row with pieces, Move.
         local hints = r.kit.live(F.HINT)
-        eq(#hints, 2, 'hints')
-        ok(F.called(hints[1].o, 'SetText') and hints[1].o.calls[1][2].text == T.en.hint.back, 'Back hint')
-        ok(hints[2].o.calls[1][2].text == T.en.closet.hints.wear, 'Wear hint')
+        eq(#hints, 5, 'hints')
+        local function said(h, call)
+            for _, c in ipairs(h.o.calls) do if c[1] == call then return c[2].text or c[2] end end
+        end
+        eq(said(hints[1], 'SetResourceAction'), 'UI_LeftShoulder', 'left tab key') eq(said(hints[1], 'SetText'), '', 'no label')
+        eq(said(hints[2], 'SetResourceAction'), 'UI_RightShoulder', 'right tab key')
+        ok(hints[1].x < tabs[1].x and hints[2].x > tabs[#tabs].x, 'the tab keys around the tabs')
+        eq(said(hints[3], 'SetText'), T.en.hint.back, 'Back hint')
+        eq(said(hints[4], 'SetText'), T.en.closet.hints.wear, 'Wear hint')
+        eq(said(hints[5], 'SetText'), T.en.hint.move, 'Move hint')
+        eq(said(hints[5], 'SetResourceAction'), 'UI_DPad_Up', 'Move icon')
+        eq(said(hints[5], 'SetResourceAction2'), 'UI_DPad_Down', 'Move icon 2')
         for _, rec in ipairs(r.kit.made) do ok(rec.x >= 0 and rec.x < 2560, 'part x ' .. tostring(rec.x)) end
     end,
 
@@ -478,30 +487,33 @@ local tests = {
     select_on_a_full_outfit_row_wears_it = function()
         local r = rig()
         on_top(r)
-        -- The hint texts drawn now, in order.
+        -- The hint texts drawn now, right to left (the hints' order), the tab keys' unlabelled icons left out; icon:
+        -- each hint's first icon by its text.
+        local icon
         local function shown()
-            local out = {}
+            local list, out = {}, {}
+            icon = {}
             for _, h in ipairs(r.kit.live(F.HINT)) do
-                local text
-                for _, c in ipairs(h.o.calls) do if c[1] == 'SetText' then text = c[2].text end end
-                out[#out + 1] = text
+                local text, first
+                for _, c in ipairs(h.o.calls) do
+                    if c[1] == 'SetText' then text = c[2].text elseif c[1] == 'SetResourceAction' then first = c[2] end
+                end
+                if text ~= '' then list[#list + 1] = {x = h.x, text = text}; icon[text] = first end
             end
+            table.sort(list, function(a, b) return a.x > b.x end)
+            for i, h in ipairs(list) do out[i] = h.text end
             return out
         end
-        same(shown(), {T.en.hint.back, T.en.closet.hints.wear}, 'a row of pieces: Back, Wear')
+        local back, wear, whole, move = T.en.hint.back, T.en.closet.hints.wear, T.en.closet.hints.whole, T.en.hint.move
+        same(shown(), {back, wear, move}, 'a row of pieces: Back, Wear, Move')
         at(r, 0.5, 'right')
-        same(shown(), {T.en.hint.back, T.en.closet.hints.wear}, 'the grid on None: Back, Wear')
+        same(shown(), {back, wear, move}, 'the grid on None: Back, Wear, Move')
         at(r, 0.5, 'right')
-        same(shown(), {T.en.hint.back, T.en.closet.hints.wear, T.en.closet.hints.whole},
-            'a piece tile: Back, Wear, Whole outfit (refresh)')
-        local icons = {}
-        for _, h in ipairs(r.kit.live(F.HINT)) do
-            for _, c in ipairs(h.o.calls) do if c[1] == 'SetResourceAction' then icons[#icons + 1] = c[2] end end
-        end
-        eq(tostring(icons[3]), 'UI_FaceButton_Top', 'refresh shows the top face button')
+        same(shown(), {back, wear, whole, move}, 'a piece tile: Back, Wear, Whole outfit (refresh), Move')
+        eq(tostring(icon[whole]), 'UI_FaceButton_Top', 'refresh shows the top face button')
         at(r, 0.5, 'back', 'tab_left', 'tab_left')
         eq((detail(r)), 'Ocean Maid', 'the Full tab')
-        same(shown(), {T.en.hint.back, T.en.closet.hints.whole}, 'the Full tab: Back, Whole outfit')
+        same(shown(), {back, whole, move}, 'the Full tab: Back, Whole outfit, Move')
         at(r, 0.5, 'select')
         same(r.previews, {{{fit = MAID}}}, 'select wears the whole outfit')
         -- A click on the second row too.
@@ -748,6 +760,23 @@ local tests = {
             if how == 'open' then ok(r.menu.is_open(), 'open') end
             eq(r.reverted, 1, how .. ': no revert asked after it')
         end
+    end,
+
+    the_kit_keeps_the_keyboard_focus = function()
+        -- SB's grid entries take the keyboard focus when the grid is filled (closet/ui/probe.lua test 5): a key then
+        -- reaches EVE (E fired a skill, combat closed the menu). Each draw and each tick while open give it back to the
+        -- kit's root, where the game ignores keys.
+        local r = rig()
+        on_top(r)
+        local n = r.kit.refocused
+        at(r, 0.5, 'tab_right')
+        eq(r.kit.refocused, n + 1, 'the tab change refills the grid: focus back at once')
+        tick(r, 0.51)
+        eq(r.kit.refocused, n + 2, 'each tick while open')
+        r.menu.close()
+        n = r.kit.refocused
+        tick(r, 0.6) tick(r, 0.7)
+        eq(r.kit.refocused, n, 'never while closed')
     end,
 
     a_typed_wear_closes_the_menu_without_revert = function()
