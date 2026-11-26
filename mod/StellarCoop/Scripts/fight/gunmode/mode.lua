@@ -961,6 +961,9 @@ function GunMode.new(env)
         end
         local pc=g.pc(); if not pc then return end
         local okp,pz=pcall(paused,g.cdo('/Script/Engine.Default__GameplayStatics'),pc)
+        -- SB's held NIKKE fields back once their hold after put_back is over (fight/gunmode/data.lua tick), with the
+        -- rifle away too; paused time not counted (4389defd)
+        if data.late then pcall(data.tick,now,okp and pz==true) end
         if okp and pz then
             -- (dev only, gun_g1=on) the fixed views once per photo mode, to check the pose holds in it
             if set.g1 and s.on and g.valid(s.rifle) then
@@ -1565,8 +1568,12 @@ function GunMode.new(env)
     end
 
     function self.out() return s.on==true end
-    -- (coop off) gun mode put away for good.
-    function self.stop(why) self.kill() end
+    -- (coop off) gun mode put away for good. SB's rows back, the held NIKKE fields too: no tick runs after it
+    -- (4389defd, 6f1ef41e).
+    function self.stop(why)
+        self.kill()
+        pcall(data.put_back,true)
+    end
     -- Nothing to put back: gun mode keeps no file of its own.
     function self.restore() end
 
