@@ -266,7 +266,8 @@ public:
   };
   // X, L3, R3 and the trigger axes: EKeys' FNames, built from these strings by their static initializers on 26123051
   // (FUN_140973f70, FUN_140973770, FUN_140973870, FUN_140973570, FUN_140973670), which the key display names
-  // (FUN_142bd6b50) give as "Gamepad X", "Left Thumbstick Button", "Right Thumbstick Button" and the trigger axes.
+  // (FUN_142bd6b50) give as "Gamepad X", "Gamepad Left Thumbstick Button", "Gamepad Right Thumbstick Button" and the
+  // trigger axes.
   static constexpr const char *kNames[kKeys] = {"Gamepad_DPad_Up",           "Gamepad_DPad_Down",
                                                 "Gamepad_DPad_Left",         "Gamepad_DPad_Right",
                                                 "Gamepad_FaceButton_Bottom", "Gamepad_FaceButton_Right",
@@ -279,6 +280,23 @@ public:
                                                 "Gamepad_RightTriggerAxis"};
   static constexpr int kIds = 8; // Controller ids 0 to 7; any other is ignored.
   std::array<uint64_t, kKeys> names{}; // The FName values, written once before a hook goes live.
+
+  // X, L3, R3 and the trigger axes are optional: a name the game lacks stays 0, which bit() and analog() ignore. A
+  // missing one of the other 14 leaves XInput as the source (pad_worker.inc).
+  static constexpr bool optional(int key) {
+    return key == kX || key == kL3 || key == kR3 || key == kLT || key == kRT;
+  }
+  // Each key's FName from find(key) (0, or an index of 0, when the game lacks it) into out: the first key that is not
+  // optional the game lacks, or -1.
+  template <class Find> static int find_names(std::array<uint64_t, kKeys> &out, Find &&find) {
+    for (int i = 0; i < kKeys; ++i) {
+      const uint64_t name = find(i);
+      out[i] = uint32_t(name) ? name : 0;
+      if (!out[i] && !optional(i))
+        return i;
+    }
+    return -1;
+  }
 
   // A press sets the held bit and a tap bit; a repeat is no press (Pad makes its own repeats).
   void press(uint64_t key, int32_t id, bool repeat) {

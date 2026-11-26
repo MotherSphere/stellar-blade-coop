@@ -647,6 +647,35 @@ int main() {
     assert(std::string(PadKeys::kNames[PadKeys::kLT]) == "Gamepad_LeftTriggerAxis" &&
            std::string(PadKeys::kNames[PadKeys::kRT]) == "Gamepad_RightTriggerAxis");
   }
+  { // The key names the worker finds (pad_worker.inc): X, L3, R3 and the trigger axes are optional, so one the game
+    // lacks stays 0 and the hook still goes on; any other missing name leaves XInput as the source.
+    const auto lacking = [](int gone) {
+      return [gone](int i) { return i == gone ? uint64_t(0) : uint64_t(1000 + i); };
+    };
+    std::array<uint64_t, PadKeys::kKeys> names{};
+    assert(PadKeys::find_names(names, lacking(-1)) == -1);
+    for (int i = 0; i < PadKeys::kKeys; ++i)
+      assert(names[i] == uint64_t(1000 + i));
+    for (int k = 0; k < PadKeys::kKeys; ++k) {
+      const bool optional =
+          k == PadKeys::kX || k == PadKeys::kL3 || k == PadKeys::kR3 || k == PadKeys::kLT || k == PadKeys::kRT;
+      names.fill(7);
+      const int missing = PadKeys::find_names(names, lacking(k));
+      assert(missing == (optional ? -1 : k));
+      assert(names[k] == 0);
+      if (optional) // Every later name is still found.
+        for (int i = k + 1; i < PadKeys::kKeys; ++i)
+          assert(names[i] == uint64_t(1000 + i));
+    }
+    // An FName whose index (its low 32 bits) is 0 is no name.
+    assert(PadKeys::find_names(names, [](int) { return uint64_t(1) << 32; }) == 0 && names[0] == 0);
+    // With X missing, the game's X press reads as nothing; A still does.
+    PadKeys keys;
+    assert(PadKeys::find_names(keys.names, lacking(PadKeys::kX)) == -1);
+    keys.press(5555, 0, false); // The game's own X key: a name the worker did not learn.
+    keys.press(1000 + PadKeys::kA, 0, false);
+    assert(keys.state().buttons == PadState::A);
+  }
 
   std::puts("pad_test ok");
   return 0;

@@ -293,7 +293,9 @@ it wherever the game's own PlayStation support does). `coop-link.log` says
 
 When the mod cannot take the game's input, `coop-link.log` says why and the mod reads XInput, as versions before it
 did: `pad: the game has no FName <name>; XInput instead`, `pad: Slate's handler is not at 0x145fe5430 (it holds
-<value>); XInput instead` or `pad: Slate's handler refused (<slot> holds <value>); XInput instead`. XInput sees Xbox
+<value>); XInput instead` or `pad: Slate's handler refused (<slot> holds <value>); XInput instead`. A missing name of X,
+L3, R3 or a trigger axis does not stop it: the mod logs `pad: the game has no FName <name>; that key is not read` and
+reads every other key through the game's input. XInput sees Xbox
 controllers, the Steam Deck and controllers under Steam Input. It does not see a DualSense that the game reads through
 its own PlayStation support: turn Steam Input on for Stellar Blade (Steam, right-click the game, Properties,
 Controller) to use one in the menu then. On XInput, `coop-link.log` says at start and at each change which controllers
