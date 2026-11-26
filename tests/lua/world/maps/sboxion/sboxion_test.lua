@@ -3,11 +3,12 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop xion (world/maps/sboxion/commands.lua): alone and with city it asks the warp to the city point, with gate to
 -- the gate point; leave and status go to their own calls; recover goes to its call alone or with on, death or off;
--- rooms goes to its call alone or with on or off; tetrapod goes to its call alone or with in or out; walls, the word of the walls taken out on 24 November 2026, another
--- word or one too many is refused with the use line; without the Steam link every word says so. The wiring
--- (world/maps/sboxion/wiring.lua) builds SBO Xion with two of the Steam link's stores. coop-xion-rooms.txt is the
--- file the rooms keep their hidden rows in. coop-xion-npcs.txt is the file of the NPC bodies' actor paths. It asks
--- for no store without the link. An NPC's line is said in the menu's words.
+-- rooms goes to its call alone or with on or off; tetrapod goes to its call alone, with in or out, or with probe
+-- and up to three words after it, which the module checks; walls, the word of the walls taken out on 24 November
+-- 2026, another word or one too many is refused with the use line; without the Steam link every word says so. The
+-- wiring (world/maps/sboxion/wiring.lua) builds SBO Xion with two of the Steam link's stores. coop-xion-rooms.txt is
+-- the file the rooms keep their hidden rows in. coop-xion-npcs.txt is the file of the NPC bodies' actor paths. It
+-- asks for no store without the link. An NPC's line is said in the menu's words.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Commands=require('world.maps.sboxion.commands')
 local calls={}
@@ -16,10 +17,15 @@ local Cmd=Commands.new({xion={enter=function(name) calls[#calls+1]='enter '..nam
     status=function() calls[#calls+1]='status'; return true,'line' end,
     recover=function(word) calls[#calls+1]='recover '..tostring(word); return true,'mode' end,
     rooms=function(word) calls[#calls+1]='rooms '..tostring(word); return true,'doors' end,
-    tetrapod=function(word) calls[#calls+1]='tetrapod '..tostring(word); return true,'ship' end,
+    tetrapod=function(...)
+        local words={...}
+        for i=1,select('#',...) do words[i]=tostring(words[i]) end
+        calls[#calls+1]='tetrapod '..table.concat(words,' ')
+        return true,'ship'
+    end,
     npc=function(what,value) calls[#calls+1]='npc '..tostring(what)..' '..tostring(value); return true,'body' end}})
-local USE='Use: coop xion [city|gate|leave|status|recover [on|death|off]|rooms [on|off]|tetrapod [in|out]'
-    ..'|npc [<n>|turn <degrees>]]'
+local USE='Use: coop xion [city|gate|leave|status|recover [on|death|off]|rooms [on|off]'
+    ..'|tetrapod [in|out|probe [<n>|only <n>]]|npc [<n>|turn <degrees>]]'
 local ok,line=Cmd.xion()
 assert(ok and line=='in' and calls[1]=='enter city',line)
 ok,line=Cmd.xion('city')
@@ -74,6 +80,14 @@ for i,words in ipairs({{},{'3'},{'turn','90'},{'turn'}}) do
     ok,line=Cmd.xion('npc',words[1],words[2])
     assert(ok and line=='body' and calls[15+i]=='npc '..tostring(words[1])..' '..tostring(words[2]),calls[15+i])
 end
+-- coop xion tetrapod probe hands every word after it to the module, which checks them.
+for i,words in ipairs({{'probe'},{'probe','3'},{'probe','only','3'},{'probe','only','3','now'}}) do
+    ok,line=Cmd.xion('tetrapod',table.unpack(words))
+    local want='tetrapod '..table.concat(words,' ')..string.rep(' nil',4-#words)
+    assert(ok and line=='ship' and calls[19+i]==want,calls[19+i])
+end
+ok,line=Commands.new({}).xion('tetrapod','probe')
+assert(not ok and line=='coop xion needs the Steam link and the native part',line)
 ok,line=Commands.new({}).xion('status')
 assert(not ok and line=='coop xion needs the Steam link and the native part',line)
 ok,line=Commands.new({}).xion('npc')
