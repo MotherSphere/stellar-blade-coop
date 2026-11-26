@@ -490,7 +490,7 @@ return {
                 ..'dragter.',
                 secondary='Handsker, ærmer, sko, strømper, bælter, strømpebånd, remme, bånd og masker.',
                 accent='Smykker, piercinger, ringe, halsbånd, briller og hårpynt.',
-                glow='Gløden på hver del, der gløder. Dens styrke bevares.'},
+                glow='Gløden på dele til kropsglød. Dens styrke bevares.'},
             help='Venstre og højre vælger farven. Fra beholder pakkens farver.',
             swatches={off='Fra',white='Hvid',black='Sort',charcoal='Koksgrå',silver='Sølv',gold='Guld',
                 crimson='Karmoisin',wine='Vinrød',rose='Rosa',violet='Violet',navy='Marineblå',azure='Azurblå',

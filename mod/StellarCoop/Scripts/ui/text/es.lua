@@ -505,7 +505,7 @@ return {
                 ..'sombreros y trajes completos.',
                 secondary='Guantes, mangas, zapatos, medias, cinturones, ligas, correas, bandas y máscaras.',
                 accent='Joyas, piercings, anillos, collares, gafas y accesorios para el pelo.',
-                glow='El brillo de cada pieza que brilla. Su intensidad se mantiene.'},
+                glow='El brillo de las piezas de brillo corporal. Su intensidad se mantiene.'},
             help='Izquierda y derecha eligen el color. Desactivado mantiene los colores del pack.',
             swatches={off='Desactivado',white='Blanco',black='Negro',charcoal='Carbón',silver='Plata',gold='Oro',
                 crimson='Carmesí',wine='Vino',rose='Rosa',violet='Violeta',navy='Azul marino',azure='Azur',

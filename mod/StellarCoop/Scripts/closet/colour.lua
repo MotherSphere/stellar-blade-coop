@@ -9,10 +9,9 @@
 -- rings, metal trims) and Glow (emissive). Each is off (the pack's own colours) or one of SWATCHES. A material slot's
 -- role is the role of the closet slot its piece sits in (Colour.SLOTS lists every closet/slots.lua slot), so mixed
 -- outfits from different packs share one palette. Primary, Secondary and Accent set 'Base Color Tint' to the swatch
--- (the slot's alpha kept). Glow sets 'EmissiveColor' on every slot with a role whose glow is on (not black): the swatch
--- times the glow's brightness (its largest channel), alpha kept. The packs put glows on slots of every kind (jackets,
--- watches, anklets, boots, nails), so Glow reaches them all; a slot whose glow is off keeps it off. Dermal (body
--- glows) takes the glow only.
+-- (the slot's alpha kept). Glow sets 'EmissiveColor' on the slots of its own role (Dermal: body glows) whose glow is on
+-- (not black): the swatch times the glow's brightness (its largest channel), alpha kept. A slot whose glow is off keeps
+-- it off. The glow of a piece in another role's slot (a jacket's, a watch's) keeps the pack's colour.
 -- tick (each frame, on the game thread, menu open or not) puts the palette on when dress.applied() changes (the dress
 -- made its materials and components again: the closet's instances went with them) and when the palette changes. On
 -- each shown material slot of each worn component (dress.parts()) that a set role reaches:
@@ -176,7 +175,7 @@ function Colour.new(o)
             for index,slot in pairs(part.slots) do
                 local role=Colour.role(slot)
                 local tint=role~='glow' and palette[role]
-                local glow=role and palette.glow
+                local glow=role=='glow' and palette.glow
                 local key=i..':'..index
                 local s=(tint or glow) and (slots[key] or instance(part.c,index))
                 if s then

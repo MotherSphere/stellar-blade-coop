@@ -499,7 +499,7 @@ return {
             about={primary="Hoofdkleding: tops, broeken, beha's, ondergoed, jassen, capes, hoeden en hele outfits.",
                 secondary='Handschoenen, mouwen, schoenen, kousen, riemen, kousenbanden, bandjes, banden en maskers.',
                 accent='Sieraden, piercings, ringen, halsbanden, brillen en haaraccessoires.',
-                glow='De gloed van elk stuk dat gloeit. De helderheid blijft.'},
+                glow='De gloed van stukken voor lichaamsgloed. De helderheid blijft.'},
             help='Links en rechts kiezen de kleur. Uit houdt de kleuren van het pakket.',
             swatches={off='Uit',white='Wit',black='Zwart',charcoal='Antraciet',silver='Zilver',gold='Goud',
                 crimson='Karmozijn',wine='Wijnrood',rose='Roze',violet='Violet',navy='Marineblauw',azure='Azuur',

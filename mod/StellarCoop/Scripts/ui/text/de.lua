@@ -516,7 +516,7 @@ return {
                 ..'Outfits.',
                 secondary='Handschuhe, Ärmel, Schuhe, Strümpfe, Gürtel, Strumpfbänder, Riemen, Bänder und Masken.',
                 accent='Schmuck, Piercings, Ringe, Halsbänder, Brillen und Haarschmuck.',
-                glow='Das Leuchten jedes leuchtenden Teils. Seine Helligkeit bleibt.'},
+                glow='Das Leuchten der Teile für Körperleuchten. Seine Helligkeit bleibt.'},
             help='Links und rechts wählen die Farbe. Aus behält die Farben des Pakets.',
             swatches={off='Aus',white='Weiß',black='Schwarz',charcoal='Anthrazit',silver='Silber',gold='Gold',
                 crimson='Karmesin',wine='Weinrot',rose='Rosé',violet='Violett',navy='Marineblau',azure='Azurblau',

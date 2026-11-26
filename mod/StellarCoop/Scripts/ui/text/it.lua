@@ -509,7 +509,7 @@ return {
                 ..'completi.',
                 secondary='Guanti, maniche, scarpe, calze, cinture, giarrettiere, cinghie, fasce e maschere.',
                 accent='Gioielli, piercing, anelli, collari, occhiali e accessori per capelli.',
-                glow='Il bagliore di ogni pezzo che brilla. La sua intensità resta.'},
+                glow='Il bagliore dei pezzi di bagliore del corpo. La sua intensità resta.'},
             help='Sinistra e destra scelgono il colore. Spento mantiene i colori del pack.',
             swatches={off='Spento',white='Bianco',black='Nero',charcoal='Antracite',silver='Argento',gold='Oro',
                 crimson='Cremisi',wine='Vinaccia',rose='Rosa',violet='Viola',navy='Blu navy',azure='Azzurro',

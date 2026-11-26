@@ -506,7 +506,7 @@ return {
                 ..'kokonaiset asut.',
                 secondary='Hanskat, hihat, kengät, sukat, vyöt, sukkanauhat, remmit, nauhat ja naamiot.',
                 accent='Korut, lävistykset, sormukset, kaulapannat, lasit ja hiusasusteet.',
-                glow='Jokaisen hehkuvan osan hehku. Sen kirkkaus säilyy.'},
+                glow='Kehon hehku -osien hehku. Sen kirkkaus säilyy.'},
             help='Vasen ja oikea valitsevat värin. Pois pitää paketin värit.',
             swatches={off='Pois',white='Valkoinen',black='Musta',charcoal='Hiilenharmaa',silver='Hopea',gold='Kulta',
                 crimson='Karmiininpunainen',wine='Viininpunainen',rose='Ruusu',violet='Violetti',

@@ -506,7 +506,7 @@ return {
                 ..'e roupas completas.',
                 secondary='Luvas, mangas, sapatos, meias, cintos, ligas, tiras, faixas e máscaras.',
                 accent='Joias, piercings, anéis, coleiras, óculos e acessórios de cabelo.',
-                glow='O brilho de cada peça que brilha. A intensidade continua a mesma.'},
+                glow='O brilho das peças de brilho do corpo. A intensidade continua a mesma.'},
             help='Esquerda e direita escolhem a cor. Desligado mantém as cores do pacote.',
             swatches={off='Desligado',white='Branco',black='Preto',charcoal='Carvão',silver='Prata',gold='Dourado',
                 crimson='Carmesim',wine='Vinho',rose='Rosa',violet='Violeta',navy='Azul-marinho',azure='Azul-celeste',

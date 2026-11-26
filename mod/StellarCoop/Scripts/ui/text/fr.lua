@@ -509,7 +509,7 @@ return {
                 ..'et tenues complètes.',
                 secondary='Gants, manches, chaussures, bas, ceintures, jarretières, sangles, bandes et masques.',
                 accent='Bijoux, piercings, bagues, colliers, lunettes et accessoires pour cheveux.',
-                glow='La lueur de chaque pièce qui brille. Son intensité reste la même.'},
+                glow='La lueur des pièces de lueur du corps. Son intensité reste la même.'},
             help='Gauche et droite choisissent la couleur. Aucune garde les couleurs du pack.',
             swatches={off='Aucune',white='Blanc',black='Noir',charcoal='Anthracite',silver='Argent',gold='Or',
                 crimson='Cramoisi',wine='Bordeaux',rose='Rose',violet='Violet',navy='Marine',azure='Azur',

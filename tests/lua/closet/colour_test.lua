@@ -132,6 +132,12 @@ local tests = {
         local r = rig()
         r.c.tick()
         eq(r.body.creates, 0, 'nothing set: no instance')
+        -- Glow alone reaches the glow role's slots only (Dermal): none is worn here, the gloves' glow included.
+        ok(r.c.set('glow', 'azure'))
+        r.c.tick()
+        eq(r.body.creates, 0, 'glow alone, no Dermal worn: no instance')
+        ok(r.body.mats[4] == r.glove, 'the gloves (secondary, off) keep their material')
+        ok(r.c.set('glow', 'off'))
         ok(r.c.set('primary', 'crimson'))
         eq(r.body.creates, 0, 'the palette goes on in the tick')
         r.c.tick()
@@ -161,23 +167,32 @@ local tests = {
         R, G, B = rgb('navy')
         near(r.body.mats[4].values[TINT], {R = R, G = G, B = B, A = 1}, 'the gloves: Base Color Tint')
         eq(r.body.mats[3].values[GLOW], nil, 'no glow set')
-        -- Glow: EmissiveColor on every slot with a role whose glow is on, the swatch times its brightness (8).
+        -- Glow: EmissiveColor on the glow role's slots only (Dermal: body glows), the swatch times its brightness.
         r.c.set('glow', 'azure')
         r.c.tick()
-        R, G, B = rgb('azure')
-        near(r.body.mats[4].values[GLOW], {R = 8 * R, G = 8 * G, B = 8 * B, A = 0}, 'the gloves glow azure')
-        eq(r.body.mats[3].values[GLOW], nil, 'the top has no glow: left as it is')
-        eq(r.body.mats[5].values[GLOW], nil, 'the necklace has no glow')
-        eq(r.body.mats[5].values[TINT], nil, 'accent off: no tint on the necklace')
+        eq(r.body.mats[4].values[GLOW], nil, 'the gloves are secondary: their own glow (8) left as it is')
+        eq(r.body.mats[3].values[GLOW], nil, 'the top is primary: no glow set')
+        ok(r.body.mats[5] == r.chain, 'accent off: the necklace keeps its material')
         ok(r.body.mats[0] == r.skin, 'never her skin')
-        -- Dermal (body glows) takes the glow only, never a tint.
+        -- Dermal takes the glow only, never a tint.
         local dermal = material('Glow', {[GLOW] = {R = 0, G = 2, B = 0, A = 1}})
         r.body.mats[7] = dermal
         r.parts[1].slots[7] = 'Dermal'
         r.c.set('accent', 'gold') -- A palette change: the tick runs again.
         r.c.tick()
+        R, G, B = rgb('azure')
         near(r.body.mats[7].values[GLOW], {R = 2 * R, G = 2 * G, B = 2 * B, A = 1}, 'Dermal glows azure')
         eq(r.body.mats[7].values[TINT], nil, 'Dermal: no tint')
+        eq(r.body.mats[4].values[GLOW], nil, 'still no glow on the gloves')
+        eq(r.body.mats[5].values[GLOW], nil, 'nor on the necklace')
+        -- A Dermal piece whose glow is off keeps it off (its instance made, nothing set).
+        local dark = material('Dark')
+        r.body.mats[8] = dark
+        r.parts[1].slots[8] = 'Dermal'
+        r.c.set('secondary', 'off')
+        r.c.tick()
+        ok(r.body.mats[8].mid, 'the dark Dermal piece has an instance')
+        same(r.body.mats[8].sets, {}, 'its glow left off')
     end,
 
     applied_again_when_the_dress_applies = function()
@@ -210,14 +225,14 @@ local tests = {
         r.c.tick()
         ok(r.body.mats[3] == r.top, 'primary off: the top\'s own material back')
         ok(r.body.mats[4] == gloves, 'the gloves keep theirs')
-        -- The glow reaches every slot with a role: the top gets an instance again, the necklace one.
+        -- The glow reaches the glow role's slots only: no instance again for the top, none for the necklace.
         r.c.set('glow', 'azure')
         r.c.tick()
-        eq(r.body.creates, 4, 'the top and the necklace for the glow')
+        eq(r.body.creates, 2, 'no instance for the glow: no Dermal worn')
+        ok(r.body.mats[3] == r.top and r.body.mats[5] == r.chain, 'the top and the necklace keep their materials')
         r.c.set('secondary', 'off')
         r.c.tick()
-        ok(r.body.mats[4] == gloves, 'the glow still reaches the gloves')
-        eq(gloves.values[TINT].R, 0, 'their tint as it was (the material\'s default, black here)')
+        ok(r.body.mats[4] == r.glove, 'secondary off: the gloves\' own material back')
         ok(r.c.off())
         r.c.tick()
         ok(r.body.mats[3] == r.top and r.body.mats[4] == r.glove and r.body.mats[5] == r.chain, 'every material back')
@@ -227,7 +242,7 @@ local tests = {
         r.body.mats[3] = game
         r.c.set('primary', 'crimson')
         r.c.tick()
-        ok(r.body.mats[3] == game, 'the game\'s instance reused') eq(r.body.creates, 4, 'no new one for it')
+        ok(r.body.mats[3] == game, 'the game\'s instance reused') eq(r.body.creates, 2, 'no new one for it')
         r.c.set('primary', 'off')
         r.c.tick()
         ok(r.body.mats[3] == game, 'still the game\'s')

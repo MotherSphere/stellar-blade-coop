@@ -491,7 +491,7 @@ return {
                 ..'antrekk.',
                 secondary='Hansker, ermer, sko, strømper, belter, strømpebånd, stropper, bånd og masker.',
                 accent='Smykker, piercinger, ringer, halsbånd, briller og hårpynt.',
-                glow='Gløden til hver del som gløder. Styrken beholdes.'},
+                glow='Gløden til deler for kroppsglød. Styrken beholdes.'},
             help='Venstre og høyre velger fargen. Av beholder fargene fra pakken.',
             swatches={off='Av',white='Hvit',black='Svart',charcoal='Koksgrå',silver='Sølv',gold='Gull',
                 crimson='Karmosin',wine='Vinrød',rose='Rosa',violet='Fiolett',navy='Marineblå',azure='Asurblå',

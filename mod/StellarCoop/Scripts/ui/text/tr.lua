@@ -501,7 +501,7 @@ return {
                 secondary='Eldivenler, kollar, ayakkabılar, çoraplar, kemerler, jartiyerler, kayışlar, bantlar ve '
                     ..'maskeler.',
                 accent='Takılar, piercingler, yüzükler, tasmalar, gözlükler ve saç aksesuarları.',
-                glow='Parlayan her parçanın parıltısı. Parlaklığı aynı kalır.'},
+                glow='Vücut ışıltısı parçalarının parıltısı. Parlaklığı aynı kalır.'},
             help='Sol ve sağ rengi seçer. Kapalı, paketin renklerini korur.',
             swatches={off='Kapalı',white='Beyaz',black='Siyah',charcoal='Antrasit',silver='Gümüş',gold='Altın',
                 crimson='Kızıl',wine='Şarap',rose='Gül',violet='Mor',navy='Lacivert',azure='Gök mavisi',

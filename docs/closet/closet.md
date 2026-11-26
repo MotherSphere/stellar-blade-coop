@@ -240,7 +240,7 @@ One palette colours every worn piece, whatever pack it comes from. It has four r
 | Primary | Main garments: tops, bottoms, bras, underwear, jackets, capes, hats, skin suits, full outfits | `Base Color Tint` |
 | Secondary | Gloves, sleeves, shoes, legwear, belts, garters, thigh straps, harnesses, armbands, masks | `Base Color Tint` |
 | Accent | Jewellery, piercings, rings, collars, glasses, hair accessories | `Base Color Tint` |
-| Glow | The glow of every piece with a role; body glows (`Dermal`) | `EmissiveColor` |
+| Glow | Body glows (`Dermal`) | `EmissiveColor` |
 
 A material slot takes the role of the closet slot its piece sits in (`Colour.SLOTS` in `colour.lua` lists all 73).
 Her skin, tattoos, makeup, hair, face, eyes, nails and the weapon have no role. Each role is Off (the pack's own
@@ -255,7 +255,8 @@ look?" for it. A revert does not undo it. The palette survives a restart.
 On each shown material slot of a worn piece that a set role reaches, the closet makes a dynamic material instance
 (it reuses one the game put there) and sets the role's parameter. `Base Color Tint` multiplies the piece's base
 colour texture: the truest colour comes on a piece whose texture is white. A glow keeps its brightness and takes the
-swatch's hue. A piece whose glow is off keeps it off. A piece whose material has no such parameter keeps its look.
+swatch's hue. A piece whose glow is off keeps it off. The glow of a piece in another role's slot (a jacket's, a
+watch's) keeps the pack's colour. A piece whose material has no such parameter keeps its look.
 The palette goes on again after every wear, preview, revert and mix again, in the same frame. A role set back to Off
 gives each slot its own material back. Nothing changes while Tachy Mode pauses the mix. `coop off` and
 `coop closet off` give EVE her own materials back. Reset Stellar Closet sets every role back to Off.

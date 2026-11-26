@@ -601,7 +601,7 @@ return {
             about={primary='Main garments: tops, bottoms, bras, underwear, jackets, capes, hats and full outfits.',
                 secondary='Gloves, sleeves, shoes, legwear, belts, garters, straps, bands and masks.',
                 accent='Jewellery, piercings, rings, collars, glasses and hair accessories.',
-                glow='The glow of every piece that glows. Its brightness stays.'},
+                glow='The glow of body glow pieces. Its brightness stays.'},
             help='Left and right pick the colour. Off keeps the colours of the pack.',
             swatches={off='Off',white='White',black='Black',charcoal='Charcoal',silver='Silver',gold='Gold',
                 crimson='Crimson',wine='Wine',rose='Rose',violet='Violet',navy='Navy',azure='Azure',teal='Teal',

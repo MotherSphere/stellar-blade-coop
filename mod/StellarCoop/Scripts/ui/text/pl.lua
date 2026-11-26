@@ -495,7 +495,7 @@ return {
             about={primary='Główne ubrania: góry, doły, staniki, bielizna, kurtki, peleryny, kapelusze i całe stroje.',
                 secondary='Rękawiczki, rękawy, buty, pończochy, paski, podwiązki, rzemienie, opaski i maski.',
                 accent='Biżuteria, kolczyki, pierścionki, obroże, okulary i ozdoby do włosów.',
-                glow='Poświata każdej świecącej części. Jej jasność zostaje.'},
+                glow='Poświata części z poświatą ciała. Jej jasność zostaje.'},
             help='Lewo i prawo wybierają kolor. Wyłączony zostawia kolory paczki.',
             swatches={off='Wyłączony',white='Biały',black='Czarny',charcoal='Grafitowy',silver='Srebrny',gold='Złoty',
                 crimson='Karmazynowy',wine='Winny',rose='Różowy',violet='Fioletowy',navy='Granatowy',azure='Lazurowy',

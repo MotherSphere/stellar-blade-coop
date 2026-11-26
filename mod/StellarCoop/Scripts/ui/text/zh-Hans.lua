@@ -395,7 +395,7 @@ return {
             about={primary='主要服装：上衣、下装、胸罩、内衣、外套、披风、帽子和整套服装。',
                 secondary='手套、袖子、鞋子、腿部服饰、腰带、吊袜带、绑带、环带和面具。',
                 accent='首饰、穿孔饰品、戒指、项圈、眼镜和发饰。',
-                glow='每件发光部件的光。亮度保持不变。'},
+                glow='身体光效部件的光。亮度保持不变。'},
             help='左右键选择颜色。“关闭”保留模组包的颜色。',
             swatches={off='关闭',white='白色',black='黑色',charcoal='炭灰',silver='银色',gold='金色',crimson='绯红',
                 wine='酒红',rose='玫瑰粉',violet='紫罗兰',navy='藏青',azure='天蓝',teal='青绿',emerald='翠绿',sand='沙色'}},
