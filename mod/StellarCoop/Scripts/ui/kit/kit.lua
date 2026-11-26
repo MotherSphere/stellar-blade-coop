@@ -166,6 +166,7 @@ function Ui.kit(opts)
     -- fired for (lost() takes it), and its two lines said.
     local watch,fired,unfocusable_said,never_said=nil,nil,false,false
     local refocus_at=nil -- A mouse button pressed while our UI holds the game's input: when our focus goes back.
+    local retake_said=false -- tick's take-again read failed and said so, once a Lua load.
     local clicked_at=nil -- That button's clock, for the watchdog's focus line.
     local parts,warmed={},{} -- warm_part's object paths in order; those looked up.
     -- SB's last keyboard answer, AZERTY or not: its device byte (opts.uidev) reads 1 for a QWERTY keyboard and 2 for one
@@ -765,6 +766,23 @@ function Ui.kit(opts)
         if refocus_at and now>=refocus_at then
             refocus_at=nil
             self.refocus()
+        end
+        -- SB gives the game its input back on its own (Ghidra, build 26123051): its UI manager's handler 0x1424fabb0,
+        -- bound to FSlateApplication's application activation, and its input device switch 0x1424f9ad0 run handler
+        -- 0x1425bbbb0, which applies FInputModeGameOnly (vtable 0x145a7fa28) when no SB screen counts as showing the
+        -- cursor (ours never does). Then 0x1424f6c30 clears bShowMouseCursor (PC+0x4e0 bit 0). E then reaches the game
+        -- and a click captures the mouse for the camera. While the menu, or a holder that shows the cursor, holds the
+        -- input, a cleared cursor takes the input again.
+        if inputting and not hidden and not off and built and (holder==nil or pointing) then
+            local read,taken=pcall(function()
+                local pc=controller()
+                if not pc or pc.bShowMouseCursor~=false then return false end
+                local g=holder and built.groups[holder]
+                input_mode(true,g and g.field)
+                return true
+            end)
+            if not read and not retake_said then retake_said=true; log('input: not taken again: '..tostring(taken))
+            elseif read and taken then log('input: the game took its input back (SB applied its own input mode): taken again') end
         end
         if not off and next(tweens) then
             run(function()

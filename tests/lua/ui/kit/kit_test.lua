@@ -1115,6 +1115,23 @@ k.input(true); k.input(false); assert(pc.bShowMouseCursor==true,'The value found
 assert(k.paused()==true,'Not ours: a game screen')
 pc.bShowMouseCursor=false
 k.input(true); k.reset(); assert(pc.bShowMouseCursor==false,'coop ui reset')
+-- SB gives the game its input back on its own (a window activation, an input device switch): it applies GameOnly and
+-- clears bShowMouseCursor. While the menu holds the input, the next frame takes it again, once; the value found still
+-- goes back at the end. A holder that shows no cursor (the chat's box) is left alone.
+k.input(true)
+local taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false
+k.tick(clock)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken+1 and pc.bShowMouseCursor==true,'Taken again')
+k.tick(clock)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken+1,'Once')
+k.input(false)
+assert(pc.bShowMouseCursor==false,'The value found goes back')
+k.input(true,'chat')
+taken=count(LIB..'SetInputMode_UIOnlyEx')
+k.tick(clock)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,"Not for the chat's box")
+k.input(false,'chat')
 -- A group that asks for it (the guide, in a world) shows it too; one that takes the input from it without asking hides
 -- it again.
 k.input(true,'guide',true); assert(pc.bShowMouseCursor==true and k.paused()==false,'The guide asks: shown')
