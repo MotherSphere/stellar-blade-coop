@@ -32,11 +32,16 @@ end
 local tests = {
     tabs_leave_out_the_adult_menu = function()
         local t = new().tabs()
-        eq(#t, 8, 'tab count')
+        eq(#t, 9, 'tab count')
         for _, id in ipairs(t) do ok(id ~= 'intimate', 'intimate listed') end
-        eq(t[1], 'full', 'first') eq(t[#t], 'weapon', 'last')
+        eq(t[1], 'full', 'first') eq(t[#t], 'weapon', 'last') eq(t[#t - 1], 'colour', 'Colour after Body')
         local a = new({adult = true}).tabs()
-        eq(#a, 9, 'adult count') eq(a[6], 'intimate', 'intimate place')
+        eq(#a, 10, 'adult count') eq(a[6], 'intimate', 'intimate place')
+    end,
+
+    the_colour_tab_lists_the_four_roles = function()
+        same(new().rows('colour'), {{role = 'primary'}, {role = 'secondary'}, {role = 'accent'}, {role = 'glow'}},
+            'Primary, Secondary, Accent, Glow')
     end,
 
     rows_mark_soon_and_empty = function()
@@ -167,7 +172,7 @@ local tests = {
             local n = 0
             for _, tab in ipairs(m.tabs()) do
                 for _, r in ipairs(tab ~= 'full' and m.rows(tab) or {}) do
-                    for _, t in ipairs(m.tiles(r.slot)) do
+                    for _, t in ipairs(r.slot and m.tiles(r.slot) or {}) do -- The Colour tab's rows have no tiles.
                         ok(t.fit ~= 'ZZ_ORIG', tab .. ' ' .. r.slot .. ': an Original tile')
                         n = n + (t.fit and 1 or 0)
                     end

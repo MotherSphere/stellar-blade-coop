@@ -565,6 +565,16 @@ package.loaded['closet.thumbs']={FILE='coop-closet-thumbs.txt',FULL='full',fs={e
     return {run=function() return true,'th run' end,tick=function() th.ticks=th.ticks+1 end,
         stop=function() th.stops=th.stops+1 end,running=function() return false end}
 end}
+-- The closet's colour layer (closet/colour.lua; closet/colour_test tests it, closet/menu_test its wiring): what new
+-- got, its ticks and stops. Every role is off. It never runs: link.store here gives a name, not a file.
+co={ticks=0,stops=0}
+package.loaded['closet.colour']={FILE='coop-closet-colour.txt',ROLES={'primary','secondary','accent','glow'},
+    SWATCHES={},USE='Use: coop closet colour',new=function(o)
+    co.o=o
+    return {tick=function() co.ticks=co.ticks+1 end,stop=function() co.stops=co.stops+1 end,
+        get=function() return 'off' end,set=function() return true,'co set' end,step=function() return true end,
+        off=function() return true,'co off' end}
+end}
 -- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
 -- stops, what a tick says; its scenes' words.
 sc={}

@@ -559,11 +559,11 @@ return {
     -- panel, an outfit's origin (Original, or Custom and its pack), key hints (Back and Select are hint.back,
     -- hint.select), the Keep this look? and Reset Stellar Closet? popups, why it does not open (refused) and why it
     -- closed (closed), the answers of Make preview pictures (thumbs), the body switched to an outfit (switched), the
-    -- regions whose skin shows on a picked body (clips) and the reset done. Outfit, pack and piece names stay as their
-    -- pack writes them.
+    -- regions whose skin shows on a picked body (clips), the reset done and the Colour tab's words (colour). Outfit,
+    -- pack and piece names stay as their pack writes them.
     closet={
         tabs={head='Head',torso='Torso',arms='Arms',hips='Hips',intimate='Intimate',legs='Legs',body='Body',
-            weapon='Weapon',full='Full outfit'},
+            colour='Colour',weapon='Weapon',full='Full outfit'},
         slots={Face='Face',Hair='Hair',Ponytail='Ponytail',Ears='Ears',Eyes='Eyes',Makeup='Makeup',
             FaceTattoo='Face tattoo',HairAccessory='Hair accessory',Headwear='Headwear',Mask='Mask',Glasses='Glasses',
             EarringL='Earring L',EarringR='Earring R',BrowPiercing='Eyebrow piercing',NosePiercing='Nose piercing',
@@ -596,6 +596,16 @@ return {
         hints={wear='Wear',take_off='Take off',whole='Whole outfit'},
         camera={region='Region',free='Free',reset='Reset camera'}, -- The camera's modes and its Reset hint.
         light={game='Game',studio='Studio',warm='Warm',cool='Cool',rim='Rim'}, -- The preview light presets.
+        -- The Colour tab (closet/colour.lua): each role's row and what it colours, how to pick, each swatch's name.
+        colour={roles={primary='Primary',secondary='Secondary',accent='Accent',glow='Glow'},
+            about={primary='Main garments: tops, bottoms, bras, underwear, jackets, capes, hats and full outfits.',
+                secondary='Gloves, sleeves, shoes, legwear, belts, garters, straps, bands and masks.',
+                accent='Jewellery, piercings, rings, collars, glasses and hair accessories.',
+                glow='The glow of every piece that glows. Its brightness stays.'},
+            help='Left and right pick the colour. Off keeps the colours of the pack.',
+            swatches={off='Off',white='White',black='Black',charcoal='Charcoal',silver='Silver',gold='Gold',
+                crimson='Crimson',wine='Wine',rose='Rose',violet='Violet',navy='Navy',azure='Azure',teal='Teal',
+                emerald='Emerald',sand='Sand'}},
         popup={title='Keep this look?',desc='Yes saves it. No gives EVE the look she had before.',yes='Keep',no='Undo',
             reset_title='Reset Stellar Closet?',
             reset_desc='Every closet piece comes off EVE and the saved look is deleted. Stellar Closet changes nothing '

@@ -467,7 +467,7 @@ return {
         tendril='Tendril',mann='Mann',nier='Machine NieR',orcal='Prototype d\'Orcal',enya='Prototype d\'Enya'}},
     closet={
         tabs={head='Tête',torso='Torse',arms='Bras',hips='Hanches',intimate='Intime',legs='Jambes',body='Corps',
-            weapon='Arme',full='Tenue complète'},
+            colour='Couleur',weapon='Arme',full='Tenue complète'},
         slots={Face='Visage',Hair='Cheveux',Ponytail='Queue de cheval',Ears='Oreilles',Eyes='Yeux',Makeup='Maquillage',
             FaceTattoo='Tatouage du visage',HairAccessory='Accessoire de cheveux',Headwear='Couvre-chef',Mask='Masque',
             Glasses='Lunettes',EarringL="Boucle d'oreille G",EarringR="Boucle d'oreille D",
@@ -504,6 +504,16 @@ return {
         hints={wear='Porter',take_off='Retirer',whole='Tenue complète'},
         camera={region='Zone',free='Libre',reset='Réinitialiser la caméra'},
         light={game='Jeu',studio='Studio',warm='Chaud',cool='Froid',rim='Contre-jour'},
+        colour={roles={primary='Principale',secondary='Secondaire',accent='Accent',glow='Lueur'},
+            about={primary='Vêtements principaux : hauts, bas, soutiens-gorge, sous-vêtements, vestes, capes, chapeaux '
+                ..'et tenues complètes.',
+                secondary='Gants, manches, chaussures, bas, ceintures, jarretières, sangles, bandes et masques.',
+                accent='Bijoux, piercings, bagues, colliers, lunettes et accessoires pour cheveux.',
+                glow='La lueur de chaque pièce qui brille. Son intensité reste la même.'},
+            help='Gauche et droite choisissent la couleur. Aucune garde les couleurs du pack.',
+            swatches={off='Aucune',white='Blanc',black='Noir',charcoal='Anthracite',silver='Argent',gold='Or',
+                crimson='Cramoisi',wine='Bordeaux',rose='Rose',violet='Violet',navy='Marine',azure='Azur',
+                teal='Sarcelle',emerald='Émeraude',sand='Sable'}},
         popup={title='Garder ce look ?',desc="Oui l'enregistre. Non rend à EVE le look d'avant.",yes='Garder',
             no='Annuler',reset_title='Réinitialiser Stellar Closet ?',
             reset_desc='Toutes les pièces de Stellar Closet quittent EVE. Le look enregistré est effacé. '

@@ -450,7 +450,7 @@ return {
         mann='Mann',nier='NieR-maskin',orcal='Orcal-prototype',enya='Enya-prototype'}},
     closet={
         tabs={head='Hode',torso='Overkropp',arms='Armer',hips='Hofter',intimate='Intimt',legs='Bein',body='Kropp',
-            weapon='Våpen',full='Helt antrekk'},
+            colour='Farge',weapon='Våpen',full='Helt antrekk'},
         slots={Face='Ansikt',Hair='Hår',Ponytail='Hestehale',Ears='Ører',Eyes='Øyne',Makeup='Sminke',
             FaceTattoo='Ansiktstatovering',HairAccessory='Hårpynt',Headwear='Hodeplagg',Mask='Maske',
             Glasses='Briller',EarringL='Ørering V',EarringR='Ørering H',BrowPiercing='Øyenbrynspiercing',
@@ -486,6 +486,16 @@ return {
         hints={wear='Ta på',take_off='Ta av',whole='Hele antrekket'},
         camera={region='Område',free='Fri',reset='Tilbakestill kamera'},
         light={game='Spill',studio='Studio',warm='Varm',cool='Kjølig',rim='Motlys'},
+        colour={roles={primary='Primær',secondary='Sekundær',accent='Aksent',glow='Glød'},
+            about={primary='Hovedplagg: overdeler, underdeler, BH-er, undertøy, jakker, kapper, hatter og hele '
+                ..'antrekk.',
+                secondary='Hansker, ermer, sko, strømper, belter, strømpebånd, stropper, bånd og masker.',
+                accent='Smykker, piercinger, ringer, halsbånd, briller og hårpynt.',
+                glow='Gløden til hver del som gløder. Styrken beholdes.'},
+            help='Venstre og høyre velger fargen. Av beholder fargene fra pakken.',
+            swatches={off='Av',white='Hvit',black='Svart',charcoal='Koksgrå',silver='Sølv',gold='Gull',
+                crimson='Karmosin',wine='Vinrød',rose='Rosa',violet='Fiolett',navy='Marineblå',azure='Asurblå',
+                teal='Petrol',emerald='Smaragd',sand='Sand'}},
         popup={title='Beholde dette utseendet?',desc='Ja lagrer det. Nei gir EVE utseendet hun hadde før.',
             yes='Behold',no='Angre',reset_title='Tilbakestille Stellar Closet?',
             reset_desc='Alle delene fra Stellar Closet tas av EVE. Det lagrede utseendet slettes. '

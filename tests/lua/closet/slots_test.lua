@@ -51,9 +51,19 @@ local tests = {
         same(adult, {'PubicHair', 'Anus', 'TattooPubic', 'ClitPiercing', 'LabiaPiercing', 'AnalPlug'})
     end,
     every_menu_lists_slots = function()
-        for _, menu in ipairs(Slots.MENUS) do ok(#Slots.in_menu(menu[1]) > 0, menu[1] .. ' is empty') end
+        -- The Colour tab lists closet/colour.lua's roles, never a slot.
+        for _, menu in ipairs(Slots.MENUS) do
+            if menu[1] == 'colour' then same(Slots.in_menu('colour'), {}, 'the Colour tab lists no slot')
+            else ok(#Slots.in_menu(menu[1]) > 0, menu[1] .. ' is empty') end
+        end
         same(Slots.in_menu('full'), {Slots.FULL_OUTFIT})
         same(Slots.in_menu('weapon'), {'Weapon'})
+    end,
+    the_colour_tab_follows_body = function()
+        local ids = {}
+        for i, menu in ipairs(Slots.MENUS) do ids[i] = menu[1] end
+        same(ids, {'full', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'colour', 'weapon'}, 'the tabs')
+        eq(Slots.ADULT_MENU.colour, false, 'not adult')
     end,
     every_slot_has_a_glyph_png = function()
         -- Each slot's glyph (Slots.glyph) is a 256 px RGBA PNG in closet/ui/icons/ (tools/closet_icons/render.py's):

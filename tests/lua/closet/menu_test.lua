@@ -36,8 +36,21 @@ local function rig(o)
         tell = function(build) r.told[#r.told + 1] = build(T.en) end, log = function(m) r.log[#r.log + 1] = m end,
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
-        camera = o.camera, folder = o.folder, thumbs = o.thumbs})
+        camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour})
     return r
+end
+-- A fake colour layer (closet/colour.lua's face): its palette, its steps and offs.
+local function fake_colour()
+    local Colour = require('closet.colour')
+    local c = {palette = {}, steps = {}, offs = 0}
+    c.get = function(role) return c.palette[role] or 'off' end
+    c.step = function(role, dir)
+        c.steps[#c.steps + 1] = role .. ' ' .. dir
+        c.palette[role] = Colour.cycle(c.get(role), dir)
+        return true
+    end
+    c.off = function() c.offs = c.offs + 1; c.palette = {}; return true end
+    return c
 end
 -- A fake closet camera (closet/ui/camera.lua's face): its calls in order, its ticks' dt and region.
 local function fake_camera()
@@ -885,7 +898,9 @@ local tests = {
     -- Reset Stellar Closet, the Full tab's last row: the game's Yes/No popup; Yes runs coop closet off and closes the
     -- menu without the Keep popup or a revert, so nothing of the closet stays on EVE for its watchdog.
     reset_row_clears_and_stops_the_watchdog = function()
-        local r = rig({before = function(r) r.choices = {{fit = MAID}} end})
+        local col = fake_colour()
+        col.palette.primary = 'crimson'
+        local r = rig({colour = col, before = function(r) r.choices = {{fit = MAID}} end})
         r.menu.open()
         at(r, 0.5, 'down', 'down', 'down')
         local title, desc = detail(r)
@@ -903,11 +918,12 @@ local tests = {
         eq(popups(r), 0, 'No: the popup goes') ok(r.menu.is_open(), 'No: the menu stays')
         at(r, 0.5, 'select', 'back')
         eq(popups(r), 0, 'Back: the popup goes') ok(r.menu.is_open(), 'Back: the menu stays')
-        eq(r.offs, 0, 'nothing reset yet')
+        eq(r.offs, 0, 'nothing reset yet') eq(col.offs, 0, 'the palette kept')
         -- A preview, then Yes.
         at(r, 0.5, 'up', 'up', 'refresh', 'down', 'down', 'select', 'select')
         same(r.previews, {{{fit = KUNOICHI}}}, 'previewed before the reset')
         eq(r.offs, 1, 'coop closet off ran')
+        eq(col.offs, 1, 'the palette cleared (coop-closet-colour.txt)') eq(col.get('primary'), 'off')
         eq(r.reverted + r.confirmed, 0, 'no revert, no confirm')
         same(r.told, {T.en.closet.reset_done}, 'the notice')
         for _, rec in ipairs(r.kit.made) do
@@ -989,7 +1005,7 @@ local tests = {
         ok(desc:find(custom, 1, true), 'a Full outfit row: ' .. desc)
         eq(badge(r), 'custom', 'the custom badge beside the origin line')
         -- The Body tab's Body row: None (the body rule) then each outfit with skin, named after the outfit.
-        at(r, 0.5, 'tab_left', 'tab_left')
+        at(r, 0.5, 'tab_left', 'tab_left', 'tab_left') -- Full, Weapon, Colour, Body.
         eq((detail(r)), T.en.closet.slots.BaseBody, 'the Body row first')
         eq(badge(r), nil, 'no origin line, no badge')
         at(r, 0.5, 'right')
@@ -1012,7 +1028,7 @@ local tests = {
         Fits.BY_ID[MAID].Origin = 'original'
         local good, why = pcall(function()
             eq(Fits.origin(MAID), 'original')
-            at(r, 0.5, 'tab_right', 'tab_right')
+            at(r, 0.5, 'tab_right', 'tab_right', 'tab_right')
             title, desc = detail(r)
             eq(title, 'Ocean Maid', 'the Full outfit row')
             ok(desc:find(T.en.closet.origin.original, 1, true) and not desc:find('Custom', 1, true), desc)
@@ -1303,12 +1319,12 @@ local tests = {
         ok(text and text.x >= 0 and text.x + text.o.wrap <= 2112, 'the notice inside the menu, left of x 2112')
         eq(text.s, '', 'no look: no notice')
         local function body_row()
-            at(r, r.t, 'tab_left', 'tab_left') -- The Body tab, from the Full tab.
+            at(r, r.t, 'tab_left', 'tab_left', 'tab_left') -- The Body tab, from the Full tab (Weapon, Colour, Body).
             eq((detail(r)), T.en.closet.slots.BaseBody, 'the Body row')
             local rows = r.kit.live(F.OPTION)
             table.sort(rows, function(a, b) return a.y < b.y end)
             local value = rows[1].o.Text_ItemValue.text
-            at(r, r.t, 'tab_right', 'tab_right') -- Back on the Full tab.
+            at(r, r.t, 'tab_right', 'tab_right', 'tab_right') -- Back on the Full tab.
             return value
         end
         eq(body_row(), T.en.closet.row.none, 'no look: None')
@@ -1364,31 +1380,83 @@ local tests = {
             for i, rec in ipairs(r.kit.live(F.TAB)) do out[i] = rec.o.TextValue.text end
             return out
         end
-        local ids = {'full', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'weapon'}
+        local ids = {'full', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'colour', 'weapon'}
         local function names(from, to)
             local out = {}
             for i = from, to do out[#out + 1] = T.en.closet.tabs[ids[i]] end
             return out
         end
         same(labels(), names(1, 7), 'tabs 1-7 at the open')
-        -- Tab 9 (Q from the first wraps): tabs 3-9 shown, the last focused, every button inside the window's x.
+        -- Tab 10 (Q from the first wraps): tabs 4-10 shown, the last focused, every button inside the window's x.
         at(r, 0.1, 'tab_left')
-        same(labels(), names(3, 9), 'tabs 3-9')
+        same(labels(), names(4, 10), 'tabs 4-10')
         local tabs = r.kit.live(F.TAB)
-        ok(F.called(tabs[7].o, 'FocusTabButton'), 'tab 9 focused')
+        ok(F.called(tabs[7].o, 'FocusTabButton'), 'tab 10 focused')
         for i, rec in ipairs(tabs) do eq(rec.x, 160 + (i - 1) * 266, 'tab x ' .. i) end
-        -- Back to 8 and 3: the window stays until the focus leaves it.
+        -- Back to 9 and 4: the window stays until the focus leaves it.
         at(r, 0.1, 'tab_left')
-        same(labels(), names(3, 9), 'tab 8: the window stays')
-        -- A click on the first button shown is tab 3 (torso).
+        same(labels(), names(4, 10), 'tab 9: the window stays')
+        -- A click on the first button shown is tab 4 (arms).
         r.kit.live(F.TAB)[1].o.Button_Action.hover = true
         at(r, 0.1, 'click')
-        eq((detail(r)), 'Chest tattoo', 'a click on the first shown tab: torso')
-        same(labels(), names(3, 9), 'tab 3: the window stays')
+        eq((detail(r)), 'Upper arm tattoo', 'a click on the first shown tab: arms')
+        same(labels(), names(4, 10), 'tab 4: the window stays')
         at(r, 0.1, 'tab_left')
-        same(labels(), names(2, 8), 'tab 2: the window follows')
-        at(r, 0.1, 'tab_left', 'tab_left')
-        same(labels(), names(3, 9), 'tab 9 again after the wrap')
+        same(labels(), names(3, 9), 'tab 3: the window follows')
+        at(r, 0.1, 'tab_left', 'tab_left', 'tab_left')
+        same(labels(), names(4, 10), 'tab 10 again after the wrap')
+    end,
+
+    -- The Colour tab (after Body): a row for each role of closet/colour.lua, its value the swatch's name. Left, right,
+    -- Select and a click on the row pick the swatch; nothing is previewed, so Back asks nothing. The camera frames her
+    -- whole body.
+    the_colour_tab_picks_a_swatch_per_role = function()
+        local col, cam = fake_colour(), fake_camera()
+        local r = rig({colour = col, camera = cam})
+        r.menu.open()
+        at(r, 0.5, 'tab_left', 'tab_left') -- Full, Weapon, Colour.
+        local function rows()
+            local out = r.kit.live(F.OPTION)
+            table.sort(out, function(a, b) return a.y < b.y end)
+            local list = {}
+            for i, rec in ipairs(out) do list[i] = rec.o.Text_TitleValue.text .. '=' .. rec.o.Text_ItemValue.text end
+            return list
+        end
+        local w = T.en.closet.colour
+        same(rows(), {w.roles.primary .. '=Off', w.roles.secondary .. '=Off', w.roles.accent .. '=Off',
+            w.roles.glow .. '=Off'}, 'the four rows, each Off')
+        local title, desc = detail(r)
+        eq(title, w.roles.primary, 'the detail names the role')
+        eq(desc, w.about.primary .. '\n' .. w.help, 'what it colours and how to pick')
+        local hints = {} -- The menu's hint row (y 1990, under the camera's), each part's last text.
+        for _, h in ipairs(r.kit.live(F.HINT)) do
+            local text
+            for _, c in ipairs(h.o.calls) do if c[1] == 'SetText' then text = c[2].text or c[2] end end
+            if h.y == 1990 then hints[#hints + 1] = text end
+        end
+        same(hints, {T.en.hint.back, T.en.hint.select, T.en.hint.move}, 'Back, Select, Move')
+        at(r, 0.5, 'right')
+        eq(rows()[1], w.roles.primary .. '=' .. w.swatches.white, 'right: the next swatch')
+        at(r, 0.5, 'select')
+        eq(rows()[1], w.roles.primary .. '=' .. w.swatches.black, 'Select: the next swatch')
+        at(r, 0.5, 'left')
+        eq(rows()[1], w.roles.primary .. '=' .. w.swatches.white, 'left: the one before')
+        at(r, 0.5, 'down', 'left')
+        eq(rows()[2], w.roles.secondary .. '=' .. w.swatches.sand, 'left from Off: the last swatch')
+        eq((detail(r)), w.roles.secondary, 'the Secondary row focused')
+        same(col.steps, {'primary 1', 'primary 1', 'primary -1', 'secondary -1'}, 'the steps')
+        eq(#r.previews, 0, 'nothing previewed')
+        tick(r, 0.6)
+        eq(cam.ticks[#cam.ticks].region, 'full', 'her whole body framed')
+        at(r, 0.7, 'back')
+        eq(popups(r), 0, 'no Keep popup') eq(r.menu.is_open(), false, 'closed')
+        eq(col.palette.primary, 'white', 'the palette stays: it is saved apart from the look')
+        -- Without a colour layer the rows show Off and pick nothing.
+        r = rig()
+        r.menu.open()
+        at(r, 0.5, 'tab_left', 'tab_left', 'right', 'select')
+        same(rows(), {w.roles.primary .. '=Off', w.roles.secondary .. '=Off', w.roles.accent .. '=Off',
+            w.roles.glow .. '=Off'}, 'no layer: Off')
     end,
 
     grid_up_down_walk_rows_of_five = function()
@@ -1619,7 +1687,7 @@ local tests = {
         -- closet/wiring.lua's frame tick under main/frame.lua's guard (run below as frame.lua runs it: an error is
         -- logged, the frame goes on).
         local saved = {}
-        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring'}) do
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.colour', 'closet.wiring'}) do
             saved[name] = package.loaded[name]
         end
         local runs, errors = {}, {}
@@ -1628,6 +1696,9 @@ local tests = {
         end}
         package.loaded['closet.ui.probe'] = {new = function()
             return {tick = function() runs[#runs + 1] = 'probe'; error('probe broke') end, stop = function() end}
+        end}
+        package.loaded['closet.colour'] = {FILE = 'coop-closet-colour.txt', new = function()
+            return {tick = function() runs[#runs + 1] = 'colour' end, stop = function() end}
         end}
         package.loaded['closet.wiring'] = nil
         local M = {print = function() end}
@@ -1639,7 +1710,7 @@ local tests = {
         M.closet_menu = {tick = function() runs[#runs + 1] = 'menu' end}
         M.guarded('closet', M.closet.tick)
         for name, mod in pairs(saved) do package.loaded[name] = mod end
-        same(runs, {'dress', 'probe', 'menu'}, 'every tick ran')
+        same(runs, {'dress', 'colour', 'probe', 'menu'}, 'every tick ran')
         eq(#errors, 2, 'both errors reported: ' .. table.concat(errors, ' | '))
         ok(errors[1]:find('dress broke', 1, true) and errors[2]:find('probe broke', 1, true),
             table.concat(errors, ' | '))
@@ -1790,6 +1861,7 @@ local tests = {
         kit.screen = function() return {w = 3840, h = 2160} end
         local M = {print = function() end, kit = kit, closet = dress, words = function() return T.en end,
             tell = function() end, photo_state = function() return '0' end, closet_thumbs = {run = function() end},
+            closet_colour = fake_colour(),
             link = {status = function() return '' end, store = function(name)
                 stored[#stored + 1] = name
                 return {save = function() return true end, load = function() end, clear = function() end}
@@ -1806,6 +1878,62 @@ local tests = {
         same({got.pad_levels()}, {0.5, -0.5, 0, 1}, 'the pad levels')
         ok(menu_got.camera ~= nil and menu_got.camera.word ~= nil, 'the menu has the camera')
         ok(menu_got.thumbs == M.closet_thumbs, 'the menu has coop closet thumbs (its Make preview pictures row)')
+        ok(menu_got.colour == M.closet_colour, 'the menu has the colour layer (its Colour tab)')
+    end,
+
+    the_wiring_builds_the_colour_layer = function()
+        -- closet/wiring.lua's new: the colour layer over the dress with coop-closet-colour.txt through the link, as
+        -- M.closet_colour; ticked each frame right after the dress (menu open or not), stopped by coop off; the palette
+        -- of coop closet colour.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring'}) do
+            saved[name] = package.loaded[name]
+        end
+        local runs = {}
+        package.loaded['closet.dress'] = {new = function()
+            return {tick = function() runs[#runs + 1] = 'dress' end,
+                stop = function() runs[#runs + 1] = 'dress stop' end,
+                installed = function() return true end, applied = function() return 0 end,
+                parts = function() return {} end}
+        end}
+        package.loaded['closet.ui.probe'] = {new = function()
+            return {tick = function() end, stop = function() end}
+        end}
+        package.loaded['closet.wiring'] = nil
+        local Colour = require('closet.colour')
+        local colour_new, got = Colour.new, nil
+        Colour.new = function(o) got = o; return colour_new(o) end
+        local stored, files = {}, {}
+        local M = {print = function() end, guarded = function(_, f, ...) return f(...) end,
+            link = {status = function() return '' end, store = function(name)
+                stored[#stored + 1] = name
+                return {save = function(line) files[name] = line; return true end,
+                    load = function() return files[name] end, clear = function() files[name] = nil end}
+            end}}
+        local ran, why = pcall(function()
+            local commands = require('closet.wiring').new(M)
+            ok(M.closet_colour ~= nil, 'M.closet_colour')
+            ok(got.dress == M.closet, 'over the dress')
+            local named = false
+            for _, name in ipairs(stored) do named = named or name == 'coop-closet-colour.txt' end
+            ok(named, 'coop-closet-colour.txt through the link: ' .. table.concat(stored, ', '))
+            local tick = M.closet_colour.tick
+            M.closet_colour.tick = function() runs[#runs + 1] = 'colour'; return tick() end
+            M.closet.tick()
+            eq(runs[1], 'dress') eq(runs[2], 'colour', 'the colour tick right after the dress\'s')
+            local good, line = commands.closet('colour', 'accent', 'gold', nil, nil, nil)
+            ok(good, line)
+            eq(files['coop-closet-colour.txt'], 'accent=gold', 'coop closet colour sets the palette')
+            local stop = M.closet_colour.stop
+            M.closet_colour.stop = function() runs[#runs + 1] = 'colour stop'; return stop() end
+            M.closet.stop()
+            local stopped = false
+            for _, r in ipairs(runs) do stopped = stopped or r == 'colour stop' end
+            ok(stopped, 'coop off stops it')
+        end)
+        Colour.new = colour_new
+        for name, mod in pairs(saved) do package.loaded[name] = mod end
+        ok(ran, tostring(why))
     end,
 
     every_close_path_drops_every_part = function()

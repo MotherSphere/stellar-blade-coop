@@ -898,5 +898,54 @@ local tests = {
         w.d.off()
         eq(w.eve.Mesh.SkeletalMesh.path, OWN) eq(#w.eve.comps, 1)
     end,
+    -- closet/colour.lua puts its palette on again when applied() changes: at every apply (wear, preview, revert, the
+    -- watchdog's mix again), her own look previewed and off.
+    applied_grows_with_every_change_of_her_look = function()
+        local w = world()
+        eq(w.d.applied(), 0, 'nothing yet')
+        assert(w.d.wear(A))
+        eq(w.d.applied(), 1, 'a wear')
+        ok(not w.d.wear({{fit = 'nope'}}))
+        eq(w.d.applied(), 1, 'a wear that fails changes nothing')
+        assert(w.d.preview(B))
+        eq(w.d.applied(), 2, 'a preview')
+        assert(w.d.preview({}))
+        eq(w.d.applied(), 3, 'her own look previewed')
+        assert(w.d.revert())
+        eq(w.d.applied(), 4, 'the confirmed look worn again')
+        w.eve.Mesh:SetSkeletalMesh(w.assets[OWN])
+        second(w) second(w)
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'mixed again')
+        eq(w.d.applied(), 5, 'the watchdog\'s mix again')
+        w.d.off()
+        eq(w.d.applied(), 6, 'off')
+    end,
+    -- The worn components with their shown material slots and the closet slot each belongs to (closet/colour.lua's
+    -- read): her body first, its skin slots as BaseBody; nil while the mix is paused.
+    parts_list_the_shown_slots_and_their_closet_slot = function()
+        local w = world()
+        same(w.d.parts(), {}, 'nothing worn: no part')
+        assert(w.d.wear(A)) -- Kunoichi's boots on her body with its skin, Ocean Maid's top on an added mesh.
+        local parts = w.d.parts()
+        eq(#parts, 2, 'her body, then the added mesh')
+        ok(parts[1].c == w.eve.Mesh, 'her body first') ok(parts[2].c == w.eve.comps[2], 'the added mesh')
+        same(parts[1].slots, {[0] = 'BaseBody', [1] = 'BaseBody', [2] = 'BaseBody', [19] = 'Shoes', [20] = 'Shoes',
+            [33] = 'Shoes', [35] = 'Shoes'}, 'the boots and the skin')
+        local top = {}
+        for _, i in ipairs({15, 44, 19, 47, 18, 16, 29, 30, 20, 22, 21, 31}) do top[i] = 'Chest' end
+        same(parts[2].slots, top, 'the top')
+        assert(w.d.skin(NINJA, 1, false))
+        eq(w.d.parts()[1].slots[1], nil, 'a slot coop closet skin hides is not listed')
+        -- Ocean Maid's nails under Kunoichi's gloves are hidden: not listed.
+        assert(w.d.wear(GLOVES))
+        parts = w.d.parts()
+        same(parts[1].slots, {[0] = 'BaseBody', [16] = 'Gloves', [17] = 'Gloves'}, 'gloves, no arms or hands skin')
+        same(parts[2].slots, {}, 'the nails hidden')
+        w.eve.Mesh:SetSkeletalMesh(w.assets[TACHY])
+        second(w)
+        eq(w.d.parts(), nil, 'paused by Tachy Mode: nil')
+        w.d.off()
+        same(w.d.parts(), {}, 'off: nothing')
+    end,
 }
 run('dress_test', tests)

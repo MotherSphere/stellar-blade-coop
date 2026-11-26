@@ -460,7 +460,7 @@ return {
         enya='Enya prototipi'}},
     closet={
         tabs={head='Baş',torso='Gövde',arms='Kollar',hips='Kalça',intimate='Mahrem',legs='Bacaklar',body='Vücut',
-            weapon='Silah',full='Tüm kıyafet'},
+            colour='Renk',weapon='Silah',full='Tüm kıyafet'},
         slots={Face='Yüz',Hair='Saç',Ponytail='At kuyruğu',Ears='Kulaklar',Eyes='Gözler',Makeup='Makyaj',
             FaceTattoo='Yüz dövmesi',HairAccessory='Saç aksesuarı',Headwear='Başlık',Mask='Maske',Glasses='Gözlük',
             EarringL='Küpe Sol',EarringR='Küpe Sağ',BrowPiercing='Kaş piercingi',NosePiercing='Burun piercingi',
@@ -495,6 +495,17 @@ return {
         hints={wear='Giy',take_off='Çıkar',whole='Tüm kıyafet'},
         camera={region='Bölge',free='Serbest',reset='Kamerayı sıfırla'},
         light={game='Oyun',studio='Stüdyo',warm='Sıcak',cool='Soğuk',rim='Kontra'},
+        colour={roles={primary='Birincil',secondary='İkincil',accent='Vurgu',glow='Parıltı'},
+            about={primary='Ana giysiler: üstler, altlar, sütyenler, iç çamaşırları, ceketler, pelerinler, şapkalar ve '
+                ..'tüm kıyafetler.',
+                secondary='Eldivenler, kollar, ayakkabılar, çoraplar, kemerler, jartiyerler, kayışlar, bantlar ve '
+                    ..'maskeler.',
+                accent='Takılar, piercingler, yüzükler, tasmalar, gözlükler ve saç aksesuarları.',
+                glow='Parlayan her parçanın parıltısı. Parlaklığı aynı kalır.'},
+            help='Sol ve sağ rengi seçer. Kapalı, paketin renklerini korur.',
+            swatches={off='Kapalı',white='Beyaz',black='Siyah',charcoal='Antrasit',silver='Gümüş',gold='Altın',
+                crimson='Kızıl',wine='Şarap',rose='Gül',violet='Mor',navy='Lacivert',azure='Gök mavisi',
+                teal='Camgöbeği',emerald='Zümrüt',sand='Kum'}},
         popup={title='Bu görünüm kalsın mı?',desc="Evet kaydeder. Hayır EVE'e önceki görünümünü geri verir.",
             yes='Kalsın',no='Geri al',reset_title='Stellar Closet sıfırlansın mı?',
             reset_desc="Stellar Closet'ın tüm parçaları EVE'den çıkarılır. Kaydedilen görünüm silinir. "

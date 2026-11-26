@@ -21,10 +21,11 @@ local Slots = {}
 
 Slots.FULL_OUTFIT = 'FullOutfit'
 
--- The menu's regions, in screen order: {id, adult}.
+-- The menu's tabs, in screen order: {id, adult}. Each is a region that lists its slots. The Colour tab (colour) lists
+-- closet/colour.lua's roles instead.
 Slots.MENUS = {
     {'full', false}, {'head', false}, {'torso', false}, {'arms', false}, {'hips', false}, {'intimate', true},
-    {'legs', false}, {'body', false}, {'weapon', false},
+    {'legs', false}, {'body', false}, {'colour', false}, {'weapon', false},
 }
 
 -- {id, layer, group, kind, menu, glyph}

@@ -462,7 +462,7 @@ return {
         mann='Mann',nier='NieR-kone',orcal='Orcal-prototyyppi',enya='Enya-prototyyppi'}},
     closet={
         tabs={head='Pää',torso='Vartalo',arms='Kädet',hips='Lantio',intimate='Intiimi',legs='Jalat',body='Keho',
-            weapon='Ase',full='Koko asu'},
+            colour='Väri',weapon='Ase',full='Koko asu'},
         slots={Face='Kasvot',Hair='Hiukset',Ponytail='Poninhäntä',Ears='Korvat',Eyes='Silmät',Makeup='Meikki',
             FaceTattoo='Kasvotatuointi',HairAccessory='Hiuskoru',Headwear='Päähine',Mask='Naamio',
             Glasses='Silmälasit',EarringL='Korvakoru V',EarringR='Korvakoru O',BrowPiercing='Kulmalävistys',
@@ -501,6 +501,16 @@ return {
         hints={wear='Pue',take_off='Riisu',whole='Koko asu'},
         camera={region='Alue',free='Vapaa',reset='Nollaa kamera'},
         light={game='Peli',studio='Studio',warm='Lämmin',cool='Viileä',rim='Takavalo'},
+        colour={roles={primary='Ensisijainen',secondary='Toissijainen',accent='Korostus',glow='Hehku'},
+            about={primary='Päävaatteet: yläosat, alaosat, rintaliivit, alusvaatteet, takit, viitat, hatut ja '
+                ..'kokonaiset asut.',
+                secondary='Hanskat, hihat, kengät, sukat, vyöt, sukkanauhat, remmit, nauhat ja naamiot.',
+                accent='Korut, lävistykset, sormukset, kaulapannat, lasit ja hiusasusteet.',
+                glow='Jokaisen hehkuvan osan hehku. Sen kirkkaus säilyy.'},
+            help='Vasen ja oikea valitsevat värin. Pois pitää paketin värit.',
+            swatches={off='Pois',white='Valkoinen',black='Musta',charcoal='Hiilenharmaa',silver='Hopea',gold='Kulta',
+                crimson='Karmiininpunainen',wine='Viininpunainen',rose='Ruusu',violet='Violetti',
+                navy='Laivastonsininen',azure='Taivaansininen',teal='Sinivihreä',emerald='Smaragdi',sand='Hiekka'}},
         popup={title='Pidetäänkö tämä tyyli?',desc='Kyllä tallentaa sen. Ei palauttaa EVElle aiemman tyylin.',
             yes='Pidä',no='Kumoa',reset_title='Nollataanko Stellar Closet?',
             reset_desc='Kaikki Stellar Closetin osat riisutaan EVEltä. Tallennettu tyyli poistetaan. '

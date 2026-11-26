@@ -362,7 +362,7 @@ return {
         leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR机械',orcal='Orcal原型',
         enya='Enya原型'}},
     closet={
-        tabs={head='头部',torso='躯干',arms='手臂',hips='臀部',intimate='私密',legs='腿部',body='身体',weapon='武器',
+        tabs={head='头部',torso='躯干',arms='手臂',hips='臀部',intimate='私密',legs='腿部',body='身体',colour='颜色',weapon='武器',
             full='整套服装'},
         slots={Face='脸',Hair='头发',Ponytail='马尾',Ears='耳朵',Eyes='眼睛',Makeup='妆容',FaceTattoo='面部纹身',
             HairAccessory='发饰',Headwear='头饰',Mask='面罩',Glasses='眼镜',EarringL='左耳环',EarringR='右耳环',
@@ -391,6 +391,14 @@ return {
         hints={wear='穿上',take_off='脱下',whole='整套服装'},
         camera={region='部位',free='自由',reset='重置镜头'},
         light={game='游戏',studio='影棚',warm='暖色',cool='冷色',rim='轮廓光'},
+        colour={roles={primary='主色',secondary='副色',accent='点缀',glow='发光'},
+            about={primary='主要服装：上衣、下装、胸罩、内衣、外套、披风、帽子和整套服装。',
+                secondary='手套、袖子、鞋子、腿部服饰、腰带、吊袜带、绑带、环带和面具。',
+                accent='首饰、穿孔饰品、戒指、项圈、眼镜和发饰。',
+                glow='每件发光部件的光。亮度保持不变。'},
+            help='左右键选择颜色。“关闭”保留模组包的颜色。',
+            swatches={off='关闭',white='白色',black='黑色',charcoal='炭灰',silver='银色',gold='金色',crimson='绯红',
+                wine='酒红',rose='玫瑰粉',violet='紫罗兰',navy='藏青',azure='天蓝',teal='青绿',emerald='翠绿',sand='沙色'}},
         popup={title='保留这个造型吗？',desc='选“是”保存。选“否”让EVE恢复之前的造型。',yes='保留',no='撤销',
             reset_title='要重置Stellar Closet吗？',
             reset_desc='Stellar Closet的所有部件都会从EVE身上移除，已保存的造型会被删除。'

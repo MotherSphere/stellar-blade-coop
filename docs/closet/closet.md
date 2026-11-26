@@ -21,6 +21,8 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet probe <1-6\|off>` | Runs one in-game test of the game's widget parts for the closet menu (1-5) or of the reads for its camera and fit (6). It writes `probe:` PASS/FAIL lines to UE4SS.log. `off` ends it |
 | `coop closet body <auto\|shoes\|first\|<fit>>` | Sets the body rule of the next wears until the next Lua load: `auto` (the default, below), `shoes` (the outfit that supplies the shoes, else the first), `first` (the first outfit) or a fit id with skin, which forces that body |
 | `coop closet skin <fit> <slot> on\|off` | Shows or hides one material slot (a number) of that outfit's mesh now, on every LOD, for trying a setup in game. The next wear clears it |
+| `coop closet colour <role> <swatch\|off>` | Sets one role of the colour palette (`primary`, `secondary`, `accent` or `glow`) to a swatch, or back to the packs' own colours with `off`. See [Colours](#colours) |
+| `coop closet colour off` | Sets every role back to the packs' own colours and deletes `coop-closet-colour.txt` |
 
 For example, `coop closet wear AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462:Shoes` wears Ocean Maid's top and
 stockings with Kunoichi Shadow's boots.
@@ -55,8 +57,8 @@ it can no longer wear (an outfit pack removed) are dropped with one log line. He
 
 ## How it works
 
-The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua` and `thumbs.lua`, which make engine
-calls.
+The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`, `thumbs.lua` and `colour.lua`, which
+make engine calls.
 
 | File | Holds |
 | --- | --- |
@@ -68,6 +70,7 @@ calls.
 | `dress.lua` | `coop closet wear`: the plan from fit maps, the mix on EVE, the once-a-second watchdog, her own look kept and given back |
 | `fits.lua` | Fit maps: which material slots of a CNS full outfit make each piece and which show the skin (Ocean Maid, Kunoichi Shadow). Each outfit's own picture (its pack's `OutfitImage`) |
 | `thumbs.lua` | `coop closet thumbs`: the capture rig (one picture a frame) and the picture cache's folders, files and stamps |
+| `colour.lua` | `coop closet colour`: the palette, each slot's role, the swatches and the dynamic material instances on the worn pieces |
 
 The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
 
@@ -80,11 +83,11 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
 
-`wiring.lua` builds `dress.lua` as `M.closet`, `thumbs.lua` as `M.closet_thumbs` and `commands.lua`. Its build step
-`menu`, which `main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu` (with
-`M.closet_thumbs` for its Make preview pictures row). `main/frame.lua` runs the restore
-at the first tick and the dress, probe, thumbs and menu ticks each frame. `coop off` stops them. The module reads no
-other module.
+`wiring.lua` builds `dress.lua` as `M.closet`, `colour.lua` as `M.closet_colour`, `thumbs.lua` as `M.closet_thumbs`
+and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as
+`M.closet_menu` (with `M.closet_thumbs` for its Make preview pictures row and `M.closet_colour` for its Colour tab).
+`main/frame.lua` runs the restore at the first tick and the dress, colour, probe, thumbs and menu ticks each frame.
+`coop off` stops them. The module reads no other module.
 
 ## The closet menu
 
@@ -126,7 +129,8 @@ look stays that way. A notice says it once too. The row before the last of the F
 starts `coop closet thumbs` for every picture not there yet (see [Preview pictures](#preview-pictures)). The last row
 of the Full outfit tab, Reset Stellar Closet, asks with
 the game's Yes/No popup. Yes runs `coop closet off`: every closet piece leaves EVE, `coop-closet.txt` is cleared and
-the menu closes without asking to keep the look. From then on the closet changes nothing until a look is worn again.
+the menu closes without asking to keep the look. It also sets every colour role back to Off (`coop-closet-colour.txt`
+is deleted) and clears the camera file. From then on the closet changes nothing until a look is worn again.
 
 Back with nothing changed since the open closes the menu and gives back the look worn before. After a change, Back asks
 "Keep this look?" with the game's Yes/No popup. Yes keeps the look: it is saved and survives a reload. No gives back
@@ -227,6 +231,35 @@ both modes. They leave with the camera on every close. The preset and the intens
 `coop-closet-camera.txt` and survive a restart. Reset Stellar Closet sets Game at x1 again. The intensities are
 starting values, to tune in game.
 
+### Colours
+
+One palette colours every worn piece, whatever pack it comes from. It has four roles:
+
+| Role | What it colours | Parameter |
+| --- | --- | --- |
+| Primary | Main garments: tops, bottoms, bras, underwear, jackets, capes, hats, skin suits, full outfits | `Base Color Tint` |
+| Secondary | Gloves, sleeves, shoes, legwear, belts, garters, thigh straps, harnesses, armbands, masks | `Base Color Tint` |
+| Accent | Jewellery, piercings, rings, collars, glasses, hair accessories | `Base Color Tint` |
+| Glow | The glow of every piece with a role; body glows (`Dermal`) | `EmissiveColor` |
+
+A material slot takes the role of the closet slot its piece sits in (`Colour.SLOTS` in `colour.lua` lists all 73).
+Her skin, tattoos, makeup, hair, face, eyes, nails and the weapon have no role. Each role is Off (the pack's own
+colours) or one of 14 swatches: White, Black, Charcoal, Silver, Gold, Crimson, Wine, Rose, Violet, Navy, Azure, Teal,
+Emerald and Sand. The swatches are linear RGB values picked to read well as a tint on cloth.
+
+The Colour tab, after the Body tab, has one row for each role. The row shows the swatch. Right, Select or a click on
+the row takes the next swatch, left the one before; Off comes before White. The camera frames her whole body. A
+colour change is saved at once in `coop-closet-colour.txt`, apart from the look. The menu does not ask "Keep this
+look?" for it. A revert does not undo it. The palette survives a restart.
+
+On each shown material slot of a worn piece that a set role reaches, the closet makes a dynamic material instance
+(it reuses one the game put there) and sets the role's parameter. `Base Color Tint` multiplies the piece's base
+colour texture: the truest colour comes on a piece whose texture is white. A glow keeps its brightness and takes the
+swatch's hue. A piece whose glow is off keeps it off. A piece whose material has no such parameter keeps its look.
+The palette goes on again after every wear, preview, revert and mix again, in the same frame. A role set back to Off
+gives each slot its own material back. Nothing changes while Tachy Mode pauses the mix. `coop off` and
+`coop closet off` give EVE her own materials back. Reset Stellar Closet sets every role back to Off.
+
 ## Online sessions
 
 The ghost's capture (`online/partner/capture.lua`) reads every skeletal mesh component on EVE. Pieces on EVE show on
@@ -274,6 +307,9 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
 
 - `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.
 - `tests/lua/closet/closet_test.lua` checks `coop closet`.
+- `tests/lua/closet/colour_test.lua` runs the colour layer on a fake dress and fake components: every slot's role, the
+  swatch cycle, instances only where a set role reaches, the parameter names, the palette put on again after a wear,
+  Off giving the materials back, the palette file and `coop closet colour`.
 - `tests/lua/closet/thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
   sections, the rig's settings and its removal on each end path, the refusals, a run from the menu that waits for its
   close and the framing.

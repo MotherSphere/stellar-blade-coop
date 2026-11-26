@@ -447,7 +447,7 @@ return {
         mann='Mann',nier='NieR-maskin',orcal='Orcal-prototyp',enya='Enya-prototyp'}},
     closet={
         tabs={head='Huvud',torso='Bål',arms='Armar',hips='Höfter',intimate='Intimt',legs='Ben',body='Kropp',
-            weapon='Vapen',full='Hel dräkt'},
+            colour='Färg',weapon='Vapen',full='Hel dräkt'},
         slots={Face='Ansikte',Hair='Hår',Ponytail='Hästsvans',Ears='Öron',Eyes='Ögon',Makeup='Smink',
             FaceTattoo='Ansiktstatuering',HairAccessory='Hårsmycke',Headwear='Huvudbonad',Mask='Mask',
             Glasses='Glasögon',EarringL='Örhänge V',EarringR='Örhänge H',BrowPiercing='Ögonbrynspiercing',
@@ -482,6 +482,16 @@ return {
         hints={wear='Bär',take_off='Ta av',whole='Hela dräkten'},
         camera={region='Område',free='Fri',reset='Återställ kamera'},
         light={game='Spel',studio='Studio',warm='Varm',cool='Sval',rim='Motljus'},
+        colour={roles={primary='Primär',secondary='Sekundär',accent='Accent',glow='Glöd'},
+            about={primary='Huvudplagg: överdelar, underdelar, behåar, underkläder, jackor, kappor, hattar och hela '
+                ..'dräkter.',
+                secondary='Handskar, ärmar, skor, strumpor, bälten, strumpeband, remmar, band och masker.',
+                accent='Smycken, piercingar, ringar, halsband, glasögon och håraccessoarer.',
+                glow='Glöden hos varje del som glöder. Ljusstyrkan behålls.'},
+            help='Vänster och höger väljer färgen. Av behåller paketets färger.',
+            swatches={off='Av',white='Vit',black='Svart',charcoal='Koksgrå',silver='Silver',gold='Guld',
+                crimson='Karmosin',wine='Vinröd',rose='Rosa',violet='Violett',navy='Marinblå',azure='Azurblå',
+                teal='Petrol',emerald='Smaragd',sand='Sand'}},
         popup={title='Behålla den här looken?',desc='Ja sparar den. Nej ger EVE looken hon hade innan.',yes='Behåll',
             no='Ångra',reset_title='Återställa Stellar Closet?',
             reset_desc='Alla plagg från Stellar Closet tas av EVE. Den sparade looken raderas. '

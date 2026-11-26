@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Stellar Closet: the menu's data model. Pure Lua, no engine calls: what the tabs, rows and tiles list, and the edits
 -- of a list of choices {{fit=<UniqueFitID>, slots=<Slot ids, or nil for every piece the fit shows by default>}}
--- (the shape of Dress.plan's input). Edits never touch their input.
+-- (the shape of Dress.plan's input). Edits never touch their input. The Colour tab lists closet/colour.lua's roles.
+local Colour = require('closet.colour')
 local Model = {}
 
 -- custom: Custom fits only (the region tabs and the Body tab: Original suits are worn whole only, from Full outfit).
@@ -56,6 +57,10 @@ function Model.new(o)
             end
             out[#out + 1] = {thumbs = true} -- Make preview pictures (coop closet thumbs).
             out[#out + 1] = {reset = true} -- Reset Stellar Closet, last.
+            return out
+        end
+        if tab == 'colour' then
+            for _, role in ipairs(Colour.ROLES) do out[#out + 1] = {role = role} end
             return out
         end
         for _, slot in ipairs(Slots.in_menu(tab)) do

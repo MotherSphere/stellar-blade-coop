@@ -434,7 +434,7 @@ return {
         nier='آلة NieR',orcal='نموذج Orcal الأولي',enya='نموذج Enya الأولي'}},
     closet={
         tabs={head='الرأس',torso='الجذع',arms='الذراعان',hips='الوركان',intimate='مناطق حساسة',legs='الساقان',
-            body='الجسم',weapon='السلاح',full='الزي كاملًا'},
+            body='الجسم',colour='اللون',weapon='السلاح',full='الزي كاملًا'},
         slots={Face='الوجه',Hair='الشعر',Ponytail='ذيل الحصان',Ears='الأذنان',Eyes='العينان',Makeup='المكياج',
             FaceTattoo='وشم الوجه',HairAccessory='إكسسوار الشعر',Headwear='غطاء الرأس',Mask='القناع',
             Glasses='النظارات',EarringL='القرط الأيسر',EarringR='القرط الأيمن',BrowPiercing='ثقب الحاجب',
@@ -471,6 +471,16 @@ return {
         hints={wear='ارتداء',take_off='خلع',whole='الزي كاملًا'},
         camera={region='المنطقة',free='حرة',reset='إعادة ضبط الكاميرا'},
         light={game='اللعبة',studio='استوديو',warm='دافئ',cool='بارد',rim='حافة'},
+        colour={roles={primary='أساسي',secondary='ثانوي',accent='تمييز',glow='توهج'},
+            about={primary='الملابس الرئيسية: البلوزات والسراويل وحمالات الصدر والملابس الداخلية والسترات والعباءات '
+                ..'والقبعات والأزياء الكاملة.',
+                secondary='القفازات والأكمام والأحذية والجوارب والأحزمة والأربطة والأشرطة والعصابات والأقنعة.',
+                accent='المجوهرات والثقوب والخواتم والأطواق والنظارات وإكسسوارات الشعر.',
+                glow='توهج كل قطعة متوهجة. يبقى سطوعه كما هو.'},
+            help='اليسار واليمين يختاران اللون. «إيقاف» يُبقي ألوان الحزمة.',
+            swatches={off='إيقاف',white='أبيض',black='أسود',charcoal='فحمي',silver='فضي',gold='ذهبي',crimson='قرمزي',
+                wine='نبيذي',rose='وردي',violet='بنفسجي',navy='كحلي',azure='لازوردي',teal='أزرق مخضر',emerald='زمردي',
+                sand='رملي'}},
         popup={title='الاحتفاظ بهذا المظهر؟',desc='نعم يحفظه. لا يعيد إلى EVE مظهرها السابق.',yes='احتفاظ',
             no='تراجع',reset_title='إعادة ضبط Stellar Closet؟',
             reset_desc='تُزال كل قطع Stellar Closet عن EVE ويُحذف المظهر المحفوظ. لن يغيّر Stellar Closet شيئًا حتى '

@@ -167,13 +167,14 @@ local function skin_of(o,covered)
 end
 
 -- The plan for a list of choices {{fit=<UniqueFitID>, slots=<list of Slot ids, or nil for every piece it shows by
--- default>}}: {body={fit,mesh,show}, added={{fit,mesh,show}}, pieces=n, parts=<added meshes>, switched=<fit the
--- auto rule put on the body instead of the Shoes'/first one>?, clips=<regions another outfit's piece covers that the
--- body's skin shows>?} or nil and why. Pure: no engine call; choices are never changed. The slot BaseBody of a fit
--- with Skin (no piece) picks its body, which is never switched. Else the body rule mode (Dress.BODY_MODES, default
--- auto, or a fit id): auto keeps the Shoes' outfit, else the first, unless its skin shows on a region another outfit's
--- piece covers; then the look's outfit with Skin that hides the most covered regions (ties: the Shoes' outfit, then
--- choice order).
+-- default>}}: {body={fit,mesh,show,slots}, added={{fit,mesh,show,slots}}, pieces=n, parts=<added meshes>,
+-- switched=<fit the auto rule put on the body instead of the Shoes'/first one>?, clips=<regions another outfit's piece
+-- covers that the body's skin shows>?} or nil and why. Pure: no engine call; choices are never changed. The slot
+-- BaseBody of a fit with Skin (no piece) picks its body, which is never switched. Else the body rule mode
+-- (Dress.BODY_MODES, default auto, or a fit id): auto keeps the Shoes' outfit, else the first, unless its skin shows on
+-- a region another outfit's piece covers; then the look's outfit with Skin that hides the most covered regions (ties:
+-- the Shoes' outfit, then choice order). slots: material index -> the closet slot of its piece (BaseBody for the
+-- body's skin slots), shown or not.
 function Dress.plan(choices,fits,mode)
     fits=fits or Fits
     if #choices==0 then return nil,'nothing to wear' end
@@ -247,20 +248,23 @@ function Dress.plan(choices,fits,mode)
     local clips=skin_of(body,covered)
     if #clips>0 then plan.clips=clips end
     for _,o in ipairs(order) do
-        local show={}
+        local show,slots={},{}
         for _,piece in ipairs(o.pieces) do
-            if not foreign(covered,NAILS[piece.Slot] or '',o.fit) then
-                for _,index in ipairs(piece.Materials) do show[index]=true end
+            local shown=not foreign(covered,NAILS[piece.Slot] or '',o.fit)
+            for _,index in ipairs(piece.Materials) do
+                if shown then show[index]=true end
+                slots[index]=piece.Slot
             end
             plan.pieces=plan.pieces+1
         end
         if o==body then
             for index,regions in pairs(o.map.Skin or {}) do
                 if not hidden(regions,covered) then show[index]=true end
+                slots[index]=slots[index] or 'BaseBody'
             end
-            plan.body={fit=o.fit,mesh=o.map.Mesh,show=show}
+            plan.body={fit=o.fit,mesh=o.map.Mesh,show=show,slots=slots}
         else
-            plan.added[#plan.added+1]={fit=o.fit,mesh=o.map.Mesh,show=show}
+            plan.added[#plan.added+1]={fit=o.fit,mesh=o.map.Mesh,show=show,slots=slots}
         end
     end
     plan.parts=#plan.added
@@ -307,6 +311,7 @@ function Dress.new(o)
     local mode='auto' -- Dress.plan's body rule for this Lua load (body_mode).
     local fights={} -- The clock of each mix again since the last wear or preview (an outside fight, Dress.FIGHT).
     local kept_fields,undo_kept -- Set with restore below; off uses them too.
+    local applied=0 -- Each apply, her own look previewed and off (self.applied).
 
     local function keep()
         if not state then return store.clear() end
@@ -412,6 +417,7 @@ function Dress.new(o)
             show_only(c,n,a.show)
             state.added[i]={mesh=a.mesh,c=c,count=n,show=a.show}
         end
+        applied=applied+1
         return true
     end
 
@@ -425,6 +431,7 @@ function Dress.new(o)
         local removed=give_back(eve,state.own,state.materials,paths)
         state={choices={},kept=kept,eve_path=path_of(eve),own=state.own,materials=state.materials,added={},
             paused=false,wrong=0}
+        applied=applied+1
         local saved,e=keep()
         if saved==false then return false,'coop-closet.txt not written: '..tostring(e) end
         log('preview: her own look, '..removed..' added mesh(es) removed')
@@ -575,6 +582,7 @@ function Dress.new(o)
         for _,a in ipairs(state.added) do paths[#paths+1]=a.mesh end
         local removed=eve and give_back(eve,state.own,state.materials,paths) or 0
         state=nil
+        applied=applied+1
         keep()
         log('off: her own look back, '..removed..' added mesh(es) removed')
         return true,'closet: off'
@@ -740,6 +748,27 @@ function Dress.new(o)
     -- The plan on EVE now (Dress.plan's, the preview's or the confirmed look's), or nil: the menu shows its body and
     -- its switched and clips.
     function self.plan() return state and state.plan end
+    -- How many times her look was put on or given back (each apply, her own look previewed, off): closet/colour.lua
+    -- puts its palette on again when it grows.
+    function self.applied() return applied end
+    -- The worn components with their shown material slots and the closet slot each belongs to (closet/colour.lua):
+    -- {{c=<component, nil when gone>, slots={[index]=<Slot id>}}}, her body first, then the added meshes in the plan's
+    -- order. {} with no look mixed; nil while the mix is paused or stopped, or EVE is not there.
+    function self.parts()
+        if not (state and state.plan) then return {} end
+        local eve=not (state.paused or state.stopped) and her()
+        if not eve then return nil end
+        local out={}
+        local function add(c,a)
+            c=valid(c)
+            local slots={}
+            for index,slot in pairs(c and a.slots or {}) do if a.show[index] then slots[index]=slot end end
+            out[#out+1]={c=c,slots=slots}
+        end
+        add(eve.Mesh,state.plan.body)
+        for i,a in ipairs(state.plan.added) do add(state.added[i] and state.added[i].c,a) end
+        return out
+    end
     return self
 end
 

@@ -449,7 +449,7 @@ return {
         nier='NieR-maskine',orcal='Orcal-prototype',enya='Enya-prototype'}},
     closet={
         tabs={head='Hoved',torso='Overkrop',arms='Arme',hips='Hofter',intimate='Intimt',legs='Ben',body='Krop',
-            weapon='Våben',full='Hel dragt'},
+            colour='Farve',weapon='Våben',full='Hel dragt'},
         slots={Face='Ansigt',Hair='Hår',Ponytail='Hestehale',Ears='Ører',Eyes='Øjne',Makeup='Makeup',
             FaceTattoo='Ansigtstatovering',HairAccessory='Hårpynt',Headwear='Hovedbeklædning',Mask='Maske',
             Glasses='Briller',EarringL='Ørering V',EarringR='Ørering H',BrowPiercing='Øjenbrynspiercing',
@@ -485,6 +485,16 @@ return {
         hints={wear='Tag på',take_off='Tag af',whole='Hele dragten'},
         camera={region='Område',free='Fri',reset='Nulstil kamera'},
         light={game='Spil',studio='Studie',warm='Varm',cool='Kølig',rim='Modlys'},
+        colour={roles={primary='Primær',secondary='Sekundær',accent='Accent',glow='Glød'},
+            about={primary="Primære beklædningsdele: toppe, bunde, bh'er, undertøj, jakker, kapper, hatte og hele "
+                ..'dragter.',
+                secondary='Handsker, ærmer, sko, strømper, bælter, strømpebånd, remme, bånd og masker.',
+                accent='Smykker, piercinger, ringe, halsbånd, briller og hårpynt.',
+                glow='Gløden på hver del, der gløder. Dens styrke bevares.'},
+            help='Venstre og højre vælger farven. Fra beholder pakkens farver.',
+            swatches={off='Fra',white='Hvid',black='Sort',charcoal='Koksgrå',silver='Sølv',gold='Guld',
+                crimson='Karmoisin',wine='Vinrød',rose='Rosa',violet='Violet',navy='Marineblå',azure='Azurblå',
+                teal='Petrol',emerald='Smaragd',sand='Sand'}},
         popup={title='Behold dette look?',desc='Ja gemmer det. Nej giver EVE det look, hun havde før.',yes='Behold',
             no='Fortryd',reset_title='Nulstil Stellar Closet?',
             reset_desc='Alle dele fra Stellar Closet tages af EVE. Det gemte look slettes. '

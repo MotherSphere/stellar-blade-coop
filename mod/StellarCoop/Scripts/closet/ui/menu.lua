@@ -42,8 +42,12 @@
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
 -- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
 -- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
--- game's Yes/No popup: Yes runs coop closet off (dress.off), tells closet.reset_done, closes without the Keep popup
--- or a revert and has the camera forget its mode and pose (its file cleared); No and Back stay.
+-- game's Yes/No popup: Yes runs coop closet off (dress.off), turns every colour off (colour.off: its file cleared),
+-- tells closet.reset_done, closes without the Keep popup or a revert and has the camera forget its mode and pose (its
+-- file cleared); No and Back stay.
+-- The Colour tab (after Body) has a row for each role of closet/colour.lua; its value is the role's swatch. Right and
+-- Select (a click on the row too) take the next swatch, left the one before (colour.step): the palette is saved at
+-- once, apart from the look, so it never asks Keep this look? Its detail says what the role colours and how to pick.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -57,7 +61,8 @@
 -- (main/base.lua's M.tell), log=, world=function() M.hud_shown, photo=function() M.photo_state(), status=function()
 -- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
 -- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
--- thumbs=closet/thumbs.lua's or nil}.
+-- thumbs=closet/thumbs.lua's or nil, colour=closet/colour.lua's or nil (the Colour rows then show Off and pick
+-- nothing)}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player=require('core.player')
@@ -115,6 +120,7 @@ function Menu.new(o)
         return camera.mode()..'|'..preset..'|'..factor
     end
     local function camera_word(w) return w:sub(1,4)=='cam_' or w:sub(1,6)=='light_' end
+    local function swatch(role) return o.colour and o.colour.get(role) or 'off' end
 
     local function cutscene(eve)
         local theater=(o.status() or ''):match('theater=(%S+)')
@@ -203,6 +209,8 @@ function Menu.new(o)
                 s.rows[i]={title=item.outfit,value=item.pack,locked=item.locked}
             elseif item.reset or item.thumbs then
                 s.rows[i]={title=item.reset and w.row.reset or w.row.thumbs,value=''}
+            elseif item.role then
+                s.rows[i]={title=w.colour.roles[item.role],value=w.colour.swatches[swatch(item.role)]}
             else
                 local worn=model.worn(choices,item.slot)
                 -- The Body row names the body in use: the picked one, else the plan's (switched or the rule's).
@@ -235,6 +243,9 @@ function Menu.new(o)
             if not item.locked then s.hints[2]={w.hints.whole,'Positive',word='select'} end
         elseif item and (item.reset or item.thumbs) then
             s.detail.desc=item.reset and w.popup.reset_desc or w.row.thumbs_desc
+            s.hints[2]={t.hint.select,'Positive',word='select'}
+        elseif item and item.role then
+            s.detail.desc=w.colour.about[item.role]..'\n'..w.colour.help
             s.hints[2]={t.hint.select,'Positive',word='select'}
         elseif item and item.state~='pieces' then
             s.detail.desc=w.row[item.state]
@@ -417,6 +428,7 @@ function Menu.new(o)
                 log('menu: reset failed: '..tostring(why))
                 return self.close('revert')
             end
+            if o.colour then o.colour.off() end
             o.tell(function(t) return t.closet.reset_done end)
             self.close('reset')
             if camera then camera.forget() end -- After its close, which writes the camera file.
@@ -503,6 +515,8 @@ function Menu.new(o)
         elseif col=='tabs' then
             if word=='left' or word=='right' then set_tab(tab+(word=='left' and -1 or 1))
             elseif word=='down' then col='rows'; kit.sound('move') end
+        elseif item and item.role and (word=='left' or word=='right' or word=='select') then
+            if o.colour then o.colour.step(item.role,word=='left' and -1 or 1); kit.sound('change') end
         elseif word=='up' or word=='down' then
             local n=#model.rows(model.tabs()[tab])
             if word=='up' and row==1 then col='tabs' else row=math.max(1,math.min(row+(word=='up' and -1 or 1),n)) end

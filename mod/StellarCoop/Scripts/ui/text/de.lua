@@ -475,7 +475,7 @@ return {
         mann='Mann',nier='NieR-Maschine',orcal='Orcal-Prototyp',enya='Enya-Prototyp'}},
     closet={
         tabs={head='Kopf',torso='Oberkörper',arms='Arme',hips='Hüfte',intimate='Intim',legs='Beine',body='Körper',
-            weapon='Waffe',full='Ganzes Outfit'},
+            colour='Farbe',weapon='Waffe',full='Ganzes Outfit'},
         slots={Face='Gesicht',Hair='Haare',Ponytail='Pferdeschwanz',Ears='Ohren',Eyes='Augen',Makeup='Make-up',
             FaceTattoo='Gesichtstattoo',HairAccessory='Haarschmuck',Headwear='Kopfbedeckung',Mask='Maske',
             Glasses='Brille',EarringL='Ohrring L',EarringR='Ohrring R',BrowPiercing='Augenbrauenpiercing',
@@ -511,6 +511,16 @@ return {
         hints={wear='Tragen',take_off='Ausziehen',whole='Ganzes Outfit'},
         camera={region='Bereich',free='Frei',reset='Kamera zurücksetzen'},
         light={game='Spiel',studio='Studio',warm='Warm',cool='Kühl',rim='Gegenlicht'},
+        colour={roles={primary='Primär',secondary='Sekundär',accent='Akzent',glow='Leuchten'},
+            about={primary='Hauptkleidung: Oberteile, Unterteile, BHs, Unterwäsche, Jacken, Umhänge, Hüte und ganze '
+                ..'Outfits.',
+                secondary='Handschuhe, Ärmel, Schuhe, Strümpfe, Gürtel, Strumpfbänder, Riemen, Bänder und Masken.',
+                accent='Schmuck, Piercings, Ringe, Halsbänder, Brillen und Haarschmuck.',
+                glow='Das Leuchten jedes leuchtenden Teils. Seine Helligkeit bleibt.'},
+            help='Links und rechts wählen die Farbe. Aus behält die Farben des Pakets.',
+            swatches={off='Aus',white='Weiß',black='Schwarz',charcoal='Anthrazit',silver='Silber',gold='Gold',
+                crimson='Karmesin',wine='Weinrot',rose='Rosé',violet='Violett',navy='Marineblau',azure='Azurblau',
+                teal='Petrol',emerald='Smaragd',sand='Sand'}},
         popup={title='Diesen Look behalten?',desc='Ja speichert ihn. Nein gibt EVE ihren vorherigen Look zurück.',
             yes='Behalten',no='Verwerfen',reset_title='Stellar Closet zurücksetzen?',
             reset_desc='Alle Teile von Stellar Closet werden EVE ausgezogen. Der gespeicherte Look wird gelöscht. '

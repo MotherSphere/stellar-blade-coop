@@ -28,7 +28,9 @@
 -- alias within 200 bytes; the 25 module names in every table; the notice
 -- of a module that failed to load with the longest of them within 200 bytes; Stellar Closet's menu words: a slot name
 -- for each of closet/slots.lua's Slots.LIST ids, a tab for each Slots.MENUS id and a region for each Slots.REGIONS
--- name, each tab within 16 columns, each key hint within 14, its notices within 200 bytes.
+-- name, each tab within 16 columns, each key hint within 14, its notices within 200 bytes, the Colour tab's name and
+-- about line for each closet/colour.lua role and a name for Off and each swatch, the roles within a row's title column,
+-- the swatches within its value column.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('online.modes.nightop.recruiter_text')
@@ -464,6 +466,9 @@ for name in pairs(R.TEXT) do
     -- Online tab's), a key hint within the menu's hint cell (HINT).
     for k,text in pairs(w.closet.tabs) do fits(name..'.closet.tabs.'..k,text,16) end
     for k,text in pairs(w.closet.hints) do fits(name..'.closet.hints.'..k,text,HINT) end
+    -- The Colour tab's rows: a role's name within a row's title column, a swatch's name within its value column.
+    for k,text in pairs(w.closet.colour.roles) do fits(name..'.closet.colour.roles.'..k,text,LABEL) end
+    for k,text in pairs(w.closet.colour.swatches) do fits(name..'.closet.colour.swatches.'..k,text,VALUE) end
 end
 -- Stellar Closet's names: a slot name for each Slots.LIST id, a tab for each Slots.MENUS id, a region for each
 -- Slots.REGIONS name, and no other (the other tables have T.en's keys, checked above).
@@ -479,10 +484,17 @@ end
 local slot_ids,menu_ids={},{}
 for _,entry in ipairs(Slots.LIST) do slot_ids[#slot_ids+1]=entry[1] end
 for _,menu in ipairs(Slots.MENUS) do menu_ids[#menu_ids+1]=menu[1] end
-assert(#slot_ids==73 and #menu_ids==9 and #Slots.REGIONS==10,'closet/slots.lua: '..#slot_ids..' slots')
+assert(#slot_ids==73 and #menu_ids==10 and #Slots.REGIONS==10,'closet/slots.lua: '..#slot_ids..' slots')
 keys_are('T.en.closet.slots.',T.en.closet.slots,slot_ids)
 keys_are('T.en.closet.tabs.',T.en.closet.tabs,menu_ids)
 keys_are('T.en.closet.regions.',T.en.closet.regions,Slots.REGIONS)
+-- The Colour tab (closet/colour.lua): a name and an about line for each role, a name for Off and each swatch.
+local Colour=require('closet.colour')
+local swatch_ids={'off'}
+for _,s in ipairs(Colour.SWATCHES) do swatch_ids[#swatch_ids+1]=s[1] end
+keys_are('T.en.closet.colour.roles.',T.en.closet.colour.roles,Colour.ROLES)
+keys_are('T.en.closet.colour.about.',T.en.closet.colour.about,Colour.ROLES)
+keys_are('T.en.closet.colour.swatches.',T.en.closet.colour.swatches,swatch_ids)
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)
     for k,v in pairs(t) do

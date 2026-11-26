@@ -467,7 +467,7 @@ return {
         tendril='Tendril',mann='Mann',nier='Macchina di NieR',orcal='Prototipo di Orcal',enya='Prototipo di Enya'}},
     closet={
         tabs={head='Testa',torso='Busto',arms='Braccia',hips='Fianchi',intimate='Intimo',legs='Gambe',body='Corpo',
-            weapon='Arma',full='Outfit completo'},
+            colour='Colore',weapon='Arma',full='Outfit completo'},
         slots={Face='Viso',Hair='Capelli',Ponytail='Coda di cavallo',Ears='Orecchie',Eyes='Occhi',Makeup='Trucco',
             FaceTattoo='Tatuaggio al viso',HairAccessory='Accessorio per capelli',Headwear='Copricapo',
             Mask='Maschera',Glasses='Occhiali',EarringL='Orecchino S',EarringR='Orecchino D',
@@ -504,6 +504,16 @@ return {
         hints={wear='Indossa',take_off='Togli',whole='Outfit intero'},
         camera={region='Zona',free='Libera',reset='Ripristina telecamera'},
         light={game='Gioco',studio='Studio',warm='Calda',cool='Fredda',rim='Controluce'},
+        colour={roles={primary='Primario',secondary='Secondario',accent='Accento',glow='Bagliore'},
+            about={primary='Capi principali: top, pantaloni, reggiseni, intimo, giacche, mantelli, cappelli e outfit '
+                ..'completi.',
+                secondary='Guanti, maniche, scarpe, calze, cinture, giarrettiere, cinghie, fasce e maschere.',
+                accent='Gioielli, piercing, anelli, collari, occhiali e accessori per capelli.',
+                glow='Il bagliore di ogni pezzo che brilla. La sua intensità resta.'},
+            help='Sinistra e destra scelgono il colore. Spento mantiene i colori del pack.',
+            swatches={off='Spento',white='Bianco',black='Nero',charcoal='Antracite',silver='Argento',gold='Oro',
+                crimson='Cremisi',wine='Vinaccia',rose='Rosa',violet='Viola',navy='Blu navy',azure='Azzurro',
+                teal='Verde acqua',emerald='Smeraldo',sand='Sabbia'}},
         popup={title='Tenere questo look?',desc='Sì lo salva. No ridà a EVE il look di prima.',yes='Tieni',
             no='Annulla',reset_title='Reimpostare Stellar Closet?',
             reset_desc='Tutti i capi di Stellar Closet vengono tolti a EVE. Il look salvato viene cancellato. '

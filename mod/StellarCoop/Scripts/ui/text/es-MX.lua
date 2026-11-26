@@ -462,7 +462,7 @@ return {
         mann='Mann',nier='Máquina de NieR',orcal='Prototipo de Orcal',enya='Prototipo de Enya'}},
     closet={
         tabs={head='Cabeza',torso='Torso',arms='Brazos',hips='Caderas',intimate='Íntimo',legs='Piernas',body='Cuerpo',
-            weapon='Arma',full='Atuendo completo'},
+            colour='Color',weapon='Arma',full='Atuendo completo'},
         slots={Face='Cara',Hair='Cabello',Ponytail='Cola de caballo',Ears='Orejas',Eyes='Ojos',Makeup='Maquillaje',
             FaceTattoo='Tatuaje facial',HairAccessory='Accesorio para el cabello',Headwear='Prenda de cabeza',Mask='Máscara',
             Glasses='Lentes',EarringL='Arete I',EarringR='Arete D',BrowPiercing='Piercing en la ceja',
@@ -499,6 +499,16 @@ return {
         hints={wear='Poner',take_off='Quitar',whole='Atuendo entero'},
         camera={region='Zona',free='Libre',reset='Restablecer cámara'},
         light={game='Juego',studio='Estudio',warm='Cálida',cool='Fría',rim='Contraluz'},
+        colour={roles={primary='Principal',secondary='Secundario',accent='Acento',glow='Brillo'},
+            about={primary='Prendas principales: tops, partes de abajo, brasieres, ropa interior, chamarras, capas, '
+                ..'sombreros y atuendos completos.',
+                secondary='Guantes, mangas, zapatos, medias, cinturones, ligueros, correas, bandas y máscaras.',
+                accent='Joyería, piercings, anillos, collares, lentes y accesorios para el cabello.',
+                glow='El brillo de cada pieza que brilla. Su intensidad se mantiene.'},
+            help='Izquierda y derecha eligen el color. Desactivado conserva los colores del paquete.',
+            swatches={off='Desactivado',white='Blanco',black='Negro',charcoal='Carbón',silver='Plata',gold='Oro',
+                crimson='Carmesí',wine='Vino',rose='Rosa',violet='Violeta',navy='Azul marino',azure='Azur',
+                teal='Verde azulado',emerald='Esmeralda',sand='Arena'}},
         popup={title='¿Conservar este look?',desc='Sí lo guarda. No devuelve a EVE el look que tenía antes.',
             yes='Conservar',no='Deshacer',reset_title='¿Restablecer Stellar Closet?',
             reset_desc='Todas las piezas de Stellar Closet se le quitan a EVE. El look guardado se borra. '
