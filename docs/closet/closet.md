@@ -16,6 +16,7 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet wear <fit>[:<Slot>,...] ...` | Wears pieces of one or more outfits by fit map. A fit alone wears the outfit as its pack shows it by default |
 | `coop closet off` | Gives EVE her own look back |
 | `coop closet fits` | Lists the fit maps and the slots of their pieces |
+| `coop closet probe <1-5\|off>` | Runs one in-game test of the game's widget parts for the closet menu and writes `probe:` PASS/FAIL lines to UE4SS.log. `off` ends it |
 
 For example, `coop closet wear AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462:Shoes` wears Ocean Maid's top and
 stockings with Kunoichi Shadow's boots. The words are not in the usage line yet: the closet menu is to come first.
@@ -29,7 +30,7 @@ Tachy Mode ends. Any other look the game puts on for 2 s, after a map load or a 
 hidden section the game shows again is hidden again. Her own look and the worn words are kept in `coop-closet.txt`.
 `coop closet off` and `coop off` give her own look back and clear the file. At the next Lua load or game start, once
 EVE is in the world, the closet gives her own look back and wears the kept words again. Words it can no longer wear
-(an outfit pack removed) are dropped with one log line, and her own look stays.
+(an outfit pack removed) are dropped with one log line. Her own look stays.
 
 ## Packs
 
