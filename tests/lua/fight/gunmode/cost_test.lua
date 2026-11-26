@@ -197,4 +197,24 @@ do
     assert(not said:find('bottom-left',1,true),said)
 end
 
+-- 6. The laser sight's assets (fight/gunmode/laser.lua's Niagara system and parameter collection) are asked of the
+--    keep with the others (e0038fcc). Nothing held them between two aims: after a collection each aim start loaded
+--    the system on its frame.
+do
+    local Keep=require('core.keep')
+    local src=assert(io.open('mod/StellarCoop/Scripts/fight/gunmode/laser.lua')):read('a')
+    local base=assert(src:match("local base='([^']+)'"),'laser.lua names its assets\' folder')
+    local want,wanted=Keep.want,{}
+    Keep.want=function(paths) for _,p in ipairs(paths) do wanted[p]=true end end
+    world()
+    quiet()
+    Keep.want=want
+    local n=0
+    for name in src:gmatch("resource%('([%w_]+)'%)") do
+        n=n+1
+        assert(wanted[base..name..'.'..name],'the keep does not hold the laser\'s '..name)
+    end
+    assert(n==2,n..' laser assets')
+end
+
 print('gunmode cost_test ok')

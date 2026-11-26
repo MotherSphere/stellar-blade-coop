@@ -32,6 +32,10 @@ local GunMode={}
 -- The aim camera's modifier class (BP_NGM_CamMod in the layer pak), kept for the game run with the other assets
 -- (GunMode.new, 17a166fa).
 local CAMMOD='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
+-- The laser sight's Niagara system and the NIKKE minigame's parameter collection (fight/gunmode/laser.lua's two
+-- resources): packages of pakchunk0 on 26123051 (e0038fcc). Nothing else holds them between two aims.
+local LASER={'/Game/DLC_2/Art/FX/MiniGame/NS_A_GuideLaser.NS_A_GuideLaser',
+    '/Game/DLC_2/Art/FX/MiniGame/NC_NikkeMinigame.NC_NikkeMinigame'}
 
 -- Zone event kind 2 is ZoneEvent_AttachActorEffect (ESBZoneEventType's names at 0x145e29b00 on 26123051). RunEvent
 -- (0x141ca5a10) hands it to 0x141c9e690, which applies the row's actor effect; no chain of direct calls from it reaches
@@ -201,6 +205,8 @@ function GunMode.new(env)
             CAMMOD,cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx}
         for _,e in ipairs(cfg.reload_sounds) do want[#want+1]=e[1] end
         for _,b in ipairs(Overlay.BASES) do want[#want+1]=b end
+        -- (after a collection the aim start loaded the laser's system: e0038fcc)
+        for _,l in ipairs(LASER) do want[#want+1]=l end
         Keep.want(want)
     end
     local keys=Input.state()
