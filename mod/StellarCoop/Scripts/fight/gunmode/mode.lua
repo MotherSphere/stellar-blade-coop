@@ -127,14 +127,18 @@ function GunMode.new(env)
     end
     function g.try(fn) local ok,r=pcall(fn); if ok then return r end end
     function g.get(o,k) local ok,r=pcall(get_field,o,k); if ok then return r end end -- a property read without a closure
-    local cached -- The controller: FindFirstOf walks the whole object array.
+    -- The controller: FindFirstOf walks the whole object array, so once a second at most while there is none
+    -- (468f7ab6). A new one comes through new_controller at once.
+    local cached,pc_wait
     local cdos={}
     -- a class default object ('/Script/...Default__X') found once: they live as long as the game
     function g.cdo(path) local o=cdos[path]; if not o then o=StaticFindObject(path); cdos[path]=o end; return o end
     function g.pc()
         if g.valid(cached) then return cached end
+        if (pc_wait or -1)>os.clock() then return nil end
         local pc=FindFirstOf('SBPlayerController')
         if g.valid(pc) then cached=pc; return pc end
+        pc_wait=os.clock()+1.0
     end
     function g.pawn()
         local pc=g.pc(); if not pc then return nil end
