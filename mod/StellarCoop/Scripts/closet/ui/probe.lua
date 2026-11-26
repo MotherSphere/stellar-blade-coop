@@ -61,7 +61,7 @@ local grid_steps={
         local w=ctx.make(GRID,200,300,1600,1100,nil,true)
         local tv=live(w.TileView_ItemList)
         if not tv then return false,'no TileView_ItemList' end
-        ctx.data.tv=tv
+        ctx.data.tv,ctx.data.grid=tv,w
         local ran,e=pcall(function() w['Set Goods'](w) end)
         tv:SetVisibility(VISIBLE)
         return true,'Set Goods '..(ran and 'ran' or ('refused: '..tostring(e)))
@@ -278,6 +278,67 @@ detail_steps[#detail_steps+1]={frames=0,name='other_event',run=function(ctx)
     return title=='1','name '..tostring(title)
 end}
 Probe.TESTS['4']={steps=detail_steps}
+
+-- Test 5: focus and input with the game's parts in the kit, then a map change while the probe holds the input.
+Probe.KEY_WATCH=8 -- Seconds the probe waits for Esc.
+local function focus_line(w)
+    local out={}
+    for _,f in ipairs({'HasKeyboardFocus','HasAnyUserFocus','HasFocusedDescendants'}) do
+        local ok,v=pcall(function() return w[f](w) end)
+        out[#out+1]=f..' '..(ok and tostring(v) or '?')
+    end
+    return table.concat(out,', ')
+end
+Probe.TESTS['5']={timeout=90,steps={grid_steps[1],grid_steps[2],grid_steps[3],
+    {frames=0,name='input',run=function(ctx)
+        ctx.kit.input(true,Probe.GROUP,true)
+        return ctx.kit.holding()==true,'holding '..tostring(ctx.kit.holding())
+    end},
+    {frames=0,name='focus',run=function(ctx)
+        local d=ctx.data
+        if not d.focus_wait then
+            d.tv:SetKeyboardFocus()
+            d.focus_wait=2
+            return 'wait'
+        end
+        if d.focus_wait>0 then d.focus_wait=d.focus_wait-1; return 'wait' end
+        local before=focus_line(d.grid)
+        ctx.kit.refocus()
+        return true,'grid: '..before..'; after the kit took it back: '..focus_line(d.grid)
+    end},
+    {frames=1,name='game_ignores_keys',run=function(ctx)
+        local d=ctx.data
+        if not d.keys then
+            d.keys=ctx.now()+Probe.KEY_WATCH
+            ctx.log('NOTE 5 game_ignores_keys: press Esc now ('..Probe.KEY_WATCH..' s)')
+        end
+        if ctx.kit.paused(true) then return false,'the game paused: it took the key' end
+        if ctx.now()<d.keys then return 'wait' end
+        return true
+    end},
+    {frames=0,name='map_change',run=function(ctx)
+        local d,kit=ctx.data,ctx.kit
+        if not d.phase then
+            d.phase='before'
+            ctx.free_parts=true
+            ctx.log('NOTE 5 map_change: fast travel now')
+        end
+        if d.phase=='before' then
+            if kit.ready() then return 'wait' end
+            kit.input(false,Probe.GROUP)
+            d.old=ctx.forget()
+            d.tv=nil
+            d.phase='during'
+            ctx.log('NOTE 5 map_change: the UI went, input given back')
+            return 'wait'
+        end
+        if not kit.ready() then return 'wait' end
+        for _,rec in ipairs(d.old) do
+            if kit.alive(rec) then return false,'a part outlived the rebuild' end
+        end
+        return not kit.holding(),'input held after the change: '..tostring(kit.holding())
+    end}},
+    cleanup=function(ctx) if ctx.data.tv and live(ctx.data.tv) then ctx.data.tv:ClearListItems() end end}
 -- A game object by path: in memory, else after a synchronous LoadAsset (a class path loads its asset path without
 -- _C), as ui/kit/kit.lua's load does.
 local function default_find(path)
@@ -342,8 +403,8 @@ function Probe.new(o)
             c.parts[#c.parts+1]=rec
             return rec.o
         end
-        -- Forgets the parts (a map change freed them).
-        function c.ctx.forget() c.parts={} end
+        -- Forgets the parts (a map change freed them) and returns them.
+        function c.ctx.forget() local old=c.parts; c.parts={}; return old end
         cur=c
         log('START '..n..' ('..c.total..' checks)')
         return true,'closet probe '..n..': running, its lines go to UE4SS.log'

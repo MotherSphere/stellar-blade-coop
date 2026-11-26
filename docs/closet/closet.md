@@ -62,6 +62,24 @@ the friend's ghost up to the native part's limit of 16 parts (`kMaxParts`, `nati
 on the ghost only when `link.mod_assets()` lists it. The native scan (`native/src/link/pak_list.h`) does not read
 `*.stellarcloset.json` yet.
 
+## The parts probe
+
+`coop closet probe <n>` tests Stellar Blade's own widget parts for the closet menu that is to come. Run one test at a
+time in the game world, out of combat, with the Steam link (the kit needs it). Each check writes
+`probe: PASS <n> <check>` or `probe: FAIL <n> <check>: <why>` to UE4SS.log. The first FAIL ends the test. Each test
+ends with `probe: END <n> <passed>/<total>`. `NOTE` lines say what to do or what was seen.
+
+| Test | What it shows | What to do |
+| --- | --- | --- |
+| 1 | The hair salon's grid filled with 8 data objects: the tiles, a selection, a GC | Click tiles for 10 s at the end |
+| 2 | One grid slot alone: icon, name, focus glow, equipped and locked marks | Nothing |
+| 3 | 9 pause-menu tab buttons: labels, the focus walked along them | Move the mouse over the tabs for 10 s at the end |
+| 4 | The NanoSuit detail panel in its three craft states | Nothing |
+| 5 | Focus and input with the parts on screen, then a map change | Press Esc when asked, then fast travel |
+
+A test ends by itself after 30 s (test 5: 90 s). `coop closet probe off` or `coop ui reset` ends it at once. The probe
+touches only its own widgets: never EVE, the closet's look or a save.
+
 ## Tests
 
 - `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.

@@ -366,6 +366,38 @@ local tests = {
         play(r, '4')
         ok(has(r, 'probe: FAIL 4 craft0_read:')) ok(has(r, 'hold 1 materials 0'))
     end,
+    test5_map_change = function()
+        local r = rig()
+        game(r)
+        r.tv.SetKeyboardFocus = function() end
+        r.p.run('5')
+        r.ticks(30)
+        ok(r.kit.holding(), 'input held') ok(has(r, 'probe: PASS 5 focus'))
+        r.now = r.now + 9
+        r.ticks(5)
+        ok(has(r, 'probe: PASS 5 game_ignores_keys')) ok(has(r, 'NOTE 5 map_change'))
+        r.kit.up = false -- the map change: the root goes, its parts with it
+        for _, rec in ipairs(r.kit.made) do rec.live = false end
+        r.ticks(3)
+        ok(not r.kit.holding(), 'input given back during the change') ok(not has(r, 'FAIL'))
+        r.kit.up = true
+        r.ticks(3)
+        ok(has(r, 'probe: PASS 5 map_change')) ok(has(r, 'probe: END 5 7/7')) ok(released(r))
+    end,
+    test5_game_took_the_key = function()
+        local r = rig()
+        game(r)
+        r.tv.SetKeyboardFocus = function() end
+        r.p.run('5')
+        r.ticks(30)
+        r.kit.paused_now = true
+        r.ticks(2)
+        ok(has(r, 'probe: FAIL 5 game_ignores_keys')) ok(released(r))
+    end,
+    test5_has_a_long_timeout = function()
+        local r = rig()
+        eq(r.Probe.TESTS['5'].timeout, 90)
+    end,
     commands = function()
         local calls = {}
         local probe = {run = function(n) calls[#calls + 1] = 'run ' .. n; return true, 'ran' end,
