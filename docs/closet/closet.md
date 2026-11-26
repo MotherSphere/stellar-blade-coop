@@ -250,7 +250,8 @@ Emerald and Sand. The swatches are linear RGB values picked to read well as a ti
 The Colour tab, after the Body tab, has one row for each role. The row shows the swatch. Right, Select or a click on
 the row takes the next swatch, left the one before; Off comes before White. The camera frames her whole body. A
 colour change is saved at once in `coop-closet-colour.txt`, apart from the look. The menu does not ask "Keep this
-look?" for it. A revert does not undo it. The palette survives a restart.
+look?" for it. A revert does not undo it. The palette survives a restart. The pad chord LB + D-pad Left that closes the
+menu on a Colour row leaves the swatch as it was.
 
 On each shown material slot of a worn piece that a set role reaches, the closet makes a dynamic material instance
 (it reuses one the game put there) and sets the role's parameter. `Base Color Tint` multiplies the piece's base

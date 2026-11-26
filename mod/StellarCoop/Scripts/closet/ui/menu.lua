@@ -98,8 +98,9 @@ function Menu.new(o)
     -- unreverted: a close's revert failed (no EVE during a map change), asked again each RETRY s while closed.
     local back_at,owed,unreverted=nil,false,false
     -- frame: ticks so far; undo: the focus before the last tab_left while only left followed it ({tab, row, col, tile,
-    -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle).
-    local frame,undo=0,nil
+    -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle); stepped: the role a left on a Colour
+    -- row stepped back a swatch ({role, at=its frame}), stepped forward again by the chord.
+    local frame,undo,stepped=0,nil,nil
     local clicked -- The frame of the last left click (nav 'click'), until a tile pick uses it.
     -- camera: closet/ui/camera.lua's or nil; region: the focused one, as of the last draw; hinted: the camera's mode,
     -- light preset and intensity the camera hints show (false: none); ticked: the last tick's time.
@@ -449,12 +450,17 @@ function Menu.new(o)
     -- revert close when not; on the popup, its Back). The pad chord LB + D-pad Left (main/input.lua's closet) reaches
     -- the open menu as tab_left at LB's press, then left and this toggle in one frame at D-pad Left's (native pad.h;
     -- both pressed in one poll: left, tab_left, toggle). That toggle first puts the focus back as it was before the
-    -- tab_left, so the chord leaves the tab and row as they were. Q, then F1 in a later frame, keeps Q's tab.
+    -- tab_left, so the chord leaves the tab and row as they were. A swatch the chord's left took on a Colour row (saved
+    -- at once) is stepped forward again, so the palette stays as it was. Q, then F1 in a later frame, keeps Q's tab.
     -- shortcut: a chord whose D-pad Left comes with no left (D-pad Up or Down held too) keeps LB's tab move; read the
     -- pad's held LB in Lua if players hit it.
     function self.toggle()
         if not open then return self.open() end
-        if undo and undo.at==frame then tab,row,col,tile,tab_top=table.unpack(undo,1,5) end
+        if undo and undo.at==frame then
+            tab,row,col,tile,tab_top=table.unpack(undo,1,5)
+            if stepped and stepped.at==frame then o.colour.step(stepped[1],1) end
+            stepped=nil
+        end
         if col=='grid' then col,due='rows',nil end -- As the grid's Back: a tile preview due is dropped.
         return self.nav('back')
     end
@@ -516,7 +522,11 @@ function Menu.new(o)
             if word=='left' or word=='right' then set_tab(tab+(word=='left' and -1 or 1))
             elseif word=='down' then col='rows'; kit.sound('move') end
         elseif item and item.role and (word=='left' or word=='right' or word=='select') then
-            if o.colour then o.colour.step(item.role,word=='left' and -1 or 1); kit.sound('change') end
+            if o.colour then
+                o.colour.step(item.role,word=='left' and -1 or 1)
+                if word=='left' then stepped={item.role,at=frame} end -- For the pad chord (self.toggle).
+                kit.sound('change')
+            end
         elseif word=='up' or word=='down' then
             local n=#model.rows(model.tabs()[tab])
             if word=='up' and row==1 then col='tabs' else row=math.max(1,math.min(row+(word=='up' and -1 or 1),n)) end
