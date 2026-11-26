@@ -9,6 +9,10 @@
 -- again only when what it shows changes. Every call on a part runs in pcall (ui/kit/parts.lua's call: a refusal is
 -- logged once). A tab, grid or detail part the kit cannot make raises, so the menu closes. drop_all clears the grid
 -- and drops every part: the game holds EVE still while one of its widgets is up (the probe's test 5).
+-- The mouse, read by the menu: tab_hovered (a tab's Button_Action:IsHovered, the probe's test 3), row_hovered (the kit
+-- row over a slot row), picked (a tile the mouse selected in the TileView, BP_GetSelectedItem as the probe's test 1),
+-- popup_hit (the popup's Button_Positive or Button_Negative:IsHovered, as online/lobby/ui/lobby.lua reads them).
+-- alive is false once a made part is gone (the root rebuilt by a map change).
 -- v.draw(s), s: {tabs={labels}, tab=focused index, rows={{title, value, locked}}, row=focused index, tiles=nil or
 -- {{name, equipped, locked}}, tile=selected index, detail={title, desc, equipped}, hints={{label, icon, icon2}},
 -- popup=nil or {title, desc}}.
@@ -61,8 +65,8 @@ function View.new(kit,log)
         for i=1,WINDOW do zones[i]=b.row(ROW_X,ROW_Y+(i-1)*PITCH+27,ROW_W) end
         return {zones=zones}
     end)
-    -- What is made and what it shows. top: the rows above the window.
-    local tabs,tabs_sig,focus,rows,top,hints={},nil,nil,{},0,{}
+    -- What is made and what it shows. top: the rows above the window; count: the rows of the last draw.
+    local tabs,tabs_sig,focus,rows,top,hints,count={},nil,nil,{},0,{},0
     local grid,tiles_sig,selected,detail,detail_sig,popup
     local function make(class,x,y,w,h,fill,hit)
         local rec,why=kit.part(View.GROUP,class,x,y,w,h,fill,hit)
@@ -91,6 +95,7 @@ function View.new(kit,log)
 
     local function draw_rows(s,zones)
         local n=#s.rows
+        count=n
         top=math.max(0,math.min(top,n-WINDOW))
         if s.row then
             if s.row>top+WINDOW then top=s.row-WINDOW elseif s.row<=top then top=s.row-1 end
@@ -210,6 +215,52 @@ function View.new(kit,log)
         draw_popup(s)
     end
 
+    -- The tab under the mouse, or nil.
+    function v.tab_hovered()
+        local hit
+        for i,rec in ipairs(tabs) do
+            call(rec,'tab hover',function(w) if w.Button_Action:IsHovered() then hit=hit or i end end)
+        end
+        return hit
+    end
+    -- The slot row under the mouse (its index in s.rows), or nil.
+    function v.row_hovered()
+        local view=kit.view(View.GROUP)
+        for i,zone in ipairs(view and view.zones or {}) do
+            if top+i<=count and zone.hovered() then return top+i end
+        end
+    end
+    -- The tile the mouse selected since the last draw or pick (its index in s.tiles), or nil.
+    function v.picked()
+        local at
+        call(grid,'grid picked',function(w)
+            local tv=w.TileView_ItemList
+            local item=tv:BP_GetSelectedItem()
+            at=item and tv:GetIndexForItem(item)
+        end)
+        if not at or at<0 or at+1==selected then return nil end
+        selected=at+1
+        return selected
+    end
+    -- 'yes' or 'no': the popup button under the mouse, else nil.
+    function v.popup_hit()
+        local hit
+        call(popup,'popup buttons',function(w)
+            if w.Button_Positive:IsHovered() then hit='yes' elseif w.Button_Negative:IsHovered() then hit='no' end
+        end)
+        return hit
+    end
+    -- false once a part made since the open is gone.
+    function v.alive()
+        for _,set in ipairs({tabs,rows,hints}) do
+            for i=1,math.max(#set,WINDOW) do if set[i] and not kit.alive(set[i]) then return false end end
+        end
+        for _,rec in ipairs({grid or false,detail or false,popup or false}) do
+            if rec and not kit.alive(rec) then return false end
+        end
+        return true
+    end
+
     -- Every part gone, the grid's items first: the first thing each close runs.
     function v.drop_all()
         if grid then call(grid,'grid clear',function(w) w.TileView_ItemList:ClearListItems() end) end
@@ -219,7 +270,7 @@ function View.new(kit,log)
         kit.drop(grid)
         kit.drop(detail)
         kit.drop(popup)
-        tabs,tabs_sig,focus,rows,top,hints={},nil,nil,{},0,{}
+        tabs,tabs_sig,focus,rows,top,hints,count={},nil,nil,{},0,{},0
         grid,tiles_sig,selected,detail,detail_sig,popup=nil,nil,nil,nil,nil,nil
     end
     return v

@@ -10,21 +10,50 @@ package.loaded.UEHelpers = {GetPlayer = function() return nil end}
 local F = dofile('tests/lua/closet/menu_fakes.lua')
 local T = require('ui.text')
 local Fits = require('closet.fits')
+-- No enemy near EVE in these tests: core/player.lua's engaged walks the game's actors.
+require('core.player').engaged = function() return false end
 
 local function rig(o)
     o = o or {}
-    local r = {told = {}, log = {}, reverted = 0, kit = F.kit()}
+    local r = {told = {}, log = {}, reverted = 0, confirmed = 0, previews = {}, previewing = false, t = 0,
+        world = true, photo = '0', status = 'mod=1 theater=none', kit = F.kit()}
     if o.before then o.before(r) end
     package.loaded['closet.ui.menu'], package.loaded['closet.ui.view'] = nil, nil
     local Menu = require('closet.ui.menu')
-    r.dress = {installed = function() return true end, choices = function() return r.choices end,
-        revert = function() r.reverted = r.reverted + 1; return true, 'closet: nothing to revert' end,
-        game_look = function() return nil end}
+    -- The dress: a preview wears its choices and starts previewing; confirm and revert end it.
+    r.dress = {installed = o.installed or function() return true end, choices = function() return r.choices end,
+        preview = function(c) r.previews[#r.previews + 1] = c; r.choices, r.previewing = c, true; return true end,
+        previewing = function() return r.previewing end,
+        confirm = function() r.confirmed = r.confirmed + 1; r.previewing = false; return true, 'closet: confirmed' end,
+        revert = function() r.reverted = r.reverted + 1; r.previewing = false; return true, 'closet: reverted' end,
+        game_look = function() return r.game_look end}
     r.menu = Menu.new({kit = r.kit, dress = r.dress, words = function() return T.en end,
         tell = function(build) r.told[#r.told + 1] = build(T.en) end, log = function(m) r.log[#r.log + 1] = m end,
-        world = function() return true end, photo = function() return '0' end,
-        status = function() return 'mod=1 theater=none' end})
+        world = function() return r.world end, photo = function() return r.photo end,
+        status = function() return r.status end, now = function() return r.t end})
     return r
+end
+
+-- Menu words at time t (s after the open at 0).
+local function at(r, t, ...)
+    r.t = t
+    for _, word in ipairs({...}) do r.menu.nav(word) end
+end
+-- A tick at time t.
+local function tick(r, t) r.t = t; r.menu.tick() end
+-- The detail panel's title and description now.
+local function detail(r)
+    local d = r.kit.live(F.DETAIL)[1].o
+    return d.TitleText.text, d.DescriptionText.text
+end
+local function grid(r) return r.kit.live(F.GRID)[1].o.TileView_ItemList end
+local function popups(r) return #r.kit.live(F.POPUP) end
+-- The Top row (Chest) of the torso tab, open: tiles None, Maid top (Ocean Maid), Kunoichi top (Kunoichi Shadow).
+local MAID, KUNOICHI = 'AiK_CH27_14595', 'AiK_CH46_xSH_14462'
+local function on_top(r)
+    r.menu.open()
+    at(r, 0.05, 'down')
+    eq((detail(r)), 'Top', 'on the Top row')
 end
 
 -- Every part dropped, the input given back, the group hidden, the menu closed.
@@ -192,6 +221,383 @@ local tests = {
         all_gone(r)
         has(r.log, 'draw failed', 'log')
         has(r.log, 'WB_NanoSuit_Detail', 'log names the part')
+    end,
+
+    tabs_rows_and_grid_move_with_their_keys = function()
+        local r = rig()
+        r.menu.open()
+        -- Tabs: E and Q change the tab, its first row focused, with the change sound.
+        at(r, 0.1, 'tab_right')
+        eq(r.kit.sounds[#r.kit.sounds], 'change', 'tab sound')
+        eq((detail(r)), 'Upper arm tattoo', 'arms tab, first row')
+        ok(F.called(r.kit.live(F.TAB)[3].o, 'FocusTabButton'), 'arms tab focused')
+        at(r, 0.1, 'tab_left')
+        local title, desc = detail(r)
+        eq(title, 'Chest tattoo', 'torso tab, first row')
+        eq(desc, T.en.closet.row.soon, 'a soon row shows its text')
+        -- Rows: up and down, skipping nothing, with the move sound. A soon row has no grid.
+        at(r, 0.4, 'right', 'select')
+        at(r, 0.4, 'down')
+        eq(r.kit.sounds[#r.kit.sounds], 'move', 'row sound')
+        eq((detail(r)), 'Stomach tattoo', 'right and select on a soon row stay in the rows')
+        at(r, 0.4, 'down', 'down', 'down', 'down')
+        eq((detail(r)), 'Top', 'row 6')
+        -- The grid: right goes in on the worn tile (None), right and left walk one row of tiles.
+        at(r, 0.4, 'right')
+        local tv = grid(r)
+        eq(#tv.items, 3, 'tiles')
+        eq(tv:BP_GetSelectedItem(), tv.items[1], 'None focused')
+        eq((detail(r)), 'None', 'the detail shows the tile')
+        at(r, 0.4, 'right')
+        eq(tv:BP_GetSelectedItem(), tv.items[2], 'Maid top focused')
+        title, desc = detail(r)
+        eq(title, 'Maid top', 'tile detail')
+        ok(desc:find('Outfit: Ocean Maid', 1, true) and desc:find('Slot: Top', 1, true), desc)
+        at(r, 0.4, 'right', 'right', 'up', 'down')
+        eq(tv:BP_GetSelectedItem(), tv.items[3], 'last tile kept; up and down do nothing in the grid')
+        at(r, 0.4, 'left', 'left', 'left')
+        at(r, 0.4, 'down')
+        eq((detail(r)), 'Jacket', 'left on the first tile went back to the rows')
+        -- Back in the grid goes back to the rows, the menu stays.
+        at(r, 0.4, 'select', 'back')
+        ok(r.menu.is_open(), 'back in the grid keeps the menu')
+        at(r, 0.4, 'down')
+        eq((detail(r)), 'Cape', 'back to the rows')
+        -- Up on the first row reaches the tabs; left and right change the tab there, down comes back.
+        at(r, 0.4, 'tab_left', 'tab_right', 'up', 'right')
+        eq((detail(r)), 'Upper arm tattoo', 'right in the tabs changes the tab')
+        at(r, 0.4, 'left', 'down', 'down')
+        eq((detail(r)), 'Stomach tattoo', 'down from the tabs to the rows')
+        -- The mouse: a click on a tab, on a row; a tile picked in the TileView.
+        local tabs = r.kit.live(F.TAB)
+        tabs[4].o.Button_Action.hover = true
+        at(r, 0.4, 'click')
+        tabs[4].o.Button_Action.hover = false
+        eq((detail(r)), 'Hip tattoo', 'a click on the hips tab')
+        local zones = r.kit.groups.closet_menu.zones
+        zones[2].hover = true
+        at(r, 0.4, 'click')
+        zones[2].hover = false
+        eq((detail(r)), 'Lower back tattoo', 'a click on row 2')
+        at(r, 0.4, 'tab_left', 'tab_left')
+        zones[6].hover = true
+        at(r, 0.4, 'click')
+        zones[6].hover = false
+        eq((detail(r)), 'None', 'a click on a row of pieces goes into its grid')
+        at(r, 0.4, 'back')
+        grid(r):SetSelectedIndex(1)
+        tick(r, 0.45)
+        eq((detail(r)), 'Maid top', 'a tile picked by the mouse takes the focus')
+        at(r, 0.45, 'left')
+        eq((detail(r)), 'None', 'and the keys go on from it')
+    end,
+
+    preview_waits_250_ms_and_takes_the_last_focus = function()
+        local r = rig()
+        on_top(r)
+        at(r, 0.1, 'right', 'right')
+        tick(r, 0.3)
+        eq(#r.previews, 0, 'not before 250 ms')
+        at(r, 0.3, 'right')
+        tick(r, 0.5)
+        eq(#r.previews, 0, 'the timer starts again on each move')
+        tick(r, 0.56)
+        same(r.previews, {{{fit = KUNOICHI, slots = {'Chest'}}}}, 'the last focus worn')
+        tick(r, 1.2)
+        eq(#r.previews, 1, 'once')
+        -- The worn tile again: nothing to wear.
+        at(r, 1.2, 'left', 'right')
+        tick(r, 1.5)
+        eq(#r.previews, 1, 'the worn tile is not worn again')
+        -- A tile the mouse picked waits the same.
+        grid(r):SetSelectedIndex(1)
+        tick(r, 1.6)
+        eq(#r.previews, 1, 'mouse: not yet')
+        tick(r, 1.9)
+        same(r.previews[2], {{fit = MAID, slots = {'Chest'}}}, 'mouse: Maid top worn')
+        -- Leaving the grid before 250 ms wears nothing.
+        at(r, 2, 'left')
+        at(r, 2.1, 'back')
+        tick(r, 2.5)
+        eq(#r.previews, 2, 'left the grid')
+    end,
+
+    a_locked_tile_is_never_previewed = function()
+        local r = rig({installed = function(fit) return fit ~= KUNOICHI end})
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'right')
+        eq(grid(r).items[3].Purchased, false, 'Kunoichi top locked')
+        local title, desc = detail(r)
+        eq(title, 'Kunoichi top', 'locked tile detail')
+        ok(desc:find(T.en.closet.row.locked:format('AiK'), 1, true), desc)
+        tick(r, 1)
+        at(r, 1, 'refresh', 'select')
+        tick(r, 2)
+        eq(#r.previews, 0, 'never previewed')
+        at(r, 2, 'down')
+        eq((detail(r)), 'Jacket', 'select went back to the rows')
+        -- A soon row and a locked whole outfit: refresh wears nothing.
+        at(r, 2, 'tab_left')
+        at(r, 2, 'refresh')
+        at(r, 2, 'tab_left', 'down', 'refresh')
+        eq(#r.previews, 0, 'soon row, locked outfit')
+        at(r, 2, 'up', 'refresh')
+        same(r.previews, {{{fit = MAID}}}, 'the installed outfit is worn')
+    end,
+
+    none_tile_takes_the_slot_off = function()
+        local r = rig({before = function(r) r.choices = {{fit = MAID}} end})
+        on_top(r)
+        at(r, 0.5, 'right')
+        eq(grid(r):BP_GetSelectedItem(), grid(r).items[2], 'the worn Maid top focused')
+        at(r, 0.5, 'left', 'select')
+        local m = require('closet.ui.model').new({slots = require('closet.slots'), fits = Fits,
+            installed = function() return true end})
+        same(r.previews, {m.choose({{fit = MAID}}, 'Chest', nil)}, 'select wears the None tile at once')
+        ok(m.worn(r.previews[1], 'Chest') == nil and m.worn(r.previews[1], 'Collar') == MAID, 'Top off, the rest on')
+        at(r, 0.5, 'down')
+        eq((detail(r)), 'Jacket', 'back to the rows')
+        tick(r, 2)
+        eq(#r.previews, 1, 'the timer was dropped')
+    end,
+
+    refresh_wears_the_whole_outfit = function()
+        local r = rig()
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'right', 'refresh')
+        same(r.previews, {{{fit = KUNOICHI}}}, 'the focused tile outfit')
+        tick(r, 2)
+        eq(#r.previews, 1, 'no timer after it')
+        -- In the rows: the worn tile's outfit.
+        at(r, 2, 'back', 'refresh')
+        same(r.previews[2], {{fit = KUNOICHI}}, 'the worn tile outfit in the rows')
+        -- The Full tab: the row's outfit.
+        at(r, 2, 'tab_left', 'tab_left')
+        local title = detail(r)
+        eq(title, 'Ocean Maid', 'the Full tab')
+        at(r, 2, 'refresh', 'down', 'refresh')
+        same(r.previews[3], {{fit = MAID}}, 'row 1')
+        same(r.previews[4], {{fit = KUNOICHI}}, 'row 2')
+    end,
+
+    back_without_changes_closes = function()
+        local r = rig()
+        on_top(r)
+        at(r, 0.5, 'right', 'back')
+        ok(r.menu.is_open(), 'back in the grid')
+        at(r, 0.5, 'back')
+        all_gone(r)
+        eq(r.reverted, 1, 'closed with a revert')
+        for _, rec in ipairs(r.kit.made) do ok(rec.class ~= F.POPUP, 'no popup made') end
+    end,
+
+    back_with_changes_asks = function()
+        local r = rig()
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'select')
+        local refocused = r.kit.refocused
+        at(r, 0.5, 'back')
+        ok(r.menu.is_open(), 'still open')
+        eq(popups(r), 1, 'the popup')
+        local p = r.kit.live(F.POPUP)[1].o
+        eq(p.TitleText.text, T.en.closet.popup.title, 'title')
+        eq(p.DescText.text, T.en.closet.popup.desc, 'desc')
+        eq(p.ButtonType, 3, 'Yes and No')
+        eq(r.kit.refocused, refocused + 1, 'focus back to the kit')
+        -- Other words do nothing while it asks.
+        at(r, 0.5, 'down', 'tab_left', 'refresh', 'left')
+        eq(#r.previews, 1, 'nothing worn')
+        eq(popups(r), 1, 'still asking')
+        eq(r.reverted + r.confirmed, 0, 'no answer')
+    end,
+
+    popup_yes_keeps_and_saves = function()
+        local r = rig()
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'select', 'back', 'select')
+        eq(r.confirmed, 1, 'confirmed')
+        eq(r.reverted, 0, 'not reverted')
+        same(r.told, {T.en.closet.saved}, 'saved notice')
+        all_gone(r)
+        -- The yes word too.
+        r.t = 1
+        r.menu.open()
+        at(r, 1.5, 'right', 'left', 'select', 'back', 'yes')
+        eq(r.confirmed, 2, 'yes')
+        all_gone(r)
+    end,
+
+    popup_no_reverts = function()
+        local r = rig()
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'select', 'back', 'no')
+        eq(r.reverted, 1, 'reverted')
+        eq(r.confirmed, 0, 'not confirmed')
+        same(r.told, {}, 'no notice')
+        all_gone(r)
+    end,
+
+    popup_back_stays = function()
+        local r = rig()
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'select', 'back', 'back')
+        ok(r.menu.is_open(), 'the menu stays')
+        eq(popups(r), 0, 'the popup is gone')
+        eq(r.reverted + r.confirmed, 0, 'no answer')
+        at(r, 0.5, 'down')
+        eq((detail(r)), 'Jacket', 'the rows take the keys again')
+        at(r, 0.5, 'back')
+        eq(popups(r), 1, 'back asks again')
+        at(r, 0.5, 'select')
+        eq(r.confirmed, 1, 'then yes')
+        all_gone(r)
+    end,
+
+    popup_answers_by_mouse = function()
+        for _, case in ipairs({{'Button_Positive', 1, 0}, {'Button_Negative', 0, 1}}) do
+            local r = rig()
+            on_top(r)
+            at(r, 0.5, 'right', 'right', 'select', 'back', 'click')
+            eq(popups(r), 1, 'a click on no button: nothing')
+            r.kit.live(F.POPUP)[1].o[case[1]].hover = true
+            at(r, 0.5, 'click')
+            eq(r.confirmed, case[2], case[1] .. ' confirmed')
+            eq(r.reverted, case[3], case[1] .. ' reverted')
+            all_gone(r)
+        end
+    end,
+
+    select_is_ignored_right_after_open = function()
+        local r = rig()
+        r.menu.open()
+        at(r, 0.1, 'select')
+        at(r, 0.1, 'down')
+        eq((detail(r)), 'Top', 'the console Enter did not go into the grid')
+        at(r, 0.31, 'select', 'down')
+        eq((detail(r)), 'None', 'select works 0.3 s after the open')
+    end,
+
+    refused_opens_make_nothing = function()
+        local eve = {IsA = function() return true end}
+        local cases = {
+            {'ui', function(r) r.kit.up = false end},
+            {'loading', function(r) r.world = false end},
+            {'panel', function(r) r.kit.held = 'lobby' end},
+            {'screen', function(r) r.kit.paused_now = true end},
+            {'photo', function(r) r.photo = '1' end},
+            {'cutscene', function(r) r.status = 'mod=1 theater=intro' end},
+            {'cutscene', function() eve.IsAttachedToLevelSequenceWithoutPlayable = function() return true end end},
+            {'combat', function() eve.IsBattle = function() return true end end},
+            {'tachy', function(r) r.game_look = '/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10' end},
+        }
+        package.loaded.UEHelpers.GetPlayer = function() return eve end
+        for _, case in ipairs(cases) do
+            eve.IsBattle = function() return false end
+            eve.IsAttachedToLevelSequenceWithoutPlayable = function() return false end
+            local r = rig()
+            case[2](r)
+            local held = r.kit.held
+            local good, line = r.menu.open()
+            eq(good, false, case[1])
+            eq(line, T.en.closet.refused[case[1]], case[1] .. ' line')
+            same(r.told, {T.en.closet.refused[case[1]]}, case[1] .. ' notice')
+            eq(#r.kit.made, 0, case[1] .. ': nothing made')
+            eq(#r.kit.inputs, 0, case[1] .. ': no input taken')
+            eq(r.kit.held, held, case[1] .. ': input untouched')
+            eq(r.menu.is_open(), false, case[1] .. ': closed')
+        end
+        package.loaded.UEHelpers.GetPlayer = function() return nil end
+    end,
+
+    combat_cutscene_photo_and_map_change_close_and_revert = function()
+        local eve = {IsA = function() return true end, IsBattle = function() return false end}
+        package.loaded.UEHelpers.GetPlayer = function() return eve end
+        local cases = {
+            {'map', function(r) r.world = false end},
+            {'map', function(r) r.kit.up = false end},
+            {'photo', function(r) r.photo = '2' end},
+            {'cutscene', function(r) r.status = 'mod=1 theater=boss' end},
+            {'cutscene', function() eve.IsAttachedToLevelSequenceWithoutPlayable = function() return true end end},
+            {'input', function(r) r.kit.held = nil end},
+        }
+        for _, case in ipairs(cases) do
+            eve.IsAttachedToLevelSequenceWithoutPlayable = function() return false end
+            local r = rig()
+            on_top(r)
+            tick(r, 0.25)
+            ok(r.menu.is_open(), case[1] .. ': open before')
+            case[2](r)
+            tick(r, 0.4)
+            ok(r.menu.is_open(), case[1] .. ': checked each 250 ms')
+            tick(r, 0.5)
+            eq(r.reverted, 1, case[1] .. ' reverted')
+            same(r.told, {T.en.closet.closed[case[1]]}, case[1] .. ' notice')
+            all_gone(r)
+        end
+        eve.IsAttachedToLevelSequenceWithoutPlayable = function() return false end
+        -- Combat: checked once a second.
+        local r = rig()
+        on_top(r)
+        eve.IsBattle = function() return true end
+        tick(r, 0.25) tick(r, 0.5) tick(r, 0.75)
+        ok(r.menu.is_open(), 'combat waits for its second')
+        tick(r, 1)
+        eq(r.reverted, 1, 'combat reverted')
+        same(r.told, {T.en.closet.closed.combat}, 'combat notice')
+        all_gone(r)
+        eve.IsBattle = function() return false end
+        -- A part gone (the root rebuilt by a map change): closed, every other part dropped.
+        r = rig()
+        on_top(r)
+        r.kit.made[1].live = false
+        tick(r, 0.25)
+        same(r.told, {T.en.closet.closed.map}, 'part gone notice')
+        eq(r.reverted, 1, 'part gone reverted')
+        eq(r.kit.dropped, #r.kit.made - 1, 'the others dropped')
+        eq(r.menu.is_open(), false, 'closed')
+        eq(r.kit.held, nil, 'input back')
+        package.loaded.UEHelpers.GetPlayer = function() return nil end
+    end,
+
+    a_typed_wear_closes_the_menu_without_revert = function()
+        local r = rig()
+        on_top(r)
+        tick(r, 0.25)
+        ok(r.menu.is_open(), 'no change made: previewing false is fine')
+        at(r, 0.5, 'right', 'right', 'select')
+        tick(r, 0.75)
+        ok(r.menu.is_open(), 'previewing')
+        r.previewing = false -- coop closet wear typed in the console.
+        tick(r, 1)
+        eq(r.reverted, 0, 'no revert')
+        eq(r.confirmed, 0, 'no confirm')
+        same(r.told, {}, 'no notice')
+        all_gone(r)
+    end,
+
+    every_close_path_drops_every_part = function()
+        local paths = {
+            back = function(r) at(r, 1, 'back') end,
+            yes = function(r) at(r, 1, 'right', 'right', 'select', 'back', 'select') end,
+            no = function(r) at(r, 1, 'right', 'right', 'select', 'back', 'no') end,
+            popup_then_reset = function(r) at(r, 1, 'right', 'right', 'select', 'back'); r.menu.close() end,
+            guard = function(r) r.photo = '1'; tick(r, 1) end,
+            typed = function(r) at(r, 1, 'right', 'right', 'select'); r.previewing = false; tick(r, 1.5) end,
+            stop = function(r) r.menu.stop() end,
+            close = function(r) r.menu.close() end,
+            keep = function(r) r.menu.close('keep') end,
+        }
+        for name, path in pairs(paths) do
+            local r = rig()
+            on_top(r)
+            path(r)
+            local good, why = pcall(all_gone, r)
+            ok(good, name .. ': ' .. tostring(why))
+            local calls = #r.kit.inputs
+            r.menu.tick() -- Closed: nothing.
+            r.menu.nav('back')
+            eq(#r.kit.inputs, calls, name .. ': nothing after the close')
+        end
     end,
 }
 

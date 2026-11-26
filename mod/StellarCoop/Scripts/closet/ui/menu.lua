@@ -9,9 +9,20 @@
 -- game holds EVE still while one is up), hides the group and gives the input back. close('revert') wears the confirmed
 -- look again (dress.revert), close('keep') leaves the look as it is, close('stop') (coop off) does neither and plays no
 -- sound. A draw that raises closes the menu with a revert and one log line.
+-- Focus: the tabs, the rows or the grid (col). E and Q change the tab. Up and down walk the rows; up on the first row
+-- reaches the tabs. Right or select on a row of pieces goes into its grid; left and right walk its tiles; left on the
+-- first tile or back returns to the rows. A tile focused for PREVIEW s is worn as a preview (dress.preview); select
+-- wears it at once and returns to the rows; refresh wears the whole outfit of the focused tile (the worn one in the
+-- rows) or of the Full tab's row. Locked tiles and soon or empty rows never wear. Back in the rows or the tabs closes
+-- with a revert when nothing changed since the open. Else the popup asks "Keep this look?": Yes confirms
+-- (dress.confirm), No reverts, Back stays. Select does nothing for ARM s after the open: the console's Enter that typed
+-- coop closet menu reaches our Enter bind too (main/base.lua's M.typed_at note).
+-- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
+-- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
+-- closes it without a revert.
 -- o: {kit=ui/kit/kit.lua's, dress=closet/dress.lua's, words=function() the ui/text table to show, tell=function(build)
 -- (main/base.lua's M.tell), log=, world=function() M.hud_shown, photo=function() M.photo_state(), status=function()
--- the link's status text or nil, adult=the Intimate tab shown}.
+-- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil)}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player=require('core.player')
@@ -21,16 +32,28 @@ local View=require('closet.ui.view')
 local T=require('ui.text')
 local Menu={}
 Menu.NEAR=3000 -- cm: an engaged enemy that near is combat (online/lobby/wiring.lua's fight check; no source).
+Menu.PREVIEW,Menu.ARM,Menu.GUARD,Menu.COMBAT=0.25,0.3,0.25,1 -- s.
 
 function Menu.new(o)
     local kit,dress=o.kit,o.dress
     local log=o.log or function() end
+    local now=o.now or os.clock
     local model=Model.new({slots=require('closet.slots'),fits=Fits,installed=dress.installed,adult=o.adult==true})
     local view=View.new(kit,log)
     local self={}
     local open=false
     local tab,row -- Kept across opens; nil until the first.
+    -- col: 'tabs', 'rows' or 'grid'; tile: the focused tile in the grid; asking: the popup shows; changed: a preview
+    -- since the open; due: when the focused tile is worn (nil: none waits); opened, guard_at, combat_at: times in s.
+    local col,tile,asking,changed,due,opened,guard_at,combat_at='rows',1,false,false,nil,0,0,0
     local function words() return o.words and o.words() or T.en end
+
+    local function cutscene(eve)
+        local theater=(o.status() or ''):match('theater=(%S+)')
+        if theater and theater~='none' and theater~='fault' then return true end
+        return eve~=nil and eve:IsAttachedToLevelSequenceWithoutPlayable()==true
+    end
+    local function combat(eve) return eve~=nil and (eve:IsBattle()==true or Player.engaged(eve,Menu.NEAR)) end
 
     -- The key of the first guard that fails (closet.refused.<key>), or nil.
     local function refused()
@@ -40,11 +63,22 @@ function Menu.new(o)
         if kit.paused(true) then return 'screen' end
         if o.photo()~='0' then return 'photo' end
         local eve=U.her(UE.GetPlayer())
-        local theater=(o.status() or ''):match('theater=(%S+)')
-        if theater and theater~='none' and theater~='fault' then return 'cutscene' end
-        if eve and eve:IsAttachedToLevelSequenceWithoutPlayable()==true then return 'cutscene' end
-        if eve and (eve:IsBattle()==true or Player.engaged(eve,Menu.NEAR)) then return 'combat' end
+        if cutscene(eve) then return 'cutscene' end
+        if combat(eve) then return 'combat' end
         if dress.game_look()~=nil then return 'tachy' end
+        return nil
+    end
+    -- While open: the key of the first guard that fails (closet.closed.<key>), or nil. Combat each COMBAT s.
+    local function closing(t)
+        if not (kit.ready() and o.world() and view.alive()) then return 'map' end
+        if o.photo()~='0' then return 'photo' end
+        local eve=U.her(UE.GetPlayer())
+        if cutscene(eve) then return 'cutscene' end
+        if not kit.holding() then return 'input' end -- coop ui reset gave the game its input back.
+        if t>=combat_at then
+            combat_at=t+Menu.COMBAT
+            if combat(eve) then return 'combat' end
+        end
         return nil
     end
 
@@ -56,6 +90,34 @@ function Menu.new(o)
             end
         end
         return 1,1
+    end
+
+    -- The focused row's item; on a row of pieces also its tiles and the worn tile's index (None when none is worn).
+    local function focused(choices)
+        local item=model.rows(model.tabs()[tab])[row]
+        if not item or item.state~='pieces' then return item end
+        local tiles,worn=model.tiles(item.slot),model.worn(choices or dress.choices() or {},item.slot)
+        for i,one in ipairs(tiles) do
+            if one.fit==worn then return item,tiles,i end
+        end
+        return item,tiles,1
+    end
+
+    -- A tile's detail lines: its outfit, slot, covers, what else it takes, hidden by default, locked.
+    local function lines(w,one,slot)
+        local function names(ids,from)
+            local out={}
+            for i,id in ipairs(ids) do out[i]=from[id] or id end
+            return table.concat(out,', ')
+        end
+        local out={}
+        if not one.none then out[#out+1]=w.detail.outfit:format(one.outfit) end
+        out[#out+1]=w.detail.slot:format(w.slots[slot] or slot)
+        if one.covers then out[#out+1]=w.detail.covers:format(names(one.covers,w.regions)) end
+        if one.also then out[#out+1]=w.detail.also:format(names(one.also,w.slots)) end
+        if one.off then out[#out+1]=w.detail.off end
+        if one.locked then out[#out+1]=w.row.locked:format(one.pack) end
+        return table.concat(out,'\n')
     end
 
     -- What view.draw shows now.
@@ -88,16 +150,23 @@ function Menu.new(o)
             s.detail.desc=w.row[item.state]
         elseif item then
             local worn=model.worn(choices,item.slot)
+            local _,tiles,at=focused(choices)
             s.tiles={}
-            for i,tile in ipairs(model.tiles(item.slot)) do
-                local equipped=tile.none and worn==nil or tile.fit==worn
-                s.tiles[i]={name=tile.none and w.row.none or tile.name,equipped=equipped,locked=tile.locked}
-                if equipped then s.tile=i end
+            for i,one in ipairs(tiles) do
+                s.tiles[i]={name=one.none and w.row.none or one.name,equipped=i==at,locked=one.locked}
             end
-            s.detail.equipped=worn~=nil
-            if worn then s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit) end
+            if col=='grid' then
+                tile=math.max(1,math.min(tile,#tiles))
+                s.tile=tile
+                s.detail={title=s.tiles[tile].name,desc=lines(w,tiles[tile],item.slot),equipped=tile==at}
+            else
+                s.tile=at
+                s.detail.equipped=worn~=nil
+                if worn then s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit) end
+            end
             s.hints[2]={t.hint.select,'Positive'}
         end
+        if asking then s.popup={title=w.popup.title,desc=w.popup.desc} end
         return s
     end
 
@@ -106,7 +175,7 @@ function Menu.new(o)
     function self.close(how)
         how=how or 'revert'
         if not open then return true,'closet menu: not open' end
-        open=false
+        open,asking,due=false,false,nil
         local dropped,why=pcall(view.drop_all)
         if not dropped then log('menu: drop failed: '..tostring(why)) end
         kit.show(View.GROUP,false)
@@ -115,6 +184,17 @@ function Menu.new(o)
         if how=='revert' then dress.revert() end
         log('menu: closed ('..how..')')
         return true,'closet menu: closed'
+    end
+
+    -- Draws the state; a draw that raises closes the menu with a revert.
+    local function redraw()
+        if not open then return end
+        local drawn,why=pcall(function() view.draw(state()) end)
+        if not drawn then
+            log('menu: draw failed: '..tostring(why))
+            self.close('revert')
+        end
+        return drawn
     end
 
     function self.open()
@@ -129,27 +209,135 @@ function Menu.new(o)
             return false,T.en.closet.refused[key]
         end
         if not tab then tab,row=first() end
+        col,tile,asking,changed,due='rows',1,false,false,nil
+        opened=now()
+        guard_at,combat_at=opened+Menu.GUARD,opened+Menu.COMBAT
         kit.input(true,View.GROUP,true)
         kit.sound('open')
         kit.show(View.GROUP,true)
         open=true
         log('menu: open')
-        local drawn,why=pcall(function() view.draw(state()) end)
-        if not drawn then
-            log('menu: draw failed: '..tostring(why))
-            self.close('revert')
-            return false,'closet menu: closed, it could not draw (UE4SS.log says why)'
-        end
+        if not redraw() then return false,'closet menu: closed, it could not draw (UE4SS.log says why)' end
         return true,'closet menu: open'
     end
 
-    function self.is_open() return open end
-    -- A menu word from main/keys.lua (up, down, left, right, select, back, tab_left, tab_right, refresh): back closes.
-    function self.nav(word)
-        if open and word=='back' then self.close('revert') end
+    -- choices worn as a preview; a failure is told and logged.
+    local function wear(choices)
+        due=nil
+        local ran,good,why=pcall(dress.preview,choices)
+        if not (ran and good) then
+            log('menu: preview failed: '..tostring(ran and why or good))
+            o.tell(function(t) return t.closet.failed end)
+        end
+        changed=changed or dress.previewing()
     end
-    -- Each frame (closet/wiring.lua, through main/frame.lua's guard): nothing to watch yet.
-    function self.tick() end
+    -- The focused tile worn, None taking the slot off; a locked tile or the worn one: nothing.
+    local function wear_tile()
+        local choices=dress.choices() or {}
+        local item,tiles,at=focused(choices)
+        local one=tiles and tiles[tile]
+        due=nil
+        if not one or one.locked or tile==at then return end
+        wear(model.choose(choices,item.slot,one.fit))
+    end
+    -- refresh: the whole outfit of the focused tile (the worn one in the rows) or of the Full tab's row.
+    local function wear_whole()
+        local item,tiles,at=focused()
+        local one=item and item.whole and {fit=item.whole,locked=item.locked}
+        if tiles then one=tiles[col=='grid' and tile or at] end
+        if one and one.fit and not one.locked then wear(model.whole(one.fit)) end
+    end
+
+    local function set_tab(i)
+        tab,row,due=(i-1)%#model.tabs()+1,1,nil
+        if col=='grid' then col='rows' end
+        kit.sound('change')
+    end
+    local function answer(yes)
+        if not yes then return self.close('revert') end
+        local good,why=dress.confirm()
+        if not good then
+            log('menu: confirm failed: '..tostring(why))
+            return self.close('revert')
+        end
+        o.tell(function(t) return t.closet.saved end)
+        self.close('keep')
+    end
+
+    function self.is_open() return open end
+    -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, or click (a
+    -- left click: the tab, row or popup button under the mouse). yes and no answer the popup too.
+    function self.nav(word)
+        if not open then return end
+        if word=='select' and now()<opened+Menu.ARM then return end
+        if asking then
+            if word=='click' then word=view.popup_hit() end
+            if word=='select' or word=='yes' then answer(true)
+            elseif word=='no' then answer(false)
+            elseif word=='back' then asking=false; redraw() end
+            return
+        end
+        if word=='click' then -- The row under the mouse takes the focus and Select runs, as in the lobby.
+            local i=view.tab_hovered()
+            if i then set_tab(i); return redraw() end
+            i=view.row_hovered()
+            if not i then return end
+            row,col,due,word=i,'rows',nil,'select'
+        end
+        local _,tiles,at=focused()
+        if word=='tab_left' or word=='tab_right' then set_tab(tab+(word=='tab_left' and -1 or 1))
+        elseif word=='refresh' then wear_whole()
+        elseif col=='grid' then
+            -- shortcut: one row of tiles, up/down in the grid wait for more than one row of pieces (needs the
+            -- TileView's EntryWidth from Ghidra).
+            if word=='back' or word=='left' and tile==1 then col,due='rows',nil
+            elseif word=='left' or word=='right' then
+                local to=math.max(1,math.min(tile+(word=='left' and -1 or 1),#tiles))
+                if to~=tile then tile,due=to,now()+Menu.PREVIEW; kit.sound('move') end
+            elseif word=='select' then wear_tile(); col='rows' end
+        elseif word=='back' then
+            if not changed then return self.close('revert') end
+            asking=true
+        elseif col=='tabs' then
+            if word=='left' or word=='right' then set_tab(tab+(word=='left' and -1 or 1))
+            elseif word=='down' then col='rows'; kit.sound('move') end
+        elseif word=='up' or word=='down' then
+            local n=#model.rows(model.tabs()[tab])
+            if word=='up' and row==1 then col='tabs' else row=math.max(1,math.min(row+(word=='up' and -1 or 1),n)) end
+            kit.sound('move')
+        elseif (word=='right' or word=='select') and tiles then col,tile='grid',at end
+        redraw()
+    end
+    -- Each frame (closet/wiring.lua, through main/frame.lua's guard): the guards each GUARD s, a preview ended by a
+    -- typed coop closet wear or off, a tile the mouse picked, the focused tile worn once due.
+    function self.tick()
+        if not open then return end
+        local t=now()
+        if t>=guard_at then
+            guard_at=t+Menu.GUARD
+            local read,key=pcall(closing,t)
+            if not read then
+                log('menu: a guard could not be read: '..tostring(key))
+                return self.close('revert')
+            end
+            if key then
+                o.tell(function(w) return w.closet.closed[key] end)
+                return self.close('revert')
+            end
+            if changed and not dress.previewing() then return self.close('keep') end
+        end
+        if asking then return end
+        local _,tiles=focused()
+        local picked=tiles and view.picked()
+        if picked then
+            col,tile,due='grid',picked,t+Menu.PREVIEW
+            redraw()
+        end
+        if due and t>=due then
+            wear_tile()
+            redraw()
+        end
+    end
     -- coop off: closed without a revert (the dress gives EVE her own look back).
     function self.stop() self.close('stop') end
     return self

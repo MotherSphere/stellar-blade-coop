@@ -6,12 +6,15 @@
 -- The fake game side of the closet menu's tests (tests/lua/closet/menu_test.lua): the engine globals the view calls
 -- (FText, FName, StaticFindObject, LoadAsset, StaticConstructObject), fake widget parts that record every call, the
 -- hair salon grid's TileView (probe_test.lua's). F.kit() gives a new fake kit; k.events lists the drops and the
--- TileView's clears in order.
+-- TileView's clears in order. Tab buttons and the popup's buttons answer IsHovered from their hover field.
 local F = {}
 FText = function(s) return {text = s, ToString = function(self) return self.text end} end
 FName = function(s) return s end
 LoadAsset = function() end
-StaticFindObject = function(path) return {path = path, IsValid = function() return true end} end
+-- type: core/unreal.lua's U.valid reads it (U.her finds SBCharacter through U.find).
+StaticFindObject = function(path)
+    return {path = path, IsValid = function() return true end, type = function() return 'UObject' end}
+end
 StaticConstructObject = function(class, outer)
     return {class = class, outer = outer, IsValid = function() return true end}
 end
@@ -38,6 +41,9 @@ function F.called(w, name, arg)
     return false
 end
 
+-- A button the mouse is over while hover is true (IsHovered).
+function F.button() return {hover = false, IsHovered = function(self) return self.hover end} end
+
 -- The hair salon grid's TileView (probe_test.lua's game()).
 local function tileview(events)
     local tv = {items = {}, SelectionMode = 0, cleared = 0, calls = {}}
@@ -49,6 +55,10 @@ local function tileview(events)
     function tv:GetNumItems() return #self.items end
     function tv:GetItemAt(i) return self.items[i + 1] end
     function tv:SetSelectedIndex(i) self.sel = self.items[i + 1] end
+    function tv:GetIndexForItem(item)
+        for i, it in ipairs(self.items) do if it == item then return i - 1 end end
+        return -1
+    end
     function tv:BP_GetSelectedItem() return self.sel end
     return tv
 end
@@ -98,6 +108,8 @@ function F.kit()
         local o = widget(class_path)
         if class_path == F.GRID then o.TileView_ItemList = tileview(k.events) end
         if class_path == F.DETAIL then o.WB_Common_HoldButton = widget('hold') end
+        if class_path == F.TAB then o.Button_Action = F.button() end
+        if class_path == F.POPUP then o.Button_Positive, o.Button_Negative = F.button(), F.button() end
         if fill then fill(o) end
         local rec = {o = o, live = true, class = class_path, x = x, y = y, w = w, h = h, hit = hit}
         k.made[#k.made + 1] = rec
