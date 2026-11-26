@@ -493,6 +493,59 @@ local tests = {
         eq(w.eve.Mesh.SkeletalMesh.path, other, 'the outside body stays')
         ok(w.file:find('AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes', 1, true), 'the look stays kept')
     end,
+    -- A picked body (the Body row) is never switched, so a fight over it cannot be ended by wearing the outside body:
+    -- the mix stops, the added meshes hidden so she never wears two outfits at once.
+    an_outside_fight_over_a_picked_body_stops_the_mix = function()
+        local w = world()
+        local picked = {{fit = NINJA, slots = {'BaseBody', 'Gloves'}}, {fit = MAID, slots = {'Fingernails'}}}
+        assert(w.d.wear(picked))
+        for _ = 1, 30 do
+            if w.eve.Mesh.SkeletalMesh.path ~= OM then w.eve.Mesh:SetSkeletalMesh(w.assets[OM]) end
+            second(w)
+        end
+        local n = 0
+        for _, line in ipairs(w.log) do if line:find('mix again', 1, true) then n = n + 1 end end
+        eq(n, w.Dress.FIGHT.mixes, 'the mixes stop') ok(not logged(w, 'keeps putting'), 'no false line')
+        ok(logged(w, 'the closet stops mixing until the next wear or preview'))
+        eq(w.eve.comps[2].hidden_in_game, true, 'the added mesh hidden')
+        ok(w.d.status():find('stopped', 1, true), 'status says so')
+    end,
+    -- Outside changes far apart (a map load now, Tachy Mode later) are no fight, however many.
+    outside_changes_far_apart_are_no_fight = function()
+        local w = world()
+        local other = '/Game/Art/Character/PC/CH_P_EVE_31/CH_P_EVE_31.CH_P_EVE_31'
+        w.assets[other] = mesh(other, 6)
+        assert(w.d.wear(GLOVES))
+        for _ = 1, 8 do
+            w.eve.Mesh:SetSkeletalMesh(w.assets[other])
+            second(w) second(w)
+            w.now = w.now + w.Dress.FIGHT.within
+        end
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'the look again') ok(not logged(w, 'stops mixing'))
+    end,
+    -- A wear or a preview starts the count over.
+    a_wear_starts_the_fight_count_over = function()
+        local w = world()
+        local other = '/Game/Art/Character/PC/CH_P_EVE_31/CH_P_EVE_31.CH_P_EVE_31'
+        w.assets[other] = mesh(other, 6)
+        assert(w.d.wear(GLOVES))
+        local function change() w.eve.Mesh:SetSkeletalMesh(w.assets[other]); second(w) second(w) end
+        for _ = 1, w.Dress.FIGHT.mixes - 1 do change() end
+        assert(w.d.wear(GLOVES))
+        change() change()
+        ok(not logged(w, 'stops mixing'), 'counted from the wear') eq(w.eve.Mesh.SkeletalMesh.path, KS)
+        assert(w.d.preview(GLOVES))
+        for _ = 1, w.Dress.FIGHT.mixes - 1 do change() end
+        ok(not logged(w, 'stops mixing'), 'counted from the preview')
+    end,
+    -- off on an EVE whose body component is gone still removes the closet's added meshes.
+    off_without_her_body_removes_the_added_meshes = function()
+        local w = world()
+        assert(w.d.wear(GLOVES))
+        w.eve.comps[1].alive = false
+        w.d.off()
+        eq(#w.eve.comps, 1, 'only the dead body stays') eq(w.file, nil)
+    end,
     -- A map load sets her body twice: two mixes close together are no fight.
     two_quick_outside_changes_are_no_fight = function()
         local w = world()

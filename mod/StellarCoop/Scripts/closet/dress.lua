@@ -23,8 +23,9 @@
 -- reset, CNS) gets the mix again; a hidden section the game showed again (Tachy Mode's end) is hidden again. The body
 -- mesh put on from outside becomes her own look, which off gives back; a closet mesh never does. The closet's own
 -- changes (wear, preview, revert) set the plan the watchdog compares with, so they never count. After off nothing is
--- watched until the next wear. An outside fight (FIGHT: something undoes every mix) ends: a body the look holds is worn
--- as the body, any other body stops the mix until the next wear or preview. Her body is never removed.
+-- watched until the next wear. An outside fight (FIGHT: something undoes every mix) ends. When the look holds the
+-- outside body's outfit and no body is picked, that outfit is worn as the body. Otherwise the mix stops until the next
+-- wear or preview, with its added meshes hidden. Her body is never removed.
 -- Preview (the closet menu's live look): preview(choices) puts a look on without saving it. The first call remembers the
 -- confirmed choices (state.kept, false when none). During a preview coop-closet.txt holds EVE's leftovers to sweep and
 -- the confirmed words, so a reload gives the confirmed look. confirm() saves the previewed look, revert() wears the
@@ -315,12 +316,16 @@ function Dress.new(o)
     end
     -- Removes every component on EVE but her body that wears one of the given mesh paths: ours, also one an earlier
     -- mix or Lua load left (a map load can make the game set her body twice, and each change got the mix again).
-    -- Her body is told by its address: UE4SS hands a new wrapper at each read, so c~=body is true for her body too. With
-    -- her body unread, nothing is removed.
+    -- Her body is told by its address: UE4SS hands a new wrapper at each read, so c~=body is true for her body too. A
+    -- body whose address does not read: nothing is removed. No valid body: no component can be it.
     local function sweep(eve,paths)
         local body=valid(eve.Mesh)
-        local read,at=pcall(U.address,body)
-        if not (body and read and at) then return 0 end
+        local at=nil
+        if body then
+            local read
+            read,at=pcall(U.address,body)
+            if not (read and at) then return 0 end
+        end
         local removed=0
         local wanted={}
         for _,p in ipairs(paths) do wanted[p]=true end
@@ -328,7 +333,7 @@ function Dress.new(o)
             c=valid(c)
             local mesh=c and valid(c.SkeletalMesh)
             local ok,addr=pcall(U.address,c)
-            if c and mesh and ok and addr~=at and wanted[path_of(mesh)] then
+            if c and mesh and ok and (at==nil or addr~=at) and wanted[path_of(mesh)] then
                 pcall(function() c:K2_DestroyComponent(c) end)
                 removed=removed+1
             end
@@ -684,16 +689,20 @@ function Dress.new(o)
                     local fit=fits.get(c.fit)
                     if fit and fit.Mesh==path then insisted=c.fit end
                 end
+                -- A picked body (BaseBody) wins over the mode, so that plan may keep the body the outside undoes.
                 local forced=insisted and insisted~=plan.body.fit and Dress.plan(choices,fits,insisted)
-                if not forced then
+                if not (forced and forced.body.fit==insisted) then
                     state.stopped=true
+                    for _,a in ipairs(state.added) do
+                        if valid(a.c) then pcall(function() a.c:SetHiddenInGame(true,false) end) end
+                    end
                     log(string.format('something outside keeps changing her body (%s): the closet stops mixing until '
-                        ..'the next wear',tostring(path)))
+                        ..'the next wear or preview, its added meshes hidden',tostring(path)))
                     return
                 end
                 plan=forced
                 log('something outside keeps putting '..insisted..' on her body: the look is worn on that body until '
-                    ..'the next wear')
+                    ..'the next wear or preview')
             end
             local own,materials=state.own,state.materials
             local was={}
@@ -721,7 +730,8 @@ function Dress.new(o)
         if not state.plan then return 'closet: previewing her own look' end
         local p=state.plan
         return string.format('closet: %d pieces, body %s, %d added mesh%s%s',p.pieces,p.body.fit,p.parts,
-            p.parts==1 and '' or 'es',state.paused and ', paused (a game look is on)' or '')
+            p.parts==1 and '' or 'es',state.stopped and ', stopped (something outside keeps changing her body)'
+            or state.paused and ', paused (a game look is on)' or '')
     end
     function self.worn() return state~=nil end
     -- The plan on EVE now (Dress.plan's, the preview's or the confirmed look's), or nil: the menu shows its body and
