@@ -156,4 +156,21 @@ do
         :format(first,w.n.asset[missing] or 0))
 end
 
+-- 4. The camera modifier is tried once a rifle out (b812f708): a throw while adding it (here the camera manager has
+--    no AddNewCameraModifier) no longer looks the class up again on each frame. The next rifle out tries again.
+do
+    local w=world()
+    local CAMMOD='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
+    w.paths[CAMMOD]={IsValid=function() return true end,GetFullName=function() return 'Class '..CAMMOD end}
+    local gun=quiet()
+    frames(gun,1)
+    out(gun)
+    frames(gun,600)
+    local n=w.n.asset[CAMMOD] or 0
+    assert(n>=1 and n<=2,n..' camera modifier class lookups in 600 frames')
+    clock=clock+1; gun.toggle_now(); frames(gun,60)
+    out(gun); frames(gun,60)
+    assert((w.n.asset[CAMMOD] or 0)>n,'the next rifle out tries again')
+end
+
 print('gunmode cost_test ok')

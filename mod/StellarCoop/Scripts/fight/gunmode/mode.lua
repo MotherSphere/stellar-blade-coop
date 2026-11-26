@@ -1241,6 +1241,9 @@ function GunMode.new(env)
             -- modifier (BP_NGM_CamMod in the layer pak) adds Offset (camera space: forward, right, up), eased
             pcall(function()
                 if not s.cmod and not s.cmod_fail then
+                    -- one try a rifle out (b812f708): a throw below (no camera manager yet, no AddNewCameraModifier)
+                    -- must not look for the class again each frame
+                    s.cmod_fail=true
                     local cm=pc.PlayerCameraManager
                     local cls=g.loaded(CAMMOD) -- (the keep's, else the name hash: 17a166fa)
                     if not g.valid(cls) then
@@ -1248,7 +1251,8 @@ function GunMode.new(env)
                         cls=reg:GetAsset({ObjectPath=FName(CAMMOD)})
                     end
                     if g.valid(cls) then s.cmod=cm:AddNewCameraModifier(cls); s.cmod_k=0 end
-                    if not g.valid(s.cmod) then s.cmod=nil; s.cmod_fail=true; g.log('camera: modifier not available') else g.log('camera: modifier added') end
+                    if not g.valid(s.cmod) then s.cmod=nil; g.log('camera: modifier not available')
+                    else s.cmod_fail=nil; g.log('camera: modifier added') end
                 end
                 if s.cmod then
                     -- the aim camera offset: full while the game's aim is on, half for hip fire (11-20: "less than in aim")
