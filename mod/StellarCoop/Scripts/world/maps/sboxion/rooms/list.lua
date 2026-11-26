@@ -4,18 +4,19 @@
 -- SBO Xion's rooms (world/maps/sboxion/rooms/rooms.lua): the rooms the zSBO_Xion test paks of 2026-11-24 add behind
 -- closed doors of SB's Xion, each a level of its own on the streaming list of SBO Xion's persistent level
 -- (/Game/SBO_World/Rooms/<level>), with the pieces of SB that stand in its doorway. The paks of build2 hold the first
--- five, the pak of build3 all ten. A room's rows are SB's closed door unit, the wall panel behind it and the street
--- debris that reaches into the doorway: 41 rows, 18 whole components and 23 instances of 18 instanced components, in
--- 10 sublevels of /Game/Art/BG/WorldMap/SubLevel/E04/ that SBO Xion keeps. Read on 2026-11-24 from the level dumps of
--- build 26123051: each sublevel, actor and component exists under these names, a whole component is a
--- StaticMeshComponent, an instanced one a HierarchicalInstancedStaticMeshComponent, all 36 are of Static mobility with
--- baked lighting. 8 of the 18 instanced ones store CastShadow false: 33 and 34 of E04_Area02_Object_A_02, 39 of
--- E04_Area02_Object_B_02, 26 of E04_Area02_Object_D_01's Actor_0 and Actor_2, 10 of E04_Area02_Object_B_01, 0 and 4
--- of E04_Area02_Architecture_C_02. Instance 6 of E04_Area02_Object_F_01's component 34 is D036's. Its instances 0 to 3
--- are D158's.
--- D039, the growing room of build3, is not listed. Two of its three rows are blueprint props of SB that simulate
--- physics (PhysicalObj_Trash_2 and _3 of E04_Area02_Object_B_01, component StaticMesh). Hiding such a body was not
--- read in the game's code. Its room stands behind SB's closed shutter.
+-- five, the pak of build3 the first eleven. A room's rows are SB's closed door unit or shutter, the wall panel behind
+-- it and the street debris that reaches into the doorway: 42 rows, 18 whole components and 24 instances of 19
+-- instanced components, in 10 sublevels of /Game/Art/BG/WorldMap/SubLevel/E04/ that SBO Xion keeps. Read on
+-- 2026-11-24 and 2026-11-26 from the level dumps of build 26123051: each sublevel, actor and component exists under
+-- these names, a whole component is a StaticMeshComponent, an instanced one a HierarchicalInstancedStaticMeshComponent,
+-- all 37 are of Static mobility with baked lighting. 8 of the 19 instanced ones store CastShadow false: 33 and 34 of
+-- E04_Area02_Object_A_02, 39 of E04_Area02_Object_B_02, 26 of E04_Area02_Object_D_01's Actor_0 and Actor_2, 10 of
+-- E04_Area02_Object_B_01, 0 and 4 of E04_Area02_Architecture_C_02. Instance 6 of E04_Area02_Object_F_01's component
+-- 34 is D036's. Its instances 0 to 3 are D158's.
+-- D039, the growing room of build3, hides SB's shutter alone. Two blueprint props of SB that simulate physics stand in
+-- front of it (PhysicalObj_Trash_2 and _3 of E04_Area02_Object_B_01, component StaticMesh). Hiding such a body was not
+-- read in the game's code, so they stay. With the shutter hidden they leave 160 cm free between them on a flat floor
+-- (the map tools, 26 November 2026).
 -- A row: the sublevel, the actor, the component's number, the instance index (-1: the whole component), the mesh
 -- under /Game/Art/BG/Actor/, then the place the piece stores (cm): a whole component's RelativeLocation, an
 -- instance's translation inside its component. An instance row ends with the number of instances its component
@@ -92,5 +93,9 @@ return {
     {'E04_Area02_Object_D_05','Actor_0',3,-1,'Architecture/Building_003/001_A_SM',127.182,-377.207,-558.419},
     {'E04_Area02_Object_D_01','Actor_2',26,2,'Deco/Rubble/027_A_SM',268.367,1464.11,142.217,54},
     {'E04_Area02_Object_D_05','Actor_0',0,0,'Deco/Beam/009_B_SM',-525.168,-654.227,-582.948,4},
+}},
+-- D039, the growing room: 1 row, the shutter, instance 0 of 2.
+{name='D039',level='Xion_Rooms_D039',rows={
+    {'E04_Area02_Architecture_A_01','Actor_3',0,0,'Architecture/Door/001_A_SM',105.336,23.656,-971.114,2},
 }},
 }

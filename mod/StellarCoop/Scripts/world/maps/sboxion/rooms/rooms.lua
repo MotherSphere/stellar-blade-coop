@@ -6,7 +6,7 @@
 -- The zSBO_Xion test paks of 2026-11-24 add rooms behind closed doors of SB's Xion, each a level of its own that SBO
 -- Xion's persistent level always loads: five in the paks of build2, eleven in the pak of build3. A room has an open
 -- doorway of ours where SB's closed door unit and wall panel stand, with street debris in front. rooms/list.lua names
--- those pieces of SB for ten rooms, 41 rows. This part hides
+-- those pieces of SB for eleven rooms, 42 rows. This part hides
 -- them (world.piece, world.piece_out: world/maps/sboxion/engine.lua), so EVE walks in through the door with no
 -- loading screen. It puts them back with world.piece_back. Nothing is hidden in any other map and SB's own Xion is
 -- never changed: the pieces are objects of SBO Xion's world, which a map change destroys.
