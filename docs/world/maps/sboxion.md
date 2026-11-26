@@ -703,16 +703,18 @@ part that kills her. It is a test tool: it shows nothing on screen and writes it
 It runs inside SBO Xion when the door is idle: no move, no watch after the way in and no other probe under way.
 Another word, a part out of 1 to 124 or one word too many gives the use line.
 
-The probe makes the move of the way in under SB's black with no part solid. A ship made solid before is put back as
-SB ships it first. Each pass that reads EVE 60 cm under the point puts her on it again, as the watch does. Each pass
-asks for the ship's parts until they are in memory. After 32 passes (8 s) without them she is put back outside.
-Then each pass (250 ms) gives one more part `BlockAll`, in the order the engine lists them, with one log line.
+The probe puts the ship back as SB ships it, then makes the move of the way in under SB's black. That also clears parts
+a Lua reload left solid. Each pass that reads EVE 60 cm under the point puts her on it again, as the watch does. Each
+pass asks for the ship's parts until they are in memory. After 32 passes (8 s) without them she is put back outside.
+Then each pass (250 ms) gives one more part `BlockAll`, in the order the engine lists them, with one log line. A part
+the engine names otherwise than the first list did is not written and the door goes off.
 
 Each pass first reads EVE's life in the `life=` word of the `sboxionwarp=` line, the word the death rule reads. A
-value other than 1 or 6 ends the probe: one line names the last two parts made solid and no more part is written.
-[The recovery](#a-death) then handles the death as it does after any death. Eight passes after the last part with
-EVE alive, one line says so and the probe ends. She stays where she is and the way out works as usual. The way out,
-`coop off` and the next probe put the ship back as SB ships it.
+value of 3 to 5, which the death rule takes for dead, ends the probe: one line names the last two parts made solid
+and no more part is written. [The recovery](#a-death) then handles the death as it does after any death. Eight
+passes after the last part with EVE alive, one line says so and the probe ends. If she stands she stays where she is
+and the way out works as usual. If she does not stand she is put back outside with the ship as SB ships it. The way
+out and `coop off` put the ship back too.
 
 | Line in `UE4SS.log` | Meaning |
 | --- | --- |
@@ -722,10 +724,10 @@ EVE alive, one line says so and the probe ends. She stays where she is and the w
 | `sboxion: tetrapod: probe: ship found after n passes: 124 parts, one more made solid each pass from part 1` | The parts are in memory. With `only` it ends in `part n alone made solid` |
 | `sboxion: tetrapod: probe: part 5/124 <component> (<mesh>): NoCollision, now BlockAll; EVE at (x, y, z), mode 3, life 1` | Part 5 got `BlockAll` in this pass: its profile before and after, then EVE's place, movement mode (1 walking, 3 falling) and life (1 alive, 3 dead) at the start of the pass. `life ?`: the status text has no `life=` word, so the probe cannot see a death |
 | `sboxion: tetrapod: probe: EVE dead (life 3) at (x, y, z), mode 3, n passes without walking; last part made solid 5/124 ..., the pass before 4/124 ...; no more part is written` | She died. `no part made solid` when she died before the first part |
-| `sboxion: tetrapod: probe: EVE lives with parts 1 to 124 solid, 8 passes after the last one, at (x, y, z), mode 1: the probe ends` | No part killed her. With `only` it reads `part n alone` |
+| `sboxion: tetrapod: probe: EVE lives with parts 1 to 124 solid, 8 passes after the last one, at (x, y, z), mode 1: the probe ends` | No part killed her. With `only` it reads `part n alone`. When she does not stand the line ends in `the probe ends, back outside with no floor` and she is at SB's point in front of the Tetrapod |
 | `sboxion: tetrapod: probe: no ship parts after 32 passes: back outside` | The parts never came. She is at SB's point in front of the Tetrapod |
 | `sboxion: tetrapod: probe: EVE is out of the ship at (x, y, z): the probe ends` | The recovery moved her |
-| `sboxion: tetrapod: door off until the next arrival: error (no part n: the ship has m)` | The engine listed fewer parts than n. `the ship is not in memory any more`: its level went while the probe wrote |
+| `sboxion: tetrapod: door off until the next arrival: error (no part n: the ship has m)` | The engine listed fewer parts than n. `the ship is not in memory any more`: its level went while the probe wrote. `part n is A now: the list had B`: the engine lists the parts in another order, so part n was not written |
 
 Running it, alone, on a co-op save, with the full test pak:
 
@@ -745,6 +747,10 @@ What the result means:
   `probe <n>` leaves parts 1 to n-1 without collision, so a floor part among them gives her no floor.
 - `EVE lives with parts 1 to 124 solid`: no part killed her once she was inside. In the third test the parts were
   solid before she arrived.
+- In the third test the `respawn result` line after her death in the ship read life 1 and mode 1. The 124 parts
+  were still solid then: only the way out put them back. That line gives no place. If the respawn left her in the
+  ship, a death right after the part that first gives her a floor may come from her arrival on it, not from that
+  part. Each part line gives her mode: the first `mode 1` shows where she stood.
 - `no ship parts after 32 passes`: the ship's level was not shown. Run the probe again.
 
 ## The NPCs
@@ -1075,8 +1081,9 @@ underground and 47 of the 50 level-design sublevels.
 
 - `tests/lua/world/maps/sboxion/off_test.lua`: a failure of this module at load turns this module off alone.
 - `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes, `rooms` with `on` and `off`,
-  `tetrapod` with `in`, `out` and `probe` with the words after it and `npc` with its two words included, `walls` refused, then the wiring's two
-  stores (`coop-xion-rooms.txt`, `coop-xion-npcs.txt`) and an NPC's line in the menu's words.
+  `tetrapod` with `in`, `out` and `probe` with the words after it and `npc` with its two words included, `walls`
+  refused, then the wiring's two stores (`coop-xion-rooms.txt`, `coop-xion-npcs.txt`) and an NPC's line in the
+  menu's words.
 - `npcs/npcs_test.lua`: the list (names with words in 22 languages, a line within the feed's 200 bytes, the
   repairer's spot from D011's frame), no body far away, without the room's level or with a pak that lacks the room,
   the body with its turn and clip, the talk once inside the room and again after 6 m, nothing said through the
@@ -1087,15 +1094,16 @@ underground and 47 of the 50 level-design sublevels.
   that starts again, a busy recovery, a refused teleport, an error that turns the door off and the command. Then the
   floor: the ship made solid before the move and put back at the way out and at `coop off`, EVE put on the point
   again while she falls, the ship asked again while a call wrote no part, the end after 32 passes and a recovery
-  that moved her out. The door has no `busy()`. Then the probe: its words and their refusals, the move with no part
-  solid, the parts asked each pass and the end after 32 passes, one part a pass in the engine's order with its line,
-  the stop at a death with the last two parts, the end 8 passes after the last part, `probe <n>`, `probe only <n>`,
-  a ship with fewer parts, a ship gone from memory, no `life=` word, a recovery that moved her out, `coop off` and an
-  arrival.
+  that moved her out. The door has no `busy()`. Then the probe: its words and their refusals, the wait for a watch,
+  the ship put back before the move with no part solid, the parts asked each pass and the end after 32 passes, one
+  part a pass in the engine's order with its line, the stop at a life of 3 to 5 with the last two parts, the end 8
+  passes after the last part with EVE put outside when she does not stand, `probe <n>`, `probe only <n>`, a ship
+  with fewer parts, a part named otherwise, a ship gone from memory, no `life=` word, a recovery that moved her out,
+  `coop off` and an arrival.
 - `engine_test.lua` holds the call on the ship's parts: SB's `BlockAll` by a name the game has made, `NoCollision`
   at the put-back, nothing written with no actor in memory. The probe's two calls: the list of the living parts
-  with their names and profiles, one part written by its number, a number with no part and a missing profile name
-  raising before any write.
+  with their names and profiles, one part written by its number, a number with no part, a part with another name
+  and a missing profile name raising before any write.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the

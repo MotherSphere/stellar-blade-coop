@@ -826,12 +826,14 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   6 passes. The ship is asked again on each pass while its last call wrote no part: not found, or 0 parts, then
   124 with one line. After 32 passes with no floor she is put back outside.
   The door has no `busy()`: no other part waits for it. `coop xion tetrapod probe` refuses another word, a part out
-  of 1 to 124 and one word too many. It makes the move with no part solid and puts a ship made solid before back
-  first. It asks the ship's parts each pass and puts EVE outside after 32 passes without them. Then it makes one
-  part solid a pass, in the engine's order, with one line each. A life of 3 or 4 stops it with the last two parts
-  named and nothing more written. Eight passes after the last part with EVE alive it says so. `probe 3` starts at
-  part 3 and `probe only 2` writes part 2 alone. A ship with fewer parts or gone from memory turns the door off. No
-  `life=` word gives `life ?`. A recovery that moved her out, `coop off` and an arrival end it;
+  of 1 to 124 and one word too many. It waits for the watch after a way in. It puts the ship back as SB ships it,
+  then makes the move with no part solid. It asks the ship's parts each pass and puts EVE outside after 32 passes
+  without them. Then it makes one part solid a pass, in the engine's order, with one line each. A life of 3 or 5
+  stops it with the last two parts named and nothing more written. A life of 6, 2 or 0 does not. Eight passes after
+  the last part with EVE alive it says so. She is put outside then if she does not stand. `probe 3` starts at part
+  3 and `probe only 2` writes part 2 alone. A ship with fewer parts, a part the engine names otherwise or a ship
+  gone from memory turns the door off. No `life=` word gives `life ?`. A recovery that moved her out, `coop off` and
+  an arrival end it;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
@@ -868,8 +870,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   Tetrapod interior get SB's collision profile `BlockAll` by a name the game has made, then `NoCollision`, the
   profile SB ships them with. With no actor in memory nothing is written. For the probe the living parts are listed
   in the engine's order with their component's and mesh's names and their profile. One part is written by its
-  number. A number with no part and a missing profile name raise before any write. The rest: the zone's FName index only for
-  a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
+  number. A number with no part, a part with another name and a missing profile name raise before any write. The
+  rest: the zone's FName index only for a name the game has made, each env volume's `bActiveVolume` read and
+  written on its own actor, a
   dead actor never written, the streaming levels by their package's last part, the probes read again on the kept
   objects, the characters' names, classes and places with EVE told apart by her address (one that does not read
   given as `unread`), every world read raising with no EVE. For the recovery: `move` gives EVE's place,

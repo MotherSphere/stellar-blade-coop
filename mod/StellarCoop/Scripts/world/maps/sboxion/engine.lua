@@ -261,7 +261,7 @@ local function ship_parts()
     end)
     return out
 end
--- The profile's FName, found and never made, and its text.
+-- The profile's FName (found, never made) and its text.
 local function profile(solid)
     local want=solid and 'BlockAll' or 'NoCollision'
     local name=U.value_of(FName(want,EFindName.FNAME_Find))
@@ -296,12 +296,15 @@ function Engine.parts()
     return out
 end
 -- One part of parts() by its index made solid (BlockAll) or put back (NoCollision): the profile it reads afterwards.
--- nil when the actor is not in memory. Raises, with nothing written, when no part has that index or the game has no
--- such profile name.
-function Engine.part(index,solid)
+-- name: the component's name parts() gave for that index, when the caller has it. nil when the actor is not in
+-- memory. Raises, with nothing written, when no part has that index, when it has another name (the engine lists the
+-- parts in another order now) or when the game has no such profile name.
+function Engine.part(index,solid,name)
     local list=ship_parts()
     if not list then return nil end
     local c=assert(list[index],'no part '..tostring(index)..' in the ship, which has '..#list)
+    local now=name and last_word(c)
+    assert(now==name,'part '..tostring(index)..' is '..tostring(now)..' now: the list had '..tostring(name))
     c:SetCollisionProfileName((profile(solid)),true)
     return U.text(c:GetCollisionProfileName())
 end

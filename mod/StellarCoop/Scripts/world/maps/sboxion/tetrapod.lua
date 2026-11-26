@@ -25,15 +25,16 @@
 -- memory and the call before the move wrote 0 parts. SB showed E04_Area05_B_LD only once she was inside.
 -- The probe (coop xion tetrapod probe), a test tool to find what kills EVE in the ship: with the 124 parts made solid
 -- as she arrived she was dead one pass later in the third game test (26 November 2026), 7 cm from the point. With no
--- part solid she fell and lived. The probe makes the same move under SB's black with no part solid. It puts her on the
--- point again as the watch does. Once the ship's parts are in memory (world.parts, asked each pass, SETTLE passes at
--- most) it makes one more part solid each pass (world.part), in the engine's order, from part n or part n alone. Each
--- write is one log line with EVE's place, movement mode and life (the life= word of the status text's sboxionwarp
--- line, the one recover.lua reads). At the first life read that is not alive (1 or 6) it names the last two parts
--- written and writes no more. The recovery handles the death. LIVE passes after the last part with her alive it says
--- so and ends. The ship goes back as SB ships it at the way out, at coop off and before the next probe. A probe that
--- holds her in falling mode for 10 s may see SB's own fall timer kill her (recover.lua): its death line counts the
--- passes she did not walk.
+-- part solid she fell and lived. The probe puts the ship back as SB ships it, then makes the same move under SB's
+-- black. It puts her on the point again as the watch does. Once the ship's parts are in memory (world.parts, asked
+-- each pass, SETTLE passes at most) it makes one more part solid each pass (world.part), in the engine's order, from
+-- part n or part n alone. A part the engine names otherwise now is not written: the door goes off. Each write is one
+-- log line with EVE's place, movement mode and life (the life= word of the status text's sboxionwarp line, the one
+-- recover.lua reads). At the first life read of 3 to 5 (recover.lua's death rule) it names the last two parts written
+-- and writes no more. The recovery handles the death. LIVE passes after the last part with her alive it says so and
+-- ends. She is put back outside if she does not stand then. The way out and coop off put the ship back as SB ships it
+-- too. A probe that holds her in falling mode for 10 s may see SB's own fall timer kill her (recover.lua): its death
+-- line counts the passes she did not walk.
 -- busy: the recovery waits (photo mode, a cutscene, a warp, another zone) or handles a fall or a death
 -- (recover.lua's busy). Such a pass counts nothing and asks no move. A move already asked is still made. The watch
 -- and the probe run on such passes too.
@@ -45,7 +46,6 @@ local T=D.TETRAPOD
 local Tetrapod={}
 local USE='Use: coop xion tetrapod [in|out|probe [<n>|only <n>]]'
 local GROUND={[1]=true,[2]=true} -- EMovementMode: Walking, NavWalking.
-local ALIVE={[1]=true,[6]=true} -- The life values recover.lua takes for alive.
 local LIVE=8 -- Passes after the probe's last part before it says EVE lives: she died one pass after the parts.
 local function place(at) return string.format('(%.0f, %.0f, %.0f)',at.X,at.Y,at.Z) end
 local function turn() local a=math.rad(T.SHIP.Yaw); return math.cos(a),math.sin(a) end
@@ -127,11 +127,12 @@ function Tetrapod.new(o)
             or up==nil and 'asked, its handle did not read' or fade>0 and string.format('up in %.1f s',fade)
             or 'up at once'
     end
-    -- ask: the probe's words ({from=, only=}). The probe's move puts the ship back as SB ships it first.
+    -- ask: the probe's words ({from=, only=}). The probe's move puts the ship back as SB ships it first, even when
+    -- this door made nothing solid: after a Lua reload it does not know what an earlier one made solid.
     local function put(to,ask)
         local at,yaw=target(to)
         box,seen,hold,settle,probe=nil,0,T.HOLD,nil,nil
-        if to=='in' then ship(true) elseif to=='probe' and solid then back() end
+        if to=='in' then ship(true) elseif to=='probe' then back() end
         if world.put({X=at.X,Y=at.Y,Z=at.Z+D.LIFT},yaw)==false then
             log(string.format('tetrapod: %s: the move to %s was refused by K2_TeleportTo',to,place(at)))
             if to=='in' then back() end
@@ -202,7 +203,7 @@ function Tetrapod.new(o)
             return
         end
         local life=tonumber(('\n'..(o.status() or '')):match('\nsboxionwarp=[^\r\n]- life=(%d+)'))
-        if life and not ALIVE[life] then
+        if life and life>=3 and life<=5 then -- Dead, Despawn, Destroy: recover.lua's death rule.
             probe=nil
             local parts_said=not p.last and 'no part made solid' or 'last part made solid '..named(p.list,p.last)
                 ..(p.before and ', the pass before '..named(p.list,p.before) or '')
@@ -226,7 +227,7 @@ function Tetrapod.new(o)
         if p.next then
             local i=p.next
             local q=assert(p.list[i],'no part '..i..': the ship has '..#p.list)
-            local now=assert(world.part(i,true),'the ship is not in memory any more')
+            local now=assert(world.part(i,true,q.component),'the ship is not in memory any more')
             solid,p.made,p.before,p.last=true,p.made+1,p.last,i
             p.next=not p.only and i<#p.list and i+1 or nil
             log(string.format('tetrapod: probe: part %s: %s, now %s; EVE at %s, mode %s, life %s',named(p.list,i),
@@ -235,9 +236,12 @@ function Tetrapod.new(o)
             p.after=p.after+1
             if p.after>=LIVE then
                 probe=nil
+                local standing=GROUND[m.mode]
                 log(string.format('tetrapod: probe: EVE lives with %s solid, %d passes after the last one, at %s, '
-                    ..'mode %s: the probe ends',p.only and 'part '..p.from..' alone'
-                    or string.format('parts %d to %d',p.from,#p.list),LIVE,place(m.at),tostring(m.mode)))
+                    ..'mode %s: the probe ends%s',p.only and 'part '..p.from..' alone'
+                    or string.format('parts %d to %d',p.from,#p.list),LIVE,place(m.at),tostring(m.mode),
+                    standing and '' or ', back outside with no floor'))
+                if not standing then put('out') end -- Nothing else would hold her up: she would fall.
                 return
             end
         end

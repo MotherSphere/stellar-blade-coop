@@ -417,9 +417,10 @@ made.BlockAll=77
 -- parts and part, for the Tetrapod's probe: the living parts in the order the engine gives them, numbered from 1,
 -- each with the last word of its component's and of its mesh's path and the profile it reads now. part makes one of
 -- them solid or puts it back and answers the profile it reads then; the others are not called. A number with no
--- part and a profile name the game has not made raise before any write. No actor: nil and nothing written.
+-- part, a part with another name than the one given and a profile name the game has not made raise before any write.
+-- No actor: nil and nothing written.
 do
-    local list=Engine.parts()
+    local list,ok,why=Engine.parts()
     assert(#list==3 and list[1].index==1 and list[1].component=='001_F_SM4' and list[1].mesh=='001_F_SM'
         and list[1].profile=='NoCollision' and list[2].component=='001_D_SM2' and list[2].mesh=='001_D_SM'
         and list[3].index==3 and list[3].component=='Glass' and list[3].mesh=='no mesh','The dead part is left out')
@@ -429,16 +430,21 @@ do
     assert(Engine.parts()[2].profile=='BlockAll','It reads the profile it has now')
     assert(Engine.part(3,true)=='NoCollision' and odd.calls[o+1]=='BlockAll true','A part that keeps its profile')
     assert(Engine.part(2,false)=='NoCollision' and wall.profile=='NoCollision','Put back as SB ships it')
+    assert(Engine.part(1,true,'001_F_SM4')=='BlockAll' and floor.profile=='BlockAll','Its name as the list gave it')
+    assert(Engine.part(1,false,'001_F_SM4')=='NoCollision')
     local n=#floor.calls+#wall.calls+#odd.calls
-    local ok,why=pcall(Engine.part,4,true)
+    ok,why=pcall(Engine.part,1,true,'001_D_SM2')
+    assert(not ok and tostring(why):find('part 1 is 001_F_SM4 now: the list had 001_D_SM2',1,true),tostring(why))
+    ok,why=pcall(Engine.part,4,true)
     assert(not ok and tostring(why):find('no part 4 in the ship, which has 3',1,true),tostring(why))
     made.BlockAll=nil
     assert(not pcall(Engine.part,1,true),'No such profile name in this game')
     made.BlockAll=77
     assert(#floor.calls+#wall.calls+#odd.calls==n,'Nothing written')
 end
+local written=#floor.calls
 statics[SHIP]=object({dead=true})
-assert(Engine.ship(true)==nil and Engine.parts()==nil and Engine.part(1,true)==nil and #floor.calls==2,
+assert(Engine.ship(true)==nil and Engine.parts()==nil and Engine.part(1,true)==nil and #floor.calls==written,
     'No actor in memory: nothing written')
 statics[SHIP]=nil
 
