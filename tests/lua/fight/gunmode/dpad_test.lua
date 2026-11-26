@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The HUD entry's glyph: the Right twin of the pad glyph the game shows, or the gun mode key's keyboard icon. The real
 -- entry over a fake UMG: on the keyboard the key's glyph sits on the D-pad marker's own key cell (its Image btn); with
--- no such cell the entry shows none (an Image with no brush draws a white square).
+-- no such cell the entry shows none (an Image with no brush draws a white square). After a map change or a Lua reload
+-- the entry touches only its own live widgets and makes none over an earlier load's.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local D=require('fight.gunmode.ui.dpad')
 local P='/Game/Art/UI/Texture/Interaction/'
@@ -17,9 +18,12 @@ assert(D.glyph_path(P..'PC/Something.Something','G')==nil and D.glyph_path(nil,'
 -- A fake UMG, cut down from dev's dpad_test. An object has a class (its short name), an outer, a name and a full name
 -- ("<class> <path>", its path the outer's path, a dot and its name). StaticFindObject in an outer finds a live child
 -- of that name in any case, as the engine's FName lookup does. FindAllOf gives every live widget of a class.
+-- StaticConstructObject over a live object of the same name, class and outer replaces it in place (W.replaced), as
+-- StaticAllocateObject does: the panel that held it keeps it. Panels hold their children in kids; RemoveFromParent
+-- takes a widget out of its parent's. SetText counts its writes.
 local W
 local function world()
-    W={paths={},classes={}}
+    W={paths={},classes={},replaced=0}
     local function path_of(o) return o.outer and (path_of(o.outer)..'.'..o.name) or o.name end
     local any=function() return setmetatable({},{__index=function() return function() end end}) end
     local Obj={}
@@ -38,8 +42,16 @@ local function world()
     function Obj.SetBrush(o,b) o.brush=b end
     function Obj.SetBrushSize(o,s) o.bsize=s end
     function Obj.IsA(o,c) return c.short==o.class or c.short=='Widget' or (c.short=='UserWidget' and o.user==true) end
-    local function add(p,c) p.kids[#p.kids+1]=c; return any() end
-    Obj.AddChildToOverlay,Obj.AddChildToHorizontalBox,Obj.AddChild=add,add,add
+    function Obj.SetText(o,t) o.text=t; o.writes=(o.writes or 0)+1 end
+    function Obj.RemoveFromParent(o)
+        o.removed=(o.removed or 0)+1
+        local p=o.parent
+        if not p then return end
+        for i=#p.kids,1,-1 do if p.kids[i]==o then table.remove(p.kids,i) end end
+        o.parent=nil
+    end
+    local function add(p,c) p.kids[#p.kids+1]=c; c.parent=p; return any() end
+    Obj.AddChildToOverlay,Obj.AddChildToHorizontalBox,Obj.AddChildToCanvas,Obj.AddChild=add,add,add,add
     function W.new(class,outer,name,t)
         local o=t or {}
         o.class,o.outer,o.name,o.kids=class,outer,name,{}
@@ -57,7 +69,15 @@ local function world()
         local o=outer.named and outer.named[name:lower()]
         if o and not o.dead and o:IsA(a) then return o end
     end
-    StaticConstructObject=function(cls,outer,name) return W.new(cls.short,outer,name) end
+    StaticConstructObject=function(cls,outer,name)
+        local old=outer.named and outer.named[name:lower()]
+        if old and not old.dead and old.class==cls.short then
+            W.replaced=W.replaced+1 -- destroyed and built again at the same address: its parent still holds it
+            old.kids={}
+            return old
+        end
+        return W.new(cls.short,outer,name)
+    end
     FindAllOf=function(class)
         local out={}
         for _,o in pairs(W.paths) do
@@ -290,6 +310,73 @@ do
     assert(tries==1 and said(logs,'dpad: no Construct hook: no such function')==1,tries..' tries')
     assert(h2.overlay.named.gunmoderifleholder,'built by a look')
     Keep.serves=serves
+end
+-- 6. Another object at the old address (a freed HUD): it passes IsValid but gets no write. The entry is built anew in
+--    the next HUD (ed6385e6).
+do
+    now=0
+    world(); counted()
+    local h=hud()
+    local d=D.new(new_g({}))
+    ticks(d,10)
+    local box=h.overlay.named.gunmoderifleslot
+    local txt=box.named.gunmoderiflecount
+    for _,o in pairs(W.paths) do if o.class~='Texture2D' then o.dead=true end end
+    box.full,box.dead='HorizontalBox /Engine/Transient.Other_C_9.HorizontalBox_3',false -- other widgets there
+    h.overlay.full,h.overlay.dead='Overlay /Engine/Transient.Other_C_9.Overlay_2',false
+    txt.full,txt.dead,txt.writes='TextBlock /Engine/Transient.Other_C_9.TextBlock_7',false,0
+    local h2=hud(2)
+    ticks(d,30)
+    assert(txt.writes==0,'no write to another object at the old address: '..txt.writes)
+    assert(h2.overlay.named and h2.overlay.named.gunmoderifleholder,'the entry built anew in the next HUD')
+end
+-- 7. A Lua reload (Ctrl+R): a new load's entry over the live HUD takes the earlier load's widgets again. Nothing is
+--    made over a live widget. The marker's overlay holds the entry once. The crosshair the same way (ed6385e6).
+do
+    now=0
+    world(); counted()
+    W.classes['/Script/UMG.CanvasPanel']={short='CanvasPanel'}
+    local h=hud()
+    local root=W.new('CanvasPanel',h.WidgetTree,'CanvasPanel_Root')
+    h.WidgetTree.RootWidget=root
+    local d=D.new(new_g({}))
+    ticks(d,10)
+    d.crosshair(true)
+    local cross=root.named.gunmodecrosshair
+    assert(cross and cross.vis==3 and #cross.kids==5,'the crosshair: 4 bars and a dot')
+    local again=D.new(new_g({}))
+    ticks(again,10)
+    again.crosshair(true)
+    assert(W.replaced==0,W.replaced..' widgets made over live ones')
+    local holder=h.overlay.named.gunmoderifleholder
+    assert(#h.overlay.kids==1 and h.overlay.kids[1]==holder and #holder.kids==1,'the entry once in the overlay')
+    assert(#root.kids==1 and #cross.kids==5,'the crosshair once on the root')
+    assert(h.overlay.named.gunmoderifleslot.named.gunmoderiflecount.text=='60 | 5')
+    again.crosshair(false)
+    assert(cross.vis==1,'the crosshair off')
+end
+-- 8. hide (coop off): the entry and the crosshair off the HUD. A freed entry whose address another object took is not
+--    touched (ed6385e6).
+do
+    now=0
+    world(); counted()
+    W.classes['/Script/UMG.CanvasPanel']={short='CanvasPanel'}
+    local h=hud()
+    local root=W.new('CanvasPanel',h.WidgetTree,'CanvasPanel_Root')
+    h.WidgetTree.RootWidget=root
+    local d=D.new(new_g({}))
+    ticks(d,10)
+    d.crosshair(true)
+    d.hide()
+    assert(#h.overlay.kids==0 and #root.kids==0,'the entry and the crosshair off the HUD')
+    world(); counted()
+    h=hud()
+    d=D.new(new_g({}))
+    ticks(d,10)
+    local holder=h.overlay.named.gunmoderifleholder
+    holder.full='SizeBox /Engine/Transient.Other_C_9.SizeBox_1' -- another widget at its address
+    d.hide()
+    assert((holder.removed or 0)==0,'no call on another object at the old address')
 end
 os.clock=clock
 print('gunmode dpad_test ok')

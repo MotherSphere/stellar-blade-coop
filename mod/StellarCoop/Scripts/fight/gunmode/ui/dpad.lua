@@ -12,7 +12,9 @@
 -- so it shows and hides with the HUD. Its parts are found by name in the HUD's widget trees (Dpad.PARTS, ed6385e6), so
 -- the look for the HUD on screen is the only walk of the object array, made again only when no HUD was usable, every
 -- Dpad.RETRY s. While the keep holds SB's HUD class, a hook on its Construct names each new HUD: the entry is built at
--- the first tick that HUD is on screen, with no walk (d2de021b).
+-- the first tick that HUD is on screen, with no walk (d2de021b). An earlier Lua load's widgets in that HUD (Ctrl+R) are
+-- taken again, never made over. Every widget kept is checked by its path before it is used, as a map change frees them
+-- and another object can then sit at a freed address and pass IsValid (ed6385e6).
 local Keep=require('core.keep')
 local Dpad={}
 
@@ -70,6 +72,17 @@ function Dpad.new(g)
         return ok and g.valid(o) and o or nil
     end
     local function tree(w) return g.valid(w) and g.get(w,'WidgetTree') or nil end
+    -- o while it is still the object recorded at path
+    local function alive(o,path) return path~=nil and g.path(o)==path end
+    -- One of our widgets, named. again: an earlier Lua load's widgets may stand in this HUD (Ctrl+R). Its widget of
+    -- that name in outer is then taken again, off its parent until it is added back. Made again under the same name and
+    -- outer, StaticAllocateObject (0x142b9bbf0 on 26123051, the function of the message at 0x145fb7de0) would destroy
+    -- the live widget in place and build a new one at its address, under SB's panels that still hold it (ed6385e6).
+    local function part(cls,outer,name,again)
+        local o=again and inside(outer,name,cls)
+        if o then pcall(function() o:RemoveFromParent() end); return o end
+        return StaticConstructObject(g.cdo('/Script/UMG.'..cls),outer,FName(name))
+    end
     -- The HUD on screen: of the WB_MainHUD_Master instances, the one in the viewport (others are never drawn).
     local function look()
         hud=nil
@@ -114,9 +127,10 @@ function Dpad.new(g)
         local ok,err=pcall(function()
             local icon=Keep.serves(Dpad.ICON) and Keep.get(Dpad.ICON) or g.asset(Dpad.ICON)
             assert(icon and icon:IsValid(),'no rifle icon '..Dpad.ICON)
-            local C=function(cls,outer,name)
-                return StaticConstructObject(g.cdo('/Script/UMG.'..cls),outer,FName(name))
-            end
+            -- An earlier load's entry in this marker has its row, the first part every build makes: with no row, none
+            -- of its parts is there and none is looked for (4cdf5d4a).
+            local again=inside(overlay,'GunModeRifleSlot','HorizontalBox')~=nil
+            local C=function(cls,outer,name) return part(cls,outer,name,again) end
             local box=C('HorizontalBox',overlay,'GunModeRifleSlot')
             local keyo=C('Overlay',box,'GunModeRifleKey')     -- the key cell (keyboard) under the glyph
             local bg=C('Image',keyo,'GunModeRifleKeyCell')
@@ -152,6 +166,7 @@ function Dpad.new(g)
             bg:SetVisibility(1) -- Collapsed until follow shows it: a new Image with no brush draws a white square
             ui.holder=holder
             ui.overlay,ui.dpad,ui.up,ui.thumb,ui.box,ui.slot=overlay,dpad,up,thumb,box,slot
+            ui.box_at,ui.overlay_at,ui.holder_at=g.path(box),g.path(overlay),g.path(holder)
             ui.pad_layer=pad_layer
             ui.keyo,ui.bg,ui.glyph,ui.img,ui.txt=keyo,bg,glyph,img,txt
             ui.cell=cell~=nil
@@ -159,6 +174,7 @@ function Dpad.new(g)
             -- what follow last applied was applied to the last HUD's widgets: a new HUD gets its glyph, cell, sizes
             -- and place at once. The pad glyph found is kept for its HUD (0e51255f).
             ui.up_path,ui.sized,ui.x,ui.placed,ui.follow_at,ui.pad,ui.pad_up=nil,nil,nil,nil,nil,nil,nil
+            ui.text,ui.col=nil,nil -- (written to these widgets at the next tick)
         end)
         if not ok then error(err,0) end
     end
@@ -262,7 +278,7 @@ function Dpad.new(g)
     -- rifle is away) in colour c ({r,g,b}).
     function self.tick(key,text,c)
         hook()
-        if not (g.valid(ui.box) and g.valid(ui.overlay)) then
+        if not (alive(ui.box,ui.box_at) and alive(ui.overlay,ui.overlay_at)) then
             ui.box=nil
             if not make() then return end
         end
@@ -283,17 +299,18 @@ function Dpad.new(g)
     -- The hip-fire crosshair: four short bars and a dot at the screen's centre, on the root canvas of the HUD the entry
     -- was built in (no walk: ed6385e6), in the HUD's white. Shown while on is true.
     function self.crosshair(on)
-        if not on and not g.valid(ui.cross) then return end
-        if on and not g.valid(ui.cross) then
+        local live=alive(ui.cross,ui.cross_at)
+        if not on and not live then return end
+        if on and not live then
             if (ui.cross_retry or 0)>os.clock() then return end
             ui.cross_retry=os.clock()+2
             local ok,err=pcall(function()
                 assert(g.valid(hud),'no HUD in the viewport')
                 local root=hud.WidgetTree.RootWidget
                 assert(root and root:IsA(g.cdo('/Script/UMG.CanvasPanel')),'the HUD root is not a canvas')
-                local C=function(cls,outer,name)
-                    return StaticConstructObject(g.cdo('/Script/UMG.'..cls),outer,FName(name))
-                end
+                -- an earlier load's bars only under its canvas (ed6385e6)
+                local again=inside(root,'GunModeCrosshair','CanvasPanel')~=nil
+                local C=function(cls,outer,name) return part(cls,outer,name,again) end
                 local cross=C('CanvasPanel',root,'GunModeCrosshair')
                 local cs=root:AddChildToCanvas(cross)
                 cs:SetAnchors({Minimum={X=0.5,Y=0.5},Maximum={X=0.5,Y=0.5}})
@@ -308,7 +325,7 @@ function Dpad.new(g)
                     sl:SetAlignment({X=0.5,Y=0.5}); sl:SetPosition({X=b[1],Y=b[2]}); sl:SetSize({X=b[3],Y=b[4]})
                 end
                 cross:SetVisibility(3) -- HitTestInvisible
-                ui.cross=cross
+                ui.cross,ui.cross_at,ui.cross_v=cross,g.path(cross),nil
             end)
             if not ok and not ui.cross_logged then ui.cross_logged=true; g.log('dpad: no crosshair: '..tostring(err)) end
             if not ok then return end
@@ -319,8 +336,8 @@ function Dpad.new(g)
 
     -- Taken off the HUD (gun mode unloaded). The Construct hook stays registered: it does nothing from then on.
     function self.hide()
-        if g.valid(ui.holder) then pcall(function() ui.holder:RemoveFromParent() end) end
-        if g.valid(ui.cross) then pcall(function() ui.cross:RemoveFromParent() end) end
+        if alive(ui.holder,ui.holder_at) then pcall(function() ui.holder:RemoveFromParent() end) end
+        if alive(ui.cross,ui.cross_at) then pcall(function() ui.cross:RemoveFromParent() end) end
         ui,gone,fresh={},true,nil
     end
 
