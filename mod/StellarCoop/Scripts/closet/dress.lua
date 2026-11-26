@@ -30,6 +30,8 @@ local SKINNED,MID='/Script/Engine.SkeletalMeshComponent','/Script/Engine.Materia
 -- UE4SS.log at 11:33 and 11:39 on 25 Nov 2026, the mix paused and back as it ended).
 Dress.GAME_LOOKS={['/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10']=true}
 Dress.USE='Use: coop closet wear <fit>[:<Slot>,<Slot>...] [<fit>[:...]] | coop closet off | coop closet fits'
+-- Tries of restore's wear of the kept look while EVE spawns, a second apart, before it is dropped.
+Dress.RETRIES=5
 
 local function path_of(o)
     local ok,full=pcall(function() return text(o:GetFullName()) end)
@@ -206,6 +208,8 @@ function Dress.new(o)
     local state -- While a mix is on: {plan=, eve_path=, own=<mesh path>, materials=<line>, added={c,count,show},
                 -- count=, paused=, wrong=}
     local restored,due=false,0
+    local pending,tries,retry_at=nil,0,0 -- The kept line's fields once read; restore's failed wears; its next try.
+    local kept_fields,undo_kept -- Set with restore below; off uses them too.
 
     local function keep()
         if not state then return store.clear() end
@@ -319,6 +323,17 @@ function Dress.new(o)
     end
     -- coop closet off and coop off: her own look back, the added meshes gone, the file cleared.
     function self.off()
+        if not state and not restored then -- A kept look not worn again yet: dropped, its leftovers off EVE.
+            local f=kept_fields()
+            local found,eve=pcall(her)
+            if #f>0 and found and eve then pcall(undo_kept,eve,f) end
+            restored,pending=true,{}
+            if #f>0 then
+                store.clear()
+                log('off: the kept look is dropped')
+                return true,'closet: off'
+            end
+        end
         if not state then return true,'closet: nothing worn' end
         local eve=her()
         local paths={}
@@ -330,43 +345,65 @@ function Dress.new(o)
         return true,'closet: off'
     end
     self.stop=self.off
-    -- What an earlier Lua load or game left: her own look back and its added meshes removed, then the kept choices
-    -- worn again (the file rewritten), or the file goes when there are none or they cannot be worn. Once EVE exists
-    -- (not on the title screen: the file waits), on the game thread (a tick, or a command).
-    function self.restore()
-        if restored then return end
-        local line=store.load()
-        if not line or line=='' then restored=true; return end
-        local found,eve=pcall(her)
-        if not (found and eve) then return end
-        restored=true
-        local f={}
-        for x in (line..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=x end
+    -- The kept line's fields, read once (the title screen calls restore each frame while it waits for EVE).
+    function kept_fields()
+        if pending==nil then
+            pending={}
+            local line=store.load() or ''
+            if line~='' then for x in (line..'\t'):gmatch('([^\t]*)\t') do pending[#pending+1]=x end end
+        end
+        return pending
+    end
+    -- Whether a mesh path is one a fit map puts on her body: her body still wears an earlier mix.
+    local function closet_mesh(path)
+        for _,fit in pairs(fits.BY_ID or {}) do if fit.Mesh==path then return true end end
+        return false
+    end
+    -- An earlier mix's leftovers off EVE: its added meshes, and her own look from the file when her body still wears
+    -- a closet mesh (a Lua reload). On a new game she wears the game's look, which stays hers.
+    function undo_kept(eve,f)
         local paths={}
         for p in (f[4] or ''):gmatch('[^;]+') do paths[#paths+1]=p end
-        local ok,removed=pcall(give_back,eve,f[2],f[3],paths)
+        local body=valid(eve.Mesh)
+        local mesh=body and valid(body.SkeletalMesh)
+        if mesh and closet_mesh(path_of(mesh)) then return give_back(eve,f[2],f[3],paths) end
+        return sweep(eve,paths)
+    end
+    local function done(clear,line)
+        restored,pending=true,{}
+        if clear then store.clear() end
+        log('restore from coop-closet.txt: '..line)
+    end
+    -- What an earlier Lua load or game left: its leftovers off EVE (undo_kept), then the kept choices worn again (the
+    -- file rewritten), or the file goes when there are none or they cannot be worn. It waits, the file untouched,
+    -- while there is no EVE (the title screen) or the game is paused or shows one of its screens (a loading screen).
+    -- A wear that fails while she spawns is tried again once a second, RETRIES times. On the game thread (a tick, or
+    -- a command).
+    function self.restore()
+        if restored then return end
+        local f=kept_fields()
+        if #f==0 then restored=true; return end
+        if paused() then return end
+        local found,eve=pcall(her)
+        if not (found and eve) then return end
+        local now=clock()
+        if now<retry_at then return end
+        local ok,removed=pcall(undo_kept,eve,f)
         local kept=f[5] or ''
         if kept=='' then
-            store.clear()
-            log('restore from coop-closet.txt: '..(ok and (removed..' added mesh(es) removed, her own look back')
-                or tostring(removed)))
-            return
+            return done(true,ok and (removed..' added mesh(es) removed, her own look back') or tostring(removed))
         end
         local words={}
         for x in kept:gmatch('%S+') do words[#words+1]=x end
-        local ran,worn,why=pcall(function()
-            local choices,e=Dress.parse(words)
-            if not choices then return nil,e end
-            local plan,e2=Dress.plan(choices,fits)
-            if not plan then return nil,e2 end
-            return apply(plan,choices)
-        end)
-        if ran and worn then
-            log('restore from coop-closet.txt: worn again: '..kept)
-            return
-        end
-        if not state then store.clear() end
-        log('restore from coop-closet.txt: could not wear '..kept..' again: '..tostring(ran and why or worn))
+        local choices,why=Dress.parse(words)
+        local plan
+        if choices then plan,why=Dress.plan(choices,fits) end
+        if not plan then return done(true,'could not wear '..kept..' again: '..tostring(why)) end
+        local ran,worn,e=pcall(apply,plan,choices)
+        if ran and worn then return done(false,'worn again: '..kept) end
+        tries=tries+1
+        if tries<Dress.RETRIES then retry_at=now+1; return end
+        done(not state,'could not wear '..kept..' again after '..tries..' tries: '..tostring(ran and e or worn))
     end
     -- Once a second at most, on the game thread: the watchdog.
     function self.tick()

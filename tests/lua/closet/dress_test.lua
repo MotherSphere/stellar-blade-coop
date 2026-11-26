@@ -88,11 +88,12 @@ local function world()
     package.loaded['closet.dress'] = nil
     local Dress = require('closet.dress')
     w.Dress = Dress
-    w.store = {save = function(line) w.file = line; return true end, load = function() return w.file end,
-        clear = function() w.file = nil end}
+    w.loads = 0
+    w.store = {save = function(line) w.file = line; return true end,
+        load = function() w.loads = w.loads + 1; return w.file end, clear = function() w.file = nil end}
     w.new = function()
         return Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
-            clock = function() return w.now end})
+            clock = function() return w.now end, paused = function() return w.paused == true end})
     end
     w.d = w.new()
     return w
@@ -250,6 +251,71 @@ local tests = {
         w.eve = eve
         d2.tick()
         eq(w.eve.Mesh.SkeletalMesh.path, KS) ok(logged(w, 'worn again'))
+    end,
+    off_before_eve_drops_the_kept_look = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))
+        local w2 = world() -- a new game, still on the title screen
+        w2.file = w.file
+        local eve = w2.eve
+        w2.eve = nil
+        w2.d.tick()
+        w2.d.off()
+        eq(w2.file, nil, 'off clears the kept look')
+        w2.eve = eve
+        w2.d.tick()
+        eq(w2.eve.Mesh.SkeletalMesh.path, OWN, 'nothing worn when EVE appears')
+    end,
+    a_restart_in_another_look_keeps_that_look_as_her_own = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))
+        local w2 = world()
+        w2.file = w.file
+        local other = '/Game/Art/Character/PC/CH_P_EVE_31/CH_P_EVE_31.CH_P_EVE_31'
+        w2.assets[other] = mesh(other, 6)
+        w2.eve.Mesh:SetSkeletalMesh(w2.assets[other]) -- the save she loads in wears another suit
+        w2.d.tick()
+        eq(w2.eve.Mesh.SkeletalMesh.path, KS, 'worn again')
+        w2.d.off()
+        eq(w2.eve.Mesh.SkeletalMesh.path, other, 'off gives back the suit she spawned in')
+    end,
+    a_failed_wear_while_she_spawns_is_tried_again = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))
+        local w2 = world()
+        w2.file = w.file
+        local body = w2.eve.Mesh
+        w2.eve.Mesh = nil -- spawning: no body mesh yet
+        w2.d.tick()
+        ok(w2.file, 'the kept look waits')
+        w2.eve.Mesh = body
+        w2.now = w2.now + 1.01
+        w2.d.tick()
+        eq(w2.eve.Mesh.SkeletalMesh.path, KS, 'worn once she is ready')
+    end,
+    restore_waits_while_the_game_is_paused = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))
+        local w2 = world()
+        w2.file = w.file
+        w2.paused = true -- a loading screen or one of the game's screens
+        w2.d.tick()
+        eq(w2.eve.Mesh.SkeletalMesh.path, OWN) ok(w2.file)
+        w2.paused = false
+        w2.d.tick()
+        eq(w2.eve.Mesh.SkeletalMesh.path, KS)
+    end,
+    the_kept_line_is_read_once = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))
+        local w2 = world()
+        w2.file = w.file
+        local eve = w2.eve
+        w2.eve = nil
+        for _ = 1, 5 do w2.d.tick() end
+        w2.eve = eve
+        w2.d.tick()
+        eq(w2.loads, 1, 'one read while waiting for EVE') eq(w2.eve.Mesh.SkeletalMesh.path, KS)
     end,
     a_kept_look_that_cannot_be_worn_is_dropped = function()
         local w = world()
