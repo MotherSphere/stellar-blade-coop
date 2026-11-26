@@ -136,14 +136,20 @@ local function hidden(regions,covered)
     for _,region in ipairs(regions) do all=all and covered[region]~=nil end
     return all
 end
--- An outfit worn as the body: the covered regions its skin keeps showing (Slots.REGIONS order), and how many it hides.
+-- Whether a piece of an outfit other than fit covers the region.
+local function foreign(covered,region,fit)
+    for by in pairs(covered[region] or {}) do if by~=fit then return true end end
+    return false
+end
+-- An outfit worn as the body: the regions another outfit's piece covers that its skin keeps showing (Slots.REGIONS
+-- order), and how many covered regions it hides. Its own pieces were made over its own skin: they never clip.
 local function skin_of(o,covered)
     local clips,hides={},0
     for _,region in ipairs(Slots.REGIONS) do
         for _,regions in pairs(covered[region] and o.map.Skin or {}) do
             for _,r in ipairs(regions) do
                 if r==region and hidden(regions,covered) then hides=hides+1
-                elseif r==region then clips[#clips+1]=region end
+                elseif r==region and foreign(covered,region,o.fit) then clips[#clips+1]=region end
             end
         end
     end
@@ -152,11 +158,12 @@ end
 
 -- The plan for a list of choices {{fit=<UniqueFitID>, slots=<list of Slot ids, or nil for every piece it shows by
 -- default>}}: {body={fit,mesh,show}, added={{fit,mesh,show}}, pieces=n, parts=<added meshes>, switched=<fit the
--- auto rule put on the body instead of the Shoes'/first one>?, clips=<covered regions the body's skin shows>?} or nil
--- and why. Pure: no engine call; choices are never changed. The slot BaseBody of a fit with Skin (no piece) picks its
--- body, which is never switched. Else the body rule mode (Dress.BODY_MODES, default auto, or a fit id): auto keeps
--- the Shoes' outfit, else the first, unless a covered region's skin slot on it is not a whole slot; then the look's
--- outfit with Skin that hides the most covered regions (ties: the Shoes' outfit, then choice order).
+-- auto rule put on the body instead of the Shoes'/first one>?, clips=<regions another outfit's piece covers that the
+-- body's skin shows>?} or nil and why. Pure: no engine call; choices are never changed. The slot BaseBody of a fit
+-- with Skin (no piece) picks its body, which is never switched. Else the body rule mode (Dress.BODY_MODES, default
+-- auto, or a fit id): auto keeps the Shoes' outfit, else the first, unless its skin shows on a region another outfit's
+-- piece covers; then the look's outfit with Skin that hides the most covered regions (ties: the Shoes' outfit, then
+-- choice order).
 function Dress.plan(choices,fits,mode)
     fits=fits or Fits
     if #choices==0 then return nil,'nothing to wear' end
@@ -232,9 +239,7 @@ function Dress.plan(choices,fits,mode)
     for _,o in ipairs(order) do
         local show={}
         for _,piece in ipairs(o.pieces) do
-            local under=false
-            for by in pairs(covered[NAILS[piece.Slot] or ''] or {}) do under=under or by~=o.fit end
-            if not under then
+            if not foreign(covered,NAILS[piece.Slot] or '',o.fit) then
                 for _,index in ipairs(piece.Materials) do show[index]=true end
             end
             plan.pieces=plan.pieces+1

@@ -5,7 +5,8 @@
 -- one added mesh per other outfit, covered skin hidden, the refusals), the mix on EVE, her own look kept and given
 -- back by off and by the next Lua load, and the watchdog: Tachy Mode's suit pauses the mix, a changed look for 2 s gets
 -- it again, a section the game showed again is hidden again. The body rule: a single-skin body switched under foreign
--- gloves, a picked BaseBody never switched, the modes, nails under foreign gloves, sections hidden by material slot.
+-- gloves (never under its own covering pieces), a picked BaseBody never switched, the modes, nails under foreign
+-- gloves, sections hidden by material slot.
 -- The words of coop closet (closet/commands.lua).
 local run = dofile('tests/lua/closet/run.lua')
 package.loaded.UEHelpers = {GetPlayer = function() return nil end} -- world() replaces it
@@ -561,6 +562,30 @@ local tests = {
         -- Her own gloves over her own nails: the nails stay (Kunoichi's nails are off by default, so picked).
         plan = assert(Dress.plan({{fit = NINJA, slots = {'Gloves', 'Fingernails'}}}))
         ok(plan.body.show[25], 'own nails under own gloves stay') eq(plan.switched, nil)
+    end,
+    own_covering_pieces_never_switch_or_clip = function()
+        local Dress, Fits = require('closet.dress'), require('closet.fits')
+        -- A stub fit map: Ocean Maid's own Gloves cover the arms and hands, as the next fit maps may say.
+        local maid = {}
+        for k, v in pairs(Fits.get(MAID)) do maid[k] = v end
+        maid.Pieces = {}
+        for i, p in ipairs(Fits.get(MAID).Pieces) do
+            maid.Pieces[i] = p.Slot ~= 'Gloves' and p or
+                {Slot = 'Gloves', Name = p.Name, Materials = p.Materials, Covers = {'ArmUpper', 'Forearm', 'Hand'}}
+        end
+        local by_id = {[MAID] = maid, [NINJA] = Fits.get(NINJA)}
+        local fits = {get = function(id) return by_id[id] end}
+        function fits.piece(id, slot)
+            for _, p in ipairs(by_id[id] and by_id[id].Pieces or {}) do if p.Slot == slot then return p end end
+        end
+        local plan = assert(Dress.plan({{fit = MAID}}, fits))
+        eq(plan.body.fit, MAID) eq(plan.switched, nil) eq(plan.clips, nil, 'the outfit worn as is: no clip warning')
+        plan = assert(Dress.plan({{fit = MAID}, {fit = NINJA, slots = {'BraceletL'}}}, fits))
+        eq(plan.body.fit, MAID, 'no gloves or shoes of another outfit: no switch') eq(plan.switched, nil)
+        eq(plan.clips, nil)
+        -- Gloves of another outfit still switch the body.
+        plan = assert(Dress.plan({{fit = MAID, slots = {'Chest', 'Shoes'}}, {fit = NINJA, slots = {'Gloves'}}}, fits))
+        eq(plan.body.fit, NINJA) eq(plan.switched, NINJA) eq(plan.clips, nil)
     end,
     a_picked_body_is_never_switched = function()
         local Dress = require('closet.dress')
