@@ -9,13 +9,13 @@
 -- saves or the closet's look.
 -- A test is a list of steps {frames=<frames to wait after the step before>, name=<check>, run=function(ctx)}. run
 -- returns true (PASS), false and why (FAIL), 'skip' and why (SKIP: the test goes on) or 'wait' (run again next frame:
--- a check that watches the mouse or a map change). The first FAIL ends the test. Before each step every part the test made must still be ours (kit.alive),
--- unless a step set ctx.free_parts (a map change it waits for). A test ends by itself after TIMEOUT s (or its own
--- timeout), on coop closet probe off, a second run or coop off (stop). While a step holds the kit's input, coop ui
--- reset or the focus watchdog taking it back ends the test too. It runs only in the game world (world()), never while
--- another SBO screen holds the input. Its steps wait while the world is hidden (a pause, a load, a game screen).
--- Each end runs the test's cleanup, drops its parts, gives the kit's input back and logs "probe: END <n> <passed>/
--- <total>". The parts go in the kit group closet_probe (screen-sized, added once a Lua load at the first run). Every
+-- a check that watches the mouse or a map change). The first FAIL ends the test. Before each step every part the
+-- test made must still be ours (kit.alive), unless a step set ctx.free_parts (a map change it waits for). A test
+-- ends by itself after TIMEOUT s (or its own timeout), on coop closet probe off, a second run or coop off (stop).
+-- While a step holds the kit's input, coop ui reset or the focus watchdog taking it back ends the test too. It runs
+-- only in the game world (world()), never while another SBO screen holds the input. Its steps wait while the world
+-- is hidden (a pause, a load, a game screen). Each end runs the test's cleanup, drops its parts, gives the kit's
+-- input back and logs "probe: END <n> <passed>/<total>". The parts go in the kit group closet_probe (screen-sized, added once a Lua load at the first run). Every
 -- step runs in pcall on the game thread (closet/wiring.lua runs tick each frame through main/frame.lua's guard).
 local U=require('core.unreal')
 local text,each=U.text,U.each
@@ -367,10 +367,11 @@ Probe.TESTS['5']={timeout=90,steps={grid_steps[1],grid_steps[2],grid_steps[3],
 --   ULocalPlayer.AspectRatioAxisConstraint: byte enum (EAspectRatioAxisConstraint) at 0x94, params 0x1465c49e8 in
 --     LocalPlayer's ClassParams 0x1465c4a20.
 --   APlayerCameraManager native GetFOVAngle, native table 0x14661c960 (exec 0x1448d35b0).
---   USkeletalMesh.Materials: TArray<FSkeletalMaterial> at 0xe0 (params 0x146650de0); FSkeletalMaterial.MaterialSlotName:
---     FName at 0x8 (params 0x146650eb8). USkeletalMesh.LODInfo: TArray<FSkeletalMeshLODInfo> at 0x100 (params
---     0x146650908); FSkeletalMeshLODInfo.LODMaterialMap: TArray<int32> at 0x8 (params 0x146651270). USkeletalMesh's
---     ClassParams 0x14664fac0.
+--   USkeletalMesh.Materials: TArray<FSkeletalMaterial> at 0xe0 (params 0x146650de0);
+--     FSkeletalMaterial.MaterialSlotName: FName at 0x8 (params 0x146650eb8).
+--   USkeletalMesh.LODInfo: TArray<FSkeletalMeshLODInfo> at 0x100 (params 0x146650908);
+--     FSkeletalMeshLODInfo.LODMaterialMap: TArray<int32> at 0x8 (params 0x146651270). USkeletalMesh's ClassParams
+--     0x14664fac0.
 --   UMaterialInstance.TextureParameterValues: TArray<FTextureParameterValue> at 0x100 (params 0x1465da0b0) and
 --     .VectorParameterValues: TArray<FVectorParameterValue> at 0xf0 (params 0x1465da110), ClassParams 0x1465da670.
 --     Both structs' ParameterInfo: FMaterialParameterInfo at 0x0 (params 0x1465d9d50, 0x1465d9f88);
