@@ -20,6 +20,8 @@
 -- triggers move nothing. X released after a hold with no stick toggles region and free (cam_mode too); R3 and cam_reset
 -- set the free pose to the region's framing and go to free mode. The mode and the free pose are written to the file
 -- at each change (a stick move once the stick is back at rest) and read once a Lua load: only Reset replaces the pose.
+-- forget() (the menu's Reset Stellar Closet, after its close) goes back to region mode with no free pose and clears
+-- the file: at once, or once a closed camera is removed (its path stays in the file while it blends out).
 -- close() gives the view back while it is still ours, to the view target from before the open or the pawn, with a BLEND
 -- s blend; the actor goes BLEND s later, in tick. stop() (coop off) gives it back with no blend and removes the actor at
 -- once. A camera gone with its world (a map change) or whose view the game took (a cutscene, photo mode) stops with no
@@ -105,6 +107,7 @@ function Camera.new(o)
     local region='full'
     local clock=0
     local dirty=false -- The stick moved the free pose since the last write.
+    local forgot=false -- forget() ran: a write with nothing to keep clears the file.
     local x_held,x_moved,r3_held=true,true,true -- Read as held at an open: a hold from before is no press.
 
     local function is(a,b) return a~=nil and b~=nil and U.address(a)==U.address(b) end
@@ -120,6 +123,7 @@ function Camera.new(o)
     local function write()
         dirty=false
         local f={cam and cam.d.path or dying and dying.d.path or '',mode}
+        if forgot and f[1]=='' and mode=='region' and not free then store.clear(); return true end
         for _,k in ipairs(free and POSE or {}) do f[#f+1]=string.format('%.3f',free[k]) end
         local saved,why=store.save(table.concat(f,'\t'))
         if saved==false then log('camera: '..Camera.FILE..' not written: '..tostring(why)) end
@@ -338,6 +342,11 @@ function Camera.new(o)
         elseif w=='cam_in' then p.dist=p.dist*(1-Camera.ZOOM) elseif w=='cam_out' then p.dist=p.dist/(1-Camera.ZOOM)
         else return end
         clamp(p)
+        write()
+    end
+    -- Reset Stellar Closet (after the menu's close): region mode, no free pose, the file cleared.
+    function self.forget()
+        mode,free,forgot='region',nil,true
         write()
     end
     function self.running() return cam~=nil end

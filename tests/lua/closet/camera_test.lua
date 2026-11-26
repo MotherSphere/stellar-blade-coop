@@ -394,6 +394,38 @@ local tests = {
         end
     end,
 
+    reset_stellar_closet_forgets_the_mode_and_the_pose = function()
+        -- The menu's Reset answer: close, then forget. Region mode, no free pose; the file keeps the closed camera's
+        -- path while it blends out (a Lua load then still sweeps it) and is cleared once the camera is removed.
+        local c = world(function(w) w.file = '\tfree\t90\t40\t480\t20\t50' end)
+        c.open()
+        frames(c, 0.1, 'full')
+        c.close()
+        c.forget()
+        eq(c.mode(), 'region', 'region mode')
+        local f = fields()
+        eq(f.path, 'cam path 1', 'the path kept while it blends out')
+        eq(f.mode, 'region', 'region in the file')
+        eq(f.yaw, nil, 'no free pose in the file')
+        frames(c, 0.35)
+        same(W.removed, {'cam path 1'}, 'removed after the blend')
+        eq(W.file, nil, 'the file cleared once the camera is removed')
+        -- The next open is in region mode; cam_mode makes a new free pose from the region's framing.
+        c.open()
+        eq(c.mode(), 'region', 'the next open: region mode')
+        frames(c, 0.05, 'full')
+        c.word('cam_mode')
+        near(fields().yaw, Camera.framing('full', 180, 0.55, TANV).yaw, 0.01, 'a new free pose, not the old one')
+        -- With no camera alive or blending out, the file is cleared at once; a new Camera reads nothing back.
+        c = world(function(w) w.file = '\tfree\t90\t40\t480\t20\t50' end)
+        c.tick(1 / 60)
+        c.forget()
+        eq(W.file, nil, 'no camera: cleared at once')
+        c = world(function(w) w.file = nil end)
+        c.open()
+        eq(c.mode(), 'region', 'a restart after the reset: region mode')
+    end,
+
     close_gives_the_view_back_while_ours = function()
         local c = world()
         c.open()

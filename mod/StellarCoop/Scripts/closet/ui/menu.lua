@@ -35,8 +35,8 @@
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
 -- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
 -- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
--- game's Yes/No popup: Yes runs coop closet off (dress.off), tells closet.reset_done and closes without the Keep
--- popup or a revert; No and Back stay.
+-- game's Yes/No popup: Yes runs coop closet off (dress.off), tells closet.reset_done, closes without the Keep popup
+-- or a revert and has the camera forget its mode and pose (its file cleared); No and Back stay.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -361,7 +361,9 @@ function Menu.new(o)
                 return self.close('revert')
             end
             o.tell(function(t) return t.closet.reset_done end)
-            return self.close('reset')
+            self.close('reset')
+            if camera then camera.forget() end -- After its close, which writes the camera file.
+            return
         end
         if not yes then return self.close('revert') end
         local good,why=dress.confirm()

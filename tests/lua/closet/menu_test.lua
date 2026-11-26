@@ -45,6 +45,7 @@ local function fake_camera()
     c.stop = function() c.calls[#c.calls + 1] = 'stop'; c.on = false end
     c.tick = function(dt, region) c.ticks[#c.ticks + 1] = {dt = dt, region = region} end
     c.word = function(w) c.calls[#c.calls + 1] = w end
+    c.forget = function() c.calls[#c.calls + 1] = 'forget'; c.now = 'region' end
     c.running = function() return c.on end
     c.mode = function() return c.now end
     return c
@@ -1325,7 +1326,13 @@ local tests = {
             eq(cam.calls[1], 'open', name .. ': opened')
             path(r)
             eq(r.menu.is_open(), false, name .. ': closed')
-            eq(cam.calls[#cam.calls], name == 'stop' and 'stop' or 'close', name .. ': the camera closed')
+            -- Reset Stellar Closet clears the camera file too: the camera forgets its mode and pose after its close.
+            local tail = name == 'reset' and 1 or 0
+            eq(cam.calls[#cam.calls - tail], name == 'stop' and 'stop' or 'close', name .. ': the camera closed')
+            local forgot = 0
+            for _, call in ipairs(cam.calls) do if call == 'forget' then forgot = forgot + 1 end end
+            eq(forgot, tail, name .. ': forgotten on Reset Stellar Closet only')
+            if tail == 1 then eq(cam.calls[#cam.calls], 'forget', 'reset: forgotten after the close') end
         end
         cam = fake_camera()
         r = rig({camera = cam})
