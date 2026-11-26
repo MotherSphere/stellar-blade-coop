@@ -48,7 +48,8 @@
 -- Tetrapod of the hangar is put inside SB's own Tetrapod interior, 540 m away, and standing at its right door she is
 -- put back in front of the ship. SB ships that interior with no collision: the way in makes its parts solid and the
 -- way out and coop off put them back. coop xion tetrapod [in|out], inside SBO Xion, asks the same move from
--- anywhere. Alone, it says whether she is inside.
+-- anywhere. Alone, it says whether she is inside. coop xion tetrapod probe [<n>|only <n>] makes the move with no part
+-- solid, then one more each pass, to find the part that kills her: a test tool whose lines go to the log.
 -- The NPCs, each pass of the stay (world/maps/sboxion/npcs/npcs.lua): a display body in a room while EVE is near and
 -- the room's level is there. Its line shows when she comes close inside the room. coop xion npc picks its clip and
 -- its turn.
@@ -84,7 +85,7 @@ function Xion.new(o)
     local log=o.log
     local world=o.world
     local recover=Recover.new({log=function(m) log('sboxion: '..m) end,status=o.status,photo=o.photo,world=world})
-    local tetrapod=Tetrapod.new({log=function(m) log('sboxion: '..m) end,world=world})
+    local tetrapod=Tetrapod.new({log=function(m) log('sboxion: '..m) end,status=o.status,world=world})
     local asked_point=nil -- The arrival point of the last coop xion asked, for the recovery of the stay it starts.
     local e=Enemy.new({log=function(m) log('sboxion '..m) end,ask=o.ask,status=o.status},
         {word='sboxion',name='SBO Xion',command='coop xion',tag='[SX]',rows=Xion.ROWS,ids={}})
@@ -489,10 +490,11 @@ function Xion.new(o)
         local ok,line=rooms.switch(word)
         return ok,ok and 'coop xion rooms: '..line or line
     end
-    -- coop xion tetrapod [in|out]: EVE put inside the Tetrapod or back in front of it, or where she is with no word.
-    function self.tetrapod(word)
+    -- coop xion tetrapod [in|out|probe [<n>|only <n>]]: EVE put inside the Tetrapod or back in front of it, the probe,
+    -- or where she is with no word. The probe's words are the door's to check.
+    function self.tetrapod(word,...)
         if not stay then return false,'coop xion tetrapod: EVE is not in SBO Xion' end
-        local ok,line=tetrapod.go(word)
+        local ok,line=tetrapod.go(word,...)
         return ok,ok and 'coop xion tetrapod: '..line or line
     end
     -- coop xion npc [<n> | turn <degrees>]: the clip or the turn of the NPC nearest to EVE, or its state with no word.

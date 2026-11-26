@@ -825,7 +825,13 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   and `coop off` put them back. While EVE reads 60 cm under the point she is put on it again, with a black every
   6 passes. The ship is asked again on each pass while its last call wrote no part: not found, or 0 parts, then
   124 with one line. After 32 passes with no floor she is put back outside.
-  The door has no `busy()`: no other part waits for it;
+  The door has no `busy()`: no other part waits for it. `coop xion tetrapod probe` refuses another word, a part out
+  of 1 to 124 and one word too many. It makes the move with no part solid and puts a ship made solid before back
+  first. It asks the ship's parts each pass and puts EVE outside after 32 passes without them. Then it makes one
+  part solid a pass, in the engine's order, with one line each. A life of 3 or 4 stops it with the last two parts
+  named and nothing more written. Eight passes after the last part with EVE alive it says so. `probe 3` starts at
+  part 3 and `probe only 2` writes part 2 alone. A ship with fewer parts or gone from memory turns the door off. No
+  `life=` word gives `life ?`. A recovery that moved her out, `coop off` and an arrival end it;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
@@ -860,7 +866,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   dropped by a death that starts during it;
 - `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects. The parts of SB's
   Tetrapod interior get SB's collision profile `BlockAll` by a name the game has made, then `NoCollision`, the
-  profile SB ships them with. With no actor in memory nothing is written. The rest: the zone's FName index only for
+  profile SB ships them with. With no actor in memory nothing is written. For the probe the living parts are listed
+  in the engine's order with their component's and mesh's names and their profile. One part is written by its
+  number. A number with no part and a missing profile name raise before any write. The rest: the zone's FName index only for
   a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
   dead actor never written, the streaming levels by their package's last part, the probes read again on the kept
   objects, the characters' names, classes and places with EVE told apart by her address (one that does not read
@@ -900,7 +908,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `recover` alone and with `on`, `death` or `off`, `rooms` alone and with `on` or `off`, the use line for `walls`,
   any other word or one too many and the answer without the Steam link. Then `world/maps/sboxion/wiring.lua`: SBO
   Xion is built with two of the Steam link's stores, `coop-xion-rooms.txt` and `coop-xion-npcs.txt`. An NPC's line is
-  said in the menu's words. `coop xion npc` hands its two words to the module. No store is asked without the link;
+  said in the menu's words. `coop xion npc` hands its two words to the module. `coop xion tetrapod probe` hands
+  every word after it to the module. No store is asked without the link;
 - `world/maps/sboxion/npcs/npcs_test` runs `world/maps/sboxion/npcs/npcs.lua` over a fake world and a fake store:
   the list with its words in 22 languages and a line within 200 bytes, the repairer's spot worked out from D011's
   frame, no body far away, while the room's level is not there or with a pak that lacks the room, the body with its

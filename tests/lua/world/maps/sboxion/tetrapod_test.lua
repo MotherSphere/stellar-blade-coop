@@ -21,7 +21,8 @@ package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Tetrapod=require('world.maps.sboxion.tetrapod')
 local D=require('world.maps.sboxion.data')
 local T=D.TETRAPOD
-assert(T.STAY==2 and T.HOLD==8 and D.LEAD==2 and D.LIFT==10 and T.DROP==60 and T.AGAIN==6 and T.SETTLE==32)
+assert(T.STAY==2 and T.HOLD==8 and D.LEAD==2 and D.LIFT==10 and T.DROP==60 and T.AGAIN==6 and T.SETTLE==32
+    and T.PARTS==124)
 
 local function near(a,b,by) return math.abs(a-b)<=(by or 0.01) end
 -- The frame. SB's point inside, SBSpawnPoint43 of E04_LD_Respawn, in the ship frame.
@@ -44,6 +45,14 @@ local eve,refuse,black_error,broken=nil,false,nil,nil
 -- The ship: each ask (true or false); the parts it answers (nil: not in memory) or the error it raises. lands: the
 -- movement mode a put leaves EVE in (1 walking, 3 falling).
 local ships,parts,ship_error,lands={},124,nil,1
+-- The probe: the list world.parts answers (nil: the ship not in memory), each part written by its number, the profile
+-- world.part answers (nil: the ship not in memory) and EVE's life in the status text (nil: no life= word).
+local list,writes,profile,life,asks=nil,{},'BlockAll',1,0
+local function ship_list(n)
+    local l={}
+    for i=1,n do l[i]={index=i,component='C'..i,mesh='M'..i,profile='NoCollision'} end
+    return l
+end
 local world={
     move=function()
         if broken then error(broken) end
@@ -68,12 +77,23 @@ local world={
         if black_error then error(black_error) end
         return true
     end,
+    parts=function()
+        asks=asks+1
+        return list
+    end,
+    part=function(i,on)
+        assert(on==true,'The probe makes parts solid')
+        writes[#writes+1]=i
+        order[#order+1]='part '..i
+        return profile
+    end,
 }
 local function logged(text)
     for _,l in ipairs(logs) do if l:find(text,1,true) then return true end end
     return false
 end
-local door=Tetrapod.new({log=function(m) logs[#logs+1]=m end,world=world})
+local door=Tetrapod.new({log=function(m) logs[#logs+1]=m end,world=world,
+    status=function() return 'engine=warp=idle\nsboxionwarp=entered asks=1 life='..tostring(life)..'\n' end})
 local function pass(n,busy) for _=1,n or 1 do door.tick(busy) end end
 local DOOR={X=-13265,Y=19600,Z=347} -- In the doorway of the Tetrapod of the hangar.
 local STEPS={X=-13265,Y=19200,Z=120} -- On the lower steps, short of the box.
@@ -83,6 +103,7 @@ local CABIN=Tetrapod.world({x=0,y=0,z=340})
 local function fresh()
     logs,puts,blacks,order,ships={},{},{},{},{}
     refuse,black_error,broken,parts,ship_error,lands=false,nil,nil,124,nil,1
+    list,writes,profile,life,asks=nil,{},'BlockAll',1,0
     door.arrive()
 end
 
@@ -211,7 +232,7 @@ assert(ok and #blacks==2,line)
 pass(2)
 assert(#puts==2 and puts[2].at.X==T.OUT.X)
 ok,line=door.go('up')
-assert(not ok and line=='Use: coop xion tetrapod [in|out]',line)
+assert(not ok and line=='Use: coop xion tetrapod [in|out|probe [<n>|only <n>]]',line)
 eve=nil
 ok,line=door.go('in')
 assert(not ok and line=='coop xion tetrapod: no EVE',line)
@@ -332,4 +353,175 @@ door.arrive()
 eve=STEPS
 pass(4)
 assert(#puts==0,'the arrival dropped the move')
+-- The probe (coop xion tetrapod probe). Its words: alone from part 1, <n> from part n, only <n> part n alone. Another
+-- word, a part out of 1 to 124, only with no part and one word too many are refused with the use line, with nothing
+-- asked.
+local USE='Use: coop xion tetrapod [in|out|probe [<n>|only <n>]]'
+fresh()
+eve=STEPS
+for _,words in ipairs({{'probe','0'},{'probe','125'},{'probe','x'},{'probe','1.5'},{'probe','-1'},{'probe','only'},
+    {'probe','only','125'},{'probe','2','3'},{'probe','only','2','3'},{'probe','all'},{'in','now'}}) do
+    ok,line=door.go(table.unpack(words))
+    assert(not ok and line==USE,table.concat(words,' ')..': '..tostring(line))
+end
+assert(#blacks==0 and #logs==1,'Nothing asked')
+-- 1. SB's black, then EVE on the point inside with no part made solid. A second probe waits for this one.
+ok,line=door.go('probe')
+assert(ok and line=='probe: the move is asked' and #blacks==1,line)
+assert(logged('tetrapod: probe asked (coop xion tetrapod probe); black up in 0.3 s; EVE moves in 2 passes'),logs[#logs])
+ok,line=door.go('probe','only','3')
+assert(not ok and line=='coop xion tetrapod: a move is under way',line)
+lands=3
+pass(2)
+assert(table.concat(order,', ')=='black, put' and #ships==0,'No part made solid: '..table.concat(order,', '))
+assert(near(puts[1].at.Z,IN.Z+10) and logged('tetrapod: probe: EVE at (16638, -24558, -1852), yaw -132.2'),logs[#logs])
+ok,line=door.go('probe')
+assert(not ok and line=='coop xion tetrapod: a move is under way','A probe under way')
+-- She falls with no floor: each pass that reads her 60 cm under the point puts her on it again, said once.
+eve.Z=eve.Z-100
+pass()
+assert(#puts==2 and logged('tetrapod: probe: no floor yet under EVE at (16638, -24558, -1942): on the point again '
+    ..'(0 parts solid)'),logs[#logs])
+-- 2. The ship's parts are asked each pass until they are in memory. Then one more part is made solid each pass, in
+-- the order the engine gives them, on passes the recovery is busy too.
+eve.Z=eve.Z-100
+pass(1,true)
+assert(asks==2 and #writes==0 and #puts==3)
+list=ship_list(4)
+eve.Z=eve.Z-100
+pass()
+assert(asks==3 and logged('tetrapod: probe: ship found after 3 passes: 4 parts, one more made solid each pass from '
+    ..'part 1'),logs[#logs])
+-- 3. One line a part: its number of the count, its component and mesh, its profile before and after, EVE's place,
+-- movement mode and life.
+assert(table.concat(writes,' ')=='1' and logged('tetrapod: probe: part 1/4 C1 (M1): NoCollision, now BlockAll; EVE at '
+    ..'(16638, -24558, -1942), mode 3, life 1'),logs[#logs])
+pass(2,true)
+assert(table.concat(writes,' ')=='1 2 3' and asks==3,'One more each pass, in the engine\'s order')
+assert(logged('tetrapod: probe: part 3/4 C3 (M3): NoCollision, now BlockAll; EVE at (16638, -24558, -1842), mode 3, '
+    ..'life 1'),logs[#logs])
+-- 4. Her life no longer alive: one line with the last two parts made solid and her place, then no more part and no
+-- more move. The recovery handles the death. coop off puts the ship back as SB ships it.
+life=3
+n=#puts
+pass()
+assert(#writes==3 and logged('tetrapod: probe: EVE dead (life 3) at (16638, -24558, -1842), mode 3, 6 passes without '
+    ..'walking; last part made solid 3/4 C3 (M3), the pass before 2/4 C2 (M2); no more part is written'),logs[#logs])
+eve.Z=eve.Z-100
+pass(10)
+assert(#writes==3 and #puts==n and #ships==0,'Nothing more')
+door.stop()
+assert(ships[1]==false and #ships==1,'coop off')
+-- A death before any part.
+fresh()
+eve=STEPS
+door.go('probe')
+pass(2)
+life=6
+pass()
+assert(not logged('dead'),'6 is alive')
+life=4
+pass()
+assert(logged('tetrapod: probe: EVE dead (life 4) at (16638, -24558, -1842), mode 1, 0 passes without walking; no part '
+    ..'made solid; no more part is written'),logs[#logs])
+-- The ship's parts never come, or come as an empty list: after 32 passes she is put back outside.
+fresh()
+eve=STEPS
+list={}
+lands=3
+door.go('probe')
+pass(2)
+for _=1,31 do eve.Z=eve.Z-100; pass() end
+assert(asks==31 and not logged('no ship parts') and #writes==0)
+eve.Z=eve.Z-100
+pass()
+assert(asks==32 and logged('tetrapod: probe: no ship parts after 32 passes: back outside') and puts[#puts].at.X==T.OUT.X
+    and ships[#ships]==false,logs[#logs])
+-- 5. Every part solid and EVE alive 8 passes after the last one: one line, she stays. The way out works as usual.
+fresh()
+eve=STEPS
+list=ship_list(4)
+door.go('probe')
+pass(2)
+pass(4)
+assert(table.concat(writes,' ')=='1 2 3 4')
+pass(7)
+assert(not logged('EVE lives'))
+pass()
+assert(logged('tetrapod: probe: EVE lives with parts 1 to 4 solid, 8 passes after the last one, at (16638, -24558, '
+    ..'-1842), mode 1: the probe ends'),logs[#logs])
+n=#puts
+eve=HATCH
+pass(11)
+assert(#puts==n+1 and puts[#puts].at.X==T.OUT.X and ships[#ships]==false,'The way out as usual')
+-- 6. probe 3: parts 1 and 2 stay as SB ships them. After a way in the probe's move puts the ship back as SB ships it
+-- first.
+fresh()
+eve=DOOR
+pass(5)
+assert(ships[1]==true and logged('stands in the ship'))
+list=ship_list(4)
+ok,line=door.go('probe','3')
+assert(ok and line=='probe: the move is asked',line)
+pass(2)
+assert(table.concat(order,', ',#order-2)=='black, ship false, put',table.concat(order,', '))
+pass(3)
+assert(table.concat(writes,' ')=='3 4' and logged('tetrapod: probe: ship found after 1 passes: 4 parts, one more made '
+    ..'solid each pass from part 3'),logs[#logs])
+pass(7)
+assert(logged('tetrapod: probe: EVE lives with parts 3 to 4 solid'),logs[#logs])
+-- probe only 2: that part alone.
+fresh()
+eve=STEPS
+list=ship_list(4)
+door.go('probe','only','2')
+pass(11)
+assert(table.concat(writes,' ')=='2' and logged('tetrapod: probe: ship found after 1 passes: 4 parts, part 2 alone '
+    ..'made solid') and logged('tetrapod: probe: EVE lives with part 2 alone solid, 8 passes after the last one'),
+    logs[#logs])
+-- 124 is the highest part the words take. A ship with fewer parts, or one gone from memory, turns the door off with
+-- one line.
+fresh()
+eve=STEPS
+list=ship_list(4)
+ok,line=door.go('probe','only','124')
+assert(ok,line)
+pass(3)
+assert(#writes==0 and logged('tetrapod: door off until the next arrival: error (no part 124: the ship has 4)'),
+    logs[#logs])
+fresh()
+eve=STEPS
+list,profile=ship_list(4),nil
+door.go('probe')
+pass(3)
+assert(logged('tetrapod: door off until the next arrival: error (the ship is not in memory any more)'),logs[#logs])
+-- With no life= word the lines say life ? and the probe goes on. The recovery moved her out of the ship: the probe
+-- ends with the ship as SB ships it.
+fresh()
+eve=STEPS
+list,life=ship_list(4),nil
+door.go('probe')
+pass(3)
+assert(logged('mode 1, life ?'),logs[#logs])
+eve={X=-12973,Y=19176,Z=85,mode=1}
+pass()
+assert(logged('tetrapod: probe: EVE is out of the ship at (-12973, 19176, 85): the probe ends') and #writes==1
+    and ships[#ships]==false,logs[#logs])
+-- coop off and an arrival end a probe.
+fresh()
+eve=STEPS
+list=ship_list(4)
+door.go('probe')
+pass(3)
+door.stop()
+pass(3)
+assert(#writes==1 and ships[#ships]==false,'coop off')
+fresh()
+eve=STEPS
+list=ship_list(4)
+door.go('probe')
+pass(3)
+door.arrive()
+pass(3)
+assert(#writes==1,'An arrival')
 print('sboxion_tetrapod_test ok')
