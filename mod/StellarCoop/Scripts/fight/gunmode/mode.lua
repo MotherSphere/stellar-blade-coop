@@ -8,7 +8,8 @@
 -- auto at the point under the screen centre. Letting go goes back to Luke's movement. Logged as [StellarCoop][GM].
 -- How: each shot is the NIKKE shot skill, started by a zone event through SB's own rows (fight/gunmode/data.lua), its
 -- bullet sent to the crosshair's point (fight/gunmode/aim.lua). While the rifle is out the sword's attacks and the drone's
--- aim on the fire and zoom keys are masked in memory (never saved; put back when it goes away).
+-- aim on the fire and zoom keys are masked in memory (lifted while the game is paused, where SB's key options can save
+-- the mappings; put back when it goes away).
 -- Gun mode is a module of its own: it reads its own coop-settings.txt lines and uses nothing of the rest of the mod;
 -- fight/gunmode/wiring.lua builds and starts it. All of it runs on the game thread, from main/frame.lua's
 -- LoopInGameThreadWithDelay loop (every frame): no LoopAsync, ExecuteWithDelay or key bind, whose callbacks run Lua on
@@ -980,7 +981,12 @@ function GunMode.new(env)
         -- SB's held NIKKE fields back once their hold after put_back is over (fight/gunmode/data.lua tick), with the
         -- rifle away too; paused time not counted (4389defd)
         if data.late then pcall(data.tick,now,okp and pz==true) end
+        -- Paused (the pause menu and its options among others): the mask lifted until the game runs again. SB's
+        -- KeyMapping option (its save 0x14222dec0 on 26123051) writes the player input's mappings (+0x140 and +0x150,
+        -- through 0x1423d04d0) into its settings. ForceRebuildKeymaps (0x144664bb0) copies them there from the input
+        -- settings: a masked key would be saved as the player's own (67baef65).
         if okp and pz then
+            if s.mask then pcall(s.mask); s.mask=nil end
             -- (dev only, gun_g1=on) the fixed views once per photo mode, to check the pose holds in it
             if set.g1 and s.on and g.valid(s.rifle) then
                 local photo=g.try(function() return g.cdo('/Script/SB.Default__SBAutomationBlueprintFunctionLibrary'):IsPhotoMode() end)==true
@@ -996,6 +1002,10 @@ function GunMode.new(env)
             return
         end
         dn_pc,dn_frame=pc,dn_frame+1
+        if s.on and not s.mask then -- (masked again at the first frame after a pause)
+            local ok,err=pcall(function() s.mask=mask() end)
+            if not ok then disable('the input mask failed ('..tostring(err)..')'); return end
+        end
         if s.prof then s.prof('head') end
         local inp=Input.read(keys,down,now,cfg,set.key,inp_buf)
         -- the player's reload: a press of a reload key while the rifle is out (rising edge)

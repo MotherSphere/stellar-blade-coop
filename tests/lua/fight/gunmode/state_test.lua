@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Gun mode and SB's NIKKE behaviour, over a fake UE4SS (fake.lua) on the rifle layer's path: the NIKKE shot's cover
 -- animation emptied while the rifle is out; SB's refill, its cover stance at 0 rounds and its own reload held off
--- while the rifle is out, back 3 s of play after it. The cases are state_test's of 5492c007 fitted to luke's gun mode.
+-- while the rifle is out, back 3 s of play after it; the input mask lifted while the game is paused. The cases are
+-- state_test's of 5492c007 fitted to luke's gun mode.
 -- The cases of features that did not come back with it are left out, as are the coop-gun.txt checks: no journal is
 -- kept.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -233,6 +234,28 @@ do
     w.pawn.bTPSMode,w.down.RightMouseButton=false,nil
     toggle(gun,false)
     assert(sk.CoolTime==0.11,'the shipped cool time back: '..tostring(sk.CoolTime))
+end
+
+-- 6. The input mask is lifted while the game is paused and put back at the first frame after it. SB's KeyMapping
+--    option saves the player input's mappings (0x14222dec0 through 0x1423d04d0 on 26123051), which
+--    ForceRebuildKeymaps (0x144664bb0) copies from the input settings: a save in the pause menu must not see a masked
+--    key (67baef65).
+do
+    local w=Fake.new(); w.install()
+    local keys=w.keys()
+    local gun=new()
+    toggle(gun,true)
+    local masked=w.keys()
+    assert(masked~=keys,'masked while the rifle is out')
+    w.paused=true
+    frames(gun,2)
+    assert(w.keys()==keys,'the keys back while paused: '..w.keys())
+    assert(gun.state.on,'the rifle stays out')
+    w.paused=false
+    frames(gun,1)
+    assert(w.keys()==masked,'masked again: '..w.keys())
+    toggle(gun,false)
+    assert(w.keys()==keys)
 end
 
 print('gunmode state: ok')
