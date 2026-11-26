@@ -190,7 +190,8 @@ do
     -- reads as a broken aside.
     local T='tests/lua/fight/gunmode/'
     for _,p in ipairs({S..'input.lua',S..'ik.lua',S..'mode.lua',S..'aimrot.lua',S..'ui/dpad.lua',S..'rifle.lua',
-            T..'ik_pin_test.lua',T..'input_memo_test.lua',T..'rifle_frame_test.lua',T..'morph_test.lua'}) do
+            T..'ik_pin_test.lua',T..'input_memo_test.lua',T..'rifle_frame_test.lua',T..'morph_test.lua',
+            T..'cost_test.lua',T..'state_test.lua',T..'stock_test.lua',T..'stop_test.lua',T..'engine_test.lua'}) do
         local blocks,last={},nil -- {line of its first comment, its text}
         lines({p},function(_,n,l)
             local c=l:match('%-%-(.*)$')

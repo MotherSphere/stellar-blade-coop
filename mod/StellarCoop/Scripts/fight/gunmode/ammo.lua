@@ -4,20 +4,28 @@
 -- The rifle's own round: NIKKE rapid rounds, a magazine of cfg.mag_size and cfg.spare_mags spare magazines, fired
 -- at the NIKKE shot's cool time. A reload (cfg.reload_time, the NIKKE squad's reload animation) comes when the
 -- magazine runs dry or while the rifle is lowered with a part-spent one. The reticle's round slot (WB_Tps_Bullet3,
--- under the drone's reticle) shows the round's name and the rounds in the magazine while firing mode is held; the
--- drone's round count at the bottom left (WB_MainHUD_Lower1Item, beside D-pad Right) shows rounds | magazines while
--- the rifle is out. The game's own text goes back when the rifle goes away. A new world (a map, a death, a camp's
--- travel) gives full magazines again.
+-- under the drone's reticle) shows the round's name and the rounds in the magazine while firing mode is held, from the
+-- aim's first frame (f60b4d27). The drone's round count at the bottom left keeps the game's own text: gun mode's HUD
+-- entry beside the D-pad marker shows the rifle's rounds (a5556d87). The game's own text goes back when the rifle
+-- goes away. A new world (a map, a death, a camp's travel) gives full magazines again.
 -- Rounds are counted at the rate the game fires them: one at the press, then one per cool time (rounded up to whole
 -- frames, as the game checks the cool time once a frame). While reloading the shot's cool time is the reload's, so
--- the trigger fires nothing until the magazine is full again.
+-- the trigger fires nothing until the magazine is full again. Where rounds come back after a longer cool time (a
+-- reload's end, a refill, the rifle out) the cool time is 0 until one cool time and Ammo.OPEN_FRAMES frames after the
+-- first round (open below).
 local Ammo={}
+-- frames: the cool time 0 (open below) lasts at least this many frames from the first round. One cool time alone is
+-- 1 to 2 frames at 30 fps or after a slow frame. SB's first start can come a frame or two after gun mode sees the
+-- press. With the rate of fire already back in the row, a stored 999 refused that start (7f3932fe).
+Ammo.OPEN_FRAMES=4
 
 Ammo.SLOT='WB_Tps_Bullet3'
 Ammo.NAME_TEXT,Ammo.COUNT_TEXT='TextBlock_bullet_name','TextBlock_ItemCount'
-Ammo.LOWER,Ammo.LOWER_TEXT='WB_MainHUD_Lower1Item','TextBlock_Item_Count'
+-- s from the aim's start during which the slot's text is written each frame: the game writes its own round's name
+-- when its aim starts, in the aim's first frames (f60b4d27).
+Ammo.FRESH=0.25
 
--- The bottom-left text: rounds in the magazine | magazines left (a part-spent one counted).
+-- The HUD entry's text: rounds in the magazine | magazines left (a part-spent one counted).
 function Ammo.lower_text(left,reserve,mag)
     return ('%d | %d'):format(math.floor(left),math.ceil(reserve/mag))
 end
@@ -35,33 +43,40 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
     local self={left=cfg.mag_size,reserve=cfg.mag_size*cfg.spare_mags,reload_until=nil,acc=0,dt=1/60,held=false}
     on_reload=on_reload or function() end
     local ui={} -- name, count: the slot's text blocks; saved: their own text and colour.
+    local was_aiming=false
 
+    -- The slot's text blocks while they are the ones found: IsValid each frame, their paths every 0.25 s and before
+    -- a restore. A map change frees them. Another object can then sit at a freed address and pass IsValid (f60b4d27).
+    local function ours(now)
+        if not (g.valid(ui.name) and g.valid(ui.count)) then return false end
+        if not now and (ui.seen_at or 0)>os.clock() then return true end
+        ui.seen_at=os.clock()+0.25
+        return g.path(ui.name)==ui.name_at and g.path(ui.count)==ui.count_at
+    end
     local function find()
-        if g.valid(ui.name) and g.valid(ui.count) then return true end
-        ui.name,ui.count,ui.lower=nil,nil,nil
-        if (ui.retry or 0)>os.clock() then return false end
-        ui.retry=os.clock()+1.0 -- FindAllOf walks every text block: once a second at most.
+        if ours() then return true end
+        ui.name,ui.count,ui.seen_at=nil,nil,nil
+        -- FindAllOf walks every object: only after an event (ui.look: the rifle out, firing mode entered), at most
+        -- once in 10 s while the slot is missing (468f7ab6, b812f708: a walk costs 60-90 ms). Never in firing mode:
+        -- a walk at its start lands where she watches her body turn to the front. The look an aim asks waits for its
+        -- end.
+        if not ui.look or was_aiming or (ui.retry or 0)>os.clock() then return false end
+        ui.look,ui.retry=false,os.clock()+10.0
         pcall(function()
             for _,t in ipairs(FindAllOf('TextBlock') or {}) do
                 local full=t:GetFullName()
                 if full:find(Ammo.SLOT,1,true) and full:find('MainHUD',1,true) then
                     local leaf=full:match('([%w_]+)$')
                     if leaf==Ammo.NAME_TEXT then ui.name=t elseif leaf==Ammo.COUNT_TEXT then ui.count=t end
-                elseif full:find(Ammo.LOWER,1,true) and full:find('MainHUD_Master',1,true) then
-                    local leaf=full:match('([%w_]+)$')
-                    local txt=g.try(function() return t:GetText():ToString() end)
-                    ui.lower_all=ui.lower_all or {}
-                    ui.lower_all[#ui.lower_all+1]=full:match('Lower1Item%.(.*)$')..'="'..tostring(txt)..'"'
                 end
             end
         end)
+        ui.name_at,ui.count_at=ui.name and g.path(ui.name),ui.count and g.path(ui.count)
         if not ui.logged then
             ui.logged=true
-            g.log('ammo: bottom-left texts: '..table.concat(ui.lower_all or {},' | '))
-            g.log('ammo: reticle round slot '..((ui.name and ui.count) and 'found' or 'not found')..', bottom-left count '..
-                (ui.lower and 'found' or 'not found'))
+            g.log('ammo: reticle round slot '..((ui.name and ui.count) and 'found' or 'not found'))
         end
-        return ui.name~=nil and ui.count~=nil
+        return ui.name~=nil and ui.count~=nil and ui.name_at~=nil and ui.count_at~=nil
     end
 
     local function colour(c) return {SpecifiedColor={R=c[1],G=c[2],B=c[3],A=1},ColorUseRule=0} end
@@ -80,19 +95,18 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
         if not find() then return end
         if not ui.saved then
             ui.saved={}
-            for _,k in ipairs({'name','count','lower'}) do
+            for _,k in ipairs({'name','count'}) do
                 local t=ui[k]
-                if t then
                 local text=g.try(function() return t:GetText():ToString() end)
                 local c=g.try(function() local v=t.ColorAndOpacity.SpecifiedColor; return {v.R,v.G,v.B,v.A} end)
                 ui.saved[k]={text=text,col=c}
-                end
             end
         end
         local empty=self.left<=0 and self.reserve<=0
         local name=self.reload_until and cfg.reload_text or empty and cfg.empty_text or cfg.round_name
         local count=tostring(math.max(0,math.floor(self.left)))
-        if ui.shown_name~=name or (ui.check or 0)<os.clock() then
+        -- (the aim's first frames: each frame, as the game writes its own round's name when its aim starts)
+        if ui.shown_name~=name or (ui.check or 0)<os.clock() or os.clock()<(ui.fresh_until or 0) then
             if set_text(ui.name,name) then ui.shown_name=name end
             pcall(function() ui.name:SetColorAndOpacity(colour((self.reload_until or empty) and cfg.reload_color or cfg.round_color)) end)
             pcall(function() ui.count:SetColorAndOpacity(colour(cfg.round_color)) end)
@@ -102,68 +116,31 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
         if ui.shown_count~=count then
             if set_text(ui.count,count) then ui.shown_count=count end
         end
-        -- The bottom-left slot shown while the rifle is out (the game shows it only in its aim and in fights): the
-        -- count's text block and every panel and widget above it up to the HUD made visible, each put back after.
-        if g.valid(ui.lower) and not ui.chain then
-            ui.chain={}
-            local w=ui.lower
-            for _=1,12 do
-                local parent=g.try(function() return w:GetParent() end)
-                if not g.valid(parent) then
-                    -- The top of a widget tree: its user widget (the tree's outer's outer).
-                    parent=g.try(function() return w:GetOuter():GetOuter() end)
-                    if not (g.valid(parent) and g.try(function() return parent:IsA(StaticFindObject('/Script/UMG.UserWidget')) end)) then break end
-                end
-                local name=g.try(function() return parent:GetFName():ToString() end) or '?'
-                if name:find('MainHUD_Master') then break end
-                ui.chain[#ui.chain+1]={w=parent,vis=g.try(function() return parent:GetVisibility() end),
-                    op=g.try(function() return parent:GetRenderOpacity() end),name=name}
-                w=parent
-            end
-            local names={}
-            for _,e in ipairs(ui.chain) do names[#names+1]=e.name..'('..tostring(e.vis)..','..tostring(e.op)..')' end
-            g.log('ammo: bottom-left slot chain: '..table.concat(names,' < '))
-        end
-        if ui.chain and (ui.vis_at or 0)<os.clock() then
-            ui.vis_at=os.clock()+0.1
-            for _,e in ipairs(ui.chain) do
-                if g.valid(e.w) then
-                    pcall(function() if e.w:GetVisibility()==1 or e.w:GetVisibility()==2 then e.w:SetVisibility(4) end end)
-                    pcall(function() if e.w:GetRenderOpacity()<1 then e.w:SetRenderOpacity(1.0) end end)
-                end
-            end
-        end
-        if g.valid(ui.lower) then
-            local low=Ammo.lower_text(math.max(0,self.left),self.reserve,cfg.mag_size)
-            if ui.shown_lower~=low or (ui.check_low or 0)<os.clock() then -- every 0.1 s: the game writes its count
-                if set_text(ui.lower,low) then ui.shown_lower=low end
-                pcall(function() ui.lower:SetColorAndOpacity(colour(empty and cfg.reload_color or cfg.round_color)) end)
-                ui.check_low=os.clock()+0.1
-            end
-        end
     end
 
     -- The game's own text and colour back in the slot.
     function self.restore()
         if dpad then pcall(dpad.hide) end
-        if ui.saved then
-            for _,k in ipairs({'name','count','lower'}) do
+        if ui.saved and ours(true) then
+            for _,k in ipairs({'name','count'}) do
                 local t,sv=ui[k],ui.saved[k]
-                if g.valid(t) and sv then
-                    if sv.text then set_text(t,sv.text) end
-                    if sv.col then pcall(function() t:SetColorAndOpacity(colour(sv.col)) end) end
-                end
+                if sv.text then set_text(t,sv.text) end
+                if sv.col then pcall(function() t:SetColorAndOpacity(colour(sv.col)) end) end
             end
         end
-        for _,e in ipairs(ui.chain or {}) do
-            if g.valid(e.w) then
-                if e.vis then pcall(function() e.w:SetVisibility(e.vis) end) end
-                if e.op then pcall(function() e.w:SetRenderOpacity(e.op) end) end
-            end
-        end
-        ui.chain=nil
-        ui.saved,ui.shown_name,ui.shown_count,ui.shown_lower=nil,nil,nil,nil
+        ui.saved,ui.shown_name,ui.shown_count=nil,nil,nil
     end
+
+    -- SB keeps its own copy of the shot's cool time (build 26123051): FSBSkillStart::Execute (0x141b17900) calls
+    -- 0x141d2f750, which copies the SkillTable row's CoolTime (SBSkillTableProperty+0x124, property params at
+    -- 0x145df2820) into the skill component's map at +0x80 at each start (0x141d2fe7b). 0x141d2e4c0 counts that copy
+    -- down by the frame time (0x141d2e623) and never reads the row. 0x141d2cce0 refuses a start while the row's
+    -- CoolTime and the copy are both above 0 (0x141d2d5ed). A 999 taken while SB could start (fired dry with the
+    -- trigger held) then refused every round of the next magazine for up to 999 s: no round, no shot sound
+    -- (2026-11-21 test). A row value of 0 lets the next start through, which stores 0. tick puts the rate of fire back
+    -- one cool time and Ammo.OPEN_FRAMES frames after the first round (open_at, open_n): the game's aim drops for a
+    -- frame on each of its shots, which ends a held press (4f755c24, 7f3932fe).
+    local function open() self.open,self.open_at=true,nil; pcall(cool,0) end
 
     local function start_reload(now,why)
         if self.reload_until or self.reserve<=0 or self.left>=cfg.mag_size then return end
@@ -178,6 +155,10 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
 
     -- Every frame while the rifle is out. aiming: firing mode; firing: the trigger held.
     function self.tick(aiming,firing,now)
+        -- Firing mode entered: the slot looked for once it ends, if not found yet. Its text is written each frame for
+        -- FRESH s.
+        if aiming and not was_aiming then ui.look,ui.fresh_until=true,os.clock()+Ammo.FRESH end
+        was_aiming=aiming
         local dt=now-(self.last or now)
         self.last=now
         if dt>0 and dt<0.2 then self.dt=self.dt+(dt-self.dt)*0.1 end
@@ -192,9 +173,10 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
             if now>=self.reload_until then
                 self.reload_until,self.loaded=nil,false
                 pcall(on_reload,false)
-                pcall(cool,cfg.fire_interval)
+                open() -- (a reload always loads a round: start_reload needs spares)
             end
         elseif aiming and firing and self.left>0 then
+            if self.open and not self.open_at then self.open_at,self.open_n=now,0 end
             if not self.held then -- The press: one round at once.
                 self.held=true
                 self.acc=0
@@ -216,6 +198,14 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
             if not firing then self.held=false end
             -- (no reload when the rifle is lowered: only an empty magazine or the player's reload key, 11-20)
         end
+        if self.open_at then
+            self.open_n=self.open_n+1
+            if self.open_n>Ammo.OPEN_FRAMES and now-self.open_at>=cfg.fire_interval then
+                self.open,self.open_at=nil,nil
+                -- (else 999 or the reload's wait)
+                if self.left>0 and not self.reload_until then pcall(cool,cfg.fire_interval) end
+            end
+        end
         show()
     end
 
@@ -232,6 +222,7 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
     -- matches the rounds that left the rifle.
     function self.spend(now)
         if self.reload_until or self.left<=0 then return false end
+        if self.open and not self.open_at then self.open_at,self.open_n=now,0 end
         self.left=self.left-1
         if self.left<=0 then
             self.left=0
@@ -241,16 +232,19 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
         return true
     end
 
-    -- After the rows are taken again (the rifle out): no round if both magazine and spares are spent.
+    -- After the rows are taken again (the rifle out): no round if both magazine and spares are spent. Else the cool
+    -- time stays the take's 0 (fight/gunmode/mode.lua) until the first round. The reticle's slot looked for at the next
+    -- tick.
     function self.sync()
-        if self.left<=0 and self.reserve<=0 then pcall(cool,999) end
+        ui.look=true
+        if self.left<=0 and self.reserve<=0 then pcall(cool,999) else self.open=true end
     end
 
     -- Full magazines again (a new world).
     function self.refill()
         self.left,self.reserve=cfg.mag_size,cfg.mag_size*cfg.spare_mags
         if self.reload_until then self.reload_until,self.loaded=nil,false; pcall(on_reload,false) end
-        pcall(cool,cfg.fire_interval)
+        open()
     end
 
     -- The rifle put away: the game's slot back, the cool time back to the rate of fire. The rounds stay as they are.
@@ -263,7 +257,7 @@ function Ammo.new(g,cfg,cool,on_reload,dpad)
             pcall(on_reload,false)
         end
         if self.left>0 or self.reserve>0 then pcall(cool,cfg.fire_interval) end
-        self.held,self.lowered=false,nil
+        self.held,self.lowered,self.open,self.open_at=false,nil,nil,nil
     end
 
     return self

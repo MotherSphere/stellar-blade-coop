@@ -59,36 +59,37 @@ rifle changes:
   them until 1 s after the last one.
 - `SkillCommandTable`: the NIKKE fire commands take the burst shot's command type, which checks no equipped round.
   With `gun_fire=native` (the default) every drone fire command starts the NIKKE shot too, also in a jump.
-- `SkillTable`: the NIKKE shot's cool time. It is the rate of fire (0.045 s), the reload's wait during a reload and
-  999 with no round. SB keeps its own copy of the cool time from each shot's start and counts that copy down. It
-  refuses a shot while the row's cool time and that copy are both above 0. So the rifle out, the end of a reload and a
-  new world write 0. One cool time and at least 4 frames after the first round the row holds the rate of fire again.
-  The 4 frames cover a slow frame or 30 fps, where SB's first start can come after one cool time. Without the 0, a
-  magazine fired dry with the trigger held leaves SB a copy of 999. The next magazine then fires no round and no shot
-  sound for up to 999 s, while gun mode's flash, recoil and count go on.
+- `SkillTable`: the NIKKE shot's cool time. It is the rate of fire (0.045 s), the reload's wait during a reload and 999
+  once every magazine is spent or while an off waits for the game's aim to end ([Firing mode](#firing-mode)). SB keeps
+  its own copy of the cool time from each shot's start and counts that copy down. It refuses a shot while the row's cool
+  time and that copy are both above 0. So the rifle out, the end of a reload and a refill of the magazines write 0. One
+  cool time and at least 4 frames after the first round (the game's aim or gun mode's own) the row holds the rate of
+  fire again. The 4 frames cover a slow frame or 30 fps, where SB's first start can come after one cool time. Without
+  the 0, every magazine fired dry with the trigger held left SB a copy of 999. The next rifle out then fired no SB round
+  and no shot sound for up to 999 s, while gun mode's flash, recoil and count went on. A reload's wait copied the same
+  way held SB's rounds back for a moment after a reload with the trigger held through it.
 - `SkillActiveStepTable`: the shot's `Hit1` step takes the `Type` of its `Cast1` step. It fires its projectile and
   spends no round.
-- `EffectTable` `P_Eve_GunNikke_ReloadCompleted`: SB's own NIKKE reload adds no rounds, in both fire modes. As
-  shipped, its `Action1` adds 60 `Bullet_Nikke` about 1 s after the last NIKKE shot while EVE carries fewer than 60.
-  Each reload of gun mode leaves her with fewer than 60, so every pause in the fire gave a free magazine (4 of them in
-  the 2026-11-21 test). While the rifle is out the action is `EffectAction_None`. The magazine then loads only the rounds
-  she buys or picks up. The action goes back 3 s of play after the other rows (paused time not counted). SB reads it
-  when the effect starts, about 1.07 s after its last NIKKE shot. Put back at once, an off right after a shot gave 60
-  free rounds. `coop off` and a Lua reload put it back at once. `UE4SS.log` has the lines
+- `EffectTable` `P_Eve_GunNikke_ReloadCompleted`: SB's own NIKKE reload adds no rounds to her bag, in both fire
+  modes. As shipped, its `Action1` adds 60 `Bullet_Nikke` about 1 s after the last NIKKE shot while EVE carries fewer
+  than 60. While the rifle is out the action is `EffectAction_None`. Gun mode's free magazines do not use
+  `Bullet_Nikke`. The action goes back 3 s of play after the other rows (paused time not counted), with the rifle away
+  too. SB reads it when the effect starts, about 1.07 s after its last NIKKE shot. Put back at once, an off right after
+  a shot gave 60 rounds. `coop off` puts it back at once. Gun mode keeps no file of these fields: a Lua reload during
+  the 3 s leaves them held until the game restarts. `UE4SS.log` has the lines
   `data: P_Eve_GunNikke_ReloadCompleted Action1 22 -> 0: SB's NIKKE reload adds no rounds` and
   `data: P_Eve_GunNikke_ReloadCompleted Action1 back to 22`.
 - `EffectTable` `P_Eve_GunNikke_BulletZero` and `P_Eve_GunNikke_Reload`: no NIKKE cover stance and no NIKKE reload of
   SB's own, in both fire modes. Every gun mode shot is SB's NIKKE shot. Its `P_Eve_GunNikke_SkillUseCheck` chains
-  `BulletZero` and `Reload`. Gun mode's reload takes the whole magazine out of `Bullet_Nikke`, so the count is often 0
-  after a shot. As shipped, `BulletZero` then starts at 0 rounds. Its stance `P_Eve_GunNikkeHide` is the NIKKE cover
-  stance, low with the rifle down. Its end condition is `Bullet_Nikke` above 0. In 805 SB's refill of 60 rounds met it
-  about 1 s later. With the refill off only a round she picks up or buys meets it, so she stayed in it (the 826 test).
+  `BulletZero` and `Reload`. Gun mode's free magazines add nothing to `Bullet_Nikke`, so her count can be 0 after a
+  shot. As shipped, `BulletZero` then starts at 0 rounds. Its stance `P_Eve_GunNikkeHide` is the NIKKE cover stance,
+  low with the rifle down. Its end condition is `Bullet_Nikke` above 0, so she stayed in it.
   `P_Eve_GunNikke_ReloadCompleted`'s `DispelFlagsArray` also names `P_Eve_GunNikke_BulletZero`. Whether that name
   matches the effect's flag (`Nikke_BulletZero`) was not read. `Reload` plays SB's NIKKE reload show on her whole body.
   While the rifle is out the item check of `BulletZero` needs a count of -1 and the one of `Reload` a count below 0. No
   count passes, so SB applies neither. The two `ConditionActive_ItemCount` fields go back with the refill field, 3 s of
-  play after the other rows. At `coop off` or a Lua reload all three go back at once. A shot SB is still running at that
-  moment can then start the cover stance. SB's own refill of 60 rounds ends it about 1 s later. `UE4SS.log` has the
+  play after the other rows. At `coop off` all three go back at once. A shot SB is still running at that moment can
+  then start the cover stance. SB's own refill of 60 rounds ends it about 1 s later. `UE4SS.log` has the
   lines `data: P_Eve_GunNikke_BulletZero ConditionActive_ItemCount 0 -> -1: no NIKKE cover stance at 0 rounds`,
   `data: P_Eve_GunNikke_Reload ConditionActive_ItemCount 60 -> 0: no NIKKE reload of SB's own` and the two `back to`
   lines.
@@ -112,7 +113,8 @@ rifle changes:
 - The NIKKE shot's show `P_Eve_GunNikke_ShootSlug1` (with `gun_fire=native`): its animation key plays no animation.
   As shipped it plays `P_Eve_GunNikke_Shoot` on her whole body, the NIKKE missions' shot from behind cover, which bent
   her body down at each round. The round, its sound, its flash and the camera shake play as before. The test line
-  `gun_upper=nikke` keeps the animation. `UE4SS.log` has the line `SBShowAnimKey_1 AnimResourcePath emptied`.
+  `gun_upper=nikke` keeps the animation, as does `gun_fire=own`. A show the engine collected while the rifle was out is
+  not written to. `UE4SS.log` has the line `SBShowAnimKey_1 AnimResourcePath emptied`.
 
 ## Keys
 
@@ -124,22 +126,33 @@ rifle changes:
 | Space | A | In firing mode: jump, still firing |
 | B | Triangle | Reload: the magazine is topped up from the spares |
 
-While the rifle arrives in her hand (0.45 s after F4 or the D-pad tap) RMB and LT do nothing. A press after that
-starts firing mode. With the rifle out and no button held, EVE moves as usual with the rifle at low ready (luke77's
-rifle carry on the posed stance). The sword's attacks are off until the rifle is put away. Their keys come back while
-the game is paused, so the game's key options never save them off. A new map, a death or a camp warp puts the rifle away.
+With the rifle out and no button held, EVE moves as usual with the rifle at low ready (luke77's rifle carry on the
+posed stance). The sword's attacks are off until the rifle is put away. Their keys come back while the game is paused,
+so the game's key options never save them off. The first frame after the pause masks them again. When the keys go
+back, gun mode finds each mapping again by its action name: coop fly may have moved the mappings in memory meanwhile.
+
+A new map, a death or a camp warp puts the rifle away. The hidden drone shows again, her facing goes back and the
+arrival's cube goes, once the new EVE is there. A drone part whose path no longer names it is left alone: after a
+map load another object can sit at its address. The next rifle out starts clean on her.
 
 While the game holds EVE in an interaction or a cutscene (a camp, a seat, a rest, a door, a level sequence), the
-rifle goes away. It comes back 1 s after she is free. A press of `gun_key` in that second cancels the comeback.
-`UE4SS.log` names the reason on a `[GM]` line. The rifle does not come out with no EVE in the game world or while the
-drone aim is held. Gun mode checks no other state: the rifle can come out on the bike, in a Doro race, on a hall seat,
-in flight or during an SBO match. The bike does not mount while the rifle is out. SBO's PvP rule counts a hit only from
-15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther than 15 m costs the other player
+rifle goes away. It comes back 1 s after she is free. A press of `gun_key` in that second cancels the comeback. So do
+a press whose departure the interaction cut short and a new map. A comeback the game refuses (the drone aim held, a
+cutscene again) is tried again 2, 4 and 8 s later, then given up with a `no comeback` line. A comeback that fails
+with an error gives back what it took and logs `off: the comeback failed (...)`. `UE4SS.log` names the reason on a
+`[GM]` line. The rifle does not come out with no EVE in the game world, while the drone aim is held, in a cutscene or
+in an interaction: a press then gives a `not now:` line. The game's hold of her movement, a jump, a swim and SB's
+other movement modes keep it allowed. Gun mode checks no other state: the rifle can come out on the bike, in a Doro
+race, on a hall seat, in flight, in the photo and selfie modes or during an SBO match. The bike does not mount while
+the rifle is out. SBO's PvP rule counts a hit only from 15 m or closer, whatever the move. The rifle's rounds reach 100 m: a hit from farther than 15 m costs the other player
 nothing.
 
-`coop off` puts the rifle away. The table fields, the keys and her body's own post-process class go back. Gun mode
-then does nothing until the game restarts. Gun mode keeps no file of what it changed: a Lua reload (Ctrl+R) with the
-rifle out leaves its changes in memory until the game restarts.
+`coop off` puts the rifle away at once, with no departure, also right after a press or while a new map's reset still
+waits. The table fields, the keys and her body's own post-process class go back. The HUD entry and the crosshair come
+off SB's HUD. Gun mode then does nothing until the game restarts: no key, no `coop gun`, no reset. A rifle out that
+fails part way (the rows, the keys or the rifle) gives back everything it took and logs an `off:` line. Gun mode keeps
+no file of what it changed: a Lua reload (Ctrl+R) with the rifle out leaves its table fields, keys and layer in memory
+until the game restarts. The next load takes the earlier load's HUD entry and crosshair again.
 
 ## Firing mode
 
@@ -162,11 +175,10 @@ camera, the target and EVE's place.
 A reload in firing mode keeps her aimed. Only her arms and hands move: the rifle tilts and her left hand goes to the
 magazine.
 
-When the rifle goes away while the game's aim is still on (F4 in firing mode, a cutscene), the aim stays on RMB and
-the trigger fires nothing until the aim ends. The game's aim drops for a frame on each shot while RMB / LT is held. An
-off on such a frame counts as an off in the aim. Letting RMB / LT go ends it. The keys and SB's rows then go back. Gun
-mode fires no round of its own on such a frame: the game's aim fires its own. Her body keeps its turn toward the aim
-through it.
+When the rifle goes away while the game's aim is still on (G in firing mode, a cutscene), the aim stays on RMB and
+the trigger fires nothing until the aim ends: the NIKKE shot's cool time reads 999. The game's aim drops for a frame on
+each shot while RMB / LT is held. An off on such a frame counts as an off in the aim. Letting RMB / LT go ends it. The
+keys and SB's rows then go back with the line `drone aim hold over`. A rifle out, a new map and `coop off` end it too.
 
 A jump drops the game's aim stance in the air. Gun mode keeps the rifle up, keeps her turned to the camera and fires
 the NIKKE shot itself from the jump's second frame until the aim button is let go, after landing as well. Press RMB / LT
@@ -210,22 +222,31 @@ owner, so neither line counts it.
 
 In firing mode the reticle's round slot shows the round's name and the rounds left in the magazine. The game writes
 its own round's name when its aim starts, so gun mode writes the slot on each frame of the aim's first 0.25 s. While
-the rifle reloads the name reads RELOADING. With the magazine and every spare empty it reads NO AMMO. RELOADING and NO AMMO show
-in the co-op menu's language; NIKKE RAPID stays as it is.
+the rifle reloads the name reads RELOADING. With the magazine and every spare empty it reads NO AMMO. The three words
+are English, from `fight/gunmode/config.lua`. The slot's text blocks are kept with their paths: after a map change gun
+mode writes nothing to another object that took a freed block's address.
 
 A gun mode entry sits in SB's HUD to the right of the D-pad marker, below the SH bar. It shows the button that brings
 the rifle out: on a pad the D-pad Right glyph of the pad the game shows, on the keyboard the `gun_key` icon on the
-game's own key cell. That cell is the D-pad marker's `btn` image, found by name in the marker's widget tree. Without
-it the icon shows alone. The log says `dpad: rifle entry built, key cell found` or `key cell not found`. Then comes
-the NIKKE rifle icon. While the rifle is out it also reads `rounds | magazines`: the
-rounds in the magazine, then the magazines left (a part-spent one counted). The icon is the game's NIKKE rifle texture,
-`Icon_Nikke_LostItem_AssaultRifle`, the icon of the item table's `Nikke_AR` row. Gun mode loads it from the game.
-While the native part runs, SBO's keep holds it across map changes. No image file ships with SBO. The entry is a child
-of the HUD's own D-pad marker, so it shows and hides with the HUD. A new HUD (after a map change) gets the
-entry built again with its key, cell, sizes and place. A box the marker's size holds it, so the item column
-never grows. In hip fire (the rifle up without the
-game's aim) a small crosshair shows at the screen's centre. `hud_entry=false` in `fight/gunmode/config.lua` turns the
-entry off.
+game's own key cell. That cell is the D-pad marker's `btn` image, found by name in the marker's widget tree. Without it
+the icon shows alone. The log says `dpad: rifle entry built, key cell found` or `key cell not found`. Then comes the
+NIKKE rifle icon. While the rifle is out it also reads `rounds | magazines`: the rounds in the magazine, then the
+magazines left (a part-spent one counted). The icon is the game's NIKKE rifle texture,
+`Icon_Nikke_LostItem_AssaultRifle`, the icon of the item table's `Nikke_AR` row. Gun mode loads it from the game. While
+the native part runs, SBO's keep holds it across map changes. No image file ships with SBO. The entry is a child of the
+HUD's own D-pad marker, so it shows and hides with the HUD. A new HUD (after a map change) gets the entry built again
+with its key, cell, sizes and place. A box the marker's size holds it, so the item column never grows. Gun mode keeps
+the entry's widgets with their paths and uses them only while those paths still name them. After a Lua reload the new
+load takes the earlier load's entry and crosshair again instead of making new widgets over them, which would destroy the
+live ones in place. The entry's parts are found by their names in the HUD's widget trees. A HUD without the D-pad marker
+is tried once. While the native part runs, the keep also holds SB's HUD class (`WB_MainHUD_Master_C`). A hook on its
+Construct, registered in `fight/gunmode/wiring.lua` once a Lua load, then names each new HUD. The entry is built within
+a tenth of a second of that HUD coming on screen, with no walk of the game's objects. The log line then ends with
+`(HUD from its Construct)`. Gun mode waits 4 s after a new map, a death or a camp warp: a HUD shown sooner gets the
+entry when that wait ends. Without the hook (a Lua reload before the next map, the keep off, a hook that failed) gun
+mode looks for the HUD on screen: once 2 s after the entry was built, then every 10 s while it finds none it can use. In
+hip fire (the rifle up without the game's aim) a small crosshair shows at the screen's centre, on the HUD the entry was
+built in. `hud_entry=false` in `fight/gunmode/config.lua` turns the entry off.
 
 ### Free magazines
 
@@ -287,6 +308,41 @@ Gun mode calls no item add, save, shop or drop function. SB's own buy and drops 
 (once, until rounds come), `ammo: N rounds not taken (<why>): nothing loaded`,
 `ammo: free magazines (the round store is not ready)`, `rounds: a co-op save loaded: the rows asked (try N of 4)` and
 `rounds: N taken but the count did not fall in 10 s`.
+
+## Frame cost
+
+With `gun_mode=on`, gun mode asks SBO's keep for the assets of the rifle out, the aim, the rounds and the reload when
+it loads: the rifle layer's class and its four poses, the camera modifier, the rifle mesh, the morph's cube and flash,
+the muzzle flash, the three reload sounds, the two turn clips, the laser sight's Niagara system and parameter
+collection (`NS_A_GuideLaser`, `NC_NikkeMinigame`), the NIKKE shot's show `P_Eve_GunNikke_ShootSlug1` and the two
+bodies the layer's rebuild swaps in for a moment (`Overlay.BASES` in `fight/gunmode/overlay.lua`). While the native
+part runs, the keep loads them off the frame and holds them for the game run. Any other asset, or one the keep does
+not hold, is found in memory through the engine's name hash before it is loaded. UE4SS's own lookup walks the game's
+objects for each asset not in memory: the first rifle out on a map froze the game for 100 to 340 ms in the 2026-11-21
+test. The assets gun mode uses again (the reload sounds, the cube, the morph's flash, the muzzle flash, the turn clips,
+the laser's five objects) are kept between uses. Each is checked by its path before it is used, since a collection can
+free it.
+
+The second body of `Overlay.BASES` is `CH_P_EVE_01/CH_P_EVE_01`, which no pak of build 26123051 holds. With EVE in
+`CH_P_EVE_29` the layer finds no other body and the rifle comes out without it, as before. That missing body, like a
+pose the pak lacks, is looked for once a Lua load.
+
+Gun mode walks the game's objects at these times only:
+
+- the player controller, once a second while there is none (a title screen, a load);
+- the HUD on screen, as the HUD entry above says;
+- the pad's `Gamepad_DPad_Up` glyph, once each time the pad layer comes up until one is found, kept for that HUD;
+- the reticle's round slot, at the rifle out and after firing mode, at most once in 10 s while it is missing. Never
+  in firing mode: a walk at its start would land where she watches her body turn to the front;
+- the drone, only when the engine's list of actors of its class (`CH_Drone_BP_C`, found by its path) cannot be read.
+  The drone of the last rifle out is used again while it is within 30 m of her. With no drone that close gun mode
+  looks again every 5 s.
+
+The camera modifier is tried once a rifle out. The names `FX_Fire` (the muzzle flash) and `DefaultSlot` (the layer's
+clips) are made once.
+
+While the rifle is out, `UE4SS.log` has a `[GM]` line every 10 s: `perf: tick <average> ms average, <worst> ms worst,
+<n> ticks, Lua <heap> KB; ms a tick:` and the six costliest parts of the tick.
 
 ## coop gun
 

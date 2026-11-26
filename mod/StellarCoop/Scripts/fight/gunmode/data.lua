@@ -13,7 +13,8 @@
 -- * SkillActiveStepTable: the shot's Hit1 step takes its Cast1 step's type (fires its projectile, spends no round).
 -- * Native fire (fight/gunmode/mode.lua's firing mode on the game's own aim): the drone's normal fire commands
 --   (P_Eve_Gun_Shoot*, every round's) start the NIKKE shot skill instead of the drone's, with the burst's command type
---   (no round spent) and no "not while jumping" check (bJumping takes bWallRun's None).
+--   (no round spent) and no "not while jumping" check (bJumping takes bWallRun's None). The NIKKE shot's show plays
+--   no animation (Data.SHOT_KEY), the one field changed outside the tables.
 -- Neither Survival Protocol's pak nor any gun mode pak is needed.
 local Data={}
 
@@ -24,6 +25,45 @@ Data.FIRE_EFFECT='M_Scarlet_CounterLinkStart'
 Data.BORROWED={Fire={'Nikke_01_E_ActorEff_015',Data.FIRE_EFFECT}}
 Data.BORROW_ORDER={'Fire'}
 Data.FIRE_SKILL='P_Eve_GunNikke_ShootSlug1_1'
+-- SB's own NIKKE reload: about 1 s after its last shot the effect P_Eve_GunNikke_ReloadCompleted adds 60 Bullet_Nikke
+-- (its Action1). Nothing while the rifle is out (take below, c406af9c).
+Data.REFILL_EFFECT='P_Eve_GunNikke_ReloadCompleted'
+-- s of play (paused time not counted) between put_back() and the held fields back as shipped. ReloadCompleted reads
+-- its Action1 when it starts, about 1.07 s after SB's last NIKKE shot: the shot's steps (Cast1 0.01, Hit1 0.01, Finish1
+-- 0.05 s in the base pak's SkillActiveStepTable), then Reload's LifeTime of 1.0 s (EffectTable 10093). Put back at
+-- once, an off inside that time gave 60 free rounds. 3 s: that and a margin (4389defd).
+Data.REFILL_HOLD=3
+-- SB's NIKKE effects held off while the rifle is out, in both fire modes (take below): {EffectTable row, field, value
+-- while held, what the hold stops, what happens without the row}. All of them go back together, Data.REFILL_HOLD s
+-- after put_back(). Each NIKKE shot applies P_Eve_GunNikke_SkillUseCheck (EffectTable 10090), which chains
+-- P_Eve_GunNikke_BulletUsed, P_Eve_GunNikke_BulletZero and P_Eve_GunNikke_Reload (26123051's base pak). Gun mode's
+-- free magazines add nothing to Bullet_Nikke (fight/gunmode/ammo.lua), so her count can be 0 after a shot (31b941bd).
+-- * P_Eve_GunNikke_BulletZero (10092): Bullet_Nikke Equal 0, Infinite, StanceAlias P_Eve_GunNikkeHide. That stance
+--   (CharacterStanceTable 100113, priority 5 under the aim stance's 10, bForceFoldingWeapon) is the NIKKE cover
+--   stance, low with the rifle down. Its end is ConditionEnd1 Bullet_Nikke Greater 0.
+--   ReloadCompleted's DispelFlagsArray also names P_Eve_GunNikke_BulletZero (its Flag is Nikke_BulletZero): whether
+--   that matches was not read. The effect start (0x141bc8d40 on 26123051) reads its StanceAlias (+0x2b0, property
+--   params 0x145df9960) at 0x141bca35d and adds a stance request through 0x141ba8b50. Its end (0x141bcb980) reads the
+--   field again at 0x141bcc68d and removes one through 0x141ba8c40, so the alias itself is left as shipped.
+-- * P_Eve_GunNikke_Reload (10093): Bullet_Nikke Less 60, 1.0 s, chains ReloadCompleted. Its ActiveShowPath is
+--   CH_P_EVE_01/Skill/P_Eve_GunNikke_Reload, SB's NIKKE reload on her whole body. The cover stance's StartEffect also
+--   applies it. Gun mode's own reload plays from fight/gunmode/stance.lua and overlay.lua.
+-- Both are gated by their item check. FUN_141bd0810 reads the live row (looked up by the effect's ID at +0x104 through
+-- 0x141a9f940) each time an effect is applied. It sums the carried count of ConditionActive_ItemAlias (+0x154,
+-- params 0x145df8da0) from 0 (FUN_141be1580: 0 for an item she does not carry, never below 0). It compares it with
+-- ConditionActive_ItemCount (an Int at +0x160, params 0x145df8df8) by ConditionActive_ItemCompare (a byte at +0x15c,
+-- params 0x145df8e20; ESBCompare, entries at 0x145e2a500: Equal 0, NotEqual 1, Less 2), through the jump table at
+-- 0x141bd18c4: case 0 (0x141bd137d) count == ItemCount, case 2 (0x141bd1395) count < ItemCount. So -1 with Equal and 0
+-- with Less never pass. When the check fails, the effect init FUN_141bc76e0 (its only code caller) returns 0 and
+-- FUN_141ad1c70 / FUN_141ad1af0 free the effect (FUN_141c83ff0): a refused effect waits nowhere, the put back cannot
+-- start it later. When the inventory lookup (0x141ad8490) finds none, SB skips the check, as shipped.
+Data.HOLD={
+    {Data.REFILL_EFFECT,'Action1',0,'SB\'s NIKKE reload adds no rounds','SB\'s NIKKE reload still adds rounds'},
+    {'P_Eve_GunNikke_BulletZero','ConditionActive_ItemCount',-1,'no NIKKE cover stance at 0 rounds',
+        'the NIKKE cover stance can start at 0 rounds'},
+    {'P_Eve_GunNikke_Reload','ConditionActive_ItemCount',0,'no NIKKE reload of SB\'s own',
+        'SB\'s NIKKE reload can still play'},
+}
 Data.FIRE_COMMANDS={'P_Eve_GunNikke_ShootSlug1_1','P_Eve_GunNikke_ShootSlug1_2'}
 Data.BURST_COMMAND='P_Eve_GunNikke_ShootSlug2_1'
 -- Every drone fire command, of every round (the game loads the round the player picked each time she aims), the empty
@@ -37,6 +77,14 @@ for _,kind in ipairs({'Slug1','Missile1','Railgun1','Railgun2','Railgun3','Railg
     for _,n in ipairs({'_1','_2'}) do Data.DRONE_COMMANDS[#Data.DRONE_COMMANDS+1]='P_Eve_Gun_Shoot'..kind..n end
 end
 Data.HIT_STEP,Data.CAST_STEP='P_Eve_GunNikke_ShootSlug1_1_Hit1','P_Eve_GunNikke_ShootSlug1_1_Cast1'
+-- The show of the Hit1 step (its ShowPath CH_P_EVE_01/Skill/P_Eve_GunNikke_ShootSlug1, under /Game/Art/Show/) and its
+-- one anim key. In 26123051's base pak the key plays
+-- /Game/DLC_2/Art/Character/PC/CH_P_EVE_01/Animation/P_Eve_GunNikke_Shoot on her whole body for 0.47 s: the NIKKE
+-- missions' shot from behind cover, which bent her body down at each round of native fire. The show's other keys
+-- (the two projectile keys, the NS_A_NikkeGunFire flash on FX_Fire, the shell, the sound, the camera shake) play as
+-- shipped (84f3554b).
+Data.SHOT_SHOW='/Game/Art/Show/CH_P_EVE_01/Skill/P_Eve_GunNikke_ShootSlug1.P_Eve_GunNikke_ShootSlug1'
+Data.SHOT_KEY=Data.SHOT_SHOW..':SBShowAnimKey_1'
 
 -- The row name for logical name k ('GunOn', 'Fire', ...), or nil.
 function Data.row(k)
@@ -60,10 +108,44 @@ function Data.new(g,native,opts)
         assert(r,'no row '..name)
         return r
     end
+    local function undo(list) for i=#list,1,-1 do local e=list[i]; pcall(function() e[1][e[2]]=e[3] end) end end
+
+    -- Native fire's shot with no cover animation (Data.SHOT_KEY): the anim key's AnimResourcePath emptied (an FString
+    -- at 0x70 of SBShowAnimKey: its property params at 0x145ee01e8 on 26123051). SB's anim key start (0x1424397b0)
+    -- builds the clip's path with 0x142439300, which leaves an empty one empty while the key's bUseCharacterCustomAnim
+    -- (a bool at 0x68, params 0x145ee01b0) is off. With it on, the path comes from the character's CustomAnim entry
+    -- and this emptying stops nothing. Whether SHOT_KEY has it off is in the paks. Its play on the whole body
+    -- (0x1420b7800) returns -1 for a path of no characters: no clip plays. Not with gun_upper=nikke, whose test wants
+    -- the NIKKE animations. The show is in memory (the keep holds it: fight/gunmode/mode.lua), else loaded now, as the
+    -- shot would load it. A failure is logged and the rifle comes out with the cover animation (84f3554b).
+    -- shortcut: emptied at each rifle out only; with the keep off, a show the engine collects while the rifle is out
+    -- comes back as shipped until the next rifle out. Check it at each shot if a game test shows that.
+    local function quiet()
+        if not self.native or self.opts.upper then return end
+        local ok,err=pcall(function()
+            assert(g.asset(Data.SHOT_SHOW),'the show does not load')
+            local key=assert(g.loaded(Data.SHOT_KEY),'no SBShowAnimKey_1 in it')
+            local was=text(key.AnimResourcePath)
+            assert(was~='','its AnimResourcePath is empty already')
+            key.AnimResourcePath=''
+            self.show={key,was}
+            g.log('data: NIKKE shot show P_Eve_GunNikke_ShootSlug1: SBShowAnimKey_1 AnimResourcePath emptied (was '..was
+                ..'), no cover animation')
+        end)
+        if not ok then g.log('data: NIKKE shot show not changed ('..tostring(err)..'): the cover animation plays') end
+    end
+    -- Put back while it is still that key (a show the engine collected is not written to; a new one is as shipped).
+    local function loud()
+        local sh=self.show
+        self.show=nil
+        if sh and g.path(sh[1])==Data.SHOT_KEY and pcall(function() sh[1].AnimResourcePath=sh[2] end) then
+            g.log('data: NIKKE shot show\'s animation back')
+        end
+    end
 
     function self.take()
         if self.saved then return true end
-        local saved={}
+        local saved,refill={},{}
         local ok,err=pcall(function()
             local eae=tbl('EventActorEffectTable')
             for k,e in pairs(Data.OWN) do
@@ -105,7 +187,8 @@ function Data.new(g,native,opts)
                 saved[#saved+1]={fire,'ActionValue1',was}
                 fire.ActionValue1=Data.FIRE_SKILL
             end
-            -- The NIKKE shot's cool time: the rifle's rate of fire (opts.cool s between rounds).
+            -- The NIKKE shot's cool time: opts.cool at the rifle out (fight/gunmode/mode.lua gives 0, which
+            -- fight/gunmode/ammo.lua turns into the rate of fire at the first round: 4f755c24).
             if self.opts.cool then
                 local sk=row(tbl('SkillTable'),Data.FIRE_SKILL)
                 saved[#saved+1]={sk,'CoolTime',sk.CoolTime}
@@ -281,13 +364,40 @@ function Data.new(g,native,opts)
                 saved[#saved+1]={hit,'StepType',hit.StepType}
                 hit.StepType=cast.StepType
             end
+            -- No free rounds from SB's own NIKKE reload, no NIKKE cover stance and no NIKKE reload of SB's own while
+            -- the rifle is out (Data.HOLD), in both fire modes. ReloadCompleted's Action1 is an ESBEffectAction byte at
+            -- +0x2fc of the row (property params 0x145df9618 on 26123051, enum params 0x146d33c30): EffectAction_None
+            -- 0 (entry 0x145e27d30), EffectAction_ItemRefill 22 (entry 0x145e27e90). The effect start (0x141bc8d40)
+            -- reads the live row's +0x2fc at each start. Its switch has no case 0. Its case 0x16 adds AddCount to
+            -- bucket 1 (0x141bdbc20) (c406af9c). Last here, each in its own pcall: nothing after them can fail, so a
+            -- refused take never leaves one changed. A field that cannot be written is logged without refusing the
+            -- take. During put_back's hold (self.late) a field reads its held value: the shipped value is the hold's.
+            -- One the hold has and this take cannot write again stays in the hold's list (31b941bd).
+            local eff=g.try(function() return tbl('EffectTable') end)
+            local late={}
+            for _,l in ipairs(self.late or {}) do late[l.hold]=l end
+            for i,h in ipairs(Data.HOLD) do
+                local r=eff and g.try(function() return eff:FindRow(h[1]) end)
+                local e=r and {r,h[2],nil,hold=i}
+                local done,why=false,nil
+                if e then done,why=pcall(function() e[3]=late[i] and late[i][3] or r[h[2]]; r[h[2]]=h[3] end) end
+                if done then
+                    refill[#refill+1]=e
+                    g.log(('data: %s %s %s -> %s: %s'):format(h[1],h[2],tostring(e[3]),tostring(h[3]),h[4]))
+                else
+                    refill[#refill+1]=late[i]
+                    g.log(e and ('data: '..h[1]..' '..h[2]..' not changed ('..tostring(why)..'): '..h[5])
+                        or ('data: no EffectTable row '..h[1]..': '..h[5]))
+                end
+            end
         end)
         if not ok then
-            for i=#saved,1,-1 do local e=saved[i]; pcall(function() e[1][e[2]]=e[3] end) end
+            undo(saved)
             g.log('data: not taken ('..tostring(err)..')')
             return false,err
         end
-        self.saved=saved
+        self.saved,self.refill,self.late=saved,refill,nil
+        quiet()
         g.log('data: '..#saved..' fields of SB\'s rows taken for gun mode')
         return true
     end
@@ -297,13 +407,39 @@ function Data.new(g,native,opts)
         if self.saved and self.cool_row then self.cool_row.CoolTime=v end
     end
 
-    function self.put_back()
+    -- SB's held NIKKE fields (Data.HOLD) go back Data.REFILL_HOLD s of play later (tick below), the rest at once. now:
+    -- those at once too (coop off: no tick runs after it).
+    function self.put_back(now)
+        loud()
         self.cool_row=nil
         local saved=self.saved
         self.saved=nil
+        if self.refill then
+            local r=self.refill
+            self.refill=nil
+            if #r>0 then r.left,self.late=Data.REFILL_HOLD,r end
+        end
+        -- (at cleared too: after frames of the hold, tick(0) read a step back in time and kept the held values,
+        -- 6f1ef41e)
+        if now and self.late then self.late.left,self.late.at=0,nil; self.tick(0,false) end
         if not saved then return end
-        for i=#saved,1,-1 do local e=saved[i]; pcall(function() e[1][e[2]]=e[3] end) end
+        undo(saved)
         g.log('data: SB\'s rows put back')
+    end
+
+    -- Each frame while the held fields wait (fight/gunmode/mode.lua's tick, gun mode on or off): their hold counts down
+    -- while the game is not paused. now: os.clock(). true when the shipped values went back (4389defd).
+    function self.tick(now,paused)
+        local l=self.late
+        if not l then return false end
+        local dt=now-(l.at or now)
+        l.at=now
+        if not paused then l.left=l.left-dt end
+        if l.left>0 then return false end
+        self.late=nil
+        undo(l)
+        for _,e in ipairs(l) do g.log('data: '..Data.HOLD[e.hold][1]..' '..e[2]..' back to '..tostring(e[3])) end
+        return true
     end
 
     return self
