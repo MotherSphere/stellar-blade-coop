@@ -1129,6 +1129,7 @@ local tests = {
             tick(r, 0.5)
             eq(r.reverted, 1, case[1] .. ' reverted')
             same(r.told, {T.en.closet.closed[case[1]]}, case[1] .. ' notice')
+            has(r.log, 'menu: closed (revert, ' .. case[1] .. ')', case[1] .. ': the guard is in the log')
             all_gone(r)
         end
         eve.IsAttachedToLevelSequenceWithoutPlayable = function() return false end
@@ -1141,6 +1142,7 @@ local tests = {
         tick(r, 1)
         eq(r.reverted, 1, 'combat reverted')
         same(r.told, {T.en.closet.closed.combat}, 'combat notice')
+        has(r.log, 'menu: closed (revert, combat)', 'combat: the guard is in the log')
         all_gone(r)
         eve.IsBattle = function() return false end
         -- A part gone (the root rebuilt by a map change): closed, every other part dropped.

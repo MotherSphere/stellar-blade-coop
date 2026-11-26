@@ -221,25 +221,25 @@ function Menu.new(o)
     end
 
     -- Every part dropped first, then the group hidden and the input given back; how: 'revert' (default), 'keep',
-    -- 'stop', 'reset' (after coop closet off: as keep).
-    function self.close(how)
+    -- 'stop', 'reset' (after coop closet off: as keep); why: the guard that closed it, for the log.
+    function self.close(how,why)
         how=how or 'revert'
         if not open then return true,'closet menu: not open' end
         open,asking,due=false,false,nil
-        local dropped,why=pcall(view.drop_all)
-        if not dropped then log('menu: drop failed: '..tostring(why)) end
+        local dropped,fault=pcall(view.drop_all)
+        if not dropped then log('menu: drop failed: '..tostring(fault)) end
         kit.show(View.GROUP,false)
         if how=='stop' then kit.input(false,View.GROUP); back_at,owed=nil,false
         else back_at,owed=now()+Menu.BACK,true end
         if how~='stop' then kit.sound('close') end
         -- The dress tick re-mixes the preview on the new EVE, not the confirmed look: the revert is owed until it works.
         if how=='revert' then
-            local ran,good,why=pcall(dress.revert)
+            local ran,good,failed=pcall(dress.revert)
             unreverted=not (ran and good)
-            if unreverted then log('menu: revert failed, asked again: '..tostring(ran and why or good)) end
+            if unreverted then log('menu: revert failed, asked again: '..tostring(ran and failed or good)) end
         else unreverted=false end
         guard_at=now()+Menu.GUARD
-        log('menu: closed ('..how..')')
+        log('menu: closed ('..how..(why and ', '..why or '')..')')
         return true,'closet menu: closed'
     end
 
@@ -447,7 +447,7 @@ function Menu.new(o)
             end
             if key then
                 o.tell(function(w) return w.closet.closed[key] end)
-                return self.close('revert')
+                return self.close('revert',key)
             end
             if changed and not dress.previewing() then return self.close('keep') end
         end
