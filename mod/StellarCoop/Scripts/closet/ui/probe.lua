@@ -15,8 +15,9 @@
 -- While a step holds the kit's input, coop ui reset or the focus watchdog taking it back ends the test too. It runs
 -- only in the game world (world()), never while another SBO screen holds the input. Its steps wait while the world
 -- is hidden (a pause, a load, a game screen). Each end runs the test's cleanup, drops its parts, gives the kit's
--- input back and logs "probe: END <n> <passed>/<total>". The parts go in the kit group closet_probe (screen-sized, added once a Lua load at the first run). Every
--- step runs in pcall on the game thread (closet/wiring.lua runs tick each frame through main/frame.lua's guard).
+-- input back and logs "probe: END <n> <passed>/<total>". The parts go in the kit group closet_probe (screen-sized,
+-- added once a Lua load at the first run). Every step runs in pcall on the game thread (closet/wiring.lua runs tick
+-- each frame through main/frame.lua's guard).
 local U=require('core.unreal')
 local text,each=U.text,U.each
 local Probe={}
