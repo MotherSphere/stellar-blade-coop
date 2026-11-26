@@ -4,7 +4,7 @@
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """The closet's glyphs (tools/closet_icons/): each SVG of tools/closet_icons/svg/ has its PNG in
 mod/StellarCoop/Scripts/closet/ui/icons/ at the size render.py gives it (64 px for a small glyph, 256 px for a tile
-glyph), 8-bit RGBA, and each PNG there has its SVG. Each SVG has the 256 viewBox, the stroke width of its kind (8 for a
+glyph) in 8-bit RGBA. Each PNG there has its SVG. Each SVG has the 256 viewBox, the stroke width of its kind (8 for a
 tile glyph, 16 for a small one), round caps and joins, and no text. The PNG header is read with struct: no Pillow and
 no browser, so it runs anywhere.
 Run: python3 tests/tools/closet_icons_test.py"""

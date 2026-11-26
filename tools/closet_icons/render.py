@@ -6,7 +6,7 @@
 mod/StellarCoop/Scripts/closet/ui/icons/<name>.png, transparent 8-bit RGBA, with a headless Chromium browser: Microsoft
 Edge, else Google Chrome, else msedge, chrome, chromium or google-chrome on PATH. A small glyph (SMALL: the origin
 badges, the camera modes, the light presets) is 64 px, a tile glyph 256 px. The root <svg> of the page it loads gets a
-width and height of that size: with only a viewBox the window's own viewport is wider, and the glyph comes out at twice
+width and height of that size: with only a viewBox the window's own viewport is wider. The glyph then comes out at twice
 the size and cropped. Prints each file it writes. Installs nothing.
 Run: python3 -I tools/closet_icons/render.py [name ...]"""
 import shutil

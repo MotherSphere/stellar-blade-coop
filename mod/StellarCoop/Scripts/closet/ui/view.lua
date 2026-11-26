@@ -399,7 +399,7 @@ function View.new(kit,log)
 
     -- Each frame while open (closet/ui/menu.lua's tick; t: its time in s). After a fill, a look at the shown tiles each
     -- View.CHECK s until one finds each with its glyph (Slate builds them on later frames). A tile that lacks it (its
-    -- path did not load in the slot) gets it on its Image_Icon, and from then on every look does that, said once.
+    -- path did not load in the slot) gets it on its Image_Icon. From then on every look does that, said once.
     function v.tick(t)
         if not (glyphed and (checking or by_brush)) or t<check_at then return end
         check_at=t+View.CHECK
