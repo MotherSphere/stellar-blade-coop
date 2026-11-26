@@ -20,8 +20,13 @@
 -- glyph drawn, so the engine keeps its texture while the root lives. The origin badge (the original or custom glyph)
 -- is a kit image beside the detail panel. tick(t) looks at the shown tiles after each fill: one that lacks its glyph
 -- gets it on its own image from then on (the fallback).
+-- Pictures: a tile shows, the first that loads, its picture (a PNG of closet/thumbs.lua's cache, imported as the glyphs
+-- are and held by hidden kit image i while it is tile i's), its Image (an outfit's object path, used only when it
+-- loads as a Texture2D: a slot whose path does not load keeps the icon it had), its glyph. A source that fails is said
+-- once. reread() drops the imported pictures: the next draws import them again (a capture may have made them anew).
 -- v.draw(s), s: {tabs={labels}, tab=focused index, tab_top=the first tab shown (1 when nil), rows={{title, value,
--- locked}}, row=focused index, tiles=nil or {{name, equipped, locked, icon=its glyph or nil}}, tile=selected index,
+-- locked}}, row=focused index, tiles=nil or {{name, equipped, locked, picture=a PNG file or nil, image=an object path
+-- or nil, icon=its glyph or nil}}, tile=selected index or nil,
 -- detail={title, desc, equipped, badge='original', 'custom' or nil}, hints={{label, icon, icon2, word=the menu word a
 -- click runs or nil}} (the menu's), camera_hints=nil or the same shape, popup=nil or {title, desc}, notice=nil or the
 -- text under the rows (a kit text, wrapped at ROW_W)}.
@@ -34,6 +39,7 @@ View.EDGE=2112 -- Kit units: the menu's right edge (55% of 3840).
 View.TABS=7 -- Tab buttons shown at once.
 View.COLUMNS=5 -- Grid tiles a row: GRID_W over the entry width.
 View.CHECK=0.25 -- s between two looks at the shown tiles' glyphs (v.tick).
+View.HOLD=64 -- Hidden kit images that hold the shown tiles' pictures (a grid of 64 tiles).
 -- The glyphs a hidden kit image may hold: None's, the origin badges' and each slot's (closet/slots.lua).
 View.GLYPHS={'none','original','custom'}
 for _,entry in ipairs(Slots.LIST) do
@@ -48,6 +54,9 @@ local HERE=(package.searchpath('closet.ui.view',package.path) or ''):match('^(.*
 -- into a new texture of FUN_1445ff7a0 (Name None, flags 0x40 RF_Transient), so its object path is read at run time
 -- with GetFullName (Ghidra, build 26123051, 26 Nov 2026).
 local RENDER='/Script/Engine.Default__KismetRenderingLibrary'
+-- UTexture2D (class registered by FUN_140def0d0; Ghidra, build 26123051, 26 Nov 2026): an outfit's Image is used only
+-- when it is one.
+local TEXTURE='/Script/Engine.Texture2D'
 -- Copied from closet/ui/probe.lua (read in the widget JSON and Ghidra, build 26123051, on 25 Nov 2026):
 -- The hair salon's tile data object (super /Script/SB.SBUITileViewBaseDataObject): ItemName Text, IconAssetPath Str
 -- (a full object path the slot loads), Purchased bool, ItemAlias Name, Equiped bool (the game's spelling), Index int
@@ -122,8 +131,15 @@ function View.new(kit,log)
         end
         local badge=b.image(BADGE_X,BADGE_Y,BADGE,BADGE,nil)
         badge.show(false)
+        -- A hidden image a tile: tile i's picture, kept from the engine while the grid lists it.
+        local pics={}
+        for i=1,View.HOLD do
+            pics[i]=b.image(0,0,1,1,nil)
+            pics[i].show(false)
+        end
         -- s.notice under the rows: the chat feed, where notices go, draws under this group's shade.
-        return {zones=zones,notice=b.text(ROW_X,NOTICE_Y,'','name',nil,nil,{wrap=ROW_W}),held=held,badge=badge}
+        return {zones=zones,notice=b.text(ROW_X,NOTICE_Y,'','name',nil,nil,{wrap=ROW_W}),held=held,badge=badge,
+            pics=pics}
     end)
     -- What is made and what it shows. top: the rows above the window; count: the rows of the last draw; tab_top: the
     -- first tab shown; camera: the camera's hint row.
@@ -141,35 +157,59 @@ function View.new(kit,log)
         return rec
     end
 
-    -- Copied from ui/kit/guide.lua's texture() (November 2026): a glyph's texture as {o=, full=, path=its object path,
-    -- view=the build whose holder has it}, imported again only once the engine freed it; nil with no player controller
-    -- (tried again at the next draw) or once its import failed (said once).
-    local glyphs={}
-    local function glyph(name)
-        if glyphs[name]==false then return nil end
+    -- Copied from ui/kit/guide.lua's texture() (November 2026): cache[key]'s texture as {o=, full=, path=its object
+    -- path}, made again by make() only once the engine freed it; nil while make() gives nil (no player controller:
+    -- tried again at the next draw) or once make() raised (said once with what and after).
+    local function texture(cache,key,what,after,make)
+        if cache[key]==false then return nil end
         local ok,got=pcall(function()
-            local g=glyphs[name]
+            local g=cache[key]
             local t=g and U.valid(g.o)
             if t and U.text(t:GetFullName())==g.full then return g end
-            local pc=U.controller()
-            if not pc then return nil end
-            local file=HERE..'icons'..HERE:sub(-1)..name..'.png'
-            local x=U.valid(U.find(RENDER):ImportFileAsTexture2D(pc,file))
-            if not x then error('no texture from '..file,0) end
+            local x=make()
+            if not x then return nil end
             local full=U.text(x:GetFullName())
             return {o=x,full=full,path=full:match('^%S+ (.+)$')}
         end)
         if not ok then
-            glyphs[name]=false
-            log('menu: the glyph '..name..' did not load ('..tostring(got)..'): its tiles show the game icon')
+            cache[key]=false
+            log('menu: '..what..' did not load ('..tostring(got)..')'..after)
             return nil
         end
+        if got then cache[key]=got end
+        return got
+    end
+    -- A PNG imported with the player controller, nil without one.
+    local function import(file)
+        local pc=U.controller()
+        if not pc then return nil end
+        return U.valid(U.find(RENDER):ImportFileAsTexture2D(pc,file)) or error('no texture from '..file,0)
+    end
+    -- A glyph's texture, its record's view the build whose holder has it.
+    local glyphs={}
+    local function glyph(name)
+        local got=texture(glyphs,name,'the glyph '..name,': its tiles show the game icon',
+            function() return import(HERE..'icons'..HERE:sub(-1)..name..'.png') end)
         if not got then return nil end
-        glyphs[name]=got
         local view=kit.view(View.GROUP)
         local holder=view and view.held[name]
         if holder and got.view~=view and holder.texture(got.o) then got.view=view end
         return got
+    end
+    -- A cached picture's texture (held by the grid fill), dropped by reread; an outfit's Image when it is a Texture2D
+    -- (a cooked asset: the slot loads it again by its path).
+    local pics,images={},{}
+    local function picture(file)
+        return texture(pics,file,'the picture '..file,': its tile shows its outfit\'s image or its glyph',
+            function() return import(file) end)
+    end
+    local function image(path)
+        return texture(images,path,'the image '..path,': its tiles show their picture or glyph',function()
+            if path:sub(1,1)~='/' then error('not an object path',0) end
+            local o=find(path) or error('not found',0)
+            if not o:IsA(U.find(TEXTURE)) then error('not a Texture2D',0) end
+            return o
+        end)
     end
 
     -- The tabs s.tab_top (1 when nil) to s.tab_top+TABS-1; tabs[i] shows tab tab_top+i-1.
@@ -242,11 +282,18 @@ function View.new(kit,log)
                 tv:SetEntryHeight(ENTRY_H)
             end)
         end
-        -- Each tile's glyph, looked up once a draw a glyph; its path is in the signature (a texture imported again).
-        local names,shown,seen,any={},{},{},false
+        -- Each tile's texture: its picture, else its image, else its glyph (looked up once a draw a glyph); its path is
+        -- in the signature (a texture imported again).
+        local names,shown,seen,any,pictured={},{},{},false,{}
         for i,t in ipairs(s.tiles or {}) do
-            if t.icon and seen[t.icon]==nil then seen[t.icon]=glyph(t.icon) or false end
-            shown[i]=t.icon and seen[t.icon] or false
+            local g=t.picture and picture(t.picture)
+            pictured[i]=g
+            g=g or t.image and image(t.image)
+            if not g and t.icon then
+                if seen[t.icon]==nil then seen[t.icon]=glyph(t.icon) or false end
+                g=seen[t.icon]
+            end
+            shown[i]=g or false
             any=any or shown[i]~=false
             local path=shown[i] and shown[i].path or ''
             names[i]=t.name..(t.equipped and '+' or '')..(t.locked and '*' or '')..'@'..path
@@ -255,6 +302,10 @@ function View.new(kit,log)
         if sig~=tiles_sig then
             tiles_sig,selected=sig,nil
             glyphed,checking,check_at=any and shown or nil,any,0 -- tick looks only at a grid with a glyph.
+            local view=kit.view(View.GROUP)
+            for i,g in pairs(pictured) do
+                if view and view.pics[i] then view.pics[i].texture(g.o) end
+            end
             call(grid,'grid fill',function(w)
                 local tv=w.TileView_ItemList
                 tv:ClearListItems()
@@ -416,6 +467,8 @@ function View.new(kit,log)
         end)
         return hit
     end
+    -- The imported pictures dropped: imported again as next drawn (the menu's open).
+    function v.reread() pics={} end
     -- false once a part made since the open is gone.
     function v.alive()
         for _,set in ipairs({tabs,rows,hints,keys,camera}) do

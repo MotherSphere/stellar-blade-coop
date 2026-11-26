@@ -44,6 +44,7 @@ local tests = {
                 for _, region in ipairs(regions) do ok(Slots.IS_REGION[region], id .. ': region ' .. region) end
             end
             ok(fit.Mesh:match('^/Game/'), id .. ': mesh path')
+            ok(fit.Image == nil or fit.Image:match('^/Game/'), id .. ': image path')
             ok(fit.Origin == nil or fit.Origin == 'original' or fit.Origin == 'custom', id .. ': origin')
         end
     end,

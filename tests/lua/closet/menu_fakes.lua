@@ -44,10 +44,15 @@ function F.imported(i)
     for n = i or 1, #F.imports do out[#out + 1] = F.imports[n]:match('([%w_]+)%.png$') end
     return out
 end
--- type: core/unreal.lua's U.valid reads it (U.her finds SBCharacter through U.find).
+-- type: core/unreal.lua's U.valid reads it (U.her finds SBCharacter through U.find). An object at a path in F.textures
+-- is a Texture2D (IsA of the Texture2D class, its full name so): an outfit's Image that loads as one.
+F.TEXTURE = '/Script/Engine.Texture2D'
+F.textures = {}
 StaticFindObject = function(path)
     if path == F.RENDER then return F.render end
-    return {path = path, IsValid = function() return true end, type = function() return 'UObject' end}
+    return {path = path, IsValid = function() return true end, type = function() return 'UObject' end,
+        IsA = function(self, class) return class.path == F.TEXTURE and F.textures[self.path] == true end,
+        GetFullName = function(self) return (F.textures[self.path] and 'Texture2D ' or 'Object ') .. self.path end}
 end
 StaticConstructObject = function(class, outer)
     return {class = class, outer = outer, IsValid = function() return true end}

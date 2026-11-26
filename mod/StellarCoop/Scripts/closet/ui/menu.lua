@@ -32,7 +32,10 @@
 -- The Body tab's Body row (BaseBody) lists None (the body rule picks the body) then each outfit with skin: its tile
 -- picks that outfit's body. The row's value is the body in use: the picked one, else the one the look on EVE wears
 -- (dress.plan). A tile's detail and the Full tab's rows name the origin: Original, or Custom and the pack, with the
--- origin's badge. Each tile shows its slot's glyph (closet/slots.lua), the None tile None's.
+-- origin's badge. Each tile shows its piece's picture (closet/thumbs.lua's cached PNG), else its outfit's Image, else
+-- its slot's glyph (closet/slots.lua); the None tile None's glyph. The Full tab's outfit row shows one tile, its
+-- outfit's whole picture (full.png), else its Image, else the Full outfit glyph; Select still wears the row. Which
+-- pictures are there is read again at each open.
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
 -- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
 -- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
@@ -50,7 +53,7 @@
 -- o: {kit=ui/kit/kit.lua's, dress=closet/dress.lua's, words=function() the ui/text table to show, tell=function(build)
 -- (main/base.lua's M.tell), log=, world=function() M.hud_shown, photo=function() M.photo_state(), status=function()
 -- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
--- camera=closet/ui/camera.lua's or nil}.
+-- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player=require('core.player')
@@ -59,6 +62,7 @@ local Slots=require('closet.slots')
 local Model=require('closet.ui.model')
 local View=require('closet.ui.view')
 local Camera=require('closet.ui.camera')
+local Thumbs=require('closet.thumbs')
 local T=require('ui.text')
 local Menu={}
 Menu.NEAR=3000 -- cm: an engaged enemy that near is combat (online/lobby/wiring.lua's fight check; no source).
@@ -92,6 +96,14 @@ function Menu.new(o)
     -- light preset and intensity the camera hints show (false: none); ticked: the last tick's time.
     local camera,region,hinted,ticked=o.camera,'full',false,nil
     local function words() return o.words and o.words() or T.en end
+    local there={} -- Picture file -> whether it is there, read again at each open.
+    -- The cached picture of a fit's slot (Thumbs.FULL: the whole outfit), or nil.
+    local function picture(fit,slot)
+        if not (o.folder and fit) then return nil end
+        local file=Thumbs.file(o.folder,fit,slot)
+        if there[file]==nil then there[file]=Thumbs.fs.exists(file) end
+        return there[file] and file or nil
+    end
     -- What the camera hints show now: false with no camera running.
     local function camera_shown()
         if not (camera and camera.running()) then return false end
@@ -214,6 +226,8 @@ function Menu.new(o)
         if item and item.whole then
             s.detail.desc=(item.locked and w.row.locked:format(item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
             s.detail.badge=Fits.origin(item.whole)
+            s.tiles={{name=item.outfit,locked=item.locked,picture=picture(item.whole,Thumbs.FULL),
+                image=Fits.get(item.whole).Image,icon=Slots.glyph(Slots.FULL_OUTFIT)}}
             if not item.locked then s.hints[2]={w.hints.whole,'Positive',word='select'} end
         elseif item and item.reset then
             s.detail.desc=w.popup.reset_desc
@@ -226,6 +240,7 @@ function Menu.new(o)
             s.tiles={}
             for i,one in ipairs(tiles) do
                 s.tiles[i]={name=one.none and w.row.none or one.name,equipped=i==at,locked=one.locked,
+                    picture=picture(one.fit,item.slot),image=one.fit and Fits.get(one.fit).Image,
                     icon=one.none and 'none' or Slots.glyph(item.slot)}
             end
             if col=='grid' then
@@ -311,6 +326,8 @@ function Menu.new(o)
         back_at,owed,unreverted=nil,false,false -- An owed revert: Back or No on this open reverts.
         opened=now()
         guard_at,combat_at=opened+Menu.GUARD,opened+Menu.COMBAT
+        there={} -- The pictures read again: coop closet thumbs may have made some since.
+        view.reread()
         kit.input(true,View.GROUP,true)
         kit.sound('open')
         kit.show(View.GROUP,true)

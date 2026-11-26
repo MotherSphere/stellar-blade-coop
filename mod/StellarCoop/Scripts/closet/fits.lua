@@ -11,6 +11,8 @@
 --   Origin   'original' (Shift Up's own suits, CH_P_EVE_*) or 'custom' (an installed pack's outfit, the default when
 --            left out: Fits.origin)
 --   Mesh     the outfit's mesh, as its pack names it
+--   Image    the outfit's picture, as its pack names it (its OutfitImage object path); the menu's tiles show it when it
+--            loads as a Texture2D and no picture of closet/thumbs.lua's is cached
 --   Skin     {material index = {regions it shows}}: the outfit's own skin, which supplies the body whenever this
 --            outfit is the body (closet/dress.lua's Dress.plan: picked as <fit>:BaseBody, else its body rule). A fit
 --            with Skin has the pseudo slot BaseBody, which no piece fills
@@ -29,6 +31,7 @@ Fits.BY_ID = {
         Outfit = 'Ocean Maid',
         Pack = 'AiK',
         Mesh = '/Game/OutfitMods/AiK_CH27/CH27_NRS.CH27_NRS',
+        Image = '/Game/Art/UI/Texture/Item/NanoSuit/NanoSuit_Icon_BS_56.NanoSuit_Icon_BS_56',
         Skin = {[14] = ALL_SKIN},
         Pieces = {
             {Slot = 'UndergarmentTop', Name = 'Leotard', Materials = {40, 41}, Occupies = {'UndergarmentBottom'}},
@@ -53,6 +56,7 @@ Fits.BY_ID = {
         Outfit = 'Kunoichi Shadow',
         Pack = 'AiK',
         Mesh = '/Game/OutfitMods/AiK_CH46/CH46_xSH_NRS.CH46_xSH_NRS',
+        Image = '/Game/Art/UI/Texture/Item/NanoSuit/NanoSuit_Icon_BS_SilverKunoichi.NanoSuit_Icon_BS_SilverKunoichi',
         Skin = {[0] = {'HeadNeck', 'TorsoUpper', 'TorsoLower', 'Pelvis', 'Thigh', 'Calf', 'Foot'},
             [1] = {'ArmUpper', 'Forearm'}, [2] = {'Hand'}},
         Pieces = {

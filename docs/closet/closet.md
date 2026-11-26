@@ -17,6 +17,7 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet off` | Gives EVE her own look back |
 | `coop closet fits` | Lists the fit maps and the slots of their pieces |
 | `coop closet menu` | Opens the closet menu. When it is open, closes it and gives back the look worn before |
+| `coop closet thumbs [redo] [<fit>]` | Makes a picture of each piece of every installed outfit with a fit map (or of one fit) for the menu's tiles: the ones not cached yet, or all of them again with `redo`. See [Preview pictures](#preview-pictures) |
 | `coop closet probe <1-6\|off>` | Runs one in-game test of the game's widget parts for the closet menu (1-5) or of the reads for its camera and fit (6). It writes `probe:` PASS/FAIL lines to UE4SS.log. `off` ends it |
 | `coop closet body <auto\|shoes\|first\|<fit>>` | Sets the body rule of the next wears until the next Lua load: `auto` (the default, below), `shoes` (the outfit that supplies the shoes, else the first), `first` (the first outfit) or a fit id with skin, which forces that body |
 | `coop closet skin <fit> <slot> on\|off` | Shows or hides one material slot (a number) of that outfit's mesh now, on every LOD, for trying a setup in game. The next wear clears it |
@@ -54,7 +55,8 @@ it can no longer wear (an outfit pack removed) are dropped with one log line. He
 
 ## How it works
 
-The files in `mod/StellarCoop/Scripts/closet/` are pure Lua. They make no engine call.
+The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua` and `thumbs.lua`, which make engine
+calls.
 
 | File | Holds |
 | --- | --- |
@@ -64,7 +66,8 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua. They make no engine
 | `manifest.lua` | Reads and checks a `*.stellarcloset.json` pack |
 | `cns_import.lua` | Reads a `*.dekcns.json` pack into items, with piece hints from its material toggle names |
 | `dress.lua` | `coop closet wear`: the plan from fit maps, the mix on EVE, the once-a-second watchdog, her own look kept and given back |
-| `fits.lua` | Fit maps: which material slots of a CNS full outfit make each piece and which show the skin (Ocean Maid, Kunoichi Shadow) |
+| `fits.lua` | Fit maps: which material slots of a CNS full outfit make each piece and which show the skin (Ocean Maid, Kunoichi Shadow). Each outfit's own picture (its pack's `OutfitImage`) |
+| `thumbs.lua` | `coop closet thumbs`: the capture rig (one picture a frame) and the picture cache's folders, files and stamps |
 
 The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
 
@@ -77,9 +80,10 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
 
-`wiring.lua` builds `dress.lua` as `M.closet` and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with
-the Steam link only, builds `ui/menu.lua` as `M.closet_menu`. `main/frame.lua` runs the restore at the first tick and
-the dress, probe and menu ticks each frame. `coop off` stops them. The module reads no other module.
+`wiring.lua` builds `dress.lua` as `M.closet`, `thumbs.lua` and `commands.lua`. Its build step `menu`, which
+`main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu`. `main/frame.lua` runs the restore
+at the first tick and the dress, probe, thumbs and menu ticks each frame. `coop off` stops them. The module reads no
+other module.
 
 ## The closet menu
 
@@ -97,7 +101,7 @@ widget parts in the kit group `closet_menu`:
 | --- | --- |
 | Tabs | `WB_Common_Tab_Btn`, one a tab. The Intimate tab is left out |
 | Slot rows | `WB_Setting_Button_Slot`, a window of 10. A slot with no piece type yet shows as locked "Coming soon" |
-| Pieces | The hair salon's `WB_HairSalonGridList` TileView, fed with `BP_HairSalonItemData_Tile` data objects. The None tile comes first. Each tile shows its slot's glyph, the None tile the None glyph |
+| Pieces | The hair salon's `WB_HairSalonGridList` TileView, fed with `BP_HairSalonItemData_Tile` data objects. The None tile comes first. Each tile shows its piece's picture (below), the None tile the None glyph. On the Full outfit tab it shows one tile: the focused outfit's whole picture |
 | Detail | `WB_NanoSuit_Detail` with its hold button hidden. The origin badge (the Original or Custom glyph) sits right of it, by its title |
 | Key hints | `WB_Common_IndicatorBtnDefault` |
 
@@ -146,6 +150,37 @@ The menu imports each glyph it shows once with the engine's `ImportFileAsTexture
 object path as its icon. A hidden kit image holds each texture, so the engine does not free it while the root lives.
 After each fill the menu looks at the shown tiles. A tile without its glyph gets it on its own image from then on,
 with one log line. A glyph that does not load leaves its tiles on the hair salon's default icon, with one log line.
+
+### Preview pictures
+
+A tile shows the first of these that loads: the piece's picture from the cache below (on the Full outfit tab, the
+outfit's whole picture), the outfit's own picture from its pack (`Image` in `fits.lua`, used only when it loads as a
+texture), the slot's glyph. A picture or an outfit picture that does not load is said once in UE4SS.log. The menu
+looks again at which pictures are there each time it opens.
+
+`coop closet thumbs` makes the pictures in game. It runs in the game world only, out of combat, with the closet menu
+closed and no cutscene. It does not start while one runs. Each picture is 256x256 (the size of the grid's own icons):
+
+- A capture rig stands 50 m above EVE: a `SceneCapture2D` that draws only its list with the game's final colours. The
+  list holds one skeletal mesh, turned as EVE is, with every material section hidden on every LOD but the piece's.
+  LOD 0 is forced and the textures are streamed in for 1 s before the outfit's first picture.
+- One step a frame: an outfit's mesh, then for each picture its sections, then the capture framed on the piece's region
+  (two bones of the mesh: head, torso, arms, hands, hips, legs, feet or the whole body) and its PNG written with
+  `ExportRenderTarget`. When the export did not make the outfit's folder, the closet makes it and writes the picture
+  again.
+- The pictures go to `Mods\StellarCoop\closet-thumbs\<fit>\<slot>.png`, the whole outfit (as its pack shows it) as
+  `full.png`. A fit id with characters a folder name may not hold gets those characters turned into `_` and 8 hex
+  digits of a hash.
+- `<fit>\stamp.txt` names the fit's mesh, skin slots and pieces once all its pictures are there. A fit whose stamp
+  changed (its pack's mesh, its fit map) is captured again. `redo` captures every picture again.
+- UE4SS.log gets one line an outfit (`closet thumbs: AiK_CH27_14595 12/12`) and the count at the end. A mesh that does
+  not load skips its outfit with one line.
+- It waits while the closet menu is open, the game is paused or shows a screen, EVE is not in the world, in a
+  cutscene or in combat. It ends with the rig removed when it is done, at `coop off` and at a map change. The rig's
+  path is kept in `coop-closet-thumbs.txt`, so the next Lua load removes a rig a reload left.
+
+The pictures show the creators' assets. They stay on the player's PC: they are never shipped and never committed
+(`.gitignore` lists `mod/StellarCoop/closet-thumbs/`). The framing values are starting values, to tune in game.
 
 ### The closet camera
 
@@ -233,6 +268,8 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
 
 - `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.
 - `tests/lua/closet/closet_test.lua` checks `coop closet`.
+- `tests/lua/closet/thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
+  sections, the rig's settings and its removal on each end path, the refusals and the framing.
 - `tests/lua/closet/menu_test.lua` (5 checks) runs the closet menu on the fake kit and parts of
   `tests/lua/closet/menu_fakes.lua`: what open draws, `coop closet menu`, the close paths and a draw that fails.
 - `tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style.

@@ -35,7 +35,7 @@ local function rig(o)
         tell = function(build) r.told[#r.told + 1] = build(T.en) end, log = function(m) r.log[#r.log + 1] = m end,
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
-        camera = o.camera})
+        camera = o.camera, folder = o.folder})
     return r
 end
 -- A fake closet camera (closet/ui/camera.lua's face): its calls in order, its ticks' dt and region.
@@ -189,7 +189,8 @@ local tests = {
         ok(F.called(grids[1].o, 'Set Goods'), 'Set Goods')
         local tv = grids[1].o.TileView_ItemList
         eq(tv.entry_w, 200, 'entry width: 5 columns') eq(tv.entry_h, 270, 'entry height: 3 rows')
-        eq(tv.cleared, 2, 'cleared before each fill: empty on the Full tab, then Bra')
+        eq(tv.cleared, 3, 'cleared before each fill: Ocean Maid\'s tile on the Full tab, empty on the torso tab\'s ' ..
+            'first row (soon), then Bra')
         eq(#tv.items, 2, 'tiles')
         eq(tv.items[1].ItemName.text, 'None', 'None first')
         eq(tv.items[2].ItemName.text, Fits.piece('AiK_CH27_14595', 'UndergarmentTop').Name, 'leotard')
@@ -986,28 +987,29 @@ local tests = {
         local from = #F.imports + 1
         local r = rig()
         on_top(r)
-        same(F.imported(from), {'custom', 'none', 'bra', 'top'}, 'imported as first drawn')
+        -- The Full tab's outfit tile (the Full outfit glyph, no picture cached), its badge, then the torso tab's.
+        same(F.imported(from), {'full_outfit', 'custom', 'none', 'bra', 'top'}, 'imported as first drawn')
         -- package.searchpath writes the folder with the system's separator.
-        local file = F.imports[from + 1]
+        local file = F.imports[from + 2]
         ok(file:find('^mod/StellarCoop/Scripts/closet[\\/]ui[\\/]icons[\\/]none%.png$'), file)
-        same(held(r), {'bra', 'custom', 'none', 'top'}, 'held')
+        same(held(r), {'bra', 'custom', 'full_outfit', 'none', 'top'}, 'held')
         at(r, 0.5, 'up', 'down', 'up', 'down')
         r.menu.close()
         r.menu.open()
         eq((detail(r)), 'Top', 'the Top row again')
-        same(F.imported(from), {'custom', 'none', 'bra', 'top'}, 'kept: never imported again')
+        same(F.imported(from), {'full_outfit', 'custom', 'none', 'bra', 'top'}, 'kept: never imported again')
         -- A root built again (a map change) has new holders; a texture the engine freed meanwhile is imported again,
         -- the others are held by the new build as they are drawn.
         r.menu.close()
         F.made.top.valid = false
         r.kit.groups.closet_menu.view, r.kit.groups.closet_menu.images = nil, {}
         r.menu.open()
-        same(F.imported(from), {'custom', 'none', 'bra', 'top', 'top'}, 'only the freed one again')
+        same(F.imported(from), {'full_outfit', 'custom', 'none', 'bra', 'top', 'top'}, 'only the freed one again')
         eq(grid(r).items[2].IconAssetPath, F.path('top'), 'the tiles name the new texture')
         same(held(r), {'none', 'top'}, 'held by the new build')
         at(r, 0.5, 'up')
         same(held(r), {'bra', 'none', 'top'}, 'the Bra glyph held again, not imported')
-        same(F.imported(from), {'custom', 'none', 'bra', 'top', 'top'}, 'no more imports')
+        same(F.imported(from), {'full_outfit', 'custom', 'none', 'bra', 'top', 'top'}, 'no more imports')
     end,
 
     a_refused_glyph_shows_the_game_icon = function()
@@ -1021,7 +1023,7 @@ local tests = {
             eq(tv.items[1].IconAssetPath, F.path('none'), 'None has its glyph')
             eq(tv.items[2].IconAssetPath, F.ICON, 'the game icon instead')
             at(r, 0.5, 'up', 'down')
-            same(F.imported(from), {'custom', 'none', 'bra', 'top'}, 'not tried again')
+            same(F.imported(from), {'full_outfit', 'custom', 'none', 'bra', 'top'}, 'not tried again')
             local said = 0
             for _, line in ipairs(r.log) do if line:find('glyph top', 1, true) then said = said + 1 end end
             eq(said, 1, 'said once')
@@ -1089,12 +1091,121 @@ local tests = {
         local said = 0
         for _, line in ipairs(r.log) do if line:find('SetBrushFromTexture', 1, true) then said = said + 1 end end
         eq(said, 1, 'said once')
-        -- A grid with no glyph to show (the Full tab's, empty): never looked at.
+        -- A grid with no glyph to show (the Reset row's, empty): never looked at.
         r = rig()
         r.menu.open()
+        at(r, 0.05, 'down', 'down')
+        eq(#grid(r).items, 0, 'the Reset row has no tile')
         tick(r, 1)
         tick(r, 2)
         eq(grid(r).displayed, 0, 'no look at a grid without glyphs')
+    end,
+
+    tiles_show_the_picture_then_the_image_then_the_glyph = function()
+        -- Each tile shows its piece's cached picture (closet/thumbs.lua's file, imported once), else its outfit's
+        -- Image when that loads as a Texture2D, else its slot's glyph.
+        local Thumbs = require('closet.thumbs')
+        local exists = Thumbs.fs.exists
+        local files = {[Thumbs.file('F', MAID, 'Chest')] = true}
+        Thumbs.fs.exists = function(p) return files[p] == true end
+        F.textures[Fits.get(KUNOICHI).Image] = true
+        local good, why = pcall(function()
+            local r = rig({folder = 'F'})
+            on_top(r)
+            local tv = grid(r)
+            eq(tv.items[1].IconAssetPath, F.path('none'), 'None: its glyph')
+            eq(tv.items[2].IconAssetPath, F.path('Chest'), 'Ocean Maid\'s top: its picture')
+            eq(F.made.Chest.file, Thumbs.file('F', MAID, 'Chest'), 'imported from the cache')
+            eq(tv.items[3].IconAssetPath, Fits.get(KUNOICHI).Image, 'Kunoichi Shadow\'s top: its outfit\'s Image')
+            -- A hidden holder of the group keeps the imported picture, so the engine does not free it.
+            local kept = false
+            for _, i in ipairs(images(r, 1)) do
+                eq(i.shown, false, 'a holder is hidden')
+                kept = kept or i.texture == F.made.Chest
+            end
+            ok(kept, 'the picture held')
+            -- No picture, an Image that is no texture: the glyph, said once.
+            F.textures[Fits.get(KUNOICHI).Image] = nil
+            files = {}
+            r = rig({folder = 'F'})
+            on_top(r)
+            tv = grid(r)
+            eq(tv.items[2].IconAssetPath, F.path('top'), 'Ocean Maid: no picture, no texture: the glyph')
+            eq(tv.items[3].IconAssetPath, F.path('top'), 'Kunoichi Shadow: the glyph')
+            at(r, 0.5, 'up', 'down')
+            local said = 0
+            for _, line in ipairs(r.log) do if line:find(Fits.get(KUNOICHI).Image, 1, true) then said = said + 1 end end
+            eq(said, 1, 'said once')
+            -- An Image that is no object path (a pack's template text) is never looked up.
+            local image = Fits.get(MAID).Image
+            Fits.get(MAID).Image = '{SoftReferenceToYourOutfitIcon}'
+            local looked = false
+            local find = StaticFindObject
+            StaticFindObject = function(p) looked = looked or p == Fits.get(MAID).Image; return find(p) end
+            r = rig({folder = 'F'})
+            on_top(r)
+            StaticFindObject = find
+            Fits.get(MAID).Image = image
+            eq(looked, false, 'not looked up')
+            eq(grid(r).items[2].IconAssetPath, F.path('top'), 'the glyph')
+        end)
+        Thumbs.fs.exists = exists
+        F.textures = {}
+        ok(good, why)
+    end,
+
+    a_full_outfit_row_shows_its_whole_picture = function()
+        -- The Full tab's outfit row shows one tile: its outfit's full.png when cached, else its Image, else the Full
+        -- outfit glyph. The Reset row shows none.
+        local Thumbs = require('closet.thumbs')
+        local exists = Thumbs.fs.exists
+        Thumbs.fs.exists = function(p) return p == Thumbs.file('F', MAID, Thumbs.FULL) end
+        local good, why = pcall(function()
+            local r = rig({folder = 'F'})
+            r.menu.open()
+            local tv = grid(r)
+            eq(#tv.items, 1, 'one tile')
+            eq(tv.items[1].ItemName.text, 'Ocean Maid', 'the outfit')
+            eq(tv.items[1].IconAssetPath, F.path('full'), 'its whole picture')
+            eq(F.made.full.file, Thumbs.file('F', MAID, 'full'), 'from full.png')
+            at(r, 0.05, 'down')
+            eq(grid(r).items[1].ItemName.text, 'Kunoichi Shadow', 'the next outfit')
+            eq(grid(r).items[1].IconAssetPath, F.path('full_outfit'), 'no picture, no texture: the glyph')
+            at(r, 0.05, 'down')
+            eq(#grid(r).items, 0, 'the Reset row: no tile')
+            -- Select on an outfit row still wears it whole (the tile is only its picture).
+            at(r, 0.5, 'up', 'select')
+            same(r.previews[#r.previews], {{fit = KUNOICHI}}, 'worn whole')
+        end)
+        Thumbs.fs.exists = exists
+        ok(good, why)
+    end,
+
+    the_menu_reads_the_pictures_again_at_each_open = function()
+        -- A picture made while the menu was closed shows at the next open; a picture made again is imported again.
+        local Thumbs = require('closet.thumbs')
+        local exists = Thumbs.fs.exists
+        local files = {}
+        Thumbs.fs.exists = function(p) return files[p] == true end
+        local good, why = pcall(function()
+            local r = rig({folder = 'F'})
+            on_top(r)
+            eq(grid(r).items[2].IconAssetPath, F.path('top'), 'no picture yet: the glyph')
+            files[Thumbs.file('F', MAID, 'Chest')] = true
+            at(r, 0.5, 'up', 'down')
+            eq(grid(r).items[2].IconAssetPath, F.path('top'), 'not read again while open')
+            r.menu.close()
+            r.menu.open()
+            eq((detail(r)), 'Top', 'the Top row again')
+            local first = F.path('Chest')
+            eq(grid(r).items[2].IconAssetPath, first, 'the picture at the next open')
+            r.menu.close()
+            r.menu.open()
+            ok(grid(r).items[2].IconAssetPath ~= first, 'imported again at the next open')
+            eq(grid(r).items[2].IconAssetPath, F.path('Chest'), 'the new import')
+        end)
+        Thumbs.fs.exists = exists
+        ok(good, why)
     end,
 
     switched_and_clips_are_told = function()

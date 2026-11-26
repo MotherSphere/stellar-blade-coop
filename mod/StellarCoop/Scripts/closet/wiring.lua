@@ -2,9 +2,9 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The wiring of Stellar Closet (closet/): coop closet, which wears pieces of several outfits at once (M.closet,
--- closet/dress.lua), coop closet probe (closet/ui/probe.lua) and the closet menu (M.closet_menu, closet/ui/menu.lua,
--- built at main/ui.lua's step menu with the Steam link only). main/frame.lua runs its restore at the first tick and its
--- tick each frame; coop off stops it.
+-- closet/dress.lua), coop closet probe (closet/ui/probe.lua), coop closet thumbs (closet/thumbs.lua) and the closet
+-- menu (M.closet_menu, closet/ui/menu.lua, built at main/ui.lua's step menu with the Steam link only). main/frame.lua
+-- runs its restore at the first tick and its tick each frame; coop off stops it.
 return {
 uses={},
 exports={'closet','closet_menu'},
@@ -19,20 +19,33 @@ M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '
 -- game's parts that hold EVE still). coop off stops them with the dress.
 local probe=require('closet.ui.probe').new({kit=function() return M.kit end,world=function() return M.hud_shown end,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
+-- coop closet thumbs: its rig's path in coop-closet-thumbs.txt; it waits while the menu is open, the game is paused or
+-- shows a screen, or our HUD is not shown (no game world).
+local Thumbs=require('closet.thumbs')
+local thumbs=Thumbs.new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,folder=M.folder,
+    installed=M.closet.installed,store=M.link and M.link.store(Thumbs.FILE),world=function() return M.hud_shown end,
+    paused=function() return M.kit~=nil and M.kit.paused(true) end,
+    menu_open=function() return M.closet_menu~=nil and M.closet_menu.is_open() end,
+    status=function() return M.link and M.link.status() end})
 local dress_tick,dress_stop=M.closet.tick,M.closet.stop
 M.closet.tick=function()
     M.guarded('closet',dress_tick)
     M.guarded('closet probe',probe.tick)
+    M.guarded('closet thumbs',thumbs.tick)
     if M.closet_menu then M.guarded('closet menu',M.closet_menu.tick) end
 end
-M.closet.stop=function() dress_stop(); probe.stop(); if M.closet_menu then M.closet_menu.stop() end end
-return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,
+M.closet.stop=function()
+    dress_stop(); probe.stop(); thumbs.stop()
+    if M.closet_menu then M.closet_menu.stop() end
+end
+return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,thumbs=thumbs,
     menu=function() return M.closet_menu end})
 end,
 build={
 -- coop closet menu (closet/ui/menu.lua) on the kit: its group added before the first slow. Its camera
 -- (closet/ui/camera.lua) keeps its path, mode, free pose and light preset in coop-closet-camera.txt and reads the kit's
--- screen and main/boot.lua's pad reads (nil with an older DLL: the keys only).
+-- screen and main/boot.lua's pad reads (nil with an older DLL: the keys only). The menu's tiles show coop closet
+-- thumbs' pictures from the mod folder.
 menu=function(M,Ui)
     local log=function(m) M.print('[StellarCoop][CL] '..tostring(m)..'\n') end
     local Camera=require('closet.ui.camera')
@@ -41,7 +54,7 @@ menu=function(M,Ui)
         pad_levels=function() if M.pad_levels then return M.pad_levels() end end})
     M.closet_menu=require('closet.ui.menu').new({kit=M.kit,dress=M.closet,words=M.words,tell=M.tell,log=log,
         world=function() return M.hud_shown end,photo=M.photo_state,status=function() return M.link and M.link.status() end,
-        camera=camera})
+        camera=camera,folder=M.folder})
 end,
 },
 }

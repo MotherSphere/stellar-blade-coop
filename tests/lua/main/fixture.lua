@@ -556,6 +556,15 @@ package.loaded['closet.ui.camera']={FILE='coop-closet-camera.txt',region=functio
     return {open=function() end,close=function() end,stop=function() end,tick=function() end,word=function() end,
         running=function() return false end,mode=function() return 'region' end}
 end}
+-- coop closet thumbs (closet/thumbs.lua; closet/thumbs_test tests it, closet/menu_test the tiles' pictures): what new
+-- got, its ticks and stops. No picture is there. It never runs: link.store here gives a name, not a file.
+th={ticks=0,stops=0}
+package.loaded['closet.thumbs']={FILE='coop-closet-thumbs.txt',FULL='full',fs={exists=function() return false end},
+    file=function(root,id,slot) return root..'\\closet-thumbs\\'..id..'\\'..slot..'.png' end,new=function(o)
+    th.o=o
+    return {run=function() return true,'th run' end,tick=function() th.ticks=th.ticks+1 end,
+        stop=function() th.stops=th.stops+1 end,running=function() return false end}
+end}
 -- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
 -- stops, what a tick says; its scenes' words.
 sc={}
