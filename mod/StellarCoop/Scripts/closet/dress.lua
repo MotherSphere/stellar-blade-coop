@@ -23,7 +23,8 @@
 -- reset, CNS) gets the mix again; a hidden section the game showed again (Tachy Mode's end) is hidden again. The body
 -- mesh put on from outside becomes her own look, which off gives back; a closet mesh never does. The closet's own
 -- changes (wear, preview, revert) set the plan the watchdog compares with, so they never count. After off nothing is
--- watched until the next wear.
+-- watched until the next wear. An outside fight (FIGHT: something undoes every mix) ends: a body the look holds is worn
+-- as the body, any other body stops the mix until the next wear or preview. Her body is never removed.
 -- Preview (the closet menu's live look): preview(choices) puts a look on without saving it. The first call remembers the
 -- confirmed choices (state.kept, false when none). During a preview coop-closet.txt holds EVE's leftovers to sweep and
 -- the confirmed words, so a reload gives the confirmed look. confirm() saves the previewed look, revert() wears the
@@ -45,6 +46,9 @@ Dress.USE='Use: coop closet wear <fit>[:<Slot>,<Slot>...] [<fit>[:...]] | coop c
 local installed_cache={} -- fit id -> whether its mesh loads; once per fit per Lua load (installed).
 -- Tries of restore's wear of the kept look while EVE spawns, a second apart, before it is dropped.
 Dress.RETRIES=5
+-- An outside fight: this many mixes again within this many seconds (something undoes every mix: CNS put Ocean Maid's
+-- mesh back on her body each second on 26 Nov 2026). A map load sets her body twice or three times, never five.
+Dress.FIGHT={mixes=5,within=15}
 
 local function path_of(o)
     local ok,full=pcall(function() return text(o:GetFullName()) end)
@@ -298,6 +302,7 @@ function Dress.new(o)
     local restored,due=false,0
     local pending,tries,retry_at=nil,0,0 -- The kept line's fields once read; restore's failed wears; its next try.
     local mode='auto' -- Dress.plan's body rule for this Lua load (body_mode).
+    local fights={} -- The clock of each mix again since the last wear or preview (an outside fight, Dress.FIGHT).
     local kept_fields,undo_kept -- Set with restore below; off uses them too.
 
     local function keep()
@@ -310,15 +315,20 @@ function Dress.new(o)
     end
     -- Removes every component on EVE but her body that wears one of the given mesh paths: ours, also one an earlier
     -- mix or Lua load left (a map load can make the game set her body twice, and each change got the mix again).
+    -- Her body is told by its address: UE4SS hands a new wrapper at each read, so c~=body is true for her body too. With
+    -- her body unread, nothing is removed.
     local function sweep(eve,paths)
         local body=valid(eve.Mesh)
+        local read,at=pcall(U.address,body)
+        if not (body and read and at) then return 0 end
         local removed=0
         local wanted={}
         for _,p in ipairs(paths) do wanted[p]=true end
         each(eve:K2_GetComponentsByClass(StaticFindObject(SKINNED)),function(_,c)
             c=valid(c)
             local mesh=c and valid(c.SkeletalMesh)
-            if c and mesh and c~=body and wanted[path_of(mesh)] then
+            local ok,addr=pcall(U.address,c)
+            if c and mesh and ok and addr~=at and wanted[path_of(mesh)] then
                 pcall(function() c:K2_DestroyComponent(c) end)
                 removed=removed+1
             end
@@ -421,6 +431,7 @@ function Dress.new(o)
     -- coop closet wear: the plan for choices, put on now.
     function self.wear(choices)
         self.restore()
+        fights={}
         local plan,why=Dress.plan(choices,fits,mode)
         if not plan then return false,why end
         local ok,e=apply(plan,choices,nil)
@@ -436,6 +447,7 @@ function Dress.new(o)
     -- on: her own look (own_look). Gives true, the line and the plan (the menu tells its switched and clips).
     function self.preview(choices)
         self.restore()
+        fights={}
         local kept=state and state.kept
         if kept==nil then kept=state and state.choices or false end
         if #choices==0 and state then return own_look(kept) end
@@ -624,7 +636,8 @@ function Dress.new(o)
     -- Once a second at most, on the game thread: the watchdog.
     function self.tick()
         if not restored then self.restore() end
-        if not state or not state.plan or paused() then return end -- No plan: her own look previewed, nothing mixed.
+        -- No plan: her own look previewed, nothing mixed. Stopped: an outside fight over the body (below).
+        if not state or not state.plan or state.stopped or paused() then return end
         local now=clock()
         if now<due then return end
         due=now+1
@@ -660,8 +673,33 @@ function Dress.new(o)
             local plan,choices,kept=state.plan,state.choices,state.kept
             -- A look put on from outside is hers from now on; a closet mesh still on her body is the closet's own.
             if path and not closet_mesh(path) then state.own,state.materials=path,current_materials(body) end
+            -- Something outside undoes every mix: the look's outfit it keeps putting on her body is worn as the body (no
+            -- switch, the menu warns of the clipping); any other body stops the mix until the next wear or preview.
+            fights[#fights+1]=now
+            while now-fights[1]>Dress.FIGHT.within do table.remove(fights,1) end
+            if #fights>=Dress.FIGHT.mixes then
+                fights={}
+                local insisted
+                for _,c in ipairs(choices) do
+                    local fit=fits.get(c.fit)
+                    if fit and fit.Mesh==path then insisted=c.fit end
+                end
+                local forced=insisted and insisted~=plan.body.fit and Dress.plan(choices,fits,insisted)
+                if not forced then
+                    state.stopped=true
+                    log(string.format('something outside keeps changing her body (%s): the closet stops mixing until '
+                        ..'the next wear',tostring(path)))
+                    return
+                end
+                plan=forced
+                log('something outside keeps putting '..insisted..' on her body: the look is worn on that body until '
+                    ..'the next wear')
+            end
             local own,materials=state.own,state.materials
+            local was={}
+            for _,a in ipairs(state.added) do was[#was+1]=a.mesh end
             state=nil
+            sweep(eve,was) -- The earlier added meshes: a forced body's plan adds other outfits.
             local ok,why=apply(plan,choices,kept)
             if ok then state.own,state.materials=own,materials; keep()
             else log('mix again failed: '..tostring(why)) end

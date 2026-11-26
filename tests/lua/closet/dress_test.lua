@@ -29,9 +29,13 @@ local function mesh(path, n)
     for i = 1, n do m.Materials[i] = {MaterialInterface = obj(path .. ':M' .. (i - 1))} end
     return m
 end
+local addresses = 0
 local function component(path, owner)
     local c = obj(path)
     c.hidden, c.mats, c.owner = {}, {}, owner
+    addresses = addresses + 1
+    c.addr = addresses
+    function c:GetAddress() return self.addr end
     function c:SetSkeletalMesh(m) self.SkeletalMesh = m; self.mats = {}; self.hidden = {} end
     function c:SetMaterial(i, m) self.mats[i] = m end
     function c:GetNumMaterials() return self.SkeletalMesh and #self.SkeletalMesh.Materials or 0 end
@@ -56,7 +60,16 @@ local OM, KS = '/Game/OutfitMods/AiK_CH27/CH27_NRS.CH27_NRS', '/Game/OutfitMods/
 local OWN, TACHY = '/Game/Art/Character/PC/CH_P_EVE_29/CH_P_EVE_29.CH_P_EVE_29',
     '/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10'
 
-local function world()
+-- A new table at each read of what UE4SS hands as a new wrapper: the same object, another identity.
+local function wrapper(real)
+    return setmetatable({}, {__index = function(_, k)
+        local v = real[k]
+        if type(v) == 'function' then return function(_, ...) return v(real, ...) end end
+        return v
+    end, __newindex = function(_, k, v) real[k] = v end})
+end
+-- wrapped: eve.Mesh is a new wrapper at each read, as in UE4SS.
+local function world(wrapped)
     local w = {assets = {}, log = {}, file = nil, now = 100}
     w.assets[OM] = mesh(OM, 48)
     w.assets[KS] = mesh(KS, 44)
@@ -68,6 +81,11 @@ local function world()
     eve.Mesh = component(eve.path .. '.CharacterMesh0', eve)
     eve.Mesh:SetSkeletalMesh(w.assets[OWN])
     eve.comps[1] = eve.Mesh
+    if wrapped then
+        local body = eve.Mesh
+        eve.Mesh = nil
+        setmetatable(eve, {__index = function(_, k) if k == 'Mesh' then return wrapper(body) end end})
+    end
     local n = 0
     function eve:AddComponentByClass()
         n = n + 1
@@ -425,6 +443,65 @@ local tests = {
         eq(fields(w.file)[2], other, 'her own look kept, not the closet mesh')
         w.d.off()
         eq(w.eve.Mesh.SkeletalMesh.path, other, 'off gives back the outside look, never a closet mesh')
+    end,
+    -- UE4SS hands a new wrapper at each read of eve.Mesh: the sweep of added meshes tells her body by its address, so it
+    -- never removes her body, even when something outside put an added outfit's mesh on it (seen 26 Nov 2026).
+    the_sweep_never_removes_her_body = function()
+        local w = world(true)
+        assert(w.d.wear(GLOVES)) -- Kunoichi's body (switched), Ocean Maid's nails as the added mesh.
+        eq(w.eve.Mesh.SkeletalMesh.path, KS)
+        w.eve.Mesh:SetSkeletalMesh(w.assets[OM])
+        second(w) second(w)
+        ok(w.eve.Mesh:IsValid(), 'her body is never removed')
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'the look again') eq(#w.eve.comps, 2, 'her body and one added mesh')
+    end,
+    -- Something outside that undoes every mix (CNS put Ocean Maid back on her body each second, 26 Nov 2026): after
+    -- FIGHT.mixes mixes in FIGHT.within s the closet stops fighting. A body the look holds is worn as the body.
+    an_outside_fight_over_the_body_ends = function()
+        local w = world()
+        local function mixes()
+            local n = 0
+            for _, line in ipairs(w.log) do if line:find('mix again', 1, true) then n = n + 1 end end
+            return n
+        end
+        assert(w.d.wear(GLOVES))
+        for _ = 1, 30 do
+            if w.eve.Mesh.SkeletalMesh.path ~= OM then w.eve.Mesh:SetSkeletalMesh(w.assets[OM]) end
+            second(w)
+        end
+        eq(mixes(), w.Dress.FIGHT.mixes, 'the mixes stop')
+        ok(logged(w, 'keeps putting AiK_CH27_14595 on her body'), 'the log says why')
+        eq(w.eve.Mesh.SkeletalMesh.path, OM, 'Ocean Maid is the body') eq(#w.eve.comps, 2, 'Kunoichi gloves added')
+        eq(w.d.plan().body.fit, MAID, 'no switch') ok(w.d.plan().clips, 'the menu warns of the clipping arms')
+        ok(w.file:find('AiK_CH27_14595:Fingernails AiK_CH46_xSH_14462:Gloves', 1, true), 'the words stay the picks')
+        assert(w.d.wear(GLOVES)) -- A new wear starts over with the body rule.
+        eq(w.eve.Mesh.SkeletalMesh.path, KS)
+    end,
+    an_outside_fight_with_another_body_stops_the_mix = function()
+        local w = world()
+        local other = '/Game/Art/Character/PC/CH_P_EVE_31/CH_P_EVE_31.CH_P_EVE_31'
+        w.assets[other] = mesh(other, 6)
+        assert(w.d.wear(A))
+        for _ = 1, 30 do
+            if w.eve.Mesh.SkeletalMesh.path ~= other then w.eve.Mesh:SetSkeletalMesh(w.assets[other]) end
+            second(w)
+        end
+        local n = 0
+        for _, line in ipairs(w.log) do if line:find('mix again', 1, true) then n = n + 1 end end
+        eq(n, w.Dress.FIGHT.mixes, 'the mixes stop')
+        ok(logged(w, 'the closet stops mixing'), 'the log says why')
+        eq(w.eve.Mesh.SkeletalMesh.path, other, 'the outside body stays')
+        ok(w.file:find('AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes', 1, true), 'the look stays kept')
+    end,
+    -- A map load sets her body twice: two mixes close together are no fight.
+    two_quick_outside_changes_are_no_fight = function()
+        local w = world()
+        assert(w.d.wear(GLOVES))
+        local other = '/Game/Art/Character/PC/CH_P_EVE_31/CH_P_EVE_31.CH_P_EVE_31'
+        w.assets[other] = mesh(other, 6)
+        for _ = 1, 2 do w.eve.Mesh:SetSkeletalMesh(w.assets[other]); second(w) second(w) end
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'the look again') ok(not logged(w, 'stops mixing'))
+        ok(not logged(w, 'keeps putting'))
     end,
     after_off_an_outside_change_is_left_alone = function()
         local w = world()
