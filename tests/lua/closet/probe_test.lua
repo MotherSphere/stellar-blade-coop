@@ -40,14 +40,92 @@ local function fake_kit()
 end
 
 local function rig(tests, kit)
-    local r = {log = {}, now = 10, kit = kit or fake_kit()}
+    local r = {log = {}, now = 10, kit = kit or fake_kit(), found = {}, made = {}}
     package.loaded['closet.ui.probe'] = nil
     local Probe = require('closet.ui.probe')
     r.Probe = Probe
     r.p = Probe.new({kit = function() return r.kit end, log = function(m) r.log[#r.log + 1] = m end,
-        clock = function() return r.now end, tests = tests})
+        clock = function() return r.now end, tests = tests, find = function(path) return r.found[path] end,
+        construct = function(class, outer)
+            local item = {class = class, outer = outer, IsValid = function(self) return not self.lost end}
+            r.made[#r.made + 1] = item
+            return item
+        end})
     r.ticks = function(n) for _ = 1, n or 1 do r.p.tick() end end
     return r
+end
+
+-- The game's side for tests 1 and 2: the classes, the test icon, the grid list with its TileView, a grid slot.
+local DATA = '/Game/Art/UI/Data/HairSalon/BP_HairSalonItemData_Tile.BP_HairSalonItemData_Tile_C'
+local GRID = '/Game/Art/UI/Widget/HairSalon/WB_HairSalonGridList.WB_HairSalonGridList_C'
+local SLOT = '/Game/Art/UI/Widget/HairSalon/WB_HairSalon_GridSlot.WB_HairSalon_GridSlot_C'
+local ICON = '/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_000.Deco_Item_Hair_000'
+local KSL = '/Script/Engine.Default__KismetSystemLibrary'
+local function uobj(name, fields)
+    local o = fields or {}
+    o.name = name
+    function o:IsValid() return true end
+    function o:GetFullName() return 'Object ' .. self.name end
+    return o
+end
+local function vis(v) return {v = v, SetVisibility = function(self, x) self.v = x end,
+    GetVisibility = function(self) return self.v end} end
+local function game(r, opts)
+    opts = opts or {}
+    r.found[DATA] = uobj(DATA)
+    r.found[GRID] = uobj(GRID)
+    r.found[SLOT] = uobj(SLOT)
+    r.found[ICON] = uobj(ICON, {Blueprint_GetSizeX = function() return 256 end,
+        Blueprint_GetSizeY = function() return 256 end})
+    local tv = uobj('TileView_ItemList', {items = {}, SelectionMode = 0, cleared = 0})
+    function tv:SetVisibility(v) self.v = v end
+    function tv:SetSelectionMode(m) self.SelectionMode = m end
+    function tv:ClearListItems() self.items = {}; self.cleared = self.cleared + 1 end
+    function tv:AddItem(item) self.items[#self.items + 1] = item end
+    function tv:GetNumItems() return #self.items end
+    function tv:GetItemAt(i) return self.items[i + 1] end
+    function tv:GetIndexForItem(item)
+        for k, v in ipairs(self.items) do if v == item then return k - 1 end end
+        return -1
+    end
+    function tv:SetSelectedIndex(i) self.sel = self.items[i + 1] end
+    function tv:BP_GetSelectedItem() return self.sel end
+    function tv:GetDisplayedEntryWidgets()
+        local out = {}
+        for k, item in ipairs(self.items) do
+            out[k] = {Text_ItemName = {GetText = function() return item.ItemName end}}
+        end
+        return out
+    end
+    r.tv = tv
+    r.found[KSL] = uobj(KSL, {CollectGarbage = function()
+        r.gc = true
+        if opts.gc_loses then tv.items = {} end
+    end})
+    r.kit.widgets[GRID] = function()
+        return {TileView_ItemList = tv, ['Set Goods'] = function(self) self.goods = true end}
+    end
+    r.kit.widgets[SLOT] = function()
+        local s = {Image_Icon = {Brush = {}}, Text_ItemName = vis(4), Image_Focus = vis(1), badge_equip = vis(1)}
+        function s.Image_Icon:SetBrushFromTexture(t) self.Brush.ResourceObject = t end
+        function s.Text_ItemName:SetText(t) self.t = t end
+        function s.Text_ItemName:GetText() return self.t end
+        if not opts.no_spaced then
+            s['Set Focus'] = function(self) self.Image_Focus.v = 4; self.Text_ItemName.v = 1 end
+            s['Set Nomal'] = function(self) self.Image_Focus.v = 1; self.Text_ItemName.v = 1 end
+        end
+        function s:UpdateEquip(on) self.badge_equip.v = on and 4 or 1 end
+        function s:UpdateLock() end
+        r.slot = s
+        return s
+    end
+end
+-- Runs a test to its end: frames, then the clock past any watch window.
+local function play(r, n)
+    r.p.run(n)
+    for _ = 1, 40 do r.p.tick() end
+    r.now = r.now + 11
+    for _ = 1, 40 do r.p.tick() end
 end
 local function has(r, needle)
     for _, line in ipairs(r.log) do if line:find(needle, 1, true) then return true end end
@@ -182,6 +260,49 @@ local tests = {
         local r = rig({})
         local ok_, line = r.p.run('9')
         eq(ok_, false) eq(line, r.Probe.USE)
+    end,
+    test1_happy_path = function()
+        local r = rig()
+        game(r)
+        play(r, '1')
+        for _, check in ipairs({'classes', 'grid', 'items', 'tiles', 'select', 'gc', 'gc_survived', 'mouse'}) do
+            ok(has(r, 'probe: PASS 1 ' .. check), check)
+        end
+        ok(has(r, 'probe: END 1 8/8')) eq(r.tv.v, 0, 'TileView made visible') eq(r.tv.SelectionMode, 1)
+        ok(r.gc, 'a GC was asked for') ok(r.tv.cleared >= 2, 'cleanup emptied the list') ok(released(r))
+        eq(#r.made, 8)
+        for i, item in ipairs(r.made) do
+            eq(item.class, r.found[DATA]) eq(item.outer, r.tv) eq(item.Index, i - 1) eq(item.IconAssetPath, ICON)
+        end
+    end,
+    test1_items_lost_after_gc = function()
+        local r = rig()
+        game(r, {gc_loses = true})
+        play(r, '1')
+        ok(has(r, 'probe: FAIL 1 gc_survived')) ok(has(r, 'probe: END 1 6/8')) ok(released(r))
+    end,
+    test1_missing_class = function()
+        local r = rig()
+        game(r)
+        r.found[DATA] = nil
+        play(r, '1')
+        ok(has(r, 'probe: FAIL 1 classes')) ok(has(r, DATA))
+    end,
+    test2_happy_path = function()
+        local r = rig()
+        game(r)
+        play(r, '2')
+        for _, check in ipairs({'class', 'slot', 'icon', 'name', 'spaced_names', 'equip_lock'}) do
+            ok(has(r, 'probe: PASS 2 ' .. check), check)
+        end
+        ok(has(r, 'probe: END 2 6/6')) ok(has(r, '256x256'))
+        eq(r.slot.Text_ItemName.v, 4, 'name shown again after the state calls')
+    end,
+    test2_spaced_name_missing = function()
+        local r = rig()
+        game(r, {no_spaced = true})
+        play(r, '2')
+        ok(has(r, 'probe: FAIL 2 spaced_names')) ok(has(r, 'probe: END 2 4/6'))
     end,
     commands = function()
         local calls = {}

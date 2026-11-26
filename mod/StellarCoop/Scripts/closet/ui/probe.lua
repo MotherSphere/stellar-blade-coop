@@ -13,11 +13,169 @@
 -- Each end runs the test's cleanup, drops its parts, gives the kit's input back and logs "probe: END <n> <passed>/
 -- <total>". The parts go in the kit group closet_probe (screen-sized, added once a Lua load at the first run). Every
 -- step runs in pcall on the game thread (closet/wiring.lua runs tick each frame through main/frame.lua's guard).
+local U=require('core.unreal')
+local text,each=U.text,U.each
 local Probe={}
 Probe.TIMEOUT=30 -- Seconds a test may run unless it sets its own.
+Probe.WATCH=10 -- Seconds a check watches the mouse.
 Probe.USE='Use: coop closet probe <1-5|off>'
 Probe.GROUP='closet_probe'
 Probe.TESTS={}
+-- The game's parts and assets, read in the widget JSON and Ghidra (build 26123051) on 25 Nov 2026.
+-- The hair salon's tile data object (super /Script/SB.SBUITileViewBaseDataObject): ItemName Text, IconAssetPath Str
+-- (a full object path the slot loads), Purchased bool, ItemAlias Name, Equiped bool (the game's spelling), Index int
+-- (never -1: the slot fills itself only when Index differs from its own, -1 at first), RedDotState byte.
+local DATA='/Game/Art/UI/Data/HairSalon/BP_HairSalonItemData_Tile.BP_HairSalonItemData_Tile_C'
+-- The hair salon's grid list: child TileView_ItemList, a /Script/UMG.TileView of WB_HairSalon_GridSlot (198x262).
+local GRID='/Game/Art/UI/Widget/HairSalon/WB_HairSalonGridList.WB_HairSalonGridList_C'
+-- One grid slot: Image_Icon, Text_ItemName, Image_Focus, badge_equip; BP 'Set Focus', 'Set Nomal' (each collapses
+-- Text_ItemName), UpdateEquip(bool), UpdateLock(bool). FocusSelf, PlaySpawnAnim and ResetProgress read the list that
+-- owns the slot: never called on a slot alone.
+local SLOT='/Game/Art/UI/Widget/HairSalon/WB_HairSalon_GridSlot.WB_HairSalon_GridSlot_C'
+local SLOT_W,SLOT_H=198,262
+-- The grid slot's own default icon (256x256): the test icon.
+local ICON='/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_000.Deco_Item_Hair_000'
+-- KismetSystemLibrary's default object: CollectGarbage() asks for a GC that runs at a later engine tick.
+local KSL='/Script/Engine.Default__KismetSystemLibrary'
+-- ESlateVisibility.
+local VISIBLE,COLLAPSED,SELF_HIT_TEST_INVISIBLE=0,1,4
+local SINGLE=1 -- ESelectionMode Single (None is 0).
+local ITEMS=8
+
+local function live(o)
+    local ok,valid=pcall(function() return o:IsValid() end)
+    return ok and valid and o or nil
+end
+local function name_of(o) local ok,n=pcall(function() return text(o:GetFullName()) end); return ok and n or '?' end
+
+-- Test 1: the piece grid as the game fills it: data objects in the hair salon's TileView. Its steps 1-3 are also
+-- test 5's.
+local grid_steps={
+    {frames=0,name='classes',run=function(ctx)
+        local missing={}
+        for _,p in ipairs({DATA,GRID}) do if not ctx.find(p) then missing[#missing+1]=p end end
+        if #missing>0 then return false,'not found: '..table.concat(missing,' ') end
+        return true
+    end},
+    {frames=0,name='grid',run=function(ctx)
+        local w=ctx.make(GRID,200,300,1600,1100,nil,true)
+        local tv=live(w.TileView_ItemList)
+        if not tv then return false,'no TileView_ItemList' end
+        ctx.data.tv=tv
+        local ran,e=pcall(function() w['Set Goods'](w) end)
+        tv:SetVisibility(VISIBLE)
+        return true,'Set Goods '..(ran and 'ran' or ('refused: '..tostring(e)))
+    end},
+    {frames=0,name='items',run=function(ctx)
+        local tv=ctx.data.tv
+        local mode=tv.SelectionMode
+        if mode==0 then tv:SetSelectionMode(SINGLE) end
+        tv:ClearListItems()
+        local class=ctx.find(DATA)
+        for i=1,ITEMS do
+            local item=ctx.construct(class,tv)
+            if not item then return false,'StaticConstructObject gave nothing for item '..i end
+            item.ItemName=FText(tostring(i))
+            item.IconAssetPath=ICON
+            item.ItemAlias=FName('probe'..i)
+            item.Purchased=true
+            item.Equiped=(i==1)
+            item.RedDotState=0
+            item.Index=i-1
+            tv:AddItem(item)
+        end
+        local n=tv:GetNumItems()
+        return n==ITEMS,'items '..tostring(n)..', selection mode was '..tostring(mode)
+    end},
+}
+Probe.TESTS['1']={steps={grid_steps[1],grid_steps[2],grid_steps[3],
+    {frames=3,name='tiles',run=function(ctx)
+        local tv=ctx.data.tv
+        local names,shown,right={},0,0
+        for i=1,ITEMS do names[tostring(i)]=true end
+        each(tv:GetDisplayedEntryWidgets(),function(_,entry)
+            shown=shown+1
+            if names[text(entry.Text_ItemName:GetText())] then right=right+1 end
+        end)
+        tv:SetSelectedIndex(2)
+        return shown>0 and right==shown,shown..' tiles shown, '..right..' with an item name'
+    end},
+    {frames=1,name='select',run=function(ctx)
+        local tv=ctx.data.tv
+        local sel=tv:BP_GetSelectedItem()
+        local at=sel and tv:GetIndexForItem(sel)
+        return at==2 and name_of(sel)==name_of(tv:GetItemAt(2)),'selected index '..tostring(at)
+    end},
+    {frames=0,name='gc',run=function(ctx)
+        local ksl=ctx.find(KSL)
+        if not ksl then return false,KSL..' not found' end
+        ksl:CollectGarbage()
+        return true
+    end},
+    {frames=5,name='gc_survived',run=function(ctx)
+        local tv=ctx.data.tv
+        local n=tv:GetNumItems()
+        if n~=ITEMS then return false,'items '..tostring(n)..' after the GC' end
+        for i=0,ITEMS-1 do if not live(tv:GetItemAt(i)) then return false,'item '..i..' freed' end end
+        return true
+    end},
+    {frames=1,name='mouse',run=function(ctx)
+        local d=ctx.data
+        if not d.watch then
+            ctx.kit.input(true,Probe.GROUP,true)
+            d.watch=ctx.now()+Probe.WATCH
+            ctx.log('NOTE 1 mouse: click tiles for '..Probe.WATCH..' s')
+        end
+        local sel=d.tv:BP_GetSelectedItem()
+        local at=sel and d.tv:GetIndexForItem(sel)
+        if at~=d.last then d.last=at; ctx.log('NOTE 1 mouse: selected '..tostring(at)) end
+        if ctx.now()<d.watch then return 'wait' end
+        return true,'watched '..Probe.WATCH..' s'
+    end}},
+    cleanup=function(ctx) if ctx.data.tv and live(ctx.data.tv) then ctx.data.tv:ClearListItems() end end}
+
+-- Test 2: one grid slot alone, set by hand (the fallback when test 1 fails).
+Probe.TESTS['2']={steps={
+    {frames=0,name='class',run=function(ctx) return ctx.find(SLOT)~=nil,SLOT end},
+    {frames=0,name='slot',run=function(ctx) ctx.data.slot=ctx.make(SLOT,400,400,SLOT_W,SLOT_H); return true end},
+    {frames=1,name='icon',run=function(ctx)
+        local tex=ctx.find(ICON)
+        if not tex then return false,ICON..' not found' end
+        local slot=ctx.data.slot
+        slot.Image_Icon:SetBrushFromTexture(tex,false)
+        local size=tostring(tex:Blueprint_GetSizeX())..'x'..tostring(tex:Blueprint_GetSizeY())
+        local got=slot.Image_Icon.Brush.ResourceObject
+        return got~=nil and name_of(got)==name_of(tex),'texture '..size
+    end},
+    {frames=0,name='name',run=function(ctx)
+        local t=ctx.data.slot.Text_ItemName
+        t:SetText(FText('1'))
+        local got=text(t:GetText())
+        return got=='1','read '..tostring(got)
+    end},
+    {frames=0,name='spaced_names',run=function(ctx)
+        local slot=ctx.data.slot
+        local ran,e=pcall(function() slot['Set Focus'](slot) end)
+        if not ran then return false,"slot['Set Focus'](slot): "..tostring(e) end
+        local focus=slot.Image_Focus:GetVisibility()
+        slot.Text_ItemName:SetVisibility(SELF_HIT_TEST_INVISIBLE)
+        ran,e=pcall(function() slot['Set Nomal'](slot) end)
+        if not ran then return false,"slot['Set Nomal'](slot): "..tostring(e) end
+        local normal=slot.Image_Focus:GetVisibility()
+        slot.Text_ItemName:SetVisibility(SELF_HIT_TEST_INVISIBLE)
+        return focus==SELF_HIT_TEST_INVISIBLE and normal==COLLAPSED,
+            "slot['Set Focus'](slot) form; focus glow "..tostring(focus)..' then '..tostring(normal)
+    end},
+    {frames=0,name='equip_lock',run=function(ctx)
+        local slot=ctx.data.slot
+        slot:UpdateEquip(true)
+        slot:UpdateLock(true)
+        local on=slot.badge_equip:GetVisibility()
+        slot:UpdateEquip(false)
+        slot:UpdateLock(false)
+        local off=slot.badge_equip:GetVisibility()
+        return true,'equipped badge '..tostring(on)..' then '..tostring(off)
+    end}}}
 -- A game object by path: in memory, else after a synchronous LoadAsset (a class path loads its asset path without
 -- _C), as ui/kit/kit.lua's load does.
 local function default_find(path)
