@@ -6,9 +6,12 @@
 -- (the shape of Dress.plan's input). Edits never touch their input.
 local Model = {}
 
-local function sorted_fits(fits)
+-- custom: Custom fits only (the region tabs and the Body tab: Original suits are worn whole only, from Full outfit).
+local function sorted_fits(fits, custom)
     local ids = {}
-    for id in pairs(fits.BY_ID) do ids[#ids + 1] = id end
+    for id in pairs(fits.BY_ID) do
+        if not custom or fits.origin(id) == 'custom' then ids[#ids + 1] = id end
+    end
     table.sort(ids)
     return ids
 end
@@ -56,7 +59,7 @@ function Model.new(o)
         end
         for _, slot in ipairs(Slots.in_menu(tab)) do
             local has = false
-            for _, id in ipairs(sorted_fits(Fits)) do
+            for _, id in ipairs(sorted_fits(Fits, true)) do
                 if m.piece(id, slot) then has = true break end
             end
             local state = has and 'pieces' or (Slots.kind(slot) == 'mesh' and 'empty' or 'soon')
@@ -67,7 +70,7 @@ function Model.new(o)
 
     function m.tiles(slot)
         local out = {{none = true}}
-        for _, id in ipairs(sorted_fits(Fits)) do
+        for _, id in ipairs(sorted_fits(Fits, true)) do
             local piece = m.piece(id, slot)
             if piece then
                 local fit = Fits.get(id)

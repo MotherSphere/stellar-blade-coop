@@ -898,14 +898,14 @@ local tests = {
         eq(rows[1].o.Text_ItemValue.text, 'Ocean Maid', 'the Body row shows the picked body')
         title, desc = detail(r)
         ok(desc:find('Outfit: Ocean Maid', 1, true) and desc:find(custom, 1, true), 'the worn body: ' .. desc)
-        -- Shift Up's own suits are Original.
+        -- Shift Up's own suits are Original, worn whole only: their Full outfit row names it.
         eq(Fits.origin(MAID), 'custom', 'custom by default')
         Fits.BY_ID[MAID].Origin = 'original'
         local good, why = pcall(function()
             eq(Fits.origin(MAID), 'original')
-            at(r, 0.5, 'right')
+            at(r, 0.5, 'tab_right', 'tab_right')
             title, desc = detail(r)
-            eq(title, 'Ocean Maid', 'the worn tile')
+            eq(title, 'Ocean Maid', 'the Full outfit row')
             ok(desc:find(T.en.closet.origin.original, 1, true) and not desc:find('Custom', 1, true), desc)
         end)
         Fits.BY_ID[MAID].Origin = nil

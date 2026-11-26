@@ -152,6 +152,36 @@ local tests = {
         eq(m.worn(w, 'Chest'), nil) eq(m.worn(w, 'Collar'), CH27)
     end,
 
+    -- User decision: Original (game) suits are worn whole only, from Full outfit; the region tabs and the Body tab list
+    -- Custom pieces only.
+    original_suits_are_listed_in_full_outfit_only = function()
+        Fits.BY_ID.ZZ_ORIG = {Outfit = 'Original suit', Pack = 'Shift Up', Origin = 'original', Mesh = '/Game/O.O',
+            Skin = {[0] = {'HeadNeck'}}, Pieces = {{Slot = 'Chest', Name = 'Suit top', Materials = {1}},
+                {Slot = 'Necklace', Name = 'Suit necklace', Materials = {2}}}}
+        local good, why = pcall(function()
+            local m = new({adult = true})
+            local full = {}
+            for _, r in ipairs(m.rows('full')) do if r.whole then full[r.whole] = true end end
+            ok(full.ZZ_ORIG and full[CH27], 'Full outfit lists the Original suit with the Custom ones')
+            local n = 0
+            for _, tab in ipairs(m.tabs()) do
+                for _, r in ipairs(tab ~= 'full' and m.rows(tab) or {}) do
+                    for _, t in ipairs(m.tiles(r.slot)) do
+                        ok(t.fit ~= 'ZZ_ORIG', tab .. ' ' .. r.slot .. ': an Original tile')
+                        n = n + (t.fit and 1 or 0)
+                    end
+                end
+            end
+            ok(n > 0, 'Custom tiles listed')
+            eq(m.tiles('Chest')[2].fit, CH27, 'the Custom tops stay')
+            local state
+            for _, r in ipairs(m.rows('torso')) do if r.slot == 'Necklace' then state = r.state end end
+            eq(state, 'empty', 'a slot only the Original suit fills has no pieces')
+        end)
+        Fits.BY_ID.ZZ_ORIG = nil
+        ok(good, why)
+    end,
+
     choose_always_plans = function()
         local m = new()
         local starts = {m.whole(CH27), m.whole(CH46),
