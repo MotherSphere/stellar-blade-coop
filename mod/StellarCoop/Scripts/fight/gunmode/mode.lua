@@ -26,8 +26,12 @@ local Ammo=require('fight.gunmode.ammo')
 local Dpad=require('fight.gunmode.ui.dpad')
 local Overlay=require('fight.gunmode.overlay')
 local Morph=require('fight.gunmode.morph')
+local Keep=require('core.keep')
 
 local GunMode={}
+-- The aim camera's modifier class (BP_NGM_CamMod in the layer pak), kept for the game run with the other assets
+-- (GunMode.new, 17a166fa).
+local CAMMOD='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
 
 -- Zone event kind 2 is ZoneEvent_AttachActorEffect (ESBZoneEventType's names at 0x145e29b00 on 26123051). RunEvent
 -- (0x141ca5a10) hands it to 0x141c9e690, which applies the row's actor effect; no chain of direct calls from it reaches
@@ -127,6 +131,38 @@ function GunMode.new(env)
     end
     function g.try(fn) local ok,r=pcall(fn); if ok then return r end end
     function g.get(o,k) local ok,r=pcall(get_field,o,k); if ok then return r end end -- a property read without a closure
+    -- An object's path (its full name without its class), as core/actors.lua's path_of: StaticFindObject finds it by
+    -- that path while it lives. nil when it cannot be read.
+    function g.path(o)
+        local f=g.valid(o) and g.try(function() return o:GetFullName() end)
+        return type(f)=='string' and f:match('^%S+ (.+)$') or nil
+    end
+    -- An asset (/Game, /Engine) while it is in memory, else nil, with no walk of the object array: the keep's
+    -- (core/keep.lua: loaded off the frame and held for the game run), else the engine's name hash through the soft
+    -- path (core/unreal.lua's object_at). UE4SS's StaticFindObject walked the whole array for each asset not in memory
+    -- (25-35 ms): the first rifle out on a map froze the game 100 to 340 ms (17a166fa). Before the soft path is proven
+    -- (no pawn yet), or where it fails, StaticFindObject as before.
+    function g.loaded(path)
+        local ok_k,o=false,nil
+        if Keep.serves(path) then ok_k,o=pcall(Keep.get,path) end -- (a raise here must not stop the tick: b34ce23e)
+        if ok_k and g.valid(o) then return o end
+        local ok,x,known=pcall(U.object_at,path,g.pc())
+        if not (ok and known~=nil) then x=StaticFindObject(path) end
+        if g.valid(x) then return x end
+    end
+    -- An asset by its path, loaded when missing (b812f708). The reference is kept and checked against its path at each
+    -- use: nothing of the game may hold the asset, so the engine can collect it. Another object can then sit at the
+    -- freed address and pass IsValid. nil when it cannot be found or loaded. A miss is not looked for again for 5 s.
+    local assets,asset_missed={},{}
+    function g.asset(path)
+        local o=assets[path]
+        if o and g.path(o)==path then return o end
+        if (asset_missed[path] or -1)>os.clock() then return nil end
+        o=g.loaded(path)
+        if not g.valid(o) then o=g.try(function() return LoadAsset(path) end) end
+        if g.valid(o) then assets[path]=o; return o end
+        assets[path]=nil; asset_missed[path]=os.clock()+5.0
+    end
     -- The controller: FindFirstOf walks the whole object array, so once a second at most while there is none
     -- (468f7ab6). A new one comes through new_controller at once.
     local cached,pc_wait
@@ -156,6 +192,17 @@ function GunMode.new(env)
     -- M1 (11-18 rebuild): the post-process layer (fight/gunmode/overlay.lua, ABP in gunmode's pak) plays the NIKKE rifle clips
     -- on her arms over her own finished pose; nothing of her main animation, springs or outfit physics is touched.
     local layer=Overlay.new(g)
+    -- The assets of the rifle out, the arrival, the rounds and the reload, asked of the keep (g.loaded): none is looked
+    -- for or loaded on the frame of a press (17a166fa). The layer's rebuild bodies (Overlay.BASES) too: neither was in
+    -- memory at the first rifle out of the 2026-11-21 test, so one loaded on that frame (9cf80f75). Nothing with
+    -- gun_mode=off.
+    if set.on then
+        local want={Overlay.CLASS,Overlay.CLIPS.carry,Overlay.CLIPS.aim,Overlay.CLIPS.aimup,Overlay.CLIPS.aimdown,
+            CAMMOD,cfg.cube_mesh,cfg.muzzle_fx,cfg.morph_fx}
+        for _,e in ipairs(cfg.reload_sounds) do want[#want+1]=e[1] end
+        for _,b in ipairs(Overlay.BASES) do want[#want+1]=b end
+        Keep.want(want)
+    end
     local keys=Input.state()
     local self={}
     local s={hidden={},followed={},on=false,pause=0,next_shot=0,shots=0,zoom=0,zoom_held=false,target=nil,cam=nil,mask=nil,
@@ -164,9 +211,9 @@ function GunMode.new(env)
     -- The reload: the NIKKE squad's reload animation on the rifle stance, with its sounds at their times.
     local function sound(path)
         local ok,err=pcall(function()
-            local cue=LoadAsset(path)
+            local cue=g.asset(path) -- kept between reloads: a LoadAsset per sound walked the object array (b812f708)
             assert(cue,'no '..path)
-            StaticFindObject('/Script/Engine.Default__GameplayStatics'):PlaySound2D(g.pawn(),cue,1.0,1.0,0.0,nil,nil,false)
+            g.cdo('/Script/Engine.Default__GameplayStatics'):PlaySound2D(g.pawn(),cue,1.0,1.0,0.0,nil,nil,false)
         end)
         if not s.sound_logged then s.sound_logged=true; g.log('reload sound: '..(ok and 'played' or tostring(err))) end
     end
@@ -348,7 +395,7 @@ function GunMode.new(env)
         local src=g.try(function() return p.Mesh end)
         if not g.valid(src) then return end
         local body=g.try(function() return src.SkeletalMesh:GetFullName() end)
-        local cls,skel,static=StaticFindObject(MESH),StaticFindObject(SKEL),StaticFindObject(STATIC)
+        local cls,skel,static=g.cdo(MESH),g.cdo(SKEL),g.cdo(STATIC) -- (looked up once: 468f7ab6)
         if not g.valid(cls) then return end
         local list=g.try(function() return p:K2_GetComponentsByClass(cls) end)
         if not list then return end
@@ -556,10 +603,10 @@ function GunMode.new(env)
     local function cube_make(p)
         if g.valid(s.cube) then return s.cube end
         local ok,c=pcall(function()
-            local mesh=StaticFindObject(cfg.cube_mesh) or (pcall(LoadAsset,cfg.cube_mesh) and StaticFindObject(cfg.cube_mesh))
+            local mesh=g.asset(cfg.cube_mesh) -- (kept between morphs: b812f708)
             assert(g.valid(mesh),'no '..cfg.cube_mesh)
             local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
-            local c=p:AddComponentByClass(StaticFindObject('/Script/Engine.StaticMeshComponent'),true,id,true)
+            local c=p:AddComponentByClass(g.cdo('/Script/Engine.StaticMeshComponent'),true,id,true)
             assert(g.valid(c),'cube component')
             c:SetCollisionEnabled(0)
             p:FinishAddComponent(c,true,id)
@@ -782,7 +829,7 @@ function GunMode.new(env)
         s.resume,s.free_at=false,nil -- (a press wins over the comeback after an interaction)
         -- Parked while it is rebuilt: the toggle says so on screen and nothing else of gun mode runs (no rows taken,
         -- no rifle, no posed copy).
-        if cfg.enabled==false and not Overlay.available() then
+        if cfg.enabled==false and not Overlay.available(g.loaded) then
             if s.on then disable(why) end
             g.log('toggle ('..why..'): gun mode is being rebuilt, off')
             if not s.notice_off then
@@ -1017,7 +1064,7 @@ function GunMode.new(env)
             if ok_a and ammo.left<before and g.valid(s.rifle) and now-(s.flash_at or 0)>=cfg.muzzle_every then pcall(function()
                 s.flash_at=now
                 s.flash_lib=s.flash_lib or StaticFindObject('/Script/Niagara.Default__NiagaraFunctionLibrary')
-                s.flash_fx=s.flash_fx or LoadAsset(cfg.muzzle_fx)
+                s.flash_fx=g.asset(cfg.muzzle_fx) -- kept by the keep, checked by its path at each flash (b812f708)
                 if g.valid(s.flash_lib) and s.flash_fx then
                     local fx=s.flash_lib:SpawnSystemAttached(s.flash_fx,s.rifle,FName('FX_Fire'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,true,0,false)
                     if g.valid(fx) then local k=cfg.muzzle_scale; fx:SetRelativeScale3D({X=k,Y=k,Z=k}) end
@@ -1080,7 +1127,7 @@ function GunMode.new(env)
                     s.morph.flashed=true
                     pcall(function()
                         s.flash_lib=s.flash_lib or StaticFindObject('/Script/Niagara.Default__NiagaraFunctionLibrary')
-                        local fx=StaticFindObject(cfg.morph_fx); if not g.valid(fx) then pcall(LoadAsset,cfg.morph_fx); fx=StaticFindObject(cfg.morph_fx) end
+                        local fx=g.asset(cfg.morph_fx) -- (kept between morphs: b812f708)
                         if g.valid(fx) and g.valid(s.rifle) then s.flash_lib:SpawnSystemAttached(fx,s.rifle,FName('None'),{X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},2,true,true,0,false) end
                     end)
                 end
@@ -1195,10 +1242,10 @@ function GunMode.new(env)
             pcall(function()
                 if not s.cmod and not s.cmod_fail then
                     local cm=pc.PlayerCameraManager
-                    local path='/Game/Mods/NGM/BP_NGM_CamMod.BP_NGM_CamMod_C'
-                    local cls=StaticFindObject(path)
+                    local cls=g.loaded(CAMMOD) -- (the keep's, else the name hash: 17a166fa)
                     if not g.valid(cls) then
-                        cls=StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
+                        local reg=g.cdo('/Script/AssetRegistry.Default__AssetRegistryHelpers')
+                        cls=reg:GetAsset({ObjectPath=FName(CAMMOD)})
                     end
                     if g.valid(cls) then s.cmod=cm:AddNewCameraModifier(cls); s.cmod_k=0 end
                     if not g.valid(s.cmod) then s.cmod=nil; s.cmod_fail=true; g.log('camera: modifier not available') else g.log('camera: modifier added') end
