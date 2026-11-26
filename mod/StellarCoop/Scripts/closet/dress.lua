@@ -333,7 +333,7 @@ function Dress.new(o)
             c=valid(c)
             local mesh=c and valid(c.SkeletalMesh)
             local ok,addr=pcall(U.address,c)
-            if c and mesh and ok and (at==nil or addr~=at) and wanted[path_of(mesh)] then
+            if c and mesh and ok and addr~=at and wanted[path_of(mesh)] then
                 pcall(function() c:K2_DestroyComponent(c) end)
                 removed=removed+1
             end
@@ -678,8 +678,9 @@ function Dress.new(o)
             local plan,choices,kept=state.plan,state.choices,state.kept
             -- A look put on from outside is hers from now on; a closet mesh still on her body is the closet's own.
             if path and not closet_mesh(path) then state.own,state.materials=path,current_materials(body) end
-            -- Something outside undoes every mix: the look's outfit it keeps putting on her body is worn as the body (no
-            -- switch, the menu warns of the clipping); any other body stops the mix until the next wear or preview.
+            -- Something outside undoes every mix: the look's outfit it keeps putting on her body is worn as the body
+            -- unless a body is picked (no switch, the menu warns of the clipping). Otherwise the mix stops until the next
+            -- wear or preview.
             fights[#fights+1]=now
             while now-fights[1]>Dress.FIGHT.within do table.remove(fights,1) end
             if #fights>=Dress.FIGHT.mixes then
