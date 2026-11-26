@@ -298,7 +298,7 @@ function Menu.new(o)
     -- revert close when not; on the popup, its Back).
     function self.toggle()
         if not open then return self.open() end
-        if col=='grid' then col='rows' end
+        if col=='grid' then col,due='rows',nil end -- As the grid's Back: a tile preview due is dropped.
         return self.nav('back')
     end
     -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, or click (a

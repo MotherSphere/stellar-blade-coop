@@ -598,6 +598,18 @@ local tests = {
         r.menu.toggle()
         eq(popups(r), 0, 'toggle on the popup is its Back')
         ok(r.menu.is_open(), 'open after the popup Back')
+        -- A tile preview due when toggle leaves the grid: dropped, as the grid's Back drops it.
+        r = rig()
+        r.menu.toggle()
+        at(r, 0.05, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down', 'right', 'right')
+        tick(r, 1)
+        at(r, 1.1, 'right')
+        r.t = 1.2
+        r.menu.toggle()
+        eq(popups(r), 1, 'toggle with a tile due asks')
+        r.menu.toggle()
+        tick(r, 2)
+        eq(#r.previews, 1, 'the tile left by toggle is not worn after the popup Back')
         -- No preview: toggle closes with a revert, no popup.
         r = rig()
         r.menu.toggle()
