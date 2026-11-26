@@ -120,12 +120,46 @@ local function game(r, opts)
         return s
     end
 end
+-- The game's side for tests 3 and 4: the tab button and the NanoSuit detail panel.
+local TAB = '/Game/Art/UI/Widget/GameMenu/Common/WB_Common_Tab_Btn.WB_Common_Tab_Btn_C'
+local DETAIL = '/Game/Art/UI/Widget/GameMenu/WorkShop/WB_NanoSuit_Detail.WB_NanoSuit_Detail_C'
+local function panels(r, opts)
+    opts = opts or {}
+    r.found[TAB] = uobj(TAB)
+    r.found[DETAIL] = uobj(DETAIL)
+    r.tabs = {}
+    r.kit.widgets[TAB] = function()
+        local t = {TextBlock = {GetText = function(self) return self.t end}, bFocused = false,
+            Button_Action = {IsHovered = function() return false end}}
+        function t:RefreshDesign() if not opts.no_label then self.TextBlock.t = self.TextValue end end
+        function t:FocusTabButton() self.bFocused = true end
+        function t:DefocusTabButton() self.bFocused = false end
+        r.tabs[#r.tabs + 1] = t
+        return t
+    end
+    r.kit.widgets[DETAIL] = function()
+        local d = {Text_Name = {GetText = function(self) return self.t end}, Badge_Equip = vis(1),
+            VerticalBox_Material = vis(0), WB_Common_HoldButton = {s = 0}}
+        function d.WB_Common_HoldButton:GetCurrnetState() return self.s end
+        function d:EventNotification(e)
+            if e ~= 'Refresh' then return end
+            self.Text_Name.t = self.TitleText
+            self.Badge_Equip.v = self.bEquip and 4 or 1
+            self.WB_Common_HoldButton.s = opts.hold or ({3, 5, 5})[self.CraftState + 1]
+            self.VerticalBox_Material.v = ({0, 0, 2})[self.CraftState + 1]
+        end
+        r.detail = d
+        return d
+    end
+end
 -- Runs a test to its end: frames, then the clock past any watch window.
 local function play(r, n)
     r.p.run(n)
-    for _ = 1, 40 do r.p.tick() end
-    r.now = r.now + 11
-    for _ = 1, 40 do r.p.tick() end
+    for _ = 1, 2 do
+        for _ = 1, 150 do r.p.tick() end
+        r.now = r.now + 11
+    end
+    for _ = 1, 50 do r.p.tick() end
 end
 local function has(r, needle)
     for _, line in ipairs(r.log) do if line:find(needle, 1, true) then return true end end
@@ -303,6 +337,34 @@ local tests = {
         game(r, {no_spaced = true})
         play(r, '2')
         ok(has(r, 'probe: FAIL 2 spaced_names')) ok(has(r, 'probe: END 2 4/6'))
+    end,
+    test3_happy_path = function()
+        local r = rig()
+        panels(r)
+        play(r, '3')
+        ok(has(r, 'probe: PASS 3 tabs')) ok(has(r, 'probe: PASS 3 focus9')) ok(has(r, 'probe: PASS 3 hover'))
+        ok(has(r, 'probe: END 3 12/12')) eq(#r.tabs, 9) eq(r.tabs[9].TextBlock.t.text, '9')
+        eq(r.kit.made[1].hit, true, 'tabs take the mouse')
+    end,
+    test3_label_not_set = function()
+        local r = rig()
+        panels(r, {no_label = true})
+        play(r, '3')
+        ok(has(r, 'probe: FAIL 3 tabs')) ok(has(r, 'probe: END 3 1/12'))
+    end,
+    test4_reads_expected_states = function()
+        local r = rig()
+        panels(r)
+        play(r, '4')
+        for _, check in ipairs({'class', 'detail', 'fill', 'craft0', 'craft0_read', 'craft1_read', 'craft2_read',
+            'other_event'}) do ok(has(r, 'probe: PASS 4 ' .. check), check) end
+        ok(has(r, 'probe: END 4 10/10')) eq(r.detail.ItemRarity, 3) eq(r.detail.MaterialText2.text, '')
+    end,
+    test4_mismatch_reports_values = function()
+        local r = rig()
+        panels(r, {hold = 1})
+        play(r, '4')
+        ok(has(r, 'probe: FAIL 4 craft0_read:')) ok(has(r, 'hold 1 materials 0'))
     end,
     commands = function()
         local calls = {}

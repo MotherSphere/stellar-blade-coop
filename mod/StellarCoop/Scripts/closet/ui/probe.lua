@@ -176,6 +176,108 @@ Probe.TESTS['2']={steps={
         local off=slot.badge_equip:GetVisibility()
         return true,'equipped badge '..tostring(on)..' then '..tostring(off)
     end}}}
+
+-- The pause menu's tab button (super /Script/SB.SBCommonTabButtonWidget): TextValue Text, then the native
+-- RefreshDesign() puts it in TextBlock; FocusTabButton() and DefocusTabButton() set bFocused; Button_Action takes the
+-- mouse. SetDotState and SetDotData are BlueprintEvents a caller cannot call.
+local TAB='/Game/Art/UI/Widget/GameMenu/Common/WB_Common_Tab_Btn.WB_Common_Tab_Btn_C'
+local TABS=9
+-- The workshop's NanoSuit detail panel: TitleText, DescriptionText, MaterialText1..5 (Text), ItemRarity
+-- (ESBItemRarityType), bEquip, CraftState (ESBUINanoSuitCraftState Enable 0, Disable 1, Complete 2); only
+-- EventNotification('Refresh') acts. Children Text_Name, Badge_Equip, WB_Common_HoldButton (GetCurrnetState, the
+-- game's spelling: ESBUIHoldButtonStateType), VerticalBox_Material.
+local DETAIL='/Game/Art/UI/Widget/GameMenu/WorkShop/WB_NanoSuit_Detail.WB_NanoSuit_Detail_C'
+local RARE=3 -- ESBItemRarityType Rare.
+-- What the widget JSON says Refresh shows per CraftState: the hold button's state (Ready 3, Lock 5) and the material
+-- list's visibility. A mismatch is a finding about the panel, logged with the values read.
+local CRAFT_HOLD,CRAFT_MATERIALS={[0]=3,5,5},{[0]=VISIBLE,VISIBLE,2}
+
+-- Test 3: a row of the game's tab buttons, labelled, the focus walked along them, the mouse watched.
+local tab_steps={
+    {frames=0,name='class',run=function(ctx) return ctx.find(TAB)~=nil,TAB end},
+    {frames=0,name='tabs',run=function(ctx)
+        ctx.data.tabs={}
+        local wrong={}
+        for i=1,TABS do
+            local tab=ctx.make(TAB,200+(i-1)*360,120,nil,nil,nil,true)
+            tab.TextValue=FText(tostring(i))
+            tab:RefreshDesign()
+            ctx.data.tabs[i]=tab
+            local got=tab.TextBlock and tab.TextBlock:GetText()
+            if not got or text(got)~=tostring(i) then wrong[#wrong+1]=i..'='..tostring(got and text(got)) end
+        end
+        return #wrong==0,#wrong==0 and (TABS..' labels set') or ('labels: '..table.concat(wrong,' '))
+    end},
+}
+for k=1,TABS do
+    tab_steps[#tab_steps+1]={frames=10,name='focus'..k,run=function(ctx)
+        local tabs=ctx.data.tabs
+        for i,tab in ipairs(tabs) do
+            if i==k then tab:FocusTabButton() else tab:DefocusTabButton() end
+        end
+        local focused={}
+        for i,tab in ipairs(tabs) do if tab.bFocused then focused[#focused+1]=i end end
+        return #focused==1 and focused[1]==k,'focused '..table.concat(focused,',')
+    end}
+end
+tab_steps[#tab_steps+1]={frames=1,name='hover',run=function(ctx)
+    local d=ctx.data
+    if not d.watch then
+        ctx.kit.input(true,Probe.GROUP,true)
+        d.watch=ctx.now()+Probe.WATCH
+        ctx.log('NOTE 3 hover: move the mouse over the tabs for '..Probe.WATCH..' s')
+    end
+    local over
+    for i,tab in ipairs(d.tabs) do
+        local ok,hovered=pcall(function() return tab.Button_Action:IsHovered() end)
+        if ok and hovered then over=i end
+    end
+    if over~=d.over then d.over=over; ctx.log('NOTE 3 hover: '..tostring(over)) end
+    if ctx.now()<d.watch then return 'wait' end
+    return true,'watched '..Probe.WATCH..' s'
+end}
+Probe.TESTS['3']={steps=tab_steps}
+
+-- Test 4: the detail panel in its three craft states.
+local detail_steps={
+    {frames=0,name='class',run=function(ctx) return ctx.find(DETAIL)~=nil,DETAIL end},
+    {frames=0,name='detail',run=function(ctx) ctx.data.detail=ctx.make(DETAIL,2200,300); return true end},
+    {frames=0,name='fill',run=function(ctx)
+        local d=ctx.data.detail
+        d.TitleText=FText('1')
+        d.DescriptionText=FText('2')
+        d.ItemRarity=RARE
+        d.bEquip=true
+        d.MaterialText1=FText('3')
+        for i=2,5 do d['MaterialText'..i]=FText('') end
+        return true
+    end},
+}
+for c=0,2 do
+    detail_steps[#detail_steps+1]={frames=0,name='craft'..c,run=function(ctx)
+        ctx.data.detail.CraftState=c
+        ctx.data.detail:EventNotification('Refresh')
+        return true
+    end}
+    detail_steps[#detail_steps+1]={frames=2,name='craft'..c..'_read',run=function(ctx)
+        local d=ctx.data.detail
+        local title=text(d.Text_Name:GetText())
+        local badge=d.Badge_Equip:GetVisibility()
+        local hold=d.WB_Common_HoldButton:GetCurrnetState()
+        local materials=d.VerticalBox_Material:GetVisibility()
+        local read=string.format('name %s badge %s hold %s materials %s',tostring(title),tostring(badge),
+            tostring(hold),tostring(materials))
+        return title=='1' and badge==SELF_HIT_TEST_INVISIBLE and hold==CRAFT_HOLD[c] and materials==CRAFT_MATERIALS[c],
+            read
+    end}
+end
+detail_steps[#detail_steps+1]={frames=0,name='other_event',run=function(ctx)
+    local d=ctx.data.detail
+    d:EventNotification('Other')
+    local title=text(d.Text_Name:GetText())
+    return title=='1','name '..tostring(title)
+end}
+Probe.TESTS['4']={steps=detail_steps}
 -- A game object by path: in memory, else after a synchronous LoadAsset (a class path loads its asset path without
 -- _C), as ui/kit/kit.lua's load does.
 local function default_find(path)
