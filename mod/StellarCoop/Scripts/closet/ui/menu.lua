@@ -10,7 +10,8 @@
 -- that closed it (Esc would open the pause menu) never reaches the game. It is asked again each tick while closed until
 -- the kit has given it (no player controller at the close); an open before then takes it on. close('revert') wears the
 -- confirmed look again (dress.revert), close('keep') leaves the look as it is, close('stop') (coop off) does neither,
--- plays no sound and gives the input back at once. A draw that raises closes the menu with a revert and one log line.
+-- plays no sound and gives the input back at once. A revert that fails at the close (no EVE during a map change) is
+-- asked again each GUARD s while closed until it works; an open or coop off drops it. A draw that raises closes the menu with a revert and one log line.
 -- Focus: the tabs, the rows or the grid (col). E and Q change the tab. Up and down walk the rows; up on the first row
 -- reaches the tabs. Right or select on a row of pieces goes into its grid; left and right walk its tiles; left on the
 -- first tile or back returns to the rows. A tile focused for PREVIEW s is worn as a preview (dress.preview); select
@@ -54,8 +55,9 @@ function Menu.new(o)
     -- since the open; due: when the focused tile is worn (nil: none waits); opened, guard_at, combat_at: times in s;
     -- bare: the menu opened on her own look (nothing worn, no preview going).
     local col,tile,asking,changed,due,opened,guard_at,combat_at,bare='rows',1,false,false,nil,0,0,0,false
-    -- back_at: when the input is given back after a close; owed: the kit still holds it for us since a close.
-    local back_at,owed=nil,false
+    -- back_at: when the input is given back after a close; owed: the kit still holds it for us since a close;
+    -- unreverted: a close's revert failed (no EVE during a map change), asked again each GUARD s while closed.
+    local back_at,owed,unreverted=nil,false,false
     local function words() return o.words and o.words() or T.en end
 
     local function cutscene(eve)
@@ -193,7 +195,13 @@ function Menu.new(o)
         if how=='stop' then kit.input(false,View.GROUP); back_at,owed=nil,false
         else back_at,owed=now()+Menu.BACK,true end
         if how~='stop' then kit.sound('close') end
-        if how=='revert' then dress.revert() end
+        -- The dress tick re-mixes the preview on the new EVE, not the confirmed look: the revert is owed until it works.
+        if how=='revert' then
+            local ran,good,why=pcall(dress.revert)
+            unreverted=not (ran and good)
+            if unreverted then log('menu: revert failed, asked again: '..tostring(ran and why or good)) end
+        else unreverted=false end
+        guard_at=now()+Menu.GUARD
         log('menu: closed ('..how..')')
         return true,'closet menu: closed'
     end
@@ -223,7 +231,7 @@ function Menu.new(o)
         if not tab then tab,row=first() end
         col,tile,asking,changed,due='rows',1,false,false,nil
         bare=not dress.previewing() and #(dress.choices() or {})==0
-        back_at,owed=nil,false
+        back_at,owed,unreverted=nil,false,false -- An owed revert: Back or No on this open reverts.
         opened=now()
         guard_at,combat_at=opened+Menu.GUARD,opened+Menu.COMBAT
         kit.input(true,View.GROUP,true)
@@ -335,6 +343,12 @@ function Menu.new(o)
             -- shortcut: kit.holding() does not say for whom, so a panel that took the input meanwhile keeps owed set
             -- (open then skips the panel guard); read the holder once the kit says it.
             if owed and t>=back_at then kit.input(false,View.GROUP); owed=kit.holding() end
+            if unreverted and t>=guard_at then
+                guard_at=t+Menu.GUARD
+                local ran,good=pcall(function() return not dress.previewing() or dress.revert() end)
+                unreverted=not (ran and good)
+                if not unreverted then log('menu: the owed revert is done') end
+            end
             return
         end
         if t>=guard_at then
@@ -365,7 +379,7 @@ function Menu.new(o)
     -- coop off: closed without a revert (the dress gives EVE her own look back), the input given back at once.
     function self.stop()
         self.close('stop')
-        back_at,owed=nil,false -- kit.stop gives the input back.
+        back_at,owed,unreverted=nil,false,false -- kit.stop gives the input back; coop off ends the look.
     end
     return self
 end

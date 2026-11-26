@@ -691,6 +691,50 @@ local tests = {
         package.loaded.UEHelpers.GetPlayer = function() return nil end
     end,
 
+    a_revert_the_dress_refuses_is_asked_again_while_closed = function()
+        -- A map change closes the menu: no EVE, so the revert fails and the preview stays on (closet/dress.lua's
+        -- revert). Each GUARD s while closed the menu asks again until the confirmed look is back.
+        local r = rig()
+        local fails = 3
+        r.dress.revert = function()
+            r.reverted = r.reverted + 1
+            if fails > 0 then fails = fails - 1; return false, 'no EVE' end
+            r.previewing = false; return true, 'closet: reverted'
+        end
+        on_top(r)
+        at(r, 0.5, 'right', 'right', 'select')
+        ok(r.previewing, 'previewing')
+        r.world = false
+        tick(r, 0.75)
+        eq(r.menu.is_open(), false, 'closed by the map change')
+        eq(r.reverted, 1, 'reverted once at the close')
+        tick(r, 0.8)
+        eq(r.reverted, 1, 'not again before GUARD s')
+        tick(r, 1.0)
+        eq(r.reverted, 2, 'asked again')
+        tick(r, 1.25)
+        eq(r.reverted, 3, 'asked again')
+        tick(r, 1.5)
+        eq(r.reverted, 4, 'the confirmed look is back')
+        eq(r.previewing, false, 'preview over')
+        tick(r, 1.75) tick(r, 2)
+        eq(r.reverted, 4, 'no more asks once it worked')
+        -- coop off and an open drop the owed revert: off ends the look, the open shows the preview again.
+        for _, how in ipairs({'stop', 'open'}) do
+            r = rig()
+            r.dress.revert = function() r.reverted = r.reverted + 1; return false, 'no EVE' end
+            on_top(r)
+            at(r, 0.5, 'right', 'right', 'select')
+            r.world = false
+            tick(r, 0.75)
+            r.world = true
+            if how == 'stop' then r.menu.stop() else r.t = 0.8; ok(r.menu.open(), 'reopened') end
+            tick(r, 1.0)
+            if how == 'open' then ok(r.menu.is_open(), 'open') end
+            eq(r.reverted, 1, how .. ': no revert asked after it')
+        end
+    end,
+
     a_typed_wear_closes_the_menu_without_revert = function()
         local r = rig()
         on_top(r)

@@ -95,7 +95,8 @@ Back with nothing changed since the open closes the menu and gives back the look
 "Keep this look?" with the game's Yes/No popup. Yes keeps the look: it is saved and survives a reload. No gives back
 the look worn before and closes. Back on the popup stays in the menu. With the keyboard and the pad, Select is Yes and
 F (the pad's Y) is No. `coop closet menu` typed while it is open closes it with the look worn before. A map change,
-photo mode, a cutscene, combat or `coop ui reset` closes it without saving. A `coop closet wear` or `coop closet off`
+photo mode, a cutscene, combat or `coop ui reset` closes it without saving. When EVE cannot wear the look from before
+at that moment (no EVE during the map change), the closet tries again every 250 ms until she wears it. A `coop closet wear` or `coop closet off`
 typed during a preview closes it and keeps the typed look.
 
 Every close removes every game part first: the game holds EVE still while one of its widgets is up. The game gets its
