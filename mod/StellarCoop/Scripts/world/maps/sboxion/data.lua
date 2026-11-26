@@ -29,8 +29,8 @@ D.ARRIVALS={
 -- 1636.5444), yaw -55.00003, scale (34.75, 15.0, 34.09681). It lies about 18 m from the gate point.
 -- The test walk's waypoints. tie: Xion_Camp_10_02_SV, inside two env volumes of the same priority. kaya:
 -- TeleportPoint_FrontOfKaya. camp7: Xion_Camp_10_07_SV. Both lie outside every visibility volume of the two probe
--- levels. tree: E04_Amb_ChristmasTreeBP_2 of E04_Sound, the place of the two Christmas sound actors. D011 to D039:
--- the doors of the eleven rooms (rooms/list.lua), each the centre of its doorway as the room's layout gives it. SB's
+-- levels. tree: E04_Amb_ChristmasTreeBP_2 of E04_Sound, the place of the two Christmas sound actors. D011 to D029:
+-- the doors of the fifteen rooms (rooms/list.lua), each the centre of its doorway as the room's layout gives it. SB's
 -- nearest door piece there has its pivot 0 to 78 cm from it (the level dumps of build 26123051).
 D.WAYPOINTS={
     {name='tie',X=-9576.632,Y=7993.2314,Z=235.47108},
@@ -48,6 +48,10 @@ D.WAYPOINTS={
     {name='D036',X=-5705.1,Y=7746.7,Z=592.4},
     {name='D106',X=7872.4,Y=2974.4,Z=1498.4},
     {name='D039',X=-4743.0,Y=-8.1,Z=461.2},
+    {name='D087',X=-2313.0,Y=-1273.4,Z=456.8},
+    {name='D111',X=10639.6,Y=889.7,Z=1461.9},
+    {name='D109',X=9249.9,Y=1493.5,Z=1353.5},
+    {name='D029',X=-6118.2,Y=4972.3,Z=212.0},
 }
 D.NEAR,D.STAY=300,5 -- A waypoint is logged once EVE has stood within NEAR cm of it (flat distance) for STAY s.
 -- The day table: bActiveVolume of 41 SBEnvControlVolume actors of the level E04_ENV_VOL, as SB's sequence
@@ -80,7 +84,9 @@ D.PROBES={'E04_DistantView_A_01','E04_DistantView_A_03'}
 -- 'dynamic' levels of the full test pak's set file (full-sets.json, private to the map tools). Its
 -- build read the same 34 slots back from the pak. The two probes are among them. The paks of 2026-11-23 and of the
 -- rooms list only those two of them. Every other listed level is always loaded: 93 with the first pak, 98 with the
--- rooms pak, 127 with the full test pak, 133 with the full test pak of build3 (167 listed, six more rooms).
+-- rooms pak, 127 with the full test pak, 133 with the full test pak of build3 (167 listed, six more rooms), 141 with
+-- its fourth build (175 listed) and 137 with its fifth (171 listed, the four levels of D087, D111, D109 and D029 in
+-- place of the fourth build's eight).
 D.VOLUMED={
     'E04_Area01_A_LD','E04_Area01_A_LD_UnLoad','E04_Area02_A_LD','E04_Area02_A_LD_UnLoad','E04_Area03_A_LD',
     'E04_Area03_A_LD_UnLoad','E04_Area04_A_LD','E04_Area04_A_LD_UnLoad','E04_Area04_B_LD','E04_Area04_B_LD_UnLoad',

@@ -20,7 +20,10 @@
 -- their part of the status, coop xion rooms refused out of SBO Xion, alone, off and on, every row put back at coop off,
 -- none called once a map change took the world, the hidden rows kept in the rooms' own store; with two of them in the
 -- pak those two open, the pak asked once a room a Lua load. At a map change and at coop off the recovery ends before
--- the rooms close. No room is entered under a black screen: no line and no status part of any other way in.
+-- the rooms close. No room is entered under a black screen: no line and no status part of any other way in. The
+-- fourth full test build (175 levels) holds D111, D109 and D029 with closed rooms in them and five more closed rooms:
+-- the eleven rooms of the third build open and no line names the eight closed ones. The fifth (171 levels, 137 always
+-- loaded) opens all fifteen, each door a waypoint.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -75,7 +78,7 @@ local PAKS='C:\\G\\SB\\Content\\Paks'
 local files={}
 local ROOMS={'Rooms','Xion_Rooms_D011.umap','Xion_Rooms_D031.umap','Xion_Rooms_D081.umap','Xion_Rooms_D107.umap',
     'Xion_Rooms_D158.umap'}
-local ROOMS3={'Rooms'} -- The pak of build3: every room of the list, D039 too.
+local ROOMS3={'Rooms'} -- The pak of build3: the first eleven rooms of the list, D039 among them.
 for _,room in ipairs({'D011','D031','D081','D107','D158','D009','D039','D049','D092','D036','D106'}) do
     ROOMS3[#ROOMS3+1]='Xion_Rooms_'..room..'.umap'
 end
@@ -523,7 +526,7 @@ warp_line='sboxionwarp=entered asks=7 life=1'
 me=at(D.ARRIVALS.city)
 pass(x,0.25)
 assert(not logged('none in this pak') and times('sboxion: rooms: D')==5 and pieces_asked==23 and hidden_rows()==23)
-assert(times('sboxion: rooms: this pak holds 5 of 11 rooms: D011, D031, D081, D107, D158')==1)
+assert(times('sboxion: rooms: this pak holds 5 of 15 rooms: D011, D031, D081, D107, D158')==1)
 assert(logged('sboxion: rooms: D011 open: 4 rows hidden, 0 ms') and logged('sboxion: rooms: D158 open: 8 rows hidden'))
 assert(select(2,rooms_kept:gsub('\t',''))==22,'The hidden rows go to the rooms\' own store')
 assert(select(2,x.status()):find('; recovery on, [^;]+; rooms 5 of 5 open'..NPCS..'[^;]+$'),select(2,x.status()))
@@ -583,7 +586,7 @@ rows_hidden,her_at,her_mode,pieces_asked,opens={},nil,1,0,0
 warp_line='sboxionwarp=entered asks=8 life=1'
 me=at(D.ARRIVALS.city)
 pass(x,0.25)
-assert(logged('sboxion: rooms: this pak holds 2 of 11 rooms: D011, D158') and pieces_asked==12 and hidden_rows()==12
+assert(logged('sboxion: rooms: this pak holds 2 of 15 rooms: D011, D158') and pieces_asked==12 and hidden_rows()==12
     and times('sboxion: rooms: D')==2 and not logged('waits'),logs[#logs])
 assert(select(2,x.status()):find('; rooms 2 of 2 open'..NPCS..'[^;]+$'),
     select(2,x.status()))
@@ -592,7 +595,7 @@ me,world_gone={at={X=0,Y=0,Z=0},map=SB_XION},true
 pass(x,0.25)
 me,world_gone,rows_hidden=at(D.ARRIVALS.city),false,{}
 pass(x,0.25)
-assert(opens==opened and hidden_rows()==12 and times('this pak holds 2 of 11')==2,
+assert(opens==opened and hidden_rows()==12 and times('this pak holds 2 of 15')==2,
     'The pak is asked once a room a Lua load')
 x.stop()
 pak('rooms')
@@ -633,7 +636,7 @@ local CROWD='sboxion: characters: 156 by class: N_CitizenMaleA_C 100, N_XionGuar
     ..'(N_CitizenMaleA_C) 3.0 m, NPC_4 (N_CitizenMaleA_C) 4.0 m, NPC_5 (N_CitizenMaleA_C) 5.0 m'
 assert(times(CROWD)==1 and not logged('NPC_6'),'Counted by class, the five nearest named')
 assert(hidden_rows()==42 and select(2,x.status()):find('; rooms 11 of 11 open'..NPCS..'[^;]+$'),select(2,x.status()))
-assert(logged('sboxion: rooms: this pak holds 11 of 11 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, '
+assert(logged('sboxion: rooms: this pak holds 11 of 15 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, '
     ..'D106, D039') and times('sboxion: rooms: D')==11 and logged('sboxion: rooms: D039 open: 1 rows hidden'),
     'Every room the pak holds opens')
 -- eyes_arrival: the zone and area of the engine line and EVE's life state, once each.
@@ -728,6 +731,61 @@ assert(#puts==2 and #ships==2 and ships[2]==true,'In again')
 x.stop()
 assert(#ships==3 and ships[3]==false and logged('sboxion: tetrapod: ship as SB ships it again: 124 parts'),logs[#logs])
 her_at=nil
+
+-- paks_4_and_5: the room levels each build lists, the sublevels of the list's rows, SB's other levels up to the
+-- build's count, then the 34 levels streamed by volume.
+local ELEVEN={'D011','D031','D081','D107','D158','D009','D049','D092','D036','D106','D039'}
+local CLOSED={'D111','D157','D109','D029','D030','D037','D163','D164'} -- The fourth build's eight closed rooms.
+local function build(more,total)
+    local list,files={table.unpack(ELEVEN)},{'Rooms'}
+    for _,room in ipairs(more) do list[#list+1]=room end
+    levels,needed={},{}
+    local function add(name)
+        if needed[name] then return end
+        needed[name]=true
+        levels[#levels+1]={name=name,loaded=true,visible=true}
+    end
+    for _,room in ipairs(list) do
+        add('Xion_Rooms_'..room)
+        files[#files+1]='Xion_Rooms_'..room..'.umap'
+    end
+    for _,room in ipairs(Rooms.LIST) do for i=2,#room.needs do add(room.needs[i]) end end
+    for i=#levels+1,total-#D.VOLUMED do levels[i]={name='E04_Level_'..i,loaded=true,visible=true} end
+    for i,name in ipairs(D.VOLUMED) do levels[#levels+1]={name=name,loaded=i<=20,visible=i<=8} end
+    assert(#levels==total)
+    pak(files)
+    x=new()
+    rows_hidden,her_at,her_mode,pieces_asked={},nil,1,0
+    me=at(D.ARRIVALS.city)
+    pass(x,0.25)
+end
+build(CLOSED,175)
+assert(logged('sboxion: levels: 175 listed, 141 of 141 always-loaded ones loaded and visible, missing: none; by '
+    ..'volume: 34 listed, 20 loaded, 8 visible'),logs[#logs])
+assert(logged('sboxion: rooms: this pak holds 11 of 15 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, '
+    ..'D106, D039') and pieces_asked==42 and hidden_rows()==42 and times('sboxion: rooms: D')==11,logs[#logs])
+for _,l in ipairs(logs) do
+    for _,room in ipairs(CLOSED) do assert(not l:find(room,1,true),'The fourth build names '..room..': '..l) end
+end
+assert(select(2,x.status()):find('; rooms 11 of 11 open'..NPCS,1,true),select(2,x.status()))
+x.stop()
+build({'D087','D111','D109','D029'},171)
+assert(logged('sboxion: levels: 171 listed, 137 of 137 always-loaded ones loaded and visible, missing: none; by '
+    ..'volume: 34 listed, 20 loaded, 8 visible'),logs[#logs])
+assert(logged('sboxion: rooms: this pak holds 15 of 15 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, '
+    ..'D106, D039, D087, D111, D109, D029') and pieces_asked==62 and hidden_rows()==62
+    and times('sboxion: rooms: D')==15,logs[#logs])
+assert(logged('sboxion: rooms: D087 open: 2 rows hidden') and logged('sboxion: rooms: D111 open: 6 rows hidden')
+    and logged('sboxion: rooms: D109 open: 9 rows hidden') and logged('sboxion: rooms: D029 open: 3 rows hidden'))
+assert(select(2,x.status()):find('; rooms 15 of 15 open'..NPCS,1,true),select(2,x.status()))
+for _,w in ipairs(D.WAYPOINTS) do
+    if w.name=='D039' or w.name=='D087' or w.name=='D111' or w.name=='D109' or w.name=='D029' then
+        me=at({X=w.X+100,Y=w.Y,Z=w.Z})
+        assert(select(2,x.status()):find('nearest waypoint '..w.name..' 1.0 m; ',1,true),select(2,x.status()))
+    end
+end
+x.stop()
+assert(logs[#logs]=='sboxion: rooms: closed (coop off): 62 rows put back',logs[#logs])
 
 -- The NPCs are wired: a body when EVE is near its spot in a room whose level is there, its line when she is close,
 -- coop xion npc, the body gone at a map change and at coop off.

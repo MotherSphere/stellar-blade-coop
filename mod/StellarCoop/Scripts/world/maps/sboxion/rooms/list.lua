@@ -1,18 +1,25 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- SBO Xion's rooms (world/maps/sboxion/rooms/rooms.lua): the rooms the zSBO_Xion test paks of 2026-11-24 add behind
--- closed doors of SB's Xion, each a level of its own on the streaming list of SBO Xion's persistent level
+-- SBO Xion's rooms (world/maps/sboxion/rooms/rooms.lua): the rooms the zSBO_Xion test paks of 2026-11-24 to 26 add
+-- behind closed doors of SB's Xion, each a level of its own on the streaming list of SBO Xion's persistent level
 -- (/Game/SBO_World/Rooms/<level>), with the pieces of SB that stand in its doorway. The paks of build2 hold the first
--- five, the pak of build3 the first eleven. A room's rows are SB's closed door unit or shutter, the wall panel behind
--- it and the street debris that reaches into the doorway: 42 rows, 18 whole components and 24 instances of 19
--- instanced components, in 10 sublevels of /Game/Art/BG/WorldMap/SubLevel/E04/ that SBO Xion keeps. Read on
--- 2026-11-24 and 2026-11-26 from the level dumps of build 26123051: each sublevel, actor and component exists under
--- these names, a whole component is a StaticMeshComponent, an instanced one a HierarchicalInstancedStaticMeshComponent,
--- all 37 are of Static mobility with baked lighting. 8 of the 19 instanced ones store CastShadow false: 33 and 34 of
--- E04_Area02_Object_A_02, 39 of E04_Area02_Object_B_02, 26 of E04_Area02_Object_D_01's Actor_0 and Actor_2, 10 of
--- E04_Area02_Object_B_01, 0 and 4 of E04_Area02_Architecture_C_02. Instance 6 of E04_Area02_Object_F_01's component
--- 34 is D036's. Its instances 0 to 3 are D158's.
+-- five, the pak of build3 the first eleven, the fifth full test build all fifteen. A level of that build may hold a
+-- suite: rooms of ours joined by inner doorways of ours, entered through the one street door. A room's rows are SB's
+-- closed door unit, shutter or boards, the wall panel behind it and the street debris that reaches into the doorway:
+-- 62 rows, 27 whole components and 35 instances of 28 instanced components, in 13 sublevels of
+-- /Game/Art/BG/WorldMap/SubLevel/E04/ that SBO Xion keeps. Read on 2026-11-24 and 2026-11-26 from the level dumps of
+-- build 26123051: each sublevel, actor and component exists under these names, a whole component is a
+-- StaticMeshComponent, an instanced one a HierarchicalInstancedStaticMeshComponent, all 55 are of Static mobility with
+-- baked lighting. 15 of the 28 instanced ones store CastShadow false: 33 and 34 of E04_Area02_Object_A_02, 39 of
+-- E04_Area02_Object_B_02, 26 of E04_Area02_Object_D_01's Actor_0 and Actor_2, 27 of its Actor_2, 10 of
+-- E04_Area02_Object_B_01, 0 and 4 of E04_Area02_Architecture_C_02, 2, 50 and 52 of E04_Area02_Object_D_04's Actor_0
+-- and Actor_3. Instance 6 of E04_Area02_Object_F_01's component 34 is D036's. Its instances 0 to 3 are D158's.
+-- In E04_Area02_Object_D_04 every piece is stored twice, on Actor_0 and on Actor_3, with the same component, mesh and
+-- place. Hiding one copy leaves the other, so D111 and D109 list both.
+-- beside=<a level>: the room opens only with a pak that holds that level too. The fourth full test build (25
+-- November 2026) holds closed rooms under the names Xion_Rooms_D111, _D109 and _D029, with no doorway behind these
+-- rows. Only the fifth build holds Xion_Rooms_D087, so D111, D109 and D029 name it.
 -- D039, the growing room of build3, hides SB's shutter alone. Two blueprint props of SB that simulate physics stand in
 -- front of it (PhysicalObj_Trash_2 and _3 of E04_Area02_Object_B_01, component StaticMesh). Hiding such a body was not
 -- read in the game's code, so they stay. With the shutter hidden they leave 160 cm free between them on a flat floor
@@ -97,5 +104,44 @@ return {
 -- D039, the growing room: 1 row, the shutter, instance 0 of 2.
 {name='D039',level='Xion_Rooms_D039',rows={
     {'E04_Area02_Architecture_A_01','Actor_3',0,0,'Architecture/Door/001_A_SM',105.336,23.656,-971.114,2},
+}},
+-- D087, the canteen with the kitchen back room and the wash house behind it: 2 rows, 2 whole components. SB's
+-- storefront Store/001_D_SM (E04_Area02_Architecture_C_02, Actor_0, component 7) stays with its doorway. Its shutter
+-- and the boards across it go. The boards store the collision profile NoCollision, as D036's wire does.
+{name='D087',level='Xion_Rooms_D087',rows={
+    {'E04_Area02_Architecture_C_02','Actor_0',5,-1,'Architecture/Door/001_B_SM',-482.599,1670.78,-602.252},
+    {'E04_Area02_Object_C_02','Actor_0',36,-1,'Architecture/Door/025_A_SM',-333.528,-1086.47,-264.385},
+}},
+-- D111, the radio room with the watch post behind it: 6 rows, 2 whole components and 4 instances. The door unit, the
+-- base beam under the wall panel and the panel, each on Actor_0 and on its twin Actor_3 (the same component, mesh and
+-- place). Our open portal Door/031_E_SM stands at the unit's place.
+{name='D111',level='Xion_Rooms_D111',beside='Xion_Rooms_D087',rows={
+    {'E04_Area02_Object_D_04','Actor_0',3,0,'Architecture/Door/031_B_SM',68.133,-807.462,-499.558,2},
+    {'E04_Area02_Object_D_04','Actor_3',3,0,'Architecture/Door/031_B_SM',68.133,-807.462,-499.558,2},
+    {'E04_Area02_Object_D_04','Actor_0',52,0,'Deco/Beam/009_B_SM',90.354,-848.861,-497.764,2},
+    {'E04_Area02_Object_D_04','Actor_3',52,0,'Deco/Beam/009_B_SM',90.354,-848.861,-497.764,2},
+    {'E04_Area02_Object_D_04','Actor_0',3,-1,'Architecture/Building_003/001_A_SM',612.275,-1213.12,-455.046},
+    {'E04_Area02_Object_D_04','Actor_3',3,-1,'Architecture/Building_003/001_A_SM',612.275,-1213.12,-455.046},
+}},
+-- D109, the bookshop with the goods store beside it: 9 rows, 2 whole components and 7 instances. SB's storefront
+-- Store/001_G_SM (E04_Area02_Object_D_04, Actor_0, component 41) stays with its doorway. Its two shutters and both
+-- instances of the base beam under it go, in both copies. Then a piece of rubble that reaches into the goods store.
+{name='D109',level='Xion_Rooms_D109',beside='Xion_Rooms_D087',rows={
+    {'E04_Area02_Object_D_04','Actor_0',13,-1,'Architecture/Door/015_A_SM',-1146.81,-460.724,-618.484},
+    {'E04_Area02_Object_D_04','Actor_3',13,-1,'Architecture/Door/015_A_SM',-1146.81,-460.724,-618.484},
+    {'E04_Area02_Object_D_04','Actor_0',2,0,'Architecture/Door/001_A_SM',-1294.94,-289.055,-618.484,2},
+    {'E04_Area02_Object_D_04','Actor_3',2,0,'Architecture/Door/001_A_SM',-1294.94,-289.055,-618.484,2},
+    {'E04_Area02_Object_D_04','Actor_0',50,0,'Deco/Beam/009_B_SM',-1234.37,-404.481,-628.51,3},
+    {'E04_Area02_Object_D_04','Actor_0',50,1,'Deco/Beam/009_B_SM',-1423.46,-179.176,-628.51,3},
+    {'E04_Area02_Object_D_04','Actor_3',50,0,'Deco/Beam/009_B_SM',-1234.37,-404.481,-628.51,3},
+    {'E04_Area02_Object_D_04','Actor_3',50,1,'Deco/Beam/009_B_SM',-1423.46,-179.176,-628.51,3},
+    {'E04_Area02_Object_D_01','Actor_2',27,0,'Deco/Rubble/027_A_SM',1629.62,523.988,-37.342,9},
+}},
+-- D029, the courier office: 3 rows, 3 whole components. The door unit, a wire in the doorway on the actor named
+-- Actor7* (with the star) and the wall panel. Our open portal Door/031_E_SM stands at the unit's place.
+{name='D029',level='Xion_Rooms_D029',beside='Xion_Rooms_D087',rows={
+    {'E04_Area02_Architecture_A_01','Actor_4',127,-1,'Architecture/Door/031_A_SM',-227.889,-1808.22,-856.12},
+    {'E04_Area02_Object_A_01','Actor7*',101,-1,'Deco/Wire/030_B_SM',-394.791,754.535,177.873},
+    {'E04_Area02_Architecture_A_01','Actor_4',8,-1,'Architecture/Building_003/001_B_SM',202.252,-1652.16,-808.573},
 }},
 }

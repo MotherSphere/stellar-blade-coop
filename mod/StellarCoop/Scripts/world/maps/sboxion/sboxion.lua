@@ -31,15 +31,15 @@
 -- have none of SB's fall volumes. The full test pak's city ones act in Zone_Xion_10 by their rows. So EVE under
 -- data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
 -- SB's death screen cannot respawn her in this zone, so a dead EVE gets SB's in-place respawn.
--- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test paks of 2026-11-24 add five or eleven
--- rooms behind closed doors of SB's Xion, each a level of the persistent level. The pak gate is asked once a Lua load
--- for each room's level beside Xion_P. Each arrival hides the pieces of SB in the doorway of each room the pak holds
--- once the room's levels are loaded and visible, all rows of a room or none. A map change, coop off and coop xion rooms
--- off put them back. The pak of 2026-11-23 holds no room: one log line an arrival and nothing else.
+-- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test paks of 2026-11-24 to 26 add five,
+-- eleven or fifteen rooms behind closed doors of SB's Xion, each a level of the persistent level. The pak gate is asked
+-- once a Lua load for each room's level beside Xion_P. Each arrival hides the pieces of SB in the doorway of each room
+-- the pak holds once the room's levels are loaded and visible, all rows of a room or none. A map change, coop off and
+-- coop xion rooms off put them back. The pak of 2026-11-23 holds no room: one log line an arrival and nothing else.
 -- coop xion leave: the request "sboxion leave <zone FName index>". The native part compares the zone with the
 -- client's and calls SB's reload of the co-op save only from SBO Xion, so the request is sent from any map.
 -- coop xion status: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the
--- recovery's state, the rooms' state and the last look.
+-- recovery's state, the rooms' state, the NPCs' state and the last look.
 -- coop xion recover [on|death|off], inside SBO Xion: the recovery's mode until the next arrival, which sets it to on.
 -- death leaves falls alone, so EVE can die of one on purpose. off does nothing, as before the recovery existed.
 -- coop xion rooms [on|off], inside SBO Xion: off puts SB's pieces back in the doorways until on or the next
