@@ -1294,6 +1294,39 @@ assert(logged('ghost: K2_DestroyActor: no world') and notice_stops==stops+1 and 
 toggle_raise,active=nil,false
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
+-- closet_key (F1 unless set) runs the closet action: the closet menu's toggle (closet/ui/menu.lua), which opens it or
+-- is its Back; a refused open is reported. The loader stub of an off closet module takes the press and raises nothing.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    Loader.run=run
+    local toggles,answer=0,{true,'closet menu: open'}
+    M.closet_menu={toggle=function() toggles=toggles+1; return table.unpack(answer) end,
+        is_open=function() return false end}
+    clock=clock+1
+    key('F1')
+    assert(toggles==1 and logged('key F1: closet'),'F1 toggles the closet menu')
+    answer={false,'Stellar Closet does not open in combat.'}
+    clock=clock+1
+    key('F1')
+    assert(toggles==2 and last()=='[StellarCoop] STOP: Stellar Closet does not open in combat.\n',last())
+    M.closet_menu=Loader.STUB
+    clock=clock+1
+    local lines=#printed
+    key('F1')
+    assert(#printed==lines+1 and printed[lines+1]=='[StellarCoop] key F1: closet\n',
+        'the stub takes the press and raises nothing')
+    settings_text='closet_key=none\n'
+    load_main(true)
+    clock=clock+1
+    key('F1')
+    assert(not table.concat(printed,'|'):find('key F1',1,true),'closet_key=none: F1 does nothing')
+end)()
+
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true
 package.loadlib=function(_,name) if name=='coop_tick' then return nil,'not exported' end return true end

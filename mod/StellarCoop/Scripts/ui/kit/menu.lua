@@ -38,7 +38,7 @@ local Menu={}
 local ROWS,BACK=15,0.15 -- Rows shown at once (a longer page scrolls); seconds before the game's input comes back.
 local HINT_W,HINT_Y=700,1830 -- The booth hint's width and top, in the kit's 3840 by 2160 units.
 local HOVER=0.1 -- Seconds between two looks at the row under the mouse.
-local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','emote_key'}
+local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','emote_key','closet_key'}
 local OFF='the co-op menu is off (the UI stopped, see the log): use the coop commands'
 -- The key hints' resource actions in SB's hint widget (as online/lobby/ui/lobby.lua and
 -- online/session/ui/sessions.lua): move, select, back. The widget shows the icon of the player's last device.

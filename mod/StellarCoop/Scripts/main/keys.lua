@@ -8,7 +8,8 @@ local print,log=M.print,M.log
 -- (UE4SS cannot take a bind back), so a key changed in the menu works at once and the menu can take any of them; at
 -- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line,
 -- Leave, the follow (follow_key, coop travel host), a race checkpoint (race_key, while a track is recorded; nothing
--- otherwise) or the bike (bike_key: EVE on it or off it). The host's question takes the navigation keys, Enter and Esc first while it is open, then the SBO lobby's
+-- otherwise), the bike (bike_key: EVE on it or off it) or the closet menu (closet_key: open, or its Back). The host's
+-- question takes the navigation keys, Enter and Esc first while it is open, then the SBO lobby's
 -- screens while one is open (menu_key closes B or C to the room; in the lobby world, menu_key opens B in place of the
 -- co-op menu; E and the left tab key are C's tabs), then the Sessions screen while it is open (menu_key closes it; E
 -- and the left tab key are its tabs, F its Refresh). Enter goes to the menu's key capture, then selects; the navigation
@@ -33,7 +34,7 @@ local print,log=M.print,M.log
 -- click (the next page) first. Every other key of ours does nothing then (the F-keys, Enter, the navigation keys).
 if M.settings then
     local K=require('core.keybind')
-    local ACTIONS={'menu','host','status','leave','follow','race','bike','emote'}
+    local ACTIONS={'menu','host','status','leave','follow','race','bike','emote','closet'}
     if type(IsKeyBindRegistered)=='function' then
         for _,action in ipairs(ACTIONS) do
             local key=M.settings[action..'_key']
@@ -68,6 +69,12 @@ if M.settings then
                 elseif action=='emote' then -- Its F-key's number: the wheel plays at that key's release.
                     if M.off then M.report(false,M.OFF)
                     else M.emote_wheel.press('key',tonumber(M.settings.emote_key.key:match('%d+'))) end
+                elseif action=='closet' then -- Opens the closet menu, or is its Back while open (closet/ui/menu.lua).
+                    if M.off then M.report(false,M.OFF)
+                    elseif M.closet_menu and M.closet_menu.toggle then -- An off closet module: the loader stub.
+                        local ok,why=M.closet_menu.toggle()
+                        if ok==false then M.report(ok,why) end
+                    end
                 elseif action~='menu' then M.run(action)
                 elseif M.off then M.report(false,M.OFF)
                 elseif M.lobby.is_open() then

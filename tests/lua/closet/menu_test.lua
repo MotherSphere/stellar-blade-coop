@@ -583,6 +583,31 @@ local tests = {
         eq(r.reverted + r.confirmed, 0, 'no answer')
     end,
 
+    -- closet_key (main/keys.lua): closed, it opens; open, it is the Back of the rows level, from the grid too.
+    closet_key_toggles_like_back = function()
+        local r = rig()
+        r.menu.toggle()
+        ok(r.menu.is_open(), 'toggle opens')
+        at(r, 0.05, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down', 'right', 'right')
+        tick(r, 1)
+        eq(#r.previews, 1, 'the focused tile previewed')
+        r.menu.toggle()
+        ok(r.menu.is_open(), 'still open')
+        eq(popups(r), 1, 'a preview: toggle in the grid asks Keep this look?')
+        eq(r.reverted + r.confirmed, 0, 'no answer')
+        r.menu.toggle()
+        eq(popups(r), 0, 'toggle on the popup is its Back')
+        ok(r.menu.is_open(), 'open after the popup Back')
+        -- No preview: toggle closes with a revert, no popup.
+        r = rig()
+        r.menu.toggle()
+        at(r, 0.5, 'right')
+        r.menu.toggle()
+        eq(r.reverted, 1, 'closed with a revert')
+        for _, rec in ipairs(r.kit.made) do ok(rec.class ~= F.POPUP, 'no popup made') end
+        all_gone(r)
+    end,
+
     popup_yes_keeps_and_saves = function()
         local r = rig()
         on_top(r)

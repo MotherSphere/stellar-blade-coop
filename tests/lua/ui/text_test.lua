@@ -84,6 +84,13 @@ for _,row in ipairs(require('ui.kit.model').OPTIONS) do
     if row.head then assert(type(T.en.head[row.head])=='string','T.en.head.'..row.head..': missing')
     else assert(type(T.en.row[row.id or row.key])=='string','T.en.row.'..(row.id or row.key)..': missing') end
 end
+-- The closet key's row (closet_key, main/keys.lua) is an Options row, named in every table.
+local closet_row=false
+for _,row in ipairs(require('ui.kit.model').OPTIONS) do closet_row=closet_row or row.key=='closet_key' and row.bind end
+assert(closet_row,'closet_key: no Options row')
+for culture,t in pairs(T) do
+    if type(t)=='table' and t.row then assert(type(t.row.closet_key)=='string',culture..'.row.closet_key: missing') end
+end
 
 -- The pick: the game's culture as culture() names it, else English.
 assert(T.pick('fr-FR')==T.fr and T.pick('FR')==T.fr and T.pick('fr-FR','game')==T.fr)

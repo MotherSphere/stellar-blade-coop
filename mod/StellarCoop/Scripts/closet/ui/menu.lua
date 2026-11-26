@@ -294,6 +294,13 @@ function Menu.new(o)
     end
 
     function self.is_open() return open end
+    -- closet_key (main/keys.lua): closed, open(); open, the Back of the rows level (the popup when the look changed, a
+    -- revert close when not; on the popup, its Back).
+    function self.toggle()
+        if not open then return self.open() end
+        if col=='grid' then col='rows' end
+        return self.nav('back')
+    end
     -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, or click (a
     -- left click: the tab, row or popup button under the mouse). yes and no answer the popup too; refresh is its No.
     function self.nav(word)

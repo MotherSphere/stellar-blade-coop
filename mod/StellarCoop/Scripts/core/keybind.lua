@@ -7,13 +7,14 @@
 -- whose name is at 0x145c4ec00 and which its photo mode UI, 0x141f09c80, reads).
 -- Additions: none for the host key once the menu holds Host (D-UI2); none for the follow key; none for the race key,
 -- the bike key, the gun key or the emote wheel's key, when an older file's keys already hold its F9, its F3, its F4 or
--- its F2. A key is {key=UE4SS Key
+-- its F2; none for the closet key too, when they hold its F1. A key is {key=UE4SS Key
 -- name or nil for none, mod=UE4SS ModifierKey name or nil, name=as the file writes it}.
 local K={}
 local MODIFIERS={SHIFT='SHIFT',CTRL='CONTROL',ALT='ALT'} -- As written, then UE4SS's ModifierKey name.
 local WRITTEN={SHIFT='Shift',CONTROL='Ctrl',ALT='Alt'} -- UE4SS's ModifierKey name, then as written.
 local EXTRA={host_key={NONE={name='none'}},follow_key={NONE={name='none'}},race_key={NONE={name='none'}},
-    bike_key={NONE={name='none'}},gun_key={NONE={name='none'}},emote_key={NONE={name='none'}}}
+    bike_key={NONE={name='none'}},gun_key={NONE={name='none'}},emote_key={NONE={name='none'}},
+    closet_key={NONE={name='none'}}}
 -- A key setting's value from its text, or nil and why it is refused.
 function K.parse(name,text)
     local extra=EXTRA[name] and EXTRA[name][text:upper()]

@@ -213,13 +213,13 @@ end)()
     assert(focus()=='Open this menu' and select(2,focus())~='Press a key','Right click: not waiting, nothing taken')
     -- The mouse onto the last slot scrolls the page down by one, onto the first up by one. The keys take the page one
     -- row down first: the last slot then holds a row, not the PARTNER header.
-    for _=1,19 do key('DOWN_ARROW') end
-    assert(focus()=='Name tag' and rows[1].l=='Gun mode',focus()..' / '..tostring(rows[1].l))
+    for _=1,20 do key('DOWN_ARROW') end
+    assert(focus()=='Name tag' and rows[1].l=='Bring out or put away the rifle',focus()..' / '..tostring(rows[1].l))
     local last=rows[15].l
     clock=clock+0.125; hover(15)
     assert(focus()==last and rows[14].l==last and rows[15].l~=last,'The last slot: one row down')
     clock=clock+0.125; hover(1)
-    assert(focus()=='Bring out or put away the rifle' and rows[1].l=='Gun mode' and rows[2].st=='focus',
+    assert(focus()=='Emote wheel key' and rows[1].l=='Bring out or put away the rifle' and rows[2].st=='focus',
         'The first slot: one row up')
     key('RIGHT_MOUSE_BUTTON'); assert(kit_shown.menu and focus()=='Options','Right click: back to the main page')
     key('RIGHT_MOUSE_BUTTON'); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','And it closes')

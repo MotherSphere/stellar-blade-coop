@@ -136,8 +136,8 @@ assert(screen():find('^CONTROLS||disabled\nOpen this menu|F5|focus\nShow the sta
     ..'Leave the session|F8|normal\nTravel to the host|F7|normal\nSet a race checkpoint|F9|normal\n'
     ..'Bike|On|normal\nGet on or off the bike|F3|normal\nRiding pose %(test%)|Hidden copy|normal\n'
     ..'Gun mode|On|normal\nBring out or put away the rifle|F4|normal\nEmote wheel key|F2|normal\n'
-    ..'Emote wheel on a controller|D%-pad Left held|normal\nOnline tab in the pause menu|On|normal\n'
-    ..'Reset all keys||normal$'),screen())
+    ..'Emote wheel on a controller|D%-pad Left held|normal\nOpen Stellar Closet|F1|normal\n'
+    ..'Online tab in the pause menu|On|normal$'),screen())
 to('Ponytail cloth'); local rebuilt=#rebuilds
 key('RIGHT_ARROW')
 assert(settings_text=='# mine\nname_tag=on\ncloth=off\n' and look.cloth==false and #rebuilds==rebuilt+1
@@ -482,13 +482,14 @@ assert(select(2,focus())==''
     and screen():find('Set a race checkpoint|F9|normal\nBike|On|normal\nGet on or off the bike|F3|normal\n'
         ..'Riding pose (test)|Hidden copy|normal\nGun mode|On|normal\nBring out or put away the rifle|F4|normal\n'
         ..'Emote wheel key|none|normal\nEmote wheel on a controller|D-pad Left held|normal\n'
-        ..'Online tab in the pause menu|On|normal\nReset all keys||focus\nPHOTO MODE',1,true),
+        ..'Open Stellar Closet|F1|normal\nOnline tab in the pause menu|On|normal\nReset all keys||focus\nPHOTO MODE',
+        1,true),
     'host_key=F2 in a file from before emote_key: none')
 key('RETURN')
 assert(menu_view.note.s=='Select again within 3 s to reset every key.' and settings_text:find('F12',1,true))
 clock=clock+1; key('RETURN')
 assert(settings_text=='# mine\nmenu_key=F5\nstatus_key=F6\nleave_key=F8\nhost_key=none\nfollow_key=F7\nrace_key=F9\n'
-    ..'bike_key=F3\ngun_key=F4\nemote_key=F2\n'
+    ..'bike_key=F3\ngun_key=F4\nemote_key=F2\ncloset_key=F1\n'
     and logged('menu: every key at its default saved in coop-settings.txt'),settings_text)
 key('ESCAPE'); key('ESCAPE')
 settings_text='menu_key=F11\nstatus_key=F5\nhost_key=F2\n'
@@ -506,7 +507,7 @@ key('F5'); assert(kit_said('show true') and logged('key F5: menu'),'The menu key
 key('ESCAPE')
 settings_text='menu_key=F11\nrace_key=F2\n'
 local ALL='[StellarCoop] OK: menu_key=F5 host_key=none status_key=F6 leave_key=F8 follow_key=F7 race_key=F9 '
-    ..'bike_key=F3 emote_key=F2: every key at its default\n'
+    ..'bike_key=F3 emote_key=F2 closet_key=F1: every key at its default\n'
 coop('keys','reset'); assert(last()==ALL,last())
 settings_text='race_key=F2\n'
 coop('keys','reset','all'); assert(last()==ALL and settings_text:find('race_key=F9\n',1,true))
