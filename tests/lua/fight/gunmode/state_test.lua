@@ -114,6 +114,9 @@ do
     toggle(gun,true); frames(gun,10); toggle(gun,false); frames(gun,60)
     toggle(gun,true)
     assert(rc.Action1==0,'out again during the hold')
+    -- the rifle stays out past the old hold's end: the take ended that hold, its clock puts nothing back
+    frames(gun,300)
+    assert(rc.Action1==0,'held while the rifle stays out past the old hold: '..tostring(rc.Action1))
     toggle(gun,false); frames(gun,200)
     assert(rc.Action1==22,'the shipped value after the second hold: '..tostring(rc.Action1))
     toggle(gun,true); toggle(gun,false)
@@ -181,6 +184,8 @@ do
     toggle(gun,true); frames(gun,10); toggle(gun,false); frames(gun,60)
     toggle(gun,true)
     assert(t.held(),'out again during the hold: '..t.now())
+    frames(gun,300)
+    assert(t.held(),'held while the rifle stays out past the old hold: '..t.now())
     toggle(gun,false); frames(gun,200)
     assert(t.shipped(),'the shipped values after the second hold: '..t.now())
     -- coop off: back at once, also half a second into the hold

@@ -112,7 +112,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   write to a show the engine collected. Own fire and `gun_upper=nikke` keep it. `P_Eve_GunNikke_ReloadCompleted`'s
   `Action1` reads 0, `P_Eve_GunNikke_BulletZero`'s `ConditionActive_ItemCount` -1 and `P_Eve_GunNikke_Reload`'s 0
   while the rifle is out, in both fire modes. They go back 3 s of play after the off or after a new world, a pause not
-  counted. A rifle out during that time keeps the shipped values. `coop off` puts them back at once, also part way
+  counted. A rifle out during that time keeps the shipped values. It stays held while that rifle out lasts past the
+  old hold's end. `coop off` puts them back at once, also part way
   through the 3 s. A missing row or a field that cannot be written is logged and the rifle still comes out. The rifle
   out writes cool time 0. The rate of fire follows the first round. The off gives the shipped cool time back. The
   input mask is lifted while the game is paused and put back at the first frame after it. An off during the game's
