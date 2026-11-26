@@ -212,7 +212,7 @@ end
 -- unchanged, the instance is in the built tree and the render data kept its CPU copy, the hierarchical class queues
 -- the new matrix for the instance buffer and marks the render state dirty: the tree cooked with the level stays. The
 -- CPU copy is kept (0x144281ec0) by a component that casts a shadow and affects distance field lighting while
--- r.GenerateMeshDistanceFields is on, as SB's DefaultEngine.ini sets it. 4 of the 9 instanced components of
+-- r.GenerateMeshDistanceFields is on, as SB's DefaultEngine.ini sets it. 15 of the 28 instanced components of
 -- rooms/list.lua store CastShadow false. Without the CPU copy the class calls BuildTreeIfOutdated 0x1442511b0, which
 -- starts an async build of a new tree and a new instance buffer from the instances (0x144251400, taken over by
 -- 0x144250d90 some frames later): the instance is drawn until then. The queued matrix is applied only with the CPU

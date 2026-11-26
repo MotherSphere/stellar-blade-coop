@@ -31,15 +31,15 @@
 -- have none of SB's fall volumes. The full test pak's city ones act in Zone_Xion_10 by their rows. So EVE under
 -- data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
 -- SB's death screen cannot respawn her in this zone, so a dead EVE gets SB's in-place respawn.
--- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test paks of 2026-11-24 add five or eleven
--- rooms behind closed doors of SB's Xion, each a level of the persistent level. The pak gate is asked once a Lua load
--- for each room's level beside Xion_P. Each arrival hides the pieces of SB in the doorway of each room the pak holds
--- once the room's levels are loaded and visible, all rows of a room or none. A map change, coop off and coop xion rooms
--- off put them back. The pak of 2026-11-23 holds no room: one log line an arrival and nothing else.
+-- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test paks of 2026-11-24 to 26 add five,
+-- eleven or fifteen rooms behind closed doors of SB's Xion, each a level of the persistent level. The pak gate is asked
+-- once a Lua load for each room's level beside Xion_P. Each arrival hides the pieces of SB in the doorway of each room
+-- the pak holds once the room's levels are loaded and visible, all rows of a room or none. A map change, coop off and
+-- coop xion rooms off put them back. The pak of 2026-11-23 holds no room: one log line an arrival and nothing else.
 -- coop xion leave: the request "sboxion leave <zone FName index>". The native part compares the zone with the
 -- client's and calls SB's reload of the co-op save only from SBO Xion, so the request is sent from any map.
 -- coop xion status: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the
--- recovery's state, the rooms' state and the last look.
+-- recovery's state, the rooms' state, the NPCs' state and the last look.
 -- coop xion recover [on|death|off], inside SBO Xion: the recovery's mode until the next arrival, which sets it to on.
 -- death leaves falls alone, so EVE can die of one on purpose. off does nothing, as before the recovery existed.
 -- coop xion rooms [on|off], inside SBO Xion: off puts SB's pieces back in the doorways until on or the next
@@ -49,12 +49,6 @@
 -- put back in front of the ship. SB ships that interior with no collision: the way in makes its parts solid and the
 -- way out and coop off put them back. coop xion tetrapod [in|out], inside SBO Xion, asks the same move from
 -- anywhere. Alone, it says whether she is inside.
--- The threshold doors, each pass of the stay (world/maps/sboxion/rooms/threshold.lua): a threshold room of
--- rooms/list.lua stands behind a door of SB that stays shut. EVE pushing that door for three passes is moved inside
--- under SB's black. A push on the inner door moves her out. The pak gate is asked for each such room as for the
--- others. A way in also needs the room's level loaded and visible on the streaming list. The doors a player opened
--- are kept in the door file. coop xion rooms off turns these doors off too. They and the Tetrapod's door never
--- move her in the same pass.
 -- The NPCs, each pass of the stay (world/maps/sboxion/npcs/npcs.lua): a display body in a room while EVE is near and
 -- the room's level is there. Its line shows when she comes close inside the room. coop xion npc picks its clip and
 -- its turn.
@@ -64,7 +58,6 @@ local D=require('world.maps.sboxion.data')
 local Recover=require('world.maps.sboxion.recover')
 local Rooms=require('world.maps.sboxion.rooms.rooms')
 local Tetrapod=require('world.maps.sboxion.tetrapod')
-local Threshold=require('world.maps.sboxion.rooms.threshold')
 local Npcs=require('world.maps.sboxion.npcs.npcs')
 local Xion={}
 Xion.ROWS=Enemy.rows(D.ROWS)
@@ -76,12 +69,6 @@ for _,name in ipairs(D.DAY.on) do WANT[name]=true end
 for _,name in ipairs(D.DAY.off) do WANT[name]=false end
 local VOLUMED={}
 for _,name in ipairs(D.VOLUMED) do VOLUMED[name]=true end
--- The waypoints: data.lua's, then the street door of each threshold room, so coop xion status names the nearest of
--- those doors too and the watch logs a stay at one.
-local WAYPOINTS={table.unpack(D.WAYPOINTS)}
-for _,room in ipairs(Threshold.LIST) do
-    WAYPOINTS[#WAYPOINTS+1]={name=room.name,X=room.street.X,Y=room.street.Y,Z=room.street.Z}
-end
 local BACK,AGAIN,WATCH,ANSWER=2,10,1,10 -- s: the read-back, the second look, the watch's pace, the native answer.
 local LOOK,NEAREST=10,5 -- s between two looks after the second one; characters named in a characters line.
 local function place(at) return string.format('(%.0f, %.0f, %.0f)',at.X,at.Y,at.Z) end
@@ -91,9 +78,8 @@ local function round(v) return math.floor(v+0.5) end
 -- read (core/link.lua's files.read) for the pak gate; slot(command) the co-op save check (ok, why), mode() the link's
 -- mode ('none' alone), me() our EVE as core/where.lua last read her ({at=, map=}, or nil), photo() main/base.lua's
 -- photo_state (optional), world, the engine reads (world/maps/sboxion/engine.lua; a fake in the tests),
--- rooms_store, core/link.lua's store for the rooms' hidden rows (optional), doors_store, its store for the
--- threshold doors a player opened (optional), npcs_store, its store for the NPC bodies' actor paths (optional) and
--- say(name), which shows an NPC's line (optional).
+-- rooms_store, core/link.lua's store for the rooms' hidden rows (optional), npcs_store, its store for the NPC bodies'
+-- actor paths (optional) and say(name), which shows an NPC's line (optional).
 function Xion.new(o)
     local log=o.log
     local world=o.world
@@ -125,8 +111,6 @@ function Xion.new(o)
         return nil,roomy[umap]
     end
     local rooms=Rooms.new({log=function(m) log('sboxion: '..m) end,world=world,store=o.rooms_store,gate=room_gate})
-    local doors=Threshold.new({log=function(m) log('sboxion: '..m) end,world=world,store=o.doors_store,
-        gate=room_gate})
     local npcs=Npcs.new({log=function(m) log('sboxion: '..m) end,world=world,say=o.say,store=o.npcs_store,
         gate=room_gate})
     local function refused(why)
@@ -334,7 +318,6 @@ function Xion.new(o)
         zone_and_life(me,true)
         rooms.arrive()
         tetrapod.arrive()
-        doors.arrive()
         npcs.arrive()
     end
     local function watch(me,now)
@@ -366,7 +349,7 @@ function Xion.new(o)
             end
             stay.probes=seen
         end
-        for _,w in ipairs(WAYPOINTS) do
+        for _,w in ipairs(D.WAYPOINTS) do
             if math.sqrt((me.at.X-w.X)^2+(me.at.Y-w.Y)^2)>D.NEAR then
                 stay.near[w.name],stay.said[w.name]=nil,nil
             else
@@ -478,13 +461,13 @@ function Xion.new(o)
         local me=o.me()
         if me and me.map==D.MAP then
             local best,far=nil,math.huge
-            for _,w in ipairs(WAYPOINTS) do
+            for _,w in ipairs(D.WAYPOINTS) do
                 local d=math.sqrt((me.at.X-w.X)^2+(me.at.Y-w.Y)^2)
                 if d<far then best,far=w.name,d end
             end
             parts[#parts+1]=string.format('EVE at %s, nearest waypoint %s %.1f m',place(me.at),best,far/100)
             if stay then
-                for _,part in ipairs({recover.status(),rooms.status(),doors.status(),npcs.status(),seen()}) do
+                for _,part in ipairs({recover.status(),rooms.status(),npcs.status(),seen()}) do
                     parts[#parts+1]=part
                 end
             end
@@ -500,18 +483,15 @@ function Xion.new(o)
         local ok,line=recover.mode(word)
         return ok,ok and 'coop xion recover: '..line or line
     end
-    -- coop xion rooms [on|off]: SB's pieces put back in the doorways or hidden again, with the threshold doors off or
-    -- on, or the state of both with no word.
+    -- coop xion rooms [on|off]: SB's pieces put back in the doorways or hidden again, or the rooms' state with no word.
     function self.rooms(word)
         if not stay then return false,'coop xion rooms: EVE is not in SBO Xion' end
         local ok,line=rooms.switch(word)
-        if ok and word then doors.switch(word=='on') end
-        return ok,ok and 'coop xion rooms: '..line..(word and '' or '; '..doors.status()) or line
+        return ok,ok and 'coop xion rooms: '..line or line
     end
     -- coop xion tetrapod [in|out]: EVE put inside the Tetrapod or back in front of it, or where she is with no word.
     function self.tetrapod(word)
         if not stay then return false,'coop xion tetrapod: EVE is not in SBO Xion' end
-        if word and doors.busy() then return false,'coop xion tetrapod: a threshold door is moving EVE' end
         local ok,line=tetrapod.go(word)
         return ok,ok and 'coop xion tetrapod: '..line or line
     end
@@ -522,11 +502,10 @@ function Xion.new(o)
         return ok,ok and 'coop xion npc: '..line or line
     end
     -- Each 250 ms pass: the wait for the rows and their read-back, the native answer awaited, then the arrival, the
-    -- watch, the recovery, the Tetrapod's door, the threshold doors and the rooms while EVE's map is SBO Xion. In any
-    -- other map, with nothing asked, it reads nothing. A map change ends the recovery first, then closes the rooms: a
-    -- put-back that raises leaves no recovery running. A row of a world that is gone is not called. The doors are
-    -- not ticked in another map and each arrival resets them. Each of the two door parts counts nothing while the
-    -- other one moves EVE. The Tetrapod's door comes first, so the two never start a move in the same pass.
+    -- watch, the recovery, the Tetrapod's door, the rooms and the NPCs while EVE's map is SBO Xion. In any other map,
+    -- with nothing asked, it reads nothing. A map change ends the recovery first, then closes the rooms: a put-back
+    -- that raises leaves no recovery running. A row of a world that is gone is not called. The door is not ticked in
+    -- another map and each arrival resets it.
     local off=false
     function self.tick()
         if off then return end
@@ -539,9 +518,7 @@ function Xion.new(o)
             if not stay then arrive(me,now) end
             watch(me,now)
             guarded('recovery',recover.tick)
-            local busy,read=recover.busy()
-            tetrapod.tick(busy or doors.busy(),read)
-            doors.tick(busy or tetrapod.busy(),read)
+            tetrapod.tick(recover.busy())
             rooms.tick()
             npcs.tick(me.at)
         elseif stay then
@@ -554,8 +531,7 @@ function Xion.new(o)
     end
     -- coop off: the title's wait, the watch and the recovery ended, the Tetrapod's parts as SB ships them when the door
     -- made them solid, then the rooms' rows put back. The rooms come last, so a put-back that raises skips none of
-    -- the others. Rows already in stay for the game run. No pass comes after it, so a threshold door's move that
-    -- waits is never made.
+    -- the others. Rows already in stay for the game run.
     function self.stop()
         off,stay,awaited=true,nil,nil
         npcs.stop()

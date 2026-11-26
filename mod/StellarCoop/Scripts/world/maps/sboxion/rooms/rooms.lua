@@ -3,17 +3,18 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's rooms (world/maps/sboxion/sboxion.lua starts this part at each arrival and ticks it each 250 ms pass
 -- while EVE's map is SBO Xion).
--- The zSBO_Xion test paks of 2026-11-24 add rooms behind closed doors of SB's Xion, each a level of its own that SBO
--- Xion's persistent level always loads: five in the paks of build2, eleven in the pak of build3. A room has an open
--- doorway of ours where SB's closed door unit and wall panel stand, with street debris in front. rooms/list.lua names
--- those pieces of SB for ten rooms, 41 rows. The list's threshold rooms have none: they are rooms/threshold.lua's
--- and this part never looks at them. This part hides
+-- The zSBO_Xion test paks of 2026-11-24 to 26 add rooms behind closed doors of SB's Xion, each a level of its own that
+-- SBO Xion's persistent level always loads: five in the paks of build2, eleven in the pak of build3, fifteen in the
+-- fifth full test build. A room has an open doorway of ours where SB's closed door unit and wall panel stand, with
+-- street debris in front. rooms/list.lua names those pieces of SB for fifteen rooms, 62 rows. This part hides
 -- them (world.piece, world.piece_out: world/maps/sboxion/engine.lua), so EVE walks in through the door with no
 -- loading screen. It puts them back with world.piece_back. Nothing is hidden in any other map and SB's own Xion is
 -- never changed: the pieces are objects of SBO Xion's world, which a map change destroys.
 -- The pak: o.gate is asked for each room's level on its own, so a pak opens the rooms it holds. One log line an
 -- arrival says how many. The pak of 2026-11-23 holds none: one log line an arrival, no level read, no piece asked. A
--- room the pak lacks is never looked at, waited for or counted.
+-- room the pak lacks is never looked at, waited for or counted. A room with beside= is held only when the pak holds
+-- that level too: the fourth full test build holds closed rooms under the level names of D111, D109 and D029, whose
+-- hidden rows would open holes in its facades. Only the fifth build, which adds D087, holds their walk-in rooms.
 -- Open: a room is decided once its own level and every sublevel of its rows read loaded and visible, looked at each
 -- PACE passes. Its rows are all found first, each against its mesh and place. Then all are hidden. A row that is
 -- not found, or cannot be hidden, closes the room as a whole: the rows hidden before it are put back and the log
@@ -31,14 +32,15 @@
 local U=require('core.unreal')
 local Rooms={}
 Rooms.PACE,Rooms.WAIT=4,30 -- Passes between two looks at the levels (one look a second) and the looks a room waits.
--- The rooms: {name=, level=, umap=<its level's game path, for the pak gate>, needs=<its level, then each sublevel of
--- its rows>, rows=}. A row: {name=, level=, actor=, component=, index=, mesh=, at=, count=}, named
--- <sublevel>.<actor>.<component> with [<index>] for an instance.
+-- The rooms: {name=, level=, umap=<its level's game path, for the pak gate>, beside=<the game path of the level the pak
+-- must hold too, or nil>, needs=<its level, then each sublevel of its rows>, rows=}. A row: {name=, level=, actor=,
+-- component=, index=, mesh=, at=, count=}, named <sublevel>.<actor>.<component> with [<index>] for an instance.
 Rooms.LIST={}
 local ROW={} -- A row by its name.
-for _,r in ipairs(require('world.maps.sboxion.rooms.list')) do
+for i,r in ipairs(require('world.maps.sboxion.rooms.list')) do
     local room,needed={name=r.name,level=r.level,umap='/Game/SBO_World/Rooms/'..r.level,needs={r.level},rows={}},{}
-    for k,v in ipairs(r.rows or {}) do
+    room.beside=r.beside and '/Game/SBO_World/Rooms/'..r.beside
+    for k,v in ipairs(r.rows) do
         local component=(v[4]<0 and 'StaticMeshComponent_' or 'HierarchicalInstancedStaticMeshComponent_')..v[3]
         local row={name=v[1]..'.'..v[2]..'.'..component..(v[4]<0 and '' or '['..v[4]..']'),level=v[1],actor=v[2],
             component=component,index=v[4],mesh=v[5],at={X=v[6],Y=v[7],Z=v[8]},count=v[9]}
@@ -48,7 +50,7 @@ for _,r in ipairs(require('world.maps.sboxion.rooms.list')) do
             room.needs[#room.needs+1]=row.level
         end
     end
-    if r.rows then Rooms.LIST[#Rooms.LIST+1]=room end -- A room without rows is a threshold room.
+    Rooms.LIST[i]=room
 end
 local LIST=Rooms.LIST
 
@@ -71,6 +73,7 @@ function Rooms.new(o)
         local why=nil -- Of the first room the pak lacks.
         for _,room in ipairs(LIST) do
             local ok,has,no=pcall(o.gate,room.umap)
+            if ok and has and room.beside then ok,has,no=pcall(o.gate,room.beside) end
             if ok and has then held[#held+1]=room
             else why=why or (ok and tostring(no) or U.why(has)) end
         end

@@ -39,7 +39,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/maps/matrix13/quest/`: `on_time`, `subtitles`, `zone_talks`; `world/maps/matrix13/talks/`: `zones`;
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `world/maps/sboxion/`: `engine`, `off`, `recover`, `rows`, `sboxion`, `tetrapod`, `title`, `world`;
-`world/maps/sboxion/rooms/`: `list`, `rooms`, `threshold`;
+`world/maps/sboxion/rooms/`: `list`, `rooms`;
 `world/maps/sboxion/npcs/`: `npcs`;
 `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
@@ -788,39 +788,33 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `world/maps/sboxion/world_test` runs `world/maps/sboxion/sboxion.lua` on a fake world of 72 env volumes and 95
   streaming levels. `coop xion` refuses on your own save, in a session, without the pak, after refused rows, after a
   fault and inside SBO Xion, each with nothing asked. Its request holds the zone's FName index, the point in whole
-  centimetres and the yaw, for each of the two points. `coop xion leave` asks from any map. The native answer is
-  logged once. No answer in 10 s is logged once. At an arrival the 41 volumes of `E04_ENV_VOL` are set (21 writes), a
-  volume of the same name in another level is left alone, the log reads 72, 65 and 41. The read-back comes 2 s and
-  10 s later. A write that does not hold shows in the read-back. A level not loaded is named. In another map nothing
-  is read. A second arrival writes again. A change of a probe level is logged once. A waypoint is logged after 5 s
-  within 3 m, once a visit. A map change, a loading screen and `coop off` end the watch. The recovery is ticked only
-  in SBO Xion. Each arrival starts it again with the arrival point `coop xion` asked. Its ground point and its fall
-  line hold the engine's read of EVE when `me()` names another place. At that fall SB's black is asked once through
-  the module's own wiring, nothing moves in that pass and the move comes two passes later. A `life=3` word gets the
-  respawn asked with the GUID of the `engine=` line. A death screen it hid is shown again at a map change and at
-  `coop off`. `coop xion recover` is refused outside SBO Xion, sets each of its three modes inside and prints the
-  state alone. A stay left in the mode `death` is followed by an arrival in the mode `on`. `coop xion status` ends
-  with the recovery's part and the rooms' part inside SBO Xion only. No wall call and no walls part are left. With
-  the pak of 23 November an arrival logs one rooms line and asks no piece. With the five room levels in the pak one
-  line says the pak holds 5 of the 10 rooms. The arrival's pass opens those five, their hidden rows go to the store
-  the wiring hands over, `coop xion rooms` is refused outside SBO Xion and prints, closes and opens them inside. A
-  map change that took the world calls no row. `coop off` puts every row back. At a map change and at `coop off` the
-  recovery ends before the rooms close. With two room levels in the pak those two open, the pak asked once a room a
-  Lua load. With the full test pak's 161 levels the 34 volume-streamed ones are counted apart and never named as
-  missing, 155 characters beside EVE are counted by class with only the five nearest named (class and distance) and
-  the ten rooms of the third build's pak open. The zone and area of the `engine=` line and EVE's life state are
-  logged at the arrival and once at each change, within a second. The levels line and the characters line come
-  again 10 s later. A look 10 s after that
-  reads once and says nothing. The next look says the two levels that changed and the characters line with the two
-  that spawned, once. `coop xion status` ends with the last look. The threshold doors log one line an arrival and
-  have their part of the status: none with the pak of 23 November, `D039` alone with the third build's pak, every
-  room with a pak that holds them all. Each street door is a waypoint of the status. A cutscene and a death make the
-  doors wait. A room whose level does not show on the engine's streaming list keeps its door shut. Three passes of
-  a push through the module's own wiring ask SB's black with one engine read of EVE a pass. The opened door goes
-  to the store the wiring hands over. The move comes two passes later. `coop xion
-  tetrapod in` is refused while that move waits and the Tetrapod's door counts nothing. `coop xion rooms off` turns
-  the doors off and `on` turns them on. A push counts nothing while the Tetrapod's door moves EVE. No move is made
-  after `coop off`. A new Lua load reads the opened door from the store;
+  centimetres and the yaw, for each of the two points. `coop xion leave` asks from any map. The native answer is logged
+  once. No answer in 10 s is logged once. At an arrival the 41 volumes of `E04_ENV_VOL` are set (21 writes), a volume of
+  the same name in another level is left alone, the log reads 72, 65 and 41. The read-back comes 2 s and 10 s later. A
+  write that does not hold shows in the read-back. A level not loaded is named. In another map nothing is read. A second
+  arrival writes again. A change of a probe level is logged once. A waypoint is logged after 5 s within 3 m, once a
+  visit. A map change, a loading screen and `coop off` end the watch. The recovery is ticked only in SBO Xion. Each
+  arrival starts it again with the arrival point `coop xion` asked. Its ground point and its fall line hold the engine's
+  read of EVE when `me()` names another place. At that fall SB's black is asked once through the module's own wiring,
+  nothing moves in that pass and the move comes two passes later. A `life=3` word gets the respawn asked with the GUID
+  of the `engine=` line. A death screen it hid is shown again at a map change and at `coop off`. `coop xion recover` is
+  refused outside SBO Xion, sets each of its three modes inside and prints the state alone. A stay left in the mode
+  `death` is followed by an arrival in the mode `on`. `coop xion status` ends with the recovery's part and the rooms'
+  part inside SBO Xion only. No wall call and no walls part are left. With the pak of 23 November an arrival logs one
+  rooms line and asks no piece. With the five room levels in the pak one line says the pak holds 5 of the 15 rooms. The
+  arrival's pass opens those five, their hidden rows go to the store the wiring hands over, `coop xion rooms` is refused
+  outside SBO Xion and prints, closes and opens them inside. A map change that took the world calls no row. `coop off`
+  puts every row back. At a map change and at `coop off` the recovery ends before the rooms close. With two room levels
+  in the pak those two open, the pak asked once a room a Lua load. With the full test pak's 161 levels the 34
+  volume-streamed ones are counted apart and never named as missing, 155 characters beside EVE are counted by class with
+  only the five nearest named (class and distance) and the eleven rooms of the third build's pak open, `D039` among
+  them. The zone and area of the `engine=` line and EVE's life state are logged at the arrival and once at each change,
+  within a second. The levels line and the characters line come again 10 s later. A look 10 s after that reads once and
+  says nothing. The next look says the two levels that changed and the characters line with the two that spawned, once.
+  `coop xion status` ends with the last look. The fourth full test build (175 levels, 141 always loaded) opens the
+  eleven rooms of the third build and no log line names `D111`, `D157`, `D109`, `D029`, `D030`, `D037`, `D163` or
+  `D164`, whose closed rooms it holds. The fifth (171 levels, 137 always loaded) opens all fifteen with 62 rows. Its
+  four new doors and `D039` are waypoints of the status. `coop off` puts the 62 rows back;
 - `world/maps/sboxion/tetrapod_test` runs `world/maps/sboxion/tetrapod.lua` over a fake world. SB's point inside
   the Tetrapod reads (81, 624, 332) in the ship frame. One pass in the doorway of the hangar moves nothing. The
   second asks SB's black. Two passes later EVE goes to the point inside plus 10 cm. Nothing is looked at for the next
@@ -830,7 +824,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   `out` ask the move at once. The way in asks the engine to make the ship's parts solid before the move. The way out
   and `coop off` put them back. While EVE reads 60 cm under the point she is put on it again and the ship is asked
   again if it was not found, with a black every 6 passes. After 32 passes with no floor she is put back outside.
-  `busy()`, which the threshold doors read, is true while a move waits and while she is watched;
+  The door has no `busy()`: no other part waits for it;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
@@ -881,44 +875,21 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   doorway: found by its names and refused for another class, mesh, place or instance count, a whole component hidden
   with its two values read first, an instance scaled to nothing where it stands, a piece that reads hidden already
   refused, the put-back and no call on an object that is gone;
-- `world/maps/sboxion/rooms/list_test` checks `world/maps/sboxion/rooms/list.lua`: the ten rooms with their levels,
-  the 41 rows as the level dumps of build 26123051 gave them, 18 whole components and 23 instances of 18 instanced
-  components in 10 sublevels, no piece twice, the instance count of each instanced component (the same in the two
-  rooms that share one), each room starting with its door piece, `D039` left out of the ten, each door a waypoint
-  of `data.lua`. Then the nine threshold rooms: a level and no rows, the numbers of each room's layout pinned one
-  line a room, the inner door 60 to 280 cm behind the street door's plane, the point outside 150 cm in front of the
-  street door and inside its width, the point inside 150 cm inside the inner door, a passage at `D039` alone, no
-  requirement, no room listed twice;
-- `world/maps/sboxion/rooms/threshold_test` runs `world/maps/sboxion/rooms/threshold.lua` over a fake world, a fake
-  pak gate and a fake door file. Every place is worked out from a room's own numbers. The gate is asked for each
-  room on its own. A pak with no room logs one line and no push counts. A pak with one room works that door alone. A
-  room whose ask raises is left out. The push: two passes move nothing, the third asks SB's black, two passes later
-  EVE is at the point inside, turned into the room, as high over the room floor as she stood over the street plus
-  10 cm. The way out goes to the point outside, turned away from the door. 101 cm in front of the plane, 1 cm behind
-  it, 1 cm past the width, 1 cm under or over the height band, 51 degrees off, a falling EVE, a pass elsewhere and a
-  pass at another door are no push. 99 cm, 49 degrees and the inside of the band are. The inner door has the same
-  limits and a room with a passage counts the passage. EVE turned toward a door from 130 cm, or close to it and
-  turned away, for 8 passes gets one `no push` line a door and way a stay with her distance, turn and height. Where
-  a move leaves her, further than 200 cm, a floor above, busy passes and a real push say nothing. A black that raises
-  changes one line. The watch: a late
-  landing is said when she walks. 39 cm over the floor she was put on, a floor far below and 32 passes without
-  standing on it (walking 161 cm over it among them) put her back where she pushed, under a black that is up at
-  once, with one line. That door then does
-  nothing until the next arrival while another door goes on. A refused move and a refused move back are said in one
-  line each. The first push of a door says it opened and writes its name to the file. A later push writes nothing.
-  Names the list does not know stay in the file. A new Lua load reads it. A file that cannot be written or read is
-  one line. A door whose requirement is not met does nothing and says so once a stay. Met, it opens. Opened, it asks
-  no more. The way out never asks. A way in reads the streaming list once a whole push. A room level that is not
-  visible, not loaded or off the list keeps the door shut with one line a stay: no black, no move, nothing opened.
-  A read that raises does the same. Another door goes on and the door works once its level is there. The way out
-  reads no level. Busy passes count nothing and a move already asked is still made. Off and on, an arrival that
-  drops a move, an error that turns the part off and the read of EVE handed over;
+- `world/maps/sboxion/rooms/list_test` checks `world/maps/sboxion/rooms/list.lua`: the fifteen rooms with their
+  levels, the 62 rows as the level dumps of build 26123051 gave them, 27 whole components and 35 instances of 28
+  instanced components in 13 sublevels, no piece twice, the instance count of each instanced component (the same in
+  the two rooms that share one), each room starting with its door piece, at most one wall panel a room (two copies
+  of one panel count once), every row of `E04_Area02_Object_D_04` with its twin on the other actor, `Actor7*` at
+  `D029` alone, `D039` with its shutter alone, `beside` naming `Xion_Rooms_D087` at `D111`, `D109` and `D029` and
+  nowhere else, no other key in a room, each door a waypoint of `data.lua`;
 - `world/maps/sboxion/rooms/rooms_test` runs `world/maps/sboxion/rooms/rooms.lua` over a fake world, a fake pak gate
   and a fake store. The gate is asked for each room on its own. With a pak that holds no room it logs one line with
   the first reason and reads no level. With a pak of the second build one line names the five rooms it holds of the
-  ten. They open in one look once their levels read loaded and visible. The other five are never looked at. A pak
-  with two rooms opens those two. A room whose ask raises is left out. With all ten the ten open, `D036` and `D158`
-  each hiding their own instances of one component. A room waits for a missing level and closes
+  fifteen. They open in one look once their levels read loaded and visible. The others are never looked at. A pak
+  with two rooms opens those two. A room whose ask raises is left out. A pak that holds the levels of `D111`, `D109`
+  and `D029` without `Xion_Rooms_D087` (the fourth full test build) opens the other eleven and no line names those
+  three. With all fifteen the fifteen open, `D036` and `D158` each hiding their own instances of one component and
+  `D111` hiding a component and an instance numbered 3 on both twins. A room waits for a missing level and closes
   after 30 looks. A row that is not found closes its room with nothing hidden. A row that cannot be hidden closes
   its room with the rows before it put back, while the other rooms open. The put-back asks each hidden row once,
   with a world that still stands and with one that is gone. `coop xion rooms off` puts the rows back and `on` opens
@@ -927,9 +898,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
   `recover` alone and with `on`, `death` or `off`, `rooms` alone and with `on` or `off`, the use line for `walls`,
   any other word or one too many and the answer without the Steam link. Then `world/maps/sboxion/wiring.lua`: SBO
-  Xion is built with three of the Steam link's stores, `coop-xion-rooms.txt`, `coop-xion-doors.txt` and
-  `coop-xion-npcs.txt`. An NPC's line is said in the menu's words. `coop xion npc` hands its two words to the
-  module. No store is asked without the link;
+  Xion is built with two of the Steam link's stores, `coop-xion-rooms.txt` and `coop-xion-npcs.txt`. An NPC's line is
+  said in the menu's words. `coop xion npc` hands its two words to the module. No store is asked without the link;
 - `world/maps/sboxion/npcs/npcs_test` runs `world/maps/sboxion/npcs/npcs.lua` over a fake world and a fake store:
   the list with its words in 22 languages and a line within 200 bytes, the repairer's spot worked out from D011's
   frame, no body far away, while the room's level is not there or with a pak that lacks the room, the body with its
