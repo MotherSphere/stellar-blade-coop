@@ -139,11 +139,11 @@ local tests = {
         eq(d.CraftState, 0, 'craft state')
         ok(F.called(d, 'EventNotification', 'Refresh'), 'detail Refresh')
         ok(F.called(d.WB_Common_HoldButton, 'SetVisibility', 1), 'hold button hidden')
-        -- The hints: Back, then Select on a row with pieces.
+        -- The hints: Back, then Wear on a row with pieces.
         local hints = r.kit.live(F.HINT)
         eq(#hints, 2, 'hints')
         ok(F.called(hints[1].o, 'SetText') and hints[1].o.calls[1][2].text == T.en.hint.back, 'Back hint')
-        ok(hints[2].o.calls[1][2].text == T.en.hint.select, 'Select hint')
+        ok(hints[2].o.calls[1][2].text == T.en.closet.hints.wear, 'Wear hint')
         for _, rec in ipairs(r.kit.made) do ok(rec.x >= 0 and rec.x < 2560, 'part x ' .. tostring(rec.x)) end
     end,
 
@@ -460,6 +460,34 @@ local tests = {
         at(r, 2, 'refresh', 'down', 'refresh')
         same(r.previews[3], {{fit = MAID}}, 'row 1')
         same(r.previews[4], {{fit = KUNOICHI}}, 'row 2')
+    end,
+
+    select_on_a_full_outfit_row_wears_it = function()
+        local r = rig()
+        on_top(r)
+        -- The hint texts drawn now, in order.
+        local function shown()
+            local out = {}
+            for _, h in ipairs(r.kit.live(F.HINT)) do
+                local text
+                for _, c in ipairs(h.o.calls) do if c[1] == 'SetText' then text = c[2].text end end
+                out[#out + 1] = text
+            end
+            return out
+        end
+        same(shown(), {T.en.hint.back, T.en.closet.hints.wear}, 'a row of pieces: Back, Wear')
+        at(r, 0.5, 'right')
+        same(shown(), {T.en.hint.back, T.en.closet.hints.wear}, 'the grid: Back, Wear')
+        at(r, 0.5, 'back', 'tab_left', 'tab_left')
+        eq((detail(r)), 'Ocean Maid', 'the Full tab')
+        same(shown(), {T.en.hint.back, T.en.closet.hints.whole}, 'the Full tab: Back, Whole outfit')
+        at(r, 0.5, 'select')
+        same(r.previews, {{{fit = MAID}}}, 'select wears the whole outfit')
+        -- A click on the second row too.
+        local zones = r.kit.groups.closet_menu.zones
+        zones[2].hover = true
+        at(r, 0.5, 'click')
+        same(r.previews[2], {{fit = KUNOICHI}}, 'a click wears row 2')
     end,
 
     back_without_changes_closes = function()

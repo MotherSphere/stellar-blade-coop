@@ -15,7 +15,9 @@
 -- reaches the tabs. Right or select on a row of pieces goes into its grid; left and right walk its tiles; left on the
 -- first tile or back returns to the rows. A tile focused for PREVIEW s is worn as a preview (dress.preview); select
 -- wears it at once and returns to the rows; refresh wears the whole outfit of the focused tile (the worn one in the
--- rows) or of the Full tab's row. Locked tiles and soon or empty rows never wear. Back in the rows or the tabs closes
+-- rows) or of the Full tab's row, which select wears too. Locked tiles and soon or empty rows never wear. The hints:
+-- Back, then Wear on a row of pieces or Whole outfit on the Full tab's row (both on Select's icon; refresh shows no
+-- hint: its icon is not one this module reads). Back in the rows or the tabs closes
 -- with a revert when nothing changed since the open. Else the popup asks "Keep this look?": Yes confirms
 -- (dress.confirm), No reverts, Back stays. For the keyboard and the pad, Select is Yes and refresh (F, the pad's Y) is
 -- No. Select does nothing for ARM s after the open: the console's Enter that typed coop closet menu reaches our Enter
@@ -154,6 +156,7 @@ function Menu.new(o)
         s.detail={title=shown and shown.title or '',desc=''}
         if item and item.whole then
             s.detail.desc=item.locked and w.row.locked:format(item.pack) or w.row.whole
+            if not item.locked then s.hints[2]={w.hints.whole,'Positive'} end
         elseif item and item.state~='pieces' then
             s.detail.desc=w.row[item.state]
         elseif item then
@@ -172,7 +175,7 @@ function Menu.new(o)
                 s.detail.equipped=worn~=nil
                 if worn then s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit) end
             end
-            s.hints[2]={t.hint.select,'Positive'}
+            s.hints[2]={w.hints.wear,'Positive'}
         end
         if asking then s.popup={title=w.popup.title,desc=w.popup.desc} end
         return s
@@ -298,9 +301,9 @@ function Menu.new(o)
             if not i then return end
             row,col,due,word=i,'rows',nil,'select'
         end
-        local _,tiles,at=focused()
+        local item,tiles,at=focused()
         if word=='tab_left' or word=='tab_right' then set_tab(tab+(word=='tab_left' and -1 or 1))
-        elseif word=='refresh' then wear_whole()
+        elseif word=='refresh' or word=='select' and col=='rows' and item and item.whole then wear_whole()
         elseif col=='grid' then
             -- shortcut: one row of tiles, up/down in the grid wait for more than one row of pieces (needs the
             -- TileView's EntryWidth from Ghidra).
