@@ -466,6 +466,7 @@ return {
             off='مخفي افتراضيًا في زيه'},
         origin={original='أصلي',custom='مخصص: %s'},
         hints={wear='ارتداء',take_off='خلع',whole='الزي كاملًا'},
+        camera={region='المنطقة',free='حرة',reset='إعادة ضبط الكاميرا'},
         popup={title='الاحتفاظ بهذا المظهر؟',desc='نعم يحفظه. لا يعيد إلى EVE مظهرها السابق.',yes='احتفاظ',
             no='تراجع',reset_title='إعادة ضبط Stellar Closet؟',
             reset_desc='تُزال كل قطع Stellar Closet عن EVE ويُحذف المظهر المحفوظ. لن يغيّر Stellar Closet شيئًا حتى '

@@ -506,6 +506,7 @@ return {
             off='Im Outfit standardmäßig ausgeblendet'},
         origin={original='Original',custom='Benutzerdefiniert: %s'},
         hints={wear='Tragen',take_off='Ausziehen',whole='Ganzes Outfit'},
+        camera={region='Bereich',free='Frei',reset='Kamera zurücksetzen'},
         popup={title='Diesen Look behalten?',desc='Ja speichert ihn. Nein gibt EVE ihren vorherigen Look zurück.',
             yes='Behalten',no='Verwerfen',reset_title='Stellar Closet zurücksetzen?',
             reset_desc='Alle Teile von Stellar Closet werden EVE ausgezogen. Der gespeicherte Look wird gelöscht. '

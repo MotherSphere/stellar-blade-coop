@@ -477,6 +477,7 @@ return {
             off='Dold som standard i sin dräkt'},
         origin={original='Original',custom='Anpassad: %s'},
         hints={wear='Bär',take_off='Ta av',whole='Hela dräkten'},
+        camera={region='Område',free='Fri',reset='Återställ kamera'},
         popup={title='Behålla den här looken?',desc='Ja sparar den. Nej ger EVE looken hon hade innan.',yes='Behåll',
             no='Ångra',reset_title='Återställa Stellar Closet?',
             reset_desc='Alla plagg från Stellar Closet tas av EVE. Den sparade looken raderas. '

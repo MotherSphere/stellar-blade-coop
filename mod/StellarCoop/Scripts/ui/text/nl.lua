@@ -490,6 +490,7 @@ return {
             off='Standaard verborgen in zijn outfit'},
         origin={original='Origineel',custom='Aangepast: %s'},
         hints={wear='Dragen',take_off='Uittrekken',whole='Hele outfit'},
+        camera={region='Gebied',free='Vrij',reset='Camera resetten'},
         popup={title='Deze look houden?',desc='Ja slaat hem op. Nee geeft EVE haar vorige look terug.',yes='Houden',
             no='Ongedaan maken',reset_title='Stellar Closet resetten?',
             reset_desc='Alle stukken van Stellar Closet gaan van EVE af. De opgeslagen look wordt gewist. '

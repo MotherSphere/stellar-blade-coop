@@ -386,6 +386,7 @@ return {
         detail={outfit='服裝：%s',slot='欄位：%s',covers='覆蓋：%s',also='同時佔用：%s',off='在所屬服裝中預設隱藏'},
         origin={original='原版',custom='自訂：%s'},
         hints={wear='穿上',take_off='脫下',whole='整套服裝'},
+        camera={region='部位',free='自由',reset='重設鏡頭'},
         popup={title='保留這個造型嗎？',desc='選「是」儲存。選「否」讓EVE恢復之前的造型。',yes='保留',no='復原',
             reset_title='要重設Stellar Closet嗎？',
             reset_desc='Stellar Closet的所有部件都會從EVE身上移除，已儲存的造型會被刪除。'

@@ -33,8 +33,21 @@ local function rig(o)
     r.menu = Menu.new({kit = r.kit, dress = r.dress, words = function() return T.en end,
         tell = function(build) r.told[#r.told + 1] = build(T.en) end, log = function(m) r.log[#r.log + 1] = m end,
         world = function() return r.world end, photo = function() return r.photo end,
-        status = function() return r.status end, now = function() return r.t end, adult = o.adult})
+        status = function() return r.status end, now = function() return r.t end, adult = o.adult,
+        camera = o.camera})
     return r
+end
+-- A fake closet camera (closet/ui/camera.lua's face): its calls in order, its ticks' dt and region.
+local function fake_camera()
+    local c = {calls = {}, ticks = {}, on = false, now = 'region'}
+    c.open = function() c.calls[#c.calls + 1] = 'open'; c.on = true end
+    c.close = function() c.calls[#c.calls + 1] = 'close'; c.on = false end
+    c.stop = function() c.calls[#c.calls + 1] = 'stop'; c.on = false end
+    c.tick = function(dt, region) c.ticks[#c.ticks + 1] = {dt = dt, region = region} end
+    c.word = function(w) c.calls[#c.calls + 1] = w end
+    c.running = function() return c.on end
+    c.mode = function() return c.now end
+    return c
 end
 
 -- Menu words at time t (s after the open at 0).
@@ -139,7 +152,7 @@ local tests = {
         for _, c in ipairs(rows[4].o.calls) do if c[1] == 'EventNotification' then looks[#looks + 1] = c[2] end end
         eq(looks[#looks], 'StateNormal', 'row 4 left: not focused')
         -- A transparent kit row over each slot row takes the mouse; it shows nothing while the part is there.
-        eq(#g.zones, 14, 'zones: 10 rows, 4 hint chips')
+        eq(#g.zones, 18, 'zones: 10 rows, 4 hint chips, 4 camera hint chips')
         for i, z in ipairs(g.zones) do
             eq(z.label, '', 'zone label ' .. i)
             if i <= 10 then eq(z.y, rows[i].y + 27, 'zone y ' .. i) end
@@ -1284,6 +1297,148 @@ local tests = {
         eq(#errors, 2, 'both errors reported: ' .. table.concat(errors, ' | '))
         ok(errors[1]:find('dress broke', 1, true) and errors[2]:find('probe broke', 1, true),
             table.concat(errors, ' | '))
+    end,
+
+    the_camera_opens_and_closes_with_the_menu = function()
+        -- A refused open makes no camera; a good one opens it after the draw; every close path closes it, coop off
+        -- stops it (also when the menu is closed, for a camera still blending out).
+        local cam = fake_camera()
+        local r = rig({camera = cam, before = function(r) r.photo = '1' end})
+        r.menu.open()
+        same(cam.calls, {}, 'refused: no camera')
+        local paths = {
+            back = function(r) at(r, 1, 'back') end,
+            yes = function(r) at(r, 1, 'right', 'right', 'select', 'back', 'select') end,
+            no = function(r) at(r, 1, 'right', 'right', 'select', 'back', 'no') end,
+            guard = function(r) r.photo = '1'; tick(r, 1) end,
+            typed = function(r) at(r, 1, 'right', 'right', 'select'); r.previewing = false; tick(r, 1.5) end,
+            close = function(r) r.menu.close() end,
+            keep = function(r) r.menu.close('keep') end,
+            reset = function(r) at(r, 1, 'tab_left', 'tab_left', 'down', 'down', 'select', 'select') end,
+            draw = function(r) r.kit.up = false; at(r, 1, 'up') end,
+            stop = function(r) r.menu.stop() end,
+        }
+        for name, path in pairs(paths) do
+            cam = fake_camera()
+            r = rig({camera = cam})
+            on_top(r)
+            eq(cam.calls[1], 'open', name .. ': opened')
+            path(r)
+            eq(r.menu.is_open(), false, name .. ': closed')
+            eq(cam.calls[#cam.calls], name == 'stop' and 'stop' or 'close', name .. ': the camera closed')
+        end
+        cam = fake_camera()
+        r = rig({camera = cam})
+        r.menu.stop()
+        same(cam.calls, {'stop'}, 'coop off with the menu closed still stops the camera')
+        -- A draw that fails at the open never opens the camera.
+        cam = fake_camera()
+        r = rig({camera = cam, before = function(r) r.kit.fail[F.DETAIL] = true end})
+        r.menu.open()
+        same(cam.calls, {'close'}, 'no camera on a failed open')
+    end,
+
+    the_camera_ticks_with_the_focused_region = function()
+        local cam = fake_camera()
+        local r = rig({camera = cam})
+        tick(r, 0.5)
+        eq(cam.ticks[1].region, nil, 'closed: no region')
+        r.t = 0.5
+        r.menu.open()
+        tick(r, 1)
+        eq(cam.ticks[2].region, 'full', 'the Full outfit tab')
+        ok(math.abs(cam.ticks[2].dt - 0.5) < 1e-9, 'dt since the last tick')
+        at(r, 1, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down') -- Torso, Top.
+        tick(r, 1.1)
+        eq(cam.ticks[#cam.ticks].region, 'torso', 'Top: torso')
+        at(r, 1.2, 'tab_right', 'down', 'down') -- Arms, Hand tattoo.
+        tick(r, 1.3)
+        eq(cam.ticks[#cam.ticks].region, 'hands', 'Hand tattoo: hands')
+        at(r, 1.4, 'up', 'up', 'up') -- The tabs: the tab's region.
+        tick(r, 1.5)
+        eq(cam.ticks[#cam.ticks].region, 'arms', 'the Arms tab')
+        r.menu.close()
+        tick(r, 1.6)
+        eq(cam.ticks[#cam.ticks].region, nil, 'closed: ticked without a region')
+    end,
+
+    camera_words_and_hints_reach_the_camera = function()
+        local cam = fake_camera()
+        local r = rig({camera = cam})
+        r.menu.nav('cam_left')
+        same(cam.calls, {}, 'closed: no word')
+        r.menu.open()
+        at(r, 0.1, 'cam_left', 'cam_right', 'cam_up', 'cam_down', 'cam_in', 'cam_out', 'cam_mode', 'cam_reset')
+        same(cam.calls, {'open', 'cam_left', 'cam_right', 'cam_up', 'cam_down', 'cam_in', 'cam_out', 'cam_mode',
+            'cam_reset'}, 'every camera word')
+        ok(r.menu.is_open(), 'still open')
+        -- The camera hint row at y 1890 right to left from x 2112: C (the pad's X) and the mode, then Reset.
+        local function camera_hints()
+            local out = {}
+            for _, h in ipairs(r.kit.live(F.HINT)) do
+                if h.y == 1890 then
+                    local text, icon
+                    for _, c in ipairs(h.o.calls) do
+                        if c[1] == 'SetText' then text = c[2].text elseif c[1] == 'SetResourceAction' then icon = c[2] end
+                    end
+                    out[#out + 1] = {x = h.x, text = text, icon = icon}
+                end
+            end
+            table.sort(out, function(a, b) return a.x > b.x end)
+            return out
+        end
+        same(camera_hints(), {{x = 2112 - 420, text = 'C  ' .. T.en.closet.camera.region, icon = 'UI_FaceButton_Left'},
+            {x = 2112 - 840, text = 'Backspace  ' .. T.en.closet.camera.reset, icon = 'UI_RightThumbstick'}},
+            'camera hints')
+        -- A click on a camera chip runs its word.
+        local zones = r.kit.groups.closet_menu.zones
+        eq(zones[15].y, 1890, 'the first camera chip') eq(zones[15].x, 2112 - 420, 'its x')
+        zones[15].hover = true
+        at(r, 0.5, 'click')
+        eq(cam.calls[#cam.calls], 'cam_mode', 'the mode chip')
+        zones[15].hover, zones[16].hover = false, true
+        at(r, 0.6, 'click')
+        eq(cam.calls[#cam.calls], 'cam_reset', 'the reset chip')
+        -- The pad's X switched the mode inside the camera: the next tick shows it.
+        cam.now = 'free'
+        tick(r, 0.7)
+        eq(camera_hints()[1].text, 'C  ' .. T.en.closet.camera.free, 'the mode word follows the camera')
+        -- A camera that stopped (the game took the view) shows no hints.
+        cam.on = false
+        tick(r, 0.8)
+        same(camera_hints(), {}, 'no camera: no camera hints')
+    end,
+
+    the_wiring_gives_the_menu_its_camera = function()
+        -- closet/wiring.lua's menu step: the camera with coop-closet-camera.txt through the link, the kit's screen and
+        -- main/boot.lua's pad reads read at each call (nil with an older DLL), handed to the menu.
+        local dress = rig().dress -- First: rig loads the menu again.
+        local Camera, Menu = require('closet.ui.camera'), require('closet.ui.menu')
+        local camera_new, menu_new = Camera.new, Menu.new
+        local got, menu_got
+        Camera.new = function(o) got = o; return camera_new(o) end
+        Menu.new = function(o) menu_got = o; return menu_new(o) end
+        package.loaded['closet.wiring'] = nil
+        local stored = {}
+        local kit = F.kit()
+        kit.screen = function() return {w = 3840, h = 2160} end
+        local M = {print = function() end, kit = kit, closet = dress, words = function() return T.en end,
+            tell = function() end, photo_state = function() return '0' end,
+            link = {status = function() return '' end, store = function(name)
+                stored[#stored + 1] = name
+                return {save = function() return true end, load = function() end, clear = function() end}
+            end}}
+        local ran, why = pcall(require('closet.wiring').build.menu, M)
+        Camera.new, Menu.new = camera_new, menu_new
+        ok(ran, tostring(why))
+        same(stored, {'coop-closet-camera.txt'}, 'the camera file through the link')
+        ok(got.screen == kit.screen, 'the kit\'s screen')
+        eq(got.pad_bits(), nil, 'no pad bits with an older DLL')
+        eq(got.pad_levels(), nil, 'no pad levels with an older DLL')
+        M.pad_bits, M.pad_levels = function() return 5 end, function() return 0.5, -0.5, 0, 1 end
+        eq(got.pad_bits(), 5, 'the pad bits')
+        same({got.pad_levels()}, {0.5, -0.5, 0, 1}, 'the pad levels')
+        ok(menu_got.camera ~= nil and menu_got.camera.word ~= nil, 'the menu has the camera')
     end,
 
     every_close_path_drops_every_part = function()

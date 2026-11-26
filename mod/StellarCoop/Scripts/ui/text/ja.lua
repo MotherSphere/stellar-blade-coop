@@ -426,6 +426,7 @@ return {
             off='衣装では初期状態で非表示'},
         origin={original='オリジナル',custom='カスタム：%s'},
         hints={wear='着る',take_off='脱ぐ',whole='衣装一式'},
+        camera={region='部位',free='フリー',reset='カメラをリセット'},
         popup={title='この見た目にしますか？',desc='「はい」で保存します。「いいえ」でEVEを前の見た目に戻します。',
             yes='保存',no='元に戻す',reset_title='Stellar Closetをリセットしますか？',
             reset_desc='Stellar ClosetのパーツをすべてEVEから外し、保存した見た目を消去します。'

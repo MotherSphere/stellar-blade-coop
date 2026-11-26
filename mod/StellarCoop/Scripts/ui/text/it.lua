@@ -499,6 +499,7 @@ return {
             off='Nascosto di default nel suo outfit'},
         origin={original='Originale',custom='Personalizzato: %s'},
         hints={wear='Indossa',take_off='Togli',whole='Outfit intero'},
+        camera={region='Zona',free='Libera',reset='Ripristina telecamera'},
         popup={title='Tenere questo look?',desc='Sì lo salva. No ridà a EVE il look di prima.',yes='Tieni',
             no='Annulla',reset_title='Reimpostare Stellar Closet?',
             reset_desc='Tutti i capi di Stellar Closet vengono tolti a EVE. Il look salvato viene cancellato. '

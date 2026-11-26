@@ -12,7 +12,7 @@
 -- game holds EVE still while one of its widgets is up (the probe's test 5).
 -- The mouse, read by the menu: tab_hovered (a tab's Button_Action:IsHovered, the probe's test 3), row_hovered (the kit
 -- row over a slot row), picked (a tile the mouse selected in the TileView, BP_GetSelectedItem as the probe's test 1),
--- hint_hovered (the kit zone over a menu hint: its word), popup_hit (the popup's Button_Positive or
+-- hint_hovered (the kit zone over a menu or camera hint: its word), popup_hit (the popup's Button_Positive or
 -- Button_Negative:IsHovered, as online/lobby/ui/lobby.lua reads them).
 -- alive is false once a made part is gone (the root rebuilt by a map change).
 -- v.draw(s), s: {tabs={labels}, tab=focused index, tab_top=the first tab shown (1 when nil), rows={{title, value,
@@ -77,8 +77,10 @@ function View.new(kit,log)
         b.image(0,1860,2560,300,'dither',{A=0.8})
         local zones={}
         for i=1,WINDOW do zones[i]=b.row(ROW_X,ROW_Y+(i-1)*PITCH+27,ROW_W) end
-        -- A chip over each menu hint (the SB hint part never takes the mouse, ui/kit/parts.lua): a clear kit row.
+        -- A chip over each menu hint, then over each camera hint (the SB hint part never takes the mouse,
+        -- ui/kit/parts.lua): a clear kit row.
         for i=1,HINTS do zones[WINDOW+i]=b.row(View.EDGE-HINT_STEP*i,HINT_Y,HINT_STEP-20) end
+        for i=1,HINTS do zones[WINDOW+HINTS+i]=b.row(View.EDGE-HINT_STEP*i,CAMERA_Y,HINT_STEP-20) end
         -- s.notice under the rows: the chat feed, where notices go, draws under this group's shade.
         return {zones=zones,notice=b.text(ROW_X,NOTICE_Y,'','name',nil,nil,{wrap=ROW_W})}
     end)
@@ -86,7 +88,8 @@ function View.new(kit,log)
     -- first tab shown; camera: the camera's hint row.
     local tabs,tabs_sig,focus,rows,top,hints,count,keys={},nil,nil,{},0,{},0,{}
     local tab_top,camera=1,{}
-    local words={} -- The word each menu hint chip runs (s.hints[i].word) as last drawn.
+    -- The word each hint chip runs as last drawn: the menu's (s.hints[i].word), then the camera's (s.camera_hints).
+    local words={}
     local grid,tiles_sig,selected,detail,detail_sig,popup
     local function make(class,x,y,w,h,fill,hit)
         local rec,why=kit.part(View.GROUP,class,x,y,w,h,fill,hit)
@@ -238,7 +241,10 @@ function View.new(kit,log)
         draw_grid(s)
         draw_detail(s)
         words={}
-        for i=1,HINTS do words[i]=s.hints[i] and s.hints[i].word end
+        for i=1,HINTS do
+            words[i]=s.hints[i] and s.hints[i].word
+            words[HINTS+i]=s.camera_hints and s.camera_hints[i] and s.camera_hints[i].word
+        end
         for _,row in ipairs({{hints,s.hints,HINT_Y},{camera,s.camera_hints or {},CAMERA_Y}}) do
             local specs={}
             for i=1,HINTS do
@@ -269,10 +275,10 @@ function View.new(kit,log)
             if zone and top+i<=count and zone.hovered() then return top+i end
         end
     end
-    -- The menu hint under the mouse: its word (s.hints[i].word), or nil (a hint with no word, none hovered).
+    -- The menu or camera hint under the mouse: its word, or nil (a hint with no word, none hovered).
     function v.hint_hovered()
         local view=kit.view(View.GROUP)
-        for i=1,HINTS do
+        for i=1,2*HINTS do
             local zone=view and view.zones[WINDOW+i]
             if words[i] and zone and zone.hovered() then return words[i] end
         end

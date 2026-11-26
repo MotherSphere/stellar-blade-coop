@@ -590,6 +590,7 @@ return {
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
         hints={wear='Wear',take_off='Take off',whole='Whole outfit'},
+        camera={region='Region',free='Free',reset='Reset camera'}, -- The camera's modes and its Reset hint.
         popup={title='Keep this look?',desc='Yes saves it. No gives EVE the look she had before.',yes='Keep',no='Undo',
             reset_title='Reset Stellar Closet?',
             reset_desc='Every closet piece comes off EVE and the saved look is deleted. Stellar Closet changes nothing '

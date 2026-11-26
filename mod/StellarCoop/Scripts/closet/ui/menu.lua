@@ -40,15 +40,22 @@
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
+-- The camera (closet/ui/camera.lua, when given): opened after a good open, closed on every close path (stopped by coop
+-- off, also while the menu is closed), ticked each frame with the region of the focused slot (of the tab on the tab
+-- row or a row with no slot; nil while closed). The camera words (cam_left, cam_right, cam_up, cam_down, cam_in,
+-- cam_out, cam_mode, cam_reset) go to it; while it runs, the camera hint row shows its mode on C (the pad's X) and
+-- Reset camera on Backspace (the pad's R3), each a chip a click runs.
 -- o: {kit=ui/kit/kit.lua's, dress=closet/dress.lua's, words=function() the ui/text table to show, tell=function(build)
 -- (main/base.lua's M.tell), log=, world=function() M.hud_shown, photo=function() M.photo_state(), status=function()
--- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil)}.
+-- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
+-- camera=closet/ui/camera.lua's or nil}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player=require('core.player')
 local Fits=require('closet.fits')
 local Model=require('closet.ui.model')
 local View=require('closet.ui.view')
+local Camera=require('closet.ui.camera')
 local T=require('ui.text')
 local Menu={}
 Menu.NEAR=3000 -- cm: an engaged enemy that near is combat (online/lobby/wiring.lua's fight check; no source).
@@ -78,6 +85,9 @@ function Menu.new(o)
     -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle).
     local frame,undo=0,nil
     local clicked -- The frame of the last left click (nav 'click'), until a tile pick uses it.
+    -- camera: closet/ui/camera.lua's or nil; region: the focused one, as of the last draw; hinted: the camera's mode
+    -- the camera hints show (false: none); ticked: the last tick's time.
+    local camera,region,hinted,ticked=o.camera,'full',false,nil
     local function words() return o.words and o.words() or T.en end
 
     local function cutscene(eve)
@@ -177,6 +187,15 @@ function Menu.new(o)
             end
         end
         local item,shown=list[row],s.rows[row]
+        region=Camera.region(col~='tabs' and item and item.slot or ids[tab])
+        hinted=camera~=nil and camera.running() and camera.mode()
+        if hinted then
+            -- UI_FaceButton_Left: SB's UI action for the left face button (the pad's X), the 26123051 exe's
+            -- FUN_14254baf0 case 0; UI_RightThumbstick: an action name of the same exe (FName at FUN_1407f2100). The
+            -- keyboard keys are in the labels: SB's own key map for those actions is not read.
+            s.camera_hints={{'C  '..w.camera[hinted],'UI_FaceButton_Left',word='cam_mode'},
+                {'Backspace  '..w.camera.reset,'UI_RightThumbstick',word='cam_reset'}}
+        end
         s.detail={title=shown and shown.title or '',desc=''}
         if item and item.whole then
             s.detail.desc=(item.locked and w.row.locked:format(item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
@@ -226,6 +245,7 @@ function Menu.new(o)
         how=how or 'revert'
         if not open then return true,'closet menu: not open' end
         open,asking,due=false,false,nil
+        if camera and how=='stop' then camera.stop() elseif camera then camera.close() end
         local dropped,fault=pcall(view.drop_all)
         if not dropped then log('menu: drop failed: '..tostring(fault)) end
         kit.show(View.GROUP,false)
@@ -276,7 +296,12 @@ function Menu.new(o)
         kit.show(View.GROUP,true)
         open=true
         log('menu: open')
-        if not redraw() then return false,'closet menu: closed, it could not draw (UE4SS.log says why)' end
+        local drawn=redraw()
+        if drawn and camera then -- After a good draw only, then drawn again with its hints.
+            camera.open()
+            drawn=redraw()
+        end
+        if not drawn then return false,'closet menu: closed, it could not draw (UE4SS.log says why)' end
         return true,'closet menu: open'
     end
 
@@ -362,10 +387,17 @@ function Menu.new(o)
         if col=='grid' then col,due='rows',nil end -- As the grid's Back: a tile preview due is dropped.
         return self.nav('back')
     end
-    -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, or click (a
-    -- left click: the tab, row or popup button under the mouse). yes and no answer the popup too; refresh is its No.
+    -- A camera word to the camera, then drawn again (the mode's hint).
+    local function cam_word(word)
+        if camera then camera.word(word) end
+        return redraw()
+    end
+    -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, a camera word,
+    -- or click (a left click: the tab, row, hint chip or popup button under the mouse). yes and no answer the popup
+    -- too; refresh is its No.
     function self.nav(word)
         if not open then return end
+        if word:sub(1,4)=='cam_' then return cam_word(word) end
         if word=='tab_left' then undo={tab,row,col,tile,tab_top,at=frame} -- For the pad chord (self.toggle).
         elseif word=='left' and undo then undo.at=frame
         else undo=nil end
@@ -382,7 +414,8 @@ function Menu.new(o)
             local i=view.tab_hovered()
             if i then set_tab(i); return redraw() end
             local chip=view.hint_hovered() -- A hint chip runs its word.
-            if chip then word=chip
+            if chip and chip:sub(1,4)=='cam_' then return cam_word(chip)
+            elseif chip then word=chip
             else
                 i=view.row_hovered()
                 if not i then return end
@@ -423,6 +456,8 @@ function Menu.new(o)
     function self.tick()
         local t=now()
         frame=frame+1
+        if camera then camera.tick(t-(ticked or t),open and region or nil) end
+        ticked=t
         if not open then
             -- shortcut: kit.holding() does not say for whom, so a panel that took the input meanwhile keeps owed set
             -- (open then skips the panel guard); read the holder once the kit says it.
@@ -451,6 +486,8 @@ function Menu.new(o)
             end
             if changed and not dress.previewing() then return self.close('keep') end
         end
+        -- The camera's mode changed by the pad, or the camera stopped: its hints drawn again.
+        if camera and (camera.running() and camera.mode())~=hinted then redraw() end
         if asking then return end
         local _,tiles=focused()
         local picked=tiles and view.picked()
@@ -470,6 +507,7 @@ function Menu.new(o)
     -- coop off: closed without a revert (the dress gives EVE her own look back), the input given back at once.
     function self.stop()
         self.close('stop')
+        if camera then camera.stop() end -- Closed before: a camera still blending out goes at once.
         back_at,owed,unreverted=nil,false,false -- kit.stop gives the input back; coop off ends the look.
     end
     return self

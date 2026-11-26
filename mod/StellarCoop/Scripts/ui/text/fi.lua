@@ -495,6 +495,7 @@ return {
             off='Piilotettu oletuksena asussaan'},
         origin={original='Alkuperäinen',custom='Mukautettu: %s'},
         hints={wear='Pue',take_off='Riisu',whole='Koko asu'},
+        camera={region='Alue',free='Vapaa',reset='Nollaa kamera'},
         popup={title='Pidetäänkö tämä tyyli?',desc='Kyllä tallentaa sen. Ei palauttaa EVElle aiemman tyylin.',
             yes='Pidä',no='Kumoa',reset_title='Nollataanko Stellar Closet?',
             reset_desc='Kaikki Stellar Closetin osat riisutaan EVEltä. Tallennettu tyyli poistetaan. '

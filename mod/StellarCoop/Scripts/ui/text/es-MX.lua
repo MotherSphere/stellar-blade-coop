@@ -494,6 +494,7 @@ return {
             off='Oculto por defecto en su atuendo'},
         origin={original='Original',custom='Personalizado: %s'},
         hints={wear='Poner',take_off='Quitar',whole='Atuendo entero'},
+        camera={region='Zona',free='Libre',reset='Restablecer cámara'},
         popup={title='¿Conservar este look?',desc='Sí lo guarda. No devuelve a EVE el look que tenía antes.',
             yes='Conservar',no='Deshacer',reset_title='¿Restablecer Stellar Closet?',
             reset_desc='Todas las piezas de Stellar Closet se le quitan a EVE. El look guardado se borra. '

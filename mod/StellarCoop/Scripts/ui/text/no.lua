@@ -481,6 +481,7 @@ return {
             off='Skjult som standard i antrekket sitt'},
         origin={original='Original',custom='Egendefinert: %s'},
         hints={wear='Ta på',take_off='Ta av',whole='Hele antrekket'},
+        camera={region='Område',free='Fri',reset='Tilbakestill kamera'},
         popup={title='Beholde dette utseendet?',desc='Ja lagrer det. Nei gir EVE utseendet hun hadde før.',
             yes='Behold',no='Angre',reset_title='Tilbakestille Stellar Closet?',
             reset_desc='Alle delene fra Stellar Closet tas av EVE. Det lagrede utseendet slettes. '

@@ -73,6 +73,7 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/model.lua` | What the menu lists: its tabs, each tab's rows, each slot's tiles (the None tile first) and the choice edits |
 | `ui/menu.lua` | `coop closet menu`: the guards that keep it shut, open, draw and close |
 | `ui/view.lua` | The menu's screen, made of the game's widget parts |
+| `ui/camera.lua` | The menu's camera: region and free modes, its pose kept in `coop-closet-camera.txt` |
 | `ui/probe.lua` | `coop closet probe` |
 
 `wiring.lua` builds `dress.lua` as `M.closet` and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with
@@ -131,6 +132,25 @@ look.
 Every close removes every game part first: the game holds EVE still while one of its widgets is up. The game gets its
 input back 150 ms after the close, so the Esc that closed the menu does not open the pause menu. `coop off` closes the
 menu at once. It runs `coop closet off` too: EVE gets her own look back and `coop-closet.txt` is cleared.
+
+### The closet camera
+
+When the menu opens while the game's view is on EVE, the closet takes the view with a camera of its own (0.3 s blend).
+EVE stands at about 78% across the screen, right of the menu.
+
+- Region mode (the default) frames the part of EVE that the focused slot or tab dresses: head, torso, arms, hands,
+  hips, legs, feet or the whole body. Gloves, Fingernails and hand tattoos go to the hands. Shoes, Toenails and foot
+  tattoos go to the feet. Full outfit and Body show her whole. The camera eases from one region to the next.
+- Free mode keeps a pose of its own around EVE. J and L orbit 10 degrees left and right, I and K up and down (60 degrees
+  at most), U and O zoom by 10% (40 cm to 5 m). On a controller the right stick orbits and LT and RT zoom. X held with
+  the right stick moves the camera's height and pans it. In region mode these keys move nothing.
+- C, a tap of X on a controller or a click on its hint switches region and free. Backspace, R3 or a click on its hint
+  resets the free camera to the region's framing and stays in free mode. Nothing else resets it.
+
+The mode and the free pose are saved in `coop-closet-camera.txt` at each change and survive a restart. Every close
+gives the view back while it is still the closet's, then removes the camera. When the game takes the view (a
+cutscene, photo mode), the camera stops and the menu closes. A camera left by a Lua reload is removed at the next
+frame.
 
 ## Online sessions
 

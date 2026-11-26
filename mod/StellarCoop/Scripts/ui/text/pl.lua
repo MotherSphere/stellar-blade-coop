@@ -486,6 +486,7 @@ return {
             off='Domyślnie ukryte w swoim stroju'},
         origin={original='Oryginalny',custom='Własny: %s'},
         hints={wear='Załóż',take_off='Zdejmij',whole='Cały strój'},
+        camera={region='Obszar',free='Swobodna',reset='Resetuj kamerę'},
         popup={title='Zachować ten wygląd?',desc='Tak go zapisuje. Nie przywraca EVE poprzedni wygląd.',
             yes='Zachowaj',no='Cofnij',reset_title='Zresetować Stellar Closet?',
             reset_desc='Wszystkie elementy Stellar Closet zostają zdjęte z EVE. Zapisany wygląd zostaje usunięty. '

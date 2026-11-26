@@ -495,6 +495,7 @@ return {
             off='Escondido por predefinição na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
         hints={wear='Vestir',take_off='Tirar',whole='Roupa completa'},
+        camera={region='Região',free='Livre',reset='Repor câmara'},
         popup={title='Manter este visual?',desc='Sim guarda-o. Não devolve a EVE o visual que tinha antes.',
             yes='Manter',no='Desfazer',reset_title='Repor o Stellar Closet?',
             reset_desc='Todas as peças do Stellar Closet saem de EVE. O visual guardado é apagado. '

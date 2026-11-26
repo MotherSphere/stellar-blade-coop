@@ -548,6 +548,14 @@ package.loaded['closet.dress']={USE='Use: coop closet wear',parse=function(w) re
         restore=function() cl.restores=cl.restores+1 end,tick=function() cl.ticks=cl.ticks+1 end,
         stop=function() cl.stops=cl.stops+1 end,status=function() return 'closet: nothing worn' end}
 end}
+-- The closet menu's camera (closet/ui/camera.lua; closet/camera_test tests it, closet/menu_test its wiring): what new
+-- got. It never runs: link.store here gives a name, not a file.
+cc={}
+package.loaded['closet.ui.camera']={FILE='coop-closet-camera.txt',region=function() return 'full' end,new=function(o)
+    cc.o=o
+    return {open=function() end,close=function() end,stop=function() end,tick=function() end,word=function() end,
+        running=function() return false end,mode=function() return 'region' end}
+end}
 -- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
 -- stops, what a tick says; its scenes' words.
 sc={}
