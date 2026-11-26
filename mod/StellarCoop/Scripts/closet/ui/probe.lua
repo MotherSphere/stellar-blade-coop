@@ -32,8 +32,8 @@ local DATA='/Game/Art/UI/Data/HairSalon/BP_HairSalonItemData_Tile.BP_HairSalonIt
 -- The hair salon's grid list: child TileView_ItemList, a /Script/UMG.TileView of WB_HairSalon_GridSlot (198x262).
 local GRID='/Game/Art/UI/Widget/HairSalon/WB_HairSalonGridList.WB_HairSalonGridList_C'
 -- One grid slot: Image_Icon, Text_ItemName, Image_Focus, badge_equip; BP 'Set Focus', 'Set Nomal' (each collapses
--- Text_ItemName), UpdateEquip(bool), UpdateLock(bool). FocusSelf, PlaySpawnAnim and ResetProgress read the list that
--- owns the slot: never called on a slot alone.
+-- Text_ItemName), UpdateEquip(bool), UpdateLock(bool: purchased, true hides the lock). FocusSelf, PlaySpawnAnim and
+-- ResetProgress read the list that owns the slot: never called on a slot alone.
 local SLOT='/Game/Art/UI/Widget/HairSalon/WB_HairSalon_GridSlot.WB_HairSalon_GridSlot_C'
 local SLOT_W,SLOT_H=198,262
 -- The grid slot's own default icon (256x256): the test icon.
@@ -182,7 +182,8 @@ Probe.TESTS['2']={steps={
 
 -- The pause menu's tab button (super /Script/SB.SBCommonTabButtonWidget): TextValue Text, then the native
 -- RefreshDesign() puts it in TextBlock; FocusTabButton() and DefocusTabButton() set bFocused; Button_Action takes the
--- mouse. SetDotState and SetDotData are BlueprintEvents a caller cannot call.
+-- mouse. SetDotState and SetDotData are BlueprintEvents (not BlueprintCallable, as EventNotification): the probe
+-- leaves them alone.
 local TAB='/Game/Art/UI/Widget/GameMenu/Common/WB_Common_Tab_Btn.WB_Common_Tab_Btn_C'
 local TABS=9
 -- The workshop's NanoSuit detail panel: TitleText, DescriptionText, MaterialText1..5 (Text), ItemRarity
