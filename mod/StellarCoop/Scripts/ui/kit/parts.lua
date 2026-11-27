@@ -10,7 +10,8 @@
 local Parts={}
 -- Each kind's path under /Game/Art/UI/Widget/, in the parts check's order (online/lobby/ui/lobby.lua). slider (the
 -- settings menu's slider slot: closet/ui/view.lua's number rows) is not in that check: a screen without it shows the
--- kit row instead.
+-- kit row instead. Its Focus and Normal functions (look below) were read in WB_Setting_Slider_Slot's widget JSON (the
+-- pak of build 26123051) on 27 Nov 2026, as closet/ui/view.lua's comment on its members says.
 Parts.ORDER={'row','option','header','hint','popup','count'}
 local PATH={row='Lobby/WB_Lobby_Menu_Slot',option='GameMenu/Setting/Slot/WB_Setting_Button_Slot',
     header='GameMenu/Setting/Slot/WB_Setting_Category',hint='GameMenu/Common/Indicator/WB_Common_IndicatorBtnDefault',
