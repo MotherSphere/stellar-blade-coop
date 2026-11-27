@@ -23,9 +23,15 @@ local Hud={}
 Hud.GAP=6         -- HUD units between the D-pad marker and gun mode's entry. The same gap separates its parts
 Hud.KEY_SIZE=30   -- the key or pad glyph, until the game's btn_up has a drawn size
 Hud.ICON_SIZE=34  -- the hanger icon, until the heal item's icon has a drawn size
--- Between our key and gun mode's key: wider than the gaps inside each entry, so the two read as two pairs. A starting
--- value to tune in game.
-Hud.SPACE=Hud.GAP*3
+-- Between our key and gun mode's key: as close as the D-pad marker's own glyphs sit (Schizo, 27 Nov 2026).
+Hud.SPACE=2
+-- The arrow beside the key on the keyboard, pointing at the entry's item: SB's own small triangle (base paks of
+-- 26123051: /Game/Art/UI/Texture/Common/theater_subtitle_arrow, 61x32, white, pointing down), turned with
+-- UWidget.SetRenderTransformAngle (native table entry 0x146203110: name 0x1461fff48, exec 0x143d75990 reads one float
+-- into the widget's RenderTransform.Angle at +0xa8 and calls FUN_143d02f20, the transform update; Ghidra, 27 Nov 2026).
+-- ARROW_W wide, half as high. The pad's D-pad glyphs point by themselves: no arrow there.
+Hud.ARROW='/Game/Art/UI/Texture/Common/theater_subtitle_arrow.theater_subtitle_arrow'
+Hud.ARROW_W,Hud.ARROW_PAD,Hud.ARROW_ANGLE=12,2,90 -- 90: the down arrow turned to point left, at the hanger
 -- Below the health bars, on gun mode's row: the entry's centre this many marker heights below the marker's centre.
 Hud.DOWN=1.5
 -- s between two looks for the HUD while none on screen could take the entry: each look walks the object array once
@@ -213,14 +219,17 @@ function Hud.new(g)
             local bg=C('Image',keyo,'ClosetKeyCell')
             local glyph=C('Image',keyo,'ClosetKeyGlyph')
             local img=C('Image',box,'ClosetIcon')
+            local arrow=C('Image',box,'ClosetArrow')      -- keyboard only: points at the hanger
             if cell then pcall(function() bg:SetBrush(cell.Brush) end) end
             local function center(sl) pcall(function() sl:SetHorizontalAlignment(2); sl:SetVerticalAlignment(2) end) end
             center(keyo:AddChildToOverlay(bg)); center(keyo:AddChildToOverlay(glyph))
             -- the hanger first, then the key: with gun mode's key and rifle right of it the row reads hanger, closet
             -- key, gun key, rifle
             local si=box:AddChildToHorizontalBox(img)
+            local sa=box:AddChildToHorizontalBox(arrow)
             local sk=box:AddChildToHorizontalBox(keyo)
-            for _,sl in ipairs({sk,si}) do pcall(function() sl:SetVerticalAlignment(2) end) end
+            for _,sl in ipairs({sk,sa,si}) do pcall(function() sl:SetVerticalAlignment(2) end) end
+            pcall(function() sa:SetPadding({Left=Hud.GAP,Top=0,Right=0,Bottom=0}) end)
             pcall(function() sk:SetPadding({Left=Hud.GAP,Top=0,Right=0,Bottom=0}) end)
             -- held in a size box exactly the marker's laid-out size, so the marker never grows (a larger child, or a
             -- canvas, grew it and pushed the whole item column off the screen). The row inside keeps its own sizes and
@@ -233,12 +242,12 @@ function Hud.new(g)
             pcall(function() slot:SetHorizontalAlignment(1); slot:SetVerticalAlignment(2) end)
             box:SetVisibility(4); holder:SetVisibility(4) -- SelfHitTestInvisible
             -- Collapsed until follow shows them: a new Image with no brush draws a white square
-            bg:SetVisibility(1); glyph:SetVisibility(1); img:SetVisibility(1)
+            bg:SetVisibility(1); glyph:SetVisibility(1); img:SetVisibility(1); arrow:SetVisibility(1)
             ui.holder=holder
             ui.overlay,ui.dpad,ui.up,ui.thumb,ui.box,ui.slot=overlay,dpad,up,thumb,box,slot
             ui.box_at,ui.overlay_at,ui.holder_at=g.path(box),g.path(overlay),g.path(holder)
             ui.pad_layer=pad_layer
-            ui.keyo,ui.bg,ui.glyph,ui.img=keyo,bg,glyph,img
+            ui.keyo,ui.bg,ui.glyph,ui.img,ui.arrow,ui.key_slot=keyo,bg,glyph,img,arrow,sk
             ui.cell=cell~=nil
             ui.k,ui.i=Hud.KEY_SIZE,Hud.ICON_SIZE
             -- what follow last applied was applied to the last HUD's widgets: a new HUD gets its glyph, cell, icon,
@@ -349,6 +358,20 @@ function Hud.new(g)
             local kb=up:find('KeyBoard',1,true)~=nil
             pcall(function() ui.glyph:SetVisibility(t and 4 or 1) end)
             pcall(function() ui.bg:SetVisibility((t and kb and ui.cell) and 4 or 1) end)
+            -- the arrow with a keyboard key: the key then sits ARROW_PAD after it, else GAP after the hanger
+            local a=t and kb and g.asset(Hud.ARROW)
+            if a then
+                pcall(function()
+                    ui.arrow:SetBrushFromTexture(a,false)
+                    ui.arrow:SetBrushSize({X=Hud.ARROW_W,Y=Hud.ARROW_W/2})
+                    ui.arrow:SetRenderTransformAngle(Hud.ARROW_ANGLE)
+                end)
+            end
+            ui.arrow_on=a and true or false
+            pcall(function() ui.arrow:SetVisibility(a and 4 or 1) end)
+            pcall(function()
+                ui.key_slot:SetPadding({Left=a and Hud.ARROW_PAD or Hud.GAP,Top=0,Right=0,Bottom=0})
+            end)
             g.log('hud: glyph '..tostring(path)..(t and '' or ' (missing)'))
         end
         -- place: the holder takes the marker's size, the row is moved by a render translation to where gun mode's
@@ -382,12 +405,12 @@ function Hud.new(g)
         follow(key)
     end
 
-    -- HUD units the entry takes at the start of gun mode's row (the hanger, GAP, the key cell, SPACE): gun mode's
-    -- entry (fight/gunmode/ui/dpad.lua) starts that far right, so the row reads hanger, closet key, gun key, rifle.
-    -- nil while the entry is not placed on a HUD or after hide.
+    -- HUD units the entry takes at the start of gun mode's row (the hanger, GAP, the arrow and ARROW_PAD on the
+    -- keyboard, the key cell, SPACE): gun mode's entry (fight/gunmode/ui/dpad.lua) starts that far right, so the row
+    -- reads hanger, closet key, gun key, rifle. nil while the entry is not placed on a HUD or after hide.
     function self.lead()
         if gone or not (ui.placed and alive(ui.box,ui.box_at)) then return nil end
-        return ui.i+Hud.GAP+ui.k*1.25+Hud.SPACE
+        return ui.i+Hud.GAP+(ui.arrow_on and Hud.ARROW_W+Hud.ARROW_PAD or 0)+ui.k*1.25+Hud.SPACE
     end
 
     -- Taken off the HUD (coop off). The Construct hook stays registered: it does nothing from then on.

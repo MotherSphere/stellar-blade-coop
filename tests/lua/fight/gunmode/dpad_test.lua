@@ -41,6 +41,7 @@ local function world()
     function Obj.SetBrushFromTexture(o,t) o.tex=t end
     function Obj.SetBrush(o,b) o.brush=b end
     function Obj.SetBrushSize(o,s) o.bsize=s end
+    function Obj.SetRenderTransformAngle(o,a) o.angle=a end
     function Obj.SetRenderTranslation(o,t) o.at=t end
     function Obj.IsA(o,c) return c.short==o.class or c.short=='Widget' or (c.short=='UserWidget' and o.user==true) end
     function Obj.SetText(o,t) o.text=t; o.writes=(o.writes or 0)+1 end
@@ -93,6 +94,7 @@ local function world()
     W.kq=W.new('Texture2D',nil,P..'PC/KeyIcon_KeyBoard_Q.KeyIcon_KeyBoard_Q')
     W.kg=W.new('Texture2D',nil,P..'PC/KeyIcon_KeyBoard_G.KeyIcon_KeyBoard_G')
     W.cell_tex=W.new('Texture2D',nil,'/Game/Art/UI/Texture/HUD/btn_PcEmpty.btn_PcEmpty')
+    W.arrow=W.new('Texture2D',nil,'/Game/Art/UI/Texture/Common/theater_subtitle_arrow.theater_subtitle_arrow')
 end
 -- SB's HUD on screen with its D-pad marker, the marker's parts named as in the paks (btn: its key cell). n: the HUD's
 -- number in its name (1 unless given).
@@ -145,6 +147,10 @@ do
     assert(glyph.tex==W.kg and glyph.vis~=1,'the G key icon')
     assert(cell.brush==h.cell.Brush and cell.vis==4,'the G icon on the marker\'s key cell: '..tostring(cell.brush)..' '..cell.vis)
     assert(log:find('dpad: rifle entry built, key cell found',1,true),log)
+    local box=h.overlay.named.gunmoderifleslot
+    local arrow=box.named.gunmoderiflearrow
+    assert(box.kids[2]==arrow and box.kids[3]==box.named.gunmoderifleicon,'the key, the arrow, then the rifle')
+    assert(arrow.tex==W.arrow and arrow.vis==4 and arrow.angle==-90,'the arrow points right, at the rifle')
 end
 do
     local _,cell,glyph,log=entry(true)

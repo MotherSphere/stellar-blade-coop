@@ -20,6 +20,13 @@ local Dpad={}
 
 Dpad.ICON='/Game/DLC_2/Art/UI/texture/HiddenReward/Icon/Icon_Nikke_LostItem_AssaultRifle.Icon_Nikke_LostItem_AssaultRifle'
 Dpad.GAP=6         -- HUD units between the D-pad marker and the entry. The same gap separates its parts
+-- The arrow beside the key on the keyboard, pointing at the entry's item: SB's own small triangle (base paks of
+-- 26123051: /Game/Art/UI/Texture/Common/theater_subtitle_arrow, 61x32, white, pointing down), turned with
+-- UWidget.SetRenderTransformAngle (native table entry 0x146203110: name 0x1461fff48, exec 0x143d75990 reads one float
+-- into the widget's RenderTransform.Angle at +0xa8 and calls FUN_143d02f20, the transform update; Ghidra, 27 Nov 2026).
+-- ARROW_W wide, half as high. The pad's D-pad glyphs point by themselves: no arrow there.
+Dpad.ARROW='/Game/Art/UI/Texture/Common/theater_subtitle_arrow.theater_subtitle_arrow'
+Dpad.ARROW_W,Dpad.ARROW_PAD,Dpad.ARROW_ANGLE=12,2,-90 -- -90: the down arrow turned to point right, at the rifle
 Dpad.KEY_SIZE=30   -- the key or pad glyph, until the game's btn_up has a drawn size
 Dpad.ICON_SIZE=34  -- the rifle icon, until the heal item's icon has a drawn size
 -- Below the health bars (BU, BE, HP, SH sit right of the marker in combat and covered the entry, 11-20): the entry's
@@ -135,6 +142,7 @@ function Dpad.new(g)
             local keyo=C('Overlay',box,'GunModeRifleKey')     -- the key cell (keyboard) under the glyph
             local bg=C('Image',keyo,'GunModeRifleKeyCell')
             local glyph=C('Image',keyo,'GunModeRifleKeyGlyph')
+            local arrow=C('Image',box,'GunModeRifleArrow')  -- keyboard only: points at the rifle
             local img=C('Image',box,'GunModeRifleIcon')
             local txt=C('TextBlock',box,'GunModeRifleCount')
             if cell then pcall(function() bg:SetBrush(cell.Brush) end) end
@@ -148,9 +156,12 @@ function Dpad.new(g)
             local function center(sl) pcall(function() sl:SetHorizontalAlignment(2); sl:SetVerticalAlignment(2) end) end
             center(keyo:AddChildToOverlay(bg)); center(keyo:AddChildToOverlay(glyph))
             local sk=box:AddChildToHorizontalBox(keyo)
+            local sa=box:AddChildToHorizontalBox(arrow)
             local si=box:AddChildToHorizontalBox(img)
             local st=box:AddChildToHorizontalBox(txt)
-            for _,sl in ipairs({sk,si,st}) do pcall(function() sl:SetVerticalAlignment(2) end) end
+            for _,sl in ipairs({sk,sa,si,st}) do pcall(function() sl:SetVerticalAlignment(2) end) end
+            pcall(function() sa:SetPadding({Left=Dpad.ARROW_PAD,Top=0,Right=0,Bottom=0}) end)
+            pcall(function() arrow:SetVisibility(1) end)
             pcall(function() si:SetPadding({Left=Dpad.GAP,Top=0,Right=0,Bottom=0}) end)
             pcall(function() st:SetPadding({Left=4,Top=0,Right=0,Bottom=0}) end)
             -- held in a size box exactly the marker's laid-out size, so the marker never grows (a larger child, or a
@@ -169,6 +180,7 @@ function Dpad.new(g)
             ui.box_at,ui.overlay_at,ui.holder_at=g.path(box),g.path(overlay),g.path(holder)
             ui.pad_layer=pad_layer
             ui.keyo,ui.bg,ui.glyph,ui.img,ui.txt=keyo,bg,glyph,img,txt
+            ui.arrow=arrow
             ui.cell=cell~=nil
             ui.k,ui.i=Dpad.KEY_SIZE,Dpad.ICON_SIZE
             -- what follow last applied was applied to the last HUD's widgets: a new HUD gets its glyph, cell, sizes
@@ -258,6 +270,16 @@ function Dpad.new(g)
             -- the marker's cell: an Image with no brush draws a white square
             local kb=up:find('KeyBoard',1,true)~=nil
             pcall(function() ui.bg:SetVisibility((kb and ui.cell) and 4 or 1) end)
+            -- the arrow with a keyboard key, between it and the rifle
+            local a=t and kb and g.asset(Dpad.ARROW)
+            if a then
+                pcall(function()
+                    ui.arrow:SetBrushFromTexture(a,false)
+                    ui.arrow:SetBrushSize({X=Dpad.ARROW_W,Y=Dpad.ARROW_W/2})
+                    ui.arrow:SetRenderTransformAngle(Dpad.ARROW_ANGLE)
+                end)
+            end
+            pcall(function() ui.arrow:SetVisibility(a and 4 or 1) end)
             g.log('dpad: glyph '..tostring(path)..(t and '' or ' (missing)'))
         end
         -- place: the holder takes the marker's size, the row is moved right of the marker by a render translation.

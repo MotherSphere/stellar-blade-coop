@@ -43,6 +43,7 @@ local function world()
     function Obj.SetBrushFromTexture(o,t) o.tex=t end
     function Obj.SetBrush(o,b) o.brush=b end
     function Obj.SetBrushSize(o,s) o.bsize=s end
+    function Obj.SetRenderTransformAngle(o,a) o.angle=a end
     function Obj.SetRenderTranslation(o,t) o.at=t end
     function Obj.IsA(o,c) return c.short==o.class or c.short=='Widget' or (c.short=='UserWidget' and o.user==true) end
     function Obj.RemoveFromParent(o)
@@ -92,6 +93,7 @@ local function world()
     W.kq=W.new('Texture2D',nil,P..'PC/KeyIcon_KeyBoard_Q.KeyIcon_KeyBoard_Q')
     W.kf1=W.new('Texture2D',nil,P..'PC/KeyIcon_KeyBoard_F1.KeyIcon_KeyBoard_F1')
     W.cell_tex=W.new('Texture2D',nil,'/Game/Art/UI/Texture/HUD/btn_PcEmpty.btn_PcEmpty')
+    W.arrow=W.new('Texture2D',nil,'/Game/Art/UI/Texture/Common/theater_subtitle_arrow.theater_subtitle_arrow')
 end
 -- SB's HUD on screen with its D-pad marker, the marker's parts named as in the paks (btn: its key cell).
 local function hud(n)
@@ -152,12 +154,15 @@ do
     assert(cell.brush==h.cell.Brush and cell.vis==4,'the F1 icon on the marker\'s key cell')
     assert(img.tex==W.hanger and img.vis==4 and g.imported==H.ICON_FILE,'the hanger icon')
     assert(said(logs,'hud: closet entry built, key cell found')==1,table.concat(logs,'\n'))
-    assert(box.kids[1]==img and box.kids[2]==glyph.outer,'the hanger first, then the key')
+    local arrow=box.named.closetarrow
+    assert(box.kids[1]==img and box.kids[2]==arrow and box.kids[3]==glyph.outer,'the hanger, the arrow, then the key')
+    assert(arrow.tex==W.arrow and arrow.vis==4 and arrow.angle==90,'the arrow points left, at the hanger')
+    assert(arrow.bsize.X==H.ARROW_W and arrow.bsize.Y==H.ARROW_W/2,'the arrow\'s size')
     -- marker 100 wide, key 32 (cell 40), icon 40: at gun mode's own start, 100+GAP; gun mode's row moves right by
     -- lead (the hanger, GAP, the key cell, SPACE)
     assert(box.at and math.abs(box.at.X-(100+H.GAP))<0.01 and box.at.Y==80*H.DOWN,'placed at gun mode\'s start: '
         ..tostring(box.at and box.at.X))
-    assert(math.abs(d.lead()-(40+H.GAP+32*1.25+H.SPACE))<0.01,'its lead: '..tostring(d.lead()))
+    assert(math.abs(d.lead()-(40+H.GAP+H.ARROW_W+H.ARROW_PAD+32*1.25+H.SPACE))<0.01,'its lead: '..tostring(d.lead()))
     assert(h.overlay.named.closetholder and not h.overlay.named.gunmoderifleslot,'Closet-named widgets only')
 end
 -- 2. No closet key (none): the keyboard shows neither glyph nor key cell. The pad shows its D-pad Left.
@@ -174,6 +179,8 @@ do
     ticks(d,10,nil)
     assert(glyph.tex==xb_left and glyph.vis==4,'the pad\'s D-pad Left with no closet key')
     assert(cell.vis==1,'no key cell on the pad')
+    assert(h.overlay.named.closetslot.named.closetarrow.vis==1,'no arrow on the pad: its glyph points by itself')
+    assert(math.abs(d.lead()-(40+H.GAP+32*1.25+H.SPACE))<0.01,'the pad\'s lead has no arrow: '..tostring(d.lead()))
 end
 -- 3. No marker key cell: the glyph shows alone, never an empty cell (a white square).
 do
