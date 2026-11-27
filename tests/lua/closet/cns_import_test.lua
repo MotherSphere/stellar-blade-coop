@@ -47,7 +47,8 @@ local tests={
         eq(slot_of('Face', 'Red Mask', '/Game/M/A.A'), 'Face', 'Face stays Face')
     end,
     head_slots_and_ponytail = function()
-        for kind, slot in pairs({Face = 'Face', Ears = 'Headwear', Eyes = 'Headwear', Weapon = 'Weapon', Hair = 'Hair'}) do
+        local kinds = {Face = 'Face', Ears = 'Headwear', Eyes = 'Headwear', Weapon = 'Weapon', Hair = 'Hair'}
+        for kind, slot in pairs(kinds) do
             eq(one(('[{"UniqueFitID":"a","FitMeshType":"%s","OutfitPaths":["/Game/M/A.A"]}]'):format(kind)).Slot,
                 slot, kind)
         end

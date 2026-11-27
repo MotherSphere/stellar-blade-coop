@@ -192,7 +192,9 @@ local tests = {
         local good, why = pcall(function()
             local state = {}
             for _, r in ipairs(new().rows('head')) do state[r.slot] = r.state end
-            for _, slot in ipairs({'Face', 'Glasses', 'Mask', 'Headwear', 'EarringL'}) do eq(state[slot], 'pieces', slot) end
+            for _, slot in ipairs({'Face', 'Glasses', 'Mask', 'Headwear', 'EarringL'}) do
+                eq(state[slot], 'pieces', slot)
+            end
         end)
         Fits.use(nil)
         ok(good, why)
