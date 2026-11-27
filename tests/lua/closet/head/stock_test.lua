@@ -4,6 +4,7 @@
 -- The stock head catalogue (closet/head/stock.lua): hair and ponytail rows of the game's tables as pack-shaped items.
 local run = dofile('tests/lua/closet/run.lua')
 local Stock = require('closet.head.stock')
+local Cut = require('closet.head.cut')
 
 local MASTER = Stock.HAIR_MASTER
 local KINDS = {'ShapeKeys', 'MaterialToggles', 'ScalarControls', 'VectorControls', 'TextureOptions'}
@@ -49,7 +50,133 @@ local function rows()
     return r
 end
 
+-- The live side as UE4SS gives it: DataTables walked by ForEachRow (row names) and read by FindRow, FNames and
+-- FStrings with ToString, an FText the text reader turns into words, the Category enum as a number, material objects
+-- with Parent and VectorParameterValues.
+local function name(s) return {ToString = function() return s end} end
+local function table_of(rows)
+    local dt = {}
+    function dt:ForEachRow(fn) for _, k in ipairs(rows.order) do fn(name(k), rows[k]) end end
+    function dt:FindRow(k) return rows[k] end
+    return dt
+end
+local function object(path, parent, vectors)
+    local o = {Parent = parent, VectorParameterValues = vectors or {}}
+    function o:GetFullName() return name('MaterialInstanceConstant ' .. path) end
+    return o
+end
+local function live()
+    local master = {GetFullName = function() return name('Material ' .. MASTER .. '.MA_CH_Hair') end}
+    local mid = object('/Game/A/Mid.Mid', master,
+        {{ParameterInfo = {Name = name('TipColor')}, ParameterValue = {R = 0.5, G = 0.6, B = 0.7, A = 1}}})
+    local mi = object('/Game/A/MI.MI', mid,
+        {{ParameterInfo = {Name = name('RootColor')}, ParameterValue = {R = 0.1, G = 0.2, B = 0.3, A = 1}}})
+    local log = {}
+    local env = {log = function(m) log[#log + 1] = m end, loaded = {},
+        text = function(v) if type(v) == 'string' then return v == 'Item_Hair_024_Name' and 'Nyaaa' or nil end
+            return 'said ' .. v:ToString() end}
+    env.tables = {
+        [Stock.TABLES[1]] = table_of({order = {'Hair_001', 'Earring_001'},
+            Hair_001 = {Category = 21, Name = name('Item_Hair_001_Name'),
+                Asset2D = name("Texture2D'/Game/UI/Hair_001.Hair_001'"), EquipmentAlias = name('Hair_001_Part1'),
+                EquipmentAlias2 = name('Hair_001_Part2')},
+            Earring_001 = {Category = 23, Name = name('E'), EquipmentAlias = name('Earring_001')}}),
+        [Stock.TABLES[2]] = table_of({order = {'Hair_001_Part1'},
+            Hair_001_Part1 = {Type = 5, MountingResourcePath = name("SkeletalMesh'/Game/A/H07.H07'"),
+                AnimAssetPath = name('/Game/A/H07_AnimBP.H07_AnimBP_C'), MaterialGroup = name('EM_Hair_001_Part1'),
+                RelativeRotation = {Pitch = -90, Yaw = 0, Roll = -90}, bUseHidePonytail = false}}),
+        [Stock.TABLES[3]] = table_of({order = {'EM_Hair_001_Part1_V0_M0'},
+            EM_Hair_001_Part1_V0_M0 = {Group = name('EM_Hair_001_Part1'), VariationIndex = 0, MaterialIndex = 0,
+                MaterialAssetPath = name("MaterialInstanceConstant'/Game/A/MI.MI'"),
+                IconColorAssetPath = name("Texture2D'/Game/I/V0.V0'")}}),
+    }
+    env.find = function(path) return env.tables[path] end
+    env.load = function(path) env.loaded[#env.loaded + 1] = path; return path == '/Game/A/MI.MI' and mi or nil end
+    return env, log
+end
+
 local tests = {
+    the_reader_turns_fake_tables_into_rows = function()
+        local env = live()
+        local r = assert(Stock.read(env))
+        same(r.items, {Hair_001 = {Category = 'ESBItemCategory_Hair', Name = 'Hair_001',
+            Asset2D = "Texture2D'/Game/UI/Hair_001.Hair_001'", EquipmentAlias = 'Hair_001_Part1',
+            EquipmentAlias2 = 'Hair_001_Part2'}}, 'hair rows only, the enum named')
+        same(r.names, {Hair_001 = 'said Item_Hair_001_Name'}, 'name through the text reader')
+        same(r.equipment.Hair_001_Part1, {Type = 5, MountingResourcePath = "SkeletalMesh'/Game/A/H07.H07'",
+            AnimAssetPath = '/Game/A/H07_AnimBP.H07_AnimBP_C', MaterialGroup = 'EM_Hair_001_Part1',
+            RelativeRotation = {Pitch = -90, Yaw = 0, Roll = -90}, bUseHidePonytail = false}, 'equipment row')
+        same(r.materials, {{Group = 'EM_Hair_001_Part1', VariationIndex = 0, MaterialIndex = 0,
+            MaterialAssetPath = "MaterialInstanceConstant'/Game/A/MI.MI'",
+            IconColorAssetPath = "Texture2D'/Game/I/V0.V0'"}}, 'material row')
+        same(env.loaded, {'/Game/A/MI.MI'}, 'the hair group material loaded by its plain path')
+        same(r.mats['/Game/A/MI.MI'], {parent = '/Game/A/Mid.Mid',
+            vectors = {RootColor = {R = 0.1, G = 0.2, B = 0.3, A = 1}}}, 'the instance')
+        same(r.mats['/Game/A/Mid.Mid'], {parent = MASTER .. '.MA_CH_Hair',
+            vectors = {TipColor = {R = 0.5, G = 0.6, B = 0.7, A = 1}}}, 'its parent')
+        same(r.mats[MASTER .. '.MA_CH_Hair'], {vectors = {}}, 'the master ends the chain')
+        local c = Stock.items(r)['SB.Hair_001'].UserConfigs.VectorControls
+        eq(#c, 2, 'root and tip through the chain')
+        same(c[2].Value, {0.5, 0.6, 0.7, 1}, 'tip from the parent')
+    end,
+
+    a_missing_table_is_said_and_gives_nothing = function()
+        local env, log = live()
+        env.tables[Stock.TABLES[2]] = nil
+        local rows, why = Stock.read(env)
+        eq(rows, nil, 'no rows')
+        eq(why, 'stock: /Game/Local/Data/EquipmentTable.EquipmentTable not found', 'why')
+        eq(Stock.build(env), nil, 'no build')
+        eq(Stock.build(env), nil, 'no build again')
+        eq(#log, 1, 'said once') eq(log[1], why, 'the why')
+    end,
+
+    a_throwing_table_is_a_why = function()
+        local env = live()
+        env.tables[Stock.TABLES[3]].ForEachRow = function() error('boom', 0) end
+        local rows, why = Stock.read(env)
+        eq(rows, nil, 'no rows')
+        eq(why, 'stock: /Game/Local/Data/EquipmentMaterialTable.EquipmentMaterialTable: boom', 'why')
+        env.tables[Stock.TABLES[3]] = table_of({order = {}})
+        rows, why = Stock.read(env)
+        eq(why, 'stock: /Game/Local/Data/EquipmentMaterialTable.EquipmentMaterialTable has no rows', 'empty')
+    end,
+
+    the_cut_hairs_are_items = function()
+        local items = Cut.items(live())
+        local a, b = items['SB.Hair_024'], items['SB.Hair_025']
+        for _, it in ipairs({a, b}) do
+            eq(it.Slot, 'Hair', 'slot') eq(it.Origin, 'original', 'origin') eq(#it.Variants, 1, 'one variant')
+            eq(it.Variants[1].Mesh, it.Mesh, 'variant mesh')
+        end
+        eq(a.DisplayName, 'Nyaaa', 'name from ItemStringTable') eq(b.DisplayName, 'Hair_025', 'row when unnamed')
+        local HR = '/Game/Art/Character/PC/00_HR/'
+        eq(a.Mesh, HR .. 'EVE_HR_14/EVE_HR_14.EVE_HR_14', 'mesh 24')
+        eq(a.AnimationBP, HR .. 'EVE_HR_14/EVE_HR_14_AnimBP.EVE_HR_14_AnimBP_C', 'anim class 24')
+        eq(a.PhysicsAsset, HR .. 'EVE_HR_14/EVE_HR_14_Physics.EVE_HR_14_Physics', 'physics 24')
+        same(a.Variants[1].Materials, {HR .. 'EVE_HR_14/Materials/MI_EVE_HR_14_TypeA.MI_EVE_HR_14_TypeA',
+            HR .. 'EVE_HR_11/Materials/MI_EVE_HR_11_Hairpin.MI_EVE_HR_11_Hairpin',
+            HR .. 'EVE_HR_14/Materials/MI_EVE_HR_14_Emissive.MI_EVE_HR_14_Emissive',
+            HR .. 'EVE_HR_14/Materials/MI_EVE_HR_14_Band.MI_EVE_HR_14_Band'}, 'materials 24')
+        eq(b.Mesh, HR .. 'EVE_HR_15/EVE_HR_15.EVE_HR_15', 'mesh 25')
+        eq(b.AnimationBP, HR .. 'EVE_HR_15/EVE_HR_15_AnimBP.EVE_HR_15_AnimBP_C', 'anim class 25')
+        eq(b.PhysicsAsset, HR .. 'EVE_HR_15/EVE_HR_15_Physics.EVE_HR_15_Physics', 'physics 25')
+        same(b.Variants[1].Materials, {HR .. 'EVE_HR_06/Material/MI_EVE_HR_06_TypeA.MI_EVE_HR_06_TypeA',
+            HR .. 'EVE_HR_15/Materials/MI_EVE_HR_15.MI_EVE_HR_15',
+            HR .. 'EVE_HR_15/Materials/MI_EVE_HR_15_Emissive.MI_EVE_HR_15_Emissive'}, 'materials 25')
+    end,
+
+    the_build_is_the_stock_items_and_the_cut_hairs = function()
+        local env, log = live()
+        local items = assert(Stock.build(env))
+        ok(items['SB.Hair_001'] and items['SB.Ponytail_None'] and items['SB.Hair_024'] and items['SB.Hair_025'],
+            'stock and cut')
+        same(log, {'stock: Ponytail_Long: no equipment row Hair_Default_Part2',
+            'stock: Ponytail_Short: no equipment row Hair_Default_Part2_Short'}, 'rows left out are said')
+        Stock.build(env)
+        eq(#log, 2, 'said once')
+    end,
+
     a_stock_hair_becomes_a_hair_item = function()
         local items = Stock.items(rows())
         local it = items['SB.Hair_001']

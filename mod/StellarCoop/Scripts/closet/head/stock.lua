@@ -3,7 +3,14 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Stellar Closet's stock head catalogue: the game's hair and ponytail rows (ItemTable, EquipmentTable,
 -- EquipmentMaterialTable, read by the caller) as pack-shaped items (closet/cns_import.lua's item shape), so the
--- Head tab, fits and options treat a stock piece like a pack piece. Pure: no engine call.
+-- Head tab, fits and options treat a stock piece like a pack piece. Stock.items is pure; Stock.read reaches the game
+-- only through env.
+--
+-- Stock.read(env) -> rows | nil, why: the three live tables as the rows below, each engine call in a pcall.
+--   env = {find(path) -> UDataTable or nil (StaticFindObject-like), load(path) -> object or nil (LoadAsset-like),
+--          text(v) -> string (an FText's words; a string is an ItemStringTable key, closet/head/cut.lua's), log(line)}
+-- Stock.build(env) -> items | nil, why: Stock.items(Stock.read(env)) plus Cut.items(env); a failed read and each row
+-- left out are logged once a Lua load.
 --
 -- Stock.items(rows) -> items, missing
 --   rows = {items={[row]={Category, Name, Asset2D, EquipmentAlias, EquipmentAlias2}},
@@ -192,6 +199,171 @@ function Stock.items(rows)
     end
     table.sort(missing)
     return items, missing
+end
+
+-- The live tables (build 26123051): FUN_14262edd0 loads L"/Game/Local/" joined with an entry of DAT_146f68d30, among
+-- them "Data/ItemTable.ItemTable" 0x145bf6dc0, "Data/EquipmentTable.EquipmentTable" 0x145bf7240 and
+-- "Data/EquipmentMaterialTable.EquipmentMaterialTable" 0x145bf7208.
+Stock.TABLES = {'/Game/Local/Data/ItemTable.ItemTable', '/Game/Local/Data/EquipmentTable.EquipmentTable',
+    '/Game/Local/Data/EquipmentMaterialTable.EquipmentMaterialTable'}
+-- ESBItemCategory_Hair = 21: the enumerator array 0x145e2b9a0 pairs the name 0x145e49098 with 21 (a UE4SS enum
+-- property reads as its number). A string category (a fake, a future UE4SS) passes as it is.
+local HAIR_CATEGORY = 21
+
+-- Row fields and their reflected types (EPropertyGenFlags in the FGenericPropertyParams that name them): ItemTable
+-- (SBItemTableProperty) Asset2D Str (0x145e0edf0), EquipmentAlias and EquipmentAlias2 Name (0x145e0d818, 0x145e0d7f0),
+-- Name an FText (the asset dump: an ItemStringTable key); EquipmentTable (SBEquipmentTableProperty)
+-- MountingResourcePath Str (0x145dfcb60), MaterialGroup Name (0x145dfca98), bUseHidePonytail Bool (0x145dfc2d0);
+-- EquipmentMaterialTable (SBEquipmentMaterialTableProperty) MaterialAssetPath Str (0x145dfb308), IconColorAssetPath
+-- Str (0x145dfb380). Checked against SB/Content/Local/Data/{ItemTable,EquipmentTable,EquipmentMaterialTable}.uasset.
+local ITEM_FIELDS = {'Asset2D', 'EquipmentAlias', 'EquipmentAlias2'}
+local EQUIPMENT_FIELDS = {'MountingResourcePath', 'AnimAssetPath', 'MaterialGroup'}
+local MATERIAL_FIELDS = {'Group', 'MaterialAssetPath', 'IconColorAssetPath'}
+
+local U = require('core.unreal')
+local Cut = require('closet.head.cut')
+
+local function str(v)
+    local ok, s = pcall(U.text, v)
+    return ok and type(s) == 'string' and s or nil
+end
+local function num(v) return tonumber(U.value_of(v)) end
+local function copy(row, fields, out)
+    for _, f in ipairs(fields) do out[f] = str(row[f]) end
+    return out
+end
+
+-- Every row of a table as fn(name, row). How UE4SS's Lua reaches the rows, from this repo's in-game use: ForEachRow
+-- gives each row's name (fight/gunmode/data.lua), FindRow(string) gives the row whose fields read by name
+-- (fight/gunmode/aim.lua: "Only FindRow(string) is used: another lookup crashed"). Raises on an engine error.
+local function each_row(dt, fn)
+    local names = {}
+    dt:ForEachRow(function(key) names[#names + 1] = str(key) end)
+    for _, n in ipairs(names) do
+        local row = U.value_of(dt:FindRow(n))
+        if row ~= nil then fn(n, row) end
+    end
+    return #names
+end
+
+-- A material and its parents up to the master into mats, keyed by object path: {parent=path, vectors}. Engine
+-- facts as closet/ui/probe.lua's test 6 cites them: UMaterialInstance.VectorParameterValues
+-- TArray<FVectorParameterValue> (params 0x1465da110), its ParameterInfo.Name an FName; Parent and ParameterValue
+-- (FLinearColor) as the MI_EVE_HR_14_TypeA asset dump holds them. A master has neither: pcall gives none.
+local function path_of(o)
+    local ok, p = pcall(function() return str(o:GetFullName()):match('^%S+ (.+)$') end)
+    return ok and p or nil
+end
+local function add_chain(mats, path, object)
+    for _ = 1, 8 do
+        if not path or not object or mats[path] then return end
+        local vectors = {}
+        pcall(U.each, object.VectorParameterValues, function(_, p)
+            local ok, name = pcall(function() return str(p.ParameterInfo.Name) end)
+            local v = U.value_of(p.ParameterValue)
+            if ok and name and v ~= nil then
+                vectors[name] = {R = num(v.R), G = num(v.G), B = num(v.B), A = num(v.A)}
+            end
+        end)
+        local ok, parent = pcall(function() return U.value_of(object.Parent) end)
+        parent = ok and parent or nil
+        local parent_path = parent and path_of(parent)
+        mats[path] = {parent = parent_path, vectors = vectors}
+        path, object = parent_path, parent
+    end
+end
+
+local said = {}
+local function say(env, line)
+    if said[line] then return end
+    said[line] = true
+    pcall(env.log, line)
+end
+
+function Stock.read(env)
+    local tables = {}
+    for i, path in ipairs(Stock.TABLES) do
+        local ok, dt = pcall(env.find, path)
+        if not ok or dt == nil then return nil, 'stock: ' .. path .. ' not found' end
+        tables[i] = dt
+    end
+    local rows = {items = {}, equipment = {}, materials = {}, names = {}, mats = {}}
+    local readers = {
+        function(n, row)
+            local c = U.value_of(row.Category)
+            c = type(c) == 'number' and (c == HAIR_CATEGORY and 'ESBItemCategory_Hair' or 'ESBItemCategory_' .. c)
+                or str(c)
+            if c and c:find('Hair$') then
+                rows.items[n] = copy(row, ITEM_FIELDS, {Category = c, Name = n})
+                local ok, words = pcall(env.text, U.value_of(row.Name))
+                rows.names[n] = ok and words or nil
+            end
+        end,
+        function(n, row)
+            local eq = copy(row, EQUIPMENT_FIELDS, {Type = U.value_of(row.Type),
+                bUseHidePonytail = U.value_of(row.bUseHidePonytail) == true})
+            local r = U.value_of(row.RelativeRotation)
+            if r ~= nil then eq.RelativeRotation = {Pitch = num(r.Pitch), Yaw = num(r.Yaw), Roll = num(r.Roll)} end
+            rows.equipment[n] = eq
+        end,
+        function(_, row)
+            rows.materials[#rows.materials + 1] = copy(row, MATERIAL_FIELDS,
+                {VariationIndex = num(row.VariationIndex), MaterialIndex = num(row.MaterialIndex)})
+        end,
+    }
+    for i, dt in ipairs(tables) do
+        local ok, n = pcall(each_row, dt, readers[i])
+        if not ok then return nil, 'stock: ' .. Stock.TABLES[i] .. ': ' .. tostring(n) end
+        if n == 0 then return nil, 'stock: ' .. Stock.TABLES[i] .. ' has no rows' end
+    end
+    -- Only the hair and ponytail groups' materials load: those of a hair row's equipment and the stock ponytails.
+    local groups = {}
+    local function want(alias)
+        local eq = alias and rows.equipment[alias]
+        if eq and eq.MaterialGroup then groups[eq.MaterialGroup] = true end
+    end
+    for _, it in pairs(rows.items) do want(it.EquipmentAlias) want(it.EquipmentAlias2) end
+    for _, p in ipairs(PONYTAILS) do want(p.alias) end
+    for _, m in ipairs(rows.materials) do
+        local path = groups[m.Group] and plain(m.MaterialAssetPath)
+        if path and not rows.mats[path] then
+            local ok, object = pcall(env.load, path)
+            if ok and object ~= nil then
+                add_chain(rows.mats, path, object)
+            else
+                say(env, 'stock: ' .. path .. ' did not load')
+            end
+        end
+    end
+    return rows
+end
+
+-- The game's env, on the game thread: a table only while in memory, a material loaded when it is not, an FText's
+-- words, an ItemStringTable key in the player's language through core/unreal.lua's game_text (KismetStringTableLibrary
+-- IsRegisteredTableEntry, then KismetTextLibrary TextFromStringTable, its name string 0x1465b6d28).
+local ITEM_STRINGS = '/Game/Local/Localize/ItemStringTable.ItemStringTable'
+function Stock.env(log)
+    local function find(path) return U.valid(StaticFindObject(path)) end
+    return {find = find, log = log,
+        load = function(path)
+            local o = find(path)
+            if o then return o end
+            pcall(LoadAsset, path)
+            return find(path)
+        end,
+        text = function(v)
+            if type(v) == 'string' then return U.game_text(v, ITEM_STRINGS) end
+            return U.text(v)
+        end}
+end
+
+function Stock.build(env)
+    local rows, why = Stock.read(env)
+    if not rows then say(env, why) return nil, why end
+    local items, missing = Stock.items(rows)
+    for _, line in ipairs(missing) do say(env, 'stock: ' .. line) end
+    for id, it in pairs(Cut.items(env)) do items[id] = it end
+    return items
 end
 
 return Stock

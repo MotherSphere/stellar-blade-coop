@@ -52,7 +52,7 @@ local function rig(tests, kit)
     r.Probe = Probe
     r.p = Probe.new({kit = function() return r.kit end, log = function(m) r.log[#r.log + 1] = m end,
         clock = function() return r.now end, tests = tests, find = function(path) return r.found[path] end,
-        world = function() return r.world end,
+        world = function() return r.world end, stock = function() return r.stock() end,
         eve = function() return r.eve end, controller = function() return r.pc end,
         construct = function(class, outer)
             local item = {class = class, outer = outer, IsValid = function(self) return not self.lost end}
@@ -533,6 +533,30 @@ local tests = {
         r.p.off()
         eq(r.kit.dropped, #r.kit.made) ok(#r.kit.made > 0)
     end,
+    test7_counts_the_stock_items = function()
+        local r = rig()
+        r.stock = function()
+            return {['SB.Hair_001'] = {Slot = 'Hair'}, ['SB.Hair_024'] = {Slot = 'Hair'},
+                ['SB.Hair_025'] = {Slot = 'Hair'}, ['SB.Ponytail_Long'] = {Slot = 'Ponytail'},
+                ['SB.Ponytail_None'] = {Slot = 'Ponytail'}}
+        end
+        play(r, '7')
+        ok(has(r, 'probe: PASS 7 stock: 3 hairs, 2 ponytails')) ok(has(r, 'probe: END 7 1/1'))
+        eq(#r.kit.made, 0, 'no game widget made')
+    end,
+    test7_says_why_the_read_failed = function()
+        local r = rig()
+        r.stock = function() return nil, 'stock: /Game/Local/Data/ItemTable.ItemTable not found' end
+        play(r, '7')
+        ok(has(r, 'probe: FAIL 7 stock: stock: /Game/Local/Data/ItemTable.ItemTable not found'))
+        ok(has(r, 'probe: END 7 0/1'))
+    end,
+    test7_fails_with_only_the_cut_hairs = function()
+        local r = rig()
+        r.stock = function() return {['SB.Hair_024'] = {Slot = 'Hair'}, ['SB.Hair_025'] = {Slot = 'Hair'}} end
+        play(r, '7')
+        ok(has(r, 'probe: FAIL 7 stock: no stock hair row read (2 hairs, 0 ponytails)'))
+    end,
     commands = function()
         local calls = {}
         local probe = {run = function(n) calls[#calls + 1] = 'run ' .. n; return true, 'ran' end,
@@ -546,8 +570,8 @@ local tests = {
         ok((C.closet('probe', 'off', nil, nil, nil, nil)))
         eq((C.closet('probe', '3', 'x', nil, nil, nil)), false)
         same(calls, {'run 3', 'off'})
-        ok(require('closet.commands').USE:find('probe <1-6|off>', 1, true))
-        eq(Probe.USE, 'Use: coop closet probe <1-6|off>')
+        ok(require('closet.commands').USE:find('probe <1-7|off>', 1, true))
+        eq(Probe.USE, 'Use: coop closet probe <1-7|off>')
     end,
 }
 run('probe_test', tests)
