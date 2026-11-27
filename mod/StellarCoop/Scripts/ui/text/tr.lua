@@ -504,6 +504,7 @@ return {
             saved='%s olarak kaydedildi.',none='Önce tek bir tüm kıyafet giy: bir hazır ayar tek kıyafet saklar.',
             delete_title='Bu hazır ayar silinsin mi?',delete_desc='%s silinir. Kıyafet ve seçenekleri kalır.'},
         options={variant='Varyant',on='Açık',off='Kapalı',other='Diğer',
+            kinds={finish='Yüzey',colour='Renk',number='Sayı'},named='%s: %s',
             shape='Şekil',reset='Bu kıyafeti sıfırla',pack='Paketin rengi',
             channels={r='Kırmızı',g='Yeşil',b='Mavi',a='Alfa'},
             reset_desc='Bu kıyafetin her seçeneği paketin değerine döner. Hemen kaydedilir.',

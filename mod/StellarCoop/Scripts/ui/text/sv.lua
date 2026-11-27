@@ -491,6 +491,7 @@ return {
             saved='Sparat som %s.',none='Ta på en hel dräkt först: ett förval sparar en dräkt.',
             delete_title='Radera detta förval?',delete_desc='%s raderas. Dräkten och dess alternativ blir kvar.'},
         options={variant='Variant',on='På',off='Av',other='Övrigt',
+            kinds={finish='Yta',colour='Färg',number='Tal'},named='%s: %s',
             shape='Form',reset='Återställ dräkten',pack='Paketets färg',
             channels={r='Röd',g='Grön',b='Blå',a='Alfa'},
             reset_desc='Alla dräktens alternativ får paketets värde igen. Det sparas direkt.',

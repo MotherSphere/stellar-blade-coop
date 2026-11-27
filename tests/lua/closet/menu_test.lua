@@ -82,6 +82,8 @@ local function with_aria(f, o)
     Fits.CHOSEN = {}
     ok(good, why)
 end
+-- with_aria's o for a rig whose EVE wears Aria at the open: its options page previews nothing.
+local function wearing_aria() return {before = function(r) r.choices = {{fit = ARIA}} end} end
 -- f(r) as with_aria's, with real presets (closet/presets.lua, r.presets) on a fake store (r.pstore) over the rig's
 -- dress: the Full tab's rows Save look as preset, the presets, the filter, then the outfits.
 local function with_presets(f)
@@ -118,6 +120,8 @@ local function menu_hints(r)
     for _, one in ipairs(out) do one.x = nil end
     return out
 end
+-- A row title as the options page writes a child row: its lead mark at depth (1: a piece under its section).
+local function child(depth, title) return string.rep('    ', depth - 1) .. '- ' .. title end
 -- The value of the shown setting row titled title, or nil.
 local function row_value(r, title)
     for _, rec in ipairs(r.kit.live(F.OPTION)) do
@@ -2012,8 +2016,8 @@ local tests = {
             eq((detail(r)), O.variant, 'the page opens on its first setting')
             same(headers(r), {'Aria'}, 'the outfit\'s name as a header row')
             eq(row_value(r, O.variant), 'Short') eq(row_value(r, T.en.closet.slots.Shoes), '1/1')
-            eq(row_value(r, 'Bolero'), O.on) eq(row_value(r, 'Bag'), O.off)
-            eq(row_value(r, 'Lining'), nil, 'a follower')
+            eq(row_value(r, child(1, 'Bolero')), O.on) eq(row_value(r, child(1, 'Bag')), O.off)
+            eq(row_value(r, child(1, 'Lining')), nil, 'a follower')
             eq(row_value(r, O.other), '0/1', 'the Other section')
             same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.change, 'UI_DPad_Left', 'UI_DPad_Right'},
                 {H.reset, 'UI_FaceButton_Top', 'None'}, {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}},
@@ -2039,7 +2043,7 @@ local tests = {
             eq((detail(r)), 'Aria', 'on the outfit\'s row')
             at(r, 1, 'back')
             eq(r.menu.is_open(), false, 'Back on the rows: closed, nothing changed')
-        end)
+        end, wearing_aria())
     end,
     a_section_row_turns_its_pieces = function()
         local O = T.en.closet.options
@@ -2048,19 +2052,19 @@ local tests = {
             at(r, 0.5, 'right', 'down', 'down', 'down') -- The Jacket section (Outerwear).
             eq((detail(r)), T.en.closet.slots.Outerwear)
             at(r, 0.6, 'right')
-            eq(r.options.get(ARIA, 1, 'toggle:3'), false, 'its piece off') eq(row_value(r, 'Bolero'), O.off)
+            eq(r.options.get(ARIA, 1, 'toggle:3'), false, 'its piece off') eq(row_value(r, child(1, 'Bolero')), O.off)
             eq(row_value(r, T.en.closet.slots.Outerwear), '0/1')
             eq(r.store.file, ARIA .. ' 1 toggle:3=off', 'saved at once')
             at(r, 0.7, 'select')
             eq(r.options.get(ARIA, 1, 'toggle:3'), true, 'and on again') eq(r.store.file, nil)
             at(r, 0.8, 'down', 'left')
-            eq(row_value(r, 'Bolero'), O.off, 'a piece row turns its piece')
+            eq(row_value(r, child(1, 'Bolero')), O.off, 'a piece row turns its piece')
             at(r, 0.9, 'down', 'down', 'right')
             eq(r.options.get(ARIA, 1, 'toggle:6'), true, 'Bag on') eq(row_value(r, O.other), '1/1')
             eq(#r.previews, 0, 'no preview')
             at(r, 1, 'back', 'back')
             eq(r.menu.is_open(), false, 'no Keep popup: the options are saved apart from the look')
-        end)
+        end, wearing_aria())
     end,
     the_variant_row_skips_a_variant_whose_mesh_does_not_load = function()
         local O = T.en.closet.options
@@ -2085,6 +2089,9 @@ local tests = {
     -- Every prompt follows the device.
     refresh_resets_the_focused_row_to_the_pack_value = function()
         local O, H = T.en.closet.options, T.en.closet.hints
+        -- A control row says its kind, then its name when that differs from its piece's.
+        local COLOUR, SHINE = child(2, O.named:format(O.kinds.colour, 'Bolero colour')),
+            child(2, O.named:format(O.kinds.number, 'Bolero shine'))
         with_aria(function(r)
             local item = aria()
             item.UserConfigs.VectorControls = {{DisplayName = 'Bolero colour', Description = 'Its cloth',
@@ -2105,14 +2112,15 @@ local tests = {
             same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {T.en.hint.select, 'Positive', 'None'},
                 {H.change, 'UI_DPad_Left', 'UI_DPad_Right'}, {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}},
                 'a piece with controls: Select opens them')
-            eq(row_value(r, 'Bolero colour'), nil, 'closed') eq(swatch(), nil, 'no swatch')
+            eq(row_value(r, COLOUR), nil, 'closed') eq(swatch(), nil, 'no swatch')
             at(r, 0.6, 'select')
-            eq(row_value(r, 'Bolero'), O.on, 'Select opens, it does not turn the piece')
-            eq(row_value(r, 'Bolero colour'), O.pack) eq(row_value(r, 'Bolero shine'), '0.5')
+            eq(row_value(r, child(1, 'Bolero')), O.on, 'Select opens, it does not turn the piece')
+            eq(row_value(r, COLOUR), O.pack) eq(row_value(r, SHINE), '0.5')
             same(swatch().tint, {R = 0.5, G = 0.5, B = 0.5, A = 1}, 'the swatch shows the colour')
             at(r, 0.7, 'down')
             local title, desc = detail(r)
-            eq(title, 'Bolero colour') ok(desc:find('Its cloth', 1, true), 'the pack\'s description')
+            eq(title, O.named:format(O.kinds.colour, 'Bolero colour'), 'the detail title has no lead mark')
+            ok(desc:find('Its cloth', 1, true), 'the pack\'s description')
             ok(desc:find(O.help.key, 1, true), desc)
             same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.change, 'UI_DPad_Left', 'UI_DPad_Right'},
                 {H.reset, 'UI_FaceButton_Top', 'None'}, {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}}, 'Reset on F')
@@ -2121,34 +2129,108 @@ local tests = {
             desc = select(2, detail(r))
             ok(desc:find(O.help.pad, 1, true) and not desc:find(O.help.key, 1, true), desc)
             at(r, 0.8, 'right')
-            eq(row_value(r, 'Bolero colour'), T.en.closet.colour.swatches.white)
+            eq(row_value(r, COLOUR), T.en.closet.colour.swatches.white)
             same(swatch().tint, {R = 0.888, G = 0.888, B = 0.888, A = 1})
             ok(r.store.file:find('colour:1=0.888', 1, true), r.store.file)
             at(r, 0.9, 'refresh')
-            eq(row_value(r, 'Bolero colour'), O.pack, 'F: the pack value') eq(r.store.file, nil)
+            eq(row_value(r, COLOUR), O.pack, 'F: the pack value') eq(r.store.file, nil)
             at(r, 1, 'left')
-            eq(row_value(r, 'Bolero colour'), '128 128 128', 'Custom before Pack colour: its R G B')
-            eq(row_value(r, O.channels.r), '128', 'its channels in 0-255') eq(row_value(r, O.channels.a), nil,
-                'no alpha slider')
+            eq(row_value(r, COLOUR), '128 128 128', 'Custom before Pack colour: its R G B')
+            eq(row_value(r, child(3, O.channels.r)), '128', 'its channels in 0-255, children of the colour')
+            eq(row_value(r, child(3, O.channels.a)), nil, 'no alpha slider')
             at(r, 1.1, 'down', 'right')
-            eq(row_value(r, O.channels.r), '140', 'a step of 1/20') eq(row_value(r, 'Bolero colour'), '140 128 128')
+            eq(row_value(r, child(3, O.channels.r)), '140', 'a step of 1/20') eq(row_value(r, COLOUR), '140 128 128')
             at(r, 1.2, 'down', 'down', 'down', 'right')
-            eq(row_value(r, 'Bolero shine'), '0.6', 'the pack step')
+            eq(row_value(r, SHINE), '0.6', 'the pack step')
             at(r, 1.3, 'refresh')
-            eq(row_value(r, 'Bolero shine'), '0.5')
+            eq(row_value(r, SHINE), '0.5')
             at(r, 1.4, 'back')
-            eq(row_value(r, 'Bolero colour'), nil, 'Back closes the controls') eq((detail(r)), 'Bolero')
+            eq(row_value(r, COLOUR), nil, 'Back closes the controls') eq((detail(r)), 'Bolero')
             eq(r.menu.is_open(), true)
             at(r, 1.5, 'down', 'down', 'down', 'down')
             eq((detail(r)), 'Hips') eq(row_value(r, O.shape), '', 'the Shape section')
             at(r, 1.6, 'left')
-            eq(row_value(r, 'Hips'), '-0.25')
+            eq(row_value(r, child(1, 'Hips')), '-0.25')
             at(r, 1.7, 'down')
             eq((detail(r)), O.reset)
             at(r, 1.8, 'select')
-            eq(row_value(r, 'Hips'), '0.00', 'every pack value back') eq(r.store.file, nil)
+            eq(row_value(r, child(1, 'Hips')), '0.00', 'every pack value back') eq(r.store.file, nil)
             eq(#r.previews, 0, 'nothing worn')
+        end, wearing_aria())
+    end,
+    -- A row says what it is: a control its kind, then its name when that differs from its piece's; a piece reads as
+    -- a child of its section, a control as a child of its piece, a channel as a child of its colour (a lead mark at
+    -- each depth). A section row has none: it reads as the header of the pieces below it.
+    options_rows_say_their_kind_and_read_as_children = function()
+        local O = T.en.closet.options
+        with_aria(function(r)
+            local item = aria()
+            item.UserConfigs.VectorControls = {{DisplayName = 'Bolero', ParamName = 'Tint', MaterialIndex = 3,
+                Value = {0.5, 0.5, 0.5, 1}}}
+            item.UserConfigs.ScalarControls = {{DisplayName = 'Shine', ParamName = 'Metallic', MaterialIndex = 3,
+                Value = 0.5}}
+            item.UserConfigs.TextureOptions = {{DisplayName = '', MaterialIndex = 3, Textures = {}, Value = 0}}
+            Fits.use({[ARIA] = item})
+            r.menu.open()
+            at(r, 0.5, 'right', 'down', 'down', 'down', 'down', 'select')
+            eq((detail(r)), 'Bolero', 'the piece, its detail title with no lead mark')
+            eq(row_value(r, T.en.closet.slots.Outerwear), '1/1', 'the section row: no lead mark')
+            eq(row_value(r, child(1, 'Bolero')), O.on, 'the piece: a child of its section')
+            eq(row_value(r, child(2, O.kinds.colour)), O.pack, 'named as its piece: its kind only')
+            eq(row_value(r, child(2, O.named:format(O.kinds.number, 'Shine'))), '0.50', 'its kind and its name')
+            eq(row_value(r, child(2, O.kinds.finish)), '1', 'no name: its kind only')
+            at(r, 0.6, 'down', 'down', 'left')
+            eq(row_value(r, child(3, O.channels.r)), '128', 'a Custom colour channel: a child of the colour')
+            eq((detail(r)), O.kinds.colour, 'the detail title has no lead mark')
+        end, wearing_aria())
+    end,
+    -- The options page of an outfit EVE does not wear previews it (as Select does), so each change shows at once; the
+    -- menu's Back then asks Keep this look? and No reverts. On the worn outfit it previews nothing.
+    the_options_page_previews_an_outfit_eve_does_not_wear = function()
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'right')
+            same(r.previews, {{{fit = ARIA}}}, 'previewed whole at the open of the page')
+            at(r, 0.6, 'back')
+            eq(#r.previews, 1, 'Back closes the page: no second preview')
+            at(r, 0.7, 'back')
+            eq(popups(r), 1, 'Back asks Keep this look?') eq(r.menu.is_open(), true)
+            at(r, 0.8, 'no')
+            eq(r.reverted, 1, 'No reverts') eq(r.menu.is_open(), false)
         end)
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'right', 'back')
+            eq(#r.previews, 0, 'the worn outfit: nothing previewed')
+        end, wearing_aria())
+    end,
+    -- Select on a piece whose controls open below the window scrolls them into view; the piece keeps the focus, shown.
+    opened_controls_scroll_into_view = function()
+        local O = T.en.closet.options
+        with_aria(function(r)
+            local item = aria()
+            item.UserConfigs.ScalarControls = {{DisplayName = 'Strap 1', MaterialIndex = 6, Value = 0},
+                {DisplayName = 'Strap 2', MaterialIndex = 6, Value = 0},
+                {DisplayName = 'Strap 3', MaterialIndex = 6, Value = 0}}
+            Fits.use({[ARIA] = item})
+            r.menu.open()
+            -- Header, Variant, two sections with one piece each, Other, Bag (row 8): Bag's three numbers are rows 9-11.
+            at(r, 0.5, 'right', 'down', 'down', 'down', 'down', 'down', 'down')
+            eq((detail(r)), 'Bag')
+            at(r, 0.6, 'select')
+            eq((detail(r)), 'Bag', 'the piece keeps the focus')
+            eq(row_value(r, child(2, O.named:format(O.kinds.number, 'Strap 3'))), '0.00', 'its last control shown')
+            eq(row_value(r, child(1, 'Bag')), O.off, 'the focused piece still shown')
+            local looks = {}
+            for _, rec in ipairs(r.kit.live(F.OPTION)) do
+                if rec.o.Text_TitleValue.text == child(1, 'Bag') then
+                    for _, c in ipairs(rec.o.calls) do
+                        if c[1] == 'EventNotification' and c[2]:find('^State') then looks[#looks + 1] = c[2] end
+                    end
+                end
+            end
+            eq(looks[#looks], 'StateFocus', 'drawn focused')
+        end, wearing_aria())
     end,
     reset_stellar_closet_clears_the_options = function()
         with_aria(function(r)

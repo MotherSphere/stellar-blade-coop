@@ -60,14 +60,15 @@ local tests = {
             local rows = new().options(CH27)
             same(rows, {
                 {header = 'Ocean Maid'}, {variant = true},
-                {section = 'BaseBody', toggles = {14}}, {toggle = 14, name = 'Skin', section = 'BaseBody'},
+                {section = 'BaseBody', toggles = {14}}, {toggle = 14, name = 'Skin', section = 'BaseBody', depth = 1},
                 {section = 'UndergarmentTop', toggles = {40}},
-                {toggle = 40, name = 'Vinyl', section = 'UndergarmentTop'},
-                {section = 'Shoes', toggles = {35}}, {toggle = 35, name = 'Long boots', section = 'Shoes'},
-                {section = 'Outerwear', toggles = {3}}, {toggle = 3, name = 'Jacket', section = 'Outerwear'},
-                {section = 'Other', toggles = {39}}, {toggle = 39, name = 'Bag', section = 'Other'},
+                {toggle = 40, name = 'Vinyl', section = 'UndergarmentTop', depth = 1},
+                {section = 'Shoes', toggles = {35}}, {toggle = 35, name = 'Long boots', section = 'Shoes', depth = 1},
+                {section = 'Outerwear', toggles = {3}}, {toggle = 3, name = 'Jacket', section = 'Outerwear', depth = 1},
+                {section = 'Other', toggles = {39}}, {toggle = 39, name = 'Bag', section = 'Other', depth = 1},
                 {reset_fit = true},
-            }, 'sections in slot order, Other last; no row for the follower or a second toggle on slot 3')
+            }, 'sections in slot order, Other last; no row for the follower or a second toggle on slot 3; '
+                .. 'a piece is a child of its section (depth 1)')
             same(new().options(CH46), {}, 'a hand fit with no pack controls: no page')
         end)
         Fits.use(nil)
@@ -91,17 +92,20 @@ local tests = {
         item.UserConfigs.ShapeKeys = {{DisplayName = 'Hips', Min = -1, Max = 1, Value = 0}}
         Fits.use({[CH27] = item})
         local good, why = pcall(function()
-            local boots = {toggle = 35, name = 'Long boots', section = 'Shoes', controls = true}
-            local tail = {{section = 'Other', toggles = {}}, {colour = 4, name = 'Glow'},
-                {section = 'Shape', toggles = {}}, {shape = 1, name = 'Hips'}, {reset_fit = true}}
+            local boots = {toggle = 35, name = 'Long boots', section = 'Shoes', controls = true, depth = 1}
+            local tail = {{section = 'Other', toggles = {}}, {colour = 4, name = 'Glow', depth = 1},
+                {section = 'Shape', toggles = {}}, {shape = 1, name = 'Hips', depth = 1}, {reset_fit = true}}
             same(new().options(CH27), {{header = 'Ocean Maid'}, {section = 'Shoes', toggles = {35}}, boots,
                 table.unpack(tail)}, 'closed: one variant, no Variant row')
             same(new().options(CH27, 35, function(n) return n == 1 end), {{header = 'Ocean Maid'},
                 {section = 'Shoes', toggles = {35}}, boots,
-                {colour = 1, name = 'Boot colour', desc = 'Leather'}, {channel = 1, c = 'r'}, {channel = 1, c = 'g'},
-                {channel = 1, c = 'b'}, {channel = 1, c = 'a'}, {number = 1, name = 'Shine'},
-                {finish = 1, name = 'Finish'}, {colour = 2, name = 'Lining colour'}, table.unpack(tail)},
-                'open: its slot, then its follower\'s; Boot colour is Custom')
+                {colour = 1, name = 'Boot colour', desc = 'Leather', depth = 2, of = 'Long boots'},
+                {channel = 1, c = 'r', depth = 3}, {channel = 1, c = 'g', depth = 3},
+                {channel = 1, c = 'b', depth = 3}, {channel = 1, c = 'a', depth = 3},
+                {number = 1, name = 'Shine', depth = 2, of = 'Long boots'},
+                {finish = 1, name = 'Finish', depth = 2, of = 'Long boots'},
+                {colour = 2, name = 'Lining colour', depth = 2, of = 'Long boots'}, table.unpack(tail)},
+                'open: its slot, then its follower\'s; Boot colour is Custom; each row its depth, a control its piece')
         end)
         Fits.use(nil)
         ok(good, why)

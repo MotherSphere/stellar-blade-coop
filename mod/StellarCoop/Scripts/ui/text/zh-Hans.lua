@@ -399,6 +399,7 @@ return {
             saved='已存为 %s。',none='请先穿上一整套服装：预设只保存一套服装。',
             delete_title='删除这个预设？',delete_desc='%s 将被删除。服装和它的选项保留。'},
         options={variant='款式',on='开',off='关',other='其他',
+            kinds={finish='质感',colour='颜色',number='数值'},named='%s：%s',
             shape='形态',reset='重置此服装',pack='包内颜色',channels={r='红',g='绿',b='蓝',a='透明度'},
             reset_desc='此服装的所有选项恢复为包内的值。立即保存。',
             piece_help={key='Enter 或点击显示其颜色、表面和数值。左右方向键可开启或关闭。',

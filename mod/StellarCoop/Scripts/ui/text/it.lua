@@ -514,6 +514,7 @@ return {
             delete_title='Eliminare questo preset?',
             delete_desc='%s viene eliminato. L\'outfit e le sue opzioni restano.'},
         options={variant='Variante',on='Sì',off='No',other='Altro',
+            kinds={finish='Finitura',colour='Colore',number='Numero'},named='%s: %s',
             shape='Forma',reset='Ripristina questo outfit',pack='Colore del pacchetto',
             channels={r='Rosso',g='Verde',b='Blu',a='Alfa'},
             reset_desc='Ogni opzione di questo outfit torna al valore del pacchetto. Viene salvato subito.',

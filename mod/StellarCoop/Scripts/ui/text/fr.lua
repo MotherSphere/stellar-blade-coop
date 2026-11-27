@@ -513,6 +513,7 @@ return {
             saved='Enregistré sous %s.',none='Portez d\'abord une tenue complète : un préréglage garde une tenue.',
             delete_title='Supprimer ce préréglage ?',delete_desc='%s est supprimé. La tenue et ses options restent.'},
         options={variant='Variante',on='Oui',off='Non',other='Autres',
+            kinds={finish='Finition',colour='Couleur',number='Nombre'},named='%s : %s',
             shape='Forme',reset='Réinitialiser cette tenue',pack='Couleur du pack',
             channels={r='Rouge',g='Vert',b='Bleu',a='Alpha'},
             reset_desc="Chaque option de cette tenue reprend la valeur du pack. C'est enregistré tout de suite.",

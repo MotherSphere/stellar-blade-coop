@@ -495,6 +495,7 @@ return {
             saved='Lagret som %s.',none='Ta på ett helt antrekk først: et forhåndsvalg lagrer ett antrekk.',
             delete_title='Slette dette forhåndsvalget?',delete_desc='%s slettes. Antrekket og valgene blir.'},
         options={variant='Variant',on='På',off='Av',other='Annet',
+            kinds={finish='Overflate',colour='Farge',number='Tall'},named='%s: %s',
             shape='Form',reset='Tilbakestill antrekket',pack='Pakkens farge',
             channels={r='Rød',g='Grønn',b='Blå',a='Alfa'},
             reset_desc='Alle valgene for antrekket får pakkens verdi igjen. Det lagres med en gang.',

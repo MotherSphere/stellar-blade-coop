@@ -26,7 +26,7 @@
 -- once. reread() drops the imported pictures: the next draws import them again (a capture may have made them anew).
 -- v.draw(s), s: {tabs={labels}, tab=focused index, tab_top=the first tab shown (1 when nil), rows={{title, value,
 -- locked, header=drawn as SB's settings category header with its title, swatch={R, G, B} shown right of the row}},
--- row=focused index, tiles=nil or {{name,
+-- row=focused index, show=nil or a row index brought into the window too while row stays in it, tiles=nil or {{name,
 -- equipped, locked, picture=a PNG file or nil, image=an object path or nil, icon=its glyph or nil}}, tile=selected
 -- index or nil,
 -- detail={title, desc, equipped, badge='original', 'custom' or nil}, hints={{label, icon, icon2, word=the menu word a
@@ -272,6 +272,8 @@ function View.new(kit,log)
         top=math.max(0,math.min(top,n-WINDOW))
         if s.row then
             if s.row>top+WINDOW then top=s.row-WINDOW elseif s.row<=top then top=s.row-1 end
+            -- s.show below the window comes into it as far as the focused row stays in it.
+            if s.show and s.show>top+WINDOW then top=math.max(top,math.min(s.show-WINDOW,s.row-1)) end
         end
         local specs={}
         for i=1,WINDOW do

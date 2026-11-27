@@ -438,6 +438,7 @@ return {
             saved='%s(으)로 저장했습니다.',none='먼저 의상 전체를 하나 입으세요. 프리셋은 의상 하나를 저장합니다.',
             delete_title='이 프리셋을 삭제할까요?',delete_desc='%s이(가) 삭제됩니다. 의상과 옵션은 그대로입니다.'},
         options={variant='베리에이션',on='켜짐',off='꺼짐',other='기타',
+            kinds={finish='마감',colour='색상',number='수치'},named='%s: %s',
             shape='셰이프',reset='이 의상 초기화',pack='팩 색상',
             channels={r='빨강',g='초록',b='파랑',a='알파'},
             reset_desc='이 의상의 모든 옵션이 팩의 값으로 돌아갑니다. 바로 저장됩니다.',

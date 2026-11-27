@@ -510,6 +510,7 @@ return {
             saved='Salvo como %s.',none='Vista primeiro uma roupa completa: uma predefinição guarda uma roupa.',
             delete_title='Excluir esta predefinição?',delete_desc='%s será excluída. A roupa e as opções ficam.'},
         options={variant='Variante',on='Ligado',off='Desligado',other='Outros',
+            kinds={finish='Acabamento',colour='Cor',number='Número'},named='%s: %s',
             shape='Forma',reset='Redefinir esta roupa',pack='Cor do pacote',
             channels={r='Vermelho',g='Verde',b='Azul',a='Alfa'},
             reset_desc='Cada opção desta roupa volta ao valor do pacote. É salvo na hora.',

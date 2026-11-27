@@ -494,6 +494,7 @@ return {
             saved='Gemt som %s.',none='Tag én hel dragt på først: et forvalg gemmer én dragt.',
             delete_title='Slet dette forvalg?',delete_desc='%s slettes. Dragten og dens indstillinger bliver.'},
         options={variant='Variant',on='Til',off='Fra',other='Andet',
+            kinds={finish='Overflade',colour='Farve',number='Tal'},named='%s: %s',
             shape='Form',reset='Nulstil denne dragt',pack='Pakkens farve',
             channels={r='Rød',g='Grøn',b='Blå',a='Alfa'},
             reset_desc='Alle dragtens indstillinger får pakkens værdi igen. Det gemmes med det samme.',

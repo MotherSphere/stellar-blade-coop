@@ -521,6 +521,7 @@ return {
             delete_title='Diese Vorlage löschen?',
             delete_desc='%s wird gelöscht. Das Outfit und seine Optionen bleiben.'},
         options={variant='Variante',on='An',off='Aus',other='Sonstiges',
+            kinds={finish='Oberfläche',colour='Farbe',number='Zahl'},named='%s: %s',
             shape='Form',reset='Dieses Outfit zurücksetzen',pack='Farbe des Pakets',
             channels={r='Rot',g='Grün',b='Blau',a='Alpha'},
             reset_desc='Jede Option dieses Outfits bekommt den Wert des Pakets zurück. Es wird sofort gespeichert.',

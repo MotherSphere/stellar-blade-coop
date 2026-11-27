@@ -504,6 +504,7 @@ return {
             saved='Opgeslagen als %s.',none='Trek eerst één hele outfit aan: een voorkeuze bewaart één outfit.',
             delete_title='Deze voorkeuze wissen?',delete_desc='%s wordt gewist. De outfit en de opties blijven.'},
         options={variant='Variant',on='Aan',off='Uit',other='Overig',
+            kinds={finish='Afwerking',colour='Kleur',number='Getal'},named='%s: %s',
             shape='Vorm',reset='Deze outfit herstellen',pack='Kleur van het pakket',
             channels={r='Rood',g='Groen',b='Blauw',a='Alfa'},
             reset_desc='Elke optie van deze outfit krijgt de waarde van het pakket terug. Het wordt meteen opgeslagen.',

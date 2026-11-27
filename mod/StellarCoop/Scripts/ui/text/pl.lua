@@ -500,6 +500,7 @@ return {
             saved='Zapisano jako %s.',none='Najpierw załóż jeden cały strój: preset zapisuje jeden strój.',
             delete_title='Usunąć ten preset?',delete_desc='%s zostanie usunięty. Strój i jego opcje zostają.'},
         options={variant='Wariant',on='Wł.',off='Wył.',other='Inne',
+            kinds={finish='Wykończenie',colour='Kolor',number='Liczba'},named='%s: %s',
             shape='Kształt',reset='Resetuj ten strój',pack='Kolor paczki',
             channels={r='Czerwony',g='Zielony',b='Niebieski',a='Alfa'},
             reset_desc='Każda opcja tego stroju wraca do wartości z paczki. Zapis następuje od razu.',

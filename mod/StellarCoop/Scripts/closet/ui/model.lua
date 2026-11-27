@@ -134,6 +134,9 @@ function Model.new(o)
     -- The controls on a slot no piece has close the Other section, always shown. The Shape section ({section='Shape',
     -- toggles={}}) lists each shape key ({shape=n}), then {reset_fit=true} (Reset this outfit) is the last row.
     -- Control rows carry name= and desc= (the pack's DisplayName and Description); followers get no row.
+    -- depth= says how deep a row sits under its section row (none: the header, Variant, a section, Reset this outfit):
+    -- a piece, a loose control and a shape key 1, a piece's control 2 (of=its piece's name), a channel one more than
+    -- its colour.
     function m.options(fit_id, open, custom)
         local fit = Fits.get(fit_id)
         local cfg = fit and fit.Controls
@@ -197,10 +200,13 @@ function Model.new(o)
                 end
                 id = id or 'Other'
                 if not sections[id] then sections[id] = {}; sections[#sections + 1] = id end
-                local piece = {toggle = index, name = name, section = id, desc = text(t.Description)}
+                local piece = {toggle = index, name = name, section = id, desc = text(t.Description), depth = 1}
                 local rows = {}
                 for _, i in ipairs(covers[index] or {}) do
-                    for _, row in ipairs(on_slot[i] or {}) do rows[#rows + 1] = row end
+                    for _, row in ipairs(on_slot[i] or {}) do
+                        row.depth, row.of = row.channel and 3 or 2, not row.channel and name or nil
+                        rows[#rows + 1] = row
+                    end
                 end
                 piece.controls = #rows > 0 or nil
                 table.insert(sections[id], piece)
@@ -217,10 +223,16 @@ function Model.new(o)
         table.sort(loose)
         for _, index in ipairs(loose) do
             if not sections.Other then sections.Other = {}; sections[#sections + 1] = 'Other' end
-            for _, row in ipairs(on_slot[index]) do table.insert(sections.Other, row) end
+            for _, row in ipairs(on_slot[index]) do
+                row.depth = row.channel and 2 or 1
+                table.insert(sections.Other, row)
+            end
         end
         table.sort(sections, function(a, b) return (Slots.order(a) or math.huge) < (Slots.order(b) or math.huge) end)
-        if on_slot.shape then sections[#sections + 1], sections.Shape = 'Shape', on_slot.shape end
+        if on_slot.shape then
+            for _, row in ipairs(on_slot.shape) do row.depth = 1 end
+            sections[#sections + 1], sections.Shape = 'Shape', on_slot.shape
+        end
         local out = {{header = fit.Outfit}}
         if #(fit.Variants or {}) > 1 then out[2] = {variant = true} end
         for _, id in ipairs(sections) do

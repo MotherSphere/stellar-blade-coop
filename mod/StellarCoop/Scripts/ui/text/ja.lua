@@ -440,6 +440,7 @@ return {
             saved='%s として保存しました。',none='先に衣装一式を一つ着てください。プリセットは衣装一つを保存します。',
             delete_title='このプリセットを削除しますか?',delete_desc='%s を削除します。衣装とそのオプションは残ります。'},
         options={variant='バリエーション',on='オン',off='オフ',other='その他',
+            kinds={finish='仕上げ',colour='カラー',number='数値'},named='%s：%s',
             shape='シェイプ',reset='この衣装をリセット',pack='パックの色',
             channels={r='赤',g='緑',b='青',a='アルファ'},
             reset_desc='この衣装のすべてのオプションがパックの値に戻ります。すぐに保存されます。',

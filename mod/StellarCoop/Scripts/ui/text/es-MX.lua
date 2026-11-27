@@ -508,6 +508,7 @@ return {
             saved='Guardado como %s.',none='Ponte primero un atuendo entero: un preajuste guarda un atuendo.',
             delete_title='¿Borrar este preajuste?',delete_desc='Se borra %s. El atuendo y sus opciones se quedan.'},
         options={variant='Variante',on='Sí',off='No',other='Otros',
+            kinds={finish='Acabado',colour='Color',number='Número'},named='%s: %s',
             shape='Forma',reset='Restablecer este atuendo',pack='Color del pack',
             channels={r='Rojo',g='Verde',b='Azul',a='Alfa'},
             reset_desc='Cada opción de este atuendo vuelve al valor del pack. Se guarda al instante.',

@@ -510,6 +510,7 @@ return {
             saved='Tallennettu nimellä %s.',none='Pue ensin yksi koko asu: esiasetus tallentaa yhden asun.',
             delete_title='Poistetaanko esiasetus?',delete_desc='%s poistetaan. Asu ja sen asetukset jäävät.'},
         options={variant='Versio',on='Päällä',off='Pois',other='Muut',
+            kinds={finish='Pinta',colour='Väri',number='Luku'},named='%s: %s',
             shape='Muoto',reset='Palauta tämä asu',pack='Paketin väri',
             channels={r='Punainen',g='Vihreä',b='Sininen',a='Alfa'},
             reset_desc='Tämän asun jokainen asetus palaa paketin arvoon. Se tallentuu heti.',

@@ -291,7 +291,9 @@ gives each slot its own material back. Nothing changes while Tachy Mode pauses t
 ### Outfit options
 
 Right on a pack outfit's row of the Full outfit tab (D-pad Right on a pad, the right arrow or D on the keyboard) opens
-its options page. Select still wears the outfit. The row's hints show Options on D-pad Right and its detail says how
+its options page. On an outfit EVE does not wear, the page's open wears it as a preview first, as Select does, so
+each change shows at once. The menu's Back then asks "Keep this look?" as after any preview. Select still wears the
+outfit. The row's hints show Options on D-pad Right and its detail says how
 to open the page, in the words of the device in use. An outfit with one variant and no toggle, colour, finish,
 number or shape key in its pack has no page.
 
@@ -300,6 +302,9 @@ per section, each followed by its pieces. A piece is a material toggle of the pa
 hand fit's piece on its material slot when there is one, else the slot its piece hint guesses from its name, else a
 word of `Model.SECTION_WORDS` in its name, else Other. Sections follow the slot order, Other last. A follower
 (`ControlledBy`) has no row: it takes its leader's value. A second toggle on one material slot has no row either.
+A piece row starts with `- `, so it reads as a child of the section row above it. A control row of a piece starts
+with `- ` after four spaces, a channel row after eight. A section row has no lead mark: it reads as the header of
+its pieces.
 
 - Variant shows the variant's name (`OutfitNames`), else its number of the count. Left and right step through the
   variants. A variant whose mesh does not load is skipped and logged once. The variant's mesh goes on with its
@@ -311,7 +316,10 @@ word of `Model.SECTION_WORDS` in its name, else Other. Sections follow the slot 
 - A piece row shows On or Off. Left and right turn it. On a piece without controls, Select or a click turns it too.
 - On a piece with controls (a colour, finish or number of the pack on its material slot or a follower's slot),
   Select or a click opens its controls as rows right below it. Select again or Back closes them, with the focus back
-  on the piece. The rows are:
+  on the piece. When they open below the window, the list scrolls them into view as far as the piece stays in it,
+  with the focus on the piece. Each row says its kind (Finish, Colour or Number), then the pack's `DisplayName` when
+  that differs from the piece's name ("Colour: Bolero colour", or "Colour" alone under a piece named as the control).
+  The rows are:
   - Finish (`TextureOptions`): the option's name (`OptionNames`). Left and right step through the options whose
     texture loads. A texture that does not load is left out and logged once.
   - Colour (`VectorControls`): Pack colour, a swatch's name or `R G B` in 0-255. Left and right step through Pack

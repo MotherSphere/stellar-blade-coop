@@ -56,10 +56,14 @@
 -- look are drawn again at the next tick.
 -- Right (the hint Options on UI_DPad_Right) on a pack outfit's row with toggles opens its options page (model.options:
 -- the outfit's name as a header row, Variant, each section and its pieces, the Shape section, Reset this outfit),
--- focused on its first setting. Left, right and Select (a click too) change a row (change: closet/options.lua saves
+-- focused on its first setting. An outfit EVE does not wear is worn as a preview first (as Select wears it: Keep this
+-- look? at the menu's Back), since the options layer writes the worn outfits only. A control row says its kind
+-- (closet.options.kinds), then its name when that differs from its piece's (closet.options.named). A piece, a control
+-- and a channel start with Menu.CHILD, deeper rows after Menu.INDENT, so they read as children of the section row
+-- above them. Left, right and Select (a click too) change a row (change: closet/options.lua saves
 -- it at once, its tick shows it on the worn look), so it never asks Keep this look? Select on a piece with controls
 -- opens them as rows below it (a colour with a kit swatch right of the row, a Custom colour's channels, a finish, a
--- number); left and right still turn the piece. F (refresh, UI_FaceButton_Top) gives the focused row its pack value
+-- number), brought into the window as far as the focused piece stays in it; left and right still turn the piece. F (refresh, UI_FaceButton_Top) gives the focused row its pack value
 -- back; Select on Reset this outfit gives every one. Back closes an open piece's controls (the focus on the piece),
 -- then the page: the focus goes back to the outfit's row. Up stops on the page's header row. A tab change or an open
 -- drops the page; the pad chord's undo keeps it. The page's hints: Back, Change on UI_DPad_Left and UI_DPad_Right,
@@ -110,6 +114,9 @@ Menu.NEAR=3000 -- cm: an engaged enemy that near is combat (online/lobby/wiring.
 Menu.PREVIEW,Menu.ARM,Menu.GUARD,Menu.COMBAT=0.25,0.3,0.25,1 -- s.
 Menu.BACK=0.15 -- s before the game's input comes back after a close (ui/kit/menu.lua's BACK).
 Menu.RETRY=1 -- s between two asks of a failed close revert (the dress watchdog's pace).
+-- An options page row under its section starts with CHILD, after INDENT for each depth past the first (model.options's
+-- depth): a piece reads as a child of its section, a control of its piece, a channel of its colour.
+Menu.CHILD,Menu.INDENT='- ','    '
 
 function Menu.new(o)
     local kit,dress=o.kit,o.dress
@@ -237,6 +244,12 @@ function Menu.new(o)
         local fit=item and item.whole and not item.locked and o.options and Fits.get(item.whole)
         return fit and #model.options(item.whole)>1 or false
     end
+    -- A control row's title: its kind (Finish, Colour, Number), then its name when that differs from its piece's.
+    local function kind_title(w,item,kind)
+        local name=item.name
+        if name and name~='' and name~=item.of then return w.options.named:format(w.options.kinds[kind],name) end
+        return w.options.kinds[kind]
+    end
     -- The help line of an options row on this device.
     local function help(w) return w.options.help[pad() and 'pad' or 'key'] end
     -- The focused row's item; on a row of pieces also its tiles and the worn tile's index (None when none is worn).
@@ -331,17 +344,18 @@ function Menu.new(o)
                 local choice=o.options.choice(page.fit,v,n)
                 local value=item.channel and byte(c[item.c:upper()]) or choice=='pack' and w.options.pack or
                     choice=='custom' and byte(c.R)..' '..byte(c.G)..' '..byte(c.B) or w.colour.swatches[choice]
-                s.rows[i]={title=item.channel and w.options.channels[item.c] or item.name,value=value,
+                s.rows[i]={title=item.channel and w.options.channels[item.c] or kind_title(w,item,'colour'),value=value,
                     swatch=item.colour and {R=c.R,G=c.G,B=c.B} or nil}
             elseif item.finish then -- Its option's name, else its number.
                 local at=o.options.get(page.fit,v,'finish:'..item.finish)
                 local c=Fits.get(page.fit).Controls.TextureOptions[item.finish]
                 local name=type(c.OptionNames)=='table' and c.OptionNames[at+1]
-                s.rows[i]={title=item.name,value=type(name)=='string' and name or tostring(at+1)}
+                s.rows[i]={title=kind_title(w,item,'finish'),value=type(name)=='string' and name or tostring(at+1)}
             elseif item.number or item.shape then
                 local key=key_of(item)
                 local _,_,step=o.options.range(page.fit,key)
-                s.rows[i]={title=item.name,value=decimals(o.options.get(page.fit,v,key),step)}
+                s.rows[i]={title=item.number and kind_title(w,item,'number') or item.name,
+                    value=decimals(o.options.get(page.fit,v,key),step)}
             elseif item.role then
                 s.rows[i]={title=w.colour.roles[item.role],value=w.colour.swatches[swatch(item.role)]}
             elseif item.morph then -- The morph name as its mesh writes it.
@@ -354,6 +368,14 @@ function Menu.new(o)
                     worn and model.piece(worn,item.slot).Name or body or w.row.none
                 s.rows[i]={title=w.slots[item.slot] or item.slot,value=value,locked=item.state=='soon'}
             end
+            -- A child row of the options page: its lead mark (the detail's title keeps the plain one).
+            if item.depth then
+                local one=s.rows[i]
+                one.plain,one.title=one.title,Menu.INDENT:rep(item.depth-1)..Menu.CHILD..one.title
+            end
+            -- The open piece's controls: the view brings the last of them into its window too (s.show).
+            if page and page.open and item.toggle==page.open then s.show=i
+            elseif s.show==i-1 and item.depth and item.depth>1 then s.show=i end
         end
         local item,shown=shown_rows[row],s.rows[row]
         region=Camera.region(col~='tabs' and item and item.slot or ids[tab])
@@ -370,7 +392,7 @@ function Menu.new(o)
                 key=w.keys.mode},{w.camera.reset_hint,'UI_RightThumbstick',word='cam_reset',key=w.keys.reset},
                 {w.light.title:format(light),'UI_LeftThumbstick',word='light_next',key=w.keys.light}}
         end
-        s.detail={title=shown and shown.title or '',desc=''}
+        s.detail={title=shown and (shown.plain or shown.title) or '',desc=''}
         if item and item.whole then
             s.detail.desc=(item.locked and w.row.locked:format(item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
             s.detail.badge=Fits.origin(item.whole)
@@ -848,6 +870,11 @@ function Menu.new(o)
             else row=math.max(1,math.min(row+(word=='up' and -1 or 1),n)) end
             kit.sound('move')
         elseif word=='right' and has_options(item) then -- The outfit's options page, on its first setting.
+            -- An outfit EVE does not wear is worn as a preview (as Select does: Keep this look? at the menu's Back),
+            -- since the options layer writes the worn outfits only.
+            local worn=false
+            for _,c in ipairs(dress.choices() or {}) do worn=worn or c.fit==item.whole end
+            if not worn then wear(model.whole(item.whole)) end
             page,from_row,row={fit=item.whole},row,2
             kit.sound('move')
         elseif (word=='right' or word=='select') and tiles then col,tile='grid',at end

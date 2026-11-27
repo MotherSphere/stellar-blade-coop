@@ -607,11 +607,13 @@ return {
             filter_desc='Lists every outfit or your favourites only.',fav='%s, favourite',
             saved='Saved as %s.',none='Wear one whole outfit first: a preset keeps one outfit.',
             delete_title='Delete this preset?',delete_desc='%s is deleted. The outfit and its options stay.'},
-        -- An outfit's options page (closet/options.lua): the Variant row, a piece's value, the Other section, the
+        -- An outfit's options page (closet/options.lua): the Variant row, a piece's value, the Other section, a
+        -- control row's kind and the title of one whose name differs from its piece's (the kind, then the name), the
         -- Shape section, the Reset this outfit row and its line, a colour's Pack colour value, the Custom colour's
         -- channel rows, the line on a piece with controls, the line on an outfit's row that opens the page and the
         -- help of the page's rows, on the keyboard (key) and a pad (pad).
         options={variant='Variant',on='On',off='Off',other='Other',
+            kinds={finish='Finish',colour='Colour',number='Number'},named='%s: %s',
             shape='Shape',reset='Reset this outfit',pack='Pack colour',channels={r='Red',g='Green',b='Blue',a='Alpha'},
             reset_desc='Every option of this outfit goes back to its pack value. It is saved at once.',
             piece_help={key='Enter or a click shows its colours, finishes and numbers. '
