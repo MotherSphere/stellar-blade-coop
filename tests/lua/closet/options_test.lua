@@ -95,6 +95,8 @@ local function component(name, slots)
             keep(self2, n, {R = v.R, G = v.G, B = v.B, A = v.A})
         end
         m.SetScalarParameterValue, m.SetTextureParameterValue = keep, keep
+        -- closet/colour.lua reads a vector parameter before it sets one (its value from before).
+        m.K2_GetVectorParameterValue = function(self2, n) return self2.values[n] or {R = 0, G = 0, B = 0, A = 1} end
         self.mats[i], self.creates = m, self.creates + 1
         return m
     end
@@ -155,6 +157,35 @@ local function near(got, want, what)
 end
 
 local tests = {
+    -- The options layer and the palette (closet/colour.lua) together on one held slot, ticked in closet/wiring.lua's
+    -- order: a pack rescan whose list read fails (no packs), then one that reads them again, keeps the palette's
+    -- colour; a role turned off during a rescan's repaint gives the pack colour back.
+    the_palette_and_options_agree_across_a_rescan = function()
+        dyed_rig(function(r)
+            r.parts[1].slots = {[3] = 'FullOutfit'} -- A pack suit worn whole: its section is Primary's.
+            local c = require('closet.colour').new({dress = r.dress, log = function() end, options = r.o,
+                store = {save = function() return true end, load = function() return nil end, clear = function() end}})
+            local function tick() r.o.tick(); c.tick() end
+            local C = require('closet.colour')
+            local cr, cg, cb = C.swatch('crimson')
+            local crimson, pack = {R = cr, G = cg, B = cb, A = 1}, {R = 0.5, G = 0.5, B = 0.5, A = 1}
+            tick()
+            near(r.value(3, 'Base Color Tint'), pack, 'the pack colour first')
+            c.set('primary', 'crimson')
+            tick()
+            near(r.value(3, 'Base Color Tint'), crimson, 'the palette on the held slot')
+            Fits.use({}) -- A rescan whose pack list could not be read: no pack.
+            tick()
+            near(r.value(3, 'Base Color Tint'), crimson, 'a failed read: the palette stays')
+            Fits.use({s = dyed('s')}) -- The next rescan reads it again: options writes its pack colour anew.
+            tick()
+            near(r.value(3, 'Base Color Tint'), crimson, 'recovered: the palette over the pack colour again')
+            Fits.use({s = dyed('s')}) -- A rescan of the same pack, Primary turned off before the next tick.
+            c.set('primary', 'off')
+            tick()
+            near(r.value(3, 'Base Color Tint'), pack, 'the role off during a repaint: the pack colour back')
+        end)
+    end,
     a_colour_swatch_and_custom_rgb_write_the_param = function()
         dyed_rig(function(r)
             r.o.tick()
