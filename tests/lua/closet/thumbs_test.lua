@@ -217,6 +217,33 @@ local tests = {
         ok(Thumbs.stamp(fewer) ~= stamp, 'other pieces, another stamp')
     end,
 
+    -- A hair is worn on her head: no picture of it, in a run (even a fit list that holds it) or by snap.
+    head_fits_get_no_pictures = function()
+        Fits.use({['h.hair'] = {UniqueFitID = 'h.hair', DisplayName = 'H', Slot = 'Hair',
+            File = '~mods\\H\\h.dekcns.json', Variants = {{Mesh = '/Game/H.H', HiddenMats = {}}},
+            UserConfigs = {MaterialToggles = {}}}})
+        local good, why = pcall(function()
+            local r = game()
+            local every = setmetatable({all = function()
+                local out = Fits.all()
+                out['h.hair'] = Fits.get('h.hair')
+                return out
+            end}, {__index = Fits})
+            r.thumbs = Thumbs.new({log = function() end, folder = 'M', fits = every, installed = function() return true end,
+                her = function() return r.eve end, paused = function() return false end,
+                menu_open = function() return false end, world = function() return r.world end})
+            local ok1, line = r.thumbs.run(false)
+            ok(ok1 and line:find('24 picture', 1, true), 'the same 24 pictures: ' .. tostring(line))
+            r.thumbs.stop()
+            ok1, line = r.thumbs.run(false, 'h.hair')
+            ok(not ok1 and line:find('head piece', 1, true), 'run of a hair refused: ' .. tostring(line))
+            ok1, line = r.thumbs.snap('h.hair', {at = {X = 0, Y = 0, Z = 0}, look = {X = 1, Y = 0, Z = 0}, tanv = 0.4})
+            ok(not ok1 and line:find('head piece', 1, true), 'snap of a hair refused: ' .. tostring(line))
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
     the_queue_takes_every_installed_fit_and_skips_cached_ones = function()
         local r = game()
         local good, line = r.thumbs.run(false)

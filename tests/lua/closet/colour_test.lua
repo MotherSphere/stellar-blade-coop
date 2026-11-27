@@ -113,6 +113,18 @@ local tests = {
         r.c.tick()
         ok(r.body.mats[3] == r.top, 'a new look: the top never painted')
     end,
+    -- A hair or ponytail part after the body: no role reaches its slots, the palette leaves it alone.
+    the_palette_never_paints_a_hair = function()
+        local r = rig()
+        local lock, band = material('Hair'), material('Band')
+        local head = component('Hair', {[0] = lock, [1] = band})
+        r.parts[2] = {c = head, slots = {[0] = 'Hair', [1] = 'Ponytail'}, head = true}
+        ok(r.c.set('primary', 'crimson') and r.c.set('secondary', 'navy') and r.c.set('accent', 'gold'))
+        r.c.tick()
+        eq(head.creates, 0, 'no instance on the head part')
+        ok(head.mats[0] == lock and head.mats[1] == band, 'its materials as they were')
+        ok(r.body.mats[3].mid, 'the body takes the palette')
+    end,
     -- A slot whose instance the options layer also writes (holds: a pack colour control on the pack's colour) gets the
     -- palette; a role turned off gives back its values only: the material stays, so the options layer's instance and
     -- values stay.
