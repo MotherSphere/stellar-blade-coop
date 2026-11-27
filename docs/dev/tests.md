@@ -1717,7 +1717,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   most);
 - `closet_packs_test`: the CNS pack list for `closet/packs.lua` (`closet/packs.h`, `coop-cns-packs.txt`): only CNS
   packs, `<size> <time> <path>` in decimal, sorted by path, the path's spaces and `\` kept, empty text without packs,
-  256 lines at most;
+  256 lines at most; a path with letters outside ASCII ending in a tab and its copy's name (`coop-cns-pack-<n>.json`,
+  numbered from 1 in list order), an ASCII path with none, a path with a tab or a line end left out;
 - `ui_pause_tab_test`: the Online tab's decision on the GameMenu logic's input (RB on the highest enabled tab while the
   game's tab lock is off opens it; any other tab, action or lock passes the action on to the game; a tab list the game
   never builds passes too; a press and its release within 500 ms open once) and its pinned slot, function, FName

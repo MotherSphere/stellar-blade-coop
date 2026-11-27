@@ -32,7 +32,10 @@ Clean-room rules for this code (`mod/StellarCoop/Scripts/closet/cns_import.lua`)
 `closet/packs.lua` reads every installed pack into one catalogue of outfits by `UniqueFitID`:
 
 1. At every start the DLL writes `coop-cns-packs.txt` in the mod folder: one `<size> <time> <path>` line per
-   `~mods\...*.dekcns.json` file under `Content\Paks`, sorted by path, at most 256.
+   `~mods\...*.dekcns.json` file under `Content\Paks`, sorted by path, at most 256. Lua opens files by the Windows
+   code page, so it cannot open a path with letters outside ASCII, such as an accented letter. For such a pack the
+   DLL first writes a copy, `coop-cns-pack-<n>.json`, in the mod folder, then ends the pack's line with a tab and that
+   name. The catalogue reads that pack from its copy. The pack keeps its own path in the catalogue and the log.
 2. The catalogue reads that list at the closet menu's first open and at each `coop closet rescan`. It keeps the lines
    `CnsImport.should_read` accepts. It reads each pack (at most 1 MiB) and parses it with `CnsImport.parse`.
 3. A pack whose size and time match the last scan's keeps its outfits without a read.
@@ -42,7 +45,6 @@ Clean-room rules for this code (`mod/StellarCoop/Scripts/closet/cns_import.lua`)
 6. Without `coop-cns-packs.txt` (an older DLL) the catalogue is empty. It says so once.
 
 The DLL lists the packs only at game start. A pack added or removed while the game runs shows after a restart.
-A pack path with characters outside the Windows code page does not open from Lua. It is logged once.
 
 ## Piece hints
 

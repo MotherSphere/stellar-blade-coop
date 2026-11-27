@@ -396,6 +396,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from. In a match lobby or an online session of more than 2 players, `coop-remote-<k>.txt` holds the table of the member in ghost slot k, 1 to 6 |
 | `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): with `coop-shared-assets.txt`, the only paths from a mod's folder the ghost loads |
+| `coop-cns-packs.txt` | native, at start | Your CNS packs for the Stellar Closet, one `<size> <time> <path>` line each (see [The pack catalogue](../closet/cns-import.md#the-pack-catalogue)). The line of a copied pack ends in a tab and its copy's name |
+| `coop-cns-pack-<n>.json` | native, at start | A copy of a CNS pack whose path has letters outside ASCII, which Lua cannot open. The closet reads the pack from it |
 | `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare or a mod you both have holds (the container name in place of the outfit), empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](../online/partner.md#when-a-mod-asset-fails)) |
 | `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](../online/partner.md#mods-you-both-have)) |
 | `coop-cns-aside.txt` | Lua | The mod assets set aside after a crash: `version <mod version>`, then one `<path> <outfit>` line each. Cleared by `coop cns reset` and by another mod version |
@@ -444,7 +446,8 @@ Each file shared between Lua and the native part is written in full to a `.tmp` 
 so neither side reads a half-written file. The names and loaded files are appended to instead. Each side reads only the
 whole lines past its last offset. When the native part starts, it deletes the capture, remote, display, state, chat,
 night, parked bike line, drone, names and loaded files, `coop-race.txt` and any stale request or report. Then it writes
-`coop-cns.txt` again. The chat files and `coop-race.txt` are also deleted when a session ends and when the game exits.
+`coop-cns.txt`, `coop-cns-packs.txt` and the pack copies again. The chat files and `coop-race.txt` are also deleted
+when a session ends and when the game exits.
 A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the
