@@ -494,7 +494,7 @@ local tests = {
         frames(c, 5, 'full')
         W.keys = 0
         frames(c, 1, 'full')
-        ok(gap(last().at, framed_at('full', -30, 99)) < 0.05, 'clamped at half the frame: 99 cm up')
+        ok(gap(last().at, framed_at('full', -30, 49.5)) < 0.05, 'clamped at a quarter of the frame: 49.5 cm up')
         frames(c, 1, 'torso')
         frames(c, 1, 'full')
         ok(gap(last().at, framed_at('full', 0, 0)) < 0.05, 'a region change clears the pan')
@@ -517,6 +517,24 @@ local tests = {
         frames(c, 1, 'full')
         ok(gap(last().at, framed_at('full', -10, 10)) < 0.05, 'cam_left and cam_up: 10 cm each')
         eq(c.mode(), 'region', 'the words stay in region mode')
+    end,
+
+    a_long_region_pan_keeps_eve_on_screen = function()
+        -- EVE's look point (NDC 0.55 right, mid height) stays within 0.35 half widths either side of it and half a
+        -- half height up or down however long a pan key is held.
+        for _, case in ipairs({{16, 'J', 0.9, 0}, {64, 'L', 0.2, 0}, {8, 'I', 0.55, -0.5}, {32, 'K', 0.55, 0.5}}) do
+            local c = world(function(w) w.keys = 0 end)
+            c.open()
+            frames(c, 0.05, 'full')
+            W.keys = case[1]
+            frames(c, 5, 'full')
+            W.keys = 0
+            frames(c, 1, 'full')
+            local T = {X = W.at.X, Y = W.at.Y, Z = W.at.Z - 90 + Camera.framing('full', 180, 0.55, TANV).height}
+            local x, y = project(last().at, last().rot, T, 90, TANV)
+            near(x, case[3], 0.03, case[2] .. ' held 5 s: her look point across')
+            near(y, case[4], 0.03, case[2] .. ' held 5 s: her look point up')
+        end
     end,
 
     free_mode_stick_orbits_and_x_held_pans = function()

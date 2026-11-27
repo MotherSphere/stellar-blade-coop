@@ -17,8 +17,8 @@
 -- Free mode: cam_left, cam_right, cam_up and cam_down orbit STEP degrees, cam_in and cam_out zoom by ZOOM; the pad's
 -- right stick orbits (ORBIT, TILT deg/s at full), LT and RT zoom (a factor 2 a second at full), X held with the stick
 -- moves the height and the pan (SLIDE cm/s); DEAD of each axis is ignored. Region mode: the right stick (X held or not)
--- pans the region's framing in the screen's plane (SLIDE cm/s, at most half the frame's height up or down and half its
--- width either side), as cam_left, cam_right, cam_up and cam_down do by STEP cm; the triggers and the zoom steps move
+-- pans the region's framing in the screen's plane (SLIDE cm/s, kept so that EVE's look point stays within RPAN on
+-- screen), as cam_left, cam_right, cam_up and cam_down do by STEP cm; the triggers and the zoom steps move
 -- nothing. That pan is kept until the region changes, the next open or a reset. X released after a hold with no stick
 -- toggles region and free (cam_mode too); R3 and cam_reset clear the region pan, set the free pose to the region's
 -- framing and go to free mode. With the native held read (main/boot.lua's held_keys), the step words move nothing:
@@ -86,6 +86,9 @@ Camera.ZOOM=0.1 -- cam_in takes 10% off the distance; cam_out undoes it.
 Camera.PITCH={-60,60} -- degrees, free mode.
 Camera.DIST={40,500} -- cm, free mode.
 Camera.PAN=80 -- cm either side, free mode.
+-- Region mode's pan limits: EVE's look point stays between NDC 0.2 and 0.9 across (0.55 - 0.35 to 0.55 + 0.35) and
+-- within half the half height up or down.
+Camera.RPAN={0.2,0.9,0.5}
 Camera.DEAD=0.2 -- of each stick axis and trigger; the rest is rescaled to 0..1.
 Camera.ORBIT,Camera.TILT,Camera.SLIDE=120,80,120 -- deg/s, deg/s, cm/s at full stick (and for the held keys).
 Camera.MOUSE,Camera.MPAN=0.25,0.25 -- degrees a right drag orbits, cm a middle drag pans, per unit of the kit's layout.
@@ -207,12 +210,16 @@ function Camera.new(o)
         p.pan,p.height=p.pan+rpan.pan,p.height+rpan.height
         return p
     end
-    -- Region mode's pan moved by dp cm right and dh cm up, kept within half the frame's height up or down and half its
-    -- width either side (the frame at the look point: the region's span high, span x k / NDC / tanv wide).
+    -- Region mode's pan moved by dp cm right and dh cm up, kept so that EVE's look point stays within RPAN on screen.
+    -- The pan runs square to the line from the camera to the look point, not in the screen's plane: a pan p puts her
+    -- look point at NDC n for p = dist (k - n t) / (1 + n k t), t the tangent of half the horizontal FOV. Up or down:
+    -- RPAN[3] of the frame's half height at the look point (the region's span high).
     local function slide(dp,dh)
-        local half=(Camera.REGIONS[region] or Camera.REGIONS.full)[2]*cam.h/2
-        local wide=half*cam.k/Camera.NDC/cam.tanv
-        rpan.pan=math.max(-wide,math.min(wide,rpan.pan+dp))
+        local f=Camera.framing(region,cam.h,cam.k,cam.tanv)
+        local t=cam.k/Camera.NDC
+        local function at(n) return f.dist*(cam.k-n*t)/(1+n*cam.k*t) end
+        local half=Camera.RPAN[3]*(Camera.REGIONS[region] or Camera.REGIONS.full)[2]*cam.h/2
+        rpan.pan=math.max(at(Camera.RPAN[2]),math.min(at(Camera.RPAN[1]),rpan.pan+dp))
         rpan.height=math.max(-half,math.min(half,rpan.height+dh))
     end
     -- A right drag in region mode: free mode from the saved free pose, else from the framing on screen.
