@@ -82,8 +82,10 @@ end
 local h07 = mesh('H07/H07', {h07_types[1]})
 local h07_anim = asset(p('H07/H07_AnimBP') .. '_C', ANIM)
 local nier = mesh('Nier/Nier', {material('Nier/MI_Nier')})
+asset(p('Nier/Nier_PhysicsAsset'), PHYS) -- Named by the game's rule: the mesh has none of its own.
 local PACK = '/Game/OutfitMods/P/'
-local ph = asset(PACK .. 'PH.PH', {'/Script/Engine.SkeletalMesh'}, {Skeleton = skeleton,
+local ph_phys = asset(PACK .. 'PH_Phys.PH_Phys', PHYS)
+local ph = asset(PACK .. 'PH.PH', {'/Script/Engine.SkeletalMesh'}, {Skeleton = skeleton, PhysicsAsset = ph_phys,
     Materials = {{MaterialInterface = material('P/MI_PH')}}})
 local ph_anim = asset(PACK .. 'PH_BP.PH_BP_C', ANIM)
 local ph_pony = asset(PACK .. 'PH_Pony.PH_Pony', PHYS)
@@ -128,6 +130,11 @@ local fits = {get = function(id)
     for k, x in pairs(it) do f[k] = x end
     f.Variant, f.Materials, f.PonyPhysics = v, it.Variants[v].Materials, it.Variants[v].PonyPhysics
     return f
+end, heads = function(slot)
+    local out = {}
+    for id, it in pairs(ITEMS) do if it.Slot == slot then out[#out + 1] = id end end
+    table.sort(out)
+    return out
 end}
 
 -- Every call on a component, in order with the store's, as words.
@@ -348,18 +355,19 @@ local tests = {
         ok(w.wear({hair('SB.Hair_001')}))
         w.head.stop()
         eq(w.eve.hair.SkeletalMesh, hr01) eq(w.head.applied(), 2)
+        eq(w.eve.pony.OverrideMaterials[1], pony2.Materials[1].MaterialInterface, 'no closet colour left on it')
         clean(w.eve)
     end,
 
     the_line_and_restore_round_trip = function()
+        -- The dress writes line() before each wear: field 6 holds the game's own pieces.
         local w = world()
         ok(w.wear({hair('SB.Hair_001')}))
-        local line = w.head.line()
+        local line = w.file
         local f = {}
         for x in (line .. '|'):gmatch('([^|]*)|') do f[#f + 1] = x end
         eq(f[1], '/Game/Map.Map:PersistentLevel.EVE_1')
-        eq(f[2], 'SBHair;' .. h07.at_path .. ';' .. hr01.at_path .. ';' .. hr01_anim.at_path .. ';;0='
-            .. hr01_type_b.at_path .. ';;;0,0,0')
+        eq(f[2], 'SBHair;;' .. hr01.at_path .. ';' .. hr01_anim.at_path .. ';;0=' .. hr01_type_b.at_path .. ';;;0,0,0')
         ok(not line:find('\t', 1, true), 'one field of the dress\'s line')
         -- The next Lua load: a new head part gives the game's pieces back (her colour as the asset it was made from).
         local logs = {}
@@ -371,30 +379,78 @@ local tests = {
             .. 'SBHair material 0 MI_HR01_TypeB|SBHair rotation 0 0 0|'), trace)
         ok(trace:find('SBPonytail mesh CH_P_EVE_Hair_PonyTail_2 true', 1, true), trace)
         ok(logs[1]:find('^head: restore from coop%-closet%.txt: SBHair back; SBPonytail back'), logs[1])
-        -- A component that no longer shows the closet's mesh is left alone. The log says so.
+        -- A component that no longer shows a closet piece is left alone. The log says so.
         w = world()
         ok(w.wear({hair('SB.Hair_001')}))
-        line = w.head.line()
+        line = w.file
         w.eve.hair.SkeletalMesh = hr01 -- The game set its own before the reload.
+        w.eve.hair.OverrideMaterials[1] = colour('EVE_1')
         logs = {}
         h2 = Head.new({log = function(m) logs[#logs + 1] = m end, fits = fits})
         n = #calls
         h2.restore(line)
         ok(not since(n):find('SBHair', 1, true), since(n))
         ok(logs[1]:find('SBHair: nothing to give back', 1, true), logs[1])
-        -- The line read before the first wear holds the game's pieces ('?'): a reload gives back what differs.
+        -- A mesh no head fit has is left alone too.
         w = world()
-        line = w.head.line()
-        ok(line:find('|SBHair;?;' .. hr01.at_path, 1, true), line)
-        ok(w.head.wear({hair('SB.Hair_001')}))
-        n = #calls
+        ok(w.wear({hair('SB.Hair_001')}))
+        line = w.file
+        local other = mesh('Other/Other', {material('Other/MI_Other')})
+        w.eve.hair.SkeletalMesh = other
         Head.new({log = function() end, fits = fits}).restore(line)
-        eq(w.eve.hair.SkeletalMesh, hr01, 'given back')
+        eq(w.eve.hair.SkeletalMesh, other)
+        -- No head fit known at the restore (the catalogue is not read): the components are left, and said.
+        w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        logs = {}
+        Head.new({log = function(m) logs[#logs + 1] = m end, fits = {get = function() end,
+            heads = function() return {} end}}).restore(w.file)
+        eq(w.eve.hair.SkeletalMesh, h07)
+        ok(logs[1] and logs[1]:find('no head fit is known', 1, true), tostring(logs[1]))
         -- Nothing to restore: no call.
         n = #calls
         Head.new({log = function() end, fits = fits}).restore(nil)
         Head.new({log = function() end, fits = fits}).restore('')
         eq(#calls, n)
+    end,
+
+    restore_after_two_wears_gives_her_own_hair_back = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        ok(w.wear({hair('p.hair')})) -- The file still names the game's own pieces, not H07.
+        eq(w.eve.hair.SkeletalMesh, ph)
+        local logs = {}
+        Head.new({log = function(m) logs[#logs + 1] = m end, fits = fits}).restore(w.file)
+        eq(w.eve.hair.SkeletalMesh, hr01, 'her own hair: ' .. tostring(logs[1]))
+        eq(w.eve.pony.visible, true, 'her ponytail shown again')
+        -- The same hair worn twice in another colour, its stock ponytail on her own ponytail's mesh: both go back.
+        w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        chosen['SB.Hair_001'] = 3
+        ok(w.wear({hair('SB.Hair_001')}))
+        Head.new({log = function() end, fits = fits}).restore(w.file)
+        eq(w.eve.hair.SkeletalMesh, hr01)
+        eq(w.eve.pony.OverrideMaterials[1], pony2.Materials[1].MaterialInterface, 'the ponytail mesh\'s own colour')
+    end,
+
+    the_salon_taken_in_is_written_at_the_next_line = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
+        w.eve.hair.SkeletalMesh = nier -- The salon: her own hair from now on.
+        w.tick(1) w.tick(1)
+        eq(w.eve.hair.SkeletalMesh, h07)
+        ok(w.head.line():find('|SBHair;;' .. nier.at_path, 1, true), 'the next keep writes it')
+        -- Nothing worn: the line follows her head as it is now.
+        w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        ok(w.head.give_back())
+        w.eve.hair.SkeletalMesh = nier
+        ok(w.head.line():find('|SBHair;;' .. nier.at_path, 1, true), w.head.line())
+        -- Read before any wear, then the salon: the next line has the new hair.
+        w = world()
+        ok(w.head.line():find('|SBHair;;' .. hr01.at_path, 1, true))
+        w.eve.hair.SkeletalMesh = nier
+        ok(w.head.line():find('|SBHair;;' .. nier.at_path, 1, true), w.head.line())
     end,
 
     the_game_hair_comes_back_after_two_seconds = function()
@@ -437,6 +493,8 @@ local tests = {
             w.eve.hair.SkeletalMesh = nier
             w.tick(1) w.tick(1)
             eq(w.eve.hair.SkeletalMesh, h07, 're-wear ' .. i)
+            -- The dress mixes again with the same list: the count goes on.
+            ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
         end
         w.eve.hair.SkeletalMesh = nier
         local n = #calls
@@ -506,6 +564,12 @@ local tests = {
         eq(w.head.applied(), applied + 1)
         local good, why = w.head.rewear('p.hair')
         eq(good, nil) eq(why, 'p.hair is not worn')
+        -- After off nothing is worn: a rewear puts nothing back.
+        ok(w.head.give_back())
+        n = #calls
+        good, why = w.head.rewear('SB.Hair_001')
+        eq(good, nil) eq(why, 'SB.Hair_001 is not worn') eq(#calls, n)
+        eq(w.eve.hair.SkeletalMesh, hr01)
         -- A stock ponytail follows its hair's new colour.
         w = world()
         ok(w.wear({hair('SB.Hair_001')}))
@@ -548,6 +612,19 @@ local tests = {
         eq(good, nil) ok(why:find('no class', 1, true), why)
         eq(w.eve.hair.SkeletalMesh, hr01, 'given back')
         same(w.head.parts(), {})
+    end,
+
+    the_hair_physics_follows_the_game_rule = function()
+        -- A mesh's own physics asset, else <dir>/<name>_PhysicsAsset when it loads, else none.
+        local w = world()
+        ok(w.wear({hair('p.hair')}))
+        ok(since(0):find('SBHair physics PH_Phys false', 1, true), since(0))
+        local n = #calls
+        ok(w.wear({hair('SB.Hair_Nier_001')}))
+        ok(since(n):find('SBHair physics Nier_PhysicsAsset false', 1, true), since(n))
+        n = #calls
+        ok(w.wear({hair('SB.Hair_001')}))
+        ok(since(n):find('SBHair physics none false', 1, true), since(n))
     end,
 
     a_cut_hair_sets_its_physics_asset = function()

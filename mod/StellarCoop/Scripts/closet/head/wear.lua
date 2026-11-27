@@ -25,7 +25,8 @@
 --     0x14492a420 calls vtable +0x910 (mesh, bReinitPose). The equip step FUN_1424c12e0 calls +0x910 with (mesh, 1).
 --   USkinnedMeshComponent.SetPhysicsAsset(NewPhysicsAsset, bForceReInit): entry 0x14665f1a0 (name 0x14665bee0), exec
 --     0x14492aea0 calls vtable +0x908. FUN_1424c12e0 sets it to the new mesh's own physics asset (mesh +0x178), else
---     "{0}/{1}_PhysicsAsset.{2}_PhysicsAsset'" when it loads, else none.
+--     "{0}/{1}_PhysicsAsset.{2}_PhysicsAsset'" (0x145c6eda0; {0} the mesh path before its last '/', FUN_142903b70;
+--     {1} {2} its name, FUN_142910570) when it loads (FUN_14213a310), else none. The closet does the same.
 --   USkeletalMeshComponent.SetAnimClass(NewClass): entry 0x146659ae0 (name 0x1466542d8), exec 0x144920a70 calls
 --     vtable +0xa08. FUN_1424c12e0 sets a row's AnimAssetPath class through FUN_14411af10.
 --   USceneComponent.K2_SetRelativeRotation(NewRotation, bSweep, SweepHitResult, bTeleport): entry 0x14664bb90 (name
@@ -108,6 +109,11 @@ local function base_of(m)
     end
     return m
 end
+-- A hair mesh's physics asset by the game's name when the mesh has none (FUN_1424c12e0's format, see the header).
+local function named_physics(path)
+    local dir,name=(path or ''):match('^(.*)/([^/]+)%.[^/]*$')
+    return dir and dir..'/'..name..'_PhysicsAsset.'..name..'_PhysicsAsset' or nil
+end
 -- The ponytail collision the game names from the body mesh (see the header), or nil.
 local function body_collision(eve)
     local body=valid(eve.Mesh)
@@ -161,7 +167,8 @@ local function give_back(c,n,own)
         local now=valid(c.OverrideClothPhysicsAsset)
         if (now and path_of(now) or '')~=own.cloth then c.OverrideClothPhysicsAsset=cloth end
     end
-    if own.mesh then c:SetSkeletalMesh(assert(Dress.usable(own.mesh),name_of(own.mesh)..' cannot be loaded'),true) end
+    local mesh=own.mesh and assert(Dress.usable(own.mesh),name_of(own.mesh)..' cannot be loaded')
+    if mesh then c:SetSkeletalMesh(mesh,true) end
     if n==HAIR then
         local anim=own.anim~='' and class_of(own.anim)
         if anim then c:SetAnimClass(anim) elseif own.anim~='' then missed[#missed+1]=name_of(own.anim) end
@@ -169,6 +176,15 @@ local function give_back(c,n,own)
         if own.physics~='' and not physics then missed[#missed+1]=name_of(own.physics) end
         c:SetPhysicsAsset(physics,false)
     end
+    -- A slot the closet painted that the game had not overridden: the mesh's own material again.
+    local had,mine={},{}
+    for _,m in ipairs(own.materials) do had[m.slot]=true end
+    if mesh then each(mesh.Materials,function(index,s) mine[index-1]=valid(value_of(s).MaterialInterface) end) end
+    local painted={}
+    each(c.OverrideMaterials,function(index,m)
+        if valid(m) and not had[index-1] then painted[#painted+1]=index-1 end
+    end)
+    for _,slot in ipairs(painted) do if mine[slot] then c:SetMaterial(slot,mine[slot]) end end
     for _,m in ipairs(own.materials) do
         local material=m.object and Doro.same(m.object,m.path) or resolve(m.base,MATERIAL)
         if material then c:SetMaterial(m.slot,material) else missed[#missed+1]='slot '..m.slot..' '..m.base end
@@ -180,9 +196,9 @@ local function give_back(c,n,own)
     return missed
 end
 
--- field 6 of coop-closet.txt (line): EVE's path, then per component '|<name>;<worn>;<mesh>;<anim>;<physics>;
--- <slot>=<base>,...;<visible 1|0>;<cloth>;<pitch>,<yaw>,<roll>', '' for none. worn: the mesh the closet wears there,
--- '-' hidden by it, '' nothing, '?' when the line is read before the first wear of this Lua load.
+-- field 6 of coop-closet.txt (line): EVE's path, then per component '|<name>;<hidden>;<mesh>;<anim>;<physics>;
+-- <slot>=<base>,...;<visible 1|0>;<cloth>;<pitch>,<yaw>,<roll>', '' for none: the game's own pieces only, as the dress
+-- writes it before each wear. hidden: '-' when the closet hid that component at the time.
 local function encode(n,state,own)
     local mats={}
     for _,m in ipairs(own.materials) do mats[#mats+1]=m.slot..'='..m.base end
@@ -214,7 +230,7 @@ function Head.new(o)
     -- By component name: {c=, c_path=, own=<read()'s>, worn=<the piece on it: {fit=, slot=, mesh=, hidden=, anim=,
     -- physics=, cloth=, rotation=, visible=, put=, count=, key=}>}. eve_path: the EVE they are on.
     local parts,eve_path={},nil
-    local list,known={},false -- The choices worn; whether a wear ran this Lua load (line's '?').
+    local list={} -- The choices worn.
     local due,wrong,fights,stopped,applied=0,0,{},false,0
     local said={} -- Variant materials that did not load, said once.
 
@@ -281,6 +297,8 @@ function Head.new(o)
         if t.physics then
             a.physics=resolve(t.physics,PHYSICS)
             if not a.physics then return nil,name_of(t.physics)..' is missing on this PC' end
+        elseif t.slot=='Hair' and a.mesh and not valid(a.mesh.PhysicsAsset) then
+            a.physics=resolve(named_physics(t.mesh),PHYSICS) -- The game's second try; none when it does not load.
         end
         a.cloth=t.cloth and resolve(t.cloth,PHYSICS)
         for i,p in ipairs(t.materials or {}) do
@@ -324,8 +342,8 @@ function Head.new(o)
             c:SetSkeletalMesh(a.mesh,true)
             if a.anim then c:SetAnimClass(a.anim); w.anim=path_of(a.anim) end
             if n==HAIR then
-                -- The game's rule (FUN_1424c12e0): a cut hair's own asset, else the mesh's own.
-                local want=a.physics or valid(a.mesh.PhysicsAsset)
+                -- The game's rule (FUN_1424c12e0): a cut hair's own asset, else the mesh's own, else its named one.
+                local want=t.physics and a.physics or valid(a.mesh.PhysicsAsset) or a.physics
                 local now=valid(c.PhysicsAssetOverride)
                 if (now and path_of(now))~=(want and path_of(want)) then c:SetPhysicsAsset(want,false) end
                 w.physics=want and path_of(want) or ''
@@ -424,14 +442,16 @@ function Head.new(o)
 
     function self.line()
         local eve=her()
+        local any=false
+        for _,p in pairs(parts) do any=any or p.worn~=nil end
+        if not any then parts,eve_path={},nil end -- Nothing worn: her head as it is now.
         if eve then pcall(capture,eve) end
         if not eve_path then return '' end
         local f={eve_path}
         for _,n in ipairs(NAMES) do
             local p=parts[n]
             if p then
-                local state=not known and '?' or p.worn and (p.worn.hidden and '-' or p.worn.mesh) or ''
-                f[#f+1]=encode(n,state,p.own)
+                f[#f+1]=encode(n,p.worn and p.worn.hidden and '-' or '',p.own)
             end
         end
         return table.concat(f,'|')
@@ -440,7 +460,14 @@ function Head.new(o)
     -- list: {{fit=, slot=}}; {} gives her own head back. The same list again changes nothing.
     function self.wear(choices)
         local before=list
-        known,list,stopped,fights,wrong=true,choices or {},false,{},0
+        local function words(l)
+            local w={}
+            for _,c in ipairs(l) do w[#w+1]=c.fit..':'..c.slot end
+            return table.concat(w,' ')
+        end
+        list=choices or {}
+        -- A new list starts the fight count again; the dress's mix again with the same list does not.
+        if words(list)~=words(before) then stopped,fights,wrong=false,{},0 end
         if #list==0 then return self.give_back() end
         local eve=her()
         if not eve then list=before; return nil,'no EVE in the world' end
@@ -479,7 +506,7 @@ function Head.new(o)
                 if not ok then failed=lines[#lines] end
             end
         end
-        parts,eve_path=({}),nil -- Read again before the next change.
+        parts,eve_path,list=({}),nil,{} -- Read again before the next change; nothing to rewear.
         if not lines[1] then return true end
         applied=applied+1
         log('head: off: '..table.concat(lines,'; '))
@@ -487,28 +514,71 @@ function Head.new(o)
         return true
     end
 
-    -- An earlier Lua load's leftovers (field 6 of its file): each component that still shows what it wore gets the
-    -- game's own look back; one that does not is left alone.
+    -- The meshes and materials of every head fit known now (the dress reads the packs before its restore):
+    -- {[path]=true} each, and how many fits.
+    local function known_assets()
+        local meshes,materials,count={},{},0
+        for _,slot in ipairs({'Hair','Ponytail'}) do
+            for _,id in ipairs(fits.heads and fits.heads(slot) or {}) do
+                local fit=fits.get(id)
+                if fit then
+                    count=count+1
+                    for _,v in ipairs(fit.Variants or {{Mesh=fit.Mesh,Materials=fit.Materials}}) do
+                        if v.Mesh and v.Mesh~='' then meshes[v.Mesh]=true end
+                        for _,m in ipairs(v.Materials or {}) do if m~='' then materials[m]=true end end
+                    end
+                end
+            end
+        end
+        return meshes,materials,count
+    end
+    -- Whether c wears a head fit's material on a slot where the game's own look (own) had another.
+    local function painted(c,own,materials)
+        local before,found={},false
+        for _,m in ipairs(own.materials) do before[m.slot]=m.base end
+        each(c.OverrideMaterials,function(index,m)
+            m=valid(m)
+            local base=m and path_of(base_of(m))
+            found=found or (base~=nil and materials[base]==true and before[index-1]~=base)
+        end)
+        return found
+    end
+
+    -- An earlier Lua load's leftovers (field 6 of its file: the game's own pieces): a component is the closet's when
+    -- it wears a head fit's mesh other than its own, a head fit's material on its own mesh, or (a ponytail) is hidden
+    -- by the closet or under the closet's hair. That one gets the game's own look back; any other is left alone.
     function self.restore(field)
         if not field or field=='' then return end
         local f={}
         for x in (field..'|'):gmatch('([^|]*)|') do f[#f+1]=x end
+        local meshes,materials,count=known_assets()
+        if count==0 then
+            log('head: restore from coop-closet.txt: no head fit is known (the catalogue is not read): the head is '
+                ..'left as it is')
+            return
+        end
         local eve=U.her(valid(StaticFindObject(f[1])))
         local cs=eve and components(eve) or {}
-        local lines={}
+        local lines,hair_ours={},false
         for i=2,#f do
             local n,state,own=decode(f[i])
             local c=cs[n]
-            local now=c and (n==SHORT and visible(c) or mesh_of(c))
-            local ours=c and (state=='-' and not visible(c)
-                or state=='?' and (n==SHORT and now~=own.visible or n~=SHORT and now~=own.mesh
-                    or n==PONY and visible(c)~=own.visible)
-                or state~='' and state~='-' and state~='?' and now==state)
+            local ours=false
+            if c then
+                local hidden=n~=HAIR and visible(c)~=own.visible and (state=='-' or hair_ours)
+                if n==SHORT then ours=hidden
+                else
+                    local now=mesh_of(c)
+                    ours=(now~=own.mesh and meshes[now]==true) or (now==own.mesh and painted(c,own,materials))
+                        or (n==PONY and hidden)
+                end
+            end
+            if n==HAIR then hair_ours=ours end
             if ours then
                 local ok,missed=pcall(give_back,c,n,own)
                 lines[#lines+1]=ok and n..' back'..(#missed>0 and ' ('..table.concat(missed,', ')..' not found)' or '')
                     or n..' not given back: '..tostring(missed)
-            elseif state~='' then
+            elseif n~=SHORT then
                 lines[#lines+1]=n..': nothing to give back'
             end
         end
