@@ -217,7 +217,10 @@ function Menu.new(o)
         if o.photo()~='0' then return 'photo' end
         local eve=U.her(UE.GetPlayer())
         if cutscene(eve) then return 'cutscene' end
-        if not kit.holding() then return 'input' end -- coop ui reset gave the game its input back.
+        -- Another holder took the input over the menu and gave it to the game (the host's question, answered): taken
+        -- again, as at the open. coop ui reset closes the menu itself.
+        if not kit.holding() then kit.input(true,View.GROUP,true,true) end
+        if not kit.holding() then return 'input' end
         if t>=combat_at then
             combat_at=t+Menu.COMBAT
             if combat(eve) then return 'combat' end
@@ -973,8 +976,9 @@ function Menu.new(o)
             end
             return
         end
-        -- A held up or down key repeats its move (UE4SS's binds see the press only); the press moved once already.
-        local held=o.nav_held and o.nav_held()
+        -- A held up or down key repeats its move (UE4SS's binds see the press only); the press moved once already. Not
+        -- while another holder has the input over the menu (the host's question takes those keys).
+        local held=kit.holding(View.GROUP) and o.nav_held and o.nav_held()
         local dir=held==1 and 'up' or held==2 and 'down' or nil
         if dir~=held_dir then held_dir,repeat_at=dir,t+Menu.REPEAT_DELAY
         elseif dir and t>=repeat_at then

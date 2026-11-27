@@ -227,12 +227,12 @@ settings_text,in_world,kit_ready='',false,false
 -- board and result panel (online/modes/scoreattack/ui/board.lua), then the fishing tournament's corner board and result
 -- panel (online/modes/fishing/ui/board.lua), then the photo hunt's card and result panel
 -- (online/modes/photohunt/ui/board.lua), after the HUDs, under the menu. The closet menu (closet/ui/view.lua) after the
--- host's question, before the co-op saves' question.
+-- wheel, before the host's question, which draws over it.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
 assert(table.concat(kit_order,' ')=='chat feed card status marker arrow member1 member2 member3 member4 member5 member6 '
     ..'scoreattack scoreattack_board scoreattack_result fishing fishing_result photohunt photohunt_result code guide '
-    ..'menu line_hint wheel ask ask_popup closet_menu badge saves',
+    ..'menu line_hint wheel closet_menu ask ask_popup badge saves',
     table.concat(kit_order,' '))
 in_world,kit_ready,chatting=true,true,true
 mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,

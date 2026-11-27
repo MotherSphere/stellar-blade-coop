@@ -168,6 +168,11 @@ at that moment (no EVE during the map change), the closet tries again each secon
 a loading screen shows. A `coop closet wear` or `coop closet off` typed during a preview closes it and keeps the typed
 look.
 
+When a friend asks to join your online session while the menu is open, the host's question shows over the menu. It
+takes the keys, the controller and the clicks until you answer. Then the menu takes the input back and stays open with
+the look you were trying. When the game takes the input back on its own (a window switch, a change between keyboard
+and controller), the menu takes it again within half a second. The other SBO screens leave the input to the game then.
+
 Every close removes every game part first: the game holds EVE still while one of its widgets is up. The game gets its
 input back 150 ms after the close, so the Esc that closed the menu does not open the pause menu. `coop off` closes the
 menu at once. It runs `coop closet off` too: EVE gets her own look back and `coop-closet.txt` is cleared.

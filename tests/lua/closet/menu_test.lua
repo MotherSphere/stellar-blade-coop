@@ -2019,6 +2019,26 @@ local tests = {
         ok(r.menu.open(), 'an open while it is still ours')
     end,
 
+    -- The host's question opens over the menu (its own holder, drawn over the closet, main/ui.lua) and gives the input
+    -- to the game at its answer: the menu takes it again at its next guard and stays open, nothing reverted.
+    the_input_comes_back_after_the_host_question = function()
+        local r = rig()
+        on_top(r)
+        tick(r, 0.25)
+        r.kit.input(true, 'ask', true)
+        tick(r, 0.5)
+        ok(r.menu.is_open(), 'open under the question') eq(r.kit.held, 'ask', 'the question holds the input')
+        r.held = 2 -- Down held: the question's key, never a repeat of the menu's.
+        tick(r, 1) tick(r, 1.5) tick(r, 1.7)
+        eq((detail(r)), 'Top', 'no repeat under the question')
+        r.held = nil
+        r.kit.input(false, 'ask')
+        tick(r, 2)
+        ok(r.menu.is_open(), 'still open') eq(r.kit.held, 'closet_menu', 'taken again')
+        same(r.kit.inputs[#r.kit.inputs], {true, 'closet_menu', true, true}, 'as at the open')
+        eq(r.reverted, 0, 'nothing reverted') same(r.told, {}, 'no notice')
+    end,
+
     -- A guard that raises while open closes the menu with a revert, the log naming it.
     an_unread_guard_closes_and_says_so = function()
         local r = rig()
@@ -2040,7 +2060,7 @@ local tests = {
             {'photo', function(r) r.photo = '2' end},
             {'cutscene', function(r) r.status = 'mod=1 theater=boss' end},
             {'cutscene', function() eve.IsAttachedToLevelSequenceWithoutPlayable = function() return true end end},
-            {'input', function(r) r.kit.held = nil end},
+            {'input', function(r) r.kit.held, r.kit.deaf = nil, true end}, -- Given to the game, not taken again.
         }
         for _, case in ipairs(cases) do
             eve.IsAttachedToLevelSequenceWithoutPlayable = function() return false end
