@@ -388,6 +388,22 @@ local tests = {
         eq(w.d.choices()[1].fit, 'AiK_CH27_14595')
         eq(fields(w.file)[5], 'AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes')
     end,
+    -- A failed write of coop-closet.txt changes nothing on EVE: the preview and its added mesh stay. off() still works.
+    a_failed_save_keeps_the_preview_on_eve = function()
+        local w = world()
+        assert(w.d.preview(A))
+        eq(#w.eve.comps, 2, 'one added mesh')
+        local added = w.eve.comps[2]
+        local save = w.store.save
+        w.store.save = function() return false, 'disk full' end
+        local ok_, line = w.d.preview(B)
+        eq(ok_, false, 'the preview failed') ok(line:find('disk full', 1, true), line)
+        ok(w.d.previewing(), 'still previewing')
+        eq(#w.eve.comps, 2, 'the added mesh stays') ok(w.eve.comps[2] == added, 'the same added mesh')
+        w.store.save = save
+        assert(w.d.off())
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'her own body mesh') eq(#w.eve.comps, 1, 'no added mesh')
+    end,
     a_revert_without_eve_keeps_the_confirmed_words = function()
         local w = world()
         assert(w.d.wear(A))

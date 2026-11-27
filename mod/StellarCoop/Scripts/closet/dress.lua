@@ -459,20 +459,22 @@ function Dress.new(o)
         end
         -- Her own look first, kept across a mix that changes (the first mix's).
         local own,materials=state and state.own,state and state.materials
-        -- No added mesh of an earlier mix stays: the old one's and this plan's outfits are swept off EVE first.
-        local paths={}
-        for _,a in ipairs(state and state.added or {}) do paths[#paths+1]=a.mesh end
-        for _,a in ipairs(plan.added) do paths[#paths+1]=a.mesh end
-        sweep(eve,paths)
         if not state then
             local mesh=valid(body.SkeletalMesh)
             own,materials=mesh and path_of(mesh) or '',current_materials(body)
         end
+        local prev=state
         state={plan=plan,choices=choices,kept=kept,eve_path=path_of(eve),own=own,materials=materials,added={},paused=false,
             wrong=0}
         for _,a in ipairs(plan.added) do state.added[#state.added+1]={mesh=a.mesh} end
+        -- Saved before anything leaves EVE: a failed write keeps the old look on her and in state.
         local saved,e=keep()
-        if saved==false then state=nil; return nil,'coop-closet.txt not written: '..tostring(e) end
+        if saved==false then state=prev; return nil,'coop-closet.txt not written: '..tostring(e) end
+        -- No added mesh of an earlier mix stays: the old one's and this plan's outfits are swept off EVE first.
+        local paths={}
+        for _,a in ipairs(prev and prev.added or {}) do paths[#paths+1]=a.mesh end
+        for _,a in ipairs(plan.added) do paths[#paths+1]=a.mesh end
+        sweep(eve,paths)
         local mats,count=own_materials(body_mesh)
         if plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,count) end
         body:SetSkeletalMesh(body_mesh,true)
