@@ -882,22 +882,23 @@ local tests = {
         r.menu.open()
         eq((detail(r)), 'Chest tattoo', 'one poll: the torso tab kept')
         -- On a Colour row the chord's left steps the role's swatch (colour.step, saved at once): the close steps it
-        -- back, so the palette and coop-closet-colour.txt stay as they were. From the Weapon tab, LB reaches the Body
-        -- tab: the palette is never stepped.
+        -- back, so the palette and coop-closet-colour.txt stay as they were. From the Head tab, LB lands on the Colour
+        -- tab's Primary row: the frames-later left steps the swatch.
         local col = fake_colour()
         r = rig({colour = col})
         r.menu.open()
-        at(r, 0.4, 'tab_left') -- Full, Weapon.
+        at(r, 0.4, 'tab_right', 'tab_right') -- Full, Colour, Head.
         title = detail(r)
         chord(0.5)
         all_gone(r)
-        eq(col.get('primary'), 'off', 'from the Weapon tab: the palette as it was')
+        eq(#col.steps, 2, 'from the Head tab: the left stepped the swatch, the close stepped it back')
+        eq(col.get('primary'), 'off', 'from the Head tab: the palette as it was')
         r.t = 1
         r.menu.open()
-        eq((detail(r)), title, 'the Weapon tab kept')
+        eq((detail(r)), title, 'the Head tab kept')
         -- On the Colour tab, both pressed in one poll: left, tab_left, then closet.
         col.palette.primary = 'crimson'
-        at(r, 1.4, 'tab_right', 'tab_right') -- Full, Colour.
+        at(r, 1.4, 'tab_left') -- Head, Colour.
         tick(r, 1.45)
         eq((detail(r)), T.en.closet.colour.roles.primary, 'on the Primary row')
         at(r, 1.5, 'left', 'tab_left')
