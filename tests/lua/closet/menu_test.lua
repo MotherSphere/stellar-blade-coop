@@ -3458,6 +3458,29 @@ local tests = {
         end, heads({{fit = HAIR, slots = {'Hair'}}}))
     end,
 
+    custom_head_tiles_keep_the_stock_look = function()
+        -- On a head row a pack piece's picture (BG3's portraits filled their tiles, Schizo's screenshot of 27 Nov
+        -- 2026) gives way to the slot's glyph, as white as the game's own hair icons; a stock piece keeps its icon.
+        local o = heads()
+        o.catalogue['p.hair'].Image = '/Game/P/Portrait.Portrait'
+        o.catalogue[HAIR].Image = '/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_001.Deco_Item_Hair_001'
+        F.textures['/Game/P/Portrait.Portrait'] = true
+        F.textures['/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_001.Deco_Item_Hair_001'] = true
+        local good, why = pcall(with_aria, function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            local paths = {}
+            for _, item in ipairs(tv.items) do paths[item.ItemName.text] = item.IconAssetPath end
+            eq(paths.Bob, '/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_001.Deco_Item_Hair_001',
+                'the stock hair keeps the game\'s icon')
+            ok(paths['Pack hair'] ~= '/Game/P/Portrait.Portrait', 'the pack hair\'s portrait is not shown')
+            eq(paths['Pack hair'], F.path('hair'), 'the pack hair shows the hair glyph')
+        end, o)
+        F.textures = {}
+        ok(good, why)
+    end,
+
     the_grid_scrolls_to_the_focused_tile = function()
         -- 13 hair tiles in rows of 4 (in game only two rows showed and the focus ran off them, Schizo, 27 Nov 2026):
         -- each move asks the TileView to bring the focused tile into view.

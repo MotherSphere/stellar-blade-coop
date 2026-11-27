@@ -95,12 +95,20 @@ local function resolve(path,class)
     local o=path and path~='' and Dress.resolve(path)
     return o and o:IsA(find(class)) and o or nil
 end
--- An AnimBP class: in memory, else its Blueprint's package loaded (eve/wear.lua's class_of).
+-- An AnimBP class: in memory, else its Blueprint's package loaded (eve/wear.lua's class_of), else through the asset
+-- registry (closet/dress.lua's resolve: a mod pack's package). path: the class (..._C, the stock rows' AnimAssetPath)
+-- or the Blueprint's asset path, as packs name their AnimationBP (the BG3 hair packs: "<pack>_AnimBP.<pack>_AnimBP";
+-- cutting two characters off that, as this did, named nothing: "is missing on this PC" in game, 27 Nov 2026).
 local function class_of(path)
-    local c=resolve(path,CLASS)
+    local cls=path:match('_C$') and path or path..'_C'
+    local bp=cls:sub(1,-3)
+    local c=resolve(cls,CLASS)
     if c then return c end
-    pcall(LoadAsset,path:sub(1,-3))
-    return resolve(path,CLASS)
+    pcall(LoadAsset,bp)
+    c=resolve(cls,CLASS)
+    if c then return c end
+    pcall(Dress.resolve,bp)
+    return resolve(cls,CLASS)
 end
 -- A run-time material (a dynamic instance) as the asset it was made from, up to 4 levels (eve/wear.lua's base_of).
 local function base_of(m)

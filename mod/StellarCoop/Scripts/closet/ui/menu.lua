@@ -522,8 +522,12 @@ function Menu.new(o)
             s.tiles={}
             for i,one in ipairs(tiles) do
                 local none=head and w.head.own or w.row.none -- On a head row None leaves the game's own piece.
+                -- A pack's head piece shows the slot's glyph, never its pack picture: the portraits of the BG3 hair packs
+                -- filled their tiles beside the game's white hair icons (Schizo, 27 Nov 2026).
+                local own_art=not (head and one.fit and Fits.origin(one.fit)=='custom')
                 s.tiles[i]={name=one.none and none or head_name(w,one.fit,one.name),equipped=i==at,locked=one.locked,
-                    picture=picture(one.fit,item.slot),image=one.fit and Fits.get(one.fit).Image,
+                    picture=own_art and picture(one.fit,item.slot) or nil,
+                    image=own_art and one.fit and Fits.get(one.fit).Image or nil,
                     icon=one.none and 'none' or Slots.glyph(item.slot)}
             end
             if col=='grid' then

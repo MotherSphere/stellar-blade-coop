@@ -25,8 +25,17 @@ local function class(path)
     return classes[path]
 end
 local assets, packages, by_path = {}, {}, {}
+-- A mod pack's package only the asset registry loads (not LoadAsset): its object path -> the class it brings.
+local registry = {}
+local HELPERS = {IsValid = function() return true end}
+function HELPERS:GetAsset(data)
+    local c = registry[data.ObjectPath]
+    if c then assets[c.at_path] = c end
+    return invalid
+end
 StaticFindObject = function(path)
     if by_path[path] then return by_path[path] end
+    if path == '/Script/AssetRegistry.Default__AssetRegistryHelpers' then return HELPERS end
     if path:find('^/Script/') then return class(path) end
     return assets[path] or invalid
 end
@@ -35,6 +44,7 @@ LoadAsset = function(path) -- A class shows once its Blueprint's package is load
     if c then assets[c.at_path] = c end
     return invalid
 end
+FName = function(s) return s end -- UE4SS's FName, as the asset registry lookup takes it.
 local player
 package.loaded.UEHelpers = {GetPlayer = function() return player end}
 local Head = require('closet.head.wear')
@@ -88,6 +98,10 @@ local ph_phys = asset(PACK .. 'PH_Phys.PH_Phys', PHYS)
 local ph = asset(PACK .. 'PH.PH', {'/Script/Engine.SkeletalMesh'}, {Skeleton = skeleton, PhysicsAsset = ph_phys,
     Materials = {{MaterialInterface = material('P/MI_PH')}}})
 local ph_anim = asset(PACK .. 'PH_BP.PH_BP_C', ANIM)
+-- A pack names its AnimationBP by the Blueprint's asset path (no _C, as the installed BG3 hair packs do): the class
+-- shows once that package is loaded.
+packages[PACK .. 'PH_BP.PH_BP'] = ph_anim
+assets[ph_anim.at_path] = nil
 local ph_pony = asset(PACK .. 'PH_Pony.PH_Pony', PHYS)
 local hr14 = mesh('00_HR/EVE_HR_14/EVE_HR_14', {material('00_HR/EVE_HR_14/MI_EVE_HR_14_TypeA')})
 local hr14_phys = asset(p('00_HR/EVE_HR_14/EVE_HR_14_Physics'), PHYS)
@@ -120,7 +134,7 @@ local ITEMS = {
         Variants = variants(pony_short.at_path, tails)},
     ['SB.Ponytail_None'] = {Slot = 'Ponytail', Origin = 'original', Mesh = '',
         Variants = {{Mesh = '', Materials = {}}}},
-    ['p.hair'] = {Slot = 'Hair', Origin = 'custom', Mesh = ph.at_path, AnimationBP = ph_anim.at_path,
+    ['p.hair'] = {Slot = 'Hair', Origin = 'custom', Mesh = ph.at_path, AnimationBP = PACK .. 'PH_BP.PH_BP',
         Variants = {{Mesh = ph.at_path, Materials = {}, PonyPhysics = ph_pony.at_path}}},
 }
 local fits = {get = function(id)
@@ -300,6 +314,23 @@ local tests = {
         ok(trace:find('SBPonytail cloth PH_Pony', 1, true), trace)
         ok(not trace:find('rotation', 1, true), 'its transform left as the component had it: ' .. trace)
         eq(w.eve.pony.OverrideClothPhysicsAsset, ph_pony)
+    end,
+
+    a_pack_animbp_only_the_registry_loads = function()
+        -- In game LoadAsset did not bring a BG3 hair pack's AnimBP ("BG3Hair_Orin_AnimBP is missing on this PC",
+        -- Schizo's test of 27 Nov 2026): its package loads through the asset registry.
+        local was = packages[PACK .. 'PH_BP.PH_BP']
+        packages[PACK .. 'PH_BP.PH_BP'] = nil
+        registry[PACK .. 'PH_BP.PH_BP'] = ph_anim
+        assets[ph_anim.at_path] = nil
+        local good, why = pcall(function()
+            local w = world()
+            ok(w.wear({hair('p.hair')}))
+            ok(since(0):find('SBHair anim PH_BP_C|', 1, true), since(0))
+        end)
+        packages[PACK .. 'PH_BP.PH_BP'], registry[PACK .. 'PH_BP.PH_BP'] = was, nil
+        assets[ph_anim.at_path] = nil
+        ok(good, why)
     end,
 
     a_pack_hair_hides_both_ponytails = function()
