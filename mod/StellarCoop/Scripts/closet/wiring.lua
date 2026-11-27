@@ -44,9 +44,10 @@ local colour=Colour.new({dress=M.closet,store=M.link and M.link.store(Colour.FIL
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 M.closet_colour=colour
 -- The shape layer (closet/shape.lua): its values in coop-closet-shape.txt; its tick runs each frame right after the
--- colour layer's, menu open or not. The menu's Body tab and coop closet shape set it.
+-- colour layer's, menu open or not. The menu's Body tab and coop closet shape set it. A name its Body row lets go of
+-- gets back the value the options layer wrote there (options.shaped).
 local Shape=require('closet.shape')
-local shape=Shape.new({dress=M.closet,store=M.link and M.link.store(Shape.FILE),
+local shape=Shape.new({dress=M.closet,store=M.link and M.link.store(Shape.FILE),options=options,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 M.closet_shape=shape
 -- coop closet probe (closet/ui/probe.lua) and the closet menu: their ticks run each frame after the dress watchdog's,

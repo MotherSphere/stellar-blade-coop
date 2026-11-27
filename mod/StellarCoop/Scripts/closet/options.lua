@@ -442,6 +442,10 @@ function Options.new(o)
     function self.owns(c,index) return at_slot(owned,c,index) end
     -- Grows each time paint writes a value change (owned and held may have changed): closet/colour.lua paints again.
     function self.revision() return drawn end
+    -- The value (0 to 1) of the shape key name last written on component c, or nil: closet/shape.lua puts it back.
+    function self.shaped(c,name)
+        for _,m in pairs(morphs) do if m.c==c and m.name==name then return m.v end end
+    end
 
     -- A slot's dynamic instance (an instance already there is reused); nil when the slot has no material or the
     -- engine refuses (said in the log).
