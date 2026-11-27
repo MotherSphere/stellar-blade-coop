@@ -103,6 +103,15 @@ local ph_anim = asset(PACK .. 'PH_BP.PH_BP_C', ANIM)
 packages[PACK .. 'PH_BP.PH_BP'] = ph_anim
 assets[ph_anim.at_path] = nil
 local ph_pony = asset(PACK .. 'PH_Pony.PH_Pony', PHYS)
+-- Two three-slot pack hairs: the first's variant paints a tech band on slot 2 (Klukai's, Schizo's video of 27 Nov
+-- 2026), the second names no materials.
+local band = asset(PACK .. 'MI_Band.MI_Band', MAT)
+local tri_mats = {material('P/MI_Tri_0'), material('P/MI_Tri_1'), material('P/MI_Tri_2')}
+local tri = asset(PACK .. 'Tri.Tri', {'/Script/Engine.SkeletalMesh'}, {Skeleton = skeleton, Materials = {
+    {MaterialInterface = tri_mats[1]}, {MaterialInterface = tri_mats[2]}, {MaterialInterface = tri_mats[3]}}})
+local banded = asset(PACK .. 'Banded.Banded', {'/Script/Engine.SkeletalMesh'}, {Skeleton = skeleton, Materials = {
+    {MaterialInterface = material('P/MI_Banded_0')}, {MaterialInterface = material('P/MI_Banded_1')},
+    {MaterialInterface = material('P/MI_Banded_2')}}})
 local hr14 = mesh('00_HR/EVE_HR_14/EVE_HR_14', {material('00_HR/EVE_HR_14/MI_EVE_HR_14_TypeA')})
 local hr14_phys = asset(p('00_HR/EVE_HR_14/EVE_HR_14_Physics'), PHYS)
 do -- EVE_HR_14's AnimBP class shows once its Blueprint's package is loaded.
@@ -134,6 +143,10 @@ local ITEMS = {
         Variants = variants(pony_short.at_path, tails)},
     ['SB.Ponytail_None'] = {Slot = 'Ponytail', Origin = 'original', Mesh = '',
         Variants = {{Mesh = '', Materials = {}}}},
+    ['p.banded'] = {Slot = 'Hair', Origin = 'custom', Mesh = banded.at_path,
+        Variants = {{Mesh = banded.at_path, Materials = {'', '', band.at_path}}}},
+    ['p.tri'] = {Slot = 'Hair', Origin = 'custom', Mesh = tri.at_path,
+        Variants = {{Mesh = tri.at_path, Materials = {}}}},
     ['p.hair'] = {Slot = 'Hair', Origin = 'custom', Mesh = ph.at_path, AnimationBP = PACK .. 'PH_BP.PH_BP',
         Variants = {{Mesh = ph.at_path, Materials = {}, PonyPhysics = ph_pony.at_path}}},
 }
@@ -314,6 +327,18 @@ local tests = {
         ok(trace:find('SBPonytail cloth PH_Pony', 1, true), trace)
         ok(not trace:find('rotation', 1, true), 'its transform left as the component had it: ' .. trace)
         eq(w.eve.pony.OverrideClothPhysicsAsset, ph_pony)
+    end,
+
+    the_last_hair_s_materials_never_stay_on_the_next = function()
+        -- A slot an earlier hair's variant painted kept that material on the next hair's mesh: Klukai's tech band
+        -- showed on the BG3 hairs (Schizo's video of 27 Nov 2026). Every slot of the new mesh gets its variant's
+        -- material, else the mesh's own.
+        local w = world()
+        ok(w.wear({hair('p.banded')}))
+        eq(w.eve.hair.OverrideMaterials[3], band, 'the band on the first hair')
+        ok(w.wear({hair('p.tri')}))
+        eq(w.eve.hair.OverrideMaterials[3], tri_mats[3], 'the next hair\'s own slot 2, not the band')
+        eq(w.eve.hair.OverrideMaterials[2], tri_mats[2], 'its own slot 1')
     end,
 
     a_pack_animbp_only_the_registry_loads = function()

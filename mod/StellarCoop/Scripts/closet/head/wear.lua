@@ -322,10 +322,15 @@ function Head.new(o)
         return a
     end
 
-    -- Each slot the game overrode and each the variant names: the variant's material, else the new mesh's own.
+    -- Each slot of the new mesh, each the game overrode and each the variant names: the variant's material, else the
+    -- new mesh's own. Every mesh slot, as a slot an earlier hair or its colour painted kept that material on the next
+    -- mesh (Klukai's tech band on the BG3 hairs, Schizo's video of 27 Nov 2026).
     local function paint(c,a,own,mesh)
         local mine,slots,order={},{},{}
-        each(mesh.Materials,function(index,s) mine[index-1]=valid(value_of(s).MaterialInterface) end)
+        each(mesh.Materials,function(index,s)
+            mine[index-1]=valid(value_of(s).MaterialInterface)
+            slots[index-1]=true
+        end)
         for _,m in ipairs(own.materials) do slots[m.slot]=true end
         for slot in pairs(a.materials) do slots[slot]=true end
         for slot in pairs(slots) do order[#order+1]=slot end
