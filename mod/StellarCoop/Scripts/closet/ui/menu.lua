@@ -55,6 +55,12 @@
 -- (colour.channel). The palette is saved at once, apart from the look, so it never asks Keep this look? Its detail says
 -- what the role colours and how to change it. The fitting tabs (Head..Body, Intimate) are labelled through
 -- closet.beta ("Head (Beta)").
+-- The Head tab's rows of pieces, Hair and Ponytail, list the stock pieces then the packs' (model.tiles). Their None
+-- tile and an empty row read closet.head.own: the game's own piece stays. The stock ponytails are named from
+-- closet.head by fit id, a stock colour row from closet.head.colours. Right on a head row opens the worn piece's
+-- options page when it has controls, else the grid: a stock ponytail that takes its stock hair's colours
+-- (closet/fits.lua's Fits.follows) has no page. Refresh on a head tile wears nothing; refresh elsewhere keeps the
+-- worn head pieces. Preview picture leaves the head pieces out of the one whole outfit worn.
 -- The Body tab lists, below its Body row, a row for each name of closet/shape.lua's rows (the look as last put on);
 -- its value is the name's value in percent. Left and right step it by Shape.STEP from 0 to 100, Select (a click on the
 -- row too) takes the next step, 0 after 100: the value is saved at once, apart from the look. Rows that change with the
