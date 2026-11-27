@@ -144,6 +144,35 @@ local tests = {
         end
     end,
 
+    a_colour_the_instance_leaves_out_comes_from_its_parents = function()
+        local r = rows()
+        r.materials = {{Group = 'EM_Hair_001_Part1', VariationIndex = 0, MaterialIndex = 0,
+            MaterialAssetPath = '/Game/A/Child'}}
+        r.mats = {['/Game/A/Child'] = {parent = '/Game/A/Mid', vectors = {RootColor = {R = 1, G = 2, B = 3, A = 1}}},
+            ['/Game/A/Mid'] = {parent = MASTER .. '.MA_CH_Hair', vectors = {}},
+            [MASTER] = {vectors = {TipColor = {R = 0.5, G = 0.6, B = 0.7, A = 1}}}}
+        local items, missing = Stock.items(r)
+        local c = items['SB.Hair_001'].UserConfigs.VectorControls
+        eq(#c, 2, 'both controls')
+        same(c[1].Value, {1, 2, 3, 1}, 'root from the instance')
+        same(c[2].Value, {0.5, 0.6, 0.7, 1}, 'tip from the master')
+        same(missing, {}, 'nothing lost')
+        r.mats[MASTER] = nil
+        items, missing = Stock.items(r)
+        c = items['SB.Hair_001'].UserConfigs.VectorControls
+        eq(#c, 1, 'no tip without a value')
+        eq(c[1].ParamName, 'RootColor', 'root stays')
+        same(missing, {'Hair_001: no TipColor on /Game/A/Child or its parents'}, 'said once')
+    end,
+
+    a_hair_row_with_no_alias_is_reported = function()
+        local r = rows()
+        r.items.Hair_009 = {Category = 'ESBItemCategory_Hair', Name = 'Z', EquipmentAlias = 'None'}
+        local items, missing = Stock.items(r)
+        eq(items['SB.Hair_009'], nil, 'left out')
+        same(missing, {'Hair_009: no equipment alias'}, 'said')
+    end,
+
     rows_with_missing_parts_are_left_out = function()
         local r = rows()
         r.items.Hair_Nikke_02 = {Category = 'ESBItemCategory_Hair', Name = 'N2', EquipmentAlias = 'Hair_Nikke_02_Part1',
