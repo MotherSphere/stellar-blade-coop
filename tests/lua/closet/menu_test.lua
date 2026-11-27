@@ -1709,6 +1709,37 @@ local tests = {
     -- Preview picture: the camera row's last chip (P on the keyboard; on a pad SB's View glyph, held), and the word
     -- picture, take the one whole outfit EVE wears as the screen shows her (thumbs.snap with the camera's shot), tell
     -- it and show it; with pieces or nothing worn they tell why; a failed snap tells it failed.
+    preview_picture_on_a_head_row_takes_the_worn_piece = function()
+        -- On a head row Preview picture takes the piece EVE wears in that slot, saved as <slot>.png, the picture its
+        -- tile shows: it took the body outfit's full.png (UE4SS.log of 27 Nov 2026, Burnice's hair focused).
+        local Thumbs = require('closet.thumbs')
+        local exists = Thumbs.fs.exists
+        local files = {}
+        Thumbs.fs.exists = function(p) return files[p] == true end
+        local good, why = pcall(function()
+            local snaps = {}
+            local th = {running = function() return false end, clear = function() return true end}
+            th.snap = function(fit, shot, slot)
+                snaps[#snaps + 1] = {fit, shot, slot}
+                return true
+            end
+            local o = heads({{fit = 'p.hair', slots = {'Hair'}}})
+            o.folder, o.thumbs = 'F', th
+            with_aria(function(r)
+                on_hair(r)
+                r.choices = {{fit = MAID}, {fit = 'p.hair'}}
+                at(r, 0.5, 'picture')
+                eq(#snaps, 1, 'a picture taken')
+                eq(snaps[1][1], 'p.hair', 'the worn hair') eq(snaps[1][3], 'Hair', 'saved as its slot\'s picture')
+                r.choices = {{fit = MAID}}
+                at(r, 0.6, 'picture')
+                eq(#snaps, 1, 'no hair worn: no picture') eq(r.told[#r.told], T.en.closet.picture.none, 'told why')
+            end, o)
+        end)
+        Thumbs.fs.exists = exists
+        ok(good, why)
+    end,
+
     preview_picture_takes_the_worn_outfit = function()
         local Thumbs = require('closet.thumbs')
         local exists = Thumbs.fs.exists

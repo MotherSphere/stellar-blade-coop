@@ -707,16 +707,20 @@ function Menu.new(o)
 
     -- Preview picture: the one whole outfit EVE wears now (her head pieces aside), as the closet camera shows her,
     -- saved as its full.png; told.
+    -- On a head row: the piece she wears in its slot, saved as <slot>.png, its tile's picture (Schizo, 27 Nov 2026).
     local function snapshot()
+        local item=focused()
+        local slot=item and is_head(item.slot) and item.slot or nil
         local choices={}
         for _,c in ipairs(dress.choices() or {}) do
-            if not is_head((Fits.get(c.fit) or {}).Slot) then choices[#choices+1]=c end
+            local of=(Fits.get(c.fit) or {}).Slot
+            if slot and of==slot or not slot and not is_head(of) then choices[#choices+1]=c end
         end
         local fit=#choices==1 and not choices[1].slots and choices[1].fit or nil
         if not fit then return o.tell(function(t) return t.closet.picture.none end) end
         local ran,good,why=pcall(function()
             if not o.thumbs then return false,'no coop closet thumbs' end
-            return o.thumbs.snap(fit,camera and camera.shot())
+            return o.thumbs.snap(fit,camera and camera.shot(),slot)
         end)
         if not (ran and good) then
             log('menu: preview picture not taken: '..tostring(ran and why or good))

@@ -217,13 +217,15 @@ local tests = {
         ok(Thumbs.stamp(fewer) ~= stamp, 'other pieces, another stamp')
     end,
 
-    -- A hair is worn on her head: no picture of it, in a run (even a fit list that holds it) or by snap.
+    -- A hair is worn on her head: no picture of it in a run (even a fit list that holds it), nor a full.png by snap;
+    -- snap with its slot saves <slot>.png (the Preview picture on a head row, Schizo, 27 Nov 2026).
     head_fits_get_no_pictures = function()
         Fits.use({['h.hair'] = {UniqueFitID = 'h.hair', DisplayName = 'H', Slot = 'Hair',
             File = '~mods\\H\\h.dekcns.json', Variants = {{Mesh = '/Game/H.H', HiddenMats = {}}},
             UserConfigs = {MaterialToggles = {}}}})
         local good, why = pcall(function()
             local r = game()
+            local own = r.thumbs -- The rig's: its fakes can take a picture.
             local every = setmetatable({all = function()
                 local out = Fits.all()
                 out['h.hair'] = Fits.get('h.hair')
@@ -239,6 +241,11 @@ local tests = {
             ok(not ok1 and line:find('head piece', 1, true), 'run of a hair refused: ' .. tostring(line))
             ok1, line = r.thumbs.snap('h.hair', {at = {X = 0, Y = 0, Z = 0}, look = {X = 1, Y = 0, Z = 0}, tanv = 0.4})
             ok(not ok1 and line:find('head piece', 1, true), 'snap of a hair refused: ' .. tostring(line))
+            ok1, line = own.snap('h.hair', {at = {X = 0, Y = 0, Z = 0}, look = {X = 1, Y = 0, Z = 0}, tanv = 0.4},
+                'Hair')
+            ok(ok1, 'snap of a hair with its slot: ' .. tostring(line))
+            same(named(r, 'export')[#named(r, 'export')], {'export', Thumbs.folder('M', 'h.hair'), 'Hair.png'},
+                'saved as Hair.png')
         end)
         Fits.use(nil)
         ok(good, why)
