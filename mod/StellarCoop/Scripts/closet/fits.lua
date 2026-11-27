@@ -211,6 +211,15 @@ function Fits.get(fit_id) return Fits.PACKS[fit_id] or Fits.BY_ID[fit_id] end
 -- An outfit's origin: 'original' or 'custom' (the default).
 function Fits.origin(fit_id) return (Fits.get(fit_id) or {}).Origin or 'custom' end
 
+-- Whether a stock ponytail fit takes a stock hair fit's salon colour (the hair's variant and values) instead of its
+-- own: only when the hair has colour controls. Under a cut hair (none) it keeps its own variant, colour and page.
+-- One rule for closet/head/wear.lua, closet/options.lua and closet/ui/menu.lua.
+function Fits.follows(hair, pony)
+    local colours = hair and type(hair.Controls) == 'table' and hair.Controls.VectorControls
+    return type(colours) == 'table' and #colours > 0 and hair.Origin == 'original' and pony ~= nil
+        and pony.Origin == 'original' and pony.Slot == 'Ponytail'
+end
+
 -- The piece of a fit map in a slot, or nil.
 function Fits.piece(fit_id, slot)
     local fit = Fits.get(fit_id)

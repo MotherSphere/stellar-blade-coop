@@ -107,6 +107,7 @@ end
 local ITEMS = {
     ['SB.Hair_001'] = {Slot = 'Hair', Origin = 'original', Mesh = h07.at_path, AnimationBP = h07_anim.at_path,
         Rotation = {Pitch = 0, Yaw = 90, Roll = 0}, HidePonytail = false, Ponytail = 'SB.Ponytail_Long',
+        Controls = {VectorControls = {{ParamName = 'RootColor', MaterialIndex = 0}}},
         Variants = variants(h07.at_path, h07_types)},
     ['SB.Hair_Nier_001'] = {Slot = 'Hair', Origin = 'original', Mesh = nier.at_path, HidePonytail = true,
         Rotation = {Pitch = -90, Yaw = 0, Roll = -90}, Variants = {{Mesh = nier.at_path, Materials = {}}}},
@@ -660,6 +661,19 @@ local tests = {
         ok(w.wear({hair('SB.Hair_024')}))
         ok(since(0):find('^save|SBHair mesh EVE_HR_14 true|SBHair anim EVE_HR_14_AnimBP_C|SBHair physics '
             .. 'EVE_HR_14_Physics false|'), since(0))
+    end,
+
+    -- A stock ponytail follows a stock hair's salon colour only when the hair has colour controls (Fits.follows):
+    -- under a cut hair (none) it keeps its own variant.
+    a_cut_hair_leaves_the_stock_ponytail_its_own_colour = function()
+        local w = world()
+        chosen['SB.Ponytail_Long'] = 3
+        ok(w.wear({hair('SB.Hair_024'), tail('SB.Ponytail_Long')}))
+        ok(since(0):find('SBPonytail material 0 MI_H07_Tail_TypeC', 1, true), 'its own variant: ' .. since(0))
+        w = world()
+        chosen['SB.Ponytail_Long'] = 3
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_Long')}))
+        ok(since(0):find('SBPonytail material 0 MI_H07_Tail_TypeA', 1, true), "the hair's variant: " .. since(0))
     end,
 }
 

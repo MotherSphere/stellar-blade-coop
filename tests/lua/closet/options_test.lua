@@ -311,6 +311,35 @@ local tests = {
         Fits.CHOSEN = {}
         ok(good, why)
     end,
+    -- A stock hair with no colour controls (the cut hairs): the stock ponytail keeps its own values (Fits.follows).
+    a_stock_hair_with_no_colour_controls_leaves_the_ponytail_its_own = function()
+        local hair = stock_item('Hair', 'SB.Hair_024', {})
+        hair.Variants[1].UserConfigs.ScalarControls = {{DisplayName = 'Shine', ParamName = 'Shine', MaterialIndex = 1,
+            Value = 0.5}}
+        local pony = stock_item('Ponytail', 'SB.Ponytail_Long', {{name = 'RootColor', index = 0}})
+        pony.Variants[1].UserConfigs.ScalarControls = {{DisplayName = 'Shine', ParamName = 'Shine', MaterialIndex = 0,
+            Value = 0.5}}
+        Fits.use({['SB.Hair_024'] = hair, ['SB.Ponytail_Long'] = pony})
+        local good, why = pcall(function()
+            local r = rig()
+            local h, p = component('Hair', {1}), component('Pony', {0})
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function()
+                return {{c = h, fit = 'SB.Hair_024', slots = {}, head = true},
+                    {c = p, fit = 'SB.Ponytail_Long', slots = {}, head = true}}
+            end
+            ok(r.o.set('SB.Hair_024', 1, 'number:1', 0.9))
+            ok(r.o.set('SB.Ponytail_Long', 1, 'number:1', 0.2))
+            local own = {R = 0.7, G = 0.7, B = 0.7, A = 1}
+            ok(r.o.set('SB.Ponytail_Long', 1, 'colour:1', own))
+            r.o.tick()
+            near(p.mats[0].values.RootColor, own, 'its own colour')
+            eq(p.mats[0].values.Shine, 0.2, "its own number, not the hair's")
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
     -- The options layer and the palette (closet/colour.lua) together on one held slot, through the real pack scan
     -- (closet/packs.lua over a fake list file, then Fits.use, as closet/wiring.lua's scan) and ticked in the wiring's
     -- order: a rescan whose pack list cannot be read, then one that reads it again, keeps the palette's colour; Primary

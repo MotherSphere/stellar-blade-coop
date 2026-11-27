@@ -442,8 +442,10 @@ the hair's or ponytail's `PonyPhysics`, else the one the game names from her bod
 Colour: a stock hair's variants are its salon colours (the variations of its material group). Its options page (Right
 on the Hair row while it is worn) has the Variant row and, for each material whose parent chain reaches
 `MA_CH_Hair`, Root colour and Tip colour (Dye colour too where the instance sets one) with R, G and B sliders. Other
-masters (the Nikke hair, a hairpin) get no colour row. A stock ponytail worn with a stock hair follows the hair's
-variant and colours: the Ponytail row then has no page of its own. With a pack hair the ponytail keeps its own values.
+masters (the Nikke hair, a hairpin) get no colour row. A stock ponytail worn with a stock hair that has colour
+controls follows the hair's variant and colours: the Ponytail row then has no page of its own. Under a stock hair with
+no colour controls (the two cut hairs among them) or a pack hair the ponytail keeps its own variant and
+values, with its own page.
 A pack hair or ponytail has the options of its pack as a pack outfit does. The colour palette never paints a hair.
 
 On EVE the Hair piece goes on her own `SBHair` component: its mesh, its AnimBP class, its physics asset (a cut hair's

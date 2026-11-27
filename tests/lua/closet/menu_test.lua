@@ -3468,6 +3468,21 @@ local tests = {
         end, heads({{fit = 'p.hair', slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}}))
     end,
 
+    the_ponytail_row_under_a_cut_hair_has_its_own_page = function()
+        -- A stock hair with no colour controls (a cut hair): the stock ponytail keeps its own colours (Fits.follows),
+        -- so Right opens its page.
+        local o = heads({{fit = 'SB.Hair_024', slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}})
+        local cut = head_item('Hair', 'SB.Hair_024', 'Cut', 'original')
+        cut.Variants = {cut.Variants[1]}
+        cut.Variants[1].UserConfigs = {}
+        o.catalogue['SB.Hair_024'] = cut
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'right')
+            same(headers(r), {'Long ponytail'}, 'its own page')
+        end, o)
+    end,
+
     a_pack_ponytail_says_pack_hairs_carry_their_own = function()
         with_aria(function(r)
             on_hair(r)

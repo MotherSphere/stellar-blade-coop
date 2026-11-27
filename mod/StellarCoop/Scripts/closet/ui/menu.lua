@@ -254,8 +254,8 @@ function Menu.new(o)
     local function place(x,lo,hi) return hi>lo and math.max(0,math.min(1,(x-lo)/(hi-lo))) or 0 end
     local function is_head(slot) return slot~=nil and Slots.group(slot)=='head' end
     -- The fit whose options page Right opens from a row, with the options layer, or nil: an outfit's row's installed
-    -- pack outfit with toggles; a head row's worn piece with controls. A stock ponytail worn with a stock hair has no
-    -- page: it takes the hair's colours (closet/options.lua's paint).
+    -- pack outfit with toggles; a head row's worn piece with controls. A stock ponytail worn with a stock hair that
+    -- has colour controls has no page: it takes the hair's colours (closet/fits.lua's Fits.follows).
     local function options_fit(item)
         if not (item and o.options) then return nil end
         local fit
@@ -264,8 +264,7 @@ function Menu.new(o)
             local choices=dress.choices() or {}
             fit=model.worn(choices,item.slot)
             local hair=model.worn(choices,'Hair')
-            if fit and item.slot=='Ponytail' and Fits.origin(fit)=='original' and hair and Fits.origin(hair)=='original'
-                then fit=nil end
+            if fit and item.slot=='Ponytail' and hair and Fits.follows(Fits.get(hair),Fits.get(fit)) then fit=nil end
         end
         return fit and #model.options(fit)>1 and fit or nil
     end

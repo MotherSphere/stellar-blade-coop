@@ -9,7 +9,8 @@
 --     game overrode gets the new mesh's own when the variant names none) and a stock row's rotation. A pack hair's
 --     transform stays as the component has it.
 --   SBPonytail: one ponytail at a time. A stock hair brings its own (SB.Ponytail_Short when the game's ponytail is the
---     short mesh, else SB.Ponytail_Long) in the hair's variant (salon colour); a picked ponytail wins; a pack hair, a
+--     short mesh, else SB.Ponytail_Long) in the hair's variant (salon colour) when the hair has colour controls
+--     (Fits.follows; under a cut hair its own variant); a picked ponytail wins; a pack hair, a
 --     stock hair with HidePonytail and SB.Ponytail_None hide it. Its cloth collision is the hair's (or ponytail's)
 --     PonyPhysics, else the body's, set when it resolves.
 --   SBPonytailShort: hidden while the closet holds the ponytail (no stock row puts a mesh there).
@@ -51,6 +52,7 @@ local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Doro=require('core.actors')
 local Dress=require('closet.dress')
+local Fits=require('closet.fits')
 local valid,value_of,each,text,find=U.valid,U.value_of,U.each,U.text,U.find
 local Head={}
 -- An outside fight, copy of closet/dress.lua's Dress.FIGHT: this many re-wears within this many seconds.
@@ -271,7 +273,7 @@ function Head.new(o)
         local collision=(pony and pony.f.PonyPhysics) or (hair and hair.f.PonyPhysics)
         if pony and pony.f.Mesh~='' then
             local materials=pony.f.Materials or {}
-            if stock_hair and pony.f.Origin=='original' then -- The hair's salon colour.
+            if hair and Fits.follows(hair.f,pony.f) then -- The hair's salon colour.
                 local v=pony.f.Variants and pony.f.Variants[hair.f.Variant or 1]
                 materials=v and v.Materials or materials
             end

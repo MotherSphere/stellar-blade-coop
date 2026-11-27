@@ -527,7 +527,7 @@ function Options.new(o)
         for i,part in ipairs(parts) do
             local f=part.c and Fits.PACKS[part.fit]
             local cfg=f and f.Controls
-            local follows=hair and part.head and f.Slot=='Ponytail' and f.Origin=='original'
+            local follows=part.head and Fits.follows(hair,f)
             local ok,address=pcall(U.address,part.c)
             if cfg and ok then
                 for _,kind in ipairs({'colour','number','finish'}) do
