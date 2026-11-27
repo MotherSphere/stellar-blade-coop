@@ -3502,6 +3502,26 @@ local tests = {
         ok(good, why)
     end,
 
+    a_preview_in_the_grid_moves_the_equipped_mark_in_place = function()
+        -- Each move in the grid previews its tile (closet/ui/menu.lua's PREVIEW s), which moves the equipped mark:
+        -- the grid was cleared and filled again for it, so the tiles blinked as they were built anew (Schizo's
+        -- video of 27 Nov 2026). Only the mark changes now, through each shown slot's UpdateEquip.
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            tv:GetDisplayedEntryWidgets() -- Slate builds the shown entries.
+            local cleared = tv.cleared
+            at(r, 0.6, 'right')
+            tick(r, 1.2) -- The preview wears the next tile: the mark moves to it.
+            eq(tv.cleared, cleared, 'the grid not cleared')
+            local moved = false
+            for _, e in pairs(tv.entries) do if #e.equips > 0 then moved = true end end
+            ok(moved, 'UpdateEquip on the shown slots')
+            eq(tv.items[3].Equiped, true, 'the data object marked equipped')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
     the_grid_scrolls_to_the_focused_tile = function()
         -- 13 hair tiles in rows of 4 (in game only two rows showed and the focus ran off them, Schizo, 27 Nov 2026):
         -- each move asks the TileView to bring the focused tile into view.

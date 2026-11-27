@@ -120,7 +120,8 @@ local function tileview(events)
                     self.Brush.ResourceObject = t
                     self.set[#self.set + 1] = {t, match}
                 end
-                e = {Data = item, Image_Icon = icon}
+                e = {Data = item, Image_Icon = icon, equips = {}}
+                function e:UpdateEquip(on) self.equips[#self.equips + 1] = on end
                 self.entries[item] = e
             end
             out[k] = e

@@ -245,6 +245,8 @@ function View.new(kit,log)
     -- The word each hint chip runs as last drawn: the menu's (s.hints[i].word), then the camera's (s.camera_hints).
     local words={}
     local grid,tiles_sig,selected,detail,detail_sig,popup
+    -- The grid's data objects as last filled, and their equipped marks (a mark that moves alone is set in place).
+    local tile_items,equip_sig={},nil
     -- glyphed: each tile's glyph as last filled (false: the game icon); checking: a fill not yet seen right;
     -- check_at: the next look; by_brush: a shown tile lacked its glyph once, so every look sets the ones that lack it.
     local glyphed,checking,check_at,by_brush=nil,false,0,false
@@ -431,9 +433,27 @@ function View.new(kit,log)
             shown[i]=g or false
             any=any or shown[i]~=false
             local path=shown[i] and shown[i].path or ''
-            names[i]=t.name..(t.equipped and '+' or '')..(t.locked and '*' or '')..'@'..path
+            names[i]=t.name..(t.locked and '*' or '')..'@'..path
         end
+        -- The equipped marks apart from the rest: a preview moves the mark at each move in the grid, and a fill for
+        -- it built every tile anew, so the tiles blinked (Schizo's video of 27 Nov 2026). WB_HairSalon_GridSlot's
+        -- UpdateEquip(bEquip) sets a shown slot's mark in place (widget JSON).
+        local marks={}
+        for i,t in ipairs(s.tiles or {}) do marks[i]=t.equipped and '+' or '-' end
+        local marks_sig=table.concat(marks)
         local sig=table.concat(names,'|')
+        if sig==tiles_sig and marks_sig~=equip_sig then
+            equip_sig=marks_sig
+            call(grid,'grid equip',function(w)
+                for i,t in ipairs(s.tiles or {}) do
+                    if tile_items[i] then tile_items[i].Equiped=t.equipped==true end
+                end
+                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                    local item=tile_items[entry.Data.Index+1]
+                    if item then entry:UpdateEquip(item.Equiped==true) end
+                end)
+            end)
+        end
         if sig~=tiles_sig then
             tiles_sig,selected=sig,nil
             glyphed,checking,check_at=any and shown or nil,any,0 -- tick looks only at a grid with a glyph.
@@ -442,6 +462,7 @@ function View.new(kit,log)
                 if view and view.pics[i] then view.pics[i].texture(g.o) end
             end
             local filled=false
+            tile_items,equip_sig={},marks_sig
             call(grid,'grid fill',function(w)
                 local tv=w.TileView_ItemList
                 tv:ClearListItems()
@@ -456,6 +477,7 @@ function View.new(kit,log)
                     item.Equiped=t.equipped==true
                     item.RedDotState=0
                     item.Index=i-1
+                    tile_items[i]=item
                     tv:AddItem(item)
                 end
                 filled=true
@@ -654,6 +676,7 @@ function View.new(kit,log)
         tabs,tabs_sig,focus,rows,top,hints,count,keys={},nil,nil,{},0,{},0,{}
         tab_top,camera,words=1,{},{}
         grid,tiles_sig,selected,detail,detail_sig,popup=nil,nil,nil,nil,nil,nil
+        tile_items,equip_sig={},nil
         glyphed,checking=nil,false
     end
     return v
