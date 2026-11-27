@@ -86,6 +86,12 @@ local TAB='/Game/Art/UI/Widget/GameMenu/Common/WB_Common_Tab_Btn.WB_Common_Tab_B
 local DETAIL='/Game/Art/UI/Widget/GameMenu/WorkShop/WB_NanoSuit_Detail.WB_NanoSuit_Detail_C'
 local RARE=3 -- ESBItemRarityType Rare (the probe's).
 local VISIBLE,COLLAPSED=0,1 -- ESlateVisibility.
+-- UListView's natives (Ghidra, build 26123051: table 0x1461e8710, registered with /Script/UMG ListView by
+-- FUN_143d4bd20), native entry then exec: SetSelectionMode 0x1461e8870 (0x143d4b260), ClearListItems 0x1461e87d0
+-- (0x143d4b3c0), AddItem 0x1461e8710 (0x143d4b710), BP_GetSelectedItem 0x1461e8750 (0x143d4a530), GetIndexForItem
+-- 0x1461e87e0 (0x143d4b3e0), SetSelectedIndex 0x1461e8860 (0x143d4afc0); the property SelectionMode is the byte at
+-- 0x7fd (params 0x1461e7df8). UListViewBase's GetDisplayedEntryWidgets 0x1461eedf0 (exec 0x143d4cad0; table
+-- 0x1461eede0, FUN_143d4cd50).
 local SINGLE=1 -- ESelectionMode Single (None is 0).
 -- The builder's layout in kit units.
 local TAB_X,TAB_Y,TAB_STEP=160,120,266 -- TABS tabs from 160, a tab key's icon at each end (the lobby's settings tabs).
@@ -100,6 +106,10 @@ local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: 
 -- The settings menu's slider slot (WB_Setting_Slider_Slot) is laid out for 1640-unit rows: its root SizeBox_0 1640,
 -- the title's SizeBox_3 580 and the slider's SizeBox_1 960 (widget JSON). In a ROW_W row the slider bar had no room
 -- (in game, 27 Nov 2026), so each slider row gets ROW_W, SLIDER_TITLE and SLIDER_BAR (SetWidthOverride).
+-- Its members, read in WB_Setting_Slider_Slot's widget JSON (the pak of build 26123051) on 27 Nov 2026: TextTitleValue
+-- (Text), ItemTextRange (InputRange: Min, Max), ItemTextFractionalDigits (int), CurrentPercent (float) and the
+-- functions UpdatePercentOffset, Focus and Normal. WidgetSwitcher_0 sits in Overlay_0 in SizeBox_0, Text_Title in
+-- HorizontalBox_0 in SizeBox_3, Slider_50 in Overlay_37 (its OverlaySlot_1) in SizeBox_1. Ghidra cannot show them.
 -- USizeBox.SetWidthOverride: native table entry 0x1461efaa0, exec 0x143d5be10; UWidget.GetParent: entry 0x146202f00,
 -- exec 0x143d73260; UOverlaySlot.SetPadding (FMargin): entry 0x1461ed5c0 in the table FUN_143d527d0 registers, exec
 -- 0x143d525d0 (Ghidra, build 26123051, 27 Nov 2026). The bar's own padding (Left 70, Right 170: OverlaySlot_1) left it

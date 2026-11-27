@@ -88,6 +88,8 @@ local function usable(path)
     if not (ok and valid(skeleton)) then return nil,path..' has no skeleton' end
     return mesh
 end
+-- USkinnedMeshComponent.GetNumLODs (Ghidra, build 26123051: native entry 0x14665f090, exec 0x14492ae50; table
+-- 0x14665efd0 of /Script/Engine SkinnedMeshComponent, FUN_14492b9e0).
 local function lods(c)
     local ok,n=pcall(function() return c:GetNumLODs() end)
     return ok and n and n>0 and n or 1
@@ -418,10 +420,13 @@ function Dress.new(o)
     --     closet/shape.lua's comment says. Neither it nor USkinnedMeshComponent's FUN_144128b60 touches
     --     OverrideMaterials (+0x538): an override stays across a mesh change, so apply and give_back take every override
     --     off (clear) before they set the ones the look needs.
-    --   SetMaterial, vtable +0x590 of the component (FUN_1440df060): returns when the entry already holds that material,
-    --     grows OverrideMaterials to the index, stores the material (a null one as null) and marks the render state
-    --     dirty. GetMaterial, vtable +0x588 (0x144124f30): the override when it is not null, else the mesh's
-    --     Materials[i] (+0xe0, 0x28 a slot), else null.
+    --   SetMaterial, vtable +0x590: FUN_1412e47e0 in both vtables the closet's components have (0x145a47190, set by
+    --     ctor FUN_1412e0160 after FUN_144123900; SB's subclass 0x145ceaab8, ctor FUN_142407710 after FUN_1412e0160).
+    --     It runs FUN_1440df060, then hands each body instance (vtable +0x6f8) to FUN_14441d4b0, which applies its
+    --     physical materials again, also when the material did not change. FUN_1440df060 returns when the entry already
+    --     holds that material, grows OverrideMaterials (+0x538 data, +0x540 Num) to the index, stores the material (a
+    --     null one as null) and marks the render state dirty (FUN_14408e490). GetMaterial, vtable +0x588
+    --     (0x144124f30): the override when it is not null, else the mesh's Materials[i] (+0xe0, 0x28 a slot), else null.
     -- shortcut: a Parameters texture of another Texture class (a cube map) is left out; read UTexture in Ghidra if a
     -- pack needs one.
     local function wear_variant(c,whole)

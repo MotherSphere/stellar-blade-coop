@@ -499,7 +499,8 @@ function Menu.new(o)
             end
             s.hints[2]={w.hints.wear,'Positive',word='select'}
             -- UI_FaceButton_Top: the game's UI action for the top face button (F, the pad's Y), as in
-            -- online/session/ui/sessions.lua; the 26123051 exe names it in FUN_14254baf0 (case 1) beside UI_LeftShoulder.
+            -- online/session/ui/sessions.lua; the 26123051 exe names it in FUN_14254baf0 case 1 (string 0x145c4e728;
+            -- UI_LeftShoulder is case 4).
             local one=tiles[col=='grid' and tile or at]
             if one and one.fit and not one.locked then s.hints[3]={w.hints.whole,'UI_FaceButton_Top',word='refresh'} end
         end
