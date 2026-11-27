@@ -633,6 +633,28 @@ local tests = {
         has(r.log, 'WB_NanoSuit_Detail', 'log names the part')
     end,
 
+    a_failed_grid_fill_is_filled_again = function()
+        local r = rig()
+        local construct, failed = StaticConstructObject, false
+        StaticConstructObject = function(...)
+            if not failed then failed = true; error('construct refused', 0) end
+            return construct(...)
+        end
+        local good, why = pcall(function()
+            r.menu.open()
+            local tv = grid(r)
+            eq(#tv.items, 0, 'the first fill failed')
+            local cleared = tv.cleared
+            at(r, 0.1, 'left')
+            ok(#tv.items > 0, 'the next draw fills the grid with the same tiles')
+            eq(tv.cleared, cleared + 1, 'cleared before the second fill')
+            at(r, 0.2, 'left')
+            eq(tv.cleared, cleared + 1, 'a filled grid is not filled again')
+        end)
+        StaticConstructObject = construct
+        if not good then error(why, 0) end
+    end,
+
     tabs_rows_and_grid_move_with_their_keys = function()
         local r = rig()
         r.menu.open()

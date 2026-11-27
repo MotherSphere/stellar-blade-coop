@@ -428,6 +428,7 @@ function View.new(kit,log)
             for i,g in pairs(pictured) do
                 if view and view.pics[i] then view.pics[i].texture(g.o) end
             end
+            local filled=false
             call(grid,'grid fill',function(w)
                 local tv=w.TileView_ItemList
                 tv:ClearListItems()
@@ -444,7 +445,10 @@ function View.new(kit,log)
                     item.Index=i-1
                     tv:AddItem(item)
                 end
+                filled=true
             end)
+            -- A fill that raised leaves the grid empty or partial: the next draw fills it again.
+            if not filled then tiles_sig=nil end
         end
         if s.tiles and s.tile and s.tile~=selected then
             selected=s.tile
