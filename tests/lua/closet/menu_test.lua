@@ -36,14 +36,82 @@ local function rig(o)
         confirm = function() r.confirmed = r.confirmed + 1; r.previewing = false; return true, 'closet: confirmed' end,
         revert = function() r.reverted = r.reverted + 1; r.previewing = false; return true, 'closet: reverted' end,
         off = function() r.offs = r.offs + 1; r.choices, r.previewing = nil, false; return true, 'closet: off' end,
-        game_look = function() return r.game_look end}
+        game_look = function() return r.game_look end, loads = o.loads or function() return true end}
     r.menu = Menu.new({kit = r.kit, dress = r.dress, words = function() return T.en end,
         tell = function(build) r.told[#r.told + 1] = build(T.en) end, log = function(m) r.log[#r.log + 1] = m end,
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
         camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape,
-        uidev = function() return r.dev end})
+        options = o.options, uidev = function() return r.dev end})
     return r
+end
+-- A pack suit named Aria (first by name on the Full tab) with two variants, the second's mesh missing when the rig
+-- says so: Jacket (3, on) leads Lining (5), Boots (4, on), Bag (6, off).
+local ARIA = 'aria.suit'
+local function aria()
+    return {UniqueFitID = ARIA, DisplayName = 'Aria', Slot = 'FullOutfit', File = '~mods\\A\\aria.dekcns.json',
+        Variants = {{Mesh = '/Game/A/V1.V1', Name = 'Short', HiddenMats = {}, Materials = {}, Parameters = {}},
+            {Mesh = '/Game/A/V2.V2', HiddenMats = {}, Materials = {}, Parameters = {}},
+            {Mesh = '/Game/A/V3.V3', Name = 'Long', HiddenMats = {}, Materials = {}, Parameters = {}}},
+        PieceHints = {{MaterialIndex = 3, Name = 'Bolero', Slot = 'Outerwear'},
+            {MaterialIndex = 4, Name = 'Boots', Slot = 'Shoes'}, {MaterialIndex = 6, Name = 'Bag'}},
+        UserConfigs = {MaterialToggles = {
+            {DisplayName = 'Bolero', Description = 'The cropped jacket', MaterialIndex = 3, Value = true},
+            {DisplayName = 'Lining', MaterialIndex = 5, Value = true, ControlledBy = 'Bolero'},
+            {DisplayName = 'Boots', MaterialIndex = 4, Value = true},
+            {DisplayName = 'Bag', MaterialIndex = 6, Value = false}}}}
+end
+-- f(r) on a rig with Aria in the catalogue and a real options layer (closet/options.lua) on a fake store.
+local function with_aria(f, o)
+    Fits.use({[ARIA] = aria()})
+    local good, why = pcall(function()
+        o = o or {}
+        local store = {file = nil}
+        store.save = function(l) store.file = l; return true end
+        store.load = function() return store.file end
+        store.clear = function() store.file = nil end
+        o.options = require('closet.options').new({store = store, dress = {plan = function() end},
+            log = function() end})
+        local r = rig(o)
+        r.store, r.options = store, o.options
+        local ran, failed = pcall(f, r)
+        if not ran then error(tostring(failed) .. '\nlog: ' .. table.concat(r.log, ' | '), 0) end
+    end)
+    Fits.use(nil)
+    Fits.CHOSEN = {}
+    ok(good, why)
+end
+-- The menu row's SB hint parts as drawn now: {label, icon, icon2} right to left.
+local function menu_hints(r)
+    local out = {}
+    for _, h in ipairs(r.kit.live(F.HINT)) do
+        if h.y == 1990 then
+            local one = {x = h.x}
+            for _, c in ipairs(h.o.calls) do
+                if c[1] == 'SetText' then one[1] = c[2].text
+                elseif c[1] == 'SetResourceAction' then one[2] = c[2]
+                elseif c[1] == 'SetResourceAction2' then one[3] = c[2] end
+            end
+            out[#out + 1] = one
+        end
+    end
+    table.sort(out, function(a, b) return a.x > b.x end)
+    for _, one in ipairs(out) do one.x = nil end
+    return out
+end
+-- The value of the shown setting row titled title, or nil.
+local function row_value(r, title)
+    for _, rec in ipairs(r.kit.live(F.OPTION)) do
+        if rec.o.Text_TitleValue.text == title then return rec.o.Text_ItemValue.text end
+    end
+end
+-- The labels of the shown header rows (WB_Setting_Category).
+local function headers(r)
+    local out = {}
+    for _, rec in ipairs(r.kit.live(require('ui.kit.parts').CLASS.header)) do
+        out[#out + 1] = rec.o.Category_Name.text
+    end
+    return out
 end
 -- A fake shape layer (closet/shape.lua's face): its rows (names), values, sets and offs.
 local function fake_shape(names)
@@ -1885,13 +1953,112 @@ local tests = {
         all_gone(r)
     end,
 
+    -- Right on a pack outfit's row opens its options page (Select still wears it); Back closes the page, the focus back
+    -- on the outfit's row; the pad chord that leaves the page puts it back before its Back. Every prompt follows the
+    -- device: SB's hint parts draw the keys or the pad's buttons, the detail's help names the keys or the buttons.
+    right_opens_back_closes_and_undo_restores_the_page = function()
+        local O, H = T.en.closet.options, T.en.closet.hints
+        with_aria(function(r)
+            r.menu.open()
+            local title, desc = detail(r)
+            eq(title, 'Aria', 'the first outfit') ok(desc:find(O.open.key, 1, true), desc)
+            same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.whole, 'Positive', 'None'},
+                {H.options, 'UI_DPad_Right', 'None'}, {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}}, 'Options hint')
+            at(r, 0.5, 'right')
+            eq((detail(r)), O.variant, 'the page opens on its first setting')
+            same(headers(r), {'Aria'}, 'the outfit\'s name as a header row')
+            eq(row_value(r, O.variant), 'Short') eq(row_value(r, T.en.closet.slots.Shoes), '1/1')
+            eq(row_value(r, 'Bolero'), O.on) eq(row_value(r, 'Bag'), O.off)
+            eq(row_value(r, 'Lining'), nil, 'a follower')
+            eq(row_value(r, O.other), '0/1', 'the Other section')
+            same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.change, 'UI_DPad_Left', 'UI_DPad_Right'},
+                {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}}, 'the page\'s hints')
+            at(r, 0.6, 'up', 'up')
+            eq((detail(r)), 'Aria', 'up stops on the header') eq(r.menu.is_open(), true)
+            at(r, 0.7, 'back')
+            eq((detail(r)), 'Aria', 'Back: the outfit\'s row') eq(headers(r)[1], nil, 'the page closed')
+            eq(r.menu.is_open(), true) eq(#r.previews, 0, 'nothing worn')
+            r.dev = 4 -- A pad input: the detail says the pad's buttons.
+            at(r, 0.8, 'right', 'down', 'down', 'down', 'down')
+            title, desc = detail(r)
+            eq(title, 'Bolero') ok(desc:find('The cropped jacket', 1, true), 'the pack\'s description')
+            ok(desc:find(O.help.pad, 1, true) and not desc:find(O.help.key, 1, true), desc)
+            r.dev = 1 -- A key press: the next tick draws the keys.
+            tick(r, 0.85)
+            title, desc = detail(r)
+            ok(desc:find(O.help.key, 1, true) and not desc:find(O.help.pad, 1, true), desc)
+            -- The chord: LB (tab_left), then D-pad Left and the closet key in one frame.
+            at(r, 0.9, 'tab_left', 'left')
+            r.menu.toggle()
+            eq(r.menu.is_open(), true, 'the page came back: its Back closed it, not the menu')
+            eq((detail(r)), 'Aria', 'on the outfit\'s row')
+            at(r, 1, 'back')
+            eq(r.menu.is_open(), false, 'Back on the rows: closed, nothing changed')
+        end)
+    end,
+    a_section_row_turns_its_pieces = function()
+        local O = T.en.closet.options
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'right', 'down', 'down', 'down') -- The Jacket section (Outerwear).
+            eq((detail(r)), T.en.closet.slots.Outerwear)
+            at(r, 0.6, 'right')
+            eq(r.options.get(ARIA, 1, 'toggle:3'), false, 'its piece off') eq(row_value(r, 'Bolero'), O.off)
+            eq(row_value(r, T.en.closet.slots.Outerwear), '0/1')
+            eq(r.store.file, ARIA .. ' 1 toggle:3=off', 'saved at once')
+            at(r, 0.7, 'select')
+            eq(r.options.get(ARIA, 1, 'toggle:3'), true, 'and on again') eq(r.store.file, nil)
+            at(r, 0.8, 'down', 'left')
+            eq(row_value(r, 'Bolero'), O.off, 'a piece row turns its piece')
+            at(r, 0.9, 'down', 'down', 'right')
+            eq(r.options.get(ARIA, 1, 'toggle:6'), true, 'Bag on') eq(row_value(r, O.other), '1/1')
+            eq(#r.previews, 0, 'no preview')
+            at(r, 1, 'back', 'back')
+            eq(r.menu.is_open(), false, 'no Keep popup: the options are saved apart from the look')
+        end)
+    end,
+    the_variant_row_skips_a_variant_whose_mesh_does_not_load = function()
+        local O = T.en.closet.options
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'right', 'right')
+            eq(row_value(r, O.variant), 'Long', 'variant 2 does not load: variant 3')
+            eq(r.options.variant(ARIA), 3) eq(Fits.get(ARIA).Mesh, '/Game/A/V3.V3')
+            at(r, 0.6, 'right')
+            eq(row_value(r, O.variant), 'Short', 'round to the first')
+            at(r, 0.7, 'left')
+            eq(row_value(r, O.variant), 'Long')
+        end, {loads = function(path) return path ~= '/Game/A/V2.V2' end})
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'right', 'right')
+            eq(row_value(r, O.variant), '2/3', 'a variant with no name: its number')
+        end)
+    end,
+    reset_stellar_closet_clears_the_options = function()
+        with_aria(function(r)
+            ok(r.options.set(ARIA, 1, 'toggle:4', false)) ok(r.options.set_variant(ARIA, 3))
+            ok(r.store.file ~= nil, 'kept')
+            r.menu.open()
+            at(r, 0.5, 'down', 'down', 'down', 'down', 'select', 'select')
+            eq(r.menu.is_open(), false, 'reset') eq(r.offs, 1)
+            eq(r.store.file, nil, 'the options file cleared') eq(r.options.variant(ARIA), 1)
+            eq(r.options.get(ARIA, 1, 'toggle:4'), true)
+        end)
+    end,
+
     a_raising_dress_tick_still_runs_the_menu_tick = function()
         -- closet/wiring.lua's frame tick under main/frame.lua's guard (run below as frame.lua runs it: an error is
         -- logged, the frame goes on).
         -- Each fake is put back as it was, a module not loaded before included (nil: pairs would skip it).
-        local saved, faked = {}, {'closet.dress', 'closet.ui.probe', 'closet.colour', 'closet.shape', 'closet.wiring'}
+        local saved, faked = {}, {'closet.dress', 'closet.ui.probe', 'closet.colour', 'closet.shape', 'closet.wiring',
+            'closet.options', 'closet.commands'}
         for _, name in ipairs(faked) do saved[name] = package.loaded[name] end
         local runs, errors = {}, {}
+        package.loaded['closet.commands'] = nil -- Made again over the fake options layer.
+        package.loaded['closet.options'] = {FILE = 'coop-closet-options.txt', new = function()
+            return {tick = function() runs[#runs + 1] = 'options' end, stop = function() end}
+        end}
         package.loaded['closet.shape'] = {FILE = 'coop-closet-shape.txt', new = function()
             return {tick = function() runs[#runs + 1] = 'shape' end, stop = function() end}
         end}
@@ -1914,7 +2081,7 @@ local tests = {
         M.closet_menu = {tick = function() runs[#runs + 1] = 'menu' end}
         M.guarded('closet', M.closet.tick)
         for _, name in ipairs(faked) do package.loaded[name] = saved[name] end
-        same(runs, {'dress', 'colour', 'shape', 'probe', 'menu'}, 'every tick ran')
+        same(runs, {'dress', 'options', 'colour', 'shape', 'probe', 'menu'}, 'every tick ran, options before colour')
         eq(#errors, 2, 'both errors reported: ' .. table.concat(errors, ' | '))
         ok(errors[1]:find('dress broke', 1, true) and errors[2]:find('probe broke', 1, true),
             table.concat(errors, ' | '))

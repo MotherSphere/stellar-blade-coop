@@ -595,7 +595,15 @@ return {
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Covers: %s',also='Also takes: %s',
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
-        hints={wear='Wear',take_off='Take off',whole='Whole outfit'},
+        hints={wear='Wear',take_off='Take off',whole='Whole outfit',options='Options',change='Change'},
+        -- An outfit's options page (closet/options.lua): the Variant row, a piece's value, the Other section, the line
+        -- on an outfit's row that opens the page and the help of the page's rows, on the keyboard (key) and a pad
+        -- (pad).
+        options={variant='Variant',on='On',off='Off',other='Other',
+            open={key='Right arrow or D: this outfit\'s options (variant and pieces).',
+                pad='D-pad Right: this outfit\'s options (variant and pieces).'},
+            help={key='The left and right arrows or a click change it. It is saved at once.',
+                pad='D-pad Left and Right change it. It is saved at once.'}},
         -- The camera's modes, its hint row's mode chip and Reset chip. title formatted with moves is the detail's
         -- camera line: the moves of each mode on the keyboard (key) and on a pad (pad).
         camera={region='Region',free='Free',title='Camera: %s',reset_hint='Reset',

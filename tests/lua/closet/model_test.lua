@@ -30,7 +30,49 @@ local function slots_of(choices, fit)
     return nil
 end
 
+-- A pack item for Ocean Maid's id (its hand map knows slots 40 and 41 as the leotard) with its toggles and the piece
+-- hints closet/cns_import.lua guesses from their names.
+local function maid_item(toggles)
+    local hints = {}
+    for _, t in ipairs(toggles) do
+        hints[#hints + 1] = {MaterialIndex = t.MaterialIndex, Name = t.DisplayName,
+            Slot = CnsImport.piece_slot(t.DisplayName)}
+    end
+    return {UniqueFitID = CH27, DisplayName = 'Ocean Maid', Slot = 'FullOutfit', File = '~mods\\AiK\\m.dekcns.json',
+        Variants = {{Mesh = '/Game/M.M', HiddenMats = {}, Materials = {}, Parameters = {}},
+            {Mesh = '/Game/M2.M2', HiddenMats = {}, Materials = {}, Parameters = {}}},
+        PieceHints = hints, UserConfigs = {MaterialToggles = toggles}}
+end
+
 local tests = {
+    -- The options page: the outfit's name, Variant (two or more), then a row per section, each followed by its pieces.
+    -- A piece's section: its hand map piece's slot, else its piece hint's, else a word of its name, else Other.
+    options_rows_group_toggles_in_sections = function()
+        Fits.use({[CH27] = maid_item({
+            {DisplayName = 'Bag', MaterialIndex = 39, Value = true},
+            {DisplayName = 'Long boots', MaterialIndex = 35, Value = true},
+            {DisplayName = 'Boots lining', MaterialIndex = 36, Value = true, ControlledBy = 'Long boots'},
+            {DisplayName = 'Skin', MaterialIndex = 14, Value = true},
+            {DisplayName = 'Vinyl', MaterialIndex = 40, Value = false},
+            {DisplayName = 'Jacket', MaterialIndex = 3, Value = true},
+            {DisplayName = 'Jacket again', MaterialIndex = 3, Value = true}})})
+        local good, why = pcall(function()
+            local rows = new().options(CH27)
+            same(rows, {
+                {header = 'Ocean Maid'}, {variant = true},
+                {section = 'BaseBody', toggles = {14}}, {toggle = 14, name = 'Skin', section = 'BaseBody'},
+                {section = 'UndergarmentTop', toggles = {40}},
+                {toggle = 40, name = 'Vinyl', section = 'UndergarmentTop'},
+                {section = 'Shoes', toggles = {35}}, {toggle = 35, name = 'Long boots', section = 'Shoes'},
+                {section = 'Outerwear', toggles = {3}}, {toggle = 3, name = 'Jacket', section = 'Outerwear'},
+                {section = 'Other', toggles = {39}}, {toggle = 39, name = 'Bag', section = 'Other'},
+            }, 'sections in slot order, Other last; no row for the follower or a second toggle on slot 3')
+            same(new().options(CH46), {}, 'a hand fit with no pack controls: no page')
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
     tabs_leave_out_the_adult_menu = function()
         local t = new().tabs()
         eq(#t, 9, 'tab count')

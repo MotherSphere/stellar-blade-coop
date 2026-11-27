@@ -101,19 +101,55 @@ function Fits.pack(item, v)
         local index = type(t) == 'table' and type(t.MaterialIndex) == 'number' and math.tointeger(t.MaterialIndex)
         if index and index >= 0 then toggles[index] = toggles[index] ~= false and t.Value ~= false end
     end
+    -- Variants: the item's list (the options page's Variant row); Materials and Parameters: the variant's, which
+    -- closet/dress.lua puts on the mesh it wears; Hints: the item's PieceHints (the options page's sections).
     return {Outfit = item.DisplayName, Pack = hand.Pack or pack_name(item.File or item.Pack), Origin = 'custom',
         Mesh = variant.Mesh, Image = item.Image or hand.Image, Variant = v, Hidden = variant.HiddenMats,
-        Toggles = toggles, Controls = item.UserConfigs, Whole = true, Skin = hand.Skin, Pieces = hand.Pieces or {},
-        Unknown = hand.Unknown}
+        Materials = variant.Materials, Parameters = variant.Parameters, Variants = item.Variants,
+        Toggles = toggles, Controls = item.UserConfigs, Hints = item.PieceHints, Whole = true, Skin = hand.Skin,
+        Pieces = hand.Pieces or {}, Unknown = hand.Unknown}
 end
 
--- The catalogue's suits (FitMeshType Body or none) as pack fits in variant 1.
+-- The variant chosen for an outfit (closet/options.lua's, Fits.choose), by UniqueFitID; left out: the first. Kept
+-- across scans: a pack scan wears it again, the first when the pack no longer has it.
+Fits.CHOSEN = {}
+-- The suits of the catalogue last given to Fits.use, by UniqueFitID (Fits.choose builds a variant's fit from them).
+Fits.ITEMS = {}
+
+-- The catalogue's suits (FitMeshType Body or none) as pack fits in their chosen variant.
 local function packs_of(catalogue)
     local out = {}
     for id, item in pairs(catalogue) do
-        if item.Slot == 'FullOutfit' then out[id] = Fits.pack(item, 1) end
+        if item.Slot == 'FullOutfit' then out[id] = Fits.pack(item, Fits.CHOSEN[id] or 1) or Fits.pack(item, 1) end
     end
     return out
+end
+
+-- Variant v of an outfit from now on (its pack fit made again when its pack is read); false when its pack is read
+-- and has no such variant.
+function Fits.choose(fit_id, v)
+    local item = Fits.ITEMS[fit_id]
+    local fit = item and Fits.pack(item, v)
+    if item and not fit then return false end
+    Fits.CHOSEN[fit_id] = v ~= 1 and v or nil
+    if fit then Fits.PACKS[fit_id] = fit end
+    return true
+end
+
+-- The control of a UserConfigs list that control follows (its ControlledBy names another one's DisplayName, the first
+-- of that name; followed on through a chain), or control itself when it follows none or the chain loops.
+function Fits.leader(list, control)
+    local seen, at = {}, control
+    while type(at.ControlledBy) == 'string' and at.ControlledBy ~= '' and not seen[at] do
+        seen[at] = true
+        local next_one
+        for _, c in ipairs(list) do
+            if type(c) == 'table' and c.DisplayName == at.ControlledBy and c ~= at then next_one = c; break end
+        end
+        if not next_one then return at end
+        at = next_one
+    end
+    return seen[at] and control or at
 end
 
 -- Every fit by UniqueFitID: the hand fits, then the pack fits of catalogue (Fits.PACKS when nil) over them.
@@ -125,7 +161,10 @@ function Fits.all(catalogue)
 end
 
 -- The catalogue's pack fits become Fits.PACKS (nil: none).
-function Fits.use(catalogue) Fits.PACKS = packs_of(catalogue or {}) end
+function Fits.use(catalogue)
+    Fits.ITEMS = catalogue or {}
+    Fits.PACKS = packs_of(Fits.ITEMS)
+end
 
 -- The material sections a Whole fit shows on a mesh of count slots: {[index] = true}.
 function Fits.shows(fit, count)

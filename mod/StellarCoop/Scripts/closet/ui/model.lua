@@ -9,6 +9,10 @@
 -- list the hand fits' pieces only.
 local Colour = require('closet.colour')
 local Model = {}
+-- Words (lower case, in a toggle's name) -> the section of a piece with no hand map slot and no piece hint
+-- (closet/cns_import.lua's PIECE_WORDS found none), checked in order.
+Model.SECTION_WORDS = {{'skin', 'BaseBody'}, {'body', 'BaseBody'}, {'hair', 'Hair'}, {'hood', 'Headwear'},
+    {'mask', 'Mask'}, {'strap', 'ChestHardware'}, {'chain', 'Necklace'}}
 
 -- custom: Custom fits only (the region tabs and the Body tab: Original suits are worn whole only, from Full outfit).
 local function sorted_fits(fits, custom)
@@ -92,6 +96,51 @@ function Model.new(o)
             out[#out + 1] = {slot = slot, state = state}
             if slot == 'BaseBody' and o.shapes then
                 for _, name in ipairs(o.shapes()) do out[#out + 1] = {morph = name} end
+            end
+        end
+        return out
+    end
+
+    -- The options page of a pack outfit ({} for an outfit with no pack controls): {header=its name}, {variant=true}
+    -- with two variants or more, then each section ({section=<Slot id or 'Other'>, toggles={slots}}) followed by its
+    -- pieces ({toggle=<material slot>, name=, desc=}), sections in closet/slots.lua's order, Other last. A follower
+    -- (ControlledBy) and a second toggle on one material slot get no row. A piece's section: the hand map's piece (or
+    -- skin: Body) on its slot, else its piece hint's slot, else a word of Model.SECTION_WORDS in its name, else Other.
+    function m.options(fit_id)
+        local fit = Fits.get(fit_id)
+        local list = fit and fit.Controls and fit.Controls.MaterialToggles
+        if not list then return {} end
+        local hand, hints = {}, {}
+        for index in pairs(fit.Skin or {}) do hand[index] = 'BaseBody' end
+        for _, piece in ipairs(fit.Pieces or {}) do
+            for _, index in ipairs(piece.Materials) do hand[index] = piece.Slot end
+        end
+        for _, h in ipairs(fit.Hints or {}) do hints[h.MaterialIndex] = hints[h.MaterialIndex] or h.Slot end
+        local sections, seen = {}, {}
+        for _, t in ipairs(list) do
+            local index = type(t) == 'table' and type(t.MaterialIndex) == 'number' and math.tointeger(t.MaterialIndex)
+            if index and index >= 0 and not seen[index] and Fits.leader(list, t) == t then
+                seen[index] = true
+                local name = type(t.DisplayName) == 'string' and t.DisplayName or ''
+                local id = hand[index] or hints[index]
+                for _, pair in ipairs(Model.SECTION_WORDS) do
+                    if not id and name:lower():find(pair[1], 1, true) then id = pair[2] end
+                end
+                id = id or 'Other'
+                if not sections[id] then sections[id] = {}; sections[#sections + 1] = id end
+                table.insert(sections[id], {toggle = index, name = name, section = id,
+                    desc = type(t.Description) == 'string' and t.Description ~= '' and t.Description or nil})
+            end
+        end
+        table.sort(sections, function(a, b) return (Slots.order(a) or math.huge) < (Slots.order(b) or math.huge) end)
+        local out = {{header = fit.Outfit}}
+        if #(fit.Variants or {}) > 1 then out[2] = {variant = true} end
+        for _, id in ipairs(sections) do
+            local row = {section = id, toggles = {}}
+            out[#out + 1] = row
+            for _, piece in ipairs(sections[id]) do
+                row.toggles[#row.toggles + 1] = piece.toggle
+                out[#out + 1] = piece
             end
         end
         return out

@@ -115,7 +115,8 @@ function Colour.new(o)
     -- 'part:index' (dress.parts()'s order, the same until applied() changes) -> {c, index, original, mid,
     -- was={[name]=the value before}, set={[name]=the closet's value while it is on}}.
     local slots={}
-    local wanted,seen,drawn='',nil,nil -- The palette's words; applied() and the words as last put on.
+    -- The palette's words; applied(), the words and shown() as last put on.
+    local wanted,seen,drawn,viewed='',nil,nil,nil
     local function words()
         local out={}
         for _,role in ipairs(Colour.ROLES) do
@@ -209,15 +210,16 @@ function Colour.new(o)
         end
     end
 
-    -- Each frame: the palette put on again once the dress applied a look or the palette changed.
+    -- Each frame: the palette put on again once the dress applied a look, showed other sections of it (dress.shown,
+    -- closet/options.lua's toggles: the instances kept) or the palette changed.
     function self.tick()
-        local gen=dress.applied()
-        if gen==seen and wanted==drawn then return end
+        local gen,view=dress.applied(),dress.shown and dress.shown()
+        if gen==seen and wanted==drawn and view==viewed then return end
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
         if gen~=seen then slots={} end -- The dress made its materials and components again: ours went with them.
         paint(parts)
-        seen,drawn=gen,wanted
+        seen,drawn,viewed=gen,wanted,view
     end
     -- coop closet colour <role> <swatch|off> and the Colour tab: one role's swatch, kept in the file at once.
     function self.set(role,id)
@@ -243,7 +245,7 @@ function Colour.new(o)
         return true,'closet: colours off'
     end
     -- coop off: the instances forgotten (the dress gave back what wore them); the palette stays for the next look.
-    function self.stop() slots,seen,drawn={},nil,nil end
+    function self.stop() slots,seen,drawn,viewed={},nil,nil,nil end
     return self
 end
 

@@ -54,6 +54,13 @@
 -- its value is the name's value in percent. Left and right step it by Shape.STEP from 0 to 100, Select (a click on the
 -- row too) takes the next step, 0 after 100: the value is saved at once, apart from the look. Rows that change with the
 -- look are drawn again at the next tick.
+-- Right (the hint Options on UI_DPad_Right) on a pack outfit's row with toggles opens its options page (model.options:
+-- the outfit's name as a header row, Variant, each section and its pieces), focused on its first setting. Left, right
+-- and Select (a click too) change a row (change: closet/options.lua saves it at once, its tick shows it on the worn
+-- look), so it never asks Keep this look? Back closes an open piece's controls (none yet), then the page: the focus
+-- goes back to the outfit's row. Up stops on the page's header row. A tab change or an open drops the page; the pad
+-- chord's undo keeps it. The page's hints: Back, Change on UI_DPad_Left and UI_DPad_Right, Move. The detail's open
+-- line and help follow the device: a device switch draws them again at the next tick.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -73,7 +80,8 @@
 -- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
 -- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
 -- thumbs=closet/thumbs.lua's or nil, colour=closet/colour.lua's or nil (the Colour rows then show Off and pick
--- nothing), shape=closet/shape.lua's or nil (no shape row then), uidev=function() SB's input device byte or nil
+-- nothing), shape=closet/shape.lua's or nil (no shape row then), options=closet/options.lua's or nil (no options
+-- page then), uidev=function() SB's input device byte or nil
 -- (core/link.lua's uidev; nil: the keyboard)}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
@@ -116,6 +124,10 @@ function Menu.new(o)
     -- shape row ({at=its frame, back=what puts the swatch or value back}), given back by the chord.
     local frame,undo,stepped=0,nil,nil
     local listed -- closet/shape.lua's rows as of the last draw: new ones are drawn at the next tick.
+    -- page: the options page shown ({fit=<UniqueFitID>, open=<a piece's controls shown, none yet>}) or nil; from_row:
+    -- the outfit's row it opened from.
+    local page,from_row=nil,1
+    local drawn_pad -- The device of the last draw: the detail's key lines follow it (tick).
     local clicked -- The frame of the last left click (nav 'click'), until a tile pick uses it.
     -- camera: closet/ui/camera.lua's or nil; region: the focused one, as of the last draw; hinted: the camera's mode,
     -- light preset and intensity the camera hints show (false: none); ticked: the last tick's time.
@@ -178,9 +190,21 @@ function Menu.new(o)
         return nil
     end
 
+    -- The rows shown: the options page's, else the tab's.
+    local function list()
+        if page then return model.options(page.fit) end
+        return model.rows(model.tabs()[tab])
+    end
+    -- Whether an outfit's row opens an options page: an installed pack outfit with toggles, with the options layer.
+    local function has_options(item)
+        local fit=item and item.whole and not item.locked and o.options and Fits.get(item.whole)
+        return fit and #model.options(item.whole)>1 or false
+    end
+    -- The help line of an options row on this device.
+    local function help(w) return w.options.help[pad() and 'pad' or 'key'] end
     -- The focused row's item; on a row of pieces also its tiles and the worn tile's index (None when none is worn).
     local function focused(choices)
-        local item=model.rows(model.tabs()[tab])[row]
+        local item=list()[row]
         if not item or item.state~='pieces' then return item end
         local tiles,worn=model.tiles(item.slot),model.worn(choices or dress.choices() or {},item.slot)
         for i,one in ipairs(tiles) do
@@ -221,23 +245,37 @@ function Menu.new(o)
         tab_top=math.max(1,math.min(math.max(tab_top,tab-View.TABS+1),tab,#ids-View.TABS+1))
         local s={tabs={},tab=tab,tab_top=tab_top,rows={},hints={{t.hint.back,'Negative',word='back'}},camera_hints={},
             pad=pad()}
+        drawn_pad=s.pad
         for i,id in ipairs(ids) do
             s.tabs[i]=w.tabs[id] or id
             if ids.beta[id] then s.tabs[i]=w.beta:format(s.tabs[i]) end
         end
         listed=o.shape and o.shape.rows()
-        local list=model.rows(ids[tab])
-        row=math.max(1,math.min(row,#list))
-        s.row=#list>0 and row or nil
+        local shown_rows=list()
+        row=math.max(1,math.min(row,#shown_rows))
+        s.row=#shown_rows>0 and row or nil
         local choices=dress.choices() or {}
         local plan=dress.plan() -- The look on EVE now: its body and notice.
-        for i,item in ipairs(list) do
+        local v=page and o.options.variant(page.fit)
+        for i,item in ipairs(shown_rows) do
             if item.whole then
                 s.rows[i]={title=item.outfit,value=item.pack,locked=item.locked}
             elseif item.reset or item.thumbs then
                 s.rows[i]={title=item.reset and w.row.reset or w.row.thumbs,value=''}
-            elseif item.header then -- The Original header above Shift Up's own suits.
-                s.rows[i]={title=w.original,value=''}
+            elseif item.header then -- The Original header above Shift Up's own suits, or the options page's outfit.
+                s.rows[i]={title=page and item.header or w.original,value='',header=true}
+            elseif item.variant then -- Its name, else its number of the count.
+                local all=Fits.get(page.fit).Variants
+                s.rows[i]={title=w.options.variant,value=all[v].Name or ('%d/%d'):format(v,#all)}
+            elseif item.toggle then -- A piece (its section named too).
+                local on=o.options.get(page.fit,v,'toggle:'..item.toggle)
+                s.rows[i]={title=item.name,value=on and w.options.on or w.options.off}
+            elseif item.section then -- How many of its pieces show.
+                local on=0
+                for _,index in ipairs(item.toggles) do
+                    if o.options.get(page.fit,v,'toggle:'..index) then on=on+1 end
+                end
+                s.rows[i]={title=w.slots[item.section] or w.options.other,value=('%d/%d'):format(on,#item.toggles)}
             elseif item.role then
                 s.rows[i]={title=w.colour.roles[item.role],value=w.colour.swatches[swatch(item.role)]}
             elseif item.morph then -- The morph name as its mesh writes it.
@@ -251,7 +289,7 @@ function Menu.new(o)
                 s.rows[i]={title=w.slots[item.slot] or item.slot,value=value,locked=item.state=='soon'}
             end
         end
-        local item,shown=list[row],s.rows[row]
+        local item,shown=shown_rows[row],s.rows[row]
         region=Camera.region(col~='tabs' and item and item.slot or ids[tab])
         hinted=camera_shown()
         if hinted then
@@ -273,6 +311,15 @@ function Menu.new(o)
             s.tiles={{name=item.outfit,locked=item.locked,picture=picture(item.whole,Thumbs.FULL),
                 image=Fits.get(item.whole).Image,icon=Slots.glyph(Slots.FULL_OUTFIT)}}
             if not item.locked then s.hints[2]={w.hints.whole,'Positive',word='select'} end
+            -- UI_DPad_Right: SB's UI action for the D-pad's right (its keyboard key on a keyboard), a UTF-16 string of
+            -- the 26123051 exe at 0x145c4e940 (Ghidra), as online/lobby/ui/lobby.lua's Change hint uses it.
+            if has_options(item) then
+                s.detail.desc=s.detail.desc..'\n'..w.options.open[s.pad and 'pad' or 'key']
+                s.hints[3]={w.hints.options,'UI_DPad_Right',word='right'}
+            end
+        elseif item and page and (item.variant or item.section or item.toggle) then
+            s.detail.desc=(item.desc and item.desc..'\n' or '')..help(w)
+            s.hints[2]={w.hints.change,'UI_DPad_Left','UI_DPad_Right',word='right'}
         elseif item and (item.reset or item.thumbs) then
             s.detail.desc=item.reset and w.popup.reset_desc or w.row.thumbs_desc
             s.hints[2]={t.hint.select,'Positive',word='select'}
@@ -377,6 +424,7 @@ function Menu.new(o)
             return false,T.en.closet.refused[key]
         end
         if not tab then tab,row=1,1 end
+        if page then row,page=from_row,nil end -- Each open shows the tab: an options page opens from its row.
         col,tile,asking,changed,due,said,undo='rows',1,false,false,nil,nil,nil
         bare=not dress.previewing() and #(dress.choices() or {})==0
         back_at,owed,unreverted=nil,false,false -- An owed revert: Back or No on this open reverts.
@@ -457,7 +505,7 @@ function Menu.new(o)
     end
 
     local function set_tab(i)
-        tab,row,due=(i-1)%#model.tabs()+1,1,nil
+        tab,row,due,page=(i-1)%#model.tabs()+1,1,nil,nil
         if col=='grid' then col='rows' end
         kit.sound('change')
     end
@@ -471,6 +519,7 @@ function Menu.new(o)
             end
             if o.colour then o.colour.off() end
             if o.shape then o.shape.off() end
+            if o.options then o.options.off() end
             o.tell(function(t) return t.closet.reset_done end)
             self.close('reset')
             if camera then camera.forget() end -- After its close, which writes the camera file.
@@ -499,7 +548,7 @@ function Menu.new(o)
     function self.toggle()
         if not open then return self.open() end
         if undo and undo.at==frame then
-            tab,row,col,tile,tab_top=table.unpack(undo,1,5)
+            tab,row,col,tile,tab_top,page,from_row=table.unpack(undo,1,7)
             if stepped and stepped.at==frame then stepped.back() end
             stepped=nil
         end
@@ -511,6 +560,36 @@ function Menu.new(o)
         if camera then camera.word(word) end
         return redraw()
     end
+    -- An options page row changed (closet/options.lua: saved at once, shown on the worn look by its tick): Variant
+    -- steps left or right (select: right) past variants whose mesh does not load (dress.loads), a section turns all its
+    -- pieces off when every one shows, else on, a piece turns. A left keeps what puts it back for the pad chord.
+    local function change(item,word)
+        local fit,options=page.fit,o.options
+        local v=options.variant(fit)
+        local back
+        if item.variant then
+            local all=Fits.get(fit).Variants
+            local dir=word=='left' and -1 or 1
+            for k=1,#all-1 do
+                local to=(v-1+dir*k)%#all+1
+                if dress.loads(all[to].Mesh) then
+                    options.set_variant(fit,to)
+                    back=function() options.set_variant(fit,v) end
+                    break
+                end
+            end
+        else
+            local was,all={},true
+            for _,index in ipairs(item.toggles or {item.toggle}) do
+                was[index]=options.get(fit,v,'toggle:'..index)
+                all=all and was[index]
+            end
+            for index in pairs(was) do options.set(fit,v,'toggle:'..index,not all) end
+            back=function() for index,on in pairs(was) do options.set(fit,v,'toggle:'..index,on) end end
+        end
+        if word=='left' and back then stepped={at=frame,back=back} end
+        kit.sound('change')
+    end
     -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, a camera or
     -- light word, or click (a left click: the tab, row, hint chip or popup button under the mouse). yes and no answer
     -- the popup too; refresh is its No.
@@ -519,7 +598,7 @@ function Menu.new(o)
         if camera_word(word) then return cam_word(word) end
         -- A right press may start a camera drag: its Back waits for the release (self.tick, camera.take_back).
         if word=='back' and camera and camera.hold_back() then return end
-        if word=='tab_left' then undo={tab,row,col,tile,tab_top,at=frame} -- For the pad chord (self.toggle).
+        if word=='tab_left' then undo={tab,row,col,tile,tab_top,page,from_row,at=frame} -- The pad chord (self.toggle).
         elseif word=='left' and undo then undo.at=frame
         else undo=nil end
         if word=='select' and now()<opened+Menu.ARM then return end
@@ -559,6 +638,9 @@ function Menu.new(o)
                 end
                 if to~=tile then tile,due=to,now()+Menu.PREVIEW; kit.sound('move') end
             elseif word=='select' then wear_tile(); col='rows' end
+        elseif word=='back' and page then -- An open piece's controls close first, then the page.
+            if page.open then page.open=nil else row,page=from_row,nil end
+            kit.sound('move')
         elseif word=='back' then
             if not changed then return self.close('revert') end
             asking=true
@@ -579,9 +661,16 @@ function Menu.new(o)
             else o.shape.step(name,word=='left' and -1 or 1) end
             if word=='left' then stepped={at=frame,back=function() o.shape.set(name,was) end} end -- The pad chord.
             kit.sound('change')
+        elseif page and item and (item.variant or item.section or item.toggle)
+            and (word=='left' or word=='right' or word=='select') then
+            change(item,word)
         elseif word=='up' or word=='down' then
-            local n=#model.rows(model.tabs()[tab])
-            if word=='up' and row==1 then col='tabs' else row=math.max(1,math.min(row+(word=='up' and -1 or 1),n)) end
+            local n=#list()
+            if word=='up' and row==1 then col=page and 'rows' or 'tabs' -- The page's first row stays.
+            else row=math.max(1,math.min(row+(word=='up' and -1 or 1),n)) end
+            kit.sound('move')
+        elseif word=='right' and has_options(item) then -- The outfit's options page, on its first setting.
+            page,from_row,row={fit=item.whole},row,2
             kit.sound('move')
         elseif (word=='right' or word=='select') and tiles then col,tile='grid',at end
         redraw()
@@ -625,7 +714,8 @@ function Menu.new(o)
             if changed and not dress.previewing() then return self.close('keep') end
         end
         -- The camera's mode or light preset changed by the pad, or the camera stopped: its hints drawn again.
-        if camera and camera_shown()~=hinted then redraw() end
+        if camera and camera_shown()~=hinted then redraw()
+        elseif pad()~=drawn_pad then redraw() end -- A device switch: the detail's key or button words.
         -- The shape layer put a new look's shape on (its tick runs before this one): its rows drawn again.
         if o.shape and o.shape.rows()~=listed then redraw() end
         if asking then return end

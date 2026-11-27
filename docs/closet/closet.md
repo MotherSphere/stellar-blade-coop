@@ -26,6 +26,8 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet shape <morph> <0-100>` | Sets one body shape value (a morph target name of the worn meshes) in percent, in steps of 10. `0` takes it off. See [Body shape](#body-shape) |
 | `coop closet shape off` | Sets every body shape value back to 0 and deletes `coop-closet-shape.txt` |
 | `coop closet rescan` | Reads every installed CNS-format pack again and answers how many packs, reused packs, outfits and failed packs it found. See [Importing CNS-format packs](cns-import.md#the-pack-catalogue) |
+| `coop closet option <fit> variant <n>` | Sets the variant a pack outfit wears (1 is the pack's first). See [Outfit options](#outfit-options) |
+| `coop closet option <fit> toggle <slot> on\|off` | Shows or hides the piece on one material slot (a number) of a pack outfit in the variant it wears. See [Outfit options](#outfit-options) |
 
 For example, `coop closet wear AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462:Shoes` wears Ocean Maid's top and
 stockings with Kunoichi Shadow's boots.
@@ -76,6 +78,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`,
 | `thumbs.lua` | `coop closet thumbs`: the capture rig (one picture a frame) and the picture cache's folders, files and stamps |
 | `colour.lua` | `coop closet colour`: the palette, each slot's role, the swatches and the dynamic material instances on the worn pieces |
 | `shape.lua` | `coop closet shape`: the morph names of the worn meshes, the Body tab's shape rows and the morph values on EVE's body and the added pieces |
+| `options.lua` | `coop closet option`: each pack outfit's variant and piece toggles per variant, kept in `coop-closet-options.txt` |
 
 The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
 
@@ -88,11 +91,12 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
 
-`wiring.lua` builds `dress.lua` as `M.closet`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`,
-`thumbs.lua` as `M.closet_thumbs` and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with the Steam
-link only, builds `ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its Make preview pictures row,
-`M.closet_colour` for its Colour tab and `M.closet_shape` for the Body tab's shape rows). `main/frame.lua` runs the
-restore at the first tick and the dress, colour, shape, probe, thumbs and menu ticks each frame.
+`wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `colour.lua` as `M.closet_colour`,
+`shape.lua` as `M.closet_shape`, `thumbs.lua` as `M.closet_thumbs` and `commands.lua`. Its build step `menu`, which
+`main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its
+Make preview pictures row, `M.closet_options` for the options pages, `M.closet_colour` for its Colour tab and
+`M.closet_shape` for the Body tab's shape rows). `main/frame.lua` runs the restore at the first tick and the dress,
+options, colour, shape, probe, thumbs and menu ticks each frame.
 `coop off` stops them. The module reads no other module.
 
 ## The closet menu
@@ -136,7 +140,8 @@ starts `coop closet thumbs` for every picture not there yet (see [Preview pictur
 of the Full outfit tab, Reset Stellar Closet, asks with
 the game's Yes/No popup. Yes runs `coop closet off`: every closet piece leaves EVE, `coop-closet.txt` is cleared and
 the menu closes without asking to keep the look. It also sets every colour role back to Off (`coop-closet-colour.txt`
-is deleted), sets every body shape value back to 0 (`coop-closet-shape.txt` is deleted) and clears the camera file.
+is deleted), sets every body shape value back to 0 (`coop-closet-shape.txt` is deleted), gives every pack outfit its
+pack's options back (`coop-closet-options.txt` is deleted) and clears the camera file.
 From then on the closet changes nothing until a look is worn again.
 
 Back with nothing changed since the open closes the menu and gives back the look worn before. After a change, Back asks
@@ -275,6 +280,38 @@ The palette goes on again after every wear, preview, revert and mix again, in th
 gives each slot its own material back. Nothing changes while Tachy Mode pauses the mix. `coop off` and
 `coop closet off` give EVE her own materials back. Reset Stellar Closet sets every role back to Off.
 
+### Outfit options
+
+Right on a pack outfit's row of the Full outfit tab (D-pad Right on a pad, the right arrow or D on the keyboard) opens
+its options page. Select still wears the outfit. The row's hints show Options on D-pad Right and its detail says how
+to open the page, in the words of the device in use. An outfit without material toggles in its pack has no page.
+
+The page lists the outfit's name as a header row, then Variant when the pack has two variants or more, then a row
+per section, each followed by its pieces. A piece is a material toggle of the pack. Its section is the slot of the
+hand fit's piece on its material slot when there is one, else the slot its piece hint guesses from its name, else a
+word of `Model.SECTION_WORDS` in its name, else Other. Sections follow the slot order, Other last. A follower
+(`ControlledBy`) has no row: it takes its leader's value. A second toggle on one material slot has no row either.
+
+- Variant shows the variant's name (`OutfitNames`), else its number of the count. Left and right step through the
+  variants. A variant whose mesh does not load is skipped and logged once. The variant's mesh goes on with its
+  `Materials` (an empty path keeps the mesh's own), then its `Parameters` (scalar, colour and texture values on the
+  slot's dynamic material instance) and its `HiddenMats`. An asset that does not load is left out and logged once.
+  `PonyPhysics` is not applied yet.
+- A section row shows how many of its pieces show (`2/3`). Left, right, Select or a click turns every piece of the
+  section off when all show, else on.
+- A piece row shows On or Off. Left, right, Select or a click turns it.
+
+The hints show Back, Change on D-pad Left and Right, then Move. The detail shows the pack's description of a piece and
+how to change the row, in the words of the device in use. A device switch draws them again. Back closes the page with
+the focus on the outfit's row. Up stops on the header row. The pad chord LB + D-pad Left on the page puts the page
+back before its Back.
+
+Each change is saved at once in `coop-closet-options.txt` per outfit and variant, apart from the look: only values
+that differ from the pack's are kept. The menu does not ask "Keep this look?" for it. On a worn outfit a toggle change
+shows on her at the next frame on the meshes she wears; a variant change puts the look on again. The toggles go into
+every plan of the dress, so a wear, a map load, a cutscene or the watchdog's mix again keeps them. A kept value for an
+outfit, variant or material slot that is no longer installed is ignored and logged once after each pack scan.
+
 ### Body shape
 
 A pack's meshes can carry morph targets: the FitBase family, Muse and UPS, Minervha and Ayane's body and outfit
@@ -349,6 +386,9 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
   names read once per mesh path, the rows the rule allows, the steps from 0 to 100, the values on the body and on the
   pieces for the names the body lacks, the shape put on again after a wear, her own look, the shape file, `coop off`
   and `coop closet shape`.
+- `tests/lua/closet/options_test.lua` runs the options layer on a fake dress: followers, values per outfit and variant
+  kept only when they differ from the pack, gone values said once, the tick, reset and off. It runs
+  `coop closet option` too.
 - `tests/lua/closet/thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
   sections, the rig's settings and its removal on each end path, the refusals, a run from the menu that waits for its
   close and the framing.

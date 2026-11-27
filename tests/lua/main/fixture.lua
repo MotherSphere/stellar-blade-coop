@@ -585,6 +585,16 @@ package.loaded['closet.shape']={FILE='coop-closet-shape.txt',STEP=10,USE='Use: c
         rows=function() return {} end,get=function() return 0 end,set=function() return true,'sh set' end,
         step=function() return true end,off=function() return true,'sh off' end}
 end}
+-- The closet's options layer (closet/options.lua; closet/options_test tests it, closet/menu_test its wiring): what new
+-- got, its ticks and stops. No outfit has a kept value. It never runs: link.store here gives a name, not a file.
+op={ticks=0,stops=0}
+package.loaded['closet.options']={FILE='coop-closet-options.txt',USE='Use: coop closet option',new=function(o)
+    op.o=o
+    return {tick=function() op.ticks=op.ticks+1 end,stop=function() op.stops=op.stops+1 end,
+        toggles=function() return {} end,variant=function() return 1 end,get=function() end,
+        set=function() return true,'op set' end,set_variant=function() return true,'op variant' end,
+        reset=function() return true,'op reset' end,off=function() return true,'op off' end}
+end}
 -- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
 -- stops, what a tick says; its scenes' words.
 sc={}

@@ -17,6 +17,9 @@
 --   - Sections are hidden on every LOD; the ghost's capture reads LOD 0.
 --   - An installed pack's suit worn whole (a Whole fit of closet/fits.lua, the Full outfit tab) shows every section
 --     of its mesh but its HiddenMats and the toggles off by default (Fits.shows). Its mesh resolves by path as above.
+--     The options layer's toggles (closet/options.lua, o.toggles) go over the pack's at each plan; its variant's
+--     Materials and Parameters go on the mesh (wear_variant). reshow shows a toggle change on the same meshes, again
+--     puts a new variant on.
 -- Before the first change, her own body mesh and overridden materials go into coop-closet.txt (link.store), with the
 -- worn choices as console words, so coop closet off, coop off and the next Lua load (at its first tick) give her look
 -- back and remove the added meshes.
@@ -46,7 +49,7 @@ local SKINNED,MID='/Script/Engine.SkeletalMeshComponent','/Script/Engine.Materia
 -- UE4SS.log at 11:33 and 11:39 on 25 Nov 2026, the mix paused and back as it ended).
 Dress.GAME_LOOKS={['/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10']=true}
 Dress.USE='Use: coop closet wear <fit>[:<Slot>,<Slot>...] [<fit>[:...]] | coop closet off | coop closet fits'
-local installed_cache={} -- fit id -> whether its mesh loads; once per fit per Lua load (installed).
+local installed_cache={} -- mesh path -> whether it loads; once per path per Lua load (installed, loads).
 -- Tries of restore's wear of the kept look while EVE spawns, a second apart, before it is dropped.
 Dress.RETRIES=5
 -- An outside fight: this many mixes again within this many seconds (something undoes every mix: CNS put Ocean Maid's
@@ -176,8 +179,9 @@ end
 -- (Dress.BODY_MODES, default auto, or a fit id): auto keeps the Shoes' outfit, else the first, unless its skin shows on
 -- a region another outfit's piece covers; then the look's outfit with Skin that hides the most covered regions (ties:
 -- the Shoes' outfit, then choice order). slots: material index -> the closet slot of its piece (BaseBody for the
--- body's skin slots), shown or not.
-function Dress.plan(choices,fits,mode)
+-- body's skin slots), shown or not. toggles: {[fit]={[material index]=shown}} (closet/options.lua's toggles()), put
+-- over the Toggles of a Whole fit worn whole (the fit itself is not changed); a fit worn as pieces keeps its pieces.
+function Dress.plan(choices,fits,mode,toggles)
     fits=fits or Fits
     if #choices==0 then return nil,'nothing to wear' end
     local taken,by_fit,order,picked={},{},{},nil
@@ -271,6 +275,17 @@ function Dress.plan(choices,fits,mode)
             plan.added[#plan.added+1]={fit=o.fit,mesh=o.map.Mesh,show=show,slots=slots,whole=o.whole}
         end
     end
+    for _,a in ipairs({plan.body,table.unpack(plan.added)}) do
+        local on=a.whole and toggles and toggles[a.fit]
+        if on then
+            local copy={}
+            for k,v in pairs(a.whole) do copy[k]=v end
+            copy.Toggles={}
+            for index,v in pairs(a.whole.Toggles or {}) do copy.Toggles[index]=v end
+            for index,v in pairs(on) do copy.Toggles[index]=v end
+            a.whole=copy
+        end
+    end
     plan.parts=#plan.added
     return plan
 end
@@ -316,6 +331,60 @@ function Dress.new(o)
     local fights={} -- The clock of each mix again since the last wear or preview (an outside fight, Dress.FIGHT).
     local kept_fields,undo_kept -- Set with restore below; off uses them too.
     local applied=0 -- Each apply, her own look previewed and off (self.applied).
+    local shown=0 -- Each reshow (self.shown).
+    local function toggles() return o.toggles and o.toggles() end
+    local said={} -- Asset paths of a variant that did not load, said once.
+    local function asset(path)
+        local got=path~='' and resolve(path)
+        if not got and path~='' and not said[path] then
+            said[path]=true
+            log('variant: '..path..' does not load: left out')
+        end
+        return got
+    end
+    -- A variant's own materials (Materials: index i+1 is material slot i, an empty path keeps the mesh's) and fixed
+    -- parameters (Parameters, after the materials) on the component c that wears a Whole fit. An asset that does not
+    -- load is left out. Each parameter goes on the slot's dynamic instance (closet/colour.lua's
+    -- CreateDynamicMaterialInstance, which hands back an instance already there: the palette reuses this one).
+    -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
+    --   UPrimitiveComponent.SetMaterial, GetMaterial, CreateDynamicMaterialInstance and
+    --     UMaterialInstanceDynamic.SetVectorParameterValue: as closet/colour.lua's comment says (entries 0x14662b380,
+    --     0x14662af60, 0x14662ae80, 0x1465e0ff0).
+    --   UMaterialInstanceDynamic.SetScalarParameterValue(ParameterName FName, Value float): native entry 0x1465e0fb0
+    --     (name 0x146577870), exec 0x144884430 reads the name and the float and calls FUN_14430d4a0 with {Name,
+    --     Association 2, Index -1}, as the vector one does.
+    --   UMaterialInstanceDynamic.SetTextureParameterValue(ParameterName FName, Value Texture): native entry 0x1465e0fd0
+    --     (name 0x1465dd3a8), exec 0x144883de0 reads the name and an object and calls FUN_14430e910(this, name, it).
+    --   A texture is used only when it is a UTexture2D (closet/ui/view.lua's class).
+    --   USkeletalMeshComponent::SetSkeletalMesh FUN_14411a4f0 returns at once for the mesh it wears (+0x568), as
+    --     closet/shape.lua's comment says: a variant on the same mesh changes nothing there, so apply sets every slot's
+    --     own material before this.
+    -- shortcut: a Parameters texture of another Texture class (a cube map) is left out; read UTexture in Ghidra if a
+    -- pack needs one.
+    local function wear_variant(c,whole)
+        if not whole then return end
+        for i,p in ipairs(whole.Materials or {}) do
+            local m=asset(p)
+            if m then pcall(function() c:SetMaterial(i-1,m) end) end
+        end
+        for _,p in ipairs(whole.Parameters or {}) do
+            local index=type(p)=='table' and math.tointeger(p.MaterialIndex)
+            local value=index and p.Value
+            if p.ParamType=='Texture' then
+                value=type(value)=='string' and asset(value)
+                if value and not value:IsA(StaticFindObject('/Script/Engine.Texture2D')) then value=nil end
+            elseif p.ParamType=='Vector' then
+                value=type(value)=='table' and {R=value[1] or 0,G=value[2] or 0,B=value[3] or 0,A=value[4] or 1}
+            elseif p.ParamType~='Scalar' or type(value)~='number' then value=nil end
+            if value and type(p.ParamName)=='string' then
+                local done,why=pcall(function()
+                    local mid=valid(c:CreateDynamicMaterialInstance(index,c:GetMaterial(index),FName('None')))
+                    if mid then mid['Set'..p.ParamType..'ParameterValue'](mid,FName(p.ParamName),value) end
+                end)
+                if not done then log('variant: '..p.ParamName..' not set on slot '..index..': '..tostring(why)) end
+            end
+        end
+    end
 
     local function keep()
         if not state then return store.clear() end
@@ -404,6 +473,7 @@ function Dress.new(o)
         for i=0,count-1 do
             if mats[i] then pcall(function() body:SetMaterial(i,mats[i]) end) end
         end
+        wear_variant(body,plan.body.whole)
         show_only(body,count,plan.body.show)
         state.count=count
         for i,a in ipairs(plan.added) do
@@ -419,6 +489,7 @@ function Dress.new(o)
             c:SetMasterPoseComponent(body,true)
             pcall(function() c.bUseBoundsFromMasterPoseComponent=true end) -- No culling pop.
             local _,n=own_materials(added_meshes[i])
+            wear_variant(c,a.whole)
             if a.whole then a.show=Fits.shows(a.whole,n) end
             show_only(c,n,a.show)
             state.added[i]={mesh=a.mesh,c=c,count=n,show=a.show}
@@ -452,7 +523,7 @@ function Dress.new(o)
     function self.wear(choices)
         self.restore()
         fights={}
-        local plan,why=Dress.plan(choices,fits,mode)
+        local plan,why=Dress.plan(choices,fits,mode,toggles())
         if not plan then return false,why end
         local ok,e=apply(plan,choices,nil)
         if not ok then return false,e end
@@ -471,7 +542,7 @@ function Dress.new(o)
         local kept=state and state.kept
         if kept==nil then kept=state and state.choices or false end
         if #choices==0 and state then return own_look(kept) end
-        local plan,why=Dress.plan(choices,fits,mode)
+        local plan,why=Dress.plan(choices,fits,mode,toggles())
         if not plan then return false,why end
         local ok,e=apply(plan,choices,kept)
         if not ok then return false,e end
@@ -502,7 +573,7 @@ function Dress.new(o)
     function self.revert()
         if not self.previewing() then return true,'closet: nothing to revert' end
         local was=state.kept
-        if was and Dress.plan(was,fits,mode) then
+        if was and Dress.plan(was,fits,mode,toggles()) then
             local ok,line=self.wear(was)
             if ok then log('revert: the confirmed look is back'); return true,line end
             log('revert: the confirmed look could not be worn now: '..tostring(line))
@@ -528,16 +599,28 @@ function Dress.new(o)
         local path=mesh and path_of(mesh)
         return path and Dress.GAME_LOOKS[path] and path or nil
     end
-    -- Whether the fit's mesh loads here (its outfit is installed). Cached; a mesh that does not load is logged once.
+    -- Whether a mesh loads here, cached per path; one that does not load is logged once (what(why) gives the line).
+    local function loads(path,what)
+        if installed_cache[path]==nil then
+            local mesh,why=usable(path)
+            installed_cache[path]=mesh~=nil
+            if not mesh then log(what(tostring(why))) end
+        end
+        return installed_cache[path]
+    end
+    -- Whether the fit's mesh loads here (its outfit is installed).
     function self.installed(fit_id)
         local fit=fits.get(fit_id)
         if not fit then return false end
-        if installed_cache[fit_id]==nil then
-            local mesh,why=usable(fit.Mesh)
-            installed_cache[fit_id]=mesh~=nil
-            if not mesh then log(fit_id..': its mesh does not load ('..tostring(why)..'): its row is locked') end
-        end
-        return installed_cache[fit_id]
+        return loads(fit.Mesh,function(why)
+            return fit_id..': its mesh does not load ('..why..'): its row is locked'
+        end)
+    end
+    -- Whether a variant's mesh loads here (the options page's Variant row skips one that does not).
+    function self.loads(path)
+        return loads(path,function(why)
+            return 'variant: its mesh does not load ('..why..'): the variant is left out'
+        end)
     end
     -- coop closet body: the body rule of the next wears in this Lua load: one of Dress.BODY_MODES, or a fit id with
     -- Skin (that body forced).
@@ -655,7 +738,7 @@ function Dress.new(o)
         for x in kept:gmatch('%S+') do words[#words+1]=x end
         local choices,why=Dress.parse(words)
         local plan
-        if choices then plan,why=Dress.plan(choices,fits,mode) end
+        if choices then plan,why=Dress.plan(choices,fits,mode,toggles()) end
         if not plan then return done(true,'could not wear '..kept..' again: '..tostring(why)) end
         local ran,worn,e=pcall(apply,plan,choices)
         if ran and worn then return done(false,'worn again: '..kept..body_notes(plan)) end
@@ -716,7 +799,7 @@ function Dress.new(o)
                     if fit and fit.Mesh==path then insisted=c.fit end
                 end
                 -- A picked body (BaseBody) wins over the mode, so that plan may keep the body the outside undoes.
-                local forced=insisted and insisted~=plan.body.fit and Dress.plan(choices,fits,insisted)
+                local forced=insisted and insisted~=plan.body.fit and Dress.plan(choices,fits,insisted,toggles())
                 if not (forced and forced.body.fit==insisted) then
                     state.stopped=true
                     for _,a in ipairs(state.added) do
@@ -766,8 +849,49 @@ function Dress.new(o)
     -- How many times her look was put on or given back (each apply, her own look previewed, off): closet/colour.lua
     -- puts its palette on again when it grows, closet/shape.lua its shape.
     function self.applied() return applied end
-    -- The worn components with their mesh paths, their shown material slots and the closet slot each belongs to
-    -- (closet/colour.lua, closet/shape.lua): {{c=<component, nil when gone>, mesh=<path>, slots={[index]=<Slot id>}}},
+    -- How many times reshow showed new sections on the same meshes: closet/colour.lua paints the slots shown since,
+    -- keeping its instances.
+    function self.shown() return shown end
+    -- The look on EVE planned again with the toggles of now (closet/options.lua's tick, after a variant change): put
+    -- on as a new look (applied grows), the preview and the confirmed words kept. true when nothing is mixed or the
+    -- mix is stopped (the next wear plans anew); false and why while paused (asked again) or when it fails.
+    function self.again()
+        if not (state and state.plan) or state.stopped then return true end
+        if state.paused then return false,'paused while a game look is on' end
+        local plan,why=Dress.plan(state.choices,fits,mode,toggles())
+        if not plan then return false,why end
+        return apply(plan,state.choices,state.kept)
+    end
+    -- The sections of the look on EVE shown again by the toggles of now (closet/options.lua's tick, after a toggle
+    -- change), on the meshes she wears: no SetSkeletalMesh, applied() kept (the colour and shape layers keep their
+    -- instances and curves), shown() grows. A plan with other meshes is put on as again does. The watchdog compares
+    -- with the new plan.
+    function self.reshow()
+        if not (state and state.plan) or state.stopped then return true end
+        if state.paused then return false,'paused while a game look is on' end
+        local plan,why=Dress.plan(state.choices,fits,mode,toggles())
+        if not plan then return false,why end
+        local same=plan.body.mesh==state.plan.body.mesh and #plan.added==#state.added
+        for i,a in ipairs(plan.added) do same=same and a.mesh==state.added[i].mesh end
+        if not same then return apply(plan,state.choices,state.kept) end
+        local eve=her()
+        local body=eve and valid(eve.Mesh)
+        if not body then return false,'no EVE in the world' end
+        if plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,state.count) end
+        show_only(body,state.count,plan.body.show)
+        for i,a in ipairs(plan.added) do
+            local s=state.added[i]
+            if a.whole then a.show=Fits.shows(a.whole,s.count) end
+            s.show=a.show
+            if valid(s.c) then show_only(s.c,s.count,a.show) end
+        end
+        state.plan=plan
+        shown=shown+1
+        return true
+    end
+    -- The worn components with their outfits, mesh paths, shown material slots and the closet slot each belongs to
+    -- (closet/colour.lua, closet/shape.lua): {{c=<component, nil when gone>, fit=<UniqueFitID>, mesh=<path>,
+    -- slots={[index]=<Slot id>}}},
     -- her body first, then the added meshes in the plan's order. {} with no look mixed; nil while the mix is paused or
     -- stopped, or EVE is not there.
     function self.parts()
@@ -779,7 +903,7 @@ function Dress.new(o)
             c=valid(c)
             local slots={}
             for index,slot in pairs(c and a.slots or {}) do if a.show[index] then slots[index]=slot end end
-            out[#out+1]={c=c,mesh=a.mesh,slots=slots}
+            out[#out+1]={c=c,fit=a.fit,mesh=a.mesh,slots=slots}
         end
         add(eve.Mesh,state.plan.body)
         for i,a in ipairs(state.plan.added) do add(state.added[i] and state.added[i].c,a) end

@@ -25,8 +25,9 @@
 -- loads as a Texture2D: a slot whose path does not load keeps the icon it had), its glyph. A source that fails is said
 -- once. reread() drops the imported pictures: the next draws import them again (a capture may have made them anew).
 -- v.draw(s), s: {tabs={labels}, tab=focused index, tab_top=the first tab shown (1 when nil), rows={{title, value,
--- locked}}, row=focused index, tiles=nil or {{name, equipped, locked, picture=a PNG file or nil, image=an object path
--- or nil, icon=its glyph or nil}}, tile=selected index or nil,
+-- locked, header=drawn as SB's settings category header with its title}}, row=focused index, tiles=nil or {{name,
+-- equipped, locked, picture=a PNG file or nil, image=an object path or nil, icon=its glyph or nil}}, tile=selected
+-- index or nil,
 -- detail={title, desc, equipped, badge='original', 'custom' or nil}, hints={{label, icon, icon2, word=the menu word a
 -- click runs or nil}} (the menu's), camera_hints=nil or the same shape with key=the keyboard key (mode, reset, light),
 -- pad=SB's last input came from a pad (the camera row then shows SB's hint parts, else the kit's key and label
@@ -266,18 +267,21 @@ function View.new(kit,log)
         local specs={}
         for i=1,WINDOW do
             local row=s.rows[top+i]
-            specs[i]=row and {kind='option',x=ROW_X,y=ROW_Y+(i-1)*PITCH,w=ROW_W,h=ROW_H,
+            -- A header row: SB's settings category header (ui/kit/parts.lua's header, as
+            -- online/session/ui/create.lua shows its sections).
+            if row and row.header then specs[i]=Parts.header(ROW_X,ROW_Y+(i-1)*PITCH+27,row.title)
+            else specs[i]=row and {kind='option',x=ROW_X,y=ROW_Y+(i-1)*PITCH,w=ROW_W,h=ROW_H,
                 sig=row.title..'|'..row.value..(row.locked and '*' or ''),
                 after=row.locked and 'RefreshAppearance' or nil,fill=function(w) -- SB's locked look.
                     w.Text_TitleValue=FText(row.title)
                     w.Text_ItemValue=FText(row.value)
                     if row.locked then w.bLockItem=true end
-                end} or false
+                end} or false end
         end
         sync(rows,View.GROUP,specs,WINDOW)
         for i=1,WINDOW do
             local rec,row=rows[i],s.rows[top+i]
-            if rec then look(rec,top+i==s.row and 'focus' or 'normal') end
+            if rec and not (row and row.header) then look(rec,top+i==s.row and 'focus' or 'normal') end
             -- The kit fallback: a row with no SB part shows on the kit row under it.
             if not row or kit.alive(rec) then zones[i].set('','')
             else zones[i].set(row.title,row.value,row.locked and 'disabled' or top+i==s.row and 'focus' or 'normal') end

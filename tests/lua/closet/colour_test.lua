@@ -90,6 +90,24 @@ local function near(got, want, what)
 end
 
 local tests = {
+    -- dress.reshow (an options toggle) shows a slot without a new look: the palette reaches it, the other instances
+    -- kept.
+    a_slot_shown_again_gets_the_palette_and_keeps_the_others = function()
+        local r = rig()
+        local shown = 1
+        r.dress.shown = function() return shown end
+        r.c.set('primary', 'crimson')
+        r.c.tick()
+        local top = r.body.mats[3]
+        ok(top.mid, 'the top tinted')
+        local cape = material('Cape')
+        r.body.mats[6] = cape
+        r.parts[1].slots[6] = 'Cape'
+        shown = 2
+        r.c.tick()
+        ok(r.body.mats[6].mid, 'the shown cape tinted') ok(r.body.mats[3] == top, 'the top keeps its instance')
+        eq(r.body.creates, 2, 'one new instance')
+    end,
     every_slot_has_one_role = function()
         local Colour = require('closet.colour')
         local seen, roles = {}, {primary = true, secondary = true, accent = true, glow = true, none = true}

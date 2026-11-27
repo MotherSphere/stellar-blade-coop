@@ -157,7 +157,114 @@ local function with_packs(f)
     ok(good, why)
 end
 
+-- A dress on w whose plans take the toggles in t (closet/options.lua's toggles()).
+local function toggled(w, t)
+    return w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
+        clock = function() return w.now end, toggles = function() return t end})
+end
+-- Hidden material slots of c at LOD 0, sorted.
+local function hidden_at(c)
+    local out = {}
+    for k in pairs(c.hidden) do
+        local i = k:match('^0:(%d+)$')
+        if i then out[#out + 1] = tonumber(i) end
+    end
+    table.sort(out)
+    return out
+end
+
 local tests = {
+    toggles_enter_the_plan_and_survive_a_rewear = function()
+        with_packs(function(w)
+            local plan = assert(w.Dress.plan({{fit = 'p.suit'}}, nil, nil, {['p.suit'] = {[3] = true, [4] = false}}))
+            eq(plan.body.whole.Toggles[3], true) eq(plan.body.whole.Toggles[4], false)
+            eq(require('closet.fits').get('p.suit').Toggles[3], false, 'the fit itself is not changed')
+            local t = {['p.suit'] = {[3] = true, [4] = false}}
+            local d = toggled(w, t)
+            assert(d.wear({{fit = 'p.suit'}}))
+            same(hidden_at(w.eve.Mesh), {1, 4}, 'slot 3 shown, slot 4 hidden')
+            assert(d.wear({{fit = 'p.suit'}}))
+            same(hidden_at(w.eve.Mesh), {1, 4}, 'worn again: kept')
+            w.eve.Mesh:SetSkeletalMesh(w.assets[OWN]) -- A map load: the watchdog mixes again.
+            w.now = w.now + 1.01; d.tick(); w.now = w.now + 1.01; d.tick()
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'mixed again')
+            same(hidden_at(w.eve.Mesh), {1, 4}, 'the watchdog keeps the toggles')
+        end)
+    end,
+    a_live_toggle_reshows_without_bumping_applied = function()
+        with_packs(function(w)
+            local t = {}
+            local d = toggled(w, t)
+            assert(d.wear({{fit = 'p.suit'}}))
+            same(hidden_at(w.eve.Mesh), {1, 3})
+            eq(d.parts()[1].fit, 'p.suit', 'parts name their outfit')
+            local applied, shown = d.applied(), d.shown()
+            t['p.suit'] = {[3] = true, [5] = false}
+            ok(d.reshow())
+            same(hidden_at(w.eve.Mesh), {1, 5}, 'shown at once')
+            eq(d.applied(), applied, 'applied() never grows: the layers keep their instances')
+            eq(d.shown(), shown + 1, 'shown() grows')
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'the same mesh')
+            w.now = w.now + 1.01; d.tick(); w.now = w.now + 1.01; d.tick()
+            ok(not logged(w, 'hidden again') and not logged(w, 'mix again'), 'the watchdog takes the new show set')
+            same(hidden_at(w.eve.Mesh), {1, 5})
+        end)
+    end,
+    the_variant_row_steps_and_wears_its_mesh_with_materials_parameters_and_hiddenmats = function()
+        with_packs(function(w)
+            local Fits = require('closet.fits')
+            local MAT, TEX = '/Game/P/M_Gold.M_Gold', '/Game/P/T_Gold.T_Gold'
+            w.assets[MAT] = obj(MAT)
+            w.assets[TEX] = obj(TEX, {texture = true})
+            w.assets[TEX].IsA = function(_, class) return class.path == '/Script/Engine.Texture2D' end
+            local item = pack_item('p.suit')
+            item.Variants[2].Materials = {'', MAT, '/Game/P/M_Gone.M_Gone'}
+            item.Variants[2].HiddenMats = {0}
+            item.Variants[2].Parameters = {
+                {MaterialIndex = 1, ParamType = 'Scalar', ParamName = 'Roughness', Value = 0.25},
+                {MaterialIndex = 1, ParamType = 'Vector', ParamName = 'Tint', Value = {1, 0.5, 0, 1}},
+                {MaterialIndex = 2, ParamType = 'Texture', ParamName = 'Basecolor', Value = TEX},
+                {MaterialIndex = 2, ParamType = 'Texture', ParamName = 'Mask', Value = '/Game/P/T_Gone.T_Gone'}}
+            Fits.use({['p.suit'] = item})
+            local mids = {}
+            local body = w.eve.Mesh
+            body.CreateDynamicMaterialInstance = function(c, i, source)
+                if not mids[i] then
+                    mids[i] = {sets = {}, IsValid = function() return true end, type = function() return 'UObject' end}
+                    for _, kind in ipairs({'Scalar', 'Vector', 'Texture'}) do
+                        mids[i]['Set' .. kind .. 'ParameterValue'] = function(m, name, v)
+                            m.sets[#m.sets + 1] = {kind, name, kind == 'Texture' and v.path or v}
+                        end
+                    end
+                end
+                c.mats[i] = mids[i]
+                return mids[i]
+            end
+            local options
+            local d = w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
+                clock = function() return w.now end, toggles = function() return options.toggles() end})
+            options = require('closet.options').new({dress = d, log = function(m) w.log[#w.log + 1] = m end})
+            assert(d.wear({{fit = 'p.suit'}}))
+            local applied = d.applied()
+            ok(options.set_variant('p.suit', 2))
+            options.tick()
+            eq(body.SkeletalMesh.path, PV2, 'variant 2\'s mesh') eq(d.applied(), applied + 1, 'dressed again')
+            eq(body.mats[0].path, PV2 .. ':M0', 'an empty path keeps the mesh\'s own')
+            same(mids[1].sets, {{'Scalar', 'Roughness', 0.25}, {'Vector', 'Tint', {R = 1, G = 0.5, B = 0, A = 1}}},
+                'the parameters on slot 1\'s instance')
+            same(mids[2].sets, {{'Texture', 'Basecolor', TEX}}, 'a texture that loads')
+            same(hidden_at(body), {0, 3}, 'its HiddenMats and the toggle off by default')
+            ok(logged(w, '/Game/P/M_Gone.M_Gone does not load'), 'a missing material said')
+            ok(logged(w, '/Game/P/T_Gone.T_Gone does not load'), 'a missing texture said')
+            options.set_variant('p.suit', 1) options.tick() options.set_variant('p.suit', 2) options.tick()
+            local said = 0
+            for _, line in ipairs(w.log) do
+                if line:find('M_Gone.M_Gone does not load', 1, true) then said = said + 1 end
+            end
+            eq(said, 1, 'said once')
+            Fits.CHOSEN = {}
+        end)
+    end,
     a_whole_pack_fit_shows_all_but_hidden_and_off_toggles = function()
         with_packs(function(w)
             local good, line = w.d.wear({{fit = 'p.suit'}})

@@ -13,7 +13,7 @@ local Cmd=require('closet.commands').new({dress={status=function() return 'close
     packs={scan=function() scans=scans+1; return {},{packs=2,reused=1,items=3,failed={}} end}})
 local USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|thumbs [redo] [<fit>]|'..
     'probe <1-6|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <swatch|off>|colour off|'..
-    'shape <morph> <0-100>|shape off|rescan]'
+    'shape <morph> <0-100>|shape off|rescan|option <fit> variant <n>|option <fit> toggle <slot> on|off]'
 -- rescan reads every installed pack again (closet/packs.lua) and answers its report line.
 local ok,line=Cmd.closet('rescan')
 assert(ok and line=='closet packs: 2 packs (1 reused), 3 outfits, 0 failed',line)
