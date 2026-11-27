@@ -561,6 +561,46 @@ local tests = {
         play(r, '7')
         ok(has(r, 'probe: FAIL 7 stock: no stock hair row read (2 hairs, 0 ponytails)'))
     end,
+    test8_notes_rows_components_and_pack_skeletons = function()
+        local r = rig()
+        local function table_of(rows)
+            return uobj('table', {ForEachRow = function(_, fn) for _, k in ipairs(rows.order) do fn(k) end end,
+                FindRow = function(_, k) return rows[k] end})
+        end
+        r.found['/Game/Local/Data/EquipmentTable.EquipmentTable'] = table_of({order = {'Earring_001', 'Hair_001'},
+            Earring_001 = {MountingResourcePath = '/Game/Art/Character/PC/00_ACC/ACC_EAR_01/ACC_EAR_01M',
+                AttachSocket = 'Bip001-Head', RelativeRotation = {Pitch = -90, Yaw = 180, Roll = 90}},
+            Hair_001 = {MountingResourcePath = '/Game/H'}})
+        r.found['/Game/Local/Data/ItemTable.ItemTable'] = table_of({order = {'Earring_001', 'FaceAccessory_001'},
+            Earring_001 = {Category = 9}, FaceAccessory_001 = {Category = 12}})
+        local skeleton = uobj('/Game/S.S')
+        local body = uobj('/Game/B.B', {Skeleton = skeleton})
+        local face = uobj('/Game/F.F', {Skeleton = skeleton})
+        r.found['/Game/F.F'] = face
+        local comp = uobj('Mesh_Face', {SkeletalMesh = face, GetFName = function() return 'Mesh_Face' end,
+            GetClass = function() return uobj('SBSkeletalMeshComponent') end,
+            GetAttachParent = function() return nil end, GetAttachSocketName = function() return 'None' end,
+            IsVisible = function() return true end})
+        r.found['/Script/Engine.SkinnedMeshComponent'] = uobj('SkinnedMeshComponent')
+        r.eve = uobj('EVE', {Mesh = uobj('CharacterMesh0', {SkeletalMesh = body}),
+            K2_GetComponentsByClass = function() return {comp} end})
+        local Fits = require('closet.fits')
+        local items = Fits.ITEMS
+        Fits.ITEMS = {['p.face'] = {Slot = 'Face', Variants = {{Mesh = '/Game/F.F'}}},
+            ['p.hair'] = {Slot = 'Hair', Variants = {{Mesh = '/Game/H.H'}}}}
+        play(r, '8')
+        Fits.ITEMS = items
+        ok(has(r, 'probe: NOTE 8 row Earring_001 '), 'the earring row')
+        ok(not has(r, 'row Hair_001'), 'no hair row')
+        ok(has(r, 'AttachSocket=Bip001-Head'), 'its socket')
+        ok(has(r, 'probe: NOTE 8 category Earring = 9'), 'the earring category number')
+        ok(has(r, 'probe: NOTE 8 component Mesh_Face '), 'the face component')
+        ok(has(r, 'probe: NOTE 8 piece p.face v1 slot=Face'), 'the pack face')
+        ok(not has(r, 'piece p.hair'), 'no hair piece')
+        ok(has(r, 'probe: PASS 8 pack head skeletons: 1 meshes, 1 on the body skeleton'),
+            'its skeleton is the body one')
+        ok(has(r, 'probe: END 8 4/4'))
+    end,
     commands = function()
         local calls = {}
         local probe = {run = function(n) calls[#calls + 1] = 'run ' .. n; return true, 'ran' end,
@@ -574,8 +614,8 @@ local tests = {
         ok((C.closet('probe', 'off', nil, nil, nil, nil)))
         eq((C.closet('probe', '3', 'x', nil, nil, nil)), false)
         same(calls, {'run 3', 'off'})
-        ok(require('closet.commands').USE:find('probe <1-7|off>', 1, true))
-        eq(Probe.USE, 'Use: coop closet probe <1-7|off>')
+        ok(require('closet.commands').USE:find('probe <1-8|off>', 1, true))
+        eq(Probe.USE, 'Use: coop closet probe <1-8|off>')
     end,
 }
 run('probe_test', tests)

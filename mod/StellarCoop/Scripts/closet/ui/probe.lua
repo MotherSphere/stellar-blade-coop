@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop closet probe <1-7|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts (the
+-- coop closet probe <1-8|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts (the
 -- piece grid, a grid slot alone, the tab buttons, the detail panel, focus and input), test 6, the reads for the
 -- camera and fit work (EVE's bones, the camera's FOV, mesh slot names, LODs, skin parameters), and test 7, the live
 -- read of the stock hair tables. One runs at a time, each check a "probe: PASS <n> <check>" or "probe: FAIL <n>
@@ -25,7 +25,7 @@ local Probe={}
 Probe.TIMEOUT=30 -- Seconds a test may run unless it sets its own.
 Probe.WATCH=10 -- Seconds a check watches the mouse.
 Probe.RELEASE_TRIES=600 -- Frames the probe tries again to give the input back (about 10 s).
-Probe.USE='Use: coop closet probe <1-7|off>'
+Probe.USE='Use: coop closet probe <1-8|off>'
 Probe.GROUP='closet_probe'
 Probe.TESTS={}
 -- The game's parts and assets, read in the widget JSON and Ghidra (build 26123051) on 25 Nov 2026.
@@ -604,6 +604,117 @@ Probe.TESTS['7']={steps={{frames=0,name='stock',run=function(ctx)
     if n.Hair<=2 then return false,'no stock hair row read ('..line..')' end
     return true,line
 end}}}
+
+-- Test 8: the reads the Head tab's remaining rows need (the research of 27 Nov 2026 left them UNREAD): the live
+-- EquipmentTable rows of the earrings and glasses (the cooked table has none) and the ItemTable category numbers of
+-- those items; EVE's skeletal components (Mesh_Face's MasterPoseComponent, USkinnedMeshComponent +0x570, a weak
+-- pointer: Ghidra, build 26123051, 27 Nov 2026; its AnimClass, mesh, parent and socket); each pack head piece's mesh
+-- skeleton against her body's. It writes nothing; the pack meshes load. Each row, component and piece is a NOTE line.
+local function word_of(v)
+    v=U.value_of(v)
+    if v==nil then return '-' end
+    if type(v)=='number' or type(v)=='boolean' then return tostring(v) end
+    if type(v)=='string' then return v end
+    if type(v)=='table' then
+        local out={}
+        for _,k in ipairs({'X','Y','Z','Pitch','Yaw','Roll'}) do
+            if type(v[k])=='number' then out[#out+1]=string.format('%s=%.2f',k,v[k]) end
+        end
+        if #out>0 then return '('..table.concat(out,' ')..')' end
+    end
+    local ok,t=pcall(text,v)
+    return ok and t or '?'
+end
+local ROW_FIELDS={'Type','MountingResourcePath','AnimAssetPath','MaterialGroup','AttachSocket','AttachType',
+    'RelativePosition','RelativeRotation','bUseHidePonytail'}
+local function field(row,name)
+    local ok,v=pcall(function() return row[name] end)
+    return ok and word_of(v) or '?'
+end
+local function rows_of(dt,want,fn)
+    local names,n={},0
+    dt:ForEachRow(function(key) names[#names+1]=text(key) end)
+    for _,name in ipairs(names) do
+        if want(name) then
+            local row=U.value_of(dt:FindRow(name))
+            if row~=nil then n=n+1; fn(name,row) end
+        end
+    end
+    return n
+end
+local function accessory(name) return name:find('^Earring_') or name:find('^FaceAccessory_') end
+Probe.TESTS['8']={timeout=120,steps={
+    {frames=0,name='accessory rows',run=function(ctx)
+        local dt=ctx.find(Stock.TABLES[2])
+        if not dt then return false,'EquipmentTable not found' end
+        local n=rows_of(dt,accessory,function(name,row)
+            local out={}
+            for _,f in ipairs(ROW_FIELDS) do out[#out+1]=f..'='..field(row,f) end
+            ctx.log('NOTE 8 row '..name..' '..table.concat(out,' '))
+        end)
+        if n==0 then return false,'no Earring_ or FaceAccessory_ row in the live EquipmentTable either' end
+        return true,n..' rows'
+    end},
+    {frames=0,name='item categories',run=function(ctx)
+        local dt=ctx.find(Stock.TABLES[1])
+        if not dt then return false,'ItemTable not found' end
+        local seen={}
+        local n=rows_of(dt,accessory,function(name,row)
+            local kind=name:match('^(%a+)_')
+            local c=field(row,'Category')
+            if not seen[kind..c] then seen[kind..c]=true; ctx.log('NOTE 8 category '..kind..' = '..c) end
+        end)
+        return n>0,n..' item rows'
+    end},
+    {frames=0,name='head components',run=function(ctx)
+        local eve=assert(ctx.eve(),'no EVE')
+        local n=0
+        each(eve:K2_GetComponentsByClass(ctx.find('/Script/Engine.SkinnedMeshComponent')),function(_,c)
+            c=live(c)
+            if not c then return end
+            n=n+1
+            local function read(f) local ok,v=pcall(f); return ok and v or '?' end
+            ctx.log('NOTE 8 component '..read(function() return text(c:GetFName()) end)
+                ..' class='..read(function() return name_of(c:GetClass()) end)
+                ..' mesh='..read(function() return live(c.SkeletalMesh) and path_of(c.SkeletalMesh) or '-' end)
+                ..' master='..read(function()
+                    local m=live(c.MasterPoseComponent)
+                    return m and text(m:GetFName()) or '-'
+                end)
+                ..' anim='..read(function() return live(c.AnimClass) and name_of(c.AnimClass) or '-' end)
+                ..' parent='..read(function()
+                    local p=live(c:GetAttachParent())
+                    return p and text(p:GetFName()) or '-'
+                end)
+                ..' socket='..read(function() return text(c:GetAttachSocketName()) end)
+                ..' visible='..read(function() return tostring(c:IsVisible()) end))
+        end)
+        return n>0,n..' components'
+    end},
+    {frames=0,name='pack head skeletons',run=function(ctx)
+        local eve=assert(ctx.eve(),'no EVE')
+        local body=live(eve.Mesh) and live(eve.Mesh.SkeletalMesh)
+        local body_skeleton=body and live(body.Skeleton) and path_of(body.Skeleton) or '?'
+        ctx.log('NOTE 8 body skeleton '..body_skeleton)
+        local n,on_body=0,0
+        for id,item in pairs(Fits.ITEMS) do
+            local slot=item.Slot
+            if slot and slot~='FullOutfit' and slot~='Hair' and slot~='Ponytail' and slot~='Weapon' then
+                for v,variant in ipairs(item.Variants or {}) do
+                    local path=variant.Mesh
+                    if type(path)=='string' and path~='' then
+                        local mesh=ctx.find(path)
+                        local skeleton=mesh and live(mesh.Skeleton) and path_of(mesh.Skeleton) or '-'
+                        n=n+1
+                        if skeleton==body_skeleton then on_body=on_body+1 end
+                        ctx.log('NOTE 8 piece '..id..' v'..v..' slot='..slot..' mesh='..path..' loads='
+                            ..tostring(mesh~=nil)..' skeleton='..skeleton)
+                    end
+                end
+            end
+        end
+        return true,n..' meshes, '..on_body..' on the body skeleton'
+    end}}}
 
 -- A game object by path: in memory, else after a synchronous LoadAsset (a class path loads its asset path without
 -- _C), as ui/kit/kit.lua's load does.
