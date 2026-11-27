@@ -46,6 +46,10 @@ View.TABS=7 -- Tab buttons shown at once.
 -- 2026), not GRID_W over the entry width.
 View.COLUMNS=4
 View.CHECK=0.25 -- s between two looks at the shown tiles' glyphs (v.tick).
+-- A small tile's picture (a pack's head piece) is drawn at this render scale: the slot's Image_Icon keeps a 256x256
+-- brush (its Set calls SetBrushFromTexture with bMatchSize false, widget JSON), so an opaque picture filled the tile
+-- past its frame while the game's hair icons are white art in a clear margin (Schizo's screenshots of 27 Nov 2026).
+View.PICTURE_SCALE=0.55
 View.HOLD=64 -- Hidden kit images that hold the shown tiles' pictures (a grid of 64 tiles).
 -- The glyphs a hidden kit image may hold: None's, the origin badges' and each slot's (closet/slots.lua).
 View.GLYPHS={'none','original','custom'}
@@ -250,6 +254,9 @@ function View.new(kit,log)
     -- glyphed: each tile's glyph as last filled (false: the game icon); checking: a fill not yet seen right;
     -- check_at: the next look; by_brush: a shown tile lacked its glyph once, so every look sets the ones that lack it.
     local glyphed,checking,check_at,by_brush=nil,false,0,false
+    -- scaled: each tile's icon scale as last filled (nil while no tile is small). The TileView hands its entry widgets
+    -- to other tiles as it scrolls, so each look sets every shown entry's scale.
+    local scaled,scale_at=nil,-1
     local function make(class,x,y,w,h,fill,hit)
         local rec,why=kit.part(View.GROUP,class,x,y,w,h,fill,hit)
         if not rec then error(why,0) end
@@ -422,6 +429,7 @@ function View.new(kit,log)
         -- Each tile's texture: its picture, else its image, else its glyph (looked up once a draw a glyph); its path is
         -- in the signature (a texture imported again).
         local names,shown,seen,any,pictured={},{},{},false,{}
+        local small,any_small={},false
         for i,t in ipairs(s.tiles or {}) do
             local g=t.picture and picture(t.picture)
             pictured[i]=g
@@ -431,9 +439,11 @@ function View.new(kit,log)
                 g=seen[t.icon]
             end
             shown[i]=g or false
+            small[i]=t.small and (pictured[i] or t.image and g and g~=seen[t.icon]) and View.PICTURE_SCALE or 1
+            any_small=any_small or small[i]~=1
             any=any or shown[i]~=false
             local path=shown[i] and shown[i].path or ''
-            names[i]=t.name..(t.locked and '*' or '')..'@'..path
+            names[i]=t.name..(t.locked and '*' or '')..'@'..path..(small[i]~=1 and '~' or '')
         end
         -- The equipped marks apart from the rest: a preview moves the mark at each move in the grid, and a fill for
         -- it built every tile anew, so the tiles blinked (Schizo's video of 27 Nov 2026). WB_HairSalon_GridSlot's
@@ -457,6 +467,8 @@ function View.new(kit,log)
         if sig~=tiles_sig then
             tiles_sig,selected=sig,nil
             glyphed,checking,check_at=any and shown or nil,any,0 -- tick looks only at a grid with a glyph.
+            -- A look at once when a tile is small or was (its entries then go back to full size once).
+            scaled,scale_at=any_small and small or nil,(any_small or scaled) and 0 or -1
             local view=kit.view(View.GROUP)
             for i,g in pairs(pictured) do
                 if view and view.pics[i] then view.pics[i].texture(g.o) end
@@ -584,6 +596,26 @@ function View.new(kit,log)
     -- View.CHECK s until one finds each with its glyph (Slate builds them on later frames). A tile that lacks it (its
     -- path did not load in the slot) gets it on its Image_Icon. From then on every look does that, said once.
     function v.tick(t)
+        -- UWidget SetRenderScale(Scale) (native entry 0x1462030e0, exec 0x143d75b50 writes the FVector2D at +0x98,
+        -- RenderTransform.Scale; Ghidra, build 26123051, 27 Nov 2026).
+        if scaled and t>=scale_at then
+            scale_at=t+View.CHECK
+            call(grid,'grid scale',function(w)
+                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                    local want=scaled[entry.Data.Index+1] or 1
+                    local icon=entry.Image_Icon
+                    if icon.RenderTransform.Scale.X~=want then icon:SetRenderScale({X=want,Y=want}) end
+                end)
+            end)
+        elseif not scaled and scale_at>=0 then
+            -- The last small tile gone: the entries the TileView keeps go back to full size once.
+            scale_at=-1
+            call(grid,'grid scale',function(w)
+                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                    if entry.Image_Icon.RenderTransform.Scale.X~=1 then entry.Image_Icon:SetRenderScale({X=1,Y=1}) end
+                end)
+            end)
+        end
         if not (glyphed and (checking or by_brush)) or t<check_at then return end
         check_at=t+View.CHECK
         local seen,wrong,done=0,0,false

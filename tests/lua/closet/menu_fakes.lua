@@ -115,7 +115,8 @@ local function tileview(events)
             local e = self.entries[item]
             if not e then
                 local shown = not self.path_fails and F.by_path[item.IconAssetPath] or F.icon
-                local icon = {Brush = {ResourceObject = shown}, set = {}}
+                local icon = {Brush = {ResourceObject = shown}, set = {}, RenderTransform = {Scale = {X = 1, Y = 1}}}
+                function icon:SetRenderScale(v) self.RenderTransform.Scale = {X = v.X, Y = v.Y} end
                 function icon:SetBrushFromTexture(t, match)
                     self.Brush.ResourceObject = t
                     self.set[#self.set + 1] = {t, match}

@@ -3479,9 +3479,10 @@ local tests = {
         end, o)
     end,
 
-    custom_head_tiles_keep_the_stock_look = function()
-        -- On a head row a pack piece's picture (BG3's portraits filled their tiles, Schizo's screenshot of 27 Nov
-        -- 2026) gives way to the slot's glyph, as white as the game's own hair icons; a stock piece keeps its icon.
+    custom_head_pictures_shrink_to_the_stock_icon_size = function()
+        -- A pack piece's picture shows on a head row: it filled its whole tile, past the frame, beside the game's hair
+        -- icons (Schizo's screenshots of 27 Nov 2026). Its icon is drawn at View.PICTURE_SCALE; a stock piece's at 1.
+        local View = require('closet.ui.view')
         local o = heads()
         o.catalogue['p.hair'].Image = '/Game/P/Portrait.Portrait'
         o.catalogue[HAIR].Image = '/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_001.Deco_Item_Hair_001'
@@ -3491,12 +3492,13 @@ local tests = {
             on_hair(r)
             at(r, 0.5, 'select')
             local tv = grid(r)
-            local paths = {}
-            for _, item in ipairs(tv.items) do paths[item.ItemName.text] = item.IconAssetPath end
-            eq(paths.Bob, '/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_001.Deco_Item_Hair_001',
-                'the stock hair keeps the game\'s icon')
-            ok(paths['Pack hair'] ~= '/Game/P/Portrait.Portrait', 'the pack hair\'s portrait is not shown')
-            eq(paths['Pack hair'], F.path('hair'), 'the pack hair shows the hair glyph')
+            tv:GetDisplayedEntryWidgets() -- Slate builds the shown entries.
+            tick(r, 0.6)
+            local by = {}
+            for _, e in pairs(tv.entries) do by[e.Data.ItemName.text] = e end
+            ok(by['Pack hair'].Data.IconAssetPath ~= F.path('hair'), 'the pack hair shows its picture, not the glyph')
+            eq(by['Pack hair'].Image_Icon.RenderTransform.Scale.X, View.PICTURE_SCALE, 'drawn small')
+            eq(by.Bob.Image_Icon.RenderTransform.Scale.X, 1, 'the stock hair\'s icon at full size')
         end, o)
         F.textures = {}
         ok(good, why)
