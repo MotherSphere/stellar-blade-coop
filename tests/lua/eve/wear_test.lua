@@ -434,7 +434,7 @@ assert(tick_ok==false and tick_why:find('^coop wear stopped on an error: engine 
     tostring(tick_why))
 assert(stored==nil and select(2,wr4.command()):find('^Worn: hair none, suit none%.') and not wr4.worn())
 
--- A hair goes on while Stellar Closet has a look on EVE, and worn() stays false; a suit is still refused.
+-- A hair goes on while Stellar Closet has a look on EVE. worn() stays false; a suit is still refused.
 local wrh=W.new({log=log,store=store,closet=function() return true end})
 ok,why=wrh.command('nyaaa')
 assert(ok and why=='EVE wears nyaaa as her hair (display only); coop wear off hair gives the game\'s back.',why)
