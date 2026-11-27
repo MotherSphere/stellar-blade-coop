@@ -109,8 +109,9 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 `M.closet_presets`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`, `thumbs.lua` as
 `M.closet_thumbs` and `commands.lua`. It builds `head/wear.lua` as the dress's head part (the options layer gets it
 too) and merges the stock hairs of `head/stock.lua` into each pack scan. Its build step `menu`, which
-`main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its Make preview pictures row, `M.closet_options` for the
-options pages, `M.closet_presets` for the Presets rows and favourites, `M.closet_colour` for its Colour tab and
+`main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its
+Make preview pictures row, `M.closet_options` for the options pages, `M.closet_presets` for the Presets rows and
+favourites, `M.closet_colour` for its Colour tab and
 `M.closet_shape` for the Body tab's shape rows). `main/frame.lua` runs the restore at the first tick and the dress,
 options, colour, shape, probe, thumbs and menu ticks each frame.
 `coop off` stops them. The module reads no other module.
@@ -425,10 +426,10 @@ itself.
   at the first pack scan. Every hair row of the Hair category whose equipment row and mesh exist is listed: a row
   left out is logged once with why. Their ids are `SB.<ItemTable row>` (`SB.Hair_003`). The ponytails are
   `SB.Ponytail_Long`, `SB.Ponytail_Short` and `SB.Ponytail_None` (the No ponytail tile, never locked: it has nothing
-  to load). A pack item whose id starts with `SB.` is refused with one log line.
+  to load). A pack item whose id starts with `SB.` is refused, with a log line each scan.
 - Two hairs the game ships without a table row are added by hand, their paths read in the game's asset data: Nyaaa
   (`SB.Hair_024`, `EVE_HR_14`) and Mecha Rabbit (`SB.Hair_025`, `EVE_HR_15`). Each has one variant (the mesh's own
-  materials), no colour controls and no rotation. They keep the game's long ponytail.
+  materials), no colour controls and no rotation. The stock ponytail rule below applies to them.
 - A failed read is logged once. It leaves the stock rows out and keeps the two cut hairs. The read is made again at
   the next map load.
 

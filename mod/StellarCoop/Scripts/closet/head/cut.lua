@@ -8,8 +8,8 @@
 -- Cut.items(env) -> {['SB.Hair_024']=item, ['SB.Hair_025']=item}, in closet/head/stock.lua's item shape.
 --   env.text(key): the ItemStringTable entry of key in the player's language, or nil.
 -- One variant each: the mesh's own materials (the salon-like TypeB-D sets of EVE_HR_14 pair by name only, so they
--- are left out). No rotation: no table row gives one, so the hair component keeps its own. The game's ponytail stays,
--- as for a stock hair that has one.
+-- are left out). No rotation: no table row gives one, so the hair component keeps its own. The stock ponytail rule
+-- applies as for a stock hair that has one: closet/head/wear.lua wears SB.Ponytail_Short or SB.Ponytail_Long.
 local Cut = {}
 
 local HR = '/Game/Art/Character/PC/00_HR/'
