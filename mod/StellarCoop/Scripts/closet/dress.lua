@@ -126,17 +126,33 @@ local function own_materials(mesh)
     end)
     return out,n
 end
--- The material on each slot of a component now, as an asset path (a dynamic one as its parent).
-local function current_materials(c)
+-- The slots of c whose override holds a material, 0-based: OverrideMaterials, UMeshComponent's TArray at +0x538
+-- (Ghidra, build 26123051: property params 0x1465e6df0, name 0x1459c08d8, Num at +0x540).
+local function overridden(c)
     local out={}
-    local ok,n=pcall(function() return c:GetNumMaterials() end)
-    for i=0,(ok and n or 0)-1 do
+    pcall(function() each(c.OverrideMaterials,function(index,m) if valid(m) then out[#out+1]=index-1 end end) end)
+    return out
+end
+-- Every override of c taken off: SetMaterial with nil (UE4SS passes nil as a null object) stores a null entry, so the
+-- slot shows its mesh's own material and the ghost's capture (online/partner/capture.lua, which sends the first 16
+-- overrides that hold a material) skips it.
+local function clear(c)
+    for _,i in ipairs(overridden(c)) do pcall(function() c:SetMaterial(i,nil) end) end
+end
+-- Her overridden slots now, as 'slot=path' words split by commas: each override that is not the mesh's own material on
+-- that slot, a dynamic one as its parent asset. A slot with no override needs no word: it shows the mesh's own.
+local function current_materials(c)
+    local mesh=valid(c.SkeletalMesh)
+    local own=mesh and own_materials(mesh) or {}
+    local out={}
+    for _,i in ipairs(overridden(c)) do
         local m=valid(c:GetMaterial(i))
         for _=1,4 do
             if not (m and m:IsA(StaticFindObject(MID))) then break end
             m=valid(m.Parent)
         end
-        out[#out+1]=i..'='..(m and path_of(m) or '')
+        local p=m and path_of(m) or ''
+        if p~=(own[i] and path_of(own[i]) or '') then out[#out+1]=i..'='..p end
     end
     return table.concat(out,',')
 end
@@ -364,8 +380,13 @@ function Dress.new(o)
     --     (name 0x1465dd3a8), exec 0x144883de0 reads the name and an object and calls FUN_14430e910(this, name, it).
     --   A texture is used only when it is a UTexture2D (closet/ui/view.lua's class).
     --   USkeletalMeshComponent::SetSkeletalMesh FUN_14411a4f0 returns at once for the mesh it wears (+0x568), as
-    --     closet/shape.lua's comment says: a variant on the same mesh changes nothing there, so apply sets every slot's
-    --     own material before this.
+    --     closet/shape.lua's comment says. Neither it nor USkinnedMeshComponent's FUN_144128b60 touches
+    --     OverrideMaterials (+0x538): an override stays across a mesh change, so apply and give_back take every override
+    --     off (clear) before they set the ones the look needs.
+    --   SetMaterial, vtable +0x590 of the component (FUN_1440df060): returns when the entry already holds that material,
+    --     grows OverrideMaterials to the index, stores the material (a null one as null) and marks the render state
+    --     dirty. GetMaterial, vtable +0x588 (0x144124f30): the override when it is not null, else the mesh's
+    --     Materials[i] (+0xe0, 0x28 a slot), else null.
     -- shortcut: a Parameters texture of another Texture class (a cube map) is left out; read UTexture in Ghidra if a
     -- pack needs one.
     local function wear_variant(c,whole)
@@ -435,9 +456,13 @@ function Dress.new(o)
             local mesh=usable(own)
             if mesh then
                 body:SetSkeletalMesh(mesh,true)
+                clear(body)
+                local mats=own_materials(mesh)
                 for slot,p in (materials or ''):gmatch('(%d+)=([^,]*)') do
-                    local m=p~='' and resolve(p)
-                    if m then pcall(function() body:SetMaterial(tonumber(slot),m) end) end
+                    slot=tonumber(slot)
+                    -- An older line lists every slot: one on its mesh's own material needs no override.
+                    local m=p~='' and p~=(mats[slot] and path_of(mats[slot])) and resolve(p)
+                    if m then pcall(function() body:SetMaterial(slot,m) end) end
                 end
                 for lod=0,lods(body)-1 do pcall(function() body:ShowAllMaterialSections(lod) end) end
             end
@@ -481,12 +506,10 @@ function Dress.new(o)
         for _,a in ipairs(was and was.added or {}) do paths[#paths+1]=a.mesh end
         for _,a in ipairs(plan.added) do paths[#paths+1]=a.mesh end
         sweep(eve,paths)
-        local mats,count=own_materials(body_mesh)
+        local _,count=own_materials(body_mesh)
         if plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,count) end
         body:SetSkeletalMesh(body_mesh,true)
-        for i=0,count-1 do
-            if mats[i] then pcall(function() body:SetMaterial(i,mats[i]) end) end
-        end
+        clear(body) -- Hers, an earlier mix's variant and the colour layer's instances: only the look's own go on.
         wear_variant(body,plan.body.whole)
         show_only(body,count,plan.body.show)
         state.count=count

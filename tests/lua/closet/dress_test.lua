@@ -36,8 +36,21 @@ local function component(path, owner)
     addresses = addresses + 1
     c.addr = addresses
     function c:GetAddress() return self.addr end
-    function c:SetSkeletalMesh(m) self.SkeletalMesh = m; self.mats = {}; self.hidden = {} end
-    function c:SetMaterial(i, m) self.mats[i] = m end
+    -- As FUN_14411a4f0 (Ghidra, build 26123051): the mesh it wears again returns at once; a new mesh leaves the
+    -- overrides (OverrideMaterials, self.mats) as they are.
+    function c:SetSkeletalMesh(m)
+        if m == self.SkeletalMesh then return end
+        self.SkeletalMesh = m; self.hidden = {}
+    end
+    -- As FUN_1440df060: the array grows to the index; a nil material is stored as a null entry.
+    c.overrides = 0
+    function c:SetMaterial(i, m)
+        self.mats[i] = m
+        self.overrides = math.max(self.overrides, i + 1)
+    end
+    c.OverrideMaterials = {ForEach = function(_, f)
+        for i = 0, c.overrides - 1 do f(i + 1, {get = function() return c.mats[i] end}) end
+    end}
     function c:GetNumMaterials() return self.SkeletalMesh and #self.SkeletalMesh.Materials or 0 end
     function c:GetMaterial(i)
         return self.mats[i] or (self.SkeletalMesh and self.SkeletalMesh.Materials[i + 1].MaterialInterface)
@@ -173,7 +186,47 @@ local function hidden_at(c)
     return out
 end
 
+-- The slots of c whose override holds a material (OverrideMaterials, as the ghost's capture reads it), rising.
+local function held(c)
+    local out = {}
+    for i = 0, c.overrides - 1 do if c.mats[i] then out[#out + 1] = i end end
+    return out
+end
+
 local tests = {
+    -- Only the slots the look needs carry an override: the ghost's capture (online/partner/capture.lua) sends the first
+    -- 16 that hold a material, so no-op copies of a mesh's own materials would crowd out the colour layer's instances.
+    only_the_slots_a_look_needs_are_overridden = function()
+        local w = world()
+        local body = w.eve.Mesh
+        local X = '/Game/Mods/CNS/M_X.M_X'
+        w.assets[X] = obj(X)
+        body:SetMaterial(2, w.assets[X]) -- Her suit with an override from outside (CNS).
+        assert(w.d.wear(B))
+        same(held(body), {}, 'Kunoichi on her body: no override, hers taken off')
+        eq(fields(w.file)[3], '2=' .. X, 'her one override kept')
+        for i = 15, 47 do body:SetMaterial(i, obj('MID ' .. i)) end -- The colour layer's instances.
+        assert(w.d.wear(B)) -- Worn again on the same mesh: SetSkeletalMesh returns at once.
+        same(held(body), {}, 'the instances of the look before taken off')
+        assert(w.d.off())
+        eq(body.SkeletalMesh.path, OWN) same(held(body), {2}, 'off: her own override only')
+        eq(body:GetMaterial(2).path, X)
+    end,
+    -- An older coop-closet.txt line lists every slot of her suit: the slots on her mesh's own material get no override.
+    an_older_line_with_every_slot_overrides_only_hers = function()
+        local w = world()
+        local X = '/Game/Mods/CNS/M_X.M_X'
+        w.assets[X] = obj(X)
+        w.eve.Mesh:SetSkeletalMesh(w.assets[KS]) -- Kunoichi from the Lua load before.
+        local slots = {}
+        for i = 0, 5 do
+            w.assets[OWN .. ':M' .. i] = w.assets[OWN].Materials[i + 1].MaterialInterface -- Found by its path.
+            slots[#slots + 1] = i .. '=' .. (i == 2 and X or OWN .. ':M' .. i)
+        end
+        w.file = table.concat({w.eve.path, OWN, table.concat(slots, ','), '', ''}, '\t')
+        w.new().tick()
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'her own look back') same(held(w.eve.Mesh), {2}, 'her one override')
+    end,
     toggles_enter_the_plan_and_survive_a_rewear = function()
         with_packs(function(w)
             local plan = assert(w.Dress.plan({{fit = 'p.suit'}}, nil, nil, {['p.suit'] = {[3] = true, [4] = false}}))
@@ -253,7 +306,7 @@ local tests = {
                         end
                     end
                 end
-                c.mats[i] = mids[i]
+                c:SetMaterial(i, mids[i])
                 return mids[i]
             end
             local options
@@ -265,7 +318,8 @@ local tests = {
             ok(options.set_variant('p.suit', 2))
             options.tick()
             eq(body.SkeletalMesh.path, PV2, 'variant 2\'s mesh') eq(d.applied(), applied + 1, 'dressed again')
-            eq(body.mats[0].path, PV2 .. ':M0', 'an empty path keeps the mesh\'s own')
+            eq(body.mats[0], nil, 'an empty path: no override on slot 0')
+            eq(body:GetMaterial(0).path, PV2 .. ':M0', 'an empty path keeps the mesh\'s own')
             same(mids[1].sets, {{'Scalar', 'Roughness', 0.25}, {'Vector', 'Tint', {R = 1, G = 0.5, B = 0, A = 1}}},
                 'the parameters on slot 1\'s instance')
             same(mids[2].sets, {{'Texture', 'Basecolor', TEX}}, 'a texture that loads')

@@ -49,6 +49,11 @@ switched body and the covered regions whose skin still shows. Fingernails and To
 of another outfit that covers the hands or feet. `coop-closet.txt` keeps the picks only: the switch is computed
 again at each wear.
 
+A material override stays on her body mesh when the mesh changes. So each wear first takes every override off her body
+and then sets only those the look needs (a variant's materials, then the colour layer's instances). A friend's ghost
+gets the first 16 overrides, which are then the look's own. `coop closet off` puts back only the overrides her own
+suit had.
+
 Once a second the mix is checked. Tachy Mode's suit (`CH_P_EVE_10`) pauses it, with the added meshes hidden, until
 Tachy Mode ends. Any other look the game puts on for 2 s, after a map load or a game reset, gets the mix again. So
 does an outfit CNS puts on. That body mesh becomes her own look, which `coop closet off` gives back; a closet mesh
