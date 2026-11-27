@@ -71,7 +71,7 @@ menu=function(M,Ui)
     local camera=Camera.new({store=M.link.store(Camera.FILE),log=log,screen=M.kit.screen,
         pad_bits=function() return M.pad_bits and M.pad_bits() end,
         pad_levels=function() if M.pad_levels then return M.pad_levels() end end,
-        held_keys=function() return M.held_keys and M.held_keys() end,pointer=M.kit.pointer})
+        held_keys=function() return M.held_keys and M.held_keys() end,pointer=M.kit.pointer,project=M.kit.project})
     M.closet_menu=require('closet.ui.menu').new({kit=M.kit,dress=M.closet,words=M.words,tell=M.tell,log=log,
         world=function() return M.hud_shown end,photo=M.photo_state,status=function() return M.link and M.link.status() end,
         camera=camera,folder=M.folder,thumbs=M.closet_thumbs,colour=M.closet_colour,shape=M.closet_shape})

@@ -16,14 +16,22 @@
 -- the half width right of centre (EVE at about 78% across) and at the middle of the height.
 -- Free mode: cam_left, cam_right, cam_up and cam_down orbit STEP degrees, cam_in and cam_out zoom by ZOOM; the pad's
 -- right stick orbits (ORBIT, TILT deg/s at full), LT and RT zoom (a factor 2 a second at full), X held with the stick
--- moves the height and the pan (SLIDE cm/s); DEAD of each axis is ignored. In region mode the steps, the stick and the
--- triggers move nothing. X released after a hold with no stick toggles region and free (cam_mode too); R3 and cam_reset
--- set the free pose to the region's framing and go to free mode. With the native held read (main/boot.lua's
--- held_keys), the step words move nothing: I/J/K/L held orbit and U/O held zoom at the stick's full rates, Shift +
--- I/J/K/L move the height and the pan, a right mouse drag orbits (MOUSE deg a layout unit) and a middle drag pans
--- (MPAN cm). A right press is Back at its release unless the mouse moved CLICK units (hold_back, take_back). The mode
--- and the free pose are written to the file at each change (a stick, key or drag move once all are back at rest) and
--- read once a Lua load: only Reset replaces the pose.
+-- moves the height and the pan (SLIDE cm/s); DEAD of each axis is ignored. Region mode: the right stick (X held or not)
+-- pans the region's framing in the screen's plane (SLIDE cm/s, at most half the frame's height up or down and half its
+-- width either side), as cam_left, cam_right, cam_up and cam_down do by STEP cm; the triggers and the zoom steps move
+-- nothing. That pan is kept until the region changes, the next open or a reset. X released after a hold with no stick
+-- toggles region and free (cam_mode too); R3 and cam_reset clear the region pan, set the free pose to the region's
+-- framing and go to free mode. With the native held read (main/boot.lua's held_keys), the step words move nothing:
+-- I/J/K/L held orbit and U/O held zoom at the stick's full rates, Shift + I/J/K/L move the height and the pan, a right
+-- mouse drag orbits (MOUSE deg a layout unit) and a middle drag pans (MPAN cm). In region mode I/J/K/L held (Shift or
+-- not) and a middle drag pan the framing; a right drag goes to free mode first (from the saved free pose, else the
+-- framing on screen). A right press is Back at its release unless the mouse moved CLICK units (hold_back, take_back).
+-- The mode and the free pose are written to the file at each change (a stick, key or drag move once all are back at
+-- rest) and read once a Lua load: only Reset replaces the pose.
+-- The lens: k and tanv come first from the FOV and the local player's axis rule (lens). Once an open, MEASURE s after it
+-- (the view's blend over), the look point is projected by the engine (o.project, the kit's): place put it at tangent
+-- k, so tan(hfov / 2) = k / x for its screen x in half widths; k and tanv are then set from that tangent and the
+-- screen's aspect, logged once. No projection: the first lens stays.
 -- The preview lights (closet/ui/lights.lua) go on the camera actor at the open and follow its pose: light_next and the
 -- pad's L3 released after a hold with no trigger (in both modes) take the next preset; light_up and light_down step its
 -- intensity, as does each pull of RT (up) or LT (down) while L3 is held, when the triggers zoom nothing. Their preset
@@ -39,7 +47,8 @@
 -- o: {store=link.store(Camera.FILE), log=, screen=function() the kit's {w, h} or nil, pad_bits=function() bits (1 X,
 -- 2 L3, 4 R3) or nil, pad_levels=function() right stick x, y (-1..1, right and up positive), LT, RT (0..1) or nil,
 -- held_keys=function() bits (1 right mouse, 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O) or nil,
--- pointer=function() the kit's mouse x, y in layout units or nil; tests
+-- pointer=function() the kit's mouse x, y in layout units or nil, project=function(at, now) the kit's project
+-- ({width, height, screen={x, y}} in layout units, screen nil without the engine's projection) or nil; tests
 -- give unreal= (core/unreal.lua), actors= (core/actors.lua), pc=function() the player controller, her=function() EVE}.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
@@ -60,6 +69,11 @@
 --     -> float: params 0x146e28680.
 --   USceneComponent.K2_SetWorldLocationAndRotation(NewLocation, NewRotation, bSweep, SweepHitResult, bTeleport):
 --     params 0x146e68500.
+--   APlayerController.ProjectWorldLocationToScreen (used through ui/kit's project): native table entry 0x14661a7b0,
+--     exec 0x1448de940; params (0x18 bytes, property list at 0x146617f18) WorldLocation FVector +0x0, ScreenLocation
+--     FVector2D out +0xc, bPlayerViewportRelative bool +0x14 (setter 0x141150bc0), ReturnValue bool +0x15 (setter
+--     0x141258890). The native (FUN_144204910) projects through the local player's projection data (its vtable
+--     +0x2c0, GetProjectionData): the lens the view really renders.
 local Slots=require('closet.slots')
 local Lights=require('closet.ui.lights')
 local Camera={}
@@ -76,6 +90,7 @@ Camera.DEAD=0.2 -- of each stick axis and trigger; the rest is rescaled to 0..1.
 Camera.ORBIT,Camera.TILT,Camera.SLIDE=120,80,120 -- deg/s, deg/s, cm/s at full stick (and for the held keys).
 Camera.MOUSE,Camera.MPAN=0.25,0.25 -- degrees a right drag orbits, cm a middle drag pans, per unit of the kit's layout.
 Camera.CLICK=8 -- layout units: a right press released with less mouse movement is Back.
+Camera.MEASURE=Camera.BLEND+0.1 -- s after an open: the lens is measured once the view is ours.
 -- Each region's framing (starting values, to tune in game): {centre, span} in parts of her height from her feet, the
 -- span filling the screen's height; {yaw, pitch} in degrees.
 Camera.REGIONS={head={0.92,0.20,15,5},torso={0.70,0.34,15,8},arms={0.64,0.46,25,8},hands={0.47,0.20,25,12},
@@ -96,14 +111,14 @@ function Camera.framing(region,h,k,tanv)
     return {yaw=r[3],pitch=r[4],dist=r[2]*h/2*math.sqrt(1+k*k)/tanv,height=r[1]*h,pan=0}
 end
 -- Where pose p puts the camera and how it turns, for EVE at L turned yaw with her feet at feet: the look point shows
--- at k / tan(hfov / 2) of the half width right of centre and at the middle of the height (no roll).
+-- at k / tan(hfov / 2) of the half width right of centre and at the middle of the height (no roll). Then the look point.
 function Camera.place(p,L,yaw,feet,k)
     local a,e=math.rad(yaw+p.yaw),math.rad(p.pitch)
     local right=a-math.pi/2 -- The camera's right before its turn.
     local T={X=L.X+math.cos(right)*p.pan,Y=L.Y+math.sin(right)*p.pan,Z=feet+p.height}
     local at={X=T.X+p.dist*math.cos(e)*math.cos(a),Y=T.Y+p.dist*math.cos(e)*math.sin(a),Z=T.Z+p.dist*math.sin(e)}
     local pitch=-math.deg(math.asin(math.max(-1,math.min(1,math.sin(e)*math.sqrt(1+k*k)))))
-    return at,{Pitch=pitch,Yaw=math.deg(a)+180-math.deg(math.atan(k,math.cos(math.rad(pitch)))),Roll=0}
+    return at,{Pitch=pitch,Yaw=math.deg(a)+180-math.deg(math.atan(k,math.cos(math.rad(pitch)))),Roll=0},T
 end
 
 function Camera.new(o)
@@ -119,6 +134,7 @@ function Camera.new(o)
     -- dying: {d=, at=} a closed camera removed at the clock's at; cur: the eased pose.
     local cam,dying,cur=nil,nil,nil
     local region='full'
+    local rpan={pan=0,height=0} -- Region mode's pan of the framing, cm along the camera's right and up.
     local clock=0
     local dirty=false -- The stick, a held key or a drag moved the free pose since the last write.
     -- px, py: the mouse at the last tick while the right or middle button was held, else nil; back: {travel=} a right
@@ -185,7 +201,27 @@ function Camera.new(o)
         local ran,why=pcall(sweep)
         if not ran then log('camera: the sweep failed: '..tostring(why)) end
     end
-    local function framing() return Camera.framing(region,cam.h,cam.k,cam.tanv) end
+    -- The region's framing with region mode's pan.
+    local function framing()
+        local p=Camera.framing(region,cam.h,cam.k,cam.tanv)
+        p.pan,p.height=p.pan+rpan.pan,p.height+rpan.height
+        return p
+    end
+    -- Region mode's pan moved by dp cm right and dh cm up, kept within half the frame's height up or down and half its
+    -- width either side (the frame at the look point: the region's span high, span x k / NDC / tanv wide).
+    local function slide(dp,dh)
+        local half=(Camera.REGIONS[region] or Camera.REGIONS.full)[2]*cam.h/2
+        local wide=half*cam.k/Camera.NDC/cam.tanv
+        rpan.pan=math.max(-wide,math.min(wide,rpan.pan+dp))
+        rpan.height=math.max(-half,math.min(half,rpan.height+dh))
+    end
+    -- A right drag in region mode: free mode from the saved free pose, else from the framing on screen.
+    local function to_free()
+        if mode=='free' then return end
+        mode='free'
+        if not free then free=clamp(framing()) end
+        write()
+    end
     -- The view back from c while it is still ours: to the view target from before, else the pawn.
     local function give_back(c,blend)
         local pc=pc_of()
@@ -215,6 +251,7 @@ function Camera.new(o)
         write()
     end
     local function reset()
+        rpan.pan,rpan.height=0,0
         free,mode=clamp(framing()),'free'
         write()
     end
@@ -245,7 +282,10 @@ function Camera.new(o)
         if x and stick then x_moved=true end
         if not x and x_held and not x_moved then toggle() end
         x_held=x
-        if mode~='free' then return end
+        if mode~='free' then -- The stick pans the framing, X held or not; it moves no free pose.
+            if stick then slide(sx*Camera.SLIDE*dt,sy*Camera.SLIDE*dt) end
+            return false
+        end
         local p=free
         if x and stick then p.height,p.pan=p.height+sy*Camera.SLIDE*dt,p.pan+sx*Camera.SLIDE*dt
         elseif stick then p.yaw,p.pitch=p.yaw-sx*Camera.ORBIT*dt,p.pitch+sy*Camera.TILT*dt end
@@ -270,11 +310,16 @@ function Camera.new(o)
             back.travel=back.travel+math.abs(dx)+math.abs(dy)
             if not rmb then back_due,back=back.travel<Camera.CLICK,nil end
         end
-        if mode~='free' then return false end
-        local p=free
         local kx=(on(64) and 1 or 0)-(on(16) and 1 or 0) -- L right, J left.
         local ky=(on(8) and 1 or 0)-(on(32) and 1 or 0) -- I up, K down.
         local kz=shift and 0 or (on(256) and 1 or 0)-(on(128) and 1 or 0) -- O out, U in; Shift + U/O are the light's.
+        if rmb and (dx~=0 or dy~=0) then to_free()
+        elseif mode~='free' then -- I/J/K/L and a middle drag pan the framing; U/O zoom nothing.
+            slide(kx*Camera.SLIDE*dt,ky*Camera.SLIDE*dt)
+            if mmb then slide(-dx*Camera.MPAN,dy*Camera.MPAN) end
+            return false
+        end
+        local p=free
         if shift then p.height,p.pan=p.height+ky*Camera.SLIDE*dt,p.pan+kx*Camera.SLIDE*dt
         else p.yaw,p.pitch=p.yaw-kx*Camera.ORBIT*dt,p.pitch+ky*Camera.TILT*dt end
         p.dist=p.dist*2^(kz*dt)
@@ -292,6 +337,22 @@ function Camera.new(o)
             out[f]=a[f]+d*k
         end
         return out
+    end
+    -- The real lens from the engine's projection of the look point T, which place put at tangent cam.k: its screen x
+    -- in half widths is k / tan(hfov / 2). Once an open, at the first answer (nil while the kit is hidden: later).
+    -- shortcut: T is this frame's; if the view's pose lags a frame, a pose still easing skews it a little.
+    local function measure(T)
+        local v=o.project(T,os.clock())
+        if not v then return end
+        cam.measured=true
+        local x=v.screen and tonumber(v.width) and v.width>0 and v.height>0 and 2*v.screen.x/v.width-1
+        if not (x and x>0.05 and x<5) then
+            return log('camera: lens not measured: '..(x and string.format('the look point at x %.3f',x) or
+                'no screen point'))
+        end
+        local tanh=cam.k/x
+        cam.k,cam.tanv=Camera.NDC*tanh,tanh*v.height/v.width
+        log(string.format('camera: lens measured, tan(hfov/2)=%.3f',tanh))
     end
     -- One frame: the camera alive and the view ours, else it stops; the pad; the pose eased and placed.
     local function drive(dt)
@@ -319,9 +380,10 @@ function Camera.new(o)
         local target=mode=='free' and free or framing()
         -- The first frame there at once: the view's blend moves from the game's camera.
         cur=cur and ease(cur,target,1-math.exp(-4*dt/Camera.EASE)) or ease(target,target,0)
-        local at,rot=Camera.place(cur,L,yaw,L.Z-cam.h/2,cam.k)
+        local at,rot,T=Camera.place(cur,L,yaw,L.Z-cam.h/2,cam.k)
         d.mesh:K2_SetWorldLocationAndRotation(at,rot,false,{},false)
         lights.place(cur.dist,cam.k)
+        if not cam.measured and o.project and clock>=cam.since+Camera.MEASURE then measure(T) end
     end
 
     -- A camera on the menu's open, while the view is on EVE (else none, quietly: the menu works without it).
@@ -339,8 +401,9 @@ function Camera.new(o)
             local at,r,fov=U.value_of(m:GetCameraLocation()),U.value_of(m:GetCameraRotation()),U.value_of(m:GetFOVAngle())
             local hh=U.value_of(eve.CapsuleComponent:GetScaledCapsuleHalfHeight())
             d=actors.spawn(eve:GetWorld(),{X=at.X,Y=at.Y,Z=at.Z},{Pitch=r.Pitch,Yaw=r.Yaw,Roll=0},{camera=true})
-            cam={d=d,was=view,was_path=view:GetFullName():match('^%S+ (.+)$'),h=2*hh}
+            cam={d=d,was=view,was_path=view:GetFullName():match('^%S+ (.+)$'),h=2*hh,since=clock}
             cam.k,cam.tanv=lens(pc,fov)
+            rpan.pan,rpan.height=0,0
             if mode=='free' and not free then free=clamp(framing()) end
             -- The file before the view changes: a camera the next Lua load could not sweep never takes it.
             if write()==false then cam=nil; remove(d); d=nil; return 'the file could not be written' end
@@ -389,6 +452,7 @@ function Camera.new(o)
     function self.tick(dt,r)
         dt=math.min(math.max(tonumber(dt) or 0,0),0.1)
         clock=clock+dt
+        if r and r~=region then rpan.pan,rpan.height=0,0 end -- A region change clears region mode's pan.
         region=r or region
         first()
         if dying and clock>=dying.at then
@@ -404,17 +468,23 @@ function Camera.new(o)
             self.close()
         end
     end
-    -- A camera word of the menu's: cam_mode, cam_reset, light_next, light_up, light_down, or in free mode a step
-    -- (cam_left, cam_right, cam_up, cam_down, cam_in, cam_out). Nothing without a camera.
+    -- A camera word of the menu's: cam_mode, cam_reset, light_next, light_up, light_down, or a step (cam_left,
+    -- cam_right, cam_up, cam_down, cam_in, cam_out; in region mode the first four pan the framing STEP cm). Nothing
+    -- without a camera.
     function self.word(w)
         if not cam then return end
         if w=='cam_mode' then return toggle() end
         if w=='cam_reset' then return reset() end
         if w=='light_next' then lights.next(); return write() end
         if w=='light_up' or w=='light_down' then lights.step(w=='light_up' and 1 or -1); return write() end
-        if mode~='free' then return end
         if o.held_keys and o.held_keys() then return end -- The held read is live: the held keys move it (tick).
-        local p,s=free,Camera.STEP
+        local s=Camera.STEP
+        if mode~='free' then
+            if w=='cam_left' then slide(-s,0) elseif w=='cam_right' then slide(s,0)
+            elseif w=='cam_up' then slide(0,s) elseif w=='cam_down' then slide(0,-s) end
+            return
+        end
+        local p=free
         if w=='cam_left' then p.yaw=p.yaw+s elseif w=='cam_right' then p.yaw=p.yaw-s
         elseif w=='cam_up' then p.pitch=p.pitch+s elseif w=='cam_down' then p.pitch=p.pitch-s
         elseif w=='cam_in' then p.dist=p.dist*(1-Camera.ZOOM) elseif w=='cam_out' then p.dist=p.dist/(1-Camera.ZOOM)

@@ -86,7 +86,8 @@ local function world(change)
         pc = function() return W.pc end, her = function() return W.eve end, screen = function() return W.screen end,
         pad_bits = function() return W.bits end, pad_levels = function() return table.unpack(W.levels) end,
         held_keys = function() return W.keys end,
-        pointer = function() if W.ptr then return W.ptr[1], W.ptr[2] end end})
+        pointer = function() if W.ptr then return W.ptr[1], W.ptr[2] end end,
+        project = function(at) if W.project then return W.project(at) end end})
 end
 -- dt s of ticks at 60 fps, region given.
 local function frames(c, s, region)
@@ -128,6 +129,19 @@ local function around(m)
     return (a + 180) % 360 - 180
 end
 local TANV = 1 / (16 / 9) -- hfov 90 at 16:9.
+-- Where the camera stands for region's framing (hfov 90 at 16:9) panned pan cm right and up cm up.
+local function framed_at(region, pan, up)
+    local p = Camera.framing(region, 180, 0.55, TANV)
+    p.pan, p.height = p.pan + pan, p.height + up
+    return (Camera.place(p, W.at, W.yaw, W.at.Z - 90, 0.55))
+end
+local function gap(a, b) return math.sqrt((a.X - b.X) ^ 2 + (a.Y - b.Y) ^ 2 + (a.Z - b.Z) ^ 2) end
+-- The lines of W.logs that contain s.
+local function logged(s)
+    local n = 0
+    for _, line in ipairs(W.logs) do if line:find(s, 1, true) then n = n + 1 end end
+    return n
+end
 
 local tests = {
     open_sweeps_spawns_and_takes_the_view = function()
@@ -245,7 +259,8 @@ local tests = {
         frames(c, 0.1, 'full')
         local saves = #W.saves
         c.word('cam_left')
-        eq(#W.saves, saves, 'no step in region mode')
+        eq(#W.saves, saves, 'a step in region mode pans the framing: no free pose written')
+        eq(c.mode(), 'region', 'a step in region mode stays in region mode')
         c.word('cam_mode')
         local f = fields()
         eq(f.mode, 'free', 'free')
@@ -329,14 +344,15 @@ local tests = {
         W.levels = {0, 0, 0, 0}
         c.tick(1 / 60, 'full')
         near(fields().dist, 150 * 2 ^ 0.5, 0.5, 'LT at 0.6 (0.5 past the dead zone) 1 s: x 2^0.5')
-        -- In region mode the stick moves nothing.
+        -- In region mode the stick pans the framing: the free pose stays as it was.
         c.word('cam_mode')
         saves = #W.saves
         W.levels = {1, 1, 1, 0}
         frames(c, 0.25, 'full')
         W.levels = {0, 0, 0, 0}
         c.tick(1 / 60, 'full')
-        eq(#W.saves, saves, 'region mode: the stick moves nothing')
+        eq(#W.saves, saves, 'region mode: the stick leaves the free pose')
+        eq(c.mode(), 'region', 'region mode: the stick stays in region mode')
     end,
 
     held_keys_orbit_zoom_and_pan_at_a_rate = function()
@@ -383,7 +399,8 @@ local tests = {
         c.word('cam_mode')
         saves = #W.saves
         hold(16 + 8 + 128, 0.5)
-        eq(#W.saves, saves, 'region mode: the held keys move nothing')
+        eq(#W.saves, saves, 'region mode: the held keys leave the free pose')
+        eq(c.mode(), 'region', 'region mode: the held keys stay in region mode')
     end,
 
     the_right_drag_orbits_and_the_middle_drag_pans = function()
@@ -451,6 +468,167 @@ local tests = {
         c = world(function(w) w.ptr = {500, 500} end)
         c.open()
         eq(c.hold_back(), false, 'no held read: Back at once')
+    end,
+
+    region_mode_stick_and_keys_pan_the_framing = function()
+        local c = world(function(w) w.keys = 0 end)
+        c.open()
+        frames(c, 0.05, 'full')
+        local saves = #W.saves
+        W.levels = {1, 0, 0, 0}
+        frames(c, 0.25, 'full')
+        W.levels = {0, 0, 0, 0}
+        frames(c, 1, 'full')
+        ok(gap(last().at, framed_at('full', 30, 0)) < 0.05, 'stick right 0.25 s: the framing pans 30 cm right')
+        eq(c.mode(), 'region', 'the stick stays in region mode')
+        W.keys = 8 -- I
+        frames(c, 0.25, 'full')
+        W.keys = 16 -- J
+        frames(c, 0.5, 'full')
+        W.keys = 0
+        frames(c, 1, 'full')
+        ok(gap(last().at, framed_at('full', -30, 30)) < 0.05, 'I held 0.25 s: 30 cm up; J held 0.5 s: 60 cm left')
+        eq(c.mode(), 'region', 'the keys stay in region mode')
+        eq(#W.saves, saves, 'a region pan writes no free pose')
+        W.keys = 8
+        frames(c, 5, 'full')
+        W.keys = 0
+        frames(c, 1, 'full')
+        ok(gap(last().at, framed_at('full', -30, 99)) < 0.05, 'clamped at half the frame: 99 cm up')
+        frames(c, 1, 'torso')
+        frames(c, 1, 'full')
+        ok(gap(last().at, framed_at('full', 0, 0)) < 0.05, 'a region change clears the pan')
+        W.keys = 64 -- L
+        frames(c, 0.25, 'full')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        c.word('cam_reset')
+        local f, want = fields(), Camera.framing('full', 180, 0.55, TANV)
+        near(f.pan, 0, 0.01, 'Reset: no pan in the free pose')
+        near(f.height, want.height, 0.01, 'Reset: the region\'s own height')
+        c.word('cam_mode')
+        frames(c, 1, 'full')
+        ok(gap(last().at, framed_at('full', 0, 0)) < 0.05, 'Reset cleared the pan')
+        -- An older DLL (no held read): the step words pan.
+        c = world()
+        c.open()
+        frames(c, 0.05, 'full')
+        c.word('cam_left') c.word('cam_up')
+        frames(c, 1, 'full')
+        ok(gap(last().at, framed_at('full', -10, 10)) < 0.05, 'cam_left and cam_up: 10 cm each')
+        eq(c.mode(), 'region', 'the words stay in region mode')
+    end,
+
+    free_mode_stick_orbits_and_x_held_pans = function()
+        local c = world(function(w) w.file = '\tfree\t0\t0\t300\t100\t0'; w.keys = 0 end)
+        c.open()
+        frames(c, 0.05, 'full')
+        local function rest() W.levels, W.bits, W.keys = {0, 0, 0, 0}, 0, 0; c.tick(1 / 60, 'full') end
+        W.levels = {1, 0, 0, 0}
+        frames(c, 0.5, 'full')
+        rest()
+        near(fields().yaw, -60, 0.01, 'the right stick orbits')
+        W.bits = 1
+        c.tick(1 / 60, 'full')
+        W.levels = {1, 0, 0, 0}
+        frames(c, 0.25, 'full')
+        W.levels = {0, 0, 0, 0}
+        c.tick(1 / 60, 'full')
+        rest()
+        near(fields().pan, 30, 0.01, 'X held + stick: pan')
+        near(fields().yaw, -60, 0.01, 'X held + stick: no orbit')
+        eq(c.mode(), 'free', 'X with the stick toggles nothing')
+        W.keys = 16
+        frames(c, 0.5, 'full')
+        rest()
+        near(fields().yaw, 0, 0.01, 'J orbits')
+        W.keys = 4 + 64
+        frames(c, 0.25, 'full')
+        rest()
+        near(fields().pan, 60, 0.01, 'Shift + L pans')
+        near(fields().yaw, 0, 0.01, 'Shift + L: no orbit')
+    end,
+
+    a_right_drag_in_region_mode_switches_to_free = function()
+        local c = world(function(w) w.keys = 0; w.ptr = {500, 500} end)
+        c.open()
+        frames(c, 0.05, 'full')
+        W.keys = 1
+        ok(c.hold_back(), 'the press may start a drag')
+        for i = 1, 20 do W.ptr = {500 + 10 * i, 500}; c.tick(1 / 60, 'full') end
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'free', 'the drag switched to free mode')
+        near(fields().yaw, Camera.REGIONS.full[3] - 200 * Camera.MOUSE, 0.01, 'orbited from the region framing')
+        near(fields().dist, Camera.framing('full', 180, 0.55, TANV).dist, 0.01, 'at the region\'s distance')
+        eq(c.take_back(), false, 'a drag is no Back')
+        -- A saved free pose: the drag starts from it.
+        c = world(function(w) w.file = '\tregion\t0\t0\t300\t100\t0'; w.keys = 0; w.ptr = {500, 500} end)
+        c.open()
+        frames(c, 0.05, 'full')
+        W.keys = 1
+        c.tick(1 / 60, 'full')
+        W.ptr = {540, 500}
+        c.tick(1 / 60, 'full')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'free', 'free mode')
+        near(fields().yaw, -40 * Camera.MOUSE, 0.01, 'orbited from the saved free pose')
+        near(fields().dist, 300, 0.01, 'the saved free pose\'s distance')
+        -- A right click with no move stays in region mode.
+        c = world(function(w) w.keys = 0; w.ptr = {500, 500} end)
+        c.open()
+        frames(c, 0.05, 'full')
+        W.keys = 1
+        c.tick(1 / 60, 'full')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'region', 'a click is no drag')
+        -- A middle drag pans in region mode.
+        W.keys = 2
+        c.tick(1 / 60, 'full')
+        W.ptr = {540, 520}
+        c.tick(1 / 60, 'full')
+        W.keys = 0
+        frames(c, 1, 'full')
+        eq(c.mode(), 'region', 'a middle drag stays in region mode')
+        ok(gap(last().at, framed_at('full', -40 * Camera.MPAN, 20 * Camera.MPAN)) < 0.05,
+            'a middle drag pans the framing as it pans the free pose')
+    end,
+
+    the_lens_is_measured_from_the_screen = function()
+        local hfov = 90 -- What the view really renders.
+        local tanv = math.tan(math.rad(hfov / 2)) * 9 / 16
+        local c = world(function(w)
+            w.axis, w.fov = 0, 90 -- The read says MaintainYFOV: the code's own lens is 16/9 too wide.
+            w.project = function(at)
+                local m = last()
+                if not m then return nil end
+                local x, y = project(m.at, m.rot, at, hfov, tanv)
+                return {width = 3840, height = 2160, screen = {x = (1 + x) / 2 * 3840, y = (1 - y) / 2 * 2160}}
+            end
+        end)
+        c.open()
+        frames(c, 1, 'full')
+        local m, r = last(), Camera.REGIONS.full
+        local T = {X = W.at.X, Y = W.at.Y, Z = W.at.Z - 90 + r[1] * 180}
+        local x, y, z = project(m.at, m.rot, T, hfov, tanv)
+        near(x, 0.55, 0.01, 'across, by the engine projection')
+        near(y, 0, 0.01, 'up')
+        near(2 * z * tanv, r[2] * 180, 1, 'her band fills the real height')
+        eq(logged('camera: lens measured, tan(hfov/2)=1.000'), 1, 'the measured lens logged')
+        frames(c, 1, 'full')
+        eq(logged('camera: lens measured'), 1, 'once an open')
+        c.close()
+        frames(c, 0.5)
+        c.open()
+        frames(c, 1, 'full')
+        eq(logged('camera: lens measured'), 2, 'again at the next open')
+        -- No projection (the kit hidden): the formula's lens, nothing logged.
+        c = world()
+        c.open()
+        frames(c, 1, 'full')
+        eq(logged('camera: lens measured'), 0, 'no projection: nothing measured')
     end,
 
     x_toggles_on_release_only_without_the_stick = function()
