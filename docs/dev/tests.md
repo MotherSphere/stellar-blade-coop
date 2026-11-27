@@ -29,7 +29,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `mask`, `pak_gate`, `picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`;
 `fight/bosses/`: `enemy`, `gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`,
 `glide`, `off`, `wear`, `wiring`;
-`closet/`: `closet`, `cns_import`, `dress`, `fits`, `json`, `off`, `slots`, `wiring`; `cutmenus/`: `devmenu`,
+`closet/`: `camera`, `closet`, `cns_import`, `colour`, `dress`, `fits`, `json`, `lights`, `menu`, `model`, `off`,
+`options`, `packs`, `presets`, `probe`, `shape`, `slots`, `thumbs`, `wiring`; `cutmenus/`: `devmenu`,
 `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`, `wiring_notices`;
 `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,

@@ -112,7 +112,8 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 options pages, `M.closet_presets` for the Presets rows and favourites, `M.closet_colour` for its Colour tab and
 `M.closet_shape` for the Body tab's shape rows). `main/frame.lua` runs the restore at the first tick and the dress,
 options, colour, shape, probe, thumbs and menu ticks each frame.
-`coop off` stops them. The module reads no other module.
+`coop off` stops them. For its refusals the module reads `eve`, `fight.gunmode` and `online.modes.race` through
+their exports (`uses` in `wiring.lua`).
 
 ## The closet menu
 
@@ -462,29 +463,55 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
 
 ## Tests
 
-- `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.
-- `tests/lua/closet/closet_test.lua` checks `coop closet`.
-- `tests/lua/closet/colour_test.lua` runs the colour layer on a fake dress and fake components: every slot's role, the
+The Lua tests are in `tests/lua/closet/`. All but `off_test.lua` and `closet_test.lua` run their named checks through
+`run.lua`, with the assertions of `helpers.lua`.
+
+- `off_test.lua` checks that a failure of this module at load turns this module off alone.
+- `closet_test.lua` checks `coop closet`: its status line, the use line and `coop closet thumbs`.
+- `wiring_test.lua` runs `wiring.lua` over stub parts: `coop off` stops each part under a guard of its own, the menu
+  first. The dress and the menu refuse while SBO's own state holds EVE's body, read through its modules' exports.
+- `slots_test.lua` checks the slot list: unique ids, the apply order by layer, each slot's kind and menu, the
+  ghost-part rule, the adult menu, the menu lists, the left and right pairs and each slot's glyph PNG.
+- `fits_test.lua` checks the fit maps: each names every material slot of its mesh once, in known slots and regions,
+  and the lookups.
+- `json_test.lua` runs the JSON decoder: values, escapes, errors by line, a BOM, comments and trailing commas, and no
+  raise on bad text.
+- `cns_import_test.lua` runs the CNS-format import on samples written from the format's docs: the slot of each
+  `FitMeshType`, the variants, `UserConfigs`, the piece hints, bad entries, `CnsImport.should_read` and the merge of
+  packs by `UniqueFitID`.
+- `packs_test.lua` runs the pack catalogue: the DLL's `coop-cns-packs.txt`, the read of each pack, the stamp cache,
+  the log said once and the catalogue by `UniqueFitID`.
+- `dress_test.lua` runs `coop closet wear` over fake UE4SS objects: the plan, the mix on EVE, her own look kept and
+  given back, the watchdog, the body rule, the copy of the ghost's resolve and skeleton guard, and the refusals.
+- `colour_test.lua` runs the colour layer on a fake dress and fake components: every slot's role, the
   swatch cycle, instances only where a set role reaches, the parameter names, the palette put on again after a wear,
   Off giving the materials back, the palette file and `coop closet colour`.
-- `tests/lua/closet/shape_test.lua` runs the shape layer on a fake dress and fake components and meshes: the morph
+- `shape_test.lua` runs the shape layer on a fake dress and fake components and meshes: the morph
   names read once per mesh path, the rows the rule allows, the steps from 0 to 100, the values on the body and on the
   pieces for the names the body lacks, the shape put on again after a wear, her own look, the shape file, `coop off`
   and `coop closet shape`.
-- `tests/lua/closet/options_test.lua` runs the options layer on a fake dress: followers, values per outfit and variant
+- `options_test.lua` runs the options layer on a fake dress: followers, values per outfit and variant
   kept only when they differ from the pack, gone values said once, the tick, reset and off. On fake components it
   checks the colours (swatches and Custom channels), a value above its range, the steps, the finishes and a missing
   texture, the numbers, the shape keys and the values written again after a new look. It runs `coop closet option`
   too.
-- `tests/lua/closet/presets_test.lua` runs the presets over the real options layer and a fake dress: a save and a
+- `presets_test.lua` runs the presets over the real options layer and a fake dress: a save and a
   wear of the outfit, its variant and its values, the numbers after a delete, a rename, a preset of a gone outfit,
   the favourites, the file read back and `coop closet preset` and `coop closet favourite`.
-- `tests/lua/closet/thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
+- `thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
   sections, the rig's settings and its removal on each end path, the refusals, a run from the menu that waits for its
   close and the framing.
-- `tests/lua/closet/menu_test.lua` (5 checks) runs the closet menu on the fake kit and parts of
-  `tests/lua/closet/menu_fakes.lua`: what open draws, `coop closet menu`, the close paths and a draw that fails.
-- `tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style.
-- `tests/lua/closet/slots_test.lua` (8 checks), `fits_test.lua` (4), `dress_test.lua` (12), `json_test.lua` and
-  `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`,
-  with the assertions of `tests/lua/closet/helpers.lua`.
+- `model_test.lua` checks the menu's data model: the tabs, the rows, the tiles and the choice edits.
+- `menu_test.lua` runs the closet menu on the fake kit and parts of `menu_fakes.lua`: what open draws, `coop closet
+  menu`, the close paths, a draw that fails, the rows of each tab, the options page, the presets and the refusals.
+- `camera_test.lua` runs the closet camera over a fake controller, camera manager and EVE: the open, the region
+  framing, the FOV axis, the easing, the free mode's keys and pad, the reset, the camera file, the give-back on every
+  close path and the preview lights on the camera.
+- `lights_test.lua` runs the preview lights on a fake camera actor: each preset's lights, the preset cycle, the
+  intensity steps and limits, a saved preset read back and the lights' end with the camera.
+- `probe_test.lua` runs `coop closet probe` over a fake kit and fake widgets: the runner, its console words and the
+  tests of the game's parts.
+
+`tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style. The
+native tests `tests/native/closet/keys_test.cpp` and `tests/native/closet/packs_test.cpp` check the closet's reads as
+the DLL hands them to Lua (`closet/keys.h`) and the CNS pack list (`closet/packs.h`).
