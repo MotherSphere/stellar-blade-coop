@@ -20,10 +20,11 @@
 
 namespace coop {
 
-// One file under Content/Paks: its path from there ('/' or '\\' between folders) and its size in bytes.
+// One file under Content/Paks: its path from there ('/' or '\\' between folders), its size in bytes and its last
+// write time (a FILETIME as one number; 0 where nobody needs it).
 struct PakFile {
   std::string path;
-  uint64_t size = 0;
+  uint64_t size = 0, time = 0;
 };
 
 // What the files add up to: the .pak files beyond the base game's, and a hash of every such .pak, .ucas and .utoc
@@ -181,6 +182,22 @@ inline std::string mods_list(const std::vector<std::string> &names, size_t max) 
 inline bool cns_pack(std::string path) {
   path = paks_detail::lower(std::move(path));
   return path.rfind("~mods/", 0) == 0 && paks_detail::ends(path, ".dekcns.json");
+}
+// The CNS packs among the files for closet/packs.lua (coop-cns-packs.txt): a "<size> <time> <path>" line each, size
+// and time in decimal, the path as listed (its case, '\\' and spaces kept, last so a space survives), sorted by path,
+// the first kMaxCnsPacks; empty text without packs.
+// shortcut: the cap takes the first by sorted path while log_paks() reads the first in listing order, so past
+// kMaxCnsPacks packs the two sets can differ; sort the listing first if anyone installs that many.
+inline std::string cns_pack_list(std::vector<PakFile> files) {
+  files.erase(std::remove_if(files.begin(), files.end(), [](const PakFile &f) { return !cns_pack(f.path); }),
+              files.end());
+  std::sort(files.begin(), files.end(), [](const PakFile &a, const PakFile &b) { return a.path < b.path; });
+  if (files.size() > kMaxCnsPacks)
+    files.resize(kMaxCnsPacks);
+  std::string text;
+  for (const PakFile &f : files)
+    text += std::to_string(f.size) + " " + std::to_string(f.time) + " " + f.path + "\n";
+  return text;
 }
 // The outfits a pack's text declares: its "UniqueFitID" keys (the name in quotes, then a colon after any spaces).
 // ponytail: a key inside a JSON comment counts too; a full parser if a count ever has to be exact.

@@ -297,7 +297,8 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
 // outfits for the log and the status's cns= line, and the assets they declare (cns_assets) go to coop-cns.txt, a
 // "<path> <outfit>" line each, sorted, written at every start (empty without CNS packs): the only paths of a mod
 // online/partner/puppet.lua loads when a friend's table names one, and the outfits online/partner/capture.lua tags her
-// parts with.
+// parts with. The pack files themselves go to coop-cns-packs.txt ("<size> <time> <path>" lines, cns_pack_list), also
+// at every start, for closet/packs.lua, which reads and parses them.
 // The .uasset paths each mod container's .utoc indexes (utoc_assets, kMaxUtocBytes read of each), by container name,
 // kMaxModAssets in all, each path one game/table.h's path_allowed takes: what coop-shared-assets.txt lists of the
 // containers a friend has in the same version.
@@ -319,7 +320,7 @@ void log_paks() {
   uint64_t outfits = 0;
   std::map<std::string, std::string> assets;
   for (auto &f : files) {
-    paks.push_back({f.name, f.size});
+    paks.push_back({f.name, f.size, f.mtime});
     if (packs < coop::kMaxCnsPacks && coop::cns_pack(f.name)) {
       bool exists = false;
       ++packs;
@@ -348,6 +349,7 @@ void log_paks() {
   for (const auto &[path, fit] : assets)
     declared += path + " " + fit + "\n";
   write_text(folder + L"coop-cns.txt", declared);
+  write_text(folder + L"coop-cns-packs.txt", coop::cns_pack_list(paks)); // The pack files closet/packs.lua reads.
   game_paks = coop::digest(paks);
   game_mods = coop::mods(paks);
   std::string names = game_paks.names.size() > 1000 ? game_paks.names.substr(0, 1000) + "..." : game_paks.names;
@@ -1201,7 +1203,8 @@ DWORD WINAPI worker(void *) {
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt",
-                               L"coop-night.txt", L"coop-parked.txt", L"coop-cns.txt", L"coop-shared-assets.txt",
+                               L"coop-night.txt", L"coop-parked.txt", L"coop-cns.txt", L"coop-cns-packs.txt",
+                               L"coop-shared-assets.txt",
                                L"coop-drone.txt", L"coop-names.txt", L"coop-loaded.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables, addresses and a run's line from a previous run mean nothing now.
   for (size_t k = 1; k < coop::kMaxRemote; ++k) // And those of the other ghost slots.
