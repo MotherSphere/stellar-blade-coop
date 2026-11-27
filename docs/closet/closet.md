@@ -105,7 +105,7 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu, its HUD 
 | `ui/camera.lua` | The menu's camera: region and free modes, its pose kept in `coop-closet-camera.txt` |
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
-| `ui/hud.lua` | The closet's entry in SB's HUD item column, right of gun mode's: the closet key's icon on the keyboard or the LB and D-pad Left glyphs of the LB + D-pad Left chord on a controller, then the hanger icon |
+| `ui/hud.lua` | The closet's entry in SB's HUD item column, right of gun mode's: the closet key's icon on the keyboard (none for a key with Shift, Ctrl or Alt) or the LB and D-pad Left glyphs of the LB + D-pad Left chord on a controller, then the hanger icon |
 
 `wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `presets.lua` as
 `M.closet_presets`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`, `thumbs.lua` as

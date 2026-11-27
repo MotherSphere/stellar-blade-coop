@@ -392,8 +392,8 @@ function Hud.new(g)
         if not ok and not ui.place_logged then ui.place_logged=true; g.log('hud: not placed yet: '..tostring(perr)) end
     end
 
-    -- From the closet's tick: the entry on the HUD with the closet key (key: 'F1'; nil: no closet key, the pad glyphs
-    -- only). Nothing once hide took the entry off (coop off).
+    -- From the closet's tick: the entry on the HUD with the closet key (key: 'F1'; nil: no closet key or one with
+    -- Shift, Ctrl or Alt, the pad glyphs only). Nothing once hide took the entry off (coop off).
     function self.tick(key)
         if gone then return end
         hook()

@@ -98,7 +98,8 @@ end
 -- The closet's entry in SB's HUD item column (closet/ui/hud.lua), right of gun mode's: ten times a second, under a
 -- guard of its own, while the closet menu exists (main/ui.lua builds it with the Steam link only, as main/keys.lua
 -- binds the keys: without it nothing the entry shows opens the closet). It gets the closet key's F-key
--- (core/keybind.lua's key field: nil for none, so the keyboard shows no key cell). Without settings, F1, the default.
+-- (core/keybind.lua's key field: nil for none, so the keyboard shows no key cell). A key with Shift, Ctrl or Alt gives
+-- nil too: the entry shows one key icon, so Shift+F3 would show F3, the bike's key. Without settings, F1, the default.
 -- Its hook on SB's HUD Construct (d2de021b) is registered once a Lua load and stays while the module is off. It raises
 -- when UE4SS cannot hook the function.
 local Hud=require('closet.ui.hud')
@@ -112,6 +113,7 @@ local hud=Hud.new(Hud.helpers({log=function(m) print('[StellarCoop][CL] '..tostr
 local hud_at=0
 local function hud_key()
     if not (M.settings and M.settings.closet_key) then return 'F1' end
+    if M.settings.closet_key.mod then return nil end
     return M.settings.closet_key.key
 end
 local dress_tick,dress_stop=M.closet.tick,M.closet.stop

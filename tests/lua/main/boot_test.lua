@@ -1332,9 +1332,10 @@ status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
     assert(not table.concat(printed,'|'):find('key F1',1,true),'closet_key=none: F1 does nothing')
 end)()
 
--- The closet's HUD entry (closet/wiring.lua): ticked with the closet key's F-key, F1 unless set, the modifier left off
--- (the game's key icons have none), nil for none; ten times a second at most. coop off takes it off. Without the native
--- part no closet menu is built and no key or chord opens it: the entry is not ticked.
+-- The closet's HUD entry (closet/wiring.lua): ticked with the closet key's F-key, F1 unless set, nil for none; ten times
+-- a second at most. A key with Shift, Ctrl or Alt gives nil too: the entry shows one key icon, so Shift+F3 would show
+-- F3, the bike's key. coop off takes it off. Without the native part no closet menu is built and no key or chord opens
+-- it: the entry is not ticked.
 ;(function()
     local function keys(text,native)
         settings_text=text
@@ -1345,7 +1346,8 @@ end)()
     end
     local k=keys('')
     assert(k[1]=='F1' and #k>=2 and #k<=3,'F1 by default, ten times a second: '..table.concat(k,' '))
-    assert(keys('closet_key=Shift+F3\n')[1]=='F3','the closet key\'s F-key')
+    assert(keys('closet_key=F3\n')[1]=='F3','the closet key\'s F-key')
+    assert(keys('closet_key=Shift+F3\n')[1]=='none','a key with a modifier: nil')
     assert(keys('closet_key=none\n')[1]=='none','no closet key: nil')
     assert(#keys('',false)==0,'no tick without the native part')
     keys('')
