@@ -191,4 +191,13 @@ function Fits.piece(fit_id, slot)
     return nil
 end
 
+-- A fit id as a word of the closet's files and back: each byte outside [A-Za-z0-9_.-] is %XX, so a pack's UniqueFitID
+-- with a space, ':', ',', a tab or a non-ASCII letter survives the files' splits. A plain id is its own word.
+function Fits.word(fit_id)
+    return (tostring(fit_id):gsub('[^%w_%.%-]', function(c) return ('%%%02X'):format(c:byte()) end))
+end
+function Fits.unword(word)
+    return (tostring(word):gsub('%%(%x%x)', function(h) return string.char(tonumber(h, 16)) end))
+end
+
 return Fits

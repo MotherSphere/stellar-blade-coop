@@ -9,7 +9,8 @@
 -- whose outfit is not installed (its pack removed) stays in the file: list says gone and wear refuses it.
 -- A favourite is an outfit's UniqueFitID; fav turns it on or off.
 -- Both are kept in coop-closet-presets.txt (link.store, one line) as items split by tabs: 'fav <fit>',
--- '<n> <fit> <variant>', '<n> name=<name>' and '<n> <key>=<value>', sorted. They are read once at new.
+-- '<n> <fit> <variant>', '<n> name=<name>' and '<n> <key>=<value>', sorted, each fit id as Fits.word gives it. They
+-- are read once at new.
 -- o: {store=link.store(Presets.FILE), options=closet/options.lua's, dress=closet/dress.lua's (choices, installed,
 -- wear), log=}.
 local Fits=require('closet.fits')
@@ -29,20 +30,20 @@ function Presets.new(o)
         local n2,fit2,v=item:match('^(%d+) (%S+) (%d+)$')
         local n3,value=item:match('^(%d+) (%S+=%S+)$')
         n=tonumber(n or n2 or n3)
-        if fit then favs[fit]=true
+        if fit then favs[Fits.unword(fit)]=true
         elseif n then
             presets[n]=presets[n] or {values={}}
             if name then presets[n].name=name
-            elseif fit2 then presets[n].fit,presets[n].variant=fit2,tonumber(v)
+            elseif fit2 then presets[n].fit,presets[n].variant=Fits.unword(fit2),tonumber(v)
             else table.insert(presets[n].values,value) end
         end
     end
     for n,p in pairs(presets) do if not p.fit then presets[n]=nil end end -- An item with no outfit line.
     local function keep()
         local out={}
-        for fit in pairs(favs) do out[#out+1]='fav '..fit end
+        for fit in pairs(favs) do out[#out+1]='fav '..Fits.word(fit) end
         for n,p in pairs(presets) do
-            out[#out+1]=n..' '..p.fit..' '..p.variant
+            out[#out+1]=n..' '..Fits.word(p.fit)..' '..p.variant
             if p.name then out[#out+1]=n..' name='..p.name end
             for _,value in ipairs(p.values) do out[#out+1]=n..' '..value end
         end

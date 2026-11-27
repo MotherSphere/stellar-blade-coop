@@ -296,28 +296,29 @@ function Dress.plan(choices,fits,mode,toggles)
     return plan
 end
 
--- "fit:Slot,Slot fit2" -> choices, or nil and why.
+-- "fit:Slot,Slot fit2" -> choices, or nil and why. A fit word is Fits.word's: %XX gives the byte back.
 function Dress.parse(words)
     local choices={}
     for _,word in ipairs(words) do
-        local fit,slots=word:match('^([%w_%.%-]+):([%w,]+)$')
+        local fit,slots=word:match('^([%w_%.%-%%]+):([%w,]+)$')
         if fit then
             local list={}
             for slot in slots:gmatch('[^,]+') do list[#list+1]=slot end
-            choices[#choices+1]={fit=fit,slots=list}
-        elseif word:match('^[%w_%.%-]+$') then
-            choices[#choices+1]={fit=word}
+            choices[#choices+1]={fit=Fits.unword(fit),slots=list}
+        elseif word:match('^[%w_%.%-%%]+$') then
+            choices[#choices+1]={fit=Fits.unword(word)}
         else
             return nil,Dress.USE
         end
     end
     return choices
 end
--- choices -> "fit:Slot,Slot fit2", the words parse reads back (split on spaces).
+-- choices -> "fit:Slot,Slot fit2", the words parse reads back (split on spaces), each fit id as Fits.word gives it.
 function Dress.words(choices)
     local out={}
     for _,c in ipairs(choices) do
-        out[#out+1]=c.slots and c.fit..':'..table.concat(c.slots,',') or c.fit
+        local fit=Fits.word(c.fit)
+        out[#out+1]=c.slots and fit..':'..table.concat(c.slots,',') or fit
     end
     return table.concat(out,' ')
 end

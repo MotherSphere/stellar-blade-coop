@@ -32,8 +32,8 @@
 -- variant whose mesh does not load (dress.loads) is never worn: set_variant refuses it, a kept one is replaced by the
 -- first after the scan (said once, kept in the file).
 -- The values are kept in coop-closet-options.txt (link.store) as words split by tabs, '<fit> variant=<n>' and
--- '<fit> <variant> <key>=<value>' (on|off, r,g,b,a with custom: before it for a Custom colour, a number), sorted. They
--- are read once at new. reset(fit) gives one outfit its pack values back, off() (Reset Stellar Closet) every outfit and
+-- '<fit> <variant> <key>=<value>' (on|off, r,g,b,a with custom: before it for a Custom colour, a number), sorted, each
+-- fit id as Fits.word gives it. They are read once at new. reset(fit) gives one outfit its pack values back, off() (Reset Stellar Closet) every outfit and
 -- clears the file. stop() (coop off) drops the changes not shown yet and removes the shape keys it set: the dress gave
 -- EVE her own look back.
 -- o: {dress=closet/dress.lua's (plan, again, reshow, loads, applied, parts), store=link.store(Options.FILE), log=}.
@@ -148,11 +148,13 @@ function Options.new(o)
     for item in (store.load() or ''):gmatch('[^\t]+') do
         local fit,v=item:match('^(%S+) variant=(%d+)$')
         if fit then
+            fit=Fits.unword(fit)
             variants[fit]=tonumber(v)
             Fits.choose(fit,variants[fit])
         else
             local key,text
             fit,v,key,text=item:match('^(%S+) (%d+) (%S+)=(%S+)$')
+            fit=fit and Fits.unword(fit)
             local kind=fit and split(key)
             local value=kind and parse(kind,text)
             if value~=nil then
@@ -164,9 +166,10 @@ function Options.new(o)
     local function keep()
         changed=changed+1
         local out={}
-        for fit,v in pairs(variants) do out[#out+1]=fit..' variant='..v end
+        for fit,v in pairs(variants) do out[#out+1]=Fits.word(fit)..' variant='..v end
         for at,set in pairs(values) do
-            for key,value in pairs(set) do out[#out+1]=at..' '..key..'='..word(value) end
+            local fit,v=at:match('^(.+) (%d+)$')
+            for key,value in pairs(set) do out[#out+1]=Fits.word(fit)..' '..v..' '..key..'='..word(value) end
         end
         table.sort(out)
         if #out==0 then return store.clear() end
@@ -210,7 +213,7 @@ function Options.new(o)
             end
         end
         for at,set in pairs(values) do
-            local fit,v=at:match('^(%S+) (%d+)$')
+            local fit,v=at:match('^(.+) (%d+)$')
             local f=Fits.PACKS[fit]
             if not f then say('options: '..fit..' is not installed: its saved options are ignored')
             elseif not (f.Variants or {})[tonumber(v)] then
@@ -426,7 +429,7 @@ function Options.new(o)
             Fits.choose(fit,1)
             redress[fit]=true
         end
-        for at in pairs(values) do reshow[at:match('^(%S+) ')]=true end
+        for at in pairs(values) do reshow[at:match('^(.+) %d+$')]=true end
         values,variants={},{}
         keep()
         log('options: every outfit back to its pack values')

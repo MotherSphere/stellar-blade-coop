@@ -582,6 +582,27 @@ local tests = {
         for x in line:gmatch('%S+') do words[#words + 1] = x end
         eq(Dress.words(assert(Dress.parse(words))), line)
     end,
+    -- A pack's UniqueFitID is any text: each byte outside [A-Za-z0-9_.-] goes into the file as %XX (Fits.word), so the
+    -- next Lua load wears the same outfit again.
+    any_pack_id_survives_the_file = function()
+        local Dress = require('closet.dress')
+        local odd = 'Ocean Maid:v2,(Shadow)+\195\136ve%01\t'
+        local choices = {{fit = odd, slots = {'Chest'}}, {fit = 'Kunoichi(Shadow)'}, {fit = 'AiK_CH46_xSH_14462'}}
+        local line = Dress.words(choices)
+        eq(line, 'Ocean%20Maid%3Av2%2C%28Shadow%29%2B%C3%88ve%2501%09:Chest Kunoichi%28Shadow%29 AiK_CH46_xSH_14462')
+        local words = {}
+        for x in line:gmatch('%S+') do words[#words + 1] = x end
+        same(Dress.parse(words), choices, 'read back')
+        with_packs(function(w)
+            local Fits = require('closet.fits')
+            Fits.use({[odd] = pack_item(odd)})
+            assert(w.d.wear({{fit = odd}}))
+            local d = w.new()
+            d.tick()
+            ok(d.worn(), 'worn again') eq(d.choices()[1].fit, odd) eq(w.eve.Mesh.SkeletalMesh.path, PV1)
+            ok(logged(w, 'worn again'), 'restored')
+        end)
+    end,
     the_worn_choices_are_kept = function()
         local w = world()
         assert(w.d.wear({{fit = 'AiK_CH27_14595', slots = {'Chest'}}, {fit = 'AiK_CH46_xSH_14462',

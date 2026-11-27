@@ -295,6 +295,25 @@ local tests = {
             eq(good, false) ok(why:find('no variant 3', 1, true), why)
         end)
     end,
+    -- Any UniqueFitID: its file word is Fits.word's, read back as the same id (spaces, ':', '=', non-ASCII).
+    any_pack_id_survives_the_file = function()
+        local odd = 'Ocean = Maid:v2,(Shadow)+\195\136ve%01\t'
+        Fits.use({[odd] = suit(odd)})
+        local good, why = pcall(function()
+            local r = rig()
+            ok(r.o.set_variant(odd, 2))
+            ok(r.o.set(odd, 2, 'toggle:4', false))
+            ok(not r.file:find(' Maid', 1, true), r.file)
+            local again = r.new()
+            eq(again.variant(odd), 2, 'its variant read back') eq(again.get(odd, 2, 'toggle:4'), false, 'its value')
+            eq(again.toggles()[odd][4], false, 'in the plans\' toggles')
+            again.off()
+            eq(r.file, nil, 'off clears every value of it')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
     a_saved_value_for_a_gone_slot_is_ignored_once = function()
         local r = rig('s 1 toggle:9=on\tgone 1 toggle:3=off\ts 1 toggle:4=off\ts variant=7')
         with_suit(function()
