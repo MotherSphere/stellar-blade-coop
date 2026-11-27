@@ -360,6 +360,10 @@ local tests = {
             ok(r.o.set_variant(odd, 2))
             ok(r.o.set(odd, 2, 'toggle:4', false))
             ok(not r.file:find(' Maid', 1, true), r.file)
+            -- A game restart: the catalogue scanned again with no variant chosen, so the variant comes from the file.
+            Fits.CHOSEN = {}
+            Fits.use({[odd] = suit(odd)})
+            eq(Fits.PACKS[odd].Variant, 1, 'the scan alone wears the first')
             local again = r.new()
             eq(again.variant(odd), 2, 'its variant read back') eq(again.get(odd, 2, 'toggle:4'), false, 'its value')
             eq(again.toggles()[odd][4], false, 'in the plans\' toggles')
