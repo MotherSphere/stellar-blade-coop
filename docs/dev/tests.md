@@ -586,8 +586,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   question, the two boxes and the host's question, which ignores them for 1 s and never takes View held; LB, RB and Y
   taken and doing nothing there; the Online tab's event 12 going to the pause tab only, the open menu and the host's
   question keeping their focus; at most 8 a frame; an older DLL without it; the closet's event 14 toggling the closet
-  menu, closed under the bike's refusals, open as its Back paused or not, nothing under the host's question), the
-  Online tab's close from a fake
+  menu, closed under the bike's refusals, open as its Back paused or not, nothing under the host's question; `closet
+  on` asked at the load's first pass while the closet module is on, `closet off` once it is off, each change once,
+  nothing after `coop off`), the Online tab's close from a fake
   `coop_pause_close` (its three answers, an older DLL without it), the mouse in the menu and on the host's question (a
   left click going to the pause menu's Online tab while a pause menu holds it), the focus watchdog's reset, the Lua
   frame time line with its longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call
@@ -1044,7 +1045,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
   `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
   `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `pausetab on` and `pausetab off`;
-  `popups on` and `popups off`; `loading lift`; `sky off`, `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz>
+  `popups on` and `popups off`; `closet on` and `closet off`; `loading lift`; `sky off`, `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz>
   <H>` with their ranges; `world` and `scenes` with `on`, `off` or `status`; `nightshop`, `roxanne`, `lily`, `guardtext`
   and the 8 `signal` words, in `story/quests/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`, `abort`,
   `leave`, `seq`) and their refusals, the score request, the mode request (`mode <word> <text>`), `fishbook <ask>` (1
@@ -1697,9 +1698,11 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   posted into the queue in order with the pad's, a full queue dropping the newest; the emote wheel's reads: the right
   stick's sector (0 inside half its range, 1 to 72 clockwise from up), D-pad Left held 300 ms making event 13 once a
   hold (not at 299 ms, again after a release, forgotten with no pad), the right stick from XInput's slots and from
-  `PadKeys` (the controller pushed furthest, `clear()`); the closet's reads: LB held + D-pad Left making event 14 once
-  (after its left, both in one step too, from `PadKeys` too) and never the wheel's event, LB let go first or not,
-  D-pad Left alone still the wheel's, D-pad Left held before LB no chord and no wheel, the stick held left no chord;
+  `PadKeys` (the controller pushed furthest, `clear()`); the closet's chord with Lua's `closet on`: LB held + D-pad
+  Left making event 14 once (after its left, both in one step too, from `PadKeys` too) and never the wheel's event, LB
+  let go first or not, D-pad Left alone still the wheel's, D-pad Left held before LB no chord and no wheel, the stick
+  held left no chord; without `closet on`, LB and D-pad Left as without the closet (no event 14, event 13 after 300 ms
+  with LB held, LB pressed during the hold), the chord from the next press once it is on;
   X, L3 and R3 in the buttons from XInput's slots and `PadKeys`; the triggers from XInput's first pad and from
   `PadKeys` (0 to 1 as 0 to 255, clamped, the one pulled furthest, `clear()`);
 - `closet_keys_test`: the closet's reads as the DLL hands them to Lua (`closet/keys.h`): the camera's held keys as

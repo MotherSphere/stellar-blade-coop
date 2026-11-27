@@ -992,8 +992,9 @@ inline std::string masked(std::string_view text) {
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
 // online/lobby/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, ui/pause_tab.h)
 // "pausetab on|off"; for the game's tutorial and record popups during online play (online/session/options.h) "popups
-// on|off"; for Doro races' hold on EVE (online/modes/race/hold.h) "race hold on|off" (drive.lua: her movement's four
-// fields at 0) and "race tick on|off" (doro.lua: her mesh's tick option); for the day/night cycle
+// on|off"; for the closet's pad chord (ui/pad.h's kCloset, main/pass.lua) "closet on|off"; for Doro races' hold on
+// EVE (online/modes/race/hold.h) "race hold on|off" (drive.lua: her movement's four fields at 0) and "race tick
+// on|off" (doro.lua: her mesh's tick option); for the day/night cycle
 // (world/daynight/sky.h, world/daynight/daynight.lua) "sky off|hold", "sky cycle <hz> <heading>" and "sky hour <minute>
 // <hz> <heading>" (whole numbers: hz 0 to 30, heading 0 to 359, minute 0 to 1439); for the SBO lobby arrival's black
 // (online/lobby/arrival.lua, online/lobby/loading_game.inc) "loading lift"; for the co-op saves (game/slot.h,
@@ -1074,7 +1075,7 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
   signal, match, mute, sbo, guardtext, hud, loading, world, scenes, bike, block, unblock, list, where, rules, sky,
-  pausetab, popups, teamshop, score, spot, rest, mode, fishbook, dr, race, photohunt, spectate, sboxion
+  pausetab, popups, teamshop, score, spot, rest, mode, fishbook, dr, race, photohunt, spectate, sboxion, closet
 };
 // match: "match search <mode> <room> <hall>" (quick match: join an open Public lobby of that mode and hall, or host
 // one), "match create <mode> <room> <hall>" (a private match lobby joined with its code), "match cancel" (forget the
@@ -1158,8 +1159,9 @@ struct Request {
   uint8_t gate = 0;                      // gate: eve/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
-  bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on, race hold on and
-                                         // race tick on (true) or off (race: text holds hold or tick); host ... ask.
+  bool on = false;                       // roxanne on, lily on, hud hide on, pausetab on, popups on, closet on, race
+                                         // hold on and race tick on (true) or off (race: text holds hold or tick); host
+                                         // ... ask.
                                          // sboxion: enter (true) or leave.
   bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
   uint8_t signal = 0;                    // signal: its word's index in kSignalWords.
@@ -1680,6 +1682,9 @@ inline Request parse_request(std::string text) {
     r.on = text.size() == 11;
   } else if (text == "popups on" || text == "popups off") {
     r.command = Command::popups;
+    r.on = text.size() == 9;
+  } else if (text == "closet on" || text == "closet off") {
+    r.command = Command::closet;
     r.on = text.size() == 9;
   } else if (split(text, f, 3, nullptr) && f[0] == "race" && (f[1] == "hold" || f[1] == "tick") &&
              (f[2] == "on" || f[2] == "off")) {

@@ -22,10 +22,11 @@ if M.link then
     local shared_seen=0 -- link.shared_version() as last acted on.
     -- An on or off setting the native part takes through its own ask (hide_popups: popups on or off), asked at the
     -- first pass of a Lua load and at each change of the setting. A request that cannot be written is asked again at
-    -- each pass and logged once, as hud_pass does. switch_asked: the value last asked, by key.
+    -- each pass and logged once, as hud_pass does. switch_asked: the value last asked, by key. want, when given,
+    -- stands for the setting (the closet's pad chord: on while the closet module is on).
     local switch_asked,switch_refused={},{}
-    local function switch_pass(key,word)
-        local want=M.settings[key]==true
+    local function switch_pass(key,word,want)
+        if want==nil then want=M.settings[key]==true end
         if want==switch_asked[key] then return end
         local line=word..(want and ' on' or ' off')
         local ok,why=M.link.request(line)
@@ -42,6 +43,10 @@ if M.link then
         M.guarded('daynight',M.daynight.slow,M.off) -- After coop off too: it asks sky off once.
         M.guarded('pause tab',M.pause_tab.slow) -- Asks pausetab on or off; nothing after coop off.
         if not M.off then M.guarded('popups',switch_pass,'hide_popups','popups') end -- Asks popups on or off.
+        -- Asks closet on or off: LB held + D-pad Left makes the pad's closet event only while the closet module is on.
+        if not M.off then
+            M.guarded('closet',switch_pass,'closet','closet',not M.off_modules.closet)
+        end
         if not M.off then M.guarded('nightop',M.night.tick) end -- Night Operation's run, if any: it logs its own lines.
         -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
         M.guarded('roxanne',M.roxanne.tick,M.off)

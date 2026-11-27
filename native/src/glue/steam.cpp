@@ -866,6 +866,10 @@ bool step() {
       coop::pose::ask_popups(coop::parse_request(request).on);
       request.clear();
       break;
+    case coop::Command::closet: // The closet's pad chord: the game thread's pad step reads it; logged.
+      coop::pose::ask_pad_closet(coop::parse_request(request).on);
+      request.clear();
+      break;
     case coop::Command::sky: // The day/night cycle: the game thread's; each change of state is logged.
       coop::pose::ask_sky(coop::parse_request(request));
       request.clear();

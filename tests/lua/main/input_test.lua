@@ -600,6 +600,35 @@ end)()
     assert(not logged('pad: error'),'the stub takes it and raises nothing')
 end)()
 
+-- The pad's closet chord is the native part's only while Lua asks closet on (main/pass.lua): at the load's first 250 ms
+-- pass with the closet module on, closet off once it is off (it failed at load or at a build step), each change asked
+-- once, nothing after coop off. Without the ask the native part makes no closet event and LB keeps the emote wheel's
+-- D-pad Left hold (ui/pad.h).
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    Loader.run=run
+    assert(#closet_asks==0,'nothing asked before the first pass')
+    quarter()
+    assert(closet_asks[1]=='closet on' and #closet_asks==1,'the load asks closet on')
+    quarter()
+    assert(#closet_asks==1,'asked once')
+    M.off_modules.closet='boom'
+    quarter(); quarter()
+    assert(closet_asks[2]=='closet off' and #closet_asks==2,'an off closet module: closet off, once')
+    M.off_modules.closet=nil
+    quarter()
+    assert(closet_asks[3]=='closet on' and #closet_asks==3,'on again')
+    coop('off')
+    M.off_modules.closet='boom'
+    quarter()
+    assert(#closet_asks==3,'nothing asked after coop off')
+end)()
+
 -- The controllers the mod reads, said the same way in INSTALL.md and docs/players/interface.md (any controller the game
 -- reads, XInput only as the fallback); no comment still says only an XInput pad can answer the saves' question or the
 -- guide.

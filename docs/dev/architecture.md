@@ -488,8 +488,11 @@ from the game.
   View held 1000 ms for the menu, once a hold, LB and RB for the tab to the left and right and Y for the Sessions
   screen's Refresh, once a press. D-pad Right held 1000 ms gives the [bike](../vehicles/bike-internals.md)'s event, once
   a hold, after its right. D-pad Left held 300 ms gives the emote wheel's event (13), once a hold, after its left.
-  D-pad Left pressed while LB is held gives the closet's event (14), after its left. Neither that hold nor any D-pad
-  Left hold while LB is held gives the wheel's event. A ring of 8 holds them; a full ring drops the newest. `PadKeys`
+  While Lua asks `closet on`, D-pad Left pressed while LB is held gives the closet's event (14), after its left.
+  Neither that hold nor any D-pad Left hold while LB is held gives the wheel's event then. `main/pass.lua` asks
+  `closet on` at the first 250 ms pass of a Lua load while the closet module is on, and `closet off` once it is off.
+  Until the first ask, and after `closet off`, LB and D-pad Left give only their own events, as without the closet. A
+  ring of 8 holds them; a full ring drops the newest. `PadKeys`
   and the XInput slots also read the right stick (`Gamepad_RightX`, `Gamepad_RightY`; `sThumbRX`, `sThumbRY`), the
   triggers (`Gamepad_LeftTriggerAxis`, `Gamepad_RightTriggerAxis`; `bLeftTrigger`, `bRightTrigger`) and X, L3 and R3
   (`Gamepad_FaceButton_Left`, `Gamepad_LeftThumbstick`, `Gamepad_RightThumbstick`), which make no event.
