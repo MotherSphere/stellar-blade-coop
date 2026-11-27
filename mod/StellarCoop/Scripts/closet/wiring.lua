@@ -71,17 +71,41 @@ M.closet_thumbs=thumbs -- The menu's Make preview pictures row starts it.
 M.closet_packs=require('closet.packs').new({paks=require('core.pak_gate').paks_of(M.folder),
     list=M.folder and M.folder..'\\coop-cns-packs.txt',read=require('core.link').files.read,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
--- Each scan's suits become closet/fits.lua's pack fits (Fits.use): Full outfit lists them, the dress wears them whole.
+-- Each scan's suits and head pieces become closet/fits.lua's pack fits (Fits.use): Full outfit lists the suits, the
+-- Head tab the rest. The stock hairs and ponytails (closet/head/stock.lua, read from the game's tables) join the pack
+-- catalogue there; a pack item whose id starts with SB. is refused (those ids are the stock's). Stock.build gives the
+-- two cut hairs and a why when its read fails: that is merged and read again at the next once() in a world.
+local Fits=require('closet.fits')
+local Stock=require('closet.head.stock')
+local stock,stock_ok,last={},false,{}
+local function say(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end
+local function merge()
+    local merged={}
+    for id,item in pairs(last) do
+        if tostring(id):sub(1,3)=='SB.' then say('pack item '..tostring(id)..' refused: SB. ids are the stock ids')
+        else merged[id]=item end
+    end
+    for id,item in pairs(stock) do merged[id]=item end
+    Fits.use(merged)
+end
+local function build_stock()
+    local ok,items,why=pcall(function() return Stock.build(Stock.env(say)) end)
+    if ok then stock,stock_ok=items or {},why==nil else say('stock: '..tostring(items)) end
+end
 local scan=M.closet_packs.scan
 M.closet_packs.scan=function()
     local catalogue,report=scan()
-    require('closet.fits').use(catalogue)
+    last=catalogue or {}
+    if not stock_ok then build_stock() end
+    merge()
     return catalogue,report
 end
--- The first scan, once, under a guard of its own: at the menu's first open or the dress's restore of a kept look.
+-- The first scan, once, under a guard of its own: at the menu's first open or the dress's restore of a kept look. A
+-- stock read that failed is made again at the next call in a world (a map load).
 local scanned=false
 M.closet_packs.once=function()
-    if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan) end
+    if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan)
+    elseif not stock_ok and M.hud_shown then M.guarded('closet stock',function() build_stock(); merge() end) end
 end
 -- The closet's entry in SB's HUD item column (closet/ui/hud.lua), right of gun mode's: ten times a second, under a
 -- guard of its own, with the closet key's F-key (core/keybind.lua's key field: nil for none, so the keyboard shows no

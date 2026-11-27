@@ -57,6 +57,37 @@ local tests = {
         ok(good, why)
         eq(Fits.get('AiK_CH27_14595'), hand, 'no catalogue: the hand fit')
     end,
+    a_head_item_becomes_a_head_fit = function()
+        local it = item('h', {Slot = 'Hair', AnimationBP = '/Game/A.A_C', PhysicsAsset = '/Game/Q.Q'})
+        it.Variants[1].PonyPhysics = '/Game/P.P'
+        local fit = Fits.pack(it, 1)
+        same({fit.Slot, fit.Origin, fit.AnimationBP, fit.PonyPhysics, fit.PhysicsAsset},
+            {'Hair', 'custom', '/Game/A.A_C', '/Game/P.P', '/Game/Q.Q'}, 'the head fields')
+        same(fit.Pieces, {{Slot = 'Hair', Name = 'Pack h'}}, 'one piece in its slot')
+    end,
+    a_stock_variant_brings_its_own_controls = function()
+        local own = {MaterialToggles = {}, VectorControls = {{DisplayName = 'Root colour'}}}
+        local it = item('SB.Hair_001', {Slot = 'Hair', Origin = 'original'})
+        it.Variants[2].UserConfigs = own
+        eq(Fits.pack(it, 2).Controls, own, 'its own controls')
+        eq(Fits.pack(it, 1).Controls, it.UserConfigs, 'the item controls without one')
+        eq(Fits.pack(it, 2).Origin, 'original')
+    end,
+    heads_list_stock_first = function()
+        local ok_use = pcall(Fits.use, {b = item('b', {Slot = 'Hair', DisplayName = 'Zed'}),
+            a = item('a', {Slot = 'Hair', DisplayName = 'zed'}), p = item('p', {Slot = 'Ponytail'}),
+            ['SB.Hair_002'] = item('SB.Hair_002', {Slot = 'Hair', Origin = 'original', DisplayName = 'Beta'}),
+            ['SB.Hair_001'] = item('SB.Hair_001', {Slot = 'Hair', Origin = 'original', DisplayName = 'alpha'}),
+            s = item('s')})
+        local good, why = pcall(function()
+            same(Fits.heads('Hair'), {'SB.Hair_001', 'SB.Hair_002', 'a', 'b'}, 'stock first, then by name and id')
+            same(Fits.heads('Ponytail'), {'p'}) eq(Fits.get('b').Slot, 'Hair')
+            local all = Fits.all()
+            ok(all.s and not all.b and not all.p and not all['SB.Hair_001'], 'Fits.all: suits only')
+        end)
+        Fits.use(nil)
+        ok(ok_use and good, why)
+    end,
     variant_one_is_worn_by_default = function()
         local all = Fits.all({['p.suit'] = item('p.suit')})
         eq(all['p.suit'].Variant, 1) eq(all['p.suit'].Mesh, '/Game/P/V1.V1')

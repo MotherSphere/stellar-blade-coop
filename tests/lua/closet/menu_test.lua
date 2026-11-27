@@ -2977,6 +2977,67 @@ local tests = {
         ok(menu_got.uidev == M.link.uidev, 'the menu reads SB\'s input device through the link (its prompts follow it)')
     end,
 
+    the_wiring_merges_stock_items = function()
+        -- closet/wiring.lua's scan wrapper: the stock items (Stock.build) join the pack catalogue at Fits.use; a pack
+        -- item with an SB. id is refused with a log line; a failed stock read (items and a why) merges what came back
+        -- and is read again at the next once() in a world.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring', 'closet.packs',
+            'closet.head.stock'}) do saved[name] = package.loaded[name] end
+        package.loaded['closet.dress'] = {new = function()
+            return {tick = function() end, stop = function() end, installed = function() return true end,
+                applied = function() return 0 end, parts = function() return {} end}
+        end}
+        package.loaded['closet.ui.probe'] = {new = function() return {tick = function() end, stop = function() end} end}
+        local Packs = saved['closet.packs'] or require('closet.packs')
+        local function pack(id, extra)
+            local it = {UniqueFitID = id, DisplayName = id, Slot = 'Hair', File = 'P.dekcns.json',
+                Variants = {{Mesh = '/Game/M.M'}}, UserConfigs = {MaterialToggles = {}}}
+            for k, v in pairs(extra or {}) do it[k] = v end
+            return it
+        end
+        package.loaded['closet.packs'] = setmetatable({new = function()
+            return {scan = function() return {b = pack('b'), ['SB.x'] = pack('SB.x')}, {why = 'test'} end}
+        end}, {__index = Packs})
+        local builds, why = 0, 'stock: no table'
+        package.loaded['closet.head.stock'] = {env = function() return {} end, build = function()
+            builds = builds + 1
+            return {['SB.Hair_001'] = pack('SB.Hair_001', {Origin = 'original'})}, why
+        end}
+        package.loaded['closet.wiring'] = nil
+        local Fits = require('closet.fits')
+        local lines = {}
+        local M = {print = function(s) lines[#lines + 1] = s end, guarded = function(_, f, ...) return f(...) end,
+            link = {status = function() return '' end, store = function()
+                return {save = function() return true end, load = function() end, clear = function() end}
+            end}}
+        local ran, err = pcall(function()
+            local commands = require('closet.wiring').new(M)
+            ok(commands.closet('rescan'), 'rescan')
+            ok(Fits.get('SB.Hair_001'), 'the stock item is a fit after the rescan')
+            eq(Fits.get('SB.Hair_001').Origin, 'original')
+            ok(Fits.get('b') and not Fits.get('SB.x'), 'the pack item stays, the SB. pack item is refused')
+            local logged = false
+            for _, l in ipairs(lines) do logged = logged or (l:find('SB.x', 1, true) and l:find('refused', 1, true)) end
+            ok(logged, 'the refusal is logged')
+            eq(builds, 1, 'built once')
+            M.closet_packs.once() -- First call: the scan.
+            eq(builds, 2, 'a failed read is read again by the first scan')
+            M.closet_packs.once()
+            eq(builds, 2, 'not in a world: no new read')
+            M.hud_shown = true
+            why = nil
+            M.closet_packs.once()
+            eq(builds, 3, 'in a world: read again')
+            M.closet_packs.once()
+            eq(builds, 3, 'built: not again')
+            ok(Fits.get('SB.Hair_001'), 'still merged')
+        end)
+        for name, mod in pairs(saved) do package.loaded[name] = mod end
+        Fits.use(nil)
+        ok(ran, tostring(err))
+    end,
+
     the_wiring_builds_the_shape_layer = function()
         -- closet/wiring.lua's new: the shape layer over the dress with coop-closet-shape.txt through the link, as
         -- M.closet_shape; ticked each frame right after the colour layer (menu open or not), stopped by coop off; the
