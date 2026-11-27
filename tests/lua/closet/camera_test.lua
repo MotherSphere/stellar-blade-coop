@@ -659,9 +659,11 @@ local tests = {
             'a middle drag pans the framing as it pans the free pose')
     end,
 
-    -- The mouse wheel (notches since the last read, up positive): each notch up zooms in by ZOOM, down out. In region
-    -- mode a turn goes to free mode first, as a right drag does. Turns before the open are dropped.
-    the_mouse_wheel_zooms = function()
+    -- The mouse wheel (notches since the last read, up positive): each notch up zooms in by ZOOM, down out, once the
+    -- camera was moved another way (a drag, a camera key or word, the pad) since the open or the last menu move; until
+    -- then the wheel is the menu's and zooms nothing (Schizo, 27 Nov 2026: it zoomed and scrolled the grid at once).
+    -- In region mode a zooming turn goes to free mode first, as a right drag does. Turns before the open are dropped.
+    the_mouse_wheel_zooms_after_a_camera_move = function()
         local c = world(function(w) w.file = '	free	0	0	300	100	0'; w.wheel = 5 end)
         c.open()
         frames(c, 0.05, 'full')
@@ -669,11 +671,21 @@ local tests = {
         W.wheel = 2
         c.tick(1 / 60, 'full')
         c.tick(1 / 60, 'full')
-        near(fields().dist, 300 * (1 - Camera.ZOOM) ^ 2, 0.01, 'two notches up: in by ZOOM twice')
+        near(fields().dist, 300, 0.01, 'no camera move yet: the wheel stays with the menu')
+        c.word('cam_left')
+        W.wheel = 2
+        c.tick(1 / 60, 'full')
+        c.tick(1 / 60, 'full')
+        near(fields().dist, 300 * (1 - Camera.ZOOM) ^ 2, 0.01, 'after a camera move: in by ZOOM twice')
         W.wheel = -2
         c.tick(1 / 60, 'full')
         c.tick(1 / 60, 'full')
         near(fields().dist, 300, 0.01, 'two notches down: back out')
+        c.menu_used()
+        W.wheel = 2
+        c.tick(1 / 60, 'full')
+        c.tick(1 / 60, 'full')
+        near(fields().dist, 300, 0.01, 'a menu move: the wheel back with the menu')
         c = world(function(w) w.keys = 0 end)
         c.open()
         frames(c, 0.05, 'full')
@@ -681,7 +693,14 @@ local tests = {
         W.wheel = 1
         c.tick(1 / 60, 'full')
         c.tick(1 / 60, 'full')
-        eq(c.mode(), 'free', 'a wheel turn goes to free mode')
+        eq(c.mode(), 'region', 'a wheel turn alone stays in region mode')
+        W.keys = 64 -- L held: in region mode it pans the framing, a camera move.
+        c.tick(1 / 60, 'full')
+        W.keys = 0
+        W.wheel = 1
+        c.tick(1 / 60, 'full')
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'free', 'then a wheel turn goes to free mode')
         near(fields().dist, Camera.framing('full', 180, 0.55, TANV).dist * (1 - Camera.ZOOM), 0.01,
             'zoomed in from the region framing')
     end,

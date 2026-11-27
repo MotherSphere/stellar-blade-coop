@@ -216,6 +216,7 @@ local function fake_camera()
     c.held, c.due = false, false
     c.hold_back = function() return c.held end
     c.take_back = function() local d = c.due; c.due = false; return d end
+    c.menu_used = function() c.calls[#c.calls + 1] = 'menu_used' end
     return c
 end
 
@@ -2786,6 +2787,9 @@ local tests = {
         same(cam.calls, {'open', 'cam_left', 'cam_right', 'cam_up', 'cam_down', 'cam_in', 'cam_out', 'cam_mode',
             'cam_reset', 'light_next', 'light_up', 'light_down'}, 'every camera and light word')
         ok(r.menu.is_open(), 'still open')
+        -- A menu move gives the wheel back to the menu (camera.menu_used); a camera word does not.
+        at(r, 0.15, 'down')
+        eq(cam.calls[#cam.calls], 'menu_used', 'a menu move told')
         -- On the pad, the camera hint row at y 1890 left to right: Preview picture on View (held), the light preset on
         -- L3, the mode on X, Reset on R3.
         r.dev = 3

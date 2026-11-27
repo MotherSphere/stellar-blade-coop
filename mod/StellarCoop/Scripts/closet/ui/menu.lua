@@ -896,6 +896,8 @@ function Menu.new(o)
         if word=='picture' then return snapshot() end
         -- A right press may start a camera drag: its Back waits for the release (self.tick, camera.take_back).
         if word=='back' and camera and camera.hold_back() then return end
+        -- A menu move: the mouse wheel is the menu's again until the camera moves another way (Schizo, 27 Nov 2026).
+        if camera and camera.menu_used then camera.menu_used() end
         if word=='tab_left' then undo={tab,row,col,tile,tab_top,page,from_row,at=frame} -- For closet_key (self.toggle).
         elseif word=='left' and undo then undo.at=frame
         else undo=nil end
