@@ -451,6 +451,8 @@ return {
             off='ซ่อนไว้เป็นค่าเริ่มต้นในชุดของมัน'},
         origin={original='ต้นฉบับ',custom='กำหนดเอง: %s'},
         head={own='ของเกม',no_ponytail='ไม่มีหางม้า',
+            long_ponytail='หางม้ายาว',short_ponytail='หางม้าสั้น',
+            colours={RootColor='สีโคนผม',TipColor='สีปลายผม',DyeColor='สีย้อม'},
             pack_ponytail='ทรงผมจากแพ็กมักมีหางม้าของตัวเอง'},
         hints={wear='สวม',take_off='ถอด',whole='ทั้งชุด',options='ตัวเลือก',change='เปลี่ยน',
             reset='รีเซ็ต',fav='รายการโปรด',unfav='เลิกโปรด',delete='ลบ'},

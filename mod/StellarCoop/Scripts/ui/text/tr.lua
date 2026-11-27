@@ -495,6 +495,8 @@ return {
             off='Kıyafetinde varsayılan olarak gizli'},
         origin={original='Orijinal',custom='Özel: %s'},
         head={own='Oyunun kendi',no_ponytail='At kuyruğu yok',
+            long_ponytail='Uzun at kuyruğu',short_ponytail='Kısa at kuyruğu',
+            colours={RootColor='Dip rengi',TipColor='Uç rengi',DyeColor='Boya rengi'},
             pack_ponytail='Paket saçlarının genellikle kendi at kuyruğu vardır.'},
         hints={wear='Giy',take_off='Çıkar',whole='Tüm kıyafet',options='Seçenekler',change='Değiştir',
             reset='Sıfırla',fav='Favori',unfav='Favoriden çık',delete='Sil'},

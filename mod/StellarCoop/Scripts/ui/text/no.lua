@@ -486,6 +486,8 @@ return {
             off='Skjult som standard i antrekket sitt'},
         origin={original='Original',custom='Egendefinert: %s'},
         head={own='Spillets egen',no_ponytail='Ingen hestehale',
+            long_ponytail='Lang hestehale',short_ponytail='Kort hestehale',
+            colours={RootColor='Rotfarge',TipColor='Tuppfarge',DyeColor='Fargingsfarge'},
             pack_ponytail='Hår fra pakker har som regel sin egen hestehale.'},
         hints={wear='Ta på',take_off='Ta av',whole='Hele antrekket',options='Valg',change='Endre',
             reset='Tilbakestill',fav='Favoritt',unfav='Fjern favoritt',delete='Slett'},

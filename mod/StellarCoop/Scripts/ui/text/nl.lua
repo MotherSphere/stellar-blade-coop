@@ -495,6 +495,8 @@ return {
             off='Standaard verborgen in zijn outfit'},
         origin={original='Origineel',custom='Aangepast: %s'},
         head={own='Van het spel',no_ponytail='Geen paardenstaart',
+            long_ponytail='Lange paardenstaart',short_ponytail='Korte paardenstaart',
+            colours={RootColor='Wortelkleur',TipColor='Puntkleur',DyeColor='Verfkleur'},
             pack_ponytail='Kapsels uit packs hebben meestal hun eigen paardenstaart.'},
         hints={wear='Dragen',take_off='Uittrekken',whole='Hele outfit',options='Opties',change='Aanpassen',
             reset='Herstellen',fav='Favoriet',unfav='Geen favoriet',delete='Wissen'},

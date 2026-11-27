@@ -430,6 +430,8 @@ return {
             off='衣装では初期状態で非表示'},
         origin={original='オリジナル',custom='カスタム：%s'},
         head={own='ゲーム標準',no_ponytail='ポニーテールなし',
+            long_ponytail='ロングポニーテール',short_ponytail='ショートポニーテール',
+            colours={RootColor='根元の色',TipColor='毛先の色',DyeColor='染めの色'},
             pack_ponytail='パックの髪型には通常、専用のポニーテールが付いています。'},
         hints={wear='着る',take_off='脱ぐ',whole='衣装一式',options='オプション',change='変更',
             reset='リセット',fav='お気に入り',unfav='お気に入り解除',delete='削除'},

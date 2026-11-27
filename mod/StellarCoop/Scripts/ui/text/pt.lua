@@ -500,6 +500,8 @@ return {
             off='Escondido por predefinição na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
         head={own='Do jogo',no_ponytail='Sem rabo de cavalo',
+            long_ponytail='Rabo de cavalo longo',short_ponytail='Rabo de cavalo curto',
+            colours={RootColor='Cor da raiz',TipColor='Cor das pontas',DyeColor='Cor da tintura'},
             pack_ponytail='Os cabelos de pacotes costumam ter o próprio rabo de cavalo.'},
         hints={wear='Vestir',take_off='Tirar',whole='Roupa completa',options='Opções',change='Alterar',
             reset='Repor',fav='Favorito',unfav='Tirar favorito',delete='Apagar'},

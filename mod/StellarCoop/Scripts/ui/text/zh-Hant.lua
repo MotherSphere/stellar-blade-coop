@@ -390,6 +390,8 @@ return {
         detail={outfit='服裝：%s',slot='欄位：%s',covers='覆蓋：%s',also='同時佔用：%s',off='在所屬服裝中預設隱藏'},
         origin={original='原版',custom='自訂：%s'},
         head={own='遊戲原有',no_ponytail='無馬尾',
+            long_ponytail='長馬尾',short_ponytail='短馬尾',
+            colours={RootColor='髮根顏色',TipColor='髮梢顏色',DyeColor='染色顏色'},
             pack_ponytail='包內髮型通常自帶馬尾。'},
         hints={wear='穿上',take_off='脫下',whole='整套服裝',options='選項',change='變更',
             reset='重設',fav='收藏',unfav='取消收藏',delete='刪除'},

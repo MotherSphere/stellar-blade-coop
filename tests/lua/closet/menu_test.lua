@@ -269,11 +269,12 @@ local function on_top(r)
     at(r, 0.05, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down')
     eq((detail(r)), 'Top', 'on the Top row')
 end
--- Head items (closet/head/stock.lua's shape) with two variants and a Root colour: the stock hair Bob and ponytail Long
--- ponytail, a pack hair and ponytail, the No ponytail item (empty Mesh, no name of its own); Aria too.
+-- Head items (closet/head/stock.lua's shape) with two variants and a colour named Root: the stock hair Bob and the long
+-- ponytail (named by its table row only, as in game), a pack hair and ponytail, the No ponytail item (empty Mesh, no
+-- name of its own); Aria too.
 local HAIR, TAIL = 'SB.Hair_001', 'SB.Ponytail_Long'
 local function head_item(slot, id, name, origin)
-    local controls = {VectorControls = {{DisplayName = 'Root colour', ParamName = 'RootColor', MaterialIndex = 0,
+    local controls = {VectorControls = {{DisplayName = 'Root', ParamName = 'RootColor', MaterialIndex = 0,
         Value = {0.5, 0.5, 0.5, 1}}}}
     local function variant(mesh)
         return {Mesh = mesh, HiddenMats = {}, Materials = {}, Parameters = {}, UserConfigs = controls}
@@ -286,7 +287,7 @@ end
 local function heads(choices, extra)
     local o = extra or {}
     o.catalogue = {[ARIA] = aria(), [HAIR] = head_item('Hair', HAIR, 'Bob', 'original'),
-        [TAIL] = head_item('Ponytail', TAIL, 'Long ponytail', 'original'),
+        [TAIL] = head_item('Ponytail', TAIL, 'Hair_Default_Part2', 'original'),
         ['p.hair'] = head_item('Hair', 'p.hair', 'Pack hair', 'custom'),
         ['p.tail'] = head_item('Ponytail', 'p.tail', 'Pack tail', 'custom'),
         ['SB.Ponytail_None'] = {UniqueFitID = 'SB.Ponytail_None', Slot = 'Ponytail', Origin = 'original',
@@ -3422,9 +3423,16 @@ local tests = {
             at(r, 0.5, 'right')
             same(headers(r), {'Bob'}, 'its name as the header row')
             eq((detail(r)), T.en.closet.options.variant, 'on its Variant row')
-            eq(row_value(r, child(1, 'Colour: Root colour')), T.en.closet.options.pack, 'its colour row')
+            local O = T.en.closet.options
+            eq(row_value(r, child(1, O.named:format(O.kinds.colour, T.en.closet.head.colours.RootColor))), O.pack,
+                'its colour row, named from the texts')
             eq(#r.previews, 0, 'worn already: nothing worn')
         end, heads({{fit = HAIR, slots = {'Hair'}}}))
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'right')
+            eq(row_value(r, child(1, 'Colour: Root')), T.en.closet.options.pack, "a pack hair's colour: the pack's name")
+        end, heads({{fit = 'p.hair', slots = {'Hair'}}}))
     end,
 
     select_on_a_hair_row_opens_the_grid = function()
@@ -3455,8 +3463,9 @@ local tests = {
             on_hair(r)
             at(r, 0.5, 'down')
             eq((detail(r)), 'Ponytail', 'on the Ponytail row')
+            eq(row_value(r, 'Ponytail'), fit(T.en.closet.head.long_ponytail), 'its name from the texts, not its row')
             at(r, 0.6, 'right')
-            eq((detail(r)), 'Long ponytail', 'the grid, on the worn tile')
+            eq((detail(r)), T.en.closet.head.long_ponytail, 'the grid, on the worn tile')
             eq(headers(r)[1], nil, 'no options page')
             local tv = grid(r)
             eq(tv.items[3].ItemName.text, T.en.closet.head.no_ponytail, 'the No ponytail tile')

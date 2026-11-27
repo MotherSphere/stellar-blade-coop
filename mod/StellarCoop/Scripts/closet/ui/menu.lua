@@ -269,11 +269,15 @@ function Menu.new(o)
         return fit and #model.options(fit)>1 and fit or nil
     end
     local function has_options(item) return options_fit(item)~=nil end
-    -- A head tile's or row's piece name: the No ponytail item's own name when the game gives it none.
-    local function head_name(w,name) return name=='Ponytail_None' and w.head.no_ponytail or name end
-    -- A control row's title: its kind (Finish, Colour, Number), then its name when that differs from its piece's.
-    local function kind_title(w,item,kind)
-        local name=item.name
+    -- A head tile's, row's or page's piece name: the stock ponytails' own (closet/head/stock.lua's ids, which the game
+    -- names only by table row) from the texts, else name.
+    local STOCK_PONYTAILS={['SB.Ponytail_Long']='long_ponytail',['SB.Ponytail_Short']='short_ponytail',
+        ['SB.Ponytail_None']='no_ponytail'}
+    local function head_name(w,fit,name) return STOCK_PONYTAILS[fit] and w.head[STOCK_PONYTAILS[fit]] or name end
+    -- A control row's title: its kind (Finish, Colour, Number), then its name (named, else its own) when that differs
+    -- from its piece's.
+    local function kind_title(w,item,kind,named)
+        local name=named or item.name
         if name and name~='' and name~=item.of then return w.options.named:format(w.options.kinds[kind],name) end
         return w.options.kinds[kind]
     end
@@ -303,7 +307,7 @@ function Menu.new(o)
     -- takes, hidden by default, locked.
     local function lines(w,one,slot)
         local out={}
-        if not one.none then out[#out+1]=w.detail.outfit:format(head_name(w,one.outfit)) end
+        if not one.none then out[#out+1]=w.detail.outfit:format(head_name(w,one.fit,one.outfit)) end
         out[#out+1]=w.detail.slot:format(w.slots[slot] or slot)
         if one.fit then out[#out+1]=origin(w,one.fit) end
         if one.fit and slot=='Ponytail' and Fits.origin(one.fit)=='custom' then out[#out+1]=w.head.pack_ponytail end
@@ -353,7 +357,7 @@ function Menu.new(o)
                 s.rows[i]={title=item.reset and w.row.reset or w.row.clear_thumbs,
                     value=''}
             elseif item.header then -- The Original header above Shift Up's own suits, or the options page's outfit.
-                s.rows[i]={title=page and item.header or w.original,value='',header=true}
+                s.rows[i]={title=page and head_name(w,page.fit,item.header) or w.original,value='',header=true}
             elseif item.variant then -- Its name, else its number of the count.
                 local all=Fits.get(page.fit).Variants
                 s.rows[i]={title=w.options.variant,value=all[v].Name or ('%d/%d'):format(v,#all)}
@@ -373,9 +377,14 @@ function Menu.new(o)
                 local n=item.colour or item.channel
                 local c=o.options.get(page.fit,v,'colour:'..n)
                 local choice=o.options.choice(page.fit,v,n)
+                -- A stock hair's or ponytail's colour (closet/head/stock.lua's Root, Tip, Dye) named from the texts.
+                local control=Fits.get(page.fit).Controls.VectorControls[n]
+                local stock=Fits.origin(page.fit)=='original' and type(control)=='table'
+                    and w.head.colours[control.ParamName]
                 local value=item.channel and byte(c[item.c:upper()]) or choice=='pack' and w.options.pack or
                     choice=='custom' and byte(c.R)..' '..byte(c.G)..' '..byte(c.B) or w.colour.swatches[choice]
-                s.rows[i]={title=item.channel and w.options.channels[item.c] or kind_title(w,item,'colour'),value=value,
+                s.rows[i]={title=item.channel and w.options.channels[item.c] or kind_title(w,item,'colour',stock),
+                    value=value,
                     swatch=item.colour and {R=c.R,G=c.G,B=c.B} or nil,
                     -- A channel's slider in 0-255, as its value shows.
                     slider=item.channel and {pct=tonumber(value)/255,lo=0,hi=255,digits=0} or nil}
@@ -405,7 +414,7 @@ function Menu.new(o)
                 -- The Body row names the body in use: the picked one, else the plan's (switched or the rule's).
                 local body=item.slot=='BaseBody' and not worn and plan and plan.body and Fits.get(plan.body.fit).Outfit
                 local value=item.state=='soon' and w.row.soon or item.state=='empty' and '' or
-                    worn and head_name(w,model.piece(worn,item.slot).Name) or body or
+                    worn and head_name(w,worn,model.piece(worn,item.slot).Name) or body or
                     (is_head(item.slot) and w.head.own or w.row.none)
                 s.rows[i]={title=w.slots[item.slot] or item.slot,value=value,locked=item.state=='soon'}
             end
@@ -506,7 +515,7 @@ function Menu.new(o)
             s.tiles={}
             for i,one in ipairs(tiles) do
                 local none=head and w.head.own or w.row.none -- On a head row None leaves the game's own piece.
-                s.tiles[i]={name=one.none and none or head_name(w,one.name),equipped=i==at,locked=one.locked,
+                s.tiles[i]={name=one.none and none or head_name(w,one.fit,one.name),equipped=i==at,locked=one.locked,
                     picture=picture(one.fit,item.slot),image=one.fit and Fits.get(one.fit).Image,
                     icon=one.none and 'none' or Slots.glyph(item.slot)}
             end
@@ -519,7 +528,7 @@ function Menu.new(o)
                 s.tile=at
                 s.detail.equipped=worn~=nil
                 if worn then
-                    s.detail.desc=w.detail.outfit:format(head_name(w,Fits.get(worn).Outfit))..'\n'..origin(w,worn)
+                    s.detail.desc=w.detail.outfit:format(head_name(w,worn,Fits.get(worn).Outfit))..'\n'..origin(w,worn)
                     s.detail.badge=Fits.origin(worn)
                 end
             end

@@ -491,6 +491,8 @@ return {
             off='Domyślnie ukryte w swoim stroju'},
         origin={original='Oryginalny',custom='Własny: %s'},
         head={own='Z gry',no_ponytail='Bez kucyka',
+            long_ponytail='Długi kucyk',short_ponytail='Krótki kucyk',
+            colours={RootColor='Kolor nasady',TipColor='Kolor końcówek',DyeColor='Kolor farby'},
             pack_ponytail='Fryzury z paczek zwykle mają własny kucyk.'},
         hints={wear='Załóż',take_off='Zdejmij',whole='Cały strój',options='Opcje',change='Zmień',
             reset='Resetuj',fav='Ulubiony',unfav='Nie ulubiony',delete='Usuń'},

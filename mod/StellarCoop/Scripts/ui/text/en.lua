@@ -596,8 +596,11 @@ return {
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
         -- The Head tab's Hair and Ponytail rows: the None tile and an empty row (the game's own piece stays), the
-        -- No ponytail tile when the game gives it no name, a pack ponytail tile's line.
+        -- stock ponytails (No ponytail, long, short: the game names them only by table row), a stock hair's colour
+        -- rows by parameter name, a pack ponytail tile's line.
         head={own="Game's own",no_ponytail='No ponytail',
+            long_ponytail='Long ponytail',short_ponytail='Short ponytail',
+            colours={RootColor='Root colour',TipColor='Tip colour',DyeColor='Dye colour'},
             pack_ponytail='Pack hairs usually carry their own ponytail.'},
         hints={wear='Wear',take_off='Take off',whole='Whole outfit',options='Options',change='Change',
             reset='Reset',fav='Favourite',unfav='Unfavourite',delete='Delete'},
