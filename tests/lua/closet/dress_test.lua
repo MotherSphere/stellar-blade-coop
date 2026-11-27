@@ -653,6 +653,23 @@ local tests = {
         w.d.off()
         eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off still gives her own look')
     end,
+    -- A mix again that fails before it changes anything (her body mesh not valid) is tried again the next second.
+    a_failed_mix_again_is_tried_again = function()
+        local w = world()
+        assert(w.d.wear(A))
+        local body = w.eve.Mesh
+        body.alive = false
+        second(w) second(w)
+        ok(logged(w, 'mix again failed'), 'the failed mix again logged')
+        body.alive = true
+        body:SetSkeletalMesh(w.assets[OWN])
+        local n = #w.log
+        second(w)
+        local again
+        for i = n + 1, #w.log do again = again or (w.log[i]:find('mix again', 1, true) ~= nil) end
+        ok(again, 'mixed again')
+        eq(body.SkeletalMesh.path, KS, 'the plan\'s body mesh back') ok(w.d.worn(), 'still worn')
+    end,
     -- Stellar Closet keeps control over CNS (design 9): a look changed from outside while one is kept is worn again.
     -- A change the closet made itself (a preview, its own mesh still on her body) is never taken as her own look.
     an_outside_body_change_remixes_a_kept_look = function()

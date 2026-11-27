@@ -824,11 +824,17 @@ function Dress.new(o)
             local own,materials=state.own,state.materials
             local was={}
             for _,a in ipairs(state.added) do was[#was+1]=a.mesh end
+            local old,before=state,applied
             state=nil
             sweep(eve,was) -- The earlier added meshes: a forced body's plan adds other outfits.
             local ok,why=apply(plan,choices,kept)
             if ok then state.own,state.materials=own,materials; keep()
-            else log('mix again failed: '..tostring(why)) end
+            else
+                log('mix again failed: '..tostring(why))
+                -- Failed before it changed anything (off() counts in applied): tried again next second.
+                -- The fight count stops the retries after Dress.FIGHT.mixes.
+                if applied==before then old.plan=plan; state=old end
+            end
             return
         end
         state.wrong=0
