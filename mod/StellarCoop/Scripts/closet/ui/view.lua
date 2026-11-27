@@ -257,6 +257,10 @@ function View.new(kit,log)
     -- scaled: each tile's icon scale as last filled (nil while no tile is small). The TileView hands its entry widgets
     -- to other tiles as it scrolls, so each look sets every shown entry's scale.
     local scaled,scale_at=nil,-1
+    -- fills: grid fills since check_fills; fill_note: the last fill's changed tiles; filled_names: its tiles. A grid
+    -- filled more than 3 times in 5 s is said with its last change (the picture glitch of 27 Nov 2026).
+    local fills,fill_note,filled_names,check_fills=0,'',{},0
+    local brushed={} -- Tile indices set by brush since the last fill, each said once.
     local function make(class,x,y,w,h,fill,hit)
         local rec,why=kit.part(View.GROUP,class,x,y,w,h,fill,hit)
         if not rec then error(why,0) end
@@ -305,9 +309,14 @@ function View.new(kit,log)
     -- A cached picture's texture (held by the grid fill), dropped by reread; an outfit's Image when it is a Texture2D
     -- (a cooked asset: the slot loads it again by its path).
     local pics,images,reads={},{},0
+    -- Each import said (a preview picture taken twice showed white, then no tile: Schizo, 27 Nov 2026).
     local function picture(file)
         return texture(pics,file,'the picture '..file,': its tile shows its outfit\'s image or its glyph',
-            function() return import(file) end)
+            function()
+                local x=import(file)
+                if x then log('menu: picture '..file..' imported as '..U.text(x:GetFullName())) end
+                return x
+            end)
     end
     local function image(path)
         return texture(images,path,'the image '..path,': its tiles show their picture or glyph',function()
@@ -466,6 +475,14 @@ function View.new(kit,log)
         end
         if sig~=tiles_sig then
             tiles_sig,selected=sig,nil
+            fills,brushed=fills+1,{}
+            local changed={}
+            for i=1,math.max(#names,#filled_names) do
+                if names[i]~=filled_names[i] and #changed<4 then
+                    changed[#changed+1]=i..': '..tostring(filled_names[i])..' -> '..tostring(names[i])
+                end
+            end
+            fill_note,filled_names=table.concat(changed,'; '),names
             glyphed,checking,check_at=any and shown or nil,any,0 -- tick looks only at a grid with a glyph.
             -- A look at once when a tile is small or was (its entries then go back to full size once).
             scaled,scale_at=any_small and small or nil,(any_small or scaled) and 0 or -1
@@ -596,6 +613,10 @@ function View.new(kit,log)
     -- View.CHECK s until one finds each with its glyph (Slate builds them on later frames). A tile that lacks it (its
     -- path did not load in the slot) gets it on its Image_Icon. From then on every look does that, said once.
     function v.tick(t)
+        if t>=check_fills then
+            if fills>3 then log('menu: the grid filled '..fills..' times in 5 s; last change '..fill_note) end
+            fills,check_fills=0,t+5
+        end
         -- UWidget SetRenderScale(Scale) (native entry 0x1462030e0, exec 0x143d75b50 writes the FVector2D at +0x98,
         -- RenderTransform.Scale; Ghidra, build 26123051, 27 Nov 2026).
         if scaled and t>=scale_at then
@@ -627,6 +648,12 @@ function View.new(kit,log)
                 local now=U.valid(entry.Image_Icon.Brush.ResourceObject)
                 if now and U.text(now:GetFullName())==g.full then return end
                 wrong=wrong+1
+                local i=entry.Data.Index+1
+                if not brushed[i] then
+                    brushed[i]=true
+                    log('menu: tile '..i..' set by brush: it had '..(now and U.text(now:GetFullName()) or 'none')
+                        ..', wants '..g.full..(U.valid(g.o) and '' or ' (gone)'))
+                end
                 entry.Image_Icon:SetBrushFromTexture(g.o,false)
             end)
             done=true
