@@ -340,6 +340,28 @@ local tests = {
         Fits.CHOSEN = {}
         ok(good, why)
     end,
+    -- A worn head part whose component is gone (no c) beside a stock hair: the paint skips it.
+    a_head_part_with_no_component_is_skipped = function()
+        local hair = stock_item('Hair', 'SB.Hair_001', {{name = 'RootColor', index = 1}})
+        local pony = stock_item('Ponytail', 'SB.Ponytail_Long', {{name = 'RootColor', index = 0}})
+        Fits.use({['SB.Hair_001'] = hair, ['SB.Ponytail_Long'] = pony})
+        local good, why = pcall(function()
+            local r = rig()
+            local h = component('Hair', {1})
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function()
+                return {{c = h, fit = 'SB.Hair_001', slots = {}, head = true},
+                    {fit = 'SB.Ponytail_Long', slots = {}, head = true}}
+            end
+            local red = {R = 0.9, G = 0.1, B = 0.2, A = 1}
+            ok(r.o.set('SB.Hair_001', 1, 'colour:1', red))
+            r.o.tick()
+            near(h.mats[1].values.RootColor, red, 'the hair painted')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
     -- The options layer and the palette (closet/colour.lua) together on one held slot, through the real pack scan
     -- (closet/packs.lua over a fake list file, then Fits.use, as closet/wiring.lua's scan) and ticked in the wiring's
     -- order: a rescan whose pack list cannot be read, then one that reads it again, keeps the palette's colour; Primary
