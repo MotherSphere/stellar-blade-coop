@@ -97,6 +97,12 @@ local KEY_ART_X,KEY_ART_W=6,42
 local SHADE_W=TAB_X+View.TABS*TAB_STEP+KEY_ART_X+KEY_ART_W+TAB_ICON_X+KEY_ART_X
 local FADE_W=400 -- The lobby's left gradient after it, ending at x 2562, left of EVE (framed at NDC 0.55).
 local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: a window of 10.
+-- The settings menu's slider slot (WB_Setting_Slider_Slot) is laid out for 1640-unit rows: its root SizeBox_0 1640,
+-- the title's SizeBox_3 580 and the slider's SizeBox_1 960 (widget JSON). In a ROW_W row the slider bar had no room
+-- (in game, 27 Nov 2026), so each slider row gets ROW_W, SLIDER_TITLE and SLIDER_BAR (SetWidthOverride).
+-- USizeBox.SetWidthOverride: native table entry 0x1461efaa0, exec 0x143d5be10; UWidget.GetParent: entry 0x146202f00,
+-- exec 0x143d73260 (Ghidra, build 26123051, 27 Nov 2026).
+local SLIDER_TITLE,SLIDER_BAR=420,460
 -- The SB row's value box (WB_Setting_Button_Slot in a 900-unit slot at x 160), measured on the in-game screenshots of
 -- build 65b52c49 at 1456x819: its focused white box spans x 828 to 1121. Its value and copy icon are centred in it.
 -- A longer value starts at the box's left and runs out of it: 'Reshape 50%' ran out, 'Pack colour', 'No Reshape' and
@@ -345,6 +351,14 @@ function View.new(kit,log)
             if rec and not (row and row.header) then look(rec,top+i==s.row and 'focus' or 'normal') end
             -- A slider's place, on change only: CurrentPercent (its value text's) and UpdatePercentOffset (its bar).
             local sl=rec and row and row.slider
+            if sl and not rec.sized then -- Once a part: its boxes sized to the row (see SLIDER_TITLE).
+                rec.sized=true
+                call(rec,'slider size',function(w)
+                    w.WidgetSwitcher_0:GetParent():GetParent():SetWidthOverride(ROW_W) -- Overlay_0, then SizeBox_0.
+                    w.Text_Title:GetParent():GetParent():SetWidthOverride(SLIDER_TITLE) -- HorizontalBox_0, SizeBox_3.
+                    w.Slider_50:GetParent():GetParent():SetWidthOverride(SLIDER_BAR) -- Overlay_37, then SizeBox_1.
+                end)
+            end
             if sl and rec.pct~=sl.pct then
                 rec.pct=sl.pct
                 call(rec,'slider place',function(w) w.CurrentPercent=sl.pct; w:UpdatePercentOffset(sl.pct) end)
