@@ -3,15 +3,19 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The wiring of EVE's cut moves (eve/): coop wear, glide, emote, fly and chainspin, with the emote wheel.
 return {
-uses={'fight.bosses'},
+uses={'fight.bosses','closet'},
 exports={'wear','glide','emote','flight','emote_wheel','eve_page'},
 new=function(M)
 local print,log=M.print,M.log
 -- coop wear (eve/wear.lua), logging [WR] lines: coop-wear.txt lets the next Lua load give EVE the game's meshes
 -- back.
--- No look goes on again while the game is paused or shows one of its screens (its wardrobe among them).
+-- No look goes on again while the game is paused or shows one of its screens (its wardrobe among them). No suit goes
+-- on while Stellar Closet has a look on EVE or waits to wear a kept one again (an off closet module's stub reads nil);
+-- a hair still does, as the closet never sets SBHair. The closet refuses the other way round while a suit is worn
+-- (closet/wiring.lua reads M.wear.worn).
 M.wear=require('eve.wear').new({log=function(m) print('[StellarCoop][WR] '..tostring(m)..'\n') end,
-    store=M.link and M.link.store('coop-wear.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end})
+    store=M.link and M.link.store('coop-wear.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
+    closet=function() return M.closet.worn() end})
 -- coop glide (eve/glide.lua), logging [GL] lines: EVE's bGlide set while Jump is held in the air, on a co-op save.
 M.glide=require('eve.glide').new({log=function(m) print('[StellarCoop][GL] '..tostring(m)..'\n') end,
     slot=function() return M.coop_slot('coop glide') end})

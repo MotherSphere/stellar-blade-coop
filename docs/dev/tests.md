@@ -28,9 +28,11 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `stand`; `core/`: `actors`, `actors_of`, `class_at`, `effect`, `enemy`, `items`, `keep`, `keybind`, `line`, `link`,
 `mask`, `pak_gate`, `picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`;
 `fight/bosses/`: `enemy`, `gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`,
-`glide`, `off`, `wear`;
-`cutmenus/`: `devmenu`, `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`,
-`wiring_notices`; `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
+`glide`, `off`, `wear`, `wiring`;
+`closet/`: `camera`, `closet`, `cns_import`, `colour`, `dress`, `fits`, `hud`, `json`, `lights`, `menu`, `model`,
+`off`, `options`, `packs`, `presets`, `probe`, `shape`, `slots`, `thumbs`, `wiring`; `cutmenus/`: `devmenu`,
+`mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`, `wiring_notices`;
+`online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
 `fishing`, `guide`, `gun`, `idle`, `input`, `keep`, `loader`, `match`, `menu`, `pass`, `photohunt`, `race_match`,
 `scoreattack`, `session_ui`, `settings`;
@@ -584,7 +586,10 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves'
   question, the two boxes and the host's question, which ignores them for 1 s and never takes View held; LB, RB and Y
   taken and doing nothing there; the Online tab's event 12 going to the pause tab only, the open menu and the host's
-  question keeping their focus; at most 8 a frame; an older DLL without it), the Online tab's close from a fake
+  question keeping their focus; at most 8 a frame; an older DLL without it; the closet's event 14 toggling the closet
+  menu, closed under the bike's refusals and not while spectate watches, open as its Back paused or not, nothing under
+  the host's question; `closet on` asked at the load's first pass while the closet module is on, `closet off` once it
+  is off, each change once, nothing after `coop off`), the Online tab's close from a fake
   `coop_pause_close` (its three answers, an older DLL without it), the mouse in the menu and on the host's question (a
   left click going to the pause menu's Online tab while a pause menu holds it), the focus watchdog's reset, the Lua
   frame time line with its longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call
@@ -746,7 +751,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `ui/kit/kit_test` covers the veil (the root built and kept collapsed, the look warmed in one 250 ms pass, shown again
   at once, and a hidden world's root left collapsed), the menu's mouse cursor, the focus put back after a click, the
   focus watchdog and the focus line it logs as it fires, text shadows and wrap, fixed groups, SB parts and the keyboard
-  layout from the game's device. It also checks that a root built while its look warms holds each texture it wanted once
+  layout from the game's device. When the game clears the cursor and takes the input back, only a holder that asked for
+  it (the closet menu) takes the input again, at most once each half second; the menu, the guide and the chat box do
+  not. It also checks that a root built while its look warms holds each texture it wanted once
   warmed, so a GC before the next build frees none of them. With the keep, every asset path and part class is wanted,
   no warm-up lookup runs until the keep settled (the root is built in its flat look meanwhile) and no `LoadAsset` runs
   after;
@@ -1041,7 +1048,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
   `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
   `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `pausetab on` and `pausetab off`;
-  `popups on` and `popups off`; `loading lift`; `sky off`, `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz>
+  `popups on` and `popups off`; `closet on` and `closet off`; `loading lift`; `sky off`, `sky hold`, `sky cycle <hz> <H>` and `sky hour <minute> <hz>
   <H>` with their ranges; `world` and `scenes` with `on`, `off` or `status`; `nightshop`, `roxanne`, `lily`, `guardtext`
   and the 8 `signal` words, in `story/quests/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`, `abort`,
   `leave`, `seq`) and their refusals, the score request, the mode request (`mode <word> <text>`), `fishbook <ask>` (1
@@ -1694,7 +1701,27 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   posted into the queue in order with the pad's, a full queue dropping the newest; the emote wheel's reads: the right
   stick's sector (0 inside half its range, 1 to 72 clockwise from up), D-pad Left held 300 ms making event 13 once a
   hold (not at 299 ms, again after a release, forgotten with no pad), the right stick from XInput's slots and from
-  `PadKeys` (the controller pushed furthest, `clear()`);
+  `PadKeys` (the controller pushed furthest, `clear()`); the closet's chord with Lua's `closet on`: LB held + D-pad
+  Left making event 14 once (after its left, both in one step too, from `PadKeys` too) and never the wheel's event, LB
+  let go first or not, D-pad Left alone still the wheel's, D-pad Left held before LB no chord and no wheel, the stick
+  held left no chord; without `closet on`, LB and D-pad Left as without the closet (no event 14, event 13 after 300 ms
+  with LB held, LB pressed during the hold), the chord from the next press once it is on;
+  X, L3 and R3 in the buttons from XInput's slots and `PadKeys`; the triggers from XInput's first pad and from
+  `PadKeys` (0 to 1 as 0 to 255, clamped, the one pulled furthest, `clear()`);
+- `closet_keys_test`: the closet's reads as the DLL hands them to Lua (`closet/keys.h`): the camera's held keys as
+  `1 +` one bit a key (right mouse, middle mouse, Shift, I, J, K, L, U, O; 1 alone with no window of the game's in
+  front), the mouse wheel's notches as `65 +` the whole notches (a smooth wheel's small steps adding up, the part of a
+  notch kept, 64 notches at most each way, nothing kept out of front), the menu's held up and down (Up arrow, W, Z; Down
+  arrow, S), the game window's subclass for the wheel over fake windows (nothing in front, another window class, coop
+  off, a failed swap and a window already ours subclass nothing; ours once on the game window with the old procedure
+  kept; a window gone replaced by the next one in front; at coop off the old procedure back once while ours is the
+  window's, kept under another procedure put on top of ours, nothing for a window gone), X, L3 and R3 as `pad_bits`
+  (1, 2, 4) and the right stick and triggers as `pad_level`'s `1 + 65 * which + level` (at rest, the ends, 260 at
+  most);
+- `closet_packs_test`: the CNS pack list for `closet/packs.lua` (`closet/packs.h`, `coop-cns-packs.txt`): only CNS
+  packs, `<size> <time> <path>` in decimal, sorted by path, the path's spaces and `\` kept, empty text without packs,
+  256 lines at most; a path with letters outside ASCII ending in a tab and its copy's name (`coop-cns-pack-<n>.json`,
+  numbered from 1 in list order), an ASCII path with none, a path with a tab or a line end left out;
 - `ui_pause_tab_test`: the Online tab's decision on the GameMenu logic's input (RB on the highest enabled tab while the
   game's tab lock is off opens it; any other tab, action or lock passes the action on to the game; a tab list the game
   never builds passes too; a press and its release within 500 ms open once) and its pinned slot, function, FName
@@ -1854,7 +1881,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   effect-only chain), the QTE flag on the exact theater alias and the LV_Dead rows. Then the written block: parsed
   back to the same values, within its markers, the rest of the header untouched, a name that cannot go into a C++
   literal refused. Last, its load and main over a folder of table exports;
-- `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder, and its `--pak`
+- `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder (a
+  `closet-thumbs` folder in the mod folder is never packaged), and its `--pak`
   part: the copy of the three `zSBO_Lobby` files into `~mods` with a backup of the ones it replaces, a copy that does
   not hash like its source, a folder that lacks one of the files, the dry run, the refusal while the game runs, and an
   uninstall without and with the mod folder (the pak first, each into its own backup folder), all of them leaving the

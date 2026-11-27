@@ -293,7 +293,9 @@ it wherever the game's own PlayStation support does). `coop-link.log` says
 
 When the mod cannot take the game's input, `coop-link.log` says why and the mod reads XInput, as versions before it
 did: `pad: the game has no FName <name>; XInput instead`, `pad: Slate's handler is not at 0x145fe5430 (it holds
-<value>); XInput instead` or `pad: Slate's handler refused (<slot> holds <value>); XInput instead`. XInput sees Xbox
+<value>); XInput instead` or `pad: Slate's handler refused (<slot> holds <value>); XInput instead`. A missing name of X,
+L3, R3 or a trigger axis does not stop it: the mod logs `pad: the game has no FName <name>; that key is not read` and
+reads every other key through the game's input. XInput sees Xbox
 controllers, the Steam Deck and controllers under Steam Input. It does not see a DualSense that the game reads through
 its own PlayStation support: turn Steam Input on for Stellar Blade (Steam, right-click the game, Properties,
 Controller) to use one in the menu then. On XInput, `coop-link.log` says at start and at each change which controllers
@@ -434,7 +436,9 @@ The watchdog has not been tested in game yet.
 Hold F2 to open the emote wheel at the centre of the screen, in the look of the game's own item wheel. Point at an
 emote with the mouse and release F2: EVE plays it, as `coop emote <name>` does. On a controller, hold D-pad Left for
 0.3 s, point with the right stick and release D-pad Left. The game keeps running and the camera stays still while the
-wheel is open.
+wheel is open. While the Stellar Closet module is on, D-pad Left with LB held opens the
+[Stellar Closet](../closet/closet.md#the-closet-menu) menu instead, so that hold opens no wheel. With the module off,
+LB and D-pad Left work as they do without the closet.
 
 | Input | Keyboard and mouse | Controller |
 | --- | --- | --- |

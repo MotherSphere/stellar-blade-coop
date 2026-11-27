@@ -255,7 +255,7 @@
 // tick does (the part's only game write) and calls SB's own photo check. status() puts the answer in the engine
 // line's photohunt= for online/modes/photohunt/game.lua. A new Lua session disarms it.
 //
-// The pad (ui/pad.h): once a run the worker finds the twelve controller key names PadKeys reads, checks that Slate's
+// The pad (ui/pad.h): once a run the worker finds every controller key name PadKeys reads, checks that Slate's
 // application holds its message handler, then swaps the handler's three controller slots of the game's image (analog,
 // button pressed, button released), all or none, for hooks on the game thread that record the key and run the game's
 // function with the same arguments. coop_pad then reads that record, so any controller the game reads drives the menu;
@@ -278,6 +278,13 @@
 // popups off or coop goes off, the pass puts the kept value back; the slots go back once nothing is forced. An option
 // the player turns on during online play stays on. A fault ends the force for the run: the pass then only puts the kept
 // values back. A second fault stops it with the slots still ours while an option is forced.
+//
+// The closet (closet/): coop_padbits, coop_levels, coop_keys, coop_nav and coop_wheel hand Lua the pads' last poll, the
+// keys held (GetAsyncKeyState) and the mouse wheel's notches (closet/keys.h). For the wheel, closet/wheel_game.inc
+// subclasses SB's game window (UnrealWindow) at coop_wheel's first call with it in front: our window procedure counts
+// WM_MOUSEWHEEL and hands every message on. After coop off nothing is subclassed. coop_tick then gives the window's
+// procedure back. No game memory is read or written. Lua's closet on or off (Command::closet) turns the pad's LB +
+// D-pad Left chord on or off (ui/pad.h's kCloset).
 //
 // This file is one translation unit made of the parts in the module folders and glue/tick/, included below in this
 // order: a part sees what the parts before it declare, and the game thread's parts share one anonymous namespace. Each
@@ -344,6 +351,7 @@
 #include "world/teamshop/shop_ui.h"
 #include "world/maps/sboxion/sboxion.h"
 #include "online/modes/photohunt/photohunt.h"
+#include "closet/keys.h"
 #include "game/codec.h"
 #include "game/events.h"
 #include "game/partner/engine.h"
@@ -465,14 +473,15 @@
 #include "glue/tick/status.inc"
 #include "ui/pad_game.inc"
 #include "ui/pad_worker.inc" // After pad_game.inc: its hooks and pad_keys.
+#include "closet/wheel_game.inc"
 
 
 // Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state
-// ignored. The DLL links no Lua, so the event is the result count: Lua passes 13 arguments and gets that many of them
-// back, 0 for none or ui/pad.h's event 1 to 13, so this never returns more than 13. Event 12 is the Online tab's (RB
+// ignored. The DLL links no Lua, so the event is the result count: Lua passes 14 arguments and gets that many of them
+// back, 0 for none or ui/pad.h's event 1 to 14, so this never returns more than 14. Event 12 is the Online tab's (RB
 // on the pause menu's last tab, pause_tab_game.inc's hook), posted before the pads' next one; event 13 is D-pad Left
-// held 300 ms (the emote wheel). Polls the pads at most once per 8 ms, so Lua can take several events in one frame.
-// Never throws, never waits.
+// held 300 ms (the emote wheel); event 14 is D-pad Left pressed while LB is held (the closet menu). Polls the pads at
+// most once per 8 ms, so Lua can take several events in one frame. Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
   using namespace coop::pose;
   const uint64_t now = GetTickCount64();
@@ -483,7 +492,7 @@ extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
   if (pause_tab_asked.exchange(false))
     pad.post(coop::Pad::kPauseTab);
   const int event = pad.next();
-  return event >= 0 && event <= 13 ? event : 0;
+  return event >= 0 && event <= 14 ? event : 0;
 }
 
 // The emote wheel's reads while it is open, each in lua_CFunction's shape with the Lua state ignored, its answer the
@@ -514,6 +523,55 @@ extern "C" __declspec(dllexport) int coop_fkey(void *) noexcept {
   return 0;
 }
 
+// The closet's reads (closet/), in the same shape: the pads' last poll (coop_pad's), the keyboard and the mouse, never
+// the game's memory. Never throw, never wait.
+// coop_padbits (Lua passes 8): 1 + closet/keys.h's pad_bits of the buttons held (1 X, 2 L3, 4 R3); 1 when no window of
+// SB's is in front.
+extern "C" __declspec(dllexport) int coop_padbits(void *) noexcept {
+  using namespace coop::pose;
+  return 1 + (game_in_front() ? coop::closet::pad_bits(pad.held()) : 0);
+}
+// coop_levels (Lua passes 260): one of four levels a call, in turn: closet/keys.h's pad_level, 1 + 65 * which + the
+// level (which 0 the right stick's x, 1 its y, 2 the left trigger, 3 the right one), so each answer says which it is
+// and four calls give all four. A stick axis's level is 0 to 64 (32 at rest), a trigger's 0 to 64 (0 at rest); at rest
+// when no window of SB's is in front. Called by Lua on the game thread only.
+extern "C" __declspec(dllexport) int coop_levels(void *) noexcept {
+  using namespace coop::pose;
+  static int which = 0;
+  const int answer = coop::closet::pad_level(game_in_front() ? pad.read() : coop::PadState{}, which);
+  which = (which + 1) % 4;
+  return answer;
+}
+// coop_keys (Lua passes 512): 1 + closet/keys.h's held_keys bits of the keys held now (GetAsyncKeyState): 1 right
+// mouse, 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O; 1 when no window of SB's is in front. The closet
+// camera's held keys and drags: UE4SS's binds see a key's press only.
+static_assert(coop::closet::kHeldKeys[0] == VK_RBUTTON && coop::closet::kHeldKeys[1] == VK_MBUTTON &&
+              coop::closet::kHeldKeys[2] == VK_SHIFT);
+extern "C" __declspec(dllexport) int coop_keys(void *) noexcept {
+  using namespace coop::pose;
+  // GetAsyncKeyState reads the physical buttons: with the buttons swapped, the right (logical) one is VK_LBUTTON.
+  const bool swapped = GetSystemMetrics(SM_SWAPBUTTON) != 0;
+  return coop::closet::held_keys(game_in_front(), [swapped](int vk) {
+    return (GetAsyncKeyState(swapped && vk == VK_RBUTTON ? VK_LBUTTON : vk) & 0x8000) != 0;
+  });
+}
+
+// coop_nav (Lua passes 4): closet/keys.h's nav_keys of the keys held now (GetAsyncKeyState): 1 + 1 up, + 2 down; 1 when
+// no window of SB's is in front. The closet menu's repeat of a held up or down key.
+static_assert(coop::closet::kNavUp[0] == VK_UP && coop::closet::kNavDown[0] == VK_DOWN);
+extern "C" __declspec(dllexport) int coop_nav(void *) noexcept {
+  using namespace coop::pose;
+  return coop::closet::nav_keys(game_in_front(), [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; });
+}
+
+// coop_wheel (Lua passes 130): closet/wheel_game.inc's wheel_read, 65 + the wheel's whole notches since the last call
+// (up positive, -64 to 64); 65 when no window of SB's is in front, after coop off or while its game window could not
+// be subclassed. The closet camera's zoom. Called by Lua on the game thread only. Never throws, never waits.
+extern "C" __declspec(dllexport) int coop_wheel(void *) noexcept {
+  using namespace coop::pose;
+  return wheel_read(game_in_front());
+}
+
 // Called by Lua on the game thread when the pause menu's Online tab closes the pause menu (package.loadlib(dll,
 // "coop_pause_close")), in lua_CFunction's shape, the Lua state ignored. The DLL links no Lua, so the answer is the
 // result count, ui/pause_tab.h's Close: Lua passes 3 arguments and gets back 1 when SB's own close ran, 2 when SB has
@@ -529,6 +587,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   using namespace coop::pose;
   LARGE_INTEGER entry;
   QueryPerformanceCounter(&entry);
+  if (blocked) // The closet's subclass of the game window, given back once after coop off.
+    wheel_give_back();
   if (engine_on && !blocked)
     guarded_tick();
   // Her drone for the capture, its own latch: a look each second while her capture is live, none after coop off or its

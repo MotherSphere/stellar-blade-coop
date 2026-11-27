@@ -185,6 +185,15 @@ with tempfile.TemporaryDirectory() as tmp:
     docs = {'INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md', 'CHANGELOG.md', 'SHA256SUMS.txt'}
     shipped = {'enabled.txt', 'StellarCoop.dll', *docs,
                'Assets/MotherSphere.png', 'Scripts/online/modes/race/match/tracks/xion_eight.txt',
+               # Stellar Closet's glyphs (tools/closet_icons/render.py's PNGs).
+               *(f'Scripts/closet/ui/icons/{name}.png'
+                 for name in ('band', 'belt', 'body', 'bottoms', 'bra', 'bracelet', 'camera_free', 'camera_region',
+                              'cape', 'collar', 'curl', 'custom', 'earring', 'ears', 'eyes', 'face', 'full_outfit',
+                              'glasses', 'gloves', 'glow', 'hair', 'hair_accessory', 'harness', 'headwear', 'jacket',
+                              'jewel', 'legwear', 'light_cool', 'light_game', 'light_rim', 'light_studio', 'light_warm',
+                              'makeup', 'mask', 'nails', 'necklace', 'none', 'original', 'piercing', 'ponytail', 'ring',
+                              'shine', 'shoes', 'skin_suit', 'skin_tone', 'sleeves', 'tan_lines', 'tattoo', 'top',
+                              'underwear', 'weapon')),
                *(f'Scripts/{name}.lua' for name in ('ui/kit/commands', 'ui/kit/guide', 'ui/text/guide')),
                *(f'Scripts/{name}.lua'
                  for name in ('vehicles/bike/fetch', 'vehicles/bike/model', 'vehicles/bike/others',
@@ -296,6 +305,11 @@ with tempfile.TemporaryDirectory() as tmp:
                               'world/maps/sboxion/engine', 'world/maps/sboxion/recover',
                               'world/maps/sboxion/sboxion', 'world/maps/sboxion/rooms/list',
                               'world/maps/sboxion/rooms/rooms', 'world/maps/sboxion/tetrapod',
+                              'closet/cns_import', 'closet/commands', 'closet/dress', 'closet/fits', 'closet/json',
+                              'closet/slots', 'closet/ui/menu', 'closet/ui/model',
+                              'closet/ui/probe', 'closet/ui/view', 'closet/ui/camera', 'closet/ui/lights',
+                              'closet/colour', 'closet/shape', 'closet/thumbs', 'closet/packs', 'closet/options',
+                              'closet/presets', 'closet/ui/hud',
                               'world/maps/sboxion/npcs/npcs',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
@@ -308,11 +322,20 @@ with tempfile.TemporaryDirectory() as tmp:
                                                                    'online/saves', 'world/teamshop',
                                                                    'fight/gunmode', 'online/modes/scoreattack',
                                                                    'online/modes/fishing', 'online/modes/photohunt',
-                                                                   'world/maps/sboxion')),
+                                                                   'world/maps/sboxion', 'closet')),
                               'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]
+    # closet/thumbs.lua's pictures of creators' outfits, in a checkout that a game's mod folder links to, never ship.
+    repo = tmp / 'thumbs-checkout'
+    for rel in ('mod/StellarCoop/Scripts/main.lua', 'mod/StellarCoop/closet-thumbs/fit/full.png'):
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_bytes(b'x')
+    saved, install.ROOT = install.ROOT, repo
+    try:
+        assert sorted(install.package('v', dll)) == ['Scripts/main.lua', 'Scripts/version.lua', 'StellarCoop.dll']
+    finally: install.ROOT = saved
 
     # 12. The release zip: the same inputs give the same bytes, with the commit's time and one mode on every entry,
     # in sorted names, and SHA256SUMS.txt covers every other entry, the docs included. The art is installed, not zipped.

@@ -463,6 +463,20 @@ assert(#notes==1 and notes[1]=='settings: F2 is set for two actions: default key
     and s.emote_key.name=='F2',notes[1])
 s,notes=Link.parse_settings('emote_key=Shift+F2\n')
 assert(#notes==0 and s.emote_key.key=='F2' and s.emote_key.mod=='SHIFT',notes[1])
+-- The closet menu (closet/ui/menu.lua): closet_key F1 unless set, or none, in the two-actions rule; a file from before
+-- closet_key whose own keys hold F1: closet_key has none.
+s,notes=Link.parse_settings('')
+assert(#notes==0 and s.closet_key.key=='F1' and s.closet_key.mod==nil and s.closet_key.name=='F1')
+s,notes=Link.parse_settings('closet_key=none\n')
+assert(#notes==0 and s.closet_key.key==nil and s.closet_key.name=='none',notes[1])
+s,notes=Link.parse_settings('leave_key=F1\n')
+assert(#notes==1 and notes[1]=='settings: F1 is leave_key: closet_key has no key' and s.closet_key.name=='none'
+    and s.leave_key.name=='F1',notes[1])
+s,notes=Link.parse_settings('leave_key=F1\ncloset_key=F1\n')
+assert(#notes==1 and notes[1]=='settings: F1 is set for two actions: default keys used' and s.leave_key.name=='F8'
+    and s.closet_key.name=='F1',notes[1])
+s,notes=Link.parse_settings('closet_key=Ctrl+F1\n')
+assert(#notes==0 and s.closet_key.key=='F1' and s.closet_key.mod=='CONTROL',notes[1])
 local GUN_TESTS={gun_aim_key='LeftMouseButton',gun_zoom='toggle',gun_upper='nikke',gun_fire='own',gun_probe='on',
     gun_trace='on',gun_facts='on',gun_g0='on',gun_bs='X_BS',gun_carry_ovr='off',gun_carry_spare='2',gun_carry_idle='1',
     gun_fire_key='F',gun_airtrace='on',gun_g1='on',gun_g1_tag='v3a',gun_spread='0.5'}
@@ -549,7 +563,8 @@ assert(#notes==0 and s.menu_key.name=='F7','A UTF-8 BOM is skipped')
 local keys=0
 for name,value in Link.DEFAULT:gmatch('\n(%w+_key)=([^\n]*)') do keys=keys+1; assert(not value:upper():find('F10'),name) end
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(keys==9 and #notes==0 and s.emote_key.name=='F2' and s.emote_pad=='dpad_left' and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
+assert(keys==10 and #notes==0 and s.closet_key.name=='F1' and s.emote_key.name=='F2'
+    and s.emote_pad=='dpad_left' and s.menu_key.name=='F5' and s.host_key.name=='none' and s.status_key.name=='F6'
     and s.leave_key.name=='F8' and s.follow_key.name=='F7' and s.race_key.name=='F9' and s.bike_key.name=='F3'
     and s.gun_key.name=='F4')
 assert(Link.DEFAULT:find('\nleave_key=F8\nfollow_key=F7\nrace_key=F9\nbike_key=F3\ngun_key=F4\n',1,true),

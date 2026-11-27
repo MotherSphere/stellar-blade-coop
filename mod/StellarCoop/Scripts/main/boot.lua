@@ -21,27 +21,59 @@ if loaded then
     if type(f)=='function' then M.native_pad=f
     else log('Native pad unavailable (no controller in the co-op menu): '..tostring(pad_why)) end
 end
--- The DLL links no Lua: its event (0 for none) is how many of these thirteen arguments it hands back.
-function M.pad() return select('#',M.native_pad(0,0,0,0,0,0,0,0,0,0,0,0,0)) end
+-- The DLL links no Lua: its event (0 for none) is how many of these fourteen arguments it hands back.
+function M.pad() return select('#',M.native_pad(0,0,0,0,0,0,0,0,0,0,0,0,0,0)) end
 -- The emote wheel's reads (ui/kit/wheel.lua), each how many of its arguments the native part hands back: coop_stick
 -- the right stick's 5 degree sector (73 arguments: 0 at rest, 73 with the game's window not in front), coop_held D-pad
 -- Left held (2: 1 held, 2 not in front), coop_fkey the lowest F-key held (13: 13 not in front). An older DLL without
 -- them: said once, the wheel refuses to open.
-M.wheel_reads=nil
+-- The closet's pad reads the same way: M.pad_bits() X, L3 and R3 held as bits, 1 X, 2 L3, 4 R3 (coop_padbits, 8
+-- arguments: 1 + the bits, 1 not in front); M.pad_levels() the right stick's x and y (-1 to 1, up and right positive)
+-- and the left and right triggers (0 to 1), from four coop_levels calls of 260 arguments (1 + 65 * which + a level of 0
+-- to 64, which 0 to 3 in that order; at rest not in front). An older DLL without them: said once, both nil.
+-- The closet camera's held keys: M.held_keys() the keys and mouse buttons held as bits, 1 right mouse, 2 middle mouse,
+-- 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O (coop_keys, 512 arguments: 1 + the bits, 1 not in front). UE4SS's binds
+-- see a key's press only. An older DLL without it: said once, nil. M.mouse_wheel() the mouse wheel's notches since the
+-- last call, up positive (coop_wheel, 130 arguments: 65 + the notches, -64 to 64; 65 not in front). An older DLL
+-- without it: said once, nil. M.nav_held() the keys that walk a menu's rows held now, 1 up (Up arrow, W, Z), 2 down
+-- (Down arrow, S), 3 both, 0 none (coop_nav, 4 arguments: 1 + the bits, 1 not in front). An older DLL without it:
+-- said once, nil.
+M.wheel_reads,M.pad_bits,M.pad_levels,M.held_keys,M.mouse_wheel,M.nav_held=nil,nil,nil,nil,nil,nil
 if loaded then
     local zeros={}
-    for i=1,73 do zeros[i]=0 end
-    local fns,missing={},nil
-    for _,name in ipairs({'coop_stick','coop_held','coop_fkey'}) do
+    for i=1,512 do zeros[i]=0 end
+    local fns,missing={},{}
+    for _,name in ipairs({'coop_stick','coop_held','coop_fkey','coop_padbits','coop_levels','coop_keys',
+        'coop_wheel','coop_nav'}) do
         local f,fn_why=package.loadlib(M.folder..'\\StellarCoop.dll',name)
-        if type(f)=='function' then fns[name]=f else missing=missing or name..': '..tostring(fn_why) end
+        if type(f)=='function' then fns[name]=f else missing[name]=name..': '..tostring(fn_why) end
     end
-    if missing then log('Native emote wheel reads unavailable (no emote wheel): '..missing)
+    local wheel=missing.coop_stick or missing.coop_held or missing.coop_fkey
+    if wheel then log('Native emote wheel reads unavailable (no emote wheel): '..wheel)
     else
         M.wheel_reads={stick=function() return select('#',fns.coop_stick(table.unpack(zeros,1,73))) end,
             held=function() return select('#',fns.coop_held(0,0)) end,
             fkey=function() return select('#',fns.coop_fkey(table.unpack(zeros,1,13))) end}
     end
+    local closet=missing.coop_padbits or missing.coop_levels
+    if closet then log('Native pad bits and levels unavailable: '..closet)
+    else
+        function M.pad_bits() return select('#',fns.coop_padbits(table.unpack(zeros,1,8)))-1 end
+        function M.pad_levels()
+            local got={32,32,0,0}
+            for _=1,4 do
+                local n=select('#',fns.coop_levels(table.unpack(zeros,1,260)))-1
+                got[n//65+1]=n%65
+            end
+            return (got[1]-32)/32,(got[2]-32)/32,got[3]/64,got[4]/64
+        end
+    end
+    if missing.coop_keys then log('Native held keys unavailable: '..missing.coop_keys)
+    else function M.held_keys() return select('#',fns.coop_keys(table.unpack(zeros,1,512)))-1 end end
+    if missing.coop_wheel then log('Native mouse wheel unavailable: '..missing.coop_wheel)
+    else function M.mouse_wheel() return select('#',fns.coop_wheel(table.unpack(zeros,1,130)))-65 end end
+    if missing.coop_nav then log('Native menu keys unavailable: '..missing.coop_nav)
+    else function M.nav_held() return select('#',fns.coop_nav(0,0,0,0))-1 end end
 end
 -- The pause menu's close for its Online tab (ui/kit/pause_tab.lua): SB's own close, run by the native part on the game
 -- thread. Its answer is how many of three arguments it hands back: 1 closed, 2 SB has no pause menu open, 3 off. An

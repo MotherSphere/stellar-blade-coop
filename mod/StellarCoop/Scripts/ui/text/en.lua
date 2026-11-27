@@ -8,7 +8,8 @@ return {
         modes='MODES',
         session='SESSION',settings='SETTINGS',help='HELP',controls='CONTROLS',photo='PHOTO MODE',partner='PARTNER',
         ghost='GHOST',saves='SAVES',combat='COMBAT',display='DISPLAY',chat='CHAT',line='CO-OP LINE'},
-    row={emote_key='Emote wheel key',emote_pad='Emote wheel on a controller',
+    row={closet_key='Open Stellar Closet',
+        emote_key='Emote wheel key',emote_pad='Emote wheel on a controller',
         scoreattack='Score attack',fishing='Fishing tournament',race_match='Doro race',
         photohunt='Photo hunt',
         host='Host a session',leave='Leave the session',invite='Invite a friend (Steam)',find='Find a session',
@@ -154,7 +155,7 @@ return {
         ['online.saves']='Co-op saves',
         ['world.teamshop']='Team shop',['fight.gunmode']='Gun mode',['online.modes.scoreattack']='Score attack',
         ['online.modes.fishing']='Fishing tournament',['online.modes.photohunt']='Photo hunt',
-        ['world.maps.sboxion']='SBO Xion'},
+        ['world.maps.sboxion']='SBO Xion',['closet']='Stellar Closet'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
@@ -553,6 +554,140 @@ return {
         viewer={title='Cut models',model='Model',part='Part',skin='Skin',show='Show',cam='Free camera',
         remove='Remove',nothing='Nothing shown',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='NieR machine',orcal='Orcal prototype',enya='Enya prototype'}},
+    -- Stellar Closet's menu (closet/ui/): a tab for each closet/slots.lua Slots.MENUS id, a name for each Slots.LIST
+    -- slot and Slots.REGIONS region, its rows (reset: the Full tab's last row; thumbs: the one before it), detail
+    -- panel, an outfit's origin (Original, or Custom and its pack), key hints (Back and Select are hint.back,
+    -- hint.select), the Keep this look? and Reset Stellar Closet? popups, why it does not open (refused) and why it
+    -- closed (closed), the answers of Make preview pictures (thumbs), the body switched to an outfit (switched), the
+    -- regions whose skin shows on a picked body (clips), the reset done, the Colour tab's words (colour) and the Body
+    -- tab's shape rows (shape). Outfit, pack, piece and morph names stay as their pack writes them.
+    closet={
+        beta='%s (Beta)', -- a fitting tab's label (Head..Body, Intimate): its tabs word in %s
+        original='Original suits', -- Full outfit's header row above Shift Up's own suits
+        tabs={head='Head',torso='Torso',arms='Arms',hips='Hips',intimate='Intimate',legs='Legs',body='Body',
+            colour='Colour',weapon='Weapon',full='Full outfit'},
+        slots={Face='Face',Hair='Hair',Ponytail='Ponytail',Ears='Ears',Eyes='Eyes',Makeup='Makeup',
+            FaceTattoo='Face tattoo',HairAccessory='Hair accessory',Headwear='Headwear',Mask='Mask',Glasses='Glasses',
+            EarringL='Earring L',EarringR='Earring R',BrowPiercing='Eyebrow piercing',NosePiercing='Nose piercing',
+            SeptumPiercing='Septum piercing',LipPiercing='Lip piercing',TonguePiercing='Tongue piercing',
+            TattooChest='Chest tattoo',TattooStomach='Stomach tattoo',TattooBack='Back tattoo',
+            TattooShoulders='Shoulder tattoo',UndergarmentTop='Bra',Chest='Top',Outerwear='Jacket',Cape='Cape',
+            Collar='Collar',Necklace='Necklace',ChestHardware='Harness',NippleL='Nipple piercing L',
+            NippleR='Nipple piercing R',Navel='Navel piercing',
+            TattooUpperArm='Upper arm tattoo',TattooForearm='Forearm tattoo',TattooHand='Hand tattoo',
+            Fingernails='Fingernails',Gloves='Gloves',Sleeves='Sleeves',BraceletL='Bracelet L',BraceletR='Bracelet R',
+            Rings='Rings',Armbands='Armbands',
+            TattooHips='Hip tattoo',TattooLowerBack='Lower back tattoo',TattooButt='Buttocks tattoo',
+            UndergarmentBottom='Underwear',Pants='Bottoms',Belt='Belt',Garter='Garter',
+            PubicHair='Pubic hair',Anus='Anus',TattooPubic='Pubic tattoo',ClitPiercing='Clit piercing',
+            LabiaPiercing='Labia piercing',AnalPlug='Anal plug',
+            TattooThigh='Thigh tattoo',TattooCalf='Calf tattoo',TattooFoot='Foot tattoo',Toenails='Toenails',
+            Legs='Legwear',Shoes='Shoes',ThighStraps='Thigh straps',AnkletL='Anklet L',AnkletR='Anklet R',
+            BaseBody='Body',SkinSuit='Skin suit',SkinTone='Skin tone',TanLines='Tan lines',SkinShine='Skin shine',
+            Dermal='Body glow',TattooFull='Full-body tattoo',Weapon='Weapon',FullOutfit='Full outfit'},
+        regions={HeadNeck='Head and neck',TorsoUpper='Upper torso',TorsoLower='Lower torso',Pelvis='Pelvis',
+            ArmUpper='Upper arms',Forearm='Forearms',Hand='Hands',Thigh='Thighs',Calf='Calves',Foot='Feet'},
+        row={whole='Wear whole outfit',soon='Coming soon',empty='No installed outfit has a piece for this slot.',
+            none='None',locked='Locked: %s is not installed.',reset='Reset Stellar Closet',
+            clear_thumbs='Clear preview pictures',
+            clear_thumbs_desc="Deletes every preview picture. The tiles show the outfits' own images again. "
+                ..'Preview picture takes one again.'},
+        detail={outfit='Outfit: %s',slot='Slot: %s',covers='Covers: %s',also='Also takes: %s',
+            off='Hidden by default in its outfit'},
+        origin={original='Original',custom='Custom: %s'},
+        hints={wear='Wear',take_off='Take off',whole='Whole outfit',options='Options',change='Change',
+            reset='Reset',fav='Favourite',unfav='Unfavourite',delete='Delete'},
+        -- The Full outfit tab's presets and favourites (closet/presets.lua): the Save look as preset row and its line,
+        -- a preset with no name, the filter row and its two values, a favourite outfit's value (its pack in %s after a
+        -- lead mark: the value box cuts a long pack id at its end, so the mark stays), the
+        -- notices of a save and of a save with no whole outfit, the Delete popup (the preset's name in %s).
+        presets={save='Save look as preset',
+            save_desc='Keeps the worn outfit, its variant and its options as a new preset. Rename it with coop closet '
+                ..'preset rename.',
+            name='Preset %d',filter='Show',all='All',favourites='Favourites',custom='Custom',
+            filter_desc='Lists every outfit, your favourites, the original suits only or the custom outfits only.',
+            fav='* %s',
+            saved='Saved as %s.',none='Wear one whole outfit first: a preset keeps one outfit.',
+            delete_title='Delete this preset?',delete_desc='%s is deleted. The outfit and its options stay.'},
+        -- An outfit's options page (closet/options.lua): the Variant row, a piece's value, the Other section, a
+        -- control row's kind and the title of one whose name differs from its piece's (the kind, then the name), the
+        -- Shape section, the Reset this outfit row and its line, a colour's Pack colour value, the Custom colour's
+        -- channel rows, the line on a piece with controls, the line on an outfit's row that opens the page and the
+        -- help of the page's rows, on the keyboard (key) and a pad (pad).
+        options={variant='Variant',on='On',off='Off',other='Other',
+            kinds={finish='Finish',colour='Colour',number='Number'},named='%s: %s',
+            shape='Shape',reset='Reset this outfit',pack='Pack colour',channels={r='Red',g='Green',b='Blue',a='Alpha'},
+            reset_desc='Every option of this outfit goes back to its pack value. It is saved at once.',
+            piece_help={key='Enter or a click shows its colours, finishes and numbers. '
+                    ..'The left and right arrows turn it on or off.',
+                pad='A shows its colours, finishes and numbers. D-pad Left and Right turn it on or off.'},
+            open={key='Right arrow or D: this outfit\'s options (variant and pieces).',
+                pad='D-pad Right: this outfit\'s options (variant and pieces).'},
+            help={key='The left and right arrows or a click change it. It is saved at once.',
+                pad='D-pad Left and Right change it. It is saved at once.'}},
+        -- The camera's modes, its hint row's mode chip and Reset chip. title formatted with moves is the detail's
+        -- camera line: the moves of each mode on the keyboard (key) and on a pad (pad).
+        camera={region='Region',free='Free',title='Camera: %s',reset_hint='Reset',
+            moves={region={key='I J K L or a middle drag pan the framing. A right drag or the mouse wheel goes to '
+                    ..'Free mode. Light level: Shift+U / Shift+O.',
+                pad='The right stick pans the framing. Light level: hold L3, then LT / RT.'},
+                free={key='I J K L or a right drag orbit. Shift+I J K L or a middle drag pan. U / O or the '
+                    ..'mouse wheel zoom. Light level: Shift+U / Shift+O.',
+                pad='The right stick orbits. Hold X with the right stick to pan. LT / RT zoom. '
+                    ..'Light level: hold L3, then LT / RT.'}}},
+        -- The preview light presets and the light chip (title formatted with the preset).
+        light={game='Game',studio='Studio',warm='Warm',cool='Cool',rim='Rim',title='Lighting: %s'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Preview picture',pad='Hold: Preview picture',saved='Preview picture saved for %s.',
+            none='Wear one whole outfit first: a preview picture shows one outfit.',
+            failed='The preview picture could not be taken. UE4SS.log says why.'},
+        -- The Colour tab (closet/colour.lua): each role's row and what it colours, how to pick, each swatch's name.
+        colour={roles={primary='Primary',secondary='Secondary',accent='Accent',glow='Glow'},
+            about={primary='Main garments: tops, bottoms, bras, underwear, jackets, capes, hats and full outfits.',
+                secondary='Gloves, sleeves, shoes, legwear, belts, garters, straps, bands and masks.',
+                accent='Jewellery, piercings, rings, collars, glasses and hair accessories.',
+                glow='The glow of body glow pieces. Its brightness stays.'},
+            help='Left and right pick the colour. Off keeps the colours of the pack.',
+            swatches={off='Off',white='White',black='Black',charcoal='Charcoal',silver='Silver',gold='Gold',
+                crimson='Crimson',wine='Wine',rose='Rose',violet='Violet',navy='Navy',azure='Azure',teal='Teal',
+                emerald='Emerald',sand='Sand'}},
+        -- The Body tab's shape rows (closet/shape.lua): a value in percent, what a row changes and how to change it.
+        shape={value='%d%%',
+            about='Changes the shape of her body and of each worn piece made with this shape. A piece without it '
+                ..'keeps its shape.',
+            help='Left and right change it in steps of 10. It is saved apart from the look.'},
+        popup={title='Keep this look?',desc='Yes saves it. No gives EVE the look she had before.',yes='Keep',no='Undo',
+            reset_title='Reset Stellar Closet?',
+            reset_desc='Every closet piece comes off EVE and the saved look is deleted. Stellar Closet changes nothing '
+                ..'until you wear a look again.',
+            clear_title='Clear preview pictures?',
+            clear_desc='Every preview picture is deleted from the mod folder. Preview picture takes one again.'},
+        refused={combat='Stellar Closet does not open in combat.',
+            cutscene='Stellar Closet does not open during a cutscene.',
+            photo='Stellar Closet does not open in photo mode.',tachy='Stellar Closet does not open in Tachy Mode.',
+            screen='Stellar Closet does not open while a game menu is open.',
+            loading='Stellar Closet does not open while a map loads.',
+            panel='Stellar Closet does not open while another SBO menu is open.',
+            bike='Stellar Closet does not open while EVE rides the bike.',
+            doro='Stellar Closet does not open while the Doro look is on.',
+            rifle='Stellar Closet does not open while the rifle is out.',
+            emote='Stellar Closet does not open while an emote plays.',
+            wear='Stellar Closet does not open while EVE wears a coop wear suit.',
+            ui='Stellar Closet needs the menu UI. It is off or not ready yet.'},
+        closed={combat='Combat started: Stellar Closet closed without saving.',
+            cutscene='A cutscene started: Stellar Closet closed without saving.',
+            map='The map changed: Stellar Closet closed without saving.',
+            photo='Photo mode opened: Stellar Closet closed without saving.',
+            input='The game took the controls back: Stellar Closet closed without saving.'},
+        saved='Look saved.',failed='Could not wear this piece. UE4SS.log says why.',
+        switched='Body switched to %s so no skin shows through the pieces.',
+        clips='Skin of this body shows through the pieces on: %s.',
+        thumbs={cleared='Every preview picture is deleted.',
+            busy='Preview pictures are being made. Clear them once that is done.',
+            failed='The preview pictures could not be deleted. UE4SS.log says why.'},
+        reset_done='Stellar Closet is reset. EVE wears her own look.'},
     -- SBO Xion's NPCs (world/maps/sboxion/npcs/npcs.lua): says is the line with its speaker (%s the name, %s the
     -- words), then each NPC's name and what it says when EVE comes close.
     xion={says='%s: %s',repairer='Repairer',

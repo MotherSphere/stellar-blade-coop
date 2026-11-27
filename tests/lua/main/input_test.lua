@@ -213,13 +213,13 @@ end)()
     assert(focus()=='Open this menu' and select(2,focus())~='Press a key','Right click: not waiting, nothing taken')
     -- The mouse onto the last slot scrolls the page down by one, onto the first up by one. The keys take the page one
     -- row down first: the last slot then holds a row, not the PARTNER header.
-    for _=1,19 do key('DOWN_ARROW') end
-    assert(focus()=='Name tag' and rows[1].l=='Gun mode',focus()..' / '..tostring(rows[1].l))
+    for _=1,20 do key('DOWN_ARROW') end
+    assert(focus()=='Name tag' and rows[1].l=='Bring out or put away the rifle',focus()..' / '..tostring(rows[1].l))
     local last=rows[15].l
     clock=clock+0.125; hover(15)
     assert(focus()==last and rows[14].l==last and rows[15].l~=last,'The last slot: one row down')
     clock=clock+0.125; hover(1)
-    assert(focus()=='Bring out or put away the rifle' and rows[1].l=='Gun mode' and rows[2].st=='focus',
+    assert(focus()=='Emote wheel key' and rows[1].l=='Bring out or put away the rifle' and rows[2].st=='focus',
         'The first slot: one row up')
     key('RIGHT_MOUSE_BUTTON'); assert(kit_shown.menu and focus()=='Options','Right click: back to the main page')
     key('RIGHT_MOUSE_BUTTON'); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','And it closes')
@@ -476,6 +476,166 @@ in_world=false
     coop('off')
     key('F2')
     assert(last()=='[StellarCoop] STOP: '..'coop off is active until the game restarts\n' and not kit_shown.wheel)
+end)()
+
+-- The closet menu (closet/ui/menu.lua) is one of the screens main/base.lua's open_screen hands the keys to: Enter, Space,
+-- the arrows, WASD and E, Q (A on AZERTY) and F reach its nav; Esc goes back; coop ui reset closes it. Off, its loader stub
+-- answers nothing: no screen, no key.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    Loader.run=run
+    kit_ready=true; quarter()
+    local function spy()
+        local c={words={},closes=0,up=true}
+        c.is_open=function() return c.up end
+        c.nav=function(word) c.words[#c.words+1]=word end
+        c.close=function(how,why) c.closes,c.how,c.why=c.closes+1,how,why; c.up=false end
+        return c
+    end
+    local c=spy()
+    M.closet_menu=c
+    -- open_screen_routes_the_closet_menu
+    assert(M.open_screen()==c,'open_screen gives the closet menu while it is open')
+    c.up=false
+    assert(M.open_screen()==nil,'closed: no screen')
+    c.up=true
+    -- e_q_f_reach_the_closet_menu
+    for _,k in ipairs({'E','Q','F','SPACE','UP_ARROW','W','RIGHT_ARROW'}) do key(k) end
+    assert(table.concat(c.words,' ')=='tab_right tab_left refresh select up up right',table.concat(c.words,' '))
+    c.words={}; key('ESCAPE')
+    assert(c.words[1]=='back','Esc is back')
+    -- the_camera_keys_reach_the_closet_menu (closet/ui/camera.lua through the menu's nav), only while it is open
+    c.words={}
+    for _,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE'}) do key(k) end
+    assert(table.concat(c.words,' ')=='cam_left cam_right cam_up cam_down cam_in cam_out cam_mode cam_reset',
+        table.concat(c.words,' '))
+    -- the_light_keys_reach_the_closet_menu: V the next preset, Shift+U and Shift+O the intensity; a plain U or O that
+    -- UE4SS may also call for the same press (within 0.2 s) is dropped, a later one zooms.
+    c.words={}
+    key('V'); key('U','SHIFT'); key('O','SHIFT')
+    assert(table.concat(c.words,' ')=='light_next light_down light_up',table.concat(c.words,' '))
+    c.words={}
+    key('U','SHIFT'); key('U')
+    assert(table.concat(c.words,' ')=='light_down','the plain U of a Shift+U: dropped')
+    clock=clock+0.3; key('U')
+    assert(table.concat(c.words,' ')=='light_down cam_in','a later U zooms')
+    c.words={}
+    key('P')
+    assert(c.words[1]=='picture','P: the preview picture') c.words={}
+    c.up=false
+    for _,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE','V','P'}) do key(k) end
+    key('U','SHIFT'); key('O','SHIFT')
+    assert(#c.words==0,'closed: the camera keys do nothing')
+    c.up=true
+    -- ui_reset_closes_the_closet_menu
+    c.up=true; M.ui_reset()
+    assert(c.closes==1 and not c.up,'coop ui reset closes the closet menu')
+    -- an_off_closet_gets_no_keys (the loader stub)
+    M.closet_menu=Loader.STUB
+    assert(M.open_screen()==nil,'the stub is no screen')
+    for _,k in ipairs({'E','Q','F','SPACE','ESCAPE','J','C','BACKSPACE'}) do key(k) end
+    M.ui_reset()
+    assert(not logged('error'),'the stub takes no key and raises nothing')
+    -- coop_ui_off_closes_the_closet_menu: as coop ui reset does (its preview turned down), before the kit stops.
+    M.closet_menu=c
+    c.up=true
+    coop('ui','off')
+    assert(c.closes==2 and not c.up and c.how=='revert' and c.why=='coop ui off','coop ui off closes the closet menu')
+end)()
+
+-- The pad's closet event (LB held + D-pad Left, the native part's 14) runs the closet menu's toggle as closet_key does.
+-- Closed, it opens under the bike's refusals (our HUD hidden, one of our screens open, the game paused or on one of
+-- its screens) and not while spectate watches: logged only. A refused open is reported; open, it is the menu's Back,
+-- paused or not. The loader stub of an off closet module takes it and raises nothing.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    Loader.run=run
+    kit_ready=true; quarter()
+    local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
+    local up,toggles,answer=false,0,{true,'closet menu: open'}
+    M.closet_menu={is_open=function() return up end,nav=function() end,close=function() up=false end,
+        tick=function() end,stop=function() end,
+        toggle=function() toggles=toggles+1; if answer[1] then up=not up end; return table.unpack(answer) end}
+    -- the_closet_pad_event_toggles_the_menu
+    assert(M.PAD[14]=='closet')
+    pad(14)
+    assert(toggles==1 and up and logged('pad: closet'),'closed: it opens')
+    kit_paused=true
+    pad(14)
+    assert(toggles==2 and not up,'open: its Back, paused or not')
+    pad(14)
+    assert(toggles==2 and logged('pad: closet ignored: the game is paused or shows one of its screens'))
+    kit_paused=false
+    M.spectate={watching=function() return true end,switch=function() end}
+    pad(14)
+    assert(toggles==2 and logged('pad: closet ignored: spectate is watching'),'spectating: left switches the member')
+    M.spectate=nil
+    key('F5'); assert(kit_shown.menu)
+    pad(14)
+    assert(toggles==2 and logged('pad: closet ignored: one of our screens is open'),'the co-op menu open')
+    key('F5'); assert(not kit_shown.menu)
+    M.hud_shown=false
+    pad(14)
+    assert(toggles==2 and logged('pad: closet ignored: our HUD is not shown'))
+    M.hud_shown=true
+    answer={false,'Stellar Closet does not open in combat.'}
+    pad(14)
+    assert(toggles==3 and not up and last()=='[StellarCoop] STOP: Stellar Closet does not open in combat.\n',last())
+    -- On the open closet menu View held (the pad's menu event, 7) is its Preview picture: the menu stays open.
+    local words={}
+    up=true; M.closet_menu.nav=function(w) words[#words+1]=w end
+    pad(7)
+    assert(up and words[1]=='picture','View held on the closet menu: its picture, no close')
+    M.closet_menu.nav=function() end
+    -- The host's question over the open menu: the chord does nothing.
+    up,answer=true,{true,'closet menu: closed'}
+    link_mode,link_pending='host',{id='76561198000000030',name='Nine'}
+    quarter(); assert(kit_shown.ask)
+    pad(14)
+    assert(toggles==3 and up and kit_shown.ask,'under the host\'s question: nothing')
+    coop('ui','reset'); link_mode,link_pending='none',nil
+    M.closet_menu=Loader.STUB
+    pad(14)
+    assert(not logged('pad: error'),'the stub takes it and raises nothing')
+end)()
+
+-- The pad's closet chord is the native part's only while Lua asks closet on (main/pass.lua): at the load's first 250 ms
+-- pass with the closet module on, closet off once it is off (it failed at load or at a build step), each change asked
+-- once, nothing after coop off. Without the ask the native part makes no closet event and LB keeps the emote wheel's
+-- D-pad Left hold (ui/pad.h).
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    Loader.run=run
+    assert(#closet_asks==0,'nothing asked before the first pass')
+    quarter()
+    assert(closet_asks[1]=='closet on' and #closet_asks==1,'the load asks closet on')
+    quarter()
+    assert(#closet_asks==1,'asked once')
+    M.off_modules.closet='boom'
+    quarter(); quarter()
+    assert(closet_asks[2]=='closet off' and #closet_asks==2,'an off closet module: closet off, once')
+    M.off_modules.closet=nil
+    quarter()
+    assert(closet_asks[3]=='closet on' and #closet_asks==3,'on again')
+    coop('off')
+    M.off_modules.closet='boom'
+    quarter()
+    assert(#closet_asks==3,'nothing asked after coop off')
 end)()
 
 -- The controllers the mod reads, said the same way in INSTALL.md and docs/players/interface.md (any controller the game

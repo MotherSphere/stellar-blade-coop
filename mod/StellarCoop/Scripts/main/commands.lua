@@ -15,7 +15,9 @@ for _,list in ipairs({{
         if (sub=='reset' or sub=='off') and arg==nil then
             if not M.kit then return false,'the co-op UI needs the Steam link' end
             if sub=='off' then -- The host's question waits for its 30 s: no answer from a UI that is gone.
-                M.menu.stop(); M.box.stop(); M.code_box.stop(); M.wheel.stop(); M.kit.stop()
+                -- The closet menu closes as coop ui reset closes it (its preview turned down, the view given back).
+                M.menu.stop(); M.box.stop(); M.code_box.stop(); M.wheel.stop()
+                M.closet_menu.close('revert','coop ui off'); M.kit.stop()
                 return true,'co-op UI off until the mod reloads: notices on the line above EVE'
             end
             M.ui_reset()
@@ -62,6 +64,8 @@ for _,list in ipairs({{
         M.pause_tab.stop() -- Likewise; the native part gives its slot back.
         stopped,e=pcall(M.wear.stop) -- EVE's own meshes back.
         if not stopped then log('wear: '..tostring(e)) end
+        stopped,e=pcall(M.closet.stop) -- Her own look back from a coop closet mix.
+        if not stopped then log('closet: '..tostring(e)) end
         if M.roxanne then -- Her two choices back before the native part stops taking requests.
             stopped,e=pcall(M.roxanne.stop)
             if not stopped then log('roxanne: '..tostring(e)) end

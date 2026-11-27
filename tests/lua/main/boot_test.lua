@@ -78,15 +78,20 @@ assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and no
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
 -- Every F-key but F10 bound once, with Shift, Ctrl, Alt, then alone (a modified press first); then Alt+Enter, Enter
 -- and the fourteen navigation keys (E for the tabs of the lobby's settings and of the Sessions screen, F for its
--- Refresh), then the left mouse button (the co-op menu, the co-op saves' question) and the right one (the co-op menu).
-assert(#binds==44+2+14+2,#binds)
+-- Refresh; Esc last of them, after the closet camera's twelve keys: Shift+U and Shift+O before the plain U and O, P
+-- last),
+-- then the left mouse button (the co-op menu, the co-op saves' question) and the right one (the co-op menu).
+assert(#binds==44+2+14+12+2,#binds)
 assert(binds[1].key=='Key.F1' and binds[1].modifiers[1]==0x10 and binds[2].modifiers[1]==0x11
     and binds[3].modifiers[1]==0x12 and binds[4].key=='Key.F1' and not binds[4].modifiers and binds[44].key=='Key.F12')
 for _,b in ipairs(binds) do assert(b.key~='Key.F10','F10 opens the console') end
+for i,k in ipairs({{'U',0x10},{'O',0x10},{'J'},{'L'},{'I'},{'K'},{'U'},{'O'},{'C'},{'BACKSPACE'},{'V'},{'P'}}) do
+    assert(binds[59+i].key=='Key.'..k[1] and mod(binds[59+i].modifiers)==k[2],'camera key '..k[1])
+end
 assert(binds[45].key=='Key.RETURN' and binds[45].modifiers[1]==0x12 and binds[46].key=='Key.RETURN'
-    and not binds[46].modifiers and binds[58].key=='Key.E' and binds[59].key=='Key.F' and binds[60].key=='Key.ESCAPE'
-    and binds[61].key=='Key.LEFT_MOUSE_BUTTON' and binds[62].key=='Key.RIGHT_MOUSE_BUTTON' and not binds[61].modifiers
-    and not binds[62].modifiers)
+    and not binds[46].modifiers and binds[58].key=='Key.E' and binds[59].key=='Key.F' and binds[72].key=='Key.ESCAPE'
+    and binds[73].key=='Key.LEFT_MOUSE_BUTTON' and binds[74].key=='Key.RIGHT_MOUSE_BUTTON' and not binds[73].modifiers
+    and not binds[74].modifiers)
 local executed=executes
 press('F8'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
 flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-1]=='[StellarCoop] key F8: leave\n')
@@ -1293,6 +1298,160 @@ assert(logged('ghost: K2_DestroyActor: no world') and notice_stops==stops+1 and 
     and last()=='[StellarCoop] OK: asked the native part: off\n',last())
 toggle_raise,active=nil,false
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
+
+-- closet_key (F1 unless set) runs the closet action: the closet menu's toggle (closet/ui/menu.lua), which opens it or
+-- is its Back; a refused open is reported. The loader stub of an off closet module takes the press and raises nothing.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    Loader.run=run
+    local toggles,answer=0,{true,'closet menu: open'}
+    M.closet_menu={toggle=function() toggles=toggles+1; return table.unpack(answer) end,
+        is_open=function() return false end}
+    clock=clock+1
+    key('F1')
+    assert(toggles==1 and logged('key F1: closet'),'F1 toggles the closet menu')
+    answer={false,'Stellar Closet does not open in combat.'}
+    clock=clock+1
+    key('F1')
+    assert(toggles==2 and last()=='[StellarCoop] STOP: Stellar Closet does not open in combat.\n',last())
+    M.closet_menu=Loader.STUB
+    clock=clock+1
+    local lines=#printed
+    key('F1')
+    assert(#printed==lines+1 and printed[lines+1]=='[StellarCoop] key F1: closet\n',
+        'the stub takes the press and raises nothing')
+    settings_text='closet_key=none\n'
+    load_main(true)
+    clock=clock+1
+    key('F1')
+    assert(not table.concat(printed,'|'):find('key F1',1,true),'closet_key=none: F1 does nothing')
+end)()
+
+-- The closet's HUD entry (closet/wiring.lua): ticked with the closet key's F-key, F1 unless set, nil for none; ten times
+-- a second at most. A key with Shift, Ctrl or Alt gives nil too: the entry shows one key icon, so Shift+F3 would show
+-- F3, the bike's key. coop off takes it off. Without the native part no closet menu is built and no key or chord opens
+-- it: the entry is not ticked.
+;(function()
+    local function keys(text,native)
+        settings_text=text
+        load_main(native~=false)
+        hu.keys={}
+        for _=1,10 do clock=clock+0.02; loops[1].f() end
+        return hu.keys
+    end
+    local k=keys('')
+    assert(k[1]=='F1' and #k>=2 and #k<=3,'F1 by default, ten times a second: '..table.concat(k,' '))
+    assert(keys('closet_key=F3\n')[1]=='F3','the closet key\'s F-key')
+    assert(keys('closet_key=Shift+F3\n')[1]=='none','a key with a modifier: nil')
+    assert(keys('closet_key=none\n')[1]=='none','no closet key: nil')
+    assert(#keys('',false)==0,'no tick without the native part')
+    keys('')
+    local hides=hu.hides
+    coop('off')
+    assert(hu.hides==hides+1,'coop off takes the entry off')
+end)()
+
+-- The pad reads for the closet: M.pad_bits() gives X, L3 and R3 held as bits (1, 2, 4) from coop_padbits' 8 arguments,
+-- M.pad_levels() the right stick's x and y (-1 to 1) and the triggers (0 to 1) from four coop_levels calls of 260, each
+-- answer saying which level it is. An older DLL without them: one log line, both nil, the wheel's reads still load.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    assert(M.pad_bits()==0,'nothing held')
+    pr.bits=5
+    assert(M.pad_bits()==5,'X and R3')
+    local rx,ry,lt,rt=M.pad_levels()
+    assert(rx==0 and ry==0 and lt==0 and rt==0 and pr.calls==4,'at rest, in four calls')
+    pr.levels={1+130+64,1+195+16,1+64,1+65} -- Out of order: each answer says which level it is.
+    rx,ry,lt,rt=M.pad_levels()
+    assert(rx==1 and ry==-1 and lt==1 and rt==0.25,table.concat({rx,ry,lt,rt},' '))
+    pr.missing=true
+    load_main(true)
+    Loader.run=run
+    assert(M.pad_bits==nil and M.pad_levels==nil and M.wheel_reads~=nil
+        and logged('Native pad bits and levels unavailable: coop_padbits: not exported'),table.concat(printed,'|'))
+    pr.missing=false
+end)()
+
+-- The held keys for the closet camera: M.held_keys() gives the bits of coop_keys' 512 arguments (1 right mouse, 2
+-- middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O). An older DLL without it: one log line, nil, the pad's
+-- reads still load.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    assert(M.held_keys()==0,'nothing held')
+    kh.bits=1+4+64
+    assert(M.held_keys()==69,'right mouse, Shift and L')
+    assert(cc.o.held_keys()==69 and cc.o.pointer~=nil and cc.o.pointer==M.kit.pointer,'the closet camera reads them and the kit\'s mouse')
+    kh.bits=511
+    assert(M.held_keys()==511,'all nine')
+    kh.missing=true
+    load_main(true)
+    Loader.run=run
+    assert(M.held_keys==nil and M.pad_bits~=nil and logged('Native held keys unavailable: coop_keys: not exported'),
+        table.concat(printed,'|'))
+    kh.missing=false
+end)()
+
+-- The mouse wheel for the closet camera: M.mouse_wheel() gives the notches of coop_wheel's 130 arguments (65 + the
+-- notches, up positive). An older DLL without it: one log line, nil, the held keys still load.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    assert(M.mouse_wheel()==0,'no turn')
+    mw.notches=3
+    assert(M.mouse_wheel()==3,'three notches up')
+    assert(cc.o.mouse_wheel()==3,'the closet camera reads them')
+    mw.notches=-64
+    assert(M.mouse_wheel()==-64,'64 notches down')
+    mw.notches=0
+    mw.missing=true
+    load_main(true)
+    Loader.run=run
+    assert(M.mouse_wheel==nil and M.held_keys~=nil and logged('Native mouse wheel unavailable: coop_wheel: not exported'),
+        table.concat(printed,'|'))
+    mw.missing=false
+end)()
+
+-- The held menu keys for the closet menu's repeat: M.nav_held() gives the bits of coop_nav's 4 arguments (1 up, 2
+-- down). An older DLL without it: one log line, nil.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    assert(M.nav_held()==0,'nothing held')
+    nk.bits=2
+    assert(M.nav_held()==2,'down held')
+    nk.bits=3
+    assert(M.nav_held()==3,'both')
+    nk.bits=0
+    nk.missing=true
+    load_main(true)
+    Loader.run=run
+    assert(M.nav_held==nil and M.mouse_wheel~=nil and logged('Native menu keys unavailable: coop_nav: not exported'),
+        table.concat(printed,'|'))
+    nk.missing=false
+end)()
 
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true

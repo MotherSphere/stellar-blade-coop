@@ -23,9 +23,10 @@ Read [docs/dev/structure.md](docs/dev/structure.md) first. Its rules are
 checked by `tests/tools/modules_test.py`.
 
 - Code is grouped in categories (`online/`, `fight/`, `world/`, `story/`,
-  `vehicles/`, `eve/`, `cutmenus/`), one folder per module inside them. The
-  same folder exists under `mod/StellarCoop/Scripts/`, `native/src/` and
-  `tests/`.
+  `vehicles/`, `eve/`, `cutmenus/`, `closet/`), one folder per module inside
+  them. `eve/`, `cutmenus/` and `closet/` are modules with a folder of their
+  own at the top. The same folder exists under `mod/StellarCoop/Scripts/`,
+  `native/src/` and `tests/`.
 - A module owns its logic, `ui/`, `commands.lua`, `wiring.lua`, its native
   parts and its tests with `off_test.lua`.
 - Never `require` or `#include` another module's files, in code or in tests.

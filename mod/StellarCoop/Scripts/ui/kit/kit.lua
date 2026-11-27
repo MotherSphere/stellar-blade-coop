@@ -128,6 +128,7 @@ local VISIBLE,COLLAPSED,SELF_HIT=0,1,4 -- ESlateVisibility: hit, none, children 
 -- inside group keeps from the viewport's edges.
 local ROW,OPEN,CLOSE,SLIDE,LOSSES,SAFE=76,0.16,0.12,32,3,48
 local REFOCUS=0.05 -- Seconds from a mouse button to our focus put back (Slate moves the focus as it takes the press).
+local RETAKE=0.5 -- Seconds between two take-agains of the game's input (tick): a cursor kept cleared costs no call a frame.
 -- A key hint's icon, square, as the game's photo mode draws these icons beside its text; its label's top below the
 -- icon's, so the hint style's line sits on the icon's middle.
 local KEY_ICON,KEY_TEXT=66,9
@@ -158,6 +159,7 @@ function Ui.kit(opts)
     local built,pending,off,said,hidden,swept,lost,holder=nil,nil,false,nil,false,false,0,nil
     local veiled=false -- veil(): the root collapsed under SB's black while the lobby gets ready.
     local pointing=false -- The holder asked for the mouse cursor (the guide's, input's mouse).
+    local retaking=false -- The holder asked for the input to be taken again (input's again: the closet menu's only).
     local quiet,no_color,sounding,tweens,inputting=false,false,opts.sounds~=false,{},false
     local screen,projecting=nil,true -- The viewport in layout units, read once a second; the engine's projection.
     local titled=false -- The title screen shows (slow's title): the input given back there is the title menu's.
@@ -166,6 +168,9 @@ function Ui.kit(opts)
     -- fired for (lost() takes it), and its two lines said.
     local watch,fired,unfocusable_said,never_said=nil,nil,false,false
     local refocus_at=nil -- A mouse button pressed while our UI holds the game's input: when our focus goes back.
+    local retake_said=false -- tick's take-again read failed and said so, once a Lua load.
+    local took=false -- input_mode last took the game's input for a UI of ours (reset's give-back clears it).
+    local retake_at=0 -- tick's next take-again at the earliest (RETAKE after the last one).
     local clicked_at=nil -- That button's clock, for the watchdog's focus line.
     local parts,warmed={},{} -- warm_part's object paths in order; those looked up.
     -- SB's last keyboard answer, AZERTY or not: its device byte (opts.uidev) reads 1 for a QWERTY keyboard and 2 for one
@@ -207,7 +212,7 @@ function Ui.kit(opts)
         local pc,root=controller(),on and alive(built.root)
         if not pc or (on and not root) then return end
         local box=on and field and alive(field)
-        inputting=on
+        inputting,took=on,on
         if on then
             U.find(WIDGETS):SetInputMode_UIOnlyEx(pc,box or root,0)
             if box then box:SetKeyboardFocus() end
@@ -226,6 +231,7 @@ function Ui.kit(opts)
             cursor=nil
         end
         keep()
+        return true
     end
     local function close_all()
         if inputting then pcall(input_mode,false) end -- A fault or coop off never leaves the game deaf.
@@ -738,8 +744,9 @@ function Ui.kit(opts)
         fired=nil
         return who~=nil,who
     end
-    -- Whether our UI holds the game's input (main.lua's mouse binds read it on UE4SS's key thread).
-    function self.holding() return inputting end
+    -- Whether our UI holds the game's input (main.lua's mouse binds read it on UE4SS's key thread); with who, whether
+    -- that holder (a group's name) holds it.
+    function self.holding(who) return inputting and (who==nil or holder==who) end
     -- A mouse button pressed (main.lua's binds, on the game thread): while our UI holds the game's input, our focus
     -- goes back where the input put it (the root, or the holder's box) REFOCUS later, and the focus watchdog's second
     -- starts over. Slate gives a click that no widget of ours takes (off the menu's rows or the chat's box, any click
@@ -765,6 +772,24 @@ function Ui.kit(opts)
         if refocus_at and now>=refocus_at then
             refocus_at=nil
             self.refocus()
+        end
+        -- SB gives the game its input back on its own (Ghidra, build 26123051): its UI manager's handler 0x1424fabb0,
+        -- bound to FSlateApplication's application activation, and its input device switch 0x1424f9ad0 run handler
+        -- 0x1425bbbb0, which applies FInputModeGameOnly (vtable 0x145a7fa28) when no SB screen counts as showing the
+        -- cursor (ours never does). Then 0x1424f6c30 clears bShowMouseCursor (PC+0x4e0 bit 0). E then reaches the game
+        -- and a click captures the mouse for the camera. While a holder that asked for it (input's again) holds the
+        -- input, a cleared cursor takes the input again (input_mode refuses a root that is gone), at most once each
+        -- RETAKE s, a failed take too. Every other holder, the menu's too, leaves the input to the game then.
+        if took and inputting and built and not hidden and not off and now>=retake_at and retaking then
+            local read,taken=pcall(function()
+                local pc=controller()
+                if not pc or pc.bShowMouseCursor~=false then return false end
+                local g=holder and built.groups[holder]
+                return input_mode(true,g and g.field)==true
+            end)
+            if not read or taken then retake_at=now+RETAKE end
+            if not read and not retake_said then retake_said=true; log('input: not taken again: '..tostring(taken))
+            elseif read and taken then log('input: the game cleared our mouse cursor and took its input back: taken again') end
         end
         if not off and next(tweens) then
             run(function()
@@ -972,14 +997,15 @@ function Ui.kit(opts)
         end
     end
     -- The game's input for who: nil, the menu's (on our root), or a group's name, its field's (the chat box, with its
-    -- keyboard focus); mouse: the mouse cursor shown, as for the menu. On (only while the root is up) or off; each
-    -- once. Only who holds it gives it back: the menu's late give-back (150 ms after its close) never takes the chat's
-    -- that opened meanwhile, nor the reverse. Off while still due is tried again at each call, the kit off too: the
-    -- game never stays deaf.
-    function self.input(on,who,mouse)
+    -- keyboard focus); mouse: the mouse cursor shown, as for the menu; again (with mouse): the input taken again when
+    -- the game takes it back while who holds it (tick). On (only while the root is up) or off; each once. Only who
+    -- holds it gives it back: the menu's late give-back (150 ms after its close) never takes the chat's that opened
+    -- meanwhile, nor the reverse. Off while still due is tried again at each call, the kit off too: the game never
+    -- stays deaf.
+    function self.input(on,who,mouse,again)
         if on==true then
             if off or not self.ready() or (inputting and holder==who) then return end
-            holder,pointing=who,mouse==true
+            holder,pointing,retaking=who,mouse==true,mouse==true and again==true
             local g=who and built.groups[who]
             run(input_mode,true,g and g.field)
         elseif inputting and holder==who then
@@ -1057,7 +1083,7 @@ function Ui.kit(opts)
     -- load thinks the game has it, and the menu's mouse cursor put back (a later input(false) tries again while there
     -- is no player controller).
     function self.reset()
-        inputting,holder=true,nil
+        inputting,holder,took,retaking=true,nil,false,false
         if off then pcall(input_mode,false) else run(input_mode,false) end
     end
     -- coop off and coop ui off: the root goes now (the game's input back first); no engine call after.

@@ -1,9 +1,9 @@
 # How the code is organised
 
-The Lua scripts and the native sources have one folder per module in each tree. Most modules sit in the category
-folders `online/`, `fight/`, `world/`, `story/` and `vehicles/`. Two modules have a folder of their own at the top of
-each tree: `eve/` and `cutmenus/`. Modules do not depend on each other, so a module that fails to load is off alone
-while the rest of Stellar Blade Online keeps working.
+The Lua scripts and the native sources have one folder per module in each tree. Most modules sit in the category folders
+`online/`, `fight/`, `world/`, `story/` and `vehicles/`. Three modules have a folder of their own at the top of each
+tree: `eve/`, `cutmenus/` and `closet/`. Modules do not depend on each other, so a module that fails to load is off
+alone while the rest of Stellar Blade Online keeps working.
 
 ## Modules
 
@@ -44,6 +44,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `online.modes.fishing` | Fishing tournament | `online/modes/fishing/` | `online/modes/fishing/` | [Fishing tournament](../online/modes/fishing.md) | `online/modes/fishing/records.lua`, its copy of score attack's records; `online/modes/fishing/rows.lua`, the names of SB's 40 fish rows; `native/src/online/modes/fishing/fishing.h`, its copy of the set walk of `cutmenus/items.h` |
 | `online.modes.photohunt` | Photo hunt | `online/modes/photohunt/` | `online/modes/photohunt/` | [Photo hunt](../online/modes/photohunt.md) | `online/modes/photohunt/records.lua`, its copy of score attack's records |
 | `world.maps.sboxion` | SBO Xion | `world/maps/sboxion/` | `world/maps/sboxion/` | [SBO Xion](../world/maps/sboxion.md) | Its rows in `world/maps/sboxion/sboxion_rows.h`; `world/maps/sboxion/recover.lua`, its copy of score attack's in-place respawn and of the group's ground read; `world/maps/sboxion/engine.lua`, its copy of the lobby's black call |
+| `closet` | Stellar Closet | `closet/` | `closet/` (`keys.h`, `packs.h` and the mouse wheel's part `wheel_game.inc`; and the shared `ui/pad.h`'s LB + D-pad Left chord, which `closet on` turns on) | [Stellar Closet](../closet/closet.md) | `closet/dress.lua` (the ghost's resolve and skeleton guard), `closet/colour.lua`, `closet/shape.lua`, `closet/thumbs.lua`, `closet/ui/camera.lua` and `closet/ui/hud.lua` (gun mode's HUD entry and its helpers), its copies |
 
 ## Shared pieces
 
@@ -51,14 +52,14 @@ The shared pieces are never turned off. They require and include no module.
 
 | Piece | Holds |
 | --- | --- |
-| `main.lua`, `main/` | The entry and the runtime: boot, base, the module loader, `coop ui` and `coop off`, the UI's build order, input, the frame loop, the 250 ms loop, the key binds |
+| `main.lua`, `main/` | The entry and the runtime: boot, base, the module loader, `coop ui` and `coop off`, the UI's build order, input, the frame loop, the 250 ms loop, the key binds. `main/boot.lua` gives every module the DLL's reads of the pad, the keys held and the mouse wheel: `M.pad_bits()` (X, L3 and R3 held), `M.pad_levels()` (the right stick and the triggers), `M.held_keys()` (the right and middle mouse buttons, Shift, I, J, K, L, U and O), `M.mouse_wheel()` (the notches since the last call) and `M.nav_held()` (up and down held), each nil with an older DLL. The closet's native part answers them (`closet/keys.h`) |
 | `core/` | Helpers for every module: the files shared with the native part, settings, keys, UE4SS helpers, EVE and her world, the display actors, text lines, the row batches' flow (`core/enemy.lua`) |
-| `ui/kit/` | The on-screen kit, the menu (with the modules' TEST TOOLS pages each module exports: `eve_page`, `devmenu_page`, `viewer_page`), the wheel (`ui/kit/wheel.lua`, which the emote wheel opens), notices, the guide, the pause menu's Online tab, `coop guide` and `coop keys` |
+| `ui/kit/` | The on-screen kit, the menu (with the modules' TEST TOOLS pages each module exports: `eve_page`, `devmenu_page`, `viewer_page`), the wheel (`ui/kit/wheel.lua`, which the emote wheel opens), notices, the guide, the pause menu's Online tab, `coop guide` and `coop keys`. The game's widget parts every screen may draw (`ui/kit/parts.lua`), the settings menu's slider row (`slider`) among them. `kit.holding(who)`, whether that holder has the input. `kit.input`'s `again`, the input taken again when the game takes it back, which only the closet menu passes |
 | `ui/text.lua`, `ui/text/` | The text tables, one file per language, with each module's translated name in `modules`; the guide's words; the culture pick |
 | `native/src/game/` | `memory.h` and the headers that more than one module reads |
 | `native/src/link/` | The Steam link |
 | `native/src/rows/` | The row engine every batch shares (`rows.h`, with the table list `kTables`), the batch flow on the game thread (`rows_game.inc`, one job per batch word) and the Shock Bolt's ammo list grower (`shock.h`, which the fight worker's log and a game test read too) |
-| `native/src/ui/` | The controller's events and the pause menu's Online tab |
+| `native/src/ui/` | The controller's events and the pause menu's Online tab. `ui/pad.h` reads X, L3, R3 and the triggers too (`PadState`, `Pad::read()`), for every module's part. Its LB + D-pad Left chord (event 14) is the closet's: it is made only while Lua asks `closet on` |
 | `native/src/glue/` | The Windows side and the hub: `glue/tick.cpp` includes every part in a declared order; `glue/tick/<part>_shared.inc` holds what other modules' parts read of a part (`bike_game_shared.inc`: what the keep reads of the bike's part) |
 | `native/src/game/keep.h`, `native/src/glue/tick/keep_game.inc`, `core/keep.lua` | The keep. Lua writes the paths of the assets modules use where the player sees them to `coop-keep.txt`. The native part asks SB's own async loader for them and holds the handles for the game run, so nothing loads them on the game thread later |
 | `native/src/game/theater.h`, `native/src/glue/tick/theater_game.inc` | SB's theater on the status line (`theater=`), read every 100 ms the way SB's own widgets read it. The talks (`story/scenes`) and the group (`online/group`) read the field instead of walking the object array |

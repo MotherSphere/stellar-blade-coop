@@ -55,7 +55,8 @@ Link.DEFAULT=[[
 # the co-op menu, whose first row hosts; host_key hosts at once, or none. follow_key travels to the host (follow_host
 # below), or none. race_key drops a checkpoint while you record a race track (coop race record). bike_key gets EVE on
 # the bike or off it (bike below), or none. gun_key brings the rifle out or puts it away (gun_mode below), or none.
-# emote_key, held, opens the emote wheel; releasing it plays the emote you point at; or none.
+# emote_key, held, opens the emote wheel; releasing it plays the emote you point at; or none. closet_key opens
+# Stellar Closet; pressed while it is open, it goes back as Esc does; or none.
 menu_key=F5
 host_key=none
 status_key=F6
@@ -65,6 +66,7 @@ race_key=F9
 bike_key=F3
 gun_key=F4
 emote_key=F2
+closet_key=F1
 # The emote wheel on a controller: dpad_left (D-pad Left held 0.3 s opens it, its release plays) or off.
 emote_pad=dpad_left
 # The keys you hold to drift in a Doro race: Unreal key names separated by spaces (at most 4), or none. Steering hard
@@ -285,7 +287,7 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     quest_deny='',revive='on',cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
     pvp_spike='on',sbo_lobby='on',shared_world='on',shared_story='on',daynight='on',pause_tab='on',hide_popups='on',
     gun_mode='on',gun_key='F4',scoreattack='on',fishing='on',race_match='on',emote_key='F2',emote_pad='dpad_left',
-    photohunt='on'}
+    photohunt='on',closet_key='F1'}
 -- Gun mode's test lines (fight/gunmode/config.lua): no template line, no menu row. Kept as written, empty when absent;
 -- gun mode checks them and logs what it refuses.
 local GUN_TESTS={gun_aim_key=true,gun_zoom=true,gun_upper=true,gun_fire=true,gun_probe=true,gun_trace=true,
@@ -302,7 +304,8 @@ local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=tr
     photohunt=true,spectate=true}
 -- What the ghost shows (online/partner/puppet.lua), each on or off.
 local LOOKS={cloth=true,dyes=true,effects=true,drone=true,sounds=true,faces=true}
-local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','gun_key','emote_key'}
+local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key','bike_key','gun_key','emote_key',
+    'closet_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
     kill_credit={'together','fought'},who_can_join={'public','friends','invitation','closed'},
     auto_coop_save={'ask','always','off'},aggro={'game','host'},photo_pause={'full','scenery'},
@@ -573,8 +576,9 @@ function Link.parse_settings(text)
     -- A file from before race_key whose own keys hold F9: race_key has none there (coop race cp still drops a
     -- checkpoint), so the rule below never puts back the keys the player chose. The same for bike_key and F3 (coop bike
     -- still gets her on the bike), for gun_key and F4 (coop gun and D-pad Right still bring the rifle out) and for
-    -- emote_key and F2 (coop emote and the pad still play the emotes).
-    for _,new in ipairs({'race_key','bike_key','gun_key','emote_key'}) do
+    -- emote_key and F2 (coop emote and the pad still play the emotes) and for closet_key and F1 (coop closet menu
+    -- still opens the closet menu).
+    for _,new in ipairs({'race_key','bike_key','gun_key','emote_key','closet_key'}) do
         if not named[new] then
             for _,name in ipairs(KEYS) do
                 if name~=new and settings[name].name==settings[new].name then

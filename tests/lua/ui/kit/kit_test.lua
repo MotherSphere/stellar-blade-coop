@@ -1115,6 +1115,81 @@ k.input(true); k.input(false); assert(pc.bShowMouseCursor==true,'The value found
 assert(k.paused()==true,'Not ours: a game screen')
 pc.bShowMouseCursor=false
 k.input(true); k.reset(); assert(pc.bShowMouseCursor==false,'coop ui reset')
+-- SB gives the game its input back on its own (a window activation, an input device switch): it applies GameOnly and
+-- clears bShowMouseCursor. While a holder that asked for it (again: the closet menu's) holds the input, the next frame
+-- takes it again, once; the value found still goes back at the end. Every other holder is left alone, as before: the
+-- menu, a group that shows the cursor without asking (the guide's) and one that shows none (the chat's box).
+k.input(true,'closet',true,true)
+local taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false
+k.tick(clock)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken+1 and pc.bShowMouseCursor==true,'Taken again')
+k.tick(clock)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken+1,'Once')
+k.input(false,'closet')
+assert(pc.bShowMouseCursor==false,'The value found goes back')
+for _,who in ipairs({{nil,nil,'the menu'},{'guide',true,'the guide'},{'chat',nil,"the chat's box"}}) do
+    k.input(true,who[1],who[2])
+    taken=count(LIB..'SetInputMode_UIOnlyEx')
+    pc.bShowMouseCursor=false; k.tick(clock+1)
+    assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,'Not for '..who[3])
+    k.input(false,who[1])
+end
+-- again asked without the mouse cursor: no cursor of ours to lose, nothing taken.
+k.input(true,'closet',false,true)
+taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false; k.tick(clock+2)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,'Not without the cursor')
+k.input(false,'closet')
+-- The guide taking the input from the closet menu does not keep the closet's again.
+k.input(true,'closet',true,true); k.input(true,'guide',true)
+taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false; k.tick(clock+3)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,'Not for the holder that took it from the closet')
+k.input(false,'guide')
+-- At most once each half second: a cursor the game keeps clearing never costs a call each frame.
+k.input(true,'closet',true,true)
+taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false; k.tick(clock+10)
+pc.bShowMouseCursor=false; k.tick(clock+10.2)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken+1,'Once in half a second')
+pc.bShowMouseCursor=false; k.tick(clock+10.6)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken+2,'Again after it')
+-- Hidden (a game screen, photo mode, a map load): the game's screen has the cursor, nothing taken.
+k.slow(false)
+taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false; k.tick(clock+11.2)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,'Nothing taken while hidden')
+k.slow(true)
+k.input(false,'closet')
+-- coop ui reset with no player controller leaves the kit thinking it holds the input: no take-again for a UI that holds
+-- nothing.
+k.input(true,'closet',true,true)
+local held_pc=pc
+pc=nil
+k.reset()
+pc=held_pc
+taken=count(LIB..'SetInputMode_UIOnlyEx')
+pc.bShowMouseCursor=false; k.tick(clock+20)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken,'Nothing taken after coop ui reset')
+-- Our root gone (a map change, until the next step rebuilds it) while the input is still ours: nothing taken, nothing
+-- said.
+k.input(false)
+k.input(true,'closet',true,true)
+local root=viewport[#viewport]
+stores[root].alive=false
+taken,n=count(LIB..'SetInputMode_UIOnlyEx'),#logs
+pc.bShowMouseCursor=false; k.tick(clock+30)
+assert(count(LIB..'SetInputMode_UIOnlyEx')==taken and #logs==n,'Nothing taken for a root that is gone')
+stores[root].alive=true
+k.input(false,'closet')
+-- holding(who): whether that holder has the input; holding() whether any has.
+k.input(true,'closet',true)
+assert(k.holding() and k.holding('closet') and not k.holding('guide'),'The closet holds it')
+k.input(true,'guide',true)
+assert(k.holding() and k.holding('guide') and not k.holding('closet'),'The guide took it')
+k.input(false,'guide')
+assert(not k.holding() and not k.holding('guide'),'Given back')
 -- A group that asks for it (the guide, in a world) shows it too; one that takes the input from it without asking hides
 -- it again.
 k.input(true,'guide',true); assert(pc.bShowMouseCursor==true and k.paused()==false,'The guide asks: shown')

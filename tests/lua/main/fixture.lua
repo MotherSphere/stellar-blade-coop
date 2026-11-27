@@ -116,7 +116,7 @@ fades.library={type=function() return 'UObject' end,IsValid=function() return tr
 Link=dofile('mod/StellarCoop/Scripts/core/link.lua') -- The real parser behind the fake link.
 LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
 asked,huds,pausetabs,sessions,ticks,withdrawn,states,photos={},{},{},{},0,{},{},{}
-popup_asks={}
+popup_asks,closet_asks={},{}
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 link_mode='none' -- What link.mode() says, as of the last changes().
 ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
@@ -147,14 +147,14 @@ fake_link={
     -- tests.
     remote_table=function() return nil end,
     -- The hud requests of the lobby's screens go to huds (tests/lua/online/lobby/wiring_test), the pause menu's Online
-    -- tab's to pausetabs, the popups ones (main/pass.lua's switch_pass for hide_popups) to popup_asks, the others to
-    -- asked.
+    -- tab's to pausetabs, the popups ones (main/pass.lua's switch_pass for hide_popups) to popup_asks, the closet ones
+    -- (its switch_pass for the closet's pad chord) to closet_asks, the others to asked.
     -- hud_refuse: a hud request is refused with that why, as link.request answers when coop-request.txt cannot be
     -- written.
     request=function(line)
         if hud_refuse and line:find('^hud ') then return false,hud_refuse end
         local into=line:find('^hud ') and huds or line:find('^pausetab ') and pausetabs
-            or line:find('^popups ') and popup_asks or asked
+            or line:find('^popups ') and popup_asks or line:find('^closet ') and closet_asks or asked
         into[#into+1]=line
         return true,'asked the native part: '..line
     end,
@@ -538,6 +538,76 @@ package.loaded['eve.wear']={new=function(o)
         restore=function() wr.restores=wr.restores+1 end,
         tick=function() wr.ticks=wr.ticks+1; if wr.says then return table.unpack(wr.says) end end,
         stop=function() wr.stops=wr.stops+1 end}
+end}
+-- coop closet (closet/dress.lua; closet/dress_test tests it): what new got (log, store, paused), its wears, restores,
+-- ticks and stops.
+cl={wears={},restores=0,ticks=0,stops=0}
+package.loaded['closet.dress']={USE='Use: coop closet wear',parse=function(w) return w end,new=function(o)
+    cl.o=o
+    return {wear=function(c) cl.wears[#cl.wears+1]=c; return true,'cl wear' end,off=function() return true,'cl off' end,
+        restore=function() cl.restores=cl.restores+1 end,tick=function() cl.ticks=cl.ticks+1 end,
+        stop=function() cl.stops=cl.stops+1 end,status=function() return 'closet: nothing worn' end}
+end}
+-- The closet menu's camera (closet/ui/camera.lua; closet/camera_test tests it, closet/menu_test its wiring): what new
+-- got. It never runs: link.store here gives a name, not a file.
+cc={}
+package.loaded['closet.ui.camera']={FILE='coop-closet-camera.txt',region=function() return 'full' end,new=function(o)
+    cc.o=o
+    return {open=function() end,close=function() end,stop=function() end,tick=function() end,word=function() end,
+        running=function() return false end,mode=function() return 'region' end,
+        hold_back=function() return false end,take_back=function() return false end}
+end}
+-- coop closet thumbs (closet/thumbs.lua; closet/thumbs_test tests it, closet/menu_test the tiles' pictures): what new
+-- got, its ticks and stops. No picture is there. It never runs: link.store here gives a name, not a file.
+th={ticks=0,stops=0}
+package.loaded['closet.thumbs']={FILE='coop-closet-thumbs.txt',FULL='full',fs={exists=function() return false end},
+    file=function(root,id,slot) return root..'\\closet-thumbs\\'..id..'\\'..slot..'.png' end,new=function(o)
+    th.o=o
+    return {run=function() return true,'th run' end,tick=function() th.ticks=th.ticks+1 end,
+        stop=function() th.stops=th.stops+1 end,running=function() return false end}
+end}
+-- The closet's colour layer (closet/colour.lua; closet/colour_test tests it, closet/menu_test its wiring): what new
+-- got, its ticks and stops. Every role is off. It never runs: link.store here gives a name, not a file.
+co={ticks=0,stops=0}
+package.loaded['closet.colour']={FILE='coop-closet-colour.txt',ROLES={'primary','secondary','accent','glow'},
+    SWATCHES={},USE='Use: coop closet colour',new=function(o)
+    co.o=o
+    return {tick=function() co.ticks=co.ticks+1 end,stop=function() co.stops=co.stops+1 end,
+        get=function() return 'off' end,set=function() return true,'co set' end,step=function() return true end,
+        off=function() return true,'co off' end}
+end}
+-- The closet's shape layer (closet/shape.lua; closet/shape_test tests it, closet/menu_test its wiring): what new got,
+-- its ticks and stops. No row, every value 0. It never runs: link.store here gives a name, not a file.
+sh={ticks=0,stops=0}
+package.loaded['closet.shape']={FILE='coop-closet-shape.txt',STEP=10,USE='Use: coop closet shape',new=function(o)
+    sh.o=o
+    return {tick=function() sh.ticks=sh.ticks+1 end,stop=function() sh.stops=sh.stops+1 end,
+        rows=function() return {} end,get=function() return 0 end,set=function() return true,'sh set' end,
+        step=function() return true end,off=function() return true,'sh off' end}
+end}
+-- The closet's options layer (closet/options.lua; closet/options_test tests it, closet/menu_test its wiring): what new
+-- got, its ticks and stops. No outfit has a kept value. It never runs: link.store here gives a name, not a file.
+op={ticks=0,stops=0}
+package.loaded['closet.options']={FILE='coop-closet-options.txt',USE='Use: coop closet option',new=function(o)
+    op.o=o
+    return {tick=function() op.ticks=op.ticks+1 end,stop=function() op.stops=op.stops+1 end,
+        toggles=function() return {} end,variant=function() return 1 end,get=function() end,
+        set=function() return true,'op set' end,set_variant=function() return true,'op variant' end,
+        reset=function() return true,'op reset' end,off=function() return true,'op off' end}
+end}
+-- The closet's presets and favourites (closet/presets.lua; closet/presets_test tests it, closet/menu_test its rows):
+-- what new got. No preset and no favourite. It never reads: link.store here gives a name, not a file.
+pr={}
+package.loaded['closet.presets']={FILE='coop-closet-presets.txt',USE='Use: coop closet preset',new=function(o)
+    pr.o=o
+    return {list=function() return {} end,is_fav=function() return false end,fav=function() return true,'pr fav' end,
+        save=function() return 1,'pr save' end,wear=function() return true,'pr wear' end,
+        delete=function() return true,'pr delete' end,rename=function() return true,'pr rename' end}
+end}
+-- The closet's HUD entry (closet/ui/hud.lua; closet/hud_test tests it): the keys its ticks got and its hides.
+hu={keys={},hides=0}
+package.loaded['closet.ui.hud']={helpers=function(env) hu.env=env; return {} end,new=function()
+    return {tick=function(key) hu.keys[#hu.keys+1]=key or 'none' end,hide=function() hu.hides=hu.hides+1 end}
 end}
 -- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
 -- stops, what a tick says; its scenes' words.
@@ -1030,6 +1100,19 @@ pd={q={},calls=0,missing=false}
 -- The native part's emote wheel reads (coop_stick, coop_held, coop_fkey): each hands back that many of its arguments
 -- (stick: the right stick's sector, held: D-pad Left's 1, fkey: the F-key held); missing: an older DLL without them.
 wh={stick=0,held=0,fkey=0,missing=false,mouse={1920,1080},centred=0}
+-- The native part's pad reads for the closet: coop_padbits hands back 1 + bits of its 8 arguments (bits: 1 X, 2 L3, 4
+-- R3), coop_levels the next of levels in turn of its 260 (1 + 65 * which + the level, ui/pad.h's pad_level); calls:
+-- coop_levels' calls; missing: an older DLL without them.
+pr={bits=0,levels={},calls=0,missing=false}
+-- The native part's held keys for the closet camera: coop_keys hands back 1 + bits of its 512 arguments (bits: 1 right
+-- mouse, 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O); missing: an older DLL without it.
+kh={bits=0,missing=false}
+-- The native part's mouse wheel for the closet camera: coop_wheel hands back 65 + notches of its 130 arguments (up
+-- positive, -64 to 64); missing: an older DLL without it.
+mw={notches=0,missing=false}
+-- The native part's held menu keys: coop_nav hands back 1 + bits of its 4 arguments (1 up, 2 down); missing: an older
+-- DLL without it.
+nk={bits=0,missing=false}
 -- The native part's pause menu close (coop_pause_close): each call hands back answer of its three arguments (1 closed,
 -- 2 no pause menu, 3 off); calls: how often it was called; missing: an older DLL without it.
 pc={answer=1,calls=0,missing=false}
@@ -1056,10 +1139,41 @@ function load_main(with_native,no_folder,source)
                 return table.unpack({...},1,wh[word])
             end
         end
+        if name=='coop_padbits' or name=='coop_levels' then
+            if pr.missing then return nil,'not exported' end
+            local most=name=='coop_padbits' and 8 or 260
+            return function(...)
+                assert(select('#',...)==most,name..': '..most..' arguments, the most it hands back')
+                if name=='coop_padbits' then return table.unpack({...},1,1+pr.bits) end
+                pr.calls=pr.calls+1
+                return table.unpack({...},1,pr.levels[(pr.calls-1)%4+1])
+            end
+        end
+        if name=='coop_nav' then
+            if nk.missing then return nil,'not exported' end
+            return function(...)
+                assert(select('#',...)==4,'coop_nav: 4 arguments, the most it hands back')
+                return table.unpack({...},1,1+nk.bits)
+            end
+        end
+        if name=='coop_wheel' then
+            if mw.missing then return nil,'not exported' end
+            return function(...)
+                assert(select('#',...)==130,'coop_wheel: 130 arguments, the most it hands back')
+                return table.unpack({...},1,65+mw.notches)
+            end
+        end
+        if name=='coop_keys' then
+            if kh.missing then return nil,'not exported' end
+            return function(...)
+                assert(select('#',...)==512,'coop_keys: 512 arguments, the most it hands back')
+                return table.unpack({...},1,1+kh.bits)
+            end
+        end
         if name=='coop_pad' then
             if pd.missing then return nil,'not exported' end
             return function(...)
-                assert(select('#',...)==13,'Thirteen arguments: the most the native part hands back')
+                assert(select('#',...)==14,'Fourteen arguments: the most the native part hands back')
                 pd.calls=pd.calls+1
                 return table.unpack({...},1,table.remove(pd.q,1) or 0)
             end
@@ -1068,8 +1182,10 @@ function load_main(with_native,no_folder,source)
     end
     pd.q,pd.calls,pc.calls,kit_lost={},0,0,nil
     wh.stick,wh.held,wh.fkey,wh.mouse,wh.centred=0,0,0,{1920,1080},0
+    pr.bits,pr.levels,pr.calls=0,{1+32,1+65+32,1+130,1+195},0 -- At rest: the sticks centred, the triggers let go.
+    kh.bits=0
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
-    pausetabs,popup_asks={},{}
+    pausetabs,popup_asks,closet_asks={},{},{}
     state_names={} -- link.state's mod_names argument, each call.
     state_sounds={} -- link.state's sounds look, each call.
     state_collides={} -- link.state's collide (the solid partner on, outside an SBO session), each call.

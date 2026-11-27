@@ -17,6 +17,8 @@
 -- the asset it was made from), once, and leaves a part the game set again; coop off gives everything back. The face and
 -- ponytails (the body's followers) never get a call, and nothing reads or calls anything on EVE but her main mesh, her
 -- components, her class and her path: never her equipment.
+-- A look of Stellar Closet on EVE (the closet option) refuses a suit before any call or file. A hair still goes on, and
+-- a hair alone is not worn() for the closet: it never sets SBHair.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -223,12 +225,19 @@ assert(not ok and why=='coop-wear.txt not written (disk full)' and #calls==0 and
 refuse=nil
 ok,why=wr.command()
 assert(why:find('^Worn: hair none, suit none%.'),why)
+-- Stellar Closet has a look on EVE, or waits to wear a kept one again (closet/dress.lua's worn): refused before any
+-- call or file, so the two never fight over her body. Nothing worn, as worn() says.
+local wrc=W.new({log=log,store=store,closet=function() return true end})
+ok,why=wrc.command('gothic')
+assert(not ok and why=='Stellar Closet has a look on EVE: coop closet off gives her own look back first' and #calls==0
+    and stored==nil and not wrc.worn() and not wr.worn(),why)
 
 -- nyaaa: the file first (the game's hair: its mesh, AnimBP class, physics asset and colour as the asset it was made
 -- from), then the mesh, the AnimBP class (its package loaded), the physics asset and the colour's slot.
 local hair_colour=eve.hair.OverrideMaterials[1]
 ok,why=wr.command('nyaaa')
 assert(ok and why=='EVE wears nyaaa as her hair (display only); coop wear off hair gives the game\'s back.',why)
+assert(not wr.worn(),'a hair alone: worn() says no suit, Stellar Closet goes on')
 assert(since(0)=='save|SBHair mesh EVE_HR_14 true|SBHair anim EVE_HR_14_AnimBP_C|SBHair physics EVE_HR_14_Physics '
     ..'false|SBHair material 0 MI_EVE_HR_14_TypeA',since(0))
 assert(loads[#loads]==p('00_HR/EVE_HR_14/EVE_HR_14_AnimBP'),tostring(loads[#loads]))
@@ -242,6 +251,7 @@ assert(last()=='wear nyaaa: SBHair EVE_HR_14 (was CH_P_EVE_Hair07), AnimBP EVE_H
 local n=#calls
 ok,why=wr.command('gothic')
 assert(ok and why=='EVE wears gothic as her suit (display only); coop wear off suit gives the game\'s back.',why)
+assert(wr.worn(),'worn() says a suit is worn: Stellar Closet refuses then')
 assert(since(n)=='save|CharacterMesh0 mesh CH_P_EVE_IberisCos true',since(n))
 f=fields()
 assert(f[2]==hr14.at_path and f[7]==iberis.at_path and f[8]==eve08.at_path and f[9]=='' and f[10]=='' and f[11]=='')
@@ -422,7 +432,19 @@ local tick_ok,tick_why=wr4.tick()
 require('core.actors').resolve=resolve
 assert(tick_ok==false and tick_why:find('^coop wear stopped on an error: engine fault; suit nothing to give back'),
     tostring(tick_why))
-assert(stored==nil and select(2,wr4.command()):find('^Worn: hair none, suit none%.'))
+assert(stored==nil and select(2,wr4.command()):find('^Worn: hair none, suit none%.') and not wr4.worn())
+
+-- A hair goes on while Stellar Closet has a look on EVE. worn() stays false; a suit is still refused.
+local wrh=W.new({log=log,store=store,closet=function() return true end})
+ok,why=wrh.command('nyaaa')
+assert(ok and why=='EVE wears nyaaa as her hair (display only); coop wear off hair gives the game\'s back.',why)
+assert(eve2.hair.SkeletalMesh==hr14 and not wrh.worn(),'the hair worn, no suit for the closet')
+n=#calls
+ok,why=wrh.command('golden')
+assert(not ok and why=='Stellar Closet has a look on EVE: coop closet off gives her own look back first' and #calls==n,
+    why)
+wrh.command('off')
+assert(stored==nil and eve2.hair.SkeletalMesh~=hr14,'off gives the game\'s hair back')
 
 -- Her followers never got a call, and nothing read anything else on EVE.
 for _,e in ipairs({old,eve2}) do

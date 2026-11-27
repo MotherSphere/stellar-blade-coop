@@ -1,14 +1,16 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- The key binds, with the Steam link only: the F-keys, Enter, the navigation keys, Esc and the mouse buttons.
+-- The key binds, with the Steam link only: the F-keys, Enter, the navigation keys, the closet camera's and lights'
+-- keys, Esc and the mouse buttons.
 return function(M)
 local print,log=M.print,M.log
 -- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once
 -- (UE4SS cannot take a bind back), so a key changed in the menu works at once and the menu can take any of them; at
 -- each press the settings say which action holds it: the menu, Host (host_key, none unless set), the status line,
 -- Leave, the follow (follow_key, coop travel host), a race checkpoint (race_key, while a track is recorded; nothing
--- otherwise) or the bike (bike_key: EVE on it or off it). The host's question takes the navigation keys, Enter and Esc first while it is open, then the SBO lobby's
+-- otherwise), the bike (bike_key: EVE on it or off it) or the closet menu (closet_key: open, or its Back). The host's
+-- question takes the navigation keys, Enter and Esc first while it is open, then the SBO lobby's
 -- screens while one is open (menu_key closes B or C to the room; in the lobby world, menu_key opens B in place of the
 -- co-op menu; E and the left tab key are C's tabs), then the Sessions screen while it is open (menu_key closes it; E
 -- and the left tab key are its tabs, F its Refresh). Enter goes to the menu's key capture, then selects; the navigation
@@ -33,7 +35,7 @@ local print,log=M.print,M.log
 -- click (the next page) first. Every other key of ours does nothing then (the F-keys, Enter, the navigation keys).
 if M.settings then
     local K=require('core.keybind')
-    local ACTIONS={'menu','host','status','leave','follow','race','bike','emote'}
+    local ACTIONS={'menu','host','status','leave','follow','race','bike','emote','closet'}
     if type(IsKeyBindRegistered)=='function' then
         for _,action in ipairs(ACTIONS) do
             local key=M.settings[action..'_key']
@@ -68,6 +70,12 @@ if M.settings then
                 elseif action=='emote' then -- Its F-key's number: the wheel plays at that key's release.
                     if M.off then M.report(false,M.OFF)
                     else M.emote_wheel.press('key',tonumber(M.settings.emote_key.key:match('%d+'))) end
+                elseif action=='closet' then -- Opens the closet menu, or is its Back while open (closet/ui/menu.lua).
+                    if M.off then M.report(false,M.OFF)
+                    elseif M.closet_menu and M.closet_menu.toggle then -- An off closet module: the loader stub.
+                        local ok,why=M.closet_menu.toggle()
+                        if ok==false then M.report(ok,why) end
+                    end
                 elseif action~='menu' then M.run(action)
                 elseif M.off then M.report(false,M.OFF)
                 elseif M.lobby.is_open() then
@@ -118,10 +126,10 @@ if M.settings then
     -- a session screen takes the navigation keys only. E and F do nothing anywhere else.
     local function lobby_key(key,word)
         local screen=M.lobby.is_open() and M.lobby or M.open_screen()
-        if M.lobby.is_open()=='settings' or screen==M.sessions then
+        if M.lobby.is_open()=='settings' or screen==M.sessions or screen==M.closet_menu then
             if key=='E' then word='tab_right' elseif key==(M.kit.azerty() and 'A' or 'Q') then word='tab_left' end
         end
-        if key=='F' then word=screen==M.sessions and 'refresh' or nil end
+        if key=='F' then word=(screen==M.sessions or screen==M.closet_menu) and 'refresh' or nil end
         if word and screen then screen.nav(word) end -- Closed on the game thread meanwhile: nothing.
     end
     for _,nav in ipairs({{'UP_ARROW','up'},{'W','up'},{'Z','up'},{'DOWN_ARROW','down'},{'S','down'},
@@ -144,6 +152,25 @@ if M.settings then
                 and not M.code_box.is_open() and M.spectate and M.spectate.watching() then
                 ExecuteInGameThread(function() M.spectate.switch(nav[2]) end)
             end
+        end)
+    end
+    -- The closet camera's keys (closet/ui/camera.lua), only while the closet menu is the open screen: J, L, I and K
+    -- orbit, U and O zoom, C switches region and free, Backspace resets the free camera; its lights
+    -- (closet/ui/lights.lua): V the next preset, Shift+U and Shift+O the intensity down and up; P the worn outfit's
+    -- preview picture (closet/thumbs.lua's snap). Nothing anywhere else.
+    -- Shift+U and Shift+O are bound before the plain U and O: a plain press within 0.2 s after one of them, if UE4SS
+    -- also calls the plain bind for it, is the same press, dropped (as an F-key's).
+    local shifted={} -- U or O to when it was last pressed with Shift (os.clock).
+    for _,cam in ipairs({{'U','light_down','SHIFT'},{'O','light_up','SHIFT'},{'J','cam_left'},{'L','cam_right'},
+            {'I','cam_up'},{'K','cam_down'},{'U','cam_in'},{'O','cam_out'},{'C','cam_mode'},{'BACKSPACE','cam_reset'},
+            {'V','light_next'},{'P','picture'}}) do
+        bind(cam[1],cam[3],function()
+            if M.open_screen()~=M.closet_menu then return end
+            ExecuteInGameThread(function()
+                if cam[3] then shifted[cam[1]]=os.clock()
+                elseif shifted[cam[1]] and os.clock()-shifted[cam[1]]<0.2 then return end
+                if M.open_screen()==M.closet_menu then M.closet_menu.nav(cam[2]) end -- Still open on the game thread.
+            end)
         end)
     end
     bind('ESCAPE',nil,function()

@@ -21,7 +21,8 @@ local M={print=print,log=log,VERSION=VERSION,folder=folder,commands={}}
 local MODULES={'online.partner','online.modes.nightop','fight.bosses','online.group','online.modes.race','eve',
     'story.scenes','world.maps.matrix13','online.session','online.photo','fight.enemies','story.quests','world.objects',
     'story.together','online.lobby','vehicles.bike','world.daynight','cutmenus','online.saves','world.teamshop',
-    'fight.gunmode','online.modes.scoreattack','online.modes.fishing','online.modes.photohunt','world.maps.sboxion'}
+    'fight.gunmode','online.modes.scoreattack','online.modes.fishing','online.modes.photohunt','world.maps.sboxion',
+    'closet'}
 require('main.boot')(M)
 require('main.base')(M)
 require('main.loader').run(M,MODULES)

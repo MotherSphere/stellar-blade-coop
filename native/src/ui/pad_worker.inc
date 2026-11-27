@@ -19,9 +19,10 @@ uint64_t pad_hook(size_t i) {
 uint64_t pad_slot_now(size_t i) {
   return *reinterpret_cast<const volatile uint64_t *>(base + (coop::slate::kSlots[i] - game::kImageBase));
 }
-// FName's find (FNAME_Find: never a new name) for each key PadKeys reads: the index of the first the game lacks, or -1.
+// FName's find (FNAME_Find: never a new name) for each key PadKeys reads: the index of the first the game lacks that
+// is not optional, or -1 (PadKeys::find_names: an optional one it lacks stays 0).
 __declspec(noinline) int pad_find_names_body(std::array<uint64_t, coop::PadKeys::kKeys> &out) {
-  for (int i = 0; i < coop::PadKeys::kKeys; ++i) {
+  return coop::PadKeys::find_names(out, [](int i) {
     wchar_t wide[32] = {};
     uint32_t n = 0;
     for (const char *c = coop::PadKeys::kNames[i]; *c && n < 31; ++c)
@@ -29,11 +30,8 @@ __declspec(noinline) int pad_find_names_body(std::array<uint64_t, coop::PadKeys:
     const NameView view{wide, n, false};
     uint64_t name = 0;
     game_function<MakeName>(kMakeName)(&name, &view, 0, 0);
-    if (!uint32_t(name))
-      return i;
-    out[i] = name;
-  }
-  return -1;
+    return name;
+  });
 }
 // Under its own guard: -2 on a fault.
 int pad_find_names(std::array<uint64_t, coop::PadKeys::kKeys> &out) {
@@ -58,8 +56,9 @@ std::string pad_give_back(size_t n) {
   }
   return kept;
 }
-// Once a run, on the pinned build before coop off: the fourteen key names, then Slate's handler, then the three slots in
-// order. A missing name, another handler or a slot holding anything else leaves XInput as the source.
+// Once a run, on the pinned build before coop off: every key name PadKeys reads, then Slate's handler, then the three
+// slots in order. A missing name that is not optional, another handler or a slot holding anything else leaves XInput as
+// the source. A missing optional name is logged and its key is not read.
 void pad_hook_install() {
   pad_hook_state = Filter::refused; // Until all three slots are ours.
   std::array<uint64_t, coop::PadKeys::kKeys> names{};
@@ -84,6 +83,9 @@ void pad_hook_install() {
     say("pad: Slate's handler is not at 0x145fe5430 (it holds " + slot_value(vtable) + "); XInput instead");
     return;
   }
+  for (int i = 0; i < coop::PadKeys::kKeys; ++i)
+    if (!names[i]) // An optional key's (X, L3, R3, a trigger axis): once a run, as this install.
+      say(std::string("pad: the game has no FName ") + coop::PadKeys::kNames[i] + "; that key is not read");
   pad_keys.names = names; // Before the first swap: the hooks read them from then on.
   size_t done = 0;
   uint64_t held = 0;
@@ -123,4 +125,12 @@ void pad_hook_undo(const char *why) {
       "; XInput instead");
 }
 } // namespace
+
+// Lua's closet on or off (main/pass.lua: on while the closet module is on): the pad's chord, LB held + D-pad Left, only
+// while on. A change is logged.
+void ask_pad_closet(bool on) {
+  if (pad_closet.exchange(on) != on)
+    say(on ? std::string("pad: asked closet on, LB held + D-pad Left opens the closet menu")
+           : std::string("pad: asked closet off, LB and D-pad Left as without the closet"));
+}
 } // namespace coop::pose

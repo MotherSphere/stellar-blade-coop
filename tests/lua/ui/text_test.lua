@@ -26,7 +26,12 @@
 -- distance or another map's 32-byte name, the paid fetch's offer after them with the longest key name and betacrystal,
 -- the fetch's other lines with a 32-byte money name, within 200 bytes; coop gift's notices with a 32-byte name and
 -- alias within 200 bytes; the 25 module names in every table; the notice
--- of a module that failed to load with the longest of them within 200 bytes.
+-- of a module that failed to load with the longest of them within 200 bytes; Stellar Closet's menu words: a slot name
+-- for each of closet/slots.lua's Slots.LIST ids, a tab for each Slots.MENUS id and a region for each Slots.REGIONS
+-- name, each tab within 16 columns, each key hint within 14, its notices within 200 bytes, the Colour tab's name and
+-- about line for each closet/colour.lua role and a name for Off and each swatch, the roles within a row's title column,
+-- the swatches within its value column, the Body tab's shape value (closet/shape.lua) at 100 within its value column,
+-- the presets rows' titles (closet/presets.lua) within the title column and the filter's values within the value one.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('online.modes.nightop.recruiter_text')
@@ -58,11 +63,11 @@ assert(T.fr and next(T.fr),'French stays complete')
 -- Every one of the 22 tables names the ghost's drone, sounds and faces rows.
 for culture,t in pairs(T) do if type(t)=='table' and t.row and t.row.dyes then
     assert(type(t.row.drone)=='string' and type(t.row.sounds)=='string' and type(t.row.faces)=='string',culture) end end
--- The modules' names for the off notice: exactly T.en's 25 keys in every table (tests/tools/modules_test.py checks
+-- The modules' names for the off notice: exactly T.en's 26 keys in every table (tests/tools/modules_test.py checks
 -- them against main.lua's MODULES).
 local MODULE_KEYS=0
 for _ in pairs(T.en.modules) do MODULE_KEYS=MODULE_KEYS+1 end
-assert(MODULE_KEYS==25,'T.en.modules: '..MODULE_KEYS..' names')
+assert(MODULE_KEYS==26,'T.en.modules: '..MODULE_KEYS..' names')
 for name,t in pairs(T) do
     if type(t)=='table' and next(t) then
         local n=0
@@ -81,6 +86,13 @@ for id in pairs(T.en.challenge.names) do assert(ids[id],'T.en.challenge.names.'.
 for _,row in ipairs(require('ui.kit.model').OPTIONS) do
     if row.head then assert(type(T.en.head[row.head])=='string','T.en.head.'..row.head..': missing')
     else assert(type(T.en.row[row.id or row.key])=='string','T.en.row.'..(row.id or row.key)..': missing') end
+end
+-- The closet key's row (closet_key, main/keys.lua) is an Options row, named in every table.
+local closet_row=false
+for _,row in ipairs(require('ui.kit.model').OPTIONS) do closet_row=closet_row or row.key=='closet_key' and row.bind end
+assert(closet_row,'closet_key: no Options row')
+for culture,t in pairs(T) do
+    if type(t)=='table' and t.row then assert(type(t.row.closet_key)=='string',culture..'.row.closet_key: missing') end
 end
 
 -- The pick: the game's culture as culture() names it, else English.
@@ -237,6 +249,20 @@ local function notices(w)
     local longest=''
     for _,name in pairs(w.modules) do if #name>#longest then longest=name end end
     lines[#lines+1]=w.module_off:format(longest)
+    -- Stellar Closet's notices (closet/ui/menu.lua): each refused open, each close, each answer of Make preview
+    -- pictures, the save, the failed wear and the reset, the body switched to a 32-byte outfit name and the clipping
+    -- limbs.
+    for _,group in ipairs({'refused','closed','thumbs'}) do
+        for _,text in pairs(w.closet[group]) do lines[#lines+1]=text end
+    end
+    lines[#lines+1]=w.closet.saved
+    lines[#lines+1]=w.closet.failed
+    lines[#lines+1]=w.closet.reset_done
+    lines[#lines+1]=fill(w.closet.presets.saved) -- A preset's name: a 32-byte one.
+    lines[#lines+1]=w.closet.presets.none
+    lines[#lines+1]=fill(w.closet.switched)
+    local r=w.closet.regions
+    lines[#lines+1]=w.closet.clips:format(table.concat({r.ArmUpper,r.Forearm,r.Hand,r.Calf,r.Foot},', '))
     return lines
 end
 -- Columns a word takes: an East Asian wide character two, a combining mark none, any other one.
@@ -439,7 +465,53 @@ for name in pairs(R.TEXT) do
     local pt=w.pause_tab
     fits(name..'.pause_tab.tab',pt.tab,16)
     assert(Chat.clean(pt.stuck)==pt.stuck,name..'.pause_tab.stuck: '..#pt.stuck..' bytes or a control')
+    -- Stellar Closet's menu (closet/ui/view.lua): a tab's word within the game's tab button (16 columns, as the
+    -- Online tab's), a key hint within the menu's hint cell (HINT).
+    for k,text in pairs(w.closet.tabs) do fits(name..'.closet.tabs.'..k,text,16) end
+    -- A fitting tab's label is its word through closet.beta ("%s (Beta)"), within the same 16 columns.
+    for _,menu in ipairs(require('closet.slots').MENUS) do
+        if menu[3] then fits(name..'.closet.beta '..menu[1],w.closet.beta:format(w.closet.tabs[menu[1]]),16) end
+    end
+    for k,text in pairs(w.closet.hints) do fits(name..'.closet.hints.'..k,text,HINT) end
+    -- The Colour tab's rows: a role's name within a row's title column, a swatch's name within its value column.
+    for k,text in pairs(w.closet.colour.roles) do fits(name..'.closet.colour.roles.'..k,text,LABEL) end
+    for k,text in pairs(w.closet.colour.swatches) do fits(name..'.closet.colour.swatches.'..k,text,VALUE) end
+    -- The Body tab's shape rows (closet/shape.lua): a value of 100 within a row's value column.
+    fits(name..'.closet.shape.value',w.closet.shape.value:format(100),VALUE)
+    -- The Full tab's presets rows (closet/presets.lua): Save look as preset, Preset 99 and the filter row's title
+    -- within a row's title column, its values within the value column.
+    local pr=w.closet.presets
+    fits(name..'.closet.presets.save',pr.save,LABEL)
+    fits(name..'.closet.presets.name',pr.name:format(99),LABEL)
+    fits(name..'.closet.presets.filter',pr.filter,LABEL)
+    fits(name..'.closet.presets.all',pr.all,VALUE)
+    fits(name..'.closet.presets.favourites',pr.favourites,VALUE)
 end
+-- Stellar Closet's names: a slot name for each Slots.LIST id, a tab for each Slots.MENUS id, a region for each
+-- Slots.REGIONS name, and no other (the other tables have T.en's keys, checked above).
+local Slots=require('closet.slots')
+local function keys_are(at,words,list)
+    local want={}
+    for _,id in ipairs(list) do
+        want[id]=true
+        assert(type(words[id])=='string',at..id..': missing')
+    end
+    for id in pairs(words) do assert(want[id],at..id..': no such id') end
+end
+local slot_ids,menu_ids={},{}
+for _,entry in ipairs(Slots.LIST) do slot_ids[#slot_ids+1]=entry[1] end
+for _,menu in ipairs(Slots.MENUS) do menu_ids[#menu_ids+1]=menu[1] end
+assert(#slot_ids==73 and #menu_ids==10 and #Slots.REGIONS==10,'closet/slots.lua: '..#slot_ids..' slots')
+keys_are('T.en.closet.slots.',T.en.closet.slots,slot_ids)
+keys_are('T.en.closet.tabs.',T.en.closet.tabs,menu_ids)
+keys_are('T.en.closet.regions.',T.en.closet.regions,Slots.REGIONS)
+-- The Colour tab (closet/colour.lua): a name and an about line for each role, a name for Off and each swatch.
+local Colour=require('closet.colour')
+local swatch_ids={'off'}
+for _,s in ipairs(Colour.SWATCHES) do swatch_ids[#swatch_ids+1]=s[1] end
+keys_are('T.en.closet.colour.roles.',T.en.closet.colour.roles,Colour.ROLES)
+keys_are('T.en.closet.colour.about.',T.en.closet.colour.about,Colour.ROLES)
+keys_are('T.en.closet.colour.swatches.',T.en.closet.colour.swatches,swatch_ids)
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)
     for k,v in pairs(t) do

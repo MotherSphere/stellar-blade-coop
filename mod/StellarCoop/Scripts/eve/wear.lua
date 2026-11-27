@@ -165,7 +165,9 @@ local function give_back(c,own,is_hair)
 end
 
 -- o: log (the [WR] lines), store (coop-wear.txt through link.store; nil without the native part: no restore at the
--- next Lua load), paused (true while the game is paused or shows one of its screens: no look is put on again then).
+-- next Lua load), paused (true while the game is paused or shows one of its screens: no look is put on again then),
+-- closet (true while Stellar Closet has a look on EVE: no suit is put on then, so the two never fight over her body;
+-- the closet never sets SBHair, so a hair still goes on).
 -- coop-wear.txt: EVE's path, then for the hair and for the suit five fields: the worn mesh's path and the game's own
 -- look (its mesh's path, a hair's AnimBP class and physics asset, its overridden materials as <slot>=<base path>
 -- separated by commas), tab-separated, '' for none. It goes once nothing is worn.
@@ -233,6 +235,9 @@ function Wear.new(o)
     local function wear(name)
         self.restore()
         local look=Wear.LOOKS[name]
+        if look.part=='suit' and o.closet and o.closet() then
+            return false,'Stellar Closet has a look on EVE: coop closet off gives her own look back first'
+        end
         local eve=her(valid(UE.GetPlayer()))
         if not eve then return false,'no EVE in the world' end
         local a,missing=assets_of(look)
@@ -362,6 +367,9 @@ function Wear.new(o)
         end
         return false,Wear.USE
     end
+    -- Whether a suit is worn on her body (closet/wiring.lua: Stellar Closet refuses then). A hair alone is not: the
+    -- closet never sets SBHair.
+    function self.worn() return worn.suit~=nil end
     -- coop off.
     function self.stop() take_off(nil,'coop off') end
     return self

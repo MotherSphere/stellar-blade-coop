@@ -20,9 +20,9 @@ assert(key==nil and why=='F10 opens the console')
 for _,text in ipairs({'F5','f6','Shift+F7','shift+f7','SHIFT+F7','Ctrl+F1','CTRL+F1','Alt+F12','F12','F1','F10',
     'Ctrl+F10','~','A','F13','F0','F01','Ctrl+Alt+F5','Control+F5','Meta+F5','Shift+','F 5','Enter',''}) do
     for _,name in ipairs({'menu_key','host_key','status_key','leave_key'}) do
-        -- The other keys apart from every case, so no case clashes with them.
+        -- The other keys apart from every case, so no case clashes with them (closet_key none: F1 is free).
         local s,notes=Link.parse_settings('menu_key=Alt+F4\nhost_key=Alt+F1\nstatus_key=Alt+F2\nleave_key=Alt+F3\n'
-            ..name..'='..text)
+            ..'closet_key=none\n'..name..'='..text)
         key,why=K.parse(name,text)
         if #notes==0 then
             assert(key and key.key==s[name].key and key.mod==s[name].mod and key.name==s[name].name,name..'='..text)
@@ -37,6 +37,10 @@ assert(K.parse('menu_key','Enter')==nil)
 key=K.parse('host_key','none')
 assert(key.key==nil and key.name=='none' and K.parse('host_key','NONE').name=='none')
 assert(K.parse('menu_key','none')==nil)
+key=K.parse('closet_key','none')
+assert(key.key==nil and key.name=='none','The closet key may be off')
+key=K.parse('closet_key','F1')
+assert(key.key=='F1' and key.mod==nil and key.name=='F1')
 
 -- A key pressed in the rebind prompt (UE4SS's key and modifier names) as the file writes it, then read back.
 assert(K.text('F7')=='F7' and K.text('F7','SHIFT')=='Shift+F7' and K.text('F7','CONTROL')=='Ctrl+F7'

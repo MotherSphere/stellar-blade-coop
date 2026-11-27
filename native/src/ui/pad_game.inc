@@ -9,12 +9,16 @@
 namespace coop::pose {
 
 namespace {
-// The pads, the game thread's (coop_pad): ui/pad.h's PadSlots picks the slots to ask.
+// The pads, the game thread's (coop_pad): ui/pad.h's PadSlots picks the slots to ask. XInput's wButtons is copied as
+// it is, so PadState's bits must be XInput's.
+static_assert(coop::PadState::X == XINPUT_GAMEPAD_X && coop::PadState::LEFT_THUMB == XINPUT_GAMEPAD_LEFT_THUMB &&
+              coop::PadState::RIGHT_THUMB == XINPUT_GAMEPAD_RIGHT_THUMB);
 constexpr uint64_t kPadPollMs = 8;
 coop::Pad pad;
 coop::PadSlots pad_slots;
 uint64_t pad_next_poll = 0;
 coop::PadKeys pad_keys; // The hooks' record; its names written by the worker before the first swap.
+std::atomic<bool> pad_closet{false}; // Lua's closet on or off (ask_pad_closet): the chord's, off until Lua says on.
 
 // The three slots' targets once swapped (ui/pad.h's coop::slate): each records the key into pad_keys, then runs the
 // game's function with the same arguments and returns its result. They never drop or change an event.
@@ -53,8 +57,9 @@ void poll_pad(uint64_t now) {
     pad.step(coop::PadState{}, now);
     return;
   }
+  const bool closet = pad_closet.load(std::memory_order_relaxed);
   if (slate) {
-    pad.step(pad_keys.state(), now);
+    pad.step(pad_keys.state(), now, closet);
     return;
   }
   const coop::PadState s = pad_slots.poll(now, [get](unsigned slot, coop::PadState &one) {
@@ -66,10 +71,12 @@ void poll_pad(uint64_t now) {
     one.ly = x.Gamepad.sThumbLY;
     one.rx = x.Gamepad.sThumbRX;
     one.ry = x.Gamepad.sThumbRY;
+    one.lt = x.Gamepad.bLeftTrigger;
+    one.rt = x.Gamepad.bRightTrigger;
     return true;
   });
   pad_seen = pad_slots.answered();
-  pad.step(s, now);
+  pad.step(s, now, closet);
 }
 
 // SB's input device: the byte 0x1424f97d0 writes at each change of device, 1 a QWERTY keyboard, 2 an AZERTY one

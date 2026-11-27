@@ -4,7 +4,8 @@
 // The pad's events for the co-op menu, checked on the build machine (no Windows, no XInput): edges, the held
 // direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB, RB and Y, a disconnect,
 // the ring and the Online tab's event posted into it, the slots asked at each poll and PadKeys (the game's
-// controller events as one read); the emote wheel's D-pad Left hold, right stick sector and held buttons.
+// controller events as one read); the emote wheel's D-pad Left hold, right stick sector and held buttons; the closet's
+// chord (LB held + D-pad Left) and the X, L3, R3 and trigger reads (closet/keys.h hands them to Lua).
 #include "ui/pad.h"
 
 #include <cassert>
@@ -38,9 +39,10 @@ int main() {
                 PadState::DPAD_RIGHT == 0x0008 && PadState::BACK == 0x0020 && PadState::LEFT_SHOULDER == 0x0100 &&
                 PadState::RIGHT_SHOULDER == 0x0200 && PadState::A == 0x1000 && PadState::B == 0x2000 &&
                 PadState::Y == 0x8000);
+  static_assert(PadState::X == 0x4000 && PadState::LEFT_THUMB == 0x0040 && PadState::RIGHT_THUMB == 0x0080);
   static_assert(Pad::kUp == 1 && Pad::kDown == 2 && Pad::kLeft == 3 && Pad::kRight == 4 && Pad::kSelect == 5 &&
                 Pad::kBack == 6 && Pad::kMenu == 7 && Pad::kTabLeft == 8 && Pad::kTabRight == 9 && Pad::kBike == 10 &&
-                Pad::kRefresh == 11 && Pad::kPauseTab == 12 && Pad::kWheel == 13);
+                Pad::kRefresh == 11 && Pad::kPauseTab == 12 && Pad::kWheel == 13 && Pad::kCloset == 14);
   static_assert(coop::slate::kSlots[0] == coop::slate::kHandlerVtable + 0x88 &&
                 coop::slate::kSlots[1] == coop::slate::kHandlerVtable + 0x90 &&
                 coop::slate::kSlots[2] == coop::slate::kHandlerVtable + 0x98 && coop::slate::kHandlerAt == 0x118);
@@ -529,6 +531,157 @@ int main() {
     assert(s.rx == 0 && s.ry == 0);
     assert(std::string(PadKeys::kNames[PadKeys::kRightX]) == "Gamepad_RightX" &&
            std::string(PadKeys::kNames[PadKeys::kRightY]) == "Gamepad_RightY");
+  }
+  { // With Lua's closet on, LB held + D-pad Left pressed: the closet's event once, after its left; never the wheel's,
+    // while LB is held or after LB is let go first. D-pad Left alone still gives the wheel.
+    Pad pad;
+    const uint16_t lb = PadState::LEFT_SHOULDER, left = PadState::DPAD_LEFT;
+    pad.step(buttons(lb), 0, true);
+    assert(drain(pad) == V{Pad::kTabLeft});
+    pad.step(buttons(lb | left), 16, true);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kCloset}));
+    for (uint64_t t = 32; t <= 1000; t += 16)
+      pad.step(buttons(lb | left), t, true);
+    assert(drain(pad).empty());
+    pad.step(buttons(left), 1016, true); // LB let go first: the chord's D-pad Left hold stays no wheel's.
+    pad.step(buttons(left), 2000, true);
+    assert(drain(pad).empty());
+    pad.step(buttons(0), 2016, true);
+    pad.step(buttons(left), 2032, true), pad.step(buttons(left), 2332, true);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kWheel}));
+    pad.step(buttons(0), 2348, true);
+    pad.step(buttons(lb | left), 3000, true); // Both in one step: the chord.
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kCloset}));
+    pad.step(buttons(0), 3016, true);
+    // D-pad Left held first, LB after: no chord; no wheel while LB is held.
+    pad.step(buttons(left), 4000, true);
+    pad.step(buttons(left | lb), 4100, true), pad.step(buttons(left | lb), 4400, true);
+    pad.step(buttons(left | lb), 5000, true);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft}));
+    // The stick held left is no D-pad: no chord.
+    pad.step(buttons(0), 5016, true);
+    pad.step(PadState{lb, -30000, 0, true}, 5032, true);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft}));
+    // From PadKeys as from XInput.
+    PadKeys keys;
+    for (size_t i = 0; i < PadKeys::kKeys; ++i)
+      keys.names[i] = 1000 + i;
+    Pad chord;
+    keys.press(1000 + PadKeys::kLB, 0, false);
+    chord.step(keys.state(), 0, true);
+    keys.press(1000 + PadKeys::kDpadLeft, 0, false);
+    chord.step(keys.state(), 16, true), chord.step(keys.state(), 400, true);
+    assert(drain(chord) == (V{Pad::kTabLeft, Pad::kLeft, Pad::kCloset}));
+  }
+  { // With Lua's closet off (the closet module off or not loaded), LB and D-pad Left as without the closet: no closet
+    // event, the wheel's after 300 ms with LB held, LB pressed during the hold no cancel.
+    Pad pad;
+    const uint16_t lb = PadState::LEFT_SHOULDER, left = PadState::DPAD_LEFT;
+    pad.step(buttons(lb), 0);
+    pad.step(buttons(lb | left), 16), pad.step(buttons(lb | left), 315);
+    assert(drain(pad) == (V{Pad::kTabLeft, Pad::kLeft}));
+    pad.step(buttons(lb | left), 316);
+    assert(drain(pad) == V{Pad::kWheel});
+    pad.step(buttons(0), 400);
+    pad.step(buttons(left), 500), pad.step(buttons(left | lb), 600), pad.step(buttons(left | lb), 800);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kWheel}));
+    pad.step(buttons(0), 900);
+    pad.step(buttons(lb | left), 1000), pad.step(buttons(lb | left), 1300);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kWheel}));
+    // Lua's closet on from the next step: the next D-pad Left press with LB held is the chord's, its hold no wheel's.
+    pad.step(buttons(lb), 1400, true), pad.step(buttons(lb | left), 1416, true);
+    pad.step(buttons(lb | left), 2000, true);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kCloset}));
+  }
+  { // X, L3 and R3 in the last step's buttons, from XInput's slots and from PadKeys; they make no event.
+    constexpr uint16_t X = PadState::X, L3 = PadState::LEFT_THUMB, R3 = PadState::RIGHT_THUMB;
+    PadSlots slots;
+    const auto two = [](unsigned slot, PadState &got) {
+      got = buttons(slot == 0 ? PadState::X : PadState::RIGHT_THUMB);
+      return slot < 2;
+    };
+    slots.poll(0, two); // Slot 0 found; slot 1 at the next poll (one empty slot a poll).
+    PadState s = slots.poll(16, two);
+    Pad pad;
+    pad.step(s, 0);
+    assert(drain(pad).empty() && (pad.held() & (X | L3 | R3)) == (X | R3));
+    PadKeys keys;
+    for (size_t i = 0; i < PadKeys::kKeys; ++i)
+      keys.names[i] = 1000 + i;
+    keys.press(1000 + PadKeys::kX, 0, false), keys.press(1000 + PadKeys::kL3, 1, false);
+    keys.press(1000 + PadKeys::kR3, 0, false), keys.release(1000 + PadKeys::kR3, 0);
+    pad.step(keys.state(), 16);
+    assert(drain(pad).empty() && (pad.held() & (X | L3 | R3)) == (X | L3 | R3));
+    pad.step(keys.state(), 32); // R3's tap went with the last read.
+    assert((pad.held() & (X | L3 | R3)) == (X | L3));
+    pad.step(PadState{}, 48);
+    assert(pad.held() == 0);
+    assert(std::string(PadKeys::kNames[PadKeys::kX]) == "Gamepad_FaceButton_Left" &&
+           std::string(PadKeys::kNames[PadKeys::kL3]) == "Gamepad_LeftThumbstick" &&
+           std::string(PadKeys::kNames[PadKeys::kR3]) == "Gamepad_RightThumbstick");
+  }
+  { // The triggers (0 let go to 255 fully pulled) in the last step's read, from XInput's slots and from PadKeys.
+    PadState s;
+    // From XInput's slots: the first connected pad's triggers.
+    PadSlots slots;
+    const auto two = [](unsigned slot, PadState &got) {
+      got = buttons(0);
+      got.lt = slot == 0 ? 200 : 9, got.rt = slot == 0 ? 10 : 9;
+      return slot < 2;
+    };
+    slots.poll(0, two);
+    s = slots.poll(16, two);
+    assert(slots.answered() == 0b11 && s.lt == 200 && s.rt == 10);
+    Pad pad;
+    pad.step(s, 0);
+    assert(drain(pad).empty() && pad.read().lt == 200 && pad.read().rt == 10);
+    pad.step(PadState{}, 16);
+    assert(pad.read().lt == 0 && pad.read().rx == 0 && !pad.read().connected);
+    // From PadKeys: 0 to 1 as 0 to 255, clamped, the trigger pulled furthest of any controller.
+    PadKeys keys;
+    for (size_t i = 0; i < PadKeys::kKeys; ++i)
+      keys.names[i] = 1000 + i;
+    const uint64_t LT = 1000 + PadKeys::kLT, RT = 1000 + PadKeys::kRT;
+    keys.analog(LT, 0, 0.5f), keys.analog(RT, 1, 1.5f), keys.analog(LT, 2, 0.25f);
+    s = keys.state();
+    assert(s.lt == 128 && s.rt == 255 && s.lx == 0 && s.rx == 0);
+    keys.analog(LT, 0, -0.5f);
+    s = keys.state();
+    assert(s.lt == 64);
+    keys.clear();
+    s = keys.state();
+    assert(s.lt == 0 && s.rt == 0);
+    assert(std::string(PadKeys::kNames[PadKeys::kLT]) == "Gamepad_LeftTriggerAxis" &&
+           std::string(PadKeys::kNames[PadKeys::kRT]) == "Gamepad_RightTriggerAxis");
+  }
+  { // The key names the worker finds (pad_worker.inc): X, L3, R3 and the trigger axes are optional, so one the game
+    // lacks stays 0 and the hook still goes on; any other missing name leaves XInput as the source.
+    const auto lacking = [](int gone) {
+      return [gone](int i) { return i == gone ? uint64_t(0) : uint64_t(1000 + i); };
+    };
+    std::array<uint64_t, PadKeys::kKeys> names{};
+    assert(PadKeys::find_names(names, lacking(-1)) == -1);
+    for (int i = 0; i < PadKeys::kKeys; ++i)
+      assert(names[i] == uint64_t(1000 + i));
+    for (int k = 0; k < PadKeys::kKeys; ++k) {
+      const bool optional =
+          k == PadKeys::kX || k == PadKeys::kL3 || k == PadKeys::kR3 || k == PadKeys::kLT || k == PadKeys::kRT;
+      names.fill(7);
+      const int missing = PadKeys::find_names(names, lacking(k));
+      assert(missing == (optional ? -1 : k));
+      assert(names[k] == 0);
+      if (optional) // Every later name is still found.
+        for (int i = k + 1; i < PadKeys::kKeys; ++i)
+          assert(names[i] == uint64_t(1000 + i));
+    }
+    // An FName whose index (its low 32 bits) is 0 is no name.
+    assert(PadKeys::find_names(names, [](int) { return uint64_t(1) << 32; }) == 0 && names[0] == 0);
+    // With X missing, the game's X press reads as nothing; A still does.
+    PadKeys keys;
+    assert(PadKeys::find_names(keys.names, lacking(PadKeys::kX)) == -1);
+    keys.press(5555, 0, false); // The game's own X key: a name the worker did not learn.
+    keys.press(1000 + PadKeys::kA, 0, false);
+    assert(keys.state().buttons == PadState::A);
   }
 
   std::puts("pad_test ok");

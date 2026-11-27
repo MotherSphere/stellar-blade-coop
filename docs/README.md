@@ -77,6 +77,13 @@ start with `coop`.
 | --- | --- |
 | [Cut menus and the mailbox](cutmenus/menus.md) | `coop shortcut`, `coop devmenu` and `coop devinfo`, `coop gift` |
 
+## Stellar Closet
+
+| Page | What it covers |
+| --- | --- |
+| [Stellar Closet](closet/closet.md) | EVE's outfits as pieces in slots, `coop closet` |
+| [Importing CNS-format packs](closet/cns-import.md) | How `*.dekcns.json` packs map to items, the clean-room rules |
+
 ## Building and internals
 
 The game addresses in the internals pages are build 26123051's, the build the code pins. They were read on build

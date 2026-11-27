@@ -9,8 +9,10 @@ M.notice=require('ui.kit.notice').new()
 -- box, the host's question, the Sessions screen, the Create a session screen and the SBO lobby's screens: with the
 -- Steam link, built by main/ui.lua and the modules' build steps. The SBO lobby itself (M.sbo) and its hall maps' rows
 -- (M.halls) are built by online/lobby/wiring.lua.
--- The screen the co-op menu opened in its place, while one is open: the Sessions screen or the Create a session screen.
-function M.open_screen() return M.sessions.is_open() and M.sessions or M.create.is_open() and M.create or nil end
+-- The screen the co-op menu opened in its place, while one is open: the Sessions screen, the Create a session screen or
+-- the closet menu (an off closet module's stub reads nil here).
+function M.open_screen() return M.sessions.is_open() and M.sessions or M.create.is_open() and M.create
+    or M.closet_menu.is_open() and M.closet_menu or nil end
 -- coop ui reset and the focus watchdog: the menu, the chat's box, the code box, the Sessions and Create a session
 -- screens and the lobby's screens closed, an open host's question denied, the co-op saves' question closed as Decide
 -- later, the game's input given back now and the menu's mouse cursor put back; a lobby screen closed in the lobby world
@@ -18,7 +20,7 @@ function M.open_screen() return M.sessions.is_open() and M.sessions or M.create.
 -- saves pass under way is kept.
 function M.ui_reset(why)
     M.menu.close(); M.box.close(); M.code_box.close(); M.approval.close(); M.saves_ui.close(why~=nil); M.wheel.close()
-    M.sessions.close(); M.create.close()
+    M.sessions.close(); M.create.close(); M.closet_menu.close()
     local was=M.lobby.is_open()
     M.lobby.close()
     if was and M.sbo.in_lobby() then M.sbo.to_room(); M.lobby.room(true) end
