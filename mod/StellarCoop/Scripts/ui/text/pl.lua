@@ -493,6 +493,8 @@ return {
         head={own='Z gry',no_ponytail='Bez kucyka',
             long_ponytail='Długi kucyk',short_ponytail='Krótki kucyk',
             colours={RootColor='Kolor nasady',TipColor='Kolor końcówek',DyeColor='Kolor farby'},
+            params={Brightness='Jasność',Scatter='Rozproszenie',Roughness='Szorstkość',Specular='Połysk',
+                TipPower='Przejście końcówek',DyeRoughness='Szorstkość farby',DyeScatter='Rozproszenie farby'},
             pack_ponytail='Fryzury z paczek zwykle mają własny kucyk.'},
         hints={wear='Załóż',take_off='Zdejmij',whole='Cały strój',options='Opcje',change='Zmień',
             reset='Resetuj',fav='Ulubiony',unfav='Nie ulubiony',delete='Usuń'},

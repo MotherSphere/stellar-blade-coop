@@ -502,6 +502,8 @@ return {
         head={own='Del juego',no_ponytail='Sin coleta',
             long_ponytail='Coleta larga',short_ponytail='Coleta corta',
             colours={RootColor='Color de raíz',TipColor='Color de puntas',DyeColor='Color de tinte'},
+            params={Brightness='Brillo',Scatter='Dispersión',Roughness='Rugosidad',Specular='Lustre',
+                TipPower='Mezcla de puntas',DyeRoughness='Rugosidad del tinte',DyeScatter='Dispersión del tinte'},
             pack_ponytail='Los peinados de packs suelen traer su propia coleta.'},
         hints={wear='Poner',take_off='Quitar',whole='Traje completo',options='Opciones',change='Cambiar',
             reset='Restablecer',fav='Favorito',unfav='No favorito',delete='Borrar'},

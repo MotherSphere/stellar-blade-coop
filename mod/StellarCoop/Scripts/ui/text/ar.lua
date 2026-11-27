@@ -473,6 +473,8 @@ return {
         head={own='الأصلي في اللعبة',no_ponytail='بدون ذيل حصان',
             long_ponytail='ذيل حصان طويل',short_ponytail='ذيل حصان قصير',
             colours={RootColor='لون الجذور',TipColor='لون الأطراف',DyeColor='لون الصبغة'},
+            params={Brightness='السطوع',Scatter='التشتت',Roughness='الخشونة',Specular='اللمعان',
+                TipPower='مزج الأطراف',DyeRoughness='خشونة الصبغة',DyeScatter='تشتت الصبغة'},
             pack_ponytail='شعر الحزم يحمل عادةً ذيل حصان خاصاً به.'},
         hints={wear='ارتداء',take_off='خلع',whole='الزي كاملًا',options='الخيارات',change='تغيير',
             reset='إعادة ضبط',fav='مفضلة',unfav='إزالة المفضلة',delete='حذف'},

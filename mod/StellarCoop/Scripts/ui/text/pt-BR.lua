@@ -503,6 +503,8 @@ return {
         head={own='Do jogo',no_ponytail='Sem rabo de cavalo',
             long_ponytail='Rabo de cavalo longo',short_ponytail='Rabo de cavalo curto',
             colours={RootColor='Cor da raiz',TipColor='Cor das pontas',DyeColor='Cor da tintura'},
+            params={Brightness='Brilho',Scatter='Dispersão',Roughness='Aspereza',Specular='Lustro',
+                TipPower='Mistura das pontas',DyeRoughness='Aspereza da tintura',DyeScatter='Dispersão da tintura'},
             pack_ponytail='Os cabelos de pacotes costumam ter o próprio rabo de cavalo.'},
         hints={wear='Vestir',take_off='Tirar',whole='Roupa completa',options='Opções',change='Alterar',
             reset='Redefinir',fav='Favorito',unfav='Desfavoritar',delete='Excluir'},

@@ -484,6 +484,8 @@ return {
         head={own='Spelets egen',no_ponytail='Ingen hästsvans',
             long_ponytail='Lång hästsvans',short_ponytail='Kort hästsvans',
             colours={RootColor='Rotfärg',TipColor='Toppfärg',DyeColor='Färgningsfärg'},
+            params={Brightness='Ljusstyrka',Scatter='Spridning',Roughness='Strävhet',Specular='Glans',
+                TipPower='Toppblandning',DyeRoughness='Färgsträvhet',DyeScatter='Färgspridning'},
             pack_ponytail='Frisyrer från paket har oftast en egen hästsvans.'},
         hints={wear='Bär',take_off='Ta av',whole='Hela dräkten',options='Alternativ',change='Ändra',
             reset='Återställ',fav='Favorit',unfav='Ej favorit',delete='Radera'},

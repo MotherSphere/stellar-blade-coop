@@ -355,6 +355,26 @@ local tests = {
         ok(s[2].Min <= 0 and s[2].Max >= 1, 'a range around its value')
     end,
 
+    technical_numbers_are_left_out = function()
+        -- Only a hair's main numbers are controls: MipBias, MaskedAlpha, EdgeMask*, Occlusion* and the like crowded
+        -- the options page (Schizo's screenshot of 27 Nov 2026).
+        local r = rows()
+        local m = mat(0.1, 0.2, 0.3, {SpecularColor = {R = 1, G = 1, B = 1, A = 1}})
+        m.scalars = {Brightness = 0.7, MipBias = -1, MaskedAlpha = 1, EdgeMaskMin = 9.6, OcclusionAmtRoot = 0,
+            LowQualityScatter = 0.2, Specular = 0.5}
+        r.mats['/Game/A/MI_H07_V0'] = m
+        local sc = {}
+        for _, x in ipairs(Stock.items(r)['SB.Hair_001'].Variants[1].UserConfigs.ScalarControls) do
+            sc[#sc + 1] = x.ParamName
+        end
+        same(sc, {'Brightness', 'Specular'}, 'only the main numbers')
+        local vec = {}
+        for _, x in ipairs(Stock.items(r)['SB.Hair_001'].Variants[1].UserConfigs.VectorControls) do
+            vec[#vec + 1] = x.ParamName
+        end
+        same(vec, {'RootColor', 'TipColor'}, 'the hair colours: root and tip only')
+    end,
+
     every_parameter_the_instance_sets_is_a_control = function()
         -- Every colour and number a hair's material instance sets (not its master's own) is a control: scatter,
         -- brightness and the like, not only root and tip. Layout vectors (ClipMask...) are left out.
@@ -369,7 +389,7 @@ local tests = {
         same(vec, {'RootColor', 'TipColor', 'DyeColor'}, 'colours: root, tip, then dye; no layout vector')
         local sc = {}
         for _, x in ipairs(c.ScalarControls) do sc[#sc + 1] = x.ParamName end
-        same(sc, {'Brightness', 'RandomHueVariation', 'Scatter'}, 'every number it sets, by name')
+        same(sc, {'Brightness', 'Scatter'}, 'every main number it sets, by name')
         for _, x in ipairs(c.ScalarControls) do
             ok(x.Min <= x.Value and x.Value <= x.Max, x.ParamName .. ' within its range')
         end

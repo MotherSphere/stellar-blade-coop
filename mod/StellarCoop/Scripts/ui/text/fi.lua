@@ -502,6 +502,8 @@ return {
         head={own='Pelin oma',no_ponytail='Ei poninhäntää',
             long_ponytail='Pitkä poninhäntä',short_ponytail='Lyhyt poninhäntä',
             colours={RootColor='Tyven väri',TipColor='Latvan väri',DyeColor='Värjäyksen väri'},
+            params={Brightness='Kirkkaus',Scatter='Sironta',Roughness='Karheus',Specular='Kiilto',
+                TipPower='Latvojen sekoitus',DyeRoughness='Värin karheus',DyeScatter='Värin sironta'},
             pack_ponytail='Pakettien kampauksissa on yleensä oma poninhäntä.'},
         hints={wear='Pue',take_off='Riisu',whole='Koko asu',options='Asetukset',change='Muuta',
             reset='Palauta',fav='Suosikki',unfav='Ei suosikki',delete='Poista'},

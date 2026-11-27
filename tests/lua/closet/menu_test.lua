@@ -3425,14 +3425,14 @@ local tests = {
             same(headers(r), {'Bob'}, 'its name as the header row')
             eq((detail(r)), T.en.closet.options.variant, 'on its Variant row')
             local O = T.en.closet.options
-            eq(row_value(r, child(1, O.named:format(O.kinds.colour, T.en.closet.head.colours.RootColor))), O.pack,
-                'its colour row, named from the texts')
+            eq(row_value(r, child(1, T.en.closet.head.colours.RootColor)), O.pack,
+                'its colour row, named from the texts alone')
             eq(#r.previews, 0, 'worn already: nothing worn')
         end, heads({{fit = HAIR, slots = {'Hair'}}}))
         with_aria(function(r)
             on_hair(r)
             at(r, 0.5, 'right')
-            eq(row_value(r, child(1, 'Colour: Root')), T.en.closet.options.pack, "a pack hair's colour: the pack's name")
+            eq(row_value(r, child(1, 'Root')), T.en.closet.options.pack, "a pack hair's colour: the pack's name")
         end, heads({{fit = 'p.hair', slots = {'Hair'}}}))
     end,
 
@@ -3520,6 +3520,28 @@ local tests = {
             ok(moved, 'UpdateEquip on the shown slots')
             eq(tv.items[3].Equiped, true, 'the data object marked equipped')
         end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    head_options_rows_name_the_setting_alone = function()
+        -- A head piece's colour and number rows name the setting alone ("Number: Brightness" crowded them,
+        -- Schizo's screenshot of 27 Nov 2026); a stock hair's names come from the texts.
+        local o = heads({{fit = HAIR, slots = {'Hair'}}})
+        for _, v in ipairs(o.catalogue[HAIR].Variants) do
+            v.UserConfigs.ScalarControls = {{DisplayName = 'Brightness', ParamName = 'Brightness', MaterialIndex = 0,
+                Value = 0.7, Min = 0, Max = 1.4}}
+        end
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'right') -- The worn hair's options page.
+            local titles = {}
+            for _, rec in ipairs(r.kit.live(F.OPTION)) do titles[#titles + 1] = rec.o.Text_TitleValue.text end
+            for _, rec in ipairs(r.kit.live(F.SLIDER)) do titles[#titles + 1] = rec.o.TextTitleValue.text end
+            local all = table.concat(titles, '|')
+            ok(all:find(child(2, T.en.closet.head.params.Brightness), 1, true) or
+                all:find(child(1, T.en.closet.head.params.Brightness), 1, true), 'Brightness by name: ' .. all)
+            ok(not all:find(T.en.closet.options.kinds.number, 1, true), 'no Number prefix: ' .. all)
+            ok(not all:find(T.en.closet.options.kinds.colour .. ':', 1, true), 'no Colour prefix: ' .. all)
+        end, o)
     end,
 
     the_grid_scrolls_to_the_focused_tile = function()

@@ -282,8 +282,11 @@ function Menu.new(o)
     local function head_name(w,fit,name) return STOCK_PONYTAILS[fit] and w.head[STOCK_PONYTAILS[fit]] or name end
     -- A control row's title: its kind (Finish, Colour, Number), then its name (named, else its own) when that differs
     -- from its piece's.
+    -- A head piece's rows name the setting alone ("Number: Brightness" crowded them, Schizo, 27 Nov 2026).
     local function kind_title(w,item,kind,named)
         local name=named or item.name
+        local head=page and is_head(Fits.get(page.fit) and Fits.get(page.fit).Slot)
+        if head and name and name~='' then return name end
         if name and name~='' and name~=item.of then return w.options.named:format(w.options.kinds[kind],name) end
         return w.options.kinds[kind]
     end
@@ -404,7 +407,11 @@ function Menu.new(o)
                 local key=key_of(item)
                 local lo,hi,step=o.options.range(page.fit,key)
                 local x=o.options.get(page.fit,v,key)
-                s.rows[i]={title=item.number and kind_title(w,item,'number') or item.name,value=decimals(x,step),
+                -- A stock hair's number named from the texts (closet.head.params, by parameter name).
+                local nc=item.number and Fits.get(page.fit).Controls.ScalarControls[item.number]
+                local named=Fits.origin(page.fit)=='original' and type(nc)=='table' and w.head.params
+                    and w.head.params[nc.ParamName]
+                s.rows[i]={title=item.number and kind_title(w,item,'number',named) or item.name,value=decimals(x,step),
                     slider=lo and {pct=place(x,lo,hi),lo=lo,hi=hi,digits=digits(step)} or nil}
             elseif item.role and item.c then -- A channel of a role that is on, in 0-255.
                 local _,c=o.colour.get(item.role)

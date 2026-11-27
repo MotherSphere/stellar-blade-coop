@@ -43,9 +43,11 @@ local PONYTAILS = {{id = 'SB.Ponytail_Long', alias = 'Hair_Default_Part2', glyph
 Stock.PONYTAIL_NONE = 'SB.Ponytail_None'
 
 local COLOURS = {{'RootColor', 'Root colour'}, {'TipColor', 'Tip colour'}, {'DyeColor', 'Dye colour'}}
--- Readable names of MA_CH_Hair's numbers (its dump's scalar parameters); any other keeps its parameter name.
-local NUMBERS = {Scatter = 'Scatter', Roughness = 'Roughness (gloss)', Specular = 'Specular', Brightness = 'Brightness',
-    TipPower = 'Tip power', DyeRoughness = 'Dye roughness', DyeScatter = 'Dye scatter'}
+-- The hair's main numbers (MA_CH_Hair's scalar parameters that change its look): only these are controls; the
+-- technical ones (MipBias, MaskedAlpha, EdgeMask*, Occlusion*, LowQualityScatter) crowded the options page (Schizo,
+-- 27 Nov 2026). Their on-screen names are ui/text's closet.head.params, by parameter name.
+local NUMBERS = {Brightness = true, Scatter = true, Roughness = true, Specular = true, TipPower = true,
+    DyeRoughness = true, DyeScatter = true}
 -- Vectors that place or clip the hair, not colour it (MA_CH_Hair's ClipMask*, ExclusivePlane*, Tangent*): no control.
 local function layout(name)
     return name:find('^ClipMask') or name:find('^ExclusivePlane') or name:find('^Tangent') or name:find('Pivot')
@@ -160,15 +162,16 @@ local function hair_controls(slots, mats, lost)
             end
             for _, name in ipairs(sorted_keys(set.vectors)) do
                 local v = set.vectors[name]
-                if not done[name] and not layout(name) and type(v.R) == 'number' then
+                -- A hair's colours are root, tip and dye alone; another material's every colour.
+                if not hair and not done[name] and not layout(name) and type(v.R) == 'number' then
                     vectors[#vectors + 1] = {DisplayName = name, ParamName = name, MaterialIndex = i - 1,
                         Value = {v.R, v.G or 0, v.B or 0, v.A or 1}}
                 end
             end
             for _, name in ipairs(sorted_keys(set.scalars)) do
                 local x = set.scalars[name]
-                if type(x) == 'number' then
-                    scalars[#scalars + 1] = {DisplayName = NUMBERS[name] or name, ParamName = name,
+                if type(x) == 'number' and NUMBERS[name] then
+                    scalars[#scalars + 1] = {DisplayName = name, ParamName = name,
                         MaterialIndex = i - 1, Value = x, Min = math.min(0, x * 2), Max = math.max(1, x * 2)}
                 end
             end

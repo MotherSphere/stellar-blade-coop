@@ -487,6 +487,8 @@ return {
         head={own='Spillets egen',no_ponytail='Ingen hestehale',
             long_ponytail='Lang hestehale',short_ponytail='Kort hestehale',
             colours={RootColor='Rodfarve',TipColor='Spidsfarve',DyeColor='Farvningsfarve'},
+            params={Brightness='Lysstyrke',Scatter='Spredning',Roughness='Ruhed',Specular='Glans',
+                TipPower='Spidsblanding',DyeRoughness='Farveruhed',DyeScatter='Farvespredning'},
             pack_ponytail='Pakkehår har som regel sin egen hestehale.'},
         hints={wear='Tag på',take_off='Tag af',whole='Hele dragten',options='Indstillinger',change='Skift',
             reset='Nulstil',fav='Favorit',unfav='Fjern favorit',delete='Slet'},

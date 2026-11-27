@@ -513,6 +513,8 @@ return {
         head={own='Vom Spiel',no_ponytail='Kein Pferdeschwanz',
             long_ponytail='Langer Pferdeschwanz',short_ponytail='Kurzer Pferdeschwanz',
             colours={RootColor='Ansatzfarbe',TipColor='Spitzenfarbe',DyeColor='Tönungsfarbe'},
+            params={Brightness='Helligkeit',Scatter='Streuung',Roughness='Rauheit',Specular='Glanz',
+                TipPower='Spitzenübergang',DyeRoughness='Färbungsrauheit',DyeScatter='Färbungsstreuung'},
             pack_ponytail='Frisuren aus Paketen haben meist ihren eigenen Pferdeschwanz.'},
         hints={wear='Tragen',take_off='Ausziehen',whole='Ganzes Outfit',options='Optionen',change='Ändern',
             reset='Zurücksetzen',fav='Favorit',unfav='Kein Favorit',delete='Löschen'},

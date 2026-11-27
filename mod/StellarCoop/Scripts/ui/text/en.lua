@@ -601,6 +601,8 @@ return {
         head={own="Game's own",no_ponytail='No ponytail',
             long_ponytail='Long ponytail',short_ponytail='Short ponytail',
             colours={RootColor='Root colour',TipColor='Tip colour',DyeColor='Dye colour'},
+            params={Brightness='Brightness',Scatter='Scatter',Roughness='Roughness',Specular='Shine',
+                TipPower='Tip blend',DyeRoughness='Dye roughness',DyeScatter='Dye scatter'},
             pack_ponytail='Pack hairs usually carry their own ponytail.'},
         hints={wear='Wear',take_off='Take off',whole='Whole outfit',options='Options',change='Change',
             reset='Reset',fav='Favourite',unfav='Unfavourite',delete='Delete'},

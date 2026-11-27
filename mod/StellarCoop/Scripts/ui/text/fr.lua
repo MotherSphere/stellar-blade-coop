@@ -506,6 +506,8 @@ return {
         head={own='Du jeu',no_ponytail='Sans queue de cheval',
             long_ponytail='Queue de cheval longue',short_ponytail='Queue de cheval courte',
             colours={RootColor='Couleur des racines',TipColor='Couleur des pointes',DyeColor='Couleur de teinture'},
+            params={Brightness='Luminosité',Scatter='Diffusion',Roughness='Rugosité',Specular='Brillance',
+                TipPower='Fondu des pointes',DyeRoughness='Rugosité de teinture',DyeScatter='Diffusion de teinture'},
             pack_ponytail='Les coiffures des packs ont souvent leur propre queue de cheval.'},
         hints={wear='Porter',take_off='Retirer',whole='Tenue complète',options='Options',change='Modifier',
             reset='Réinitialiser',fav='Favori',unfav='Retirer favori',delete='Supprimer'},

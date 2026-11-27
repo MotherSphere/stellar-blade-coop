@@ -490,6 +490,8 @@ return {
         head={own='Из игры',no_ponytail='Без хвоста',
             long_ponytail='Длинный хвост',short_ponytail='Короткий хвост',
             colours={RootColor='Цвет корней',TipColor='Цвет кончиков',DyeColor='Цвет окрашивания'},
+            params={Brightness='Яркость',Scatter='Рассеивание',Roughness='Шероховатость',Specular='Блеск',
+                TipPower='Переход кончиков',DyeRoughness='Шероховатость краски',DyeScatter='Рассеивание краски'},
             pack_ponytail='У причёсок из паков обычно есть свой хвост.'},
         hints={wear='Надеть',take_off='Снять',whole='Весь костюм',options='Параметры',change='Сменить',
             reset='Сбросить',fav='В избранное',unfav='Из избранного',delete='Удалить'},

@@ -506,6 +506,8 @@ return {
         head={own='Del gioco',no_ponytail='Senza coda',
             long_ponytail='Coda lunga',short_ponytail='Coda corta',
             colours={RootColor='Colore delle radici',TipColor='Colore delle punte',DyeColor='Colore della tinta'},
+            params={Brightness='Luminosità',Scatter='Dispersione',Roughness='Ruvidità',Specular='Lucentezza',
+                TipPower='Sfumatura punte',DyeRoughness='Ruvidità tinta',DyeScatter='Dispersione tinta'},
             pack_ponytail='Le acconciature dei pacchetti hanno di solito la propria coda.'},
         hints={wear='Indossa',take_off='Togli',whole='Outfit intero',options='Opzioni',change='Cambia',
             reset='Ripristina',fav='Preferito',unfav='Non preferito',delete='Elimina'},

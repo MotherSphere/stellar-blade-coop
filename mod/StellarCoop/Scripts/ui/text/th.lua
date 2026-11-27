@@ -453,6 +453,8 @@ return {
         head={own='ของเกม',no_ponytail='ไม่มีหางม้า',
             long_ponytail='หางม้ายาว',short_ponytail='หางม้าสั้น',
             colours={RootColor='สีโคนผม',TipColor='สีปลายผม',DyeColor='สีย้อม'},
+            params={Brightness='ความสว่าง',Scatter='การกระจายแสง',Roughness='ความหยาบ',Specular='ความเงา',
+                TipPower='การไล่ปลายผม',DyeRoughness='ความหยาบของสีย้อม',DyeScatter='การกระจายของสีย้อม'},
             pack_ponytail='ทรงผมจากแพ็กมักมีหางม้าของตัวเอง'},
         hints={wear='สวม',take_off='ถอด',whole='ทั้งชุด',options='ตัวเลือก',change='เปลี่ยน',
             reset='รีเซ็ต',fav='รายการโปรด',unfav='เลิกโปรด',delete='ลบ'},
