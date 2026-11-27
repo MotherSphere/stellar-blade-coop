@@ -54,6 +54,7 @@ local function rig(tests, kit)
         clock = function() return r.now end, tests = tests, find = function(path) return r.found[path] end,
         world = function() return r.world end, stock = function() return r.stock() end,
         eve = function() return r.eve end, controller = function() return r.pc end,
+        resolve = function(path) return r.resolved and r.resolved[path] end,
         construct = function(class, outer)
             local item = {class = class, outer = outer, IsValid = function(self) return not self.lost end}
             r.made[#r.made + 1] = item
@@ -586,6 +587,9 @@ local tests = {
             K2_GetComponentsByClass = function() return {comp} end})
         local Fits = require('closet.fits')
         local items = Fits.ITEMS
+        -- the pack's own mesh is no cooked asset: only the asset-registry fallback (Dress.resolve) finds it
+        r.found['/Game/F.F'] = nil
+        r.resolved = {['/Game/F.F'] = face}
         Fits.ITEMS = {['p.face'] = {Slot = 'Face', Variants = {{Mesh = '/Game/F.F'}}},
             ['p.hair'] = {Slot = 'Hair', Variants = {{Mesh = '/Game/H.H'}}}}
         play(r, '8')
@@ -596,6 +600,7 @@ local tests = {
         ok(has(r, 'probe: NOTE 8 category Earring = 9'), 'the earring category number')
         ok(has(r, 'probe: NOTE 8 component Mesh_Face '), 'the face component')
         ok(has(r, 'probe: NOTE 8 piece p.face v1 slot=Face'), 'the pack face')
+        ok(has(r, 'loads=true'), 'the pack mesh loads through the registry fallback')
         ok(not has(r, 'piece p.hair'), 'no hair piece')
         ok(has(r, 'probe: PASS 8 pack head skeletons: 1 meshes, 1 on the body skeleton'),
             'its skeleton is the body one')

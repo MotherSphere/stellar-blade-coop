@@ -9,7 +9,8 @@
 -- rings, metal trims) and Glow (emissive). Each is off (the pack's own colours) or on with its own colour: linear R, G
 -- and B in 0..1, which the Colour tab's Red, Green and Blue sliders set in STEPs (a role turned on for the first time
 -- starts at DEFAULT; a role turned off keeps its colour for the next on). A material slot's
--- role is the role of the closet slot its piece sits in (Colour.SLOTS lists every closet/slots.lua slot; a pack suit
+-- role is the role of the closet slot its piece sits in (Colour.SLOTS lists every closet/slots.lua slot; head slots
+-- never take a role; a pack suit
 -- worn whole: its PieceHints' slot, else FullOutfit, closet/dress.lua's parts), so mixed
 -- outfits from different packs share one palette. Primary, Secondary and Accent set 'Base Color Tint' to the colour
 -- (the slot's alpha kept). Glow sets 'EmissiveColor' on the slots of its own role (Dermal: body glows) whose glow is on
@@ -55,6 +56,7 @@
 -- The parameter names are pack data (the installed packs' *.dekcns.json VectorControls, read 26 Nov 2026): 'Base Color
 -- Tint' is the cloth tint of 446 controls in 37 packs, 'EmissiveColor' the glow of 117 controls in 15 packs.
 local U=require('core.unreal')
+local Slots=require('closet.slots')
 local Colour={}
 Colour.FILE='coop-closet-colour.txt'
 Colour.ROLES={'primary','secondary','accent','glow'} -- The Colour tab's rows, in order.
@@ -99,7 +101,8 @@ Colour.SLOTS={
 }
 local ROLE,IS_ROLE={},{}
 for role,list in pairs(Colour.SLOTS) do
-    for _,id in ipairs(list) do ROLE[id]=role~='none' and role or nil end
+    -- The four roles stay body roles: a head slot (Slots.group) never takes one, whatever list it is in.
+    for _,id in ipairs(list) do ROLE[id]=role~='none' and Slots.group(id)~='head' and role or nil end
 end
 for _,role in ipairs(Colour.ROLES) do IS_ROLE[role]=true end
 local TINT,GLOW='Base Color Tint','EmissiveColor'

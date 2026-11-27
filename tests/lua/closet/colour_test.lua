@@ -210,9 +210,12 @@ local tests = {
         eq(Colour.role('Gloves'), 'secondary') eq(Colour.role('Shoes'), 'secondary')
         eq(Colour.role('Belt'), 'secondary')
         eq(Colour.role('Necklace'), 'accent') eq(Colour.role('Rings'), 'accent')
-        eq(Colour.role('NosePiercing'), 'accent')
+        eq(Colour.role('BraceletL'), 'accent')
         eq(Colour.role('Dermal'), 'glow')
         eq(Colour.role('BaseBody'), nil, 'her skin has no role') eq(Colour.role('Hair'), nil)
+        for _, id in ipairs({'Headwear', 'Mask', 'Glasses', 'HairAccessory', 'EarringL', 'NosePiercing', 'Eyes'}) do
+            eq(Colour.role(id), nil, id .. ' is a head slot: no body role')
+        end
         eq(Colour.role('Fingernails'), nil) eq(Colour.role('Nope'), nil)
     end,
 

@@ -703,7 +703,7 @@ Probe.TESTS['8']={timeout=120,steps={
                 for v,variant in ipairs(item.Variants or {}) do
                     local path=variant.Mesh
                     if type(path)=='string' and path~='' then
-                        local mesh=ctx.find(path)
+                        local mesh=ctx.resolve(path) -- a pack mesh is no cooked asset: LoadAsset alone reads loads=false
                         local skeleton=mesh and live(mesh.Skeleton) and path_of(mesh.Skeleton) or '-'
                         n=n+1
                         if skeleton==body_skeleton then on_body=on_body+1 end
@@ -731,6 +731,8 @@ function Probe.new(o)
     local clock=o.clock or os.clock
     local tests=o.tests or Probe.TESTS
     local find=o.find or default_find
+    -- Dress.resolve (find, LoadAsset, asset registry GetAsset); test 8 reads pack meshes through it.
+    local resolve=o.resolve or function(path) return require('closet.dress').resolve(path) end
     local construct=o.construct or function(class,outer) return StaticConstructObject(class,outer) end
     local world=o.world or function() return true end
     -- EVE (test 6 reads her body) and the player controller (her camera).
@@ -793,7 +795,8 @@ function Probe.new(o)
         end
         local c={n=n,test=test,i=1,wait=test.steps[1].frames or 0,parts={},passed=0,total=#test.steps,
             deadline=clock()+(test.timeout or Probe.TIMEOUT),shown=false}
-        c.ctx={log=log,find=find,construct=construct,data={},kit=kit,now=clock,eve=eve,controller=controller,
+        c.ctx={log=log,find=find,resolve=resolve,construct=construct,data={},kit=kit,now=clock,eve=eve,
+            controller=controller,
             stock=stock}
         -- A game widget made in the probe's group, kept for the end; it throws when the kit refuses.
         function c.ctx.make(class_path,x,y,w,h,fill,hit)
