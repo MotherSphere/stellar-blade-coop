@@ -2767,6 +2767,49 @@ local tests = {
             eq((detail(r)), P.filter, 'the focus on the row that took its place')
         end)
     end,
+    -- A preset worn as a preview and turned down (No at Keep this look?, a guard's close, coop off) gives its outfit
+    -- the variant and values it had before; Yes keeps the preset's.
+    turned_down_preset_gives_the_options_back = function()
+        local function worn(r, t)
+            r.choices = {{fit = ARIA}}
+            ok(r.options.set_variant(ARIA, 3)) ok(r.options.set(ARIA, 3, 'toggle:4', false))
+            eq(r.presets.save(), 1, 'Preset 1: variant 3, Boots off')
+            ok(r.options.set(ARIA, 3, 'toggle:4', true)) ok(r.options.set(ARIA, 3, 'toggle:6', true))
+            ok(r.options.set_variant(ARIA, 1))
+            r.choices = nil
+            r.menu.open()
+            at(r, t, 'down', 'select')
+            eq(r.options.variant(ARIA), 3, 'the preview wears its variant')
+            same(r.options.words(ARIA, 3), {'toggle:4=off'}, 'and its values')
+        end
+        with_presets(function(r)
+            worn(r, 0.5)
+            at(r, 0.6, 'back', 'no')
+            eq(r.menu.is_open(), false, 'No closes')
+            eq(r.options.variant(ARIA), 1, 'No: the variant from before')
+            same(r.options.words(ARIA, 3), {'toggle:6=on'}, 'No: variant 3\'s values from before')
+        end)
+        with_presets(function(r)
+            worn(r, 0.5)
+            r.world = false
+            tick(r, 2)
+            eq(r.menu.is_open(), false, 'a guard closes')
+            eq(r.options.variant(ARIA), 1, 'a guard\'s close: the variant from before')
+            same(r.options.words(ARIA, 3), {'toggle:6=on'}, 'a guard\'s close: the values from before')
+        end)
+        with_presets(function(r)
+            worn(r, 0.5)
+            r.menu.stop()
+            eq(r.options.variant(ARIA), 1, 'coop off: the variant from before')
+        end)
+        with_presets(function(r)
+            worn(r, 0.5)
+            at(r, 0.6, 'back', 'yes')
+            eq(r.confirmed, 1, 'Yes confirms')
+            eq(r.options.variant(ARIA), 3, 'Yes: the preset\'s variant kept')
+            same(r.options.words(ARIA, 3), {'toggle:4=off'}, 'Yes: its values kept')
+        end)
+    end,
 }
 
 run('menu_test', tests)

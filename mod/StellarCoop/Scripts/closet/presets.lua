@@ -72,12 +72,19 @@ function Presets.new(o)
         log('presets: '..label(n)..' saved: '..fit..' variant '..v)
         return n,'closet: '..label(n)..' saved'
     end
-    -- Preset n on EVE: its variant and values, then its outfit worn whole by put (default dress.wear).
+    -- Preset n on EVE: its variant and values, then its outfit worn whole by put (default dress.wear). put also gets
+    -- back, which gives the outfit its variant and values from before (the menu's preview turned down).
     function self.wear(n,put)
         local p=presets[tonumber(n)]
         if not p then return false,'closet: no preset '..tostring(n) end
         if not (Fits.get(p.fit) and dress.installed(p.fit)) then
             return false,'closet: '..label(tonumber(n))..': '..p.fit..' is not installed'
+        end
+        local was,words=options.variant(p.fit),options.words(p.fit,p.variant)
+        local function back()
+            options.take(p.fit,p.variant,words)
+            if options.variant(p.fit)~=was then options.set_variant(p.fit,was) end
+            log('presets: '..p.fit..' back to variant '..was)
         end
         if options.variant(p.fit)~=p.variant then
             local good,why=options.set_variant(p.fit,p.variant)
@@ -85,7 +92,7 @@ function Presets.new(o)
         end
         options.take(p.fit,p.variant,p.values)
         log('presets: '..label(tonumber(n))..' worn')
-        return (put or dress.wear)({{fit=p.fit}})
+        return (put or dress.wear)({{fit=p.fit}},back)
     end
     function self.delete(n)
         n=tonumber(n)

@@ -66,7 +66,8 @@
 -- Reset on UI_FaceButton_Top (Select instead on a piece with controls), Move. The detail's open line and help follow
 -- the device: a device switch draws them again at the next tick.
 -- With presets (o.presets, closet/presets.lua) the Full tab starts with Save look as preset (Select saves the worn
--- whole outfit as Preset n, told), each preset (Select wears it as a preview; F, UI_FaceButton_Top, asks Delete this
+-- whole outfit as Preset n, told), each preset (Select wears it as a preview; a close that does not keep the look gives
+-- its outfit the variant and values from before; F, UI_FaceButton_Top, asks Delete this
 -- preset? with the game's Yes/No popup: Yes deletes it, No and Back stay; a gone outfit's preset is greyed and does
 -- not wear) and the filter row (left, right and Select turn All / Favourites, kept for this Lua load). On an outfit's
 -- row F then marks it as a favourite or not (its hint Favourite or Unfavourite) instead of wearing it.
@@ -116,6 +117,9 @@ function Menu.new(o)
     local now=o.now or os.clock
     local only_favs=false -- The Full tab's filter: true lists the favourites only (kept for this Lua load).
     local deleting -- The preset the Delete this preset? popup asks about.
+    -- The backs of the presets worn since the open (closet/presets.lua's wear): a close that does not keep the look
+    -- runs them last first, so each outfit gets its variant and values from before the open.
+    local unwear={}
     local model=Model.new({slots=Slots,fits=Fits,installed=dress.installed,adult=o.adult==true,
         shapes=o.shape and o.shape.rows,presets=o.presets,favourites=function() return only_favs end})
     local view=View.new(kit,log)
@@ -484,6 +488,13 @@ function Menu.new(o)
         if how=='stop' then kit.input(false,View.GROUP); back_at,owed=nil,false
         else back_at,owed=now()+Menu.BACK,true end
         if how~='stop' then kit.sound('close') end
+        if how=='revert' or how=='stop' then -- A preset's preview turned down: its outfit's options as before.
+            for i=#unwear,1,-1 do
+                local ran,why=pcall(unwear[i])
+                if not ran then log('menu: a preset\'s options not given back: '..tostring(why)) end
+            end
+        end
+        unwear={}
         -- The dress tick re-mixes the preview on the new EVE, not the confirmed look: the revert is owed until it works.
         if how=='revert' then
             local ran,good,failed=pcall(dress.revert)
@@ -770,7 +781,11 @@ function Menu.new(o)
             kit.sound(n and 'change' or 'move')
         elseif word=='select' and item and item.preset then -- Worn as a preview: Keep this look? at the Back.
             if not item.locked then
-                local good,why=o.presets.wear(item.preset,function(choices) wear(choices); return true end)
+                local good,why=o.presets.wear(item.preset,function(choices,back)
+                    unwear[#unwear+1]=back
+                    wear(choices)
+                    return true
+                end)
                 if not good then
                     log('menu: preset not worn: '..tostring(why))
                     o.tell(function(t) return t.closet.failed end)
