@@ -3,8 +3,8 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The closet's native reads as glue/tick.cpp's exports hand them to Lua (closet/keys.h), checked on the build machine
 // (no Windows): the camera's held keys (1 + one bit a key held, 1 alone when no window of SB's is in front), the mouse
-// wheel's notches, the menu's held up and down, the game window's subclass for the wheel and its give-back at coop
-// off, and the pad's X, L3 and R3 as bits and its right stick and triggers as levels.
+// wheel's notches, the menu's held up and down, the game window's subclass for the wheel with its give-back at coop
+// off, the pad's X, L3 and R3 as bits and its right stick and triggers as levels.
 #include "closet/keys.h"
 
 #include <cassert>

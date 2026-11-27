@@ -27,6 +27,18 @@ Stellar Blade Online has two parts, both in the mod folder `Mods/StellarCoop/`:
     and `M.pad_levels`): X, L3 and R3 held as `1 +` bits (1 X, 2 L3, 4 R3; 8 arguments). The right stick's x and y
     and the two triggers come one level a call in turn as `1 + 65 * which + level` (260 arguments), so each answer says
     which it is. Not in front: nothing held, at rest. They read no game memory.
+  - `coop_keys`, `coop_nav` and `coop_wheel`, exported functions for the closet's keyboard and mouse reads
+    (`main/boot.lua`'s `M.held_keys`, `M.nav_held` and `M.mouse_wheel`): the keys and mouse buttons the closet camera
+    holds as `1 +` bits (right mouse, middle mouse, Shift, I, J, K, L, U, O; 512 arguments) and the menu's held up and
+    down keys as `1 +` bits (4 arguments), both from `GetAsyncKeyState`, then the mouse wheel's whole notches since the
+    last call as `65 +` notches (-64 to 64; 130 arguments). Not in front: nothing held, no notch. Their code is in
+    `native/src/closet/`.
+  - The mouse wheel is the one read `GetAsyncKeyState` cannot see, so the DLL subclasses the game's window for it. On
+    its first call with that window in front (class `UnrealWindow`), `coop_wheel` puts the DLL's window procedure on
+    it with `SetWindowLongPtrW`. That procedure counts each `WM_MOUSEWHEEL` and hands every message on to the game's
+    own procedure. A new game window is subclassed at the next call. After `coop off` nothing is subclassed. Then
+    `coop_tick` gives the game's procedure back. The procedure reads and writes no game memory. Nothing is subclassed
+    before the closet camera reads the wheel.
   - `coop_pause_close`, an exported function that Lua calls on the game thread when the pause menu's Online tab closes
     the pause menu. It runs the game's own close, the one Back uses (see [Pause
     menu](../players/interface.md#pause-menu)).
@@ -218,9 +230,10 @@ file is written in full beside its final name and then renamed over it, so the r
   state and settings) and `coop-night.txt` (our side of a Night Operation run, which the native part takes at its next
   pass and sends to the friend; a newer line replaces one not taken yet).
 - The native part writes `coop-status.txt` (the state Lua and `coop status` read), `coop-remote.txt` (the remote
-  table), `coop-cns.txt` (the assets your CNS packs declare, once at start), `coop-shared-assets.txt` (the assets of
-  the mods you and your friend both have in one version, when that list changes), `coop-link.log` and
-  `coop-report.txt`.
+  table), `coop-cns.txt` (the assets your CNS packs declare, once at start), `coop-cns-packs.txt` (the CNS packs for
+  the closet, once at start, with `coop-cns-pack-<n>.json`, a copy of each pack whose path Lua cannot open),
+  `coop-shared-assets.txt` (the assets of the mods you and your friend both have in one version, when that list
+  changes), `coop-link.log` and `coop-report.txt`.
 - Two files of each ghost slot are appended to, never rewritten. The native part adds the asset names a member sent
   to `coop-names.txt`. Lua adds the objects it loaded for them to `coop-loaded.txt`. Each side reads the other's file
   from its last offset ([The Steam link](../online/steam-link-internals.md#channel-2-asset-names)).
@@ -490,9 +503,9 @@ from the game.
   a hold, after its right. D-pad Left held 300 ms gives the emote wheel's event (13), once a hold, after its left.
   While Lua asks `closet on`, D-pad Left pressed while LB is held gives the closet's event (14), after its left.
   Neither that hold nor any D-pad Left hold while LB is held gives the wheel's event then. `main/pass.lua` asks
-  `closet on` at the first 250 ms pass of a Lua load while the closet module is on, and `closet off` once it is off.
-  Until the first ask, and after `closet off`, LB and D-pad Left give only their own events, as without the closet. A
-  ring of 8 holds them; a full ring drops the newest. `PadKeys`
+  `closet on` at the first 250 ms pass of a Lua load while the closet module is on. It asks `closet off` once the
+  module is off. Before the first ask and after `closet off`, LB and D-pad Left give only their own events, as without
+  the closet. A ring of 8 holds them; a full ring drops the newest. `PadKeys`
   and the XInput slots also read the right stick (`Gamepad_RightX`, `Gamepad_RightY`; `sThumbRX`, `sThumbRY`), the
   triggers (`Gamepad_LeftTriggerAxis`, `Gamepad_RightTriggerAxis`; `bLeftTrigger`, `bRightTrigger`) and X, L3 and R3
   (`Gamepad_FaceButton_Left`, `Gamepad_LeftThumbstick`, `Gamepad_RightThumbstick`), which make no event.

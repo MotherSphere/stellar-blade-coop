@@ -6,7 +6,7 @@
 // with the game window's subclass that gets them (WheelHook) and the pad's X, L3, R3, right stick and triggers
 // (coop_padbits, coop_levels). UE4SS's binds see a key's press only:
 // the closet camera reads its held keys here (right mouse drag orbits, middle mouse drag pans, I, J, K, L, U and O held
-// orbit and zoom, Shift + I, J, K, L pans), and the mouse wheel, which GetAsyncKeyState cannot see.
+// orbit and zoom, Shift + I, J, K, L pans). It reads the mouse wheel here too, which GetAsyncKeyState cannot see.
 // tests/native/closet/keys_test.cpp checks this file on the build machine.
 #pragma once
 

@@ -279,6 +279,13 @@
 // the player turns on during online play stays on. A fault ends the force for the run: the pass then only puts the kept
 // values back. A second fault stops it with the slots still ours while an option is forced.
 //
+// The closet (closet/): coop_padbits, coop_levels, coop_keys, coop_nav and coop_wheel hand Lua the pads' last poll, the
+// keys held (GetAsyncKeyState) and the mouse wheel's notches (closet/keys.h). For the wheel, closet/wheel_game.inc
+// subclasses SB's game window (UnrealWindow) at coop_wheel's first call with it in front: our window procedure counts
+// WM_MOUSEWHEEL and hands every message on. After coop off nothing is subclassed. coop_tick then gives the window's
+// procedure back. No game memory is read or written. Lua's closet on or off (Command::closet) turns the pad's LB +
+// D-pad Left chord on or off (ui/pad.h's kCloset).
+//
 // This file is one translation unit made of the parts in the module folders and glue/tick/, included below in this
 // order: a part sees what the parts before it declare, and the game thread's parts share one anonymous namespace. Each
 // part is named for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.

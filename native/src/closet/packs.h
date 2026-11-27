@@ -36,8 +36,8 @@ struct PackList {
 // decimal, the path as listed (its case, '\\' and spaces kept, last so a space survives), sorted by path, the first
 // kMaxCnsPacks; empty text without packs. A path with a byte outside ASCII (UTF-8, as glue/steam.cpp lists it) is one
 // Lua's io.open cannot open, since it takes the ANSI code page: its line ends in a tab and its copy's name, numbered
-// from 1 in list order, and glue/steam.cpp writes the pack's bytes there. A path with a byte below 0x20 (a tab, a line
-// end) is left out: no line can carry it.
+// from 1 in list order. glue/steam.cpp writes the pack's bytes there. A path with a byte below 0x20 (a tab, a line end)
+// is left out: no line can carry it.
 // shortcut: the cap takes the first by sorted path while log_paks() reads the first in listing order, so past
 // kMaxCnsPacks packs the two sets can differ; sort the listing first if anyone installs that many.
 inline PackList pack_list(std::vector<PackFile> files) {

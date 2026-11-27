@@ -44,7 +44,7 @@ category folders (`online/`, `online/modes/`, `fight/`, `world/`, `world/maps/`,
 | `online.modes.fishing` | Fishing tournament | `online/modes/fishing/` | `online/modes/fishing/` | [Fishing tournament](../online/modes/fishing.md) | `online/modes/fishing/records.lua`, its copy of score attack's records; `online/modes/fishing/rows.lua`, the names of SB's 40 fish rows; `native/src/online/modes/fishing/fishing.h`, its copy of the set walk of `cutmenus/items.h` |
 | `online.modes.photohunt` | Photo hunt | `online/modes/photohunt/` | `online/modes/photohunt/` | [Photo hunt](../online/modes/photohunt.md) | `online/modes/photohunt/records.lua`, its copy of score attack's records |
 | `world.maps.sboxion` | SBO Xion | `world/maps/sboxion/` | `world/maps/sboxion/` | [SBO Xion](../world/maps/sboxion.md) | Its rows in `world/maps/sboxion/sboxion_rows.h`; `world/maps/sboxion/recover.lua`, its copy of score attack's in-place respawn and of the group's ground read; `world/maps/sboxion/engine.lua`, its copy of the lobby's black call |
-| `closet` | Stellar Closet | `closet/` | `closet/` (`keys.h`, `packs.h` and the mouse wheel's part `wheel_game.inc`) | [Stellar Closet](../closet/closet.md) | |
+| `closet` | Stellar Closet | `closet/` | `closet/` (`keys.h`, `packs.h` and the mouse wheel's part `wheel_game.inc`; and the shared `ui/pad.h`'s LB + D-pad Left chord, which `closet on` turns on) | [Stellar Closet](../closet/closet.md) | |
 
 ## Shared pieces
 
