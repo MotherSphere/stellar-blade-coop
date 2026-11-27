@@ -37,8 +37,9 @@ Stock.HAIR_MASTER = '/Game/Art/Character/Generic/GlobalMasterMaterials/MA_CH_Hai
 -- EquipmentTable rows (SB/Content/Local/Data/EquipmentTable.uasset, read 27 Nov 2026): the default hair's ponytail,
 -- long (Hair_Default_Part2, CH_P_EVE_Hair_PonyTail_2) and short (Hair_Default_Part2_Short, ..._PonyTail_Short), both
 -- in material group EM_Hair_Default_Part2. Every stock hair's ponytail is the same mesh: only its group changes.
-local PONYTAILS = {{id = 'SB.Ponytail_Long', alias = 'Hair_Default_Part2'},
-    {id = 'SB.Ponytail_Short', alias = 'Hair_Default_Part2_Short'}}
+-- Glyph: its tile's picture (closet/ui/icons/<glyph>.png): each stock ponytail its own (Schizo, 27 Nov 2026).
+local PONYTAILS = {{id = 'SB.Ponytail_Long', alias = 'Hair_Default_Part2', glyph = 'ponytail_long'},
+    {id = 'SB.Ponytail_Short', alias = 'Hair_Default_Part2_Short', glyph = 'ponytail_short'}}
 Stock.PONYTAIL_NONE = 'SB.Ponytail_None'
 
 local COLOURS = {{'RootColor', 'Root colour'}, {'TipColor', 'Tip colour'}, {'DyeColor', 'Dye colour'}}
@@ -230,6 +231,7 @@ function Stock.items(rows)
         if eq and plain(eq.MountingResourcePath) then
             items[p.id] = item_of(rows, p.id, 'Ponytail', names[p.id] or p.alias, nil, eq, nil,
                 function(why) lost(p.id:gsub('^SB%.', ''), why) end)
+            items[p.id].Glyph = p.glyph
             have_long = have_long or p.id == 'SB.Ponytail_Long'
         else
             lost((p.id:gsub('^SB%.', '')), 'no equipment row ' .. p.alias)
@@ -238,6 +240,7 @@ function Stock.items(rows)
     local none = lists()
     items[Stock.PONYTAIL_NONE] = {UniqueFitID = Stock.PONYTAIL_NONE, Slot = 'Ponytail', Origin = 'original',
         DisplayName = names[Stock.PONYTAIL_NONE] or 'Ponytail_None', HidePonytail = false, Mesh = '',
+        Glyph = 'ponytail_none',
         Variants = {{Mesh = '', Materials = {}, UserConfigs = none}}, UserConfigs = none, PieceHints = {}}
 
     for row, it in pairs(rows.items or {}) do

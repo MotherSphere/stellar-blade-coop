@@ -3458,6 +3458,27 @@ local tests = {
         end, heads({{fit = HAIR, slots = {'Hair'}}}))
     end,
 
+    each_ponytail_has_its_own_glyph = function()
+        -- The ponytail tiles all showed one glyph (Schizo, 27 Nov 2026): Long, Short and No ponytail have their own
+        -- (closet/ui/icons/ponytail_long, _short, _none); a pack ponytail shows the slot's.
+        local o = heads()
+        o.catalogue[TAIL].Glyph = 'ponytail_long'
+        o.catalogue['SB.Ponytail_None'].Glyph = 'ponytail_none'
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'select') -- The Ponytail row, its grid.
+            local tv = grid(r)
+            local by = {}
+            for _, item in ipairs(tv.items) do by[item.ItemName.text] = item.IconAssetPath end
+            local w = T.en.closet.head
+            eq(by[w.no_ponytail], F.path('ponytail_none'), 'No ponytail')
+            eq(by['Pack tail'], F.path('ponytail'), 'a pack ponytail: the slot\'s glyph')
+            local long
+            for name, path in pairs(by) do if path == F.path('ponytail_long') then long = name end end
+            ok(long, 'the long ponytail shows its own glyph')
+        end, o)
+    end,
+
     custom_head_tiles_keep_the_stock_look = function()
         -- On a head row a pack piece's picture (BG3's portraits filled their tiles, Schizo's screenshot of 27 Nov
         -- 2026) gives way to the slot's glyph, as white as the game's own hair icons; a stock piece keeps its icon.

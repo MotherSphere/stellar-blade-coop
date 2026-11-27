@@ -110,7 +110,7 @@ function Fits.pack(item, v)
     return {Outfit = item.DisplayName, Pack = hand.Pack or pack_name(item.File or item.Pack),
         Origin = item.Origin or 'custom', Slot = item.Slot, AnimationBP = item.AnimationBP,
         PonyPhysics = variant.PonyPhysics, PhysicsAsset = item.PhysicsAsset, Rotation = item.Rotation,
-        HidePonytail = item.HidePonytail, Ponytail = item.Ponytail,
+        HidePonytail = item.HidePonytail, Ponytail = item.Ponytail, Glyph = item.Glyph,
         Mesh = variant.Mesh, Image = item.Image or hand.Image, Variant = v, Hidden = variant.HiddenMats,
         Materials = variant.Materials, Parameters = variant.Parameters, Variants = item.Variants,
         Toggles = toggles, Controls = variant.UserConfigs or item.UserConfigs, Hints = item.PieceHints, Whole = true,

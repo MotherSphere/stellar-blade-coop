@@ -375,6 +375,12 @@ local tests = {
         end
     end,
 
+    stock_ponytails_have_their_own_glyphs = function()
+        local items = Stock.items(rows())
+        eq(items['SB.Ponytail_Long'].Glyph, 'ponytail_long') eq(items['SB.Ponytail_Short'].Glyph, 'ponytail_short')
+        eq(items['SB.Ponytail_None'].Glyph, 'ponytail_none')
+    end,
+
     stock_ponytails_follow_their_hair = function()
         local items = Stock.items(rows())
         eq(items['SB.Hair_001'].Ponytail, 'SB.Ponytail_Long', 'the hair brings the long ponytail')

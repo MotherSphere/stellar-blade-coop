@@ -528,7 +528,8 @@ function Menu.new(o)
                 s.tiles[i]={name=one.none and none or head_name(w,one.fit,one.name),equipped=i==at,locked=one.locked,
                     picture=own_art and picture(one.fit,item.slot) or nil,
                     image=own_art and one.fit and Fits.get(one.fit).Image or nil,
-                    icon=one.none and 'none' or Slots.glyph(item.slot)}
+                    -- A fit's own glyph (each stock ponytail's), else the slot's.
+                    icon=one.none and 'none' or (one.fit and Fits.get(one.fit).Glyph) or Slots.glyph(item.slot)}
             end
             if col=='grid' then
                 tile=math.max(1,math.min(tile,#tiles))
