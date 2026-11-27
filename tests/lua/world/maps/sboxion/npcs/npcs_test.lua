@@ -69,9 +69,16 @@ for i=2,11 do
     assert(u>b.u[1] and u<b.u[2] and v>b.v[1] and v<b.v[2],n.name..' stands in the district\'s box')
 end
 local G=LIST[2]
-assert(G.mesh=='/Game/Art/Character/NPC/CH_NPC_XionGuard/CH_NPC_XionGuard.CH_NPC_XionGuard' and G.yaw==40
+assert(G.mesh=='/Game/Art/Character/NPC/CH_NPC_XionGuard/CH_NPC_XionGuard.CH_NPC_XionGuard' and G.yaw==112
     and G.clips[1]=='/Game/Art/Character/NPC/CH_NPC_XionGuard/Animation/N_XionGuard_KeepWatch1.N_XionGuard_KeepWatch1'
-    and G.at.X==-817 and G.at.Y==6032.8,'The gate guard at the foot of the arch stair')
+    and G.at.X==-585.9 and G.at.Y==5835.2,'The gate guard beside the foot of the arch stair')
+-- The last flight of the arch stair (its CatWalk_002/001_C_h300_SM in the district's layout) spans grid v 49.47 to
+-- 53.49 and ends at u 34.02. A display body has no collision: on that line EVE walks through it off the stair.
+do
+    local a=math.rad(D.UNDER.yaw)
+    local u,v=(G.at.X*math.cos(a)+G.at.Y*math.sin(a))/100,(G.at.Y*math.cos(a)-G.at.X*math.sin(a))/100
+    assert((v<49.47 or v>53.49) and u<34.02,string.format('The gate guard off the last flight: u %.2f v %.2f',u,v))
+end
 assert(LIST[8].mesh=='/Game/Art/Character/NPC/CH_NPC_CitizenMale_A/CH_NPC_CitizenMale_C.CH_NPC_CitizenMale_C',
     'The third stall keeper: mesh C in the folder of CitizenMale_A')
 
@@ -284,8 +291,8 @@ assert(npcs.status()=='npcs 1 of '..#LIST..' shown','On again at the next arriva
 npcs.tick(nil)
 
 -- The district: a pak that holds the rooms only keeps the ten away. With the district's levels and Under_D1_Arch
--- there, EVE beside the gate guard gets the seven bodies of the deck, all within NEAR. The guard and the storyteller
--- beside him talk to her. The three of Under_D1_ArchHomes stay away while that level is not there.
+-- there, EVE beside the gate guard gets the seven bodies of the deck, all within NEAR. The guard talks to her, then
+-- the storyteller when she walks up to him. The three of Under_D1_ArchHomes stay away while that level is not there.
 pak=function(umap) return umap:find('/Xion_Rooms_',1,true)~=nil end
 fresh()
 assert(#logs==10 and logs[1]=='npcs: d1_gate_guard stays away: this pak does not hold Under_D1_Arch',logs[1])
@@ -298,10 +305,13 @@ level={name='Under_D1_Arch',loaded=true,visible=true}
 npcs.tick(guard)
 assert(#bodies==7 and bodies[1].mesh==G.mesh and bodies[1].yaw==G.yaw+Npcs.MESH_YAW and bodies[1].clip==G.clips[1],
     'The gate guard\'s body first: '..#bodies)
-assert(#said==2 and said[1]=='d1_gate_guard' and said[2]=='d1_storyteller'
-    and logged('npcs: d1_gate_guard stands in Under_D1_Arch at (-817, 6033, -1100), yaw -50, clip '
+assert(#said==1 and said[1]=='d1_gate_guard'
+    and logged('npcs: d1_gate_guard stands in Under_D1_Arch at (-586, 5835, -1100), yaw 22, clip '
         ..'N_XionGuard_KeepWatch1')
     and logged('npcs: d1_resident_b stays away: its level Under_D1_ArchHomes is not on the streaming list'),logs[#logs])
+local T=LIST[3]
+npcs.tick({X=T.at.X+100*math.cos(math.rad(T.frame.yaw)),Y=T.at.Y+100*math.sin(math.rad(T.frame.yaw)),Z=T.at.Z+95})
+assert(T.name=='d1_storyteller' and #said==2 and said[2]=='d1_storyteller' and #bodies==7,'The storyteller by the globe')
 -- The street over the deck, 8.7 m up: too far to talk, the bodies stay shown.
 npcs.tick({X=guard.X,Y=guard.Y,Z=-228+95})
 npcs.tick({X=guard.X,Y=guard.Y,Z=-228+95})

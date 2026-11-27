@@ -53,17 +53,17 @@ Npcs.LIST={
         at={X=-10931.7,Y=3145.4,Z=414.0},yaw=-70,frame={X=-10650.4,Y=3388.3,yaw=-70}},
     -- The underground district (district 1 of the sixth full test build): ten bodies, seven on the deck of
     -- Under_D1_Arch and three in the rooms of Under_D1_ArchHomes, each spot, facing and frame from the district's
-    -- layout of 27 November 2026. Z -1100 is the layout's walk. The cooked deck's collision top lies 13.7 cm lower, as
-    -- under the layout's 229 props on the deck (a fault of the sixth build, kept until the district's next build).
-    -- The gate guard at the foot of the arch stair.
+    -- layout of 27 November 2026. Z -1100 is the layout's walk. From the seventh build on, the deck's collision top
+    -- lies there too (the sixth build's lay 13.7 cm lower).
+    -- The gate guard beside the foot of the arch stair, 1 m off its last flight, facing the foot.
     {name='d1_gate_guard',room='Under_D1_Arch',mesh=asset(GUARD,'CH_NPC_XionGuard'),
         clips=clips(GUARD..'Animation/',{'N_XionGuard_KeepWatch1','N_XionGuard_KeepWatch2',
             'N_XionGuard_Idle','N_XionGuard_Idle2'}),
-        at={X=-817.0,Y=6032.8,Z=-1100.0},yaw=40,frame={X=-220.5,Y=4449.2,yaw=130}},
+        at={X=-585.9,Y=5835.2,Z=-1100.0},yaw=112,frame={X=-220.5,Y=4449.2,yaw=130}},
     -- The storyteller in the Arch Court, by the globe.
     {name='d1_storyteller',room='Under_D1_Arch',mesh=asset(MALE,'CH_NPC_CitizenMale_B'),
         clips=clips(MALE..'Animation/',{'N_Citizen_Stand_Talk_Loop','N_Citizen_Idle'}),
-        at={X=-963.2,Y=6032.1,Z=-1100.0},yaw=310,frame={X=-220.5,Y=4449.2,yaw=130}},
+        at={X=-995.3,Y=6070.4,Z=-1100.0},yaw=310,frame={X=-220.5,Y=4449.2,yaw=130}},
     -- The porter in the Gate Yard.
     {name='d1_porter',room='Under_D1_Arch',mesh=asset(SCAVENGER,'CH_NPC_ScavengerFemale_A'),
         clips=clips(SCAVENGER..'Animation/',{'N_Scavenger_Idle3','N_Scavenger_Idle1'}),
