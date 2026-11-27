@@ -5,7 +5,7 @@
 -- new(o) at each Lua load and main/loader.lua merges it into the command table. o: dress (closet/dress.lua's), fits
 -- (closet/fits.lua), probe (closet/ui/probe.lua's), menu (a function giving closet/ui/menu.lua's, nil without the
 -- Steam link: main/ui.lua builds it later), thumbs (closet/thumbs.lua's), colour (closet/colour.lua's), shape
--- (closet/shape.lua's).
+-- (closet/shape.lua's), packs (closet/packs.lua's loader).
 --   coop closet [status]                              what is worn
 --   coop closet wear <fit>[:<Slot>,<Slot>...] ...     pieces of one or more outfits by fit map; a fit alone wears
 --                                                      every piece its pack shows by default (the outfit as is)
@@ -24,15 +24,17 @@
 --   coop closet shape <morph> <0-100>                 one body shape value in % (steps of 10) on the worn meshes
 --                                                      (closet/shape.lua), kept in coop-closet-shape.txt
 --   coop closet shape off                             every body shape value back to 0
+--   coop closet rescan                                reads every installed pack again (closet/packs.lua)
 local Dress=require('closet.dress')
 local Probe=require('closet.ui.probe')
 local Colour=require('closet.colour')
 local Shape=require('closet.shape')
+local Packs=require('closet.packs')
 local Commands={}
 -- main/commands.lua's M.run passes six words, nil-padded: an extra word is a first one that is not nil.
 Commands.USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|thumbs [redo] [<fit>]|'..
     'probe <1-6|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <swatch|off>|colour off|'..
-    'shape <morph> <0-100>|shape off]'
+    'shape <morph> <0-100>|shape off|rescan]'
 function Commands.new(o)
     local self={}
     function self.closet(sub,...)
@@ -97,6 +99,9 @@ function Commands.new(o)
             local value=tonumber(word)
             if not (name and value) or select(3,...)~=nil then return false,Shape.USE end
             return o.shape.set(name,value)
+        elseif sub=='rescan' then
+            if extra then return false,Commands.USE end
+            return true,Packs.line(select(2,o.packs.scan()))
         end
         return false,Commands.USE
     end

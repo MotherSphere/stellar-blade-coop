@@ -91,11 +91,29 @@ function CnsImport.piece_slot(name)
 end
 
 -- True for files Stellar Closet may read: any .dekcns.json except the ones that ship with DekCNS itself
--- (CustomNanosuitSystem/Cosmetics/DekCNS-*), which stay out of a clean-room importer. path: relative to ~mods.
+-- (CustomNanosuitSystem/Cosmetics/DekCNS-*), which stay out of a clean-room importer. A name without the dot before
+-- dekcns (OutfitDekcns.json) counts too. path: relative to ~mods, or to Content\Paks with ~mods\ in front (the DLL's).
 function CnsImport.should_read(path)
-    local p = (path or ''):gsub('\\', '/'):lower()
-    if not p:find('%.dekcns%.json$') then return false end
+    local p = (path or ''):gsub('\\', '/'):lower():gsub('^~mods/', '')
+    if not p:find('dekcns%.json$') then return false end
     return not p:find('^customnanosuitsystem/cosmetics/dekcns%-')
+end
+
+-- Adds one file's items to into ({[UniqueFitID] = item}), each with File = file. parse checks repeats within a file
+-- only: an id already in into keeps its first item. Returns a line for each repeat.
+function CnsImport.merge(into, items, file)
+    local repeats = {}
+    for _, item in ipairs(items) do
+        local first = into[item.UniqueFitID]
+        if first then
+            repeats[#repeats + 1] = ('%s: UniqueFitID %s repeats %s, ignored'):format(file, item.UniqueFitID,
+                first.File)
+        else
+            item.File = file
+            into[item.UniqueFitID] = item
+        end
+    end
+    return repeats
 end
 
 local function variants_of(entry)

@@ -118,6 +118,23 @@ local tests={
         ok(not CnsImport.should_read('customnanosuitsystem\\cosmetics\\dekcns-defaultfaces.DEKCNS.JSON'))
         ok(not CnsImport.should_read('SomePack/readme.json'))
     end,
+    should_read_takes_the_dll_path_and_no_dot_names = function()
+        ok(CnsImport.should_read('~mods\\SomePack\\outfit.dekcns.json'), 'from Content\\Paks')
+        ok(CnsImport.should_read('~MODS/SomePack/outfit.dekcns.json'), 'any case, either slash')
+        ok(not CnsImport.should_read('~mods\\CustomNanosuitSystem\\Cosmetics\\DekCNS-DefaultHairs.dekcns.json'),
+            'DekCNS own files under ~mods')
+        ok(CnsImport.should_read('~mods\\SomePack\\OutfitDekcns.json'), 'no dot before dekcns')
+        ok(not CnsImport.should_read('~mods\\SomePack\\outfit.json'))
+    end,
+    merge_keeps_the_first_unique_fit_id_across_files = function()
+        local into = {}
+        local a = CnsImport.parse('[{"UniqueFitID":"x","DisplayName":"A","OutfitPaths":["/Game/M/A.A"]}]', 'a.json')
+        local b = CnsImport.parse('[{"UniqueFitID":"x","DisplayName":"B","OutfitPaths":["/Game/M/B.B"]},' ..
+            '{"UniqueFitID":"y","OutfitPaths":["/Game/M/Y.Y"]}]', 'b.json')
+        same(CnsImport.merge(into, a.items, 'a.json'), {}, 'nothing repeats yet')
+        same(CnsImport.merge(into, b.items, 'b.json'), {'b.json: UniqueFitID x repeats a.json, ignored'}, 'flagged')
+        eq(into.x.DisplayName, 'A', 'first kept') eq(into.x.File, 'a.json') eq(into.y.File, 'b.json')
+    end,
     imported_items_work_in_the_resolver = function()
         local suit = one('[{"UniqueFitID":"s","OutfitPaths":["/Game/M/A.A"]}]')
         local hair = one('[{"UniqueFitID":"h","FitMeshType":"Hair","OutfitPaths":["/Game/M/H.H"]}]')

@@ -25,6 +25,7 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet colour off` | Sets every role back to the packs' own colours and deletes `coop-closet-colour.txt` |
 | `coop closet shape <morph> <0-100>` | Sets one body shape value (a morph target name of the worn meshes) in percent, in steps of 10. `0` takes it off. See [Body shape](#body-shape) |
 | `coop closet shape off` | Sets every body shape value back to 0 and deletes `coop-closet-shape.txt` |
+| `coop closet rescan` | Reads every installed CNS-format pack again and answers how many packs, reused packs, outfits and failed packs it found. See [Importing CNS-format packs](cns-import.md#the-pack-catalogue) |
 
 For example, `coop closet wear AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462:Shoes` wears Ocean Maid's top and
 stockings with Kunoichi Shadow's boots.
@@ -69,6 +70,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`,
 | `json.lua` | A JSON decoder for packs: comments, trailing commas, a BOM, `\u` escapes. It never raises |
 | `manifest.lua` | Reads and checks a `*.stellarcloset.json` pack |
 | `cns_import.lua` | Reads a `*.dekcns.json` pack into items, with piece hints from its material toggle names |
+| `packs.lua` | The pack catalogue: every installed `*.dekcns.json` pack from the DLL's `coop-cns-packs.txt`, by `UniqueFitID`, read at the menu's first open and by `coop closet rescan` |
 | `dress.lua` | `coop closet wear`: the plan from fit maps, the mix on EVE, the once-a-second watchdog, her own look kept and given back |
 | `fits.lua` | Fit maps: which material slots of a CNS full outfit make each piece and which show the skin (Ocean Maid, Kunoichi Shadow). Each outfit's own picture (its pack's `OutfitImage`) |
 | `thumbs.lua` | `coop closet thumbs`: the capture rig (one picture a frame) and the picture cache's folders, files and stamps |

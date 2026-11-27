@@ -4,12 +4,13 @@
 -- The wiring of Stellar Closet (closet/): coop closet, which wears pieces of several outfits at once (M.closet,
 -- closet/dress.lua), coop closet colour (M.closet_colour, closet/colour.lua), coop closet shape (M.closet_shape,
 -- closet/shape.lua), coop closet probe (closet/ui/probe.lua),
--- coop closet thumbs (M.closet_thumbs, closet/thumbs.lua) and the closet menu (M.closet_menu, closet/ui/menu.lua,
+-- coop closet thumbs (M.closet_thumbs, closet/thumbs.lua), the pack catalogue (M.closet_packs, closet/packs.lua, coop
+-- closet rescan) and the closet menu (M.closet_menu, closet/ui/menu.lua,
 -- built at main/ui.lua's step menu with the Steam link only). main/frame.lua runs its restore at the first tick and its
 -- tick each frame; coop off stops it.
 return {
 uses={},
-exports={'closet','closet_menu','closet_thumbs','closet_colour','closet_shape'},
+exports={'closet','closet_menu','closet_thumbs','closet_colour','closet_shape','closet_packs'},
 new=function(M)
 local print=M.print
 -- closet/dress.lua, logging [CL] lines: coop-closet.txt lets the next Lua load give EVE her own look back. No look
@@ -43,6 +44,12 @@ local thumbs=Thumbs.new({log=function(m) print('[StellarCoop][CL] '..tostring(m)
     menu_open=function() return M.closet_menu~=nil and M.closet_menu.is_open() end,
     status=function() return M.link and M.link.status() end})
 M.closet_thumbs=thumbs -- The menu's Make preview pictures row starts it.
+-- The pack catalogue (closet/packs.lua): every installed *.dekcns.json pack from the DLL's list coop-cns-packs.txt,
+-- read at the menu's first open (never at boot: up to 256 packs of pure-Lua JSON) and again by coop closet rescan.
+-- It has no tick.
+M.closet_packs=require('closet.packs').new({paks=require('core.pak_gate').paks_of(M.folder),
+    list=M.folder and M.folder..'\\coop-cns-packs.txt',read=require('core.link').files.read,
+    log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 local dress_tick,dress_stop=M.closet.tick,M.closet.stop
 M.closet.tick=function()
     M.guarded('closet',dress_tick)
@@ -57,7 +64,7 @@ M.closet.stop=function()
     if M.closet_menu then M.closet_menu.stop() end
 end
 return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,thumbs=thumbs,
-    menu=function() return M.closet_menu end,colour=colour,shape=shape})
+    menu=function() return M.closet_menu end,colour=colour,shape=shape,packs=M.closet_packs})
 end,
 build={
 -- coop closet menu (closet/ui/menu.lua) on the kit: its group added before the first slow. Its camera
@@ -77,6 +84,12 @@ menu=function(M,Ui)
         world=function() return M.hud_shown end,photo=M.photo_state,status=function() return M.link and M.link.status() end,
         camera=camera,folder=M.folder,thumbs=M.closet_thumbs,colour=M.closet_colour,shape=M.closet_shape,
         uidev=M.link.uidev})
+    -- The first open (the closet key's too: it calls the field) reads every pack once, under a guard of its own.
+    local open,scanned=M.closet_menu.open,false
+    M.closet_menu.open=function(...)
+        if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan) end
+        return open(...)
+    end
 end,
 },
 }

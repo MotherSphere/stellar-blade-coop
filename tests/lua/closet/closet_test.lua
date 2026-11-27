@@ -7,12 +7,20 @@
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 package.loaded.UEHelpers={GetPlayer=function() return nil end}
 local runs={}
+local scans=0
 local Cmd=require('closet.commands').new({dress={status=function() return 'closet: nothing worn' end},
-    fits=require('closet.fits'),thumbs={run=function(redo,fit) runs[#runs+1]={redo,fit}; return true,'ran' end}})
+    fits=require('closet.fits'),thumbs={run=function(redo,fit) runs[#runs+1]={redo,fit}; return true,'ran' end},
+    packs={scan=function() scans=scans+1; return {},{packs=2,reused=1,items=3,failed={}} end}})
 local USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|thumbs [redo] [<fit>]|'..
     'probe <1-6|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <swatch|off>|colour off|'..
-    'shape <morph> <0-100>|shape off]'
-local ok,line=Cmd.closet()
+    'shape <morph> <0-100>|shape off|rescan]'
+-- rescan reads every installed pack again (closet/packs.lua) and answers its report line.
+local ok,line=Cmd.closet('rescan')
+assert(ok and line=='closet packs: 2 packs (1 reused), 3 outfits, 0 failed',line)
+ok,line=Cmd.closet('rescan','extra')
+assert(not ok and line==USE,line)
+assert(scans==1,scans)
+ok,line=Cmd.closet()
 assert(ok and line=='closet: nothing worn',line)
 ok,line=Cmd.closet('status')
 assert(ok and line=='closet: nothing worn',line)
