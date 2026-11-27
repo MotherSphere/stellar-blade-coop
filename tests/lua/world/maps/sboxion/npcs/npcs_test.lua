@@ -7,7 +7,7 @@
 -- line that fits the feed's 200 bytes. Its own spot is on its side of its frame. The repairer stands at the spot of
 -- D011's layout. Ten NPCs of the underground district follow: seven on the deck of Under_D1_Arch, three in the rooms
 -- of Under_D1_ArchHomes, each at the district layout's spot on its walk at Z -1100, inside the district's box of
--- data.lua. A district NPC is made once EVE is near and its own level is there, and talks to her beside it.
+-- data.lua. A district NPC is made once EVE is near and its own level is there. It talks to her beside it.
 -- The body: none while EVE is far or the room's level is not there (said once, asked again each WAIT passes), none
 -- for a room the pak does not hold (one line an arrival, no read of the levels). Within NEAR with the level up it is
 -- made at the row's place, turned by MESH_YAW, on the first clip. Its actor path goes to the store. Past FAR it

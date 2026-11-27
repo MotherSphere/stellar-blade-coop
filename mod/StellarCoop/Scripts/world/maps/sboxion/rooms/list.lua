@@ -28,9 +28,9 @@
 -- of the sixth full test build (27 November 2026). Its stairs start past the far arch of SB's brick tunnel behind
 -- the gate. Its rows are the six pieces of SB that close the gate on the lower street (MainStreet_04): two stacked
 -- crates, the two chain-link fence panels that close the tunnel's near arch from the floor to 5.07 m, the red tarp
--- and a barrel, all of E04_Area02_Object_F_04's Actor_1, each with its own collision. The second barrel, 93 cm in
--- front of the gate on the street side, stays. No other piece and no volume stands between the street and the
--- tunnel. Read on 2026-11-27 from the level dump of build 26123051.
+-- and a barrel, all of E04_Area02_Object_F_04's Actor_1, each with its own collision. The second barrel stays on
+-- the street side, its pivot 0.60 m in front of the gate and 1.78 m to one side. No other piece and no volume
+-- stands between the street and the tunnel. Read on 2026-11-27 from the level dump of build 26123051.
 -- A row: the sublevel, the actor, the component's number, the instance index (-1: the whole component), the mesh
 -- under /Game/Art/BG/Actor/, then the place the piece stores (cm): a whole component's RelativeLocation, an
 -- instance's translation inside its component. An instance row ends with the number of instances its component

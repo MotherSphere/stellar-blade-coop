@@ -872,9 +872,9 @@ way it opens a room. It hides the six pieces of SB that close the gate, all of `
 | The red tarp, `Deco/Tarp/001_D_SM` | `StaticMeshComponent_37` | a whole component |
 | A barrel, `Deco/Barrel/008_A_SM` | `HierarchicalInstancedStaticMeshComponent_9`, instance 1 of 2 | an instance |
 
-The two fence panels close the tunnel's near arch from the floor to 5.07 m. The other barrel, 93 cm in front of the
-gate on the street side, stays. No other piece and no volume stands between the street and the tunnel. Each row was
-checked against the level dump of build 26123051.
+The two fence panels close the tunnel's near arch from the floor to 5.07 m. The other barrel stays on the street
+side. Its pivot is 0.60 m in front of the gate and 1.78 m to one side. No other piece and no volume stands between
+the street and the tunnel. Each row was checked against the level dump of build 26123051.
 
 On the way from the street to G18 the furniture piece `Deco/Furniture_004/030_A_SM` of `E04_Area02_Object_A_03` seemed
 to block the lower street. Its mesh carries no cooked collision. The game then keeps only its one box element:

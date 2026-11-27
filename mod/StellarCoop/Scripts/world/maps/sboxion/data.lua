@@ -114,8 +114,9 @@ D.FLOOR=-3275
 -- UNDER: the underground district under the lower street (district 1 of the sixth full test build): inside its box
 -- EVE at or above its floor is on its ground and EVE under it has fallen, in place of FLOOR. The box is in the
 -- district's own grid, u along yaw YAW and v along yaw YAW+90, in metres from the world origin. It holds every piece
--- of the district (u 6.75 to 47.54, v 31.83 to 81.44: the stairs from the far arch of G18's tunnel at Z -216 and the
--- deck at -1100) and 10 m more on each side, so EVE who runs off an edge is still inside it when she passes the floor.
+-- of the district (u 6.75 to 47.49, v 31.83 to 81.44: the stairs from the far arch of G18's tunnel at Z -216 and the
+-- deck at -1100) and at least 10 m more on each side, so EVE who runs off an edge is still inside it when she passes
+-- the floor.
 -- floor: the top of SBEffectVolume_Xion10_03 of E04_Area01_A_LD_Visible (centre Z -9000, scale Z 77.25, a cube brush
 -- of half size 100), SB's fall volume under the whole box, 175 cm under the deck. Only its number is used, as FLOOR's.
 -- In the box SB's collision under Z -1180 is two pieces of Architecture/Ceiling/003_B_SM on their edge, 14 cm thick,
