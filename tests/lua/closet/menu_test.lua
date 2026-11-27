@@ -3634,14 +3634,20 @@ local tests = {
             at(r, 0.5, 'select')
             local tv = grid(r)
             local entries = tv:GetDisplayedEntryWidgets()
-            entries[2].SizeBox_20.opacity, entries[2].SizeBox_20.translation = 0, {X = 0, Y = 40}
-            entries[3].SizeBox_20.opacity, entries[3].playing = 0.2, true
+            entries[2].SizeBox_20.RenderOpacity, entries[2].SizeBox_20.translation = 0, {X = 0, Y = 40}
+            entries[3].SizeBox_20.RenderOpacity, entries[3].playing = 0.2, true
             at(r, 0.6, 'right')
             tick(r, 1.0)
-            eq(entries[2].SizeBox_20.opacity, 1, 'the stuck slot shown')
+            eq(entries[2].SizeBox_20.RenderOpacity, 1, 'the stuck slot shown')
             same(entries[2].SizeBox_20.translation, {X = 0, Y = 0}, 'back in place')
-            eq(entries[3].SizeBox_20.opacity, 0.2, 'a slot still animating left to its animation')
+            eq(entries[3].SizeBox_20.RenderOpacity, 0.2, 'a slot still animating left to its animation')
             has(r.log, 'mid spawn animation', 'said')
+            -- A refused call never stops the glyph look; it is said once.
+            entries[2].SizeBox_20.RenderOpacity = 0
+            entries[2].SizeBox_20.SetRenderOpacity = 7
+            at(r, 1.1, 'left')
+            tick(r, 1.5)
+            has(r.log, 'could not be shown', 'a refusal said')
         end, heads({{fit = HAIR, slots = {'Hair'}}}))
     end,
 

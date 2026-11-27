@@ -647,16 +647,26 @@ function View.new(kit,log)
     -- A slot the TileView took back mid ListSpawn (WB_HairSalon_GridSlot's animation: SizeBox_20's RenderOpacity from 0
     -- and a RenderTransform slide, widget JSON) stays see-through: with no animation playing it is shown whole.
     -- UUserWidget IsAnyAnimationPlaying (native entry 0x1461fe0c0, exec 0x143d69990: its active players at +0x1c8 > 0),
-    -- UWidget GetRenderOpacity (entry 0x146202f10, exec 0x143d75050), SetRenderOpacity (entry 0x1462030d0, exec
-    -- 0x143d74f80), SetRenderTranslation (entry 0x146203130, exec 0x143d758b0 writes the FVector2D at +0x90) (Ghidra,
-    -- build 26123051, 27 Nov 2026).
+    -- UWidget.RenderOpacity, a float at +0xc4 (property params 0x146200c08), read as a property: GetRenderOpacity
+    -- called through UE4SS gave "attempt to call a TrivialObject value" in game. SetRenderOpacity (entry 0x1462030d0,
+    -- exec 0x143d74f80), SetRenderTranslation (entry 0x146203130, exec 0x143d758b0 writes the FVector2D at +0x90)
+    -- (Ghidra, build 26123051, 27 Nov 2026). A refused call is said once and never stops the glyph look.
+    local unstick_said=false
     local function unstick(entry)
-        local box=entry.SizeBox_20
-        if not box or entry:IsAnyAnimationPlaying() or box:GetRenderOpacity()>=0.99 then return end
-        box:SetRenderOpacity(1)
-        box:SetRenderTranslation({X=0,Y=0})
-        unstuck=unstuck+1
-        if unstuck==1 then log('menu: tile '..(entry.Data.Index+1)..' was left mid spawn animation: shown') end
+        local ran,why=pcall(function()
+            local box=entry.SizeBox_20
+            if not box or entry:IsAnyAnimationPlaying() then return end
+            local o=tonumber(U.value_of(box.RenderOpacity))
+            if not o or o>=0.99 then return end
+            box:SetRenderOpacity(1)
+            box:SetRenderTranslation({X=0,Y=0})
+            unstuck=unstuck+1
+            if unstuck==1 then log('menu: tile '..(entry.Data.Index+1)..' was left mid spawn animation: shown') end
+        end)
+        if not ran and not unstick_said then
+            unstick_said=true
+            log('menu: a stuck slot could not be shown: '..tostring(why))
+        end
     end
     function v.tick(t)
         if show_due then show_due,show_until,show_at=false,t+View.SHOW,0 end
