@@ -88,8 +88,12 @@ D.PROBES={'E04_DistantView_A_01','E04_DistantView_A_03'}
 -- build read the same 34 slots back from the pak. The two probes are among them. The paks of 2026-11-23 and of the
 -- rooms list only those two of them. Every other listed level is always loaded: 93 with the first pak, 98 with the
 -- rooms pak, 127 with the full test pak, 133 with the full test pak of build3 (167 listed, six more rooms), 141 with
--- its fourth build (175 listed) and 137 with its fifth (171 listed, the four levels of D087, D111, D109 and D029 in
--- place of the fourth build's eight).
+-- its fourth build (175 listed), 137 with its fifth (171 listed, the four levels of D087, D111, D109 and D029 in
+-- place of the fourth build's eight) and 139 with its eighth (173 listed). The eighth adds the two levels of the
+-- underground district, /Game/SBO_World/Rooms/Under_D1_Arch and Under_D1_ArchHomes. They ride on the slots
+-- LevelStreamingDynamic_54 and _56 of Xion_P, which name volumes in E04 as shipped and which that build makes always
+-- loaded, so neither is in VOLUMED. The rooms (rooms/list.lua, G18) and the NPCs (npcs/npcs.lua) ask the pak gate for
+-- each of them.
 D.VOLUMED={
     'E04_Area01_A_LD','E04_Area01_A_LD_UnLoad','E04_Area02_A_LD','E04_Area02_A_LD_UnLoad','E04_Area03_A_LD',
     'E04_Area03_A_LD_UnLoad','E04_Area04_A_LD','E04_Area04_A_LD_UnLoad','E04_Area04_B_LD','E04_Area04_B_LD_UnLoad',
