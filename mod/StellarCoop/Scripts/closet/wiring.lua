@@ -83,7 +83,7 @@ local scanned=false
 M.closet_packs.once=function()
     if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan) end
 end
--- The closet's entry in SB's HUD item column (closet/ui/hud.lua), right of gun mode's: ten times a second, under a
+-- The closet's entry in SB's HUD item column (closet/ui/hud.lua), left of gun mode's: ten times a second, under a
 -- guard of its own, with the closet key's F-key (core/keybind.lua's key field: nil for none, so the keyboard shows no
 -- key cell). Without settings, F1, the default. Its hook on SB's HUD Construct (d2de021b) is registered once a Lua load
 -- and stays while the module is off. It raises when UE4SS cannot hook the function.

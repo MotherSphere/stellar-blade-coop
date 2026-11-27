@@ -2,8 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Copied from fight/gunmode/ui/dpad.lua (November 2026), cut to the closet's entry.
--- Stellar Closet's entry in the HUD's item column, right of gun mode's entry (the D-pad Left spot): the button that
--- opens the closet, then the closet's hanger glyph (icons/full_outfit.png, Slots.glyph(Slots.FULL_OUTFIT)), imported
+-- Stellar Closet's entry in the HUD's item column, left of gun mode's entry (the D-pad Left spot): the closet's hanger
+-- glyph (icons/full_outfit.png, Slots.glyph(Slots.FULL_OUTFIT)), then the button that opens the closet, imported
 -- at run time with ImportFileAsTexture2D as closet/ui/view.lua imports its glyphs. The button follows the game's own
 -- D-pad marker: on a gamepad the D-pad Left glyph of the pad the game shows (its DPad_Up glyph's Left twin), on the
 -- keyboard the closet key's icon on the game's own key cell (btn_PcEmpty), the way the marker shows Q and R. Sizes
@@ -22,12 +22,9 @@ local Hud={}
 Hud.GAP=6         -- HUD units between the D-pad marker and gun mode's entry. The same gap separates its parts
 Hud.KEY_SIZE=30   -- the key or pad glyph, until the game's btn_up has a drawn size
 Hud.ICON_SIZE=34  -- the hanger icon, until the heal item's icon has a drawn size
--- Between gun mode's entry and ours: the distance from the marker's right edge to the gun key. A starting value to
--- tune in game.
-Hud.SPACE=Hud.GAP
--- Room right of the rifle icon for gun mode's "rounds | magazines" text, so it never runs under our entry. A starting
+-- Between our key and gun mode's key: wider than the gaps inside each entry, so the two read as two pairs. A starting
 -- value to tune in game.
-Hud.TEXT_ROOM=60
+Hud.SPACE=Hud.GAP*3
 -- Below the health bars, on gun mode's row: the entry's centre this many marker heights below the marker's centre.
 Hud.DOWN=1.5
 -- s between two looks for the HUD while none on screen could take the entry: each look walks the object array once
@@ -218,10 +215,12 @@ function Hud.new(g)
             if cell then pcall(function() bg:SetBrush(cell.Brush) end) end
             local function center(sl) pcall(function() sl:SetHorizontalAlignment(2); sl:SetVerticalAlignment(2) end) end
             center(keyo:AddChildToOverlay(bg)); center(keyo:AddChildToOverlay(glyph))
-            local sk=box:AddChildToHorizontalBox(keyo)
+            -- the hanger first, then the key: with gun mode's key and rifle right of it the row reads hanger, closet
+            -- key, gun key, rifle
             local si=box:AddChildToHorizontalBox(img)
+            local sk=box:AddChildToHorizontalBox(keyo)
             for _,sl in ipairs({sk,si}) do pcall(function() sl:SetVerticalAlignment(2) end) end
-            pcall(function() si:SetPadding({Left=Hud.GAP,Top=0,Right=0,Bottom=0}) end)
+            pcall(function() sk:SetPadding({Left=Hud.GAP,Top=0,Right=0,Bottom=0}) end)
             -- held in a size box exactly the marker's laid-out size, so the marker never grows (a larger child, or a
             -- canvas, grew it and pushed the whole item column off the screen). The row inside keeps its own sizes and
             -- runs past the box to the right (nothing clips it); a render translation, outside layout, puts it beside
@@ -278,7 +277,7 @@ function Hud.new(g)
         return (s and s.X and s.X>1) and s or nil
     end
 
-    -- Sizes from the game's widgets, the glyph from its D-pad marker, the hanger icon, the place right of gun mode's
+    -- Sizes from the game's widgets, the glyph from its D-pad marker, the hanger icon, the place left of gun mode's
     -- entry (twice a second).
     local function follow(key)
         if (ui.follow_at or 0)>os.clock() then return end
@@ -351,19 +350,19 @@ function Hud.new(g)
             pcall(function() ui.bg:SetVisibility((t and kb and ui.cell) and 4 or 1) end)
             g.log('hud: glyph '..tostring(path)..(t and '' or ' (missing)'))
         end
-        -- place: the holder takes the marker's size, the row is moved right of gun mode's entry by a render
-        -- translation. Gun mode's row starts at the marker's width + GAP and holds its key cell (k*1.25), GAP, its
-        -- rifle icon (i, the same sizes as ours) and its rounds text (TEXT_ROOM).
+        -- place: the holder takes the marker's size, the row is moved left of gun mode's entry by a render
+        -- translation. Gun mode's row starts at the marker's width + GAP; ours (the hanger i, GAP, the key cell
+        -- k*1.25) ends SPACE before it.
         local ok,perr=pcall(function()
             local ds=ui.dpad:GetDesiredSize()
             assert(ds and ds.X>0,'no desired size yet')
-            local x=ds.X+Hud.GAP+(ui.k*1.25+Hud.GAP+ui.i)+Hud.TEXT_ROOM+Hud.SPACE
+            local x=ds.X+Hud.GAP-Hud.SPACE-(ui.i+Hud.GAP+ui.k*1.25)
             if not ui.x or math.abs(ui.x-x)>0.5 then
                 ui.holder:SetWidthOverride(ds.X); ui.holder:SetHeightOverride(ds.Y)
                 ui.box:SetRenderTranslation({X=x,Y=ds.Y*Hud.DOWN}); ui.x=x
                 if not ui.placed then
                     ui.placed=true
-                    g.log(('hud: placed %.0f right of the marker (marker %.0fx%.0f, key %d, icon %d)')
+                    g.log(('hud: placed at %.0f from the marker\'s left edge (marker %.0fx%.0f, key %d, icon %d)')
                         :format(x,ds.X,ds.Y,ui.k,ui.i))
                 end
             end

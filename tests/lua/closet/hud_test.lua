@@ -139,7 +139,7 @@ local function said(logs,text)
 end
 
 -- 1. The keyboard with F1: the F1 icon on the marker's key cell, the hanger icon from icons/full_outfit.png, the row
---    right of gun mode's entry and its rounds text, on gun mode's row.
+--    (hanger, then key) left of gun mode's entry, on gun mode's row: hanger, F1, gun key, rifle.
 do
     now=0; world()
     local h=hud()
@@ -152,9 +152,10 @@ do
     assert(cell.brush==h.cell.Brush and cell.vis==4,'the F1 icon on the marker\'s key cell')
     assert(img.tex==W.hanger and img.vis==4 and g.imported==H.ICON_FILE,'the hanger icon')
     assert(said(logs,'hud: closet entry built, key cell found')==1,table.concat(logs,'\n'))
-    -- marker 100 wide, key 32 (cell 40), icon 40: 100+6+(40+6+40)+TEXT_ROOM+SPACE
-    local x=100+H.GAP+(32*1.25+H.GAP+40)+H.TEXT_ROOM+H.SPACE
-    assert(box.at and math.abs(box.at.X-x)<0.01 and box.at.Y==80*H.DOWN,'placed right of the gun entry: '
+    assert(box.kids[1]==img and box.kids[2]==glyph.outer,'the hanger first, then the key')
+    -- marker 100 wide, key 32 (cell 40), icon 40: gun mode's row starts at 100+GAP; ours ends SPACE before it
+    local x=100+H.GAP-H.SPACE-(40+H.GAP+32*1.25)
+    assert(box.at and math.abs(box.at.X-x)<0.01 and box.at.Y==80*H.DOWN,'placed left of the gun entry: '
         ..tostring(box.at and box.at.X))
     assert(h.overlay.named.closetholder and not h.overlay.named.gunmoderifleslot,'Closet-named widgets only')
 end
