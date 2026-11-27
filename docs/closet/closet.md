@@ -211,6 +211,12 @@ EVE stands at about 78% across the screen, right of the menu.
 - C, a tap of X on a controller or a click on its hint switches region and free. Backspace, R3 or a click on its hint
   resets the free camera to the region's framing and stays in free mode. Nothing else resets it.
 
+The camera's hint row above the menu's hints shows the lighting preset, the camera mode and Reset. The detail panel
+ends with the camera's moves and the light level keys for the current mode. Both follow the last device used: after a
+keyboard or mouse input they name the keyboard keys (V, C, Backspace, I J K L, Shift, U and O, the mouse drags). After
+a controller input they show the controller's buttons (L3, X, R3, the right stick, LT and RT). They switch at the next
+frame.
+
 The mode and the free pose are saved in `coop-closet-camera.txt` at each change and survive a restart. Every close
 gives the view back while it is still the closet's, then removes the camera. When the game takes the view (a
 cutscene, photo mode), the camera stops and the menu closes. A camera left by a Lua reload is removed at the next

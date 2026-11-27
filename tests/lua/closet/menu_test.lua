@@ -18,7 +18,7 @@ require('core.player').engaged = function() return false end
 local function rig(o)
     o = o or {}
     local r = {told = {}, log = {}, reverted = 0, confirmed = 0, offs = 0, previews = {}, previewing = false, t = 0,
-        world = true, photo = '0', status = 'mod=1 theater=none', kit = F.kit()}
+        world = true, photo = '0', status = 'mod=1 theater=none', kit = F.kit(), dev = o.uidev}
     if o.before then o.before(r) end
     package.loaded['closet.ui.menu'], package.loaded['closet.ui.view'] = nil, nil
     local Menu = require('closet.ui.menu')
@@ -36,7 +36,8 @@ local function rig(o)
         tell = function(build) r.told[#r.told + 1] = build(T.en) end, log = function(m) r.log[#r.log + 1] = m end,
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
-        camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape})
+        camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape,
+        uidev = function() return r.dev end})
     return r
 end
 -- A fake shape layer (closet/shape.lua's face): its rows (names), values, sets and offs.
@@ -149,6 +150,33 @@ local function no_pc(r)
         input(on, who, mouse)
     end
 end
+-- The camera row as drawn now, left to right: its SB hint parts at y 1890 ({x, text, icon}) and its kit texts at
+-- y 1899 that show something ({x, s}).
+local function camera_row(r)
+    local parts, texts = {}, {}
+    for _, h in ipairs(r.kit.live(F.HINT)) do
+        if h.y == 1890 then
+            local text, icon
+            for _, c in ipairs(h.o.calls) do
+                if c[1] == 'SetText' then text = c[2].text elseif c[1] == 'SetResourceAction' then icon = c[2] end
+            end
+            parts[#parts + 1] = {x = h.x, text = text, icon = icon}
+        end
+    end
+    for _, t in ipairs(r.kit.groups.closet_menu.texts) do
+        if t.y == 1899 and t.s ~= '' then texts[#texts + 1] = {x = t.x, s = t.s} end
+    end
+    table.sort(parts, function(a, b) return a.x < b.x end)
+    table.sort(texts, function(a, b) return a.x < b.x end)
+    return parts, texts
+end
+-- The width estimate of a Bold 30 hint text in kit units: 30 a CJK character, 17 any other.
+local function text_width(s)
+    local n = 0
+    for _, c in utf8.codes(s) do n = n + ((c >= 0x2E80 and c < 0xFB00 or c >= 0xFF00 and c < 0xFFF0) and 30 or 17) end
+    return n
+end
+local SB_ICON = 62 -- The SB hint part's icon and gap before its label (hints.md's estimate, not measured).
 
 local tests = {
     opens_and_draws_the_parts = function()
@@ -210,7 +238,7 @@ local tests = {
         for _, c in ipairs(rows[4].o.calls) do if c[1] == 'EventNotification' then looks[#looks + 1] = c[2] end end
         eq(looks[#looks], 'StateNormal', 'row 4 left: not focused')
         -- A transparent kit row over each slot row takes the mouse; it shows nothing while the part is there.
-        eq(#g.zones, 18, 'zones: 10 rows, 4 hint chips, 4 camera hint chips')
+        eq(#g.zones, 17, 'zones: 10 rows, 4 hint chips, 3 camera hint chips')
         for i, z in ipairs(g.zones) do
             eq(z.label, '', 'zone label ' .. i)
             if i <= 10 then eq(z.y, rows[i].y + 27, 'zone y ' .. i) end
@@ -1500,7 +1528,9 @@ local tests = {
             w.roles.glow .. '=Off'}, 'the four rows, each Off')
         local title, desc = detail(r)
         eq(title, w.roles.primary, 'the detail names the role')
-        eq(desc, w.about.primary .. '\n' .. w.help, 'what it colours and how to pick')
+        local camera = T.en.closet.camera
+        eq(desc, w.about.primary .. '\n' .. w.help .. '\n' .. camera.title:format(camera.moves.region.key),
+            'what it colours and how to pick, then the camera line (the keyboard\'s)')
         local hints = {} -- The menu's hint row (y 1990, under the camera's), each part's last text.
         for _, h in ipairs(r.kit.live(F.HINT)) do
             local text
@@ -1952,29 +1982,20 @@ local tests = {
         same(cam.calls, {'open', 'cam_left', 'cam_right', 'cam_up', 'cam_down', 'cam_in', 'cam_out', 'cam_mode',
             'cam_reset', 'light_next', 'light_up', 'light_down'}, 'every camera and light word')
         ok(r.menu.is_open(), 'still open')
-        -- The camera hint row at y 1890 right to left from x 2112: C (the pad's X) and the mode, Reset, then V (the
-        -- pad's L3) and the light preset.
-        local function camera_hints()
-            local out = {}
-            for _, h in ipairs(r.kit.live(F.HINT)) do
-                if h.y == 1890 then
-                    local text, icon
-                    for _, c in ipairs(h.o.calls) do
-                        if c[1] == 'SetText' then text = c[2].text elseif c[1] == 'SetResourceAction' then icon = c[2] end
-                    end
-                    out[#out + 1] = {x = h.x, text = text, icon = icon}
-                end
-            end
-            table.sort(out, function(a, b) return a.x > b.x end)
-            return out
-        end
-        same(camera_hints(), {{x = 2112 - 420, text = 'C  ' .. T.en.closet.camera.region, icon = 'UI_FaceButton_Left'},
-            {x = 2112 - 840, text = 'Backspace  ' .. T.en.closet.camera.reset, icon = 'UI_RightThumbstick'},
-            {x = 2112 - 1260, text = 'V  ' .. T.en.closet.light.game, icon = 'UI_LeftThumbstick'}},
-            'camera hints')
-        -- A click on a camera chip runs its word.
+        -- On the pad, the camera hint row at y 1890 left to right: the light preset on L3, the mode on X, Reset on R3.
+        r.dev = 3
+        tick(r, 0.2)
+        local w = T.en.closet
+        local function camera_hints() return (camera_row(r)) end
+        same(camera_hints(), {{x = 432, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
+            {x = 1162, text = w.camera.title:format(w.camera.region), icon = 'UI_FaceButton_Left'},
+            {x = 1672, text = w.camera.reset_hint, icon = 'UI_RightThumbstick'}}, 'camera hints')
+        -- A click on a camera chip runs its word: the mode's, the reset's, then the light's zone.
         local zones = r.kit.groups.closet_menu.zones
-        eq(zones[15].y, 1890, 'the first camera chip') eq(zones[15].x, 2112 - 420, 'its x')
+        eq(#zones, 17, 'three camera chips')
+        same({zones[15].x, zones[15].y, zones[15].w}, {1162, 1890, 420}, 'the mode chip zone')
+        same({zones[16].x, zones[16].y, zones[16].w}, {1672, 1890, 440}, 'the reset chip zone')
+        same({zones[17].x, zones[17].y, zones[17].w}, {432, 1890, 640}, 'the light chip zone')
         zones[15].hover = true
         at(r, 0.5, 'click')
         eq(cam.calls[#cam.calls], 'cam_mode', 'the mode chip')
@@ -1988,18 +2009,218 @@ local tests = {
         -- The pad's X switched the mode inside the camera: the next tick shows it.
         cam.now = 'free'
         tick(r, 0.7)
-        eq(camera_hints()[1].text, 'C  ' .. T.en.closet.camera.free, 'the mode word follows the camera')
+        eq(camera_hints()[2].text, w.camera.title:format(w.camera.free), 'the mode word follows the camera')
         -- The pad's L3 changed the preset, Shift+O the intensity: the next tick shows them.
         cam.preset, cam.factor = 'studio', 1.25
         tick(r, 0.75)
-        eq(camera_hints()[3].text, 'V  ' .. T.en.closet.light.studio .. ' x1.25', 'the preset and its intensity')
+        eq(camera_hints()[1].text, w.light.title:format(w.light.studio .. ' x1.25'), 'the preset and its intensity')
         cam.factor = 1
         tick(r, 0.76)
-        eq(camera_hints()[3].text, 'V  ' .. T.en.closet.light.studio .. ' x1', 'x1')
+        eq(camera_hints()[1].text, w.light.title:format(w.light.studio .. ' x1'), 'x1')
         -- A camera that stopped (the game took the view) shows no hints.
         cam.on = false
         tick(r, 0.8)
         same(camera_hints(), {}, 'no camera: no camera hints')
+    end,
+
+    keyboard_hints_show_kit_keys_and_no_sb_glyph = function()
+        -- On the keyboard (SB's device byte 1 or 2, or 0 / nil before its first report) the camera row is kit text:
+        -- the closet's own key, then its label. No SB part: SB would draw its own key for the action (T, G).
+        for _, byte in ipairs({1, 2, 0, false}) do
+            local dev = tostring(byte)
+            local cam = fake_camera()
+            local r = rig({camera = cam, uidev = byte or nil})
+            r.menu.open()
+            local w = T.en.closet
+            local parts, texts = camera_row(r)
+            same(parts, {}, dev .. ': no SB part in the camera row')
+            eq(#texts, 6, dev .. ': three keys and three labels')
+            same({texts[1].x, texts[1].s}, {432, w.keys.light}, dev .. ': the light key')
+            eq(texts[2].s, w.light.title:format(w.light.game), dev .. ': the light label')
+            ok(texts[2].x >= 432 + text_width(w.keys.light), dev .. ': the label after its key')
+            same({texts[3].x, texts[3].s}, {1162, w.keys.mode}, dev .. ': the mode key')
+            eq(texts[4].s, w.camera.title:format(w.camera.region), dev .. ': the mode label')
+            ok(texts[4].x >= 1162 + text_width(w.keys.mode), dev .. ': the label after its key')
+            same({texts[5].x, texts[5].s}, {1672, w.keys.reset}, dev .. ': the reset key')
+            eq(texts[6].s, w.camera.reset_hint, dev .. ': the reset label')
+            ok(texts[6].x >= 1672 + text_width(w.keys.reset), dev .. ': the label after its key')
+            for _, t in ipairs(r.kit.groups.closet_menu.texts) do
+                if t.y == 1899 then eq(t.style, 'hint', 'the hint style') end
+            end
+            -- A click on a chip still runs its word.
+            local zones = r.kit.groups.closet_menu.zones
+            zones[17].hover = true
+            at(r, 0.5, 'click')
+            eq(cam.calls[#cam.calls], 'light_next', dev .. ': the light chip')
+            zones[17].hover = false
+            -- The camera stopped: the row shows nothing.
+            cam.on = false
+            tick(r, 0.6)
+            parts, texts = camera_row(r)
+            same(texts, {}, dev .. ': no camera: no key texts')
+        end
+    end,
+
+    pad_hints_use_sb_parts = function()
+        -- On a pad (device byte 3 to 6) the camera row is SB's hint parts, which draw the pad's glyphs; the kit texts
+        -- show nothing.
+        for dev = 3, 6 do
+            local r = rig({camera = fake_camera(), uidev = dev})
+            r.menu.open()
+            local w = T.en.closet
+            local parts, texts = camera_row(r)
+            same(parts, {{x = 432, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
+                {x = 1162, text = w.camera.title:format(w.camera.region), icon = 'UI_FaceButton_Left'},
+                {x = 1672, text = w.camera.reset_hint, icon = 'UI_RightThumbstick'}}, dev .. ': SB parts')
+            same(texts, {}, dev .. ': no kit text')
+        end
+    end,
+
+    a_device_switch_redraws_the_hints = function()
+        local cam = fake_camera()
+        local r = rig({camera = cam, uidev = 1})
+        r.menu.open()
+        local w = T.en.closet
+        local parts, texts = camera_row(r)
+        eq(#parts, 0, 'keyboard: no SB part') eq(#texts, 6, 'keyboard: kit texts')
+        ok(r.kit.live(F.DETAIL)[1].o.DescriptionText.text:find(w.camera.moves.region.key, 1, true),
+            'keyboard: the keyboard camera line')
+        r.dev = 4 -- The pad used: SB reports it.
+        tick(r, 0.1)
+        parts, texts = camera_row(r)
+        eq(#parts, 3, 'pad: SB parts') eq(#texts, 0, 'pad: no kit text')
+        local desc = r.kit.live(F.DETAIL)[1].o.DescriptionText.text
+        ok(desc:find(w.camera.moves.region.pad, 1, true), 'pad: the pad camera line')
+        ok(not desc:find(w.camera.moves.region.key, 1, true), 'pad: no keyboard camera line')
+        r.dev = 2 -- Back on the keyboard.
+        tick(r, 0.2)
+        parts, texts = camera_row(r)
+        eq(#parts, 0, 'keyboard again: no SB part') eq(#texts, 6, 'keyboard again: kit texts')
+        -- The Free mode's line on each device.
+        cam.now = 'free'
+        tick(r, 0.3)
+        ok(r.kit.live(F.DETAIL)[1].o.DescriptionText.text:find(w.camera.moves.free.key, 1, true), 'Free: keyboard')
+        r.dev = 3
+        tick(r, 0.4)
+        ok(r.kit.live(F.DETAIL)[1].o.DescriptionText.text:find(w.camera.moves.free.pad, 1, true), 'Free: pad')
+    end,
+
+    camera_chips_never_overlap = function()
+        -- Each camera chip's estimated width (Bold 30 at 17 units a character, 30 a CJK one) fits its click zone, the
+        -- zones keep apart and end by the menu's edge, on both devices, in every language.
+        local r = rig({camera = fake_camera(), uidev = 1})
+        r.menu.open()
+        local zones = r.kit.groups.closet_menu.zones
+        local slots = {light = zones[17], mode = zones[15], reset = zones[16]}
+        ok(slots.light.x + slots.light.w <= slots.mode.x, 'light zone before mode zone')
+        ok(slots.mode.x + slots.mode.w <= slots.reset.x, 'mode zone before reset zone')
+        ok(slots.reset.x + slots.reset.w <= 2112, 'reset zone by the edge')
+        -- Where each keyboard label starts after its slot's left edge, as drawn.
+        local _, texts = camera_row(r)
+        local col = {light = texts[2].x - slots.light.x, mode = texts[4].x - slots.mode.x,
+            reset = texts[6].x - slots.reset.x}
+        local checked = 0
+        for lang, t in pairs(T) do
+            local w = type(t) == 'table' and t.closet
+            if w then
+                checked = checked + 1
+                local labels = {light = {}, mode = {w.camera.title:format(w.camera.region),
+                    w.camera.title:format(w.camera.free)}, reset = {w.camera.reset_hint}}
+                for preset, name in pairs(w.light) do
+                    if preset ~= 'title' then
+                        labels.light[#labels.light + 1] = w.light.title:format(name .. (preset ~= 'game' and ' x1.25' or ''))
+                    end
+                end
+                for slot, list in pairs(labels) do
+                    ok(text_width(w.keys[slot]) + 12 <= col[slot], lang .. ' ' .. slot .. ' key before its label')
+                    for _, label in ipairs(list) do
+                        local key = col[slot] + text_width(label)
+                        local pad = SB_ICON + text_width(label)
+                        ok(key <= slots[slot].w, lang .. ' keyboard ' .. slot .. ': ' .. label .. ' (' .. key .. ')')
+                        ok(pad <= slots[slot].w, lang .. ' pad ' .. slot .. ': ' .. label .. ' (' .. pad .. ')')
+                    end
+                end
+            end
+        end
+        eq(checked, 22, 'every language table checked (ui/text.lua\'s 22)')
+    end,
+
+    every_prompt_follows_the_device = function()
+        -- Walk every tab, row and grid, then both popups, on the keyboard and on a pad: after each step the camera row
+        -- and the detail's camera line are the device's. No SB part's label names a keyboard key. On the keyboard each
+        -- SB part is one whose action SB maps to the closet's own key (Back, Select, F, the D-pad, Q / E).
+        local MAPPED = {Negative = true, Positive = true, UI_FaceButton_Top = true, UI_DPad_Up = true,
+            UI_DPad_Down = true, UI_LeftShoulder = true, UI_RightShoulder = true}
+        local CAMERA = {UI_LeftThumbstick = true, UI_FaceButton_Left = true, UI_RightThumbstick = true}
+        for _, dev in ipairs({1, 3}) do
+            local pad = dev >= 3
+            local cam = fake_camera()
+            local r = rig({camera = cam, uidev = dev})
+            local w = T.en.closet
+            local steps = 0
+            local function no_key(text, what)
+                for _, key in pairs(w.keys) do
+                    ok(not (text or ''):find('%f[%w]' .. key .. '%f[%W]'), what .. ' names the key ' .. key .. ': ' ..
+                        tostring(text))
+                end
+            end
+            local function check(what)
+                steps = steps + 1
+                what = dev .. ' ' .. what
+                for _, h in ipairs(r.kit.live(F.HINT)) do
+                    local text, icon
+                    for _, c in ipairs(h.o.calls) do
+                        if c[1] == 'SetText' then text = c[2].text elseif c[1] == 'SetResourceAction' then icon = c[2] end
+                    end
+                    no_key(text, what .. ' SB part')
+                    if pad then ok(MAPPED[icon] or CAMERA[icon], what .. ': pad part ' .. tostring(icon))
+                    else ok(MAPPED[icon], what .. ': keyboard part ' .. tostring(icon)) end
+                end
+                local parts, texts = camera_row(r)
+                eq(#parts, pad and 3 or 0, what .. ': camera SB parts')
+                eq(#texts, pad and 0 or 6, what .. ': camera kit texts')
+                local d = r.kit.live(F.DETAIL)[1]
+                local desc = d and d.o.DescriptionText and d.o.DescriptionText.text or ''
+                local mine, other = w.camera.moves[cam.now], nil
+                mine, other = mine[pad and 'pad' or 'key'], mine[pad and 'key' or 'pad']
+                ok(desc:find(w.camera.title:format(mine), 1, true), what .. ': the device\'s camera line')
+                ok(not desc:find(other, 1, true), what .. ': not the other device\'s line')
+                for _, p in ipairs(r.kit.live(F.POPUP)) do
+                    no_key(p.o.TitleText.text, what .. ' popup title')
+                    no_key(p.o.DescText.text, what .. ' popup text')
+                end
+            end
+            r.menu.open()
+            check('open')
+            local tabs = 0
+            for _ in pairs(w.tabs) do tabs = tabs + 1 end
+            for t = 1, tabs do
+                for _ = 1, 20 do at(r, 0.05, 'up') end -- The tab row.
+                check('tab ' .. t .. ' tabs')
+                -- Each row; on a row of pieces, into its grid and a tile on, then back out (left on the first tile).
+                for i = 1, 16 do
+                    at(r, 0.05, 'down') check('tab ' .. t .. ' row ' .. i)
+                    at(r, 0.05, 'right') check('tab ' .. t .. ' row ' .. i .. ' right')
+                    at(r, 0.05, 'right') check('tab ' .. t .. ' row ' .. i .. ' right 2')
+                    at(r, 0.05, 'left', 'left') check('tab ' .. t .. ' row ' .. i .. ' left')
+                end
+                cam.now = cam.now == 'region' and 'free' or 'region' -- Both modes' lines.
+                at(r, 0.05, 'tab_right') check('tab ' .. t)
+            end
+            -- The Keep popup (a piece worn, then Back), then the Reset popup.
+            -- A new menu (its first open shows the Full tab): a top worn on the torso tab, then Back.
+            r.menu.close('keep')
+            r = rig({camera = cam, uidev = dev})
+            on_top(r)
+            at(r, 0.5, 'right', 'right', 'select', 'back')
+            eq(popups(r), 1, dev .. ': Keep this look?') check('keep popup')
+            at(r, 0.6, 'no')
+            r.t = 1
+            r.menu.open()
+            at(r, 1.5, 'tab_left', 'tab_left', 'down', 'down', 'down', 'select') -- The Full tab's Reset row.
+            eq(popups(r), 1, dev .. ': Reset Stellar Closet?') check('reset popup')
+            ok(steps > 100, dev .. ': every step checked')
+        end
     end,
 
     the_wiring_gives_the_menu_its_camera = function()
@@ -2018,7 +2239,7 @@ local tests = {
         local M = {print = function() end, kit = kit, closet = dress, words = function() return T.en end,
             tell = function() end, photo_state = function() return '0' end, closet_thumbs = {run = function() end},
             closet_colour = fake_colour(), closet_shape = fake_shape(),
-            link = {status = function() return '' end, store = function(name)
+            link = {status = function() return '' end, uidev = function() return 4 end, store = function(name)
                 stored[#stored + 1] = name
                 return {save = function() return true end, load = function() end, clear = function() end}
             end}}
@@ -2036,6 +2257,7 @@ local tests = {
         ok(menu_got.thumbs == M.closet_thumbs, 'the menu has coop closet thumbs (its Make preview pictures row)')
         ok(menu_got.colour == M.closet_colour, 'the menu has the colour layer (its Colour tab)')
         ok(menu_got.shape == M.closet_shape, 'the menu has the shape layer (the Body tab\'s shape rows)')
+        ok(menu_got.uidev == M.link.uidev, 'the menu reads SB\'s input device through the link (its prompts follow it)')
     end,
 
     the_wiring_builds_the_shape_layer = function()

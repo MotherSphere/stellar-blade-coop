@@ -59,8 +59,11 @@
 -- off, also while the menu is closed), ticked each frame with the region of the focused slot (of the tab on the tab
 -- row or a row with no slot; nil while closed). The camera words (cam_left, cam_right, cam_up, cam_down, cam_in,
 -- cam_out, cam_mode, cam_reset) and the light words (light_next, light_up, light_down) go to it; while it runs, the
--- camera hint row shows its mode on C (the pad's X), Reset camera on Backspace (the pad's R3) and the light preset on V
--- (the pad's L3), each a chip a click runs. The preset's intensity shows after its name on every preset but Game. A
+-- camera hint row shows the light preset on V (the pad's L3), its mode on C (the pad's X) and Reset on Backspace (the
+-- pad's R3), each a chip a click runs. The detail ends with the camera's moves and light level keys in its mode.
+-- Both follow SB's input device (o.uidev): pad glyphs and pad words after a pad input, the keyboard's keys after a
+-- keyboard one; a switch redraws them at the next tick. The preset's intensity shows after its name on every preset
+-- but Game. A
 -- Back while the camera says right mouse is held (hold_back) waits: the camera runs it at the release when the mouse
 -- did not drag (take_back, read each tick).
 -- o: {kit=ui/kit/kit.lua's, dress=closet/dress.lua's, words=function() the ui/text table to show, tell=function(build)
@@ -68,7 +71,8 @@
 -- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
 -- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
 -- thumbs=closet/thumbs.lua's or nil, colour=closet/colour.lua's or nil (the Colour rows then show Off and pick
--- nothing), shape=closet/shape.lua's or nil (no shape row then)}.
+-- nothing), shape=closet/shape.lua's or nil (no shape row then), uidev=function() SB's input device byte or nil
+-- (core/link.lua's uidev; nil: the keyboard)}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player=require('core.player')
@@ -123,11 +127,17 @@ function Menu.new(o)
         if there[file]==nil then there[file]=Thumbs.fs.exists(file) end
         return there[file] and file or nil
     end
-    -- What the camera hints show now: false with no camera running.
+    -- Whether SB's last input came from a pad: its device byte (core/link.lua's uidev, as ui/kit/kit.lua reads it) is 1
+    -- or 2 for a keyboard, 3 to 6 for a pad, 0 or nil before its first report (read as the keyboard).
+    local function pad()
+        local d=o.uidev and o.uidev()
+        return d~=nil and d>=3 and d<=6
+    end
+    -- What the camera hints show now: false with no camera running. The device is in it: a switch redraws (tick).
     local function camera_shown()
         if not (camera and camera.running()) then return false end
         local preset,factor=camera.light()
-        return camera.mode()..'|'..preset..'|'..factor
+        return camera.mode()..'|'..preset..'|'..factor..'|'..(pad() and 'pad' or 'key')
     end
     local function camera_word(w) return w:sub(1,4)=='cam_' or w:sub(1,6)=='light_' end
     local function swatch(role) return o.colour and o.colour.get(role) or 'off' end
@@ -207,7 +217,8 @@ function Menu.new(o)
         tab=math.min(tab,#ids)
         -- The window moves only when the focused tab leaves it, as the rows' window does.
         tab_top=math.max(1,math.min(math.max(tab_top,tab-View.TABS+1),tab,#ids-View.TABS+1))
-        local s={tabs={},tab=tab,tab_top=tab_top,rows={},hints={{t.hint.back,'Negative',word='back'}},camera_hints={}}
+        local s={tabs={},tab=tab,tab_top=tab_top,rows={},hints={{t.hint.back,'Negative',word='back'}},camera_hints={},
+            pad=pad()}
         for i,id in ipairs(ids) do s.tabs[i]=w.tabs[id] or id end
         listed=o.shape and o.shape.rows()
         local list=model.rows(ids[tab])
@@ -240,12 +251,13 @@ function Menu.new(o)
             local preset,factor=camera.light()
             local light=w.light[preset]..(preset~='game' and (' x%g'):format(factor) or '')
             -- UI_FaceButton_Left: SB's UI action for the left face button (the pad's X), the 26123051 exe's
-            -- FUN_14254baf0 case 0; UI_RightThumbstick and UI_LeftThumbstick: action names of the same exe (FNames at
-            -- FUN_1407f2100 and FUN_1407f2050, strings 0x145c4ec00 and 0x145c4ebd8). The keyboard keys are in the
-            -- labels: SB's own key map for those actions is not read.
-            s.camera_hints={{'C  '..w.camera[camera.mode()],'UI_FaceButton_Left',word='cam_mode'},
-                {'Backspace  '..w.camera.reset,'UI_RightThumbstick',word='cam_reset'},
-                {'V  '..light,'UI_LeftThumbstick',word='light_next'}}
+            -- FUN_14254baf0 case 0 (string 0x145c34890); UI_RightThumbstick and UI_LeftThumbstick: action names of the
+            -- same exe (FNames at FUN_1407f2100 and FUN_1407f2050, strings 0x145c4ec00 and 0x145c4ebd8). The view
+            -- shows them only on a pad: on the keyboard SB would draw its own key for them, so it shows key, the
+            -- closet's bind (main/keys.lua), as kit text. No label names a key.
+            s.camera_hints={{w.camera.title:format(w.camera[camera.mode()]),'UI_FaceButton_Left',word='cam_mode',
+                key=w.keys.mode},{w.camera.reset_hint,'UI_RightThumbstick',word='cam_reset',key=w.keys.reset},
+                {w.light.title:format(light),'UI_LeftThumbstick',word='light_next',key=w.keys.light}}
         end
         s.detail={title=shown and shown.title or '',desc=''}
         if item and item.whole then
@@ -292,6 +304,11 @@ function Menu.new(o)
             -- online/session/ui/sessions.lua; the 26123051 exe names it in FUN_14254baf0 (case 1) beside UI_LeftShoulder.
             local one=tiles[col=='grid' and tile or at]
             if one and one.fit and not one.locked then s.hints[3]={w.hints.whole,'UI_FaceButton_Top',word='refresh'} end
+        end
+        -- While the camera runs, the detail ends with its moves and light level keys in this mode, on this device.
+        if hinted then
+            local line=w.camera.title:format(w.camera.moves[camera.mode()][s.pad and 'pad' or 'key'])
+            s.detail.desc=s.detail.desc~='' and s.detail.desc..'\n'..line or line
         end
         -- Move last, on the D-pad's up and down icons, as the lobby shows it (the keyboard's keys or the pad's buttons).
         s.hints[#s.hints+1]={t.hint.move,'UI_DPad_Up','UI_DPad_Down'}

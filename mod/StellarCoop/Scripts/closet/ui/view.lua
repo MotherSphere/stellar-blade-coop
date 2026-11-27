@@ -28,10 +28,12 @@
 -- locked}}, row=focused index, tiles=nil or {{name, equipped, locked, picture=a PNG file or nil, image=an object path
 -- or nil, icon=its glyph or nil}}, tile=selected index or nil,
 -- detail={title, desc, equipped, badge='original', 'custom' or nil}, hints={{label, icon, icon2, word=the menu word a
--- click runs or nil}} (the menu's), camera_hints=nil or the same shape, popup=nil or {title, desc}, notice=nil or the
--- text under the rows (a kit text, wrapped at ROW_W)}.
+-- click runs or nil}} (the menu's), camera_hints=nil or the same shape with key=the keyboard key (mode, reset, light),
+-- pad=SB's last input came from a pad (the camera row then shows SB's hint parts, else the kit's key and label
+-- texts), popup=nil or {title, desc}, notice=nil or the text under the rows (a kit text, wrapped at ROW_W)}.
 local U=require('core.unreal')
 local Parts=require('ui.kit.parts')
+local THEME=require('ui.kit.kit').THEME
 local Slots=require('closet.slots')
 local View={}
 View.GROUP='closet_menu'
@@ -97,8 +99,14 @@ local DETAIL_X,DETAIL_Y=1100,1160
 -- The origin badge: 64 units square, by the detail panel's title, right of its 900-unit wide SizeBox_4 (widget JSON).
 -- A kit image draws under every part, so it sits beside the panel, not on it.
 local BADGE_X,BADGE_Y,BADGE=View.EDGE-88,DETAIL_Y+8,64
--- Key hints, right to left from EDGE (the lobby's step): the menu's row and the camera's row above it.
-local HINT_STEP,HINT_Y,CAMERA_Y,HINTS=420,1990,1890,4
+-- Key hints, right to left from EDGE (the lobby's step): the menu's row.
+local HINT_STEP,HINT_Y,HINTS=420,1990,4
+-- The camera's row above it: a fixed slot per chip in s.camera_hints' order (mode, reset, light), 90 apart, the last
+-- ending at EDGE. x and w: the chip's left edge and its click zone's width; col: where the label starts after the
+-- keyboard key (C, Backspace, V at about 17 units a Bold 30 character, plus 12). KEY_Y: the kit text's y in the row,
+-- as ui/kit/kit.lua's hints put theirs (KEY_TEXT 9).
+local CAMERA_Y,KEY_Y=1890,1899
+local CAMERA={{x=1162,w=420,col=62},{x=1672,w=440,col=182},{x=432,w=640,col=62}}
 
 -- A game object by path: in memory, else after a synchronous LoadAsset (closet/ui/probe.lua's default_find).
 local function find(path)
@@ -122,7 +130,7 @@ function View.new(kit,log)
         -- A chip over each menu hint, then over each camera hint (the SB hint part never takes the mouse,
         -- ui/kit/parts.lua): a clear kit row.
         for i=1,HINTS do zones[WINDOW+i]=b.row(View.EDGE-HINT_STEP*i,HINT_Y,HINT_STEP-20) end
-        for i=1,HINTS do zones[WINDOW+HINTS+i]=b.row(View.EDGE-HINT_STEP*i,CAMERA_Y,HINT_STEP-20) end
+        for i,c in ipairs(CAMERA) do zones[WINDOW+HINTS+i]=b.row(c.x,CAMERA_Y,c.w) end
         -- A hidden image a glyph: its texture as the brush keeps the engine from freeing it.
         local held={}
         for _,name in ipairs(View.GLYPHS) do
@@ -138,8 +146,15 @@ function View.new(kit,log)
             pics[i].show(false)
         end
         -- s.notice under the rows: the chat feed, where notices go, draws under this group's shade.
-        return {zones=zones,notice=b.text(ROW_X,NOTICE_Y,'','name',nil,nil,{wrap=ROW_W}),held=held,badge=badge,
-            pics=pics}
+        local notice=b.text(ROW_X,NOTICE_Y,'','name',nil,nil,{wrap=ROW_W})
+        -- The camera chips on the keyboard: the key in white, then the label, in the kit's hint style (wheel.lua's
+        -- keyboard cells). Empty on a pad: SB's hint parts show the chips there.
+        local cam_keys,cam_labels={},{}
+        for i,c in ipairs(CAMERA) do
+            cam_keys[i]=b.text(c.x,KEY_Y,'','hint',THEME.white)
+            cam_labels[i]=b.text(c.x+c.col,KEY_Y,'','hint')
+        end
+        return {zones=zones,notice=notice,held=held,badge=badge,pics=pics,cam_keys=cam_keys,cam_labels=cam_labels}
     end)
     -- What is made and what it shows. top: the rows above the window; count: the rows of the last draw; tab_top: the
     -- first tab shown; camera: the camera's hint row.
@@ -379,18 +394,24 @@ function View.new(kit,log)
         draw_grid(s)
         draw_detail(s,view)
         words={}
+        local specs={}
         for i=1,HINTS do
-            words[i]=s.hints[i] and s.hints[i].word
-            words[HINTS+i]=s.camera_hints and s.camera_hints[i] and s.camera_hints[i].word
+            local h=s.hints[i]
+            words[i]=h and h.word
+            specs[i]=h and Parts.hint(View.EDGE-HINT_STEP*i,HINT_Y,h[1],h[2],h[3]) or false
         end
-        for _,row in ipairs({{hints,s.hints,HINT_Y},{camera,s.camera_hints or {},CAMERA_Y}}) do
-            local specs={}
-            for i=1,HINTS do
-                local h=row[2][i]
-                specs[i]=h and Parts.hint(View.EDGE-HINT_STEP*i,row[3],h[1],h[2],h[3]) or false
-            end
-            sync(row[1],View.GROUP,specs,HINTS)
+        sync(hints,View.GROUP,specs,HINTS)
+        -- The camera row: SB's hint parts on a pad (its glyphs), the kit's key and label texts on the keyboard.
+        local cams=s.camera_hints or {}
+        specs={}
+        for i,c in ipairs(CAMERA) do
+            local h=cams[i]
+            words[HINTS+i]=h and h.word
+            specs[i]=h and s.pad and Parts.hint(c.x,CAMERA_Y,h[1],h[2]) or false
+            view.cam_keys[i].set(h and not s.pad and h.key or '')
+            view.cam_labels[i].set(h and not s.pad and h[1] or '')
         end
+        sync(camera,View.GROUP,specs,#CAMERA)
         draw_popup(s)
         -- The grid's entries (a fill, a selection) and the popup's Construct take the keyboard focus; on them a key
         -- reaches EVE (E fired a skill). On the kit's root the game ignores keys (closet/ui/probe.lua test 5).
@@ -442,7 +463,7 @@ function View.new(kit,log)
     -- The menu or camera hint under the mouse: its word, or nil (a hint with no word, none hovered).
     function v.hint_hovered()
         local view=kit.view(View.GROUP)
-        for i=1,2*HINTS do
+        for i=1,HINTS+#CAMERA do
             local zone=view and view.zones[WINDOW+i]
             if words[i] and zone and zone.hovered() then return words[i] end
         end

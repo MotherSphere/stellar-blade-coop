@@ -594,8 +594,19 @@ return {
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
         hints={wear='Wear',take_off='Take off',whole='Whole outfit'},
-        camera={region='Region',free='Free',reset='Reset camera'}, -- The camera's modes and its Reset hint.
-        light={game='Game',studio='Studio',warm='Warm',cool='Cool',rim='Rim'}, -- The preview light presets.
+        -- The camera's modes, its hint row's mode chip and Reset chip. title formatted with moves is the detail's
+        -- camera line: the moves of each mode on the keyboard (key) and on a pad (pad).
+        camera={region='Region',free='Free',title='Camera: %s',reset_hint='Reset',
+            moves={region={key='I J K L or a middle drag pan the framing. A right drag goes to Free mode. '
+                    ..'Light level: Shift+U / Shift+O.',
+                pad='The right stick pans the framing. Light level: hold L3, then LT / RT.'},
+                free={key='I J K L or a right drag orbit. Shift+I J K L or a middle drag pan. U / O zoom. '
+                    ..'Light level: Shift+U / Shift+O.',
+                pad='The right stick orbits. Hold X with the right stick to pan. LT / RT zoom. '
+                    ..'Light level: hold L3, then LT / RT.'}}},
+        -- The preview light presets and the light chip (title formatted with the preset).
+        light={game='Game',studio='Studio',warm='Warm',cool='Cool',rim='Rim',title='Lighting: %s'},
+        keys={mode='C',reset='Backspace',light='V'}, -- The keyboard keys of the camera chips (main/keys.lua's binds).
         -- The Colour tab (closet/colour.lua): each role's row and what it colours, how to pick, each swatch's name.
         colour={roles={primary='Primary',secondary='Secondary',accent='Accent',glow='Glow'},
             about={primary='Main garments: tops, bottoms, bras, underwear, jackets, capes, hats and full outfits.',
