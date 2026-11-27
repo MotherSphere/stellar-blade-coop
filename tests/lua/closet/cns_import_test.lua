@@ -104,6 +104,12 @@ local tests={
         has(out.errors, 'no UniqueFitID') has(out.errors, 'unknown FitMeshType Tail')
         has(out.errors, 'no mesh') has(out.errors, 'UniqueFitID repeats') has(out.errors, 'not an outfit object')
     end,
+    id_with_a_space_rejected = function()
+        -- coop-closet.txt splits worn fits on spaces, so "Foo Suit" could never be worn again after a reload.
+        local out = CnsImport.parse('[{"UniqueFitID":"Foo Suit","OutfitPaths":["/Game/M/A.A"]}]', 'p')
+        eq(#out.items, 0, 'not imported')
+        has(out.errors, 'UniqueFitID Foo Suit has characters other than letters, digits, _ . -')
+    end,
     comments_trailing_commas_and_lone_object = function()
         eq(one('// c\n{"UniqueFitID":"a","OutfitPaths":["/Game/M/A.A",],}').Slot, Slots.FULL_OUTFIT)
     end,

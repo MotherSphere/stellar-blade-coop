@@ -199,6 +199,9 @@ function CnsImport.parse(text_in, source)
             local variants = variants_of(entry)
             if not id or id == '' then
                 err(where, 'no UniqueFitID')
+            elseif not id:match('^[%w_%.%-]+$') then
+                -- The same characters Dress.parse reads back from coop-closet.txt, which splits worn fits on spaces.
+                err(where, 'UniqueFitID ' .. id .. ' has characters other than letters, digits, _ . -')
             elseif seen[id] then
                 err(where, 'UniqueFitID repeats ' .. seen[id])
             elseif character ~= 'EVE' then
