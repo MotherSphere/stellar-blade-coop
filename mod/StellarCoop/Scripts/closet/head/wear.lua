@@ -14,6 +14,13 @@
 --     stock hair with HidePonytail and SB.Ponytail_None hide it. Its cloth collision is the hair's (or ponytail's)
 --     PonyPhysics, else the body's, set when it resolves.
 --   SBPonytailShort: hidden while the closet holds the ponytail (no stock row puts a mesh there).
+--   Mesh_Face: a Face fit's mesh and materials (every slot of the new mesh painted, as SBHair). Its pose setup is left
+--     as it is (see below). A face mesh on another skeleton than the body mesh's is worn and said once per wear
+--     (closet.head.face_rig).
+--   Eyes: a colour-only part on Mesh_Face (no call here): parts() lists it with the slots its controls paint (4 and 7
+--     on EVE's own face), the options layer paints them. Only while the face worn is EVE's own (eyes_locked).
+--   SBAccSlot1: an EarringL fit's mesh, AnimBP class (a stock row's AnimAssetPath) and physics asset by SBHair's rule.
+--   Glasses, Headwear, Mask: a component the closet makes (not built yet): a list with one is refused.
 -- Before the first change the game's own pieces are read (line(), which the dress writes as field 6 of
 -- coop-closet.txt before each wear), so give_back, coop off and the next Lua load (restore) put them back.
 -- Once a second (tick), unless the game is paused or shows one of its screens: a worn component the game changed (the
@@ -48,11 +55,22 @@
 --     writes USkeletalMeshComponent.OverrideClothPhysicsAsset (+0xdd8, property params 0x1466556b8) and recreates the
 --     cloth when it has one (else marks +0xde0 for later). The closet writes that property, before SetSkeletalMesh,
 --     as online/partner/puppet.lua does (the cloth made by a new mesh takes it).
+--   FUN_1424c12e0's AnimBP class (FUN_14411af10) and physics asset steps run for any slot: SBAccSlot1 takes both.
+--   A face swap and its morph targets (read 27 Nov 2026): USBSkeletalMeshComponent's SetSkeletalMesh 0x14411a4f0
+--     (vtable +0x910) returns first when the mesh is the one at +0x568, else calls the base 0x144128b60, which empties
+--     two arrays at +0x728 and +0x738 (names unread) while registered, then empties the map at +0xec8: the one
+--     SetMorphTarget (USkeletalMeshComponent native entry 0x146659b90, exec 0x14491f120 -> FUN_14411b400) writes, by
+--     morph name. So a morph weight set by name before the swap does not survive it; who sets Mesh_Face's again is
+--     unread.
+--   How Mesh_Face follows the body: unread. FUN_1424b7a90 and FUN_1420c0ba0 master-pose (FUN_144129240) and attach
+--     only the slot record components (actor +0x2e0 records, made by FUN_14213a400), as FUN_1424c12e0 does; probe 8
+--     read no MasterPoseComponent and no AnimClass on Mesh_Face. The closet changes neither.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Doro=require('core.actors')
 local Dress=require('closet.dress')
 local Fits=require('closet.fits')
+local Slots=require('closet.slots')
 local valid,value_of,each,text,find=U.valid,U.value_of,U.each,U.text,U.find
 local Head={}
 -- An outside fight, copy of closet/dress.lua's Dress.FIGHT: this many re-wears within this many seconds.
@@ -61,7 +79,16 @@ local CLASS,PHYSICS='/Script/Engine.AnimBlueprintGeneratedClass','/Script/Engine
 local MATERIAL,MID='/Script/Engine.MaterialInterface','/Script/Engine.MaterialInstanceDynamic'
 local SKINNED='/Script/Engine.SkeletalMeshComponent'
 local HAIR,PONY,SHORT='SBHair','SBPonytail','SBPonytailShort' -- Mesh slots Hair1, Ponytail, PonytailShort.
-local NAMES={HAIR,PONY,SHORT}
+local FACE,ACC1='Mesh_Face','SBAccSlot1' -- Probe 8: EVE's face, and the earrings' component (socket Bip001-Head).
+local NAMES={HAIR,PONY,SHORT,FACE,ACC1}
+local KNOWN={[HAIR]=true,[PONY]=true,[SHORT]=true,[FACE]=true,[ACC1]=true}
+-- The component each head slot wears on. Eyes paints Mesh_Face (no mesh of its own).
+local COMPONENT={Hair=HAIR,Ponytail=PONY,Face=FACE,Eyes=FACE,EarringL=ACC1}
+-- The components that take an AnimBP class and the game's physics asset rule (FUN_1424c12e0 does both on any slot).
+local RIGGED={[HAIR]=true,[ACC1]=true}
+-- Slots worn on a component the closet makes (closet/head/made.lua, not built yet): refused until it is.
+Head.MADE={Glasses=true,Headwear=true,Mask=true}
+local Stock=require('closet.head.stock')
 local LONG_ID,SHORT_ID='SB.Ponytail_Long','SB.Ponytail_Short'
 local SHORT_MESH='CH_P_EVE_Hair_PonyTail_Short'
 
@@ -80,13 +107,13 @@ end
 local function same_rotation(a,b)
     return a and b and a.Pitch==b.Pitch and a.Yaw==b.Yaw and a.Roll==b.Roll or a==b
 end
--- EVE's head components by name (eve/wear.lua's component, for three names).
+-- EVE's head components by name (eve/wear.lua's component, for NAMES).
 local function components(eve)
     local out={}
     each(eve:K2_GetComponentsByClass(find(SKINNED)),function(_,c)
         c=valid(c)
         local n=c and text(c:GetFName())
-        if n and (n==HAIR or n==PONY or n==SHORT) and not out[n] then out[n]=c end
+        if n and KNOWN[n] and not out[n] then out[n]=c end
     end)
     return out
 end
@@ -132,25 +159,30 @@ local function body_collision(eve)
     return dir and dir..'/'..name..'_PonytailPhysicsAsset.'..name..'_PonytailPhysicsAsset' or nil
 end
 
--- The game's own look of component n: {mesh=, anim=, physics=, rotation= (SBHair), visible=, cloth= (the ponytails),
--- materials={{slot=, object=, path=, base=}}}. was: the piece the closet wore there, when the game set something
--- since: what still holds the closet's put keeps the game's one read before (eve/wear.lua's rule).
+-- The game's own look of component n: {mesh=, anim=, physics= (SBHair, SBAccSlot1), rotation= (SBHair), visible=,
+-- cloth= (the ponytails), materials={{slot=, object=, path=, base=}}} (Mesh_Face: its mesh and materials). was: the
+-- piece the closet wore there, when the game set something since: what still holds the closet's put keeps the game's
+-- one read before (eve/wear.lua's rule).
 local function read(c,n,was)
     local before=was and was.own
     local own={materials={},mesh=n~=SHORT and mesh_of(c) or nil}
-    if n~=HAIR then
+    if n==PONY or n==SHORT then
         own.visible=visible(c)
         if before and was.visible==own.visible then own.visible=before.visible end
     end
     if n==SHORT then return own end
-    if n==HAIR then
+    if RIGGED[n] then
         local anim,physics=valid(c.AnimClass),valid(c.PhysicsAssetOverride)
         own.anim,own.physics=anim and path_of(anim) or '',physics and path_of(physics) or ''
-        own.rotation=rotation_of(c)
         if before and own.anim==was.anim then own.anim=before.anim end
         if before and own.physics==was.physics then own.physics=before.physics end
-        if before and was.rotation and same_rotation(own.rotation,was.rotation) then own.rotation=before.rotation end
-    else
+        if n==HAIR then
+            own.rotation=rotation_of(c)
+            if before and was.rotation and same_rotation(own.rotation,was.rotation) then
+                own.rotation=before.rotation
+            end
+        end
+    elseif n==PONY then
         local cloth=valid(c.OverrideClothPhysicsAsset)
         own.cloth=cloth and path_of(cloth) or ''
         if before and was.cloth and own.cloth==was.cloth then own.cloth=before.cloth end
@@ -178,8 +210,10 @@ local function give_back(c,n,own)
         if (now and path_of(now) or '')~=own.cloth then c.OverrideClothPhysicsAsset=cloth end
     end
     local mesh=own.mesh and assert(Dress.usable(own.mesh),name_of(own.mesh)..' cannot be loaded')
-    if mesh then c:SetSkeletalMesh(mesh,true) end
-    if n==HAIR then
+    -- None: the component had no mesh (SBAccSlot1 with no earring). The same mesh again changes nothing: both
+    -- SetSkeletalMesh bodies (0x14411a4f0, base 0x144128b60) return first when it is the one at +0x568.
+    c:SetSkeletalMesh(mesh,true)
+    if RIGGED[n] then
         local anim=own.anim~='' and class_of(own.anim)
         if anim then c:SetAnimClass(anim) elseif own.anim~='' then missed[#missed+1]=name_of(own.anim) end
         local physics=own.physics~='' and resolve(own.physics,PHYSICS) or nil
@@ -233,9 +267,35 @@ local function decode(entry)
     return f[1],f[2] or '',own
 end
 
--- o: log (the [CL] lines), fits (closet/fits.lua: get), paused (no re-wear while true), clock (seconds).
+-- The material slots a colour-only part paints, from its controls (MaterialIndices, else MaterialIndex):
+-- {[index]=slot id}.
+local function slots_of(f,slot)
+    local out={}
+    for _,list in pairs(type(f.Controls)=='table' and f.Controls or {}) do
+        for _,c in ipairs(type(list)=='table' and list or {}) do
+            for _,i in ipairs(type(c)=='table' and (c.MaterialIndices or {c.MaterialIndex}) or {}) do
+                if math.type(i)=='integer' and i>=0 then out[i]=slot end
+            end
+        end
+    end
+    return out
+end
+-- Whether a face mesh is EVE's own (closet/head/stock.lua's FACE_MESH): her eyes' slots are only there.
+local function own_face(path) return path~=nil and name_of(path)==name_of(Stock.FACE_MESH) end
+-- Whether a mesh's skeleton is another than the body mesh's (both read; an unread one says no).
+local function foreign(eve,mesh)
+    local ok,theirs,ours=pcall(function()
+        local body=valid(valid(eve.Mesh).SkeletalMesh)
+        return path_of(valid(mesh.Skeleton)),path_of(valid(body.Skeleton))
+    end)
+    return ok and theirs~=nil and ours~=nil and theirs~=ours
+end
+
+-- o: log (the [CL] lines), fits (closet/fits.lua: get), paused (no re-wear while true), clock (seconds), tell (main/
+-- base.lua's M.tell: an on-screen text built from ui/text).
 function Head.new(o)
     local log=o.log
+    local tell=o.tell or function() end
     local fits=o.fits or require('closet.fits')
     local paused=o.paused or function() return false end
     local clock=o.clock or os.clock
@@ -257,15 +317,21 @@ function Head.new(o)
     end
 
     -- What each component should wear for list: {[name]={fit=, slot=, mesh=, anim=, physics=, rotation=, materials=,
-    -- cloth=, hide=}}, or nil and why.
+    -- cloth=, hide=, eyes={fit=, slots=} (Mesh_Face), colour_only= (Mesh_Face for Eyes alone: no call)}}, or nil and
+    -- why. A slot it cannot wear refuses the list: never a false success.
     local function plan(eve)
-        local hair,pony
+        local got={}
         for _,choice in ipairs(list) do
             local fit=fits.get(choice.fit)
             if not fit then return nil,choice.fit..' is not installed' end
-            if choice.slot=='Hair' then hair=hair or {id=choice.fit,f=fit}
-            elseif choice.slot=='Ponytail' then pony=pony or {id=choice.fit,f=fit} end
+            -- The made component (Glasses, Headwear, Mask) is closet/head/made.lua's once built: it plugs in here.
+            if Head.MADE[choice.slot] then
+                return nil,choice.fit..': the closet cannot wear a '..choice.slot..' piece yet'
+            end
+            if not COMPONENT[choice.slot] then return nil,choice.fit..': no head component wears '..choice.slot end
+            got[choice.slot]=got[choice.slot] or {id=choice.fit,f=fit}
         end
+        local hair,pony,face,eyes,ear=got.Hair,got.Ponytail,got.Face,got.Eyes,got.EarringL
         local out={}
         local stock_hair=hair and hair.f.Origin=='original'
         if hair then
@@ -291,6 +357,21 @@ function Head.new(o)
             if pony or hair.f.HidePonytail or not stock_hair then out[PONY]={hide=true,cloth=collision} end
         end
         if out[PONY] then out[SHORT]={hide=true} end
+        for _,x in ipairs({face and {face,'Face',FACE} or false,ear and {ear,'EarringL',ACC1} or false}) do
+            if x then
+                local f=x[1].f
+                if (f.Mesh or '')=='' then return nil,x[1].id..' has no mesh' end
+                out[x[3]]={fit=x[1].id,slot=x[2],mesh=f.Mesh,anim=f.AnimationBP,physics=f.PhysicsAsset,
+                    materials=f.Materials or {}}
+            end
+        end
+        if eyes then -- Her eyes' slots exist only on her own face mesh (closet/head/stock.lua's EYES).
+            local worn=face and face.f.Mesh or parts[FACE] and parts[FACE].own.mesh
+            if not own_face(worn) then return nil,eyes.id..': her eyes show only on her own face' end
+            local e={fit=eyes.id,slots=slots_of(eyes.f,'Eyes')}
+            if out[FACE] then out[FACE].eyes=e
+            else out[FACE]={fit=eyes.id,slot='Eyes',mesh=worn,eyes=e,colour_only=true} end
+        end
         return out
     end
 
@@ -298,6 +379,7 @@ function Head.new(o)
     -- or nil and why. The cloth and a variant's material that do not load are left out.
     local function assets_of(t)
         local a={materials={}}
+        if t.colour_only then return a end
         if t.mesh and t.mesh~='' then
             local why
             a.mesh,why=Dress.usable(t.mesh)
@@ -310,7 +392,7 @@ function Head.new(o)
         if t.physics then
             a.physics=resolve(t.physics,PHYSICS)
             if not a.physics then return nil,name_of(t.physics)..' is missing on this PC' end
-        elseif t.slot=='Hair' and a.mesh and not valid(a.mesh.PhysicsAsset) then
+        elseif RIGGED[COMPONENT[t.slot]] and a.mesh and not valid(a.mesh.PhysicsAsset) then
             a.physics=resolve(named_physics(t.mesh),PHYSICS) -- The game's second try; none when it does not load.
         end
         a.cloth=t.cloth and resolve(t.cloth,PHYSICS)
@@ -346,8 +428,10 @@ function Head.new(o)
     -- Target t on component n (its part p), assets a; only its materials when the piece already shows. Raises on a
     -- failing call.
     local function put_on(n,p,t,a,only_paint)
-        local c,w,was=p.c,{fit=t.fit,slot=t.slot,mesh=t.mesh,hidden=t.hide or nil,put={}},p.worn
+        local c,w,was=p.c,{fit=t.fit,slot=t.slot,mesh=t.mesh,hidden=t.hide or nil,put={},eyes=t.eyes,
+            colour_only=t.colour_only},p.worn
         p.worn=w -- Set first: a call that fails gives back what went on.
+        if t.colour_only then return end -- The options layer paints its controls on parts()'s Eyes part.
         if t.hide then
             if a.cloth then c.OverrideClothPhysicsAsset=a.cloth; w.cloth=path_of(a.cloth) end
             c:SetVisibility(false,false)
@@ -359,7 +443,7 @@ function Head.new(o)
             if n==PONY and a.cloth then c.OverrideClothPhysicsAsset=a.cloth; w.cloth=path_of(a.cloth) end
             c:SetSkeletalMesh(a.mesh,true)
             if a.anim then c:SetAnimClass(a.anim); w.anim=path_of(a.anim) end
-            if n==HAIR then
+            if RIGGED[n] then
                 -- The game's rule (FUN_1424c12e0): a cut hair's own asset, else the mesh's own, else its named one.
                 local want=t.physics and a.physics or valid(a.mesh.PhysicsAsset) or a.physics
                 local now=valid(c.PhysicsAssetOverride)
@@ -392,7 +476,8 @@ function Head.new(o)
     local function key(t)
         local m={}
         for i,x in ipairs(t.materials or {}) do m[i]=x end
-        return table.concat({t.fit or '',tostring(t.hide),t.mesh or '',table.concat(m,',')},'\n')
+        return table.concat({t.fit or '',tostring(t.hide),t.mesh or '',table.concat(m,','),t.eyes and t.eyes.fit or ''},
+            '\n')
     end
 
     -- The game's own look back on component n when it still shows the closet's piece. Returns the words.
@@ -406,8 +491,9 @@ function Head.new(o)
     end
 
     -- list on EVE: force names the components put on again even when they hold the same piece (rewear, the
-    -- watchdog). Returns true and whether anything changed, or nil and why (nothing changed then).
-    local function dress_up(eve,force)
+    -- watchdog); say: a face put on that is not on the body's skeleton is said on screen (a wear, once).
+    -- Returns true and whether anything changed, or nil and why (nothing changed then).
+    local function dress_up(eve,force,say)
         capture(eve)
         local targets,why=plan(eve)
         if not targets then return nil,why end
@@ -421,10 +507,14 @@ function Head.new(o)
                 if not assets[n] then return nil,why end
             end
         end
-        local changed,lines=false,{}
+        local changed,lines,rig=false,{},nil
         local ok,e=pcall(function()
             for _,n in ipairs(NAMES) do
                 local p,t=parts[n],targets[n]
+                if t and t.colour_only and p.worn and not p.worn.colour_only then
+                    lines[#lines+1]=take_off(n,p) -- Her own face mesh back under her eyes.
+                    changed=true
+                end
                 if t then
                     t.key=key(t)
                     local same_piece=p.worn and p.worn.fit==t.fit and p.worn.hidden==(t.hide or nil) and holds(n,p)
@@ -433,6 +523,9 @@ function Head.new(o)
                         put_on(n,p,t,assets[n],only_paint)
                         p.worn.key=t.key
                         changed=true
+                        if say and n==FACE and not only_paint and assets[n].mesh and foreign(eve,assets[n].mesh) then
+                            rig=t.fit
+                        end
                         lines[#lines+1]=n..' '..(t.hide and 'hidden' or t.fit..(only_paint and ' (materials)' or ''))
                     end
                 elseif p and p.worn then
@@ -455,6 +548,10 @@ function Head.new(o)
             return nil,'EVE could not wear the head pieces: '..tostring(e)
         end
         if changed then log('head: '..table.concat(lines,', ')) end
+        if rig then
+            log('head: '..rig..'\'s face mesh is not on EVE\'s skeleton: it may not move')
+            tell(function(t) return t.closet.head.face_rig end)
+        end
         return true,changed
     end
 
@@ -489,7 +586,7 @@ function Head.new(o)
         if #list==0 then return self.give_back() end
         local eve=her()
         if not eve then list=before; return nil,'no EVE in the world' end
-        local ok,changed=dress_up(eve)
+        local ok,changed=dress_up(eve,nil,true)
         if not ok then list=before; return nil,changed end
         if changed then applied=applied+1 end
         return true
@@ -502,8 +599,8 @@ function Head.new(o)
         if not eve then return nil,'no EVE in the world' end
         local force={}
         for _,choice in ipairs(list) do
-            if choice.fit==fit then
-                force[choice.slot=='Hair' and HAIR or PONY]=true
+            if choice.fit==fit and COMPONENT[choice.slot] then
+                force[COMPONENT[choice.slot]]=true
                 if choice.slot=='Hair' then force[PONY]=true end
             end
         end
@@ -536,7 +633,7 @@ function Head.new(o)
     -- {[path]=true} each, and how many fits.
     local function known_assets()
         local meshes,materials,count={},{},0
-        for _,slot in ipairs({'Hair','Ponytail'}) do
+        for _,slot in ipairs(Slots.in_menu('head')) do
             for _,id in ipairs(fits.heads and fits.heads(slot) or {}) do
                 local fit=fits.get(id)
                 if fit then
@@ -585,7 +682,8 @@ function Head.new(o)
             if c and state=='-' then ours=visible(c)~=own.visible
             elseif c and state=='+' then
                 local now=mesh_of(c)
-                ours=(now~=own.mesh and meshes[now]==true) or (now==own.mesh and painted(c,own,materials))
+                -- Mesh_Face on her own mesh: her eyes' colours (dynamic instances of no head fit's material) go too.
+                ours=(now~=own.mesh and meshes[now]==true) or (now==own.mesh and (n==FACE or painted(c,own,materials)))
             end
             if ours then
                 local ok,missed=pcall(give_back,c,n,own)
@@ -598,19 +696,41 @@ function Head.new(o)
         if lines[1] then log('head: restore from coop-closet.txt: '..table.concat(lines,'; ')) end
     end
 
-    -- {{c=, fit=, mesh=, slots={[index]=<Slot id>}, head=true}} for each shown piece.
+    -- {{c=, fit=, mesh=, slots={[index]=<Slot id>}, head=true}} for each shown piece; the Eyes part after its face's,
+    -- on Mesh_Face with its own slots.
     function self.parts()
         local out={}
         for _,n in ipairs(NAMES) do
             local p=parts[n]
             local w=p and p.worn
             if w and not w.hidden then
-                local slots={}
-                for i=0,(w.count or 0)-1 do slots[i]=w.slot end
-                out[#out+1]={c=Doro.same(p.c,p.c_path),fit=w.fit,mesh=w.mesh,slots=slots,head=true}
+                local c=Doro.same(p.c,p.c_path)
+                if not w.colour_only then
+                    local slots={}
+                    for i=0,(w.count or 0)-1 do if not (w.eyes and w.eyes.slots[i]) then slots[i]=w.slot end end
+                    out[#out+1]={c=c,fit=w.fit,mesh=w.mesh,slots=slots,head=true}
+                end
+                if w.eyes then out[#out+1]={c=c,fit=w.eyes.fit,mesh=w.mesh,slots=w.eyes.slots,head=true} end
             end
         end
         return out
+    end
+
+    -- Whether the Eyes row is locked (no tile wears): the face worn (face, a Face fit's id; else the closet's Face
+    -- piece, else her Mesh_Face's mesh now) is not EVE's own.
+    function self.eyes_locked(face)
+        local mesh
+        if face then
+            local f=fits.get(face)
+            mesh=f and f.Mesh
+        else
+            local w=parts[FACE] and parts[FACE].worn
+            mesh=w and not w.colour_only and w.mesh
+            local eve=not mesh and her()
+            local c=eve and components(eve)[FACE]
+            if c then mesh=mesh_of(c) end
+        end
+        return not own_face(mesh or nil)
     end
 
     -- Once a second while a piece is worn (see the header).

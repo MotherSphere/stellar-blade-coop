@@ -120,6 +120,21 @@ do -- EVE_HR_14's AnimBP class shows once its Blueprint's package is loaded.
     assets[path] = nil
 end
 
+-- EVE's own face (eight slots: 4 her eyes, 7 her brows), a pack face on her face mesh, a pack face of its own mesh on
+-- the body's skeleton and one on another skeleton (raven_face's, probe 8), a stock earring and its AnimBP.
+local face_mats = {}
+for i = 0, 7 do face_mats[i + 1] = material('CH_P_EVE_Head/MI_Face_' .. i) end
+local jali = mesh('CH_P_EVE_Head/CH_P_EVE_Face_Jali3', face_mats)
+local klukai_mat = asset(PACK .. 'MI_Klukai.MI_Klukai', MAT)
+local fit_face = asset(PACK .. 'SK_fbface.SK_fbface', {'/Script/Engine.SkeletalMesh'}, {Skeleton = skeleton,
+    Materials = {{MaterialInterface = material('P/MI_fb_0')}, {MaterialInterface = material('P/MI_fb_1')}}})
+local raven_skeleton = asset('/Game/R/CH_M_NA_53_Skeleton.CH_M_NA_53_Skeleton', {'/Script/Engine.Skeleton'})
+local raven = asset(PACK .. 'CH_M_NA_53_Facial.CH_M_NA_53_Facial', {'/Script/Engine.SkeletalMesh'},
+    {Skeleton = raven_skeleton, Materials = {{MaterialInterface = material('P/MI_raven')}}})
+local ear01 = mesh('00_ACC/ACC_EAR_01/ACC_EAR_01M', {material('00_ACC/ACC_EAR_01/MI_EAR_01')})
+local ear01_anim = asset(p('00_ACC/ACC_EAR_01/ACC_EAR_01M_AnimBP') .. '_C', ANIM)
+local glasses = mesh('00_ACC/ACC_GLA_01/ACC_GLA_01M', {material('00_ACC/ACC_GLA_01/MI_GLA_01')})
+
 -- The head fits as closet/fits.lua gives them (Fits.get), in each outfit's chosen variant.
 local chosen = {}
 local function variants(m, list)
@@ -149,6 +164,24 @@ local ITEMS = {
         Variants = {{Mesh = tri.at_path, Materials = {}}}},
     ['p.hair'] = {Slot = 'Hair', Origin = 'custom', Mesh = ph.at_path, AnimationBP = PACK .. 'PH_BP.PH_BP',
         Variants = {{Mesh = ph.at_path, Materials = {}, PonyPhysics = ph_pony.at_path}}},
+    ['p.klukai'] = {Slot = 'Face', Origin = 'custom', Mesh = jali.at_path,
+        Variants = {{Mesh = jali.at_path, Materials = {klukai_mat.at_path}}}},
+    ['p.fitface'] = {Slot = 'Face', Origin = 'custom', Mesh = fit_face.at_path,
+        Variants = {{Mesh = fit_face.at_path, Materials = {}}}},
+    ['p.raven'] = {Slot = 'Face', Origin = 'custom', Mesh = raven.at_path,
+        Variants = {{Mesh = raven.at_path, Materials = {}}}},
+    ['SB.Earring_001'] = {Slot = 'EarringL', Origin = 'original', Mesh = ear01.at_path,
+        AnimationBP = ear01_anim.at_path, Variants = {{Mesh = ear01.at_path, Materials = {}}}},
+    ['SB.Eyes_Own'] = {Slot = 'Eyes', Origin = 'original', Mesh = '', Variants = {{Mesh = '', Materials = {}}},
+        Controls = {VectorControls = {{ParamName = 'IrisHueTint', MaterialIndex = 4},
+            {ParamName = 'BaseColour', MaterialIndex = 7}}, ScalarControls = {{ParamName = 'IrisBrightness',
+            MaterialIndex = 4}}}},
+    ['SB.FaceAccessory_001'] = {Slot = 'Glasses', Origin = 'original', Mesh = glasses.at_path,
+        Variants = {{Mesh = glasses.at_path, Materials = {}}}},
+    ['p.hat'] = {Slot = 'Headwear', Origin = 'custom', Mesh = glasses.at_path,
+        Variants = {{Mesh = glasses.at_path, Materials = {}}}},
+    ['p.mask'] = {Slot = 'Mask', Origin = 'custom', Mesh = glasses.at_path,
+        Variants = {{Mesh = glasses.at_path, Materials = {}}}},
 }
 local fits = {get = function(id)
     local it = ITEMS[id]
@@ -191,7 +224,7 @@ local function part(eve_name, name, fields)
     function c:GetFullName() return 'SBSkeletalMeshComponent ' .. path end
     function c:SetSkeletalMesh(m, reinit)
         assert(reinit == true, 'A new pose, as SB sets a mesh')
-        rawset(self, 'SkeletalMesh', m); said(name, 'mesh', short(m), tostring(reinit))
+        rawset(self, 'SkeletalMesh', m); said(name, 'mesh', m and short(m) or 'none', tostring(reinit))
     end
     function c:SetAnimClass(k)
         local raise = rawget(self, 'anim_raises')
@@ -232,12 +265,12 @@ local function eve_of(name, o)
     o = o or {}
     local e = object()
     local parts = {part(name, 'CharacterMesh0', {SkeletalMesh = eve08}),
-        part(name, 'Mesh_Face', {SkeletalMesh = asset(p('CH_P_EVE_Head/CH_P_EVE_Face_Jali3'),
-            {'/Script/Engine.SkeletalMesh'})}),
+        part(name, 'Mesh_Face', {SkeletalMesh = jali}),
         part(name, 'SBHair', {SkeletalMesh = hr01, AnimClass = hr01_anim, PhysicsAssetOverride = o.physics,
             OverrideMaterials = {colour(name)}}),
         part(name, 'SBPonytail', {SkeletalMesh = o.pony or pony2, cloth = eve08_pony}),
-        part(name, 'SBPonytailShort', {visible = false})}
+        part(name, 'SBPonytailShort', {visible = false}),
+        part(name, 'SBAccSlot1', {})} -- No earring: no mesh (probe 8).
     e.Mesh = parts[1]
     function e:IsA(k) return k.path == '/Script/SB.SBCharacter' end
     function e:GetFullName() return 'CH_P_EVE_01_Blueprint_C /Game/Map.Map:PersistentLevel.' .. name end
@@ -246,6 +279,7 @@ local function eve_of(name, o)
         return parts
     end
     e.parts, e.hair, e.pony, e.short, e.read = parts, parts[3], parts[4], parts[5], {}
+    e.face, e.acc = parts[2], parts[6]
     by_path['/Game/Map.Map:PersistentLevel.' .. name] = e
     return setmetatable(e, {__index = function(_, k)
         if ALLOWED[k] then return nil end
@@ -257,11 +291,13 @@ end
 -- A new world: an EVE, a head part on her, the dress's store and clock. o: eve_of's options.
 local function world(o)
     calls, chosen = {}, {}
-    local w = {logs = {}, now = 0, paused = false}
+    local w = {logs = {}, now = 0, paused = false, told = {}}
     w.eve = eve_of('EVE_1', o)
     player = w.eve
+    local words = {closet = {head = {face_rig = 'FACE_RIG'}}}
     w.head = Head.new({log = function(m) w.logs[#w.logs + 1] = m end, fits = fits,
-        paused = function() return w.paused end, clock = function() return w.now end})
+        paused = function() return w.paused end, clock = function() return w.now end,
+        tell = function(build) w.told[#w.told + 1] = build(words) end})
     -- closet/dress.lua's order: the file first (field 6), then the head part's wear, then the file again (the marks).
     function w.wear(list)
         w.file = w.head.line(); said('save')
@@ -745,6 +781,120 @@ local tests = {
         chosen['SB.Ponytail_Long'] = 3
         ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_Long')}))
         ok(since(0):find('SBPonytail material 0 MI_H07_Tail_TypeA', 1, true), "the hair's variant: " .. since(0))
+    end,
+
+    -- Every head slot goes on its own component: Face on Mesh_Face (every slot of the new mesh painted), EarringL on
+    -- SBAccSlot1 with its AnimBP. Neither touches SBHair or the ponytails.
+    each_head_slot_goes_on_its_component = function()
+        local w = world()
+        ok(w.wear({{fit = 'p.fitface', slot = 'Face'}}))
+        eq(since(0),
+            'save|Mesh_Face mesh SK_fbface true|Mesh_Face material 0 MI_fb_0|Mesh_Face material 1 MI_fb_1|save')
+        eq(w.eve.face.SkeletalMesh, fit_face)
+        same(w.head.worn(), {['p.fitface'] = 'Face'})
+        eq(#w.told, 0, 'on the body\'s skeleton: nothing to say')
+        w = world()
+        ok(w.wear({{fit = 'SB.Earring_001', slot = 'EarringL'}}))
+        eq(since(0), 'save|SBAccSlot1 mesh ACC_EAR_01M true|SBAccSlot1 anim ACC_EAR_01M_AnimBP_C|'
+            .. 'SBAccSlot1 material 0 MI_EAR_01|save')
+        same(w.head.parts(), {{c = w.eve.acc, fit = 'SB.Earring_001', mesh = ear01.at_path, slots = {[0] = 'EarringL'},
+            head = true}})
+        -- A pack face on her own face mesh: its material, her mesh's own on every other slot.
+        w = world()
+        ok(w.wear({{fit = 'p.klukai', slot = 'Face'}}))
+        ok(since(0):find('^save|Mesh_Face mesh CH_P_EVE_Face_Jali3 true|Mesh_Face material 0 MI_Klukai|Mesh_Face '
+            .. 'material 1 MI_Face_1|'), since(0))
+        ok(since(0):find('Mesh_Face material 7 MI_Face_7|save$'), since(0))
+    end,
+
+    a_non_hair_slot_never_touches_the_ponytail = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001'), {fit = 'SB.Earring_001', slot = 'EarringL'}}))
+        local n = #calls
+        ok(w.head.rewear('SB.Earring_001'))
+        eq(since(n), 'SBAccSlot1 material 0 MI_EAR_01', 'the earring only')
+        -- A face or an earring alone: her ponytail never gets a call.
+        w = world()
+        ok(w.wear({{fit = 'p.fitface', slot = 'Face'}, {fit = 'SB.Earring_001', slot = 'EarringL'}}))
+        ok(not since(0):find('SBPonytail', 1, true), since(0))
+        ok(w.head.give_back())
+        ok(not since(0):find('SBPonytail', 1, true), since(0))
+    end,
+
+    -- Glasses, Headwear and Mask go on a component the closet makes (not built yet): never a false success.
+    made_slots_are_not_worn_yet = function()
+        for _, c in ipairs({{fit = 'SB.FaceAccessory_001', slot = 'Glasses'}, {fit = 'p.hat', slot = 'Headwear'},
+                {fit = 'p.mask', slot = 'Mask'}}) do
+            local w = world()
+            local good, why = w.wear({hair('SB.Hair_001'), c})
+            eq(good, nil, c.slot) ok(why and why:find(c.slot, 1, true), tostring(why))
+            eq(since(0), 'save', 'no call')
+            same(w.head.worn(), {})
+        end
+    end,
+
+    restore_gives_each_component_back = function()
+        local w = world()
+        ok(w.wear({{fit = 'p.fitface', slot = 'Face'}, {fit = 'SB.Earring_001', slot = 'EarringL'}}))
+        local n = #calls
+        ok(w.head.give_back())
+        ok(since(n):find('Mesh_Face mesh CH_P_EVE_Face_Jali3 true', 1, true), since(n))
+        ok(since(n):find('SBAccSlot1 mesh none true', 1, true), since(n))
+        eq(w.eve.face.SkeletalMesh, jali) eq(w.eve.acc.SkeletalMesh, nil)
+        ok(not since(n):find('SBPonytail', 1, true), since(n))
+        -- Field 6 keeps each component the closet changed; the next Lua load gives each back.
+        w = world()
+        ok(w.wear({{fit = 'p.fitface', slot = 'Face'}, {fit = 'SB.Earring_001', slot = 'EarringL'}}))
+        ok(w.file:find('|Mesh_Face;+;' .. jali.at_path, 1, true), w.file)
+        ok(w.file:find('|SBAccSlot1;+;;', 1, true), w.file)
+        local logs = {}
+        Head.new({log = function(m) logs[#logs + 1] = m end, fits = fits}).restore(w.file)
+        eq(w.eve.face.SkeletalMesh, jali, tostring(logs[1])) eq(w.eve.acc.SkeletalMesh, nil, tostring(logs[1]))
+        eq(w.eve.hair.SkeletalMesh, hr01)
+    end,
+
+    -- A face whose mesh is not on the body's skeleton is worn and said once per wear.
+    a_face_on_another_skeleton_is_said_once = function()
+        local w = world()
+        ok(w.wear({{fit = 'p.raven', slot = 'Face'}}))
+        eq(w.eve.face.SkeletalMesh, raven)
+        same(w.told, {'FACE_RIG'})
+        ok(w.wear({{fit = 'p.raven', slot = 'Face'}}))
+        same(w.told, {'FACE_RIG'}, 'the same look again: not said again')
+        w.eve.face.SkeletalMesh = jali
+        w.tick(1) w.tick(1)
+        eq(w.eve.face.SkeletalMesh, raven, 'worn again by the watchdog')
+        same(w.told, {'FACE_RIG'}, 'the watchdog says nothing')
+    end,
+
+    -- EVE's own eyes: a colour-only part on Mesh_Face (its controls paint slots 4 and 7), while her face is her own.
+    the_eyes_part_paints_mesh_face_slot_4 = function()
+        local w = world()
+        ok(w.wear({{fit = 'SB.Eyes_Own', slot = 'Eyes'}}))
+        eq(since(0), 'save|save', 'no mesh call')
+        same(w.head.parts(), {{c = w.eve.face, fit = 'SB.Eyes_Own', mesh = jali.at_path, slots = {[4] = 'Eyes',
+            [7] = 'Eyes'}, head = true}})
+        eq(w.head.eyes_locked(), false)
+        -- Off: a slot painted since gets the mesh's own material.
+        w.eve.face:SetMaterial(4, material('P/MID_eyes'))
+        local n = #calls
+        ok(w.head.give_back())
+        ok(since(n):find('Mesh_Face material 4 MI_Face_4', 1, true), since(n))
+        -- With a pack face on her own mesh: both parts, the eyes' slots not the face's.
+        w = world()
+        ok(w.wear({{fit = 'p.klukai', slot = 'Face'}, {fit = 'SB.Eyes_Own', slot = 'Eyes'}}))
+        local parts = w.head.parts()
+        eq(#parts, 2)
+        eq(parts[1].fit, 'p.klukai') eq(parts[1].slots[4], nil) eq(parts[1].slots[0], 'Face')
+        same(parts[2].slots, {[4] = 'Eyes', [7] = 'Eyes'}) eq(parts[2].c, w.eve.face)
+        -- Another face mesh locks them: not worn.
+        w = world()
+        eq(w.head.eyes_locked('p.fitface'), true) eq(w.head.eyes_locked('p.klukai'), false)
+        local good, why = w.wear({{fit = 'p.fitface', slot = 'Face'}, {fit = 'SB.Eyes_Own', slot = 'Eyes'}})
+        eq(good, nil) ok(why and why:find('face', 1, true), tostring(why))
+        eq(since(0), 'save', 'no call')
+        ok(w.wear({{fit = 'p.fitface', slot = 'Face'}}))
+        eq(w.head.eyes_locked(), true, 'the worn face is not hers')
     end,
 }
 

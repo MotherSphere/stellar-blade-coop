@@ -21,7 +21,8 @@ local print=M.print
 -- read before a kept look is worn again (it may be a pack's suit). Its head part (closet/head/wear.lua) wears the Hair
 -- and Ponytail choices on EVE's own head components; the dress keeps its line in coop-closet.txt.
 local head=require('closet.head.wear').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
-    fits=require('closet.fits'),paused=function() return M.kit~=nil and M.kit.paused(true) end})
+    fits=require('closet.fits'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
+    tell=function(build) if M.tell then M.tell(build) end end})
 M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
     store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
     packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end,head=head})
