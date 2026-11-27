@@ -832,8 +832,9 @@ function Dress.new(o)
             local ok,why=apply(plan,choices,kept,{own=own,materials=materials})
             if not ok then
                 log('mix again failed: '..tostring(why))
-                -- Failed before it changed anything (off() counts in applied): tried again next second.
-                -- The fight count stops the retries after Dress.FIGHT.mixes.
+                -- Failed before apply changed the look (off() counts in applied; the sweep above already removed the
+                -- added meshes): the old state stays, so the next tick finds it not intact and tries again. The fight
+                -- count stops the retries after Dress.FIGHT.mixes.
                 if applied==before then old.plan=plan; state=old end
             end
             return
