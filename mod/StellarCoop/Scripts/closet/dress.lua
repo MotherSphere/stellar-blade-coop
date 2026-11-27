@@ -422,9 +422,15 @@ function Dress.new(o)
     --     off (clear) before they set the ones the look needs.
     --   SetMaterial, vtable +0x590: FUN_1440df060 in USkeletalMeshComponent's vtable 0x1463ef0b0 (set by FUN_144112010
     --     after FUN_144123900; its SetSkeletalMesh FUN_14411a4f0 at +0x910) and in USkinnedMeshComponent's 0x1463fcac8
-    --     (set by FUN_144123900; its SetSkeletalMesh FUN_144128b60 at +0x910). FUN_1440df060 returns for an index
-    --     below 0 or when the entry already holds that material, grows OverrideMaterials (+0x538 data, +0x540 Num) to
-    --     the index, stores the material (a null one as null) and marks the render state dirty (FUN_14408e490).
+    --     (set by FUN_144123900; its SetSkeletalMesh FUN_144128b60 at +0x910). EVE's body can be SB's
+    --     SBSkeletalMeshComponent (class FUN_1427ade70; its constructor at 0x1427b0750 jumps to FUN_1421bf180, which
+    --     sets the vtable 0x145c7cfa0 after FUN_144112010): the same 0x144124f30, 0x1440df060 and 0x14411a4f0 at
+    --     +0x588, +0x590 and +0x910. FUN_1440df060 returns for an index below 0 or when the entry already holds that
+    --     material, grows OverrideMaterials (+0x538 data, +0x540 Num) to the index, stores the material (a null one as
+    --     null) and marks the render state dirty (FUN_14408e490). It does more than that: over an entry that is not
+    --     null it first sets bit 0x2 of the byte at +0x558, unless the new material is a MaterialInstanceDynamic whose
+    --     Parent (+0xd0) is that entry. After a material that is not null it calls FUN_142b94cb0(material, component,
+    --     1).
     --     GetMaterial, vtable +0x588 (0x144124f30 in both): the override when it is not null, else the mesh's
     --     Materials[i] (+0xe0 data, +0xe8 Num, 0x28 a slot), else null.
     -- shortcut: a Parameters texture of another Texture class (a cube map) is left out; read UTexture in Ghidra if a
