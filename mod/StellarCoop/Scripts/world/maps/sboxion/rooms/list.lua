@@ -4,7 +4,7 @@
 -- SBO Xion's rooms (world/maps/sboxion/rooms/rooms.lua): the rooms the zSBO_Xion test paks of 2026-11-24 to 26 add
 -- behind closed doors of SB's Xion, each a level of its own on the streaming list of SBO Xion's persistent level
 -- (/Game/SBO_World/Rooms/<level>), with the pieces of SB that stand in its doorway. The paks of build2 hold the first
--- five, the pak of build3 the first eleven, the fifth full test build all fifteen. The eighth adds G18 (below). A level
+-- five, the pak of build3 the first eleven, the fifth full test build all fifteen. The sixth adds G18 (below). A level
 -- of the fifth build may hold a suite: rooms of ours joined by inner doorways of ours, entered through the one street
 -- door. A room's rows are SB's closed door unit, shutter or boards, the wall panel behind it and the street debris that
 -- reaches into the doorway: 62 rows, 27 whole components and 35 instances of 28 instanced components, in 13 sublevels
@@ -25,7 +25,7 @@
 -- read in the game's code, so they stay. With the shutter hidden they leave 160 cm free between them on a flat floor
 -- (the map tools, 26 November 2026).
 -- G18, the way down to the underground district, is no room. Its level is the district's first one, Under_D1_Arch
--- of the eighth full test build (27 November 2026). Its stairs start past the far arch of SB's brick tunnel behind
+-- of the sixth full test build (27 November 2026). Its stairs start past the far arch of SB's brick tunnel behind
 -- the gate. Its rows are the six pieces of SB that close the gate on the lower street (MainStreet_04): two stacked
 -- crates, the two chain-link fence panels that close the tunnel's near arch from the floor to 5.07 m, the red tarp
 -- and a barrel, all of E04_Area02_Object_F_04's Actor_1, each with its own collision. The second barrel, 93 cm in

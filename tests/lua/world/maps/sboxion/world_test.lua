@@ -23,7 +23,7 @@
 -- the rooms close. No room is entered under a black screen: no line and no status part of any other way in. The
 -- fourth full test build (175 levels) holds D111, D109 and D029 with closed rooms in them and five more closed rooms:
 -- the eleven rooms of the third build open and no line names the eight closed ones. The fifth (171 levels, 137 always
--- loaded) opens all fifteen, each door a waypoint. The eighth (173 levels, 139 always loaded) adds the underground
+-- loaded) opens all fifteen, each door a waypoint. The sixth (173 levels, 139 always loaded) adds the underground
 -- district's two levels, Under_D1_Arch and Under_D1_ArchHomes, counted always-loaded: it opens the fifteen rooms and
 -- the gate G18 once Under_D1_Arch reads loaded and visible.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -810,7 +810,7 @@ for _,w in ipairs(D.WAYPOINTS) do
 end
 x.stop()
 assert(logs[#logs]=='sboxion: rooms: closed (coop off): 62 rows put back',logs[#logs])
--- paks_8: the eighth build lists the fifth build's levels and the district's two.
+-- paks_6: the sixth build lists the fifth build's levels and the district's two.
 build({'D087','D111','D109','D029','Under_D1_Arch','Under_D1_ArchHomes'},173)
 assert(logged('sboxion: levels: 173 listed, 139 of 139 always-loaded ones loaded and visible, missing: none; by '
     ..'volume: 34 listed, 20 loaded, 8 visible'),logs[#logs])

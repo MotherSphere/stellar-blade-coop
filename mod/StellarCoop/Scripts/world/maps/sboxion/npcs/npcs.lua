@@ -51,10 +51,10 @@ Npcs.LIST={
         clips=clips(ENGINEER..'Animation/',{'N_Engineer_Work1','N_Engineer_Work2','N_Engineer_Work3',
             'N_Engineer_Dusting','N_Engineer_Snooping','N_Engineer_Idle'}),
         at={X=-10931.7,Y=3145.4,Z=414.0},yaw=-70,frame={X=-10650.4,Y=3388.3,yaw=-70}},
-    -- The underground district (district 1 of the eighth full test build): ten bodies, seven on the deck of
+    -- The underground district (district 1 of the sixth full test build): ten bodies, seven on the deck of
     -- Under_D1_Arch and three in the rooms of Under_D1_ArchHomes, each spot, facing and frame from the district's
     -- layout of 27 November 2026. Z -1100 is the layout's walk. The cooked deck's collision top lies 13.7 cm lower, as
-    -- under the layout's 229 props on the deck (a fault of the eighth build, kept until the district's next build).
+    -- under the layout's 229 props on the deck (a fault of the sixth build, kept until the district's next build).
     -- The gate guard at the foot of the arch stair.
     {name='d1_gate_guard',room='Under_D1_Arch',mesh=asset(GUARD,'CH_NPC_XionGuard'),
         clips=clips(GUARD..'Animation/',{'N_XionGuard_KeepWatch1','N_XionGuard_KeepWatch2',

@@ -15,7 +15,7 @@
 -- props in front of it are no rows. D111, D109 and D029 name Xion_Rooms_D087 as the level the pak must hold beside
 -- theirs: the fourth full test build holds closed rooms under their names. Each room's door is a waypoint of the test
 -- walk (world/maps/sboxion/data.lua), named after the room, after the four older ones.
--- G18, the gate to the underground district, comes last: the level Under_D1_Arch of the eighth full test build, six
+-- G18, the gate to the underground district, comes last: the level Under_D1_Arch of the sixth full test build, six
 -- rows of E04_Area02_Object_F_04's Actor_1 (two crates, two fence panels, the tarp, a barrel), no door piece and no
 -- wall panel, its waypoint the middle of the gate's plane. With it the list holds 68 rows: 28 whole components and 40
 -- instances of 31 instanced components, in 14 sublevels.

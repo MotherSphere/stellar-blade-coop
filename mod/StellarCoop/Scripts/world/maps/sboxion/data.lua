@@ -89,7 +89,7 @@ D.PROBES={'E04_DistantView_A_01','E04_DistantView_A_03'}
 -- rooms list only those two of them. Every other listed level is always loaded: 93 with the first pak, 98 with the
 -- rooms pak, 127 with the full test pak, 133 with the full test pak of build3 (167 listed, six more rooms), 141 with
 -- its fourth build (175 listed), 137 with its fifth (171 listed, the four levels of D087, D111, D109 and D029 in
--- place of the fourth build's eight) and 139 with its eighth (173 listed). The eighth adds the two levels of the
+-- place of the fourth build's eight) and 139 with its sixth (173 listed). The sixth adds the two levels of the
 -- underground district, /Game/SBO_World/Rooms/Under_D1_Arch and Under_D1_ArchHomes. They ride on the slots
 -- LevelStreamingDynamic_54 and _56 of Xion_P, which name volumes in E04 as shipped and which that build makes always
 -- loaded, so neither is in VOLUMED. The rooms (rooms/list.lua, G18) and the NPCs (npcs/npcs.lua) ask the pak gate for
@@ -111,7 +111,7 @@ D.VOLUMED={
 -- Zone_Xion_10 only. It is 1410 cm under SBSpawnPoint43 of E04_LD_Respawn (Z -1865.14), the lowest spawn point of the
 -- upper city.
 D.FLOOR=-3275
--- UNDER: the underground district under the lower street (district 1 of the eighth full test build): inside its box
+-- UNDER: the underground district under the lower street (district 1 of the sixth full test build): inside its box
 -- EVE at or above its floor is on its ground and EVE under it has fallen, in place of FLOOR. The box is in the
 -- district's own grid, u along yaw YAW and v along yaw YAW+90, in metres from the world origin. It holds every piece
 -- of the district (u 6.75 to 47.54, v 31.83 to 81.44: the stairs from the far arch of G18's tunnel at Z -216 and the

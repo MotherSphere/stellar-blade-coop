@@ -18,7 +18,7 @@
 -- that is not found; a load or a save that raises is logged and stops nothing. A level read that raises is logged once
 -- and the rooms wait. A room that names a level beside its own is held only when the pak holds that level too: the
 -- fourth full test build, which holds D111, D109 and D029 without D087, opens the other eleven; the fifth opens all
--- fifteen. G18 is the sixteenth entry: its level is the underground district's Under_D1_Arch, so only the eighth
+-- fifteen. G18 is the sixteenth entry: its level is the underground district's Under_D1_Arch, so only the sixth
 -- build, which holds that level, opens it, once the district level and its rows' sublevel read loaded and visible.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=50
@@ -425,7 +425,7 @@ assert(r.status()=='rooms 15 of 15 open' and select(2,stored:gsub('\t',''))==61,
 r.close('coop off')
 assert(logs[17]=='rooms: closed (coop off): 62 rows put back' and size(hidden)==0,logs[17])
 
--- g18: the eighth full test build holds the fifteen rooms and the district's level. G18 waits for that level, then
+-- g18: the sixth full test build holds the fifteen rooms and the district's level. G18 waits for that level, then
 -- opens with its six rows once it reads loaded and visible.
 r=fresh()
 held=true
