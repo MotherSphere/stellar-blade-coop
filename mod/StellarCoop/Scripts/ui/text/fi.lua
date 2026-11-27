@@ -567,7 +567,7 @@ return {
             doro='Stellar Closet ei aukea, kun Doro-ulkoasu on päällä.',
             rifle='Stellar Closet ei aukea, kun kivääri on esillä.',
             emote='Stellar Closet ei aukea, kun ele on käynnissä.',
-            wear='Stellar Closet ei aukea, kun EVElla on coop wear -asu.',
+            wear='Stellar Closet ei aukea, kun EVElla on coop wear -puku.',
             ui='Stellar Closet tarvitsee valikkokäyttöliittymän. Se on pois päältä tai ei vielä valmis.'},
         closed={combat='Taistelu alkoi: Stellar Closet suljettiin tallentamatta.',
             cutscene='Välianimaatio alkoi: Stellar Closet suljettiin tallentamatta.',

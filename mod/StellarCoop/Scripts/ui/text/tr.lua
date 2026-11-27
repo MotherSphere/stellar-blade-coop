@@ -562,7 +562,7 @@ return {
             doro='Stellar Closet Doro görünümü açıkken açılmaz.',
             rifle='Stellar Closet tüfek çıkarılmışken açılmaz.',
             emote='Stellar Closet bir ifade oynarken açılmaz.',
-            wear='Stellar Closet EVE bir coop wear görünümü giyerken açılmaz.',
+            wear='Stellar Closet EVE bir coop wear kıyafeti giyerken açılmaz.',
             ui='Stellar Closet menü arayüzüne ihtiyaç duyar. Arayüz kapalı ya da henüz hazır değil.'},
         closed={combat='Savaş başladı: Stellar Closet kaydetmeden kapandı.',
             cutscene='Ara sahne başladı: Stellar Closet kaydetmeden kapandı.',

@@ -674,7 +674,7 @@ return {
             doro='Stellar Closet does not open while the Doro look is on.',
             rifle='Stellar Closet does not open while the rifle is out.',
             emote='Stellar Closet does not open while an emote plays.',
-            wear='Stellar Closet does not open while EVE wears a coop wear look.',
+            wear='Stellar Closet does not open while EVE wears a coop wear suit.',
             ui='Stellar Closet needs the menu UI. It is off or not ready yet.'},
         closed={combat='Combat started: Stellar Closet closed without saving.',
             cutscene='A cutscene started: Stellar Closet closed without saving.',

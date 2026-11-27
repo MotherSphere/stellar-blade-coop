@@ -533,7 +533,7 @@ return {
             doro='لا يفتح Stellar Closet عندما يكون مظهر دورو مفعّلًا.',
             rifle='لا يفتح Stellar Closet عندما تكون البندقية مُخرجة.',
             emote='لا يفتح Stellar Closet أثناء أداء إيماءة.',
-            wear='لا يفتح Stellar Closet عندما ترتدي EVE مظهرًا من coop wear.',
+            wear='لا يفتح Stellar Closet عندما ترتدي EVE بدلة من coop wear.',
             ui='يحتاج Stellar Closet إلى واجهة القوائم. إنها متوقفة أو غير جاهزة بعد.'},
         closed={combat='بدأ القتال: أُغلق Stellar Closet دون حفظ.',
             cutscene='بدأ مشهد سينمائي: أُغلق Stellar Closet دون حفظ.',

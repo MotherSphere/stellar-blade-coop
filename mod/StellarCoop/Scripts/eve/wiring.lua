@@ -9,9 +9,10 @@ new=function(M)
 local print,log=M.print,M.log
 -- coop wear (eve/wear.lua), logging [WR] lines: coop-wear.txt lets the next Lua load give EVE the game's meshes
 -- back.
--- No look goes on again while the game is paused or shows one of its screens (its wardrobe among them). No look goes
--- on while Stellar Closet has one on EVE or waits to wear a kept one again (an off closet module's stub reads nil);
--- the closet refuses the other way round (closet/wiring.lua reads M.wear.worn).
+-- No look goes on again while the game is paused or shows one of its screens (its wardrobe among them). No suit goes
+-- on while Stellar Closet has a look on EVE or waits to wear a kept one again (an off closet module's stub reads nil);
+-- a hair still does, as the closet never sets SBHair. The closet refuses the other way round while a suit is worn
+-- (closet/wiring.lua reads M.wear.worn).
 M.wear=require('eve.wear').new({log=function(m) print('[StellarCoop][WR] '..tostring(m)..'\n') end,
     store=M.link and M.link.store('coop-wear.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
     closet=function() return M.closet.worn() end})

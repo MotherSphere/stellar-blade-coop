@@ -423,7 +423,7 @@ local tests = {
         end)
     end,
     -- SBO's own state that holds EVE's body (closet/wiring.lua's busy: the bike, the Doro look, the rifle, an emote, a
-    -- coop wear look): wear and preview refuse with its words, nothing on EVE and no file; once it ends they wear.
+    -- coop wear suit): wear and preview refuse with its words, nothing on EVE and no file; once it ends they wear.
     -- worn() (eve/wear.lua refuses on it) also says yes for a kept look the next Lua load has not worn again yet.
     wear_and_preview_refuse_while_sbo_holds_her_body = function()
         local w = world()

@@ -441,7 +441,7 @@ return {
             doro='DORO外觀開啟時無法開啟Stellar Closet。',
             rifle='拿出步槍時無法開啟Stellar Closet。',
             emote='表情動作播放時無法開啟Stellar Closet。',
-            wear='EVE穿著coop wear外觀時無法開啟Stellar Closet。',
+            wear='EVE穿著coop wear服裝時無法開啟Stellar Closet。',
             panel='其他SBO選單開啟時無法開啟Stellar Closet。',ui='Stellar Closet需要選單介面。介面已關閉或尚未就緒。'},
         closed={combat='戰鬥開始：Stellar Closet已關閉，未儲存。',cutscene='過場動畫開始：Stellar Closet已關閉，未儲存。',
             map='地圖已切換：Stellar Closet已關閉，未儲存。',photo='相片模式已開啟：Stellar Closet已關閉，未儲存。',

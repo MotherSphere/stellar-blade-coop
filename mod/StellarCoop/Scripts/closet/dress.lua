@@ -39,7 +39,7 @@
 -- confirmed one again (her own look when none). wear and off end a preview. preview({}) while a look is on previews
 -- her own look; confirm() of it clears the file, as off does.
 -- wear and preview refuse while o.busy() names SBO's own state that holds EVE's body (closet/wiring.lua: the bike
--- ride, the Doro look, the rifle out, an emote, a coop wear look): its key, then the words for the line.
+-- ride, the Doro look, the rifle out, an emote, a coop wear suit): its key, then the words for the line.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Fits=require('closet.fits')

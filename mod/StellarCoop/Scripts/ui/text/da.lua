@@ -550,7 +550,7 @@ return {
             doro='Stellar Closet åbner ikke, mens Doro-udseendet er slået til.',
             rifle='Stellar Closet åbner ikke, mens geværet er fremme.',
             emote='Stellar Closet åbner ikke, mens en emote spiller.',
-            wear='Stellar Closet åbner ikke, mens EVE bærer et coop wear-look.',
+            wear='Stellar Closet åbner ikke, mens EVE bærer en dragt fra coop wear.',
             ui='Stellar Closet skal bruge menubrugerfladen. Den er slået fra eller ikke klar endnu.'},
         closed={combat='Kamp begyndte: Stellar Closet lukkede uden at gemme.',
             cutscene='En mellemsekvens begyndte: Stellar Closet lukkede uden at gemme.',

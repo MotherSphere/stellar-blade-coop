@@ -12,13 +12,14 @@
 -- tick each frame; coop off stops it.
 -- SBO's own state that holds EVE's body or her rig, read at each call: the menu does not open, coop closet wear and
 -- the menu's previews refuse, while it is on. Its key in closet.refused, then the console's words. An off module's
--- stub reads nil: it holds nothing. coop wear refuses the other way round (eve/wiring.lua reads M.closet.worn).
+-- stub reads nil: it holds nothing. A coop wear hair alone holds nothing the closet sets (SBHair). coop wear refuses
+-- a suit the other way round (eve/wiring.lua reads M.closet.worn).
 local function busy_of(M)
     if M.riding() then return 'bike','EVE rides the bike: bike_key gets her off' end
     if M.doro.active() then return 'doro','the Doro look is on: coop race look off ends it' end
     if M.gun.out() then return 'rifle','the rifle is out: put it away first' end
     if M.emote.active() then return 'emote','coop emote plays: coop emote off ends it' end
-    if M.wear.worn() then return 'wear',"a coop wear look is on: coop wear off gives the game's back" end
+    if M.wear.worn() then return 'wear',"a coop wear suit is on: coop wear off suit gives the game's back" end
 end
 return {
 uses={'eve','fight.gunmode','online.modes.race'},

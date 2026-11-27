@@ -491,7 +491,7 @@ return {
             doro='도로 외형이 켜져 있을 때는 Stellar Closet을 열 수 없습니다.',
             rifle='소총을 꺼낸 상태에서는 Stellar Closet을 열 수 없습니다.',
             emote='감정 표현 중에는 Stellar Closet을 열 수 없습니다.',
-            wear='coop wear 외형을 입고 있을 때는 Stellar Closet을 열 수 없습니다.',
+            wear='coop wear 슈트를 입고 있을 때는 Stellar Closet을 열 수 없습니다.',
             ui='Stellar Closet에는 메뉴 UI가 필요합니다. UI가 꺼져 있거나 아직 준비되지 않았습니다.'},
         closed={combat='전투가 시작되어 Stellar Closet을 저장하지 않고 닫았습니다.',
             cutscene='컷신이 시작되어 Stellar Closet을 저장하지 않고 닫았습니다.',

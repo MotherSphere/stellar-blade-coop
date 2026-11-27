@@ -554,7 +554,7 @@ return {
             doro='Stellar Closet не открывается, пока включён облик Доро.',
             rifle='Stellar Closet не открывается, пока винтовка в руках.',
             emote='Stellar Closet не открывается во время эмоции.',
-            wear='Stellar Closet не открывается, пока на EVE образ из coop wear.',
+            wear='Stellar Closet не открывается, пока на EVE костюм из coop wear.',
             ui='Stellar Closet нужен интерфейс меню. Он выключен или ещё не готов.'},
         closed={combat='Начался бой: Stellar Closet закрыт без сохранения.',
             cutscene='Начался ролик: Stellar Closet закрыт без сохранения.',

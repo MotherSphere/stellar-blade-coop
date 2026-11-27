@@ -560,7 +560,7 @@ return {
             doro='Stellar Closet opent niet als de Doro-look aan staat.',
             rifle='Stellar Closet opent niet als het geweer getrokken is.',
             emote='Stellar Closet opent niet tijdens een emote.',
-            wear='Stellar Closet opent niet als EVE een look van coop wear draagt.',
+            wear='Stellar Closet opent niet als EVE een pak van coop wear draagt.',
             ui='Stellar Closet heeft de menu-interface nodig. Die staat uit of is nog niet klaar.'},
         closed={combat='Gevecht begonnen: Stellar Closet gesloten zonder opslaan.',
             cutscene='Tussenfilmpje begonnen: Stellar Closet gesloten zonder opslaan.',

@@ -512,7 +512,7 @@ return {
             doro='เปิด Stellar Closet ขณะเปิดรูปลักษณ์โดโรไม่ได้',
             rifle='เปิด Stellar Closet ขณะถือปืนไรเฟิลไม่ได้',
             emote='เปิด Stellar Closet ระหว่างแสดงท่าทางไม่ได้',
-            wear='เปิด Stellar Closet ขณะ EVE สวมชุดจาก coop wear ไม่ได้',
+            wear='เปิด Stellar Closet ขณะ EVE สวมชุดสูทจาก coop wear ไม่ได้',
             ui='Stellar Closet ต้องใช้ UI เมนู ซึ่งปิดอยู่หรือยังไม่พร้อม'},
         closed={combat='เริ่มการต่อสู้: ปิด Stellar Closet โดยไม่บันทึก',
             cutscene='เริ่มคัตซีน: ปิด Stellar Closet โดยไม่บันทึก',

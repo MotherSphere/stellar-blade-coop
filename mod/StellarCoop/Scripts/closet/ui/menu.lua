@@ -5,7 +5,7 @@
 -- tiles are closet/ui/model.lua's over closet/fits.lua, with what is worn read from the dress (closet/dress.lua's
 -- choices). It opens out of combat in the game world, the SBO lobby world included; it refuses on the first guard that
 -- fails, with one notice. o.busy (closet/wiring.lua) names SBO's own state that holds EVE's body (the bike ride, the
--- Doro look, the rifle out, an emote, a coop wear look) as a key of closet.refused, or nil. Open, it holds the kit's
+-- Doro look, the rifle out, an emote, a coop wear suit) as a key of closet.refused, or nil. Open, it holds the kit's
 -- input as closet_menu with the mouse cursor, taken again when the game takes it back (the kit's again) or another
 -- holder gave it to the game (the host's question, answered). The tab shown is kept
 -- across opens; the first open shows the first tab, Full outfit. Each close drops every game part first (the

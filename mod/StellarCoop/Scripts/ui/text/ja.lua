@@ -490,7 +490,7 @@ return {
             doro='ドロの見た目になっている間はStellar Closetを開けません。',
             rifle='ライフルを構えている間はStellar Closetを開けません。',
             emote='エモート中はStellar Closetを開けません。',
-            wear='coop wearの見た目を着ている間はStellar Closetを開けません。',
+            wear='coop wearのスーツを着ている間はStellar Closetを開けません。',
             ui='Stellar ClosetにはメニューUIが必要です。UIがオフか、まだ準備できていません。'},
         closed={combat='戦闘が始まりました。Stellar Closetを保存せずに閉じました。',
             cutscene='ムービーが始まりました。Stellar Closetを保存せずに閉じました。',

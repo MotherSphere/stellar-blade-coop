@@ -558,7 +558,7 @@ return {
             doro='Stellar Closet nie otwiera się przy włączonym wyglądzie Doro.',
             rifle='Stellar Closet nie otwiera się przy wyjętym karabinie.',
             emote='Stellar Closet nie otwiera się podczas emotki.',
-            wear='Stellar Closet nie otwiera się, gdy EVE nosi wygląd z coop wear.',
+            wear='Stellar Closet nie otwiera się, gdy EVE nosi strój z coop wear.',
             ui='Stellar Closet potrzebuje interfejsu menu. Jest wyłączony albo jeszcze niegotowy.'},
         closed={combat='Zaczęła się walka: Stellar Closet zamknięty bez zapisu.',
             cutscene='Zaczął się przerywnik: Stellar Closet zamknięty bez zapisu.',

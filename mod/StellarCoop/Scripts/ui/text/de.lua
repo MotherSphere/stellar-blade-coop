@@ -582,7 +582,7 @@ return {
             doro='Stellar Closet öffnet sich nicht, solange der Doro-Look an ist.',
             rifle='Stellar Closet öffnet sich nicht, solange das Gewehr gezogen ist.',
             emote='Stellar Closet öffnet sich nicht, während ein Emote läuft.',
-            wear='Stellar Closet öffnet sich nicht, solange EVE einen Look von coop wear trägt.',
+            wear='Stellar Closet öffnet sich nicht, solange EVE einen Anzug von coop wear trägt.',
             ui='Stellar Closet braucht die Menüoberfläche. Sie ist aus oder noch nicht bereit.'},
         closed={combat='Kampf begonnen: Stellar Closet ohne Speichern geschlossen.',
             cutscene='Zwischensequenz begonnen: Stellar Closet ohne Speichern geschlossen.',
