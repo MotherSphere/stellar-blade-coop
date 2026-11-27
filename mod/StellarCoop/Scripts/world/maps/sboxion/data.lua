@@ -118,8 +118,8 @@ D.FLOOR=-3275
 -- deck at -1100) and 10 m more on each side, so EVE who runs off an edge is still inside it when she passes the floor.
 -- floor: the top of SBEffectVolume_Xion10_03 of E04_Area01_A_LD_Visible (centre Z -9000, scale Z 77.25, a cube brush
 -- of half size 100), SB's fall volume under the whole box, 175 cm under the deck. Only its number is used, as FLOOR's.
--- In the box SB's collision under Z -1180 is one plate 14 cm thick on its edge, no floor (the hole survey's collision
--- set). Outside the box FLOOR stays.
+-- In the box SB's collision under Z -1180 is two pieces of Architecture/Ceiling/003_B_SM on their edge, 14 cm thick,
+-- no floor (the hole survey's collision set). Outside the box FLOOR stays.
 D.UNDER={yaw=40,u={-3.25,57.54},v={21.83,91.44},floor=-1275}
 -- LIFT: how far above its target a put-back places EVE, the module's own value. Both kinds of target are the centre of
 -- a capsule: a ground point is where her own capsule stood and an arrival point is the root of a spawn point, its
