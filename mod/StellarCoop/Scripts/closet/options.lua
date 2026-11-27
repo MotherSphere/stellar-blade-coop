@@ -603,10 +603,12 @@ function Options.new(o)
         local done,why=true,nil
         if again then done,why=dress.again() elseif shown then done,why=dress.reshow() end
         if not done then return say('options: the change waits: '..tostring(why)) end
+        for fit in pairs(worn) do redress[fit],reshow[fit]=nil,nil end -- Shown: not asked again if a head piece fails.
         for fit in pairs(heads) do
             if (redress[fit] or reshow[fit]) and head then
                 done,why=head.rewear(fit)
                 if not done then return say('options: the change waits: '..tostring(why)) end
+                redress[fit],reshow[fit]=nil,nil
             end
         end
         redress,reshow={},{}
