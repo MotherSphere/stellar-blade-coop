@@ -409,8 +409,11 @@ Stock.TABLES = {'/Game/Local/Data/ItemTable.ItemTable', '/Game/Local/Data/Equipm
 -- property reads as its number). A string category (a fake, a future UE4SS) passes as it is.
 -- Read again 27 Nov 2026 (the same array, 16-byte entries of name pointer and value): 0x145e49110 "ESBItemCategory_
 -- FaceAccessory" pairs with 22 and 0x145e49130 "ESBItemCategory_EarRing" with 23 (the number probe 8 read in game).
-local CATEGORIES = {[21] = 'ESBItemCategory_Hair', [22] = 'ESBItemCategory_FaceAccessory',
-    [23] = 'ESBItemCategory_EarRing'}
+-- Read again 27 Nov 2026: 0x145e48ec8 "ESBItemCategory_NanoSuit" pairs with 4 (the entry at 0x145e2b9e0: name pointer
+-- 0x145e48ec8, value 4); probe 9 compares the live Category with it.
+Stock.NANOSUIT = 4
+local CATEGORIES = {[4] = 'ESBItemCategory_NanoSuit', [21] = 'ESBItemCategory_Hair',
+    [22] = 'ESBItemCategory_FaceAccessory', [23] = 'ESBItemCategory_EarRing'}
 
 -- Row fields and their reflected types (EPropertyGenFlags in the FGenericPropertyParams that name them): ItemTable
 -- (SBItemTableProperty) Asset2D Str (0x145e0edf0), EquipmentAlias and EquipmentAlias2 Name (0x145e0d818, 0x145e0d7f0),

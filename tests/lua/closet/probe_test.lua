@@ -606,6 +606,36 @@ local tests = {
             'its skeleton is the body one')
         ok(has(r, 'probe: END 8 4/4'))
     end,
+    test9_notes_suit_items_equipment_and_material_groups = function()
+        local r = rig()
+        local function table_of(rows)
+            return uobj('table', {ForEachRow = function(_, fn) for _, k in ipairs(rows.order) do fn(k) end end,
+                FindRow = function(_, k) return rows[k] end})
+        end
+        r.found['/Game/Local/Data/ItemTable.ItemTable'] = table_of({order = {'Suit_01', 'Hair_001', 'Suit_02'},
+            Suit_01 = {Category = 4, Name = 'Item_Suit_01_Name', Asset2D = '/Game/UI/S1', EquipmentAlias = 'Eq_S1'},
+            Hair_001 = {Category = 21, EquipmentAlias = 'Eq_H1'},
+            Suit_02 = {Category = 4, EquipmentAlias = 'Eq_S2'}})
+        r.found['/Game/Local/Data/EquipmentTable.EquipmentTable'] = table_of({order = {'Eq_S1', 'Eq_H1', 'Eq_S2'},
+            Eq_S1 = {MountingResourcePath = '/Game/M1', MaterialGroup = 'MG_S1', Type = 3},
+            Eq_H1 = {MaterialGroup = 'MG_H'}, Eq_S2 = {MaterialGroup = 'MG_S1'}})
+        r.found['/Game/Local/Data/EquipmentMaterialTable.EquipmentMaterialTable'] = table_of({
+            order = {'a', 'b', 'c', 'd'},
+            a = {Group = 'MG_S1', VariationIndex = 0, MaterialIndex = 0, MaterialAssetPath = '/Game/Mi_A'},
+            b = {Group = 'MG_S1', VariationIndex = 0, MaterialIndex = 1, MaterialAssetPath = '/Game/Mi_B'},
+            c = {Group = 'MG_S1', VariationIndex = 1, MaterialIndex = 0, MaterialAssetPath = '/Game/Mi_C'},
+            d = {Group = 'MG_H', VariationIndex = 0, MaterialIndex = 0, MaterialAssetPath = '/Game/Mi_H'}})
+        play(r, '9')
+        ok(has(r, 'probe: NOTE 9 item Suit_01 '), 'the suit item') ok(has(r, 'Asset2D=/Game/UI/S1'), 'its icon')
+        ok(has(r, 'EquipmentAlias=Eq_S1'), 'its alias') ok(not has(r, 'item Hair_001'), 'no hair item')
+        ok(has(r, 'probe: PASS 9 suit items: 2 item rows'))
+        ok(has(r, 'probe: NOTE 9 equipment Eq_S1 ')) ok(has(r, 'MaterialGroup=MG_S1')) ok(has(r, 'Type=3'))
+        ok(not has(r, 'equipment Eq_H1'), 'no hair equipment')
+        ok(has(r, 'probe: NOTE 9 group MG_S1 v0 0=/Game/Mi_A 1=/Game/Mi_B'), 'variation 0')
+        ok(has(r, 'probe: NOTE 9 group MG_S1 v1 0=/Game/Mi_C'), 'variation 1')
+        ok(not has(r, 'group MG_H'), 'no hair group')
+        ok(has(r, 'probe: END 9 3/3'))
+    end,
     commands = function()
         local calls = {}
         local probe = {run = function(n) calls[#calls + 1] = 'run ' .. n; return true, 'ran' end,
@@ -619,8 +649,8 @@ local tests = {
         ok((C.closet('probe', 'off', nil, nil, nil, nil)))
         eq((C.closet('probe', '3', 'x', nil, nil, nil)), false)
         same(calls, {'run 3', 'off'})
-        ok(require('closet.commands').USE:find('probe <1-8|off>', 1, true))
-        eq(Probe.USE, 'Use: coop closet probe <1-8|off>')
+        ok(require('closet.commands').USE:find('probe <1-9|off>', 1, true))
+        eq(Probe.USE, 'Use: coop closet probe <1-9|off>')
     end,
 }
 run('probe_test', tests)

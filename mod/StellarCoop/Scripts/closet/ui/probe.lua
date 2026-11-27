@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop closet probe <1-8|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts (the
+-- coop closet probe <1-9|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts (the
 -- piece grid, a grid slot alone, the tab buttons, the detail panel, focus and input), test 6, the reads for the
 -- camera and fit work (EVE's bones, the camera's FOV, mesh slot names, LODs, skin parameters), and test 7, the live
 -- read of the stock hair tables. One runs at a time, each check a "probe: PASS <n> <check>" or "probe: FAIL <n>
@@ -25,7 +25,7 @@ local Probe={}
 Probe.TIMEOUT=30 -- Seconds a test may run unless it sets its own.
 Probe.WATCH=10 -- Seconds a check watches the mouse.
 Probe.RELEASE_TRIES=600 -- Frames the probe tries again to give the input back (about 10 s).
-Probe.USE='Use: coop closet probe <1-8|off>'
+Probe.USE='Use: coop closet probe <1-9|off>'
 Probe.GROUP='closet_probe'
 Probe.TESTS={}
 -- The game's parts and assets, read in the widget JSON and Ghidra (build 26123051) on 25 Nov 2026.
@@ -714,6 +714,63 @@ Probe.TESTS['8']={timeout=120,steps={
             end
         end
         return true,n..' meshes, '..on_body..' on the body skeleton'
+    end}}}
+
+-- Test 9: the game's own suits for the Full outfit tab's Original list (Task 8). The live ItemTable rows of Category
+-- NanoSuit (Stock.NANOSUIT), their EquipmentTable rows and the EquipmentMaterialTable groups those use: one NOTE
+-- line per item, per equipment row and per group variation. It writes nothing and loads nothing.
+local function suit_category(c) return c==tostring(Stock.NANOSUIT) or c:find('NanoSuit$')~=nil end
+Probe.TESTS['9']={timeout=120,steps={
+    {frames=0,name='suit items',run=function(ctx)
+        local dt=ctx.find(Stock.TABLES[1])
+        if not dt then return false,'ItemTable not found' end
+        ctx.suit_aliases={}
+        local n=0
+        rows_of(dt,function() return true end,function(name,row)
+            if not suit_category(field(row,'Category')) then return end
+            n=n+1
+            local out={}
+            for _,f in ipairs({'Category','Name','Asset2D','EquipmentAlias','EquipmentAlias2'}) do
+                out[#out+1]=f..'='..field(row,f)
+            end
+            ctx.log('NOTE 9 item '..name..' '..table.concat(out,' '))
+            for _,f in ipairs({'EquipmentAlias','EquipmentAlias2'}) do
+                local a=field(row,f)
+                if a~='?' and a~='-' and a~='None' then ctx.suit_aliases[a]=true end
+            end
+        end)
+        return n>0 and next(ctx.suit_aliases)~=nil,n..' item rows'
+    end},
+    {frames=0,name='suit equipment',run=function(ctx)
+        local dt=ctx.find(Stock.TABLES[2])
+        if not dt then return false,'EquipmentTable not found' end
+        ctx.suit_groups={}
+        local n=rows_of(dt,function(name) return ctx.suit_aliases[name] end,function(name,row)
+            local out={}
+            for _,f in ipairs(ROW_FIELDS) do out[#out+1]=f..'='..field(row,f) end
+            ctx.log('NOTE 9 equipment '..name..' '..table.concat(out,' '))
+            ctx.suit_groups[field(row,'MaterialGroup')]=true
+        end)
+        return n>0,n..' equipment rows'
+    end},
+    {frames=0,name='material groups',run=function(ctx)
+        local dt=ctx.find(Stock.TABLES[3])
+        if not dt then return false,'EquipmentMaterialTable not found' end
+        local by,order={},{}
+        rows_of(dt,function() return true end,function(_,row)
+            local g=field(row,'Group')
+            if not ctx.suit_groups[g] then return end
+            local key=g..' v'..field(row,'VariationIndex')
+            if not by[key] then by[key]={}; order[#order+1]=key end
+            local list=by[key]
+            list[#list+1]=field(row,'MaterialIndex')..'='..field(row,'MaterialAssetPath')
+        end)
+        table.sort(order)
+        for _,key in ipairs(order) do
+            table.sort(by[key])
+            ctx.log('NOTE 9 group '..key..' '..table.concat(by[key],' '))
+        end
+        return #order>0,#order..' variations'
     end}}}
 
 -- A game object by path: in memory, else after a synchronous LoadAsset (a class path loads its asset path without
