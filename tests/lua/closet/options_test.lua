@@ -233,6 +233,10 @@ local tests = {
             ok(r.o.step('s', 1, 'shape:1', -1)) ok(r.o.step('s', 1, 'shape:2', 1))
             r.o.tick()
             same(r.body.morphs, {FB_Breast = -0.5, TopReveal = 1}, 'ShapeKeyName, else DisplayName')
+            -- shaped finds the value by the component's address: each read of her body is a new UE4SS wrapper.
+            local again = setmetatable({}, {__index = r.body})
+            eq(r.o.shaped(again, 'FB_Breast'), -0.5, 'another wrapper of her body: its value')
+            eq(r.o.shaped(again, 'Nothing'), nil, 'a name not written: nil')
             r.o.reset('s')
             r.o.tick()
             same(r.body.morphs, {}, 'the pack values: the curves removed')

@@ -443,8 +443,16 @@ function Options.new(o)
     -- Grows each time paint writes a value change (owned and held may have changed): closet/colour.lua paints again.
     function self.revision() return drawn end
     -- The value (0 to 1) of the shape key name last written on component c, or nil: closet/shape.lua puts it back.
+    -- By address, as mine() compares: each read of her body (dress.parts) is a new UE4SS wrapper.
     function self.shaped(c,name)
-        for _,m in pairs(morphs) do if m.c==c and m.name==name then return m.v end end
+        local ok,at=pcall(U.address,c)
+        if not ok then return nil end
+        for _,m in pairs(morphs) do
+            if m.name==name then
+                local same,mat=pcall(U.address,m.c)
+                if same and mat==at then return m.v end
+            end
+        end
     end
 
     -- A slot's dynamic instance (an instance already there is reused); nil when the slot has no material or the
