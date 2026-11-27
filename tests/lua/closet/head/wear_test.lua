@@ -230,7 +230,7 @@ local function part(eve_name, name, fields)
         local raise = rawget(self, 'anim_raises')
         rawset(self, 'anim_raises', nil)
         if raise then error(raise, 0) end
-        rawset(self, 'AnimClass', k); said(name, 'anim', short(k))
+        rawset(self, 'AnimClass', k); said(name, 'anim', k and short(k) or 'none')
     end
     function c:SetPhysicsAsset(a, force)
         rawset(self, 'PhysicsAssetOverride', a); said(name, 'physics', a and short(a) or 'none', tostring(force))
@@ -238,7 +238,7 @@ local function part(eve_name, name, fields)
     function c:SetMaterial(i, m)
         assert(math.type(i) == 'integer' and i >= 0)
         for k = #self.OverrideMaterials + 1, i do self.OverrideMaterials[k] = invalid end
-        self.OverrideMaterials[i + 1] = m; said(name, 'material', i, short(m))
+        self.OverrideMaterials[i + 1] = m or invalid; said(name, 'material', i, m and short(m) or 'none')
     end
     function c:SetVisibility(v, children)
         assert(children == false, 'Its children stay as they are')
@@ -821,16 +821,53 @@ local tests = {
         ok(not since(0):find('SBPonytail', 1, true), since(0))
     end,
 
-    -- Glasses, Headwear and Mask go on a component the closet makes (not built yet): never a false success.
+    -- Glasses, Headwear and Mask go on a component the closet makes (not built yet): that slot alone stays unworn and
+    -- is said so (never a false success); the rest of the list is worn.
     made_slots_are_not_worn_yet = function()
         for _, c in ipairs({{fit = 'SB.FaceAccessory_001', slot = 'Glasses'}, {fit = 'p.hat', slot = 'Headwear'},
                 {fit = 'p.mask', slot = 'Mask'}}) do
             local w = world()
-            local good, why = w.wear({hair('SB.Hair_001'), c})
-            eq(good, nil, c.slot) ok(why and why:find(c.slot, 1, true), tostring(why))
-            eq(since(0), 'save', 'no call')
-            same(w.head.worn(), {})
+            ok(w.wear({hair('SB.Hair_001'), c}))
+            eq(w.eve.hair.SkeletalMesh, h07, 'the hair worn')
+            ok(not since(0):find(short(glasses), 1, true), since(0))
+            same(w.head.worn(), {['SB.Hair_001'] = 'Hair'})
+            same(w.head.unworn(), {[c.fit] = c.slot})
+            local said_it = 0
+            for _, l in ipairs(w.logs) do if l:find('not worn: ' .. c.fit, 1, true) then said_it = said_it + 1 end end
+            eq(said_it, 1, table.concat(w.logs, ' / '))
         end
+        -- Only a made slot: nothing worn, nothing called.
+        local w = world()
+        ok(w.wear({{fit = 'p.mask', slot = 'Mask'}}))
+        eq(since(0), 'save|save') same(w.head.worn(), {})
+    end,
+
+    -- Off gives each component the game's own back: no closet AnimBP or material left behind.
+    an_earring_off_leaves_nothing_behind = function()
+        local w = world()
+        ok(w.wear({{fit = 'SB.Earring_001', slot = 'EarringL'}}))
+        local n = #calls
+        ok(w.head.give_back())
+        eq(since(n), 'SBAccSlot1 mesh none true|SBAccSlot1 anim none|SBAccSlot1 physics none false|'
+            .. 'SBAccSlot1 material 0 none')
+        eq(w.eve.acc.AnimClass, nil)
+        -- A game earring before: its mesh, class and material back.
+        local ear02 = mesh('00_ACC/ACC_EAR_02/ACC_EAR_02M', {material('00_ACC/ACC_EAR_02/MI_EAR_02')})
+        local ear02_anim = asset(p('00_ACC/ACC_EAR_02/ACC_EAR_02M_AnimBP') .. '_C', ANIM)
+        w = world()
+        w.eve.acc.SkeletalMesh, w.eve.acc.AnimClass = ear02, ear02_anim
+        ok(w.wear({{fit = 'SB.Earring_001', slot = 'EarringL'}}))
+        n = #calls
+        ok(w.wear({hair('SB.Hair_001')})) -- The None tile on the earring row.
+        ok(since(n):find('SBAccSlot1 mesh ACC_EAR_02M true|SBAccSlot1 anim ACC_EAR_02M_AnimBP_C|', 1, true), since(n))
+        ok(since(n):find('SBAccSlot1 material 0 MI_EAR_02', 1, true), since(n))
+        eq(w.eve.acc.AnimClass, ear02_anim)
+        -- The next Lua load's restore does the same.
+        w = world()
+        ok(w.wear({{fit = 'SB.Earring_001', slot = 'EarringL'}}))
+        Head.new({log = function() end, fits = fits}).restore(w.file)
+        eq(w.eve.acc.SkeletalMesh, nil) eq(w.eve.acc.AnimClass, nil)
+        eq(w.eve.acc.OverrideMaterials[1], invalid, 'no override left')
     end,
 
     restore_gives_each_component_back = function()
@@ -887,13 +924,18 @@ local tests = {
         eq(#parts, 2)
         eq(parts[1].fit, 'p.klukai') eq(parts[1].slots[4], nil) eq(parts[1].slots[0], 'Face')
         same(parts[2].slots, {[4] = 'Eyes', [7] = 'Eyes'}) eq(parts[2].c, w.eve.face)
-        -- Another face mesh locks them: not worn.
+        -- Another face mesh locks them: the eyes skipped and said once, the face worn.
         w = world()
         eq(w.head.eyes_locked('p.fitface'), true) eq(w.head.eyes_locked('p.klukai'), false)
-        local good, why = w.wear({{fit = 'p.fitface', slot = 'Face'}, {fit = 'SB.Eyes_Own', slot = 'Eyes'}})
-        eq(good, nil) ok(why and why:find('face', 1, true), tostring(why))
-        eq(since(0), 'save', 'no call')
-        ok(w.wear({{fit = 'p.fitface', slot = 'Face'}}))
+        ok(w.wear({{fit = 'p.fitface', slot = 'Face'}, {fit = 'SB.Eyes_Own', slot = 'Eyes'}}))
+        eq(w.eve.face.SkeletalMesh, fit_face)
+        same(w.head.worn(), {['p.fitface'] = 'Face'}) same(w.head.unworn(), {['SB.Eyes_Own'] = 'Eyes'})
+        eq(#w.head.parts(), 1, 'no Eyes part')
+        local count = 0
+        w.eve.face.SkeletalMesh = jali
+        w.tick(1) w.tick(1)
+        for _, l in ipairs(w.logs) do if l:find('not worn: SB.Eyes_Own', 1, true) then count = count + 1 end end
+        eq(count, 1, 'said once: ' .. table.concat(w.logs, ' / '))
         eq(w.head.eyes_locked(), true, 'the worn face is not hers')
     end,
 }
