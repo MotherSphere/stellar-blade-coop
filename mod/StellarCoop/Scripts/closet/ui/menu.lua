@@ -202,7 +202,7 @@ function Menu.new(o)
     local function refused()
         if not (kit and kit.ready() and not kit.off()) then return 'ui' end
         if not o.world() then return 'loading' end
-        if kit.holding() and not owed then return 'panel' end -- Held for us since a close: not another panel.
+        if kit.holding() and not kit.holding(View.GROUP) then return 'panel' end -- Still ours since a close: none.
         if kit.paused(true) then return 'screen' end
         if o.photo()~='0' then return 'photo' end
         local eve=U.her(UE.GetPlayer())
@@ -961,9 +961,9 @@ function Menu.new(o)
         ticked=t
         if camera and camera.take_back() then self.nav('back') end -- A right click with no drag.
         if not open then
-            -- shortcut: kit.holding() does not say for whom, so a panel that took the input meanwhile keeps owed set
-            -- (open then skips the panel guard); read the holder once the kit says it.
-            if owed and t>=back_at then kit.input(false,View.GROUP); owed=kit.holding() end
+            -- Owed while the kit still holds it for us (no player controller at the give-back); a panel that took it
+            -- meanwhile has it, nothing is owed.
+            if owed and t>=back_at then kit.input(false,View.GROUP); owed=kit.holding(View.GROUP) end
             -- Like the dress's restore, it waits while the game is paused or shows a screen (a loading screen).
             if unreverted and t>=guard_at and not kit.paused(true) then
                 guard_at=t+Menu.RETRY

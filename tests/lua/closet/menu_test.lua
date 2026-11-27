@@ -1994,6 +1994,31 @@ local tests = {
         package.loaded.UEHelpers.GetPlayer = function() return nil end
     end,
 
+    -- Another panel that takes the input within BACK after a close (F5 twice: the co-op menu) has it: the closet's
+    -- give-back owes nothing then, so its open refuses on the panel guard, before BACK and after it.
+    a_panel_that_took_the_input_after_a_close_refuses_the_open = function()
+        local r = rig()
+        r.menu.open()
+        r.menu.close('revert')
+        ok(r.kit.holding('closet_menu'), 'still ours for BACK s')
+        r.kit.input(true, 'menu')
+        local good, line = r.menu.open()
+        eq(good, false, 'refused before BACK') eq(line, T.en.closet.refused.panel, 'the panel line')
+        tick(r, 0.2)
+        eq(r.kit.held, 'menu', 'the give-back leaves the other panel\'s input')
+        local asked = #r.kit.inputs
+        tick(r, 0.4)
+        eq(#r.kit.inputs, asked, 'nothing owed: the give-back is not asked again')
+        good, line = r.menu.open()
+        eq(good, false, 'refused after BACK') eq(line, T.en.closet.refused.panel, 'the panel line again')
+        eq(r.menu.is_open(), false, 'closed')
+        -- Still ours at the close (no other panel): the next open takes it on.
+        r = rig()
+        r.menu.open()
+        r.menu.close('revert')
+        ok(r.menu.open(), 'an open while it is still ours')
+    end,
+
     -- A guard that raises while open closes the menu with a revert, the log naming it.
     an_unread_guard_closes_and_says_so = function()
         local r = rig()
