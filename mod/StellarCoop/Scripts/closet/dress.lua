@@ -265,6 +265,12 @@ function Dress.plan(choices,fits,mode,toggles)
             end
             plan.pieces=plan.pieces+1
         end
+        -- A pack suit worn whole: its PieceHints' slots (closet/cns_import.lua's guess from each toggle's name) for the
+        -- sections no hand piece maps; parts() lists the other shown sections as FullOutfit.
+        for _,h in ipairs(o.whole and o.whole.Hints or {}) do
+            local i=h.MaterialIndex
+            if i and not (o.map.Skin or {})[i] then slots[i]=slots[i] or h.Slot end -- The hand map's skin wins.
+        end
         if o==body then
             for index,regions in pairs(o.map.Skin or {}) do
                 if not hidden(regions,covered) then show[index]=true end
@@ -890,7 +896,8 @@ function Dress.new(o)
         return true
     end
     -- The worn components with their outfits, mesh paths, shown material slots and the closet slot each belongs to
-    -- (closet/colour.lua, closet/shape.lua): {{c=<component, nil when gone>, fit=<UniqueFitID>, mesh=<path>,
+    -- (closet/colour.lua, closet/shape.lua; a pack suit worn whole: FullOutfit for a section no piece or hint maps):
+    -- {{c=<component, nil when gone>, fit=<UniqueFitID>, mesh=<path>,
     -- slots={[index]=<Slot id>}}},
     -- her body first, then the added meshes in the plan's order. {} with no look mixed; nil while the mix is paused or
     -- stopped, or EVE is not there.
@@ -903,6 +910,8 @@ function Dress.new(o)
             c=valid(c)
             local slots={}
             for index,slot in pairs(c and a.slots or {}) do if a.show[index] then slots[index]=slot end end
+            -- A pack suit worn whole: a shown section with no slot is the whole outfit's (the colour layer's Primary).
+            for index in pairs(c and a.whole and a.show or {}) do slots[index]=slots[index] or Slots.FULL_OUTFIT end
             out[#out+1]={c=c,fit=a.fit,mesh=a.mesh,slots=slots}
         end
         add(eve.Mesh,state.plan.body)

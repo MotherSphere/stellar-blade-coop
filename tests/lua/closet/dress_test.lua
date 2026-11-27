@@ -191,6 +191,22 @@ local tests = {
             same(hidden_at(w.eve.Mesh), {1, 4}, 'the watchdog keeps the toggles')
         end)
     end,
+    -- A pack suit worn whole with no hand map: each shown section is listed (the colour layer paints it), with its
+    -- PieceHints slot (closet/cns_import.lua's guess from the toggle's name), else FullOutfit (the Primary role).
+    -- Hidden sections are not listed.
+    a_whole_pack_suit_lists_every_shown_section = function()
+        with_packs(function(w)
+            local item = pack_item('p.suit')
+            item.PieceHints = {{MaterialIndex = 4, Name = 'Heels', Slot = 'Shoes'},
+                {MaterialIndex = 5, Name = 'Body skin', Slot = 'BaseBody'}}
+            require('closet.fits').use({['p.suit'] = item})
+            local d = toggled(w, {})
+            assert(d.wear({{fit = 'p.suit'}}))
+            same(hidden_at(w.eve.Mesh), {1, 3})
+            same(d.parts()[1].slots, {[0] = 'FullOutfit', [2] = 'FullOutfit', [4] = 'Shoes', [5] = 'BaseBody'},
+                'every shown section: its hint, else FullOutfit')
+        end)
+    end,
     a_live_toggle_reshows_without_bumping_applied = function()
         with_packs(function(w)
             local t = {}

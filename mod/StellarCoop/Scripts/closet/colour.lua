@@ -7,7 +7,8 @@
 -- Stellar Closet's colour layer (coop closet colour, the menu's Colour tab): one palette over every piece worn. Four
 -- roles: Primary (main garments), Secondary (gloves, shoes, bands, straps, belts), Accent (jewellery, piercings,
 -- rings, metal trims) and Glow (emissive). Each is off (the pack's own colours) or one of SWATCHES. A material slot's
--- role is the role of the closet slot its piece sits in (Colour.SLOTS lists every closet/slots.lua slot), so mixed
+-- role is the role of the closet slot its piece sits in (Colour.SLOTS lists every closet/slots.lua slot; a pack suit
+-- worn whole: its PieceHints' slot, else FullOutfit, closet/dress.lua's parts), so mixed
 -- outfits from different packs share one palette. Primary, Secondary and Accent set 'Base Color Tint' to the swatch
 -- (the slot's alpha kept). Glow sets 'EmissiveColor' on the slots of its own role (Dermal: body glows) whose glow is on
 -- (not black): the swatch times the glow's brightness (its largest channel), alpha kept. A slot whose glow is off keeps
