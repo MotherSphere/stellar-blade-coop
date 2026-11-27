@@ -80,6 +80,20 @@ local function index_of(t)
     local i=type(t)=='table' and type(t.MaterialIndex)=='number' and math.tointeger(t.MaterialIndex)
     return i and i>=0 and i or nil
 end
+-- Every slot a control paints: its MaterialIndices (one control on several alike slots, closet/head/stock.lua's),
+-- else its MaterialIndex.
+local function indices_of(t)
+    local out={}
+    if type(t)=='table' and type(t.MaterialIndices)=='table' then
+        for _,i in ipairs(t.MaterialIndices) do
+            i=type(i)=='number' and math.tointeger(i)
+            if i and i>=0 then out[#out+1]=i end
+        end
+        if #out>0 then return out end
+    end
+    out[1]=index_of(t)
+    return out
+end
 local function num(x,d) return type(x)=='number' and x or d end
 local function copy(x)
     if type(x)~='table' then return x end
@@ -533,38 +547,39 @@ function Options.new(o)
                 for _,kind in ipairs({'colour','number','finish'}) do
                     local list=type(cfg[LISTS[kind]])=='table' and cfg[LISTS[kind]] or {}
                     for n,c in ipairs(list) do
-                        local index=index_of(c)
-                        local name=index and type(c.ParamName)=='string' and c.ParamName
-                        if name then
-                            local lead_fit,lead_n=part.fit,n -- The control whose value it takes.
-                            local value
-                            if follows then
-                                local theirs=type(hair.Controls)=='table' and hair.Controls[LISTS[kind]] or {}
-                                for m,h in ipairs(theirs) do
-                                    if type(h)=='table' and h.ParamName==name then
-                                        lead_fit,lead_n=hair_fit,m
-                                        value=value_of(hair_fit,hair.Variant,kind,theirs,h)
-                                        break
+                        for _,index in ipairs(indices_of(c)) do
+                            local name=type(c.ParamName)=='string' and c.ParamName
+                            if name then
+                                local lead_fit,lead_n=part.fit,n -- The control whose value it takes.
+                                local value
+                                if follows then
+                                    local theirs=type(hair.Controls)=='table' and hair.Controls[LISTS[kind]] or {}
+                                    for m,h in ipairs(theirs) do
+                                        if type(h)=='table' and h.ParamName==name then
+                                            lead_fit,lead_n=hair_fit,m
+                                            value=value_of(hair_fit,hair.Variant,kind,theirs,h)
+                                            break
+                                        end
                                     end
                                 end
-                            end
-                            if value==nil then value=value_of(part.fit,f.Variant,kind,list,c) end
-                            if kind=='colour' then
-                                held_now[tostring(address)..':'..index]=true
-                                if not alike(value,default(lead_fit,'colour:'..lead_n)) then
-                                    mine_now[tostring(address)..':'..index]=true
+                                if value==nil then value=value_of(part.fit,f.Variant,kind,list,c) end
+                                if kind=='colour' then
+                                    held_now[tostring(address)..':'..index]=true
+                                    if not alike(value,default(lead_fit,'colour:'..lead_n)) then
+                                        mine_now[tostring(address)..':'..index]=true
+                                    end
                                 end
-                            end
-                            if kind=='colour' then value={R=value.R,G=value.G,B=value.B,A=value.A}
-                            elseif kind=='finish' then
-                                local path=type(c.Textures)=='table' and c.Textures[value+1]
-                                value=type(path)=='string' and texture(path) or nil
-                            end
-                            local key=i..':'..index
-                            local s=kept[key] or mine(slots[key],part.c) or instance(part.c,index)
-                            if s then
-                                kept[key]=s
-                                if value~=nil then put(s,kind,name,value); wrote=wrote+1 end
+                                if kind=='colour' then value={R=value.R,G=value.G,B=value.B,A=value.A}
+                                elseif kind=='finish' then
+                                    local path=type(c.Textures)=='table' and c.Textures[value+1]
+                                    value=type(path)=='string' and texture(path) or nil
+                                end
+                                local key=i..':'..index
+                                local s=kept[key] or mine(slots[key],part.c) or instance(part.c,index)
+                                if s then
+                                    kept[key]=s
+                                    if value~=nil then put(s,kind,name,value); wrote=wrote+1 end
+                                end
                             end
                         end
                     end

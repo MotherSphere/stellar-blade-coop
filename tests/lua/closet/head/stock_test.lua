@@ -355,6 +355,30 @@ local tests = {
         ok(s[2].Min <= 0 and s[2].Max >= 1, 'a range around its value')
     end,
 
+    slots_of_one_value_share_their_controls = function()
+        -- A hair whose slots carry the same values (YoRHa's four) lists each control once, for all those slots
+        -- (Schizo's video of 27 Nov 2026); a slot with another value keeps its own control, so no default changes.
+        local r = rows()
+        r.mats['/Game/A/MI_H07_V0'] = mat(0.1, 0.2, 0.3)
+        r.mats['/Game/A/MI_H07_V0'].scalars = {Brightness = 0.7}
+        r.mats['/Game/A/MI_H07_V0b'] = mat(0.1, 0.2, 0.3)
+        r.mats['/Game/A/MI_H07_V0b'].scalars = {Brightness = 0.7}
+        r.mats['/Game/A/MI_H07_V0c'] = mat(0.9, 0.2, 0.3)
+        r.mats['/Game/A/MI_H07_V0c'].scalars = {Brightness = 0.7}
+        local configs = Stock.hair_controls({'/Game/A/MI_H07_V0', '/Game/A/MI_H07_V0b', '/Game/A/MI_H07_V0c'},
+            r.mats, function() end)
+        local roots, bright = {}, {}
+        for _, c in ipairs(configs.VectorControls) do
+            if c.ParamName == 'RootColor' then roots[#roots + 1] = c end
+        end
+        for _, c in ipairs(configs.ScalarControls) do
+            if c.ParamName == 'Brightness' then bright[#bright + 1] = c end
+        end
+        eq(#roots, 2, 'root colour: one for the two alike slots, one for the other')
+        same(roots[1].MaterialIndices, {0, 1}, 'the alike slots') eq(roots[2].MaterialIndex, 2, 'its own slot')
+        eq(#bright, 1, 'brightness once') same(bright[1].MaterialIndices, {0, 1, 2}, 'on all three slots')
+    end,
+
     technical_numbers_are_left_out = function()
         -- Only a hair's main numbers are controls: MipBias, MaskedAlpha, EdgeMask*, Occlusion* and the like crowded
         -- the options page (Schizo's screenshot of 27 Nov 2026).

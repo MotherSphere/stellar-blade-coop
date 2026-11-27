@@ -208,6 +208,28 @@ local tests = {
         Fits.CHOSEN = {}
         ok(good, why)
     end,
+    one_control_paints_each_slot_it_lists = function()
+        -- A control with MaterialIndices paints every slot it lists: a hair with four slots of one material showed its
+        -- every control four times (Schizo's video of 27 Nov 2026).
+        local item = stock_item('Hair', 'SB.H', {{name = 'RootColor', index = 0}})
+        item.Variants[1].UserConfigs.VectorControls[1].MaterialIndices = {0, 2}
+        Fits.use({['SB.H'] = item})
+        local good, why = pcall(function()
+            local r = rig()
+            local hair = component('Hair', {0, 1, 2})
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function() return {{c = hair, fit = 'SB.H', slots = {[1] = 'Hair'}, head = true}} end
+            ok(r.o.set('SB.H', 1, 'colour:1', {R = 0.2, G = 0.4, B = 0.6, A = 1}))
+            r.o.tick()
+            near(hair.mats[0].values.RootColor, {R = 0.2, G = 0.4, B = 0.6, A = 1}, 'slot 0')
+            near(hair.mats[2].values.RootColor, {R = 0.2, G = 0.4, B = 0.6, A = 1}, 'slot 2')
+            eq(hair.mats[1].mid, nil, 'slot 1 untouched')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
+
     a_head_repaint_follows_head_applied = function()
         Fits.use({['SB.H'] = stock_item('Hair', 'SB.H', {{name = 'RootColor', index = 0}})})
         local good, why = pcall(function()

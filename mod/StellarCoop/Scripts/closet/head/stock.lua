@@ -132,6 +132,32 @@ local function sorted_keys(t)
     return out
 end
 -- lost(why) is called for a root or tip colour no material of a hair chain has: its control is left out.
+-- The controls of one ParamName and one value on several slots made one, its MaterialIndices every such slot (YoRHa's
+-- four alike slots listed each control four times, Schizo's video of 27 Nov 2026). A slot whose value differs keeps
+-- its own control, so a value left alone paints each slot as it was.
+local function alike(a, b)
+    if type(a) == 'table' and type(b) == 'table' then
+        for k = 1, 4 do if math.abs((a[k] or 0) - (b[k] or 0)) > 1e-6 then return false end end
+        return true
+    end
+    return type(a) == 'number' and type(b) == 'number' and math.abs(a - b) <= 1e-6
+end
+local function merged(list)
+    local out = {}
+    for _, c in ipairs(list) do
+        local into
+        for _, o in ipairs(out) do
+            if o.ParamName == c.ParamName and alike(o.Value, c.Value) then into = o; break end
+        end
+        if into then
+            into.MaterialIndices = into.MaterialIndices or {into.MaterialIndex}
+            into.MaterialIndices[#into.MaterialIndices + 1] = c.MaterialIndex
+        else
+            out[#out + 1] = c
+        end
+    end
+    return out
+end
 local function hair_controls(slots, mats, lost)
     local configs = lists()
     local vectors, scalars = configs.VectorControls, configs.ScalarControls
@@ -177,8 +203,10 @@ local function hair_controls(slots, mats, lost)
             end
         end
     end
+    configs.VectorControls, configs.ScalarControls = merged(vectors), merged(scalars)
     return configs
 end
+Stock.hair_controls = hair_controls
 
 local function variants_of(rows, group, mesh, lost)
     local variants = {}
