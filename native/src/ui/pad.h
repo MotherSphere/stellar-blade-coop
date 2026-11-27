@@ -300,7 +300,11 @@ public:
     if (key == 0 || !valid(id))
       return;
     const auto v = int16_t(std::lround(std::clamp(value, -1.f, 1.f) * 32767));
-    const auto t = uint8_t(std::lround(std::clamp(value, 0.f, 1.f) * 255)); // A trigger: XInput's 0 to 255.
+    // A trigger comes as XInput's byte / 255 (Ghidra, build 26123051): the XInput poll FUN_142bfd400 calls slot +0x88
+    // with Gamepad_LeftTriggerAxis (FName DAT_146fa9b18, FUN_140981c20) and Gamepad_RightTriggerAxis (DAT_146fa9b20,
+    // FUN_140981d10), each byte times 1/255 (the float at 0x14674f2d8), sent on a change or on each poll while above 30.
+    // FUN_1412ea740 sends both the same way. Back to 0 to 255 here.
+    const auto t = uint8_t(std::lround(std::clamp(value, 0.f, 1.f) * 255));
     if (key == names[kLeftX])
       x_[id].store(v, std::memory_order_relaxed);
     else if (key == names[kLeftY])
