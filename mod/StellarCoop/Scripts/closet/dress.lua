@@ -1,6 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+-- Copies online/partner/puppet.lua's resolve (find, LoadAsset, AssetRegistryHelpers:GetAsset for a mod pack's asset)
+-- and its SetSkeletalMesh skeleton guard (usable).
 -- coop closet wear: pieces of several CNS-format outfits worn at once on EVE, by fit map (closet/fits.lua). Display
 -- only: her equipment, inventory and saves are never read or written. Built on the Phase 0 spike's tested way
 -- (Stellar-Closet repository, spike/, 25 Nov 2026):
@@ -36,8 +38,6 @@
 -- the confirmed words, so a reload gives the confirmed look. confirm() saves the previewed look, revert() wears the
 -- confirmed one again (her own look when none). wear and off end a preview. preview({}) while a look is on previews
 -- her own look; confirm() of it clears the file, as off does.
--- The resolve (find, LoadAsset, AssetRegistryHelpers:GetAsset for a mod pack's asset) and the skeleton guard are copies
--- of online/partner/puppet.lua's (resolve and its SetSkeletalMesh guard).
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Fits=require('closet.fits')

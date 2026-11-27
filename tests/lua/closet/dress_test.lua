@@ -922,6 +922,52 @@ local tests = {
         eq(ok_, false) ok(why:find('not found'), why)
         eq(w.eve.Mesh.SkeletalMesh.path, OWN) eq(w.file, nil)
     end,
+    -- The copy of online/partner/puppet.lua's guard: SetSkeletalMesh reads the mesh's Skeleton unchecked, so a mesh with
+    -- none is refused before any engine call, as the body and as an added mesh (puppet_test's No_Skeleton case).
+    a_mesh_with_no_skeleton_is_refused = function()
+        local w = world()
+        w.assets[KS].Skeleton = nil
+        local mesh_, why = w.Dress.usable(KS)
+        eq(mesh_, nil) eq(why, KS .. ' has no skeleton')
+        local set = 0
+        local body = w.eve.Mesh
+        local set_mesh = body.SetSkeletalMesh
+        body.SetSkeletalMesh = function(c, m) set = set + 1; return set_mesh(c, m) end
+        for _, look in ipairs({B, A}) do -- Kunoichi on her body, then Kunoichi's shoes with Ocean Maid's top.
+            local good, said = w.d.wear(look)
+            eq(good, false) eq(said, KS .. ' has no skeleton')
+        end
+        eq(set, 0, 'no SetSkeletalMesh call') eq(#w.eve.comps, 1, 'no added mesh')
+        eq(body.SkeletalMesh.path, OWN, 'her own look') eq(w.file, nil, 'nothing kept')
+        w.assets[OM].Skeleton = nil
+        local good, said = w.d.wear({{fit = MAID, slots = {'Chest'}}, {fit = NINJA, slots = {'BaseBody'}}})
+        eq(good, false) eq(said, KS .. ' has no skeleton', 'the body is checked first')
+        w.assets[KS].Skeleton = obj('/Game/Art/EVE/Skeleton.Skeleton')
+        good, said = w.d.wear({{fit = MAID, slots = {'Chest'}}, {fit = NINJA, slots = {'BaseBody'}}})
+        eq(good, false) eq(said, OM .. ' has no skeleton', 'an added mesh is checked too')
+        eq(set, 0, 'still no SetSkeletalMesh call') eq(#w.eve.comps, 1, 'still no added mesh')
+    end,
+    -- The copy of online/partner/puppet.lua's resolve: a mod pack's mesh that is neither in memory nor found by LoadAsset
+    -- (the cooked registry does not list it) is loaded by AssetRegistryHelpers:GetAsset with its path.
+    a_mesh_loadasset_misses_is_found_by_getasset = function()
+        local w = world()
+        local registry, asked, loads = {[KS] = w.assets[KS]}, {}, {}
+        w.assets[KS] = nil
+        local find = StaticFindObject
+        StaticFindObject = function(path)
+            if path ~= '/Script/AssetRegistry.Default__AssetRegistryHelpers' then return find(path) end
+            local helpers = obj(path)
+            function helpers:GetAsset(data) asked[#asked + 1] = data.ObjectPath; return registry[data.ObjectPath] end
+            return helpers
+        end
+        LoadAsset = function(path) loads[#loads + 1] = path end
+        assert(w.d.wear(B))
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'worn from GetAsset')
+        same(loads, {KS}, 'LoadAsset tried first') same(asked, {KS}, 'then GetAsset with its path')
+        registry[KS] = nil
+        local good, why = w.d.wear(B)
+        eq(good, false) eq(why, KS .. ' not found', 'nothing found: refused')
+    end,
     commands = function()
         local w = world()
         local C = require('closet.commands').new({dress = w.d, fits = require('closet.fits')})
