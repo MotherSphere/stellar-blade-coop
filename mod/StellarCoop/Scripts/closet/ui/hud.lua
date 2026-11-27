@@ -2,9 +2,9 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Copied from fight/gunmode/ui/dpad.lua (November 2026), cut to the closet's entry.
--- Stellar Closet's entry in the HUD's item column, left of gun mode's entry (the D-pad Left spot): the closet's hanger
--- glyph (icons/full_outfit.png, Slots.glyph(Slots.FULL_OUTFIT)), then the button that opens the closet, imported
--- at run time with ImportFileAsTexture2D as closet/ui/view.lua imports its glyphs. The button follows the game's own
+-- Stellar Closet's entry in the HUD's item column, where gun mode's entry would start (gun mode's moves right of it by
+-- lead()): the closet's hanger glyph (icons/full_outfit.png, Slots.glyph(Slots.FULL_OUTFIT)), then the button that
+-- opens the closet, imported at run time with ImportFileAsTexture2D as closet/ui/view.lua imports its glyphs. The button follows the game's own
 -- D-pad marker: on a gamepad the D-pad Left glyph of the pad the game shows (its DPad_Up glyph's Left twin), on the
 -- keyboard the closet key's icon on the game's own key cell (btn_PcEmpty), the way the marker shows Q and R. Sizes
 -- come from the game's own widgets (the key icon from btn_up, the hanger from the heal item's icon), so the entry
@@ -350,13 +350,12 @@ function Hud.new(g)
             pcall(function() ui.bg:SetVisibility((t and kb and ui.cell) and 4 or 1) end)
             g.log('hud: glyph '..tostring(path)..(t and '' or ' (missing)'))
         end
-        -- place: the holder takes the marker's size, the row is moved left of gun mode's entry by a render
-        -- translation. Gun mode's row starts at the marker's width + GAP; ours (the hanger i, GAP, the key cell
-        -- k*1.25) ends SPACE before it.
+        -- place: the holder takes the marker's size, the row is moved by a render translation to where gun mode's
+        -- row would start (the marker's width + GAP). Gun mode's row moves right by lead (below).
         local ok,perr=pcall(function()
             local ds=ui.dpad:GetDesiredSize()
             assert(ds and ds.X>0,'no desired size yet')
-            local x=ds.X+Hud.GAP-Hud.SPACE-(ui.i+Hud.GAP+ui.k*1.25)
+            local x=ds.X+Hud.GAP
             if not ui.x or math.abs(ui.x-x)>0.5 then
                 ui.holder:SetWidthOverride(ds.X); ui.holder:SetHeightOverride(ds.Y)
                 ui.box:SetRenderTranslation({X=x,Y=ds.Y*Hud.DOWN}); ui.x=x
@@ -380,6 +379,14 @@ function Hud.new(g)
             if not make() then return end
         end
         follow(key)
+    end
+
+    -- HUD units the entry takes at the start of gun mode's row (the hanger, GAP, the key cell, SPACE): gun mode's
+    -- entry (fight/gunmode/ui/dpad.lua) starts that far right, so the row reads hanger, closet key, gun key, rifle.
+    -- nil while the entry is not placed on a HUD or after hide.
+    function self.lead()
+        if gone or not (ui.placed and alive(ui.box,ui.box_at)) then return nil end
+        return ui.i+Hud.GAP+ui.k*1.25+Hud.SPACE
     end
 
     -- Taken off the HUD (coop off). The Construct hook stays registered: it does nothing from then on.

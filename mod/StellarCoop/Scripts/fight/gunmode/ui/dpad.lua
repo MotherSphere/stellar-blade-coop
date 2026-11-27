@@ -260,11 +260,13 @@ function Dpad.new(g)
             pcall(function() ui.bg:SetVisibility((kb and ui.cell) and 4 or 1) end)
             g.log('dpad: glyph '..tostring(path)..(t and '' or ' (missing)'))
         end
-        -- place: the holder takes the marker's size, the row is moved right of the marker by a render translation
+        -- place: the holder takes the marker's size, the row is moved right of the marker by a render translation.
+        -- g.lead() moves it further right: the room the closet's HUD entry takes before ours (nil or no lead: none)
         local ok,perr=pcall(function()
             local ds=ui.dpad:GetDesiredSize()
             assert(ds and ds.X>0,'no desired size yet')
-            local x=ds.X+Dpad.GAP
+            local lead=g.lead and g.try(g.lead) or 0
+            local x=ds.X+Dpad.GAP+(type(lead)=='number' and lead or 0)
             if not ui.x or math.abs(ui.x-x)>0.5 then
                 ui.holder:SetWidthOverride(ds.X); ui.holder:SetHeightOverride(ds.Y)
                 ui.box:SetRenderTranslation({X=x,Y=ds.Y*Dpad.DOWN}); ui.x=x

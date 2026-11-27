@@ -41,6 +41,7 @@ local function world()
     function Obj.SetBrushFromTexture(o,t) o.tex=t end
     function Obj.SetBrush(o,b) o.brush=b end
     function Obj.SetBrushSize(o,s) o.bsize=s end
+    function Obj.SetRenderTranslation(o,t) o.at=t end
     function Obj.IsA(o,c) return c.short==o.class or c.short=='Widget' or (c.short=='UserWidget' and o.user==true) end
     function Obj.SetText(o,t) o.text=t; o.writes=(o.writes or 0)+1 end
     function Obj.RemoveFromParent(o)
@@ -377,6 +378,28 @@ do
     holder.full='SizeBox /Engine/Transient.Other_C_9.SizeBox_1' -- another widget at its address
     d.hide()
     assert((holder.removed or 0)==0,'no call on another object at the old address')
+end
+-- 9. Another entry before ours (the closet's, g.lead): the row starts that many units further right; with no lead (the
+--    closet off) at its own spot again.
+do
+    now=0
+    world()
+    local h=hud()
+    local g=new_g({})
+    local lead=90
+    g.lead=function() return lead end
+    local d=D.new(g)
+    ticks(d,10)
+    local box=h.overlay.named.gunmoderifleslot
+    assert(box.at and math.abs(box.at.X-(256+D.GAP+90))<0.01,'right of the closet entry: '..tostring(box.at and box.at.X))
+    lead=nil
+    ticks(d,10)
+    assert(math.abs(box.at.X-(256+D.GAP))<0.01,'its own spot with no lead: '..tostring(box.at.X))
+    lead=50
+    ticks(d,10)
+    g.lead=function() error('closet gone',0) end
+    ticks(d,10)
+    assert(math.abs(box.at.X-(256+D.GAP))<0.01,'its own spot when the lead raises')
 end
 os.clock=clock
 print('gunmode dpad_test ok')

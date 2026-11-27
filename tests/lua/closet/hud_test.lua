@@ -153,10 +153,11 @@ do
     assert(img.tex==W.hanger and img.vis==4 and g.imported==H.ICON_FILE,'the hanger icon')
     assert(said(logs,'hud: closet entry built, key cell found')==1,table.concat(logs,'\n'))
     assert(box.kids[1]==img and box.kids[2]==glyph.outer,'the hanger first, then the key')
-    -- marker 100 wide, key 32 (cell 40), icon 40: gun mode's row starts at 100+GAP; ours ends SPACE before it
-    local x=100+H.GAP-H.SPACE-(40+H.GAP+32*1.25)
-    assert(box.at and math.abs(box.at.X-x)<0.01 and box.at.Y==80*H.DOWN,'placed left of the gun entry: '
+    -- marker 100 wide, key 32 (cell 40), icon 40: at gun mode's own start, 100+GAP; gun mode's row moves right by
+    -- lead (the hanger, GAP, the key cell, SPACE)
+    assert(box.at and math.abs(box.at.X-(100+H.GAP))<0.01 and box.at.Y==80*H.DOWN,'placed at gun mode\'s start: '
         ..tostring(box.at and box.at.X))
+    assert(math.abs(d.lead()-(40+H.GAP+32*1.25+H.SPACE))<0.01,'its lead: '..tostring(d.lead()))
     assert(h.overlay.named.closetholder and not h.overlay.named.gunmoderifleslot,'Closet-named widgets only')
 end
 -- 2. No closet key (none): the keyboard shows neither glyph nor key cell. The pad shows its D-pad Left.
@@ -221,8 +222,10 @@ do
     local h=hud()
     local d=H.new(new_g({}))
     ticks(d,10,'F1')
+    assert(d.lead(),'a lead while placed')
     d.hide()
     assert(#h.overlay.kids==0,'the entry off the HUD')
+    assert(d.lead()==nil,'no lead after hide: gun mode goes back to its own spot')
     ticks(d,40,'F1')
     assert(#h.overlay.kids==0,'not built again after hide')
     world()

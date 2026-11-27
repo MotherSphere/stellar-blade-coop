@@ -13,7 +13,7 @@
 return {
 uses={},
 exports={'closet','closet_menu','closet_thumbs','closet_colour','closet_shape','closet_packs','closet_options',
-    'closet_presets'},
+    'closet_presets','closet_hud'},
 new=function(M)
 local print=M.print
 -- closet/dress.lua, logging [CL] lines: coop-closet.txt lets the next Lua load give EVE her own look back. No look
@@ -83,7 +83,8 @@ local scanned=false
 M.closet_packs.once=function()
     if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan) end
 end
--- The closet's entry in SB's HUD item column (closet/ui/hud.lua), left of gun mode's: ten times a second, under a
+-- The closet's entry in SB's HUD item column (closet/ui/hud.lua), at the start of gun mode's row (M.closet_hud: gun
+-- mode reads its lead() and moves its own entry right of ours): ten times a second, under a
 -- guard of its own, with the closet key's F-key (core/keybind.lua's key field: nil for none, so the keyboard shows no
 -- key cell). Without settings, F1, the default. Its hook on SB's HUD Construct (d2de021b) is registered once a Lua load
 -- and stays while the module is off. It raises when UE4SS cannot hook the function.
@@ -95,6 +96,7 @@ local hud=Hud.new(Hud.helpers({log=function(m) print('[StellarCoop][CL] '..tostr
             cb(ctx)
         end)
     end}))
+M.closet_hud=hud
 local hud_at=0
 local function hud_key()
     if not (M.settings and M.settings.closet_key) then return 'F1' end
