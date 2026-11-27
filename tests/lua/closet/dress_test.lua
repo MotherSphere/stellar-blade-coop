@@ -929,6 +929,44 @@ local tests = {
             eq(w.eve.Mesh.SkeletalMesh.path, OWN, put .. ': off gives her own suit back') eq(w.file, nil)
         end
     end,
+    -- A save that fails (a virus scanner holding coop-closet.txt.tmp): the look on EVE and the state stay as they were,
+    -- the old line is written again, and off still gives her own look back.
+    a_failed_save_keeps_the_look_on_eve = function()
+        local w = world()
+        assert(w.d.wear(A)) -- Kunoichi's boots on her body, Ocean Maid's top on an added mesh.
+        local before, top = w.file, w.eve.comps[2]
+        local save, fails = w.store.save, 1
+        w.store.save = function(line)
+            if fails > 0 then fails = fails - 1; w.file = nil; return false, 'cannot write coop-closet.txt' end
+            return save(line)
+        end
+        local good, why = w.d.wear({{fit = MAID}})
+        eq(good, false) eq(why, 'coop-closet.txt not written: cannot write coop-closet.txt')
+        ok(w.d.worn(), 'still worn') same(w.d.choices(), A, 'the look before')
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'her body unchanged') ok(top.alive, 'its added mesh still on EVE')
+        eq(w.file, before, 'the old line written again')
+        assert(w.d.off())
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off gives her own look back') ok(not top.alive, 'the added mesh gone')
+    end,
+    -- The watchdog's mix again that fails keeps the look: the next second tries again.
+    a_failed_mix_again_is_tried_again = function()
+        local w = world()
+        assert(w.d.wear(A))
+        local save, fails = w.store.save, 1
+        w.store.save = function(line)
+            if fails > 0 then fails = fails - 1; return false, 'cannot write coop-closet.txt' end
+            return save(line)
+        end
+        w.eve.Mesh:SetSkeletalMesh(w.assets[OWN]) -- A map load.
+        second(w) second(w)
+        ok(logged(w, 'mix again failed: coop-closet.txt not written'), 'said') ok(w.d.worn(), 'still worn')
+        second(w)
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'mixed again the next second')
+        eq(#w.eve.comps, 2, 'one added mesh')
+        eq(fields(w.file)[2], OWN, 'her own look kept')
+        assert(w.d.off())
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN)
+    end,
     the_kept_line_is_read_once = function()
         local w = world()
         assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))

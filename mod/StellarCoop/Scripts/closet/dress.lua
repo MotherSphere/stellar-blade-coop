@@ -460,20 +460,27 @@ function Dress.new(o)
         end
         -- Her own look first, kept across a mix that changes (the first mix's).
         local own,materials=state and state.own,state and state.materials
-        -- No added mesh of an earlier mix stays: the old one's and this plan's outfits are swept off EVE first.
-        local paths={}
-        for _,a in ipairs(state and state.added or {}) do paths[#paths+1]=a.mesh end
-        for _,a in ipairs(plan.added) do paths[#paths+1]=a.mesh end
-        sweep(eve,paths)
         if not state then
             local mesh=valid(body.SkeletalMesh)
             own,materials=mesh and path_of(mesh) or '',current_materials(body)
         end
+        -- The new look is written before anything on EVE changes. A save that fails (a virus scanner holding the
+        -- temporary file) leaves the look on EVE and the state as they were, and writes the old line again.
+        local was=state
         state={plan=plan,choices=choices,kept=kept,eve_path=path_of(eve),own=own,materials=materials,added={},paused=false,
             wrong=0}
         for _,a in ipairs(plan.added) do state.added[#state.added+1]={mesh=a.mesh} end
         local saved,e=keep()
-        if saved==false then state=nil; return nil,'coop-closet.txt not written: '..tostring(e) end
+        if saved==false then
+            state=was
+            if was then keep() end
+            return nil,'coop-closet.txt not written: '..tostring(e)
+        end
+        -- No added mesh of an earlier mix stays: the old one's and this plan's outfits are swept off EVE first.
+        local paths={}
+        for _,a in ipairs(was and was.added or {}) do paths[#paths+1]=a.mesh end
+        for _,a in ipairs(plan.added) do paths[#paths+1]=a.mesh end
+        sweep(eve,paths)
         local mats,count=own_materials(body_mesh)
         if plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,count) end
         body:SetSkeletalMesh(body_mesh,true)
@@ -838,14 +845,10 @@ function Dress.new(o)
                 log('something outside keeps putting '..insisted..' on her body: the look is worn on that body until '
                     ..'the next wear or preview')
             end
-            local own,materials=state.own,state.materials
-            local was={}
-            for _,a in ipairs(state.added) do was[#was+1]=a.mesh end
-            state=nil
-            sweep(eve,was) -- The earlier added meshes: a forced body's plan adds other outfits.
+            -- apply keeps the state's own look and sweeps its added meshes (a forced body's plan adds other outfits). A
+            -- mix that fails keeps the state: the next second tries again, and coop closet off gives her look back.
             local ok,why=apply(plan,choices,kept)
-            if ok then state.own,state.materials=own,materials; keep()
-            else log('mix again failed: '..tostring(why)) end
+            if not ok then log('mix again failed: '..tostring(why)) end
             return
         end
         state.wrong=0
