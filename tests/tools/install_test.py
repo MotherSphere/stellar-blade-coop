@@ -309,7 +309,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'closet/manifest', 'closet/resolver', 'closet/slots', 'closet/ui/menu', 'closet/ui/model',
                               'closet/ui/probe', 'closet/ui/view', 'closet/ui/camera', 'closet/ui/lights',
                               'closet/colour', 'closet/shape', 'closet/thumbs', 'closet/packs', 'closet/options',
-                              'closet/presets',
+                              'closet/presets', 'closet/ui/hud',
                               'world/maps/sboxion/npcs/npcs',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',

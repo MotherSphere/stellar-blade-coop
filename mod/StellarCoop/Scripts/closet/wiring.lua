@@ -81,8 +81,26 @@ local scanned=false
 M.closet_packs.once=function()
     if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan) end
 end
+-- The closet's entry in SB's HUD item column (closet/ui/hud.lua), right of gun mode's: ten times a second, under a
+-- guard of its own, with the closet key's F-key (core/keybind.lua's key field: nil for none, so the keyboard shows no
+-- key cell). Without settings, F1, the default. Its hook on SB's HUD Construct (d2de021b) is registered once a Lua load
+-- and stays while the module is off. It raises when UE4SS cannot hook the function.
+local Hud=require('closet.ui.hud')
+local hud=Hud.new(Hud.helpers({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
+    hook_hud=function(path,cb)
+        RegisterHook(path..':Construct',function(ctx)
+            if M.off_modules['closet'] then return end
+            cb(ctx)
+        end)
+    end}))
+local hud_at=0
+local function hud_key()
+    if not (M.settings and M.settings.closet_key) then return 'F1' end
+    return M.settings.closet_key.key
+end
 local dress_tick,dress_stop=M.closet.tick,M.closet.stop
 M.closet.tick=function()
+    if os.clock()>=hud_at then hud_at=os.clock()+0.1; M.guarded('closet hud',hud.tick,hud_key()) end
     M.guarded('closet',dress_tick)
     M.guarded('closet options',options.tick)
     M.guarded('closet colour',colour.tick)
@@ -92,7 +110,7 @@ M.closet.tick=function()
     if M.closet_menu then M.guarded('closet menu',M.closet_menu.tick) end
 end
 M.closet.stop=function()
-    dress_stop(); options.stop(); colour.stop(); shape.stop(); probe.stop(); thumbs.stop()
+    dress_stop(); options.stop(); colour.stop(); shape.stop(); probe.stop(); thumbs.stop(); hud.hide()
     if M.closet_menu then M.closet_menu.stop() end
 end
 return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,thumbs=thumbs,

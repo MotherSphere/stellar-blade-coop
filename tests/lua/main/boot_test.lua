@@ -1332,6 +1332,25 @@ status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
     assert(not table.concat(printed,'|'):find('key F1',1,true),'closet_key=none: F1 does nothing')
 end)()
 
+-- The closet's HUD entry (closet/wiring.lua): ticked with the closet key's F-key, F1 unless set, the modifier left off
+-- (the game's key icons have none), nil for none; ten times a second at most. coop off takes it off.
+;(function()
+    local function keys(text)
+        settings_text=text
+        load_main(true)
+        hu.keys={}
+        for _=1,10 do clock=clock+0.02; loops[1].f() end
+        return hu.keys
+    end
+    local k=keys('')
+    assert(k[1]=='F1' and #k>=2 and #k<=3,'F1 by default, ten times a second: '..table.concat(k,' '))
+    assert(keys('closet_key=Shift+F3\n')[1]=='F3','the closet key\'s F-key')
+    assert(keys('closet_key=none\n')[1]=='none','no closet key: nil')
+    local hides=hu.hides
+    coop('off')
+    assert(hu.hides==hides+1,'coop off takes the entry off')
+end)()
+
 -- The pad reads for the closet: M.pad_bits() gives X, L3 and R3 held as bits (1, 2, 4) from coop_padbits' 8 arguments,
 -- M.pad_levels() the right stick's x and y (-1 to 1) and the triggers (0 to 1) from four coop_levels calls of 260, each
 -- answer saying which level it is. An older DLL without them: one log line, both nil, the wheel's reads still load.
