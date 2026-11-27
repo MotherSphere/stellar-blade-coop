@@ -544,6 +544,21 @@ local tests = {
         end
     end,
 
+    -- The same EVE with a new SBHair (the old component gone): the watchdog reads the new one and wears on it.
+    a_new_component_on_the_same_eve_gets_the_hair_again = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        local old = w.eve.hair
+        old.destroyed = true
+        local new = part('EVE_1', 'SBHair', {SkeletalMesh = hr01, AnimClass = hr01_anim,
+            OverrideMaterials = {colour('EVE_1')}})
+        w.eve.parts[3], w.eve.hair = new, new
+        w.tick(1) w.tick(1)
+        eq(new.SkeletalMesh, h07, 'the new SBHair wears the hair')
+        ok(w.head.give_back())
+        eq(new.SkeletalMesh, hr01, "off: the new component's own hair")
+    end,
+
     a_new_eve_gets_the_hair_again = function()
         local w = world()
         ok(w.wear({hair('SB.Hair_001')}))

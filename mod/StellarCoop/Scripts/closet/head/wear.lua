@@ -628,8 +628,8 @@ function Head.new(o)
             for n in pairs(changed) do
                 local p=parts[n]
                 local cc=Doro.same(p.c,p.c_path)
-                if cc then p.worn.own=p.own; p.own=read(cc,n,p.worn) end
-                p.worn=nil
+                if cc then p.worn.own=p.own; p.own=read(cc,n,p.worn); p.worn=nil
+                else parts[n]=nil end -- Its component is gone: capture reads the new one afresh.
             end
         end
         local ok,why=dress_up(eve,changed)
