@@ -148,6 +148,13 @@ local tests = {
         owned[3], top.values[TINT], rev = false, pack, rev + 1
         r.c.tick()
         near(top.values[TINT], {R = cr, G = cg, B = cb, A = 1}, 'back on the pack colour: crimson again')
+        -- An options repaint of the pack value that never owned the slot (a pack rescan, a lost instance record):
+        -- the palette writes its colour again, though its own record already holds it.
+        top.values[TINT], rev = pack, rev + 1
+        r.c.tick()
+        near(top.values[TINT], {R = cr, G = cg, B = cb, A = 1}, 'an options repaint: crimson again')
+        r.c.tick()
+        near(top.values[TINT], {R = cr, G = cg, B = cb, A = 1}, 'no repaint: kept')
     end,
     -- dress.reshow (an options toggle) shows a slot without a new look: the palette reaches it, the other instances
     -- kept.

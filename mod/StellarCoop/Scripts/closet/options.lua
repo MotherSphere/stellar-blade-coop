@@ -440,8 +440,9 @@ function Options.new(o)
     end
     function self.holds(c,index) return at_slot(held,c,index) end
     function self.owns(c,index) return at_slot(owned,c,index) end
-    -- Grows each time paint writes a value change (owned and held may have changed): closet/colour.lua paints again.
-    function self.revision() return drawn end
+    -- Grows with each paint (a value change, a new look, a pack rescan): closet/colour.lua paints after each.
+    local paints=0
+    function self.revision() return paints end
     -- The value (0 to 1) of the shape key name last written on component c, or nil: closet/shape.lua puts it back.
     -- By address, as mine() compares: each read of her body (dress.parts) is a new UE4SS wrapper.
     function self.shaped(c,name)
@@ -576,6 +577,7 @@ function Options.new(o)
         if not parts then return end -- Paused or stopped: the body wears another look.
         if gen~=seen then slots,morphs={},{} end -- A new look: its components and instances are new.
         local wrote=paint(parts)
+        paints=paints+1
         seen,drawn,painted=gen,changed,Fits.PACKS
         if wrote>0 then log(('options: %d value(s) written'):format(wrote)) end
     end

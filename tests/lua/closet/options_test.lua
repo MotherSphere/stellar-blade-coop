@@ -258,6 +258,12 @@ local tests = {
             eq(r.value(3, 'Metallic'), 0.7, 'the kept value on the new body')
             near(r.value(3, 'Base Color Tint'), {R = 0.5, G = 0.5, B = 0.5, A = 1}, 'the pack values too')
             ok(r.o.holds(r.body, 3) and r.o.holds(r.body, 4), 'the slots with a pack colour control')
+            -- revision grows with every paint, a pack rescan's too (Fits.PACKS replaced, no value changed): the
+            -- palette (closet/colour.lua) paints after each.
+            local rev = r.o.revision()
+            require('closet.fits').PACKS = setmetatable({}, {__index = require('closet.fits').PACKS})
+            r.o.tick()
+            ok(r.o.revision() ~= rev, 'a rescan\'s repaint: a new revision')
             ok(not r.o.holds(r.body, 6), 'a slot without one')
             -- owns: a control changed away from the pack's colour (the palette leaves only those alone).
             ok(not r.o.owns(r.body, 3) and not r.o.owns(r.body, 4), 'on the pack colour: not owned')

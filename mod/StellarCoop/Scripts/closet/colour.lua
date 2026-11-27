@@ -232,6 +232,10 @@ function Colour.new(o)
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
         if gen~=seen then slots={} end -- The dress made its materials and components again: ours went with them.
+        -- An options paint may have written over a slot both layers write (held): its values are sent again.
+        if rev~=revised and o.options and o.options.holds then
+            for _,s in pairs(slots) do if o.options.holds(s.c,s.index) then s.set={} end end
+        end
         paint(parts)
         seen,drawn,viewed,revised=gen,wanted,view,rev
     end
