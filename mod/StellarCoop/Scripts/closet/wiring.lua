@@ -29,7 +29,7 @@ M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '
 -- dress's plans take its toggles. Its tick runs each frame right after the dress's, before the colour layer's, so a
 -- variant or toggle change shows before the palette paints. The menu's options page and coop closet option set it.
 local Options=require('closet.options')
-local options=Options.new({dress=M.closet,store=M.link and M.link.store(Options.FILE),
+local options=Options.new({dress=M.closet,store=M.link and M.link.store(Options.FILE),head=head,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 M.closet_options=options
 -- Presets and favourites (closet/presets.lua) in coop-closet-presets.txt: the Full outfit tab's Presets rows, F on an

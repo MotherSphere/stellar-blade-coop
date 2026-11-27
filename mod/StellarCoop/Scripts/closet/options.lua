@@ -36,7 +36,11 @@
 -- are read once at new. reset(fit) gives one outfit its pack values back, off() (Reset Stellar Closet) every outfit and
 -- clears the file. stop() (coop off) drops the changes not shown yet and removes the shape keys it set: the dress gave
 -- EVE her own look back.
--- o: {dress=closet/dress.lua's (plan, again, reshow, loads, applied, parts), store=link.store(Options.FILE), log=}.
+-- o: {dress=closet/dress.lua's (plan, again, reshow, loads, applied, parts), store=link.store(Options.FILE), log=,
+-- head=closet/head/wear.lua's (rewear, applied, worn)}. A change of a worn head fit (Hair, Ponytail) puts that piece
+-- on again with head.rewear, not dress.again. A stock ponytail worn with a stock hair takes the hair's variant and
+-- values (one set of colours, Schizo's decision, as closet/head/wear.lua's plan): its control takes the hair's of the
+-- same ParamName; with a pack hair it keeps its own.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
 --   UPrimitiveComponent.GetMaterial, CreateDynamicMaterialInstance and
@@ -125,7 +129,7 @@ local function control(fit,key)
 end
 
 function Options.new(o)
-    local dress,log=o.dress,o.log or function() end
+    local dress,log,head=o.dress,o.log or function() end,o.head
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local self={}
     local values={} -- '<fit> <variant>' -> {[key]=value}, the values that differ from the pack's.
@@ -137,6 +141,7 @@ function Options.new(o)
     local slots,morphs,owned,held={},{},{},{}
     -- changed: grows with each value change; seen, drawn, painted: applied(), changed and Fits.PACKS as last written.
     local changed,seen,drawn,painted=0,nil,nil,nil
+    local seen_head=nil -- head.applied() as last painted.
     local names,textures={},{} -- FNames by text; finish textures by path (false: does not load).
     local function fname(text)
         names[text]=names[text] or FName(text)
@@ -507,13 +512,22 @@ function Options.new(o)
             if x==lead then return self.get(fit,v,kind..':'..n) end
         end
     end
+    -- The stock hair fit worn in parts, or nil: a stock ponytail follows its variant and values.
+    local function stock_hair(parts)
+        for _,part in ipairs(parts) do
+            local f=part.head and Fits.PACKS[part.fit]
+            if f and f.Slot=='Hair' and f.Origin=='original' then return part.fit,f end
+        end
+    end
     -- Every material value and shape key of each worn pack outfit on its component.
     local function paint(parts)
         local kept,mine_now,held_now,shaped={},{},{},{}
         local wrote=0
+        local hair_fit,hair=stock_hair(parts)
         for i,part in ipairs(parts) do
             local f=part.c and Fits.PACKS[part.fit]
             local cfg=f and f.Controls
+            local follows=hair and part.head and f.Slot=='Ponytail' and f.Origin=='original'
             local ok,address=pcall(U.address,part.c)
             if cfg and ok then
                 for _,kind in ipairs({'colour','number','finish'}) do
@@ -522,10 +536,22 @@ function Options.new(o)
                         local index=index_of(c)
                         local name=index and type(c.ParamName)=='string' and c.ParamName
                         if name then
-                            local value=value_of(part.fit,f.Variant,kind,list,c)
+                            local lead_fit,lead_n=part.fit,n -- The control whose value it takes.
+                            local value
+                            if follows then
+                                local theirs=type(hair.Controls)=='table' and hair.Controls[LISTS[kind]] or {}
+                                for m,h in ipairs(theirs) do
+                                    if type(h)=='table' and h.ParamName==name then
+                                        lead_fit,lead_n=hair_fit,m
+                                        value=value_of(hair_fit,hair.Variant,kind,theirs,h)
+                                        break
+                                    end
+                                end
+                            end
+                            if value==nil then value=value_of(part.fit,f.Variant,kind,list,c) end
                             if kind=='colour' then
                                 held_now[tostring(address)..':'..index]=true
-                                if not alike(value,default(part.fit,'colour:'..n)) then
+                                if not alike(value,default(lead_fit,'colour:'..lead_n)) then
                                     mine_now[tostring(address)..':'..index]=true
                                 end
                             end
@@ -560,14 +586,16 @@ function Options.new(o)
         slots,morphs,owned,held=kept,shaped,mine_now,held_now
         return wrote
     end
-    -- A variant or toggle change of a worn outfit shown; one that cannot show now is asked again at the next tick.
+    -- A variant or toggle change of a worn outfit shown (a head fit: put on again by head.rewear); one that cannot show
+    -- now is asked again at the next tick.
     local function show()
         if next(redress)==nil and next(reshow)==nil then return end
         local plan=dress.plan()
-        local worn={}
+        local worn,heads={},{}
         if plan then
             if plan.body then worn[plan.body.fit]=true end -- A head-only look has no body.
             for _,a in ipairs(plan.added) do worn[a.fit]=true end
+            for _,h in ipairs(plan.head or {}) do heads[h.fit]=true end
         end
         local again,shown=false,false
         for fit in pairs(redress) do again=again or worn[fit]==true end
@@ -575,26 +603,33 @@ function Options.new(o)
         local done,why=true,nil
         if again then done,why=dress.again() elseif shown then done,why=dress.reshow() end
         if not done then return say('options: the change waits: '..tostring(why)) end
+        for fit in pairs(heads) do
+            if (redress[fit] or reshow[fit]) and head then
+                done,why=head.rewear(fit)
+                if not done then return say('options: the change waits: '..tostring(why)) end
+            end
+        end
         redress,reshow={},{}
     end
     function self.tick()
         check()
         show()
         local gen=dress.applied and dress.applied()
-        if gen==nil or gen==seen and changed==drawn and Fits.PACKS==painted then return end
+        local put=head and head.applied and head.applied() or 0
+        if gen==nil or gen==seen and put==seen_head and changed==drawn and Fits.PACKS==painted then return end
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
-        if gen~=seen then slots,morphs={},{} end -- A new look: its components and instances are new.
+        if gen~=seen or put~=seen_head then slots,morphs={},{} end -- A new look or head piece: new instances.
         local wrote=paint(parts)
         paints=paints+1
-        seen,drawn,painted=gen,changed,Fits.PACKS
+        seen,seen_head,drawn,painted=gen,put,changed,Fits.PACKS
         if wrote>0 then log(('options: %d value(s) written'):format(wrote)) end
     end
     -- coop off: the changes not shown yet dropped, the shape keys set removed; the values stay for the next look.
     function self.stop()
         redress,reshow={},{}
         for _,m in pairs(morphs) do morph(m.c,m.name,0) end
-        slots,morphs,owned,held,seen={},{},{},{},nil
+        slots,morphs,owned,held,seen,seen_head={},{},{},{},nil,nil
     end
     return self
 end
