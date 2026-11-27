@@ -91,9 +91,16 @@ M.closet.tick=function()
     M.guarded('closet thumbs',thumbs.tick)
     if M.closet_menu then M.guarded('closet menu',M.closet_menu.tick) end
 end
+-- coop off: each part stopped under a guard of its own, as the tick does, so one that raises never skips the others.
+-- The menu goes first: its camera gives SB's view back.
 M.closet.stop=function()
-    dress_stop(); options.stop(); colour.stop(); shape.stop(); probe.stop(); thumbs.stop()
-    if M.closet_menu then M.closet_menu.stop() end
+    if M.closet_menu then M.guarded('closet menu',M.closet_menu.stop) end
+    M.guarded('closet',dress_stop)
+    M.guarded('closet options',options.stop)
+    M.guarded('closet colour',colour.stop)
+    M.guarded('closet shape',shape.stop)
+    M.guarded('closet probe',probe.stop)
+    M.guarded('closet thumbs',thumbs.stop)
 end
 return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,thumbs=thumbs,
     menu=function() return M.closet_menu end,colour=colour,shape=shape,packs=M.closet_packs,options=options,
