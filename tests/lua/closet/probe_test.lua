@@ -546,9 +546,13 @@ local tests = {
     end,
     test7_says_why_the_read_failed = function()
         local r = rig()
-        r.stock = function() return nil, 'stock: /Game/Local/Data/ItemTable.ItemTable not found' end
+        r.stock = function()
+            return {['SB.Hair_024'] = {Slot = 'Hair'}, ['SB.Hair_025'] = {Slot = 'Hair'}},
+                'stock: /Game/Local/Data/ItemTable.ItemTable not found'
+        end
         play(r, '7')
-        ok(has(r, 'probe: FAIL 7 stock: stock: /Game/Local/Data/ItemTable.ItemTable not found'))
+        ok(has(r, 'probe: FAIL 7 stock: /Game/Local/Data/ItemTable.ItemTable not found'))
+        ok(not has(r, 'stock: stock:'), 'the prefix once')
         ok(has(r, 'probe: END 7 0/1'))
     end,
     test7_fails_with_only_the_cut_hairs = function()

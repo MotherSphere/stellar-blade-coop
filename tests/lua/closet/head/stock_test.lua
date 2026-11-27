@@ -126,9 +126,38 @@ local tests = {
         local rows, why = Stock.read(env)
         eq(rows, nil, 'no rows')
         eq(why, 'stock: /Game/Local/Data/EquipmentTable.EquipmentTable not found', 'why')
-        eq(Stock.build(env), nil, 'no build')
-        eq(Stock.build(env), nil, 'no build again')
+        local items, why2 = Stock.build(env)
+        eq(why2, why, 'the build says why')
+        local ids = {}
+        for id in pairs(items) do ids[#ids + 1] = id end
+        table.sort(ids)
+        same(ids, {'SB.Hair_024', 'SB.Hair_025'}, 'only the cut hairs stay')
+        Stock.build(env)
         eq(#log, 1, 'said once') eq(log[1], why, 'the why')
+    end,
+
+    a_material_row_with_a_missing_index_is_skipped = function()
+        local env, log = live()
+        local mt = env.tables[Stock.TABLES[3]]
+        local good = mt:FindRow('EM_Hair_001_Part1_V0_M0')
+        env.tables[Stock.TABLES[3]] = table_of({order = {'Bad', 'EM_Hair_001_Part1_V0_M0'},
+            Bad = {Group = name('EM_Hair_001_Part1'), MaterialIndex = 1,
+                MaterialAssetPath = name("MaterialInstanceConstant'/Game/A/Bad.Bad'")},
+            EM_Hair_001_Part1_V0_M0 = good})
+        local r = assert(Stock.read(env))
+        eq(#r.materials, 1, 'the bad row left out')
+        same(log, {'stock: EquipmentMaterialTable row Bad skipped: no Group, VariationIndex or MaterialIndex'}, 'said')
+        ok(Stock.items(r)['SB.Hair_001'], 'the hair stays, no raise')
+    end,
+
+    a_raising_catalogue_is_a_failed_read = function()
+        local env = live()
+        local items_was = Stock.items
+        Stock.items = function() error('bad row', 0) end
+        local items, why = Stock.build(env)
+        Stock.items = items_was
+        eq(why, 'stock: bad row', 'why')
+        ok(items['SB.Hair_024'] and items['SB.Hair_025'] and not items['SB.Hair_001'], 'the cut hairs only')
     end,
 
     a_throwing_table_is_a_why = function()

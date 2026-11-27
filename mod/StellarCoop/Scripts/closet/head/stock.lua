@@ -9,8 +9,8 @@
 -- Stock.read(env) -> rows | nil, why: the three live tables as the rows below, each engine call in a pcall.
 --   env = {find(path) -> UDataTable or nil (StaticFindObject-like), load(path) -> object or nil (LoadAsset-like),
 --          text(v) -> string (an FText's words; a string is an ItemStringTable key, closet/head/cut.lua's), log(line)}
--- Stock.build(env) -> items | nil, why: Stock.items(Stock.read(env)) plus Cut.items(env); a failed read and each row
--- left out are logged once a Lua load.
+-- Stock.build(env) -> items[, why]: Stock.items(Stock.read(env)) plus Cut.items(env). A failed read (or a raise in
+-- Stock.items) gives the cut hairs alone and its why. The why and each row left out are logged once a Lua load.
 --
 -- Stock.items(rows) -> items, missing
 --   rows = {items={[row]={Category, Name, Asset2D, EquipmentAlias, EquipmentAlias2}},
@@ -306,9 +306,16 @@ function Stock.read(env)
             if r ~= nil then eq.RelativeRotation = {Pitch = num(r.Pitch), Yaw = num(r.Yaw), Roll = num(r.Roll)} end
             rows.equipment[n] = eq
         end,
-        function(_, row)
-            rows.materials[#rows.materials + 1] = copy(row, MATERIAL_FIELDS,
+        function(n, row)
+            local m = copy(row, MATERIAL_FIELDS,
                 {VariationIndex = num(row.VariationIndex), MaterialIndex = num(row.MaterialIndex)})
+            -- Stock.items groups by these three: a row without one is left out.
+            if m.Group and m.VariationIndex and m.MaterialIndex then
+                rows.materials[#rows.materials + 1] = m
+            else
+                say(env, 'stock: EquipmentMaterialTable row ' .. n ..
+                    ' skipped: no Group, VariationIndex or MaterialIndex')
+            end
         end,
     }
     for i, dt in ipairs(tables) do
@@ -359,8 +366,13 @@ end
 
 function Stock.build(env)
     local rows, why = Stock.read(env)
-    if not rows then say(env, why) return nil, why end
-    local items, missing = Stock.items(rows)
+    local ok, items, missing = false, nil, nil
+    if rows then
+        ok, items, missing = pcall(Stock.items, rows)
+        if not ok then why = 'stock: ' .. tostring(items) end
+    end
+    -- A failed read leaves the stock rows out; the two cut hairs stay (the spec's one exception).
+    if not ok then say(env, why) return Cut.items(env), why end
     for _, line in ipairs(missing) do say(env, 'stock: ' .. line) end
     for id, it in pairs(Cut.items(env)) do items[id] = it end
     return items

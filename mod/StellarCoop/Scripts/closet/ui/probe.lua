@@ -597,7 +597,7 @@ Probe.TESTS['6']={timeout=300,steps={
 local Stock=require('closet.head.stock')
 Probe.TESTS['7']={steps={{frames=0,name='stock',run=function(ctx)
     local items,why=ctx.stock()
-    if not items then return false,why end
+    if why or not items then return false,(tostring(why):gsub('^stock: ','')) end
     local n={Hair=0,Ponytail=0}
     for _,it in pairs(items) do n[it.Slot]=(n[it.Slot] or 0)+1 end
     local line=n.Hair..' hairs, '..n.Ponytail..' ponytails'
