@@ -750,7 +750,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `ui/kit/kit_test` covers the veil (the root built and kept collapsed, the look warmed in one 250 ms pass, shown again
   at once, and a hidden world's root left collapsed), the menu's mouse cursor, the focus put back after a click, the
   focus watchdog and the focus line it logs as it fires, text shadows and wrap, fixed groups, SB parts and the keyboard
-  layout from the game's device. It also checks that a root built while its look warms holds each texture it wanted once
+  layout from the game's device. When the game clears the cursor and takes the input back, only a holder that asked for
+  it (the closet menu) takes the input again, at most once each half second; the menu, the guide and the chat box do
+  not. It also checks that a root built while its look warms holds each texture it wanted once
   warmed, so a GC before the next build frees none of them. With the keep, every asset path and part class is wanted,
   no warm-up lookup runs until the keep settled (the root is built in its flat look meanwhile) and no `LoadAsset` runs
   after;

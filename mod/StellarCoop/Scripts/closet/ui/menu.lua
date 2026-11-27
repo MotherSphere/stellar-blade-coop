@@ -581,7 +581,7 @@ function Menu.new(o)
         guard_at,combat_at=opened+Menu.GUARD,opened+Menu.COMBAT
         there={} -- The pictures read again: coop closet thumbs may have made some since.
         view.reread()
-        kit.input(true,View.GROUP,true)
+        kit.input(true,View.GROUP,true,true) -- Taken again when the game takes it back (ui/kit/kit.lua's tick).
         kit.sound('open')
         kit.show(View.GROUP,true)
         open=true

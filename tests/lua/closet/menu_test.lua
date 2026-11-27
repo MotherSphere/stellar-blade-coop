@@ -263,9 +263,9 @@ end
 local function no_pc(r)
     local input = r.kit.input
     r.kit.no_pc = true
-    r.kit.input = function(on, who, mouse)
-        if not on and r.kit.no_pc then r.kit.inputs[#r.kit.inputs + 1] = {on, who, mouse}; return end
-        input(on, who, mouse)
+    r.kit.input = function(on, who, mouse, again)
+        if not on and r.kit.no_pc then r.kit.inputs[#r.kit.inputs + 1] = {on, who, mouse, again}; return end
+        input(on, who, mouse, again)
     end
 end
 -- The camera row as drawn now, left to right: its SB hint parts at y 1890 ({x, text, icon}) and its kit texts at
@@ -302,7 +302,7 @@ local tests = {
         local good, line = r.menu.open()
         ok(good, line)
         eq(r.menu.is_open(), true, 'is_open')
-        same(r.kit.inputs[1], {true, 'closet_menu', true}, 'input')
+        same(r.kit.inputs[1], {true, 'closet_menu', true, true}, 'input: the cursor shown, taken again (again)')
         eq(r.kit.sounds[1], 'open', 'sound')
         eq(r.kit.shown.closet_menu, true, 'group shown')
         local g = r.kit.groups.closet_menu
