@@ -25,7 +25,7 @@
 --     master-posed to her body for a piece on the body mesh's skeleton. A new piece in the slot makes a new one and
 --     destroys the last (never two of one slot, no material of the last). It has no game original: taking it off,
 --     coop closet off, coop off and a new EVE destroy it. The line names its mesh, so the next Lua load (restore)
---     sweeps a leftover by name prefix and that mesh before the dress wears the kept look again.
+--     sweeps a leftover by the closet's component tag and that mesh before the dress wears the kept look again.
 -- Giving a component back puts the game's own mesh, AnimBP class and materials back: none clears the class and the
 -- closet's material overrides.
 -- Before the first change the game's own pieces are read (line(), which the dress writes as field 6 of
@@ -102,10 +102,7 @@ local LONG_ID,SHORT_ID='SB.Ponytail_Long','SB.Ponytail_Short'
 local SHORT_MESH='CH_P_EVE_Hair_PonyTail_Short'
 
 local function name_of(path) return (path or ''):match('[^./]+$') or '' end
-local function path_of(o)
-    local ok,p=pcall(function() return text(o:GetFullName()):match('^%S+ (.+)$') end)
-    return ok and p or nil
-end
+local path_of=Made.path_of
 local function mesh_of(c) local m=valid(c.SkeletalMesh); return m and path_of(m) or nil end
 local function visible(c) return c:IsVisible()==true end
 local function her() return U.her(valid(UE.GetPlayer())) end
@@ -455,8 +452,10 @@ function Head.new(o)
         if p.made and not only_paint then
             Made.destroy(p.c)
             p.c=nil
-            p.c=Made.put(eve,a.mesh,body_skeleton(eve,a.mesh)==true)
+            local untagged
+            p.c,untagged=Made.put(eve,a.mesh,body_skeleton(eve,a.mesh)==true)
             p.c_path=path_of(p.c)
+            if untagged then log('head: '..n..' is untagged ('..untagged..'): a Lua reload leaves it') end
         end
         local c=p.c
         if t.colour_only then return end -- The options layer paints its controls on parts()'s Eyes part.
@@ -707,22 +706,28 @@ function Head.new(o)
         if not field or field=='' then return end
         local f={}
         for x in (field..'|'):gmatch('([^|]*)|') do f[#f+1]=x end
+        local eve=U.her(valid(StaticFindObject(f[1])))
+        local lines={}
+        -- The made pieces first: their sweep needs only the mesh the line names.
+        for i=2,#f do
+            local n,state,own=decode(f[i])
+            if Head.MADE[n] and state=='+' then
+                local gone=own.mesh and eve and Made.sweep(eve,{[own.mesh]=true}) or 0
+                lines[#lines+1]=gone>0 and n..' removed' or n..': nothing to give back'
+            end
+        end
         local meshes,materials,count=known_assets()
         if count==0 then
             log('head: restore from coop-closet.txt: no head fit is known (the catalogue is not read): the head is '
-                ..'left as it is')
+                ..'left as it is'..(lines[1] and ' ('..table.concat(lines,'; ')..')' or ''))
             return
         end
-        local eve=U.her(valid(StaticFindObject(f[1])))
         local cs=eve and components(eve) or {}
-        local lines={}
         for i=2,#f do
             local n,state,own=decode(f[i])
             local c=cs[n]
             local ours=false
-            if Head.MADE[n] then
-                local gone=state=='+' and own.mesh and eve and Made.sweep(eve,{[own.mesh]=true}) or 0
-                lines[#lines+1]=gone>0 and n..' removed' or n..': nothing to give back'
+            if Head.MADE[n] then -- Swept above.
             elseif c and state=='-' then ours=visible(c)~=own.visible
             elseif c and state=='+' then
                 local now=mesh_of(c)

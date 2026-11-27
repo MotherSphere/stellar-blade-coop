@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The make and attach steps are a copy of closet/dress.lua's added meshes (its wear's AddComponentByClass loop), with
--- the head socket added.
+-- the head socket added; the tag write is a copy of vehicles/bike/ride.lua's (its part's ComponentTags).
 -- The head components the closet makes for Glasses, Headwear and Mask (closet/head/wear.lua wears them): EVE's
 -- blueprint has none for those slots, and probe 8 read no glasses component while none is worn. A made component has
 -- no game original: taking it off destroys it.
@@ -24,6 +24,11 @@
 --   USceneComponent.K2_SetRelativeRotation: exec 0x14490f950 (closet/head/wear.lua's header). The rotation is set
 --     after the attach: SnapToTarget zeroes the relative transform.
 --   USkinnedMeshComponent.SetSkeletalMesh: exec 0x14492a420 (closet/head/wear.lua's header).
+--   UActorComponent.ComponentTags: TArray<FName> (property params 0x1464d6318, name 0x1464d2b20, Array, flags
+--     0x0010000000000005 Edit | BlueprintVisible, offset 0x60; its FName inner 0x1464d62c8), in UActorComponent's
+--     property list 0x1464d6690 (class params 0x1464d6450, functions from AddTickPrerequisiteActor). Its
+--     ComponentHasTag: native entry 0x1464d6ad0 (name 0x1464d2e20), exec 0x1446c1b50 jumps into obfuscated code
+--     (body UNREAD); vehicles/bike/ride.lua and world/daynight/daynight.lua use both in game.
 local U=require('core.unreal')
 local valid,each,text,find=U.valid,U.each,U.text,U.find
 local Made={}
@@ -35,35 +40,48 @@ local SKINNED='/Script/Engine.SkeletalMeshComponent'
 -- the game's own glasses socket and transform are UNREAD. Schizo's in-game test confirms or corrects it.
 Made.SOCKET='Bip001-Head'
 Made.ROTATION={Pitch=-90,Yaw=180,Roll=90}
--- The name a made component gets: AddComponentByClass passes no name, so the object is named after its class. That
--- naming is UNREAD in this build (its exec is): the sweep also needs the mesh the file names. The game's own slot
--- components (FUN_14213a400, no name either) share the prefix: the mesh keeps them apart.
-Made.PREFIX='SBSkeletalMeshComponent_'
+-- The tag that marks a component as the closet's: the game's own (its blueprint's, and the unnamed ones its slot
+-- spawner FUN_14213a400 makes) never carry it, so the sweep never destroys one of them.
+Made.TAG='SBO_ClosetHead'
 
-local function path_of(o)
+-- An object's path (closet/head/wear.lua uses this one too).
+function Made.path_of(o)
     local ok,p=pcall(function() return text(o:GetFullName()):match('^%S+ (.+)$') end)
     return ok and p or nil
 end
+local path_of=Made.path_of
 
 -- A new component on EVE wearing mesh: master-posed to her body when on_body (the body mesh's skeleton), else on the
--- head socket. Raises when none is made or a call fails.
+-- head socket. Returns it and, when its tag did not hold, why (a Lua reload cannot sweep it then). Raises when none
+-- is made or a call fails; a component made before the failing call is destroyed first.
 function Made.put(eve,mesh,on_body)
     local body=assert(valid(eve.Mesh),'EVE has no body mesh')
     local c=valid(eve:AddComponentByClass(find(Made.CLASS),true,
         {Translation={X=0,Y=0,Z=0},Rotation={X=0,Y=0,Z=0,W=1},Scale3D={X=1,Y=1,Z=1}},false))
     if not c then error('could not make a head component on EVE',0) end
-    pcall(function() c:SetCollisionEnabled(0) end) -- Never blocks her capsule, the camera or the floor.
-    if on_body then
-        c:K2_AttachToComponent(body,FName('None'),2,2,2,true)
-        c:SetSkeletalMesh(mesh,true)
-        c:SetMasterPoseComponent(body,true)
-        pcall(function() c.bUseBoundsFromMasterPoseComponent=true end) -- No culling pop.
-    else
-        c:K2_AttachToComponent(body,FName(Made.SOCKET),2,2,2,true)
-        c:K2_SetRelativeRotation(Made.ROTATION,false,{},false)
-        c:SetSkeletalMesh(mesh,true)
+    local ok,why=pcall(function()
+        pcall(function() c:SetCollisionEnabled(0) end) -- Never blocks her capsule, the camera or the floor.
+        if on_body then
+            c:K2_AttachToComponent(body,FName('None'),2,2,2,true)
+            c:SetSkeletalMesh(mesh,true)
+            c:SetMasterPoseComponent(body,true)
+            pcall(function() c.bUseBoundsFromMasterPoseComponent=true end) -- No culling pop.
+        else
+            c:K2_AttachToComponent(body,FName(Made.SOCKET),2,2,2,true)
+            c:K2_SetRelativeRotation(Made.ROTATION,false,{},false)
+            c:SetSkeletalMesh(mesh,true)
+        end
+    end)
+    if not ok then
+        pcall(Made.destroy,c)
+        error(why,0)
     end
-    return c
+    -- A new component's ComponentTags is empty: UE4SS 3.0.1 lands a write at 1 there (vehicles/bike/ride.lua's note).
+    local tagged,tag_why=pcall(function()
+        c.ComponentTags[1]=FName(Made.TAG)
+        assert(c:ComponentHasTag(FName(Made.TAG))==true,'the closet\'s tag did not hold')
+    end)
+    return c,not tagged and U.why(tag_why) or nil
 end
 
 function Made.destroy(c)
@@ -71,15 +89,14 @@ function Made.destroy(c)
     if c then c:K2_DestroyComponent(c) end
 end
 
--- An earlier Lua load's made components off EVE: each of the prefix wearing one of meshes ({[path]=true}). Returns
--- how many.
+-- An earlier Lua load's made components off EVE: each with the closet's tag wearing one of meshes ({[path]=true}).
+-- Returns how many.
 function Made.sweep(eve,meshes)
     local n=0
     each(eve:K2_GetComponentsByClass(find(SKINNED)),function(_,c)
         c=valid(c)
-        local name=c and text(c:GetFName()) or ''
         local mesh=c and valid(c.SkeletalMesh)
-        if name:sub(1,#Made.PREFIX)==Made.PREFIX and mesh and meshes[path_of(mesh)] then
+        if mesh and meshes[path_of(mesh)] and c:ComponentHasTag(FName(Made.TAG))==true then
             pcall(Made.destroy,c)
             n=n+1
         end

@@ -231,6 +231,7 @@ local function part(eve_name, name, fields)
     function c:GetFName() return fname(name) end
     function c:GetFullName() return 'SBSkeletalMeshComponent ' .. path end
     function c:SetSkeletalMesh(m, reinit)
+        if rawget(self, 'mesh_raises') then error('no mesh', 0) end
         assert(reinit == true, 'A new pose, as SB sets a mesh')
         rawset(self, 'SkeletalMesh', m); said(name, 'mesh', m and short(m) or 'none', tostring(reinit))
     end
@@ -253,7 +254,12 @@ local function part(eve_name, name, fields)
         rawset(self, 'visible', v); said(name, 'visible', tostring(v))
     end
     function c:IsVisible() return rawget(self, 'visible') end
-    -- A made component's calls (closet/head/made.lua).
+    -- A made component's calls (closet/head/made.lua) and its tags (a write at 1 lands, as UE4SS's).
+    c.ComponentTags = c.ComponentTags or {}
+    function c:ComponentHasTag(t)
+        for _, x in ipairs(rawget(self, 'ComponentTags')) do if x == t then return true end end
+        return false
+    end
     function c:SetCollisionEnabled() end
     function c:K2_AttachToComponent(parent, socket) said(name, 'attach', parent.name, socket) end
     function c:SetMasterPoseComponent(x) said(name, 'master', x.name) end
@@ -273,7 +279,8 @@ local function part(eve_name, name, fields)
 end
 -- EVE: strict, so a read of anything but these fails the test (her equipment and saves among them).
 local ALLOWED = {Mesh = true, K2_GetComponentsByClass = true, IsA = true, GetFullName = true, IsValid = true,
-    type = true, GetAddress = true, destroyed = true, AddComponentByClass = true}
+    type = true, GetAddress = true, destroyed = true, AddComponentByClass = true,
+    mesh_raises = true}
 local function eve_of(name, o)
     o = o or {}
     local e = object()
@@ -295,7 +302,7 @@ local function eve_of(name, o)
     e.made = {}
     function e:AddComponentByClass(k, manual, _, deferred)
         assert(k.path == '/Script/SB.SBSkeletalMeshComponent' and manual == true and deferred == false)
-        local c = part(name, 'SBSkeletalMeshComponent_' .. #e.made, {})
+        local c = part(name, 'SBSkeletalMeshComponent_' .. #e.made, {mesh_raises = e.mesh_raises})
         e.made[#e.made + 1], parts[#parts + 1] = c, c
         return c
     end
@@ -922,6 +929,22 @@ local tests = {
         local live = 0
         for _, c in ipairs(w.eve.made) do if c:IsValid() then live = live + 1 end end
         eq(live, 1)
+        -- No head fit known at the restore: the leftover still goes (the line names its mesh).
+        w = world()
+        ok(w.wear({{fit = 'SB.FaceAccessory_001', slot = 'Glasses'}}))
+        Head.new({log = function() end, fits = {get = function() end, heads = function() return {} end}})
+            .restore(w.file)
+        eq(w.eve.made[1]:IsValid(), false)
+    end,
+
+    -- A made component whose step fails is destroyed: the wear fails and nothing is left on EVE.
+    a_failed_made_piece_leaves_nothing = function()
+        local w = world()
+        w.eve.mesh_raises = true
+        local good, why = w.wear({hair('SB.Hair_001'), {fit = 'p.hat', slot = 'Headwear'}})
+        eq(good, nil) ok(why:find('no mesh', 1, true), why)
+        eq(w.eve.made[1]:IsValid(), false, 'destroyed')
+        eq(w.eve.hair.SkeletalMesh, hr01, 'the rest given back')
     end,
 
     -- A made component gone (something destroyed it, a new EVE) is made again by the watchdog.
