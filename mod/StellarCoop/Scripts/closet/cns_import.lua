@@ -222,7 +222,6 @@ function CnsImport.parse(text_in, source)
                     Description = text(entry.Description) or '',
                     CharacterID = 'EVE',
                     Slot = slot,
-                    Occupies = {}, HidesSlots = {}, HidesBodyRegions = {}, KeepsSlots = {},
                     Requirement = text(entry.Requirement) or 'None',
                     OutfitTypes = strings(entry.OutfitTypes),
                     Image = text(entry.OutfitImage),

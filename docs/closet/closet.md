@@ -75,9 +75,9 @@ refuses the other way round while a closet look is on EVE or waits to be worn ag
 
 ## Packs
 
-- Native packs are `*.stellarcloset.json` files: [Pack format](pack-format.md).
-- Packs in the CNS JSON format (`*.dekcns.json`) that the player installed are read in place:
-  [Importing CNS-format packs](cns-import.md). No DekCNS code is opened, copied, called or hooked.
+The closet reads the outfit packs in the CNS JSON format (`*.dekcns.json`) that the player installed under `~mods`. It
+reads them in place: [Importing CNS-format packs](cns-import.md). No DekCNS code is opened, copied, called or hooked.
+It reads no other pack format.
 
 ## How it works
 
@@ -87,9 +87,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`,
 | File | Holds |
 | --- | --- |
 | `slots.lua` | The slot list: each slot's layer, kind, menu region and glyph, the ten body regions, the apply order |
-| `resolver.lua` | What is worn and what shows: occupancy, `FullOutfit` suppression, `HidesSlots`, body regions by layer, loadouts |
 | `json.lua` | A JSON decoder for packs: comments, trailing commas, a BOM, `\u` escapes. It never raises |
-| `manifest.lua` | Reads and checks a `*.stellarcloset.json` pack |
 | `cns_import.lua` | Reads a `*.dekcns.json` pack into items, with piece hints from its material toggle names |
 | `packs.lua` | The pack catalogue: every installed `*.dekcns.json` pack from the DLL's `coop-cns-packs.txt`, by `UniqueFitID`, read at the menu's first open and by `coop closet rescan` |
 | `dress.lua` | `coop closet wear`: the plan from fit maps, the mix on EVE, the once-a-second watchdog, her own look kept and given back |
@@ -426,8 +424,8 @@ menu on a shape row leaves the value as it was. Reset Stellar Closet sets every 
 
 The ghost's capture (`online/partner/capture.lua`) reads every skeletal mesh component on EVE. Pieces on EVE show on
 the friend's ghost up to the native part's limit of 16 parts (`kMaxParts`, `native/src/game/core.h`). A mod mesh shows
-on the ghost only when `link.mod_assets()` lists it. The native scan (`native/src/link/pak_list.h`) does not read
-`*.stellarcloset.json` yet.
+on the ghost only when `link.mod_assets()` lists it: the assets the installed CNS packs declare (`coop-cns.txt`, from
+the native scan in `native/src/link/pak_list.h`) and those of a mod both players have.
 
 ## The parts probe
 
@@ -490,6 +488,6 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
 - `tests/lua/closet/menu_test.lua` (5 checks) runs the closet menu on the fake kit and parts of
   `tests/lua/closet/menu_fakes.lua`: what open draws, `coop closet menu`, the close paths and a draw that fails.
 - `tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style.
-- `tests/lua/closet/slots_test.lua` (8 checks), `fits_test.lua` (4), `dress_test.lua` (12), `resolver_test.lua` (23),
-  `manifest_test.lua` (13) and `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`,
+- `tests/lua/closet/slots_test.lua` (8 checks), `fits_test.lua` (4), `dress_test.lua` (12), `json_test.lua` and
+  `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`,
   with the assertions of `tests/lua/closet/helpers.lua`.

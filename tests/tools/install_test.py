@@ -306,7 +306,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'world/maps/sboxion/sboxion', 'world/maps/sboxion/rooms/list',
                               'world/maps/sboxion/rooms/rooms', 'world/maps/sboxion/tetrapod',
                               'closet/cns_import', 'closet/commands', 'closet/dress', 'closet/fits', 'closet/json',
-                              'closet/manifest', 'closet/resolver', 'closet/slots', 'closet/ui/menu', 'closet/ui/model',
+                              'closet/slots', 'closet/ui/menu', 'closet/ui/model',
                               'closet/ui/probe', 'closet/ui/view', 'closet/ui/camera', 'closet/ui/lights',
                               'closet/colour', 'closet/shape', 'closet/thumbs', 'closet/packs', 'closet/options',
                               'closet/presets',
