@@ -85,6 +85,25 @@ run('presets', {
             eq(#r.worn, 1, 'not through the dress')
         end)
     end,
+    a_failed_wear_gives_the_outfit_its_options_back = function()
+        with_suit(function()
+            local r = rig()
+            r.options.set_variant('s', 2)
+            r.options.set('s', 2, 'toggle:4', false)
+            r.p.save()
+            -- Other options before the wear: variant 1, another value on variant 2.
+            r.options.reset('s')
+            r.options.set('s', 2, 'toggle:3', false)
+            r.options.set_variant('s', 1)
+            local before = r.options.words('s', 2)
+            r.dress.wear = function() return false, 'no EVE in the world' end
+            local good, why = r.p.wear(1)
+            eq(good, false, 'not worn') eq(why, 'no EVE in the world', 'the dress says why')
+            eq(r.options.variant('s'), 1, 'the variant from before')
+            same(r.options.words('s', 2), before, 'the values from before')
+            eq(r.options.get('s', 2, 'toggle:4'), true, 'not the preset\'s value')
+        end)
+    end,
     save_needs_one_whole_outfit = function()
         with_suit(function()
             local r = rig()
