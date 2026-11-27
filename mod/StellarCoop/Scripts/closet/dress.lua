@@ -469,7 +469,7 @@ function Dress.new(o)
             Dress.words(state.kept==nil and state.choices or (state.kept or {}))},'\t'))
     end
     -- Removes every component on EVE but her body that wears one of the given mesh paths: ours, also one an earlier
-    -- mix or Lua load left (a map load can make the game set her body twice, and each change got the mix again).
+    -- mix or Lua load left (a map load can make the game set her body twice: each change got the mix again).
     -- Her body is told by its address: UE4SS hands a new wrapper at each read, so c~=body is true for her body too. A
     -- body whose address does not read: nothing is removed. No valid body: no component can be it.
     local function sweep(eve,paths)
@@ -906,7 +906,7 @@ function Dress.new(o)
         local intact=path==state.plan.body.mesh
         for _,a in ipairs(state.added) do intact=intact and valid(a.c)~=nil end
         if not intact then
-            -- No valid body mesh (a pawn still spawning): the mix waits, counted toward no outside fight, and goes on
+            -- No valid body mesh (a pawn still spawning): the mix waits (counted toward no outside fight) and goes on
             -- at the first second the body is back.
             if not path then
                 if not state.waiting then state.waiting=true; log('EVE has no valid body mesh: the mix waits') end

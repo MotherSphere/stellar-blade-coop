@@ -348,7 +348,7 @@ local tests = {
         end)
     end,
     -- The same two writers with the pack's shape key set away from 0 on the options page: after her body is rebuilt the
-    -- options layer writes its value first. The shape reads that value as the pack's, not its own, and puts its value
+    -- options layer writes its value first. The shape reads that value as the pack's (not its own) and puts its value
     -- back. Then neither reads the other's value as gone.
     the_shape_wins_again_over_a_pack_value_after_a_rebuild = function()
         dyed_rig(function(r)

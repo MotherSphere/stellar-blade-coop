@@ -994,7 +994,7 @@ function Menu.new(o)
             if repeat_at<=t then repeat_at=t+Menu.REPEAT_EVERY end -- A late tick: one move, not a burst.
             self.nav(dir)
         end
-        -- The grid builds its entries on later frames too, and they take the keyboard focus: back to the kit's root.
+        -- The grid builds its entries on later frames too. They take the keyboard focus: back to the kit's root.
         kit.refocus()
         view.tick(t) -- The shown tiles' glyphs after a fill.
         if t>=guard_at then
