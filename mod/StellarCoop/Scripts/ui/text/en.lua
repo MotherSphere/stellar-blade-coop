@@ -595,6 +595,10 @@ return {
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Covers: %s',also='Also takes: %s',
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
+        -- The Head tab's Hair and Ponytail rows: the None tile and an empty row (the game's own piece stays), the
+        -- No ponytail tile when the game gives it no name, a pack ponytail tile's line.
+        head={own="Game's own",no_ponytail='No ponytail',
+            pack_ponytail='Pack hairs usually carry their own ponytail.'},
         hints={wear='Wear',take_off='Take off',whole='Whole outfit',options='Options',change='Change',
             reset='Reset',fav='Favourite',unfav='Unfavourite',delete='Delete'},
         -- The Full outfit tab's presets and favourites (closet/presets.lua): the Save look as preset row and its line,

@@ -439,6 +439,15 @@ local tests = {
         end)
     end,
 
+    a_head_fit_has_an_options_page = function()
+        with_heads(function()
+            Fits.PACKS.b.Controls = {VectorControls = {{DisplayName = 'Root', ParamName = 'RootColor',
+                MaterialIndex = 0}}}
+            same(new().options('b'), {{header = 'Bee'}, {section = 'Other', toggles = {}},
+                {colour = 1, name = 'Root', depth = 1}, {reset_fit = true}}, 'its colour under Other')
+        end)
+    end,
+
     whole_keeps_the_head_choices = function()
         with_heads(function()
             same(new().whole('q.suit', {{fit = 'p.suit'}, {fit = 'b', slots = {'Hair'}}}),

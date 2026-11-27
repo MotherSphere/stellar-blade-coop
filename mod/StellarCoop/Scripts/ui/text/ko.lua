@@ -427,6 +427,8 @@ return {
         detail={outfit='의상: %s',slot='슬롯: %s',covers='가리는 부위: %s',also='함께 차지하는 슬롯: %s',
             off='의상에서 기본적으로 숨김'},
         origin={original='오리지널',custom='커스텀: %s'},
+        head={own='게임 기본',no_ponytail='포니테일 없음',
+            pack_ponytail='팩 헤어에는 보통 전용 포니테일이 있습니다.'},
         hints={wear='입기',take_off='벗기',whole='의상 전체',options='옵션',change='변경',
             reset='초기화',fav='즐겨찾기',unfav='즐겨찾기 해제',delete='삭제'},
         presets={save='모습을 프리셋으로 저장',

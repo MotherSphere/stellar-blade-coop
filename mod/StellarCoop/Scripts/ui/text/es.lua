@@ -499,6 +499,8 @@ return {
         detail={outfit='Traje: %s',slot='Ranura: %s',covers='Cubre: %s',also='También ocupa: %s',
             off='Oculto por defecto en su traje'},
         origin={original='Original',custom='Personalizado: %s'},
+        head={own='Del juego',no_ponytail='Sin coleta',
+            pack_ponytail='Los peinados de paquetes suelen traer su propia coleta.'},
         hints={wear='Poner',take_off='Quitar',whole='Traje completo',options='Opciones',change='Cambiar',
             reset='Restablecer',fav='Favorito',unfav='No favorito',delete='Borrar'},
         presets={save='Guardar look como preajuste',

@@ -494,6 +494,8 @@ return {
         detail={outfit='Kıyafet: %s',slot='Yuva: %s',covers='Örter: %s',also='Ayrıca kaplar: %s',
             off='Kıyafetinde varsayılan olarak gizli'},
         origin={original='Orijinal',custom='Özel: %s'},
+        head={own='Oyunun kendi',no_ponytail='At kuyruğu yok',
+            pack_ponytail='Paket saçlarının genellikle kendi at kuyruğu vardır.'},
         hints={wear='Giy',take_off='Çıkar',whole='Tüm kıyafet',options='Seçenekler',change='Değiştir',
             reset='Sıfırla',fav='Favori',unfav='Favoriden çık',delete='Sil'},
         presets={save='Görünümü hazır ayar yap',

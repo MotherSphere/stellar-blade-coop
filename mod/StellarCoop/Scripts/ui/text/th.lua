@@ -450,6 +450,8 @@ return {
         detail={outfit='ชุด: %s',slot='ช่อง: %s',covers='ปกปิด: %s',also='ใช้ช่องอื่นด้วย: %s',
             off='ซ่อนไว้เป็นค่าเริ่มต้นในชุดของมัน'},
         origin={original='ต้นฉบับ',custom='กำหนดเอง: %s'},
+        head={own='ของเกม',no_ponytail='ไม่มีหางม้า',
+            pack_ponytail='ทรงผมจากแพ็กมักมีหางม้าของตัวเอง'},
         hints={wear='สวม',take_off='ถอด',whole='ทั้งชุด',options='ตัวเลือก',change='เปลี่ยน',
             reset='รีเซ็ต',fav='รายการโปรด',unfav='เลิกโปรด',delete='ลบ'},
         presets={save='บันทึกลุคเป็นพรีเซ็ต',

@@ -510,6 +510,8 @@ return {
         detail={outfit='Outfit: %s',slot='Platz: %s',covers='Bedeckt: %s',also='Belegt auch: %s',
             off='Im Outfit standardmäßig ausgeblendet'},
         origin={original='Original',custom='Benutzerdefiniert: %s'},
+        head={own='Vom Spiel',no_ponytail='Kein Pferdeschwanz',
+            pack_ponytail='Frisuren aus Paketen haben meist ihren eigenen Pferdeschwanz.'},
         hints={wear='Tragen',take_off='Ausziehen',whole='Ganzes Outfit',options='Optionen',change='Ändern',
             reset='Zurücksetzen',fav='Favorit',unfav='Kein Favorit',delete='Löschen'},
         presets={save='Look als Vorlage speichern',

@@ -390,6 +390,8 @@ return {
             clear_thumbs_desc='删除所有预览图。方块会重新显示服装自带的图片。预览图会再次拍摄一张。'},
         detail={outfit='服装：%s',slot='栏位：%s',covers='覆盖：%s',also='同时占用：%s',off='在所属服装中默认隐藏'},
         origin={original='原版',custom='自定义：%s'},
+        head={own='游戏原有',no_ponytail='无马尾',
+            pack_ponytail='包内发型通常自带马尾。'},
         hints={wear='穿上',take_off='脱下',whole='整套服装',options='选项',change='变更',
             reset='重置',fav='收藏',unfav='取消收藏',delete='删除'},
         presets={save='将造型存为预设',

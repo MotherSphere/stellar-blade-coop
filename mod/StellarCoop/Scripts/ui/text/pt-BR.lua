@@ -500,6 +500,8 @@ return {
         detail={outfit='Roupa: %s',slot='Espaço: %s',covers='Cobre: %s',also='Ocupa também: %s',
             off='Escondido por padrão na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
+        head={own='Do jogo',no_ponytail='Sem rabo de cavalo',
+            pack_ponytail='Os cabelos de pacotes costumam ter o próprio rabo de cavalo.'},
         hints={wear='Vestir',take_off='Tirar',whole='Roupa completa',options='Opções',change='Alterar',
             reset='Redefinir',fav='Favorito',unfav='Desfavoritar',delete='Excluir'},
         presets={save='Salvar visual como predefinição',

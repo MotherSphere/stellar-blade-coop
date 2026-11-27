@@ -490,6 +490,8 @@ return {
         detail={outfit='Strój: %s',slot='Miejsce: %s',covers='Zakrywa: %s',also='Zajmuje też: %s',
             off='Domyślnie ukryte w swoim stroju'},
         origin={original='Oryginalny',custom='Własny: %s'},
+        head={own='Z gry',no_ponytail='Bez kucyka',
+            pack_ponytail='Fryzury z paczek zwykle mają własny kucyk.'},
         hints={wear='Załóż',take_off='Zdejmij',whole='Cały strój',options='Opcje',change='Zmień',
             reset='Resetuj',fav='Ulubiony',unfav='Nie ulubiony',delete='Usuń'},
         presets={save='Zapisz wygląd jako preset',

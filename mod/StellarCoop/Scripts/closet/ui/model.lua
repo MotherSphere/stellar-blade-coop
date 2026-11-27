@@ -188,7 +188,8 @@ function Model.new(o)
         local hand, hints = {}, {}
         for index in pairs(fit.Skin or {}) do hand[index] = 'BaseBody' end
         for _, piece in ipairs(fit.Pieces or {}) do
-            for _, index in ipairs(piece.Materials) do hand[index] = piece.Slot end
+            -- A head fit's one piece (closet/fits.lua's Fits.pack) names no materials.
+            for _, index in ipairs(piece.Materials or {}) do hand[index] = piece.Slot end
         end
         for _, h in ipairs(fit.Hints or {}) do hints[h.MaterialIndex] = hints[h.MaterialIndex] or h.Slot end
         local function index_of(t)

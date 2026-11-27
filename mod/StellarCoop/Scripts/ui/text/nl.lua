@@ -494,6 +494,8 @@ return {
         detail={outfit='Outfit: %s',slot='Vak: %s',covers='Bedekt: %s',also='Neemt ook: %s',
             off='Standaard verborgen in zijn outfit'},
         origin={original='Origineel',custom='Aangepast: %s'},
+        head={own='Van het spel',no_ponytail='Geen paardenstaart',
+            pack_ponytail='Kapsels uit packs hebben meestal hun eigen paardenstaart.'},
         hints={wear='Dragen',take_off='Uittrekken',whole='Hele outfit',options='Opties',change='Aanpassen',
             reset='Herstellen',fav='Favoriet',unfav='Geen favoriet',delete='Wissen'},
         presets={save='Look opslaan als voorkeuze',

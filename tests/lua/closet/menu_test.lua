@@ -62,9 +62,10 @@ local function aria()
             {DisplayName = 'Boots', MaterialIndex = 4, Value = true},
             {DisplayName = 'Bag', MaterialIndex = 6, Value = false}}}}
 end
--- f(r) on a rig with Aria in the catalogue and a real options layer (closet/options.lua) on a fake store.
+-- f(r) on a rig with Aria in the catalogue (o.catalogue: that one) and a real options layer (closet/options.lua) on a
+-- fake store.
 local function with_aria(f, o)
-    Fits.use({[ARIA] = aria()})
+    Fits.use(o and o.catalogue or {[ARIA] = aria()})
     local good, why = pcall(function()
         o = o or {}
         local store = {file = nil}
@@ -267,6 +268,38 @@ local function on_top(r)
     r.menu.open()
     at(r, 0.05, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down')
     eq((detail(r)), 'Top', 'on the Top row')
+end
+-- Head items (closet/head/stock.lua's shape) with two variants and a Root colour: the stock hair Bob and ponytail Long
+-- ponytail, a pack hair and ponytail, the No ponytail item (empty Mesh, no name of its own); Aria too.
+local HAIR, TAIL = 'SB.Hair_001', 'SB.Ponytail_Long'
+local function head_item(slot, id, name, origin)
+    local controls = {VectorControls = {{DisplayName = 'Root colour', ParamName = 'RootColor', MaterialIndex = 0,
+        Value = {0.5, 0.5, 0.5, 1}}}}
+    local function variant(mesh)
+        return {Mesh = mesh, HiddenMats = {}, Materials = {}, Parameters = {}, UserConfigs = controls}
+    end
+    return {UniqueFitID = id, DisplayName = name, Slot = slot, Origin = origin, File = 'P.dekcns.json',
+        Variants = {variant('/Game/H/' .. name), variant('/Game/H/' .. name .. '2')}, PieceHints = {},
+        UserConfigs = {MaterialToggles = {}}}
+end
+-- with_aria's o for the head items, EVE wearing choices at the open; extra's fields added.
+local function heads(choices, extra)
+    local o = extra or {}
+    o.catalogue = {[ARIA] = aria(), [HAIR] = head_item('Hair', HAIR, 'Bob', 'original'),
+        [TAIL] = head_item('Ponytail', TAIL, 'Long ponytail', 'original'),
+        ['p.hair'] = head_item('Hair', 'p.hair', 'Pack hair', 'custom'),
+        ['p.tail'] = head_item('Ponytail', 'p.tail', 'Pack tail', 'custom'),
+        ['SB.Ponytail_None'] = {UniqueFitID = 'SB.Ponytail_None', Slot = 'Ponytail', Origin = 'original',
+            DisplayName = 'Ponytail_None', Variants = {{Mesh = '', Materials = {}, UserConfigs = {}}}, PieceHints = {},
+            UserConfigs = {MaterialToggles = {}}}}
+    o.before = function(r) r.choices = choices end
+    return o
+end
+-- The Hair row (the 2nd) of the Head tab (the 3rd), open.
+local function on_hair(r)
+    r.menu.open()
+    at(r, 0.05, 'tab_right', 'tab_right', 'down')
+    eq((detail(r)), 'Hair', 'on the Hair row')
 end
 
 -- Every part dropped, the group hidden, the menu closed; the input given back by a tick 150 ms later.
@@ -3380,6 +3413,112 @@ local tests = {
             eq(r.options.variant(ARIA), 3, 'Yes: the preset\'s variant kept')
             same(r.options.words(ARIA, 3), {'toggle:4=off'}, 'Yes: its values kept')
         end)
+    end,
+
+    right_on_a_hair_row_opens_its_options = function()
+        with_aria(function(r)
+            on_hair(r)
+            same(menu_hints(r)[3], {T.en.closet.hints.options, 'UI_DPad_Right', 'None'}, 'the Options hint')
+            at(r, 0.5, 'right')
+            same(headers(r), {'Bob'}, 'its name as the header row')
+            eq((detail(r)), T.en.closet.options.variant, 'on its Variant row')
+            eq(row_value(r, child(1, 'Colour: Root colour')), T.en.closet.options.pack, 'its colour row')
+            eq(#r.previews, 0, 'worn already: nothing worn')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    select_on_a_hair_row_opens_the_grid = function()
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            eq(tv.items[1].ItemName.text, T.en.closet.head.own, 'None reads Game\'s own')
+            eq(tv:BP_GetSelectedItem(), tv.items[2], 'the worn tile focused')
+            eq((detail(r)), 'Bob', 'its tile')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    right_on_a_hair_row_with_nothing_worn_opens_the_grid = function()
+        with_aria(function(r)
+            on_hair(r)
+            eq((select(2, detail(r))), '', 'her own hair: no detail')
+            eq(row_value(r, 'Hair'), T.en.closet.head.own, 'the row reads Game\'s own')
+            at(r, 0.5, 'right')
+            eq((detail(r)), T.en.closet.head.own, 'the grid, on Game\'s own')
+        end, heads())
+    end,
+
+    the_ponytail_row_follows_a_stock_hair = function()
+        -- A stock ponytail worn with a stock hair takes the hair's colours: Right opens the grid. With a pack hair
+        -- it has its own options page.
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down')
+            eq((detail(r)), 'Ponytail', 'on the Ponytail row')
+            at(r, 0.6, 'right')
+            eq((detail(r)), 'Long ponytail', 'the grid, on the worn tile')
+            eq(headers(r)[1], nil, 'no options page')
+            local tv = grid(r)
+            eq(tv.items[3].ItemName.text, T.en.closet.head.no_ponytail, 'the No ponytail tile')
+        end, heads({{fit = HAIR, slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}}))
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'right')
+            same(headers(r), {'Long ponytail'}, 'with a pack hair: its own page')
+        end, heads({{fit = 'p.hair', slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}}))
+    end,
+
+    a_pack_ponytail_says_pack_hairs_carry_their_own = function()
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'select', 'right', 'right', 'right')
+            local title, desc = detail(r)
+            eq(title, 'Pack tail', 'the pack ponytail tile')
+            ok(desc:find(T.en.closet.head.pack_ponytail, 1, true), 'its line: ' .. desc)
+            at(r, 0.6, 'left')
+            ok(not select(2, detail(r)):find(T.en.closet.head.pack_ponytail, 1, true), 'not on a stock tile')
+        end, heads())
+    end,
+
+    a_hair_tile_wears_beside_the_suit = function()
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select', 'right', 'select')
+            same(r.previews[1], {{fit = MAID}, {fit = HAIR, slots = {'Hair'}}}, 'the suit stays on')
+        end, heads({{fit = MAID}}))
+    end,
+
+    refresh_on_a_head_tile_wears_nothing = function()
+        with_aria(function(r)
+            on_hair(r)
+            for _, h in ipairs(menu_hints(r)) do ok(h[1] ~= T.en.closet.hints.whole, 'no Whole outfit hint') end
+            at(r, 0.5, 'refresh', 'select', 'right', 'refresh')
+            eq((detail(r)), 'Pack hair', 'on a tile')
+            for _, h in ipairs(menu_hints(r)) do ok(h[1] ~= T.en.closet.hints.whole, 'no Whole outfit hint') end
+            eq(#r.previews, 0, 'nothing worn')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    wearing_a_whole_suit_keeps_the_hair = function()
+        with_aria(function(r)
+            r.menu.open()
+            eq((detail(r)), 'Aria', 'the Full tab')
+            at(r, 0.5, 'right') -- Its options page: worn whole first.
+            same(r.previews[1], {{fit = ARIA}, {fit = HAIR, slots = {'Hair'}}}, 'right: the hair stays')
+            at(r, 0.6, 'back', 'refresh')
+            same(r.previews[2], {{fit = ARIA}, {fit = HAIR, slots = {'Hair'}}}, 'refresh: the hair stays')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    preview_picture_ignores_the_hair = function()
+        local snaps = {}
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'picture')
+            eq(snaps[1], MAID, 'the suit\'s picture')
+            eq(r.told[#r.told], T.en.closet.picture.saved:format('Ocean Maid'), 'told')
+        end, heads({{fit = MAID}, {fit = HAIR, slots = {'Hair'}}}, {thumbs = {running = function() return false end,
+            snap = function(fit) snaps[#snaps + 1] = fit; return true end}}))
     end,
 }
 

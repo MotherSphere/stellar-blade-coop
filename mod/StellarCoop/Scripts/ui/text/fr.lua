@@ -503,6 +503,8 @@ return {
         detail={outfit='Tenue : %s',slot='Emplacement : %s',covers='Couvre : %s',also='Prend aussi : %s',
             off='Masqué par défaut dans sa tenue'},
         origin={original='Original',custom='Personnalisé : %s'},
+        head={own='Celle du jeu',no_ponytail='Sans queue-de-cheval',
+            pack_ponytail='Les coiffures des packs ont souvent leur propre queue-de-cheval.'},
         hints={wear='Porter',take_off='Retirer',whole='Tenue complète',options='Options',change='Modifier',
             reset='Réinitialiser',fav='Favori',unfav='Retirer favori',delete='Supprimer'},
         presets={save='Enregistrer le look en préréglage',

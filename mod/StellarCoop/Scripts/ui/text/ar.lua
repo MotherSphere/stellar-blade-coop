@@ -470,6 +470,8 @@ return {
         detail={outfit='الزي: %s',slot='الخانة: %s',covers='يغطي: %s',also='يشغل أيضًا: %s',
             off='مخفي افتراضيًا في زيه'},
         origin={original='أصلي',custom='مخصص: %s'},
+        head={own='الأصلي في اللعبة',no_ponytail='بدون ذيل حصان',
+            pack_ponytail='شعر الحزم يحمل عادةً ذيل حصان خاصاً به.'},
         hints={wear='ارتداء',take_off='خلع',whole='الزي كاملًا',options='الخيارات',change='تغيير',
             reset='إعادة ضبط',fav='مفضلة',unfav='إزالة المفضلة',delete='حذف'},
         presets={save='حفظ المظهر كإعداد مسبق',

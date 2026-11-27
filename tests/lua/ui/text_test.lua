@@ -486,6 +486,12 @@ for name in pairs(R.TEXT) do
     fits(name..'.closet.presets.filter',pr.filter,LABEL)
     fits(name..'.closet.presets.all',pr.all,VALUE)
     fits(name..'.closet.presets.favourites',pr.favourites,VALUE)
+    -- The Head tab (closet/ui/menu.lua): Game's own as the Hair or Ponytail row's value and No ponytail as a tile's
+    -- name within the value column, the pack ponytail's detail line.
+    local hd=w.closet.head
+    fits(name..'.closet.head.own',hd.own,VALUE)
+    fits(name..'.closet.head.no_ponytail',hd.no_ponytail,VALUE)
+    assert(type(hd.pack_ponytail)=='string' and hd.pack_ponytail~='',name..'.closet.head.pack_ponytail: missing')
 end
 -- Stellar Closet's names: a slot name for each Slots.LIST id, a tab for each Slots.MENUS id, a region for each
 -- Slots.REGIONS name, and no other (the other tables have T.en's keys, checked above).

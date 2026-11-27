@@ -481,6 +481,8 @@ return {
         detail={outfit='Dräkt: %s',slot='Plats: %s',covers='Täcker: %s',also='Tar även: %s',
             off='Dold som standard i sin dräkt'},
         origin={original='Original',custom='Anpassad: %s'},
+        head={own='Spelets egen',no_ponytail='Ingen hästsvans',
+            pack_ponytail='Frisyrer från paket har oftast en egen hästsvans.'},
         hints={wear='Bär',take_off='Ta av',whole='Hela dräkten',options='Alternativ',change='Ändra',
             reset='Återställ',fav='Favorit',unfav='Ej favorit',delete='Radera'},
         presets={save='Spara stil som förval',

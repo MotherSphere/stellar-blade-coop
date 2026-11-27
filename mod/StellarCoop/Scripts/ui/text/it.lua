@@ -503,6 +503,8 @@ return {
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Copre: %s',also='Occupa anche: %s',
             off='Nascosto di default nel suo outfit'},
         origin={original='Originale',custom='Personalizzato: %s'},
+        head={own='Del gioco',no_ponytail='Senza coda',
+            pack_ponytail='Le acconciature dei pacchetti hanno di solito la propria coda.'},
         hints={wear='Indossa',take_off='Togli',whole='Outfit intero',options='Opzioni',change='Cambia',
             reset='Ripristina',fav='Preferito',unfav='Non preferito',delete='Elimina'},
         presets={save='Salva look come preset',
