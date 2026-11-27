@@ -128,7 +128,13 @@ local function variants_of(entry)
                         if n and n >= 0 then hidden[#hidden + 1] = n end
                     end
                 end
-                out[#out + 1] = {Mesh = data.Mesh, Materials = strings(data.Materials),
+                -- Materials: index i+1 is material slot i, so an empty, null or bad entry keeps its place as ''
+                -- (closet/dress.lua keeps the mesh's own material there).
+                local materials = {}
+                if is_array(data.Materials) then
+                    for i, m in ipairs(data.Materials) do materials[i] = text(m) or '' end
+                end
+                out[#out + 1] = {Mesh = data.Mesh, Materials = materials,
                     PonyPhysics = text(data.PonyPhysics) or text(entry.PonyPhysics), HiddenMats = hidden,
                     Parameters = is_array(data.Parameters) and data.Parameters or {}}
             end

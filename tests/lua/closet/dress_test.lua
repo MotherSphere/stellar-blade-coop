@@ -265,6 +265,26 @@ local tests = {
             Fits.CHOSEN = {}
         end)
     end,
+    -- A pack's Materials index is the material slot: an empty or null entry keeps its place (closet/cns_import.lua's
+    -- parse, then Fits.pack, then the wear).
+    a_parsed_variant_keeps_each_material_on_its_own_slot = function()
+        with_packs(function(w)
+            local Fits = require('closet.fits')
+            local M1, M3 = '/Game/P/M1.M1', '/Game/P/M3.M3'
+            w.assets[M1], w.assets[M3] = obj(M1), obj(M3)
+            local out = require('closet.cns_import').parse(('[{"UniqueFitID":"q.suit","OutfitDatas":[{"Mesh":"%s",' ..
+                '"Materials":["","%s",null,"%s"]}]}]'):format(PV1, M1, M3), 'q.dekcns.json')
+            same(out.items[1].Variants[1].Materials, {'', M1, '', M3}, 'positions kept')
+            Fits.use({['q.suit'] = out.items[1]})
+            local good, why = w.d.wear({{fit = 'q.suit'}})
+            ok(good, why)
+            local body = w.eve.Mesh
+            eq(body:GetMaterial(0).path, PV1 .. ':M0', 'slot 0 keeps the mesh\'s own')
+            eq(body:GetMaterial(1).path, M1, 'slot 1')
+            eq(body:GetMaterial(2).path, PV1 .. ':M2', 'slot 2 keeps the mesh\'s own')
+            eq(body:GetMaterial(3).path, M3, 'slot 3')
+        end)
+    end,
     a_whole_pack_fit_shows_all_but_hidden_and_off_toggles = function()
         with_packs(function(w)
             local good, line = w.d.wear({{fit = 'p.suit'}})
