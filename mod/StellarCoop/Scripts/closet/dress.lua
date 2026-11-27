@@ -578,7 +578,10 @@ function Dress.new(o)
         if not state and not restored then -- A kept look not worn again yet: dropped, its leftovers off EVE.
             local f=kept_fields()
             local found,eve=pcall(her)
-            if #f>0 and found and eve then pcall(undo_kept,eve,f) end
+            if #f>0 and found and eve then
+                if o.packs then o.packs() end -- A pack suit on her body is a closet mesh once the packs are read.
+                pcall(undo_kept,eve,f)
+            end
             restored,pending=true,{}
             if #f>0 then
                 store.clear()
@@ -641,12 +644,13 @@ function Dress.new(o)
         if not (found and eve) then return end
         local now=clock()
         if now<retry_at then return end
+        -- The pack catalogue read first: a pack suit on her body is a closet mesh, the kept words may name one.
+        if o.packs then o.packs() end
         local ok,removed=pcall(undo_kept,eve,f)
         local kept=f[5] or ''
         if kept=='' then
             return done(true,ok and (removed..' added mesh(es) removed, her own look back') or tostring(removed))
         end
-        if o.packs then o.packs() end -- The pack catalogue read first: the kept words may name a pack's suit.
         local words={}
         for x in kept:gmatch('%S+') do words[#words+1]=x end
         local choices,why=Dress.parse(words)

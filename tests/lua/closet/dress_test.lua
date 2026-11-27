@@ -193,6 +193,21 @@ local tests = {
             d.tick()
             ok(reads >= 1, 'the packs read') ok(d.worn(), 'worn again')
             eq(d.choices()[1].fit, 'p.suit') eq(w.eve.Mesh.SkeletalMesh.path, PV1)
+            assert(d.off())
+            eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off gives her own look back, not the pack suit')
+        end)
+    end,
+    -- coop closet off before the kept look is worn again: the packs are read so the pack mesh counts as a closet mesh.
+    off_after_a_reload_takes_a_kept_pack_suit_off = function()
+        with_packs(function(w)
+            assert(w.d.wear({{fit = 'p.suit'}}))
+            local Fits = require('closet.fits')
+            local catalogue = Fits.PACKS
+            Fits.use(nil)
+            local d = w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
+                clock = function() return w.now end, packs = function() Fits.PACKS = catalogue end})
+            assert(d.off())
+            eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'her own look back') eq(w.file, nil)
         end)
     end,
     a_missing_mesh_says_so_once = function()
