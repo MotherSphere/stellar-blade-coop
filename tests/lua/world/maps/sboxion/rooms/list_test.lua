@@ -15,6 +15,10 @@
 -- props in front of it are no rows. D111, D109 and D029 name Xion_Rooms_D087 as the level the pak must hold beside
 -- theirs: the fourth full test build holds closed rooms under their names. Each room's door is a waypoint of the test
 -- walk (world/maps/sboxion/data.lua), named after the room, after the four older ones.
+-- G18, the gate to the underground district, comes last: the level Under_D1_Arch of the sixth full test build, six
+-- rows of E04_Area02_Object_F_04's Actor_1 (two crates, two fence panels, the tarp, a barrel), no door piece and no
+-- wall panel, its waypoint the middle of the gate's plane. With it the list holds 68 rows: 28 whole components and 40
+-- instances of 31 instanced components, in 14 sublevels.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local List=require('world.maps.sboxion.rooms.list')
 local BESIDE={D111=true,D109=true,D029=true}
@@ -35,13 +39,19 @@ local SUM=2348.536-552.534+606.193-419.767-238.074+642.96-381.014-127.684+573.95
     -460.724-618.484-1146.81-460.724-618.484-1294.94-289.055-618.484-1294.94-289.055-618.484-1234.37-404.481-628.51
     -1423.46-179.176-628.51-1234.37-404.481-628.51-1423.46-179.176-628.51+1629.62+523.988-37.342-227.889-1808.22
     -856.12-394.791+754.535+177.873+202.252-1652.16-808.573
-local ROWS={D011=4,D031=4,D081=4,D107=3,D158=8,D009=4,D049=5,D092=2,D036=3,D106=4,D039=1,D087=2,D111=6,D109=9,D029=3}
-local ORDER={'D011','D031','D081','D107','D158','D009','D049','D092','D036','D106','D039','D087','D111','D109','D029'}
-assert(#List==15,'Fifteen rooms: '..#List)
+local G18_SUM=998.087+881.866-674.203+998.088+881.866-575.477+1088.62+750.618-677.787+1088.62+750.618-426.257
+    +1049.84+744.198-559.249+1017.83+774.909-663.865
+local ROWS={D011=4,D031=4,D081=4,D107=3,D158=8,D009=4,D049=5,D092=2,D036=3,D106=4,D039=1,D087=2,D111=6,D109=9,D029=3,
+    G18=6}
+local ORDER={'D011','D031','D081','D107','D158','D009','D049','D092','D036','D106','D039','D087','D111','D109','D029',
+    'G18'}
+local LEVEL={G18='Under_D1_Arch'} -- The rooms' level is Xion_Rooms_<room>.
+assert(#List==16,'Fifteen rooms and G18: '..#List)
 local rows,whole,instances,sum=0,0,0,0
 local seen,components,sublevels={},{},{}
 for i,room in ipairs(List) do
-    assert(room.name==ORDER[i] and room.level=='Xion_Rooms_'..room.name,'Room '..i..': '..tostring(room.name))
+    assert(room.name==ORDER[i] and room.level==(LEVEL[room.name] or 'Xion_Rooms_'..room.name),
+        'Room '..i..': '..tostring(room.name))
     assert(#room.rows==ROWS[room.name],room.name..' holds '..#room.rows..' rows')
     local panels={} -- By place: a panel's copies are one panel.
     for k,r in ipairs(room.rows) do
@@ -71,15 +81,15 @@ for i,room in ipairs(List) do
         if mesh:find('^Architecture/Building_003/') then panels[x..' '..y..' '..z]=true end
     end
     local door=room.rows[1][5]
-    assert(door:find('^Architecture/Door/') or room.name=='D036' and door=='Architecture/Bar/005_A_SM',
-        room.name..' starts with its door piece')
+    assert(door:find('^Architecture/Door/') or room.name=='D036' and door=='Architecture/Bar/005_A_SM'
+        or room.name=='G18' and door=='Deco/Box/013_A_SM',room.name..' starts with its door piece')
     local function size(t) local n=0 for _ in pairs(t) do n=n+1 end return n end
     assert(size(panels)<=1,room.name..' holds at most one wall panel')
 end
 local function size(t) local n=0 for _ in pairs(t) do n=n+1 end return n end
-assert(rows==62 and whole==27 and instances==35,rows..' rows, '..whole..' whole, '..instances..' instances')
-assert(size(components)==28 and size(sublevels)==13,size(components)..' components in '..size(sublevels)..' sublevels')
-assert(math.abs(sum-SUM)<0.0005,'The sum of the 62 places: '..sum)
+assert(rows==68 and whole==28 and instances==40,rows..' rows, '..whole..' whole, '..instances..' instances')
+assert(size(components)==31 and size(sublevels)==14,size(components)..' components in '..size(sublevels)..' sublevels')
+assert(math.abs(sum-SUM-G18_SUM)<0.0005,'The sum of the 68 places: '..sum)
 local function same(r,want)
     for i,v in ipairs(want) do if r[i]~=v then return false end end
     return #r==#want
@@ -143,14 +153,25 @@ assert(same(List[14].rows[9],{'E04_Area02_Object_D_01','Actor_2',27,0,'Deco/Rubb
     9}),'The rubble of D109')
 assert(same(List[15].rows[2],{'E04_Area02_Object_A_01','Actor7*',101,-1,'Deco/Wire/030_B_SM',-394.791,754.535,
     177.873}),'The wire of D029')
+-- G18: the two crates, the two fence panels, the tarp (a whole component) and the barrel by the gate, in that order.
+local G18={{17,0,'Deco/Box/013_A_SM'},{17,1,'Deco/Box/013_A_SM'},{8,0,'Deco/Fence/004_E_SM'},
+    {8,1,'Deco/Fence/004_E_SM'},{37,-1,'Deco/Tarp/001_D_SM'},{9,1,'Deco/Barrel/008_A_SM'}}
+for k,want in ipairs(G18) do
+    local r=List[16].rows[k]
+    assert(r[1]=='E04_Area02_Object_F_04' and r[2]=='Actor_1' and r[3]==want[1] and r[4]==want[2] and r[5]==want[3],
+        'G18 row '..k)
+end
+assert(same(List[16].rows[3],{'E04_Area02_Object_F_04','Actor_1',8,0,'Deco/Fence/004_E_SM',1088.62,750.618,-677.787,2})
+    and same(List[16].rows[5],{'E04_Area02_Object_F_04','Actor_1',37,-1,'Deco/Tarp/001_D_SM',1049.84,744.198,
+    -559.249}),'The lower fence panel and the tarp of G18')
 -- The doors: coop xion status names the nearest one and the watch logs a stay of 5 s within 3 m of it.
 local D=require('world.maps.sboxion.data')
 local DOORS={D011={-10901.1,3360.9,411.6},D031={-5853.9,4.2,465.7},D081={-6971.5,1706.1,475.4},
     D107={8279.4,-5081.4,1374.1},D158={-4798.1,6916.7,595.5},D009={-12132.6,3785.0,541.9},
     D049={-3711.3,-52.4,346.9},D092={-1606.6,-2371.9,456.8},D036={-5705.1,7746.7,592.4},D106={7872.4,2974.4,1498.4},
     D039={-4743.0,-8.1,461.2},D087={-2313.0,-1273.4,456.8},D111={10639.6,889.7,1461.9},D109={9249.9,1493.5,1353.5},
-    D029={-6118.2,4972.3,212.0}}
-assert(#D.WAYPOINTS==19 and D.WAYPOINTS[1].name=='tie' and D.WAYPOINTS[4].name=='tree','The four older waypoints first')
+    D029={-6118.2,4972.3,212.0},G18={252.5,4407.5,-227.8}}
+assert(#D.WAYPOINTS==20 and D.WAYPOINTS[1].name=='tie' and D.WAYPOINTS[4].name=='tree','The four older waypoints first')
 for i,room in ipairs(List) do
     local w,door=D.WAYPOINTS[4+i],DOORS[room.name]
     assert(w.name==room.name and w.X==door[1] and w.Y==door[2] and w.Z==door[3],'The door of '..room.name)

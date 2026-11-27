@@ -14,17 +14,19 @@
 -- The full test pak loads those sublevels as SB ships them. The rows of the city's 19 fall volumes name Zone_Xion_10
 -- as the zone they act in, so in Zone_SBO_Xion the recovery runs the same with each pak. Whether SB's volumes act
 -- there was not seen in game.
+-- The floor: data.lua's FLOOR, or UNDER's floor inside the underground district's box. There the district's deck is
+-- ground and a fall off it is caught at Z -1275, 175 cm under the deck, not at FLOOR 21.75 m under it.
 -- The ground point: each pass, world.move() gives EVE's place, yaw and movement mode from one read. A pass on which
--- she walks (mode 1 or 2) at or above data.lua's FLOOR joins a streak. The oldest of STREAK passes in a row is the
+-- she walks (mode 1 or 2) at or above the floor joins a streak. The oldest of STREAK passes in a row is the
 -- ground point: a place she walked on, at most 1 s old. A jump, a fall, a guard that waits or a step of more than
 -- JUMP cm between two passes starts the streak again and keeps the point. An arrival drops it.
--- The fall: with EVE under FLOOR the part asks SB's black (world.black), the fade SB's own fall warp shows: to black
--- over BLACK_IN s, black for BLACK s, back to the picture over BLACK_OUT s. LEAD passes later it calls world.put
+-- The fall: with EVE under the floor the part asks SB's black (world.black), the fade SB's own fall warp shows: to
+-- black over BLACK_IN s, black for BLACK s, back to the picture over BLACK_OUT s. LEAD passes later it calls world.put
 -- (K2_TeleportTo, then StopMovementImmediately) to the ground point plus LIFT cm, facing the point's yaw, so the move
 -- is made under the black. The move never waits for the black: it is made at that pass whatever the black's call did. A
 -- call that raised, no loading screen and a handle that did not read each give one log line. With no ground point, or
 -- after a failure, the target is the arrival point of the stay. After a failure the move is made in the pass that reads
--- her under FLOOR. A black that is up at once is asked after it, only when the game took the teleport. SB ends each
+-- her under the floor. A black that is up at once is asked after it, only when the game took the teleport. SB ends each
 -- black by itself, so the part keeps nothing of it and has nothing to lift. The first walking read within CHECK s of
 -- the world's time is the success. A refused teleport or CHECK s without that read is a failure. A success and a full
 -- streak set the failures to 0. Two failures with neither between them stop the recovery until the next arrival or coop
@@ -56,7 +58,7 @@
 -- SB's death screen is told that its revival ended (engine.lua's revived), so SB gives back the mouse cursor the
 -- screen holds, with one line for what was told. A death screen that still plays is then hidden until the next death,
 -- a stop or the recovery stopping after two failures. A hide that raises is one line: the result is still logged.
--- If EVE is then not walking or is under FLOOR, the fall's put-back runs, in the mode death too. Life still 3 to 5,
+-- If EVE is then not walking or is under the floor, the fall's put-back runs, in the mode death too. Life still 3 to 5,
 -- or no call in TRY s, is a failure: the next pass starts the death again unless the recovery stopped. TRY, AFTER and
 -- SCREEN count passes, so they run in real time whatever the world's time does. Without a warp= word the call is
 -- never made: it needs the GUID.
@@ -70,6 +72,13 @@ local TICK=0.25 -- s between two passes (main/pass.lua's loop).
 local MODES={on='falls are caught, deaths are',death='falls are not caught, deaths are',
     off='falls are not caught, deaths are not'}
 local function place(at) return string.format('(%.0f, %.0f, %.0f)',at.X,at.Y,at.Z) end
+-- The floor under a place: UNDER's inside the district's box, else FLOOR.
+local function floor_at(at)
+    local a,box=math.rad(D.UNDER.yaw),D.UNDER
+    local u,v=(at.X*math.cos(a)+at.Y*math.sin(a))/100,(at.Y*math.cos(a)-at.X*math.sin(a))/100
+    if u>=box.u[1] and u<=box.u[2] and v>=box.v[1] and v<=box.v[2] then return box.floor end
+    return D.FLOOR
+end
 
 -- o: log(m), status() the native status text, photo() main/base.lua's photo_state ('0' out of photo mode; optional)
 -- and world, the engine calls (world/maps/sboxion/engine.lua's move, put, black, controller, standalone, respawn,
@@ -229,7 +238,7 @@ function Recover.new(o)
         if life and life>=3 and life<=5 then return fail(said) end
         log(said)
         if not alive or not m then return end
-        if GROUND[m.mode] and m.at.Z>=D.FLOOR then fails=0
+        if GROUND[m.mode] and m.at.Z>=floor_at(m.at) then fails=0
         elseif not waits then due(m,'death: EVE at '..place(m.at)..' not on the ground') end
     end
     local function tick()
@@ -260,7 +269,8 @@ function Recover.new(o)
         end
         if dead then return respawn(m,line,life,reason~=nil) end
         if reason or not moving then return end
-        local walks=GROUND[m.mode] and m.at.Z>=D.FLOOR
+        local floor=floor_at(m.at)
+        local walks=GROUND[m.mode] and m.at.Z>=floor
         if not walks or prev and U.metres(prev,m.at)*100>D.JUMP then ring={} end
         prev=m.at
         if walks then
@@ -295,9 +305,9 @@ function Recover.new(o)
             end
             return
         end
-        if mode=='on' and m.at.Z<D.FLOOR then -- Her life is not 3 to 5 here: in the mode on that returned above.
-            due(m,string.format('fall: EVE at %s under the floor, mode %s, life %s',place(m.at),tostring(m.mode),
-                life or '?'))
+        if mode=='on' and m.at.Z<floor then -- Her life is not 3 to 5 here: in the mode on that returned above.
+            due(m,string.format('fall: EVE at %s under the floor%s, mode %s, life %s',place(m.at),
+                floor==D.FLOOR and '' or ' of the underground district',tostring(m.mode),life or '?'))
         end
     end
     -- Each 250 ms pass while EVE's map is SBO Xion.

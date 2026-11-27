@@ -556,5 +556,15 @@ return {
     -- SBO Xion's NPCs (world/maps/sboxion/npcs/npcs.lua): says is the line with its speaker (%s the name, %s the
     -- words), then each NPC's name and what it says when EVE comes close.
     xion={says='%s: %s',repairer='Repairer',
-        repairer_hello='If it hums or throws sparks, bring it over. I can usually get it running again.'},
+        repairer_hello='If it hums or throws sparks, bring it over. I can usually get it running again.',
+        d1_gate_guard='Gate guard',d1_gate_guard_hello='You came down the arch stair? Then you found us.',
+        d1_storyteller='Storyteller',d1_storyteller_hello='Before the city was hung here, this was all falling air.',
+        d1_porter='Porter',d1_porter_hello='Everything that comes down, comes down that stair.',
+        d1_welder='Welder',d1_welder_hello='Stand back from the sparks.',
+        d1_stall_keeper_1='Stall keeper',d1_stall_keeper_1_hello='Fresh from the upper streets.',
+        d1_stall_keeper_2='Stall keeper',d1_stall_keeper_2_hello='Cells, cable, anything that still works.',
+        d1_stall_keeper_3='Stall keeper',d1_stall_keeper_3_hello='Ask before you touch.',
+        d1_resident_a='Resident',d1_resident_a_hello='Mind the curtain, it keeps the dust out.',
+        d1_mechanic='Mechanic',d1_mechanic_hello='Bring me what the upper streets threw away.',
+        d1_resident_b='Resident',d1_resident_b_hello='We came down when the stairs were finished.'},
 }

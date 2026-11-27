@@ -4,7 +4,10 @@
 -- SBO Xion's NPCs (world/maps/sboxion/npcs/npcs.lua) over a fake world: lua5.4 tests/lua/world/maps/sboxion/npcs/
 -- npcs_test.lua
 -- The list: each NPC has a name with its words in every language, a room level, a mesh, clips the keep takes and a
--- line that fits the feed's 200 bytes. The repairer stands at the spot of D011's layout.
+-- line that fits the feed's 200 bytes. Its own spot is on its side of its frame. The repairer stands at the spot of
+-- D011's layout. Ten NPCs of the underground district follow: seven on the deck of Under_D1_Arch, three in the rooms
+-- of Under_D1_ArchHomes, each at the district layout's spot on its walk at Z -1100, inside the district's box of
+-- data.lua. A district NPC is made once EVE is near and its own level is there. It talks to her beside it.
 -- The body: none while EVE is far or the room's level is not there (said once, asked again each WAIT passes), none
 -- for a room the pak does not hold (one line an arrival, no read of the levels). Within NEAR with the level up it is
 -- made at the row's place, turned by MESH_YAW, on the first clip. Its actor path goes to the store. Past FAR it
@@ -30,7 +33,9 @@ assert(cultures==22,'The words in the 22 language files: '..cultures)
 for _,n in ipairs(LIST) do
     assert(not seen[n.name],'A name once: '..n.name)
     seen[n.name]=true
-    assert(n.room:find('^Xion_Rooms_D%d%d%d$'),n.room)
+    assert(n.room:find('^Xion_Rooms_D%d%d%d$') or n.room=='Under_D1_Arch' or n.room=='Under_D1_ArchHomes',n.room)
+    local a=math.rad(n.frame.yaw)
+    assert((n.at.X-n.frame.X)*math.cos(a)+(n.at.Y-n.frame.Y)*math.sin(a)>0,n.name..' stands on its side of its frame')
     assert(Keep.path_ok(n.mesh) and #n.clips>=1,n.name)
     for _,c in ipairs(n.clips) do assert(Keep.path_ok(c),c) end
     for culture,words in pairs(T) do
@@ -49,6 +54,33 @@ local a=math.rad(-70)
 local x,y=-10650.4+132*math.cos(a)+347.4*math.sin(a),3388.3+132*math.sin(a)-347.4*math.cos(a)
 assert(math.abs(R.at.X-x)<1 and math.abs(R.at.Y-y)<1 and math.abs(R.at.Z-413.97)<1,'The spot at the bench')
 assert(R.frame.X==-10650.4 and R.frame.Y==3388.3 and R.frame.yaw==-70,'The room frame of the layout')
+-- The district's ten, in the walk order, by the level each stands in.
+local D1={d1_gate_guard='Under_D1_Arch',d1_storyteller='Under_D1_Arch',d1_porter='Under_D1_Arch',
+    d1_welder='Under_D1_Arch',d1_stall_keeper_1='Under_D1_Arch',d1_stall_keeper_2='Under_D1_Arch',
+    d1_stall_keeper_3='Under_D1_Arch',d1_resident_a='Under_D1_ArchHomes',d1_mechanic='Under_D1_ArchHomes',
+    d1_resident_b='Under_D1_ArchHomes'}
+local D=require('world.maps.sboxion.data')
+assert(#LIST==11 and LIST[2].name=='d1_gate_guard' and LIST[11].name=='d1_resident_b','The repairer, then the ten')
+for i=2,11 do
+    local n=LIST[i]
+    assert(D1[n.name]==n.room and n.at.Z==-1100,n.name..' in '..n.room)
+    local b,a=D.UNDER,math.rad(D.UNDER.yaw)
+    local u,v=(n.at.X*math.cos(a)+n.at.Y*math.sin(a))/100,(n.at.Y*math.cos(a)-n.at.X*math.sin(a))/100
+    assert(u>b.u[1] and u<b.u[2] and v>b.v[1] and v<b.v[2],n.name..' stands in the district\'s box')
+end
+local G=LIST[2]
+assert(G.mesh=='/Game/Art/Character/NPC/CH_NPC_XionGuard/CH_NPC_XionGuard.CH_NPC_XionGuard' and G.yaw==112
+    and G.clips[1]=='/Game/Art/Character/NPC/CH_NPC_XionGuard/Animation/N_XionGuard_KeepWatch1.N_XionGuard_KeepWatch1'
+    and G.at.X==-585.9 and G.at.Y==5835.2,'The gate guard beside the foot of the arch stair')
+-- The last flight of the arch stair (its CatWalk_002/001_C_h300_SM in the district's layout) spans grid v 49.47 to
+-- 53.49 and ends at u 34.02. A display body has no collision: on that line EVE walks through it off the stair.
+do
+    local a=math.rad(D.UNDER.yaw)
+    local u,v=(G.at.X*math.cos(a)+G.at.Y*math.sin(a))/100,(G.at.Y*math.cos(a)-G.at.X*math.sin(a))/100
+    assert((v<49.47 or v>53.49) and u<34.02,string.format('The gate guard off the last flight: u %.2f v %.2f',u,v))
+end
+assert(LIST[8].mesh=='/Game/Art/Character/NPC/CH_NPC_CitizenMale_A/CH_NPC_CitizenMale_C.CH_NPC_CitizenMale_C',
+    'The third stall keeper: mesh C in the folder of CitizenMale_A')
 
 local logs,bodies,gone,said,saved,swept,level_reads
 local level,body_error,clip_error,dropped,levels_error,pak
@@ -162,15 +194,19 @@ assert(#bodies==0 and logs[1]=='npcs: repairer stays away: its level Xion_Rooms_
 for _,gate in ipairs({function() return nil,'no such room' end,function() error('boom',0) end}) do
     pak=gate
     fresh()
-    assert(#logs==1 and logs[1]=='npcs: repairer stays away: this pak does not hold Xion_Rooms_D011',logs[1])
+    assert(#logs==#LIST and logs[1]=='npcs: repairer stays away: this pak does not hold Xion_Rooms_D011'
+        and logs[11]=='npcs: d1_resident_b stays away: this pak does not hold Under_D1_ArchHomes',logs[1])
     pass(100,20)
-    assert(#bodies==0 and level_reads==0 and #logs==1)
+    assert(#bodies==0 and level_reads==0 and #logs==#LIST)
 end
 local asked_for=nil
-pak=function(umap) asked_for=umap; return true end
+local asks={}
+pak=function(umap) asked_for=asked_for or umap; asks[#asks+1]=umap; return true end
 fresh()
 pass(100)
-assert(#bodies==1 and asked_for=='/Game/SBO_World/Rooms/Xion_Rooms_D011','The gate is asked for the room\'s game path')
+assert(#bodies==1 and asked_for=='/Game/SBO_World/Rooms/Xion_Rooms_D011' and #asks==#LIST
+    and asks[2]=='/Game/SBO_World/Rooms/Under_D1_Arch' and asks[11]=='/Game/SBO_World/Rooms/Under_D1_ArchHomes',
+    'The gate is asked for each NPC\'s level by its game path')
 pak=nil
 -- A body that cannot be made: one line, nothing left, no second try in the stay.
 fresh()
@@ -253,4 +289,33 @@ pass(100)
 assert(npcs.status()=='npcs 1 of '..#LIST..' shown','On again at the next arrival')
 -- No place of EVE: nothing.
 npcs.tick(nil)
+
+-- The district: a pak that holds the rooms only keeps the ten away. With the district's levels and Under_D1_Arch
+-- there, EVE beside the gate guard gets the seven bodies of the deck, all within NEAR. The guard talks to her, then
+-- the storyteller when she walks up to him. The three of Under_D1_ArchHomes stay away while that level is not there.
+pak=function(umap) return umap:find('/Xion_Rooms_',1,true)~=nil end
+fresh()
+assert(#logs==10 and logs[1]=='npcs: d1_gate_guard stays away: this pak does not hold Under_D1_Arch',logs[1])
+local guard={X=G.at.X+100*math.cos(math.rad(G.frame.yaw)),Y=G.at.Y+100*math.sin(math.rad(G.frame.yaw)),Z=G.at.Z+95}
+npcs.tick(guard)
+assert(#bodies==0 and level_reads==0,'No district NPC without the district in the pak')
+pak=function() return true end
+fresh()
+level={name='Under_D1_Arch',loaded=true,visible=true}
+npcs.tick(guard)
+assert(#bodies==7 and bodies[1].mesh==G.mesh and bodies[1].yaw==G.yaw+Npcs.MESH_YAW and bodies[1].clip==G.clips[1],
+    'The gate guard\'s body first: '..#bodies)
+assert(#said==1 and said[1]=='d1_gate_guard'
+    and logged('npcs: d1_gate_guard stands in Under_D1_Arch at (-586, 5835, -1100), yaw 22, clip '
+        ..'N_XionGuard_KeepWatch1')
+    and logged('npcs: d1_resident_b stays away: its level Under_D1_ArchHomes is not on the streaming list'),logs[#logs])
+local T=LIST[3]
+npcs.tick({X=T.at.X+100*math.cos(math.rad(T.frame.yaw)),Y=T.at.Y+100*math.sin(math.rad(T.frame.yaw)),Z=T.at.Z+95})
+assert(T.name=='d1_storyteller' and #said==2 and said[2]=='d1_storyteller' and #bodies==7,'The storyteller by the globe')
+-- The street over the deck, 8.7 m up: too far to talk, the bodies stay shown.
+npcs.tick({X=guard.X,Y=guard.Y,Z=-228+95})
+npcs.tick({X=guard.X,Y=guard.Y,Z=-228+95})
+assert(#said==2 and #bodies==7 and #gone==0,'Nothing said from the street')
+assert(npcs.status()=='npcs 7 of 11 shown',npcs.status())
+pak=nil
 print('sboxion_npcs_test ok')

@@ -4,18 +4,18 @@
 -- SBO Xion's rooms (world/maps/sboxion/rooms/rooms.lua): the rooms the zSBO_Xion test paks of 2026-11-24 to 26 add
 -- behind closed doors of SB's Xion, each a level of its own on the streaming list of SBO Xion's persistent level
 -- (/Game/SBO_World/Rooms/<level>), with the pieces of SB that stand in its doorway. The paks of build2 hold the first
--- five, the pak of build3 the first eleven, the fifth full test build all fifteen. A level of that build may hold a
--- suite: rooms of ours joined by inner doorways of ours, entered through the one street door. A room's rows are SB's
--- closed door unit, shutter or boards, the wall panel behind it and the street debris that reaches into the doorway:
--- 62 rows, 27 whole components and 35 instances of 28 instanced components, in 13 sublevels of
--- /Game/Art/BG/WorldMap/SubLevel/E04/ that SBO Xion keeps. Read on 2026-11-24 and 2026-11-26 from the level dumps of
+-- five, the pak of build3 the first eleven, the fifth full test build all fifteen. The sixth adds G18 (below). A level
+-- of the fifth build may hold a suite: rooms of ours joined by inner doorways of ours, entered through the one street
+-- door. A room's rows are SB's closed door unit, shutter or boards, the wall panel behind it and the street debris that
+-- reaches into the doorway: 62 rows, 27 whole components and 35 instances of 28 instanced components, in 13 sublevels
+-- of /Game/Art/BG/WorldMap/SubLevel/E04/ that SBO Xion keeps. Read on 2026-11-24 and 2026-11-26 from the level dumps of
 -- build 26123051: each sublevel, actor and component exists under these names, a whole component is a
 -- StaticMeshComponent, an instanced one a HierarchicalInstancedStaticMeshComponent, all 55 are of Static mobility with
 -- baked lighting. 15 of the 28 instanced ones store CastShadow false: 33 and 34 of E04_Area02_Object_A_02, 39 of
 -- E04_Area02_Object_B_02, 26 of E04_Area02_Object_D_01's Actor_0 and Actor_2, 27 of its Actor_2, 10 of
--- E04_Area02_Object_B_01, 0 and 4 of E04_Area02_Architecture_C_02, 2, 50 and 52 of E04_Area02_Object_D_04's Actor_0
--- and Actor_3. Instance 6 of E04_Area02_Object_F_01's component 34 is D036's. Its instances 0 to 3 are D158's.
--- In E04_Area02_Object_D_04 every piece is stored twice, on Actor_0 and on Actor_3, with the same component, mesh and
+-- E04_Area02_Object_B_01, 0 and 4 of E04_Area02_Architecture_C_02, 2, 50 and 52 of E04_Area02_Object_D_04's Actor_0 and
+-- Actor_3. Instance 6 of E04_Area02_Object_F_01's component 34 is D036's. Its instances 0 to 3 are D158's. In
+-- E04_Area02_Object_D_04 every piece is stored twice, on Actor_0 and on Actor_3, with the same component, mesh and
 -- place. Hiding one copy leaves the other, so D111 and D109 list both.
 -- beside=<a level>: the room opens only with a pak that holds that level too. The fourth full test build (25
 -- November 2026) holds closed rooms under the names Xion_Rooms_D111, _D109 and _D029, with no doorway behind these
@@ -24,6 +24,13 @@
 -- front of it (PhysicalObj_Trash_2 and _3 of E04_Area02_Object_B_01, component StaticMesh). Hiding such a body was not
 -- read in the game's code, so they stay. With the shutter hidden they leave 160 cm free between them on a flat floor
 -- (the map tools, 26 November 2026).
+-- G18, the way down to the underground district, is no room. Its level is the district's first one, Under_D1_Arch
+-- of the sixth full test build (27 November 2026). Its stairs start past the far arch of SB's brick tunnel behind
+-- the gate. Its rows are the six pieces of SB that close the gate on the lower street (MainStreet_04): two stacked
+-- crates, the two chain-link fence panels that close the tunnel's near arch from the floor to 5.07 m, the red tarp
+-- and a barrel, all of E04_Area02_Object_F_04's Actor_1, each with its own collision. The second barrel stays on
+-- the street side, its pivot 0.60 m in front of the gate and 1.78 m to one side. No other piece and no volume
+-- stands between the street and the tunnel. Read on 2026-11-27 from the level dump of build 26123051.
 -- A row: the sublevel, the actor, the component's number, the instance index (-1: the whole component), the mesh
 -- under /Game/Art/BG/Actor/, then the place the piece stores (cm): a whole component's RelativeLocation, an
 -- instance's translation inside its component. An instance row ends with the number of instances its component
@@ -143,5 +150,14 @@ return {
     {'E04_Area02_Architecture_A_01','Actor_4',127,-1,'Architecture/Door/031_A_SM',-227.889,-1808.22,-856.12},
     {'E04_Area02_Object_A_01','Actor7*',101,-1,'Deco/Wire/030_B_SM',-394.791,754.535,177.873},
     {'E04_Area02_Architecture_A_01','Actor_4',8,-1,'Architecture/Building_003/001_B_SM',202.252,-1652.16,-808.573},
+}},
+-- G18, the gate to the underground district: 6 rows, 1 whole component and 5 instances.
+{name='G18',level='Under_D1_Arch',rows={
+    {'E04_Area02_Object_F_04','Actor_1',17,0,'Deco/Box/013_A_SM',998.087,881.866,-674.203,3},
+    {'E04_Area02_Object_F_04','Actor_1',17,1,'Deco/Box/013_A_SM',998.088,881.866,-575.477,3},
+    {'E04_Area02_Object_F_04','Actor_1',8,0,'Deco/Fence/004_E_SM',1088.62,750.618,-677.787,2},
+    {'E04_Area02_Object_F_04','Actor_1',8,1,'Deco/Fence/004_E_SM',1088.62,750.618,-426.257,2},
+    {'E04_Area02_Object_F_04','Actor_1',37,-1,'Deco/Tarp/001_D_SM',1049.84,744.198,-559.249},
+    {'E04_Area02_Object_F_04','Actor_1',9,1,'Deco/Barrel/008_A_SM',1017.83,774.909,-663.865,2},
 }},
 }

@@ -18,17 +18,21 @@
 -- that is not found; a load or a save that raises is logged and stops nothing. A level read that raises is logged once
 -- and the rooms wait. A room that names a level beside its own is held only when the pak holds that level too: the
 -- fourth full test build, which holds D111, D109 and D029 without D087, opens the other eleven; the fifth opens all
--- fifteen.
+-- fifteen. G18 is the sixteenth entry: its level is the underground district's Under_D1_Arch, so only the sixth
+-- build, which holds that level, opens it, once the district level and its rows' sublevel read loaded and visible.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=50
 os.clock=function() return clock end
 package.loaded.UEHelpers={}
 local Rooms=require('world.maps.sboxion.rooms.rooms')
 local LIST=Rooms.LIST
-assert(#LIST==15 and Rooms.PACE==4 and Rooms.WAIT==30)
-for _,room in ipairs(LIST) do
-    assert(room.umap=='/Game/SBO_World/Rooms/Xion_Rooms_'..room.name,'The game path the pak gate is asked for')
+assert(#LIST==16 and Rooms.PACE==4 and Rooms.WAIT==30)
+for i=1,15 do
+    assert(LIST[i].umap=='/Game/SBO_World/Rooms/Xion_Rooms_'..LIST[i].name,'The game path the pak gate is asked for')
 end
+local G18=LIST[16]
+assert(G18.name=='G18' and G18.umap=='/Game/SBO_World/Rooms/Under_D1_Arch' and G18.beside==nil and #G18.rows==6
+    and table.concat(G18.needs,' ')=='Under_D1_Arch E04_Area02_Object_F_04','G18 opens with the district\'s level')
 local D011,D031,D158=LIST[1],LIST[2],LIST[5]
 assert(D011.name=='D011' and D011.level=='Xion_Rooms_D011' and #D011.rows==4)
 assert(table.concat(D011.needs,' ')=='Xion_Rooms_D011 E04_Area02_Architecture_A_02 E04_Area02_Object_A_02',
@@ -48,7 +52,7 @@ for _,room in ipairs(LIST) do
         names[r.name],total=true,total+1
     end
 end
-assert(total==62)
+assert(total==68)
 local FIVE={} -- The game paths of the five rooms the paks of 24 November hold.
 for i=1,5 do FIVE[LIST[i].umap]=true end
 
@@ -141,9 +145,9 @@ assert(#logs==1 and logs[1]=='rooms: none in this pak (the folder does not read)
 -- of its room is hidden. The five rooms it lacks are asked of the pak only.
 r=fresh()
 r.arrive()
-assert(#logs==1 and logs[1]=='rooms: this pak holds 5 of 15 rooms: D011, D031, D081, D107, D158' and #order==0,
+assert(#logs==1 and logs[1]=='rooms: this pak holds 5 of 16 rooms: D011, D031, D081, D107, D158' and #order==0,
     'An arrival with the rooms in the pak says so and waits for the pass')
-assert(#asked==15 and asked[1]==D011.umap and asked[15]==LIST[15].umap,'Each room asked on its own')
+assert(#asked==16 and asked[1]==D011.umap and asked[16]==G18.umap,'Each room asked on its own')
 r.tick()
 assert(reads==1 and count('piece ')==23 and count('out ')==23 and size(hidden)==23)
 assert(order[1]=='piece '..D011.rows[1].name and order[4]=='piece '..D011.rows[4].name
@@ -352,7 +356,7 @@ assert(size(hidden)==23 and r.status()=='rooms 5 of 5 open')
 r=fresh()
 held={[D011.umap]=true,[D158.umap]=true}
 r.arrive()
-assert(#logs==1 and logs[1]=='rooms: this pak holds 2 of 15 rooms: D011, D158',logs[1])
+assert(#logs==1 and logs[1]=='rooms: this pak holds 2 of 16 rooms: D011, D158',logs[1])
 r.tick()
 assert(count('piece ')==12 and size(hidden)==12 and #logs==3 and logs[3]=='rooms: D158 open: 8 rows hidden, 0 ms')
 assert(not said('waits') and r.status()=='rooms 2 of 2 open',r.status())
@@ -370,7 +374,7 @@ r=Rooms.new({log=function(m) logs[#logs+1]=m end,world=world,gate=function(umap)
     return FIVE[umap]
 end})
 r.arrive()
-assert(logs[1]=='rooms: this pak holds 4 of 15 rooms: D011, D081, D107, D158',logs[1])
+assert(logs[1]=='rooms: this pak holds 4 of 16 rooms: D011, D081, D107, D158',logs[1])
 r.tick()
 assert(size(hidden)==19 and r.status()=='rooms 4 of 4 open',r.status())
 -- No room in the pak: the reason of the first room asked.
@@ -379,7 +383,7 @@ held={}
 none='no Xion_Rooms_D011.umap'
 r.arrive()
 assert(#logs==1 and logs[1]=='rooms: none in this pak (no Xion_Rooms_D011.umap): no door is opened',logs[1])
-assert(#asked==15,'Each room is asked')
+assert(#asked==16,'Each room is asked')
 
 -- full6: the fourth full test build holds the levels of D111, D109 and D029 with closed rooms in them. It does not
 -- hold D087's. Those three stay shut and nothing names them: the other eleven open.
@@ -390,7 +394,7 @@ r=fresh()
 held={}
 for i=1,15 do if i~=12 then held[LIST[i].umap]=true end end
 r.arrive()
-assert(logs[1]=='rooms: this pak holds 11 of 15 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, D106, '
+assert(logs[1]=='rooms: this pak holds 11 of 16 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, D106, '
     ..'D039',logs[1])
 r.tick()
 assert(count('piece ')==42 and size(hidden)==42 and #logs==12 and r.status()=='rooms 11 of 11 open',r.status())
@@ -399,9 +403,10 @@ for _,l in ipairs(logs) do assert(not l:find('D111') and not l:find('D109') and 
 -- all_rooms: the fifth full test build holds the fifteen. Each opens. D036 and D158 hide other instances of one
 -- component.
 r=fresh()
-held=true
+held={}
+for i=1,15 do held[LIST[i].umap]=true end
 r.arrive()
-assert(logs[1]=='rooms: this pak holds 15 of 15 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, D106, '
+assert(logs[1]=='rooms: this pak holds 15 of 16 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, D106, '
     ..'D039, D087, D111, D109, D029',logs[1])
 r.tick()
 assert(reads==1 and count('piece ')==62 and size(hidden)==62 and #logs==16,#logs)
@@ -419,4 +424,25 @@ assert(hidden[D04..'0.StaticMeshComponent_3'] and hidden[D04..'3.StaticMeshCompo
 assert(r.status()=='rooms 15 of 15 open' and select(2,stored:gsub('\t',''))==61,r.status())
 r.close('coop off')
 assert(logs[17]=='rooms: closed (coop off): 62 rows put back' and size(hidden)==0,logs[17])
+
+-- g18: the sixth full test build holds the fifteen rooms and the district's level. G18 waits for that level, then
+-- opens with its six rows once it reads loaded and visible.
+r=fresh()
+held=true
+levels=all_levels('Under_D1_Arch')
+r.arrive()
+assert(logs[1]=='rooms: this pak holds 16 of 16 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, D106, '
+    ..'D039, D087, D111, D109, D029, G18',logs[1])
+r.tick()
+assert(size(hidden)==62 and said('rooms: G18 waits for Under_D1_Arch') and r.status()=='rooms 15 of 16 open, 1 waiting',
+    r.status())
+levels=all_levels()
+ticks(r,4)
+assert(size(hidden)==68 and said('rooms: G18 open: 6 rows hidden, 0 ms') and r.status()=='rooms 16 of 16 open',
+    r.status())
+for _,row in ipairs(G18.rows) do assert(hidden[row.name],row.name) end
+assert(hidden['E04_Area02_Object_F_04.Actor_1.StaticMeshComponent_37']
+    and hidden['E04_Area02_Object_F_04.Actor_1.HierarchicalInstancedStaticMeshComponent_8[1]'],'The tarp and the fence')
+r.close('coop off')
+assert(said('rooms: closed (coop off): 68 rows put back') and size(hidden)==0)
 print('sboxion_rooms_test ok')

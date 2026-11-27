@@ -36,6 +36,10 @@
 -- leaves her walking sets the failures to 0; a death that starts while a put-back is checked drops the check.
 -- busy, for the Tetrapod's door (tetrapod.lua): whether a guard waits or a put-back or a death is handled, with the
 -- pass's read of EVE.
+-- The underground district (data.lua's UNDER): inside its box the deck is ground and a fall under -1275 is caught,
+-- with its own words in the fall line, then she goes back to her point on the deck. Walking under -1275 in the box
+-- records nothing. Outside the box -1276 is ground as before. Each of the box's four sides is tried 10 cm on each
+-- side.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Recover=require('world.maps.sboxion.recover')
 local D=require('world.maps.sboxion.data')
@@ -204,6 +208,40 @@ walk(r,4)
 fall()
 pass(r,3)
 assert(#puts==2 and puts[2].at.X==400 and puts[2].at.Z==245,'The new point')
+
+-- under_fall: the district's deck is ground and a fall under its floor goes back to the point on the deck.
+assert(D.UNDER.yaw==40 and D.UNDER.floor==-1275 and D.UNDER.u[1]==-3.25 and D.UNDER.u[2]==57.54
+    and D.UNDER.v[1]==21.83 and D.UNDER.v[2]==91.44)
+r=fresh({X=-817,Y=6032.8,Z=-1019}) -- The gate guard's place at the stair foot.
+walk(r,6)
+assert(r.status():find('ground (-517, 6033, -1019)',1,true),r.status())
+fall(-1276)
+pass(r,3)
+assert(#puts==1 and puts[1].at.X==-517 and puts[1].at.Y==6032.8 and puts[1].at.Z==-1009,'Back on the deck')
+assert(last()=='fall: EVE at (-217, 6033, -1276) under the floor of the underground district, mode 3, life 1: to the '
+    ..'ground point (-517, 6033, -1019) read 1.5 s ago',last())
+-- Walking under the district's floor records nothing.
+r=fresh({X=-817,Y=6032.8,Z=-1276})
+assert(r.mode('off'))
+walk(r,8)
+assert(r.status()=='recovery off, no ground point, failures 0' and #puts==0,r.status())
+-- Outside the box the same height is ground.
+r=fresh({X=0,Y=0,Z=-1276})
+walk(r,4)
+pass(r,3)
+assert(r.status():find('ground (400, 0, -1276)',1,true) and #puts==0,r.status())
+-- The box's sides, u 57.54 and -3.25, v 21.83 and 91.44: a fall 10 cm inside, none 10 cm outside.
+for _,side in ipairs({{1096.3,7638.9,1104.0,7645.3},{-3553.6,3737.1,-3561.2,3730.7},{1083.5,3768.0,1093.1,3756.5},
+        {-3383.9,9092.0,-3390.3,9099.7}}) do
+    r=fresh({X=side[1],Y=side[2],Z=-1276})
+    eve.mode=3
+    pass(r,3)
+    assert(#puts==1,'A fall 10 cm inside the box at '..side[1])
+    r=fresh({X=side[3],Y=side[4],Z=-1276})
+    eve.mode=3
+    pass(r,3)
+    assert(#puts==0,'No fall 10 cm outside the box at '..side[3])
+end
 
 -- fall_no_point: with no ground point she goes to the stay's arrival point.
 r=fresh()

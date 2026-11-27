@@ -31,7 +31,9 @@ D.ARRIVALS={
 -- TeleportPoint_FrontOfKaya. camp7: Xion_Camp_10_07_SV. Both lie outside every visibility volume of the two probe
 -- levels. tree: E04_Amb_ChristmasTreeBP_2 of E04_Sound, the place of the two Christmas sound actors. D011 to D029:
 -- the doors of the fifteen rooms (rooms/list.lua), each the centre of its doorway as the room's layout gives it. SB's
--- nearest door piece there has its pivot 0 to 78 cm from it (the level dumps of build 26123051).
+-- nearest door piece there has its pivot 0 to 78 cm from it (the level dumps of build 26123051). G18: the middle of
+-- the gate's plane on the lower street, where the way down to the underground district starts (the gate survey of
+-- 26 November 2026).
 D.WAYPOINTS={
     {name='tie',X=-9576.632,Y=7993.2314,Z=235.47108},
     {name='kaya',X=-8176.726,Y=-1813.0625,Z=44.0},
@@ -52,6 +54,7 @@ D.WAYPOINTS={
     {name='D111',X=10639.6,Y=889.7,Z=1461.9},
     {name='D109',X=9249.9,Y=1493.5,Z=1353.5},
     {name='D029',X=-6118.2,Y=4972.3,Z=212.0},
+    {name='G18',X=252.5,Y=4407.5,Z=-227.8},
 }
 D.NEAR,D.STAY=300,5 -- A waypoint is logged once EVE has stood within NEAR cm of it (flat distance) for STAY s.
 -- The day table: bActiveVolume of 41 SBEnvControlVolume actors of the level E04_ENV_VOL, as SB's sequence
@@ -85,8 +88,12 @@ D.PROBES={'E04_DistantView_A_01','E04_DistantView_A_03'}
 -- build read the same 34 slots back from the pak. The two probes are among them. The paks of 2026-11-23 and of the
 -- rooms list only those two of them. Every other listed level is always loaded: 93 with the first pak, 98 with the
 -- rooms pak, 127 with the full test pak, 133 with the full test pak of build3 (167 listed, six more rooms), 141 with
--- its fourth build (175 listed) and 137 with its fifth (171 listed, the four levels of D087, D111, D109 and D029 in
--- place of the fourth build's eight).
+-- its fourth build (175 listed), 137 with its fifth (171 listed, the four levels of D087, D111, D109 and D029 in
+-- place of the fourth build's eight) and 139 with its sixth (173 listed). The sixth adds the two levels of the
+-- underground district, /Game/SBO_World/Rooms/Under_D1_Arch and Under_D1_ArchHomes. They ride on the slots
+-- LevelStreamingDynamic_54 and _56 of Xion_P, which name volumes in E04 as shipped and which that build makes always
+-- loaded, so neither is in VOLUMED. The rooms (rooms/list.lua, G18) and the NPCs (npcs/npcs.lua) ask the pak gate for
+-- each of them.
 D.VOLUMED={
     'E04_Area01_A_LD','E04_Area01_A_LD_UnLoad','E04_Area02_A_LD','E04_Area02_A_LD_UnLoad','E04_Area03_A_LD',
     'E04_Area03_A_LD_UnLoad','E04_Area04_A_LD','E04_Area04_A_LD_UnLoad','E04_Area04_B_LD','E04_Area04_B_LD_UnLoad',
@@ -104,6 +111,17 @@ D.VOLUMED={
 -- Zone_Xion_10 only. It is 1410 cm under SBSpawnPoint43 of E04_LD_Respawn (Z -1865.14), the lowest spawn point of the
 -- upper city.
 D.FLOOR=-3275
+-- UNDER: the underground district under the lower street (district 1 of the sixth full test build): inside its box
+-- EVE at or above its floor is on its ground and EVE under it has fallen, in place of FLOOR. The box is in the
+-- district's own grid, u along yaw YAW and v along yaw YAW+90, in metres from the world origin. It holds every piece
+-- of the district (u 6.75 to 47.49, v 31.83 to 81.44: the stairs from the far arch of G18's tunnel at Z -216 and the
+-- deck at -1100) and at least 10 m more on each side, so EVE who runs off an edge is still inside it when she passes
+-- the floor.
+-- floor: the top of SBEffectVolume_Xion10_03 of E04_Area01_A_LD_Visible (centre Z -9000, scale Z 77.25, a cube brush
+-- of half size 100), SB's fall volume under the whole box, 175 cm under the deck. Only its number is used, as FLOOR's.
+-- In the box SB's collision under Z -1180 is two pieces of Architecture/Ceiling/003_B_SM on their edge, 10 cm thick,
+-- no floor (the hole survey's collision set). Outside the box FLOOR stays.
+D.UNDER={yaw=40,u={-3.25,57.54},v={21.83,91.44},floor=-1275}
 -- LIFT: how far above its target a put-back places EVE, the module's own value. Both kinds of target are the centre of
 -- a capsule: a ground point is where her own capsule stood and an arrival point is the root of a spawn point, its
 -- CapsuleComponent CollisionCapsule.

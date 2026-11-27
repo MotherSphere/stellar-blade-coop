@@ -29,7 +29,8 @@
 -- (what wakes up in Zone_SBO_Xion and whether the zone changes).
 -- Falls and deaths, each pass of the stay (world/maps/sboxion/recover.lua): the paks of 2026-11-23 and of the rooms
 -- have none of SB's fall volumes. The full test pak's city ones act in Zone_Xion_10 by their rows. So EVE under
--- data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
+-- data.lua's FLOOR, or under UNDER's floor in the underground district's box, is put back on the last place she
+-- walked on, or on the arrival point of this stay.
 -- SB's death screen cannot respawn her in this zone, so a dead EVE gets SB's in-place respawn.
 -- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test paks of 2026-11-24 to 26 add five,
 -- eleven or fifteen rooms behind closed doors of SB's Xion, each a level of the persistent level. The pak gate is asked
