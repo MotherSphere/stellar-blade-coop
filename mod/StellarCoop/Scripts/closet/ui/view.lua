@@ -106,6 +106,9 @@ local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: 
 -- 220 of 460 units: SLIDER_PAD keeps room for the value text (SizeBox_2, 112 wide, 20 from the right) only.
 local SLIDER_TITLE,SLIDER_BAR=420,460
 local SLIDER_PAD={Left=20,Top=0,Right=130,Bottom=0}
+-- The bar's ends on screen with those sizes, in kit units (measured in game at 1920x1080, 27 Nov 2026): a click
+-- between them sets the value at that place (closet/ui/menu.lua).
+View.SLIDER_X0,View.SLIDER_X1=706,974
 -- The SB row's value box (WB_Setting_Button_Slot in a 900-unit slot at x 160), measured on the in-game screenshots of
 -- build 65b52c49 at 1456x819: its focused white box spans x 828 to 1121. Its value and copy icon are centred in it.
 -- A longer value starts at the box's left and runs out of it: 'Reshape 50%' ran out, 'Pack colour', 'No Reshape' and

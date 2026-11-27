@@ -725,6 +725,24 @@ function Menu.new(o)
         return redraw()
     end
     -- An options page row changed (closet/options.lua: saved at once, shown on the worn look by its tick): Variant
+    -- A slider row's value at place pct (0..1) of its bar: a channel's in 0..1 (the colour becomes Custom), a number's or
+    -- a shape key's in its range on its step.
+    local function slide_to(item,pct)
+        local fit,options=page.fit,o.options
+        local v,key=options.variant(fit),key_of(item)
+        local lo,hi,step=options.range(fit,key,item.c)
+        if not lo then return end
+        local value=options.get(fit,v,key)
+        if item.channel then
+            value.custom=true
+            value[item.c:upper()]=math.max(lo,math.min(hi,pct))
+        else
+            value=lo+(hi-lo)*pct
+            if step and step>0 then value=lo+math.floor((value-lo)/step+0.5)*step end
+            value=math.max(lo,math.min(hi,value))
+        end
+        options.set(fit,v,key,value)
+    end
     -- steps left or right (select: right) past variants whose mesh does not load (dress.loads), a section turns all its
     -- pieces off when every one shows, else on, a piece turns. A left keeps what puts it back for the pad chord.
     -- A colour takes the choice after or before (closet/options.lua's cycle: Pack colour, the swatches, Custom), a
@@ -813,6 +831,15 @@ function Menu.new(o)
                 i=view.row_hovered()
                 if not i then return end
                 row,col,due,word=i,'rows',nil,'select'
+                -- On a slider's bar (a channel, a number or a shape key): its value at that place.
+                local x=kit.pointer and kit.pointer()
+                local item=page and list()[i]
+                local slides=item and (item.channel or item.number or item.shape)
+                if x and slides and x>=View.SLIDER_X0-20 and x<=View.SLIDER_X1+20 then
+                    slide_to(item,math.max(0,math.min(1,(x-View.SLIDER_X0)/(View.SLIDER_X1-View.SLIDER_X0))))
+                    kit.sound('change')
+                    return redraw()
+                end
             end
         end
         local item,tiles,at=focused()

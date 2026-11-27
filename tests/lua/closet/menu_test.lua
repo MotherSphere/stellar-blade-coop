@@ -2306,6 +2306,23 @@ local tests = {
             same(red.o.ItemTextRange, {Min = 0, Max = 255}, 'its range 0-255') eq(red.o.ItemTextFractionalDigits, 0)
             ok(F.called(red.o, 'UpdatePercentOffset'), 'its slider placed')
             ok(slider(r, SHINE), 'a number is a slider row')
+            -- A click on a slider's bar sets the value at that place (View.SLIDER_X0 to View.SLIDER_X1); a click on
+            -- the row elsewhere runs Select as on any row.
+            local View = require('closet.ui.view')
+            local zone = r.kit.groups.closet_menu.zones[(red.y - 300) // 130 + 1]
+            r.kit.pointer = function() return View.SLIDER_X0 + (View.SLIDER_X1 - View.SLIDER_X0) * 0.2, red.y + 60 end
+            zone.hover = true
+            at(r, 1.05, 'click')
+            eq(row_value(r, child(3, O.channels.r)), '51', 'a click a fifth along the bar: 51 of 255')
+            r.kit.pointer = function() return View.SLIDER_X1 + 500, red.y + 60 end
+            at(r, 1.06, 'click')
+            eq(row_value(r, child(3, O.channels.r)), '64', 'a click right of the bar: Select, a step')
+            r.kit.pointer = function() return View.SLIDER_X0 + (View.SLIDER_X1 - View.SLIDER_X0) * 0.5, red.y + 60 end
+            at(r, 1.07, 'click')
+            zone.hover = false
+            r.kit.pointer = nil
+            eq(row_value(r, child(3, O.channels.r)), '128', 'back to the middle')
+            at(r, 1.08, 'up') -- The focus back on the colour, where the clicks found it.
             eq(row_value(r, child(3, O.channels.a)), nil, 'no alpha slider')
             at(r, 1.1, 'down', 'right')
             eq(row_value(r, child(3, O.channels.r)), '140', 'a step of 1/20') eq(row_value(r, COLOUR), '140 128 128')
