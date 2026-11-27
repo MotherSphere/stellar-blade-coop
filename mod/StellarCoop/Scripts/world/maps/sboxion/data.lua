@@ -119,7 +119,7 @@ D.FLOOR=-3275
 -- the floor.
 -- floor: the top of SBEffectVolume_Xion10_03 of E04_Area01_A_LD_Visible (centre Z -9000, scale Z 77.25, a cube brush
 -- of half size 100), SB's fall volume under the whole box, 175 cm under the deck. Only its number is used, as FLOOR's.
--- In the box SB's collision under Z -1180 is two pieces of Architecture/Ceiling/003_B_SM on their edge, 14 cm thick,
+-- In the box SB's collision under Z -1180 is two pieces of Architecture/Ceiling/003_B_SM on their edge, 10 cm thick,
 -- no floor (the hole survey's collision set). Outside the box FLOOR stays.
 D.UNDER={yaw=40,u={-3.25,57.54},v={21.83,91.44},floor=-1275}
 -- LIFT: how far above its target a put-back places EVE, the module's own value. Both kinds of target are the centre of

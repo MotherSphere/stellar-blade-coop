@@ -891,7 +891,7 @@ the whole box, 175 cm under the deck. A fall off the deck is caught there, not 2
 box the floor stays -3275.
 
 In the box, SB's collision under Z -1180 is two pieces of `Architecture/Ceiling/003_B_SM` standing on their edge,
-14 cm thick, with no floor to stand on.
+10 cm thick, with no floor to stand on.
 
 ### The district's NPCs
 
