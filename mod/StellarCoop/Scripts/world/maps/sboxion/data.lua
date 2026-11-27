@@ -31,7 +31,9 @@ D.ARRIVALS={
 -- TeleportPoint_FrontOfKaya. camp7: Xion_Camp_10_07_SV. Both lie outside every visibility volume of the two probe
 -- levels. tree: E04_Amb_ChristmasTreeBP_2 of E04_Sound, the place of the two Christmas sound actors. D011 to D029:
 -- the doors of the fifteen rooms (rooms/list.lua), each the centre of its doorway as the room's layout gives it. SB's
--- nearest door piece there has its pivot 0 to 78 cm from it (the level dumps of build 26123051).
+-- nearest door piece there has its pivot 0 to 78 cm from it (the level dumps of build 26123051). G18: the middle of
+-- the gate's plane on the lower street, where the way down to the underground district starts (the gate survey of
+-- 26 November 2026).
 D.WAYPOINTS={
     {name='tie',X=-9576.632,Y=7993.2314,Z=235.47108},
     {name='kaya',X=-8176.726,Y=-1813.0625,Z=44.0},
@@ -52,6 +54,7 @@ D.WAYPOINTS={
     {name='D111',X=10639.6,Y=889.7,Z=1461.9},
     {name='D109',X=9249.9,Y=1493.5,Z=1353.5},
     {name='D029',X=-6118.2,Y=4972.3,Z=212.0},
+    {name='G18',X=252.5,Y=4407.5,Z=-227.8},
 }
 D.NEAR,D.STAY=300,5 -- A waypoint is logged once EVE has stood within NEAR cm of it (flat distance) for STAY s.
 -- The day table: bActiveVolume of 41 SBEnvControlVolume actors of the level E04_ENV_VOL, as SB's sequence
