@@ -56,7 +56,9 @@ never does. The closet's own wears and previews never count as a change. After `
 until the next wear. A hidden section the game shows again is hidden again. Her own look and the worn words are kept
 in `coop-closet.txt`. In the closet's files each byte of an outfit id outside letters, digits, `_`, `.` and `-` is
 written as `%XX`, so a pack's UniqueFitID with a space, a colon or an accented letter reads back the same. `coop closet off` and `coop off` give her own look back and clear the file. At the next Lua
-load or game start, once EVE is in the world, the closet gives her own look back and wears the kept words again. Words
+load or game start, once EVE is in the world, the closet gives her own look back and wears the kept words again. A
+wear or preview before that (on a loading screen or with the game paused) gives her own look back first and drops the
+kept words. Words
 it can no longer wear (an outfit pack removed) are dropped with one log line. Her own look stays.
 
 ## Packs

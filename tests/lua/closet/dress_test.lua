@@ -908,6 +908,27 @@ local tests = {
         w2.d.tick()
         eq(w2.eve.Mesh.SkeletalMesh.path, KS)
     end,
+    -- A wear or preview while restore waits (a Lua reload while the game is paused): the kept look's leftovers go and
+    -- her own look comes back first, so the new look records her own suit and the kept look never comes back over it.
+    a_wear_while_restore_waits_records_her_own_look = function()
+        for _, put in ipairs({'wear', 'preview'}) do
+            local w = world()
+            assert(w.d.wear(B)) -- Kunoichi kept: her body wears its mesh, the file holds her own suit.
+            w.paused = true
+            local d = w.new()
+            d.tick()
+            eq(w.eve.Mesh.SkeletalMesh.path, KS, put .. ': restore waits while paused')
+            assert(d[put]({{fit = MAID}}))
+            eq(w.eve.Mesh.SkeletalMesh.path, OM, put .. ': the new look')
+            eq(fields(w.file)[2], OWN, put .. ': her own suit kept, not the kept look\'s mesh')
+            w.paused = false
+            for _ = 1, 2 do w.now = w.now + 1.01; d.tick() end
+            eq(w.eve.Mesh.SkeletalMesh.path, OM, put .. ': the kept look never comes back over it')
+            ok(not logged(w, 'worn again: ' .. NINJA), put .. ': no restore of the kept look')
+            assert(d.off())
+            eq(w.eve.Mesh.SkeletalMesh.path, OWN, put .. ': off gives her own suit back') eq(w.file, nil)
+        end
+    end,
     the_kept_line_is_read_once = function()
         local w = world()
         assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))

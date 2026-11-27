@@ -526,9 +526,26 @@ function Dress.new(o)
         return (plan.switched and ' (switched by the auto body rule)' or '')..
             (plan.clips and ', skin shows on '..table.concat(plan.clips,',') or '')
     end
+    -- A kept look restore has not worn again yet (it waits while the game is paused, shows a loading screen or is in its
+    -- retry window): its leftovers off EVE and her own look back now, and restore is done. So a wear or preview right
+    -- after records her own look, never the kept look's mesh, and no later restore puts the kept look over it. With no
+    -- EVE it waits: the apply fails anyway.
+    local function settle()
+        if restored then return end
+        if state then restored,pending=true,{}; return end
+        local found,eve=pcall(her)
+        if not (found and eve) then return end
+        local f=kept_fields()
+        if #f>0 then
+            if o.packs then o.packs() end -- A pack suit on her body is a closet mesh once the packs are read.
+            pcall(undo_kept,eve,f)
+        end
+        restored,pending=true,{}
+    end
     -- coop closet wear: the plan for choices, put on now.
     function self.wear(choices)
         self.restore()
+        settle()
         fights={}
         local plan,why=Dress.plan(choices,fits,mode,toggles())
         if not plan then return false,why end
@@ -545,6 +562,7 @@ function Dress.new(o)
     -- on: her own look (own_look). Gives true, the line and the plan (the menu tells its switched and clips).
     function self.preview(choices)
         self.restore()
+        settle()
         fights={}
         local kept=state and state.kept
         if kept==nil then kept=state and state.choices or false end
