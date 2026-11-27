@@ -62,9 +62,10 @@ local function aria()
             {DisplayName = 'Boots', MaterialIndex = 4, Value = true},
             {DisplayName = 'Bag', MaterialIndex = 6, Value = false}}}}
 end
--- f(r) on a rig with Aria in the catalogue and a real options layer (closet/options.lua) on a fake store.
+-- f(r) on a rig with Aria in the catalogue (o.catalogue: that one) and a real options layer (closet/options.lua) on a
+-- fake store.
 local function with_aria(f, o)
-    Fits.use({[ARIA] = aria()})
+    Fits.use(o and o.catalogue or {[ARIA] = aria()})
     local good, why = pcall(function()
         o = o or {}
         local store = {file = nil}
@@ -267,6 +268,39 @@ local function on_top(r)
     r.menu.open()
     at(r, 0.05, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down')
     eq((detail(r)), 'Top', 'on the Top row')
+end
+-- Head items (closet/head/stock.lua's shape) with two variants and a colour named Root: the stock hair Bob and the long
+-- ponytail (named by its table row only, as in game), a pack hair and ponytail, the No ponytail item (empty Mesh, no
+-- name of its own); Aria too.
+local HAIR, TAIL = 'SB.Hair_001', 'SB.Ponytail_Long'
+local function head_item(slot, id, name, origin)
+    local controls = {VectorControls = {{DisplayName = 'Root', ParamName = 'RootColor', MaterialIndex = 0,
+        Value = {0.5, 0.5, 0.5, 1}}}}
+    local function variant(mesh)
+        return {Mesh = mesh, HiddenMats = {}, Materials = {}, Parameters = {}, UserConfigs = controls}
+    end
+    return {UniqueFitID = id, DisplayName = name, Slot = slot, Origin = origin, File = 'P.dekcns.json',
+        Variants = {variant('/Game/H/' .. name), variant('/Game/H/' .. name .. '2')}, PieceHints = {},
+        UserConfigs = {MaterialToggles = {}}}
+end
+-- with_aria's o for the head items, EVE wearing choices at the open; extra's fields added.
+local function heads(choices, extra)
+    local o = extra or {}
+    o.catalogue = {[ARIA] = aria(), [HAIR] = head_item('Hair', HAIR, 'Bob', 'original'),
+        [TAIL] = head_item('Ponytail', TAIL, 'Hair_Default_Part2', 'original'),
+        ['p.hair'] = head_item('Hair', 'p.hair', 'Pack hair', 'custom'),
+        ['p.tail'] = head_item('Ponytail', 'p.tail', 'Pack tail', 'custom'),
+        ['SB.Ponytail_None'] = {UniqueFitID = 'SB.Ponytail_None', Slot = 'Ponytail', Origin = 'original',
+            DisplayName = 'Ponytail_None', Variants = {{Mesh = '', Materials = {}, UserConfigs = {}}}, PieceHints = {},
+            UserConfigs = {MaterialToggles = {}}}}
+    o.before = function(r) r.choices = choices end
+    return o
+end
+-- The Hair row (the 2nd) of the Head tab (the 3rd), open.
+local function on_hair(r)
+    r.menu.open()
+    at(r, 0.05, 'tab_right', 'tab_right', 'down')
+    eq((detail(r)), 'Hair', 'on the Hair row')
 end
 
 -- Every part dropped, the group hidden, the menu closed; the input given back by a tick 150 ms later.
@@ -2977,6 +3011,67 @@ local tests = {
         ok(menu_got.uidev == M.link.uidev, 'the menu reads SB\'s input device through the link (its prompts follow it)')
     end,
 
+    the_wiring_merges_stock_items = function()
+        -- closet/wiring.lua's scan wrapper: the stock items (Stock.build) join the pack catalogue at Fits.use; a pack
+        -- item with an SB. id is refused with a log line; a failed stock read (items and a why) merges what came back
+        -- and is read again at the next once() in a world.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring', 'closet.packs',
+            'closet.head.stock'}) do saved[name] = package.loaded[name] end
+        package.loaded['closet.dress'] = {new = function()
+            return {tick = function() end, stop = function() end, installed = function() return true end,
+                applied = function() return 0 end, parts = function() return {} end}
+        end}
+        package.loaded['closet.ui.probe'] = {new = function() return {tick = function() end, stop = function() end} end}
+        local Packs = saved['closet.packs'] or require('closet.packs')
+        local function pack(id, extra)
+            local it = {UniqueFitID = id, DisplayName = id, Slot = 'Hair', File = 'P.dekcns.json',
+                Variants = {{Mesh = '/Game/M.M'}}, UserConfigs = {MaterialToggles = {}}}
+            for k, v in pairs(extra or {}) do it[k] = v end
+            return it
+        end
+        package.loaded['closet.packs'] = setmetatable({new = function()
+            return {scan = function() return {b = pack('b'), ['SB.x'] = pack('SB.x')}, {why = 'test'} end}
+        end}, {__index = Packs})
+        local builds, why = 0, 'stock: no table'
+        package.loaded['closet.head.stock'] = {env = function() return {} end, build = function()
+            builds = builds + 1
+            return {['SB.Hair_001'] = pack('SB.Hair_001', {Origin = 'original'})}, why
+        end}
+        package.loaded['closet.wiring'] = nil
+        local Fits = require('closet.fits')
+        local lines = {}
+        local M = {print = function(s) lines[#lines + 1] = s end, guarded = function(_, f, ...) return f(...) end,
+            link = {status = function() return '' end, store = function()
+                return {save = function() return true end, load = function() end, clear = function() end}
+            end}}
+        local ran, err = pcall(function()
+            local commands = require('closet.wiring').new(M)
+            ok(commands.closet('rescan'), 'rescan')
+            ok(Fits.get('SB.Hair_001'), 'the stock item is a fit after the rescan')
+            eq(Fits.get('SB.Hair_001').Origin, 'original')
+            ok(Fits.get('b') and not Fits.get('SB.x'), 'the pack item stays, the SB. pack item is refused')
+            local logged = false
+            for _, l in ipairs(lines) do logged = logged or (l:find('SB.x', 1, true) and l:find('refused', 1, true)) end
+            ok(logged, 'the refusal is logged')
+            eq(builds, 1, 'built once')
+            M.closet_packs.once() -- First call: the scan.
+            eq(builds, 2, 'a failed read is read again by the first scan')
+            M.closet_packs.once()
+            eq(builds, 2, 'not in a world: no new read')
+            M.hud_shown = true
+            why = nil
+            M.closet_packs.once()
+            eq(builds, 3, 'in a world: read again')
+            M.closet_packs.once()
+            eq(builds, 3, 'built: not again')
+            ok(Fits.get('SB.Hair_001'), 'still merged')
+        end)
+        for name, mod in pairs(saved) do package.loaded[name] = mod end
+        Fits.use(nil)
+        ok(ran, tostring(err))
+    end,
+
     the_wiring_builds_the_shape_layer = function()
         -- closet/wiring.lua's new: the shape layer over the dress with coop-closet-shape.txt through the link, as
         -- M.closet_shape; ticked each frame right after the colour layer (menu open or not), stopped by coop off; the
@@ -3083,6 +3178,43 @@ local tests = {
             ok(stopped, 'coop off stops it')
         end)
         Colour.new = colour_new
+        for name, mod in pairs(saved) do package.loaded[name] = mod end
+        ok(ran, tostring(why))
+    end,
+
+    the_wiring_builds_the_head_part = function()
+        -- closet/wiring.lua's new: the head part (closet/head/wear.lua) given to the dress as o.head, ticked each frame
+        -- right after the dress and before the options layer, stopped by coop off.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring', 'closet.head.wear'}) do
+            saved[name] = package.loaded[name]
+        end
+        local runs, given = {}, nil
+        local head = {tick = function() runs[#runs + 1] = 'head' end,
+            stop = function() runs[#runs + 1] = 'head stop' end}
+        package.loaded['closet.head.wear'] = {new = function() return head end}
+        package.loaded['closet.dress'] = {new = function(o)
+            given = o.head
+            return {tick = function() runs[#runs + 1] = 'dress' end, stop = function() end,
+                installed = function() return true end, applied = function() return 0 end,
+                parts = function() return {} end}
+        end}
+        package.loaded['closet.ui.probe'] = {new = function() return {tick = function() end, stop = function() end} end}
+        package.loaded['closet.wiring'] = nil
+        local M = {print = function() end, guarded = function(_, f, ...) return f(...) end,
+            link = {status = function() return '' end, store = function()
+                return {save = function() return true end, load = function() end, clear = function() end}
+            end}}
+        local ran, why = pcall(function()
+            require('closet.wiring').new(M)
+            ok(given == head, 'the dress\'s o.head')
+            local tick = M.closet_options.tick
+            M.closet_options.tick = function() runs[#runs + 1] = 'options'; return tick() end
+            M.closet.tick()
+            same({runs[1], runs[2], runs[3]}, {'dress', 'head', 'options'}, 'after the dress, before the options')
+            M.closet.stop()
+            eq(runs[#runs], 'head stop', 'coop off stops it')
+        end)
         for name, mod in pairs(saved) do package.loaded[name] = mod end
         ok(ran, tostring(why))
     end,
@@ -3282,6 +3414,135 @@ local tests = {
             eq(r.options.variant(ARIA), 3, 'Yes: the preset\'s variant kept')
             same(r.options.words(ARIA, 3), {'toggle:4=off'}, 'Yes: its values kept')
         end)
+    end,
+
+    right_on_a_hair_row_opens_its_options = function()
+        with_aria(function(r)
+            on_hair(r)
+            same(menu_hints(r)[3], {T.en.closet.hints.options, 'UI_DPad_Right', 'None'}, 'the Options hint')
+            at(r, 0.5, 'right')
+            same(headers(r), {'Bob'}, 'its name as the header row')
+            eq((detail(r)), T.en.closet.options.variant, 'on its Variant row')
+            local O = T.en.closet.options
+            eq(row_value(r, child(1, O.named:format(O.kinds.colour, T.en.closet.head.colours.RootColor))), O.pack,
+                'its colour row, named from the texts')
+            eq(#r.previews, 0, 'worn already: nothing worn')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'right')
+            eq(row_value(r, child(1, 'Colour: Root')), T.en.closet.options.pack, "a pack hair's colour: the pack's name")
+        end, heads({{fit = 'p.hair', slots = {'Hair'}}}))
+    end,
+
+    select_on_a_hair_row_opens_the_grid = function()
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            eq(tv.items[1].ItemName.text, T.en.closet.head.own, 'None reads Game\'s own')
+            eq(tv:BP_GetSelectedItem(), tv.items[2], 'the worn tile focused')
+            eq((detail(r)), 'Bob', 'its tile')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    right_on_a_hair_row_with_nothing_worn_opens_the_grid = function()
+        with_aria(function(r)
+            on_hair(r)
+            eq((select(2, detail(r))), '', 'her own hair: no detail')
+            eq(row_value(r, 'Hair'), T.en.closet.head.own, 'the row reads Game\'s own')
+            at(r, 0.5, 'right')
+            eq((detail(r)), T.en.closet.head.own, 'the grid, on Game\'s own')
+        end, heads())
+    end,
+
+    the_ponytail_row_follows_a_stock_hair = function()
+        -- A stock ponytail worn with a stock hair takes the hair's colours: Right opens the grid. With a pack hair
+        -- it has its own options page.
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down')
+            eq((detail(r)), 'Ponytail', 'on the Ponytail row')
+            eq(row_value(r, 'Ponytail'), fit(T.en.closet.head.long_ponytail), 'its name from the texts, not its row')
+            at(r, 0.6, 'right')
+            eq((detail(r)), T.en.closet.head.long_ponytail, 'the grid, on the worn tile')
+            eq(headers(r)[1], nil, 'no options page')
+            local tv = grid(r)
+            eq(tv.items[3].ItemName.text, T.en.closet.head.no_ponytail, 'the No ponytail tile')
+        end, heads({{fit = HAIR, slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}}))
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'right')
+            same(headers(r), {'Long ponytail'}, 'with a pack hair: its own page')
+        end, heads({{fit = 'p.hair', slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}}))
+    end,
+
+    the_ponytail_row_under_a_cut_hair_has_its_own_page = function()
+        -- A stock hair with no colour controls (a cut hair): the stock ponytail keeps its own colours (Fits.follows),
+        -- so Right opens its page.
+        local o = heads({{fit = 'SB.Hair_024', slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}})
+        local cut = head_item('Hair', 'SB.Hair_024', 'Cut', 'original')
+        cut.Variants = {cut.Variants[1]}
+        cut.Variants[1].UserConfigs = {}
+        o.catalogue['SB.Hair_024'] = cut
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'right')
+            same(headers(r), {'Long ponytail'}, 'its own page')
+        end, o)
+    end,
+
+    a_pack_ponytail_says_pack_hairs_carry_their_own = function()
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'select', 'right', 'right', 'right')
+            local title, desc = detail(r)
+            eq(title, 'Pack tail', 'the pack ponytail tile')
+            ok(desc:find(T.en.closet.head.pack_ponytail, 1, true), 'its line: ' .. desc)
+            at(r, 0.6, 'left')
+            ok(not select(2, detail(r)):find(T.en.closet.head.pack_ponytail, 1, true), 'not on a stock tile')
+        end, heads())
+    end,
+
+    a_hair_tile_wears_beside_the_suit = function()
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select', 'right', 'select')
+            same(r.previews[1], {{fit = MAID}, {fit = HAIR, slots = {'Hair'}}}, 'the suit stays on')
+        end, heads({{fit = MAID}}))
+    end,
+
+    refresh_on_a_head_tile_wears_nothing = function()
+        with_aria(function(r)
+            on_hair(r)
+            for _, h in ipairs(menu_hints(r)) do ok(h[1] ~= T.en.closet.hints.whole, 'no Whole outfit hint') end
+            at(r, 0.5, 'refresh', 'select', 'right', 'refresh')
+            eq((detail(r)), 'Pack hair', 'on a tile')
+            for _, h in ipairs(menu_hints(r)) do ok(h[1] ~= T.en.closet.hints.whole, 'no Whole outfit hint') end
+            eq(#r.previews, 0, 'nothing worn')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    wearing_a_whole_suit_keeps_the_hair = function()
+        with_aria(function(r)
+            r.menu.open()
+            eq((detail(r)), 'Aria', 'the Full tab')
+            at(r, 0.5, 'right') -- Its options page: worn whole first.
+            same(r.previews[1], {{fit = ARIA}, {fit = HAIR, slots = {'Hair'}}}, 'right: the hair stays')
+            at(r, 0.6, 'back', 'refresh')
+            same(r.previews[2], {{fit = ARIA}, {fit = HAIR, slots = {'Hair'}}}, 'refresh: the hair stays')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    preview_picture_ignores_the_hair = function()
+        local snaps = {}
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'picture')
+            eq(snaps[1], MAID, 'the suit\'s picture')
+            eq(r.told[#r.told], T.en.closet.picture.saved:format('Ocean Maid'), 'told')
+        end, heads({{fit = MAID}, {fit = HAIR, slots = {'Hair'}}}, {thumbs = {running = function() return false end,
+            snap = function(fit) snaps[#snaps + 1] = fit; return true end}}))
     end,
 }
 

@@ -1,11 +1,12 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop closet probe <1-6|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts (the
--- piece grid, a grid slot alone, the tab buttons, the detail panel, focus and input) and test 6, the reads for the
--- camera and fit work (EVE's bones, the camera's FOV, mesh slot names, LODs, skin parameters), one at a time, each
--- check a "probe: PASS <n> <check>" or "probe: FAIL <n> <check>: <why>" line in UE4SS.log. Their results decide how the
--- closet menu builds its piece grid. Tests 1-5 touch only UI. Test 6 reads EVE and loads meshes. No test writes to EVE,
+-- coop closet probe <1-7|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts (the
+-- piece grid, a grid slot alone, the tab buttons, the detail panel, focus and input), test 6, the reads for the
+-- camera and fit work (EVE's bones, the camera's FOV, mesh slot names, LODs, skin parameters), and test 7, the live
+-- read of the stock hair tables. One runs at a time, each check a "probe: PASS <n> <check>" or "probe: FAIL <n>
+-- <check>: <why>" line in UE4SS.log. Their results decide how the closet menu builds its piece grid. Tests 1-5 touch
+-- only UI. Test 6 reads EVE and loads meshes. Test 7 reads tables and loads hair materials. No test writes to EVE,
 -- saves or the closet's look.
 -- A test is a list of steps {frames=<frames to wait after the step before>, name=<check>, run=function(ctx)}. run
 -- returns true (PASS), false and why (FAIL), 'skip' and why (SKIP: the test goes on) or 'wait' (run again next frame:
@@ -24,7 +25,7 @@ local Probe={}
 Probe.TIMEOUT=30 -- Seconds a test may run unless it sets its own.
 Probe.WATCH=10 -- Seconds a check watches the mouse.
 Probe.RELEASE_TRIES=600 -- Frames the probe tries again to give the input back (about 10 s).
-Probe.USE='Use: coop closet probe <1-6|off>'
+Probe.USE='Use: coop closet probe <1-7|off>'
 Probe.GROUP='closet_probe'
 Probe.TESTS={}
 -- The game's parts and assets, read in the widget JSON and Ghidra (build 26123051) on 25 Nov 2026.
@@ -589,6 +590,21 @@ Probe.TESTS['6']={timeout=300,steps={
         return true,id..' '..table.concat(out,'; ')
     end)}}
 
+-- Test 7: the Head tab's stock catalogue read live (closet/head/stock.lua's Stock.build on the game's ItemTable,
+-- EquipmentTable and EquipmentMaterialTable, plus the two cut hairs): PASS with its counts, FAIL with the read's why.
+-- It writes nothing of the game; the hair materials load. The two hairs closet/head/cut.lua always adds are no proof of
+-- a read: with no more the test fails.
+local Stock=require('closet.head.stock')
+Probe.TESTS['7']={steps={{frames=0,name='stock',run=function(ctx)
+    local items,why=ctx.stock()
+    if why or not items then return false,(tostring(why):gsub('^stock: ','')) end
+    local n={Hair=0,Ponytail=0}
+    for _,it in pairs(items) do n[it.Slot]=(n[it.Slot] or 0)+1 end
+    local line=n.Hair..' hairs, '..n.Ponytail..' ponytails'
+    if n.Hair<=2 then return false,'no stock hair row read ('..line..')' end
+    return true,line
+end}}}
+
 -- A game object by path: in memory, else after a synchronous LoadAsset (a class path loads its asset path without
 -- _C), as ui/kit/kit.lua's load does.
 local function default_find(path)
@@ -609,6 +625,8 @@ function Probe.new(o)
     -- EVE (test 6 reads her body) and the player controller (her camera).
     local eve=o.eve or function() return U.her(U.valid(require('UEHelpers').GetPlayer())) end
     local controller=o.controller or U.controller
+    -- The stock head catalogue (test 7), its lines straight to the log.
+    local stock=o.stock or function() return Stock.build(Stock.env(o.log)) end
     local self={}
     local added=false
     local cur -- The running test: {n, test, i, wait, parts, passed, total, deadline, shown, held, ctx}
@@ -664,7 +682,8 @@ function Probe.new(o)
         end
         local c={n=n,test=test,i=1,wait=test.steps[1].frames or 0,parts={},passed=0,total=#test.steps,
             deadline=clock()+(test.timeout or Probe.TIMEOUT),shown=false}
-        c.ctx={log=log,find=find,construct=construct,data={},kit=kit,now=clock,eve=eve,controller=controller}
+        c.ctx={log=log,find=find,construct=construct,data={},kit=kit,now=clock,eve=eve,controller=controller,
+            stock=stock}
         -- A game widget made in the probe's group, kept for the end; it throws when the kit refuses.
         function c.ctx.make(class_path,x,y,w,h,fill,hit)
             local rec,why=kit.part(Probe.GROUP,class_path,x,y,w,h,fill,hit)

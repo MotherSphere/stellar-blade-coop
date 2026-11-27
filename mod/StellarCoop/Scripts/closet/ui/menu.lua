@@ -55,6 +55,12 @@
 -- (colour.channel). The palette is saved at once, apart from the look, so it never asks Keep this look? Its detail says
 -- what the role colours and how to change it. The fitting tabs (Head..Body, Intimate) are labelled through
 -- closet.beta ("Head (Beta)").
+-- The Head tab's rows of pieces, Hair and Ponytail, list the stock pieces then the packs' (model.tiles). Their None
+-- tile and an empty row read closet.head.own: the game's own piece stays. The stock ponytails are named from
+-- closet.head by fit id, a stock colour row from closet.head.colours. Right on a head row opens the worn piece's
+-- options page when it has controls, else the grid: a stock ponytail that takes its stock hair's colours
+-- (closet/fits.lua's Fits.follows) has no page. Refresh on a head tile wears nothing; refresh elsewhere keeps the
+-- worn head pieces. Preview picture leaves the head pieces out of the one whole outfit worn.
 -- The Body tab lists, below its Body row, a row for each name of closet/shape.lua's rows (the look as last put on);
 -- its value is the name's value in percent. Left and right step it by Shape.STEP from 0 to 100, Select (a click on the
 -- row too) takes the next step, 0 after 100: the value is saved at once, apart from the look. Rows that change with the
@@ -252,14 +258,32 @@ function Menu.new(o)
     local function decimals(x,step) return ('%.'..digits(step)..'f'):format(x) end
     -- A slider row's place: x in lo..hi as 0..1 (a value outside the range shows at its end).
     local function place(x,lo,hi) return hi>lo and math.max(0,math.min(1,(x-lo)/(hi-lo))) or 0 end
-    -- Whether an outfit's row opens an options page: an installed pack outfit with toggles, with the options layer.
-    local function has_options(item)
-        local fit=item and item.whole and not item.locked and o.options and Fits.get(item.whole)
-        return fit and #model.options(item.whole)>1 or false
+    local function is_head(slot) return slot~=nil and Slots.group(slot)=='head' end
+    -- The fit whose options page Right opens from a row, with the options layer, or nil: an outfit's row's installed
+    -- pack outfit with toggles; a head row's worn piece with controls. A stock ponytail worn with a stock hair that
+    -- has colour controls has no page: it takes the hair's colours (closet/fits.lua's Fits.follows).
+    local function options_fit(item)
+        if not (item and o.options) then return nil end
+        local fit
+        if item.whole then fit=not item.locked and Fits.get(item.whole) and item.whole
+        elseif item.state=='pieces' and is_head(item.slot) then
+            local choices=dress.choices() or {}
+            fit=model.worn(choices,item.slot)
+            local hair=model.worn(choices,'Hair')
+            if fit and item.slot=='Ponytail' and hair and Fits.follows(Fits.get(hair),Fits.get(fit)) then fit=nil end
+        end
+        return fit and #model.options(fit)>1 and fit or nil
     end
-    -- A control row's title: its kind (Finish, Colour, Number), then its name when that differs from its piece's.
-    local function kind_title(w,item,kind)
-        local name=item.name
+    local function has_options(item) return options_fit(item)~=nil end
+    -- A head tile's, row's or page's piece name: the stock ponytails' own (closet/head/stock.lua's ids, which the game
+    -- names only by table row) from the texts, else name.
+    local STOCK_PONYTAILS={['SB.Ponytail_Long']='long_ponytail',['SB.Ponytail_Short']='short_ponytail',
+        ['SB.Ponytail_None']='no_ponytail'}
+    local function head_name(w,fit,name) return STOCK_PONYTAILS[fit] and w.head[STOCK_PONYTAILS[fit]] or name end
+    -- A control row's title: its kind (Finish, Colour, Number), then its name (named, else its own) when that differs
+    -- from its piece's.
+    local function kind_title(w,item,kind,named)
+        local name=named or item.name
         if name and name~='' and name~=item.of then return w.options.named:format(w.options.kinds[kind],name) end
         return w.options.kinds[kind]
     end
@@ -285,12 +309,14 @@ function Menu.new(o)
     local function origin(w,fit)
         return Fits.origin(fit)=='original' and w.origin.original or w.origin.custom:format(Fits.get(fit).Pack)
     end
-    -- A tile's detail lines: its outfit, slot, origin, covers, what else it takes, hidden by default, locked.
+    -- A tile's detail lines: its outfit, slot, origin, a pack ponytail's own-ponytail line, covers, what else it
+    -- takes, hidden by default, locked.
     local function lines(w,one,slot)
         local out={}
-        if not one.none then out[#out+1]=w.detail.outfit:format(one.outfit) end
+        if not one.none then out[#out+1]=w.detail.outfit:format(head_name(w,one.fit,one.outfit)) end
         out[#out+1]=w.detail.slot:format(w.slots[slot] or slot)
         if one.fit then out[#out+1]=origin(w,one.fit) end
+        if one.fit and slot=='Ponytail' and Fits.origin(one.fit)=='custom' then out[#out+1]=w.head.pack_ponytail end
         if one.covers then out[#out+1]=w.detail.covers:format(names(one.covers,w.regions)) end
         if one.also then out[#out+1]=w.detail.also:format(names(one.also,w.slots)) end
         if one.off then out[#out+1]=w.detail.off end
@@ -337,7 +363,7 @@ function Menu.new(o)
                 s.rows[i]={title=item.reset and w.row.reset or w.row.clear_thumbs,
                     value=''}
             elseif item.header then -- The Original header above Shift Up's own suits, or the options page's outfit.
-                s.rows[i]={title=page and item.header or w.original,value='',header=true}
+                s.rows[i]={title=page and head_name(w,page.fit,item.header) or w.original,value='',header=true}
             elseif item.variant then -- Its name, else its number of the count.
                 local all=Fits.get(page.fit).Variants
                 s.rows[i]={title=w.options.variant,value=all[v].Name or ('%d/%d'):format(v,#all)}
@@ -357,9 +383,14 @@ function Menu.new(o)
                 local n=item.colour or item.channel
                 local c=o.options.get(page.fit,v,'colour:'..n)
                 local choice=o.options.choice(page.fit,v,n)
+                -- A stock hair's or ponytail's colour (closet/head/stock.lua's Root, Tip, Dye) named from the texts.
+                local control=Fits.get(page.fit).Controls.VectorControls[n]
+                local stock=Fits.origin(page.fit)=='original' and type(control)=='table'
+                    and w.head.colours[control.ParamName]
                 local value=item.channel and byte(c[item.c:upper()]) or choice=='pack' and w.options.pack or
                     choice=='custom' and byte(c.R)..' '..byte(c.G)..' '..byte(c.B) or w.colour.swatches[choice]
-                s.rows[i]={title=item.channel and w.options.channels[item.c] or kind_title(w,item,'colour'),value=value,
+                s.rows[i]={title=item.channel and w.options.channels[item.c] or kind_title(w,item,'colour',stock),
+                    value=value,
                     swatch=item.colour and {R=c.R,G=c.G,B=c.B} or nil,
                     -- A channel's slider in 0-255, as its value shows.
                     slider=item.channel and {pct=tonumber(value)/255,lo=0,hi=255,digits=0} or nil}
@@ -387,9 +418,10 @@ function Menu.new(o)
             else
                 local worn=model.worn(choices,item.slot)
                 -- The Body row names the body in use: the picked one, else the plan's (switched or the rule's).
-                local body=item.slot=='BaseBody' and not worn and plan and Fits.get(plan.body.fit).Outfit
+                local body=item.slot=='BaseBody' and not worn and plan and plan.body and Fits.get(plan.body.fit).Outfit
                 local value=item.state=='soon' and w.row.soon or item.state=='empty' and '' or
-                    worn and model.piece(worn,item.slot).Name or body or w.row.none
+                    worn and head_name(w,worn,model.piece(worn,item.slot).Name) or body or
+                    (is_head(item.slot) and w.head.own or w.row.none)
                 s.rows[i]={title=w.slots[item.slot] or item.slot,value=value,locked=item.state=='soon'}
             end
             -- A child row of the options page: its lead mark (the detail's title keeps the plain one).
@@ -485,9 +517,11 @@ function Menu.new(o)
         elseif item then
             local worn=model.worn(choices,item.slot)
             local _,tiles,at=focused(choices)
+            local head=is_head(item.slot)
             s.tiles={}
             for i,one in ipairs(tiles) do
-                s.tiles[i]={name=one.none and w.row.none or one.name,equipped=i==at,locked=one.locked,
+                local none=head and w.head.own or w.row.none -- On a head row None leaves the game's own piece.
+                s.tiles[i]={name=one.none and none or head_name(w,one.fit,one.name),equipped=i==at,locked=one.locked,
                     picture=picture(one.fit,item.slot),image=one.fit and Fits.get(one.fit).Image,
                     icon=one.none and 'none' or Slots.glyph(item.slot)}
             end
@@ -500,7 +534,7 @@ function Menu.new(o)
                 s.tile=at
                 s.detail.equipped=worn~=nil
                 if worn then
-                    s.detail.desc=w.detail.outfit:format(Fits.get(worn).Outfit)..'\n'..origin(w,worn)
+                    s.detail.desc=w.detail.outfit:format(head_name(w,worn,Fits.get(worn).Outfit))..'\n'..origin(w,worn)
                     s.detail.badge=Fits.origin(worn)
                 end
             end
@@ -508,7 +542,12 @@ function Menu.new(o)
             -- UI_FaceButton_Top: the game's UI action for the top face button (F, the pad's Y), as in
             -- online/session/ui/sessions.lua; the 26123051 exe names it in FUN_14254baf0 (case 1) beside UI_LeftShoulder.
             local one=tiles[col=='grid' and tile or at]
-            if one and one.fit and not one.locked then s.hints[3]={w.hints.whole,'UI_FaceButton_Top',word='refresh'} end
+            -- A head piece is no outfit: no Whole outfit. UI_DPad_Right: as the outfit's row's Options hint above.
+            if head then
+                if col~='grid' and has_options(item) then s.hints[3]={w.hints.options,'UI_DPad_Right',word='right'} end
+            elseif one and one.fit and not one.locked then
+                s.hints[3]={w.hints.whole,'UI_FaceButton_Top',word='refresh'}
+            end
         end
         -- While the camera runs, the detail ends with its moves and light level keys in this mode, on this device.
         if hinted then
@@ -643,17 +682,23 @@ function Menu.new(o)
         if #to==0 and bare then dress.revert(); changed=false; return end
         wear(to)
     end
-    -- refresh: the whole outfit of the focused tile (the worn one in the rows) or of the Full tab's row.
+    -- refresh: the whole outfit of the focused tile (the worn one in the rows) or of the Full tab's row, the head
+    -- pieces kept; a head tile has none.
     local function wear_whole()
         local item,tiles,at=focused()
+        if item and is_head(item.slot) then return end
         local one=item and item.whole and {fit=item.whole,locked=item.locked}
         if tiles then one=tiles[col=='grid' and tile or at] end
-        if one and one.fit and not one.locked then wear(model.whole(one.fit)) end
+        if one and one.fit and not one.locked then wear(model.whole(one.fit,dress.choices())) end
     end
 
-    -- Preview picture: the one whole outfit EVE wears now, as the closet camera shows her, saved as its full.png; told.
+    -- Preview picture: the one whole outfit EVE wears now (her head pieces aside), as the closet camera shows her,
+    -- saved as its full.png; told.
     local function snapshot()
-        local choices=dress.choices() or {}
+        local choices={}
+        for _,c in ipairs(dress.choices() or {}) do
+            if not is_head((Fits.get(c.fit) or {}).Slot) then choices[#choices+1]=c end
+        end
         local fit=#choices==1 and not choices[1].slots and choices[1].fit or nil
         if not fit then return o.tell(function(t) return t.closet.picture.none end) end
         local ran,good,why=pcall(function()
@@ -964,13 +1009,13 @@ function Menu.new(o)
             -- and Reset are one press away on a long list). Q and E change the tab.
             row=n>0 and (row-1+(word=='up' and -1 or 1))%n+1 or 1
             kit.sound('move')
-        elseif word=='right' and has_options(item) then -- The outfit's options page, on its first setting.
+        elseif word=='right' and has_options(item) then -- The outfit's (a head row: its piece's) page, first setting.
             -- An outfit EVE does not wear is worn as a preview (as Select does: Keep this look? at the menu's Back),
-            -- since the options layer writes the worn outfits only.
-            local worn=false
-            for _,c in ipairs(dress.choices() or {}) do worn=worn or c.fit==item.whole end
-            if not worn then wear(model.whole(item.whole)) end
-            page,from_row,row={fit=item.whole},row,2
+            -- since the options layer writes the worn outfits only. A head row's piece is worn already.
+            local fit,worn=options_fit(item),false
+            for _,c in ipairs(dress.choices() or {}) do worn=worn or c.fit==fit end
+            if not worn then wear(model.whole(fit,dress.choices())) end
+            page,from_row,row={fit=fit},row,2
             kit.sound('move')
         elseif (word=='right' or word=='select') and tiles then col,tile='grid',at end
         redraw()

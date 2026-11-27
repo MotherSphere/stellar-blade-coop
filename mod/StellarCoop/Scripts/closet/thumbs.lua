@@ -185,6 +185,9 @@ local function same(o,path)
     return o and path_of(o)==path and o or nil
 end
 
+-- A head fit (Hair, Ponytail): worn on her head, never a picture of its own.
+function Thumbs.head(fit) return fit~=nil and (fit.Slot=='Hair' or fit.Slot=='Ponytail') end
+
 function Thumbs.new(o)
     local log=o.log or function() end
     local fits=o.fits or Fits
@@ -330,12 +333,15 @@ function Thumbs.new(o)
     function self.run(redo,only,menu)
         if run then return false,'closet thumbs: already running' end
         if only and not fits.get(only) then return false,'closet thumbs: no fit map for '..tostring(only) end
+        if only and Thumbs.head(fits.get(only)) then return false,'closet thumbs: '..only..' is a head piece: no pictures' end
         if only and not o.installed(only) then return false,'closet thumbs: '..only..' is not installed' end
         if not o.folder then return false,'closet thumbs: the mod folder is not known' end
         local why=busy(menu)
         if why then return false,'closet thumbs: '..WHY[why] end
         local ids={}
-        for id in pairs(fits.all()) do if (not only or id==only) and o.installed(id) then ids[#ids+1]=id end end
+        for id,fit in pairs(fits.all()) do
+            if (not only or id==only) and not Thumbs.head(fit) and o.installed(id) then ids[#ids+1]=id end
+        end
         table.sort(ids)
         local jobs,outfits,cached={},0,0
         for _,id in ipairs(ids) do
@@ -395,6 +401,7 @@ function Thumbs.new(o)
         if run then return false,'closet thumbs: running' end
         if not o.folder then return false,'closet thumbs: the mod folder is not known' end
         if not (fit and fits.get(fit)) then return false,'closet thumbs: no fit map for '..tostring(fit) end
+        if Thumbs.head(fits.get(fit)) then return false,'closet thumbs: '..fit..' is a head piece: no pictures' end
         if not (shot and shot.at and shot.look and shot.tanv) then return false,'closet thumbs: no closet camera' end
         local eve=her()
         if not eve then return false,'closet thumbs: '..WHY.loading end

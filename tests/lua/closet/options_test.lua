@@ -32,7 +32,7 @@ local function rig(line)
         reshow = function() r.reshown = r.reshown + 1; if r.fail then return nil, r.fail end return true end,
         loads = function(path) return not r.broken[path] end}
     r.new = function()
-        return Options.new({store = r.store, dress = r.dress, log = function(m) r.log[#r.log + 1] = m end})
+        return Options.new({store = r.store, dress = r.dress, head = r.head, log = function(m) r.log[#r.log + 1] = m end})
     end
     r.o = r.new()
     return r
@@ -161,7 +161,207 @@ local function near(got, want, what)
     end
 end
 
+-- A head item (Origin 'original', one variant) with colour controls {name=, index=} (MaterialIndex from 0).
+local function stock_item(slot, id, colours)
+    local list = {}
+    for _, c in ipairs(colours) do
+        list[#list + 1] = {DisplayName = c.name, ParamName = c.name, MaterialIndex = c.index, Value = {0.5, 0.5, 0.5, 1}}
+    end
+    return {UniqueFitID = id, DisplayName = id, Slot = slot, Origin = 'original', Variants = {{Mesh = '/Game/' .. id,
+        HiddenMats = {}, Materials = {}, Parameters = {}, UserConfigs = {VectorControls = list}}}, PieceHints = {},
+        UserConfigs = {MaterialToggles = {}}}
+end
+
 local tests = {
+    a_head_variant_change_rewears_only_the_head = function()
+        local item = suit('h')
+        item.Slot = 'Hair'
+        Fits.use({s = suit('s'), h = item})
+        local good, why = pcall(function()
+            local r = rig()
+            r.rewore = {}
+            r.head = {rewear = function(fit) r.rewore[#r.rewore + 1] = fit; return true end, applied = function() return 1 end}
+            r.o = r.new()
+            r.plan = {body = {fit = 's'}, added = {}, head = {{fit = 'h', slot = 'Hair'}}}
+            ok(r.o.set_variant('h', 2))
+            r.o.tick() r.o.tick()
+            same(r.rewore, {'h'}, 'the head piece put on again once')
+            eq(r.again, 0, 'her body is not dressed again')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
+    head_colours_are_painted = function()
+        local item = stock_item('Hair', 'SB.H', {{name = 'RootColor', index = 0}})
+        Fits.use({['SB.H'] = item})
+        local good, why = pcall(function()
+            local r = rig()
+            local hair = component('Hair', {0})
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function() return {{c = hair, fit = 'SB.H', slots = {[1] = 'Hair'}, head = true}} end
+            ok(r.o.set('SB.H', 1, 'colour:1', {R = 0.2, G = 0.4, B = 0.6, A = 1}))
+            r.o.tick()
+            near(hair.mats[0].values.RootColor, {R = 0.2, G = 0.4, B = 0.6, A = 1}, 'RootColor on the hair slot')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
+    a_head_repaint_follows_head_applied = function()
+        Fits.use({['SB.H'] = stock_item('Hair', 'SB.H', {{name = 'RootColor', index = 0}})})
+        local good, why = pcall(function()
+            local r = rig()
+            local made, gen = component('Hair', {0}), 1
+            r.head = {applied = function() return gen end}
+            r.new_o = r.new()
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function() return {{c = made, fit = 'SB.H', slots = {}, head = true}} end
+            local o = r.new_o
+            local red = {R = 0.2, G = 0.4, B = 0.6, A = 1}
+            ok(o.set('SB.H', 1, 'colour:1', red))
+            o.tick()
+            near(made.mats[0].values.RootColor, red, 'painted')
+            made, gen = component('Hair again', {0}), 2 -- head.rewear: a new component, dress.applied() kept.
+            o.tick()
+            near(made.mats[0].values.RootColor, red, 'painted on the new instance')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
+    a_failed_head_rewear_does_not_dress_the_body_again = function()
+        local item = suit('h')
+        item.Slot = 'Hair'
+        Fits.use({s = suit('s'), h = item})
+        local good, why = pcall(function()
+            local r = rig()
+            local fails = true
+            r.head = {rewear = function() if fails then return nil, 'no EVE' end return true end}
+            r.o = r.new()
+            r.plan = {body = {fit = 's'}, added = {}, head = {{fit = 'h', slot = 'Hair'}}}
+            r.o.set_variant('s', 2) r.o.set_variant('h', 2)
+            r.o.tick() r.o.tick()
+            eq(r.again, 1, 'the body dressed once')
+            fails = false
+            r.o.tick() r.o.tick()
+            eq(r.again, 1, 'not again when the head piece succeeds later')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
+    a_variant_2_stock_hair_gives_its_ponytail_variant_2_values = function()
+        local hair = stock_item('Hair', 'SB.Hair_001', {{name = 'RootColor', index = 1}})
+        hair.Variants[2] = {Mesh = '/Game/V2', HiddenMats = {}, Materials = {}, Parameters = {},
+            UserConfigs = {VectorControls = {{DisplayName = 'Root', ParamName = 'RootColor', MaterialIndex = 1,
+                Value = {0.1, 0.1, 0.1, 1}}}}}
+        local pony = stock_item('Ponytail', 'SB.Ponytail_Long', {{name = 'RootColor', index = 0}})
+        Fits.use({['SB.Hair_001'] = hair, ['SB.Ponytail_Long'] = pony})
+        local good, why = pcall(function()
+            local r = rig()
+            local h, p = component('Hair', {1}), component('Pony', {0})
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function()
+                return {{c = h, fit = 'SB.Hair_001', slots = {}, head = true},
+                    {c = p, fit = 'SB.Ponytail_Long', slots = {}, head = true}}
+            end
+            ok(r.o.set('SB.Hair_001', 1, 'colour:1', {R = 0.9, G = 0.9, B = 0.9, A = 1}))
+            ok(r.o.set_variant('SB.Hair_001', 2))
+            local blue = {R = 0.1, G = 0.2, B = 0.8, A = 1}
+            ok(r.o.set('SB.Hair_001', 2, 'colour:1', blue))
+            r.o.tick()
+            near(p.mats[0].values.RootColor, blue, 'variant 2 values, not variant 1')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
+    a_stock_ponytail_follows_its_hair = function()
+        local hair = stock_item('Hair', 'SB.Hair_001', {{name = 'RootColor', index = 1}})
+        local pony = stock_item('Ponytail', 'SB.Ponytail_Long', {{name = 'RootColor', index = 0}})
+        local pack = stock_item('Hair', 'pack', {{name = 'RootColor', index = 1}})
+        pack.Origin = 'custom'
+        Fits.use({['SB.Hair_001'] = hair, ['SB.Ponytail_Long'] = pony, pack = pack})
+        local good, why = pcall(function()
+            local r = rig()
+            local h, p = component('Hair', {1}), component('Pony', {0})
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function()
+                return {{c = h, fit = r.hair, slots = {}, head = true},
+                    {c = p, fit = 'SB.Ponytail_Long', slots = {}, head = true}}
+            end
+            r.hair = 'SB.Hair_001'
+            local red = {R = 0.9, G = 0.1, B = 0.2, A = 1}
+            ok(r.o.set('SB.Hair_001', 1, 'colour:1', red))
+            r.o.tick()
+            near(h.mats[1].values.RootColor, red, 'the hair')
+            near(p.mats[0].values.RootColor, red, "the ponytail takes the hair's value")
+            eq(r.file, 'SB.Hair_001 1 colour:1=0.9,0.1,0.2,1', 'only the hair keeps a value')
+            -- A pack hair: the ponytail keeps its own.
+            r.hair = 'pack'
+            r.o.tick()
+            ok(r.o.set('SB.Hair_001', 1, 'colour:1', {R = 0.3, G = 0.3, B = 0.3, A = 1}))
+            local own = {R = 0.7, G = 0.7, B = 0.7, A = 1}
+            ok(r.o.set('SB.Ponytail_Long', 1, 'colour:1', own))
+            r.o.tick()
+            near(p.mats[0].values.RootColor, own, 'with a pack hair the ponytail keeps its own')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
+    -- A stock hair with no colour controls (the cut hairs): the stock ponytail keeps its own values (Fits.follows).
+    a_stock_hair_with_no_colour_controls_leaves_the_ponytail_its_own = function()
+        local hair = stock_item('Hair', 'SB.Hair_024', {})
+        hair.Variants[1].UserConfigs.ScalarControls = {{DisplayName = 'Shine', ParamName = 'Shine', MaterialIndex = 1,
+            Value = 0.5}}
+        local pony = stock_item('Ponytail', 'SB.Ponytail_Long', {{name = 'RootColor', index = 0}})
+        pony.Variants[1].UserConfigs.ScalarControls = {{DisplayName = 'Shine', ParamName = 'Shine', MaterialIndex = 0,
+            Value = 0.5}}
+        Fits.use({['SB.Hair_024'] = hair, ['SB.Ponytail_Long'] = pony})
+        local good, why = pcall(function()
+            local r = rig()
+            local h, p = component('Hair', {1}), component('Pony', {0})
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function()
+                return {{c = h, fit = 'SB.Hair_024', slots = {}, head = true},
+                    {c = p, fit = 'SB.Ponytail_Long', slots = {}, head = true}}
+            end
+            ok(r.o.set('SB.Hair_024', 1, 'number:1', 0.9))
+            ok(r.o.set('SB.Ponytail_Long', 1, 'number:1', 0.2))
+            local own = {R = 0.7, G = 0.7, B = 0.7, A = 1}
+            ok(r.o.set('SB.Ponytail_Long', 1, 'colour:1', own))
+            r.o.tick()
+            near(p.mats[0].values.RootColor, own, 'its own colour')
+            eq(p.mats[0].values.Shine, 0.2, "its own number, not the hair's")
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
+    -- A worn head part whose component is gone (no c) beside a stock hair: the paint skips it.
+    a_head_part_with_no_component_is_skipped = function()
+        local hair = stock_item('Hair', 'SB.Hair_001', {{name = 'RootColor', index = 1}})
+        local pony = stock_item('Ponytail', 'SB.Ponytail_Long', {{name = 'RootColor', index = 0}})
+        Fits.use({['SB.Hair_001'] = hair, ['SB.Ponytail_Long'] = pony})
+        local good, why = pcall(function()
+            local r = rig()
+            local h = component('Hair', {1})
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function()
+                return {{c = h, fit = 'SB.Hair_001', slots = {}, head = true},
+                    {fit = 'SB.Ponytail_Long', slots = {}, head = true}}
+            end
+            local red = {R = 0.9, G = 0.1, B = 0.2, A = 1}
+            ok(r.o.set('SB.Hair_001', 1, 'colour:1', red))
+            r.o.tick()
+            near(h.mats[1].values.RootColor, red, 'the hair painted')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
     -- The options layer and the palette (closet/colour.lua) together on one held slot, through the real pack scan
     -- (closet/packs.lua over a fake list file, then Fits.use, as closet/wiring.lua's scan) and ticked in the wiring's
     -- order: a rescan whose pack list cannot be read, then one that reads it again, keeps the palette's colour; Primary
@@ -400,6 +600,10 @@ local tests = {
             r.o.set('s', 2, 'toggle:4', false)
             r.o.tick()
             eq(r.reshown, 1, 'another outfit worn: nothing')
+            r.plan = {added = {}, head = {{fit = 'h', slot = 'Hair'}}} -- closet/dress.lua's head-only look: no body.
+            r.o.set('s', 2, 'toggle:4', true)
+            r.o.tick()
+            eq(r.reshown, 1, 'a head-only look: nothing')
         end)
     end,
     a_change_that_fails_to_show_is_asked_again = function()

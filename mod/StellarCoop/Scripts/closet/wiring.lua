@@ -18,15 +18,18 @@ new=function(M)
 local print=M.print
 -- closet/dress.lua, logging [CL] lines: coop-closet.txt lets the next Lua load give EVE her own look back. No look
 -- goes on again while the game is paused or shows one of its screens (its wardrobe among them). The pack catalogue is
--- read before a kept look is worn again (it may be a pack's suit).
+-- read before a kept look is worn again (it may be a pack's suit). Its head part (closet/head/wear.lua) wears the Hair
+-- and Ponytail choices on EVE's own head components; the dress keeps its line in coop-closet.txt.
+local head=require('closet.head.wear').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
+    fits=require('closet.fits'),paused=function() return M.kit~=nil and M.kit.paused(true) end})
 M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
     store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
-    packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end})
+    packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end,head=head})
 -- The options layer (closet/options.lua): each pack outfit's variant and piece toggles in coop-closet-options.txt; the
 -- dress's plans take its toggles. Its tick runs each frame right after the dress's, before the colour layer's, so a
 -- variant or toggle change shows before the palette paints. The menu's options page and coop closet option set it.
 local Options=require('closet.options')
-local options=Options.new({dress=M.closet,store=M.link and M.link.store(Options.FILE),
+local options=Options.new({dress=M.closet,store=M.link and M.link.store(Options.FILE),head=head,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 M.closet_options=options
 -- Presets and favourites (closet/presets.lua) in coop-closet-presets.txt: the Full outfit tab's Presets rows, F on an
@@ -71,17 +74,41 @@ M.closet_thumbs=thumbs -- The menu's Make preview pictures row starts it.
 M.closet_packs=require('closet.packs').new({paks=require('core.pak_gate').paks_of(M.folder),
     list=M.folder and M.folder..'\\coop-cns-packs.txt',read=require('core.link').files.read,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
--- Each scan's suits become closet/fits.lua's pack fits (Fits.use): Full outfit lists them, the dress wears them whole.
+-- Each scan's suits and head pieces become closet/fits.lua's pack fits (Fits.use): Full outfit lists the suits, the
+-- Head tab the rest. The stock hairs and ponytails (closet/head/stock.lua, read from the game's tables) join the pack
+-- catalogue there; a pack item whose id starts with SB. is refused (those ids are the stock's). Stock.build gives the
+-- two cut hairs and a why when its read fails: that is merged and read again at the next once() in a world.
+local Fits=require('closet.fits')
+local Stock=require('closet.head.stock')
+local stock,stock_ok,last={},false,{}
+local function say(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end
+local function merge()
+    local merged={}
+    for id,item in pairs(last) do
+        if tostring(id):sub(1,3)=='SB.' then say('pack item '..tostring(id)..' refused: SB. ids are the stock ids')
+        else merged[id]=item end
+    end
+    for id,item in pairs(stock) do merged[id]=item end
+    Fits.use(merged)
+end
+local function build_stock()
+    local ok,items,why=pcall(function() return Stock.build(Stock.env(say)) end)
+    if ok then stock,stock_ok=items or {},why==nil else say('stock: '..tostring(items)) end
+end
 local scan=M.closet_packs.scan
 M.closet_packs.scan=function()
     local catalogue,report=scan()
-    require('closet.fits').use(catalogue)
+    last=catalogue or {}
+    if not stock_ok then build_stock() end
+    merge()
     return catalogue,report
 end
--- The first scan, once, under a guard of its own: at the menu's first open or the dress's restore of a kept look.
+-- The first scan, once, under a guard of its own: at the menu's first open or the dress's restore of a kept look. A
+-- stock read that failed is made again at the next call in a world (a map load).
 local scanned=false
 M.closet_packs.once=function()
-    if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan) end
+    if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan)
+    elseif not stock_ok and M.hud_shown then M.guarded('closet stock',function() build_stock(); merge() end) end
 end
 -- The closet's entry in SB's HUD item column (closet/ui/hud.lua), at the start of gun mode's row (M.closet_hud: gun
 -- mode reads its lead() and moves its own entry right of ours): ten times a second, under a
@@ -106,6 +133,7 @@ local dress_tick,dress_stop=M.closet.tick,M.closet.stop
 M.closet.tick=function()
     if os.clock()>=hud_at then hud_at=os.clock()+0.1; M.guarded('closet hud',hud.tick,hud_key()) end
     M.guarded('closet',dress_tick)
+    M.guarded('closet head',head.tick) -- Its own watchdog, also with no body mixed; before the options layer.
     M.guarded('closet options',options.tick)
     M.guarded('closet colour',colour.tick)
     M.guarded('closet shape',shape.tick)
@@ -114,7 +142,7 @@ M.closet.tick=function()
     if M.closet_menu then M.guarded('closet menu',M.closet_menu.tick) end
 end
 M.closet.stop=function()
-    dress_stop(); options.stop(); colour.stop(); shape.stop(); probe.stop(); thumbs.stop(); hud.hide()
+    dress_stop(); head.stop(); options.stop(); colour.stop(); shape.stop(); probe.stop(); thumbs.stop(); hud.hide()
     if M.closet_menu then M.closet_menu.stop() end
 end
 return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,thumbs=thumbs,
