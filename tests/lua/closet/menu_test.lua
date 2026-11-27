@@ -1531,9 +1531,9 @@ local tests = {
         same(labels(), names(4, 10), 'tab 10 again after the wrap')
     end,
 
-    -- The Colour tab (after Full outfit): a row for each role of closet/colour.lua, its value the swatch's name. Left, right,
-    -- Select and a click on the row pick the swatch; nothing is previewed, so Back asks nothing. The camera frames her
-    -- whole body.
+    -- The Colour tab (after Full outfit): a row for each role of closet/colour.lua, its value the swatch's name. Left,
+    -- right, Select and a click on the row pick the swatch; nothing is previewed, so Back asks nothing. The camera
+    -- frames her whole body.
     the_colour_tab_picks_a_swatch_per_role = function()
         local col, cam = fake_colour(), fake_camera()
         local r = rig({colour = col, camera = cam})
