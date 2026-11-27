@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The options layer (closet/options.lua) over a fake dress and a fake store: piece toggles per outfit and variant
 -- (followers copy their leader), the chosen variant, values kept only where they differ from the pack, saved values
--- of a gone outfit, variant or slot ignored and said once, the tick that shows a change on the worn look.
+-- of a gone outfit, variant or slot ignored and said once, the tick that shows a change on the worn look, a shape key
+-- read back beside the Body tab's shape (closet/shape.lua) on the same name.
 local run = dofile('tests/lua/closet/run.lua')
 local Fits = require('closet.fits')
 local Options = require('closet.options')
@@ -258,6 +259,39 @@ local tests = {
             now = now + 1.01
             o.tick()
             same(r.body.morphs, {TopReveal = 1}, 'written again') ok(count(r.log, 'written again') == 1, 'said')
+        end)
+    end,
+    -- The Body tab's shape (closet/shape.lua) and the pack's shape key write FB_Breast on one component: after the first
+    -- paint neither reads the other's value as gone, so nothing is written or said again and the shape's value stays.
+    two_writers_of_one_name_settle_after_the_first_paint = function()
+        dyed_rig(function(r)
+            package.loaded['closet.shape'] = nil
+            local Shape = require('closet.shape')
+            local now = 0
+            local clock = function() return now end
+            local morph = obj('FB_Breast')
+            function morph:GetFName() return 'FB_Breast' end
+            r.body.SkeletalMesh = {MorphTargets = {morph}}
+            local o = Options.new({store = r.store, dress = r.dress, log = function(m) r.log[#r.log + 1] = m end,
+                clock = clock})
+            local file
+            local s = Shape.new({dress = r.dress, log = function(m) r.log[#r.log + 1] = m end, clock = clock,
+                store = {save = function(l) file = l; return true end, load = function() return file end,
+                    clear = function() file = nil end}})
+            s.set('FB_Breast', 50)
+            o.tick() s.tick()
+            eq(r.body.morphs.FB_Breast, 0.5, 'the shape written last')
+            local calls, lines = r.body.morph_calls, #r.log
+            for _ = 1, 600 do -- 10 s at 60 frames a second.
+                now = now + 1 / 60
+                o.tick() s.tick()
+            end
+            eq(r.body.morph_calls, calls, 'nothing written again') eq(#r.log, lines, 'nothing said again')
+            eq(r.body.morphs.FB_Breast, 0.5, 'the shape\'s value stays')
+            r.body.morphs = {} -- Her body rebuilt: both find their curve gone.
+            now = now + 1.01
+            o.tick() s.tick()
+            eq(r.body.morphs.FB_Breast, 0.5, 'set again') has(r.log, 'a curve set is gone', 'the shape said it')
         end)
     end,
     values_apply_again_after_applied_changes = function()

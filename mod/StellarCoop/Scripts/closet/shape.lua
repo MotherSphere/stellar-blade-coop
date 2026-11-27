@@ -12,7 +12,9 @@
 -- mesh clears her body's curves, the added components are new) and when a value changes. Once a second (CHECK) it reads
 -- the curves it set back (GetMorphTarget): another mesh put on a worn component and its own back in one frame (gun
 -- mode's rebuild of her body, fight/gunmode/overlay.lua) empties them while applied() stays, so a gone curve puts the
--- whole shape on again. A name set before that is
+-- whole shape on again. A curve counts as gone only when it reads 0 (its name no longer in the curves): another value
+-- is another writer's (the options layer's shape keys on the same component, another mod) and is left alone, so two
+-- writers of one name never take turns. A name set before that is
 -- no longer wanted is removed (SetMorphTarget with 0 and bRemoveZeroWeight): her own look (own_look, off) loses the
 -- closet's names, a curve set from outside stays. Nothing while the dress is paused (Tachy Mode) or stopped.
 -- The values are kept in coop-closet-shape.txt (link.store) as name=value words split by tabs, in name order, apart
@@ -42,6 +44,7 @@ local Shape={}
 Shape.FILE='coop-closet-shape.txt'
 Shape.STEP=10 -- %: a row's step.
 Shape.CHECK=1 -- s: how often the curves set are read back.
+Shape.ZERO=1e-5 -- FUN_14411b400 removes a curve at |Value| <= 1e-05; exec 0x14491efb0 then answers 0.
 Shape.USE='Use: coop closet shape <morph> <0-100> | coop closet shape off'
 -- A value in steps of STEP from 0 to 100.
 local function clamp(v) return math.max(0,math.min(100,math.floor(v/Shape.STEP+0.5)*Shape.STEP)) end
@@ -150,7 +153,7 @@ function Shape.new(o)
         due=now+Shape.CHECK
         for _,s in pairs(set) do
             local ok,v=pcall(function() return U.valid(s.c) and s.c:GetMorphTarget(fname(s.name)) end)
-            if ok and type(v)=='number' and math.abs(v-s.v/100)>1e-4 then return true end
+            if ok and type(v)=='number' and math.abs(v)<=Shape.ZERO and s.v/100>Shape.ZERO then return true end
         end
         return false
     end

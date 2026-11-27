@@ -27,7 +27,9 @@
 -- instance, each shape key (ShapeKeyName, else DisplayName) with SetMorphTarget. A value already written is not sent
 -- again. Once a second (CHECK) the shape keys written are read back (GetMorphTarget, as closet/shape.lua does): a worn
 -- mesh put on again (gun mode's rebuild of her body) empties the curves while applied() stays, so a gone one writes
--- every shape key again. holds(component, slot) says whether a worn pack outfit has a colour control on that slot; owns, whether that
+-- every shape key again. A shape key counts as gone only when it reads 0 for a value written away from 0: another value
+-- is another writer's (the Body tab's shape on the same name, another mod) and is left alone.
+-- holds(component, slot) says whether a worn pack outfit has a colour control on that slot; owns, whether that
 -- control is set away from the pack's colour: closet/colour.lua's palette leaves an owned slot alone and paints a held
 -- one on the same instance. After each pack scan it says once each kept value
 -- whose outfit, variant or control is gone: that value is ignored and stays in the file (the pack may come back). A
@@ -63,6 +65,7 @@ local Colour=require('closet.colour')
 local Options={}
 Options.FILE='coop-closet-options.txt'
 Options.CHECK=1 -- s: how often the shape keys written are read back.
+Options.ZERO=1e-5 -- FUN_14411b400 removes a curve at |Value| <= 1e-05; exec 0x14491efb0 then answers 0.
 Options.USE='Use: coop closet option <fit> variant <n> | coop closet option <fit> toggle <slot> on|off'
 -- A key's kind -> the UserConfigs list of its controls.
 local LISTS={colour='VectorControls',finish='TextureOptions',number='ScalarControls',shape='ShapeKeys'}
@@ -569,7 +572,9 @@ function Options.new(o)
         due=now+Options.CHECK
         for _,m in pairs(morphs) do
             local ok,v=pcall(function() return U.valid(m.c) and m.c:GetMorphTarget(fname(m.name)) end)
-            if ok and type(v)=='number' and math.abs(v-m.v)>1e-4 then return true end
+            if ok and type(v)=='number' and math.abs(v)<=Options.ZERO and math.abs(m.v)>Options.ZERO then
+                return true
+            end
         end
         return false
     end

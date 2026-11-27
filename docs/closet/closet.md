@@ -369,7 +369,8 @@ the kept one, so no value another mod set stays on screen. Colours, numbers and 
 dynamic instance (`SetVectorParameterValue`, `SetScalarParameterValue`, `SetTextureParameterValue`), after the
 variant's `Parameters`. Shape keys go on the outfit's mesh with `SetMorphTarget` (`ShapeKeyName`, else `DisplayName`;
 0 takes the curve off). They go on again in the same frame after each wear, map load, cutscene, rest and revive.
-They are read back once a second, as the body shape is, so they come back after gun mode rebuilds her body.
+They are read back once a second, as the body shape is, so they come back after gun mode rebuilds her body. Only a
+key that reads 0 for a value away from 0 counts as gone.
 They also go on again after each change. A slot with a pack colour control belongs to the options layer: the Colour
 tab's palette never paints it. `coop off` takes the shape keys off.
 
@@ -411,9 +412,10 @@ it: the engine adds the body's morphs to each follower by name. A name her body 
 has it. A value of 0 takes the name off. The shape goes on again in the same frame after every wear, preview, revert
 and mix again. It also goes on again when a value changes. Once a second the closet reads its names back with
 `GetMorphTarget`. Gun mode rebuilds her body by putting another body mesh on and hers back in one frame, which empties
-the morph curves. A name found gone puts the whole shape on again. A look that drops a name takes it off. Her own look
-(`coop closet off`, the None tile on the last piece) and `coop off` take the closet's names off her body. A morph set
-by another mod stays. Nothing changes while Tachy Mode pauses the mix.
+the morph curves. A name that reads 0 is gone and puts the whole shape on again. A name that reads another value
+is left alone: a pack's shape key on the same name, or another mod, wrote it last. A look that drops a name takes it
+off. Her own look (`coop closet off`, the None tile on the last piece) and `coop off` take the closet's names off her
+body. A morph set by another mod stays. Nothing changes while Tachy Mode pauses the mix.
 
 A shape change is saved at once in `coop-closet-shape.txt`, apart from the look. The menu does not ask "Keep this
 look?" for it. A revert does not undo it. The shape survives a restart. The pad chord LB + D-pad Left that closes the
@@ -494,8 +496,9 @@ The Lua tests are in `tests/lua/closet/`. All but `off_test.lua` and `closet_tes
 - `options_test.lua` runs the options layer on a fake dress: followers, values per outfit and variant
   kept only when they differ from the pack, gone values said once, the tick, reset and off. On fake components it
   checks the colours (swatches and Custom channels), a value above its range, the steps, the finishes and a missing
-  texture, the numbers, the shape keys and the values written again after a new look. It runs `coop closet option`
-  too.
+  texture, the numbers, the shape keys and the values written again after a new look. With the shape layer on the
+  same component and the same name it checks that nothing is written again after the first paint. It runs
+  `coop closet option` too.
 - `presets_test.lua` runs the presets over the real options layer and a fake dress: a save and a
   wear of the outfit, its variant and its values, the numbers after a delete, a rename, a preset of a gone outfit,
   the favourites, the file read back and `coop closet preset` and `coop closet favourite`.
