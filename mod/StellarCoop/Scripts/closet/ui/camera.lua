@@ -493,8 +493,14 @@ function Camera.new(o)
         dt=math.min(math.max(tonumber(dt) or 0,0),0.1)
         clock=clock+dt
         if r and r~=region then rpan.pan,rpan.height=0,0 end -- A region change clears region mode's pan.
+        first() -- The file read before a write: its pose would be lost.
+        -- A new region other than the whole outfit (the hair row: the head) is framed: region mode, the free pose kept
+        -- for cam_mode (Schizo, 27 Nov 2026).
+        if r and r~=region and r~='full' and mode=='free' then
+            mode='region'
+            write()
+        end
         region=r or region
-        first()
         if dying and clock>=dying.at then
             local d=dying.d
             dying=nil

@@ -254,6 +254,32 @@ local tests = {
         ok(dist(last().at, want) < 0.01, 'there after a second')
     end,
 
+    a_new_region_frames_it_from_free_mode = function()
+        -- Focusing a region's row (the hair: the head) goes to region mode, framed on it (Schizo, 27 Nov 2026); the
+        -- free pose is kept, so cam_mode goes back to it, and it stays free until the region changes again.
+        local c = world()
+        c.open()
+        frames(c, 0.1, 'full')
+        c.word('cam_mode')
+        c.word('cam_left')
+        local yaw = fields().yaw
+        eq(c.mode(), 'free', 'free')
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'free', 'the same region: still free')
+        c.tick(1 / 60, 'head')
+        eq(c.mode(), 'region', 'the head row: framed on her head')
+        eq(fields().mode, 'region', 'written')
+        c.word('cam_mode')
+        eq(c.mode(), 'free', 'back to free at once')
+        near(fields().yaw, yaw, 1e-6, 'the free pose kept')
+        frames(c, 0.2, 'head')
+        eq(c.mode(), 'free', 'the same region: stays free')
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'free', 'the whole outfit: free kept')
+        c.tick(1 / 60, 'legs')
+        eq(c.mode(), 'region', 'another region: framed on it')
+    end,
+
     free_mode_steps_and_clamps = function()
         local c = world()
         c.open()
