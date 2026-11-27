@@ -200,6 +200,10 @@ function Hud.new(g)
         g.log(ok and 'hud: hook on: WB_MainHUD_Master_C:Construct' or ('hud: no Construct hook: '..tostring(e)))
     end
 
+    -- The UMG enums passed as numbers (their tables read in Ghidra, build 26123051): ESlateVisibility at 0x1461f6f20
+    -- (Visible 0, Collapsed 1, Hidden 2, HitTestInvisible 3, SelfHitTestInvisible 4), EHorizontalAlignment at
+    -- 0x145fe1450 (Fill 0, Left 1, Center 2, Right 3) and EVerticalAlignment at 0x145fe1410 (Fill 0, Top 1, Center 2,
+    -- Bottom 3).
     local function build()
         local P=Hud.PARTS
         local ht=tree(hud)
@@ -242,7 +246,7 @@ function Hud.new(g)
             local hs=holder:AddChild(box)
             pcall(function() hs:SetHorizontalAlignment(1); hs:SetVerticalAlignment(2) end) -- left, centred
             local slot=overlay:AddChildToOverlay(holder)
-            pcall(function() slot:SetHorizontalAlignment(1); slot:SetVerticalAlignment(2) end)
+            pcall(function() slot:SetHorizontalAlignment(1); slot:SetVerticalAlignment(2) end) -- left, centred
             box:SetVisibility(4); holder:SetVisibility(4) -- SelfHitTestInvisible
             -- Collapsed until follow shows them: a new Image with no brush draws a white square
             bg:SetVisibility(1); glyph:SetVisibility(1); img:SetVisibility(1); lb:SetVisibility(1)
@@ -368,8 +372,8 @@ function Hud.new(g)
             -- cell: an Image with no brush draws a white square
             local kb=up:find('KeyBoard',1,true)~=nil
             pcall(function() ui.glyph:SetVisibility(t and 4 or 1) end) -- SelfHitTestInvisible or Collapsed
-            pcall(function() ui.lb:SetVisibility((t and lt) and 4 or 1) end)
-            pcall(function() ui.bg:SetVisibility((t and kb and ui.cell) and 4 or 1) end)
+            pcall(function() ui.lb:SetVisibility((t and lt) and 4 or 1) end) -- the same
+            pcall(function() ui.bg:SetVisibility((t and kb and ui.cell) and 4 or 1) end) -- the same
             g.log('hud: glyph '..tostring(path)..(lb_path and (' after '..lb_path) or '')..(t and '' or ' (missing)'))
         end
         -- place: the holder takes the marker's size, the row is moved right of gun mode's entry by a render
