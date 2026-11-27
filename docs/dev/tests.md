@@ -1881,7 +1881,8 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   effect-only chain), the QTE flag on the exact theater alias and the LV_Dead rows. Then the written block: parsed
   back to the same values, within its markers, the rest of the header untouched, a name that cannot go into a C++
   literal refused. Last, its load and main over a folder of table exports;
-- `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder, and its `--pak`
+- `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder (a
+  `closet-thumbs` folder in the mod folder is never packaged), and its `--pak`
   part: the copy of the three `zSBO_Lobby` files into `~mods` with a backup of the ones it replaces, a copy that does
   not hash like its source, a folder that lacks one of the files, the dry run, the refusal while the game runs, and an
   uninstall without and with the mod folder (the pak first, each into its own backup folder), all of them leaving the

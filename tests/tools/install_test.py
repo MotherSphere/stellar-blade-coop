@@ -327,6 +327,15 @@ with tempfile.TemporaryDirectory() as tmp:
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]
+    # closet/thumbs.lua's pictures of creators' outfits, in a checkout that a game's mod folder links to, never ship.
+    repo = tmp / 'thumbs-checkout'
+    for rel in ('mod/StellarCoop/Scripts/main.lua', 'mod/StellarCoop/closet-thumbs/fit/full.png'):
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_bytes(b'x')
+    saved, install.ROOT = install.ROOT, repo
+    try:
+        assert sorted(install.package('v', dll)) == ['Scripts/main.lua', 'Scripts/version.lua', 'StellarCoop.dll']
+    finally: install.ROOT = saved
 
     # 12. The release zip: the same inputs give the same bytes, with the commit's time and one mode on every entry,
     # in sorted names, and SHA256SUMS.txt covers every other entry, the docs included. The art is installed, not zipped.

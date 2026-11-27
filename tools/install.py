@@ -32,6 +32,7 @@ GAME = Path('/mnt/Jeux/SteamLibrary/steamapps/common/StellarBlade')
 TOOLCHAIN = os.environ.get('STELLAR_WINDOWS_TOOLCHAIN', str(Path.home() / '.local/share/xwin/clang-cl-msvc.cmake'))
 MANIFEST = 'install-manifest.txt'
 RUNTIME = ('coop-*.log', 'coop-*.txt', '*.old.log')  # Written by the mod in game: never removed.
+THUMBS = 'closet-thumbs'  # closet/thumbs.lua's pictures of creators' outfits, made in game: never shipped.
 OBSOLETE = {'steam-probe.txt'}  # Left by an old probe, before the manifest existed.
 BACKUPS = Path.home() / 'StellarCoop-install-backups'  # Outside the game folder: UE4SS would load a copy under Mods.
 CLOSE_GAME = 'Close Stellar Blade first: its mods must not change under it.'
@@ -137,9 +138,10 @@ def sanitizers():
 
 
 def package(ver, dll):
-    """Every file the mod folder gets, as {relative path: content}."""
+    """Every file the mod folder gets, as {relative path: content}. Nothing under THUMBS."""
     mod = ROOT / 'mod/StellarCoop'
-    files = {p.relative_to(mod).as_posix(): p.read_bytes() for p in sorted(mod.rglob('*')) if p.is_file()}
+    files = {p.relative_to(mod).as_posix(): p.read_bytes() for p in sorted(mod.rglob('*'))
+             if p.is_file() and p.relative_to(mod).parts[0] != THUMBS}
     files['Scripts/version.lua'] = f"return '{ver}'\n".encode()
     files['StellarCoop.dll'] = dll.read_bytes()
     return files

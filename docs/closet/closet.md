@@ -228,7 +228,8 @@ the menu is closed, that every picture is there or that it could not start (the 
   path is kept in `coop-closet-thumbs.txt`, so the next Lua load removes a rig a reload left.
 
 The pictures show the creators' assets. They stay on the player's PC: they are never shipped and never committed
-(`.gitignore` lists `mod/StellarCoop/closet-thumbs/`). The framing values are starting values, to tune in game.
+(`.gitignore` lists `mod/StellarCoop/closet-thumbs/`). `tools/install.py` leaves that folder out of the install and the
+release zip. The framing values are starting values, to tune in game.
 
 ### The closet camera
 
