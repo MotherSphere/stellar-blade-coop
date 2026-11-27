@@ -218,6 +218,19 @@ local tests = {
         ok(good, why)
     end,
 
+    -- installed loads the outfit's mesh: a Full row asks it only when its locked state is read, once.
+    full_rows_ask_installed_only_when_read = function()
+        local asked = {}
+        local rows = new({installed = function(f) asked[#asked + 1] = f; return f ~= CH27 end}).rows('full')
+        eq(#asked, 0, 'listing the rows loads no mesh')
+        for _, row in ipairs(rows) do
+            if row.whole == CH27 then
+                eq(row.locked, true, 'not installed: locked') eq(row.locked, true, 'again')
+            end
+        end
+        same(asked, {CH27}, 'asked once, for the row read')
+    end,
+
     -- Shift Up's own suits (Origin original) come after the pack outfits, under the Original header.
     original_suits_sit_under_their_header = function()
         Fits.BY_ID.ZZ_ORIG = {Outfit = 'Original suit', Pack = 'Shift Up', Origin = 'original', Mesh = '/Game/O.O',

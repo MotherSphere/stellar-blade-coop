@@ -89,8 +89,14 @@ function Model.new(o)
                 if origin == 'original' and #ids.original > 0 then out[#out + 1] = {header = 'original'} end
                 for _, id in ipairs(ids[origin]) do
                     local fit = all[id]
-                    out[#out + 1] = {whole = id, outfit = fit.Outfit, pack = fit.Pack, locked = not o.installed(id),
-                        fav = presets and presets.is_fav(id) or nil}
+                    -- locked is read on first use, once: o.installed loads the outfit's mesh on the game thread,
+                    -- so a menu of many packs loads only the rows it shows.
+                    out[#out + 1] = setmetatable({whole = id, outfit = fit.Outfit, pack = fit.Pack,
+                        fav = presets and presets.is_fav(id) or nil}, {__index = function(row, k)
+                            if k ~= 'locked' then return nil end
+                            rawset(row, 'locked', not o.installed(id))
+                            return row.locked
+                        end})
                 end
             end
             out[#out + 1] = {thumbs = true} -- Make preview pictures (coop closet thumbs).

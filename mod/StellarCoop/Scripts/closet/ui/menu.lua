@@ -295,9 +295,9 @@ function Menu.new(o)
         local plan=dress.plan() -- The look on EVE now: its body and notice.
         local v=page and o.options.variant(page.fit)
         for i,item in ipairs(shown_rows) do
-            if item.whole then
-                s.rows[i]={title=item.outfit,value=item.fav and w.presets.fav:format(item.pack) or item.pack,
-                    locked=item.locked}
+            if item.whole then -- locked read only when the view draws the row (the model's row loads its mesh).
+                s.rows[i]=setmetatable({title=item.outfit,value=item.fav and w.presets.fav:format(item.pack) or item.pack},
+                    {__index=function(_,k) if k=='locked' then return item.locked end end})
             elseif item.save_preset then
                 s.rows[i]={title=w.presets.save,value=''}
             elseif item.preset then -- Its name, else Preset n; its outfit as the value.

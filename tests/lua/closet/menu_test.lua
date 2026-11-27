@@ -735,6 +735,31 @@ local tests = {
         same(r.previews, {{{fit = MAID}}}, 'the installed outfit is worn')
     end,
 
+    -- installed loads an outfit's mesh on the game thread: the Full tab asks it for the rows in the window only.
+    full_tab_loads_only_the_shown_outfits = function()
+        local catalogue = {}
+        for i = 1, 30 do
+            local id = ('p%02d.suit'):format(i)
+            catalogue[id] = {UniqueFitID = id, DisplayName = id, Slot = 'FullOutfit', File = '~mods\\P\\p.dekcns.json',
+                Variants = {{Mesh = '/Game/P/' .. i .. '.' .. i, HiddenMats = {}, Materials = {}, Parameters = {}}},
+                UserConfigs = {MaterialToggles = {}}}
+        end
+        Fits.use(catalogue)
+        local good, why = pcall(function()
+            local asked = {}
+            local r = rig({installed = function(fit) asked[fit] = (asked[fit] or 0) + 1; return true end})
+            r.menu.open()
+            tick(r, 0.1)
+            at(r, 0.2, 'down')
+            tick(r, 0.3)
+            local n = 0
+            for _ in pairs(asked) do n = n + 1 end
+            ok(n > 0 and n <= 11, ('outfits asked: %d of %d'):format(n, 32))
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
     none_tile_takes_the_slot_off = function()
         local r = rig({before = function(r) r.choices = {{fit = MAID}} end})
         on_top(r)
