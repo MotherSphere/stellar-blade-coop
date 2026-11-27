@@ -716,7 +716,8 @@ function Menu.new(o)
             local of=(Fits.get(c.fit) or {}).Slot
             if slot and of==slot or not slot and not is_head(of) then choices[#choices+1]=c end
         end
-        local fit=#choices==1 and not choices[1].slots and choices[1].fit or nil
+        -- A head piece is worn by its slot (slots={slot}); a whole outfit with no slots.
+        local fit=#choices==1 and (slot or not choices[1].slots) and choices[1].fit or nil
         if not fit then return o.tell(function(t) return t.closet.picture.none end) end
         local ran,good,why=pcall(function()
             if not o.thumbs then return false,'no coop closet thumbs' end

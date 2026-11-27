@@ -1727,7 +1727,7 @@ local tests = {
             o.folder, o.thumbs = 'F', th
             with_aria(function(r)
                 on_hair(r)
-                r.choices = {{fit = MAID}, {fit = 'p.hair'}}
+                r.choices = {{fit = MAID}, {fit = 'p.hair', slots = {'Hair'}}} -- A head piece is worn by its slot.
                 at(r, 0.5, 'picture')
                 eq(#snaps, 1, 'a picture taken')
                 eq(snaps[1][1], 'p.hair', 'the worn hair') eq(snaps[1][3], 'Hair', 'saved as its slot\'s picture')
