@@ -101,8 +101,11 @@ local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: 
 -- the title's SizeBox_3 580 and the slider's SizeBox_1 960 (widget JSON). In a ROW_W row the slider bar had no room
 -- (in game, 27 Nov 2026), so each slider row gets ROW_W, SLIDER_TITLE and SLIDER_BAR (SetWidthOverride).
 -- USizeBox.SetWidthOverride: native table entry 0x1461efaa0, exec 0x143d5be10; UWidget.GetParent: entry 0x146202f00,
--- exec 0x143d73260 (Ghidra, build 26123051, 27 Nov 2026).
+-- exec 0x143d73260; UOverlaySlot.SetPadding (FMargin): entry 0x1461ed5c0 in the table FUN_143d527d0 registers, exec
+-- 0x143d525d0 (Ghidra, build 26123051, 27 Nov 2026). The bar's own padding (Left 70, Right 170: OverlaySlot_1) left it
+-- 220 of 460 units: SLIDER_PAD keeps room for the value text (SizeBox_2, 112 wide, 20 from the right) only.
 local SLIDER_TITLE,SLIDER_BAR=420,460
+local SLIDER_PAD={Left=20,Top=0,Right=130,Bottom=0}
 -- The SB row's value box (WB_Setting_Button_Slot in a 900-unit slot at x 160), measured on the in-game screenshots of
 -- build 65b52c49 at 1456x819: its focused white box spans x 828 to 1121. Its value and copy icon are centred in it.
 -- A longer value starts at the box's left and runs out of it: 'Reshape 50%' ran out, 'Pack colour', 'No Reshape' and
@@ -357,6 +360,7 @@ function View.new(kit,log)
                     w.WidgetSwitcher_0:GetParent():GetParent():SetWidthOverride(ROW_W) -- Overlay_0, then SizeBox_0.
                     w.Text_Title:GetParent():GetParent():SetWidthOverride(SLIDER_TITLE) -- HorizontalBox_0, SizeBox_3.
                     w.Slider_50:GetParent():GetParent():SetWidthOverride(SLIDER_BAR) -- Overlay_37, then SizeBox_1.
+                    w.Slider_50.Slot:SetPadding(SLIDER_PAD)
                 end)
             end
             if sl and rec.pct~=sl.pct then
