@@ -522,9 +522,13 @@ return {
             help={key='Vasen ja oikea nuoli tai napsautus muuttaa sitä. Se tallentuu heti.',
                 pad='Ristiohjaimen vasen ja oikea muuttavat sitä. Se tallentuu heti.'}},
         camera={region='Alue',free='Vapaa',title='Kamera: %s',reset_hint='Nollaa',
-            moves={region={key='I J K L tai vetäminen hiiren keskipainikkeella siirtävät rajausta. Vetäminen hiiren oikealla painikkeella vaihtaa tilaan Vapaa. Valon voimakkuus: Shift+U / Shift+O.',
+            moves={region={key='I J K L tai vetäminen hiiren keskipainikkeella siirtävät rajausta. Vetäminen hiiren '
+                    ..'oikealla painikkeella tai hiiren rullalla vaihtaa tilaan Vapaa. Valon voimakkuus: Shift+U / '
+                    ..'Shift+O.',
                 pad='Oikea tikku siirtää rajausta. Valon voimakkuus: pidä L3 pohjassa ja käytä sitten LT / RT.'},
-                free={key='I J K L tai vetäminen hiiren oikealla painikkeella kiertävät. Shift+I J K L tai vetäminen hiiren keskipainikkeella siirtävät. U / O zoomaavat. Valon voimakkuus: Shift+U / Shift+O.',
+                free={key='I J K L tai vetäminen hiiren oikealla painikkeella kiertävät. Shift+I J K L tai vetäminen '
+                    ..'hiiren keskipainikkeella siirtävät. U / O tai hiiren rulla zoomaavat. Valon voimakkuus: '
+                    ..'Shift+U / Shift+O.',
                 pad='Oikea tikku kiertää. Siirrä pitämällä X pohjassa ja kääntämällä oikeaa tikkua. LT / RT zoomaavat. Valon voimakkuus: pidä L3 pohjassa ja käytä sitten LT / RT.'}}},
         light={game='Peli',studio='Studio',warm='Lämmin',cool='Viileä',rim='Takavalo',title='Valaistus: %s'},
         keys={mode='C',reset='Backspace',light='V'},

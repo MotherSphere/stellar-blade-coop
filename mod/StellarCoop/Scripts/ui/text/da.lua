@@ -506,9 +506,11 @@ return {
             help={key='Venstre og højre pil eller et klik ændrer den. Den gemmes med det samme.',
                 pad='D-pad venstre og højre ændrer den. Den gemmes med det samme.'}},
         camera={region='Område',free='Fri',title='Kamera: %s',reset_hint='Nulstil',
-            moves={region={key='I J K L eller træk med midterste museknap flytter udsnittet. Træk med højre museknap skifter til tilstanden Fri. Lysstyrke: Shift+U / Shift+O.',
+            moves={region={key='I J K L eller træk med midterste museknap flytter udsnittet. Træk med højre museknap '
+                    ..'eller musehjulet skifter til tilstanden Fri. Lysstyrke: Shift+U / Shift+O.',
                 pad='Højre stick flytter udsnittet. Lysstyrke: hold L3, og brug så LT / RT.'},
-                free={key='I J K L eller træk med højre museknap drejer rundt. Shift+I J K L eller træk med midterste museknap flytter. U / O zoomer. Lysstyrke: Shift+U / Shift+O.',
+                free={key='I J K L eller træk med højre museknap drejer rundt. Shift+I J K L eller træk med midterste '
+                    ..'museknap flytter. U / O eller musehjulet zoomer. Lysstyrke: Shift+U / Shift+O.',
                 pad='Højre stick drejer rundt. Hold X med højre stick for at flytte. LT / RT zoomer. Lysstyrke: hold L3, og brug så LT / RT.'}}},
         light={game='Spil',studio='Studie',warm='Varm',cool='Kølig',rim='Modlys',title='Lys: %s'},
         keys={mode='C',reset='Backspace',light='V'},

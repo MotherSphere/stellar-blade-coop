@@ -33,13 +33,16 @@ function M.pad() return select('#',M.native_pad(0,0,0,0,0,0,0,0,0,0,0,0,0,0)) en
 -- to 64, which 0 to 3 in that order; at rest not in front). An older DLL without them: said once, both nil.
 -- The closet camera's held keys: M.held_keys() the keys and mouse buttons held as bits, 1 right mouse, 2 middle mouse,
 -- 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O (coop_keys, 512 arguments: 1 + the bits, 1 not in front). UE4SS's binds
--- see a key's press only. An older DLL without it: said once, nil.
-M.wheel_reads,M.pad_bits,M.pad_levels,M.held_keys=nil,nil,nil,nil
+-- see a key's press only. An older DLL without it: said once, nil. M.mouse_wheel() the mouse wheel's notches since the
+-- last call, up positive (coop_wheel, 130 arguments: 65 + the notches, -64 to 64; 65 not in front). An older DLL
+-- without it: said once, nil.
+M.wheel_reads,M.pad_bits,M.pad_levels,M.held_keys,M.mouse_wheel=nil,nil,nil,nil,nil
 if loaded then
     local zeros={}
     for i=1,512 do zeros[i]=0 end
     local fns,missing={},{}
-    for _,name in ipairs({'coop_stick','coop_held','coop_fkey','coop_padbits','coop_levels','coop_keys'}) do
+    for _,name in ipairs({'coop_stick','coop_held','coop_fkey','coop_padbits','coop_levels','coop_keys',
+        'coop_wheel'}) do
         local f,fn_why=package.loadlib(M.folder..'\\StellarCoop.dll',name)
         if type(f)=='function' then fns[name]=f else missing[name]=name..': '..tostring(fn_why) end
     end
@@ -65,6 +68,8 @@ if loaded then
     end
     if missing.coop_keys then log('Native held keys unavailable: '..missing.coop_keys)
     else function M.held_keys() return select('#',fns.coop_keys(table.unpack(zeros,1,512)))-1 end end
+    if missing.coop_wheel then log('Native mouse wheel unavailable: '..missing.coop_wheel)
+    else function M.mouse_wheel() return select('#',fns.coop_wheel(table.unpack(zeros,1,130)))-65 end end
 end
 -- The pause menu's close for its Online tab (ui/kit/pause_tab.lua): SB's own close, run by the native part on the game
 -- thread. Its answer is how many of three arguments it hands back: 1 closed, 2 SB has no pause menu open, 3 off. An

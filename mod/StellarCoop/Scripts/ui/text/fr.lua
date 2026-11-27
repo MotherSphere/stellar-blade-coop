@@ -528,9 +528,11 @@ return {
             help={key="Les flèches gauche et droite ou un clic le changent. C'est enregistré tout de suite.",
                 pad="La croix gauche et droite le changent. C'est enregistré tout de suite."}},
         camera={region='Zone',free='Libre',title='Caméra : %s',reset_hint='Réinitialiser',
-            moves={region={key='I J K L ou un glisser du clic central déplacent le cadrage. Un glisser du clic droit passe en mode Libre. Intensité de la lumière : Maj+U / Maj+O.',
+            moves={region={key='I J K L ou un glisser du clic central déplacent le cadrage. Un glisser du clic droit '
+                    ..'ou la molette passe en mode Libre. Intensité de la lumière : Maj+U / Maj+O.',
                 pad='Le stick droit déplace le cadrage. Intensité de la lumière : maintenez L3, puis LT / RT.'},
-                free={key='I J K L ou un glisser du clic droit tournent autour. Maj+I J K L ou un glisser du clic central déplacent. U / O zooment. Intensité de la lumière : Maj+U / Maj+O.',
+                free={key='I J K L ou un glisser du clic droit tournent autour. Maj+I J K L ou un glisser du clic '
+                    ..'central déplacent. U / O ou la molette zooment. Intensité de la lumière : Maj+U / Maj+O.',
                 pad='Le stick droit tourne autour. Maintenez X avec le stick droit pour déplacer. LT / RT zooment. Intensité de la lumière : maintenez L3, puis LT / RT.'}}},
         light={game='Jeu',studio='Studio',warm='Chaud',cool='Froid',rim='Contre-jour',title='Éclairage : %s'},
         keys={mode='C',reset='Backspace',light='V'},

@@ -508,9 +508,11 @@ return {
             help={key='Venstre og høyre pil eller et klikk endrer det. Det lagres med en gang.',
                 pad='D-pad venstre og høyre endrer det. Det lagres med en gang.'}},
         camera={region='Område',free='Fri',title='Kamera: %s',reset_hint='Tilbakestill',
-            moves={region={key='I J K L eller dra med midtre museknapp flytter utsnittet. Dra med høyre museknapp bytter til modusen Fri. Lysstyrke: Shift+U / Shift+O.',
+            moves={region={key='I J K L eller dra med midtre museknapp flytter utsnittet. Dra med høyre museknapp '
+                    ..'eller musehjulet bytter til modusen Fri. Lysstyrke: Shift+U / Shift+O.',
                 pad='Høyre stikke flytter utsnittet. Lysstyrke: hold L3, og bruk så LT / RT.'},
-                free={key='I J K L eller dra med høyre museknapp roterer rundt. Shift+I J K L eller dra med midtre museknapp flytter. U / O zoomer. Lysstyrke: Shift+U / Shift+O.',
+                free={key='I J K L eller dra med høyre museknapp roterer rundt. Shift+I J K L eller dra med midtre '
+                    ..'museknapp flytter. U / O eller musehjulet zoomer. Lysstyrke: Shift+U / Shift+O.',
                 pad='Høyre stikke roterer rundt. Hold X med høyre stikke for å flytte. LT / RT zoomer. Lysstyrke: hold L3, og bruk så LT / RT.'}}},
         light={game='Spill',studio='Studio',warm='Varm',cool='Kjølig',rim='Motlys',title='Lys: %s'},
         keys={mode='C',reset='Backspace',light='V'},

@@ -1381,6 +1381,30 @@ end)()
     kh.missing=false
 end)()
 
+-- The mouse wheel for the closet camera: M.mouse_wheel() gives the notches of coop_wheel's 130 arguments (65 + the
+-- notches, up positive). An older DLL without it: one log line, nil, the held keys still load.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    assert(M.mouse_wheel()==0,'no turn')
+    mw.notches=3
+    assert(M.mouse_wheel()==3,'three notches up')
+    assert(cc.o.mouse_wheel()==3,'the closet camera reads them')
+    mw.notches=-64
+    assert(M.mouse_wheel()==-64,'64 notches down')
+    mw.notches=0
+    mw.missing=true
+    load_main(true)
+    Loader.run=run
+    assert(M.mouse_wheel==nil and M.held_keys~=nil and logged('Native mouse wheel unavailable: coop_wheel: not exported'),
+        table.concat(printed,'|'))
+    mw.missing=false
+end)()
+
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true
 package.loadlib=function(_,name) if name=='coop_tick' then return nil,'not exported' end return true end

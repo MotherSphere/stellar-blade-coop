@@ -512,9 +512,13 @@ return {
             help={key='Strzałki w lewo i w prawo lub kliknięcie zmieniają to. Zapis następuje od razu.',
                 pad='Krzyżak w lewo i w prawo zmienia to. Zapis następuje od razu.'}},
         camera={region='Obszar',free='Swobodna',title='Kamera: %s',reset_hint='Resetuj',
-            moves={region={key='I J K L lub przeciąganie środkowym przyciskiem myszy przesuwają kadr. Przeciąganie prawym przyciskiem przełącza na tryb Swobodna. Natężenie światła: Shift+U / Shift+O.',
+            moves={region={key='I J K L lub przeciąganie środkowym przyciskiem myszy przesuwają kadr. Przeciąganie '
+                    ..'prawym przyciskiem lub kółko myszy przełącza na tryb Swobodna. Natężenie światła: Shift+U / '
+                    ..'Shift+O.',
                 pad='Prawa gałka przesuwa kadr. Natężenie światła: przytrzymaj L3, potem LT / RT.'},
-                free={key='I J K L lub przeciąganie prawym przyciskiem myszy obracają kamerę. Shift+I J K L lub przeciąganie środkowym przyciskiem przesuwają. U / O przybliżają i oddalają. Natężenie światła: Shift+U / Shift+O.',
+                free={key='I J K L lub przeciąganie prawym przyciskiem myszy obracają kamerę. Shift+I J K L lub '
+                    ..'przeciąganie środkowym przyciskiem przesuwają. U / O lub kółko myszy przybliżają i oddalają. '
+                    ..'Natężenie światła: Shift+U / Shift+O.',
                 pad='Prawa gałka obraca kamerę. Przytrzymaj X z prawą gałką, aby przesunąć. LT / RT przybliżają i oddalają. Natężenie światła: przytrzymaj L3, potem LT / RT.'}}},
         light={game='Gra',studio='Studio',warm='Ciepłe',cool='Chłodne',rim='Kontra',title='Oświetlenie: %s'},
         keys={mode='C',reset='Backspace',light='V'},

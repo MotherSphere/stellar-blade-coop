@@ -449,9 +449,11 @@ return {
             help={key='왼쪽과 오른쪽 화살표 또는 클릭으로 바꿉니다. 바로 저장됩니다.',
                 pad='방향 버튼 왼쪽과 오른쪽으로 바꿉니다. 바로 저장됩니다.'}},
         camera={region='부위',free='자유',title='카메라: %s',reset_hint='초기화',
-            moves={region={key='I J K L 또는 마우스 가운데 버튼 드래그로 구도를 이동합니다. 마우스 오른쪽 버튼 드래그로 자유 모드로 바뀝니다. 조명 세기: Shift+U / Shift+O.',
+            moves={region={key='I J K L 또는 마우스 가운데 버튼 드래그로 구도를 이동합니다. 마우스 오른쪽 버튼 드래그나 마우스 휠로 자유 모드로 바뀝니다. 조명 세기: '
+                    ..'Shift+U / Shift+O.',
                 pad='오른쪽 스틱으로 구도를 이동합니다. 조명 세기: L3을 누른 채 LT / RT.'},
-                free={key='I J K L 또는 마우스 오른쪽 버튼 드래그로 회전합니다. Shift+I J K L 또는 마우스 가운데 버튼 드래그로 이동합니다. U / O로 확대/축소합니다. 조명 세기: Shift+U / Shift+O.',
+                free={key='I J K L 또는 마우스 오른쪽 버튼 드래그로 회전합니다. Shift+I J K L 또는 마우스 가운데 버튼 드래그로 이동합니다. U / O나 마우스 휠로 '
+                    ..'확대/축소합니다. 조명 세기: Shift+U / Shift+O.',
                 pad='오른쪽 스틱으로 회전합니다. X를 누른 채 오른쪽 스틱으로 이동합니다. LT / RT로 확대/축소합니다. 조명 세기: L3을 누른 채 LT / RT.'}}},
         light={game='게임',studio='스튜디오',warm='웜',cool='쿨',rim='림',title='조명: %s'},
         keys={mode='C',reset='Backspace',light='V'},

@@ -517,9 +517,12 @@ return {
             help={key='Sol ve sağ ok veya bir tıklama bunu değiştirir. Hemen kaydedilir.',
                 pad='Yön tuşu sol ve sağ bunu değiştirir. Hemen kaydedilir.'}},
         camera={region='Bölge',free='Serbest',title='Kamera: %s',reset_hint='Sıfırla',
-            moves={region={key='I J K L veya orta fare tuşuyla sürükleme kadrajı kaydırır. Sağ fare tuşuyla sürükleme Serbest moda geçer. Işık şiddeti: Shift+U / Shift+O.',
+            moves={region={key='I J K L veya orta fare tuşuyla sürükleme kadrajı kaydırır. Sağ fare tuşuyla sürükleme '
+                    ..'veya fare tekerleği Serbest moda geçer. Işık şiddeti: Shift+U / Shift+O.',
                 pad='Sağ çubuk kadrajı kaydırır. Işık şiddeti: L3\'ü basılı tutun, sonra LT / RT.'},
-                free={key='I J K L veya sağ fare tuşuyla sürükleme etrafında döndürür. Shift+I J K L veya orta fare tuşuyla sürükleme kaydırır. U / O yakınlaştırır ve uzaklaştırır. Işık şiddeti: Shift+U / Shift+O.',
+                free={key='I J K L veya sağ fare tuşuyla sürükleme etrafında döndürür. Shift+I J K L veya orta fare '
+                    ..'tuşuyla sürükleme kaydırır. U / O veya fare tekerleği yakınlaştırır ve uzaklaştırır. Işık '
+                    ..'şiddeti: Shift+U / Shift+O.',
                 pad='Sağ çubuk etrafında döndürür. Kaydırmak için X\'i sağ çubukla birlikte basılı tutun. LT / RT yakınlaştırır ve uzaklaştırır. Işık şiddeti: L3\'ü basılı tutun, sonra LT / RT.'}}},
         light={game='Oyun',studio='Stüdyo',warm='Sıcak',cool='Soğuk',rim='Kontra',title='Işık: %s'},
         keys={mode='C',reset='Backspace',light='V'},

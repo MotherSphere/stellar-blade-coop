@@ -522,9 +522,12 @@ return {
             help={key='As setas esquerda e direita ou um clique mudam isto. É guardado de imediato.',
                 pad='O botão direcional esquerdo e direito mudam isto. É guardado de imediato.'}},
         camera={region='Região',free='Livre',title='Câmara: %s',reset_hint='Repor',
-            moves={region={key='I J K L ou arrastar com o botão do meio movem o enquadramento. Arrastar com o botão direito passa ao modo Livre. Intensidade da luz: Shift+U / Shift+O.',
+            moves={region={key='I J K L ou arrastar com o botão do meio movem o enquadramento. Arrastar com o botão '
+                    ..'direito ou a roda do rato passa ao modo Livre. Intensidade da luz: Shift+U / Shift+O.',
                 pad='O manípulo direito move o enquadramento. Intensidade da luz: mantenha L3 premido e depois LT / RT.'},
-                free={key='I J K L ou arrastar com o botão direito rodam à volta. Shift+I J K L ou arrastar com o botão do meio movem. U / O aproximam e afastam. Intensidade da luz: Shift+U / Shift+O.',
+                free={key='I J K L ou arrastar com o botão direito rodam à volta. Shift+I J K L ou arrastar com o '
+                    ..'botão do meio movem. U / O ou a roda do rato aproximam e afastam. Intensidade da luz: Shift+U '
+                    ..'/ Shift+O.',
                 pad='O manípulo direito roda à volta. Mantenha X premido com o manípulo direito para mover. LT / RT aproximam e afastam. Intensidade da luz: mantenha L3 premido e depois LT / RT.'}}},
         light={game='Jogo',studio='Estúdio',warm='Quente',cool='Fria',rim='Contraluz',title='Iluminação: %s'},
         keys={mode='C',reset='Backspace',light='V'},

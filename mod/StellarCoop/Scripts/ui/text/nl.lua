@@ -516,9 +516,11 @@ return {
             help={key='Pijl links en rechts of een klik veranderen het. Het wordt meteen opgeslagen.',
                 pad='D-pad links en rechts veranderen het. Het wordt meteen opgeslagen.'}},
         camera={region='Gebied',free='Vrij',title='Camera: %s',reset_hint='Resetten',
-            moves={region={key='I J K L of slepen met de middelste muisknop verschuiven de uitsnede. Slepen met de rechtermuisknop gaat naar de modus Vrij. Lichtsterkte: Shift+U / Shift+O.',
+            moves={region={key='I J K L of slepen met de middelste muisknop verschuiven de uitsnede. Slepen met de '
+                    ..'rechtermuisknop of het muiswiel gaat naar de modus Vrij. Lichtsterkte: Shift+U / Shift+O.',
                 pad='De rechterstick verschuift de uitsnede. Lichtsterkte: houd L3 ingedrukt, dan LT / RT.'},
-                free={key='I J K L of slepen met de rechtermuisknop draaien rond. Shift+I J K L of slepen met de middelste muisknop verschuiven. U / O zoomen. Lichtsterkte: Shift+U / Shift+O.',
+                free={key='I J K L of slepen met de rechtermuisknop draaien rond. Shift+I J K L of slepen met de '
+                    ..'middelste muisknop verschuiven. U / O of het muiswiel zoomen. Lichtsterkte: Shift+U / Shift+O.',
                 pad='De rechterstick draait rond. Houd X ingedrukt met de rechterstick om te verschuiven. LT / RT zoomen. Lichtsterkte: houd L3 ingedrukt, dan LT / RT.'}}},
         light={game='Spel',studio='Studio',warm='Warm',cool='Koel',rim='Tegenlicht',title='Belichting: %s'},
         keys={mode='C',reset='Backspace',light='V'},

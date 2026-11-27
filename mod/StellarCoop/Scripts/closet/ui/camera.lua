@@ -25,7 +25,9 @@
 -- I/J/K/L held orbit and U/O held zoom at the stick's full rates, Shift + I/J/K/L move the height and the pan, a right
 -- mouse drag orbits (MOUSE deg a layout unit) and a middle drag pans (MPAN cm). In region mode I/J/K/L held (Shift or
 -- not) and a middle drag pan the framing; a right drag goes to free mode first (from the saved free pose, else the
--- framing on screen). A right press is Back at its release unless the mouse moved CLICK units (hold_back, take_back).
+-- framing on screen). Each mouse wheel notch (main/boot.lua's mouse_wheel) zooms by ZOOM, up in, down out; in region
+-- mode a turn goes to free mode first, as a right drag does. Turns made while the menu was closed are dropped at the
+-- open. A right press is Back at its release unless the mouse moved CLICK units (hold_back, take_back).
 -- The mode and the free pose are written to the file at each change (a stick, key or drag move once all are back at
 -- rest) and read once a Lua load: only Reset replaces the pose.
 -- The lens: k and tanv come first from the FOV and the local player's axis rule (lens). Once an open, MEASURE s after it
@@ -47,6 +49,7 @@
 -- o: {store=link.store(Camera.FILE), log=, screen=function() the kit's {w, h} or nil, pad_bits=function() bits (1 X,
 -- 2 L3, 4 R3) or nil, pad_levels=function() right stick x, y (-1..1, right and up positive), LT, RT (0..1) or nil,
 -- held_keys=function() bits (1 right mouse, 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O) or nil,
+-- mouse_wheel=function() the wheel's notches since the last call (up positive) or nil,
 -- pointer=function() the kit's mouse x, y in layout units or nil, project=function(at, now) the kit's project
 -- ({width, height, screen={x, y}} in layout units, screen nil without the engine's projection) or nil; tests
 -- give unreal= (core/unreal.lua), actors= (core/actors.lua), pc=function() the player controller, her=function() EVE}.
@@ -339,6 +342,15 @@ function Camera.new(o)
         elseif mmb then p.pan,p.height=p.pan-dx*Camera.MPAN,p.height+dy*Camera.MPAN end
         return kx~=0 or ky~=0 or kz~=0 or dx~=0 or dy~=0
     end
+    -- The mouse wheel's notches since the last read: each up zooms in by ZOOM, down out; region mode goes to free mode
+    -- first. Whether the free pose moved.
+    local function wheel()
+        local n=o.mouse_wheel and o.mouse_wheel() or 0
+        if n==0 then return false end
+        to_free()
+        free.dist=free.dist*(1-Camera.ZOOM)^n
+        return true
+    end
     local function ease(a,b,k)
         local out={}
         for _,f in ipairs(POSE) do
@@ -398,6 +410,7 @@ function Camera.new(o)
         if not eve then return end
         local moved=pad(dt)
         moved=keys(dt) or moved
+        moved=wheel() or moved
         -- Written once the stick, the keys and the drags are back at rest.
         if moved then clamp(free); dirty=true elseif dirty then write() end
         local L=U.value_of(eve:K2_GetActorLocation())
@@ -436,6 +449,7 @@ function Camera.new(o)
             pc:SetViewTargetWithBlend(d.actor,Camera.BLEND,0,0,false)
             cur,x_held,x_moved,r3_held,l3_held,l3_used,lt_held,rt_held=nil,true,true,true,true,true,true,true
             px,py,back,back_due=nil,nil,nil,false
+            if o.mouse_wheel then o.mouse_wheel() end -- Turns made while the menu was closed are dropped.
             lights.on(d.actor)
             log(string.format('camera: on (%s), FOV %.1f, her height %.0f cm, lights %s x%g',mode,fov,cam.h,
                 lights.preset(),lights.factor()))

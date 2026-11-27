@@ -547,6 +547,52 @@ extern "C" __declspec(dllexport) int coop_keys(void *) noexcept {
   });
 }
 
+// The mouse wheel for coop_wheel: GetAsyncKeyState cannot see it. Its first call in front subclasses SB's game window
+// (the foreground window of class UnrealWindow: FWindowsWindow's CreateWindowExW(..., L"UnrealWindow", ...) at
+// 0x142bfb32a in FUN_142bfb0c0, Ghidra, build 26123051, 27 Nov 2026). The new window procedure adds each
+// WM_MOUSEWHEEL's delta to wheel_delta, then hands every message on to the one it replaced. The DLL is pinned
+// (DllMain), so the procedure stays loaded while the window lives. A window gone (IsWindow false) is replaced by the
+// next one in front. Pure Win32: no game memory is read or written.
+namespace {
+std::atomic<int> wheel_delta{0};
+std::atomic<WNDPROC> wheel_next{nullptr};
+HWND wheel_window = nullptr; // Read and written by coop_wheel only, on the game thread.
+LRESULT CALLBACK wheel_proc(HWND window, UINT message, WPARAM w, LPARAM l) {
+  if (message == WM_MOUSEWHEEL)
+    wheel_delta.fetch_add(GET_WHEEL_DELTA_WPARAM(w), std::memory_order_relaxed);
+  return CallWindowProcW(wheel_next.load(std::memory_order_acquire), window, message, w, l);
+}
+// SB's game window in front subclassed once; false while none is (another window of the process, the UE4SS console).
+bool wheel_hooked() {
+  if (wheel_window && IsWindow(wheel_window))
+    return true;
+  wheel_window = nullptr;
+  HWND front = GetForegroundWindow();
+  wchar_t name[16] = {};
+  if (!front || GetClassNameW(front, name, 16) == 0 || lstrcmpW(name, L"UnrealWindow") != 0)
+    return false;
+  // The procedure it has now first, so a wheel message right after the swap is handed on.
+  const auto was = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(front, GWLP_WNDPROC));
+  if (!was || was == &wheel_proc)
+    return false;
+  wheel_next.store(was, std::memory_order_release);
+  if (!SetWindowLongPtrW(front, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&wheel_proc)))
+    return false;
+  wheel_delta.store(0, std::memory_order_relaxed);
+  wheel_window = front;
+  return true;
+}
+} // namespace
+// coop_wheel (Lua passes 130): ui/keys.h's wheel_answer, 65 + the wheel's whole notches since the last call (up
+// positive, -64 to 64); 65 when no window of SB's is in front or its game window could not be subclassed. The closet
+// camera's zoom. Called by Lua on the game thread only. Never throws, never waits.
+extern "C" __declspec(dllexport) int coop_wheel(void *) noexcept {
+  using namespace coop::pose;
+  static int carry = 0;
+  const bool front = game_in_front() && wheel_hooked();
+  return coop::wheel_answer(front, carry, wheel_delta.exchange(0, std::memory_order_relaxed));
+}
+
 // Called by Lua on the game thread when the pause menu's Online tab closes the pause menu (package.loadlib(dll,
 // "coop_pause_close")), in lua_CFunction's shape, the Lua state ignored. The DLL links no Lua, so the answer is the
 // result count, ui/pause_tab.h's Close: Lua passes 3 arguments and gets back 1 when SB's own close ran, 2 when SB has

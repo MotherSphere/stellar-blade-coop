@@ -86,6 +86,7 @@ local function world(change)
         pc = function() return W.pc end, her = function() return W.eve end, screen = function() return W.screen end,
         pad_bits = function() return W.bits end, pad_levels = function() return table.unpack(W.levels) end,
         held_keys = function() return W.keys end,
+        mouse_wheel = function() local n = W.wheel or 0; W.wheel = 0; return n end,
         pointer = function() if W.ptr then return W.ptr[1], W.ptr[2] end end,
         project = function(at) if W.project then return W.project(at) end end})
 end
@@ -630,6 +631,33 @@ local tests = {
         eq(c.mode(), 'region', 'a middle drag stays in region mode')
         ok(gap(last().at, framed_at('full', -40 * Camera.MPAN, 20 * Camera.MPAN)) < 0.05,
             'a middle drag pans the framing as it pans the free pose')
+    end,
+
+    -- The mouse wheel (notches since the last read, up positive): each notch up zooms in by ZOOM, down out. In region
+    -- mode a turn goes to free mode first, as a right drag does. Turns before the open are dropped.
+    the_mouse_wheel_zooms = function()
+        local c = world(function(w) w.file = '	free	0	0	300	100	0'; w.wheel = 5 end)
+        c.open()
+        frames(c, 0.05, 'full')
+        near(fields().dist, 300, 0.01, 'the turns before the open zoom nothing')
+        W.wheel = 2
+        c.tick(1 / 60, 'full')
+        c.tick(1 / 60, 'full')
+        near(fields().dist, 300 * (1 - Camera.ZOOM) ^ 2, 0.01, 'two notches up: in by ZOOM twice')
+        W.wheel = -2
+        c.tick(1 / 60, 'full')
+        c.tick(1 / 60, 'full')
+        near(fields().dist, 300, 0.01, 'two notches down: back out')
+        c = world(function(w) w.keys = 0 end)
+        c.open()
+        frames(c, 0.05, 'full')
+        eq(c.mode(), 'region', 'region mode at first')
+        W.wheel = 1
+        c.tick(1 / 60, 'full')
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'free', 'a wheel turn goes to free mode')
+        near(fields().dist, Camera.framing('full', 180, 0.55, TANV).dist * (1 - Camera.ZOOM), 0.01,
+            'zoomed in from the region framing')
     end,
 
     the_lens_is_measured_from_the_screen = function()

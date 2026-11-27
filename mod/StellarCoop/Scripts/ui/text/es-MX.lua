@@ -522,9 +522,12 @@ return {
             help={key='Las flechas izquierda y derecha o un clic lo cambian. Se guarda al instante.',
                 pad='La cruz direccional izquierda y derecha lo cambian. Se guarda al instante.'}},
         camera={region='Zona',free='Libre',title='Cámara: %s',reset_hint='Restablecer',
-            moves={region={key='I J K L o arrastrar con el botón central desplazan el encuadre. Arrastrar con el botón derecho pasa al modo Libre. Intensidad de la luz: Shift+U / Shift+O.',
+            moves={region={key='I J K L o arrastrar con el botón central desplazan el encuadre. Arrastrar con el '
+                    ..'botón derecho o la rueda del mouse pasa al modo Libre. Intensidad de la luz: Shift+U / Shift+O.',
                 pad='El stick derecho desplaza el encuadre. Intensidad de la luz: mantén L3 y luego LT / RT.'},
-                free={key='I J K L o arrastrar con el botón derecho giran alrededor. Shift+I J K L o arrastrar con el botón central desplazan. U / O acercan y alejan. Intensidad de la luz: Shift+U / Shift+O.',
+                free={key='I J K L o arrastrar con el botón derecho giran alrededor. Shift+I J K L o arrastrar con el '
+                    ..'botón central desplazan. U / O o la rueda del mouse acercan y alejan. Intensidad de la luz: '
+                    ..'Shift+U / Shift+O.',
                 pad='El stick derecho gira alrededor. Mantén X con el stick derecho para desplazar. LT / RT acercan y alejan. Intensidad de la luz: mantén L3 y luego LT / RT.'}}},
         light={game='Juego',studio='Estudio',warm='Cálida',cool='Fría',rim='Contraluz',title='Iluminación: %s'},
         keys={mode='C',reset='Backspace',light='V'},

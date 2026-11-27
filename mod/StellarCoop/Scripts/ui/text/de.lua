@@ -535,9 +535,13 @@ return {
             help={key='Pfeil links und rechts oder ein Klick ändern es. Es wird sofort gespeichert.',
                 pad='Steuerkreuz links und rechts ändern es. Es wird sofort gespeichert.'}},
         camera={region='Bereich',free='Frei',title='Kamera: %s',reset_hint='Zurücksetzen',
-            moves={region={key='I J K L oder Ziehen mit der mittleren Maustaste verschieben den Ausschnitt. Ziehen mit der rechten Maustaste wechselt in den Modus Frei. Lichtstärke: Umschalt+U / Umschalt+O.',
+            moves={region={key='I J K L oder Ziehen mit der mittleren Maustaste verschieben den Ausschnitt. Ziehen '
+                    ..'mit der rechten Maustaste oder das Mausrad wechselt in den Modus Frei. Lichtstärke: Umschalt+U '
+                    ..'/ Umschalt+O.',
                 pad='Der rechte Stick verschiebt den Ausschnitt. Lichtstärke: L3 halten, dann LT / RT.'},
-                free={key='I J K L oder Ziehen mit der rechten Maustaste kreisen. Umschalt+I J K L oder Ziehen mit der mittleren Maustaste verschieben. U / O zoomen. Lichtstärke: Umschalt+U / Umschalt+O.',
+                free={key='I J K L oder Ziehen mit der rechten Maustaste kreisen. Umschalt+I J K L oder Ziehen mit '
+                    ..'der mittleren Maustaste verschieben. U / O oder das Mausrad zoomen. Lichtstärke: Umschalt+U / '
+                    ..'Umschalt+O.',
                 pad='Der rechte Stick kreist. X mit dem rechten Stick halten verschiebt. LT / RT zoomen. Lichtstärke: L3 halten, dann LT / RT.'}}},
         light={game='Spiel',studio='Studio',warm='Warm',cool='Kühl',rim='Gegenlicht',title='Beleuchtung: %s'},
         keys={mode='C',reset='Backspace',light='V'},

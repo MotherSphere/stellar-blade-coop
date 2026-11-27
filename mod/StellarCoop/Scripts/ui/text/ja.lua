@@ -451,9 +451,11 @@ return {
             help={key='左右の矢印キーまたはクリックで変更します。すぐに保存されます。',
                 pad='方向ボタンの左右で変更します。すぐに保存されます。'}},
         camera={region='部位',free='フリー',title='カメラ：%s',reset_hint='リセット',
-            moves={region={key='I J K L またはマウス中ボタンのドラッグで構図を移動。マウス右ボタンのドラッグでフリーモードに切り替え。ライトの強さ：Shift+U / Shift+O。',
+            moves={region={key='I J K L またはマウス中ボタンのドラッグで構図を移動。マウス右ボタンのドラッグまたはマウスホイールでフリーモードに切り替え。ライトの強さ：Shift+U / '
+                    ..'Shift+O。',
                 pad='右スティックで構図を移動。ライトの強さ：L3を押しながらLT / RT。'},
-                free={key='I J K L またはマウス右ボタンのドラッグで回転。Shift+I J K L またはマウス中ボタンのドラッグで移動。U / O でズーム。ライトの強さ：Shift+U / Shift+O。',
+                free={key='I J K L またはマウス右ボタンのドラッグで回転。Shift+I J K L またはマウス中ボタンのドラッグで移動。U / O '
+                    ..'またはマウスホイールでズーム。ライトの強さ：Shift+U / Shift+O。',
                 pad='右スティックで回転。Xを押しながら右スティックで移動。LT / RT でズーム。ライトの強さ：L3を押しながらLT / RT。'}}},
         light={game='ゲーム',studio='スタジオ',warm='ウォーム',cool='クール',rim='リム',title='ライト：%s'},
         keys={mode='C',reset='Backspace',light='V'},

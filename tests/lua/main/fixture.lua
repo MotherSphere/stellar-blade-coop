@@ -1102,6 +1102,9 @@ pr={bits=0,levels={},calls=0,missing=false}
 -- The native part's held keys for the closet camera: coop_keys hands back 1 + bits of its 512 arguments (bits: 1 right
 -- mouse, 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O); missing: an older DLL without it.
 kh={bits=0,missing=false}
+-- The native part's mouse wheel for the closet camera: coop_wheel hands back 65 + notches of its 130 arguments (up
+-- positive, -64 to 64); missing: an older DLL without it.
+mw={notches=0,missing=false}
 -- The native part's pause menu close (coop_pause_close): each call hands back answer of its three arguments (1 closed,
 -- 2 no pause menu, 3 off); calls: how often it was called; missing: an older DLL without it.
 pc={answer=1,calls=0,missing=false}
@@ -1136,6 +1139,13 @@ function load_main(with_native,no_folder,source)
                 if name=='coop_padbits' then return table.unpack({...},1,1+pr.bits) end
                 pr.calls=pr.calls+1
                 return table.unpack({...},1,pr.levels[(pr.calls-1)%4+1])
+            end
+        end
+        if name=='coop_wheel' then
+            if mw.missing then return nil,'not exported' end
+            return function(...)
+                assert(select('#',...)==130,'coop_wheel: 130 arguments, the most it hands back')
+                return table.unpack({...},1,65+mw.notches)
             end
         end
         if name=='coop_keys' then

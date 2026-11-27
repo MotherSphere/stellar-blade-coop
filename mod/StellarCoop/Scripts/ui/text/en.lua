@@ -628,11 +628,11 @@ return {
         -- The camera's modes, its hint row's mode chip and Reset chip. title formatted with moves is the detail's
         -- camera line: the moves of each mode on the keyboard (key) and on a pad (pad).
         camera={region='Region',free='Free',title='Camera: %s',reset_hint='Reset',
-            moves={region={key='I J K L or a middle drag pan the framing. A right drag goes to Free mode. '
-                    ..'Light level: Shift+U / Shift+O.',
+            moves={region={key='I J K L or a middle drag pan the framing. A right drag or the mouse wheel goes to '
+                    ..'Free mode. Light level: Shift+U / Shift+O.',
                 pad='The right stick pans the framing. Light level: hold L3, then LT / RT.'},
-                free={key='I J K L or a right drag orbit. Shift+I J K L or a middle drag pan. U / O zoom. '
-                    ..'Light level: Shift+U / Shift+O.',
+                free={key='I J K L or a right drag orbit. Shift+I J K L or a middle drag pan. U / O or the '
+                    ..'mouse wheel zoom. Light level: Shift+U / Shift+O.',
                 pad='The right stick orbits. Hold X with the right stick to pan. LT / RT zoom. '
                     ..'Light level: hold L3, then LT / RT.'}}},
         -- The preview light presets and the light chip (title formatted with the preset).

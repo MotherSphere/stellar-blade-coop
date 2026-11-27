@@ -31,6 +31,24 @@ int main() {
   // Right mouse, Shift and L together; a key not in the list adds nothing.
   const std::set<int> some = {0x02, 0x10, 'L', 'A'};
   assert(held_keys(true, [&](int k) { return some.count(k) > 0; }) == 1 + 1 + 4 + 64);
+  // The mouse wheel: 65 + the whole notches (120 a notch, up positive), the part of a notch kept for the next read.
+  using coop::wheel_answer;
+  int carry = 0;
+  assert(wheel_answer(true, carry, 0) == 65 && carry == 0);
+  assert(wheel_answer(true, carry, 120) == 66 && carry == 0);
+  assert(wheel_answer(true, carry, -360) == 62 && carry == 0);
+  // A smooth wheel's small steps add up to a notch.
+  assert(wheel_answer(true, carry, 50) == 65 && carry == 50);
+  assert(wheel_answer(true, carry, 50) == 65 && carry == 100);
+  assert(wheel_answer(true, carry, 50) == 66 && carry == 30);
+  assert(wheel_answer(true, carry, -60) == 65 && carry == -30);
+  // More than 64 notches at once: 64, the rest dropped; the answer stays within 1 to 129.
+  carry = 0;
+  assert(wheel_answer(true, carry, 120 * 500) == 129 && carry == 0);
+  assert(wheel_answer(true, carry, -120 * 500) == 1 && carry == 0);
+  // Not in front: no notch, the kept part dropped.
+  carry = 70;
+  assert(wheel_answer(false, carry, 240) == 65 && carry == 0);
   std::puts("keys_test: ok");
   return 0;
 }

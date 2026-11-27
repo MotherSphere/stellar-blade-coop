@@ -527,9 +527,13 @@ return {
             help={key='Le frecce sinistra e destra o un clic lo cambiano. Viene salvato subito.',
                 pad='La croce direzionale sinistra e destra lo cambiano. Viene salvato subito.'}},
         camera={region='Zona',free='Libera',title='Telecamera: %s',reset_hint='Ripristina',
-            moves={region={key='I J K L o un trascinamento col tasto centrale spostano l\'inquadratura. Un trascinamento col tasto destro passa alla modalità Libera. Intensità della luce: Shift+U / Shift+O.',
+            moves={region={key='I J K L o un trascinamento col tasto centrale spostano l\'inquadratura. Un '
+                    ..'trascinamento col tasto destro o la rotellina passa alla modalità Libera. Intensità della '
+                    ..'luce: Shift+U / Shift+O.',
                 pad='La levetta destra sposta l\'inquadratura. Intensità della luce: tieni premuto L3, poi LT / RT.'},
-                free={key='I J K L o un trascinamento col tasto destro ruotano attorno. Shift+I J K L o un trascinamento col tasto centrale spostano. U / O zoomano. Intensità della luce: Shift+U / Shift+O.',
+                free={key='I J K L o un trascinamento col tasto destro ruotano attorno. Shift+I J K L o un '
+                    ..'trascinamento col tasto centrale spostano. U / O o la rotellina zoomano. Intensità della luce: '
+                    ..'Shift+U / Shift+O.',
                 pad='La levetta destra ruota attorno. Tieni premuto X con la levetta destra per spostare. LT / RT zoomano. Intensità della luce: tieni premuto L3, poi LT / RT.'}}},
         light={game='Gioco',studio='Studio',warm='Calda',cool='Fredda',rim='Controluce',title='Luce: %s'},
         keys={mode='C',reset='Backspace',light='V'},

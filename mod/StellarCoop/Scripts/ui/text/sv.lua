@@ -503,9 +503,11 @@ return {
             help={key='Vänster- och högerpil eller ett klick ändrar det. Det sparas direkt.',
                 pad='Styrknapp vänster och höger ändrar det. Det sparas direkt.'}},
         camera={region='Område',free='Fri',title='Kamera: %s',reset_hint='Återställ',
-            moves={region={key='I J K L eller dra med mittenknappen flyttar utsnittet. Dra med höger musknapp byter till läget Fri. Ljusstyrka: Shift+U / Shift+O.',
+            moves={region={key='I J K L eller dra med mittenknappen flyttar utsnittet. Dra med höger musknapp eller '
+                    ..'mushjulet byter till läget Fri. Ljusstyrka: Shift+U / Shift+O.',
                 pad='Höger spak flyttar utsnittet. Ljusstyrka: håll L3 och använd sedan LT / RT.'},
-                free={key='I J K L eller dra med höger musknapp roterar runt. Shift+I J K L eller dra med mittenknappen flyttar. U / O zoomar. Ljusstyrka: Shift+U / Shift+O.',
+                free={key='I J K L eller dra med höger musknapp roterar runt. Shift+I J K L eller dra med '
+                    ..'mittenknappen flyttar. U / O eller mushjulet zoomar. Ljusstyrka: Shift+U / Shift+O.',
                 pad='Höger spak roterar runt. Håll X med höger spak för att flytta. LT / RT zoomar. Ljusstyrka: håll L3 och använd sedan LT / RT.'}}},
         light={game='Spel',studio='Studio',warm='Varm',cool='Sval',rim='Motljus',title='Ljus: %s'},
         keys={mode='C',reset='Backspace',light='V'},
