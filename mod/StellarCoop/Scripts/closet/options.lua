@@ -50,9 +50,11 @@
 --   USkeletalMeshComponent.SetMorphTarget(MorphTargetName FName, Value float, bRemoveZeroWeight bool): native entry
 --     0x146659b90 (name 0x1464d8d18), exec 0x14491f120, as closet/shape.lua's comment says: with bRemoveZeroWeight a
 --     value of 0 removes the curve.
---   A finish's texture: found in memory (StaticFindObject), else after UE4SS's LoadAsset, used only when it is a
---     UTexture2D (closet/ui/view.lua's find and class; its tiles load a texture path through LoadAsset_Blocking,
---     native entry 0x1465b5cb0, name 0x1465a59e8, exec 0x14482cf00, read again).
+--   A finish's texture: found in memory (StaticFindObject), else after UE4SS's LoadAsset, else the asset registry
+--     helpers' GetAsset (a mod pack's asset that the cooked registry does not list: the Rei texture of the Asuka pack
+--     was not found before, 27 Nov 2026), used only when it is a UTexture2D (closet/ui/view.lua's find and class; its
+--     tiles load a texture path through LoadAsset_Blocking, native entry 0x1465b5cb0, name 0x1465a59e8, exec
+--     0x14482cf00, read again). The registry step is a copy of closet/dress.lua's resolve.
 local U=require('core.unreal')
 local Fits=require('closet.fits')
 local Colour=require('closet.colour')
@@ -232,6 +234,13 @@ function Options.new(o)
             if not x then
                 pcall(LoadAsset,path)
                 x=U.valid(StaticFindObject(path))
+            end
+            if not x then
+                local got,asset=pcall(function()
+                    local helpers=StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers')
+                    return helpers:GetAsset({ObjectPath=FName(path)})
+                end)
+                x=got and U.valid(asset) or nil
             end
             return x and x:IsA(U.find(TEXTURE)) and x or nil
         end)

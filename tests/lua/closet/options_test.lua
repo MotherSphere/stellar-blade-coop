@@ -65,8 +65,13 @@ local function obj(name)
 end
 local TEXTURE2D = obj('Texture2D class')
 local textures = {}
+-- A mod pack's textures the cooked registry does not list: only the asset registry helpers' GetAsset finds them.
+local registry = {}
+local HELPERS = obj('AssetRegistryHelpers')
+function HELPERS:GetAsset(data) return registry[data.ObjectPath] end
 StaticFindObject = function(path)
     if path == '/Script/Engine.Texture2D' then return TEXTURE2D end
+    if path == '/Script/AssetRegistry.Default__AssetRegistryHelpers' then return HELPERS end
     return textures[path]
 end
 LoadAsset = function() end
@@ -245,6 +250,17 @@ local tests = {
             same({r.o.range('s', 'number:1')}, {0, 1, 0.1}, 'a number: the pack step')
             same({r.o.range('s', 'number:2')}, {0, 1, 0.05}, 'no range: 0..1 in 1/20')
             same({r.o.range('s', 'shape:1')}, {-2, 0, 0.5}, 'a shape key: the pack range and step')
+        end)
+    end,
+    a_finish_only_the_asset_registry_finds_is_kept = function()
+        dyed_rig(function(r)
+            -- Stripes (T1) is in no memory and LoadAsset finds nothing: a mod pack's texture the registry lists.
+            local stripes = obj('/Game/P/T1.T1')
+            function stripes:IsA(class) return class == TEXTURE2D end
+            registry['/Game/P/T1.T1'] = stripes
+            same(r.o.finishes('s', 1), {0, 1, 2}, 'Stripes found through the asset registry')
+            eq(count(r.log, 'T1.T1'), 0, 'nothing said')
+            registry['/Game/P/T1.T1'] = nil
         end)
     end,
     a_finish_loads_its_texture_and_a_missing_one_is_dropped_once = function()
