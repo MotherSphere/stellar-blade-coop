@@ -1022,6 +1022,16 @@ local tests = {
         same(w.told, {'FACE_RIG'}, 'the watchdog says nothing')
     end,
 
+    -- The menu shows closet.head.face_rig on a face the part found on another skeleton: foreign_faces says which.
+    a_face_on_another_skeleton_is_remembered_for_the_menu = function()
+        local w = world()
+        same(w.head.foreign_faces(), {}, 'nothing worn: none known')
+        ok(w.wear({{fit = 'p.raven', slot = 'Face'}}))
+        same(w.head.foreign_faces(), {['p.raven'] = true})
+        ok(w.wear({{fit = 'p.fitface', slot = 'Face'}}))
+        same(w.head.foreign_faces(), {['p.raven'] = true}, 'an own-skeleton face is never listed')
+    end,
+
     -- EVE's own eyes: a colour-only part on Mesh_Face (its controls paint slots 4 and 7), while her face is her own.
     the_eyes_part_paints_mesh_face_slot_4 = function()
         local w = world()

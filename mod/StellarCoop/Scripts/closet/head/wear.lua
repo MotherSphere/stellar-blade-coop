@@ -319,6 +319,7 @@ function Head.new(o)
     local due,wrong,fights,stopped,applied=0,0,{},false,0
     local said={} -- Variant materials that did not load, said once.
     local unworn={} -- 'fit:slot' -> slot: the choices of list the last wear left off (plan's skipped).
+    local foreign_faces={} -- fit -> true: faces found on another skeleton (the menu's note).
 
     -- The game's own look of each head component not read yet (all again on a new EVE).
     local function capture(eve)
@@ -587,6 +588,7 @@ function Head.new(o)
             if say then log('head: not worn: '..s.fit..' ('..s.slot..'): '..s.why) end
         end
         if rig then
+            foreign_faces[rig]=true
             log('head: '..rig..'\'s face mesh is not on EVE\'s skeleton: it may not move')
             tell(function(t) return t.closet.head.face_rig end)
         end
@@ -844,6 +846,13 @@ function Head.new(o)
         for _,choice in ipairs(list) do
             if not unworn[choice.fit..':'..choice.slot] then out[choice.fit]=choice.slot end
         end
+        return out
+    end
+    -- {[fit]=true} for each face a wear found on another skeleton than EVE's: the mesh is read at the wear, so the menu
+    -- knows no face before it was worn once.
+    function self.foreign_faces()
+        local out={}
+        for fit in pairs(foreign_faces) do out[fit]=true end
         return out
     end
     -- {[fit]=slot} for each choice of the list worn that is not on her (a made slot, Eyes on another face).

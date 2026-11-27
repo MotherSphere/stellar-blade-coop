@@ -108,6 +108,8 @@
 -- thumbs=closet/thumbs.lua's or nil, colour=closet/colour.lua's or nil (the Colour rows then show Off and pick
 -- nothing), shape=closet/shape.lua's or nil (no shape row then), options=closet/options.lua's or nil (no options
 -- page then), presets=closet/presets.lua's or nil (no Presets rows, filter or favourites then),
+-- head=closet/head/wear.lua's or nil (eyes_locked(face) locks the Eyes row, foreign_faces() the faces known to be
+-- on another skeleton than EVE's: their tile's detail shows closet.head.face_rig; none known without it),
 -- uidev=function() SB's input device byte or nil
 -- (core/link.lua's uidev; nil: the keyboard), nav_held=function() the up and down keys held (main/boot.lua's
 -- nav_held: 1 up, 2 down, 0 none) or nil}.
@@ -259,6 +261,14 @@ function Menu.new(o)
     -- A slider row's place: x in lo..hi as 0..1 (a value outside the range shows at its end).
     local function place(x,lo,hi) return hi>lo and math.max(0,math.min(1,(x-lo)/(hi-lo))) or 0 end
     local function is_head(slot) return slot~=nil and Slots.group(slot)=='head' end
+    -- The Eyes row has no tiles: EVE's own eyes (closet/head/stock.lua's SB.Eyes_Own, Fits.heads' only Eyes piece) are
+    -- one page of colours, worn when it opens. It is locked while the face worn is not hers (closet/head/wear.lua's
+    -- eyes_locked): then Right and Select do nothing and no Eyes choice is sent.
+    local function is_eyes(item) return item~=nil and item.slot=='Eyes' and item.state=='pieces' end
+    local function eyes_locked()
+        if not o.head then return false end
+        return o.head.eyes_locked(model.worn(dress.choices() or {},'Face'))
+    end
     -- The fit whose options page Right opens from a row, with the options layer, or nil: an outfit's row's installed
     -- pack outfit with toggles; a head row's worn piece with controls. A stock ponytail worn with a stock hair that
     -- has colour controls has no page: it takes the hair's colours (closet/fits.lua's Fits.follows).
@@ -266,6 +276,7 @@ function Menu.new(o)
         if not (item and o.options) then return nil end
         local fit
         if item.whole then fit=not item.locked and Fits.get(item.whole) and item.whole
+        elseif is_eyes(item) then fit=not eyes_locked() and Fits.heads('Eyes')[1] or nil
         elseif item.state=='pieces' and is_head(item.slot) then
             local choices=dress.choices() or {}
             fit=model.worn(choices,item.slot)
@@ -278,7 +289,8 @@ function Menu.new(o)
     -- A head tile's, row's or page's piece name: the stock ponytails' own (closet/head/stock.lua's ids, which the game
     -- names only by table row) from the texts, else name.
     local STOCK_PONYTAILS={['SB.Ponytail_Long']='long_ponytail',['SB.Ponytail_Short']='short_ponytail',
-        ['SB.Ponytail_None']='no_ponytail'}
+        ['SB.Ponytail_None']='no_ponytail',
+        ['SB.Eyes_Own']='eyes_own'}
     local function head_name(w,fit,name) return STOCK_PONYTAILS[fit] and w.head[STOCK_PONYTAILS[fit]] or name end
     -- A control row's title: its kind (Finish, Colour, Number), then its name (named, else its own) when that differs
     -- from its piece's.
@@ -295,7 +307,7 @@ function Menu.new(o)
     -- The focused row's item; on a row of pieces also its tiles and the worn tile's index (None when none is worn).
     local function focused(choices)
         local item=list()[row]
-        if not item or item.state~='pieces' then return item end
+        if not item or item.state~='pieces' or item.slot=='Eyes' then return item end
         local tiles,worn=model.tiles(item.slot),model.worn(choices or dress.choices() or {},item.slot)
         for i,one in ipairs(tiles) do
             if one.fit==worn then return item,tiles,i end
@@ -312,6 +324,8 @@ function Menu.new(o)
     local function origin(w,fit)
         return Fits.origin(fit)=='original' and w.origin.original or w.origin.custom:format(Fits.get(fit).Pack)
     end
+    -- The faces known to be on another skeleton than EVE's ({fit=true}): the head part learns it when the mesh is worn.
+    local function rigs() return o.head and o.head.foreign_faces and o.head.foreign_faces() or {} end
     -- A tile's detail lines: its outfit, slot, origin, a pack ponytail's own-ponytail line, covers, what else it
     -- takes, hidden by default, locked.
     local function lines(w,one,slot)
@@ -320,6 +334,7 @@ function Menu.new(o)
         out[#out+1]=w.detail.slot:format(w.slots[slot] or slot)
         if one.fit then out[#out+1]=origin(w,one.fit) end
         if one.fit and slot=='Ponytail' and Fits.origin(one.fit)=='custom' then out[#out+1]=w.head.pack_ponytail end
+        if one.fit and slot=='Face' and rigs()[one.fit] then out[#out+1]=w.head.face_rig end
         if one.covers then out[#out+1]=w.detail.covers:format(names(one.covers,w.regions)) end
         if one.also then out[#out+1]=w.detail.also:format(names(one.also,w.slots)) end
         if one.off then out[#out+1]=w.detail.off end
@@ -428,11 +443,12 @@ function Menu.new(o)
                 -- The Body row names the body in use: the picked one, else the plan's (switched or the rule's).
                 local body=item.slot=='BaseBody' and not worn and plan and plan.body and Fits.get(plan.body.fit).Outfit
                 local value=item.state=='soon' and w.row.soon or item.state=='empty' and '' or
+                    is_eyes(item) and (worn and w.head.eyes_own or w.head.own) or
                     worn and head_name(w,worn,model.piece(worn,item.slot).Name) or body or
                     (is_head(item.slot) and w.head.own or w.row.none)
                 -- EarringL's row reads "Earrings": it stands for both ears, the slot name stays for other uses.
                 s.rows[i]={title=item.slot=='EarringL' and w.head.earrings or w.slots[item.slot] or item.slot,
-                    value=value,locked=item.state=='soon'}
+                    value=value,locked=item.state=='soon' or is_eyes(item) and eyes_locked()}
             end
             -- A child row of the options page: its lead mark (the detail's title keeps the plain one).
             if item.depth then
@@ -524,6 +540,9 @@ function Menu.new(o)
         elseif item and item.header then -- Nothing to do on it: Back and Move only.
         elseif item and item.state~='pieces' then
             s.detail.desc=w.row[item.state]
+        elseif is_eyes(item) then -- No tiles: Right or Select opens the page, unless another face is worn.
+            if eyes_locked() then s.detail.desc=w.head.eyes_face
+            else s.hints[2]={w.hints.options,'UI_DPad_Right',word='right'} end
         elseif item then
             local worn=model.worn(choices,item.slot)
             local _,tiles,at=focused(choices)
@@ -550,6 +569,7 @@ function Menu.new(o)
                 s.detail.equipped=worn~=nil
                 if worn then
                     s.detail.desc=w.detail.outfit:format(head_name(w,worn,Fits.get(worn).Outfit))..'\n'..origin(w,worn)
+                    if item.slot=='Face' and rigs()[worn] then s.detail.desc=s.detail.desc..'\n'..w.head.face_rig end
                     s.detail.badge=Fits.origin(worn)
                 end
             end
@@ -1031,12 +1051,17 @@ function Menu.new(o)
             -- and Reset are one press away on a long list). Q and E change the tab.
             row=n>0 and (row-1+(word=='up' and -1 or 1))%n+1 or 1
             kit.sound('move')
-        elseif word=='right' and has_options(item) then -- The outfit's (a head row: its piece's) page, first setting.
+        elseif (word=='right' or word=='select' and is_eyes(item)) and has_options(item) then
+            -- The outfit's (a head row: its piece's) page, first setting.
             -- An outfit EVE does not wear is worn as a preview (as Select does: Keep this look? at the menu's Back),
             -- since the options layer writes the worn outfits only. A head row's piece is worn already.
             local fit,worn=options_fit(item),false
             for _,c in ipairs(dress.choices() or {}) do worn=worn or c.fit==fit end
-            if not worn then wear(model.whole(fit,dress.choices())) end
+            if not worn then
+                -- The own eyes join the choices; the suit stays (an Eyes choice is never sent while locked).
+                local now_worn=dress.choices() or {}
+                wear(is_eyes(item) and model.choose(now_worn,'Eyes',fit) or model.whole(fit,now_worn))
+            end
             page,from_row,row={fit=fit},row,2
             kit.sound('move')
         elseif (word=='right' or word=='select') and tiles then col,tile='grid',at end

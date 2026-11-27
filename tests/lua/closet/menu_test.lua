@@ -42,7 +42,7 @@ local function rig(o)
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
         camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape,
-        options = o.options, presets = o.presets, uidev = function() return r.dev end,
+        options = o.options, presets = o.presets, uidev = function() return r.dev end, head = o.head,
         nav_held = function() return r.held end})
     return r
 end
@@ -3523,6 +3523,86 @@ local tests = {
             at(r, 0.5, 'right')
             eq(row_value(r, child(1, 'Root')), T.en.closet.options.pack, "a pack hair's colour: the pack's name")
         end, heads({{fit = 'p.hair', slots = {'Hair'}}}))
+    end,
+
+    -- The Eyes row (EVE's own eyes, closet/head/stock.lua's SB.Eyes_Own): Right or Select opens its options page with
+    -- no grid; locked with closet.head.eyes_face while the worn face is not hers (closet/head/wear.lua's eyes_locked).
+    eyes_row_opens_its_options_with_no_grid = function()
+        local EYES = 'SB.Eyes_Own'
+        local function eyes_o(locked)
+            local o = heads()
+            local controls = {MaterialToggles = {}, VectorControls = {{DisplayName = 'Iris colour', ParamName = 'IrisHueTint',
+                MaterialIndex = 4, Value = {0.2, 0.4, 0.8, 1}}},
+                ScalarControls = {{DisplayName = 'IrisBrightness', ParamName = 'IrisBrightness', MaterialIndex = 4,
+                    Value = 1, Min = 0, Max = 2}}}
+            o.catalogue[EYES] = {UniqueFitID = EYES, Slot = 'Eyes', Origin = 'original', DisplayName = 'Eyes_Own',
+                HidePonytail = false, Mesh = '', Variants = {{Mesh = '', Materials = {}, UserConfigs = controls}},
+                UserConfigs = controls, PieceHints = {}}
+            o.head = {eyes_locked = function(face) o.asked = face or 'none'; return locked end}
+            return o
+        end
+        local function on_eyes(r)
+            on_hair(r)
+            at(r, 0.1, 'down', 'down')
+            eq((detail(r)), 'Eyes', 'on the Eyes row')
+        end
+        for _, word in ipairs({'right', 'select'}) do
+            with_aria(function(r)
+                on_eyes(r)
+                same(menu_hints(r)[2], {T.en.closet.hints.options, 'UI_DPad_Right', 'None'}, 'the Options hint')
+                at(r, 0.5, word)
+                same(headers(r), {T.en.closet.head.eyes_own}, word .. ': its page, named from the texts')
+                eq(#grid(r).items, 0, word .. ': no grid')
+                eq(r.previews[#r.previews][1].fit, EYES, word .. ': the own eyes worn for the page')
+                local all = {}
+                for _, rec in ipairs(r.kit.live(F.OPTION)) do all[#all + 1] = rec.o.Text_TitleValue.text end
+                for _, rec in ipairs(r.kit.live(F.SLIDER)) do all[#all + 1] = rec.o.TextTitleValue.text end
+                all = table.concat(all, '|')
+                ok(all:find(T.en.closet.head.colours.IrisHueTint, 1, true), 'iris colour named: ' .. all)
+                ok(all:find(T.en.closet.head.params.IrisBrightness, 1, true), 'iris brightness named: ' .. all)
+            end, eyes_o(false))
+        end
+        -- The worn face reaches the head part: a pack face is its id.
+        local o = eyes_o(false)
+        o.catalogue['p.face'] = head_item('Face', 'p.face', 'Pack face', 'custom')
+        o.before = function(r) r.choices = {{fit = 'p.face', slots = {'Face'}}} end
+        with_aria(function(r)
+            on_eyes(r)
+            at(r, 0.5, 'right')
+            eq(o.asked, 'p.face', 'eyes_locked asked with the face worn')
+        end, o)
+        for _, word in ipairs({'right', 'select'}) do
+            with_aria(function(r)
+                on_eyes(r)
+                local _, desc = detail(r)
+                ok(desc:find(T.en.closet.head.eyes_face, 1, true), 'locked: the text: ' .. desc)
+                eq(menu_hints(r)[2] and menu_hints(r)[2][1] ~= T.en.closet.hints.options, true, 'no Options hint')
+                at(r, 0.5, word)
+                eq(#headers(r), 0, word .. ': no page')
+                eq(#r.previews, 0, word .. ': a locked Eyes choice is never sent')
+                eq(#grid(r).items, 0, word .. ': no grid')
+            end, eyes_o(true))
+        end
+    end,
+
+    a_face_known_to_be_on_another_rig_shows_the_note = function()
+        local o = heads()
+        o.catalogue['p.face'] = head_item('Face', 'p.face', 'Pack face', 'custom')
+        o.catalogue['q.face'] = head_item('Face', 'q.face', 'Quick face', 'custom')
+        o.head = {eyes_locked = function() return false end, foreign_faces = function() return {['p.face'] = true} end}
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'tab_right', 'tab_right', 'select') -- The Face row's grid: Game's own first.
+            local names = {}
+            for _, item in ipairs(grid(r).items) do names[#names + 1] = item.ItemName.text end
+            same(names, {T.en.closet.head.own, 'Pack face', 'Quick face'}, "Game's own first, then the packs")
+            at(r, 0.1, 'right')
+            local _, desc = detail(r)
+            ok(desc:find(T.en.closet.head.face_rig, 1, true), 'the foreign face: the note: ' .. desc)
+            at(r, 0.1, 'right')
+            _, desc = detail(r)
+            ok(not desc:find(T.en.closet.head.face_rig, 1, true), 'another face: no note')
+        end, o)
     end,
 
     the_row_lets_go_of_its_highlight_in_the_grid = function()
