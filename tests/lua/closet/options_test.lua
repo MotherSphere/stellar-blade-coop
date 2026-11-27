@@ -157,33 +157,51 @@ local function near(got, want, what)
 end
 
 local tests = {
-    -- The options layer and the palette (closet/colour.lua) together on one held slot, ticked in closet/wiring.lua's
-    -- order: a pack rescan whose list read fails (no packs), then one that reads them again, keeps the palette's
-    -- colour; a role turned off during a rescan's repaint gives the pack colour back.
+    -- The options layer and the palette (closet/colour.lua) together on one held slot, through the real pack scan
+    -- (closet/packs.lua over a fake list file, then Fits.use, as closet/wiring.lua's scan) and ticked in the wiring's
+    -- order: a rescan whose pack list cannot be read, then one that reads it again, keeps the palette's colour; Primary
+    -- turned off during a rescan's repaint gives the pack colour back.
     the_palette_and_options_agree_across_a_rescan = function()
         dyed_rig(function(r)
+            local paks, list = 'C:\\SB\\Content\\Paks', 'C:\\SB\\coop-cns-packs.txt'
+            local file = '~mods\\S\\s.dekcns.json'
+            local listed = '1 1 ' .. file .. '\n'
+            local text = '[{"UniqueFitID":"s","DisplayName":"S","OutfitPaths":["/Game/P/V1.V1"],'
+                .. '"UserConfigs":{"VectorControls":[{"DisplayName":"Top","ParamName":"Base Color Tint",'
+                .. '"MaterialIndex":3,"Value":[0.5,0.5,0.5,1]}]}}]'
+            local packs = require('closet.packs').new({paks = paks, list = list, log = function() end,
+                read = function(path, limit)
+                    if path == list then
+                        if not listed then return nil, list .. ': No such file or directory', 2 end
+                        return listed
+                    end
+                    return limit and text:sub(1, limit) or text
+                end})
+            local function rescan() Fits.use((packs.scan())) end
+            rescan()
             r.parts[1].slots = {[3] = 'FullOutfit'} -- A pack suit worn whole: its section is Primary's.
             local c = require('closet.colour').new({dress = r.dress, log = function() end, options = r.o,
                 store = {save = function() return true end, load = function() return nil end, clear = function() end}})
             local function tick() r.o.tick(); c.tick() end
-            local C = require('closet.colour')
-            local cr, cg, cb = C.swatch('crimson')
+            local cr, cg, cb = require('closet.colour').swatch('crimson')
             local crimson, pack = {R = cr, G = cg, B = cb, A = 1}, {R = 0.5, G = 0.5, B = 0.5, A = 1}
             tick()
             near(r.value(3, 'Base Color Tint'), pack, 'the pack colour first')
             c.set('primary', 'crimson')
             tick()
             near(r.value(3, 'Base Color Tint'), crimson, 'the palette on the held slot')
-            Fits.use({}) -- A rescan whose pack list could not be read: no pack.
+            listed = nil -- The list file cannot be read.
+            rescan()
             tick()
-            near(r.value(3, 'Base Color Tint'), crimson, 'a failed read: the palette stays')
-            Fits.use({s = dyed('s')}) -- The next rescan reads it again: options writes its pack colour anew.
+            near(r.value(3, 'Base Color Tint'), crimson, 'a failed list read: the palette stays')
+            listed = '1 1 ' .. file .. '\n' -- Read again: options writes its pack colour anew.
+            rescan()
             tick()
             near(r.value(3, 'Base Color Tint'), crimson, 'recovered: the palette over the pack colour again')
-            Fits.use({s = dyed('s')}) -- A rescan of the same pack, Primary turned off before the next tick.
+            rescan() -- The same pack again, Primary turned off before the next tick.
             c.set('primary', 'off')
             tick()
-            near(r.value(3, 'Base Color Tint'), pack, 'the role off during a repaint: the pack colour back')
+            near(r.value(3, 'Base Color Tint'), pack, 'Primary off during a repaint: the pack colour back')
         end)
     end,
     a_colour_swatch_and_custom_rgb_write_the_param = function()
