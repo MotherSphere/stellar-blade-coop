@@ -30,7 +30,7 @@ mod does not ship it and the repository cannot build it: the map tools stay outs
 The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then in `SB/Content/Paks/LogicMods`. The
 `.utoc` must name `SBO_World` and `Xion_P.umap`, with its `.pak` and `.ucas` beside it.
 
-There are nine builds of the pak, under the same three file names. Only one of them is installed at a time.
+There are ten builds of the pak, under the same three file names. Only one of them is installed at a time.
 
 | Pak | Packages | Levels listed | `.utoc` | `.ucas` | Version in `coop xion status` |
 | --- | --- | --- | --- | --- | --- |
@@ -43,8 +43,9 @@ There are nine builds of the pak, under the same three file names. Only one of t
 | 25 November 2026, full test, fourth build | `Xion_P` and nineteen room levels | 175 | 2719 bytes | 2,331,195 bytes | `2719_2331195` |
 | 26 November 2026, full test, fifth build | `Xion_P` and fifteen room levels | 171 | 2303 bytes | 2,267,202 bytes | `2303_2267202` |
 | 27 November 2026, full test, sixth build | `Xion_P`, the fifteen room levels and the two district levels | 173 | 2560 bytes | 2,610,974 bytes | `2560_2610974` |
+| 27 November 2026, full test, seventh build | `Xion_P`, the fifteen room levels and the two district levels, rebuilt | 173 | 2560 bytes | 2,612,399 bytes | `2560_2612399` |
 
-All nine pass the check above. The module looks for package paths, never for a version: `self.gate()` in
+All ten pass the check above. The module looks for package paths, never for a version: `self.gate()` in
 `sboxion.lua` hands the version to `coop xion status`, which prints it. Nothing else reads it. Two rebuilds of the
 third full test build, made on 25 November 2026 with pieces turned inside the rooms, read the same version: it is
 made of two sizes. At the first arrival
@@ -67,6 +68,10 @@ fourth build, so the module opens those three only with a pak that also holds `X
 The sixth build holds the fifth build's fifteen room levels with the same bytes. It adds the two levels of [the
 underground district](#the-underground-district): `Under_D1_Arch.umap` and `Under_D1_ArchHomes.umap`. Its level line reads
 `173 listed, 139 of 139`. With it the module also opens the gate G18.
+
+The seventh build holds the same levels. Only its two district levels are new. The deck plates sit 13.7 cm higher.
+The deck's north edge has rails along its whole length: 44 in place of 41, which closes a gap of 3.9 m under the arch
+landing. `Xion_P` and the fifteen room levels are the same bytes as in the sixth build.
 
 ## Commands
 
@@ -830,7 +835,8 @@ Send the `npcs:` lines of `UE4SS.log`.
 ## The underground district
 
 The sixth full test build (27 November 2026) adds a district of SBO's own under the lower street: district 1 of the
-underground city, the Arch Quarter. None of it has run in game.
+underground city, the Arch Quarter. The seventh build of the same day builds its two levels again. None of it has run
+in game.
 
 The way down starts at the gate G18 on the lower street (`MainStreet_04`), at (252, 4408, -228). Behind the gate,
 SB's brick tunnel runs 14.9 m (4.4 m wide, 5.8 m high) to a far arch at (1300, 5308). SB's floor stops 1.5 to 2 m
@@ -844,7 +850,7 @@ The district is two levels on the streaming list of `Xion_P`, under the folder o
 
 | Level | What it holds | Pieces | Lights | Streaming slot |
 | --- | --- | --- | --- | --- |
-| `/Game/SBO_World/Rooms/Under_D1_Arch` | The stairs, the deck, the court, the yards and the market | 379 | 23 | `LevelStreamingDynamic_54` |
+| `/Game/SBO_World/Rooms/Under_D1_Arch` | The stairs, the deck, the court, the yards and the market | 382 | 23 | `LevelStreamingDynamic_54` |
 | `/Game/SBO_World/Rooms/Under_D1_ArchHomes` | The homes, the repair room, the store room and their lanes | 203 | 16 | `LevelStreamingDynamic_56` |
 
 Both slots name volumes in E04 as SB ships them. The build makes them always loaded, so the module counts both
@@ -894,7 +900,7 @@ layout:
 
 | NPC | Level | Where | Mesh | Line |
 | --- | --- | --- | --- | --- |
-| `d1_gate_guard` | `Under_D1_Arch` | At the foot of the arch stair, (-817, 6033, -1100) | `CH_NPC_XionGuard` | You came down the arch stair? Then you found us. |
+| `d1_gate_guard` | `Under_D1_Arch` | Beside the foot of the arch stair, 1 m off its last flight, (-586, 5835, -1100) | `CH_NPC_XionGuard` | You came down the arch stair? Then you found us. |
 | `d1_storyteller` | `Under_D1_Arch` | In the Arch Court, by the globe | `CH_NPC_CitizenMale_B` | Before the city was hung here, this was all falling air. |
 | `d1_porter` | `Under_D1_Arch` | In the Gate Yard | `CH_NPC_ScavengerFemale_A` | Everything that comes down, comes down that stair. |
 | `d1_welder` | `Under_D1_Arch` | In the Frame Yards | `CH_NPC_EngineerMale` | Stand back from the sparks. |
@@ -912,18 +918,18 @@ The lines are first drafts in English, translated into the 22 language files. Th
 of the deck's north edge, the market's on the market side of its north mouth, the residents and the mechanic
 inside their rooms. The street over the deck is 8.7 m up or more, past the 3 m of a line.
 
-### What the sixth build leaves open
+### What the seventh build leaves open
 
-- The props on the deck stand 13.5 to 17.5 cm over the drawn plate: 229 of them, with the NPC spots at the layout's
-  walk of Z -1100. The deck's collision top is at -1113.7. A fix needs a new build of the district's two levels.
+- The deck's collision top meets the walk at Z -1100, where EVE, the props and the NPC spots stand. The plates' drawn
+  grating lies 3.8 cm lower. Low mounds drawn on the plates rise up to 13 cm over the walk, some of them under props.
 - The district has no `SBEnvControlVolume` of its own and its props carry no `LDMaxDrawDistance`.
-- The pieces use the collision profiles the editor gave them: 557 block and 25 let EVE through. Not tested in game.
+- The pieces use the collision profiles the editor gave them: 560 block and 25 let EVE through. Not tested in game.
 - `coop xion rooms off` puts G18's pieces back too. With EVE below the gate she then cannot walk out until
   `coop xion rooms on`.
 
 ### Testing the district in game
 
-With the sixth build in `SB/Content/Paks/~mods`, on a co-op save, alone.
+With the seventh build in `SB/Content/Paks/~mods`, on a co-op save, alone.
 
 1. `coop xion`. Within 15 s the log has `levels: 173 listed, 139 of 139`, `rooms: this pak holds 16 of 16 rooms`
    and `rooms: G18 open: 6 rows hidden`.
@@ -934,8 +940,8 @@ With the sixth build in `SB/Content/Paks/~mods`, on a co-op save, alone.
 4. On the deck the log has `npcs: d1_gate_guard stands in Under_D1_Arch`. Walk up to him: his line shows once.
 5. Walk through the court, the yards, the market, both homes, the repair room and the store room. Note the props
    and the NPCs' feet over the deck, the light and any piece EVE walks through.
-6. Walk off an open edge of the deck. The log has `black:`, then `fall: EVE at ... under the floor of the
-   underground district` and `put back: EVE walks`. EVE stands on the deck again.
+6. Jump over a deck rail (the rails stand 81 cm over the deck). The log has `black:`, then `fall: EVE at ... under
+   the floor of the underground district` and `put back: EVE walks`. EVE stands on the deck again.
 7. Walk back up the stairs and out through the gate, then `coop xion leave`.
 
 Send the `[SX]` lines of `UE4SS.log`.
@@ -996,7 +1002,8 @@ The same as with the rooms pak. The rooms open as before. The recovery catches E
 `Zone_SBO_Xion` and waits while it is another. The levels line counts the 34 volume levels apart. The look lines say
 what wakes up ([What the log shows](#what-the-log-shows)). Nothing pins the pak's version: `coop xion status` prints
 `pak 1203_1501548`, `pak 1203_1546008` for the second build, `pak 1863_1918741` for the third, `pak 2719_2331195`
-for the fourth, `pak 2303_2267202` for the fifth and `pak 2560_2610974` for the sixth.
+for the fourth, `pak 2303_2267202` for the fifth, `pak 2560_2610974` for the sixth and `pak 2560_2612399` for the
+seventh.
 
 ### What is not known
 
@@ -1029,10 +1036,10 @@ triggers, its saves and its warps then work again. Stop walking. Do not jump. Le
 `coop xion leave` is refused outside `Zone_SBO_Xion`. Then put the copied co-op saves back.
 
 1. `coop xion`. Do not move. Within 15 s the log has `levels: 161 listed, 127 of 127` (`167 listed, 133 of 133` with
-   the third build, `171 listed, 137 of 137` with the fifth, `173 listed, 139 of 139` with the sixth), the
-   `rooms: <room> open` lines (five, eleven with the third and fourth builds, fifteen with the fifth, fifteen and
-   `G18` with the sixth), a `characters:` line, `zone: zonetype 5 area Zone_SBO_Xion` and `life: 1`. Note any
-   hitch.
+   the third build, `171 listed, 137 of 137` with the fifth, `173 listed, 139 of 139` with the sixth and the
+   seventh), the `rooms: <room> open` lines (five, eleven with the third and fourth builds, fifteen with the fifth,
+   fifteen and `G18` with the sixth and the seventh), a `characters:` line, `zone: zonetype 5 area Zone_SBO_Xion`
+   and `life: 1`. Note any hitch.
 2. `coop xion status`. Note the look part: the count of characters, the nearest one, the zone.
 3. Stand still for 2 minutes, then walk on the arrival square for 1 minute. Stay out of the box 7 m to the north
    around (-8340, 6502, 403): a trigger of Stellar Blade's camp warp stands there. Note every NPC, guard or merchant,
