@@ -174,8 +174,9 @@ end
 -- The plan for a list of choices {{fit=<UniqueFitID>, slots=<list of Slot ids, or nil for every piece it shows by
 -- default>}}: {body={fit,mesh,show,slots}, added={{fit,mesh,show,slots}}, pieces=n, parts=<added meshes>,
 -- switched=<fit the auto rule put on the body instead of the Shoes'/first one>?, clips=<regions another outfit's piece
--- covers that the body's skin shows>?} or nil and why. Pure: no engine call; choices are never changed. The slot
--- BaseBody of a fit with Skin (no piece) picks its body, which is never switched. Else the body rule mode
+-- covers that the body's skin shows>?, head={{fit,slot}} (the head part's choices; body nil when no other choice is
+-- left)} or nil and why. Pure: no engine call; choices are never changed. The slot BaseBody of a fit with Skin (no
+-- piece) picks its body, which is never switched. Else the body rule mode
 -- (Dress.BODY_MODES, default auto, or a fit id): auto keeps the Shoes' outfit, else the first, unless its skin shows on
 -- a region another outfit's piece covers; then the look's outfit with Skin that hides the most covered regions (ties:
 -- the Shoes' outfit, then choice order). slots: material index -> the closet slot of its piece (BaseBody for the
@@ -184,13 +185,23 @@ end
 function Dress.plan(choices,fits,mode,toggles)
     fits=fits or Fits
     if #choices==0 then return nil,'nothing to wear' end
-    local taken,by_fit,order,picked={},{},{},nil
+    local taken,by_fit,order,picked,head={},{},{},nil,{}
     for _,choice in ipairs(choices) do
         local fit=fits.get(choice.fit)
         if not fit then return nil,'no fit map for '..tostring(choice.fit) end
         if by_fit[choice.fit] then return nil,choice.fit..' named twice' end
+        -- A head choice (its slots all of group head, or a head fit worn with none named) goes to plan.head for the
+        -- head part: never on her body, an added mesh or the sweep (which would destroy SBHair).
+        local heads=choice.slots or {fit.Slot}
+        local is_head=#heads>0
+        for _,slot in ipairs(heads) do is_head=is_head and Slots.group(slot)=='head' end
         local pieces,body={},false
-        if choice.slots then
+        if is_head then
+            for _,slot in ipairs(heads) do
+                if not fits.piece(choice.fit,slot) then return nil,choice.fit..' has no '..slot end
+                head[#head+1]={fit=choice.fit,slot=slot}
+            end
+        elseif choice.slots then
             for _,slot in ipairs(choice.slots) do
                 if not Slots.known(slot) then return nil,'unknown slot '..tostring(slot) end
                 if slot=='BaseBody' then
@@ -205,7 +216,7 @@ function Dress.plan(choices,fits,mode,toggles)
         else
             for _,piece in ipairs(fit.Pieces) do if not piece.Off then pieces[#pieces+1]=piece end end
         end
-        local claims=body and {'BaseBody'} or {}
+        local claims=body and {'BaseBody'} or is_head and {table.unpack(heads)} or {}
         for _,piece in ipairs(pieces) do
             for _,slot in ipairs({piece.Slot,table.unpack(piece.Occupies or {})}) do claims[#claims+1]=slot end
         end
@@ -216,7 +227,7 @@ function Dress.plan(choices,fits,mode,toggles)
         -- A Whole fit (a pack's, closet/fits.lua) worn with no slots named shows all its sections but the hidden ones
         -- (Fits.shows, at apply, which knows the mesh's slot count).
         by_fit[choice.fit]={fit=choice.fit,map=fit,pieces=pieces,whole=not choice.slots and fit.Whole and fit or nil}
-        order[#order+1]=by_fit[choice.fit]
+        if not is_head then order[#order+1]=by_fit[choice.fit] end
         if body then picked=by_fit[choice.fit] end
     end
     -- Regions the worn pieces cover, each with the outfits covering it: a body skin slot all of whose regions are
@@ -230,6 +241,7 @@ function Dress.plan(choices,fits,mode,toggles)
             end
         end
     end
+    if #order==0 then return {added={},pieces=#head,parts=0,head=head} end -- A head-only look: her body stays hers.
     local base=taken.Shoes and by_fit[taken.Shoes] or order[1]
     local body,switched=picked,nil
     if not body and mode=='first' then body=order[1]
@@ -252,7 +264,7 @@ function Dress.plan(choices,fits,mode,toggles)
             if body~=base then switched=body.fit end
         end
     end
-    local plan={added={},pieces=0,switched=switched}
+    local plan={added={},pieces=#head,switched=switched,head=head}
     local clips=skin_of(body,covered)
     if #clips>0 then plan.clips=clips end
     for _,o in ipairs(order) do
@@ -328,10 +340,17 @@ function Dress.new(o)
     local paused=o.paused or function() return false end
     local fits=o.fits or Fits
     local clock=o.clock or os.clock
+    -- The head part (closet/head/): it wears plan.head (an empty list: her own head), keeps field 6 of the file
+    -- (line; restore gets the field an earlier Lua load wrote, nil from an older five-field line, and takes its
+    -- leftovers off) and gives her head back. None (a dress built without one): head choices are left out and the file
+    -- keeps five fields.
+    local head=o.head or {wear=function() return true end,line=function() end,restore=function() end,
+        give_back=function() return true end,parts=function() return {} end,tick=function() end,stop=function() end}
     local self={}
     local state -- While a mix is on: {plan=, eve_path=, own=<mesh path>, materials=<line>, added={c,count,show},
                 -- count=, paused=, wrong=}
     local restored,due=false,0
+    local head_kept,restoring=false,false -- head.restore called this Lua load; restore's apply going on.
     local pending,tries,retry_at=nil,0,0 -- The kept line's fields once read; restore's failed wears; its next try.
     local mode='auto' -- Dress.plan's body rule for this Lua load (body_mode).
     local fights={} -- The clock of each mix again since the last wear or preview (an outside fight, Dress.FIGHT).
@@ -396,9 +415,10 @@ function Dress.new(o)
         if not state then return store.clear() end
         local added={}
         for _,a in ipairs(state.added) do added[#added+1]=a.mesh end
-        return store.save(table.concat({state.eve_path or '',state.own or '',state.materials or '',
-            table.concat(added,';'),
-            Dress.words(state.kept==nil and state.choices or (state.kept or {}))},'\t'))
+        local f={state.eve_path or '',state.own or '',state.materials or '',table.concat(added,';'),
+            Dress.words(state.kept==nil and state.choices or (state.kept or {}))}
+        f[6]=head.line()
+        return store.save(table.concat(f,'\t'))
     end
     -- Removes every component on EVE but her body that wears one of the given mesh paths: ours, also one an earlier
     -- mix or Lua load left (a map load can make the game set her body twice, and each change got the mix again).
@@ -451,8 +471,11 @@ function Dress.new(o)
         if not eve then return nil,'no EVE in the world' end
         local body=valid(eve.Mesh)
         if not body then return nil,'EVE has no body mesh' end
-        local body_mesh,why=usable(plan.body.mesh)
-        if not body_mesh then return nil,why end
+        local body_mesh,why
+        if plan.body then
+            body_mesh,why=usable(plan.body.mesh)
+            if not body_mesh then return nil,why end
+        end
         local added_meshes={}
         for i,a in ipairs(plan.added) do
             added_meshes[i],why=usable(a.mesh)
@@ -472,10 +495,23 @@ function Dress.new(o)
         -- Saved before anything leaves EVE: a failed write keeps the old look on her and in state.
         local saved,e=keep()
         if saved==false then state=prev; return nil,'coop-closet.txt not written: '..tostring(e) end
+        -- The head first: a head piece that does not load changes nothing. The file goes back to the old look (restore
+        -- keeps the kept line it tries again).
+        local headed,why_not=head.wear(plan.head)
+        if not headed then
+            state=prev
+            if prev or not restoring then keep() end
+            return nil,why_not
+        end
         -- No added mesh of an earlier mix stays: the old one's and this plan's outfits are swept off EVE first.
         local paths={}
         for _,a in ipairs(prev and prev.added or {}) do paths[#paths+1]=a.mesh end
         for _,a in ipairs(plan.added) do paths[#paths+1]=a.mesh end
+        if not plan.body then -- A head-only look: her body untouched, or given back after a mix.
+            if prev and prev.plan and prev.plan.body then give_back(eve,own,materials,paths) else sweep(eve,paths) end
+            applied=applied+1
+            return true
+        end
         sweep(eve,paths)
         local mats,count=own_materials(body_mesh)
         if plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,count) end
@@ -508,6 +544,11 @@ function Dress.new(o)
         return true
     end
 
+    -- The look on EVE taken off: her body's own mesh and materials back, unless a head-only look never changed it.
+    local function hand_back(eve,paths)
+        if state.plan and not state.plan.body then return sweep(eve,paths) end
+        return give_back(eve,state.own,state.materials,paths)
+    end
     -- Her own look as a preview (the menu's None tile on the last piece worn): the added meshes off, her body's own
     -- mesh and materials back, no plan; kept stays, so the file keeps the confirmed words.
     local function own_look(kept)
@@ -515,7 +556,8 @@ function Dress.new(o)
         if not eve then return false,'no EVE in the world' end
         local paths={}
         for _,a in ipairs(state.added) do paths[#paths+1]=a.mesh end
-        local removed=give_back(eve,state.own,state.materials,paths)
+        local removed=hand_back(eve,paths)
+        head.give_back()
         state={choices={},kept=kept,eve_path=path_of(eve),own=state.own,materials=state.materials,added={},
             paused=false,wrong=0}
         applied=applied+1
@@ -526,8 +568,11 @@ function Dress.new(o)
     end
     -- What the body rule did, for the log lines: the switch and the regions whose skin shows under a piece.
     local function body_notes(plan)
+        local heads={}
+        for _,h in ipairs(plan.head) do heads[#heads+1]=h.fit..':'..h.slot end
         return (plan.switched and ' (switched by the auto body rule)' or '')..
-            (plan.clips and ', skin shows on '..table.concat(plan.clips,',') or '')
+            (plan.clips and ', skin shows on '..table.concat(plan.clips,',') or '')..
+            (#heads>0 and ', head '..table.concat(heads,' ') or '')
     end
     -- coop closet wear: the plan for choices, put on now.
     function self.wear(choices)
@@ -540,7 +585,8 @@ function Dress.new(o)
         local names={}
         for _,c in ipairs(choices) do names[#names+1]=c.fit end
         local line=string.format('closet: %d pieces of %s; body %s%s, %d added mesh%s', plan.pieces,
-            table.concat(names,' + '),plan.body.fit,body_notes(plan),plan.parts,plan.parts==1 and '' or 'es')
+            table.concat(names,' + '),plan.body and plan.body.fit or 'none',body_notes(plan),plan.parts,
+            plan.parts==1 and '' or 'es')
         log(line)
         return true,line
     end
@@ -556,8 +602,8 @@ function Dress.new(o)
         if not plan then return false,why end
         local ok,e=apply(plan,choices,kept)
         if not ok then return false,e end
-        local line=string.format('closet: previewing %d pieces, body %s%s, %d added mesh%s',plan.pieces,plan.body.fit,
-            body_notes(plan),plan.parts,plan.parts==1 and '' or 'es')
+        local line=string.format('closet: previewing %d pieces, body %s%s, %d added mesh%s',plan.pieces,
+            plan.body and plan.body.fit or 'none',body_notes(plan),plan.parts,plan.parts==1 and '' or 'es')
         log('preview: '..line)
         return true,line,plan
     end
@@ -650,7 +696,7 @@ function Dress.new(o)
         if not (state and state.plan) then return false,'closet: nothing worn' end
         if state.paused then return false,'closet: paused while a game look is on' end -- Her body wears its mesh.
         local c,count,show
-        if state.plan.body.fit==fit_id then
+        if state.plan.body and state.plan.body.fit==fit_id then
             local eve=her()
             c,count,show=eve and eve.Mesh,state.count,state.plan.body.show
         end
@@ -666,6 +712,13 @@ function Dress.new(o)
         log(line)
         return true,line
     end
+    -- The head part's leftovers of an earlier Lua load off EVE (head.restore with field 6), once a Lua load.
+    local function restore_head(f)
+        if head_kept then return end
+        head_kept=true
+        local ran,e=pcall(head.restore,f[6])
+        if not ran then log('restore: the head part failed: '..tostring(e)) end
+    end
     -- coop closet off and coop off: her own look back, the added meshes gone, the file cleared.
     function self.off()
         if not state and not restored then -- A kept look not worn again yet: dropped, its leftovers off EVE.
@@ -674,6 +727,7 @@ function Dress.new(o)
             if #f>0 and found and eve then
                 if o.packs then o.packs() end -- A pack suit on her body is a closet mesh once the packs are read.
                 pcall(undo_kept,eve,f)
+                restore_head(f)
             end
             restored,pending=true,{}
             if #f>0 then
@@ -686,14 +740,19 @@ function Dress.new(o)
         local eve=her()
         local paths={}
         for _,a in ipairs(state.added) do paths[#paths+1]=a.mesh end
-        local removed=eve and give_back(eve,state.own,state.materials,paths) or 0
+        local removed=eve and hand_back(eve,paths) or 0
+        head.give_back()
         state=nil
         applied=applied+1
         keep()
         log('off: her own look back, '..removed..' added mesh(es) removed')
         return true,'closet: off'
     end
-    self.stop=self.off
+    function self.stop()
+        local ok,line=self.off()
+        head.stop()
+        return ok,line
+    end
     -- The kept line's fields, read once (the title screen calls restore each frame while it waits for EVE).
     function kept_fields()
         if pending==nil then
@@ -740,6 +799,7 @@ function Dress.new(o)
         -- The pack catalogue read first: a pack suit on her body is a closet mesh, the kept words may name one.
         if o.packs then o.packs() end
         local ok,removed=pcall(undo_kept,eve,f)
+        restore_head(f)
         local kept=f[5] or ''
         if kept=='' then
             return done(true,ok and (removed..' added mesh(es) removed, her own look back') or tostring(removed))
@@ -750,7 +810,9 @@ function Dress.new(o)
         local plan
         if choices then plan,why=Dress.plan(choices,fits,mode,toggles()) end
         if not plan then return done(true,'could not wear '..kept..' again: '..tostring(why)) end
+        restoring=true
         local ran,worn,e=pcall(apply,plan,choices)
+        restoring=false
         if ran and worn then return done(false,'worn again: '..kept..body_notes(plan)) end
         tries=tries+1
         if tries<Dress.RETRIES then retry_at=now+1; return end
@@ -764,6 +826,8 @@ function Dress.new(o)
         local now=clock()
         if now<due then return end
         due=now+1
+        head.tick()
+        if not state.plan.body then return end -- A head-only look: no body to watch.
         local eve=her()
         if not eve then return end -- Loading: no EVE yet.
         local body=valid(eve.Mesh)
@@ -861,8 +925,8 @@ function Dress.new(o)
         if not state then return 'closet: nothing worn' end
         if not state.plan then return 'closet: previewing her own look' end
         local p=state.plan
-        return string.format('closet: %d pieces, body %s, %d added mesh%s%s',p.pieces,p.body.fit,p.parts,
-            p.parts==1 and '' or 'es',state.stopped and ', stopped (something outside keeps changing her body)'
+        return string.format('closet: %d pieces, body %s, %d added mesh%s%s',p.pieces,p.body and p.body.fit or 'none',
+            p.parts,p.parts==1 and '' or 'es',state.stopped and ', stopped (something outside keeps changing her body)'
             or state.paused and ', paused (a game look is on)' or '')
     end
     function self.worn() return state~=nil end
@@ -894,14 +958,15 @@ function Dress.new(o)
         if state.paused then return false,'paused while a game look is on' end
         local plan,why=Dress.plan(state.choices,fits,mode,toggles())
         if not plan then return false,why end
-        local same=plan.body.mesh==state.plan.body.mesh and #plan.added==#state.added
+        local same=(plan.body and plan.body.mesh)==(state.plan.body and state.plan.body.mesh)
+            and #plan.added==#state.added
         for i,a in ipairs(plan.added) do same=same and a.mesh==state.added[i].mesh end
         if not same then return apply(plan,state.choices,state.kept) end
         local eve=her()
         local body=eve and valid(eve.Mesh)
         if not body then return false,'no EVE in the world' end
-        if plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,state.count) end
-        show_only(body,state.count,plan.body.show)
+        if plan.body and plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,state.count) end
+        if plan.body then show_only(body,state.count,plan.body.show) end
         for i,a in ipairs(plan.added) do
             local s=state.added[i]
             if a.whole then a.show=Fits.shows(a.whole,s.count) end
@@ -916,8 +981,8 @@ function Dress.new(o)
     -- (closet/colour.lua, closet/shape.lua; a pack suit worn whole: FullOutfit for a section no piece or hint maps):
     -- {{c=<component, nil when gone>, fit=<UniqueFitID>, mesh=<path>,
     -- slots={[index]=<Slot id>}}},
-    -- her body first, then the added meshes in the plan's order. {} with no look mixed; nil while the mix is paused or
-    -- stopped, or EVE is not there.
+    -- her body first (slots={} with a head-only look), then the added meshes in the plan's order, then the head part's
+    -- (head=true). {} with no look mixed; nil while the mix is paused or stopped, or EVE is not there.
     function self.parts()
         if not (state and state.plan) then return {} end
         local eve=not (state.paused or state.stopped) and her()
@@ -931,8 +996,9 @@ function Dress.new(o)
             for index in pairs(c and a.whole and a.show or {}) do slots[index]=slots[index] or Slots.FULL_OUTFIT end
             out[#out+1]={c=c,fit=a.fit,mesh=a.mesh,slots=slots}
         end
-        add(eve.Mesh,state.plan.body)
+        add(eve.Mesh,state.plan.body or {mesh=state.own,slots={},show={}}) -- A head-only look: her body, no slot.
         for i,a in ipairs(state.plan.added) do add(state.added[i] and state.added[i].c,a) end
+        for _,p in ipairs(head.parts()) do out[#out+1]=p end
         return out
     end
     return self

@@ -157,6 +157,41 @@ local function with_packs(f)
     ok(good, why)
 end
 
+-- A hair fit (closet/fits.lua's head fit: Slot Hair, one piece) beside the pack suit, and a fake head part
+-- (closet/dress.lua's o.head) that records its calls. f(w, h, d): d is a dress on w with h as its head part.
+local HAIR = '/Game/H/Hair.Hair'
+local function fake_head()
+    local h = {worn = {}, restored = {}, gave_back = 0, out = 'x', stops = 0}
+    function h.wear(list) h.worn[#h.worn + 1] = list; if h.fail then return nil, h.fail end return true end
+    function h.line() return h.out end
+    function h.restore(field) h.restored[#h.restored + 1] = field == nil and 'nil' or field end
+    function h.give_back() h.gave_back = h.gave_back + 1; return true end
+    function h.parts()
+        local last = h.worn[#h.worn]
+        if not (last and last[1]) then return {} end
+        return {{c = 'hair c', fit = last[1].fit, mesh = HAIR, slots = {}, head = true}}
+    end
+    function h.tick() end
+    function h.stop() h.stops = h.stops + 1 end
+    return h
+end
+local function headed(w, h)
+    return w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
+        clock = function() return w.now end, head = h})
+end
+local function with_head(f)
+    with_packs(function(w)
+        local Fits = require('closet.fits')
+        w.assets[HAIR] = mesh(HAIR, 2)
+        local hair = {UniqueFitID = 'h.hair', DisplayName = 'Hair', Slot = 'Hair', File = '~mods\\H\\h.dekcns.json',
+            Variants = {{Mesh = HAIR, HiddenMats = {}}}, UserConfigs = {MaterialToggles = {}}}
+        Fits.use({['p.suit'] = pack_item('p.suit'), ['h.hair'] = hair})
+        local h = fake_head()
+        f(w, h, headed(w, h))
+    end)
+end
+local HAIR_ONLY = {{fit = 'h.hair', slots = {'Hair'}}}
+
 -- A dress on w whose plans take the toggles in t (closet/options.lua's toggles()).
 local function toggled(w, t)
     return w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
@@ -1237,6 +1272,111 @@ local tests = {
         eq(w.d.parts(), nil, 'paused by Tachy Mode: nil')
         w.d.off()
         same(w.d.parts(), {}, 'off: nothing')
+    end,
+    -- Head choices go to the head part (closet/head/): never on her body, an added mesh, field 4 or the sweep.
+    a_hair_only_look_leaves_her_body_alone = function()
+        with_head(function(w, h, d)
+            local sets = 0
+            local set = w.eve.Mesh.SetSkeletalMesh
+            w.eve.Mesh.SetSkeletalMesh = function(c, m) sets = sets + 1; return set(c, m) end
+            assert(d.wear(HAIR_ONLY))
+            eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'her body wears her own mesh') eq(#w.eve.comps, 1, 'no added mesh')
+            same(h.worn, {{{fit = 'h.hair', slot = 'Hair'}}}, 'the head part got the hair')
+            eq(fields(w.file)[4], '', 'nothing to sweep') eq(fields(w.file)[5], 'h.hair:Hair')
+            eq(d.plan().body, nil, 'no body in the plan')
+            assert(d.off())
+            eq(sets, 0, 'her body never set by a head-only look or its off')
+            -- A dress with no head part (before the wiring passes one): the hair is left out, the suit worn.
+            assert(w.d.wear({{fit = 'p.suit'}, {fit = 'h.hair'}}))
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1) eq(#w.eve.comps, 1) eq(#fields(w.file), 5, 'five fields')
+            assert(w.d.wear(HAIR_ONLY))
+            eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'a hair-only look after a suit: her own body back')
+        end)
+    end,
+    head_meshes_never_enter_the_sweep = function()
+        with_head(function(w, h, d)
+            local hair = w.eve:AddComponentByClass() -- The game's SBHair, wearing the hair mesh.
+            hair.path = w.eve.path .. '.SBHair'
+            hair:SetSkeletalMesh(w.assets[HAIR])
+            assert(d.wear({{fit = MAID, slots = {'Chest'}}, {fit = NINJA, slots = {'Shoes'}}, {fit = 'h.hair'}}))
+            eq(fields(w.file)[4], OM, 'field 4 holds the added suit mesh alone')
+            same(h.worn[1], {{fit = 'h.hair', slot = 'Hair'}})
+            assert(d.off())
+            ok(hair.alive, 'SBHair stays') eq(#w.eve.comps, 2, 'her body and SBHair')
+        end)
+    end,
+    field_six_keeps_the_head = function()
+        with_head(function(w, h, d)
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair'}}))
+            eq(fields(w.file)[6], 'x', 'the head part\'s line')
+            local h2 = fake_head()
+            headed(w, h2).tick()
+            same(h2.restored, {'x'}, 'the next Lua load hands the line to its head part')
+            same(h2.worn, {{{fit = 'h.hair', slot = 'Hair'}}}, 'and wears the hair again')
+        end)
+    end,
+    an_old_five_field_line_restores_without_head = function()
+        with_head(function(w)
+            assert(w.d.wear({{fit = 'p.suit'}})) -- The dress before the head part: five fields.
+            eq(#fields(w.file), 5)
+            w.eve.Mesh:SetSkeletalMesh(w.assets[OWN])
+            local h2 = fake_head()
+            local d2 = headed(w, h2)
+            d2.tick()
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'the kept look worn again') ok(d2.worn())
+            same(h2.restored, {'nil'}, 'no head field: restore(nil), once')
+            ok(not logged(w, 'could not') and not logged(w, 'failed'), 'no error')
+            d2.tick()
+            eq(#h2.restored, 1, 'still once')
+        end)
+    end,
+    parts_end_with_the_head_parts = function()
+        with_head(function(w, h, d)
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair'}}))
+            local parts = d.parts()
+            ok(parts[1].c == w.eve.Mesh, 'her body first') eq(parts[1].fit, 'p.suit')
+            eq(parts[#parts].head, true, 'the head part\'s last') eq(#parts, 2)
+            assert(d.wear(HAIR_ONLY))
+            parts = d.parts()
+            ok(parts[1].c == w.eve.Mesh, 'her body first') same(parts[1].slots, {}, 'with no slot')
+            eq(parts[2].head, true)
+        end)
+    end,
+    off_and_revert_give_the_head_back = function()
+        with_head(function(w, h, d)
+            assert(d.wear(HAIR_ONLY))
+            assert(d.off())
+            eq(h.gave_back, 1, 'off')
+            assert(d.preview(HAIR_ONLY))
+            assert(d.revert())
+            eq(h.gave_back, 2, 'revert with nothing confirmed')
+            ok(not w.file, 'nothing kept')
+        end)
+    end,
+    confirm_of_a_hair_only_look_keeps_it = function()
+        with_head(function(w, h, d)
+            assert(d.preview(HAIR_ONLY))
+            eq(fields(w.file)[5], '', 'nothing confirmed yet')
+            assert(d.confirm())
+            eq(fields(w.file)[5], 'h.hair:Hair', 'the hair kept') ok(d.worn()) eq(h.gave_back, 0, 'no off')
+        end)
+    end,
+    -- A head piece the head part refuses changes nothing: not her body, not the file (a kept line stays for restore).
+    a_refused_head_piece_changes_nothing = function()
+        with_head(function(w, h, d)
+            h.fail = 'no hair'
+            local ok_, why = d.wear({{fit = 'p.suit'}, {fit = 'h.hair'}})
+            eq(ok_, false) eq(why, 'no hair')
+            eq(w.eve.Mesh.SkeletalMesh.path, OWN) eq(w.file, nil) eq(d.applied(), 0)
+            h.fail = nil
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair'}}))
+            local kept = w.file
+            w.eve.Mesh:SetSkeletalMesh(w.assets[OWN])
+            local h2 = fake_head()
+            h2.fail = 'not yet'
+            headed(w, h2).tick()
+            eq(w.file, kept, 'the kept line stays while restore tries again')
+        end)
     end,
 }
 run('dress_test', tests)

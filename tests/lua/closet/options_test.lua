@@ -400,6 +400,10 @@ local tests = {
             r.o.set('s', 2, 'toggle:4', false)
             r.o.tick()
             eq(r.reshown, 1, 'another outfit worn: nothing')
+            r.plan = {added = {}, head = {{fit = 'h', slot = 'Hair'}}} -- closet/dress.lua's head-only look: no body.
+            r.o.set('s', 2, 'toggle:4', true)
+            r.o.tick()
+            eq(r.reshown, 1, 'a head-only look: nothing')
         end)
     end,
     a_change_that_fails_to_show_is_asked_again = function()

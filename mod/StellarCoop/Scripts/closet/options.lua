@@ -566,7 +566,7 @@ function Options.new(o)
         local plan=dress.plan()
         local worn={}
         if plan then
-            worn[plan.body.fit]=true
+            if plan.body then worn[plan.body.fit]=true end -- A head-only look has no body.
             for _,a in ipairs(plan.added) do worn[a.fit]=true end
         end
         local again,shown=false,false

@@ -387,7 +387,7 @@ function Menu.new(o)
             else
                 local worn=model.worn(choices,item.slot)
                 -- The Body row names the body in use: the picked one, else the plan's (switched or the rule's).
-                local body=item.slot=='BaseBody' and not worn and plan and Fits.get(plan.body.fit).Outfit
+                local body=item.slot=='BaseBody' and not worn and plan and plan.body and Fits.get(plan.body.fit).Outfit
                 local value=item.state=='soon' and w.row.soon or item.state=='empty' and '' or
                     worn and model.piece(worn,item.slot).Name or body or w.row.none
                 s.rows[i]={title=w.slots[item.slot] or item.slot,value=value,locked=item.state=='soon'}
