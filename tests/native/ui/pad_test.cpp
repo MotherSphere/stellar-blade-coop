@@ -5,7 +5,7 @@
 // direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB, RB and Y, a disconnect,
 // the ring and the Online tab's event posted into it, the slots asked at each poll and PadKeys (the game's
 // controller events as one read); the emote wheel's D-pad Left hold, right stick sector and held buttons; the closet's
-// chord (LB held + D-pad Left), X, L3 and R3 as bits and the right stick and triggers as levels.
+// D-pad Left tap, X, L3 and R3 as bits and the right stick and triggers as levels.
 #include "ui/pad.h"
 
 #include <cassert>
@@ -78,7 +78,7 @@ int main() {
     pad.step(buttons(PadState::DPAD_LEFT), 5064);
     pad.step(buttons(0), 5080);
     pad.step(buttons(PadState::DPAD_RIGHT), 5096);
-    assert(drain(pad) == (V{Pad::kDown, Pad::kLeft, Pad::kRight}));
+    assert(drain(pad) == (V{Pad::kDown, Pad::kLeft, Pad::kCloset, Pad::kRight}) && "a D-pad Left tap: the closet");
   }
 
   { // The repeat: after 400 ms, then every 120 ms while held; a late step gives one event, not a burst.
@@ -404,7 +404,7 @@ int main() {
     assert(pad.next() == 0);
     pad.step(buttons(0), t += 16);
     pad.step(buttons(PadState::DPAD_RIGHT), t += 16);
-    assert(drain(pad) == V{Pad::kRight});
+    assert(drain(pad) == (V{Pad::kCloset, Pad::kRight})); // The tap of the dropped left, then right.
   }
 
   { // PadKeys: SB's controller key events (Slate's handler) as one XInput-shaped read.
@@ -532,45 +532,43 @@ int main() {
     assert(std::string(PadKeys::kNames[PadKeys::kRightX]) == "Gamepad_RightX" &&
            std::string(PadKeys::kNames[PadKeys::kRightY]) == "Gamepad_RightY");
   }
-  { // LB held + D-pad Left pressed: the closet's event once, after its left; never the wheel's, while LB is held or
-    // after LB is let go first. D-pad Left alone still gives the wheel.
+  { // D-pad Left tapped (let go before kPadWheelHoldMs): the closet's event at the release, after its left. Held
+    // that long: the wheel's, then no closet at the release. LB plays no part (LB is the game's combat).
     Pad pad;
     const uint16_t lb = PadState::LEFT_SHOULDER, left = PadState::DPAD_LEFT;
-    pad.step(buttons(lb), 0);
-    assert(drain(pad) == V{Pad::kTabLeft});
-    pad.step(buttons(lb | left), 16);
-    assert(drain(pad) == (V{Pad::kLeft, Pad::kCloset}));
-    for (uint64_t t = 32; t <= 1000; t += 16)
-      pad.step(buttons(lb | left), t);
+    pad.step(buttons(left), 0);
+    assert(drain(pad) == V{Pad::kLeft});
+    pad.step(buttons(left), 200);
     assert(drain(pad).empty());
-    pad.step(buttons(left), 1016); // LB let go first: the chord's D-pad Left hold stays no wheel's.
-    pad.step(buttons(left), 2000);
-    assert(drain(pad).empty());
-    pad.step(buttons(0), 2016);
-    pad.step(buttons(left), 2032), pad.step(buttons(left), 2332);
+    pad.step(buttons(0), 216);
+    assert(drain(pad) == V{Pad::kCloset});
+    pad.step(buttons(left), 1000), pad.step(buttons(left), 1300);
     assert(drain(pad) == (V{Pad::kLeft, Pad::kWheel}));
-    pad.step(buttons(0), 2348);
-    pad.step(buttons(lb | left), 3000); // Both in one step: the chord.
+    pad.step(buttons(0), 1316);
+    assert(drain(pad).empty());
+    pad.step(buttons(lb | left), 2000); // With LB: the same tap.
+    pad.step(buttons(lb), 2016);
     assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kCloset}));
-    pad.step(buttons(0), 3016);
-    // D-pad Left held first, LB after: no chord; no wheel while LB is held.
-    pad.step(buttons(left), 4000);
-    pad.step(buttons(left | lb), 4100), pad.step(buttons(left | lb), 4400), pad.step(buttons(left | lb), 5000);
-    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft}));
-    // The stick held left is no D-pad: no chord.
-    pad.step(buttons(0), 5016);
-    pad.step(PadState{lb, -30000, 0, true}, 5032);
-    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft}));
+    pad.step(buttons(0), 2032);
+    // A diagonal is no tap: up or down held with it on the way.
+    pad.step(buttons(left | PadState::DPAD_UP), 2500), pad.step(buttons(left), 2516), pad.step(buttons(0), 2532);
+    assert(drain(pad) == (V{Pad::kUp, Pad::kLeft}));
+    // The stick held left is no D-pad: no closet.
+    pad.step(PadState{0, -30000, 0, true}, 3000), pad.step(PadState{0, 0, 0, true}, 3016);
+    assert(drain(pad) == V{Pad::kLeft});
+    // A disconnect while held is no tap.
+    pad.step(buttons(left), 4000), pad.step(PadState{}, 4016);
+    assert(drain(pad) == V{Pad::kLeft});
     // From PadKeys as from XInput.
     PadKeys keys;
     for (size_t i = 0; i < PadKeys::kKeys; ++i)
       keys.names[i] = 1000 + i;
-    Pad chord;
-    keys.press(1000 + PadKeys::kLB, 0, false);
-    chord.step(keys.state(), 0);
+    Pad tap;
     keys.press(1000 + PadKeys::kDpadLeft, 0, false);
-    chord.step(keys.state(), 16), chord.step(keys.state(), 400);
-    assert(drain(chord) == (V{Pad::kTabLeft, Pad::kLeft, Pad::kCloset}));
+    tap.step(keys.state(), 0);
+    keys.release(1000 + PadKeys::kDpadLeft, 0);
+    tap.step(keys.state(), 100);
+    assert(drain(tap) == (V{Pad::kLeft, Pad::kCloset}));
   }
   { // X, L3 and R3: coop_padbits' bits (1 X, 2 L3, 4 R3) of the last step's buttons, from XInput's slots and from
     // PadKeys; they make no event.

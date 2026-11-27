@@ -1697,9 +1697,9 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   posted into the queue in order with the pad's, a full queue dropping the newest; the emote wheel's reads: the right
   stick's sector (0 inside half its range, 1 to 72 clockwise from up), D-pad Left held 300 ms making event 13 once a
   hold (not at 299 ms, again after a release, forgotten with no pad), the right stick from XInput's slots and from
-  `PadKeys` (the controller pushed furthest, `clear()`); the closet's reads: LB held + D-pad Left making event 14 once
-  (after its left, both in one step too, from `PadKeys` too) and never the wheel's event, LB let go first or not,
-  D-pad Left alone still the wheel's, D-pad Left held before LB no chord and no wheel, the stick held left no chord;
+  `PadKeys` (the controller pushed furthest, `clear()`); the closet's reads: a tap of D-pad Left (let go before 0.3 s,
+  no other D-pad direction held) making event 14 once and never the wheel's event, D-pad Left held 0.3 s the wheel's
+  only, another D-pad direction held during the press no tap, the stick held left no tap;
   X, L3 and R3 as `pad_bits` (1, 2, 4) from XInput's slots and `PadKeys`; the right stick and triggers as `pad_level`'s
   `1 + 65 * which + level` (at rest, the ends, 260 at most), the triggers from XInput's first pad and from `PadKeys`
   (0 to 1 as 0 to 255, clamped, the one pulled furthest, `clear()`);
@@ -2095,9 +2095,9 @@ run yet.
    `wheel: emote <name> (release)`.
 2. Q and E change the page, a right click goes to the next one, Esc cancels, a left click plays. Tap F2: nothing
    plays.
-3. Controller: tap D-pad Left (the game's action still happens), then hold it 0.3 s: the wheel. Point with the right
-   stick, LB and RB change the page, release D-pad Left: the emote plays. B cancels. Walk and guard afterwards: no
-   button stays held.
+3. Controller: tap D-pad Left (the closet menu opens), close it with B, then hold D-pad Left 0.3 s: the wheel.
+   Point with the right stick, LB and RB change the page, release D-pad Left: the emote plays. B cancels. Walk and guard
+   afterwards: no button stays held.
 4. Hold F2 in the air, on the bike and in a fight: no wheel, the notice `No emote now: EVE is busy.` Open the wheel and
    let an enemy hit EVE: it closes. Alt-tab with it open: it closes, nothing plays.
 5. Set the game to German: the slots show the game's German names. Set `ui_language=english` and `ui_scale=150`: the

@@ -543,10 +543,11 @@ end)()
     assert(not logged('error'),'the stub takes no key and raises nothing')
 end)()
 
--- The pad's closet event (LB held + D-pad Left, the native part's 14) runs the closet menu's toggle as closet_key does.
--- Closed, it opens under the bike's refusals (our HUD hidden, one of our screens open, the game paused or on one of
--- its screens: logged only), a refused open reported; open, it is the menu's Back, paused or not. The loader stub of an
--- off closet module takes it and raises nothing.
+-- The pad's closet event (D-pad Left tapped, the native part's 14) opens the closet menu as closet_key does, under the
+-- bike's refusals (our HUD hidden, one of our screens open, the game paused or on one of its screens) and not while
+-- spectate watches: all logged only. A refused open (combat) is logged, not reported: D-pad Left is tapped in play.
+-- Open, the tap does nothing (its left moved in the menu; B closes it). The loader stub of an off closet module takes
+-- it and raises nothing.
 ;(function()
     local Loader=require('main.loader')
     local M
@@ -565,12 +566,18 @@ end)()
     assert(M.PAD[14]=='closet')
     pad(14)
     assert(toggles==1 and up and logged('pad: closet'),'closed: it opens')
+    pad(14)
+    assert(toggles==1 and up,'open: the tap does nothing, the menu stays open')
+    up=false
     kit_paused=true
     pad(14)
-    assert(toggles==2 and not up,'open: its Back, paused or not')
-    pad(14)
-    assert(toggles==2 and logged('pad: closet ignored: the game is paused or shows one of its screens'))
+    assert(toggles==1 and logged('pad: closet ignored: the game is paused or shows one of its screens'))
     kit_paused=false
+    M.spectate={watching=function() return true end,switch=function() end}
+    pad(14)
+    assert(toggles==1 and logged('pad: closet ignored: spectate is watching'),'spectating: left switches the member')
+    M.spectate=nil
+    toggles=2
     key('F5'); assert(kit_shown.menu)
     pad(14)
     assert(toggles==2 and logged('pad: closet ignored: one of our screens is open'),'the co-op menu open')
@@ -581,7 +588,8 @@ end)()
     M.hud_shown=true
     answer={false,'Stellar Closet does not open in combat.'}
     pad(14)
-    assert(toggles==3 and not up and last()=='[StellarCoop] STOP: Stellar Closet does not open in combat.\n',last())
+    assert(toggles==3 and not up and not logged('STOP: Stellar Closet does not open in combat.')
+        and logged('pad: closet refused: Stellar Closet does not open in combat.'),'a refusal: logged only')
     -- On the open closet menu View held (the pad's menu event, 7) is its Preview picture: the menu stays open.
     local words={}
     up=true; M.closet_menu.nav=function(w) words[#words+1]=w end

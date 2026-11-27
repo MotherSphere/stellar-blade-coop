@@ -108,9 +108,12 @@ options, colour, shape, probe, thumbs and menu ticks each frame.
 ## The closet menu
 
 F1 (`closet_key`, which you can change in the co-op menu's Options page or in
-[coop-settings.txt](../players/settings.md#coop-settingstxt)), LB held + D-pad Left on a controller and
-`coop closet menu` open the menu in the game world, the SBO lobby world included. Pressed while the menu is open, F1
-and LB + D-pad Left go back as Esc does. It needs the Steam link (the kit needs it). It does not open while the UI is
+[coop-settings.txt](../players/settings.md#coop-settingstxt)), D-pad Left tapped alone on a controller and
+`coop closet menu` open the menu in the game world, the SBO lobby world included. A tap is a press let go before 0.3 s
+with no other D-pad direction held. Holding D-pad Left for 0.3 s still opens the emote wheel. The tap is ignored while
+spectate watches, where D-pad Left switches the watched member. A refusal on a controller (combat, a cutscene and so
+on) is only logged, because D-pad Left is tapped often in play. Pressed while the menu is open, F1 goes back as Esc
+does. On a controller, B closes the menu. It needs the Steam link (the kit needs it). It does not open while the UI is
 not up, outside the game world, while another SBO screen holds the input, while the game is paused or shows one of its
 screens, in photo mode, during a cutscene, in combat or in Tachy Mode. One notice says why.
 
@@ -125,8 +128,8 @@ widget parts in the kit group `closet_menu`:
 | Detail | `WB_NanoSuit_Detail` with its hold button hidden. The origin badge (the Original or Custom glyph) sits right of it, by its title |
 | Key hints | `WB_Common_IndicatorBtnDefault` |
 
-The tab shown is kept until the next Lua load. The first open shows the first tab, Full outfit. LB + D-pad Left that
-closes the menu leaves the tab where it was. While the menu is open it holds the input with the mouse cursor. Q and E
+The tab shown is kept until the next Lua load. The first open shows the first tab, Full outfit. Closing the
+menu leaves the tab where it was. While the menu is open it holds the input with the mouse cursor. Q and E
 (LB and RB) change the tab. Up and down walk the rows. Right or Select on a row of pieces goes into its grid. A tile
 focused for 250 ms is worn on EVE as a live preview. Select or a left click on the tile wears it at once.
 F (the pad's Y) wears the whole outfit of the focused piece. Each grid starts with a None tile that takes that slot's
@@ -274,8 +277,8 @@ Emerald and Sand. The swatches are linear RGB values picked to read well as a ti
 The Colour tab, after the Body tab, has one row for each role. The row shows the swatch. Right, Select or a click on
 the row takes the next swatch, left the one before; Off comes before White. The camera frames her whole body. A
 colour change is saved at once in `coop-closet-colour.txt`, apart from the look. The menu does not ask "Keep this
-look?" for it. A revert does not undo it. The palette survives a restart. The pad chord LB + D-pad Left that closes the
-menu on a Colour row leaves the swatch as it was.
+look?" for it. A revert does not undo it. The palette survives a restart. On a controller, B closes the menu
+on a Colour row with the swatch as it was.
 
 On each shown material slot of a worn piece that a set role reaches, the closet makes a dynamic material instance
 (it reuses one the game put there) and sets the role's parameter. `Base Color Tint` multiplies the piece's base
@@ -339,8 +342,7 @@ There is no slider bar on these rows yet: a shared kit change needs Schizo's yes
 The hints show Back, Change on D-pad Left and Right, Reset on F (the pad's Y), then Move. F gives the focused row its
 pack value back (Variant: the first variant). A piece with controls shows Select instead of Reset. The detail shows
 the pack's name and description of the row and how to change it, in the words of the device in use. A device switch
-draws them again. Back closes the page with the focus on the outfit's row. Up stops on the header row. The pad chord
-LB + D-pad Left on the page puts the page back before its Back.
+draws them again. Back closes the page with the focus on the outfit's row. Up stops on the header row.
 
 On a worn pack outfit the options layer writes every colour, number, finish and shape key it has, the pack value or
 the kept one, so no value another mod set stays on screen. Colours, numbers and finishes go on the material slot's
@@ -391,8 +393,8 @@ and mix again. It also goes on again when a value changes. A look that drops a n
 by another mod stays. Nothing changes while Tachy Mode pauses the mix.
 
 A shape change is saved at once in `coop-closet-shape.txt`, apart from the look. The menu does not ask "Keep this
-look?" for it. A revert does not undo it. The shape survives a restart. The pad chord LB + D-pad Left that closes the
-menu on a shape row leaves the value as it was. Reset Stellar Closet sets every value back to 0.
+look?" for it. A revert does not undo it. The shape survives a restart. On a controller, B closes the menu
+on a shape row with the value as it was. Reset Stellar Closet sets every value back to 0.
 
 ## Online sessions
 

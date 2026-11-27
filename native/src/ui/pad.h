@@ -80,7 +80,7 @@ public:
     kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight, kBike, kRefresh,
     kPauseTab, // RB on the pause menu's last tab (ui/pause_tab.h): never made by step, only posted.
     kWheel,    // D-pad Left held kPadWheelHoldMs: the emote wheel.
-    kCloset    // D-pad Left pressed while LB is held: the closet menu (14).
+    kCloset    // D-pad Left tapped (let go before kPadWheelHoldMs): the closet menu (14).
   };
 
   // Each poll. Directions (the D-pad or the left stick) on their press; up and down again after kPadRepeatDelayMs
@@ -88,8 +88,8 @@ public:
   // (the stick: its main axis, and near 45 degrees the axis already pressed, so noise does not flip it), so a move
   // never changes a value too. A, B, LB, RB and Y (the session list's Refresh) on their press only; View (kMenu) and
   // D-pad Right (kBike, after its kRight) once each was held kPadMenuHoldMs, D-pad Left (kWheel, after its kLeft) once
-  // it was held kPadWheelHoldMs, once a hold. D-pad Left pressed while LB is held is kCloset (after its kLeft); that
-  // hold never makes kWheel, nor does any D-pad Left hold while LB is held. One step's events go in event order. No pad
+  // it was held kPadWheelHoldMs, once a hold. D-pad Left let go before that, with no other D-pad direction held since
+  // its press, is kCloset at the release (LB is the game's combat: the closet takes D-pad Left alone). One step's events go in event order. No pad
   // connected forgets what was held, so the next press is a new one; the events already made stay.
   void step(const PadState &s, uint64_t now_ms) {
     last_ = s.connected ? s : PadState{};
@@ -148,13 +148,18 @@ public:
       push(kBike);
     if (pressed & PadState::Y)
       push(kRefresh);
-    const bool lb = s.buttons & PadState::LEFT_SHOULDER;
-    if (left_.step(s.buttons & PadState::DPAD_LEFT, now_ms, kPadWheelHoldMs) && !lb)
+    const bool left = s.buttons & PadState::DPAD_LEFT;
+    const uint16_t others = PadState::DPAD_UP | PadState::DPAD_DOWN | PadState::DPAD_RIGHT;
+    // Let go before the wheel's hold, alone all along: a diagonal is no tap.
+    const bool tapped = left_.held && !left && !left_.sent && left_alone_;
+    if (left && !left_.held)
+      left_alone_ = true;
+    if (left && (s.buttons & others))
+      left_alone_ = false;
+    if (left_.step(left, now_ms, kPadWheelHoldMs))
       push(kWheel);
-    if ((pressed & PadState::DPAD_LEFT) && lb) {
-      left_.sent = true; // The chord's D-pad Left hold is no wheel's, LB let go first or not.
+    if (tapped)
       push(kCloset);
-    }
   }
 
   // The buttons, the right stick's sector (stick_sector) and the whole read at the last step; nothing after a step with
@@ -203,7 +208,8 @@ private:
 
   std::array<bool, 4> held_{}, stick_{}; // Up, down, left, right: the direction, and the stick's part of it.
   std::array<uint64_t, 4> next_{};       // When each held direction repeats next.
-  uint16_t buttons_ = 0;                 // The last step's, for A's, B's, LB's, RB's, Y's and the chord's press.
+  uint16_t buttons_ = 0;                 // The last step's, for A's, B's, LB's, RB's and Y's press.
+  bool left_alone_ = false;              // D-pad Left held with no other D-pad direction since its press.
   Hold back_, right_, left_; // View, D-pad Right, D-pad Left.
   PadState last_;             // The last step's read, for held() and sector().
   std::array<uint8_t, kPadRing> ring_{};
