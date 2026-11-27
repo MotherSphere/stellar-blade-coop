@@ -2917,6 +2917,41 @@ local tests = {
             eq((detail(r)), T.en.closet.row.thumbs, 'it leaves the Favourites list')
         end)
     end,
+    -- The filter row turns All, Favourites, Original, Custom with right or Select, back with left; Original lists
+    -- Shift Up's own suits under their header, Custom the pack and hand outfits.
+    the_filter_turns_through_four_lists = function()
+        local P, O = T.en.closet.presets, T.en.closet.origin
+        Fits.BY_ID[MAID].Origin = 'original'
+        local good, why = pcall(function()
+            with_presets(function(r)
+                r.menu.open()
+                at(r, 0.5, 'down')
+                eq(row_value(r, P.filter), P.all, 'All at first')
+                at(r, 0.6, 'right')
+                eq(row_value(r, P.filter), P.favourites, 'then Favourites')
+                at(r, 0.7, 'select')
+                eq(row_value(r, P.filter), O.original, 'then Original')
+                at(r, 0.8, 'down')
+                eq((detail(r)), T.en.closet.original, 'Original: the header first')
+                at(r, 0.9, 'down')
+                eq((detail(r)), 'Ocean Maid', 'the Original suit')
+                at(r, 1, 'down')
+                eq((detail(r)), T.en.closet.row.thumbs, 'no Custom suit')
+                at(r, 1.1, 'up', 'up', 'up', 'right')
+                eq(row_value(r, P.filter), P.custom, 'then Custom')
+                at(r, 1.2, 'down')
+                eq((detail(r)), 'Aria', 'Custom: a pack outfit, no header')
+                at(r, 1.3, 'up', 'right')
+                eq(row_value(r, P.filter), P.all, 'round to All')
+                at(r, 1.4, 'left')
+                eq(row_value(r, P.filter), P.custom, 'left from All: Custom')
+                at(r, 1.5, 'left')
+                eq(row_value(r, P.filter), O.original, 'left again: Original')
+            end)
+        end)
+        Fits.BY_ID[MAID].Origin = nil
+        ok(good, why)
+    end,
     -- Save look as preset keeps the worn outfit as Preset n; Select on a preset wears it as a preview; F asks Delete
     -- this preset? with the game's Yes/No popup: No keeps it, Yes deletes it.
     delete_asks_yes_no = function()

@@ -503,8 +503,9 @@ return {
         presets={save='Guardar look como preajuste',
             save_desc='Guarda el atuendo puesto, su variante y sus opciones como un preajuste nuevo. Cámbiale el '
                 ..'nombre con coop closet preset rename.',
-            name='Preajuste %d',filter='Mostrar',all='Todos',favourites='Favoritos',
-            filter_desc='Muestra todos los atuendos o solo tus favoritos.',fav='* %s',
+            name='Preajuste %d',filter='Mostrar',all='Todos',favourites='Favoritos',custom='Personalizado',
+            filter_desc='Muestra todos los atuendos, tus favoritos, solo los originales o solo los personalizados.',
+            fav='* %s',
             saved='Guardado como %s.',none='Ponte primero un atuendo entero: un preajuste guarda un atuendo.',
             delete_title='¿Borrar este preajuste?',delete_desc='Se borra %s. El atuendo y sus opciones se quedan.'},
         options={variant='Variante',on='Sí',off='No',other='Otros',

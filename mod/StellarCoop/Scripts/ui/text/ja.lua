@@ -435,8 +435,8 @@ return {
         presets={save='見た目をプリセットに保存',
             save_desc='着ている衣装、そのバリエーションとオプションを新しいプリセットとして保存します。名前は coop closet '
                 ..'preset rename で変えられます。',
-            name='プリセット %d',filter='表示',all='すべて',favourites='お気に入り',
-            filter_desc='すべての衣装か、お気に入りだけを表示します。',fav='* %s',
+            name='プリセット %d',filter='表示',all='すべて',favourites='お気に入り',custom='カスタム',
+            filter_desc='すべての衣装、お気に入り、オリジナルだけ、またはカスタムだけを表示します。',fav='* %s',
             saved='%s として保存しました。',none='先に衣装一式を一つ着てください。プリセットは衣装一つを保存します。',
             delete_title='このプリセットを削除しますか?',delete_desc='%s を削除します。衣装とそのオプションは残ります。'},
         options={variant='バリエーション',on='オン',off='オフ',other='その他',

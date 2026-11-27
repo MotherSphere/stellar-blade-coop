@@ -489,8 +489,8 @@ return {
         presets={save='Gem look som forvalg',
             save_desc='Gemmer den bårne dragt, dens variant og dens indstillinger som et nyt forvalg. Omdøb det med '
                 ..'coop closet preset rename.',
-            name='Forvalg %d',filter='Vis',all='Alle',favourites='Favoritter',
-            filter_desc='Viser alle dragter eller kun dine favoritter.',fav='* %s',
+            name='Forvalg %d',filter='Vis',all='Alle',favourites='Favoritter',custom='Tilpasset',
+            filter_desc='Viser alle dragter, dine favoritter, de originale eller kun de tilpassede.',fav='* %s',
             saved='Gemt som %s.',none='Tag én hel dragt på først: et forvalg gemmer én dragt.',
             delete_title='Slet dette forvalg?',delete_desc='%s slettes. Dragten og dens indstillinger bliver.'},
         options={variant='Variant',on='Til',off='Fra',other='Andet',

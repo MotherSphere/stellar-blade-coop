@@ -499,8 +499,8 @@ return {
         presets={save='Look opslaan als voorkeuze',
             save_desc='Bewaart de gedragen outfit, de variant en de opties als nieuwe voorkeuze. Hernoem hem met coop '
                 ..'closet preset rename.',
-            name='Voorkeuze %d',filter='Tonen',all='Alle',favourites='Favorieten',
-            filter_desc='Toont alle outfits of alleen je favorieten.',fav='* %s',
+            name='Voorkeuze %d',filter='Tonen',all='Alle',favourites='Favorieten',custom='Aangepast',
+            filter_desc='Toont alle outfits, je favorieten, alleen de originele of alleen de aangepaste.',fav='* %s',
             saved='Opgeslagen als %s.',none='Trek eerst één hele outfit aan: een voorkeuze bewaart één outfit.',
             delete_title='Deze voorkeuze wissen?',delete_desc='%s wordt gewist. De outfit en de opties blijven.'},
         options={variant='Variant',on='Aan',off='Uit',other='Overig',

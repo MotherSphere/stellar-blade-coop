@@ -504,8 +504,8 @@ return {
         presets={save='Guardar visual como predefinição',
             save_desc='Guarda a roupa vestida, a variante e as opções como uma nova predefinição. Mude o nome com coop '
                 ..'closet preset rename.',
-            name='Predefinição %d',filter='Mostrar',all='Todas',favourites='Favoritas',
-            filter_desc='Mostra todas as roupas ou só as favoritas.',fav='* %s',
+            name='Predefinição %d',filter='Mostrar',all='Todas',favourites='Favoritas',custom='Personalizado',
+            filter_desc='Mostra todas as roupas, as favoritas, só as originais ou só as personalizadas.',fav='* %s',
             saved='Guardado como %s.',none='Vista primeiro uma roupa completa: uma predefinição guarda uma roupa.',
             delete_title='Apagar esta predefinição?',delete_desc='%s é apagada. A roupa e as opções ficam.'},
         options={variant='Variante',on='Ligado',off='Desligado',other='Outros',

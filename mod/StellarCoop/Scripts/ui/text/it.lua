@@ -508,8 +508,8 @@ return {
         presets={save='Salva look come preset',
             save_desc='Salva l\'outfit indossato, la sua variante e le sue opzioni come nuovo preset. Rinominalo con '
                 ..'coop closet preset rename.',
-            name='Preset %d',filter='Mostra',all='Tutti',favourites='Preferiti',
-            filter_desc='Mostra tutti gli outfit o solo i preferiti.',fav='* %s',
+            name='Preset %d',filter='Mostra',all='Tutti',favourites='Preferiti',custom='Personalizzato',
+            filter_desc='Mostra tutti gli outfit, i preferiti, solo gli originali o solo i personalizzati.',fav='* %s',
             saved='Salvato come %s.',none='Indossa prima un outfit intero: un preset salva un outfit.',
             delete_title='Eliminare questo preset?',
             delete_desc='%s viene eliminato. L\'outfit e le sue opzioni restano.'},

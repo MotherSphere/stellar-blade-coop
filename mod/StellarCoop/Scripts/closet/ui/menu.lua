@@ -73,8 +73,9 @@
 -- whole outfit as Preset n, told), each preset (Select wears it as a preview; a close that does not keep the look gives
 -- its outfit the variant and values from before; F, UI_FaceButton_Top, asks Delete this
 -- preset? with the game's Yes/No popup: Yes deletes it, No and Back stay; a gone outfit's preset is greyed and does
--- not wear) and the filter row (left, right and Select turn All / Favourites, kept for this Lua load). On an outfit's
--- row F then marks it as a favourite or not (its hint Favourite or Unfavourite) instead of wearing it.
+-- not wear) and the filter row (right and Select turn All, Favourites, Original, Custom, left turns back, kept for this
+-- Lua load). On an outfit's row F then marks it as a favourite or not (its hint Favourite or Unfavourite) instead of
+-- wearing it.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -122,13 +123,15 @@ function Menu.new(o)
     local kit,dress=o.kit,o.dress
     local log=o.log or function() end
     local now=o.now or os.clock
-    local only_favs=false -- The Full tab's filter: true lists the favourites only (kept for this Lua load).
+    -- The Full tab's filter: its place in FILTERS (kept for this Lua load).
+    local FILTERS={'all','favourites','original','custom'}
+    local filter=1
     local deleting -- The preset the Delete this preset? popup asks about.
     -- The backs of the presets worn since the open (closet/presets.lua's wear): a close that does not keep the look
     -- runs them last first, so each outfit gets its variant and values from before the open.
     local unwear={}
     local model=Model.new({slots=Slots,fits=Fits,installed=dress.installed,adult=o.adult==true,
-        shapes=o.shape and o.shape.rows,presets=o.presets,favourites=function() return only_favs end})
+        shapes=o.shape and o.shape.rows,presets=o.presets,filter=function() return FILTERS[filter] end})
     local view=View.new(kit,log)
     local self={}
     local open=false
@@ -318,7 +321,8 @@ function Menu.new(o)
                 s.rows[i]={title=item.name or w.presets.name:format(item.preset),value=fit and fit.Outfit or item.fit,
                     locked=item.locked}
             elseif item.filter then
-                s.rows[i]={title=w.presets.filter,value=only_favs and w.presets.favourites or w.presets.all}
+                local show=FILTERS[filter]
+                s.rows[i]={title=w.presets.filter,value=show=='original' and w.origin.original or w.presets[show]}
             elseif item.reset or item.thumbs then
                 s.rows[i]={title=item.reset and w.row.reset or w.row.thumbs,value=''}
             elseif item.header then -- The Original header above Shift Up's own suits, or the options page's outfit.
@@ -814,7 +818,7 @@ function Menu.new(o)
                 end
             end
         elseif item and item.filter and (word=='left' or word=='right' or word=='select') then
-            only_favs=not only_favs
+            filter=(filter-1+(word=='left' and -1 or 1))%#FILTERS+1
             kit.sound('change')
         elseif word=='refresh' or word=='select' and col=='rows' and item and item.whole then wear_whole()
         elseif col=='grid' then

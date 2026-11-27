@@ -26,7 +26,8 @@ end
 
 -- o = {slots=closet.slots, fits=closet.fits, installed=function(fit)->bool, adult=bool,
 -- shapes=function()->morph names or nil, presets=closet/presets.lua's or nil (no Presets rows, filter or favourite
--- marks then), favourites=function()->true while the filter shows the favourites only}
+-- marks then), filter=function()->the filter row's list: 'all', 'favourites', 'original' (Shift Up's own suits) or
+-- 'custom' (the pack and hand outfits)}
 function Model.new(o)
     local Slots, Fits = o.slots, o.fits
     local m = {}
@@ -72,12 +73,16 @@ function Model.new(o)
                 end
                 out[#out + 1] = {filter = true}
             end
-            local only = presets and o.favourites and o.favourites()
+            local show = presets and o.filter and o.filter() or 'all'
             -- Every suit (the pack fits and the hand fits, Fits.all) by name in any case, then by id; Shift Up's own
-            -- suits after the others, under the Original header. The filter on Favourites keeps the favourites only.
+            -- suits after the others, under the Original header. The filter on Favourites keeps the favourites only,
+            -- on Original or Custom the suits of that origin only.
             local all, ids = Fits.all(), {custom = {}, original = {}}
-            for id, fit in pairs(all) do
-                if not only or presets.is_fav(id) then table.insert(ids[Fits.origin(id)], id) end
+            for id in pairs(all) do
+                local origin = Fits.origin(id)
+                if show == 'all' or show == origin or show == 'favourites' and presets.is_fav(id) then
+                    table.insert(ids[origin], id)
+                end
             end
             local function by_name(a, b)
                 local x, y = all[a].Outfit:lower(), all[b].Outfit:lower()
