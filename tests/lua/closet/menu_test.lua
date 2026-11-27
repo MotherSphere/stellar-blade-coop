@@ -1311,9 +1311,15 @@ local tests = {
         eq(th.cleared, 1, 'Yes: deleted') eq(popups(r), 0, 'the popup goes')
         eq(r.told[#r.told], T.en.closet.thumbs.cleared, 'told') ok(r.menu.is_open(), 'the menu stays open')
         th.answer = {false, 'closet thumbs: running'}
+        th.running = function() return true end
         at(r, 0.9, 'select', 'yes')
         eq(r.told[#r.told], T.en.closet.thumbs.busy, 'a run going: told to wait')
         has(r.log, 'closet thumbs: running', 'its reason logged')
+        th.answer = {false, 'closet thumbs: the mod folder is not known'}
+        th.running = function() return false end
+        at(r, 1.0, 'select', 'yes')
+        eq(r.told[#r.told], T.en.closet.thumbs.failed, 'no run going: told it failed')
+        has(r.log, 'closet thumbs: the mod folder is not known', 'that reason logged')
     end,
 
     the_detail_names_the_origin = function()
