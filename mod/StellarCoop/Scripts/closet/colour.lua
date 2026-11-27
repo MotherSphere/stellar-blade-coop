@@ -118,6 +118,9 @@ end
 local function clamp(x) return math.max(0,math.min(1,x)) end
 -- A channel value on the 1e-6 grid (as closet/options.lua's step), so steps add up without drift.
 local function tidy(x) return math.floor(clamp(x)*1e6+0.5)/1e6 end
+-- A channel as the file writes it: six decimals at most, trailing zeros cut, never an exponent (the reader takes
+-- digits and a point only).
+local function word(x) return (('%.6f'):format(x):gsub('0+$',''):gsub('%.$','')) end
 
 function Colour.new(o)
     local dress,log=o.dress,o.log or function() end
@@ -133,7 +136,9 @@ function Colour.new(o)
         local out={}
         for _,role in ipairs(Colour.ROLES) do
             local p=palette[role]
-            if p then out[#out+1]=('%s=%s:%g,%g,%g'):format(role,p.on and 'on' or 'off',p.R,p.G,p.B) end
+            if p then
+                out[#out+1]=('%s=%s:%s,%s,%s'):format(role,p.on and 'on' or 'off',word(p.R),word(p.G),word(p.B))
+            end
         end
         return table.concat(out,' ')
     end
@@ -295,9 +300,12 @@ function Colour.new(o)
     -- coop closet colour <role> <on|off|swatch> or <role> <r> <g> <b> (each 0-255): the role on with that colour.
     function self.set(role,a,g,b)
         if not IS_ROLE[role] then return false,Colour.USE end
-        if a=='on' or a=='off' then return self.turn(role,a=='on') end
         local r=tonumber(a)
-        g,b=tonumber(g),tonumber(b)
+        -- Three words are R G B, all numbers; one word is on, off or a swatch.
+        if g~=nil or b~=nil then
+            g,b=tonumber(g),tonumber(b)
+            if not (r and g and b) then return false,Colour.USE end
+        elseif a=='on' or a=='off' then return self.turn(role,a=='on') end
         if r and g and b then
             r,g,b=r/255,g/255,b/255
         else

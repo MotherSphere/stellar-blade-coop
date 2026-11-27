@@ -460,6 +460,12 @@ local tests = {
         eq((odd.get('primary')), false) eq((odd.get('secondary')), false) eq((odd.get('glow')), false)
         on, c = odd.get('accent')
         eq(on, true, 'gold read as on') same(c, {R = 0.745, G = 0.456, B = 0.08}, 'gold read as its colour')
+        -- A channel near 0 is written without an exponent, so it reads back.
+        r.c.channel('secondary', 'r', 0.00004)
+        local tiny = r.Colour.new({dress = r.dress, store = r.store, log = function() end})
+        on, c = tiny.get('secondary')
+        eq(on, true, 'a tiny channel: the role read back') eq(c.R, 0.00004, 'its value read back')
+        ok(not r.file:find('e%-'), 'no exponent in the file: ' .. r.file)
         -- A file that cannot be written: logged, the palette still on.
         r.store.save = function() return false, 'disk full' end
         ok(r.c.set('accent', 'wine'))
@@ -505,7 +511,8 @@ local tests = {
         ok(good and line == 'closet: colours off', line)
         eq((r.c.get('primary')), false)
         for _, words in ipairs({{}, {'primary'}, {'primary', 'crimson', 'x'}, {'off', 'x'}, {'primary', '1', '2'},
-                {'primary', '1', '2', '3', '4'}}) do
+                {'primary', '1', '2', '3', '4'}, {'primary', 'crimson', '10', '20'}, {'glow', 'off', '1', '2'},
+                {'primary', '1', 'x', '2'}}) do
             good, line = C.closet('colour', table.unpack(words))
             ok(not good and line == r.Colour.USE, table.concat(words, ' ') .. ': ' .. tostring(line))
         end

@@ -1170,6 +1170,18 @@ local tests = {
         r.menu.toggle()
         all_gone(r)
         eq((col.get('primary')), false, 'left, then F1: the left turned it off')
+        -- On a channel row the chord's left steps it down; the close puts it back.
+        col.palette.primary = {on = true, R = 0.5, G = 0, B = 0}
+        r.t = 3
+        r.menu.open()
+        tick(r, 3.05)
+        at(r, 3.1, 'down') -- Primary's Red row.
+        eq((detail(r)), T.en.closet.options.channels.r, 'on the Red row')
+        at(r, 3.2, 'left', 'tab_left')
+        r.menu.toggle()
+        all_gone(r)
+        eq(col.palette.primary.R, 0.5, 'one poll on a channel row: Red as it was')
+        col.palette.primary = nil
         -- On a shape row of the Body tab, both pressed in one poll: the chord's left stepped the value down (saved at
         -- once); the close sets it back, so the shape and coop-closet-shape.txt stay as they were.
         local sh = fake_shape({'Butt'})
@@ -1941,6 +1953,18 @@ local tests = {
         eq((detail(r)), w.roles.secondary, 'the Secondary row focused')
         same(col.steps, {'primary on', 'primary r 1', 'primary r -1', 'primary r -1', 'primary off', 'primary on',
             'primary off', 'secondary on'}, 'the calls')
+        -- A click on a channel's slider bar sets it at that place (no options page is open).
+        local View = require('closet.ui.view')
+        local bar = slider(r, child(1, O.channels.r))
+        ok(bar, 'Secondary\'s Red slider row')
+        local zone = r.kit.groups.closet_menu.zones[(bar.y - 300) // 130 + 1]
+        r.kit.pointer = function() return View.SLIDER_X0 + (View.SLIDER_X1 - View.SLIDER_X0) * 0.2, bar.y + 60 end
+        zone.hover = true
+        at(r, 0.55, 'click')
+        zone.hover = false
+        r.kit.pointer = nil
+        eq(row_value(r, child(1, O.channels.r)), '51', 'a click a fifth along the bar: 51 of 255')
+        eq(col.steps[#col.steps], 'secondary r=0.2', 'colour.channel at that place')
         eq(#r.previews, 0, 'nothing previewed')
         tick(r, 0.6)
         eq(cam.ticks[#cam.ticks].region, 'full', 'her whole body framed')
