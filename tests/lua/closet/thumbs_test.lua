@@ -141,6 +141,39 @@ local function cache(r, id)
 end
 
 local tests = {
+    -- A pack suit of the catalogue (closet/fits.lua's Fits.use) gets its full picture, worn whole: every section but
+    -- its HiddenMats and its toggles off by default, counted by GetNumMaterials on the rig mesh.
+    pack_suits_are_captured_whole = function()
+        local PM = '/Game/P/V1.V1'
+        Fits.use({['p.suit'] = {UniqueFitID = 'p.suit', DisplayName = 'P', Slot = 'FullOutfit',
+            File = '~mods\\P\\p.dekcns.json', Variants = {{Mesh = PM, HiddenMats = {1}}},
+            UserConfigs = {MaterialToggles = {{MaterialIndex = 3, Value = false}}}}})
+        local good, why = pcall(function()
+            local r = game()
+            r.meshes[PM] = {path = PM, count = 5}
+            local seen = {}
+            local capture = r.capture.CaptureScene
+            r.capture.CaptureScene = function(self)
+                if r.count == 5 then
+                    local hidden = {}
+                    for i in pairs(r.mesh.sections[0]) do hidden[#hidden + 1] = i end
+                    table.sort(hidden)
+                    seen[#seen + 1] = hidden
+                end
+                return capture(self)
+            end
+            ok(r.thumbs.run(false))
+            drain(r, 1000)
+            same(seen, {{1, 3}}, 'one picture, slots 1 and 3 hidden')
+            ok(r.files[Thumbs.file('M', 'p.suit', Thumbs.FULL)], 'its full.png')
+            eq(r.stamps[Thumbs.folder('M', 'p.suit') .. '\\stamp.txt'], Thumbs.stamp(Fits.get('p.suit')), 'stamp')
+            ok(Thumbs.stamp(Fits.get('p.suit')):find('|1,3', 1, true), 'the stamp holds what it hides')
+            ok(logged(r, 'p.suit 1/1'), 'logged')
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
     folder_and_file_names = function()
         eq(Thumbs.key(MAID), MAID, 'a plain id is its own folder')
         eq(Thumbs.folder('M', MAID), 'M\\closet-thumbs\\' .. MAID, 'the folder')

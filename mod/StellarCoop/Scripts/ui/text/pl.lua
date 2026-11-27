@@ -453,6 +453,7 @@ return {
         mann='Mann',nier='Maszyna z NieR',orcal='Prototyp Orcala',enya='Prototyp Enyi'}},
     closet={
         beta='%s (Beta)',
+        original='Oryginalne stroje',
         tabs={head='Głowa',torso='Tułów',arms='Ręce',hips='Biodra',intimate='Intymne',legs='Nogi',body='Ciało',
             colour='Kolor',weapon='Broń',full='Cały strój'},
         slots={Face='Twarz',Hair='Włosy',Ponytail='Kucyk',Ears='Uszy',Eyes='Oczy',Makeup='Makijaż',

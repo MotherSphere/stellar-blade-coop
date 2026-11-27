@@ -8,6 +8,7 @@ local Model = require('closet.ui.model')
 local Slots = require('closet.slots')
 local Fits = require('closet.fits')
 local Dress = require('closet.dress')
+local CnsImport = require('closet.cns_import')
 
 local CH27, CH46 = 'AiK_CH27_14595', 'AiK_CH46_xSH_14462'
 
@@ -89,10 +90,63 @@ local tests = {
         local m = new({installed = function(f) return f == CH27 end})
         local rows = m.rows('full')
         eq(#rows, 4, 'rows: the outfits, Make preview pictures, then Reset Stellar Closet')
-        same(rows[1], {whole = CH27, outfit = 'Ocean Maid', pack = 'AiK', locked = false}, 'first')
-        same(rows[2], {whole = CH46, outfit = 'Kunoichi Shadow', pack = 'AiK', locked = true}, 'second')
+        same(rows[1], {whole = CH46, outfit = 'Kunoichi Shadow', pack = 'AiK', locked = true}, 'first by name')
+        same(rows[2], {whole = CH27, outfit = 'Ocean Maid', pack = 'AiK', locked = false}, 'second')
         same(rows[3], {thumbs = true}, 'the Make preview pictures row after the outfits')
         same(rows[4], {reset = true}, 'the Reset row last')
+    end,
+
+    -- Every installed pack's suit (FitMeshType Body or none, EVE's) gets a row, the hand fits with them, by name.
+    every_pack_suit_gets_a_row = function()
+        local file = '~mods\\P\\p.dekcns.json'
+        local text = '[{"UniqueFitID":"z.suit","DisplayName":"Zeta","FitMeshType":"Body","OutfitPaths":["/Game/Z.Z"]},'
+            .. '{"UniqueFitID":"a.suit","DisplayName":"alpha","OutfitPaths":["/Game/A.A"]},'
+            .. '{"UniqueFitID":"h.hair","DisplayName":"Aaa","FitMeshType":"Hair","OutfitPaths":["/Game/H.H"]},'
+            .. '{"UniqueFitID":"d.suit","DisplayName":"Adam","CharacterID":"Adam","OutfitPaths":["/Game/D.D"]}]'
+        local catalogue = {}
+        CnsImport.merge(catalogue, CnsImport.parse(text, file).items, file)
+        Fits.use(catalogue)
+        local good, why = pcall(function()
+            local rows = new({installed = function(f) return f ~= 'z.suit' end}).rows('full')
+            eq(#rows, 6, 'four suits, Make preview pictures, Reset')
+            same(rows[1], {whole = 'a.suit', outfit = 'alpha', pack = 'p', locked = false}, 'by name in any case')
+            eq(rows[2].whole, CH46) eq(rows[3].whole, CH27)
+            same(rows[4], {whole = 'z.suit', outfit = 'Zeta', pack = 'p', locked = true}, 'not installed: locked')
+            ok(rows[5].thumbs and rows[6].reset, 'then the two rows')
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
+    -- Shift Up's own suits (Origin original) come after the pack outfits, under the Original header.
+    original_suits_sit_under_their_header = function()
+        Fits.BY_ID.ZZ_ORIG = {Outfit = 'Original suit', Pack = 'Shift Up', Origin = 'original', Mesh = '/Game/O.O',
+            Pieces = {}}
+        Fits.BY_ID.ZZ_ORIG2 = {Outfit = 'Another original', Pack = 'Shift Up', Origin = 'original',
+            Mesh = '/Game/O2.O2', Pieces = {}}
+        local good, why = pcall(function()
+            local rows = new().rows('full')
+            eq(#rows, 7, 'two Custom suits, the header, two Original suits, the two rows')
+            eq(rows[1].whole, CH46) eq(rows[2].whole, CH27)
+            same(rows[3], {header = 'original'}, 'the header after the pack outfits')
+            eq(rows[4].whole, 'ZZ_ORIG2', 'by name') eq(rows[5].whole, 'ZZ_ORIG')
+            ok(rows[6].thumbs and rows[7].reset, 'then the two rows')
+        end)
+        Fits.BY_ID.ZZ_ORIG, Fits.BY_ID.ZZ_ORIG2 = nil, nil
+        ok(good, why)
+        for _, r in ipairs(new().rows('full')) do eq(r.header, nil, 'no Original suit: no header') end
+    end,
+
+    -- A whole outfit with no piece map comes off whole when a piece is picked.
+    a_whole_pack_fit_comes_off_for_a_piece = function()
+        Fits.PACKS = {['p.suit'] = {Outfit = 'P', Pack = 'p', Origin = 'custom', Mesh = '/Game/P.P', Whole = true,
+            Pieces = {}}}
+        local good, why = pcall(function()
+            local m = new()
+            same(m.choose(m.whole('p.suit'), 'Chest', CH27), {{fit = CH27, slots = {'Chest'}}}, 'only the piece')
+        end)
+        Fits.use(nil)
+        ok(good, why)
     end,
 
     basebody_lists_fits_with_skin = function()

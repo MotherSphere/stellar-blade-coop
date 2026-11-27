@@ -78,15 +78,74 @@ Fits.BY_ID = {
     },
 }
 
--- The fit map of an outfit, or nil.
-function Fits.get(fit_id) return Fits.BY_ID[fit_id] end
+-- The pack fits of the catalogue last given to Fits.use (closet/wiring.lua, at each pack scan), by UniqueFitID.
+Fits.PACKS = {}
+
+-- A pack's name for the menu: its file name without the .dekcns.json ending (with or without the dot).
+local function pack_name(file)
+    local name = (file or ''):match('([^\\/]*)$')
+    return (name:gsub('%.?[Dd][Ee][Kk][Cc][Nn][Ss]%.[Jj][Ss][Oo][Nn]$', ''))
+end
+
+-- The fit of a pack item (closet/packs.lua's catalogue, closet/cns_import.lua's item) in its variant v, or nil when it
+-- has no such variant. It is worn whole (Whole): every material section shows but Hidden (the variant's HiddenMats)
+-- and the slots whose toggle is off (Toggles, MaterialToggles' MaterialIndex = Value; of two toggles on one slot an
+-- off one wins). A hand fit with the same UniqueFitID keeps its piece map (Skin, Pieces, Unknown) and its Pack name
+-- for the fitting tabs.
+function Fits.pack(item, v)
+    local variant = item.Variants[v]
+    if not variant then return nil end
+    local hand = Fits.BY_ID[item.UniqueFitID] or {}
+    local toggles = {}
+    for _, t in ipairs(item.UserConfigs.MaterialToggles) do
+        local index = type(t) == 'table' and type(t.MaterialIndex) == 'number' and math.tointeger(t.MaterialIndex)
+        if index and index >= 0 then toggles[index] = toggles[index] ~= false and t.Value ~= false end
+    end
+    return {Outfit = item.DisplayName, Pack = hand.Pack or pack_name(item.File or item.Pack), Origin = 'custom',
+        Mesh = variant.Mesh, Image = item.Image or hand.Image, Variant = v, Hidden = variant.HiddenMats,
+        Toggles = toggles, Controls = item.UserConfigs, Whole = true, Skin = hand.Skin, Pieces = hand.Pieces or {},
+        Unknown = hand.Unknown}
+end
+
+-- The catalogue's suits (FitMeshType Body or none) as pack fits in variant 1.
+local function packs_of(catalogue)
+    local out = {}
+    for id, item in pairs(catalogue) do
+        if item.Slot == 'FullOutfit' then out[id] = Fits.pack(item, 1) end
+    end
+    return out
+end
+
+-- Every fit by UniqueFitID: the hand fits, then the pack fits of catalogue (Fits.PACKS when nil) over them.
+function Fits.all(catalogue)
+    local out = {}
+    for id, fit in pairs(Fits.BY_ID) do out[id] = fit end
+    for id, fit in pairs(catalogue and packs_of(catalogue) or Fits.PACKS) do out[id] = fit end
+    return out
+end
+
+-- The catalogue's pack fits become Fits.PACKS (nil: none).
+function Fits.use(catalogue) Fits.PACKS = packs_of(catalogue or {}) end
+
+-- The material sections a Whole fit shows on a mesh of count slots: {[index] = true}.
+function Fits.shows(fit, count)
+    local hide = {}
+    for _, index in ipairs(fit.Hidden or {}) do hide[index] = true end
+    for index, on in pairs(fit.Toggles or {}) do hide[index] = hide[index] or not on end
+    local out = {}
+    for index = 0, count - 1 do out[index] = not hide[index] or nil end
+    return out
+end
+
+-- The fit of an outfit (a pack fit first, then a hand fit), or nil.
+function Fits.get(fit_id) return Fits.PACKS[fit_id] or Fits.BY_ID[fit_id] end
 
 -- An outfit's origin: 'original' or 'custom' (the default).
-function Fits.origin(fit_id) return (Fits.BY_ID[fit_id] or {}).Origin or 'custom' end
+function Fits.origin(fit_id) return (Fits.get(fit_id) or {}).Origin or 'custom' end
 
 -- The piece of a fit map in a slot, or nil.
 function Fits.piece(fit_id, slot)
-    local fit = Fits.BY_ID[fit_id]
+    local fit = Fits.get(fit_id)
     for _, piece in ipairs(fit and fit.Pieces or {}) do
         if piece.Slot == slot then return piece end
     end

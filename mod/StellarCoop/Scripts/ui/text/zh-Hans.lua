@@ -363,6 +363,7 @@ return {
         enya='Enya原型'}},
     closet={
         beta='%s（测试版）',
+        original='原版服装',
         tabs={head='头部',torso='躯干',arms='手臂',hips='臀部',intimate='私密',legs='腿部',body='身体',colour='颜色',weapon='武器',
             full='整套服装'},
         slots={Face='脸',Hair='头发',Ponytail='马尾',Ears='耳朵',Eyes='眼睛',Makeup='妆容',FaceTattoo='面部纹身',

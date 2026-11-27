@@ -5,6 +5,8 @@
 -- of a list of choices {{fit=<UniqueFitID>, slots=<Slot ids, or nil for every piece the fit shows by default>}}
 -- (the shape of Dress.plan's input). Edits never touch their input. The Colour tab lists closet/colour.lua's roles.
 -- The Body tab lists a shape row for each name of o.shapes (closet/shape.lua's rows) right below its Body row.
+-- Full outfit lists every suit of closet/fits.lua's Fits.all (the installed packs' and the hand fits); the fitting tabs
+-- list the hand fits' pieces only.
 local Colour = require('closet.colour')
 local Model = {}
 
@@ -56,9 +58,22 @@ function Model.new(o)
     function m.rows(tab)
         local out = {}
         if tab == 'full' then
-            for _, id in ipairs(sorted_fits(Fits)) do
-                local fit = Fits.get(id)
-                out[#out + 1] = {whole = id, outfit = fit.Outfit, pack = fit.Pack, locked = not o.installed(id)}
+            -- Every suit (the pack fits and the hand fits, Fits.all) by name in any case, then by id; Shift Up's own
+            -- suits after the others, under the Original header.
+            local all, ids = Fits.all(), {custom = {}, original = {}}
+            for id, fit in pairs(all) do table.insert(ids[Fits.origin(id)], id) end
+            local function by_name(a, b)
+                local x, y = all[a].Outfit:lower(), all[b].Outfit:lower()
+                if x ~= y then return x < y end
+                return a < b
+            end
+            for _, origin in ipairs({'custom', 'original'}) do
+                table.sort(ids[origin], by_name)
+                if origin == 'original' and #ids.original > 0 then out[#out + 1] = {header = 'original'} end
+                for _, id in ipairs(ids[origin]) do
+                    local fit = all[id]
+                    out[#out + 1] = {whole = id, outfit = fit.Outfit, pack = fit.Pack, locked = not o.installed(id)}
+                end
             end
             out[#out + 1] = {thumbs = true} -- Make preview pictures (coop closet thumbs).
             out[#out + 1] = {reset = true} -- Reset Stellar Closet, last.
@@ -124,7 +139,8 @@ function Model.new(o)
         end
         local out, target = {}, nil
         for _, choice in ipairs(choices) do
-            local kept, lost = {}, false
+            -- A whole outfit with no piece map (a pack fit, closet/fits.lua) cannot be split: it comes off whole.
+            local kept, lost = {}, not choice.slots and #Fits.get(choice.fit).Pieces == 0
             for _, s in ipairs(slots_of(choice)) do
                 if clashes(choice.fit, s) then lost = true else kept[#kept + 1] = s end
             end

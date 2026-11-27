@@ -467,6 +467,7 @@ return {
         tendril='Tendril',mann='Mann',nier='Macchina di NieR',orcal='Prototipo di Orcal',enya='Prototipo di Enya'}},
     closet={
         beta='%s (Beta)',
+        original='Tute originali',
         tabs={head='Testa',torso='Busto',arms='Braccia',hips='Fianchi',intimate='Intimo',legs='Gambe',body='Corpo',
             colour='Colore',weapon='Arma',full='Outfit completo'},
         slots={Face='Viso',Hair='Capelli',Ponytail='Coda di cavallo',Ears='Orecchie',Eyes='Occhi',Makeup='Trucco',

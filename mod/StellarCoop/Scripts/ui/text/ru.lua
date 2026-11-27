@@ -451,6 +451,7 @@ return {
         tendril='Tendril',mann='Mann',nier='Машина NieR',orcal='Прототип Оркала',enya='Прототип Энии'}},
     closet={
         beta='%s (бета)',
+        original='Оригинальные костюмы',
         tabs={head='Голова',torso='Торс',arms='Руки',hips='Таз',intimate='Интимное',legs='Ноги',body='Тело',
             colour='Цвет',weapon='Оружие',full='Весь костюм'},
         slots={Face='Лицо',Hair='Волосы',Ponytail='Хвост',Ears='Уши',Eyes='Глаза',Makeup='Макияж',

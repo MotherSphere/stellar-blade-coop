@@ -10,7 +10,57 @@ local Slots = require('closet.slots')
 -- Material slot counts of the two meshes, from the spike's slot dump (25 Nov 2026).
 local SLOT_COUNT = {AiK_CH27_14595 = 48, AiK_CH46_xSH_14462 = 44}
 
+-- A pack item as closet/cns_import.lua makes it (only the fields Fits.pack reads), with two variants.
+local function item(id, extra)
+    local it = {UniqueFitID = id, DisplayName = 'Pack ' .. id, Slot = 'FullOutfit', Image = '/Game/I/P.P',
+        File = '~mods\\P\\Some Pack.dekcns.json',
+        Variants = {{Mesh = '/Game/P/V1.V1', HiddenMats = {7}}, {Mesh = '/Game/P/V2.V2', HiddenMats = {}}},
+        UserConfigs = {MaterialToggles = {{MaterialIndex = 3, Value = false}, {MaterialIndex = 4, Value = true},
+            {MaterialIndex = 5, Value = true}, {MaterialIndex = 5, Value = false}}, ShapeKeys = {},
+            ScalarControls = {}, VectorControls = {}, TextureOptions = {}}}
+    for k, v in pairs(extra or {}) do it[k] = v end
+    return it
+end
+
 local tests = {
+    a_pack_item_becomes_a_whole_fit = function()
+        local it = item('p.suit')
+        local fit = Fits.pack(it, 1)
+        same({fit.Outfit, fit.Pack, fit.Origin, fit.Mesh, fit.Image, fit.Variant, fit.Whole},
+            {'Pack p.suit', 'Some Pack', 'custom', '/Game/P/V1.V1', '/Game/I/P.P', 1, true}, 'the fields')
+        same(fit.Hidden, {7}, 'the variant\'s HiddenMats') eq(fit.Controls, it.UserConfigs, 'the controls')
+        same(fit.Toggles, {[3] = false, [4] = true, [5] = false}, 'each toggle\'s default; an off one wins a slot')
+        same(fit.Pieces, {}, 'no piece map') eq(Fits.pack(it, 3), nil, 'no third variant')
+        eq(Fits.pack(item('q', {File = '~mods\\Q\\QDekcns.json'}), 1).Pack, 'Q', 'a name without the dot')
+    end,
+    a_whole_fit_shows_all_but_hidden_and_off_toggles = function()
+        same(Fits.shows(Fits.pack(item('p.suit'), 1), 9), {[0] = true, [1] = true, [2] = true, [4] = true,
+            [6] = true, [8] = true}, '3 and 5 off, 7 hidden')
+        same(Fits.shows(Fits.pack(item('p.suit'), 2), 4), {[0] = true, [1] = true, [2] = true}, 'variant 2')
+    end,
+    a_hand_fit_keeps_its_piece_map = function()
+        local hand = Fits.BY_ID.AiK_CH27_14595
+        local fit = Fits.pack(item('AiK_CH27_14595'), 1)
+        eq(fit.Pieces, hand.Pieces, 'pieces') eq(fit.Skin, hand.Skin, 'skin') eq(fit.Unknown, hand.Unknown)
+        eq(fit.Pack, 'AiK', 'the hand fit\'s pack name') eq(fit.Whole, true, 'worn whole from Full outfit')
+        local all = Fits.all({AiK_CH27_14595 = item('AiK_CH27_14595'), ['p.suit'] = item('p.suit'),
+            hair = item('hair', {Slot = 'Hair'})})
+        eq(all.AiK_CH27_14595.Mesh, '/Game/P/V1.V1', 'the pack fit wins the id')
+        eq(all.AiK_CH46_xSH_14462, Fits.BY_ID.AiK_CH46_xSH_14462, 'a hand fit with no pack stays')
+        ok(all['p.suit'] and not all.hair, 'suits only')
+        Fits.use({AiK_CH27_14595 = item('AiK_CH27_14595')})
+        local good, why = pcall(function()
+            eq(Fits.piece('AiK_CH27_14595', 'Chest'), hand.Pieces[2], 'the fitting tabs keep the hand pieces')
+            eq(Fits.get('AiK_CH27_14595').Whole, true, 'the pack fit through Fits.get')
+        end)
+        Fits.use(nil)
+        ok(good, why)
+        eq(Fits.get('AiK_CH27_14595'), hand, 'no catalogue: the hand fit')
+    end,
+    variant_one_is_worn_by_default = function()
+        local all = Fits.all({['p.suit'] = item('p.suit')})
+        eq(all['p.suit'].Variant, 1) eq(all['p.suit'].Mesh, '/Game/P/V1.V1')
+    end,
     every_slot_named_once = function()
         for id, fit in pairs(Fits.BY_ID) do
             local count = SLOT_COUNT[id]

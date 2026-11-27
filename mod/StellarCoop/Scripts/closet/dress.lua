@@ -15,6 +15,8 @@
 --   - A skin slot whose every region a worn piece covers (a piece's Covers) is hidden too. Fingernails and Toenails
 --     pieces are hidden under a piece of another outfit that covers the hands or feet.
 --   - Sections are hidden on every LOD; the ghost's capture reads LOD 0.
+--   - An installed pack's suit worn whole (a Whole fit of closet/fits.lua, the Full outfit tab) shows every section
+--     of its mesh but its HiddenMats and the toggles off by default (Fits.shows). Its mesh resolves by path as above.
 -- Before the first change, her own body mesh and overridden materials go into coop-closet.txt (link.store), with the
 -- worn choices as console words, so coop closet off, coop off and the next Lua load (at its first tick) give her look
 -- back and remove the added meshes.
@@ -207,7 +209,9 @@ function Dress.plan(choices,fits,mode)
             if taken[slot] then return nil,slot..' is worn twice ('..taken[slot]..' and '..choice.fit..')' end
             taken[slot]=choice.fit
         end
-        by_fit[choice.fit]={fit=choice.fit,map=fit,pieces=pieces}
+        -- A Whole fit (a pack's, closet/fits.lua) worn with no slots named shows all its sections but the hidden ones
+        -- (Fits.shows, at apply, which knows the mesh's slot count).
+        by_fit[choice.fit]={fit=choice.fit,map=fit,pieces=pieces,whole=not choice.slots and fit.Whole and fit or nil}
         order[#order+1]=by_fit[choice.fit]
         if body then picked=by_fit[choice.fit] end
     end
@@ -262,9 +266,9 @@ function Dress.plan(choices,fits,mode)
                 if not hidden(regions,covered) then show[index]=true end
                 slots[index]=slots[index] or 'BaseBody'
             end
-            plan.body={fit=o.fit,mesh=o.map.Mesh,show=show,slots=slots}
+            plan.body={fit=o.fit,mesh=o.map.Mesh,show=show,slots=slots,whole=o.whole}
         else
-            plan.added[#plan.added+1]={fit=o.fit,mesh=o.map.Mesh,show=show,slots=slots}
+            plan.added[#plan.added+1]={fit=o.fit,mesh=o.map.Mesh,show=show,slots=slots,whole=o.whole}
         end
     end
     plan.parts=#plan.added
@@ -395,6 +399,7 @@ function Dress.new(o)
         local saved,e=keep()
         if saved==false then state=nil; return nil,'coop-closet.txt not written: '..tostring(e) end
         local mats,count=own_materials(body_mesh)
+        if plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,count) end
         body:SetSkeletalMesh(body_mesh,true)
         for i=0,count-1 do
             if mats[i] then pcall(function() body:SetMaterial(i,mats[i]) end) end
@@ -414,6 +419,7 @@ function Dress.new(o)
             c:SetMasterPoseComponent(body,true)
             pcall(function() c.bUseBoundsFromMasterPoseComponent=true end) -- No culling pop.
             local _,n=own_materials(added_meshes[i])
+            if a.whole then a.show=Fits.shows(a.whole,n) end
             show_only(c,n,a.show)
             state.added[i]={mesh=a.mesh,c=c,count=n,show=a.show}
         end
@@ -522,11 +528,15 @@ function Dress.new(o)
         local path=mesh and path_of(mesh)
         return path and Dress.GAME_LOOKS[path] and path or nil
     end
-    -- Whether the fit's mesh loads here (its outfit is installed). Cached.
+    -- Whether the fit's mesh loads here (its outfit is installed). Cached; a mesh that does not load is logged once.
     function self.installed(fit_id)
         local fit=fits.get(fit_id)
         if not fit then return false end
-        if installed_cache[fit_id]==nil then installed_cache[fit_id]=usable(fit.Mesh)~=nil end
+        if installed_cache[fit_id]==nil then
+            local mesh,why=usable(fit.Mesh)
+            installed_cache[fit_id]=mesh~=nil
+            if not mesh then log(fit_id..': its mesh does not load ('..tostring(why)..'): its row is locked') end
+        end
         return installed_cache[fit_id]
     end
     -- coop closet body: the body rule of the next wears in this Lua load: one of Dress.BODY_MODES, or a fit id with
@@ -599,7 +609,7 @@ function Dress.new(o)
     end
     -- Whether a mesh path is one a fit map puts on her body: her body still wears an earlier mix.
     local function closet_mesh(path)
-        for _,fit in pairs(fits.BY_ID or {}) do if fit.Mesh==path then return true end end
+        for _,fit in pairs(fits.all and fits.all() or fits.BY_ID or {}) do if fit.Mesh==path then return true end end
         return false
     end
     -- An earlier mix's leftovers off EVE: its added meshes, and her own look from the file when her body still wears
@@ -636,6 +646,7 @@ function Dress.new(o)
         if kept=='' then
             return done(true,ok and (removed..' added mesh(es) removed, her own look back') or tostring(removed))
         end
+        if o.packs then o.packs() end -- The pack catalogue read first: the kept words may name a pack's suit.
         local words={}
         for x in kept:gmatch('%S+') do words[#words+1]=x end
         local choices,why=Dress.parse(words)

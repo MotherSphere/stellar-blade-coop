@@ -211,15 +211,16 @@ local tests = {
             ok(F.called(tabs[i].o, i == 1 and 'FocusTabButton' or 'DefocusTabButton'), 'tab focus ' .. i)
             eq(tabs[i].x, 160 + (i - 1) * 266, 'tab x ' .. i)
         end
-        -- The Full tab's rows: one an outfit, then Make preview pictures and Reset Stellar Closet, Ocean Maid focused;
-        -- the hints Back, Whole outfit, Move.
+        -- The Full tab's rows: one an outfit by name, then Make preview pictures and Reset Stellar Closet, Kunoichi
+        -- Shadow focused; the hints Back, Whole outfit, Move.
         local rows = r.kit.live(F.OPTION)
         eq(#rows, 4, 'outfit rows, the Make preview pictures row and the Reset row')
         eq(rows[3].o.Text_TitleValue.text, T.en.closet.row.thumbs, 'the Make preview pictures row after the outfits')
         eq(rows[4].o.Text_TitleValue.text, T.en.closet.row.reset, 'the Reset row last')
-        eq(rows[1].o.Text_TitleValue.text, 'Ocean Maid', 'outfit row 1')
+        eq(rows[1].o.Text_TitleValue.text, 'Kunoichi Shadow', 'outfit row 1, first by name')
         eq(rows[1].o.Text_ItemValue.text, 'AiK', 'outfit row 1 pack')
-        eq((detail(r)), 'Ocean Maid', 'the outfit detail')
+        eq(rows[2].o.Text_TitleValue.text, 'Ocean Maid', 'outfit row 2')
+        eq((detail(r)), 'Kunoichi Shadow', 'the outfit detail')
         local function said(h, call)
             for _, c in ipairs(h.o.calls) do if c[1] == call then return c[2].text or c[2] end end
         end
@@ -641,9 +642,9 @@ local tests = {
         -- A soon row and a locked whole outfit: refresh wears nothing.
         at(r, 2, 'tab_left')
         at(r, 2, 'refresh')
-        at(r, 2, 'tab_left', 'tab_left', 'down', 'refresh') -- Colour, then Full outfit.
+        at(r, 2, 'tab_left', 'tab_left', 'refresh') -- Colour, then Full outfit: Kunoichi Shadow first by name.
         eq(#r.previews, 0, 'soon row, locked outfit')
-        at(r, 2, 'up', 'refresh')
+        at(r, 2, 'down', 'refresh')
         same(r.previews, {{{fit = MAID}}}, 'the installed outfit is worn')
     end,
 
@@ -706,10 +707,10 @@ local tests = {
         -- The Full tab: the row's outfit.
         at(r, 2, 'tab_left', 'tab_left', 'tab_left')
         local title = detail(r)
-        eq(title, 'Ocean Maid', 'the Full tab')
+        eq(title, 'Kunoichi Shadow', 'the Full tab')
         at(r, 2, 'refresh', 'down', 'refresh')
-        same(r.previews[3], {{fit = MAID}}, 'row 1')
-        same(r.previews[4], {{fit = KUNOICHI}}, 'row 2')
+        same(r.previews[3], {{fit = KUNOICHI}}, 'row 1')
+        same(r.previews[4], {{fit = MAID}}, 'row 2')
     end,
 
     select_on_a_full_outfit_row_wears_it = function()
@@ -740,15 +741,15 @@ local tests = {
         same(shown(), {back, wear, whole, move}, 'a piece tile: Back, Wear, Whole outfit (refresh), Move')
         eq(tostring(icon[whole]), 'UI_FaceButton_Top', 'refresh shows the top face button')
         at(r, 0.5, 'back', 'tab_left', 'tab_left', 'tab_left')
-        eq((detail(r)), 'Ocean Maid', 'the Full tab')
+        eq((detail(r)), 'Kunoichi Shadow', 'the Full tab')
         same(shown(), {back, whole, move}, 'the Full tab: Back, Whole outfit, Move')
         at(r, 0.5, 'select')
-        same(r.previews, {{{fit = MAID}}}, 'select wears the whole outfit')
+        same(r.previews, {{{fit = KUNOICHI}}}, 'select wears the whole outfit')
         -- A click on the second row too.
         local zones = r.kit.groups.closet_menu.zones
         zones[2].hover = true
         at(r, 0.5, 'click')
-        same(r.previews[2], {{fit = KUNOICHI}}, 'a click wears row 2')
+        same(r.previews[2], {{fit = MAID}}, 'a click wears row 2')
     end,
 
     back_without_changes_closes = function()
@@ -1027,7 +1028,7 @@ local tests = {
         eq(r.offs, 0, 'nothing reset yet') eq(col.offs, 0, 'the palette kept') eq(sh.offs, 0, 'the shape kept')
         -- A preview, then Yes.
         at(r, 0.5, 'up', 'up', 'refresh', 'down', 'down', 'select', 'select')
-        same(r.previews, {{{fit = KUNOICHI}}}, 'previewed before the reset')
+        same(r.previews, {{{fit = MAID}}}, 'previewed before the reset (row 2 by name)')
         eq(r.offs, 1, 'coop closet off ran')
         eq(col.offs, 1, 'the palette cleared (coop-closet-colour.txt)') eq(col.get('primary'), 'off')
         eq(sh.offs, 1, 'the shape cleared (coop-closet-shape.txt)') eq(sh.get('Butt'), 0)
@@ -1135,12 +1136,19 @@ local tests = {
         Fits.BY_ID[MAID].Origin = 'original'
         local good, why = pcall(function()
             eq(Fits.origin(MAID), 'original')
-            at(r, 0.5, 'tab_right', 'tab_right')
+            -- Kunoichi Shadow, the Original header, then Ocean Maid under it.
+            at(r, 0.5, 'tab_right', 'tab_right', 'down')
+            eq((detail(r)), T.en.closet.original, 'the Original header after the Custom suits')
+            eq(badge(r), nil, 'the header has no origin')
+            local n = #r.previews
+            at(r, 0.5, 'select', 'refresh')
+            eq(#r.previews, n, 'the header wears nothing')
+            at(r, 0.5, 'down')
             title, desc = detail(r)
             eq(title, 'Ocean Maid', 'the Full outfit row')
             ok(desc:find(T.en.closet.origin.original, 1, true) and not desc:find('Custom', 1, true), desc)
             eq(badge(r), 'original', 'the original badge')
-            at(r, 0.5, 'down', 'down', 'down')
+            at(r, 0.5, 'down', 'down')
             eq((detail(r)), T.en.closet.row.reset, 'the Reset row') eq(badge(r), nil, 'the Reset row has no origin')
         end)
         Fits.BY_ID[MAID].Origin = nil
@@ -1351,17 +1359,17 @@ local tests = {
             r.menu.open()
             local tv = grid(r)
             eq(#tv.items, 1, 'one tile')
-            eq(tv.items[1].ItemName.text, 'Ocean Maid', 'the outfit')
-            eq(tv.items[1].IconAssetPath, F.path('full'), 'its whole picture')
+            eq(tv.items[1].ItemName.text, 'Kunoichi Shadow', 'the first outfit by name')
+            eq(tv.items[1].IconAssetPath, F.path('full_outfit'), 'no picture, no texture: the glyph')
+            at(r, 0.05, 'down')
+            eq(grid(r).items[1].ItemName.text, 'Ocean Maid', 'the next outfit')
+            eq(grid(r).items[1].IconAssetPath, F.path('full'), 'its whole picture')
             eq(F.made.full.file, Thumbs.file('F', MAID, 'full'), 'from full.png')
             at(r, 0.05, 'down')
-            eq(grid(r).items[1].ItemName.text, 'Kunoichi Shadow', 'the next outfit')
-            eq(grid(r).items[1].IconAssetPath, F.path('full_outfit'), 'no picture, no texture: the glyph')
-            at(r, 0.05, 'down')
-            eq(#grid(r).items, 0, 'the Reset row: no tile')
+            eq(#grid(r).items, 0, 'the Make preview pictures row: no tile')
             -- Select on an outfit row still wears it whole (the tile is only its picture).
             at(r, 0.5, 'up', 'select')
-            same(r.previews[#r.previews], {{fit = KUNOICHI}}, 'worn whole')
+            same(r.previews[#r.previews], {{fit = MAID}}, 'worn whole')
         end)
         Thumbs.fs.exists = exists
         ok(good, why)
@@ -1464,7 +1472,7 @@ local tests = {
         at(r, 0.1, 'select')
         eq(#r.previews, 0, 'the console Enter did not wear the Full tab outfit')
         at(r, 0.31, 'select')
-        same(r.previews, {{{fit = MAID}}}, 'select works 0.3 s after the open')
+        same(r.previews, {{{fit = KUNOICHI}}}, 'select works 0.3 s after the open')
     end,
 
     full_outfit_is_the_first_tab = function()
@@ -1476,7 +1484,7 @@ local tests = {
         r.menu.open()
         ok(F.called(r.kit.live(F.TAB)[1].o, 'FocusTabButton'), 'Full outfit focused')
         eq(r.kit.live(F.TAB)[1].o.TextValue.text, T.en.closet.tabs.full, 'its label')
-        eq((detail(r)), 'Ocean Maid', 'its first outfit')
+        eq((detail(r)), 'Kunoichi Shadow', 'its first outfit by name')
     end,
 
     -- Colour right after Full outfit; Head..Body and Intimate labelled through closet.beta, the others plain.

@@ -4,7 +4,8 @@
 -- Copies fight/gunmode/g0.lua's capture and export (a spawned SceneCapture2D, an RTF_RGBA8 render target,
 -- CaptureScene, then ExportRenderTarget to a PNG, the folder made with mkdir when the export did not make it).
 -- coop closet thumbs [redo] [<fit>]: a 256x256 picture of every piece of every installed outfit with a fit map
--- (closet/fits.lua), made once in game and kept in <mod folder>\closet-thumbs\<fit>\<slot>.png, the whole outfit as
+-- (closet/fits.lua's Fits.all: the hand fits and the installed packs' suits, a pack suit with no hand map only its
+-- full picture, worn whole as Fits.shows says), made once in game and kept in <mod folder>\closet-thumbs\<fit>\<slot>.png, the whole outfit as
 -- full.png (the menu's tiles show them: closet/ui/menu.lua). <fit> is the fit id, or for an id with characters a
 -- folder name may not hold, those turned into _ and 8 hex digits of its hash. <fit>\stamp.txt names the fit's mesh and
 -- pieces: a fit whose stamp changed (its pack's mesh, its fit map) is captured again; redo captures all. The pictures
@@ -129,10 +130,17 @@ function Thumbs.stamp(fit)
     for _,p in ipairs(fit.Pieces) do
         pieces[#pieces+1]=p.Slot..'='..table.concat(p.Materials,',')..(p.Off and '-' or '')
     end
-    return 'v1|'..fit.Mesh..'|'..table.concat(skin,',')..'|'..table.concat(pieces,';')
+    local line='v1|'..fit.Mesh..'|'..table.concat(skin,',')..'|'..table.concat(pieces,';')
+    if not fit.Whole then return line end
+    -- A Whole fit (closet/fits.lua): also the slots its full picture hides.
+    local hides={}
+    for _,index in ipairs(fit.Hidden or {}) do hides[#hides+1]=index end
+    for index,on in pairs(fit.Toggles or {}) do if not on then hides[#hides+1]=index end end
+    table.sort(hides)
+    return line..'|'..table.concat(hides,',')
 end
 -- A fit's pictures: {slot, show={[material index]=true}, region} a piece, then full (the pieces it shows by default
--- and its skin).
+-- and its skin; a Whole fit's full has whole=fit instead: Fits.shows on the loaded mesh's slot count).
 function Thumbs.pictures(fit)
     local out,whole={},{}
     for index in pairs(fit.Skin or {}) do whole[index]=true end
@@ -144,7 +152,7 @@ function Thumbs.pictures(fit)
         end
         out[#out+1]={slot=p.Slot,show=show,region=Camera.region(p.Slot)}
     end
-    out[#out+1]={slot=Thumbs.FULL,show=whole,region='full'}
+    out[#out+1]={slot=Thumbs.FULL,show=whole,region='full',whole=fit.Whole and fit or nil}
     return out
 end
 -- The capture's place and turn for the bones at a and b of a region spec {min=, lift=}, the mesh's front turned yaw:
@@ -298,7 +306,8 @@ function Thumbs.new(o)
         if run.fit~=job.fit then return load(job) end
         if clock()<run.wait then return end
         if not run.shoot then -- Its sections on every LOD, the others hidden; the capture in the next frame.
-            Dress.show_only(run.rig.m,run.count,job.show)
+            -- run.count: GetNumMaterials of the rig mesh (load).
+            Dress.show_only(run.rig.m,run.count,job.whole and Fits.shows(job.whole,run.count) or job.show)
             run.shoot=true
             return
         end
@@ -315,7 +324,7 @@ function Thumbs.new(o)
         local why=busy(menu)
         if why then return false,'closet thumbs: '..WHY[why] end
         local ids={}
-        for id in pairs(fits.BY_ID) do if (not only or id==only) and o.installed(id) then ids[#ids+1]=id end end
+        for id in pairs(fits.all()) do if (not only or id==only) and o.installed(id) then ids[#ids+1]=id end end
         table.sort(ids)
         local jobs,outfits,cached={},0,0
         for _,id in ipairs(ids) do

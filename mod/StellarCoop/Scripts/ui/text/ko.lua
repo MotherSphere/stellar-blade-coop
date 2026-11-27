@@ -396,6 +396,7 @@ return {
         enya='Enya 시제품'}},
     closet={
         beta='%s (베타)',
+        original='오리지널 슈트',
         tabs={head='머리',torso='몸통',arms='팔',hips='엉덩이',intimate='은밀한 곳',legs='다리',body='몸',
             colour='색상',weapon='무기',full='의상 전체'},
         slots={Face='얼굴',Hair='머리카락',Ponytail='포니테일',Ears='귀',Eyes='눈',Makeup='메이크업',

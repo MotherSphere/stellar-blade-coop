@@ -14,9 +14,11 @@ exports={'closet','closet_menu','closet_thumbs','closet_colour','closet_shape','
 new=function(M)
 local print=M.print
 -- closet/dress.lua, logging [CL] lines: coop-closet.txt lets the next Lua load give EVE her own look back. No look
--- goes on again while the game is paused or shows one of its screens (its wardrobe among them).
+-- goes on again while the game is paused or shows one of its screens (its wardrobe among them). The pack catalogue is
+-- read before a kept look is worn again (it may be a pack's suit).
 M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
-    store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end})
+    store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
+    packs=function() M.closet_packs.once() end})
 -- The colour layer (closet/colour.lua): its palette in coop-closet-colour.txt; its tick runs each frame right after the
 -- dress's, menu open or not, so a look the dress puts on gets the palette in the same frame. The menu's Colour tab and
 -- coop closet colour set it.
@@ -45,11 +47,24 @@ local thumbs=Thumbs.new({log=function(m) print('[StellarCoop][CL] '..tostring(m)
     status=function() return M.link and M.link.status() end})
 M.closet_thumbs=thumbs -- The menu's Make preview pictures row starts it.
 -- The pack catalogue (closet/packs.lua): every installed *.dekcns.json pack from the DLL's list coop-cns-packs.txt,
--- read at the menu's first open (never at boot: up to 256 packs of pure-Lua JSON) and again by coop closet rescan.
+-- read at the menu's first open or the dress's restore of a kept look (never at boot: up to 256 packs of pure-Lua
+-- JSON) and again by coop closet rescan.
 -- It has no tick.
 M.closet_packs=require('closet.packs').new({paks=require('core.pak_gate').paks_of(M.folder),
     list=M.folder and M.folder..'\\coop-cns-packs.txt',read=require('core.link').files.read,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
+-- Each scan's suits become closet/fits.lua's pack fits (Fits.use): Full outfit lists them, the dress wears them whole.
+local scan=M.closet_packs.scan
+M.closet_packs.scan=function()
+    local catalogue,report=scan()
+    require('closet.fits').use(catalogue)
+    return catalogue,report
+end
+-- The first scan, once, under a guard of its own: at the menu's first open or the dress's restore of a kept look.
+local scanned=false
+M.closet_packs.once=function()
+    if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan) end
+end
 local dress_tick,dress_stop=M.closet.tick,M.closet.stop
 M.closet.tick=function()
     M.guarded('closet',dress_tick)
@@ -85,9 +100,9 @@ menu=function(M,Ui)
         camera=camera,folder=M.folder,thumbs=M.closet_thumbs,colour=M.closet_colour,shape=M.closet_shape,
         uidev=M.link.uidev})
     -- The first open (the closet key's too: it calls the field) reads every pack once, under a guard of its own.
-    local open,scanned=M.closet_menu.open,false
+    local open=M.closet_menu.open
     M.closet_menu.open=function(...)
-        if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan) end
+        M.closet_packs.once()
         return open(...)
     end
 end,

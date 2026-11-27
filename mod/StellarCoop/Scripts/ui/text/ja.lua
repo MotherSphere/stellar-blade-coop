@@ -396,6 +396,7 @@ return {
         enya='Enyaの試作'}},
     closet={
         beta='%s（ベータ）',
+        original='オリジナルスーツ',
         tabs={head='頭',torso='胴',arms='腕',hips='腰',intimate='秘部',legs='脚',body='体',colour='色',weapon='武器',
             full='衣装一式'},
         slots={Face='顔',Hair='髪',Ponytail='ポニーテール',Ears='耳',Eyes='目',Makeup='メイク',

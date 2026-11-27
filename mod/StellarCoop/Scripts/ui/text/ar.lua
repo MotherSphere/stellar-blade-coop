@@ -434,6 +434,7 @@ return {
         nier='آلة NieR',orcal='نموذج Orcal الأولي',enya='نموذج Enya الأولي'}},
     closet={
         beta='%s (بيتا)',
+        original='البدلات الأصلية',
         tabs={head='الرأس',torso='الجذع',arms='الذراعان',hips='الوركان',intimate='الحميمية',legs='الساقان',
             body='الجسم',colour='اللون',weapon='السلاح',full='الزي كاملًا'},
         slots={Face='الوجه',Hair='الشعر',Ponytail='ذيل الحصان',Ears='الأذنان',Eyes='العينان',Makeup='المكياج',

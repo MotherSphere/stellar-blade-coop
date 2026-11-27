@@ -32,7 +32,8 @@
 -- The Body tab's Body row (BaseBody) lists None (the body rule picks the body) then each outfit with skin: its tile
 -- picks that outfit's body. The row's value is the body in use: the picked one, else the one the look on EVE wears
 -- (dress.plan). A tile's detail and the Full tab's rows name the origin: Original, or Custom and the pack, with the
--- origin's badge. Each tile shows its piece's picture (closet/thumbs.lua's cached PNG), else its outfit's Image, else
+-- origin's badge. The Full tab lists every installed pack's suit by name (closet/fits.lua's Fits.all), then Shift Up's
+-- own suits under the closet.original header row, which does nothing. Each tile shows its piece's picture (closet/thumbs.lua's cached PNG), else its outfit's Image, else
 -- its slot's glyph (closet/slots.lua); the None tile None's glyph. The Full tab's outfit row shows one tile, its
 -- outfit's whole picture (full.png), else its Image, else the Full outfit glyph; Select still wears the row. Which
 -- pictures are there is read again at each open. The Full tab's row before the last, Make preview pictures (hint
@@ -235,6 +236,8 @@ function Menu.new(o)
                 s.rows[i]={title=item.outfit,value=item.pack,locked=item.locked}
             elseif item.reset or item.thumbs then
                 s.rows[i]={title=item.reset and w.row.reset or w.row.thumbs,value=''}
+            elseif item.header then -- The Original header above Shift Up's own suits.
+                s.rows[i]={title=w.original,value=''}
             elseif item.role then
                 s.rows[i]={title=w.colour.roles[item.role],value=w.colour.swatches[swatch(item.role)]}
             elseif item.morph then -- The morph name as its mesh writes it.
@@ -279,6 +282,7 @@ function Menu.new(o)
         elseif item and item.morph then
             s.detail.desc=w.shape.about..'\n'..w.shape.help
             s.hints[2]={t.hint.select,'Positive',word='select'}
+        elseif item and item.header then -- Nothing to do on it: Back and Move only.
         elseif item and item.state~='pieces' then
             s.detail.desc=w.row[item.state]
         elseif item then

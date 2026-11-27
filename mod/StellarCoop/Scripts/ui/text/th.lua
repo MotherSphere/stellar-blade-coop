@@ -418,6 +418,7 @@ return {
         nier='เครื่องจักร NieR',orcal='ต้นแบบ Orcal',enya='ต้นแบบ Enya'}},
     closet={
         beta='%s (เบต้า)',
+        original='ชุดดั้งเดิม',
         tabs={head='ศีรษะ',torso='ลำตัว',arms='แขน',hips='สะโพก',intimate='จุดซ่อนเร้น',legs='ขา',body='ร่างกาย',
             colour='สี',weapon='อาวุธ',full='ชุดทั้งชุด'},
         slots={Face='ใบหน้า',Hair='ผม',Ponytail='หางม้า',Ears='หู',Eyes='ดวงตา',Makeup='เมคอัพ',

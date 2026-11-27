@@ -460,6 +460,7 @@ return {
         enya='Enya prototipi'}},
     closet={
         beta='%s (Beta)',
+        original='Orijinal kıyafetler',
         tabs={head='Baş',torso='Gövde',arms='Kollar',hips='Kalça',intimate='Mahrem',legs='Bacaklar',body='Vücut',
             colour='Renk',weapon='Silah',full='Tüm kıyafet'},
         slots={Face='Yüz',Hair='Saç',Ponytail='At kuyruğu',Ears='Kulaklar',Eyes='Gözler',Makeup='Makyaj',

@@ -449,6 +449,7 @@ return {
         nier='NieR-maskine',orcal='Orcal-prototype',enya='Enya-prototype'}},
     closet={
         beta='%s (Beta)',
+        original='Originale dragter',
         tabs={head='Hoved',torso='Overkrop',arms='Arme',hips='Hofter',intimate='Intimt',legs='Ben',body='Krop',
             colour='Farve',weapon='Våben',full='Hel dragt'},
         slots={Face='Ansigt',Hair='Hår',Ponytail='Hestehale',Ears='Ører',Eyes='Øjne',Makeup='Makeup',

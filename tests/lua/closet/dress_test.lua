@@ -138,7 +138,73 @@ local MAID, NINJA = 'AiK_CH27_14595', 'AiK_CH46_xSH_14462' -- Ocean Maid (one sk
 -- Ocean Maid's nails (and shoes) with Kunoichi's gloves: Ocean Maid's single skin slot cannot hide the arms.
 local GLOVES = {{fit = MAID, slots = {'Fingernails'}}, {fit = NINJA, slots = {'Gloves'}}}
 
+-- Pack suits (closet/fits.lua's Fits.use over a catalogue): P has two variants, the first hiding slot 1 and its
+-- toggle on slot 3 off by default; GONE's mesh is not there.
+local PV1, PV2 = '/Game/P/V1.V1', '/Game/P/V2.V2'
+local function pack_item(id, mesh_path)
+    return {UniqueFitID = id, DisplayName = id, Slot = 'FullOutfit', File = '~mods\\P\\p.dekcns.json',
+        Variants = {{Mesh = mesh_path or PV1, HiddenMats = {1}}, {Mesh = PV2, HiddenMats = {}}},
+        UserConfigs = {MaterialToggles = {{MaterialIndex = 3, Value = false}, {MaterialIndex = 4, Value = true}}}}
+end
+-- f(w) on a world with the pack suits in the catalogue, which goes again after.
+local function with_packs(f)
+    local Fits = require('closet.fits')
+    local w = world()
+    w.assets[PV1], w.assets[PV2] = mesh(PV1, 6), mesh(PV2, 6)
+    Fits.use({['p.suit'] = pack_item('p.suit'), ['gone.suit'] = pack_item('gone.suit', '/Game/Gone/G.G')})
+    local good, why = pcall(f, w)
+    Fits.use(nil)
+    ok(good, why)
+end
+
 local tests = {
+    a_whole_pack_fit_shows_all_but_hidden_and_off_toggles = function()
+        with_packs(function(w)
+            local good, line = w.d.wear({{fit = 'p.suit'}})
+            ok(good, line)
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'on her body')
+            eq(#w.eve.comps, 1, 'no added mesh')
+            for lod = 0, 1 do
+                for i = 0, 5 do
+                    eq(w.eve.Mesh.hidden[lod .. ':' .. i] == true, i == 1 or i == 3, 'lod ' .. lod .. ' slot ' .. i)
+                end
+            end
+            second(w) second(w)
+            ok(not logged(w, 'hidden again'), 'the watchdog keeps the whole look')
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'not mixed again')
+        end)
+    end,
+    variant_one_is_worn_by_default = function()
+        with_packs(function(w)
+            assert(w.d.preview({{fit = 'p.suit'}}))
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'the first variant\'s mesh')
+        end)
+    end,
+    -- The next Lua load has no catalogue until the packs are read: restore reads them (o.packs) before the kept words.
+    a_kept_pack_suit_is_worn_again_after_the_packs_are_read = function()
+        with_packs(function(w)
+            assert(w.d.wear({{fit = 'p.suit'}}))
+            local Fits = require('closet.fits')
+            local catalogue = Fits.PACKS
+            Fits.use(nil)
+            local reads = 0
+            local d = w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
+                clock = function() return w.now end, packs = function() reads = reads + 1; Fits.PACKS = catalogue end})
+            d.tick()
+            ok(reads >= 1, 'the packs read') ok(d.worn(), 'worn again')
+            eq(d.choices()[1].fit, 'p.suit') eq(w.eve.Mesh.SkeletalMesh.path, PV1)
+        end)
+    end,
+    a_missing_mesh_says_so_once = function()
+        with_packs(function(w)
+            eq(w.d.installed('gone.suit'), false) eq(w.d.installed('gone.suit'), false)
+            eq(w.d.installed('p.suit'), true)
+            local n = 0
+            for _, line in ipairs(w.log) do if line:find('gone.suit', 1, true) then n = n + 1 end end
+            eq(n, 1, 'one line')
+            ok(logged(w, '/Game/Gone/G.G'), 'it names the mesh')
+        end)
+    end,
     preview_keeps_the_confirmed_words = function()
         local w = world()
         assert(w.d.wear(A))

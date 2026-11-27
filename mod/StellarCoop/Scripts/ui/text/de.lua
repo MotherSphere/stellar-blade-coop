@@ -475,6 +475,7 @@ return {
         mann='Mann',nier='NieR-Maschine',orcal='Orcal-Prototyp',enya='Enya-Prototyp'}},
     closet={
         beta='%s (Beta)',
+        original='Originalanzüge',
         tabs={head='Kopf',torso='Torso',arms='Arme',hips='Hüfte',intimate='Intim',legs='Beine',body='Körper',
             colour='Farbe',weapon='Waffe',full='Ganzes Outfit'},
         slots={Face='Gesicht',Hair='Haare',Ponytail='Pferdeschwanz',Ears='Ohren',Eyes='Augen',Makeup='Make-up',

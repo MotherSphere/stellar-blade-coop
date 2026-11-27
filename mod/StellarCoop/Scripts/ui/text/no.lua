@@ -450,6 +450,7 @@ return {
         mann='Mann',nier='NieR-maskin',orcal='Orcal-prototype',enya='Enya-prototype'}},
     closet={
         beta='%s (Beta)',
+        original='Originale drakter',
         tabs={head='Hode',torso='Overkropp',arms='Armer',hips='Hofter',intimate='Intimt',legs='Bein',body='Kropp',
             colour='Farge',weapon='Våpen',full='Helt antrekk'},
         slots={Face='Ansikt',Hair='Hår',Ponytail='Hestehale',Ears='Ører',Eyes='Øyne',Makeup='Sminke',
