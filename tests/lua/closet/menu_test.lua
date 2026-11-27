@@ -295,10 +295,11 @@ local tests = {
         same(g.place, {x = 0, y = 0, w = 3840, h = 2160, fixed = true, hit = true}, 'group place')
         local View = require('closet.ui.view')
         eq(View.EDGE, 2112, 'the menu edge') eq(View.COLUMNS, 5, 'grid columns')
-        -- A flat shade to x 1700, then the lobby's left gradient to x 2500; the dither under the hints.
-        same(g.shade, {x = 0, y = 0, w = 1700, h = 2160, color = {A = 0.72}}, 'shade')
-        eq(g.images[1].tex, 'shade_left', 'gradient') eq(g.images[1].x, 1700, 'gradient x')
-        eq(g.images[1].x + g.images[1].w, 2500, 'gradient end')
+        -- A flat shade to x 2162: past the right tab key's icon (art at 2028 to 2070) by the left one's margin (its
+        -- art starts at x 92). Then the lobby's left gradient to x 2562; the dither under the hints.
+        same(g.shade, {x = 0, y = 0, w = 2162, h = 2160, color = {A = 0.72}}, 'shade')
+        eq(g.images[1].tex, 'shade_left', 'gradient') eq(g.images[1].x, 2162, 'gradient x')
+        eq(g.images[1].x + g.images[1].w, 2562, 'gradient end')
         eq(g.images[2].tex, 'dither', 'dither') eq(g.images[2].y, 1860, 'dither y') eq(g.images[2].w, 2560, 'dither w')
         same(g.images[2].tint, {A = 0.8}, 'dither tint')
         -- The tab row: a window of 7 tab buttons, labelled; the Full outfit tab first and focused.

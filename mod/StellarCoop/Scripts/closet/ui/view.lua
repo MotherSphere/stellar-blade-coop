@@ -90,6 +90,12 @@ local SINGLE=1 -- ESelectionMode Single (None is 0).
 -- The builder's layout in kit units.
 local TAB_X,TAB_Y,TAB_STEP=160,120,266 -- TABS tabs from 160, a tab key's icon at each end (the lobby's settings tabs).
 local TAB_ICON_X=86 -- The left tab key's icon (UI_LeftShoulder: Q, the pad's LB); the right one after the last tab.
+-- The flat shade's right edge: past the right tab key's icon art by the left one's margin. Measured on Schizo's
+-- screenshot of 27 Nov 2026 (2000x1123): a tab key's art starts 6 units right of its hint's x and is 42 wide, so the
+-- left art starts at x 92 and the right art (hint at 2022) ends at x 2070.
+local KEY_ART_X,KEY_ART_W=6,42
+local SHADE_W=TAB_X+View.TABS*TAB_STEP+KEY_ART_X+KEY_ART_W+TAB_ICON_X+KEY_ART_X
+local FADE_W=400 -- The lobby's left gradient after it, ending at x 2562, left of EVE (framed at NDC 0.55).
 local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: a window of 10.
 -- The SB row's value box (WB_Setting_Button_Slot in a 900-unit slot at x 160), measured on the in-game screenshots of
 -- build 65b52c49 at 1456x819: its focused white box spans x 828 to 1121. Its value and copy icon are centred in it.
@@ -160,8 +166,8 @@ function View.new(kit,log)
     local call,sync,look=P.call,P.sync,P.look
     local v={}
     kit.add(View.GROUP,{x=0,y=0,w=3840,h=2160,fixed=true,hit=true},function(b)
-        b.shade(0,0,1700,2160,{A=0.72})
-        b.image(1700,0,800,2160,'shade_left') -- online/lobby/ui/lobby.lua's left gradient: the shade fades out.
+        b.shade(0,0,SHADE_W,2160,{A=0.72})
+        b.image(SHADE_W,0,FADE_W,2160,'shade_left') -- online/lobby/ui/lobby.lua's left gradient: the shade fades out.
         b.image(0,1860,2560,300,'dither',{A=0.8})
         local zones,swatches={},{}
         for i=1,WINDOW do zones[i]=b.row(ROW_X,ROW_Y+(i-1)*PITCH+27,ROW_W) end
