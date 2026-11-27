@@ -13,8 +13,11 @@ The module `world.maps.sboxion` is a test tool. Its first game test answered one
 a container of SBO's stream SB's sublevels, with EVE standing in a lit, empty city. It can: the 93 always-loaded
 sublevels loaded and the day light applied. In the same test EVE fell out of the city and stayed dead.
 [Falls and deaths](#falls-and-deaths) describes the fix. [The rooms](#the-rooms) are rooms of SBO's own behind
-closed doors of Xion, which later test paks add: five, then eleven. [The Tetrapod's door](#the-tetrapods-door) leads
-into SB's own Tetrapod interior. The commands are left out of the usage line.
+closed doors of Xion, which later test paks add: five, then eleven, then fifteen doors with nineteen rooms. EVE walks
+into each of them through an open doorway. [The underground district](#the-underground-district) lies under the
+lower street. EVE walks down to it from the gate G18. [The Tetrapod's door](#the-tetrapods-door) leads into SB's own
+Tetrapod interior. [The NPCs](#the-npcs) are display bodies in those rooms and in the district: eleven today. The
+commands are left out of the usage line.
 They run only alone (not in a session) on a [co-op save](../../players/playing-with-a-friend.md#co-op-saves). Their
 lines go to `UE4SS.log` as `[StellarCoop][SX]` and the native part's to `coop-link.log`.
 
@@ -27,7 +30,7 @@ mod does not ship it and the repository cannot build it: the map tools stay outs
 The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then in `SB/Content/Paks/LogicMods`. The
 `.utoc` must name `SBO_World` and `Xion_P.umap`, with its `.pak` and `.ucas` beside it.
 
-There are six builds of the pak, under the same three file names. Only one of them is installed at a time.
+There are ten builds of the pak, under the same three file names. Only one of them is installed at a time.
 
 | Pak | Packages | Levels listed | `.utoc` | `.ucas` | Version in `coop xion status` |
 | --- | --- | --- | --- | --- | --- |
@@ -37,14 +40,38 @@ There are six builds of the pak, under the same three file names. Only one of th
 | 24 November 2026, rooms, second build | `Xion_P` and the five room levels, rebuilt | 100 | 1203 bytes | 1,545,808 bytes | `1203_1545808` |
 | 24 November 2026, full test, second build | `Xion_P` and the five rebuilt room levels | 161 | 1203 bytes | 1,546,008 bytes | `1203_1546008` |
 | 24 November 2026, full test, third build | `Xion_P` and eleven room levels | 167 | 1863 bytes | 1,918,741 bytes | `1863_1918741` |
+| 25 November 2026, full test, fourth build | `Xion_P` and nineteen room levels | 175 | 2719 bytes | 2,331,195 bytes | `2719_2331195` |
+| 26 November 2026, full test, fifth build | `Xion_P` and fifteen room levels | 171 | 2303 bytes | 2,267,202 bytes | `2303_2267202` |
+| 27 November 2026, full test, sixth build | `Xion_P`, the fifteen room levels and the two district levels | 173 | 2560 bytes | 2,610,974 bytes | `2560_2610974` |
+| 27 November 2026, full test, seventh build | `Xion_P`, the fifteen room levels and the two district levels, rebuilt | 173 | 2560 bytes | 2,612,399 bytes | `2560_2612399` |
 
-All six pass the check above. The module looks for package paths, never for a version: `self.gate()` in
-`sboxion.lua` hands the version to `coop xion status`, which prints it. Nothing else reads it. At the first arrival
+All ten pass the check above. The module looks for package paths, never for a version: `self.gate()` in
+`sboxion.lua` hands the version to `coop xion status`, which prints it. Nothing else reads it. Two rebuilds of the
+third full test build, made on 25 November 2026 with pieces turned inside the rooms, read the same version: it is
+made of two sizes. At the first arrival
 of a Lua load the module asks again for each room of `rooms/list.lua` on its own: `Rooms` and that room's file name,
 such as `Xion_Rooms_D011.umap`. It opens the rooms the pak holds. The first and second builds hold five (`D011`,
-`D031`, `D081`, `D107`, `D158`). The third build holds those, the five of the list added for it and `D039`, which the
-list leaves out. With the pak of 23 November the module works as before [the rooms](#the-rooms) existed: it logs
+`D031`, `D081`, `D107`, `D158`). The third build holds those, the five of the list added for it and `D039`: eleven.
+With the pak of 23 November the module works as before [the rooms](#the-rooms) existed: it logs
 `rooms: none in this pak` at each arrival and hides nothing.
+
+The fourth build holds the eleven and eight closed rooms of 25 November, each behind a door of SB that stays shut:
+`Xion_Rooms_D111.umap`, `D157`, `D109`, `D029`, `D030`, `D037`, `D163` and `D164`. They were entered under a black
+screen, a way in that was dropped after its game test. With that build the module opens the eleven rooms of the
+third build. The eight levels load with the map and nobody enters them. Its level line reads `175 listed, 141 of 141`.
+
+The fifth build holds the eleven and four new levels, `D087`, `D111`, `D109` and `D029`, with eight rooms in them
+([The rooms](#the-rooms)). Its level line reads `171 listed, 137 of 137`. Its four new levels take streaming slots of
+the kind the first eleven rooms use: none names a volume. Three of them carry the level names of closed rooms of the
+fourth build, so the module opens those three only with a pak that also holds `Xion_Rooms_D087.umap`.
+
+The sixth build holds the fifth build's fifteen room levels with the same bytes. It adds the two levels of [the
+underground district](#the-underground-district): `Under_D1_Arch.umap` and `Under_D1_ArchHomes.umap`. Its level line reads
+`173 listed, 139 of 139`. With it the module also opens the gate G18.
+
+The seventh build holds the same levels. Only its two district levels are new. The deck plates sit 13.7 cm higher.
+The deck's north edge has rails along its whole length: 44 in place of 41, which closes a gap of 3.9 m under the arch
+landing. `Xion_P` and the fifteen room levels are the same bytes as in the sixth build.
 
 ## Commands
 
@@ -53,10 +80,12 @@ list leaves out. With the pak of 23 November the module works as before [the roo
 | `coop xion` or `coop xion city` | Warps EVE into SBO Xion at the city point (-8304, 7201, 225) |
 | `coop xion gate` | The same at the gate point (-23393, 17287, 1285) |
 | `coop xion leave` | Asks SB's reload of the co-op save. The native part runs it only from SBO Xion |
-| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state, the rooms' state and the last look: its age, the characters with the nearest one, the levels, the zone, the area and EVE's life state |
+| `coop xion status` | One line: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the recovery's state, the rooms' state, the NPCs' state and the last look: its age, the characters with the nearest one, the levels, the zone, the area and EVE's life state |
 | `coop xion recover on`, `death` or `off` | Inside SBO Xion: what the module does after a fall or a death, until the next arrival ([Falls and deaths](#falls-and-deaths)). Alone, it prints the recovery's state |
 | `coop xion rooms on` or `off` | Inside SBO Xion: `off` puts SB's pieces back in the doorways of [the rooms](#the-rooms) until `on` or the next arrival, so the doors are closed as SB ships them. Alone, it prints the rooms' state |
 | `coop xion tetrapod in` or `out` | Inside SBO Xion: puts EVE inside the Tetrapod or back in front of it, from wherever she stands ([The Tetrapod's door](#the-tetrapods-door)). Alone, it says whether she is inside |
+| `coop xion tetrapod probe`, `probe <n>` or `probe only <n>` | Inside SBO Xion: puts EVE inside the Tetrapod with no part solid, then makes its parts solid one each pass, from part 1, from part n or part n alone, until she dies ([The probe](#the-probe)). A test tool: its lines go to `UE4SS.log` |
+| `coop xion npc`, `coop xion npc <n>` or `coop xion npc turn <degrees>` | Inside SBO Xion: the clip, by its number, or the turn of the mesh, -180 to 180, of [the NPC](#the-npcs) nearest to EVE, on its body at once and until the mod reloads. Alone, it prints that NPC's state and its clips |
 
 `coop xion` refuses with nothing asked when the save is not a co-op save, when a session is open, without the pak,
 when the rows were refused and when EVE is already in SBO Xion. The native part then refuses the warp during a
@@ -110,6 +139,9 @@ above the ground point with `K2_TeleportTo`, facing the way she faced there, the
 -3275 is the top of SB's largest fall volume, `SBEffectVolume_Xion10_04`. It lies 1410 cm under the lowest spawn
 point of the upper city and 3500 cm under the city point. In the first game test EVE fell more than 26,000 cm before
 SB's timer ended the fall.
+
+Over [the underground district](#the-underground-district) the floor is -1275, 175 cm under the district's deck, in
+place of -3275. The fall line then reads `under the floor of the underground district`.
 
 With no ground point, or after a failure, the target is the arrival point of the stay. After a failure the move is
 made at once, in the pass that reads her under the floor. The first read of EVE walking within 3 s of the world's
@@ -237,7 +269,7 @@ what brings EVE back from those.
 | `sboxion: black: asked, its handle did not read; EVE at (x, y, z) moves in 2 passes` | The call returned. Its GUID could not be read |
 | `sboxion: black: not shown: <why>; EVE at (x, y, z) moves in 2 passes` | The call raised |
 | `sboxion: black: up at once` | After a put-back that followed a failure. The three other forms end at their reason |
-| `sboxion: fall: EVE at (x, y, z) under the floor, mode m, life n: to the ground point (x, y, z) read t s ago` | The move of a caught fall, two passes after its `black:` line. It names the place where she was caught. The target also reads `the arrival point <name> (x, y, z), no ground point` or `after a failure` |
+| `sboxion: fall: EVE at (x, y, z) under the floor, mode m, life n: to the ground point (x, y, z) read t s ago` | The move of a caught fall, two passes after its `black:` line. It names the place where she was caught. The target also reads `the arrival point <name> (x, y, z), no ground point` or `after a failure`. Over the underground district it reads `under the floor of the underground district` |
 | `sboxion: put back: EVE walks at (x, y, z), t s after the move` | The put-back worked |
 | `sboxion: put back refused by K2_TeleportTo: failure n of 2` | The game refused the teleport |
 | `sboxion: put back failed: EVE at (x, y, z), mode m, 3 s after the move: failure n of 2` | No walking read in 3 s |
@@ -308,13 +340,16 @@ build is no longer read.
 
 ## The rooms
 
-The paks of 24 November 2026 add rooms behind closed doors of Xion: five in the first and second builds, eleven in
-the third build of the full test pak. Each room is a level of its own, `/Game/SBO_World/Rooms/Xion_Rooms_<room>`, on
-the streaming list of `Xion_P` as an always-loaded level. The rooms pak then lists 100 levels, 98 of them always
-loaded. The third full test build lists 167, 133 of them always loaded. In the second and third builds the first five
-rooms hold 510 actors: 476 pieces and 34 movable lights. The six rooms the third build adds hold 688: 647 pieces and
-41 lights. A piece names one of Stellar Blade's meshes by its path. The mesh loads from the player's own game files.
-No `/Script/SB` class is in a room.
+The paks of 24 to 26 November 2026 add rooms behind closed doors of Xion: five in the first and second builds, eleven
+in the third and fourth builds of the full test pak, fifteen in its fifth build. Each room is a level of its own,
+`/Game/SBO_World/Rooms/Xion_Rooms_<room>`, on the streaming list of `Xion_P` as an always-loaded level. A level of the
+fifth build may hold a suite: two or three rooms of ours joined by inner doorways, entered through one street door.
+In the module and in its log a room is one such level, so a suite counts as one room. The rooms pak lists 100
+levels, 98 of them always loaded. The third full test build lists 167, 133 of them always loaded. The fifth lists 171,
+137 of them always loaded. In the second and third builds the first five rooms hold 510 actors: 476 pieces and 34
+movable lights. The six rooms the third build adds hold 688: 647 pieces and 41 lights. The four levels the fifth
+build adds hold 633: 589 pieces and 44 lights, 23 of which cast shadows. A piece names one of Stellar Blade's meshes
+by its path. The mesh loads from the player's own game files. No `/Script/SB` class is in a room.
 
 A room has an open doorway of ours at the place of SB's closed door. SB's door stays where it is unless the module hides
 it: the rooms would stand behind closed doors, with our open frame inside SB's closed door unit. So at each arrival the
@@ -333,35 +368,69 @@ screen: the room was loaded with the map.
 | `D092` | One-room home | `Xion_Rooms_D092` | (-1607, -2372, 457) | 117 m | 85 pieces, 5 lights | 2 |
 | `D036` | Tea room | `Xion_Rooms_D036` | (-5705, 7747, 592) | 27 m | 116 pieces, 9 lights | 3 |
 | `D106` | Memorial room | `Xion_Rooms_D106` | (7872, 2974, 1498) | 167 m | 64 pieces, 8 lights | 4 |
-| `D039` | Growing room | `Xion_Rooms_D039` | (-4743, -8, 461) | 80 m | 94 pieces, 7 lights | none |
+| `D039` | Growing room | `Xion_Rooms_D039` | (-4743, -8, 461) | 80 m | 94 pieces, 7 lights | 1 |
+| `D087` | Canteen, with doorways to the kitchen back room and the wash house | `Xion_Rooms_D087` | (-2313, -1273, 457) | 104 m | 204 pieces, 20 lights | 2 |
+| `D111` | Radio room, with a doorway to the watch post | `Xion_Rooms_D111` | (10640, 890, 1462) | 200 m | 99 pieces, 8 lights | 6 |
+| `D109` | Bookshop, with a doorway to the goods store | `Xion_Rooms_D109` | (9250, 1494, 1354) | 185 m | 197 pieces, 8 lights | 9 |
+| `D029` | Courier office | `Xion_Rooms_D029` | (-6118, 4972, 212) | 31 m | 89 pieces, 8 lights | 3 |
 
-The first five rooms are in every pak that holds rooms. The last six are in the third build only. The actors are
-those of the second and third builds: the first build's five rooms held 394 pieces and 27 lights. The door is the
-centre of the doorway. The distance is a straight line on the map from the city point (-8304, 7201, 225). The way on
-foot was not surveyed. Each door of the list is a waypoint: `coop xion status` names the nearest one with its
-distance.
+The first five rooms are in every pak that holds rooms. The next six are in the third, fourth and fifth builds. The
+last four are in the fifth build only. The actors are those of the second build and later: the first build's five
+rooms held 394 pieces and 27 lights. The door is the centre of the street doorway. The distance is a straight line on
+the map from the city point (-8304, 7201, 225). The way on foot was not surveyed. Each door of the list is a
+waypoint: `coop xion status` names the nearest one with its distance.
 
-`D039` has no rows, so its door stays closed. Two of the three pieces its layout hides are blueprint props of SB in
-front of the door (`PhysicalObj_Trash_2` and `_3` of `E04_Area02_Object_B_01`). Their `StaticMesh` component
-simulates physics and starts asleep. How the calls below act on a simulated body was not read in the game's code.
-With the third build the room loads behind SB's closed shutter.
+The rooms of the fifth build, width x depth x height inside, in cm:
+
+| Door | Room | Size |
+| --- | --- | --- |
+| `D087` | Canteen | 730 x 480 x 400 |
+| `D087` | Kitchen back room | 300 x 457 x 400 |
+| `D087` | Wash house | 640 x 457 x 400 |
+| `D111` | Radio room | 360 x 585 x 400 |
+| `D111` | Watch post | 573 x 322 x 400 |
+| `D109` | Bookshop | 486 x 534 x 387 |
+| `D109` | Goods store | 510 x 262 x 400 |
+| `D029` | Courier office | 470 x 630 x 400 |
+
+`D039` hides SB's shutter alone. Two blueprint props of SB stand in front of it (`PhysicalObj_Trash_2` and `_3` of
+`E04_Area02_Object_B_01`). Their `StaticMesh` component simulates physics and starts asleep. How the calls below act
+on a simulated body was not read in the game's code, so they stay. With the shutter hidden the map tools measured
+160 cm free between them on a flat floor.
+
+`D087` and `D109` keep SB's storefront with its doorway. The module hides the shutters, the boards and the base beam
+in it. At `D111` and `D029` it hides SB's door unit and the wall panel behind it, as at most of the first ten rooms.
+SB's open portal `Architecture/Door/031_E_SM` stands in the level at the unit's place. At `D029` a return wall of ours
+closes the right 61 cm of the hole. The inner doorways of a suite are the same portal with our lining and floor
+plane. They are pieces of the level: the module does nothing for them.
+
+The fourth build holds closed rooms under the level names of `D111`, `D109` and `D029`. With that build their rows
+would open the facade onto a closed room. So these three name `Xion_Rooms_D087` in `rooms/list.lua` (`beside=`):
+the module opens them only when the pak holds that level too, which only the fifth build does.
 
 ### What is hidden
 
-`rooms/list.lua` holds 41 rows for ten rooms. A row is one piece of SB in a doorway: the closed door unit or shutter
-(a mesh of `Architecture/Door`, the door leaf `Architecture/Bar/005_A_SM` in `D036`), the wall panel behind it
-(`Architecture/Building_003`) or street debris that reaches into the doorway (`Deco/Rubble`, `Deco/Trash`,
-`Deco/Beam`, `Deco/Wire`). The pieces are in 10 art sublevels that SBO Xion keeps. All of them are of Static mobility
+`rooms/list.lua` holds 62 rows for fifteen rooms and the six rows of the gate G18 ([The underground
+district](#the-underground-district)). A room's row is one piece of SB in a doorway: the closed door unit, shutter
+or boards (a mesh of `Architecture/Door`, the door leaf `Architecture/Bar/005_A_SM` in `D036`), the wall panel behind
+it (`Architecture/Building_003`) or street debris that reaches into the doorway (`Deco/Rubble`, `Deco/Trash`,
+`Deco/Beam`, `Deco/Wire`). The pieces are in 13 art sublevels that SBO Xion keeps. All of them are of Static mobility
 with baked lighting. Each row was checked against the level dumps of build 26123051: the sublevel, the actor, the
 component's class, its mesh, the place it stores and the instance count.
 
-- 18 rows are whole components. The module calls `SetVisibility(false, false)` and `SetCollisionEnabled(0)` on the
-  component. `D036`'s wire stores the collision profile `NoCollision`. The module writes back the value it read.
-- 23 rows are one instance of an instanced component. 18 components hold them, with 2 to 54 instances each. The
+- 27 rows are whole components. The module calls `SetVisibility(false, false)` and `SetCollisionEnabled(0)` on the
+  component. `D036`'s wire and `D087`'s boards store the collision profile `NoCollision`. The module writes back the
+  value it read.
+- 35 rows are one instance of an instanced component. 28 components hold them, with 2 to 54 instances each. The
   other instances stay. `D036` hides instance 6 of the debris component whose instances 0 to 3 `D158` hides. Each
   row keeps its own instance's values. The module scales the instance to nothing where it stands, with
   `UpdateInstanceTransform`. It never removes an instance: the engine would move the last one into the hole. The
   baked lightmap rows go by index.
+- In `E04_Area02_Object_D_04` every piece is stored twice: `Actor_0` and `Actor_3` carry the same component with the
+  same mesh at the same place. Hiding one copy leaves the other, so `D111` and `D109` list both: 14 rows for 7
+  pieces. `D029`'s wire is on an actor named `Actor7*`, with the star. `D109`'s rubble sits in a component whose
+  instances are drawn in another order than they are stored (`InstanceReorderTable` `[1, 3, 5, 6, 4, 7, 0, 2, 8]`).
+  Its row's index is the stored one, as for every instance row.
 
 Before it hides a row the module compares the live object with the row: its class, its mesh, the place it stores
 (within 1 cm on each axis) and, for an instance, the number of instances of its component. A game update that
@@ -390,9 +459,10 @@ The calls were read in the game's code on build 26123051. None of them tests the
   component that casts a shadow and affects distance field lighting while `r.GenerateMeshDistanceFields` is on
   (`0x144281ec0`). SB's `DefaultEngine.ini` sets it. A component without the copy starts an async build of a new
   tree and a new instance buffer from its instances (`0x1442511b0`, `0x144251400`, `0x144250d90`). The instance is
-  drawn until the build is taken over, some frames later. 8 of the 18 components store `CastShadow` false: six
-  debris components (two of `D011`, one each of `D081`, `D107`, `D049` and `D106`) and the two shutter components of
-  `D092`.
+  drawn until the build is taken over, some frames later. 15 of the 28 components store `CastShadow` false: seven
+  debris components (two of `D011`, one each of `D081`, `D107`, `D049`, `D106` and `D109`), the two shutter
+  components of `D092` and six of `E04_Area02_Object_D_04`: the shutter and the base beam of `D109` and the base beam
+  of `D111`, each in both copies.
 
 ### When a room opens and closes
 
@@ -419,9 +489,9 @@ that cannot be read is logged and nothing is put back.
 
 | Line | Meaning |
 | --- | --- |
-| `sboxion: levels: 100 listed, 98 of 98 always-loaded ones loaded and visible, missing: none; by volume: 2 listed, 2 loaded, 2 visible` | The rooms pak of 24 November is in and its five room levels loaded. The full test pak reads `161 listed, 127 of 127`, its third build `167 listed, 133 of 133` |
+| `sboxion: levels: 100 listed, 98 of 98 always-loaded ones loaded and visible, missing: none; by volume: 2 listed, 2 loaded, 2 visible` | The rooms pak of 24 November is in and its five room levels loaded. The full test pak reads `161 listed, 127 of 127`, its third build `167 listed, 133 of 133`, its fourth `175 listed, 141 of 141`, its fifth `171 listed, 137 of 137` |
 | `sboxion: rooms: none in this pak (<path>\zSBO_Xion.utoc does not hold Rooms): no door is opened` | The pak of 23 November. One line an arrival. Nothing else of the rooms runs |
-| `sboxion: rooms: this pak holds n of 10 rooms: <rooms>` | One line an arrival: the rooms of the list whose level the pak holds. 5 with the first and second builds, 10 with the third |
+| `sboxion: rooms: this pak holds n of 15 rooms: <rooms>` | One line an arrival: the rooms of the list whose level the pak holds. 5 with the first and second builds, 11 with the third and fourth, 15 with the fifth |
 | `sboxion: rooms: <room> open: n rows hidden, t ms` | Every row of the room is hidden. `t` is the time spent on the room |
 | `sboxion: rooms: <room> closed: <row>: <why>` | One row failed. Nothing of the room is hidden. `<row>` reads `<sublevel>.<actor>.<component>`, with `[<index>]` for an instance |
 | `sboxion: rooms: <room> waits for <levels>` | A level the room needs is not loaded and visible yet. Said once |
@@ -433,9 +503,9 @@ that cannot be read is logged and nothing is put back.
 | `sboxion: rooms: levels unread (<why>): the rooms wait` | The level list did not read for a pass. Said once an arrival |
 | `sboxion: at D158: A_01 loaded b visible b, A_03 loaded b visible b` | EVE stood 5 s within 3 m of that room's door |
 
-`coop xion status` ends with `rooms 5 of 5 open`, `rooms n of 5 open, m waiting`,
+The rooms' part of `coop xion status` reads `rooms 5 of 5 open`, `rooms n of 5 open, m waiting`,
 `rooms n of 5 open, closed: D031, D107`, `rooms off` or `rooms none in the pak`. The second number is the count of
-rooms the pak holds: 10 with the third build.
+rooms the pak holds: 11 with the third and fourth builds, 15 with the fifth.
 
 Reasons a row closes its room: `not found`, `not the class listed`, `another mesh`, `another number of instances`,
 `another place`, `its instance did not read`, `it is hidden already`, `its collision did not read`,
@@ -454,12 +524,12 @@ neither pak.
   black. Only `D107` reads as a lit room there. The brighter captures of the build used a sky fill that is not in
   the levels. In the third build `D106`'s door side and `D049`'s back wall read dark. What else lights a room in game
   is not known.
-- The path each instanced component takes of the two above. How long the pieces of the 8 components that store
+- The path each instanced component takes of the two above. How long the pieces of the 15 components that store
   `CastShadow` false stay drawn while the new tree is built. `D092`'s two shutters are among them.
 - The doorway's look. SB's door unit baked its shadow onto the pieces around it. Our facade has two materials. In
   four rooms a strip under the facade is closed by other pieces of SB. In `D158` a strip 7 cm high stays open
   under the floor line. `D107` has a wall edge of another colour.
-- Other pieces of SB in a doorway. The 41 rows are the pieces the room layouts found. SB's levels were not searched
+- Other pieces of SB in a doorway. The 62 rows are the pieces the room layouts found. SB's levels were not searched
   for more. SBO Xion keeps `E04_Blocking_VOL`, with 409 blocking volumes: none was checked against the doorways.
 - A closed room at `D009`, `D049` or `D106`. Our facade piece stands where SB's wall panel stands. If a row fails
   there, the panel stays and the two may flicker from the street.
@@ -469,21 +539,40 @@ neither pak.
 - The cost of the pass. Each room's line carries its ms.
 - EVE in the doorway at `coop xion rooms off`. SB's door unit comes back around her.
 
+### What the fifth build leaves open
+
+Nothing of the fifth build has run in game. Its levels were built and read back in the editor and checked in the
+pak outside the game.
+
+- The twins of `E04_Area02_Object_D_04`. Hiding both copies of a piece was not seen in game. If one copy were not
+  found, its room would stay closed as a whole.
+- The actor name `Actor7*` of `D029`'s wire. If the engine does not find it under that name, `D029` stays closed and
+  its line names the wire.
+- Light. In editor captures on the rooms' own lights the watch post of `D111` reads 85.5 on the editor's brightness
+  measure, 3 over its flood limit. The new pendant of `D029` puts a hard pool of light on its right wall by the door. 22
+  of the 43 new lights cast shadows. Their cost in game was not measured.
+- The inner doorways of `D087`: SB's portal has a bottom rail, which reads as a low sill.
+- Collision of the new floor planes and of the pieces, in the street doorways and in the inner ones.
+
 ### Testing them in game
 
-Install a pak of 24 November with the game closed: copy its three files over the three in `SB/Content/Paks/~mods`. The
-third build of the full test pak has all ten rooms of the list. The pak's own `INSTALL.md` has the commands, the three
+Install a test pak with the game closed: copy its three files over the three in `SB/Content/Paks/~mods`. The fifth
+build of the full test pak has all fifteen rooms of the list. The pak's own `INSTALL.md` has the commands, the three
 hashes and the way back. Never keep two containers that hold `Xion_P`. Install it together with a build of the mod that
-has this part. An older build hides nothing: the rooms then stand behind SB's closed doors.
+has this part. An older build hides nothing: the rooms then stand behind SB's closed doors. A build of 25 November
+moves EVE into `D029`, `D109` and `D111` of the fifth build under a black screen: install the fifth build with this
+module or a later one.
 
 On a co-op save, alone.
 
 1. `coop xion`. Within 5 s the log has `levels: 100 listed, 98 of 98` (`161 listed, 127 of 127` with the full test
-   pak, `167 listed, 133 of 133` with its third build), `rooms: this pak holds 5 of 10 rooms` and five lines
-   `rooms: <room> open`, with 4, 4, 4, 3 and 8 rows. With the third build it reads `10 of 10 rooms`, then ten lines
-   with 4, 4, 4, 3, 8, 4, 5, 2, 3 and 4 rows. Note each ms figure and any hitch.
-2. `coop xion status` reads `pak 1203_1501348` (`1863_1918741` with the third build) and ends with
-   `rooms 5 of 5 open` (`rooms 10 of 10 open`). It names the nearest waypoint.
+   pak, `167 listed, 133 of 133` with its third build, `171 listed, 137 of 137` with its fifth),
+   `rooms: this pak holds 5 of 15 rooms` and five lines `rooms: <room> open`, with 4, 4, 4, 3 and 8 rows. With the
+   third build it reads `11 of 15 rooms`, then eleven lines with 4, 4, 4, 3, 8, 4, 5, 2, 3, 4 and 1 rows. With the
+   fifth it reads `15 of 15 rooms`, then fifteen lines, the last four with 2, 6, 9 and 3 rows. Note each ms figure
+   and any hitch.
+2. `coop xion status` reads `pak 1203_1501348` (`1863_1918741` with the third build, `2303_2267202` with the fifth)
+   and ends with `rooms 5 of 5 open` (`rooms 11 of 11 open`, `rooms 15 of 15 open`). It names the nearest waypoint.
    Walk until it reads `nearest waypoint D158`, 35 m east of the city point and 3.7 m higher, near
    (-4798, 6917, 596).
 3. Look at the door from the street. It should be an open doorway with the room behind it, where SB's closed door
@@ -493,22 +582,44 @@ On a co-op save, alone.
    along the walls and to the furniture, then jump. Note where EVE passes through a piece or stands on air.
 5. Stand 5 s in the doorway. The log has `at D158`.
 6. Walk out, away from the doorway. `coop xion rooms off`. The log has
-   `rooms: closed (coop xion rooms off): 23 rows put back` (41 with the third build). SB's closed door is back. Walk
-   into it: it blocks. Note any difference from the door SB ships: its light, debris that comes back late.
+   `rooms: closed (coop xion rooms off): 23 rows put back` (42 with the third build, 62 with the fifth). SB's closed
+   door is back. Walk into it: it blocks. Note any difference from the door SB ships: its light, debris that comes back
+   late.
 7. `coop xion rooms on`. The room lines come again. The doorway is open again.
 8. The same at `D011` near (-10901, 3361, 412), `D081` near (-6972, 1706, 475), `D031` near (-5854, 4, 466) and
    `D107` near (8279, -5081, 1374), in the east city. With the third build also at `D036` near (-5705, 7747, 592),
    `D009` near (-12133, 3785, 542), `D049` near (-3711, -52, 347), `D092` near (-1607, -2372, 457) and `D106` near
-   (7872, 2974, 1498). Look at `D039` near (-4743, -8, 461) too: its shutter should stay closed as SB ships it.
+   (7872, 2974, 1498) and `D039` near (-4743, -8, 461), between SB's two props. With the fifth build also at the
+   four doors of [Testing the fifth build](#testing-the-fifth-build).
 9. Press Ctrl+R in the UE4SS console, inside SBO Xion. The log has
-   `rooms: an earlier Lua load left 23 rows hidden: 23 put back` (41 with the third build), then the room lines.
-10. `coop xion leave`. The log has `rooms: closed (a map change): 0 rows put back, 23 gone already` (41 with the
-    third build). If the co-op save is in SB's Xion, look at one of the doors there: it is closed as SB ships it.
+   `rooms: an earlier Lua load left 23 rows hidden: 23 put back` (42 with the third build, 62 with the fifth), then
+   the room lines.
+10. `coop xion leave`. The log has `rooms: closed (a map change): 0 rows put back, 23 gone already` (42 with the
+    third build, 62 with the fifth). If the co-op save is in SB's Xion, look at one of the doors there: it is closed
+    as SB ships it.
 11. `coop xion` again, then `coop off` outside a doorway. The log has `rooms: closed (coop off): 23 rows put back`
-    (41 with the third build).
-    The door is closed again.
+    (42 with the third build, 62 with the fifth). The door is closed again.
 
 A room whose line reads `closed` keeps SB's door. Send that line: it names the row and the reason.
+
+### Testing the fifth build
+
+With the fifth build of the full test pak and this module, on a co-op save, alone:
+
+1. `coop xion`. The log has `levels: 171 listed, 137 of 137`, `rooms: this pak holds 15 of 15 rooms` and the lines
+   `rooms: D087 open: 2 rows hidden`, `D111 open: 6 rows`, `D109 open: 9 rows` and `D029 open: 3 rows`.
+2. Walk until `coop xion status` reads `nearest waypoint D029`, 31 m from the city point near (-6118, 4972, 212).
+   From the street the courier office should show through an open portal where SB's door unit stood, with no gap
+   beside it. Walk in. No black screen comes. Walk along the walls, to the counter and the racks, then jump.
+3. `D087` near (-2313, -1273, 457), 104 m from the city point: walk through the storefront's doorway into the
+   canteen, then through each inner doorway into the kitchen back room and the wash house.
+4. In the east city, `D109` near (9250, 1494, 1354): the bookshop, then the goods store through its inner doorway.
+   `D111` near (10640, 890, 1462): the radio room, then the watch post.
+5. `D039` near (-4743, -8, 461): walk between SB's two props into the growing room.
+6. In each room note a room too dark above eye height, a bright pool of light, a lamp that glows through a wall, a
+   hole in a facade or a piece of SB left in a doorway.
+
+Send the `rooms:` lines of `UE4SS.log` and what you noted.
 
 ## The Tetrapod's door
 
@@ -545,9 +656,14 @@ at each custom channel's own default: Ignore for `Water`,
 now sets the profile by its name and no channel of its own. Which of those channels killed her was not traced.
 
 The ship's level is loaded by volume, so it may come in after EVE. After the way in the module watches her until
-she walks. When she reads 60 cm under the point, it puts her on the point again and asks the ship again if it was
-not found. A black that is up at once comes every 1.5 s while that lasts. After 8 s with no floor she is put back
-outside.
+she walks. It asks the ship again on each pass while its last call made no part solid. When she reads 60 cm under
+the point, it puts her on the point again. A black that is up at once comes every 1.5 s while that lasts. After 8 s
+with no floor she is put back outside.
+
+In the third game test (26 November 2026, build v0.11.0-1202) EVE came back from a death in the ship and walked in
+again. After the respawn SB showed `E04_Area05_B_LD` only once she was inside, so the call before the move made
+0 parts solid. The watch then asked again only for a ship not found and she fell for 8 s. It now asks again while
+the call writes no part.
 
 | Line in `UE4SS.log` | Meaning |
 | --- | --- |
@@ -555,6 +671,7 @@ outside.
 | `sboxion: tetrapod: in asked (EVE stood 2 passes at (x, y, z)); black up in 0.3 s; EVE moves in 2 passes` | EVE stood in the doorway. `out asked` is the same from the ship's door. After `asked (coop xion tetrapod in)` the command asked it |
 | `sboxion: tetrapod: in: EVE at (16638, -24558, -1852), yaw -132.2` | The move was made. `out: EVE at (-13413, 18383, 82), yaw -87.2` is the way out |
 | `sboxion: tetrapod: in: EVE stands in the ship after n passes, 124 parts solid` | She walks on the ship's floor. `ship not found` in place of the parts: the ship's actor was not in memory |
+| `sboxion: tetrapod: in: ship solid after n passes: 124 parts` | The call at the move made no part solid. A later one did |
 | `sboxion: tetrapod: in: no floor yet under EVE at (x, y, z): on the point again (...)` | She fell 60 cm. Said once a way in |
 | `sboxion: tetrapod: in: no floor under EVE after 32 passes (...): back outside` | 8 s with no floor. She is at SB's point in front of the Tetrapod |
 | `sboxion: tetrapod: in: EVE is out of the ship at (x, y, z) before she stood: the watch ends` | The recovery moved her |
@@ -568,6 +685,8 @@ log read `EVE stands in the ship after 1 passes, 124 parts solid`, so the ship w
 two tests left open:
 
 - Whether EVE lives in the ship with SB's `BlockAll`. With every channel blocked she stood on its floor and died.
+  In the third game test (26 November 2026) the 124 parts had `BlockAll` as she arrived and she was dead one pass
+  later, 7 cm from the point, with no fall. [The probe](#the-probe) looks for the part that kills her.
 - Whether the point inside is free floor. In the second test it lay 10 cm in the floor and the engine pushed her up
   and aside. It now lies 3 cm over the place where she stood. That point was not seen in game.
 - Whether EVE can reach the box in front of the right door. The step is on that side by the bounds of the floor
@@ -583,6 +702,249 @@ Testing it in game, alone, on a co-op save, with the full test pak:
 4. Walk to the door on the ship's right side and stand in front of it. The screen fades and EVE stands in front of
    the Tetrapod of the hangar. If nothing happens, `coop xion tetrapod out`.
 5. Send `UE4SS.log` with the `tetrapod:` lines.
+
+### The probe
+
+With no part solid EVE falls through the ship and lives, even held on the point for 8 s. With the 124 parts solid
+at once she dies one pass after she arrives. `coop xion tetrapod probe` makes them solid one at a time to find the
+part that kills her. It is a test tool: it shows nothing on screen and writes its lines to `UE4SS.log`.
+
+| Command | Parts made solid |
+| --- | --- |
+| `coop xion tetrapod probe` | 1 to 124, one more each pass |
+| `coop xion tetrapod probe <n>` | n to 124, one more each pass. Parts 1 to n-1 stay as SB ships them |
+| `coop xion tetrapod probe only <n>` | n alone |
+
+It runs inside SBO Xion when the door is idle: no move, no watch after the way in and no other probe under way.
+Another word, a part out of 1 to 124 or one word too many gives the use line.
+
+The probe puts the ship back as SB ships it, then makes the move of the way in under SB's black. That also clears parts
+a Lua reload left solid. Each pass that reads EVE 60 cm under the point puts her on it again, as the watch does. Each
+pass asks for the ship's parts until they are in memory. After 32 passes (8 s) without them she is put back outside.
+Then each pass (250 ms) gives one more part `BlockAll`, in the order the engine lists them, with one log line. A part
+the engine names otherwise than the first list did is not written and the door goes off.
+
+Each pass first reads EVE's life in the `life=` word of the `sboxionwarp=` line, the word the death rule reads. A
+value of 3 to 5, which the death rule takes for dead, ends the probe: one line names the last two parts made solid
+and no more part is written. [The recovery](#a-death) then handles the death as it does after any death. Eight
+passes after the last part with EVE alive, one line says so and the probe ends. If she stands she stays where she is
+and the way out works as usual. If she does not stand she is put back outside with the ship as SB ships it. The way
+out and `coop off` put the ship back too.
+
+| Line in `UE4SS.log` | Meaning |
+| --- | --- |
+| `sboxion: tetrapod: probe asked (coop xion tetrapod probe ...); black up in 0.3 s; EVE moves in 2 passes` | The command was taken |
+| `sboxion: tetrapod: probe: EVE at (16638, -24558, -1852), yaw -132.2` | The move was made with no part solid |
+| `sboxion: tetrapod: probe: no floor yet under EVE at (x, y, z): on the point again (n parts solid)` | She fell 60 cm. Said once a probe |
+| `sboxion: tetrapod: probe: ship found after n passes: 124 parts, one more made solid each pass from part 1` | The parts are in memory. With `only` it ends in `part n alone made solid` |
+| `sboxion: tetrapod: probe: part 5/124 <component> (<mesh>): NoCollision, now BlockAll; EVE at (x, y, z), mode 3, life 1` | Part 5 got `BlockAll` in this pass: its profile before and after, then EVE's place, movement mode (1 walking, 3 falling) and life (1 alive, 3 dead) at the start of the pass. `life ?`: the status text has no `life=` word, so the probe cannot see a death |
+| `sboxion: tetrapod: probe: EVE dead (life 3) at (x, y, z), mode 3, n passes without walking; last part made solid 5/124 ..., the pass before 4/124 ...; no more part is written` | She died. `no part made solid` when she died before the first part |
+| `sboxion: tetrapod: probe: EVE lives with parts 1 to 124 solid, 8 passes after the last one, at (x, y, z), mode 1: the probe ends` | No part killed her. With `only` it reads `part n alone`. When she does not stand the line ends in `the probe ends, back outside with no floor` and she is at SB's point in front of the Tetrapod |
+| `sboxion: tetrapod: probe: no ship parts after 32 passes: back outside` | The parts never came. She is at SB's point in front of the Tetrapod |
+| `sboxion: tetrapod: probe: EVE is out of the ship at (x, y, z): the probe ends` | The recovery moved her |
+| `sboxion: tetrapod: door off until the next arrival: error (no part n: the ship has m)` | The engine listed fewer parts than n. `the ship is not in memory any more`: its level went while the probe wrote. `part n is A now: the list had B`: the engine lists the parts in another order, so part n was not written |
+
+Running it, alone, on a co-op save, with the full test pak:
+
+1. `coop xion`. Anywhere in SBO Xion, type `coop xion tetrapod probe`. The screen fades and EVE falls in the ship.
+2. Wait for a line with `probe: EVE dead` or `probe: EVE lives`: about 35 s for 124 parts.
+3. After `EVE dead`, run `coop xion tetrapod probe only <n>` for the last part it names, then for the part of the
+   pass before. The one after which she dies again is the part.
+4. Send `UE4SS.log` with the `tetrapod:` lines.
+
+What the result means:
+
+- `EVE dead` with a last part n: the life is read before the pass writes, so part n is the first suspect. The
+  part of the pass before is named too, in case the death reached the status text one pass late. `only` tells them
+  apart.
+- `EVE dead` after 40 passes or more without walking: SB's own fall timer kills an EVE who falls for 10 s
+  ([Falls and deaths](#falls-and-deaths)). A part may not be the cause. Run `probe only <n>` on the parts named.
+  `probe <n>` leaves parts 1 to n-1 without collision, so a floor part among them gives her no floor.
+- `EVE lives with parts 1 to 124 solid`: no part killed her once she was inside. In the third test the parts were
+  solid before she arrived.
+- In the third test the `respawn result` line after her death in the ship read life 1 and mode 1. The 124 parts
+  were still solid then: only the way out put them back. That line gives no place. If the respawn left her in the
+  ship, a death right after the part that first gives her a floor may come from her arrival on it, not from that
+  part. Each part line gives her mode: the first `mode 1` shows where she stood.
+- `no ship parts after 32 passes`: the ship's level was not shown. Run the probe again.
+
+## The NPCs
+
+A room or the underground district can hold an NPC. None of this has run in game.
+
+An NPC is a display body: a plain engine actor with one skeletal mesh of Stellar Blade that loops one animation
+clip. It has no collision. It is no character of SB: no table row, no AI, no Talk prompt of SB, nothing that can
+fight, die or reach a save. Each game makes its own body. `world/maps/matrix13/level/mila.lua` shows Mila the same
+way.
+
+`npcs/npcs.lua` lists eleven NPCs: the pilot below and the ten of [the underground
+district](#the-underground-district).
+
+| NPC | Room | Where | Mesh | Clips |
+| --- | --- | --- | --- | --- |
+| The repairer | `D011`, the repair shop | At the workbench with the tool board, (-10932, 3145, 414), facing the bench | `CH_NPC_EngineerMale` | 1 `N_Engineer_Work1`, 2 `_Work2`, 3 `_Work3`, 4 `_Dusting`, 5 `_Snooping`, 6 `_Idle` |
+
+The mesh and the six clips are on one skeleton. Their entries in the game's `pakchunk0` (build 26123051) all import
+`CH_NPC_EngineerMale_Skeleton`. The place comes from the room's layout: the room's origin plus the spot (132, -347)
+turned by the room's inward yaw of -70 degrees. The module turns the mesh 90 degrees more, since a skeletal mesh of
+SB faces its +Y axis. That last point is an inference, so `coop xion npc turn` exists.
+
+The body appears when EVE is within 30 m of its place and the room's level is loaded and visible. It goes when she
+is 35 m away, at a map change and at `coop off`. A room whose level is not there keeps it away: the module asks
+again every 2 s. A pak that does not hold the room has no NPC for it and reads no level. A body that cannot be made
+is said once and is not tried again until the next arrival or a `coop xion npc` pick. A body the engine dropped is
+made again, three times a stay at most.
+
+When EVE is inside the room and within 3 m of the body, the NPC's line shows once in the feed, or on the line above
+EVE when the feed is off, as `<name>: <line>` in the menu's language. It shows again only after she went 6 m away.
+Nothing is said to EVE in the street: the room's door wall stands between them. The words are in the 22 language
+files under `ui/text/` (`xion`).
+
+The repairer stands at the short end of the workbench, 1.3 m inside the door on its left side. The long side of the
+bench has a stool in the line of the doorway. He has no collision, so EVE walks through him.
+
+`coop-xion-npcs.txt` in the mod folder holds the actor path of each body. The next Lua load (Ctrl+R) removes a body
+the earlier load left.
+
+### What the log shows for an NPC
+
+| Line in `UE4SS.log` | Meaning |
+| --- | --- |
+| `sboxion: npcs: repairer stands in Xion_Rooms_D011 at (-10932, 3145, 414), yaw -160, clip N_Engineer_Work1` | The body was made |
+| `sboxion: npcs: repairer stays away: this pak does not hold Xion_Rooms_D011` | Each arrival with a pak that has no such room |
+| `sboxion: npcs: repairer stays away: its level Xion_Rooms_D011 reads loaded false visible false` | The room's level is not there yet. Once a stay |
+| `sboxion: npcs: repairer lost its body 3 times: not made again in this stay` | The engine dropped his actor three times |
+| `sboxion: npcs: repairer has no body: <why>` | The mesh or the clip is missing on this PC, or the engine refused the actor. Once a stay |
+| `sboxion: npcs: repairer spoke, EVE 300 cm away` | The line was shown |
+| `sboxion: npcs: repairer shown, clip 4 N_Engineer_Dusting, turned 90` | A `coop xion npc` pick |
+| `sboxion: npcs: off until the next arrival: error (...)` | A pass raised. Every body is removed |
+
+### Testing the NPC in game
+
+1. `coop xion`, then walk to `D011`, 46 m from the city point. The log has the `stands in` line when EVE is within
+   30 m.
+2. Walk in. Does he stand on the floor in front of the workbench, facing it? If he faces another way, try
+   `coop xion npc turn 90`, `-90` or `180` and note the value that is right.
+3. `coop xion npc 1` to `6`: note which clips read as work at a bench.
+4. Walk up to him. His line shows once. Walk 6 m away and come back: it shows again. In the street, close to the
+   shop's wall, nothing shows.
+5. Open photo mode, then leave it. Walk 40 m away and come back. Type `coop off`. Is a body left anywhere?
+
+Send the `npcs:` lines of `UE4SS.log`.
+
+## The underground district
+
+The sixth full test build (27 November 2026) adds a district of SBO's own under the lower street: district 1 of the
+underground city, the Arch Quarter. The seventh build of the same day builds its two levels again. None of it has run
+in game.
+
+The way down starts at the gate G18 on the lower street (`MainStreet_04`), at (252, 4408, -228). Behind the gate,
+SB's brick tunnel runs 14.9 m (4.4 m wide, 5.8 m high) to a far arch at (1300, 5308). SB's floor stops 1.5 to 2 m
+past that arch. The district's three flights of stairs start there and go down 8.84 m to a deck at Z -1100. The
+deck is 40.32 x 45.93 m. It holds the Arch Court, the Gate Yard, the Frame Yards, the Arch Market with six stalls,
+two homes of two rooms each, a repair room and a store room. Every piece names one of Stellar Blade's meshes, which
+loads from the player's own game files. EVE walks down on stairs and decks: there is no warp, no black screen and no
+loading screen on the way.
+
+The district is two levels on the streaming list of `Xion_P`, under the folder of the rooms:
+
+| Level | What it holds | Pieces | Lights | Streaming slot |
+| --- | --- | --- | --- | --- |
+| `/Game/SBO_World/Rooms/Under_D1_Arch` | The stairs, the deck, the court, the yards and the market | 382 | 23 | `LevelStreamingDynamic_54` |
+| `/Game/SBO_World/Rooms/Under_D1_ArchHomes` | The homes, the repair room, the store room and their lanes | 203 | 16 | `LevelStreamingDynamic_56` |
+
+Both slots name volumes in E04 as SB ships them. The build makes them always loaded, so the module counts both
+levels among the always-loaded ones. No level on such a slot has been seen loading in game yet.
+
+### The gate
+
+G18 is the last entry of `rooms/list.lua`. Its level is `Under_D1_Arch`, so only a pak that holds that level opens
+the gate. The module opens it once `Under_D1_Arch` and `E04_Area02_Object_F_04` read loaded and visible, the same
+way it opens a room. It hides the six pieces of SB that close the gate, all of `E04_Area02_Object_F_04`'s
+`Actor_1`:
+
+| Piece | Component | Row kind |
+| --- | --- | --- |
+| A crate, `Deco/Box/013_A_SM` | `HierarchicalInstancedStaticMeshComponent_17`, instance 0 of 3 | an instance |
+| The crate on it | the same component, instance 1 | an instance |
+| The lower fence panel, `Deco/Fence/004_E_SM` | `HierarchicalInstancedStaticMeshComponent_8`, instance 0 of 2 | an instance |
+| The upper fence panel | the same component, instance 1 | an instance |
+| The red tarp, `Deco/Tarp/001_D_SM` | `StaticMeshComponent_37` | a whole component |
+| A barrel, `Deco/Barrel/008_A_SM` | `HierarchicalInstancedStaticMeshComponent_9`, instance 1 of 2 | an instance |
+
+The two fence panels close the tunnel's near arch from the floor to 5.07 m. The other barrel stays on the street
+side. Its pivot is 0.60 m in front of the gate and 1.78 m to one side. No other piece and no volume stands between
+the street and the tunnel. Each row was checked against the level dump of build 26123051.
+
+On the way from the street to G18 the furniture piece `Deco/Furniture_004/030_A_SM` of `E04_Area02_Object_A_03` seemed
+to block the lower street. Its mesh carries no cooked collision. The game then keeps only its one box element:
+41 x 31 x 133 cm on one instance, 31 x 23 x 99 cm on the other. So the module hides nothing there. An in-game walk is
+the last check of that.
+
+### Falls over the district
+
+The district has its own floor for [the recovery](#falls-and-deaths). `data.lua`'s `UNDER` is a box in the
+district's grid: u along yaw 40 and v along yaw 130, in metres from the world origin, u -3.25 to 57.54 and v 21.83 to
+91.44. It holds every piece of the district with 10 m more on each side. Inside it EVE at or above Z -1275 is on
+ground and EVE under it has fallen. -1275 is the top of SB's fall volume `SBEffectVolume_Xion10_03`, which lies under
+the whole box, 175 cm under the deck. A fall off the deck is caught there, not 21.75 m lower at -3275. Outside the
+box the floor stays -3275.
+
+In the box, SB's collision under Z -1180 is two pieces of `Architecture/Ceiling/003_B_SM` standing on their edge,
+10 cm thick, with no floor to stand on.
+
+### The district's NPCs
+
+Ten display bodies of the kind [the NPCs](#the-npcs) describes, each at its spot and facing of the district's
+layout:
+
+| NPC | Level | Where | Mesh | Line |
+| --- | --- | --- | --- | --- |
+| `d1_gate_guard` | `Under_D1_Arch` | Beside the foot of the arch stair, 1 m off its last flight, (-586, 5835, -1100) | `CH_NPC_XionGuard` | You came down the arch stair? Then you found us. |
+| `d1_storyteller` | `Under_D1_Arch` | In the Arch Court, by the globe | `CH_NPC_CitizenMale_B` | Before the city was hung here, this was all falling air. |
+| `d1_porter` | `Under_D1_Arch` | In the Gate Yard | `CH_NPC_ScavengerFemale_A` | Everything that comes down, comes down that stair. |
+| `d1_welder` | `Under_D1_Arch` | In the Frame Yards | `CH_NPC_EngineerMale` | Stand back from the sparks. |
+| `d1_stall_keeper_1` to `_3` | `Under_D1_Arch` | Behind three counters of the Arch Market | `CH_NPC_CitizenFemale_A`, `CH_NPC_ScavengerFemale_A`, `CH_NPC_CitizenMale_C` | Fresh from the upper streets. Cells, cable, anything that still works. Ask before you touch. |
+| `d1_resident_a` | `Under_D1_ArchHomes` | In the front room of home A | `CH_NPC_CitizenMale_A` | Mind the curtain, it keeps the dust out. |
+| `d1_mechanic` | `Under_D1_ArchHomes` | In the repair room | `CH_NPC_EngineerMale_B` | Bring me what the upper streets threw away. |
+| `d1_resident_b` | `Under_D1_ArchHomes` | In the front room of home B | `CH_NPC_CitizenFemale_A` | We came down when the stairs were finished. |
+
+Each mesh and its clips import one skeleton in `pakchunk0`: `CH_NPC_XionGuard_Skeleton`,
+`CH_NPC_CitizenMale_A_Skeleton` (the A, B and C meshes), `CH_NPC_CitizenFemale_A_Skeleton`,
+`CH_NPC_ScavengerFemale_A_Skeleton` or `CH_NPC_EngineerMale_Skeleton`. The pak gate is asked for each NPC's own
+level. A body waits for its level to read loaded and visible.
+
+The lines are first drafts in English, translated into the 22 language files. The deck's NPCs talk on the deck side
+of the deck's north edge, the market's on the market side of its north mouth, the residents and the mechanic
+inside their rooms. The street over the deck is 8.7 m up or more, past the 3 m of a line.
+
+### What the seventh build leaves open
+
+- The deck's collision top meets the walk at Z -1100, where EVE, the props and the NPC spots stand. The plates' drawn
+  grating lies 3.8 cm lower. Low mounds drawn on the plates rise up to 13 cm over the walk, some of them under props.
+- The district has no `SBEnvControlVolume` of its own and its props carry no `LDMaxDrawDistance`.
+- The pieces use the collision profiles the editor gave them: 560 block and 25 let EVE through. Not tested in game.
+- `coop xion rooms off` puts G18's pieces back too. With EVE below the gate she then cannot walk out until
+  `coop xion rooms on`.
+
+### Testing the district in game
+
+With the seventh build in `SB/Content/Paks/~mods`, on a co-op save, alone.
+
+1. `coop xion`. Within 15 s the log has `levels: 173 listed, 139 of 139`, `rooms: this pak holds 16 of 16 rooms`
+   and `rooms: G18 open: 6 rows hidden`.
+2. Walk to the gate G18 on the lower street. `coop xion status` names the nearest waypoint, `G18` within a few
+   metres there. Note whether the walk from the street reaches it, past the furniture of `E04_Area02_Object_A_03`.
+3. The crates, the fence, the tarp and one barrel are gone. Walk through the tunnel to the far arch and down the
+   three flights. Note any step that stops EVE or drops her.
+4. On the deck the log has `npcs: d1_gate_guard stands in Under_D1_Arch`. Walk up to him: his line shows once.
+5. Walk through the court, the yards, the market, both homes, the repair room and the store room. Note the props
+   and the NPCs' feet over the deck, the light and any piece EVE walks through.
+6. Jump over a deck rail (the rails stand 81 cm over the deck). The log has `black:`, then `fall: EVE at ... under
+   the floor of the underground district` and `put back: EVE walks`. EVE stands on the deck again.
+7. Walk back up the stairs and out through the gate, then `coop xion leave`.
+
+Send the `[SX]` lines of `UE4SS.log`.
 
 ## The full test pak
 
@@ -610,6 +972,9 @@ another mod.
 The third build lists 167 levels, 133 always loaded. Its six more room levels take the streaming slots of six levels
 of the list below, which the set never shows: `E04_Area01_Light_OFF_VER`, `E04_Area02_Light_OFF_VER`,
 `E04_Area02_Light_Night`, `E04_Area04_Light_Night`, `E04_Area06_Light_A_01_Battle` and `E04_Area06_FX_A_01_Battle`.
+The fifth build lists 171 levels, 137 always loaded. Its four new room levels take four slots of levels the set
+leaves out, slots that name no volume: `LevelStreamingDynamic_138` (`E04_Area01_A_LD_5Phase_Unload`), `_141`
+(`E04_LD_RavenBeast_01`), `_101` (`E04_Area07_Architecture_B_02`) and `_142` (`E04_LD_Mann`).
 
 24 levels of SB's Xion stay out: 5 light variants for the night and the story phases before the day light, the
 chamber's battle state (2), 4 light phases of the hyper drive room, the 6 cutscene levels, the theater set, one far
@@ -636,7 +1001,9 @@ What the 47 level-design levels hold, read in the paks of build 26123051:
 The same as with the rooms pak. The rooms open as before. The recovery catches EVE under Z -3275 while the zone is
 `Zone_SBO_Xion` and waits while it is another. The levels line counts the 34 volume levels apart. The look lines say
 what wakes up ([What the log shows](#what-the-log-shows)). Nothing pins the pak's version: `coop xion status` prints
-`pak 1203_1501548`, `pak 1203_1546008` for the second build and `pak 1863_1918741` for the third.
+`pak 1203_1501548`, `pak 1203_1546008` for the second build, `pak 1863_1918741` for the third, `pak 2719_2331195`
+for the fourth, `pak 2303_2267202` for the fifth, `pak 2560_2610974` for the sixth and `pak 2560_2612399` for the
+seventh.
 
 ### What is not known
 
@@ -668,9 +1035,11 @@ type 5 and area `Zone_SBO_Xion`. If it reads anything else, Stellar Blade took E
 triggers, its saves and its warps then work again. Stop walking. Do not jump. Leave by Stellar Blade's title menu:
 `coop xion leave` is refused outside `Zone_SBO_Xion`. Then put the copied co-op saves back.
 
-1. `coop xion`. Do not move. Within 15 s the log has `levels: 161 listed, 127 of 127` (`167 listed, 133 of 133` with the
-   third build), the `rooms: <room> open` lines (five, or ten with the third build), a `characters:` line,
-   `zone: zonetype 5 area Zone_SBO_Xion` and `life: 1`. Note any hitch.
+1. `coop xion`. Do not move. Within 15 s the log has `levels: 161 listed, 127 of 127` (`167 listed, 133 of 133` with
+   the third build, `171 listed, 137 of 137` with the fifth, `173 listed, 139 of 139` with the sixth and the
+   seventh), the `rooms: <room> open` lines (five, eleven with the third and fourth builds, fifteen with the fifth,
+   fifteen and `G18` with the sixth and the seventh), a `characters:` line, `zone: zonetype 5 area Zone_SBO_Xion`
+   and `life: 1`. Note any hitch.
 2. `coop xion status`. Note the look part: the count of characters, the nearest one, the zone.
 3. Stand still for 2 minutes, then walk on the arrival square for 1 minute. Stay out of the box 7 m to the north
    around (-8340, 6502, 403): a trigger of Stellar Blade's camp warp stands there. Note every NPC, guard or merchant,
@@ -725,7 +1094,7 @@ Each line below is one proof of the test. They are in `UE4SS.log` unless said.
 | `sboxion title: the rows are in, before any save loads` and `sboxion rows: 2/2 in` | The two rows went in at the title and read back as written |
 | `sboxion enter: zone row found, type 5, world row found, call 1, to (x, y, z) yaw y, queue q, last save t` (`coop-link.log`) | The native guards passed and SB's warp returned 1 |
 | `sboxion: arrived, map /Game/SBO_World/Xion_P, zone Zone_SBO_Xion, EVE at (x, y, z)` | EVE stands in SBO Xion |
-| `sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none; by volume: 2 listed, 2 loaded, 2 visible` | Every always-loaded sublevel loaded from the game's own files. With the rooms pak: `100 listed, 98 of 98`. With the full test pak: `161 listed, 127 of 127`. The levels streamed by SB's volumes (the 34 of `data.lua`'s `VOLUMED`, two with the older paks) are counted, never named as missing: they load and show where SB's volumes say |
+| `sboxion: levels: 95 listed, 93 of 93 always-loaded ones loaded and visible, missing: none; by volume: 2 listed, 2 loaded, 2 visible` | Every always-loaded sublevel loaded from the game's own files. With the rooms pak: `100 listed, 98 of 98`. With the full test pak: `161 listed, 127 of 127`, its fifth build `171 listed, 137 of 137`, its sixth `173 listed, 139 of 139`. The levels streamed by SB's volumes (the 34 of `data.lua`'s `VOLUMED`, two with the older paks) are counted, never named as missing: they load and show where SB's volumes say |
 | `sboxion: light: 72 env volumes found, 65 in E04_ENV_VOL, 41 named, 21 changed, CountDown_Posing_ENV active true` | The day table was written |
 | `sboxion: light: 41 of 41 read back as written` | The writes held, 2 s and 10 s after the arrival |
 | `sboxion: characters: 1` | EVE is the only character. With more: `characters: n by class: <class> <count>, ...; nearest: <name> (<class>) d m, ...`. The classes come the most first. Only the five nearest to EVE are named, with the distance in metres. EVE is counted, never among the nearest. Logged at the arrival, 10 s later and at each later look whose count by class or five names differ |
@@ -753,15 +1122,17 @@ Christmas sound actors in `E04_Sound`.
 
 Lua, in `mod/StellarCoop/Scripts/world/maps/sboxion/`:
 
-- `data.lua`: the pak's name, the level, the two rows, the two arrival points, the 14 waypoints (four of the first
-  test walk and the ten doors), the 41 names of the day table, the two probe levels, the 34 levels a pak leaves
-  streamed by SB's volumes (`VOLUMED`) and the recovery's numbers.
+- `data.lua`: the pak's name, the level, the two rows, the two arrival points, the 20 waypoints (four of the first
+  test walk, the fifteen doors and G18), the 41 names of the day table, the two probe levels, the 34 levels a pak
+  leaves streamed by SB's volumes (`VOLUMED`), the recovery's numbers with the district's box (`UNDER`) and the
+  Tetrapod's door.
 - `sboxion.lua`: the pak gate, asked a second time for the room levels, the rows at the title, the commands, the
   arrival and the watch.
 - `recover.lua`: the ground point, the black and the put-back after a fall, the respawn after a death. Its respawn
   block is the module's copy of score attack's. Its ground read is the module's copy of the group's.
-- `rooms/list.lua`: the ten rooms and their 41 rows. `rooms/rooms.lua`: the pass that opens a room once its levels
-  are there, the put-back, `coop xion rooms` and the sweep after a Lua reload.
+- `rooms/list.lua`: the fifteen rooms and their 62 rows, one block a room, with `beside` at `D111`, `D109` and
+  `D029`, then G18 and its six rows. `rooms/rooms.lua`: the pak gate asked for each room, the pass that opens a room once its levels are there,
+  the put-back, `coop xion rooms` and the sweep after a Lua reload.
 - `engine.lua`: the UE4SS calls. Its black call is the module's copy of the lobby's. It also finds, hides and puts
   back a piece of a room's doorway.
   `commands.lua`: `coop xion`. `wiring.lua`: the manifest, export `sboxion`.
@@ -842,14 +1213,32 @@ underground and 47 of the 50 level-design sublevels.
 ## Tests
 
 - `tests/lua/world/maps/sboxion/off_test.lua`: a failure of this module at load turns this module off alone.
-- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes, `rooms` with `on` and `off` and
-  `tetrapod` with `in` and `out` included, `walls` refused, then the wiring's one store, `coop-xion-rooms.txt`.
+- `sboxion_test.lua`: the words of `coop xion`, `recover` with its three modes, `rooms` with `on` and `off`,
+  `tetrapod` with `in`, `out` and `probe` with the words after it and `npc` with its two words included, `walls`
+  refused, then the wiring's two stores (`coop-xion-rooms.txt`, `coop-xion-npcs.txt`) and an NPC's line in the
+  menu's words.
+- `npcs/npcs_test.lua`: the list (names with words in 22 languages, a line within the feed's 200 bytes, each spot on
+  its side of its frame, the repairer's spot from D011's frame, the district's ten in its two levels at Z -1100 inside
+  the district's box), the gate asked for each NPC's level, the ten kept away by a pak without the district, the
+  seven deck bodies and two lines beside the gate guard, nothing said from the street over the deck, no body far away, without the room's level or with a pak that lacks the room,
+  the body with its turn and clip, the talk once inside the room and again after 6 m, nothing said through the
+  wall, the body gone past 35 m, a dropped body made again three times at most, a body or a clip that fails,
+  `coop xion npc`, the sweep of an earlier load's body, `stop()` and an error in a pass.
+- `engine_test.lua` also covers the six body calls of `engine.lua`.
 - `tetrapod_test.lua`: the ship frame, the way in and the way out with SB's black, the hold after a move, the count
   that starts again, a busy recovery, a refused teleport, an error that turns the door off and the command. Then the
   floor: the ship made solid before the move and put back at the way out and at `coop off`, EVE put on the point
-  again while she falls, the end after 32 passes and a recovery that moved her out.
+  again while she falls, the ship asked again while a call wrote no part, the end after 32 passes and a recovery
+  that moved her out. The door has no `busy()`. Then the probe: its words and their refusals, the wait for a watch,
+  the ship put back before the move with no part solid, the parts asked each pass and the end after 32 passes, one
+  part a pass in the engine's order with its line, the stop at a life of 3 to 5 with the last two parts, the end 8
+  passes after the last part with EVE put outside when she does not stand, `probe <n>`, `probe only <n>`, a ship
+  with fewer parts, a part named otherwise, a ship gone from memory, no `life=` word, a recovery that moved her out,
+  `coop off` and an arrival.
 - `engine_test.lua` holds the call on the ship's parts: SB's `BlockAll` by a name the game has made, `NoCollision`
-  at the put-back, nothing written with no actor in memory.
+  at the put-back, nothing written with no actor in memory. The probe's two calls: the list of the living parts
+  with their names and profiles, one part written by its number, a number with no part, a part with another name
+  and a missing profile name raising before any write.
 - `rows_test.lua`: the Lua rows against `sboxion_rows.h`, the IDs 7131 and 1000131, no name ending in `_<digits>`,
   the 41 names of the day table.
 - `title_test.lua`: no ask without the pak, none on the player's own saves, one ask on the co-op save files, the
@@ -865,26 +1254,35 @@ underground and 47 of the 50 level-design sublevels.
   death answered with her GUID, the hidden death screen shown again at a map change and at `coop off`, `coop xion
   recover`, the mode back to `on` at an arrival and the status line's part. For the rooms: with the pak of
   23 November one line an arrival, the pak read once more a Lua load, no piece asked; with the five room levels in
-  the pak the five rooms opened in the arrival's pass, with two of them those two, with the eleven of the third
-  build the ten of the list, their part of the status, `coop xion rooms`, no row called
-  once a map change took the world, every row put back at `coop off`, the recovery ended before the rooms close at
-  `coop off` and at a map change.
+  the pak the five rooms opened in the arrival's pass, with two of them those two, with the third build the eleven,
+  their part of the status, `coop xion rooms`, no row called once a map change took the world, every row put back at
+  `coop off`, the recovery ended before the rooms close at `coop off` and at a map change. With the fourth build's
+  175 levels the eleven open and no line names its eight closed rooms. With the fifth build's 171 levels the fifteen
+  open with 62 rows, the level line reads `171 listed, 137 of 137`, the five newer doors are waypoints and `coop off`
+  puts the 62 rows back. With the sixth build's 173 levels the level line reads `173 listed, 139 of 139`, the
+  sixteen open with 68 rows, G18 is a waypoint and `coop off` puts the 68 rows back.
 - `recover_test.lua`: the ground point, the fall with its black and the move two passes later, a black that is not
   shown, the move dropped or held back like a check, each guard, the check on the world's time, the two failures
   that stop the recovery, then the death with score attack's respawn cases and this module's own (no death screen
-  for 5 s, a respawn that leaves EVE off the ground, a death left from the mode `off` or read during a wait).
+  for 5 s, a respawn that leaves EVE off the ground, a death left from the mode `off` or read during a wait). Over
+  the underground district: the deck is ground, a fall under -1275 goes back to the deck with its own words, walking
+  under -1275 records nothing, the same height outside the box is ground and each side of the box holds 10 cm in and
+  out.
 - `engine_test.lua`: the UE4SS calls over fake objects, the recovery's included: one read of EVE a pass, no stop call
   after a refused teleport, the black's call and its three answers, the respawn's request, the death screen hidden
   and shown again. No wall call is left. For a piece of a doorway: found by its names and refused for another
   class, mesh, place or instance count, a whole component hidden with its two values read first, an instance
   scaled to nothing where it stands, a piece that reads hidden already refused, the put-back and no call on an
   object that is gone.
-- `rooms/list_test.lua`: the ten rooms, their 41 rows as the level dumps gave them, 18 whole components and 23
-  instances of 18 components in 10 sublevels, no piece twice, each door a waypoint.
+- `rooms/list_test.lua`: the fifteen rooms and G18, their 68 rows as the level dumps gave them, 28 whole components
+  and 40 instances of 31 components in 14 sublevels, no piece twice, each twin of `E04_Area02_Object_D_04` listed,
+  `beside` at the three rooms that need it, G18's six pieces in order, each door and G18 a waypoint.
 - `rooms/rooms_test.lua`: one line and no read with a pak that has no room, the five rooms opened in one pass, a
   room that waits for a level and closes after 30 looks, a row not found, a row that cannot be hidden with the rows
   before it put back, the put-back with a world that still stands and with one that is gone, `coop xion rooms`,
-  the store's line and the sweep, a store that raises, a level read that raises.
+  the store's line and the sweep, a store that raises, a level read that raises, a pak of the fourth build that
+  opens eleven rooms and names none of the other three, all fifteen with the fifth, then G18 with the sixth: it waits
+  for `Under_D1_Arch`, then opens its six rows.
 - `tests/native/world/maps/sboxion/sboxion_test.cpp`: one case for each guard of the two requests, the answer word,
   the status line and the log lines, the inside flag and the `life=` word on each form of the line.
 - `tests/native/rows/rows_test.cpp` runs the batch on the row engine. `tests/native/link/protocol_test.cpp` parses

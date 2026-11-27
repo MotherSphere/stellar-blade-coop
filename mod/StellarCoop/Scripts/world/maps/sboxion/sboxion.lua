@@ -29,17 +29,18 @@
 -- (what wakes up in Zone_SBO_Xion and whether the zone changes).
 -- Falls and deaths, each pass of the stay (world/maps/sboxion/recover.lua): the paks of 2026-11-23 and of the rooms
 -- have none of SB's fall volumes. The full test pak's city ones act in Zone_Xion_10 by their rows. So EVE under
--- data.lua's FLOOR is put back on the last place she walked on, or on the arrival point of this stay.
+-- data.lua's FLOOR, or under UNDER's floor in the underground district's box, is put back on the last place she
+-- walked on, or on the arrival point of this stay.
 -- SB's death screen cannot respawn her in this zone, so a dead EVE gets SB's in-place respawn.
--- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test paks of 2026-11-24 add five or eleven
--- rooms behind closed doors of SB's Xion, each a level of the persistent level. The pak gate is asked once a Lua load
--- for each room's level beside Xion_P. Each arrival hides the pieces of SB in the doorway of each room the pak holds
--- once the room's levels are loaded and visible, all rows of a room or none. A map change, coop off and coop xion rooms
--- off put them back. The pak of 2026-11-23 holds no room: one log line an arrival and nothing else.
+-- The rooms, each pass of the stay (world/maps/sboxion/rooms/rooms.lua): the test paks of 2026-11-24 to 26 add five,
+-- eleven or fifteen rooms behind closed doors of SB's Xion, each a level of the persistent level. The pak gate is asked
+-- once a Lua load for each room's level beside Xion_P. Each arrival hides the pieces of SB in the doorway of each room
+-- the pak holds once the room's levels are loaded and visible, all rows of a room or none. A map change, coop off and
+-- coop xion rooms off put them back. The pak of 2026-11-23 holds no room: one log line an arrival and nothing else.
 -- coop xion leave: the request "sboxion leave <zone FName index>". The native part compares the zone with the
 -- client's and calls SB's reload of the co-op save only from SBO Xion, so the request is sent from any map.
 -- coop xion status: the pak, the rows, the native part's last answer, EVE's place, the nearest waypoint, the
--- recovery's state, the rooms' state and the last look.
+-- recovery's state, the rooms' state, the NPCs' state and the last look.
 -- coop xion recover [on|death|off], inside SBO Xion: the recovery's mode until the next arrival, which sets it to on.
 -- death leaves falls alone, so EVE can die of one on purpose. off does nothing, as before the recovery existed.
 -- coop xion rooms [on|off], inside SBO Xion: off puts SB's pieces back in the doorways until on or the next
@@ -48,13 +49,18 @@
 -- Tetrapod of the hangar is put inside SB's own Tetrapod interior, 540 m away, and standing at its right door she is
 -- put back in front of the ship. SB ships that interior with no collision: the way in makes its parts solid and the
 -- way out and coop off put them back. coop xion tetrapod [in|out], inside SBO Xion, asks the same move from
--- anywhere. Alone, it says whether she is inside.
+-- anywhere. Alone, it says whether she is inside. coop xion tetrapod probe [<n>|only <n>] makes the move with no part
+-- solid, then one more each pass, to find the part that kills her: a test tool whose lines go to the log.
+-- The NPCs, each pass of the stay (world/maps/sboxion/npcs/npcs.lua): a display body in a room while EVE is near and
+-- the room's level is there. Its line shows when she comes close inside the room. coop xion npc picks its clip and
+-- its turn.
 local Enemy=require('core.enemy')
 local PakGate=require('core.pak_gate')
 local D=require('world.maps.sboxion.data')
 local Recover=require('world.maps.sboxion.recover')
 local Rooms=require('world.maps.sboxion.rooms.rooms')
 local Tetrapod=require('world.maps.sboxion.tetrapod')
+local Npcs=require('world.maps.sboxion.npcs.npcs')
 local Xion={}
 Xion.ROWS=Enemy.rows(D.ROWS)
 -- rows/rows.h's refusals of a gate that stayed shut (busy, net, unread): the title asks again, so nothing is decided.
@@ -73,13 +79,14 @@ local function round(v) return math.floor(v+0.5) end
 -- o: log(m), status() the native status text, ask(line) its request (ok, why), paks (SB/Content/Paks, or nil) and
 -- read (core/link.lua's files.read) for the pak gate; slot(command) the co-op save check (ok, why), mode() the link's
 -- mode ('none' alone), me() our EVE as core/where.lua last read her ({at=, map=}, or nil), photo() main/base.lua's
--- photo_state (optional), world, the engine reads (world/maps/sboxion/engine.lua; a fake in the tests) and
--- rooms_store, core/link.lua's store for the rooms' hidden rows (optional).
+-- photo_state (optional), world, the engine reads (world/maps/sboxion/engine.lua; a fake in the tests),
+-- rooms_store, core/link.lua's store for the rooms' hidden rows (optional), npcs_store, its store for the NPC bodies'
+-- actor paths (optional) and say(name), which shows an NPC's line (optional).
 function Xion.new(o)
     local log=o.log
     local world=o.world
     local recover=Recover.new({log=function(m) log('sboxion: '..m) end,status=o.status,photo=o.photo,world=world})
-    local tetrapod=Tetrapod.new({log=function(m) log('sboxion: '..m) end,world=world})
+    local tetrapod=Tetrapod.new({log=function(m) log('sboxion: '..m) end,status=o.status,world=world})
     local asked_point=nil -- The arrival point of the last coop xion asked, for the recovery of the stay it starts.
     local e=Enemy.new({log=function(m) log('sboxion '..m) end,ask=o.ask,status=o.status},
         {word='sboxion',name='SBO Xion',command='coop xion',tag='[SX]',rows=Xion.ROWS,ids={}})
@@ -97,14 +104,17 @@ function Xion.new(o)
     -- Whether the test pak holds one room's level (its game path) beside Xion_P, or nil and why, asked once a room a
     -- Lua load. The gate above stays as it is: the pak of 2026-11-23 passes it and holds no room.
     local roomy={} -- By game path: true, or why the pak does not hold it.
-    local rooms=Rooms.new({log=function(m) log('sboxion: '..m) end,world=world,store=o.rooms_store,gate=function(umap)
+    local function room_gate(umap)
         if roomy[umap]==nil then
             local version,why=PakGate.find(o.paks,o.read,D.PAK,{D.UMAP,umap})
             roomy[umap]=version~=nil or why
         end
         if roomy[umap]==true then return true end
         return nil,roomy[umap]
-    end})
+    end
+    local rooms=Rooms.new({log=function(m) log('sboxion: '..m) end,world=world,store=o.rooms_store,gate=room_gate})
+    local npcs=Npcs.new({log=function(m) log('sboxion: '..m) end,world=world,say=o.say,store=o.npcs_store,
+        gate=room_gate})
     local function refused(why)
         log('sboxion rows: refused ('..why..'): coop xion stays off')
         verdict=false
@@ -310,6 +320,7 @@ function Xion.new(o)
         zone_and_life(me,true)
         rooms.arrive()
         tetrapod.arrive()
+        npcs.arrive()
     end
     local function watch(me,now)
         if stay.back and now>=stay.back then
@@ -457,7 +468,11 @@ function Xion.new(o)
                 if d<far then best,far=w.name,d end
             end
             parts[#parts+1]=string.format('EVE at %s, nearest waypoint %s %.1f m',place(me.at),best,far/100)
-            if stay then parts[#parts+1],parts[#parts+2],parts[#parts+3]=recover.status(),rooms.status(),seen() end
+            if stay then
+                for _,part in ipairs({recover.status(),rooms.status(),npcs.status(),seen()}) do
+                    parts[#parts+1]=part
+                end
+            end
         else
             parts[#parts+1]='EVE is not in SBO Xion'..(me and ' (map '..me.map..')' or '')
         end
@@ -476,16 +491,23 @@ function Xion.new(o)
         local ok,line=rooms.switch(word)
         return ok,ok and 'coop xion rooms: '..line or line
     end
-    -- coop xion tetrapod [in|out]: EVE put inside the Tetrapod or back in front of it, or where she is with no word.
-    function self.tetrapod(word)
+    -- coop xion tetrapod [in|out|probe [<n>|only <n>]]: EVE put inside the Tetrapod or back in front of it, the probe,
+    -- or where she is with no word. The probe's words are the door's to check.
+    function self.tetrapod(word,...)
         if not stay then return false,'coop xion tetrapod: EVE is not in SBO Xion' end
-        local ok,line=tetrapod.go(word)
+        local ok,line=tetrapod.go(word,...)
         return ok,ok and 'coop xion tetrapod: '..line or line
     end
+    -- coop xion npc [<n> | turn <degrees>]: the clip or the turn of the NPC nearest to EVE, or its state with no word.
+    function self.npc(what,value)
+        if not stay then return false,'coop xion npc: EVE is not in SBO Xion' end
+        local ok,line=npcs.command(what,value)
+        return ok,ok and 'coop xion npc: '..line or line
+    end
     -- Each 250 ms pass: the wait for the rows and their read-back, the native answer awaited, then the arrival, the
-    -- watch, the recovery, the Tetrapod's door and the rooms while EVE's map is SBO Xion. In any other map, with
-    -- nothing asked, it reads nothing. A map change ends the recovery first, then closes the rooms: a put-back that
-    -- raises leaves no recovery running. A row of a world that is gone is not called. The door is not ticked in
+    -- watch, the recovery, the Tetrapod's door, the rooms and the NPCs while EVE's map is SBO Xion. In any other map,
+    -- with nothing asked, it reads nothing. A map change ends the recovery first, then closes the rooms: a put-back
+    -- that raises leaves no recovery running. A row of a world that is gone is not called. The door is not ticked in
     -- another map and each arrival resets it.
     local off=false
     function self.tick()
@@ -501,18 +523,21 @@ function Xion.new(o)
             guarded('recovery',recover.tick)
             tetrapod.tick(recover.busy())
             rooms.tick()
+            npcs.tick(me.at)
         elseif stay then
             stay=nil
+            npcs.stop() -- First: it cannot raise, so a stop that raises below leaves no body.
             recover.stop('a map change')
             rooms.close('a map change')
             log('sboxion: left, map '..(me and me.map or 'none'))
         end
     end
     -- coop off: the title's wait, the watch and the recovery ended, the Tetrapod's parts as SB ships them when the door
-    -- made them solid, then the rooms' rows put back. The rooms come last,
-    -- so a put-back that raises skips none of the others. Rows already in stay for the game run.
+    -- made them solid, then the rooms' rows put back. The rooms come last, so a put-back that raises skips none of
+    -- the others. Rows already in stay for the game run.
     function self.stop()
         off,stay,awaited=true,nil,nil
+        npcs.stop()
         recover.stop('coop off')
         tetrapod.stop()
         title_stop()

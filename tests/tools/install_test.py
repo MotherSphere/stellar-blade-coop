@@ -310,6 +310,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'closet/ui/probe', 'closet/ui/view', 'closet/ui/camera', 'closet/ui/lights',
                               'closet/colour', 'closet/shape', 'closet/thumbs', 'closet/packs', 'closet/options',
                               'closet/presets',
+                              'world/maps/sboxion/npcs/npcs',
                               *(f'{module}/wiring' for module in ('online/partner', 'online/modes/nightop',
                                                                   'fight/bosses', 'online/group',
                                                                    'online/modes/race', 'eve', 'story/scenes',

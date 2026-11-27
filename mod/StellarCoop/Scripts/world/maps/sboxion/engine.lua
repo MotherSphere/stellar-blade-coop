@@ -103,6 +103,25 @@ function Engine.put(at,yaw)
     if move then move:StopMovementImmediately() end
     return true
 end
+-- A display body for an NPC of the rooms (world/maps/sboxion/npcs/npcs.lua): core/actors.lua's plain actor with one
+-- SkeletalMeshComponent showing mesh, collision off, in EVE's world, at a place and turned to yaw. No SB character, no
+-- row, no AI. Raises, with nothing left, when it cannot be made.
+function Engine.body(at,yaw,mesh)
+    return Actors.spawn(eve():GetWorld(),{X=at.X,Y=at.Y,Z=at.Z},{Pitch=0,Yaw=yaw,Roll=0},{path=mesh})
+end
+-- A clip looped on a body. Raises when the clip is missing on this PC.
+function Engine.body_clip(d,clip)
+    d.mesh:PlayAnimation(assert(Actors.resolve(clip),clip..' is missing on this PC'),true)
+end
+-- A body turned to yaw at its place.
+function Engine.body_turn(d,at,yaw)
+    d.mesh:K2_SetWorldLocationAndRotation({X=at.X,Y=at.Y,Z=at.Z},{Pitch=0,Yaw=yaw,Roll=0},false,{},true)
+end
+-- Is a body still the actor body() made: never a call on another object found at its address.
+function Engine.body_same(d) return Actors.same(d.actor,d.path)~=nil end
+function Engine.body_gone(d) Actors.remove(d) end
+-- A body an earlier Lua load left, by its actor's path. It is removed, with true, only while that actor shows mesh.
+function Engine.body_sweep(path,mesh) return Actors.sweep(path,mesh) end
 -- SB's black over a put-back: USBBlueprintLibrary::LoadingScreenFadeAuto (exec 0x1426641e0 on build 26123051). It
 -- reads the time the black stands, then a start block and an end block (each a duration and the two values the
 -- widget's fade runs between), then a tag. Its impl 0x14c91ad10 is the one SB's own fall warp calls for its fade
@@ -193,7 +212,7 @@ end
 -- unchanged, the instance is in the built tree and the render data kept its CPU copy, the hierarchical class queues
 -- the new matrix for the instance buffer and marks the render state dirty: the tree cooked with the level stays. The
 -- CPU copy is kept (0x144281ec0) by a component that casts a shadow and affects distance field lighting while
--- r.GenerateMeshDistanceFields is on, as SB's DefaultEngine.ini sets it. 4 of the 9 instanced components of
+-- r.GenerateMeshDistanceFields is on, as SB's DefaultEngine.ini sets it. 15 of the 28 instanced components of
 -- rooms/list.lua store CastShadow false. Without the CPU copy the class calls BuildTreeIfOutdated 0x1442511b0, which
 -- starts an async build of a new tree and a new instance buffer from the instances (0x144251400, taken over by
 -- 0x144250d90 some frames later): the instance is drawn until then. The queued matrix is applied only with the CPU
@@ -231,20 +250,63 @@ end
 -- Returns the number of parts that read the profile back, or nil when the actor is not in memory (its level is not
 -- loaded yet). Raises when the game has no such profile name.
 local SHIP=E04..'E04_Area05_B_LD.E04_Area05_B_LD:PersistentLevel.BP_Env_TetraPod3_2'
-function Engine.ship(solid)
+-- The ship's living static mesh parts in the order the engine gives them, or nil when the actor is not in memory.
+local function ship_parts()
     local a=U.valid(StaticFindObject(SHIP))
     if not a then return nil end
+    local out={}
+    U.each(a:K2_GetComponentsByClass(U.find(SOLID)),function(_,c)
+        c=U.valid(c)
+        if c then out[#out+1]=c end
+    end)
+    return out
+end
+-- The profile's FName (found, never made) and its text.
+local function profile(solid)
     local want=solid and 'BlockAll' or 'NoCollision'
     local name=U.value_of(FName(want,EFindName.FNAME_Find))
     local index=name:GetComparisonIndex()
     assert(index and index~=0 and U.text(name)==want,'no collision profile '..want..' in this game')
+    return name,want
+end
+function Engine.ship(solid)
+    local list=ship_parts()
+    if not list then return nil end
+    local name,want=profile(solid)
     local n=0
-    U.each(a:K2_GetComponentsByClass(U.find(SOLID)),function(_,c)
-        if not U.valid(c) then return end
+    for _,c in ipairs(list) do
         c:SetCollisionProfileName(name,true)
         if U.text(c:GetCollisionProfileName())==want then n=n+1 end
-    end)
+    end
     return n
+end
+-- For tetrapod.lua's probe: the same parts in the same order, {index=, component=, mesh=, profile=} each. The names
+-- are the last word of the component's and of its mesh's path, as the rooms read them ('no mesh' with none). profile
+-- is what the part reads now. nil when the actor is not in memory.
+local function last_word(o) return path_of(o):match('[^.:]+$') or '?' end
+function Engine.parts()
+    local list=ship_parts()
+    if not list then return nil end
+    local out={}
+    for i,c in ipairs(list) do
+        local mesh=U.valid(c.StaticMesh)
+        out[i]={index=i,component=last_word(c),mesh=mesh and last_word(mesh) or 'no mesh',
+            profile=U.text(c:GetCollisionProfileName())}
+    end
+    return out
+end
+-- One part of parts() by its index made solid (BlockAll) or put back (NoCollision): the profile it reads afterwards.
+-- name: the component's name parts() gave for that index, when the caller has it. nil when the actor is not in
+-- memory. Raises, with nothing written, when no part has that index, when it has another name (the engine lists the
+-- parts in another order now) or when the game has no such profile name.
+function Engine.part(index,solid,name)
+    local list=ship_parts()
+    if not list then return nil end
+    local c=assert(list[index],'no part '..tostring(index)..' in the ship, which has '..#list)
+    local now=name and last_word(c)
+    assert(now==name,'part '..tostring(index)..' is '..tostring(now)..' now: the list had '..tostring(name))
+    c:SetCollisionProfileName((profile(solid)),true)
+    return U.text(c:GetCollisionProfileName())
 end
 -- The piece of a row of rooms.lua ({level=, actor=, component=, index=, mesh=, at=, count=}): {row=, c=<the
 -- component>, path=<as it reads>}. Raises when no object is at the row's path, when its class is not the row's kind

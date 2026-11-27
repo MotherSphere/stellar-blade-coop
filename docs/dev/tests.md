@@ -41,6 +41,7 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/maps/matrix13/level/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `world/maps/sboxion/`: `engine`, `off`, `recover`, `rows`, `sboxion`, `tetrapod`, `title`, `world`;
 `world/maps/sboxion/rooms/`: `list`, `rooms`;
+`world/maps/sboxion/npcs/`: `npcs`;
 `online/modes/nightop/`:
 `board`, `challenges`, `guard_text`, `off`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
 `online/partner/`: `assets`, `bench`, `bike_part`, `capture`, `commands`, `doro_pick`, `ghosts`, `hud`, `off`, `puppet`,
@@ -54,8 +55,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `world/daynight/`: `daynight`, `off`, `rule`, `wiring`; `story/together/`: `off`, `snapshot`, `wiring`, `wiring_dump`;
 `ui/`: `text`; `ui/kit/`: `guide`, `hud_parts`, `kit`, `model`, `notice`, `pause_tab`; `ui/text/`: `culture`;
 `world/objects/`: `off`, `wiring`;
-`fight/gunmode/`: `aimrot`, `dpad`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`, `morph`, `nikke`,
-`off`, `release`, `rifle_frame`, `texts`, `v4_rules`)
+`fight/gunmode/`: `aimrot`, `cost`, `dpad`, `engine`, `g1_gates`, `helpers`, `ik_pin`, `input_memo`, `laser`, `morph`,
+`nikke`, `off`, `release`, `rifle_frame`, `state`, `stock`, `stop`, `texts`, `v4_rules`)
 run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
 fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. Each module's
 `off_test` runs `main/isolation.lua` with its name.
@@ -78,7 +79,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   (within `gun_spread` degrees of the reticle point, the edge at that angle, 0 for none, the setting from 0 to 10, both
   writes of a round's destination in `mode.lua` going through it), the rifle's magazine
   (a round per cool time, the reload when empty, none when lowered part-spent, the HUD count, no round once the spares
-  are spent, a refill) and the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
+  are spent, a refill, cool time 0 at a reload's end and at a refill, then the rate of fire after the first round), the
+  reticle's round slot (looked for at an aim's end, not in it; written on each frame of an aim's first 0.25 s, kept
+  by its path: no write to another object at a freed address) and the one zone event gun mode may fire. That event is kind 2 on the shot's row. Every other kind
   or row is refused. `mode.lua` calls `CreateSBZoneEvent` once, inside the guarded `zone_event`. `fire_row` reaches it
   only through that guard. Over fake tables, `fight/gunmode/data.lua` sets the NIKKE round's `DestTarget` from the
   shipped 3 (`StartToDestDirection`) to 0 (`MainActor`) while the rifle is out, logs the change and gives 3 back at
@@ -88,7 +91,60 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   glyph gives none. Over a fake UMG the real entry puts the G icon on the marker's own key cell (`btn`). With no such
   cell it shows no cell at all, since an image with no brush draws a white square. The cell also stays hidden while
   the marker's up button has no texture. An entry built again in a new HUD gets the G icon, the cell, the sizes and
-  the place in the same tick;
+  the place in the same tick. With the object walks counted, the entry is built with one walk (the look for the HUD)
+  and none while it lives. The crosshair goes on that HUD with no walk. With no HUD on screen, or a HUD without the
+  item column, the look comes every 10 s and the column is tried once. The pad glyph is walked for once each time the
+  pad layer comes up, then kept for the HUD. With the keep serving SB's HUD class, its Construct is hooked once and
+  the HUD it names gets the entry with no walk. A hook that fails gives one line and the looks go on. Another object
+  at a freed entry's address gets no write: the entry is built anew in the next HUD. After a Lua reload a new load
+  takes the earlier load's entry and crosshair again: no widget is made over a live one, the overlay holds the entry
+  once. `hide` takes both off and touches no object at a freed address;
+- `fight/gunmode/cost_test` counts gun mode's engine lookups over `fight/gunmode/fake.lua`, a fake UE4SS world with
+  EVE, her controller, her body's post-process instance, the input mappings and SB's rows. With no controller,
+  FindFirstOf runs once a second. With the keep serving gun mode's assets and the engine's name hash proven, two
+  rifle outs through aims, bursts, reloads and departures look for no asset with StaticFindObject and load none of
+  the kept ones. A layer pose or a rebuild body the paks lack is looked for once a Lua load. The camera modifier is
+  tried once a rifle out. The reticle's text is walked for at the rifle out and after an aim, never in one, at most
+  once in 10 s. The laser's two assets, the rifle's mesh and the two turn clips are asked of the keep. A drone near
+  EVE is hidden and kept: the next rifle out finds it with no list, unless it is 3000 or more away. The drones come
+  from the engine's class hash through `GunMode.DRONE_CLASS`. The flash's `FX_Fire` and the layer's `DefaultSlot`
+  names are made once. An asset that never loads (the muzzle flash, asked at each round) is looked for and loaded
+  once in 5 s;
+- `fight/gunmode/state_test` covers SB's NIKKE behaviour that gun mode holds off, over `fight/gunmode/fake.lua`. With
+  native fire the NIKKE shot's show has an empty anim key while the rifle is out, back at the rifle away, with no
+  write to a show the engine collected. Own fire and `gun_upper=nikke` keep it. `P_Eve_GunNikke_ReloadCompleted`'s
+  `Action1` reads 0, `P_Eve_GunNikke_BulletZero`'s `ConditionActive_ItemCount` -1 and `P_Eve_GunNikke_Reload`'s 0
+  while the rifle is out, in both fire modes. They go back 3 s of play after the off or after a new world, a pause not
+  counted. A rifle out during that time keeps the shipped values. It stays held while that rifle out lasts past the
+  old hold's end. `coop off` puts them back at once, also part way
+  through the 3 s. A missing row or a field that cannot be written is logged and the rifle still comes out. The rifle
+  out writes cool time 0. The rate of fire follows the first round. The off gives the shipped cool time back. The
+  input mask is lifted while the game is paused and put back at the first frame after it. An off during the game's
+  aim holds the aim key on RMB and SB's rows with cool time 999 until that aim ends with the aim key and LT up, also
+  when the off comes on a frame the aim dropped; a new controller and `coop off` end the hold. The rifle does not
+  come out in a cutscene or an interaction. Out, either puts it away with a comeback. The game's hold of her
+  movement, a jump, a swim and the other movement modes (0 on a hall seat) keep it out. A refused comeback after an interaction is tried again 2, 4 and 8 s later, then
+  given up. It waits for the pause to end. A put-away press during the departure sets none;
+- `fight/gunmode/stop_test` covers what gun mode puts back over `fight/gunmode/fake.lua`. A start that fails at the
+  input mask or at the rifle, or raises once the layer is on, gives back the rows, the mask and the layer. `coop off`
+  with the rifle out, 0.1 s after the press, gives back the rows, the keys, the rifle, her body's own post-process
+  class and the FOV lock. It takes the HUD entry off. After it no key, toggle or new controller runs gun mode. With
+  `gun_fire=own` it gives back the rows the rifle away still holds. During a new controller's waiting reset it takes
+  the layer off her new body. A new controller drops the old pawn's state at once. Its deferred reset gives back the
+  rows, shows the drone, puts her facing back and drops the morph's cube. Her facing flags go back only to the
+  movement they came from, checked by its path. The drone's parts go back only while their paths still name them.
+  A new map ends a waiting comeback. A comeback that raises once the layer is on gives back what it took and logs
+  the raise;
+- `fight/gunmode/engine_test` covers the engine objects gun mode keeps across frames over `fight/gunmode/fake.lua`.
+  The masked keys go back into the action mappings as they are after coop fly moved them to a new buffer, with
+  nothing written into the old one. The muzzle flash's asset collected between two rounds is found again by its path
+  or loaded again, never spawned through a kept reference another object now sits behind;
+- `fight/gunmode/stock_test` runs the free magazines (`fight/gunmode/ammo.lua`) against a fake of SB's NIKKE shot
+  that copies the cool time at each start and refuses a start while the row and the copy are both above 0. After a
+  reload held through, SB's first round comes within 2 frames of its end. After every magazine was fired dry (SB
+  holding 999) a refill lets SB fire again at about 10 rounds a second. A slow frame of 0.12 s after the press still
+  lets SB's late start through (`Ammo.OPEN_FRAMES`). At the rifle out `sync()` writes nothing over the take's 0. The
+  first round, the game's or gun mode's own, puts the rate of fire back;
 - `fight/gunmode/v4_rules_test` covers the layer clip choice (hip fire raises the rifle, a ground move carries it,
   the flip keeps the aim), the aimed reload on the aim's pose, the aim bridge through a dodge, her body tilt, the aim
   clip by rifle pitch, the recoil, the hip-fire turn, the comeback after an interaction, the chest turn's ease back (a
@@ -97,7 +153,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `fight/gunmode/aimrot_test`, `ik_pin_test`, `morph_test`, `rifle_frame_test`, `laser_test`, `input_memo_test` and
   `g1_gates_test` cover the chest-turn loop, the v4 left-hand pin, the rifle's arrival and departure timing, the
   rifle's frame and its morph scale, the laser's start (0.12 s on target, 0.6 s off it, the rifle not turned on the
-  rifle layer), the laser end sent only when it moved, one key read a frame and the G1 gates;
+  rifle layer), the laser end sent only when it moved, the laser's objects looked up at its first start only, one key
+  read a frame and the G1 gates;
 - `fight/gunmode/texts_test` holds gun mode's texts to its code and scripts. The rifle layer's pak has one name, the
   one its build script writes (`zNGMSpike_P`), with the class `fight/gunmode/overlay.lua` looks for: no other pak or
   layer name in gun mode's code, tools, page or NOTICE section. The page and NOTICE name both. NOTICE names Mixamo.
@@ -116,7 +173,8 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   The page has no ", and" or ", but", no bold-label bullet and no
   "co-op session". `ammo.lua`'s header and `facts.lua`'s note on the retired F11 have no ", and" or ", but" either.
   The same holds for each run of comment lines in `input.lua`, `ik.lua`, `mode.lua`, `aimrot.lua`, `ui/dpad.lua`,
-  `rifle.lua`, `ik_pin_test`, `input_memo_test`, `rifle_frame_test`, `morph_test` and `cost_test`. No sentence ends
+  `rifle.lua`, `ik_pin_test`, `input_memo_test`, `rifle_frame_test`, `morph_test`, `cost_test`, `state_test` and
+  `stock_test`. No sentence ends
   inside a parenthesis in those runs.
   Only `fight/gunmode/wiring.lua` registers an engine hook (`NotifyOnNewObject`, `RegisterHook`);
 - `fight/gunmode/release_test` runs `fight/gunmode/release_check.lua` on gun mode's shipped defaults: no debug flag
@@ -790,31 +848,33 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `world/maps/sboxion/world_test` runs `world/maps/sboxion/sboxion.lua` on a fake world of 72 env volumes and 95
   streaming levels. `coop xion` refuses on your own save, in a session, without the pak, after refused rows, after a
   fault and inside SBO Xion, each with nothing asked. Its request holds the zone's FName index, the point in whole
-  centimetres and the yaw, for each of the two points. `coop xion leave` asks from any map. The native answer is
-  logged once. No answer in 10 s is logged once. At an arrival the 41 volumes of `E04_ENV_VOL` are set (21 writes), a
-  volume of the same name in another level is left alone, the log reads 72, 65 and 41. The read-back comes 2 s and
-  10 s later. A write that does not hold shows in the read-back. A level not loaded is named. In another map nothing
-  is read. A second arrival writes again. A change of a probe level is logged once. A waypoint is logged after 5 s
-  within 3 m, once a visit. A map change, a loading screen and `coop off` end the watch. The recovery is ticked only
-  in SBO Xion. Each arrival starts it again with the arrival point `coop xion` asked. Its ground point and its fall
-  line hold the engine's read of EVE when `me()` names another place. At that fall SB's black is asked once through
-  the module's own wiring, nothing moves in that pass and the move comes two passes later. A `life=3` word gets the
-  respawn asked with the GUID of the `engine=` line. A death screen it hid is shown again at a map change and at
-  `coop off`. `coop xion recover` is refused outside SBO Xion, sets each of its three modes inside and prints the
-  state alone. A stay left in the mode `death` is followed by an arrival in the mode `on`. `coop xion status` ends
-  with the recovery's part and the rooms' part inside SBO Xion only. No wall call and no walls part are left. With
-  the pak of 23 November an arrival logs one rooms line and asks no piece. With the five room levels in the pak one
-  line says the pak holds 5 of the 10 rooms. The arrival's pass opens those five, their hidden rows go to the store
-  the wiring hands over, `coop xion rooms` is refused outside SBO Xion and prints, closes and opens them inside. A
-  map change that took the world calls no row. `coop off` puts every row back. At a map change and at `coop off` the
-  recovery ends before the rooms close. With two room levels in the pak those two open, the pak asked once a room a
-  Lua load. With the full test pak's 161 levels the 34 volume-streamed ones are counted apart and never named as
-  missing, 155 characters beside EVE are counted by class with only the five nearest named (class and distance) and
-  the ten rooms of the third build's pak open. The zone and area of the `engine=` line and EVE's life state are
-  logged at the arrival and once at each change, within a second. The levels line and the characters line come
-  again 10 s later. A look 10 s after that
-  reads once and says nothing. The next look says the two levels that changed and the characters line with the two
-  that spawned, once. `coop xion status` ends with the last look;
+  centimetres and the yaw, for each of the two points. `coop xion leave` asks from any map. The native answer is logged
+  once. No answer in 10 s is logged once. At an arrival the 41 volumes of `E04_ENV_VOL` are set (21 writes), a volume of
+  the same name in another level is left alone, the log reads 72, 65 and 41. The read-back comes 2 s and 10 s later. A
+  write that does not hold shows in the read-back. A level not loaded is named. In another map nothing is read. A second
+  arrival writes again. A change of a probe level is logged once. A waypoint is logged after 5 s within 3 m, once a
+  visit. A map change, a loading screen and `coop off` end the watch. The recovery is ticked only in SBO Xion. Each
+  arrival starts it again with the arrival point `coop xion` asked. Its ground point and its fall line hold the engine's
+  read of EVE when `me()` names another place. At that fall SB's black is asked once through the module's own wiring,
+  nothing moves in that pass and the move comes two passes later. A `life=3` word gets the respawn asked with the GUID
+  of the `engine=` line. A death screen it hid is shown again at a map change and at `coop off`. `coop xion recover` is
+  refused outside SBO Xion, sets each of its three modes inside and prints the state alone. A stay left in the mode
+  `death` is followed by an arrival in the mode `on`. `coop xion status` ends with the recovery's part and the rooms'
+  part inside SBO Xion only. No wall call and no walls part are left. With the pak of 23 November an arrival logs one
+  rooms line and asks no piece. With the five room levels in the pak one line says the pak holds 5 of the 15 rooms. The
+  arrival's pass opens those five, their hidden rows go to the store the wiring hands over, `coop xion rooms` is refused
+  outside SBO Xion and prints, closes and opens them inside. A map change that took the world calls no row. `coop off`
+  puts every row back. At a map change and at `coop off` the recovery ends before the rooms close. With two room levels
+  in the pak those two open, the pak asked once a room a Lua load. With the full test pak's 161 levels the 34
+  volume-streamed ones are counted apart and never named as missing, 155 characters beside EVE are counted by class with
+  only the five nearest named (class and distance) and the eleven rooms of the third build's pak open, `D039` among
+  them. The zone and area of the `engine=` line and EVE's life state are logged at the arrival and once at each change,
+  within a second. The levels line and the characters line come again 10 s later. A look 10 s after that reads once and
+  says nothing. The next look says the two levels that changed and the characters line with the two that spawned, once.
+  `coop xion status` ends with the last look. The fourth full test build (175 levels, 141 always loaded) opens the
+  eleven rooms of the third build and no log line names `D111`, `D157`, `D109`, `D029`, `D030`, `D037`, `D163` or
+  `D164`, whose closed rooms it holds. The fifth (171 levels, 137 always loaded) opens all fifteen with 62 rows. Its
+  four new doors and `D039` are waypoints of the status. `coop off` puts the 62 rows back;
 - `world/maps/sboxion/tetrapod_test` runs `world/maps/sboxion/tetrapod.lua` over a fake world. SB's point inside
   the Tetrapod reads (81, 624, 332) in the ship frame. One pass in the doorway of the hangar moves nothing. The
   second asks SB's black. Two passes later EVE goes to the point inside plus 10 cm. Nothing is looked at for the next
@@ -822,8 +882,18 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   outside the box starts the count again. A busy recovery counts nothing. A refused teleport and a black that raises
   change one log line. An error in a pass turns the door off until the next arrival. `coop xion tetrapod in` and
   `out` ask the move at once. The way in asks the engine to make the ship's parts solid before the move. The way out
-  and `coop off` put them back. While EVE reads 60 cm under the point she is put on it again and the ship is asked
-  again if it was not found, with a black every 6 passes. After 32 passes with no floor she is put back outside;
+  and `coop off` put them back. While EVE reads 60 cm under the point she is put on it again, with a black every
+  6 passes. The ship is asked again on each pass while its last call wrote no part: not found, or 0 parts, then
+  124 with one line. After 32 passes with no floor she is put back outside.
+  The door has no `busy()`: no other part waits for it. `coop xion tetrapod probe` refuses another word, a part out
+  of 1 to 124 and one word too many. It waits for the watch after a way in. It puts the ship back as SB ships it,
+  then makes the move with no part solid. It asks the ship's parts each pass and puts EVE outside after 32 passes
+  without them. Then it makes one part solid a pass, in the engine's order, with one line each. A life of 3 or 5
+  stops it with the last two parts named and nothing more written. A life of 6, 2 or 0 does not. Eight passes after
+  the last part with EVE alive it says so. She is put outside then if she does not stand. `probe 3` starts at part
+  3 and `probe only 2` writes part 2 alone. A ship with fewer parts, a part the engine names otherwise or a ship
+  gone from memory turns the door off. No `life=` word gives `life ?`. A recovery that moved her out, `coop off` and
+  an arrival end it;
 - `world/maps/sboxion/recover_test` runs `world/maps/sboxion/recover.lua` over a fake world and a fake status text.
   The ground point: three walking passes give none, four give the first of the four, a falling pass keeps it, a step
   of 2000 cm starts the streak again, walking under the floor and passes on one world time add nothing. The fall:
@@ -858,8 +928,11 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   dropped by a death that starts during it;
 - `world/maps/sboxion/engine_test` covers `world/maps/sboxion/engine.lua` over fake UE4SS objects. The parts of SB's
   Tetrapod interior get SB's collision profile `BlockAll` by a name the game has made, then `NoCollision`, the
-  profile SB ships them with. With no actor in memory nothing is written. The rest: the zone's FName index only for
-  a name the game has made, each env volume's `bActiveVolume` read and written on its own actor, a
+  profile SB ships them with. With no actor in memory nothing is written. For the probe the living parts are listed
+  in the engine's order with their component's and mesh's names and their profile. One part is written by its
+  number. A number with no part, a part with another name and a missing profile name raise before any write. The
+  rest: the zone's FName index only for a name the game has made, each env volume's `bActiveVolume` read and
+  written on its own actor, a
   dead actor never written, the streaming levels by their package's last part, the probes read again on the kept
   objects, the characters' names, classes and places with EVE told apart by her address (one that does not read
   given as `unread`), every world read raising with no EVE. For the recovery: `move` gives EVE's place,
@@ -874,17 +947,21 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   doorway: found by its names and refused for another class, mesh, place or instance count, a whole component hidden
   with its two values read first, an instance scaled to nothing where it stands, a piece that reads hidden already
   refused, the put-back and no call on an object that is gone;
-- `world/maps/sboxion/rooms/list_test` checks `world/maps/sboxion/rooms/list.lua`: the ten rooms with their levels,
-  the 41 rows as the level dumps of build 26123051 gave them, 18 whole components and 23 instances of 18 instanced
-  components in 10 sublevels, no piece twice, the instance count of each instanced component (the same in the two
-  rooms that share one), each room starting with its door piece, `D039` left out, each door a waypoint of
-  `data.lua`;
+- `world/maps/sboxion/rooms/list_test` checks `world/maps/sboxion/rooms/list.lua`: the fifteen rooms with their
+  levels, the 62 rows as the level dumps of build 26123051 gave them, 27 whole components and 35 instances of 28
+  instanced components in 13 sublevels, no piece twice, the instance count of each instanced component (the same in
+  the two rooms that share one), each room starting with its door piece, at most one wall panel a room (two copies
+  of one panel count once), every row of `E04_Area02_Object_D_04` with its twin on the other actor, `Actor7*` at
+  `D029` alone, `D039` with its shutter alone, `beside` naming `Xion_Rooms_D087` at `D111`, `D109` and `D029` and
+  nowhere else, no other key in a room, each door a waypoint of `data.lua`;
 - `world/maps/sboxion/rooms/rooms_test` runs `world/maps/sboxion/rooms/rooms.lua` over a fake world, a fake pak gate
   and a fake store. The gate is asked for each room on its own. With a pak that holds no room it logs one line with
   the first reason and reads no level. With a pak of the second build one line names the five rooms it holds of the
-  ten. They open in one look once their levels read loaded and visible. The other five are never looked at. A pak
-  with two rooms opens those two. A room whose ask raises is left out. With all ten the ten open, `D036` and `D158`
-  each hiding their own instances of one component. A room waits for a missing level and closes
+  fifteen. They open in one look once their levels read loaded and visible. The others are never looked at. A pak
+  with two rooms opens those two. A room whose ask raises is left out. A pak that holds the levels of `D111`, `D109`
+  and `D029` without `Xion_Rooms_D087` (the fourth full test build) opens the other eleven and no line names those
+  three. With all fifteen the fifteen open, `D036` and `D158` each hiding their own instances of one component and
+  `D111` hiding a component and an instance numbered 3 on both twins. A room waits for a missing level and closes
   after 30 looks. A row that is not found closes its room with nothing hidden. A row that cannot be hidden closes
   its room with the rows before it put back, while the other rooms open. The put-back asks each hidden row once,
   with a world that still stands and with one that is gone. `coop xion rooms off` puts the rows back and `on` opens
@@ -893,7 +970,16 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
 - `world/maps/sboxion/sboxion_test` covers the words of `coop xion`: alone and `city`, `gate`, `leave`, `status`,
   `recover` alone and with `on`, `death` or `off`, `rooms` alone and with `on` or `off`, the use line for `walls`,
   any other word or one too many and the answer without the Steam link. Then `world/maps/sboxion/wiring.lua`: SBO
-  Xion is built with the Steam link's store `coop-xion-rooms.txt` alone and no store is asked without the link;
+  Xion is built with two of the Steam link's stores, `coop-xion-rooms.txt` and `coop-xion-npcs.txt`. An NPC's line is
+  said in the menu's words. `coop xion npc` hands its two words to the module. `coop xion tetrapod probe` hands
+  every word after it to the module. No store is asked without the link;
+- `world/maps/sboxion/npcs/npcs_test` runs `world/maps/sboxion/npcs/npcs.lua` over a fake world and a fake store:
+  the list with its words in 22 languages and a line within 200 bytes, the repairer's spot worked out from D011's
+  frame, no body far away, while the room's level is not there or with a pak that lacks the room, the body with its
+  turn and first clip, the line once within 3 m inside the room and again after 6 m, nothing said through the door
+  wall, the body gone past 35 m, a dropped body made again three times at most, a body or a clip that fails,
+  `coop xion npc` with its clips and its turn, the sweep of an earlier load's body, `stop()` and an error in a
+  pass. `world/maps/sboxion/engine_test` covers the six body calls of the engine behind it;
 - `world/maps/sboxion/off_test` runs `main/isolation.lua` with `world.maps.sboxion` (see the module tests above);
 - `online/lobby/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return
   from the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry,

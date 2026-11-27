@@ -8,6 +8,8 @@
 -- Same interface as fight/gunmode/stance.lua (start, frame, stop, running, reload, owns, copy, body) so fight/gunmode/mode.lua
 -- drives it unchanged.
 local Rifle={}
+-- The NIKKE rifle's mesh (kept for the game run: fight/gunmode/mode.lua asks the keep for it, 17a166fa).
+Rifle.WEAPON='/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'
 local function isv(o) return o:IsValid() end
 local function valid(o) if o==nil then return false end local ok,r=pcall(isv,o); return ok and r==true end
 
@@ -26,8 +28,9 @@ Rifle.GRIPS.reload=Rifle.GRIPS.carry -- the reload plays the carry pose (fight/g
 Rifle.GRIPS.aimup=Rifle.GRIPS.aim
 Rifle.GRIPS.aimdown=Rifle.GRIPS.aim
 
--- laser: fight/gunmode/laser.lua's function (pawn, rifle, mathlib) -> beam(target), finish().
-function Rifle.new(laser,trace,grip)
+-- laser: fight/gunmode/laser.lua's function (pawn, rifle, mathlib) -> beam(target), finish(). loaded: the mesh while it
+-- is in memory (fight/gunmode/mode.lua's g.loaded, with no walk), else nil: LoadAsset then.
+function Rifle.new(laser,trace,grip,loaded)
     local function crumb(t) if trace then trace('crumb '..t) end end
     local self={single=true}
     local st -- the running state: {pawn, src, gun, held, target, beam, finish, reload...}
@@ -39,7 +42,7 @@ function Rifle.new(laser,trace,grip)
         local pawn=pc.Pawn
         local src=pawn.Mesh
         assert(valid(src),'no body mesh')
-        local weapon=assert(LoadAsset('/Game/DLC_2/Art/Character/Weapon/Gun/CH_G_Nikke_01/GunNikke_Weapon.GunNikke_Weapon'))
+        local weapon=assert(loaded and loaded(Rifle.WEAPON) or LoadAsset(Rifle.WEAPON))
         local id={Rotation={X=0,Y=0,Z=0,W=1},Translation={X=0,Y=0,Z=0},Scale3D={X=1,Y=1,Z=1}}
         local gun=pawn:AddComponentByClass(StaticFindObject('/Script/Engine.SkeletalMeshComponent'),true,id,true)
         assert(valid(gun),'rifle component')

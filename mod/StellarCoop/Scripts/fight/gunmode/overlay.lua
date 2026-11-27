@@ -30,10 +30,11 @@ Overlay.CLIPS={ carry=POSE:format('CarryLowReady','CarryLowReady'), aim=POSE:for
     aimup=POSE:format('AimUp45','AimUp45'), aimdown=POSE:format('AimDown45','AimDown45'),
     reload=POSE:format('CarryLowReady','CarryLowReady'), nikke=SHOOT_IDLE, nikke_reload=RELOAD }
 
--- the layer's class is loadable (gunmode's pak is installed)
-function Overlay.available()
+-- the layer's class is loadable (gunmode's pak is installed). loaded: the class while it is in memory, with no walk
+-- (fight/gunmode/mode.lua's g.loaded, 17a166fa); StaticFindObject without it.
+function Overlay.available(loaded)
     local ok,r=pcall(function()
-        local o=StaticFindObject(Overlay.CLASS)
+        local o=(loaded or StaticFindObject)(Overlay.CLASS)
         if o and o:IsValid() then return true end
         o=StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(Overlay.CLASS)})
         return o~=nil and o:IsValid()
@@ -48,24 +49,47 @@ function Overlay.new(g)
     local function name(o) return g.try(function() return o:GetFullName() end) or tostring(o) end
     local function path_of(o) local f=g.try(function() return o:GetFullName() end); return f and f:match('^%S+ (.+)$') end
     local slot -- FName('DefaultSlot'), made once
-    local found={} -- path -> object (the clips stay loaded while the layer is on); checked before each use
-    local function find(path)
-        local c=found[path]; if c and valid(c) then return c end
+    -- path -> object, checked by its path before each use (b71e6f6f). Nothing of gun mode holds the clips across a
+    -- map change. Another object can then sit at a freed address and pass IsValid.
+    local found={}
+    -- An asset in memory, with no walk of the object array (fight/gunmode/mode.lua's g.loaded: the keep, else the
+    -- engine's name hash, 17a166fa), else nil.
+    local function loaded(path)
+        if g.loaded then return g.loaded(path) end
         local o=StaticFindObject(path)
+        if valid(o) then return o end
+    end
+    local function find(path)
+        local c=found[path]; if c and valid(c) and path_of(c)==path then return c end
+        local o=loaded(path)
         if valid(o) then found[path]=o; return o end
         local ok,r=pcall(function()
             return StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
         end)
         if ok and valid(r) then found[path]=r; return r end
         pcall(LoadAsset,path)   -- base-game assets
-        o=StaticFindObject(path)
+        o=loaded(path)
         if valid(o) then found[path]=o; return o end
         return nil
     end
+    -- One of Overlay.CLIPS (or a full object path), or a rebuild body. A path missed once is not in the installed paks
+    -- (an older zNGMSpike_P without the v4 poses, or a body of another build): it is not looked up again this Lua load
+    -- (6057c7a5). Each miss walks the object array twice and tries a load (50 to 70 ms), while the tick asks for the
+    -- clip each frame and each rifle out asks for the body.
+    local missing={}
+    local function have(path)
+        if missing[path] then return nil end
+        local o=find(path)
+        if not o then missing[path]=true end
+        return o
+    end
+    local function clip_of(clip) return have(Overlay.CLIPS[clip] or clip) end
     local function pp_of(mesh) local pp=g.try(function() return mesh:GetPostProcessInstance() end); return valid(pp) and pp or nil end
     local function rebuild(mesh,sk,cls)
         local mine=path_of(sk); local base
-        for _,b in ipairs(Overlay.BASES) do if b~=mine then base=find(b); if base then break end end end
+        -- a body already in memory first: no body loaded on the frame of the press (17a166fa)
+        for _,b in ipairs(Overlay.BASES) do if b~=mine and not base and not missing[b] then base=loaded(b) end end
+        for _,b in ipairs(Overlay.BASES) do if b~=mine and not base then base=have(b) end end
         if not valid(base) then return false,'no other body to rebuild with' end
         sk.PostProcessAnimBlueprint=cls
         mesh:SetSkeletalMesh(base,false); mesh:SetSkeletalMesh(sk,false)
@@ -127,9 +151,10 @@ function Overlay.new(g)
     -- play one of Overlay.CLIPS (or a full object path) on the layer's DefaultSlot; loops<=0 holds it indefinitely
     function self.play(p,clip,rate,loops,blend_in,blend_out)
         local pp=pp_of(p.Mesh); if not pp then return nil,'layer not installed' end
-        local seq=find(Overlay.CLIPS[clip] or clip); if not seq then return nil,'clip not found '..tostring(clip) end
+        local seq=clip_of(clip); if not seq then return nil,'clip not found '..tostring(clip) end
         local ok,m=pcall(function()
-            return pp:PlaySlotAnimationAsDynamicMontage(seq,FName('DefaultSlot'),blend_in or 0.15,blend_out or 0.15,
+            slot=slot or FName('DefaultSlot') -- (made once: b812f708)
+            return pp:PlaySlotAnimationAsDynamicMontage(seq,slot,blend_in or 0.15,blend_out or 0.15,
                 rate or 1.0,(loops and loops>0) and loops or 100000,-1.0,0.0)
         end)
         if not ok then return nil,tostring(m) end
@@ -138,7 +163,8 @@ function Overlay.new(g)
 
     function self.stop(p,blend_out)
         local pp=pp_of(p.Mesh); if not pp then return end
-        pcall(function() pp:StopSlotAnimation(blend_out or 0.15,FName('DefaultSlot')) end)
+        slot=slot or FName('DefaultSlot')
+        pcall(function() pp:StopSlotAnimation(blend_out or 0.15,slot) end)
     end
 
     -- the layer's upper-body turn (AimRot, added to Bip001-Spine1 in component space): a property write only
@@ -148,14 +174,14 @@ function Overlay.new(g)
     end
     -- a clip's length in seconds, or nil (the reload clip is fitted to the reload time with it)
     function self.length(clip)
-        local seq=find(Overlay.CLIPS[clip] or clip)
+        local seq=clip_of(clip)
         return seq and g.try(function() return seq:GetPlayLength() end)
     end
     -- whether one of Overlay.CLIPS is still playing on the layer's DefaultSlot (the asset is a loaded clip, never a
     -- montage object that the game may already have freed)
     function self.playing(p,clip)
         local pp=pp_of(p.Mesh); if not pp then return false end
-        local seq=find(Overlay.CLIPS[clip] or clip); if not seq then return false end
+        local seq=clip_of(clip); if not seq then return false end
         slot=slot or FName('DefaultSlot')
         return g.try(function() return pp:IsPlayingSlotAnimation(seq,slot) end)==true
     end

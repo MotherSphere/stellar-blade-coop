@@ -22,7 +22,10 @@
 -- UpdateInstanceTransform, its ten numbers read first; a piece that reads hidden already, an instance the engine
 -- refuses and a call that changes nothing each raise; the put-back writes what was read, leaves an instance alone that
 -- is not hidden and calls nothing on an object that is gone or another one. Then SB's Tetrapod interior
--- (world/maps/sboxion/tetrapod.lua): its static mesh parts made solid and put back as SB ships them.
+-- (world/maps/sboxion/tetrapod.lua): its static mesh parts made solid and put back as SB ships them, listed and
+-- written one by one for the probe. Then an NPC's
+-- display body (world/maps/sboxion/npcs/npcs.lua): made, played, turned, checked, removed and swept through
+-- core/actors.lua.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(t)
     t.type=t.type or function() return 'UObject' end
@@ -382,8 +385,12 @@ assert(rubble.instances[2][8]==0,'Left as it was')
 -- name the game has not made raises before any write; with no actor in memory (its level is not loaded) nothing is
 -- written and the answer is nil.
 local SHIP=BG..'E04_Area05_B_LD.E04_Area05_B_LD:PersistentLevel.BP_Env_TetraPod3_2'
-local function part(stuck)
+local function part(stuck,name,mesh)
     local p=object({calls={},profile='NoCollision'})
+    p.GetFullName=function() return 'StaticMeshComponent '..SHIP..'.'..tostring(name) end
+    p.StaticMesh=mesh and object({GetFullName=function()
+        return 'StaticMesh /Game/Art/Character/ETC/TETRAPOD/Mesh/'..mesh..'.'..mesh
+    end})
     p.SetCollisionProfileName=function(self,name,overlaps)
         self.calls[#self.calls+1]=name:ToString()..' '..tostring(overlaps)
         if not stuck then self.profile=name:ToString() end
@@ -391,7 +398,8 @@ local function part(stuck)
     p.GetCollisionProfileName=function(self) return fname(self.profile,1) end
     return p
 end
-local floor,wall,gone,odd=part(),part(),part(),part(true)
+local floor,wall,gone,odd=part(false,'001_F_SM4','001_F_SM'),part(false,'001_D_SM2','001_D_SM'),part(),
+    part(true,'Glass')
 gone.dead=true
 local asked_class
 statics[SHIP]=object({K2_GetComponentsByClass=function(_,class)
@@ -406,9 +414,82 @@ assert(Engine.ship(false)==3 and floor.calls[2]=='NoCollision true' and floor.pr
 made.BlockAll=nil
 assert(not pcall(Engine.ship,true) and #floor.calls==2,'No such profile name in this game: nothing written')
 made.BlockAll=77
+-- parts and part, for the Tetrapod's probe: the living parts in the order the engine gives them, numbered from 1,
+-- each with the last word of its component's and of its mesh's path and the profile it reads now. part makes one of
+-- them solid or puts it back and answers the profile it reads then; the others are not called. A number with no
+-- part, a part with another name than the one given and a profile name the game has not made raise before any write.
+-- No actor: nil and nothing written.
+do
+    local list,ok,why=Engine.parts()
+    assert(#list==3 and list[1].index==1 and list[1].component=='001_F_SM4' and list[1].mesh=='001_F_SM'
+        and list[1].profile=='NoCollision' and list[2].component=='001_D_SM2' and list[2].mesh=='001_D_SM'
+        and list[3].index==3 and list[3].component=='Glass' and list[3].mesh=='no mesh','The dead part is left out')
+    local f,w,o=#floor.calls,#wall.calls,#odd.calls
+    assert(Engine.part(2,true)=='BlockAll' and #wall.calls==w+1 and wall.calls[w+1]=='BlockAll true'
+        and #floor.calls==f and #odd.calls==o and #gone.calls==0,'Part 2 alone')
+    assert(Engine.parts()[2].profile=='BlockAll','It reads the profile it has now')
+    assert(Engine.part(3,true)=='NoCollision' and odd.calls[o+1]=='BlockAll true','A part that keeps its profile')
+    assert(Engine.part(2,false)=='NoCollision' and wall.profile=='NoCollision','Put back as SB ships it')
+    assert(Engine.part(1,true,'001_F_SM4')=='BlockAll' and floor.profile=='BlockAll','Its name as the list gave it')
+    assert(Engine.part(1,false,'001_F_SM4')=='NoCollision')
+    local n=#floor.calls+#wall.calls+#odd.calls
+    ok,why=pcall(Engine.part,1,true,'001_D_SM2')
+    assert(not ok and tostring(why):find('part 1 is 001_F_SM4 now: the list had 001_D_SM2',1,true),tostring(why))
+    ok,why=pcall(Engine.part,4,true)
+    assert(not ok and tostring(why):find('no part 4 in the ship, which has 3',1,true),tostring(why))
+    made.BlockAll=nil
+    assert(not pcall(Engine.part,1,true),'No such profile name in this game')
+    made.BlockAll=77
+    assert(#floor.calls+#wall.calls+#odd.calls==n,'Nothing written')
+end
+local written=#floor.calls
 statics[SHIP]=object({dead=true})
-assert(Engine.ship(true)==nil and #floor.calls==2,'No actor in memory: nothing written')
+assert(Engine.ship(true)==nil and Engine.parts()==nil and Engine.part(1,true)==nil and #floor.calls==written,
+    'No actor in memory: nothing written')
 statics[SHIP]=nil
+
+-- An NPC's display body (world/maps/sboxion/npcs/npcs.lua) goes through core/actors.lua: spawned in EVE's world at
+-- the place, turned to the yaw, showing a skeletal mesh; its clip looped; turned where it stands; checked, removed
+-- and swept by core/actors.lua's own calls, which never touch another object.
+do
+    local Actors=require('core.actors')
+    local keep={spawn=Actors.spawn,resolve=Actors.resolve,same=Actors.same,remove=Actors.remove,sweep=Actors.sweep}
+    local spawned,played,turned,removed,swept=nil,{},{},{},{}
+    local its_world=object({})
+    package.loaded['core.player'].her=function() return object({GetWorld=function() return its_world end}) end
+    local mesh=object({PlayAnimation=function(_,clip,loop) played[#played+1]={clip=clip,loop=loop} end,
+        K2_SetWorldLocationAndRotation=function(_,at,rotation,sweep,_,teleport)
+            turned[#turned+1]={at=at,rotation=rotation,sweep=sweep,teleport=teleport}
+        end})
+    Actors.spawn=function(world,at,rotation,look)
+        spawned={world=world,at=at,rotation=rotation,look=look}
+        return {actor=object({}),path='P1',mesh=mesh}
+    end
+    local d=Engine.body({X=1,Y=2,Z=3},-160,'/Game/A/M.M')
+    assert(spawned.world==its_world and spawned.at.X==1 and spawned.at.Y==2 and spawned.at.Z==3
+        and spawned.rotation.Yaw==-160 and spawned.rotation.Pitch==0 and spawned.rotation.Roll==0
+        and spawned.look.path=='/Game/A/M.M' and spawned.look.static==nil and spawned.look.camera==nil
+        and d.path=='P1','A skeletal mesh at the place, turned to the yaw, in EVE\'s world')
+    local clip=object({})
+    Actors.resolve=function(path) return path=='/Game/A/C.C' and clip or nil end
+    Engine.body_clip(d,'/Game/A/C.C')
+    assert(#played==1 and played[1].clip==clip and played[1].loop==true,'The clip, looped')
+    local ok,why=pcall(Engine.body_clip,d,'/Game/A/None.None')
+    assert(not ok and tostring(why):find('/Game/A/None.None is missing on this PC',1,true) and #played==1,why)
+    Engine.body_turn(d,{X=1,Y=2,Z=3},-70)
+    assert(#turned==1 and turned[1].rotation.Yaw==-70 and turned[1].at.Z==3 and turned[1].sweep==false
+        and turned[1].teleport==true,'Turned where it stands, with no sweep')
+    Actors.same=function(actor,path) return actor==d.actor and path=='P1' and actor or nil end
+    assert(Engine.body_same(d)==true and Engine.body_same({actor=object({}),path='P1'})==false,
+        'The same actor at the same path alone')
+    Actors.remove=function(x) removed[#removed+1]=x end
+    Engine.body_gone(d)
+    assert(#removed==1 and removed[1]==d,'Removed by core/actors.lua, which checks the actor first')
+    Actors.sweep=function(path,m) swept[#swept+1]={path=path,mesh=m}; return true end
+    assert(Engine.body_sweep('P0','/Game/A/M.M')==true and swept[1].path=='P0' and swept[1].mesh=='/Game/A/M.M',
+        'Swept by path only while it shows that mesh')
+    for k,f in pairs(keep) do Actors[k]=f end
+end
 
 -- No EVE: move gives nil, put raises.
 package.loaded['core.player'].her=function() return nil end
