@@ -208,6 +208,7 @@ local tests = {
         for i = 15, 47 do body:SetMaterial(i, obj('MID ' .. i)) end -- The colour layer's instances.
         assert(w.d.wear(B)) -- Worn again on the same mesh: SetSkeletalMesh returns at once.
         same(held(body), {}, 'the instances of the look before taken off')
+        for i = 15, 47 do body:SetMaterial(i, obj('MID ' .. i)) end -- The colour layer's instances on this look.
         assert(w.d.off())
         eq(body.SkeletalMesh.path, OWN) same(held(body), {2}, 'off: her own override only')
         eq(body:GetMaterial(2).path, X)
