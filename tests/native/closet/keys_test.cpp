@@ -3,12 +3,13 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The closet's native reads as glue/tick.cpp's exports hand them to Lua (closet/keys.h), checked on the build machine
 // (no Windows): the camera's held keys (1 + one bit a key held, 1 alone when no window of SB's is in front), the mouse
-// wheel's notches, the menu's held up and down, and the pad's X, L3 and R3 as bits and its right stick and triggers as
-// levels.
+// wheel's notches, the menu's held up and down, the game window's subclass for the wheel and its give-back at coop
+// off, and the pad's X, L3 and R3 as bits and its right stick and triggers as levels.
 #include "closet/keys.h"
 
 #include <cassert>
 #include <cstdio>
+#include <map>
 #include <set>
 
 using coop::PadState;
@@ -62,6 +63,70 @@ int main() {
   for (int vk : {0x28, int('S')})
     assert(nav_keys(true, [vk](int k) { return k == vk; }) == 3);
   assert(nav_keys(true, [](int k) { return k == 'A' || k == 0x25; }) == 1);
+  // The game window's subclass for the wheel (WheelHook) over fake windows: ints for windows (0 none) and procedures.
+  {
+    struct Win {
+      int front_ = 0, sets = 0;
+      bool fail = false;
+      std::set<int> games, gone;
+      std::map<int, int> procs;
+      int front() { return front_; }
+      bool game(int h) { return games.count(h) > 0; }
+      bool alive(int h) { return h && !gone.count(h); }
+      int proc(int h) { return procs[h]; }
+      bool set(int h, int p) {
+        ++sets;
+        if (fail)
+          return false;
+        procs[h] = p;
+        return true;
+      }
+    } win;
+    constexpr int kMine = 99;
+    win.games = {1, 2};
+    win.procs = {{1, 10}, {2, 20}, {3, 30}};
+    coop::closet::WheelHook<int, int> hook;
+    // Nothing in front, or a window of another class (the UE4SS console): nothing subclassed.
+    assert(!hook.hook(win, kMine, false) && win.sets == 0);
+    win.front_ = 3;
+    assert(!hook.hook(win, kMine, false) && win.sets == 0 && hook.window() == 0);
+    // After coop off nothing is subclassed, even SB's window in front.
+    win.front_ = 1;
+    assert(!hook.hook(win, kMine, true) && win.sets == 0 && win.procs[1] == 10);
+    // SB's window: ours on it once, the old procedure kept as next; later reads swap nothing.
+    assert(hook.hook(win, kMine, false) && win.procs[1] == kMine && hook.next == 10 && hook.window() == 1);
+    assert(hook.hook(win, kMine, false) && win.sets == 1);
+    // A failed swap keeps no window.
+    coop::closet::WheelHook<int, int> refused;
+    win.fail = true;
+    win.front_ = 2;
+    assert(!refused.hook(win, kMine, false) && refused.window() == 0 && win.procs[2] == 20);
+    win.fail = false;
+    // Already ours (a second hook on the same window): no swap, so next never points at ours.
+    win.procs[2] = kMine;
+    const int sets = win.sets;
+    assert(!refused.hook(win, kMine, false) && win.sets == sets && refused.window() == 0);
+    win.procs[2] = 20;
+    // The window gone: the next one in front is subclassed.
+    win.gone = {1};
+    assert(hook.hook(win, kMine, false) && hook.window() == 2 && win.procs[2] == kMine && hook.next == 20);
+    // coop off: the old procedure back while ours is the window's, once; the window forgotten.
+    assert(hook.give_back(win, kMine) && win.procs[2] == 20 && hook.window() == 0);
+    const int after = win.sets;
+    assert(!hook.give_back(win, kMine) && win.sets == after);
+    assert(!hook.hook(win, kMine, true) && win.procs[2] == 20);
+    // Another procedure put on top of ours: ours stays under it (its chain kept), the window forgotten all the same.
+    win.gone.clear();
+    assert(hook.hook(win, kMine, false) && win.procs[2] == kMine);
+    win.procs[2] = 77;
+    assert(!hook.give_back(win, kMine) && win.procs[2] == 77 && hook.window() == 0);
+    // A window gone before coop off: nothing to give back.
+    win.procs[2] = 20;
+    assert(hook.hook(win, kMine, false));
+    win.gone = {2};
+    const int gone_sets = win.sets;
+    assert(!hook.give_back(win, kMine) && win.sets == gone_sets && hook.window() == 0);
+  }
   // X, L3 and R3: coop_padbits' bits (1 X, 2 L3, 4 R3) of the buttons; no other button counts.
   using coop::closet::pad_bits;
   assert(pad_bits(0) == 0 && pad_bits(PadState::X) == 1 && pad_bits(PadState::LEFT_THUMB) == 2 &&

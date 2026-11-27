@@ -558,8 +558,8 @@ extern "C" __declspec(dllexport) int coop_nav(void *) noexcept {
 }
 
 // coop_wheel (Lua passes 130): closet/wheel_game.inc's wheel_read, 65 + the wheel's whole notches since the last call
-// (up positive, -64 to 64); 65 when no window of SB's is in front or its game window could not be subclassed. The
-// closet camera's zoom. Called by Lua on the game thread only. Never throws, never waits.
+// (up positive, -64 to 64); 65 when no window of SB's is in front, after coop off or while its game window could not
+// be subclassed. The closet camera's zoom. Called by Lua on the game thread only. Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_wheel(void *) noexcept {
   using namespace coop::pose;
   return wheel_read(game_in_front());
@@ -580,6 +580,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   using namespace coop::pose;
   LARGE_INTEGER entry;
   QueryPerformanceCounter(&entry);
+  if (blocked) // The closet's subclass of the game window, given back once after coop off.
+    wheel_give_back();
   if (engine_on && !blocked)
     guarded_tick();
   // Her drone for the capture, its own latch: a look each second while her capture is live, none after coop off or its

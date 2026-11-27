@@ -5,48 +5,49 @@
 // The mouse wheel for coop_wheel (closet/keys.h's wheel_answer), on the game thread: GetAsyncKeyState cannot see it.
 // Its first read in front subclasses SB's game window, the foreground window of class UnrealWindow (FWindowsWindow's
 // CreateWindowExW at 0x142bfb34b in FUN_142bfb0c0 takes the class name L"UnrealWindow" at 0x145fcb070, loaded at
-// 0x142bfb32a; Ghidra, build 26123051). The new window procedure adds each WM_MOUSEWHEEL's delta to wheel_delta, then
-// hands every message on to the one it replaced. The DLL is pinned (DllMain), so the procedure stays loaded while the
-// window lives. A window gone (IsWindow false) is replaced by the next one in front. Pure Win32: no game memory is
-// read or written.
+// 0x142bfb32a; Ghidra, build 26123051), through closet/keys.h's WheelHook. The new window procedure adds each
+// WM_MOUSEWHEEL's delta to wheel_delta, then hands every message on to the one it replaced. The DLL is pinned
+// (DllMain), so the procedure stays loaded while the window lives. A window gone (IsWindow false) is replaced by the
+// next one in front. coop off subclasses nothing more and gives the old procedure back (wheel_give_back, from
+// coop_tick). Pure Win32: no game memory is read or written.
 
 namespace coop::pose {
 namespace {
 std::atomic<int> wheel_delta{0};
-std::atomic<WNDPROC> wheel_next{nullptr};
-HWND wheel_window = nullptr; // Read and written by wheel_read only, on the game thread.
+coop::closet::WheelHook<HWND, WNDPROC> wheel_hook; // The game thread's (wheel_read, wheel_give_back).
 LRESULT CALLBACK wheel_proc(HWND window, UINT message, WPARAM w, LPARAM l) {
   if (message == WM_MOUSEWHEEL)
     wheel_delta.fetch_add(GET_WHEEL_DELTA_WPARAM(w), std::memory_order_relaxed);
-  return CallWindowProcW(wheel_next.load(std::memory_order_acquire), window, message, w, l);
+  return CallWindowProcW(wheel_hook.next.load(std::memory_order_acquire), window, message, w, l);
 }
-// SB's game window in front subclassed once; false while none is (another window of the process, the UE4SS console).
-bool wheel_hooked() {
-  if (wheel_window && IsWindow(wheel_window))
-    return true;
-  wheel_window = nullptr;
-  HWND front = GetForegroundWindow();
-  wchar_t name[16] = {};
-  if (!front || GetClassNameW(front, name, 16) == 0 || lstrcmpW(name, L"UnrealWindow") != 0)
-    return false;
-  // The procedure it has now first, so a wheel message right after the swap is handed on.
-  const auto was = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(front, GWLP_WNDPROC));
-  if (!was || was == &wheel_proc)
-    return false;
-  wheel_next.store(was, std::memory_order_release);
-  if (!SetWindowLongPtrW(front, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&wheel_proc)))
-    return false;
-  wheel_delta.store(0, std::memory_order_relaxed);
-  wheel_window = front;
-  return true;
-}
+// WheelHook's Win on Win32. game: the class name read into 16 characters, so a longer name never matches.
+struct WheelWin {
+  HWND front() { return GetForegroundWindow(); }
+  bool game(HWND h) {
+    wchar_t name[16] = {};
+    return GetClassNameW(h, name, 16) != 0 && lstrcmpW(name, L"UnrealWindow") == 0;
+  }
+  bool alive(HWND h) { return IsWindow(h) != 0; }
+  WNDPROC proc(HWND h) { return reinterpret_cast<WNDPROC>(GetWindowLongPtrW(h, GWLP_WNDPROC)); }
+  bool set(HWND h, WNDPROC p) { return SetWindowLongPtrW(h, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(p)) != 0; }
+};
 } // namespace
 
 // coop_wheel's answer: closet/keys.h's wheel_answer of the notches since the last read; no notch while no window of
-// SB's is in front (in_front false) or its game window could not be subclassed. Called on the game thread only.
+// SB's is in front (in_front false), after coop off or while its game window could not be subclassed. A window newly
+// subclassed starts with no notch. Called on the game thread only.
 int wheel_read(bool in_front) {
   static int carry = 0;
-  const bool front = in_front && wheel_hooked();
+  WheelWin win;
+  const HWND was = wheel_hook.window();
+  const bool front = in_front && wheel_hook.hook(win, &wheel_proc, blocked);
+  if (front && wheel_hook.window() != was)
+    wheel_delta.store(0, std::memory_order_relaxed);
   return coop::closet::wheel_answer(front, carry, wheel_delta.exchange(0, std::memory_order_relaxed));
+}
+// After coop off, each frame from coop_tick: the game window's procedure back, once (WheelHook's give_back).
+void wheel_give_back() {
+  WheelWin win;
+  wheel_hook.give_back(win, &wheel_proc);
 }
 } // namespace coop::pose

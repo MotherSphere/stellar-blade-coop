@@ -1706,8 +1706,12 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `1 +` one bit a key (right mouse, middle mouse, Shift, I, J, K, L, U, O; 1 alone with no window of the game's in
   front), the mouse wheel's notches as `65 +` the whole notches (a smooth wheel's small steps adding up, the part of a
   notch kept, 64 notches at most each way, nothing kept out of front), the menu's held up and down (Up arrow, W, Z; Down
-  arrow, S), X, L3 and R3 as `pad_bits` (1, 2, 4) and the right stick and triggers as `pad_level`'s
-  `1 + 65 * which + level` (at rest, the ends, 260 at most);
+  arrow, S), the game window's subclass for the wheel over fake windows (nothing in front, another window class, coop
+  off, a failed swap and a window already ours subclass nothing; ours once on the game window with the old procedure
+  kept; a window gone replaced by the next one in front; at coop off the old procedure back once while ours is the
+  window's, kept under another procedure put on top of ours, nothing for a window gone), X, L3 and R3 as `pad_bits`
+  (1, 2, 4) and the right stick and triggers as `pad_level`'s `1 + 65 * which + level` (at rest, the ends, 260 at
+  most);
 - `closet_packs_test`: the CNS pack list for `closet/packs.lua` (`closet/packs.h`, `coop-cns-packs.txt`): only CNS
   packs, `<size> <time> <path>` in decimal, sorted by path, the path's spaces and `\` kept, empty text without packs,
   256 lines at most;
