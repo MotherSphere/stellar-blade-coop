@@ -10,13 +10,15 @@
 -- every wear plans it.
 -- tick (each frame, on the game thread, before the colour layer's): a variant change of a worn outfit puts the look on
 -- again (dress.again), a toggle change of one shows its sections (dress.reshow, applied() kept); a change that cannot
--- show now (a game look on) is asked again at the next tick. After each pack scan it says once each kept value whose
--- outfit, variant or slot is gone: that value is ignored and stays in the file (the pack may come back).
+-- show now (a game look on, no EVE, a failed apply) is asked again at the next tick. After each pack scan it says once
+-- each kept value whose outfit, variant or slot is gone: that value is ignored and stays in the file (the pack may
+-- come back). A variant whose mesh does not load (dress.loads) is never worn: set_variant refuses it, a kept one is
+-- replaced by the first after the scan (said once, kept in the file).
 -- The values are kept in coop-closet-options.txt (link.store) as words split by tabs, '<fit> variant=<n>' and
 -- '<fit> <variant> toggle:<slot>=on|off', sorted. They are read once at new. reset(fit) gives one outfit its pack
 -- values back, off() (Reset Stellar Closet) every outfit and clears the file. stop() (coop off) drops the changes not
 -- shown yet: the dress gave EVE her own look back.
--- o: {dress=closet/dress.lua's (plan, again, reshow), store=link.store(Options.FILE), log=}.
+-- o: {dress=closet/dress.lua's (plan, again, reshow, loads), store=link.store(Options.FILE), log=}.
 local Fits=require('closet.fits')
 local Options={}
 Options.FILE='coop-closet-options.txt'
@@ -80,7 +82,13 @@ function Options.new(o)
         checked=Fits.PACKS
         for fit,v in pairs(variants) do
             local f=Fits.PACKS[fit]
-            if f and f.Variant~=v then say('options: '..fit..' has no variant '..v..': the first is worn') end
+            if f and f.Variant~=v then say('options: '..fit..' has no variant '..v..': the first is worn')
+            elseif f and not dress.loads(f.Mesh) then
+                -- Fits.CHOSEN keeps v: the next pack scan tries it again (the pack may be fixed).
+                Fits.PACKS[fit]=Fits.pack(Fits.ITEMS[fit],1)
+                redress[fit]=true
+                say('options: '..fit..' variant '..v..': its mesh does not load: the first is worn')
+            end
         end
         for at,set in pairs(values) do
             local fit,v=at:match('^(%S+) (%d+)$')
@@ -124,7 +132,13 @@ function Options.new(o)
         return f and f.Variant or variants[fit] or 1
     end
     function self.set_variant(fit,v)
+        local was=self.variant(fit)
         if not Fits.choose(fit,v) then return false,'closet: '..tostring(fit)..' has no variant '..tostring(v) end
+        local f=Fits.PACKS[fit]
+        if f and not dress.loads(f.Mesh) then
+            Fits.choose(fit,was)
+            return false,'closet: '..fit..' variant '..v..': its mesh does not load'
+        end
         variants[fit]=v~=1 and v or nil
         keep()
         redress[fit]=true
@@ -194,7 +208,7 @@ function Options.new(o)
         for fit in pairs(reshow) do show=show or worn[fit]==true end
         local done,why=true,nil
         if again then done,why=dress.again() elseif show then done,why=dress.reshow() end
-        if done==false then return say('options: the change waits: '..tostring(why)) end
+        if not done then return say('options: the change waits: '..tostring(why)) end
         redress,reshow={},{}
     end
     -- coop off: the changes not shown yet dropped; the values stay for the next look.

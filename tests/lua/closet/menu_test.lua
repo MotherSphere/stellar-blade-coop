@@ -70,8 +70,8 @@ local function with_aria(f, o)
         store.save = function(l) store.file = l; return true end
         store.load = function() return store.file end
         store.clear = function() store.file = nil end
-        o.options = require('closet.options').new({store = store, dress = {plan = function() end},
-            log = function() end})
+        o.options = require('closet.options').new({store = store, dress = {plan = function() end,
+            loads = function() return true end}, log = function() end})
         local r = rig(o)
         r.store, r.options = store, o.options
         local ran, failed = pcall(f, r)

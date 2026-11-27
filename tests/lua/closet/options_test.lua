@@ -22,11 +22,15 @@ local function suit(id)
 end
 
 local function rig(line)
-    local r = {file = line, log = {}, again = 0, reshown = 0, plan = nil}
+    -- fail: what again and reshow give back (closet/dress.lua's apply gives nil and why when it fails); broken: the
+    -- mesh paths that do not load (dress.loads).
+    local r = {file = line, log = {}, again = 0, reshown = 0, plan = nil, fail = nil, broken = {}}
     r.store = {save = function(l) r.file = l; return true end, load = function() return r.file end,
         clear = function() r.file = nil end}
-    r.dress = {plan = function() return r.plan end, again = function() r.again = r.again + 1; return true end,
-        reshow = function() r.reshown = r.reshown + 1; return true end}
+    r.dress = {plan = function() return r.plan end,
+        again = function() r.again = r.again + 1; if r.fail then return nil, r.fail end return true end,
+        reshow = function() r.reshown = r.reshown + 1; if r.fail then return nil, r.fail end return true end,
+        loads = function(path) return not r.broken[path] end}
     r.new = function()
         return Options.new({store = r.store, dress = r.dress, log = function(m) r.log[#r.log + 1] = m end})
     end
@@ -108,6 +112,49 @@ local tests = {
             r.o.set('s', 2, 'toggle:4', false)
             r.o.tick()
             eq(r.reshown, 1, 'another outfit worn: nothing')
+        end)
+    end,
+    a_change_that_fails_to_show_is_asked_again = function()
+        with_suit(function()
+            local r = rig()
+            r.plan = {body = {fit = 's'}, added = {}}
+            r.fail = 'no EVE in the world'
+            r.o.set_variant('s', 2)
+            r.o.tick()
+            eq(r.again, 1) eq(count(r.log, 'the change waits: no EVE in the world'), 1, 'the failure said')
+            r.o.tick()
+            eq(r.again, 2, 'asked again at the next tick')
+            r.fail = nil
+            r.o.tick() r.o.tick()
+            eq(r.again, 3, 'shown once it works, then done')
+            r.fail = 'EVE has no body mesh'
+            r.o.set('s', 2, 'toggle:4', false)
+            r.o.tick() r.o.tick()
+            eq(r.reshown, 2, 'a toggle change asked again too')
+        end)
+    end,
+    a_variant_whose_mesh_does_not_load_is_not_worn = function()
+        with_suit(function()
+            local r = rig()
+            r.broken['/Game/P/V2.V2'] = true
+            local good, why = r.o.set_variant('s', 2)
+            eq(good, false) ok(why:find('does not load', 1, true), why)
+            eq(r.o.variant('s'), 1, 'variant 1 kept') eq(Fits.get('s').Mesh, '/Game/P/V1.V1')
+            eq(r.file, nil, 'nothing saved')
+        end)
+        -- A saved variant whose mesh no longer loads (a pack update): the first worn, said once, the value kept.
+        local r = rig('s variant=2')
+        r.broken['/Game/P/V2.V2'] = true
+        with_suit(function()
+            r.o.tick() r.o.tick()
+            eq(r.o.variant('s'), 1, 'the first worn') eq(Fits.get('s').Mesh, '/Game/P/V1.V1')
+            eq(count(r.log, 's variant 2: its mesh does not load'), 1, 'said once')
+            eq(r.file, 's variant=2', 'the value stays in the file')
+            Fits.use({s = suit('s')}) -- coop closet rescan: the chosen variant tried again
+            r.o.tick()
+            eq(Fits.get('s').Mesh, '/Game/P/V1.V1', 'still the first')
+            eq(count(r.log, 's variant 2: its mesh does not load'), 1, 'said once')
+            eq(count(r.log, 'has no variant'), 0, 'not said gone')
         end)
     end,
     coop_closet_option_sets_a_variant_or_a_toggle = function()
