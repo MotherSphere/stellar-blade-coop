@@ -133,7 +133,7 @@ widget parts in the kit group `closet_menu`:
 
 | Part | Game widget |
 | --- | --- |
-| Tabs | `WB_Common_Tab_Btn`, one a tab. The Intimate tab is left out |
+| Tabs | `WB_Common_Tab_Btn`, one a tab. The Intimate tab never shows: no setting turns it on |
 | Slot rows | `WB_Setting_Button_Slot`, a window of 10. A slot with no piece type yet shows as locked "Coming soon" |
 | Pieces | The hair salon's `WB_HairSalonGridList` TileView, fed with `BP_HairSalonItemData_Tile` data objects. The None tile comes first. Each tile shows its piece's picture (below), the None tile the None glyph. On the Full outfit tab it shows one tile: the focused outfit's whole picture |
 | Detail | `WB_NanoSuit_Detail` with its hold button hidden. The origin badge (the Original or Custom glyph) sits right of it, by its title |

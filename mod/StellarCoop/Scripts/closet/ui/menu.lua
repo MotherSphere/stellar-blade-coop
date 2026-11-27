@@ -98,8 +98,8 @@
 -- did not drag (take_back, read each tick).
 -- o: {kit=ui/kit/kit.lua's, dress=closet/dress.lua's, words=function() the ui/text table to show, tell=function(build)
 -- (main/base.lua's M.tell), log=, world=function() M.hud_shown, photo=function() M.photo_state(), status=function()
--- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
--- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
+-- the link's status text or nil, adult=the Intimate tab shown (closet/wiring.lua never passes it),
+-- now=function() the time in s (os.clock when nil), camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
 -- thumbs=closet/thumbs.lua's or nil, colour=closet/colour.lua's or nil (the Colour rows then show Off and pick
 -- nothing), shape=closet/shape.lua's or nil (no shape row then), options=closet/options.lua's or nil (no options
 -- page then), presets=closet/presets.lua's or nil (no Presets rows, filter or favourites then),
