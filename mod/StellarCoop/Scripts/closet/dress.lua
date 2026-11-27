@@ -483,7 +483,7 @@ function Dress.new(o)
     end
     -- Removes the added components wearing the given mesh paths and gives the body its own mesh and materials back. A
     -- slot in dynamic (current_materials') gets a new dynamic instance of its parent with her values: the one she wore
-    -- went with the first mix, and the engine may have freed it since.
+    -- went with the first mix. The engine may have freed it since.
     -- shortcut: the values live in memory only, so after a Lua reload her dynamic slots come back as their parents;
     -- write them into coop-closet.txt if a pack or the game is seen to need them.
     local function give_back(eve,own,materials,added_paths,dynamic)
@@ -538,7 +538,7 @@ function Dress.new(o)
             own,materials=mesh and path_of(mesh) or '',current_materials(body,dynamic)
         end
         -- The new look is written before anything on EVE changes. A save that fails (a virus scanner holding the
-        -- temporary file) leaves the look on EVE and the state as they were, and writes the old line again.
+        -- temporary file) leaves the look on EVE and the state as they were. The old line is then written again.
         local was=state
         state={plan=plan,choices=choices,kept=kept,eve_path=path_of(eve),own=own,materials=materials,dynamic=dynamic,
             added={},paused=false,wrong=0}
@@ -605,9 +605,9 @@ function Dress.new(o)
             (plan.clips and ', skin shows on '..table.concat(plan.clips,',') or '')
     end
     -- A kept look restore has not worn again yet (it waits while the game is paused, shows a loading screen or is in its
-    -- retry window): its leftovers off EVE and her own look back now, and restore is done. So a wear or preview right
-    -- after records her own look, never the kept look's mesh, and no later restore puts the kept look over it. With no
-    -- EVE it waits: the apply fails anyway.
+    -- retry window): its leftovers off EVE and her own look back now. Then restore is done. So a wear or preview right
+    -- after records her own look, never the kept look's mesh. No later restore puts the kept look over it. With no EVE
+    -- it waits: the apply fails anyway.
     local function settle()
         if restored then return end
         if state then restored,pending=true,{}; return end
@@ -920,7 +920,7 @@ function Dress.new(o)
                     ..'the next wear or preview')
             end
             -- apply keeps the state's own look and sweeps its added meshes (a forced body's plan adds other outfits). A
-            -- mix that fails keeps the state: the next second tries again, and coop closet off gives her look back.
+            -- mix that fails keeps the state: the next second tries again. coop closet off still gives her look back.
             local ok,why=apply(plan,choices,kept)
             if not ok then log('mix again failed: '..tostring(why)) end
             return

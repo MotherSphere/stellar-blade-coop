@@ -1029,7 +1029,7 @@ local tests = {
         end
     end,
     -- A save that fails (a virus scanner holding coop-closet.txt.tmp): the look on EVE and the state stay as they were,
-    -- the old line is written again, and off still gives her own look back.
+    -- the old line is written again. off still gives her own look back.
     a_failed_save_keeps_the_look_on_eve = function()
         local w = world()
         assert(w.d.wear(A)) -- Kunoichi's boots on her body, Ocean Maid's top on an added mesh.
