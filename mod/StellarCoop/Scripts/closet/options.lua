@@ -440,6 +440,8 @@ function Options.new(o)
     end
     function self.holds(c,index) return at_slot(held,c,index) end
     function self.owns(c,index) return at_slot(owned,c,index) end
+    -- Grows each time paint writes a value change (owned and held may have changed): closet/colour.lua paints again.
+    function self.revision() return drawn end
 
     -- A slot's dynamic instance (an instance already there is reused); nil when the slot has no material or the
     -- engine refuses (said in the log).

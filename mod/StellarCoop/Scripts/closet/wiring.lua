@@ -38,6 +38,7 @@ M.closet_presets=Presets.new({store=M.link and M.link.store(Presets.FILE),option
 -- dress's, menu open or not, so a look the dress puts on gets the palette in the same frame. The menu's Colour tab and
 -- coop closet colour set it. A slot whose pack colour control is set away from the pack's colour is the options
 -- layer's (options.owns): options ticks before colour, so on a slot on the pack's colour the palette writes last.
+-- The palette paints again in the frame of each options paint (options.revision).
 local Colour=require('closet.colour')
 local colour=Colour.new({dress=M.closet,store=M.link and M.link.store(Colour.FILE),options=options,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})

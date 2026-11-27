@@ -27,7 +27,8 @@
 -- the options layer: the palette never paints it; a record of the palette's there is forgotten, its material and
 -- instance left as they are. A slot whose control is on the pack's colour (o.options.holds) gets the palette on the
 -- instance both layers write: a role turned off gives back its values only, never the material (the options layer's
--- values are on that instance).
+-- values are on that instance). tick also paints again after each options paint (o.options.revision): a slot set
+-- back to the pack's colour gets the palette at once.
 -- o: {dress=closet/dress.lua's (applied, parts), store=link.store(Colour.FILE), log=, options=closet/options.lua's
 -- or nil}.
 --
@@ -122,8 +123,8 @@ function Colour.new(o)
     -- 'part:index' (dress.parts()'s order, the same until applied() changes) -> {c, index, original, mid,
     -- was={[name]=the value before}, set={[name]=the closet's value while it is on}}.
     local slots={}
-    -- The palette's words; applied(), the words and shown() as last put on.
-    local wanted,seen,drawn,viewed='',nil,nil,nil
+    -- The palette's words; applied(), the words, shown() and options.revision() as last put on.
+    local wanted,seen,drawn,viewed,revised='',nil,nil,nil,nil
     local function words()
         local out={}
         for _,role in ipairs(Colour.ROLES) do
@@ -222,15 +223,17 @@ function Colour.new(o)
     end
 
     -- Each frame: the palette put on again once the dress applied a look, showed other sections of it (dress.shown,
-    -- closet/options.lua's toggles: the instances kept) or the palette changed.
+    -- closet/options.lua's toggles: the instances kept), the palette changed or the options layer painted
+    -- (options.revision: a slot set to or away from the pack's colour).
     function self.tick()
         local gen,view=dress.applied(),dress.shown and dress.shown()
-        if gen==seen and wanted==drawn and view==viewed then return end
+        local rev=o.options and o.options.revision and o.options.revision()
+        if gen==seen and wanted==drawn and view==viewed and rev==revised then return end
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
         if gen~=seen then slots={} end -- The dress made its materials and components again: ours went with them.
         paint(parts)
-        seen,drawn,viewed=gen,wanted,view
+        seen,drawn,viewed,revised=gen,wanted,view,rev
     end
     -- coop closet colour <role> <swatch|off> and the Colour tab: one role's swatch, kept in the file at once.
     function self.set(role,id)
@@ -256,7 +259,7 @@ function Colour.new(o)
         return true,'closet: colours off'
     end
     -- coop off: the instances forgotten (the dress gave back what wore them); the palette stays for the next look.
-    function self.stop() slots,seen,drawn,viewed={},nil,nil,nil end
+    function self.stop() slots,seen,drawn,viewed,revised={},nil,nil,nil,nil end
     return self
 end
 
