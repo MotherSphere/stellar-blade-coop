@@ -1,0 +1,561 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+-- The closet's head part (closet/head/wear.lua) with fake UE4SS objects, copied from tests/lua/eve/wear_test.lua (a
+-- strict EVE, part(), asset/mesh/colour, calls/since, the store, the clock) with SBPonytail and SBPonytailShort fakes
+-- that keep their visibility and OverrideClothPhysicsAsset. The store stands for closet/dress.lua, which writes
+-- head.line() as field 6 before each wear ('save' in the calls).
+local run = dofile('tests/lua/closet/run.lua')
+
+local function fname(t) return {type = function() return 'FName' end, ToString = function() return t end} end
+local next_address = 0x1000
+local function object(fields)
+    next_address = next_address + 0x100
+    local at = next_address
+    local o = fields or {}
+    o.type = function() return 'UObject' end
+    o.IsValid = o.IsValid or function(self) return not rawget(self, 'destroyed') end
+    o.GetAddress = function() return at end
+    return o
+end
+local invalid = object({destroyed = true})
+local classes = {}
+local function class(path)
+    classes[path] = classes[path] or object({path = path})
+    return classes[path]
+end
+local assets, packages, by_path = {}, {}, {}
+StaticFindObject = function(path)
+    if by_path[path] then return by_path[path] end
+    if path:find('^/Script/') then return class(path) end
+    return assets[path] or invalid
+end
+LoadAsset = function(path) -- A class shows once its Blueprint's package is loaded.
+    local c = packages[path]
+    if c then assets[c.at_path] = c end
+    return invalid
+end
+local player
+package.loaded.UEHelpers = {GetPlayer = function() return player end}
+local Head = require('closet.head.wear')
+
+local function asset(path, kinds, fields)
+    local o = object(fields or {})
+    o.at_path = path
+    o.GetFullName = function() return kinds[1]:match('[^.]+$') .. ' ' .. path end
+    o.IsA = function(_, c)
+        if c.path == '/Script/CoreUObject.Object' then return true end
+        for _, k in ipairs(kinds) do if k == c.path then return true end end
+        return false
+    end
+    assets[path] = o
+    return o
+end
+local PC = '/Game/Art/Character/PC/'
+local function p(rel) return PC .. rel .. '.' .. rel:match('[^/]+$') end
+local MAT = {'/Script/Engine.MaterialInstanceConstant', '/Script/Engine.MaterialInterface'}
+local PHYS, ANIM = {'/Script/Engine.PhysicsAsset'}, {'/Script/Engine.AnimBlueprintGeneratedClass'}
+local skeleton = asset('/Game/S.S', {'/Script/Engine.Skeleton'})
+local function material(rel) return asset(p(rel), MAT) end
+local function mesh(rel, slots, fields)
+    local f = fields or {}
+    f.Skeleton, f.Materials = skeleton, {}
+    for k, m in ipairs(slots) do f.Materials[k] = {MaterialInterface = m, MaterialSlotName = fname('slot' .. k)} end
+    return asset(p(rel), {'/Script/Engine.SkeletalMesh'}, f)
+end
+
+-- The game's own hair (CH_P_EVE_Hair01 in its colour, a dynamic material) and ponytail, the body, the stock hair H07
+-- (SB.Hair_001, four salon colours), the ponytails, a pack hair and a cut hair.
+local hr01 = mesh('00_HR/EVE_HR_01/CH_P_EVE_Hair01', {material('00_HR/EVE_HR_01/MI_HR01_TypeA')})
+local hr01_type_b = material('00_HR/EVE_HR_01/MI_HR01_TypeB')
+local hr01_anim = asset(p('00_HR/EVE_HR_01/HR01_AnimBP') .. '_C', ANIM)
+local hr01_phys = asset(p('00_HR/EVE_HR_01/HR01_PhysicsAsset'), PHYS)
+local pony2 = mesh('CH_P_EVE_Hair/CH_P_EVE_Hair_PonyTail_2', {material('CH_P_EVE_Hair/MI_Pony_Default')})
+local pony_short = mesh('CH_P_EVE_Hair/CH_P_EVE_Hair_PonyTail_Short', {material('CH_P_EVE_Hair/MI_Pony_Default')})
+local eve08 = mesh('CH_P_EVE_08/CH_P_EVE_08', {material('CH_P_EVE_08/MI_CH_P_EVE_08_01')})
+local eve08_pony = asset(p('CH_P_EVE_08/CH_P_EVE_08_PonytailPhysicsAsset'), PHYS)
+local h07_types, tails = {}, {}
+for i, t in ipairs({'A', 'B', 'C', 'D'}) do
+    h07_types[i] = material('H07/MI_H07_Type' .. t)
+    tails[i] = material('H07/MI_H07_Tail_Type' .. t)
+end
+local h07 = mesh('H07/H07', {h07_types[1]})
+local h07_anim = asset(p('H07/H07_AnimBP') .. '_C', ANIM)
+local nier = mesh('Nier/Nier', {material('Nier/MI_Nier')})
+local PACK = '/Game/OutfitMods/P/'
+local ph = asset(PACK .. 'PH.PH', {'/Script/Engine.SkeletalMesh'}, {Skeleton = skeleton,
+    Materials = {{MaterialInterface = material('P/MI_PH')}}})
+local ph_anim = asset(PACK .. 'PH_BP.PH_BP_C', ANIM)
+local ph_pony = asset(PACK .. 'PH_Pony.PH_Pony', PHYS)
+local hr14 = mesh('00_HR/EVE_HR_14/EVE_HR_14', {material('00_HR/EVE_HR_14/MI_EVE_HR_14_TypeA')})
+local hr14_phys = asset(p('00_HR/EVE_HR_14/EVE_HR_14_Physics'), PHYS)
+do -- EVE_HR_14's AnimBP class shows once its Blueprint's package is loaded.
+    local path = p('00_HR/EVE_HR_14/EVE_HR_14_AnimBP') .. '_C'
+    packages[path:sub(1, -3)] = asset(path, ANIM)
+    assets[path] = nil
+end
+
+-- The head fits as closet/fits.lua gives them (Fits.get), in each outfit's chosen variant.
+local chosen = {}
+local function variants(m, list)
+    local out = {}
+    for i, x in ipairs(list) do out[i] = {Mesh = m, Materials = {x.at_path}} end
+    return out
+end
+local ITEMS = {
+    ['SB.Hair_001'] = {Slot = 'Hair', Origin = 'original', Mesh = h07.at_path, AnimationBP = h07_anim.at_path,
+        Rotation = {Pitch = 0, Yaw = 90, Roll = 0}, HidePonytail = false, Ponytail = 'SB.Ponytail_Long',
+        Variants = variants(h07.at_path, h07_types)},
+    ['SB.Hair_Nier_001'] = {Slot = 'Hair', Origin = 'original', Mesh = nier.at_path, HidePonytail = true,
+        Rotation = {Pitch = -90, Yaw = 0, Roll = -90}, Variants = {{Mesh = nier.at_path, Materials = {}}}},
+    ['SB.Hair_024'] = {Slot = 'Hair', Origin = 'original', Mesh = hr14.at_path,
+        AnimationBP = p('00_HR/EVE_HR_14/EVE_HR_14_AnimBP') .. '_C', PhysicsAsset = hr14_phys.at_path,
+        HidePonytail = false, Ponytail = 'SB.Ponytail_Long', Variants = {{Mesh = hr14.at_path, Materials = {}}}},
+    ['SB.Ponytail_Long'] = {Slot = 'Ponytail', Origin = 'original', Mesh = pony2.at_path,
+        Variants = variants(pony2.at_path, tails)},
+    ['SB.Ponytail_Short'] = {Slot = 'Ponytail', Origin = 'original', Mesh = pony_short.at_path,
+        Variants = variants(pony_short.at_path, tails)},
+    ['SB.Ponytail_None'] = {Slot = 'Ponytail', Origin = 'original', Mesh = '',
+        Variants = {{Mesh = '', Materials = {}}}},
+    ['p.hair'] = {Slot = 'Hair', Origin = 'custom', Mesh = ph.at_path, AnimationBP = ph_anim.at_path,
+        Variants = {{Mesh = ph.at_path, Materials = {}, PonyPhysics = ph_pony.at_path}}},
+}
+local fits = {get = function(id)
+    local it = ITEMS[id]
+    if not it then return nil end
+    local v = chosen[id] or 1
+    local f = {}
+    for k, x in pairs(it) do f[k] = x end
+    f.Variant, f.Materials, f.PonyPhysics = v, it.Variants[v].Materials, it.Variants[v].PonyPhysics
+    return f
+end}
+
+-- Every call on a component, in order with the store's, as words.
+local calls = {}
+local function said(...) calls[#calls + 1] = table.concat({...}, ' ') end
+local function since(n) return table.concat(calls, '|', n + 1) end
+local function short(o) return o.at_path and o.at_path:match('[^.]+$') or o:GetFullName():match('[^.]+$') end
+local MID = '/Script/Engine.MaterialInstanceDynamic'
+-- Her hair colour: a dynamic instance SB made at run time from MI_HR01_TypeB.
+local function colour(name)
+    local path = '/Game/Map.Map:PersistentLevel.' .. name .. '.SBHair.MaterialInstanceDynamic_0'
+    local o = object({Parent = hr01_type_b, at_path = path})
+    o.GetFullName = function() return 'MaterialInstanceDynamic ' .. path end
+    o.IsA = function(_, c) return c.path == MID or c.path == '/Script/Engine.MaterialInterface' end
+    return o
+end
+-- A component of hers: its mesh, AnimBP class, physics asset override, overridden materials, visibility, rotation and
+-- cloth collision (a write of OverrideClothPhysicsAsset is a call).
+local function part(eve_name, name, fields)
+    local c = object(fields)
+    c.name, c.OverrideMaterials = name, c.OverrideMaterials or {}
+    if c.visible == nil then c.visible = true end
+    c.RelativeRotation = c.RelativeRotation or {Pitch = 0, Yaw = 0, Roll = 0}
+    local path = '/Game/Map.Map:PersistentLevel.' .. eve_name .. '.' .. name
+    function c:GetFName() return fname(name) end
+    function c:GetFullName() return 'SBSkeletalMeshComponent ' .. path end
+    function c:SetSkeletalMesh(m, reinit)
+        assert(reinit == true, 'A new pose, as SB sets a mesh')
+        rawset(self, 'SkeletalMesh', m); said(name, 'mesh', short(m), tostring(reinit))
+    end
+    function c:SetAnimClass(k)
+        local raise = rawget(self, 'anim_raises')
+        rawset(self, 'anim_raises', nil)
+        if raise then error(raise, 0) end
+        rawset(self, 'AnimClass', k); said(name, 'anim', short(k))
+    end
+    function c:SetPhysicsAsset(a, force)
+        rawset(self, 'PhysicsAssetOverride', a); said(name, 'physics', a and short(a) or 'none', tostring(force))
+    end
+    function c:SetMaterial(i, m)
+        assert(math.type(i) == 'integer' and i >= 0)
+        for k = #self.OverrideMaterials + 1, i do self.OverrideMaterials[k] = invalid end
+        self.OverrideMaterials[i + 1] = m; said(name, 'material', i, short(m))
+    end
+    function c:SetVisibility(v, children)
+        assert(children == false, 'Its children stay as they are')
+        rawset(self, 'visible', v); said(name, 'visible', tostring(v))
+    end
+    function c:IsVisible() return rawget(self, 'visible') end
+    function c:K2_SetRelativeRotation(r, sweep, _, teleport)
+        assert(sweep == false and teleport == false)
+        rawset(self, 'RelativeRotation', {Pitch = r.Pitch, Yaw = r.Yaw, Roll = r.Roll})
+        said(name, 'rotation', r.Pitch, r.Yaw, r.Roll)
+    end
+    local cloth = rawget(c, 'cloth')
+    c.cloth = nil
+    return setmetatable(c, {__index = function(_, k) if k == 'OverrideClothPhysicsAsset' then return cloth end end,
+        __newindex = function(t, k, v)
+            if k ~= 'OverrideClothPhysicsAsset' then return rawset(t, k, v) end
+            cloth = v; said(name, 'cloth', v and short(v) or 'none')
+        end})
+end
+-- EVE: strict, so a read of anything but these fails the test (her equipment and saves among them).
+local ALLOWED = {Mesh = true, K2_GetComponentsByClass = true, IsA = true, GetFullName = true, IsValid = true,
+    type = true, GetAddress = true, destroyed = true}
+local function eve_of(name, o)
+    o = o or {}
+    local e = object()
+    local parts = {part(name, 'CharacterMesh0', {SkeletalMesh = eve08}),
+        part(name, 'Mesh_Face', {SkeletalMesh = asset(p('CH_P_EVE_Head/CH_P_EVE_Face_Jali3'),
+            {'/Script/Engine.SkeletalMesh'})}),
+        part(name, 'SBHair', {SkeletalMesh = hr01, AnimClass = hr01_anim, PhysicsAssetOverride = o.physics,
+            OverrideMaterials = {colour(name)}}),
+        part(name, 'SBPonytail', {SkeletalMesh = o.pony or pony2, cloth = eve08_pony}),
+        part(name, 'SBPonytailShort', {visible = false})}
+    e.Mesh = parts[1]
+    function e:IsA(k) return k.path == '/Script/SB.SBCharacter' end
+    function e:GetFullName() return 'CH_P_EVE_01_Blueprint_C /Game/Map.Map:PersistentLevel.' .. name end
+    function e:K2_GetComponentsByClass(k)
+        assert(k.path == '/Script/Engine.SkeletalMeshComponent')
+        return parts
+    end
+    e.parts, e.hair, e.pony, e.short, e.read = parts, parts[3], parts[4], parts[5], {}
+    by_path['/Game/Map.Map:PersistentLevel.' .. name] = e
+    return setmetatable(e, {__index = function(_, k)
+        if ALLOWED[k] then return nil end
+        e.read[#e.read + 1] = k
+        error('EVE.' .. tostring(k) .. ' read', 0)
+    end})
+end
+
+-- A new world: an EVE, a head part on her, the dress's store and clock. o: eve_of's options.
+local function world(o)
+    calls, chosen = {}, {}
+    local w = {logs = {}, now = 0, paused = false}
+    w.eve = eve_of('EVE_1', o)
+    player = w.eve
+    w.head = Head.new({log = function(m) w.logs[#w.logs + 1] = m end, fits = fits,
+        paused = function() return w.paused end, clock = function() return w.now end})
+    -- closet/dress.lua's order: the file first (field 6), then the head part's wear.
+    function w.wear(list)
+        w.file = w.head.line(); said('save')
+        return w.head.wear(list)
+    end
+    function w.tick(s) w.now = w.now + (s or 1); w.head.tick() end
+    function w.last() return w.logs[#w.logs] end
+    return w
+end
+local function hair(id) return {fit = id, slot = 'Hair'} end
+local function tail(id) return {fit = id, slot = 'Ponytail'} end
+-- Her followers never got a call. Nothing read anything else on EVE.
+local function clean(e)
+    eq(#e.read, 0, 'EVE read: ' .. table.concat(e.read, ' '))
+    for _, line in ipairs(calls) do
+        ok(not line:find('^CharacterMesh0 ') and not line:find('^Mesh_Face '), line)
+    end
+end
+
+local tests = {
+    a_stock_hair_goes_on_sbhair = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        local trace = since(0)
+        local want = 'save|SBHair mesh H07 true|SBHair anim H07_AnimBP_C|SBHair material 0 MI_H07_TypeA|'
+        eq(trace:sub(1, #want), want, trace)
+        ok(trace:find('|SBHair rotation 0 90 0|', 1, true), 'the row\'s rotation: ' .. trace)
+        eq(w.head.applied(), 1)
+        same(w.head.worn(), {['SB.Hair_001'] = 'Hair'})
+        clean(w.eve)
+    end,
+
+    a_stock_hair_brings_its_ponytail_in_its_colour = function()
+        local w = world()
+        chosen['SB.Hair_001'] = 3
+        ok(w.wear({hair('SB.Hair_001')}))
+        local trace = since(0)
+        ok(trace:find('SBHair material 0 MI_H07_TypeC', 1, true), trace)
+        ok(trace:find('SBPonytail cloth CH_P_EVE_08_PonytailPhysicsAsset|SBPonytail mesh CH_P_EVE_Hair_PonyTail_2 '
+            .. 'true|SBPonytail material 0 MI_H07_Tail_TypeC|SBPonytail visible true|SBPonytailShort visible false',
+            1, true), trace)
+        eq(w.eve.pony.SkeletalMesh, pony2)
+        -- The game's ponytail is the short one (its length option): the hair brings the short ponytail.
+        w = world({pony = pony_short})
+        ok(w.wear({hair('SB.Hair_001')}))
+        ok(since(0):find('SBPonytail mesh CH_P_EVE_Hair_PonyTail_Short true', 1, true), since(0))
+        -- The body's collision asset does not resolve: none set.
+        local saved = assets[eve08_pony.at_path]
+        assets[eve08_pony.at_path] = nil
+        w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        ok(not since(0):find('cloth', 1, true), since(0))
+        assets[eve08_pony.at_path] = saved
+    end,
+
+    a_pack_hair_takes_its_animbp_and_pony_physics = function()
+        local w = world()
+        ok(w.wear({hair('p.hair')}))
+        local trace = since(0)
+        ok(trace:find('save|SBHair mesh PH true|SBHair anim PH_BP_C|', 1, true), trace)
+        ok(trace:find('SBPonytail cloth PH_Pony', 1, true), trace)
+        ok(not trace:find('rotation', 1, true), 'its transform left as the component had it: ' .. trace)
+        eq(w.eve.pony.OverrideClothPhysicsAsset, ph_pony)
+    end,
+
+    a_pack_hair_hides_both_ponytails = function()
+        local w = world({pony = pony_short}) -- The length option says short.
+        w.eve.short.visible = true
+        ok(w.wear({hair('p.hair')}))
+        eq(w.eve.pony.visible, false, 'SBPonytail hidden') eq(w.eve.short.visible, false, 'SBPonytailShort hidden')
+        local n = #calls
+        ok(w.wear({hair('p.hair'), tail('SB.Ponytail_Long')}))
+        eq(w.eve.pony.visible, true, 'the picked ponytail shows') eq(w.eve.short.visible, false, 'only one')
+        eq(w.eve.pony.SkeletalMesh, pony2, 'long, as picked')
+        ok(since(n):find('SBPonytail material 0 MI_H07_Tail_TypeA', 1, true), 'its own colour: ' .. since(n))
+    end,
+
+    no_ponytail_hides_it = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
+        eq(w.eve.pony.visible, false) eq(w.eve.short.visible, false)
+        eq(w.eve.pony.SkeletalMesh, pony2, 'no mesh to load')
+        w = world()
+        ok(w.wear({hair('SB.Hair_Nier_001')}))
+        eq(w.eve.pony.visible, false, 'HidePonytail') eq(w.eve.short.visible, false)
+        ok(since(0):find('SBHair rotation -90 0 -90', 1, true), since(0))
+        -- A pack hair after it: the component's own rotation back, no row's.
+        local n = #calls
+        ok(w.wear({hair('p.hair')}))
+        ok(since(n):find('SBHair rotation 0 0 0', 1, true), since(n))
+        eq(w.eve.pony.visible, false, 'still hidden under a pack hair')
+    end,
+
+    off_gives_her_game_hair_back = function()
+        local w = world()
+        local game_colour = w.eve.hair.OverrideMaterials[1]
+        ok(w.wear({hair('p.hair')}))
+        local n = #calls
+        ok(w.head.give_back())
+        eq(since(n), 'SBHair mesh CH_P_EVE_Hair01 true|SBHair anim HR01_AnimBP_C|SBHair physics none false|'
+            .. 'SBHair material 0 MaterialInstanceDynamic_0|SBPonytail cloth CH_P_EVE_08_PonytailPhysicsAsset|'
+            .. 'SBPonytail mesh CH_P_EVE_Hair_PonyTail_2 true|SBPonytail visible true|SBPonytailShort visible false')
+        eq(w.eve.hair.OverrideMaterials[1], game_colour, 'the colour itself while it lives')
+        eq(w.eve.pony.OverrideClothPhysicsAsset, eve08_pony) eq(w.eve.pony.visible, true)
+        eq(w.head.applied(), 2) same(w.head.parts(), {}) same(w.head.worn(), {})
+        n = #calls
+        ok(w.head.give_back())
+        eq(#calls, n, 'nothing worn: no call')
+        -- A stock hair's rotation goes back; a physics asset override the game set comes back.
+        w = world({physics = hr01_phys})
+        ok(w.wear({hair('SB.Hair_001')}))
+        ok(since(0):find('SBHair physics none false', 1, true), 'H07 has no physics asset of its own')
+        n = #calls
+        ok(w.head.wear({}))
+        ok(since(n):find('SBHair physics HR01_PhysicsAsset false', 1, true), since(n))
+        ok(since(n):find('SBHair rotation 0 0 0', 1, true), since(n))
+        -- coop off: everything back.
+        w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        w.head.stop()
+        eq(w.eve.hair.SkeletalMesh, hr01) eq(w.head.applied(), 2)
+        clean(w.eve)
+    end,
+
+    the_line_and_restore_round_trip = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        local line = w.head.line()
+        local f = {}
+        for x in (line .. '|'):gmatch('([^|]*)|') do f[#f + 1] = x end
+        eq(f[1], '/Game/Map.Map:PersistentLevel.EVE_1')
+        eq(f[2], 'SBHair;' .. h07.at_path .. ';' .. hr01.at_path .. ';' .. hr01_anim.at_path .. ';;0='
+            .. hr01_type_b.at_path .. ';;;0,0,0')
+        ok(not line:find('\t', 1, true), 'one field of the dress\'s line')
+        -- The next Lua load: a new head part gives the game's pieces back (her colour as the asset it was made from).
+        local logs = {}
+        local h2 = Head.new({log = function(m) logs[#logs + 1] = m end, fits = fits})
+        local n = #calls
+        h2.restore(line)
+        local trace = since(n)
+        ok(trace:find('^SBHair mesh CH_P_EVE_Hair01 true|SBHair anim HR01_AnimBP_C|SBHair physics none false|'
+            .. 'SBHair material 0 MI_HR01_TypeB|SBHair rotation 0 0 0|'), trace)
+        ok(trace:find('SBPonytail mesh CH_P_EVE_Hair_PonyTail_2 true', 1, true), trace)
+        ok(logs[1]:find('^head: restore from coop%-closet%.txt: SBHair back; SBPonytail back'), logs[1])
+        -- A component that no longer shows the closet's mesh is left alone. The log says so.
+        w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        line = w.head.line()
+        w.eve.hair.SkeletalMesh = hr01 -- The game set its own before the reload.
+        logs = {}
+        h2 = Head.new({log = function(m) logs[#logs + 1] = m end, fits = fits})
+        n = #calls
+        h2.restore(line)
+        ok(not since(n):find('SBHair', 1, true), since(n))
+        ok(logs[1]:find('SBHair: nothing to give back', 1, true), logs[1])
+        -- The line read before the first wear holds the game's pieces ('?'): a reload gives back what differs.
+        w = world()
+        line = w.head.line()
+        ok(line:find('|SBHair;?;' .. hr01.at_path, 1, true), line)
+        ok(w.head.wear({hair('SB.Hair_001')}))
+        n = #calls
+        Head.new({log = function() end, fits = fits}).restore(line)
+        eq(w.eve.hair.SkeletalMesh, hr01, 'given back')
+        -- Nothing to restore: no call.
+        n = #calls
+        Head.new({log = function() end, fits = fits}).restore(nil)
+        Head.new({log = function() end, fits = fits}).restore('')
+        eq(#calls, n)
+    end,
+
+    the_game_hair_comes_back_after_two_seconds = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
+        w.eve.hair.SkeletalMesh = nier -- The salon.
+        local n = #calls
+        w.tick(1)
+        eq(#calls, n, 'after 1 s nothing')
+        w.tick(1)
+        ok(since(n):find('^SBHair mesh H07 true'), since(n))
+        eq(w.eve.hair.SkeletalMesh, h07)
+        ok(w.last():find('the game changed her head', 1, true), w.last())
+        -- Nothing while the game is paused.
+        w.eve.hair.SkeletalMesh = nier
+        w.paused = true
+        n = #calls
+        w.tick(1) w.tick(1) w.tick(1)
+        eq(#calls, n, 'paused')
+        w.paused = false
+        w.tick(1) w.tick(1)
+        eq(w.eve.hair.SkeletalMesh, h07)
+        -- The game's mesh is the one to give back now.
+        n = #calls
+        ok(w.head.give_back())
+        ok(since(n):find('^SBHair mesh Nier true'), since(n))
+        -- A ponytail the game shows again under the closet's No ponytail is hidden again.
+        w = world()
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
+        w.eve.pony.visible = true
+        w.tick(1) w.tick(1)
+        eq(w.eve.pony.visible, false)
+        clean(w.eve)
+    end,
+
+    a_hair_fight_stops_after_the_limit = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
+        for i = 1, Head.FIGHT.mixes - 1 do
+            w.eve.hair.SkeletalMesh = nier
+            w.tick(1) w.tick(1)
+            eq(w.eve.hair.SkeletalMesh, h07, 're-wear ' .. i)
+        end
+        w.eve.hair.SkeletalMesh = nier
+        local n = #calls
+        w.tick(1) w.tick(1)
+        ok(w.last():find('^something outside keeps changing her hair'), w.last())
+        eq(w.eve.hair.SkeletalMesh, nier, 'the outside hair stays')
+        eq(#calls, n)
+        w.tick(1) w.tick(1) w.tick(1)
+        eq(#calls, n, 'stopped')
+        -- The next wear starts again.
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
+        eq(w.eve.hair.SkeletalMesh, h07)
+        -- Slower than the limit: never stops.
+        w = world()
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
+        for _ = 1, 8 do
+            w.eve.hair.SkeletalMesh = nier
+            w.tick(1) w.tick(1) w.tick(4)
+            eq(w.eve.hair.SkeletalMesh, h07)
+        end
+    end,
+
+    a_new_eve_gets_the_hair_again = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        local old = w.eve
+        local eve2 = eve_of('EVE_2')
+        player = nil
+        local n = #calls
+        w.tick(1) w.tick(1)
+        eq(#calls, n, 'no EVE: the pieces wait')
+        player = eve2
+        w.tick(1)
+        eq(#calls, n, 'after 1 s nothing')
+        w.tick(1)
+        eq(eve2.hair.SkeletalMesh, h07, 'SBHair found again')
+        eq(eve2.pony.SkeletalMesh, pony2)
+        for i = n + 1, #calls do ok(not calls[i]:find('EVE_1', 1, true), calls[i]) end
+        eq(old.hair.SkeletalMesh, h07, 'the old one left alone')
+        local line = w.head.line()
+        ok(line:find('^/Game/Map.Map:PersistentLevel.EVE_2|'), line)
+        -- Off gives the new EVE's game hair back.
+        n = #calls
+        ok(w.head.give_back())
+        eq(eve2.hair.SkeletalMesh, hr01)
+        clean(old) clean(eve2)
+    end,
+
+    parts_list_the_worn_components = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        same(w.head.parts(), {
+            {c = w.eve.hair, fit = 'SB.Hair_001', mesh = h07.at_path, slots = {[0] = 'Hair'}, head = true},
+            {c = w.eve.pony, fit = 'SB.Ponytail_Long', mesh = pony2.at_path, slots = {[0] = 'Ponytail'}, head = true}})
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
+        eq(#w.head.parts(), 1, 'a hidden ponytail is no part')
+    end,
+
+    rewear_changes_one_component = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
+        local applied = w.head.applied()
+        chosen['SB.Hair_001'] = 2
+        local n = #calls
+        ok(w.head.rewear('SB.Hair_001'))
+        eq(since(n), 'SBHair material 0 MI_H07_TypeB')
+        eq(w.head.applied(), applied + 1)
+        local good, why = w.head.rewear('p.hair')
+        eq(good, nil) eq(why, 'p.hair is not worn')
+        -- A stock ponytail follows its hair's new colour.
+        w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        chosen['SB.Hair_001'] = 4
+        n = #calls
+        ok(w.head.rewear('SB.Hair_001'))
+        ok(since(n):find('^SBHair material 0 MI_H07_TypeD|SBPonytail material 0 MI_H07_Tail_TypeD'), since(n))
+    end,
+
+    the_same_list_again_changes_nothing = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        local applied, n = w.head.applied(), #calls
+        ok(w.wear({hair('SB.Hair_001')}))
+        eq(since(n), 'save', 'the file only') eq(w.head.applied(), applied)
+        -- A variant change shows at the next wear as materials only.
+        chosen['SB.Hair_001'] = 2
+        n = #calls
+        ok(w.wear({hair('SB.Hair_001')}))
+        ok(since(n):find('^save|SBHair material 0 MI_H07_TypeB|SBPonytail material 0 MI_H07_Tail_TypeB'), since(n))
+    end,
+
+    a_refusal_changes_nothing = function()
+        local w = world()
+        local saved = assets[h07.at_path]
+        assets[h07.at_path] = nil
+        local good, why = w.wear({hair('SB.Hair_001')})
+        assets[h07.at_path] = saved
+        eq(good, nil) ok(why:find('H07', 1, true), why)
+        eq(since(0), 'save', 'no call')
+        good, why = w.wear({hair('nope')})
+        eq(good, nil) eq(why, 'nope is not installed')
+        player = nil
+        good, why = w.wear({hair('SB.Hair_001')})
+        eq(good, nil) eq(why, 'no EVE in the world')
+        player = w.eve
+        -- A failing call gives the game's pieces back.
+        w.eve.hair.anim_raises = 'no class'
+        good, why = w.wear({hair('SB.Hair_001')})
+        eq(good, nil) ok(why:find('no class', 1, true), why)
+        eq(w.eve.hair.SkeletalMesh, hr01, 'given back')
+        same(w.head.parts(), {})
+    end,
+
+    a_cut_hair_sets_its_physics_asset = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_024')}))
+        ok(since(0):find('^save|SBHair mesh EVE_HR_14 true|SBHair anim EVE_HR_14_AnimBP_C|SBHair physics '
+            .. 'EVE_HR_14_Physics false|'), since(0))
+    end,
+}
+
+run('head_wear_test', tests)

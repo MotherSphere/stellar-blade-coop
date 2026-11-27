@@ -3148,6 +3148,43 @@ local tests = {
         ok(ran, tostring(why))
     end,
 
+    the_wiring_builds_the_head_part = function()
+        -- closet/wiring.lua's new: the head part (closet/head/wear.lua) given to the dress as o.head, ticked each frame
+        -- right after the dress and before the options layer, stopped by coop off.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring', 'closet.head.wear'}) do
+            saved[name] = package.loaded[name]
+        end
+        local runs, given = {}, nil
+        local head = {tick = function() runs[#runs + 1] = 'head' end,
+            stop = function() runs[#runs + 1] = 'head stop' end}
+        package.loaded['closet.head.wear'] = {new = function() return head end}
+        package.loaded['closet.dress'] = {new = function(o)
+            given = o.head
+            return {tick = function() runs[#runs + 1] = 'dress' end, stop = function() end,
+                installed = function() return true end, applied = function() return 0 end,
+                parts = function() return {} end}
+        end}
+        package.loaded['closet.ui.probe'] = {new = function() return {tick = function() end, stop = function() end} end}
+        package.loaded['closet.wiring'] = nil
+        local M = {print = function() end, guarded = function(_, f, ...) return f(...) end,
+            link = {status = function() return '' end, store = function()
+                return {save = function() return true end, load = function() end, clear = function() end}
+            end}}
+        local ran, why = pcall(function()
+            require('closet.wiring').new(M)
+            ok(given == head, 'the dress\'s o.head')
+            local tick = M.closet_options.tick
+            M.closet_options.tick = function() runs[#runs + 1] = 'options'; return tick() end
+            M.closet.tick()
+            same({runs[1], runs[2], runs[3]}, {'dress', 'head', 'options'}, 'after the dress, before the options')
+            M.closet.stop()
+            eq(runs[#runs], 'head stop', 'coop off stops it')
+        end)
+        for name, mod in pairs(saved) do package.loaded[name] = mod end
+        ok(ran, tostring(why))
+    end,
+
     every_close_path_drops_every_part = function()
         local paths = {
             back = function(r) at(r, 1, 'back') end,

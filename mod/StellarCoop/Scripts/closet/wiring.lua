@@ -18,10 +18,13 @@ new=function(M)
 local print=M.print
 -- closet/dress.lua, logging [CL] lines: coop-closet.txt lets the next Lua load give EVE her own look back. No look
 -- goes on again while the game is paused or shows one of its screens (its wardrobe among them). The pack catalogue is
--- read before a kept look is worn again (it may be a pack's suit).
+-- read before a kept look is worn again (it may be a pack's suit). Its head part (closet/head/wear.lua) wears the Hair
+-- and Ponytail choices on EVE's own head components; the dress keeps its line in coop-closet.txt.
+local head=require('closet.head.wear').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
+    fits=require('closet.fits'),paused=function() return M.kit~=nil and M.kit.paused(true) end})
 M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
     store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
-    packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end})
+    packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end,head=head})
 -- The options layer (closet/options.lua): each pack outfit's variant and piece toggles in coop-closet-options.txt; the
 -- dress's plans take its toggles. Its tick runs each frame right after the dress's, before the colour layer's, so a
 -- variant or toggle change shows before the palette paints. The menu's options page and coop closet option set it.
@@ -128,6 +131,7 @@ local dress_tick,dress_stop=M.closet.tick,M.closet.stop
 M.closet.tick=function()
     if os.clock()>=hud_at then hud_at=os.clock()+0.1; M.guarded('closet hud',hud.tick,hud_key()) end
     M.guarded('closet',dress_tick)
+    M.guarded('closet head',head.tick) -- Its own watchdog, also with no body mixed; before the options layer.
     M.guarded('closet options',options.tick)
     M.guarded('closet colour',colour.tick)
     M.guarded('closet shape',shape.tick)
@@ -136,7 +140,7 @@ M.closet.tick=function()
     if M.closet_menu then M.guarded('closet menu',M.closet_menu.tick) end
 end
 M.closet.stop=function()
-    dress_stop(); options.stop(); colour.stop(); shape.stop(); probe.stop(); thumbs.stop(); hud.hide()
+    dress_stop(); head.stop(); options.stop(); colour.stop(); shape.stop(); probe.stop(); thumbs.stop(); hud.hide()
     if M.closet_menu then M.closet_menu.stop() end
 end
 return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,thumbs=thumbs,

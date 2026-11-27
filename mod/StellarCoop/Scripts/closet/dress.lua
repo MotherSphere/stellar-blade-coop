@@ -106,7 +106,7 @@ end
 -- 0x14665f110 (name 0x14665bf58) -> exec 0x144927490 reads LODInfo[LODIndex] (component +0x798, 0x48 a LOD) and
 -- answers not HiddenMaterials[MaterialID], with no LODMaterialMap remap. So (i,0) is slot i at LOD 0, as written.
 -- closet/thumbs.lua's capture rig loads its meshes and shows its sections the same way.
-Dress.usable,Dress.show_only=usable,show_only
+Dress.usable,Dress.show_only,Dress.resolve=usable,show_only,resolve -- resolve: closet/head/wear.lua's too.
 local function shown_again(c,count,show)
     local out={}
     for i=0,count-1 do
