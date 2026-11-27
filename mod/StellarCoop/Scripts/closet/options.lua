@@ -25,8 +25,9 @@
 -- value changed, every material value and shape key of each worn pack outfit is written on its component (the pack
 -- value or the kept one, so no value another mod set stays): each colour, number and finish on its slot's dynamic
 -- instance, each shape key (ShapeKeyName, else DisplayName) with SetMorphTarget. A value already written is not sent
--- again. owns(component, slot) says whether a worn pack outfit has a colour control on that slot: closet/colour.lua's
--- palette leaves it alone (one layer owns each slot's instance). After each pack scan it says once each kept value
+-- again. holds(component, slot) says whether a worn pack outfit has a colour control on that slot; owns, whether that
+-- control is set away from the pack's colour: closet/colour.lua's palette leaves an owned slot alone and paints a held
+-- one on the same instance. After each pack scan it says once each kept value
 -- whose outfit, variant or control is gone: that value is ignored and stays in the file (the pack may come back). A
 -- variant whose mesh does not load (dress.loads) is never worn: set_variant refuses it, a kept one is replaced by the
 -- first after the scan (said once, kept in the file).
@@ -131,7 +132,7 @@ function Options.new(o)
     local said,checked={},nil -- Gone values said; Fits.PACKS as of the last check.
     -- 'part:slot' (dress.parts()'s order) -> {c, index, mid, set={['kind|name']=value written}}; 'part:name' -> {c,
     -- name, v} of each shape key written; 'address:slot' of each slot with a pack colour control.
-    local slots,morphs,owned={},{},{}
+    local slots,morphs,owned,held={},{},{},{}
     -- changed: grows with each value change; seen, drawn, painted: applied(), changed and Fits.PACKS as last written.
     local changed,seen,drawn,painted=0,nil,nil,nil
     local names,textures={},{} -- FNames by text; finish textures by path (false: does not load).
@@ -431,11 +432,14 @@ function Options.new(o)
         log('options: every outfit back to its pack values')
         return true,'closet: options off'
     end
-    -- Whether a worn pack outfit has a colour control on slot index of component c (as last written).
-    function self.owns(c,index)
+    -- Whether a worn pack outfit has a colour control on slot index of component c (as last written): holds; owns when
+    -- that control is set away from the pack's colour (closet/colour.lua's palette leaves only those slots alone).
+    local function at_slot(map,c,index)
         local ok,at=pcall(U.address,c)
-        return ok and owned[tostring(at)..':'..tostring(index)]==true
+        return ok and map[tostring(at)..':'..tostring(index)]==true
     end
+    function self.holds(c,index) return at_slot(held,c,index) end
+    function self.owns(c,index) return at_slot(owned,c,index) end
 
     -- A slot's dynamic instance (an instance already there is reused); nil when the slot has no material or the
     -- engine refuses (said in the log).
@@ -481,7 +485,7 @@ function Options.new(o)
     end
     -- Every material value and shape key of each worn pack outfit on its component.
     local function paint(parts)
-        local kept,mine_now,shaped={},{},{}
+        local kept,mine_now,held_now,shaped={},{},{},{}
         local wrote=0
         for i,part in ipairs(parts) do
             local f=part.c and Fits.PACKS[part.fit]
@@ -490,12 +494,17 @@ function Options.new(o)
             if cfg and ok then
                 for _,kind in ipairs({'colour','number','finish'}) do
                     local list=type(cfg[LISTS[kind]])=='table' and cfg[LISTS[kind]] or {}
-                    for _,c in ipairs(list) do
+                    for n,c in ipairs(list) do
                         local index=index_of(c)
                         local name=index and type(c.ParamName)=='string' and c.ParamName
                         if name then
-                            if kind=='colour' then mine_now[tostring(address)..':'..index]=true end
                             local value=value_of(part.fit,f.Variant,kind,list,c)
+                            if kind=='colour' then
+                                held_now[tostring(address)..':'..index]=true
+                                if not alike(value,default(part.fit,'colour:'..n)) then
+                                    mine_now[tostring(address)..':'..index]=true
+                                end
+                            end
                             if kind=='colour' then value={R=value.R,G=value.G,B=value.B,A=value.A}
                             elseif kind=='finish' then
                                 local path=type(c.Textures)=='table' and c.Textures[value+1]
@@ -524,7 +533,7 @@ function Options.new(o)
                 end
             end
         end
-        slots,morphs,owned=kept,shaped,mine_now
+        slots,morphs,owned,held=kept,shaped,mine_now,held_now
         return wrote
     end
     -- A variant or toggle change of a worn outfit shown; one that cannot show now is asked again at the next tick.
@@ -560,7 +569,7 @@ function Options.new(o)
     function self.stop()
         redress,reshow={},{}
         for _,m in pairs(morphs) do morph(m.c,m.name,0) end
-        slots,morphs,owned,seen={},{},{},nil
+        slots,morphs,owned,held,seen={},{},{},{},nil
     end
     return self
 end

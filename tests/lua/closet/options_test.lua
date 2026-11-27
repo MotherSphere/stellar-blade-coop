@@ -253,8 +253,16 @@ local tests = {
             r.o.tick()
             eq(r.value(3, 'Metallic'), 0.7, 'the kept value on the new body')
             near(r.value(3, 'Base Color Tint'), {R = 0.5, G = 0.5, B = 0.5, A = 1}, 'the pack values too')
-            ok(r.o.owns(r.body, 3) and r.o.owns(r.body, 4), 'the slots with a pack colour')
-            ok(not r.o.owns(r.body, 6), 'a slot without one')
+            ok(r.o.holds(r.body, 3) and r.o.holds(r.body, 4), 'the slots with a pack colour control')
+            ok(not r.o.holds(r.body, 6), 'a slot without one')
+            -- owns: a control changed away from the pack's colour (the palette leaves only those alone).
+            ok(not r.o.owns(r.body, 3) and not r.o.owns(r.body, 4), 'on the pack colour: not owned')
+            ok(r.o.step('s', 1, 'colour:1', 1, 'r'))
+            r.o.tick()
+            local custom = {}
+            for _, i in ipairs({3, 4, 5}) do custom[#custom + 1] = r.o.owns(r.body, i) and i or nil end
+            ok(#custom > 0, 'a custom colour: its slot owned')
+            ok(not r.o.owns(r.body, 6), 'a slot without a control: never owned')
         end)
     end,
     a_follower_copies_its_leader = function()

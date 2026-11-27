@@ -23,9 +23,11 @@
 -- look. It is read once at new: it survives a restart. off() (Reset Stellar Closet, coop closet colour off) turns every
 -- role off and clears the file. stop() (coop off) forgets the instances: the dress's off gave the body its own
 -- materials back and removed the added components.
--- A slot with a pack colour control (o.options.owns, closet/options.lua: a worn pack outfit's VectorControls) belongs
--- to the options layer: the palette never paints it; a record of the palette's there is forgotten, its material and
--- instance left as they are (one layer owns each slot's instance).
+-- A slot whose pack colour control is set away from the pack's colour (o.options.owns, closet/options.lua) belongs to
+-- the options layer: the palette never paints it; a record of the palette's there is forgotten, its material and
+-- instance left as they are. A slot whose control is on the pack's colour (o.options.holds) gets the palette on the
+-- instance both layers write: a role turned off gives back its values only, never the material (the options layer's
+-- values are on that instance).
 -- o: {dress=closet/dress.lua's (applied, parts), store=link.store(Colour.FILE), log=, options=closet/options.lua's
 -- or nil}.
 --
@@ -168,11 +170,13 @@ function Colour.new(o)
         local done,why=pcall(function() s.mid:SetVectorParameterValue(fname(name),value or s.was[name]) end)
         if not done then log('colour: '..name..' not set on slot '..s.index..': '..tostring(why)) end
     end
-    -- A slot no set role reaches: its values from before, then its material from before.
+    -- A slot no set role reaches: its values from before, then its material from before (not on a slot the options
+    -- layer also writes: its instance stays).
     local function give_back(s)
         -- Gone with the old world (a map change): nothing to give back.
         if not (U.valid(s.c) and U.valid(s.mid)) then return end
         for name in pairs(s.set) do put(s,name,nil) end
+        if o.options and o.options.holds and o.options.holds(s.c,s.index) then return end
         local done,why=pcall(function() s.c:SetMaterial(s.index,s.original) end)
         if not done then log('colour: slot '..s.index..' not given back: '..tostring(why)) end
     end

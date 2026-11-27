@@ -112,6 +112,22 @@ local tests = {
         r.c.tick()
         ok(r.body.mats[3] == r.top, 'a new look: the top never painted')
     end,
+    -- A slot whose instance the options layer also writes (holds: a pack colour control on the pack's colour) gets the
+    -- palette; a role turned off gives back its values only: the material stays, so the options layer's instance and
+    -- values stay.
+    a_held_slot_gets_its_values_back_not_its_material = function()
+        local r = rig()
+        r.c = r.Colour.new({dress = r.dress, store = r.store, log = function(m) r.log[#r.log + 1] = m end,
+            options = {owns = function() return false end, holds = function(c, i) return c == r.body and i == 3 end}})
+        r.c.set('primary', 'crimson')
+        r.c.tick()
+        local top = r.body.mats[3]
+        ok(top.mid, 'a held slot on the pack colour: tinted')
+        r.c.set('primary', 'off')
+        r.c.tick()
+        ok(r.body.mats[3] == top, 'off: the instance stays on the slot')
+        near(top.values[TINT], top.was and top.was[TINT] or top.values[TINT], 'its value from before')
+    end,
     -- dress.reshow (an options toggle) shows a slot without a new look: the palette reaches it, the other instances
     -- kept.
     a_slot_shown_again_gets_the_palette_and_keeps_the_others = function()
