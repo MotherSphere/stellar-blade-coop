@@ -522,7 +522,7 @@ local tests = {
     a_long_region_pan_keeps_eve_on_screen = function()
         -- EVE's look point (NDC 0.55 right, mid height) stays within 0.35 half widths either side of it and half a
         -- half height up or down however long a pan key is held.
-        for _, case in ipairs({{16, 'J', 0.9, 0}, {64, 'L', 0.2, 0}, {8, 'I', 0.55, -0.5}, {32, 'K', 0.55, 0.5}}) do
+        for _, case in ipairs({{16, 'J', 0.85, 0}, {64, 'L', 0.35, 0}, {8, 'I', 0.55, -0.5}, {32, 'K', 0.55, 0.5}}) do
             local c = world(function(w) w.keys = 0 end)
             c.open()
             frames(c, 0.05, 'full')

@@ -86,9 +86,9 @@ Camera.ZOOM=0.1 -- cam_in takes 10% off the distance; cam_out undoes it.
 Camera.PITCH={-60,60} -- degrees, free mode.
 Camera.DIST={40,500} -- cm, free mode.
 Camera.PAN=80 -- cm either side, free mode.
--- Region mode's pan limits: EVE's look point stays between NDC 0.2 and 0.9 across (0.55 - 0.35 to 0.55 + 0.35) and
--- within half the half height up or down.
-Camera.RPAN={0.2,0.9,0.5}
+-- Region mode's pan limits: EVE's look point stays between NDC 0.35 and 0.85 across and within half the half height up
+-- or down. Tuned in game: at 0.9 her far arm was cut by the screen's edge, at 0.2 she stood under the detail panel.
+Camera.RPAN={0.35,0.85,0.5}
 Camera.DEAD=0.2 -- of each stick axis and trigger; the rest is rescaled to 0..1.
 Camera.ORBIT,Camera.TILT,Camera.SLIDE=120,80,120 -- deg/s, deg/s, cm/s at full stick (and for the held keys).
 Camera.MOUSE,Camera.MPAN=0.25,0.25 -- degrees a right drag orbits, cm a middle drag pans, per unit of the kit's layout.
