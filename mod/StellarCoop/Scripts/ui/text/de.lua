@@ -516,7 +516,7 @@ return {
             save_desc='Speichert das getragene Outfit, seine Variante und seine Optionen als neue Vorlage. Umbenennen '
                 ..'mit coop closet preset rename.',
             name='Vorlage %d',filter='Zeigen',all='Alle',favourites='Favoriten',
-            filter_desc='Zeigt alle Outfits oder nur deine Favoriten.',fav='%s, Favorit',
+            filter_desc='Zeigt alle Outfits oder nur deine Favoriten.',fav='* %s',
             saved='Gespeichert als %s.',none='Trage zuerst ein ganzes Outfit: Eine Vorlage hält ein Outfit.',
             delete_title='Diese Vorlage löschen?',
             delete_desc='%s wird gelöscht. Das Outfit und seine Optionen bleiben.'},

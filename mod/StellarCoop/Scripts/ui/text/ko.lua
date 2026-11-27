@@ -434,7 +434,7 @@ return {
             save_desc='입은 의상, 그 변형과 옵션을 새 프리셋으로 저장합니다. 이름은 coop closet preset rename 으로 '
                 ..'바꿉니다.',
             name='프리셋 %d',filter='표시',all='전체',favourites='즐겨찾기',
-            filter_desc='모든 의상 또는 즐겨찾기만 표시합니다.',fav='%s, 즐겨찾기',
+            filter_desc='모든 의상 또는 즐겨찾기만 표시합니다.',fav='* %s',
             saved='%s(으)로 저장했습니다.',none='먼저 의상 전체를 하나 입으세요. 프리셋은 의상 하나를 저장합니다.',
             delete_title='이 프리셋을 삭제할까요?',delete_desc='%s이(가) 삭제됩니다. 의상과 옵션은 그대로입니다.'},
         options={variant='베리에이션',on='켜짐',off='꺼짐',other='기타',

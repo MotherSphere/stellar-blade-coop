@@ -107,9 +107,11 @@ local GRID_X,GRID_Y,GRID_W,GRID_H=1100,300,1000,820
 local ENTRY_W,ENTRY_H=200,270
 -- The detail panel right of a colour row's swatch, so it never covers a row's value box.
 local DETAIL_X,DETAIL_Y=SWATCH_X+SWATCH_W+4,1160
--- The origin badge: 64 units square, by the detail panel's title, right of its 900-unit wide SizeBox_4 (widget JSON).
--- A kit image draws under every part, so it sits beside the panel, not on it.
-local BADGE_X,BADGE_Y,BADGE=View.EDGE-88,DETAIL_Y+8,64
+-- The origin badge: 48 units square, by the detail panel's title, right of its 900-unit wide SizeBox_4 (widget JSON).
+-- A kit image draws under every part, so it sits beside the panel, not on it. The panel ends at x 2061: 48 units end
+-- the badge at EDGE with 3 units between them.
+local BADGE=48
+local BADGE_X,BADGE_Y=View.EDGE-BADGE,DETAIL_Y+8
 -- Key hints, right to left from EDGE: the menu's row. Five (an outfit's row shows Back, Whole outfit, Options,
 -- Favourite, Move) at the lobby's step of 420 would start at x 12, at the screen's edge: 400 starts them at x 112,
 -- right of the left tab key's icon (TAB_ICON_X).

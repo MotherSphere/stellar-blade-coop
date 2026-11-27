@@ -395,7 +395,7 @@ return {
         presets={save='将造型存为预设',
             save_desc='把穿着的服装、它的变体和选项存为新预设。用 coop closet preset rename 改名。',
             name='预设 %d',filter='显示',all='全部',favourites='收藏',
-            filter_desc='显示所有服装或只显示收藏。',fav='%s，已收藏',
+            filter_desc='显示所有服装或只显示收藏。',fav='* %s',
             saved='已存为 %s。',none='请先穿上一整套服装：预设只保存一套服装。',
             delete_title='删除这个预设？',delete_desc='%s 将被删除。服装和它的选项保留。'},
         options={variant='款式',on='开',off='关',other='其他',

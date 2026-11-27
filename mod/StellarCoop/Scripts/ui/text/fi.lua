@@ -506,7 +506,7 @@ return {
             save_desc='Tallentaa puetun asun, sen version ja sen asetukset uudeksi esiasetukseksi. Nimeä se '
                 ..'uudelleen komennolla coop closet preset rename.',
             name='Esiasetus %d',filter='Näytä',all='Kaikki',favourites='Suosikit',
-            filter_desc='Näyttää kaikki asut tai vain suosikkisi.',fav='%s, suosikki',
+            filter_desc='Näyttää kaikki asut tai vain suosikkisi.',fav='* %s',
             saved='Tallennettu nimellä %s.',none='Pue ensin yksi koko asu: esiasetus tallentaa yhden asun.',
             delete_title='Poistetaanko esiasetus?',delete_desc='%s poistetaan. Asu ja sen asetukset jäävät.'},
         options={variant='Versio',on='Päällä',off='Pois',other='Muut',

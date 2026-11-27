@@ -491,7 +491,7 @@ return {
             save_desc='Lagrer antrekket du har på, varianten og valgene som et nytt forhåndsvalg. Gi det nytt navn med '
                 ..'coop closet preset rename.',
             name='Forhåndsvalg %d',filter='Vis',all='Alle',favourites='Favoritter',
-            filter_desc='Viser alle antrekk eller bare favorittene dine.',fav='%s, favoritt',
+            filter_desc='Viser alle antrekk eller bare favorittene dine.',fav='* %s',
             saved='Lagret som %s.',none='Ta på ett helt antrekk først: et forhåndsvalg lagrer ett antrekk.',
             delete_title='Slette dette forhåndsvalget?',delete_desc='%s slettes. Antrekket og valgene blir.'},
         options={variant='Variant',on='På',off='Av',other='Annet',

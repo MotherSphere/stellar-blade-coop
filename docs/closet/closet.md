@@ -368,8 +368,8 @@ The Full outfit tab starts with the Presets rows, then a filter row, then the ou
   "Delete this preset?" with the game's Yes/No popup. A preset whose outfit is no longer installed stays in the file,
   is greyed and does not wear.
 - Show switches between All and Favourites (left, right or Select). Favourites lists the favourite outfits only.
-- On an outfit's row F (the pad's Y) marks the outfit as a favourite or takes the mark off. Its value then says
-  "favourite". The hint shows Favourite or Unfavourite on the key or the pad button of the device in use. Select
+- On an outfit's row F (the pad's Y) marks the outfit as a favourite or takes the mark off. Its value then starts
+  with `* ` before the pack, so the mark stays when a long pack id is cut. The hint shows Favourite or Unfavourite on the key or the pad button of the device in use. Select
   still wears the outfit.
 
 Presets and favourites are kept in `coop-closet-presets.txt`. The filter is kept until the next Lua load.

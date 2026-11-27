@@ -198,17 +198,23 @@ local function detail(r)
 end
 local function grid(r) return r.kit.live(F.GRID)[1].o.TileView_ItemList end
 local function popups(r) return #r.kit.live(F.POPUP) end
--- The kit images of the menu's group as last built that are 64 by 64 (the origin badge) or 1 by 1 (the holders).
+-- The kit images of the menu's group as last built that are size by size (1: the holders).
 local function images(r, size)
     local out = {}
     for _, i in ipairs(r.kit.groups.closet_menu.images) do if i.w == size and i.h == size then out[#out + 1] = i end end
     return out
 end
+-- The origin badge's kit image: the one square image larger than a holder.
+local function badge_image(r)
+    local out = {}
+    for _, i in ipairs(r.kit.groups.closet_menu.images) do if i.w == i.h and i.w > 1 then out[#out + 1] = i end end
+    eq(#out, 1, 'one badge')
+    return out[1]
+end
 -- The glyph the origin badge shows, nil while it is hidden.
 local function badge(r)
-    local b = images(r, 64)
-    eq(#b, 1, 'one badge')
-    return b[1].shown and b[1].texture and b[1].texture.glyph or nil
+    local b = badge_image(r)
+    return b.shown and b.texture and b.texture.glyph or nil
 end
 -- The glyphs the hidden holders keep, sorted.
 local function held(r)
@@ -412,6 +418,15 @@ local tests = {
         eq(View.fit(T.en.closet.row.soon), T.en.closet.row.soon, 'Coming soon fits')
         eq(View.fit('Reshape 50%'), 'Reshape 5...', 'Reshape 50% is cut')
         eq(View.fit('LKE_SF6_Mai_BikerOutfit'), 'LKE_SF6_...', 'a pack id is cut')
+        -- A favourite's value leads with its mark, so a cut pack id keeps it, in every language.
+        for code, L in pairs(T) do
+            if type(L) == 'table' and L.closet then
+                local fav = L.closet.presets.fav
+                local lead = fav:match('^(.-)%%s')
+                ok(lead and lead ~= '', code .. ': the favourite mark leads: ' .. fav)
+                eq(View.fit(fav:format('LKE_SF6_Mai_BikerOutfit')):sub(1, #lead), lead, code .. ': the mark survives')
+            end
+        end
         eq(View.fit('外观外观外'), '外观外观外', 'five CJK characters fit')
         eq(View.fit('外观外观外观'), '外观外观...', 'six are cut')
         local e = string.char(0xE9) -- Latin-1, not UTF-8.
@@ -428,6 +443,11 @@ local tests = {
             local d = r.kit.live(F.DETAIL)[1]
             ok(d.x >= View.ROW_RIGHT, 'the detail panel starts right of the value box: ' .. d.x)
             ok(d.y > 300, 'the detail panel under the grid')
+            -- The origin badge right of the panel's 900-unit wide SizeBox_4 (a kit image draws under the panel), inside
+            -- the menu's edge.
+            local b = badge_image(r)
+            ok(b.x >= d.x + 900, 'the badge right of the detail panel: ' .. b.x .. ' < ' .. d.x + 900)
+            ok(b.x + b.w <= View.EDGE, 'the badge inside the menu: ' .. b.x + b.w)
             for _, z in ipairs(r.kit.groups.closet_menu.images) do
                 if z.w == 28 then -- A colour row's swatch: right of the value box, left of the detail panel.
                     ok(z.x >= View.ROW_RIGHT and z.x + z.w <= d.x, 'swatch x ' .. z.x)
@@ -2878,8 +2898,7 @@ local tests = {
                 {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}}, 'the Favourite hint, Move still shown')
             at(r, 0.7, 'refresh')
             eq(r.presets.is_fav(ARIA), true, 'F marks it') eq(#r.previews, 0, 'F wears nothing')
-            -- The value box holds 10 columns: the favourite word is cut with the rest (closet/ui/view.lua's fit).
-            eq(row_value(r, 'Aria'), fit(P.fav:format('aria')), 'the row says it')
+            eq(row_value(r, 'Aria'), P.fav:format('aria'), 'the row says it, whole')
             eq(menu_hints(r)[4][1], H.unfav, 'the hint turns')
             r.dev = 4 -- A pad: the same action, SB draws the pad's button.
             tick(r, 0.75)

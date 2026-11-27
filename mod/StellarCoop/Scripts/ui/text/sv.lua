@@ -487,7 +487,7 @@ return {
             save_desc='Sparar den burna dräkten, dess variant och dess alternativ som ett nytt förval. Byt namn med '
                 ..'coop closet preset rename.',
             name='Förval %d',filter='Visa',all='Alla',favourites='Favoriter',
-            filter_desc='Visar alla dräkter eller bara dina favoriter.',fav='%s, favorit',
+            filter_desc='Visar alla dräkter eller bara dina favoriter.',fav='* %s',
             saved='Sparat som %s.',none='Ta på en hel dräkt först: ett förval sparar en dräkt.',
             delete_title='Radera detta förval?',delete_desc='%s raderas. Dräkten och dess alternativ blir kvar.'},
         options={variant='Variant',on='På',off='Av',other='Övrigt',

@@ -496,7 +496,7 @@ return {
             save_desc='Zapisuje noszony strój, jego wariant i opcje jako nowy preset. Zmień nazwę poleceniem coop '
                 ..'closet preset rename.',
             name='Preset %d',filter='Pokaż',all='Wszystkie',favourites='Ulubione',
-            filter_desc='Pokazuje wszystkie stroje albo tylko ulubione.',fav='%s, ulubiony',
+            filter_desc='Pokazuje wszystkie stroje albo tylko ulubione.',fav='* %s',
             saved='Zapisano jako %s.',none='Najpierw załóż jeden cały strój: preset zapisuje jeden strój.',
             delete_title='Usunąć ten preset?',delete_desc='%s zostanie usunięty. Strój i jego opcje zostają.'},
         options={variant='Wariant',on='Wł.',off='Wył.',other='Inne',

@@ -500,7 +500,7 @@ return {
             save_desc='Giyilen kıyafeti, varyantını ve seçeneklerini yeni bir hazır ayar olarak saklar. Adını coop '
                 ..'closet preset rename ile değiştir.',
             name='Hazır ayar %d',filter='Göster',all='Tümü',favourites='Favoriler',
-            filter_desc='Tüm kıyafetleri ya da yalnızca favorilerini gösterir.',fav='%s, favori',
+            filter_desc='Tüm kıyafetleri ya da yalnızca favorilerini gösterir.',fav='* %s',
             saved='%s olarak kaydedildi.',none='Önce tek bir tüm kıyafet giy: bir hazır ayar tek kıyafet saklar.',
             delete_title='Bu hazır ayar silinsin mi?',delete_desc='%s silinir. Kıyafet ve seçenekleri kalır.'},
         options={variant='Varyant',on='Açık',off='Kapalı',other='Diğer',

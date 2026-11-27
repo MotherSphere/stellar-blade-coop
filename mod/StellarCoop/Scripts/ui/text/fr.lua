@@ -509,7 +509,7 @@ return {
             save_desc='Garde la tenue portée, sa variante et ses options dans un nouveau préréglage. Renommez-le avec '
                 ..'coop closet preset rename.',
             name='Préréglage %d',filter='Afficher',all='Toutes',favourites='Favorites',
-            filter_desc='Affiche toutes les tenues ou vos favorites seulement.',fav='%s, favorite',
+            filter_desc='Affiche toutes les tenues ou vos favorites seulement.',fav='* %s',
             saved='Enregistré sous %s.',none='Portez d\'abord une tenue complète : un préréglage garde une tenue.',
             delete_title='Supprimer ce préréglage ?',delete_desc='%s est supprimé. La tenue et ses options restent.'},
         options={variant='Variante',on='Oui',off='Non',other='Autres',
