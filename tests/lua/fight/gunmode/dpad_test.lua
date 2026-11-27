@@ -391,7 +391,8 @@ do
     local d=D.new(g)
     ticks(d,10)
     local box=h.overlay.named.gunmoderifleslot
-    assert(box.at and math.abs(box.at.X-(256+D.GAP+90))<0.01,'right of the closet entry: '..tostring(box.at and box.at.X))
+    assert(box.at and math.abs(box.at.X-(256+D.GAP+90))<0.01,'right of the closet entry: '
+        ..tostring(box.at and box.at.X))
     lead=nil
     ticks(d,10)
     assert(math.abs(box.at.X-(256+D.GAP))<0.01,'its own spot with no lead: '..tostring(box.at.X))

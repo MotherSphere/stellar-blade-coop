@@ -4,9 +4,9 @@
 -- Copied from fight/gunmode/ui/dpad.lua (November 2026), cut to the closet's entry.
 -- Stellar Closet's entry in the HUD's item column, where gun mode's entry would start (gun mode's moves right of it by
 -- lead()): the closet's hanger glyph (icons/full_outfit.png, Slots.glyph(Slots.FULL_OUTFIT)), then the button that
--- opens the closet, imported at run time with ImportFileAsTexture2D as closet/ui/view.lua imports its glyphs. The button follows the game's own
--- D-pad marker: on a gamepad the D-pad Left glyph of the pad the game shows (its DPad_Up glyph's Left twin), on the
--- keyboard the closet key's icon on the game's own key cell (btn_PcEmpty), the way the marker shows Q and R. Sizes
+-- opens the closet. The glyph is imported at run time with ImportFileAsTexture2D as closet/ui/view.lua imports its
+-- glyphs. The button follows the game's own D-pad marker: on a gamepad the D-pad Left glyph of the pad the game shows
+-- (its DPad_Up glyph's Left twin), on the keyboard the closet key's icon on the game's own key cell (btn_PcEmpty), the way the marker shows Q and R. Sizes
 -- come from the game's own widgets (the key icon from btn_up, the hanger from the heal item's icon), so the entry
 -- scales with the HUD. It is the HUD's own child (Overlay_ItemSlot), so it shows and hides with the HUD. Its parts are
 -- found by name in the HUD's widget trees (Hud.PARTS, ed6385e6), so the look for the HUD on screen is the only walk of
