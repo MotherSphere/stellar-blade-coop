@@ -458,6 +458,7 @@ return {
         cam='Vrije camera',remove='Weghalen',nothing='Niets getoond',leviathan='Leviathan',gardener='Gardener',
         tendril='Tendril',mann='Mann',nier='NieR-machine',orcal='Orcal-prototype',enya='Enya-prototype'}},
     closet={
+        beta='%s (Beta)',
         tabs={head='Hoofd',torso='Romp',arms='Armen',hips='Heupen',intimate='Intiem',legs='Benen',body='Lichaam',
             colour='Kleur',weapon='Wapen',full='Hele outfit'},
         slots={Face='Gezicht',Hair='Haar',Ponytail='Paardenstaart',Ears='Oren',Eyes='Ogen',Makeup='Make-up',

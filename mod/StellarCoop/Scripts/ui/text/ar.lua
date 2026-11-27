@@ -433,7 +433,8 @@ return {
         remove='أزل',nothing='لا شيء معروض',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',
         nier='آلة NieR',orcal='نموذج Orcal الأولي',enya='نموذج Enya الأولي'}},
     closet={
-        tabs={head='الرأس',torso='الجذع',arms='الذراعان',hips='الوركان',intimate='مناطق حساسة',legs='الساقان',
+        beta='%s (بيتا)',
+        tabs={head='الرأس',torso='الجذع',arms='الذراعان',hips='الوركان',intimate='الحميمية',legs='الساقان',
             body='الجسم',colour='اللون',weapon='السلاح',full='الزي كاملًا'},
         slots={Face='الوجه',Hair='الشعر',Ponytail='ذيل الحصان',Ears='الأذنان',Eyes='العينان',Makeup='المكياج',
             FaceTattoo='وشم الوجه',HairAccessory='إكسسوار الشعر',Headwear='غطاء الرأس',Mask='القناع',

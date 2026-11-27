@@ -43,9 +43,12 @@ function Model.new(o)
     end
 
     function m.tabs()
-        local out = {}
+        local out = {beta = {}} -- beta: the ids of the fitting tabs, labelled "(Beta)".
         for _, menu in ipairs(Slots.MENUS) do
-            if o.adult or not menu[2] then out[#out + 1] = menu[1] end
+            if o.adult or not menu[2] then
+                out[#out + 1] = menu[1]
+                out.beta[menu[1]] = menu[3] or nil
+            end
         end
         return out
     end

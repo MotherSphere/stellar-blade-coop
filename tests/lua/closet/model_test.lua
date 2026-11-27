@@ -34,9 +34,23 @@ local tests = {
         local t = new().tabs()
         eq(#t, 9, 'tab count')
         for _, id in ipairs(t) do ok(id ~= 'intimate', 'intimate listed') end
-        eq(t[1], 'full', 'first') eq(t[#t], 'weapon', 'last') eq(t[#t - 1], 'colour', 'Colour after Body')
+        eq(t[1], 'full', 'first') eq(t[#t], 'weapon', 'last')
         local a = new({adult = true}).tabs()
-        eq(#a, 10, 'adult count') eq(a[6], 'intimate', 'intimate place')
+        eq(#a, 10, 'adult count') eq(a[7], 'intimate', 'intimate place')
+    end,
+
+    colour_is_the_second_tab = function()
+        eq(new().tabs()[2], 'colour', 'Colour right after Full outfit')
+        eq(new({adult = true}).tabs()[2], 'colour', 'with the adult menu too')
+        same({table.unpack(new({adult = true}).tabs(), 1, 10)},
+            {'full', 'colour', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'weapon'}, 'the order')
+    end,
+
+    -- The fitting tabs (Head..Body and Intimate) are Beta; Full outfit, Colour and Weapon are not.
+    fitting_tabs_carry_beta = function()
+        local t = new({adult = true}).tabs()
+        same(t.beta, {head = true, torso = true, arms = true, hips = true, intimate = true, legs = true, body = true},
+            'the Beta tabs')
     end,
 
     the_colour_tab_lists_the_four_roles = function()

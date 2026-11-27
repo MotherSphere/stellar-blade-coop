@@ -452,6 +452,7 @@ return {
         remove='Usuń',nothing='Nic nie pokazano',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='Maszyna z NieR',orcal='Prototyp Orcala',enya='Prototyp Enyi'}},
     closet={
+        beta='%s (Beta)',
         tabs={head='Głowa',torso='Tułów',arms='Ręce',hips='Biodra',intimate='Intymne',legs='Nogi',body='Ciało',
             colour='Kolor',weapon='Broń',full='Cały strój'},
         slots={Face='Twarz',Hair='Włosy',Ponytail='Kucyk',Ears='Uszy',Eyes='Oczy',Makeup='Makijaż',

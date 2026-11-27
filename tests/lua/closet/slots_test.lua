@@ -59,10 +59,14 @@ local tests = {
         same(Slots.in_menu('full'), {Slots.FULL_OUTFIT})
         same(Slots.in_menu('weapon'), {'Weapon'})
     end,
-    the_colour_tab_follows_body = function()
-        local ids = {}
-        for i, menu in ipairs(Slots.MENUS) do ids[i] = menu[1] end
-        same(ids, {'full', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'colour', 'weapon'}, 'the tabs')
+    the_colour_tab_follows_full_outfit = function()
+        local ids, beta = {}, {}
+        for i, menu in ipairs(Slots.MENUS) do
+            ids[i] = menu[1]
+            if menu[3] then beta[#beta + 1] = menu[1] end
+        end
+        same(ids, {'full', 'colour', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'weapon'}, 'the tabs')
+        same(beta, {'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body'}, 'the Beta tabs')
         eq(Slots.ADULT_MENU.colour, false, 'not adult')
     end,
     every_slot_has_a_glyph_png = function()

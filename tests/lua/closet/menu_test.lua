@@ -14,6 +14,11 @@ local T = require('ui.text')
 local Fits = require('closet.fits')
 -- No enemy near EVE in these tests: core/player.lua's engaged walks the game's actors.
 require('core.player').engaged = function() return false end
+-- A tab's English label: the fitting tabs (Head..Body and Intimate) go through closet.beta.
+local BETA = {head = true, torso = true, arms = true, hips = true, intimate = true, legs = true, body = true}
+local function tab_label(id)
+    return BETA[id] and T.en.closet.beta:format(T.en.closet.tabs[id]) or T.en.closet.tabs[id]
+end
 
 local function rig(o)
     o = o or {}
@@ -127,7 +132,7 @@ end
 local MAID, KUNOICHI = 'AiK_CH27_14595', 'AiK_CH46_xSH_14462'
 local function on_top(r)
     r.menu.open()
-    at(r, 0.05, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down')
+    at(r, 0.05, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down')
     eq((detail(r)), 'Top', 'on the Top row')
 end
 
@@ -200,8 +205,8 @@ local tests = {
         -- The tab row: a window of 7 tab buttons, labelled; the Full outfit tab first and focused.
         local tabs = r.kit.live(F.TAB)
         eq(#tabs, 7, 'tabs')
-        for i, id in ipairs({'full', 'head', 'torso', 'arms', 'hips', 'legs', 'body'}) do
-            eq(tabs[i].o.TextValue.text, T.en.closet.tabs[id], 'tab ' .. i)
+        for i, id in ipairs({'full', 'colour', 'head', 'torso', 'arms', 'hips', 'legs'}) do
+            eq(tabs[i].o.TextValue.text, tab_label(id), 'tab ' .. i)
             ok(F.called(tabs[i].o, 'RefreshDesign'), 'tab RefreshDesign ' .. i)
             ok(F.called(tabs[i].o, i == 1 and 'FocusTabButton' or 'DefocusTabButton'), 'tab focus ' .. i)
             eq(tabs[i].x, 160 + (i - 1) * 266, 'tab x ' .. i)
@@ -221,8 +226,8 @@ local tests = {
         local hints = r.kit.live(F.HINT)
         eq(#hints, 5, 'Full tab hints')
         eq(said(hints[4], 'SetText'), T.en.closet.hints.whole, 'Whole outfit hint')
-        -- The torso tab's rows (two tabs right), on Bra (row 5): its grid.
-        at(r, 0.05, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down')
+        -- The torso tab's rows (three tabs right), on Bra (row 5): its grid.
+        at(r, 0.05, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down')
         -- The torso rows in a window of 10: a soon row locked, Bra focused with Leotard worn nowhere (None).
         rows = r.kit.live(F.OPTION) -- Remade on the tab change: in screen order.
         table.sort(rows, function(a, b) return a.y < b.y end)
@@ -294,7 +299,7 @@ local tests = {
         -- no tab hover and no tile click would reach them (closet/ui/probe.lua tests 1 and 3 made them with hit).
         local r = rig()
         r.menu.open()
-        at(r, 0.05, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down')
+        at(r, 0.05, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down')
         local tabs, grids = r.kit.live(F.TAB), r.kit.live(F.GRID)
         eq(#tabs, 7, 'tabs') eq(#grids, 1, 'grid')
         for i, rec in ipairs(tabs) do eq(rec.hit, true, 'tab ' .. i .. ' takes the mouse') end
@@ -450,10 +455,10 @@ local tests = {
         local r = rig()
         r.menu.open()
         -- Tabs: E and Q change the tab, its first row focused, with the change sound.
-        at(r, 0.1, 'tab_right', 'tab_right', 'tab_right')
+        at(r, 0.1, 'tab_right', 'tab_right', 'tab_right', 'tab_right')
         eq(r.kit.sounds[#r.kit.sounds], 'change', 'tab sound')
         eq((detail(r)), 'Upper arm tattoo', 'arms tab, first row')
-        ok(F.called(r.kit.live(F.TAB)[4].o, 'FocusTabButton'), 'arms tab focused')
+        ok(F.called(r.kit.live(F.TAB)[5].o, 'FocusTabButton'), 'arms tab focused')
         at(r, 0.1, 'tab_left')
         local title, desc = detail(r)
         eq(title, 'Chest tattoo', 'torso tab, first row')
@@ -493,9 +498,9 @@ local tests = {
         eq((detail(r)), 'Stomach tattoo', 'down from the tabs to the rows')
         -- The mouse: a click on a tab, on a row; a tile picked in the TileView.
         local tabs = r.kit.live(F.TAB)
-        tabs[5].o.Button_Action.hover = true
+        tabs[6].o.Button_Action.hover = true
         at(r, 0.4, 'click')
-        tabs[5].o.Button_Action.hover = false
+        tabs[6].o.Button_Action.hover = false
         eq((detail(r)), 'Hip tattoo', 'a click on the hips tab')
         local zones = r.kit.groups.closet_menu.zones
         zones[2].hover = true
@@ -608,7 +613,7 @@ local tests = {
         -- The torso tab has 14 rows: chip zone 12 (Move, no word) must not read as row 12.
         local r = rig()
         r.menu.open()
-        at(r, 0.1, 'tab_right', 'tab_right')
+        at(r, 0.1, 'tab_right', 'tab_right', 'tab_right')
         eq((detail(r)), 'Chest tattoo', 'the torso tab, row 1')
         local before = #r.previews
         local zones = r.kit.groups.closet_menu.zones
@@ -636,7 +641,7 @@ local tests = {
         -- A soon row and a locked whole outfit: refresh wears nothing.
         at(r, 2, 'tab_left')
         at(r, 2, 'refresh')
-        at(r, 2, 'tab_left', 'down', 'refresh')
+        at(r, 2, 'tab_left', 'tab_left', 'down', 'refresh') -- Colour, then Full outfit.
         eq(#r.previews, 0, 'soon row, locked outfit')
         at(r, 2, 'up', 'refresh')
         same(r.previews, {{{fit = MAID}}}, 'the installed outfit is worn')
@@ -699,7 +704,7 @@ local tests = {
         at(r, 2, 'back', 'refresh')
         same(r.previews[2], {{fit = KUNOICHI}}, 'the worn tile outfit in the rows')
         -- The Full tab: the row's outfit.
-        at(r, 2, 'tab_left', 'tab_left')
+        at(r, 2, 'tab_left', 'tab_left', 'tab_left')
         local title = detail(r)
         eq(title, 'Ocean Maid', 'the Full tab')
         at(r, 2, 'refresh', 'down', 'refresh')
@@ -734,7 +739,7 @@ local tests = {
         at(r, 0.5, 'right')
         same(shown(), {back, wear, whole, move}, 'a piece tile: Back, Wear, Whole outfit (refresh), Move')
         eq(tostring(icon[whole]), 'UI_FaceButton_Top', 'refresh shows the top face button')
-        at(r, 0.5, 'back', 'tab_left', 'tab_left')
+        at(r, 0.5, 'back', 'tab_left', 'tab_left', 'tab_left')
         eq((detail(r)), 'Ocean Maid', 'the Full tab')
         same(shown(), {back, whole, move}, 'the Full tab: Back, Whole outfit, Move')
         at(r, 0.5, 'select')
@@ -782,7 +787,7 @@ local tests = {
         local r = rig()
         r.menu.toggle()
         ok(r.menu.is_open(), 'toggle opens')
-        at(r, 0.05, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down', 'right', 'right')
+        at(r, 0.05, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down', 'right', 'right')
         tick(r, 1)
         eq(#r.previews, 1, 'the focused tile previewed')
         r.menu.toggle()
@@ -795,7 +800,7 @@ local tests = {
         -- A tile preview due when toggle leaves the grid: dropped, as the grid's Back drops it.
         r = rig()
         r.menu.toggle()
-        at(r, 0.05, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down', 'right', 'right')
+        at(r, 0.05, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down', 'right', 'right')
         tick(r, 1)
         at(r, 1.1, 'right')
         r.t = 1.2
@@ -820,7 +825,7 @@ local tests = {
     the_pad_chord_that_closes_keeps_the_tab = function()
         local r = rig()
         r.menu.open()
-        at(r, 0.4, 'tab_right', 'tab_right', 'down', 'down')
+        at(r, 0.4, 'tab_right', 'tab_right', 'tab_right', 'down', 'down')
         local title = detail(r)
         local function chord(t)
             at(r, t, 'tab_left') -- LB down.
@@ -834,7 +839,7 @@ local tests = {
         r.t = 1
         r.menu.open()
         eq((detail(r)), title, 'the same tab and row after a reopen')
-        ok(F.called(r.kit.live(F.TAB)[3].o, 'FocusTabButton'), 'the torso tab focused')
+        ok(F.called(r.kit.live(F.TAB)[4].o, 'FocusTabButton'), 'the torso tab focused')
         -- In the tabs: left moves the tab too; the chord undoes both.
         at(r, 1.4, 'up', 'up', 'up')
         chord(1.5)
@@ -877,8 +882,8 @@ local tests = {
         r.menu.open()
         eq((detail(r)), 'Chest tattoo', 'one poll: the torso tab kept')
         -- On a Colour row the chord's left steps the role's swatch (colour.step, saved at once): the close steps it
-        -- back, so the palette and coop-closet-colour.txt stay as they were. From the Weapon tab, LB reaches the Colour
-        -- tab's Primary row first.
+        -- back, so the palette and coop-closet-colour.txt stay as they were. From the Weapon tab, LB reaches the Body
+        -- tab: the palette is never stepped.
         local col = fake_colour()
         r = rig({colour = col})
         r.menu.open()
@@ -892,7 +897,7 @@ local tests = {
         eq((detail(r)), title, 'the Weapon tab kept')
         -- On the Colour tab, both pressed in one poll: left, tab_left, then closet.
         col.palette.primary = 'crimson'
-        at(r, 1.4, 'tab_left') -- Colour.
+        at(r, 1.4, 'tab_right', 'tab_right') -- Full, Colour.
         tick(r, 1.45)
         eq((detail(r)), T.en.closet.colour.roles.primary, 'on the Primary row')
         at(r, 1.5, 'left', 'tab_left')
@@ -914,7 +919,7 @@ local tests = {
         sh.values.Butt = 50
         r = rig({shape = sh})
         r.menu.open()
-        at(r, 0.4, 'tab_left', 'tab_left', 'tab_left', 'down') -- Weapon, Colour, Body; the Butt row.
+        at(r, 0.4, 'tab_left', 'tab_left', 'down') -- Weapon, Body; the Butt row.
         eq((detail(r)), 'Butt', 'on the Butt row')
         at(r, 0.5, 'left', 'tab_left')
         r.menu.toggle()
@@ -1106,7 +1111,7 @@ local tests = {
         ok(desc:find(custom, 1, true), 'a Full outfit row: ' .. desc)
         eq(badge(r), 'custom', 'the custom badge beside the origin line')
         -- The Body tab's Body row: None (the body rule) then each outfit with skin, named after the outfit.
-        at(r, 0.5, 'tab_left', 'tab_left', 'tab_left') -- Full, Weapon, Colour, Body.
+        at(r, 0.5, 'tab_left', 'tab_left') -- Full, Weapon, Body.
         eq((detail(r)), T.en.closet.slots.BaseBody, 'the Body row first')
         eq(badge(r), nil, 'no origin line, no badge')
         at(r, 0.5, 'right')
@@ -1129,7 +1134,7 @@ local tests = {
         Fits.BY_ID[MAID].Origin = 'original'
         local good, why = pcall(function()
             eq(Fits.origin(MAID), 'original')
-            at(r, 0.5, 'tab_right', 'tab_right', 'tab_right')
+            at(r, 0.5, 'tab_right', 'tab_right')
             title, desc = detail(r)
             eq(title, 'Ocean Maid', 'the Full outfit row')
             ok(desc:find(T.en.closet.origin.original, 1, true) and not desc:find('Custom', 1, true), desc)
@@ -1420,12 +1425,12 @@ local tests = {
         ok(text and text.x >= 0 and text.x + text.o.wrap <= 2112, 'the notice inside the menu, left of x 2112')
         eq(text.s, '', 'no look: no notice')
         local function body_row()
-            at(r, r.t, 'tab_left', 'tab_left', 'tab_left') -- The Body tab, from the Full tab (Weapon, Colour, Body).
+            at(r, r.t, 'tab_left', 'tab_left') -- The Body tab, from the Full tab (Weapon, Body).
             eq((detail(r)), T.en.closet.slots.BaseBody, 'the Body row')
             local rows = r.kit.live(F.OPTION)
             table.sort(rows, function(a, b) return a.y < b.y end)
             local value = rows[1].o.Text_ItemValue.text
-            at(r, r.t, 'tab_right', 'tab_right', 'tab_right') -- Back on the Full tab.
+            at(r, r.t, 'tab_right', 'tab_right') -- Back on the Full tab.
             return value
         end
         eq(body_row(), T.en.closet.row.none, 'no look: None')
@@ -1473,6 +1478,24 @@ local tests = {
         eq((detail(r)), 'Ocean Maid', 'its first outfit')
     end,
 
+    -- Colour right after Full outfit; Head..Body and Intimate labelled through closet.beta, the others plain.
+    fitting_tabs_carry_beta = function()
+        local r = rig({adult = true})
+        r.menu.open()
+        local ids = {'full', 'colour', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'weapon'}
+        local seen = {}
+        for i = 1, #ids do
+            local tabs = r.kit.live(F.TAB)
+            for _, rec in ipairs(tabs) do
+                if F.called(rec.o, 'FocusTabButton') then seen[i] = rec.o.TextValue.text end
+            end
+            at(r, 0.1, 'tab_right')
+        end
+        for i, id in ipairs(ids) do eq(seen[i], tab_label(id), 'tab ' .. i .. ' ' .. id) end
+        eq(T.en.closet.beta:format(T.en.closet.tabs.head), 'Head (Beta)', 'the English Beta word')
+        eq(seen[2], T.en.closet.tabs.colour, 'Colour second, not Beta')
+    end,
+
     the_tab_window_follows_the_focus = function()
         local r = rig({adult = true})
         r.menu.open()
@@ -1481,10 +1504,10 @@ local tests = {
             for i, rec in ipairs(r.kit.live(F.TAB)) do out[i] = rec.o.TextValue.text end
             return out
         end
-        local ids = {'full', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'colour', 'weapon'}
+        local ids = {'full', 'colour', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'weapon'}
         local function names(from, to)
             local out = {}
-            for i = from, to do out[#out + 1] = T.en.closet.tabs[ids[i]] end
+            for i = from, to do out[#out + 1] = tab_label(ids[i]) end
             return out
         end
         same(labels(), names(1, 7), 'tabs 1-7 at the open')
@@ -1497,10 +1520,10 @@ local tests = {
         -- Back to 9 and 4: the window stays until the focus leaves it.
         at(r, 0.1, 'tab_left')
         same(labels(), names(4, 10), 'tab 9: the window stays')
-        -- A click on the first button shown is tab 4 (arms).
+        -- A click on the first button shown is tab 4 (torso).
         r.kit.live(F.TAB)[1].o.Button_Action.hover = true
         at(r, 0.1, 'click')
-        eq((detail(r)), 'Upper arm tattoo', 'a click on the first shown tab: arms')
+        eq((detail(r)), 'Chest tattoo', 'a click on the first shown tab: torso')
         same(labels(), names(4, 10), 'tab 4: the window stays')
         at(r, 0.1, 'tab_left')
         same(labels(), names(3, 9), 'tab 3: the window follows')
@@ -1508,14 +1531,14 @@ local tests = {
         same(labels(), names(4, 10), 'tab 10 again after the wrap')
     end,
 
-    -- The Colour tab (after Body): a row for each role of closet/colour.lua, its value the swatch's name. Left, right,
+    -- The Colour tab (after Full outfit): a row for each role of closet/colour.lua, its value the swatch's name. Left, right,
     -- Select and a click on the row pick the swatch; nothing is previewed, so Back asks nothing. The camera frames her
     -- whole body.
     the_colour_tab_picks_a_swatch_per_role = function()
         local col, cam = fake_colour(), fake_camera()
         local r = rig({colour = col, camera = cam})
         r.menu.open()
-        at(r, 0.5, 'tab_left', 'tab_left') -- Full, Weapon, Colour.
+        at(r, 0.5, 'tab_right') -- Full, Colour.
         local function rows()
             local out = r.kit.live(F.OPTION)
             table.sort(out, function(a, b) return a.y < b.y end)
@@ -1531,12 +1554,17 @@ local tests = {
         local camera = T.en.closet.camera
         eq(desc, w.about.primary .. '\n' .. w.help .. '\n' .. camera.title:format(camera.moves.region.key),
             'what it colours and how to pick, then the camera line (the keyboard\'s)')
-        local hints = {} -- The menu's hint row (y 1990, under the camera's), each part's last text.
+        -- The menu's hint row (y 1990, under the camera's), each part's last text, in screen order (right to left):
+        -- the parts are pooled, so their list order follows the tabs shown before.
+        local parts = {}
         for _, h in ipairs(r.kit.live(F.HINT)) do
             local text
             for _, c in ipairs(h.o.calls) do if c[1] == 'SetText' then text = c[2].text or c[2] end end
-            if h.y == 1990 then hints[#hints + 1] = text end
+            if h.y == 1990 then parts[#parts + 1] = {x = h.x, text = text} end
         end
+        table.sort(parts, function(a, b) return a.x > b.x end)
+        local hints = {}
+        for i, h in ipairs(parts) do hints[i] = h.text end
         same(hints, {T.en.hint.back, T.en.hint.select, T.en.hint.move}, 'Back, Select, Move')
         at(r, 0.5, 'right')
         eq(rows()[1], w.roles.primary .. '=' .. w.swatches.white, 'right: the next swatch')
@@ -1557,7 +1585,7 @@ local tests = {
         -- Without a colour layer the rows show Off and pick nothing.
         r = rig()
         r.menu.open()
-        at(r, 0.5, 'tab_left', 'tab_left', 'right', 'select')
+        at(r, 0.5, 'tab_right', 'right', 'select')
         same(rows(), {w.roles.primary .. '=Off', w.roles.secondary .. '=Off', w.roles.accent .. '=Off',
             w.roles.glow .. '=Off'}, 'no layer: Off')
     end,
@@ -1569,7 +1597,7 @@ local tests = {
         local sh = fake_shape({'Butt', 'Hips'})
         local r = rig({shape = sh})
         r.menu.open()
-        at(r, 0.5, 'tab_left', 'tab_left', 'tab_left') -- Full, Weapon, Colour, Body.
+        at(r, 0.5, 'tab_left', 'tab_left') -- Full, Weapon, Body.
         local function rows()
             local out = r.kit.live(F.OPTION)
             table.sort(out, function(a, b) return a.y < b.y end)
@@ -1620,7 +1648,7 @@ local tests = {
         -- Without a shape layer: no shape row.
         r = rig()
         r.menu.open()
-        at(r, 0.5, 'tab_left', 'tab_left', 'tab_left')
+        at(r, 0.5, 'tab_left', 'tab_left')
         eq(rows()[2]:match('^[^=]+'), w.slots.SkinSuit, 'no layer: no shape row')
     end,
 
@@ -1898,7 +1926,9 @@ local tests = {
             typed = function(r) at(r, 1, 'right', 'right', 'select'); r.previewing = false; tick(r, 1.5) end,
             close = function(r) r.menu.close() end,
             keep = function(r) r.menu.close('keep') end,
-            reset = function(r) at(r, 1, 'tab_left', 'tab_left', 'down', 'down', 'down', 'select', 'select') end,
+            reset = function(r)
+                at(r, 1, 'tab_left', 'tab_left', 'tab_left', 'down', 'down', 'down', 'select', 'select')
+            end,
             draw = function(r) r.kit.up = false; at(r, 1, 'up') end,
             stop = function(r) r.menu.stop() end,
         }
@@ -1938,7 +1968,7 @@ local tests = {
         tick(r, 1)
         eq(cam.ticks[2].region, 'full', 'the Full outfit tab')
         ok(math.abs(cam.ticks[2].dt - 0.5) < 1e-9, 'dt since the last tick')
-        at(r, 1, 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down') -- Torso, Top.
+        at(r, 1, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down') -- Torso, Top.
         tick(r, 1.1)
         eq(cam.ticks[#cam.ticks].region, 'torso', 'Top: torso')
         at(r, 1.2, 'tab_right', 'down', 'down') -- Arms, Hand tattoo.
@@ -2217,7 +2247,8 @@ local tests = {
             at(r, 0.6, 'no')
             r.t = 1
             r.menu.open()
-            at(r, 1.5, 'tab_left', 'tab_left', 'down', 'down', 'down', 'select') -- The Full tab's Reset row.
+            -- The Full tab's Reset row.
+            at(r, 1.5, 'tab_left', 'tab_left', 'tab_left', 'down', 'down', 'down', 'select')
             eq(popups(r), 1, dev .. ': Reset Stellar Closet?') check('reset popup')
             ok(steps > 100, dev .. ': every step checked')
         end
@@ -2381,7 +2412,9 @@ local tests = {
             stop = function(r) r.menu.stop() end,
             close = function(r) r.menu.close() end,
             keep = function(r) r.menu.close('keep') end,
-            reset = function(r) at(r, 1, 'tab_left', 'tab_left', 'down', 'down', 'down', 'select', 'select') end,
+            reset = function(r)
+                at(r, 1, 'tab_left', 'tab_left', 'tab_left', 'down', 'down', 'down', 'select', 'select')
+            end,
         }
         for name, path in pairs(paths) do
             local r = rig()

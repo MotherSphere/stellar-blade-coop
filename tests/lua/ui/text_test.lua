@@ -465,6 +465,10 @@ for name in pairs(R.TEXT) do
     -- Stellar Closet's menu (closet/ui/view.lua): a tab's word within the game's tab button (16 columns, as the
     -- Online tab's), a key hint within the menu's hint cell (HINT).
     for k,text in pairs(w.closet.tabs) do fits(name..'.closet.tabs.'..k,text,16) end
+    -- A fitting tab's label is its word through closet.beta ("%s (Beta)"), within the same 16 columns.
+    for _,menu in ipairs(require('closet.slots').MENUS) do
+        if menu[3] then fits(name..'.closet.beta '..menu[1],w.closet.beta:format(w.closet.tabs[menu[1]]),16) end
+    end
     for k,text in pairs(w.closet.hints) do fits(name..'.closet.hints.'..k,text,HINT) end
     -- The Colour tab's rows: a role's name within a row's title column, a swatch's name within its value column.
     for k,text in pairs(w.closet.colour.roles) do fits(name..'.closet.colour.roles.'..k,text,LABEL) end

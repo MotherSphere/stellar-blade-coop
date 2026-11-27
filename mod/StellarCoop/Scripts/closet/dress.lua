@@ -643,7 +643,7 @@ function Dress.new(o)
         if choices then plan,why=Dress.plan(choices,fits,mode) end
         if not plan then return done(true,'could not wear '..kept..' again: '..tostring(why)) end
         local ran,worn,e=pcall(apply,plan,choices)
-        if ran and worn then return done(false,'worn again: '..kept) end
+        if ran and worn then return done(false,'worn again: '..kept..body_notes(plan)) end
         tries=tries+1
         if tries<Dress.RETRIES then retry_at=now+1; return end
         done(not state,'could not wear '..kept..' again after '..tries..' tries: '..tostring(ran and e or worn))

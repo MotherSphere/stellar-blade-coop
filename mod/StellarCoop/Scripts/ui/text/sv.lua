@@ -446,6 +446,7 @@ return {
         remove='Ta bort',nothing='Inget visas',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='NieR-maskin',orcal='Orcal-prototyp',enya='Enya-prototyp'}},
     closet={
+        beta='%s (Beta)',
         tabs={head='Huvud',torso='Bål',arms='Armar',hips='Höfter',intimate='Intimt',legs='Ben',body='Kropp',
             colour='Färg',weapon='Vapen',full='Hel dräkt'},
         slots={Face='Ansikte',Hair='Hår',Ponytail='Hästsvans',Ears='Öron',Eyes='Ögon',Makeup='Smink',

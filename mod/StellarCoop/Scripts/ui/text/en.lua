@@ -562,6 +562,7 @@ return {
     -- regions whose skin shows on a picked body (clips), the reset done, the Colour tab's words (colour) and the Body
     -- tab's shape rows (shape). Outfit, pack, piece and morph names stay as their pack writes them.
     closet={
+        beta='%s (Beta)', -- a fitting tab's label (Head..Body, Intimate): its tabs word in %s
         tabs={head='Head',torso='Torso',arms='Arms',hips='Hips',intimate='Intimate',legs='Legs',body='Body',
             colour='Colour',weapon='Weapon',full='Full outfit'},
         slots={Face='Face',Hair='Hair',Ponytail='Ponytail',Ears='Ears',Eyes='Eyes',Makeup='Makeup',

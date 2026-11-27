@@ -361,6 +361,7 @@ return {
         leviathan='Leviathan',gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR機械',orcal='Orcal原型',
         enya='Enya原型'}},
     closet={
+        beta='%s（測試版）',
         tabs={head='頭部',torso='軀幹',arms='手臂',hips='臀部',intimate='私密',legs='腿部',body='身體',colour='顏色',weapon='武器',
             full='整套服裝'},
         slots={Face='臉',Hair='頭髮',Ponytail='馬尾',Ears='耳朵',Eyes='眼睛',Makeup='妝容',FaceTattoo='臉部刺青',

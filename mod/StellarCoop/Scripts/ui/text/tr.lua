@@ -459,6 +459,7 @@ return {
         gardener='Gardener',tendril='Tendril',mann='Mann',nier='NieR makinesi',orcal='Orcal prototipi',
         enya='Enya prototipi'}},
     closet={
+        beta='%s (Beta)',
         tabs={head='Baş',torso='Gövde',arms='Kollar',hips='Kalça',intimate='Mahrem',legs='Bacaklar',body='Vücut',
             colour='Renk',weapon='Silah',full='Tüm kıyafet'},
         slots={Face='Yüz',Hair='Saç',Ponytail='At kuyruğu',Ears='Kulaklar',Eyes='Gözler',Makeup='Makyaj',

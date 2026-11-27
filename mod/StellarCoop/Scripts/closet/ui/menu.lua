@@ -45,9 +45,10 @@
 -- game's Yes/No popup: Yes runs coop closet off (dress.off), turns every colour off (colour.off: its file cleared),
 -- sets every shape value to 0 (shape.off: its file cleared), tells closet.reset_done, closes without the Keep popup or
 -- a revert and has the camera forget its mode and pose (its file cleared); No and Back stay.
--- The Colour tab (after Body) has a row for each role of closet/colour.lua; its value is the role's swatch. Right and
--- Select (a click on the row too) take the next swatch, left the one before (colour.step): the palette is saved at
--- once, apart from the look, so it never asks Keep this look? Its detail says what the role colours and how to pick.
+-- The Colour tab (after Full outfit) has a row for each role of closet/colour.lua; its value is the role's swatch.
+-- Right and Select (a click on the row too) take the next swatch, left the one before (colour.step): the palette is
+-- saved at once, apart from the look, so it never asks Keep this look? Its detail says what the role colours and how
+-- to pick. The fitting tabs (Head..Body, Intimate) are labelled through closet.beta ("Head (Beta)").
 -- The Body tab lists, below its Body row, a row for each name of closet/shape.lua's rows (the look as last put on);
 -- its value is the name's value in percent. Left and right step it by Shape.STEP from 0 to 100, Select (a click on the
 -- row too) takes the next step, 0 after 100: the value is saved at once, apart from the look. Rows that change with the
@@ -219,7 +220,10 @@ function Menu.new(o)
         tab_top=math.max(1,math.min(math.max(tab_top,tab-View.TABS+1),tab,#ids-View.TABS+1))
         local s={tabs={},tab=tab,tab_top=tab_top,rows={},hints={{t.hint.back,'Negative',word='back'}},camera_hints={},
             pad=pad()}
-        for i,id in ipairs(ids) do s.tabs[i]=w.tabs[id] or id end
+        for i,id in ipairs(ids) do
+            s.tabs[i]=w.tabs[id] or id
+            if ids.beta[id] then s.tabs[i]=w.beta:format(s.tabs[i]) end
+        end
         listed=o.shape and o.shape.rows()
         local list=model.rows(ids[tab])
         row=math.max(1,math.min(row,#list))

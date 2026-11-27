@@ -461,6 +461,7 @@ return {
         remove='Poista',nothing='Ei mitään näkyvissä',leviathan='Leviathan',gardener='Gardener',tendril='Tendril',
         mann='Mann',nier='NieR-kone',orcal='Orcal-prototyyppi',enya='Enya-prototyyppi'}},
     closet={
+        beta='%s (Beta)',
         tabs={head='Pää',torso='Vartalo',arms='Kädet',hips='Lantio',intimate='Intiimi',legs='Jalat',body='Keho',
             colour='Väri',weapon='Ase',full='Koko asu'},
         slots={Face='Kasvot',Hair='Hiukset',Ponytail='Poninhäntä',Ears='Korvat',Eyes='Silmät',Makeup='Meikki',

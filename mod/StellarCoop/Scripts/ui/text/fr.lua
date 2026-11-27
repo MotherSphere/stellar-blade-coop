@@ -466,6 +466,7 @@ return {
         cam='Caméra libre',remove='Retirer',nothing='Rien d\'affiché',leviathan='Leviathan',gardener='Gardener',
         tendril='Tendril',mann='Mann',nier='Machine NieR',orcal='Prototype d\'Orcal',enya='Prototype d\'Enya'}},
     closet={
+        beta='%s (bêta)',
         tabs={head='Tête',torso='Torse',arms='Bras',hips='Hanches',intimate='Intime',legs='Jambes',body='Corps',
             colour='Couleur',weapon='Arme',full='Tenue complète'},
         slots={Face='Visage',Hair='Cheveux',Ponytail='Queue de cheval',Ears='Oreilles',Eyes='Yeux',Makeup='Maquillage',

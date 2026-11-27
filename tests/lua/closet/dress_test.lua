@@ -787,6 +787,16 @@ local tests = {
         second(w)
         eq(w.eve.Mesh.SkeletalMesh.path, KS) eq(fields(w.file)[5], w.Dress.words(GLOVES))
     end,
+    -- The restore line names the body switch as wear and preview do. The menu notice reads the plan on EVE.
+    restore_with_a_switched_body_says_so = function()
+        local w = world()
+        assert(w.d.wear(GLOVES))
+        w.log = {}
+        w.d = w.new()
+        w.d.tick()
+        ok(logged(w, 'worn again: ' .. w.Dress.words(GLOVES) .. ' (switched by the auto body rule)'), w.log[1])
+        eq(w.d.plan().switched, NINJA, 'the plan on EVE names the switch (the menu notice shows it)')
+    end,
     basebody_needs_skin = function()
         local Dress = require('closet.dress')
         local fits = {get = function(id) return id == 'Bare' and {Mesh = '/Game/Bare.Bare', Pieces = {}} or nil end,
