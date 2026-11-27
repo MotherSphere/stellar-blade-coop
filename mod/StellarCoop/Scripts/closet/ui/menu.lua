@@ -100,7 +100,8 @@
 -- nothing), shape=closet/shape.lua's or nil (no shape row then), options=closet/options.lua's or nil (no options
 -- page then), presets=closet/presets.lua's or nil (no Presets rows, filter or favourites then),
 -- uidev=function() SB's input device byte or nil
--- (core/link.lua's uidev; nil: the keyboard)}.
+-- (core/link.lua's uidev; nil: the keyboard), nav_held=function() the up and down keys held (main/boot.lua's
+-- nav_held: 1 up, 2 down, 0 none) or nil}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Player=require('core.player')
@@ -117,6 +118,9 @@ Menu.NEAR=3000 -- cm: an engaged enemy that near is combat (online/lobby/wiring.
 Menu.PREVIEW,Menu.ARM,Menu.GUARD,Menu.COMBAT=0.25,0.3,0.25,1 -- s.
 Menu.BACK=0.15 -- s before the game's input comes back after a close (ui/kit/menu.lua's BACK).
 Menu.RETRY=1 -- s between two asks of a failed close revert (the dress watchdog's pace).
+-- s: a held up or down key repeats its move after REPEAT_DELAY, then every REPEAT_EVERY (ui/pad.h's kPadRepeatDelayMs
+-- and kPadRepeatEveryMs, the D-pad's repeat).
+Menu.REPEAT_DELAY,Menu.REPEAT_EVERY=0.4,0.12
 -- An options page row under its section starts with CHILD, after INDENT for each depth past the first (model.options's
 -- depth): a piece reads as a child of its section, a control of its piece, a channel of its colour.
 Menu.CHILD,Menu.INDENT='- ','    '
@@ -129,6 +133,7 @@ function Menu.new(o)
     local FILTERS={'all','favourites','original','custom'}
     local filter=1
     local deleting -- The preset the Delete this preset? popup asks about.
+    local held_dir,repeat_at -- The up or down key held at the last tick, when it repeats next.
     -- The backs of the presets worn since the open (closet/presets.lua's wear): a close that does not keep the look
     -- runs them last first, so each outfit gets its variant and values from before the open.
     local unwear={}
@@ -927,6 +932,15 @@ function Menu.new(o)
                 if not unreverted then log('menu: the owed revert is done') end
             end
             return
+        end
+        -- A held up or down key repeats its move (UE4SS's binds see the press only); the press moved once already.
+        local held=o.nav_held and o.nav_held()
+        local dir=held==1 and 'up' or held==2 and 'down' or nil
+        if dir~=held_dir then held_dir,repeat_at=dir,t+Menu.REPEAT_DELAY
+        elseif dir and t>=repeat_at then
+            repeat_at=repeat_at+Menu.REPEAT_EVERY
+            if repeat_at<=t then repeat_at=t+Menu.REPEAT_EVERY end -- A late tick: one move, not a burst.
+            self.nav(dir)
         end
         -- The grid builds its entries on later frames too, and they take the keyboard focus: back to the kit's root.
         kit.refocus()

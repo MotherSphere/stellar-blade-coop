@@ -49,6 +49,15 @@ int main() {
   // Not in front: no notch, the kept part dropped.
   carry = 70;
   assert(wheel_answer(false, carry, 240) == 65 && carry == 0);
+  // The menu's held up and down (coop_nav): 1 + 1 for up (Up arrow, W, Z), + 2 for down (Down arrow, S).
+  using coop::nav_keys;
+  assert(nav_keys(true, none) == 1 && nav_keys(true, all) == 4);
+  assert(nav_keys(false, all) == 1);
+  for (int vk : {0x26, int('W'), int('Z')})
+    assert(nav_keys(true, [vk](int k) { return k == vk; }) == 2);
+  for (int vk : {0x28, int('S')})
+    assert(nav_keys(true, [vk](int k) { return k == vk; }) == 3);
+  assert(nav_keys(true, [](int k) { return k == 'A' || k == 0x25; }) == 1);
   std::puts("keys_test: ok");
   return 0;
 }

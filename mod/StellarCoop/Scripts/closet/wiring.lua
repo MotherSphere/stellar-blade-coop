@@ -117,7 +117,8 @@ menu=function(M,Ui)
     M.closet_menu=require('closet.ui.menu').new({kit=M.kit,dress=M.closet,words=M.words,tell=M.tell,log=log,
         world=function() return M.hud_shown end,photo=M.photo_state,status=function() return M.link and M.link.status() end,
         camera=camera,folder=M.folder,thumbs=M.closet_thumbs,colour=M.closet_colour,shape=M.closet_shape,
-        options=M.closet_options,presets=M.closet_presets,uidev=M.link.uidev})
+        options=M.closet_options,presets=M.closet_presets,uidev=M.link.uidev,
+        nav_held=function() return M.nav_held and M.nav_held() end})
     -- The first open (the closet key's too: it calls the field) reads every pack once, under a guard of its own.
     local open=M.closet_menu.open
     M.closet_menu.open=function(...)

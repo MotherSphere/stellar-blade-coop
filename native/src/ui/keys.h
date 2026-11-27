@@ -28,6 +28,24 @@ template <class Held> int held_keys(bool front, Held &&held) {
   return 1 + bits;
 }
 
+// The keys that walk a menu's rows, held now, as coop_nav hands them to Lua: 1 + 1 when an up key is held (VK_UP 0x26,
+// W, Z: main/keys.lua binds all three to up) + 2 when a down key is held (VK_DOWN 0x28, S); 1 alone when no window of
+// SB's is in front. The closet menu repeats a held one: UE4SS's binds see a key's press only.
+inline constexpr std::array<int, 3> kNavUp = {0x26, 'W', 'Z'};
+inline constexpr std::array<int, 2> kNavDown = {0x28, 'S'};
+template <class Held> int nav_keys(bool front, Held &&held) {
+  if (!front)
+    return 1;
+  int bits = 0;
+  for (int vk : kNavUp)
+    if (held(vk))
+      bits |= 1;
+  for (int vk : kNavDown)
+    if (held(vk))
+      bits |= 2;
+  return 1 + bits;
+}
+
 // The mouse wheel's notches as coop_wheel hands them to Lua. WM_MOUSEWHEEL's deltas add up (kWheelNotch, WHEEL_DELTA
 // 120, a notch; a smooth wheel sends less). The answer is 1 + kWheelMost + the whole notches in carry + delta (up
 // positive, -kWheelMost to kWheelMost, more dropped): 1 to 129. The part of a notch stays in carry for the next read.

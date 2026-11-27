@@ -1405,6 +1405,29 @@ end)()
     mw.missing=false
 end)()
 
+-- The held menu keys for the closet menu's repeat: M.nav_held() gives the bits of coop_nav's 4 arguments (1 up, 2
+-- down). An older DLL without it: one log line, nil.
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text=''
+    load_main(true)
+    assert(M.nav_held()==0,'nothing held')
+    nk.bits=2
+    assert(M.nav_held()==2,'down held')
+    nk.bits=3
+    assert(M.nav_held()==3,'both')
+    nk.bits=0
+    nk.missing=true
+    load_main(true)
+    Loader.run=run
+    assert(M.nav_held==nil and M.mouse_wheel~=nil and logged('Native menu keys unavailable: coop_nav: not exported'),
+        table.concat(printed,'|'))
+    nk.missing=false
+end)()
+
 -- Without the native tick export, the pose path's commands say so.
 native_ok=true
 package.loadlib=function(_,name) if name=='coop_tick' then return nil,'not exported' end return true end

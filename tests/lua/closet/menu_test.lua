@@ -42,7 +42,8 @@ local function rig(o)
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
         camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape,
-        options = o.options, presets = o.presets, uidev = function() return r.dev end})
+        options = o.options, presets = o.presets, uidev = function() return r.dev end,
+        nav_held = function() return r.held end})
     return r
 end
 -- A pack suit named Aria (first by name on the Full tab) with two variants, the second's mesh missing when the rig
@@ -1242,6 +1243,39 @@ local tests = {
         all_gone(r)
         tick(r, 2) tick(r, 3)
         eq(r.reverted, 0, 'no revert owed after it')
+    end,
+
+    -- A held up or down key (the native read: 1 up, 2 down) repeats its move after REPEAT_DELAY s, then every
+    -- REPEAT_EVERY s, as the pad's D-pad does; the press itself moves once, from the key's bind. No read: no repeat.
+    held_keys_repeat_the_move = function()
+        local Menu = require('closet.ui.menu')
+        local r = rig()
+        r.menu.open()
+        tick(r, 0.5)
+        local first = detail(r)
+        r.held = 2
+        at(r, 0.5, 'down') -- The bind's press.
+        tick(r, 0.5)
+        local second = detail(r)
+        ok(second ~= first, 'the press moved once')
+        tick(r, 0.5 + Menu.REPEAT_DELAY - 0.01)
+        eq((detail(r)), second, 'no repeat before the delay')
+        tick(r, 0.5 + Menu.REPEAT_DELAY)
+        ok(detail(r) ~= second, 'the first repeat after the delay')
+        local third = detail(r)
+        tick(r, 0.5 + Menu.REPEAT_DELAY + Menu.REPEAT_EVERY / 2)
+        eq((detail(r)), third, 'not again before REPEAT_EVERY')
+        r.held = 1
+        tick(r, 0.5 + Menu.REPEAT_DELAY + Menu.REPEAT_EVERY)
+        eq((detail(r)), third, 'a new key starts its own delay')
+        tick(r, 1 + 2 * Menu.REPEAT_DELAY)
+        eq((detail(r)), second, 'up held repeats up')
+        r.held = 0
+        tick(r, 3)
+        eq((detail(r)), second, 'let go: no repeat')
+        r.held = nil
+        tick(r, 4)
+        eq((detail(r)), second, 'no read: no repeat')
     end,
 
     -- Clear preview pictures, after Make preview pictures: Select asks with the game's Yes/No popup. No keeps them; Yes

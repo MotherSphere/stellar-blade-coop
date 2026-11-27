@@ -547,6 +547,14 @@ extern "C" __declspec(dllexport) int coop_keys(void *) noexcept {
   });
 }
 
+// coop_nav (Lua passes 4): ui/keys.h's nav_keys of the keys held now (GetAsyncKeyState): 1 + 1 up, + 2 down; 1 when no
+// window of SB's is in front. The closet menu's repeat of a held up or down key.
+static_assert(coop::kNavUp[0] == VK_UP && coop::kNavDown[0] == VK_DOWN);
+extern "C" __declspec(dllexport) int coop_nav(void *) noexcept {
+  using namespace coop::pose;
+  return coop::nav_keys(game_in_front(), [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; });
+}
+
 // The mouse wheel for coop_wheel: GetAsyncKeyState cannot see it. Its first call in front subclasses SB's game window
 // (the foreground window of class UnrealWindow: FWindowsWindow's CreateWindowExW(..., L"UnrealWindow", ...) at
 // 0x142bfb32a in FUN_142bfb0c0, Ghidra, build 26123051, 27 Nov 2026). The new window procedure adds each
