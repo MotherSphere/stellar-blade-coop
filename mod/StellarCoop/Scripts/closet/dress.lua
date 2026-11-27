@@ -677,10 +677,12 @@ function Dress.new(o)
         end
         return installed_cache[path]
     end
-    -- Whether the fit's mesh loads here (its outfit is installed).
+    -- Whether the fit's mesh loads here (its outfit is installed). An empty Mesh (SB.Ponytail_None) has nothing to
+    -- load: installed.
     function self.installed(fit_id)
         local fit=fits.get(fit_id)
         if not fit then return false end
+        if fit.Mesh=='' then return true end
         return loads(fit.Mesh,function(why)
             return fit_id..': its mesh does not load ('..why..'): its row is locked'
         end)

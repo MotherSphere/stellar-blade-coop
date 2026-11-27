@@ -1417,5 +1417,15 @@ local tests = {
             eq(w.file, kept, 'the kept line stays while restore tries again')
         end)
     end,
+    -- A head fit with an empty Mesh (SB.Ponytail_None) has nothing to load: installed (a preset keeps No ponytail).
+    an_empty_mesh_head_fit_is_installed = function()
+        with_packs(function(w)
+            local Fits = require('closet.fits')
+            Fits.use({['none.tail'] = {UniqueFitID = 'none.tail', DisplayName = 'None', Slot = 'Ponytail',
+                Origin = 'original', Variants = {{Mesh = '', HiddenMats = {}}}, UserConfigs = {MaterialToggles = {}}}})
+            ok(w.d.installed('none.tail'), 'installed')
+            ok(not logged(w, 'locked'), 'no locked line')
+        end)
+    end,
 }
 run('dress_test', tests)
