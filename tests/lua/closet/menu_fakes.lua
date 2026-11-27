@@ -63,6 +63,7 @@ F.GRID = '/Game/Art/UI/Widget/HairSalon/WB_HairSalonGridList.WB_HairSalonGridLis
 F.DETAIL = '/Game/Art/UI/Widget/GameMenu/WorkShop/WB_NanoSuit_Detail.WB_NanoSuit_Detail_C'
 F.ICON = '/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_000.Deco_Item_Hair_000'
 F.OPTION = '/Game/Art/UI/Widget/GameMenu/Setting/Slot/WB_Setting_Button_Slot.WB_Setting_Button_Slot_C'
+F.SLIDER = '/Game/Art/UI/Widget/GameMenu/Setting/Slot/WB_Setting_Slider_Slot.WB_Setting_Slider_Slot_C'
 F.HINT = '/Game/Art/UI/Widget/GameMenu/Common/Indicator/WB_Common_IndicatorBtnDefault.WB_Common_IndicatorBtnDefault_C'
 F.POPUP = '/Game/Art/UI/Widget/GameMenu/Common/WB_Common_Popup.WB_Common_Popup_C'
 

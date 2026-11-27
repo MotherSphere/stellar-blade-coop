@@ -130,6 +130,19 @@ local function row_value(r, title)
     for _, rec in ipairs(r.kit.live(F.OPTION)) do
         if rec.o.Text_TitleValue.text == title then return rec.o.Text_ItemValue.text end
     end
+    -- A slider row (WB_Setting_Slider_Slot): the number its own value text shows, ItemTextRange at CurrentPercent with
+    -- ItemTextFractionalDigits.
+    for _, rec in ipairs(r.kit.live(F.SLIDER)) do
+        local w = rec.o
+        if w.TextTitleValue.text == title then
+            local lo, hi = w.ItemTextRange.Min, w.ItemTextRange.Max
+            return ('%.' .. w.ItemTextFractionalDigits .. 'f'):format(lo + (hi - lo) * w.CurrentPercent)
+        end
+    end
+end
+-- The slider row titled title, or nil.
+local function slider(r, title)
+    for _, rec in ipairs(r.kit.live(F.SLIDER)) do if rec.o.TextTitleValue.text == title then return rec end end
 end
 -- The labels of the shown header rows (WB_Setting_Category).
 local function headers(r)
@@ -2286,6 +2299,13 @@ local tests = {
             at(r, 1, 'left')
             eq(row_value(r, COLOUR), '128 128 128', 'Custom before Pack colour: its R G B')
             eq(row_value(r, child(3, O.channels.r)), '128', 'its channels in 0-255, children of the colour')
+            -- Channels, numbers and shape keys are the game's slider slot: its value text shows the number in the
+            -- range, its slider the place; Focus or Normal as the focus moves.
+            local red = slider(r, child(3, O.channels.r))
+            ok(red, 'the Red channel is a slider row')
+            same(red.o.ItemTextRange, {Min = 0, Max = 255}, 'its range 0-255') eq(red.o.ItemTextFractionalDigits, 0)
+            ok(F.called(red.o, 'UpdatePercentOffset'), 'its slider placed')
+            ok(slider(r, SHINE), 'a number is a slider row')
             eq(row_value(r, child(3, O.channels.a)), nil, 'no alpha slider')
             at(r, 1.1, 'down', 'right')
             eq(row_value(r, child(3, O.channels.r)), '140', 'a step of 1/20') eq(row_value(r, COLOUR), '140 128 128')

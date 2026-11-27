@@ -246,10 +246,10 @@ function Menu.new(o)
     end
     -- A colour channel in 0-255; a number with the decimals of its step (3 at most).
     local function byte(x) return tostring(math.floor(x*255+0.5)) end
-    local function decimals(x,step)
-        local d=math.min(3,#((('%g'):format(step or 1)):match('%.(%d+)$') or ''))
-        return ('%.'..d..'f'):format(x)
-    end
+    local function digits(step) return math.min(3,#((('%g'):format(step or 1)):match('%.(%d+)$') or '')) end
+    local function decimals(x,step) return ('%.'..digits(step)..'f'):format(x) end
+    -- A slider row's place: x in lo..hi as 0..1 (a value outside the range shows at its end).
+    local function place(x,lo,hi) return hi>lo and math.max(0,math.min(1,(x-lo)/(hi-lo))) or 0 end
     -- Whether an outfit's row opens an options page: an installed pack outfit with toggles, with the options layer.
     local function has_options(item)
         local fit=item and item.whole and not item.locked and o.options and Fits.get(item.whole)
@@ -358,7 +358,9 @@ function Menu.new(o)
                 local value=item.channel and byte(c[item.c:upper()]) or choice=='pack' and w.options.pack or
                     choice=='custom' and byte(c.R)..' '..byte(c.G)..' '..byte(c.B) or w.colour.swatches[choice]
                 s.rows[i]={title=item.channel and w.options.channels[item.c] or kind_title(w,item,'colour'),value=value,
-                    swatch=item.colour and {R=c.R,G=c.G,B=c.B} or nil}
+                    swatch=item.colour and {R=c.R,G=c.G,B=c.B} or nil,
+                    -- A channel's slider in 0-255, as its value shows.
+                    slider=item.channel and {pct=tonumber(value)/255,lo=0,hi=255,digits=0} or nil}
             elseif item.finish then -- Its option's name, else its number.
                 local at=o.options.get(page.fit,v,'finish:'..item.finish)
                 local c=Fits.get(page.fit).Controls.TextureOptions[item.finish]
@@ -366,9 +368,10 @@ function Menu.new(o)
                 s.rows[i]={title=kind_title(w,item,'finish'),value=type(name)=='string' and name or tostring(at+1)}
             elseif item.number or item.shape then
                 local key=key_of(item)
-                local _,_,step=o.options.range(page.fit,key)
-                s.rows[i]={title=item.number and kind_title(w,item,'number') or item.name,
-                    value=decimals(o.options.get(page.fit,v,key),step)}
+                local lo,hi,step=o.options.range(page.fit,key)
+                local x=o.options.get(page.fit,v,key)
+                s.rows[i]={title=item.number and kind_title(w,item,'number') or item.name,value=decimals(x,step),
+                    slider=lo and {pct=place(x,lo,hi),lo=lo,hi=hi,digits=digits(step)} or nil}
             elseif item.role then
                 s.rows[i]={title=w.colour.roles[item.role],value=w.colour.swatches[swatch(item.role)]}
             elseif item.morph then -- The morph name as its mesh writes it.

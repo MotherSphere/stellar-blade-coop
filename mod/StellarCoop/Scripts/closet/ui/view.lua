@@ -323,6 +323,14 @@ function View.new(kit,log)
             -- A header row: SB's settings category header (ui/kit/parts.lua's header, as
             -- online/session/ui/create.lua shows its sections).
             if row and row.header then specs[i]=Parts.header(ROW_X,ROW_Y+(i-1)*PITCH+27,row.title)
+            elseif row and row.slider then -- The settings menu's slider slot: its value text shows the number.
+                local sl=row.slider
+                specs[i]={kind='slider',x=ROW_X,y=ROW_Y+(i-1)*PITCH,w=ROW_W,h=ROW_H,
+                    sig=row.title..'|'..sl.lo..'|'..sl.hi..'|'..sl.digits,fill=function(w)
+                        w.TextTitleValue=FText(row.title)
+                        w.ItemTextRange={Min=sl.lo,Max=sl.hi}
+                        w.ItemTextFractionalDigits=sl.digits
+                    end}
             else specs[i]=row and {kind='option',x=ROW_X,y=ROW_Y+(i-1)*PITCH,w=ROW_W,h=ROW_H,
                 sig=row.title..'|'..value..(row.locked and '*' or ''),
                 after=row.locked and 'RefreshAppearance' or nil,fill=function(w) -- SB's locked look.
@@ -335,6 +343,12 @@ function View.new(kit,log)
         for i=1,WINDOW do
             local rec,row=rows[i],s.rows[top+i]
             if rec and not (row and row.header) then look(rec,top+i==s.row and 'focus' or 'normal') end
+            -- A slider's place, on change only: CurrentPercent (its value text's) and UpdatePercentOffset (its bar).
+            local sl=rec and row and row.slider
+            if sl and rec.pct~=sl.pct then
+                rec.pct=sl.pct
+                call(rec,'slider place',function(w) w.CurrentPercent=sl.pct; w:UpdatePercentOffset(sl.pct) end)
+            end
             -- The kit fallback: a row with no SB part shows on the kit row under it.
             if not row or kit.alive(rec) then zones[i].set('','')
             else
