@@ -674,18 +674,20 @@ local tests = {
         w.d.off()
         eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off gives her own look')
     end,
-    -- A mix again that fails before it changes anything (her body mesh not valid) is tried again the next second.
-    a_failed_mix_again_is_tried_again = function()
+    -- While her body mesh is not valid the mix waits: no mix again, no count toward Dress.FIGHT. Back after longer
+    -- than the fight limit, the body gets the mix again.
+    a_missing_body_waits_past_the_fight_limit = function()
         local w = world()
         assert(w.d.wear(A))
         local body = w.eve.Mesh
         body.alive = false
-        second(w) second(w)
-        ok(logged(w, 'mix again failed'), 'the failed mix again logged')
+        for _ = 1, 2 * w.Dress.FIGHT.mixes + 2 do second(w) end
+        ok(logged(w, 'no valid body mesh'), 'the wait logged')
+        ok(not logged(w, 'stops mixing'), 'the missing body is no outside fight')
         body.alive = true
         body:SetSkeletalMesh(w.assets[OWN])
         local n = #w.log
-        second(w)
+        second(w) second(w) -- The watchdog's two looks at a changed body.
         local again
         for i = n + 1, #w.log do again = again or (w.log[i]:find('mix again', 1, true) ~= nil) end
         ok(again, 'mixed again')
