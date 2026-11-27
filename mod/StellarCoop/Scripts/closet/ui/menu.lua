@@ -430,7 +430,9 @@ function Menu.new(o)
                 local value=item.state=='soon' and w.row.soon or item.state=='empty' and '' or
                     worn and head_name(w,worn,model.piece(worn,item.slot).Name) or body or
                     (is_head(item.slot) and w.head.own or w.row.none)
-                s.rows[i]={title=w.slots[item.slot] or item.slot,value=value,locked=item.state=='soon'}
+                -- EarringL's row reads "Earrings": it stands for both ears, the slot name stays for other uses.
+                s.rows[i]={title=item.slot=='EarringL' and w.head.earrings or w.slots[item.slot] or item.slot,
+                    value=value,locked=item.state=='soon'}
             end
             -- A child row of the options page: its lead mark (the detail's title keeps the plain one).
             if item.depth then

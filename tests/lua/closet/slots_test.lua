@@ -43,6 +43,16 @@ local tests = {
         eq(Slots.group('Weapon'), 'weapon')
         for _, id in ipairs(Slots.in_menu('torso')) do eq(Slots.group(id), 'body', id) end
     end,
+    the_head_tab_lists_eight_rows_in_order = function()
+        same(Slots.in_menu('head'), {'Face', 'Hair', 'Ponytail', 'Eyes', 'EarringL', 'Glasses', 'Headwear', 'Mask'})
+        for _, id in ipairs({'Ears', 'Makeup', 'FaceTattoo', 'HairAccessory', 'EarringR', 'BrowPiercing',
+            'NosePiercing', 'SeptumPiercing', 'LipPiercing', 'TonguePiercing'}) do
+            ok(Slots.known(id), id .. ' is still a slot')
+            eq(Slots.menu(id), 'head', id .. ' keeps its menu')
+            ok(Slots.hidden(id), id .. ' is hidden from its menu')
+        end
+        eq(Slots.hidden('Face'), false)
+    end,
     only_the_intimate_menu_is_adult = function()
         local adult = {}
         for _, entry in ipairs(Slots.LIST) do

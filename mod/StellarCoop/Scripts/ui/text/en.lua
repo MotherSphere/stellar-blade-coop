@@ -598,7 +598,8 @@ return {
         -- The Head tab's Hair and Ponytail rows: the None tile and an empty row (the game's own piece stays), the
         -- stock ponytails (No ponytail, long, short: the game names them only by table row), a stock hair's colour
         -- rows by parameter name, a pack ponytail tile's line.
-        head={own="Game's own",no_ponytail='No ponytail',
+        head={earrings='Earrings',
+            own="Game's own",no_ponytail='No ponytail',
             long_ponytail='Long ponytail',short_ponytail='Short ponytail',
             colours={RootColor='Root colour',TipColor='Tip colour',DyeColor='Dye colour'},
             params={Brightness='Brightness',Scatter='Scatter',Roughness='Roughness',Specular='Shine',

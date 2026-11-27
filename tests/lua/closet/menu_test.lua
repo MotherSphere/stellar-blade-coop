@@ -1710,6 +1710,17 @@ local tests = {
     -- Preview picture: the camera row's last chip (P on the keyboard; on a pad SB's View glyph, held), and the word
     -- picture, take the one whole outfit EVE wears as the screen shows her (thumbs.snap with the camera's shot), tell
     -- it and show it; with pieces or nothing worn they tell why; a failed snap tells it failed.
+    head_rows_read_in_order_with_earrings = function()
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.05, 'tab_right', 'tab_right')
+            local rows = r.kit.live(F.OPTION)
+            table.sort(rows, function(a, c) return a.y < c.y end)
+            local titles = {}
+            for _, row in ipairs(rows) do titles[#titles + 1] = row.o.Text_TitleValue.text end
+            same(titles, {'Face', 'Hair', 'Ponytail', 'Eyes', 'Earrings', 'Glasses', 'Headwear', 'Mask'}, 'head rows')
+        end)
+    end,
     preview_picture_on_a_head_row_takes_the_worn_piece = function()
         -- On a head row Preview picture takes the piece EVE wears in that slot, saved as <slot>.png, the picture its
         -- tile shows: it took the body outfit's full.png (UE4SS.log of 27 Nov 2026, Burnice's hair focused).

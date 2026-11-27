@@ -182,6 +182,12 @@ local tests = {
         eq(#m.rows('torso'), #Slots.in_menu('torso'), 'one row per slot')
     end,
 
+    head_rows_skip_hidden_slots = function()
+        local ids = {}
+        for _, r in ipairs(new().rows('head')) do ids[#ids + 1] = r.slot end
+        same(ids, {'Face', 'Hair', 'Ponytail', 'Eyes', 'EarringL', 'Glasses', 'Headwear', 'Mask'}, 'the head rows')
+    end,
+
     full_tab_lists_outfits = function()
         local m = new({installed = function(f) return f == CH27 end})
         local rows = m.rows('full')
