@@ -46,7 +46,7 @@ end})
 package.loaded['core.player']={her=function() return eve end}
 local Xion=require('world.maps.sboxion.sboxion')
 local D=require('world.maps.sboxion.data')
-local NPCS='; npcs 0 of 1 shown; look ' -- The NPCs' part of the status line, before the last look.
+local NPCS='; npcs 0 of 11 shown; look ' -- The NPCs' part of the status line, before the last look.
 
 -- The two tables with the rows in, as the native part writes them.
 local tables={}
@@ -856,7 +856,7 @@ her_at=nil
 pass(x,0.5)
 assert(#made==1 and made[1].mesh==N1.mesh and logged('sboxion: npcs: repairer stands in '..N1.room),logs[#logs])
 assert(#spoke==1 and spoke[1]=='repairer','His line when she is close')
-assert(select(2,x.status()):find('; npcs 1 of 1 shown; look ',1,true),select(2,x.status()))
+assert(select(2,x.status()):find('; npcs 1 of 11 shown; look ',1,true),select(2,x.status()))
 ok,why=x.npc('2')
 assert(ok and why=='coop xion npc: repairer shown, clip 2 N_Engineer_Work2, turned 0' and made[1].clip==N1.clips[2],why)
 ok,why=x.npc('9')
