@@ -3,13 +3,14 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // The mouse wheel for coop_wheel (closet/keys.h's wheel_answer), on the game thread: GetAsyncKeyState cannot see it.
-// Its first read in front subclasses SB's game window, the foreground window of class UnrealWindow (FWindowsWindow's
-// CreateWindowExW at 0x142bfb34b in FUN_142bfb0c0 takes the class name L"UnrealWindow" at 0x145fcb070, loaded at
-// 0x142bfb32a; Ghidra, build 26123051), through closet/keys.h's WheelHook. The new window procedure adds each
-// WM_MOUSEWHEEL's delta to wheel_delta, then hands every message on to the one it replaced. The DLL is pinned
-// (DllMain), so the procedure stays loaded while the window lives. A window gone (IsWindow false) is replaced by the
-// next one in front. coop off subclasses nothing more and gives the old procedure back (wheel_give_back, from
-// coop_tick). Pure Win32: no game memory is read or written.
+// Its first read in front subclasses SB's game window, the foreground window of class UnrealWindow, through
+// closet/keys.h's WheelHook. Ghidra, build 26123051: the window creation function FUN_142bfb0c0 calls CreateWindowExW
+// at 0x142bfb34b with the class name L"UnrealWindow" at 0x145fcb070, loaded at 0x142bfb32a. Its failure path loads
+// "Window Creation Failed!" at 0x145fca960. The new window procedure adds each WM_MOUSEWHEEL's delta to wheel_delta,
+// then hands every message on to the one it replaced. The DLL is pinned (DllMain), so the procedure stays loaded while
+// the window lives. A window gone (IsWindow false) is replaced by the next one in front. coop off subclasses nothing
+// more and gives the old procedure back (wheel_give_back, from coop_tick). Pure Win32: no game memory is read or
+// written.
 
 namespace coop::pose {
 namespace {
