@@ -661,11 +661,13 @@ local tests = {
         ok(r.menu.is_open(), 'back in the grid keeps the menu')
         at(r, 0.4, 'down')
         eq((detail(r)), 'Cape', 'back to the rows')
-        -- Up on the first row reaches the tabs; left and right change the tab there, down comes back.
-        at(r, 0.4, 'tab_left', 'tab_right', 'up', 'right')
-        eq((detail(r)), 'Upper arm tattoo', 'right in the tabs changes the tab')
-        at(r, 0.4, 'left', 'down', 'down')
-        eq((detail(r)), 'Stomach tattoo', 'down from the tabs to the rows')
+        -- Up on the first row wraps to the last, down on the last back to the first.
+        at(r, 0.4, 'tab_left', 'tab_right')
+        eq((detail(r)), 'Chest tattoo', 'the first row')
+        at(r, 0.4, 'up')
+        eq((detail(r)), 'Navel piercing', 'up on the first row wraps to the last')
+        at(r, 0.4, 'down')
+        eq((detail(r)), 'Chest tattoo', 'down on the last row wraps to the first')
         -- The mouse: a click on a tab, on a row; a tile picked in the TileView.
         local tabs = r.kit.live(F.TAB)
         tabs[6].o.Button_Action.hover = true
@@ -1035,13 +1037,17 @@ local tests = {
         r.menu.open()
         eq((detail(r)), title, 'the same tab and row after a reopen')
         ok(F.called(r.kit.live(F.TAB)[4].o, 'FocusTabButton'), 'the torso tab focused')
-        -- In the tabs: left moves the tab too; the chord undoes both.
-        at(r, 1.4, 'up', 'up', 'up')
+        -- Again from the rows (up wraps to the last row, so the tab row is the mouse's and Q / E's): the chord keeps
+        -- the tab and the row.
         chord(1.5)
         all_gone(r)
         r.t = 2
         r.menu.open()
-        eq((detail(r)), 'Chest tattoo', 'the torso tab again')
+        eq((detail(r)), title, 'the torso tab again, the same row')
+        at(r, 2.1, 'up', 'up', 'up', 'down', 'down', 'down')
+        eq((detail(r)), title, 'three up and three down across the wrap: the same row')
+        at(r, 2.2, 'tab_left', 'tab_right')
+        eq((detail(r)), 'Chest tattoo', 'a tab change starts on its first row')
         -- In the grid with a preview: the chord's Back asks Keep this look? on the same tab and tile.
         at(r, 2.4, 'down', 'down', 'down', 'down', 'down', 'right', 'right', 'select', 'right')
         eq((detail(r)), 'Maid top', 'on the worn tile')
@@ -1236,6 +1242,33 @@ local tests = {
         all_gone(r)
         tick(r, 2) tick(r, 3)
         eq(r.reverted, 0, 'no revert owed after it')
+    end,
+
+    -- Clear preview pictures, after Make preview pictures: Select asks with the game's Yes/No popup. No keeps them; Yes
+    -- deletes them (closet/thumbs.lua's clear), tells it and re-reads which pictures are there; a run going refuses.
+    the_clear_row_asks_then_deletes_the_pictures = function()
+        local th = {cleared = 0, answer = {true}}
+        th.running = function() return false end
+        th.run = function() return true end
+        th.clear = function() th.cleared = th.cleared + 1; return table.unpack(th.answer) end
+        local r = rig({thumbs = th})
+        r.menu.open()
+        at(r, 0.5, 'down', 'down', 'down')
+        local title, desc = detail(r)
+        eq(title, T.en.closet.row.clear_thumbs, 'the row after Make preview pictures')
+        eq(desc, T.en.closet.row.clear_thumbs_desc, 'its detail')
+        at(r, 0.6, 'select')
+        eq(popups(r), 1, 'Clear preview pictures? asks')
+        eq(th.cleared, 0, 'nothing deleted yet')
+        at(r, 0.7, 'no')
+        eq(popups(r), 0, 'No: the popup goes') eq(th.cleared, 0, 'kept')
+        at(r, 0.8, 'select', 'yes')
+        eq(th.cleared, 1, 'Yes: deleted') eq(popups(r), 0, 'the popup goes')
+        eq(r.told[#r.told], T.en.closet.thumbs.cleared, 'told') ok(r.menu.is_open(), 'the menu stays open')
+        th.answer = {false, 'closet thumbs: running'}
+        at(r, 0.9, 'select', 'yes')
+        eq(r.told[#r.told], T.en.closet.thumbs.busy, 'a run going: told to wait')
+        has(r.log, 'closet thumbs: running', 'its reason logged')
     end,
 
     -- Make preview pictures, the Full tab's row before Reset Stellar Closet: Select (Enter, the pad's A or a click)
@@ -2100,8 +2133,12 @@ local tests = {
             same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.change, 'UI_DPad_Left', 'UI_DPad_Right'},
                 {H.reset, 'UI_FaceButton_Top', 'None'}, {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}},
                 'the page\'s hints')
-            at(r, 0.6, 'up', 'up')
-            eq((detail(r)), 'Aria', 'up stops on the header') eq(r.menu.is_open(), true)
+            at(r, 0.6, 'up')
+            eq((detail(r)), 'Aria', 'up reaches the header')
+            at(r, 0.6, 'up')
+            eq((detail(r)), O.reset, 'up on the header wraps to the last row')
+            at(r, 0.6, 'down')
+            eq((detail(r)), 'Aria', 'down on the last row wraps to the header') eq(r.menu.is_open(), true)
             at(r, 0.7, 'back')
             eq((detail(r)), 'Aria', 'Back: the outfit\'s row') eq(headers(r)[1], nil, 'the page closed')
             eq(r.menu.is_open(), true) eq(#r.previews, 0, 'nothing worn')

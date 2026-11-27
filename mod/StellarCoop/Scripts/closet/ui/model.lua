@@ -27,7 +27,7 @@ end
 -- o = {slots=closet.slots, fits=closet.fits, installed=function(fit)->bool, adult=bool,
 -- shapes=function()->morph names or nil, presets=closet/presets.lua's or nil (no Presets rows, filter or favourite
 -- marks then), filter=function()->the filter row's list: 'all', 'favourites', 'original' (Shift Up's own suits) or
--- 'custom' (the pack and hand outfits)}
+-- 'custom' (the pack and hand outfits), pictures=true with coop closet thumbs (a Clear preview pictures row then)}
 function Model.new(o)
     local Slots, Fits = o.slots, o.fits
     local m = {}
@@ -105,6 +105,7 @@ function Model.new(o)
                 end
             end
             out[#out + 1] = {thumbs = true} -- Make preview pictures (coop closet thumbs).
+            if o.pictures then out[#out + 1] = {clear_thumbs = true} end -- Clear preview pictures.
             out[#out + 1] = {reset = true} -- Reset Stellar Closet, last.
             return out
         end

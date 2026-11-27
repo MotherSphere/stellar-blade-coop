@@ -490,7 +490,10 @@ return {
             none='Hiçbiri',locked='Kilitli: %s kurulu değil.',reset="Stellar Closet'ı sıfırla",
             thumbs='Önizleme resimleri oluştur',
             thumbs_desc='Henüz resmi olmayan her parçanın resmini çeker, kare başına bir tane. Menü kapandığında, '
-                ..'savaş dışında başlar. Kutular resimleri bir sonraki açılışta gösterir.'},
+                ..'savaş dışında başlar. Kutular resimleri bir sonraki açılışta gösterir.',
+            clear_thumbs='Önizleme resimlerini temizle',
+            clear_thumbs_desc='Tüm önizleme resimlerini siler. Kutular yeniden kıyafetlerin kendi resimlerini '
+                ..'gösterir. Önizleme resimleri oluştur onları tekrar çeker.'},
         detail={outfit='Kıyafet: %s',slot='Yuva: %s',covers='Örter: %s',also='Ayrıca kaplar: %s',
             off='Kıyafetinde varsayılan olarak gizli'},
         origin={original='Orijinal',custom='Özel: %s'},
@@ -544,7 +547,10 @@ return {
         popup={title='Bu görünüm kalsın mı?',desc="Evet kaydeder. Hayır EVE'e önceki görünümünü geri verir.",
             yes='Kalsın',no='Geri al',reset_title='Stellar Closet sıfırlansın mı?',
             reset_desc="Stellar Closet'ın tüm parçaları EVE'den çıkarılır. Kaydedilen görünüm silinir. "
-                ..'Yeniden bir görünüm giyene kadar Stellar Closet hiçbir şeyi değiştirmez.'},
+                ..'Yeniden bir görünüm giyene kadar Stellar Closet hiçbir şeyi değiştirmez.',
+            clear_title='Önizleme resimleri temizlensin mi?',
+            clear_desc='Tüm önizleme resimleri mod klasöründen silinir. Önizleme resimleri oluştur onları tekrar '
+                ..'çeker.'},
         refused={combat='Stellar Closet savaşta açılmaz.',cutscene='Stellar Closet ara sahne sırasında açılmaz.',
             photo='Stellar Closet fotoğraf modunda açılmaz.',tachy='Stellar Closet Tachy modunda açılmaz.',
             screen='Stellar Closet bir oyun menüsü açıkken açılmaz.',
@@ -560,6 +566,8 @@ return {
         switched='Ten parçalardan görünmesin diye vücut %s olarak değiştirildi.',
         clips='Bu vücudun teni şu bölgelerde parçalardan görünüyor: %s.',
         thumbs={started='Önizleme resimleri menü kapandığında başlar.',cached='Her parçanın zaten önizleme resmi var.',
-            failed='Önizleme resimleri başlatılamadı. Nedeni UE4SS.log içinde.'},
+            failed='Önizleme resimleri başlatılamadı. Nedeni UE4SS.log içinde.',
+            cleared='Tüm önizleme resimleri silindi.',
+            busy='Önizleme resimleri oluşturuluyor. Bu bitince temizle.'},
         reset_done='Stellar Closet sıfırlandı. EVE kendi görünümünde.'},
 }

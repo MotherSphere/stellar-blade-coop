@@ -225,6 +225,16 @@ local tests = {
         ok(good, why)
     end,
 
+    -- With pictures (coop closet thumbs given), Clear preview pictures comes after Make preview pictures.
+    clear_preview_pictures_follows_make = function()
+        local rows = Model.new({slots = Slots, fits = Fits, installed = function() return true end, pictures = true})
+            .rows('full')
+        ok(rows[#rows - 2].thumbs, 'Make preview pictures')
+        same(rows[#rows - 1], {clear_thumbs = true}, 'then Clear preview pictures')
+        ok(rows[#rows].reset, 'Reset Stellar Closet last')
+        for _, r in ipairs(new().rows('full')) do eq(r.clear_thumbs, nil, 'no pictures: no Clear row') end
+    end,
+
     -- Every installed pack's suit (FitMeshType Body or none, EVE's) gets a row, the hand fits with them, by name.
     every_pack_suit_gets_a_row = function()
         local file = '~mods\\P\\p.dekcns.json'

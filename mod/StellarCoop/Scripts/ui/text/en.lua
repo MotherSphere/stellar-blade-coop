@@ -591,7 +591,10 @@ return {
             none='None',locked='Locked: %s is not installed.',reset='Reset Stellar Closet',
             thumbs='Make preview pictures',
             thumbs_desc='Takes a picture of each piece that has none yet, one a frame. It starts once the menu is '
-                ..'closed, out of combat. The tiles show the pictures at the next open.'},
+                ..'closed, out of combat. The tiles show the pictures at the next open.',
+            clear_thumbs='Clear preview pictures',
+            clear_thumbs_desc="Deletes every preview picture. The tiles show the outfits' own images again. Make "
+                ..'preview pictures takes them again.'},
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Covers: %s',also='Also takes: %s',
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
@@ -656,7 +659,9 @@ return {
         popup={title='Keep this look?',desc='Yes saves it. No gives EVE the look she had before.',yes='Keep',no='Undo',
             reset_title='Reset Stellar Closet?',
             reset_desc='Every closet piece comes off EVE and the saved look is deleted. Stellar Closet changes nothing '
-                ..'until you wear a look again.'},
+                ..'until you wear a look again.',
+            clear_title='Clear preview pictures?',
+            clear_desc='Every preview picture is deleted from the mod folder. Make preview pictures takes them again.'},
         refused={combat='Stellar Closet does not open in combat.',
             cutscene='Stellar Closet does not open during a cutscene.',
             photo='Stellar Closet does not open in photo mode.',tachy='Stellar Closet does not open in Tachy Mode.',
@@ -674,6 +679,8 @@ return {
         clips='Skin of this body shows through the pieces on: %s.',
         thumbs={started='Preview pictures start once the menu is closed.',
             cached='Every piece already has its preview picture.',
-            failed='Preview pictures could not start. UE4SS.log says why.'},
+            failed='Preview pictures could not start. UE4SS.log says why.',
+            cleared='Every preview picture is deleted.',
+            busy='Preview pictures are being made. Clear them once that is done.'},
         reset_done='Stellar Closet is reset. EVE wears her own look.'},
 }

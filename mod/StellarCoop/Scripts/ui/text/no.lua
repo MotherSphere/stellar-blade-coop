@@ -481,7 +481,10 @@ return {
             locked='Låst: %s er ikke installert.',reset='Tilbakestill Stellar Closet',
             thumbs='Lag forhåndsvisningsbilder',
             thumbs_desc='Tar et bilde av hver del som ikke har et ennå, ett per frame. Det starter når menyen er '
-                ..'lukket, utenfor kamp. Rutene viser bildene neste gang menyen åpnes.'},
+                ..'lukket, utenfor kamp. Rutene viser bildene neste gang menyen åpnes.',
+            clear_thumbs='Fjern forhåndsvisningsbilder',
+            clear_thumbs_desc='Sletter alle forhåndsvisningsbilder. Rutene viser antrekkenes egne bilder igjen. Lag '
+                ..'forhåndsvisningsbilder tar dem på nytt.'},
         detail={outfit='Antrekk: %s',slot='Plass: %s',covers='Dekker: %s',also='Tar også: %s',
             off='Skjult som standard i antrekket sitt'},
         origin={original='Original',custom='Egendefinert: %s'},
@@ -533,7 +536,10 @@ return {
         popup={title='Beholde dette utseendet?',desc='Ja lagrer det. Nei gir EVE utseendet hun hadde før.',
             yes='Behold',no='Angre',reset_title='Tilbakestille Stellar Closet?',
             reset_desc='Alle delene fra Stellar Closet tas av EVE. Det lagrede utseendet slettes. '
-                ..'Stellar Closet endrer ingenting før du tar på et utseende igjen.'},
+                ..'Stellar Closet endrer ingenting før du tar på et utseende igjen.',
+            clear_title='Fjerne forhåndsvisningsbilder?',
+            clear_desc='Alle forhåndsvisningsbilder slettes fra mod-mappen. Lag forhåndsvisningsbilder tar dem på '
+                ..'nytt.'},
         refused={combat='Stellar Closet åpnes ikke i kamp.',
             cutscene='Stellar Closet åpnes ikke under en mellomsekvens.',
             photo='Stellar Closet åpnes ikke i fotomodus.',tachy='Stellar Closet åpnes ikke i Tachy-modus.',
@@ -551,6 +557,8 @@ return {
         clips='Huden på denne kroppen synes gjennom delene på: %s.',
         thumbs={started='Forhåndsvisningsbildene starter når menyen er lukket.',
             cached='Hver del har allerede sitt forhåndsvisningsbilde.',
-            failed='Forhåndsvisningsbildene kunne ikke starte. UE4SS.log sier hvorfor.'},
+            failed='Forhåndsvisningsbildene kunne ikke starte. UE4SS.log sier hvorfor.',
+            cleared='Alle forhåndsvisningsbilder er slettet.',
+            busy='Forhåndsvisningsbildene lages. Fjern dem når det er ferdig.'},
         reset_done='Stellar Closet er tilbakestilt. EVE har sitt eget utseende.'},
 }

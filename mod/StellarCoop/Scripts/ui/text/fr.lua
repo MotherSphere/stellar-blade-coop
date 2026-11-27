@@ -499,7 +499,10 @@ return {
             locked="Verrouillé : %s n'est pas installé.",reset='Réinitialiser Stellar Closet',
             thumbs='Créer les aperçus',
             thumbs_desc="Prend une image de chaque pièce qui n'en a pas encore, une par frame. Cela commence une fois "
-                ..'le menu fermé, hors combat. Les vignettes montrent les images à la prochaine ouverture.'},
+                ..'le menu fermé, hors combat. Les vignettes montrent les images à la prochaine ouverture.',
+            clear_thumbs='Effacer les aperçus',
+            clear_thumbs_desc='Supprime tous les aperçus. Les vignettes montrent de nouveau les images propres aux '
+                ..'tenues. Créer les aperçus les reprend.'},
         detail={outfit='Tenue : %s',slot='Emplacement : %s',covers='Couvre : %s',also='Prend aussi : %s',
             off='Masqué par défaut dans sa tenue'},
         origin={original='Original',custom='Personnalisé : %s'},
@@ -553,7 +556,9 @@ return {
         popup={title='Garder ce look ?',desc="Oui l'enregistre. Non rend à EVE le look d'avant.",yes='Garder',
             no='Annuler',reset_title='Réinitialiser Stellar Closet ?',
             reset_desc='Toutes les pièces de Stellar Closet quittent EVE. Le look enregistré est effacé. '
-                ..'Stellar Closet ne change plus rien tant que vous ne portez pas un nouveau look.'},
+                ..'Stellar Closet ne change plus rien tant que vous ne portez pas un nouveau look.',
+            clear_title='Effacer les aperçus ?',
+            clear_desc='Tous les aperçus sont supprimés du dossier du mod. Créer les aperçus les reprend.'},
         refused={combat="Stellar Closet ne s'ouvre pas en combat.",
             cutscene="Stellar Closet ne s'ouvre pas pendant une cinématique.",
             photo="Stellar Closet ne s'ouvre pas en mode photo.",tachy="Stellar Closet ne s'ouvre pas en mode Tachy.",
@@ -570,6 +575,8 @@ return {
         switched='Corps changé pour %s afin que la peau ne traverse pas les pièces.',
         clips='La peau de ce corps traverse les pièces ici : %s.',
         thumbs={started='Les aperçus commencent une fois le menu fermé.',cached='Chaque pièce a déjà son aperçu.',
-            failed='Impossible de lancer les aperçus. UE4SS.log dit pourquoi.'},
+            failed='Impossible de lancer les aperçus. UE4SS.log dit pourquoi.',
+            cleared='Tous les aperçus sont supprimés.',
+            busy='Les aperçus sont en cours de création. Effacez-les une fois la création terminée.'},
         reset_done='Stellar Closet est réinitialisé. EVE porte son propre look.'},
 }

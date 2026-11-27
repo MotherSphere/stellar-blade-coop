@@ -490,7 +490,10 @@ return {
             locked='Vergrendeld: %s is niet geïnstalleerd.',reset='Stellar Closet resetten',
             thumbs='Voorbeeldafbeeldingen maken',
             thumbs_desc='Maakt een afbeelding van elk stuk dat er nog geen heeft, één per frame. Het begint zodra het '
-                ..'menu dicht is, buiten gevechten. De tegels tonen de afbeeldingen als je het menu weer opent.'},
+                ..'menu dicht is, buiten gevechten. De tegels tonen de afbeeldingen als je het menu weer opent.',
+            clear_thumbs='Voorbeeldafbeeldingen wissen',
+            clear_thumbs_desc='Wist alle voorbeeldafbeeldingen. De tegels tonen weer de eigen afbeeldingen van de '
+                ..'outfits. Voorbeeldafbeeldingen maken maakt ze opnieuw.'},
         detail={outfit='Outfit: %s',slot='Vak: %s',covers='Bedekt: %s',also='Neemt ook: %s',
             off='Standaard verborgen in zijn outfit'},
         origin={original='Origineel',custom='Aangepast: %s'},
@@ -540,7 +543,10 @@ return {
         popup={title='Deze look houden?',desc='Ja slaat hem op. Nee geeft EVE haar vorige look terug.',yes='Houden',
             no='Ongedaan maken',reset_title='Stellar Closet resetten?',
             reset_desc='Alle stukken van Stellar Closet gaan van EVE af. De opgeslagen look wordt gewist. '
-                ..'Stellar Closet verandert niets tot je weer een look draagt.'},
+                ..'Stellar Closet verandert niets tot je weer een look draagt.',
+            clear_title='Voorbeeldafbeeldingen wissen?',
+            clear_desc='Alle voorbeeldafbeeldingen worden uit de modmap gewist. Voorbeeldafbeeldingen maken maakt ze '
+                ..'opnieuw.'},
         refused={combat='Stellar Closet opent niet tijdens een gevecht.',
             cutscene='Stellar Closet opent niet tijdens een tussenfilmpje.',
             photo='Stellar Closet opent niet in de fotomodus.',tachy='Stellar Closet opent niet in de Tachy-modus.',
@@ -558,6 +564,8 @@ return {
         clips='De huid van dit lichaam komt door de stukken bij: %s.',
         thumbs={started='De voorbeeldafbeeldingen beginnen zodra het menu dicht is.',
             cached='Elk stuk heeft al een voorbeeldafbeelding.',
-            failed='De voorbeeldafbeeldingen konden niet starten. UE4SS.log zegt waarom.'},
+            failed='De voorbeeldafbeeldingen konden niet starten. UE4SS.log zegt waarom.',
+            cleared='Alle voorbeeldafbeeldingen zijn gewist.',
+            busy='De voorbeeldafbeeldingen worden gemaakt. Wis ze zodra dat klaar is.'},
         reset_done='Stellar Closet is gereset. EVE draagt haar eigen look.'},
 }

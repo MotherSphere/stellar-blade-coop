@@ -14,7 +14,7 @@
 -- asked again each RETRY s while closed and not paused until it works; an open or coop off drops it. A draw that
 -- raises closes the menu with a revert and one log line.
 -- Focus: the tabs, the rows or the grid (col). E and Q change the tab; the window of View.TABS tabs follows the
--- focused tab. Up and down walk the rows; up on the first row reaches the tabs. Right or select on a row of pieces goes
+-- focused tab. Up and down walk the rows and wrap past either end. Right or select on a row of pieces goes
 -- into its grid; left and right walk its tiles, up and down its rows of View.COLUMNS tiles (down to a shorter last row
 -- stops on its last tile; up on the first row and down on the last stay); left on the first tile or back returns to the
 -- rows. A tile focused for PREVIEW s is worn as a preview (dress.preview); select wears it at once and returns to the
@@ -39,7 +39,9 @@
 -- pictures are there is read again at each open. The Full tab's row before the last, Make preview pictures (hint
 -- Select), starts coop closet thumbs (closet/thumbs.lua) for every picture not there yet. That run waits for the
 -- menu's close. It tells closet.thumbs.started (also when a run is going), cached (every picture is there) or failed
--- (the reason logged); the menu stays open.
+-- (the reason logged); the menu stays open. With thumbs, Clear preview pictures follows it: Select asks with the game's
+-- Yes/No popup; Yes deletes every picture (thumbs.clear), tells closet.thumbs.cleared (busy while a run goes) and reads
+-- which pictures are there again; No and Back stay.
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
 -- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
 -- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
@@ -131,7 +133,8 @@ function Menu.new(o)
     -- runs them last first, so each outfit gets its variant and values from before the open.
     local unwear={}
     local model=Model.new({slots=Slots,fits=Fits,installed=dress.installed,adult=o.adult==true,
-        shapes=o.shape and o.shape.rows,presets=o.presets,filter=function() return FILTERS[filter] end})
+        shapes=o.shape and o.shape.rows,presets=o.presets,filter=function() return FILTERS[filter] end,
+        pictures=o.thumbs~=nil})
     local view=View.new(kit,log)
     local self={}
     local open=false
@@ -323,8 +326,9 @@ function Menu.new(o)
             elseif item.filter then
                 local show=FILTERS[filter]
                 s.rows[i]={title=w.presets.filter,value=show=='original' and w.origin.original or w.presets[show]}
-            elseif item.reset or item.thumbs then
-                s.rows[i]={title=item.reset and w.row.reset or w.row.thumbs,value=''}
+            elseif item.reset or item.thumbs or item.clear_thumbs then
+                s.rows[i]={title=item.reset and w.row.reset or item.thumbs and w.row.thumbs or w.row.clear_thumbs,
+                    value=''}
             elseif item.header then -- The Original header above Shift Up's own suits, or the options page's outfit.
                 s.rows[i]={title=page and item.header or w.original,value='',header=true}
             elseif item.variant then -- Its name, else its number of the count.
@@ -440,8 +444,9 @@ function Menu.new(o)
             -- UI_FaceButton_Top (F, the pad's Y): as the refresh hint of a row of pieces below.
             s.hints[3]={w.hints.reset,'UI_FaceButton_Top',word='refresh'}
         elseif item and page then -- A section of controls only: Back and Move.
-        elseif item and (item.reset or item.thumbs) then
-            s.detail.desc=item.reset and w.popup.reset_desc or w.row.thumbs_desc
+        elseif item and (item.reset or item.thumbs or item.clear_thumbs) then
+            s.detail.desc=item.reset and w.popup.reset_desc or item.thumbs and w.row.thumbs_desc
+                or w.row.clear_thumbs_desc
             s.hints[2]={t.hint.select,'Positive',word='select'}
         elseif item and item.role then
             s.detail.desc=w.colour.about[item.role]..'\n'..w.colour.help
@@ -493,6 +498,7 @@ function Menu.new(o)
         if plan and plan.clips then notes[#notes+1]=w.clips:format(names(plan.clips,w.regions)) end
         s.notice=table.concat(notes,'\n')
         if asking=='reset' then s.popup={title=w.popup.reset_title,desc=w.popup.reset_desc}
+        elseif asking=='clear' then s.popup={title=w.popup.clear_title,desc=w.popup.clear_desc}
         elseif asking=='delete' then
             local name=w.presets.name:format(deleting)
             for _,p in ipairs(o.presets.list()) do if p.n==deleting and p.name then name=p.name end end
@@ -646,6 +652,20 @@ function Menu.new(o)
             asking=false
             return redraw()
         end
+        if asking=='clear' then -- Clear preview pictures?: Yes deletes them, the menu stays; the tiles read again.
+            asking=false
+            if not yes then return redraw() end
+            local ran,good,why=pcall(o.thumbs.clear)
+            if not (ran and good) then
+                log('menu: preview pictures not cleared: '..tostring(ran and why or good))
+                o.tell(function(t) return t.closet.thumbs.busy end)
+                return redraw()
+            end
+            there={}
+            kit.sound('change')
+            o.tell(function(t) return t.closet.thumbs.cleared end)
+            return redraw()
+        end
         if asking=='reset' and not yes then asking=false; return redraw() end
         if asking=='reset' then -- coop closet off: the kept look cleared, nothing of the closet left on EVE.
             local ran,why=pcall(dress.off)
@@ -791,6 +811,7 @@ function Menu.new(o)
         if word=='tab_left' or word=='tab_right' then set_tab(tab+(word=='tab_left' and -1 or 1))
         elseif word=='select' and col=='rows' and item and item.reset then asking='reset'
         elseif word=='select' and col=='rows' and item and item.thumbs then pictures()
+        elseif word=='select' and col=='rows' and item and item.clear_thumbs then asking='clear'
         elseif word=='refresh' and page then
             if resettable(item) then reset_row(item) end
         elseif word=='refresh' and item and item.whole and o.presets then -- F: a favourite or not.
@@ -870,8 +891,9 @@ function Menu.new(o)
             change(item,word)
         elseif word=='up' or word=='down' then
             local n=#list()
-            if word=='up' and row==1 then col=page and 'rows' or 'tabs' -- The page's first row stays.
-            else row=math.max(1,math.min(row+(word=='up' and -1 or 1),n)) end
+            -- Past either end the focus wraps to the other: Up on the first row takes the last (Make preview pictures
+            -- and Reset are one press away on a long list). Q and E change the tab.
+            row=n>0 and (row-1+(word=='up' and -1 or 1))%n+1 or 1
             kit.sound('move')
         elseif word=='right' and has_options(item) then -- The outfit's options page, on its first setting.
             -- An outfit EVE does not wear is worn as a preview (as Select does: Keep this look? at the menu's Back),

@@ -424,7 +424,9 @@ return {
             locked='잠김: %s이(가) 설치되어 있지 않습니다.',reset='Stellar Closet 초기화',
             thumbs='미리보기 이미지 만들기',
             thumbs_desc='아직 이미지가 없는 각 부위를 프레임마다 한 장씩 촬영합니다. 메뉴를 닫은 뒤 전투 중이 아닐 때 '
-                ..'시작합니다. 다음에 열 때 타일에 이미지가 표시됩니다.'},
+                ..'시작합니다. 다음에 열 때 타일에 이미지가 표시됩니다.',
+            clear_thumbs='미리보기 이미지 지우기',
+            clear_thumbs_desc='모든 미리보기 이미지를 삭제합니다. 타일에 의상 고유의 이미지가 다시 표시됩니다. 미리보기 이미지 만들기로 다시 촬영할 수 있습니다.'},
         detail={outfit='의상: %s',slot='슬롯: %s',covers='가리는 부위: %s',also='함께 차지하는 슬롯: %s',
             off='의상에서 기본적으로 숨김'},
         origin={original='오리지널',custom='커스텀: %s'},
@@ -472,7 +474,9 @@ return {
             desc='예를 누르면 저장합니다. 아니요를 누르면 EVE가 이전 모습으로 돌아갑니다.',yes='유지',
             no='되돌리기',reset_title='Stellar Closet을 초기화할까요?',
             reset_desc='Stellar Closet의 모든 부위를 EVE에게서 벗기고 저장한 모습을 지웁니다. '
-                ..'다시 모습을 입을 때까지 Stellar Closet은 아무것도 바꾸지 않습니다.'},
+                ..'다시 모습을 입을 때까지 Stellar Closet은 아무것도 바꾸지 않습니다.',
+            clear_title='미리보기 이미지를 지울까요?',
+            clear_desc='모든 미리보기 이미지가 모드 폴더에서 삭제됩니다. 미리보기 이미지 만들기로 다시 촬영할 수 있습니다.'},
         refused={combat='전투 중에는 Stellar Closet을 열 수 없습니다.',
             cutscene='컷신 중에는 Stellar Closet을 열 수 없습니다.',
             photo='포토 모드에서는 Stellar Closet을 열 수 없습니다.',
@@ -491,6 +495,8 @@ return {
         clips='이 몸은 다음 부위에서 피부가 비칩니다: %s.',
         thumbs={started='메뉴를 닫으면 미리보기 이미지 만들기가 시작됩니다.',
             cached='모든 부위에 이미 미리보기 이미지가 있습니다.',
-            failed='미리보기 이미지 만들기를 시작하지 못했습니다. 이유는 UE4SS.log에 있습니다.'},
+            failed='미리보기 이미지 만들기를 시작하지 못했습니다. 이유는 UE4SS.log에 있습니다.',
+            cleared='모든 미리보기 이미지를 삭제했습니다.',
+            busy='미리보기 이미지를 만드는 중입니다. 끝난 뒤에 지워 주세요.'},
         reset_done='Stellar Closet을 초기화했습니다. EVE가 원래 모습으로 돌아갔습니다.'},
 }

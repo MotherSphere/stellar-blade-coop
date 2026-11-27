@@ -496,7 +496,10 @@ return {
             locked='Bloqueado: %s não está instalado.',reset='Redefinir o Stellar Closet',
             thumbs='Criar imagens de prévia',
             thumbs_desc='Tira uma imagem de cada peça que ainda não tem, uma por quadro. Começa quando o menu é '
-                ..'fechado, fora de combate. Os blocos mostram as imagens na próxima abertura.'},
+                ..'fechado, fora de combate. Os blocos mostram as imagens na próxima abertura.',
+            clear_thumbs='Limpar imagens de prévia',
+            clear_thumbs_desc='Apaga todas as imagens de prévia. Os blocos voltam a mostrar as imagens próprias das '
+                ..'roupas. Criar imagens de prévia tira todas de novo.'},
         detail={outfit='Roupa: %s',slot='Espaço: %s',covers='Cobre: %s',also='Ocupa também: %s',
             off='Escondido por padrão na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
@@ -548,7 +551,10 @@ return {
         popup={title='Manter este visual?',desc='Sim salva. Não devolve a EVE o visual que tinha antes.',
             yes='Manter',no='Desfazer',reset_title='Redefinir o Stellar Closet?',
             reset_desc='Todas as peças do Stellar Closet saem de EVE. O visual salvo é apagado. '
-                ..'O Stellar Closet não muda nada até você vestir um visual de novo.'},
+                ..'O Stellar Closet não muda nada até você vestir um visual de novo.',
+            clear_title='Limpar imagens de prévia?',
+            clear_desc='Todas as imagens de prévia são apagadas da pasta do mod. Criar imagens de prévia tira todas '
+                ..'de novo.'},
         refused={combat='Stellar Closet não abre em combate.',cutscene='Stellar Closet não abre durante uma cena.',
             photo='Stellar Closet não abre no modo foto.',tachy='Stellar Closet não abre no modo Tachy.',
             screen='Stellar Closet não abre com um menu do jogo aberto.',
@@ -565,6 +571,8 @@ return {
         clips='A pele deste corpo aparece através das peças em: %s.',
         thumbs={started='As imagens de prévia começam quando o menu for fechado.',
             cached='Cada peça já tem sua imagem de prévia.',
-            failed='Não foi possível iniciar as imagens de prévia. UE4SS.log diz por quê.'},
+            failed='Não foi possível iniciar as imagens de prévia. UE4SS.log diz por quê.',
+            cleared='Todas as imagens de prévia foram apagadas.',
+            busy='As imagens de prévia estão sendo criadas. Limpe-as quando terminar.'},
         reset_done='Stellar Closet redefinido. EVE usa o próprio visual.'},
 }

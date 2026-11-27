@@ -486,7 +486,10 @@ return {
             locked='Zablokowane: %s nie jest zainstalowany.',reset='Zresetuj Stellar Closet',
             thumbs='Utwórz podglądy',
             thumbs_desc='Robi zdjęcie każdego elementu, który go jeszcze nie ma, jedno na klatkę. Zaczyna po '
-                ..'zamknięciu menu, poza walką. Kafelki pokażą zdjęcia przy następnym otwarciu.'},
+                ..'zamknięciu menu, poza walką. Kafelki pokażą zdjęcia przy następnym otwarciu.',
+            clear_thumbs='Wyczyść podglądy',
+            clear_thumbs_desc='Usuwa wszystkie podglądy. Kafelki znów pokażą własne obrazy strojów. Utwórz podglądy '
+                ..'zrobi je ponownie.'},
         detail={outfit='Strój: %s',slot='Miejsce: %s',covers='Zakrywa: %s',also='Zajmuje też: %s',
             off='Domyślnie ukryte w swoim stroju'},
         origin={original='Oryginalny',custom='Własny: %s'},
@@ -538,7 +541,9 @@ return {
         popup={title='Zachować ten wygląd?',desc='Tak go zapisuje. Nie przywraca EVE poprzedni wygląd.',
             yes='Zachowaj',no='Cofnij',reset_title='Zresetować Stellar Closet?',
             reset_desc='Wszystkie elementy Stellar Closet zostają zdjęte z EVE. Zapisany wygląd zostaje usunięty. '
-                ..'Stellar Closet nic nie zmienia, dopóki znów nie założysz wyglądu.'},
+                ..'Stellar Closet nic nie zmienia, dopóki znów nie założysz wyglądu.',
+            clear_title='Wyczyścić podglądy?',
+            clear_desc='Wszystkie podglądy zostaną usunięte z folderu moda. Utwórz podglądy zrobi je ponownie.'},
         refused={combat='Stellar Closet nie otwiera się w walce.',
             cutscene='Stellar Closet nie otwiera się podczas przerywnika.',
             photo='Stellar Closet nie otwiera się w trybie fotograficznym.',
@@ -556,6 +561,8 @@ return {
         switched='Ciało zmienione na %s, aby skóra nie prześwitywała przez elementy.',
         clips='Skóra tego ciała prześwituje przez elementy w miejscach: %s.',
         thumbs={started='Podglądy zaczną się po zamknięciu menu.',cached='Każdy element ma już swój podgląd.',
-            failed='Nie udało się uruchomić podglądów. UE4SS.log mówi dlaczego.'},
+            failed='Nie udało się uruchomić podglądów. UE4SS.log mówi dlaczego.',
+            cleared='Wszystkie podglądy zostały usunięte.',
+            busy='Podglądy są właśnie tworzone. Wyczyść je, gdy to się skończy.'},
         reset_done='Stellar Closet zresetowany. EVE ma swój własny wygląd.'},
 }

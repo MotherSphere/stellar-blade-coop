@@ -494,7 +494,10 @@ return {
             locked='Bloqueado: %s no está instalado.',reset='Restablecer Stellar Closet',
             thumbs='Crear imágenes de vista previa',
             thumbs_desc='Toma una imagen de cada pieza que aún no tiene, una por fotograma. Empieza cuando se cierra '
-                ..'el menú, fuera de combate. Las casillas muestran las imágenes la próxima vez que lo abras.'},
+                ..'el menú, fuera de combate. Las casillas muestran las imágenes la próxima vez que lo abras.',
+            clear_thumbs='Borrar imágenes de vista previa',
+            clear_thumbs_desc='Borra todas las imágenes de vista previa. Las casillas vuelven a mostrar las imágenes '
+                ..'propias de los atuendos. Crear imágenes de vista previa las toma de nuevo.'},
         detail={outfit='Atuendo: %s',slot='Ranura: %s',covers='Cubre: %s',also='También ocupa: %s',
             off='Oculto por defecto en su atuendo'},
         origin={original='Original',custom='Personalizado: %s'},
@@ -548,7 +551,10 @@ return {
         popup={title='¿Conservar este look?',desc='Sí lo guarda. No devuelve a EVE el look que tenía antes.',
             yes='Conservar',no='Deshacer',reset_title='¿Restablecer Stellar Closet?',
             reset_desc='Todas las piezas de Stellar Closet se le quitan a EVE. El look guardado se borra. '
-                ..'Stellar Closet no cambia nada hasta que te pongas un look de nuevo.'},
+                ..'Stellar Closet no cambia nada hasta que te pongas un look de nuevo.',
+            clear_title='¿Borrar imágenes de vista previa?',
+            clear_desc='Todas las imágenes de vista previa se borran de la carpeta del mod. Crear imágenes de vista '
+                ..'previa las toma de nuevo.'},
         refused={combat='Stellar Closet no se abre en combate.',
             cutscene='Stellar Closet no se abre durante una cinemática.',
             photo='Stellar Closet no se abre en el modo foto.',tachy='Stellar Closet no se abre en el modo Tachy.',
@@ -566,6 +572,8 @@ return {
         clips='La piel de este cuerpo se ve a través de las piezas en: %s.',
         thumbs={started='Las imágenes de vista previa empiezan cuando se cierre el menú.',
             cached='Cada pieza ya tiene su imagen de vista previa.',
-            failed='No se pudieron iniciar las imágenes de vista previa. UE4SS.log dice por qué.'},
+            failed='No se pudieron iniciar las imágenes de vista previa. UE4SS.log dice por qué.',
+            cleared='Todas las imágenes de vista previa están borradas.',
+            busy='Se están creando las imágenes de vista previa. Bórralas cuando termine.'},
         reset_done='Stellar Closet restablecido. EVE lleva su propio look.'},
 }

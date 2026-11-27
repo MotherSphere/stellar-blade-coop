@@ -88,7 +88,7 @@ local RGBA8,FINAL_LDR,SHOW_ONLY=2,2,2 -- RTF_RGBA8, SCS_FinalColorLDR, PRM_UseSh
 local WHY={menu='close the closet menu first',screen='not while the game is paused or shows a screen',
     loading='EVE is not in the world',cutscene='not during a cutscene',combat='not in combat'}
 
--- The files: present, the first line, written, a folder made.
+-- The files: present, the first line, written, a folder made, a folder deleted with everything in it.
 Thumbs.fs={
     exists=function(p)
         local f=io.open(p,'rb')
@@ -110,6 +110,7 @@ Thumbs.fs={
         return true
     end,
     mkdir=function(d) os.execute('mkdir "'..d..'" 2>nul') end,
+    rmdir=function(d) os.execute('rmdir /s /q "'..d..'" 2>nul') end,
 }
 
 -- A fit id's folder name: the id, or with every character outside [A-Za-z0-9_-] turned into _ and 8 hex digits of
@@ -367,6 +368,15 @@ function Thumbs.new(o)
     -- coop off: the run ends, its rig removed.
     function self.stop() if run then finish('stopped') end end
     function self.running() return run~=nil end
+    -- The closet menu's Clear preview pictures: <mod folder>\closet-thumbs deleted with every picture and stamp in it;
+    -- or why not (a run going would leave half its files).
+    function self.clear()
+        if run then return false,'closet thumbs: running' end
+        if not o.folder then return false,'closet thumbs: the mod folder is not known' end
+        fs.rmdir(o.folder..'\\'..Thumbs.DIR)
+        log('closet thumbs: every picture deleted')
+        return true
+    end
     return self
 end
 

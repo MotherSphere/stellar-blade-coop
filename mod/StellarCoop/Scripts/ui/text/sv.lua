@@ -477,7 +477,10 @@ return {
             locked='Låst: %s är inte installerad.',reset='Återställ Stellar Closet',
             thumbs='Skapa förhandsbilder',
             thumbs_desc='Tar en bild av varje plagg som inte har någon än, en per bildruta. Det börjar när menyn är '
-                ..'stängd, utanför strid. Rutorna visar bilderna nästa gång menyn öppnas.'},
+                ..'stängd, utanför strid. Rutorna visar bilderna nästa gång menyn öppnas.',
+            clear_thumbs='Rensa förhandsbilder',
+            clear_thumbs_desc='Tar bort alla förhandsbilder. Rutorna visar dräkternas egna bilder igen. Skapa '
+                ..'förhandsbilder tar dem på nytt.'},
         detail={outfit='Dräkt: %s',slot='Plats: %s',covers='Täcker: %s',also='Tar även: %s',
             off='Dold som standard i sin dräkt'},
         origin={original='Original',custom='Anpassad: %s'},
@@ -528,7 +531,9 @@ return {
         popup={title='Behålla den här looken?',desc='Ja sparar den. Nej ger EVE looken hon hade innan.',yes='Behåll',
             no='Ångra',reset_title='Återställa Stellar Closet?',
             reset_desc='Alla plagg från Stellar Closet tas av EVE. Den sparade looken raderas. '
-                ..'Stellar Closet ändrar ingenting förrän du tar på en look igen.'},
+                ..'Stellar Closet ändrar ingenting förrän du tar på en look igen.',
+            clear_title='Rensa förhandsbilder?',
+            clear_desc='Alla förhandsbilder tas bort från modmappen. Skapa förhandsbilder tar dem på nytt.'},
         refused={combat='Stellar Closet öppnas inte under strid.',
             cutscene='Stellar Closet öppnas inte under en mellansekvens.',
             photo='Stellar Closet öppnas inte i fotoläget.',tachy='Stellar Closet öppnas inte i Tachy-läget.',
@@ -545,6 +550,8 @@ return {
         switched='Kroppen bytt till %s så att ingen hud syns genom plaggen.',
         clips='Den här kroppens hud syns genom plaggen på: %s.',
         thumbs={started='Förhandsbilderna börjar när menyn är stängd.',cached='Varje plagg har redan sin förhandsbild.',
-            failed='Förhandsbilderna kunde inte starta. UE4SS.log säger varför.'},
+            failed='Förhandsbilderna kunde inte starta. UE4SS.log säger varför.',
+            cleared='Alla förhandsbilder är borttagna.',
+            busy='Förhandsbilderna håller på att skapas. Rensa dem när det är klart.'},
         reset_done='Stellar Closet är återställd. EVE bär sin egen look.'},
 }

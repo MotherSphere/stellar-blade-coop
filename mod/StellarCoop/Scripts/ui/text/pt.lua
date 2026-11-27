@@ -495,7 +495,10 @@ return {
             locked='Bloqueado: %s não está instalado.',reset='Repor o Stellar Closet',
             thumbs='Criar pré-visualizações',
             thumbs_desc='Tira uma imagem de cada peça que ainda não tem, uma por fotograma. Começa quando o menu é '
-                ..'fechado, fora de combate. Os quadrados mostram as imagens na próxima abertura.'},
+                ..'fechado, fora de combate. Os quadrados mostram as imagens na próxima abertura.',
+            clear_thumbs='Limpar pré-visualizações',
+            clear_thumbs_desc='Apaga todas as pré-visualizações. Os quadrados voltam a mostrar as imagens próprias '
+                ..'das roupas. Criar pré-visualizações tira-as de novo.'},
         detail={outfit='Roupa: %s',slot='Espaço: %s',covers='Cobre: %s',also='Ocupa também: %s',
             off='Escondido por predefinição na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
@@ -548,7 +551,10 @@ return {
         popup={title='Manter este visual?',desc='Sim guarda-o. Não devolve a EVE o visual que tinha antes.',
             yes='Manter',no='Desfazer',reset_title='Repor o Stellar Closet?',
             reset_desc='Todas as peças do Stellar Closet saem de EVE. O visual guardado é apagado. '
-                ..'O Stellar Closet não muda nada até vestires um visual outra vez.'},
+                ..'O Stellar Closet não muda nada até vestires um visual outra vez.',
+            clear_title='Limpar pré-visualizações?',
+            clear_desc='Todas as pré-visualizações são apagadas da pasta do mod. Criar pré-visualizações tira-as de '
+                ..'novo.'},
         refused={combat='Stellar Closet não abre em combate.',cutscene='Stellar Closet não abre durante uma cena.',
             photo='Stellar Closet não abre no modo de fotografia.',tachy='Stellar Closet não abre no modo Tachy.',
             screen='Stellar Closet não abre com um menu do jogo aberto.',
@@ -565,6 +571,8 @@ return {
         clips='A pele deste corpo aparece através das peças em: %s.',
         thumbs={started='As pré-visualizações começam quando o menu for fechado.',
             cached='Cada peça já tem a sua pré-visualização.',
-            failed='Não foi possível iniciar as pré-visualizações. UE4SS.log diz porquê.'},
+            failed='Não foi possível iniciar as pré-visualizações. UE4SS.log diz porquê.',
+            cleared='Todas as pré-visualizações foram apagadas.',
+            busy='As pré-visualizações estão a ser criadas. Limpa-as quando terminar.'},
         reset_done='Stellar Closet reposto. EVE usa o seu próprio visual.'},
 }

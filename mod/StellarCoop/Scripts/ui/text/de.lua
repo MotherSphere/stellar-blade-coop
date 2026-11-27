@@ -506,7 +506,10 @@ return {
             locked='Gesperrt: %s ist nicht installiert.',reset='Stellar Closet zurücksetzen',
             thumbs='Vorschaubilder erstellen',
             thumbs_desc='Macht ein Bild von jedem Teil, das noch keins hat, eins pro Frame. Es beginnt, sobald das '
-                ..'Menü geschlossen ist, außerhalb des Kampfes. Die Kacheln zeigen die Bilder beim nächsten Öffnen.'},
+                ..'Menü geschlossen ist, außerhalb des Kampfes. Die Kacheln zeigen die Bilder beim nächsten Öffnen.',
+            clear_thumbs='Vorschaubilder löschen',
+            clear_thumbs_desc='Löscht alle Vorschaubilder. Die Kacheln zeigen wieder die eigenen Bilder der Outfits. '
+                ..'Vorschaubilder erstellen nimmt sie neu auf.'},
         detail={outfit='Outfit: %s',slot='Platz: %s',covers='Bedeckt: %s',also='Belegt auch: %s',
             off='Im Outfit standardmäßig ausgeblendet'},
         origin={original='Original',custom='Benutzerdefiniert: %s'},
@@ -562,7 +565,10 @@ return {
         popup={title='Diesen Look behalten?',desc='Ja speichert ihn. Nein gibt EVE ihren vorherigen Look zurück.',
             yes='Behalten',no='Verwerfen',reset_title='Stellar Closet zurücksetzen?',
             reset_desc='Alle Teile von Stellar Closet werden EVE ausgezogen. Der gespeicherte Look wird gelöscht. '
-                ..'Stellar Closet ändert nichts, bis du wieder einen Look anziehst.'},
+                ..'Stellar Closet ändert nichts, bis du wieder einen Look anziehst.',
+            clear_title='Vorschaubilder löschen?',
+            clear_desc='Alle Vorschaubilder werden aus dem Mod-Ordner gelöscht. Vorschaubilder erstellen nimmt sie '
+                ..'neu auf.'},
         refused={combat='Stellar Closet öffnet sich nicht im Kampf.',
             cutscene='Stellar Closet öffnet sich nicht während einer Zwischensequenz.',
             photo='Stellar Closet öffnet sich nicht im Fotomodus.',
@@ -581,6 +587,8 @@ return {
         clips='Die Haut dieses Körpers scheint durch die Teile an: %s.',
         thumbs={started='Die Vorschaubilder beginnen, sobald das Menü geschlossen ist.',
             cached='Jedes Teil hat schon sein Vorschaubild.',
-            failed='Die Vorschaubilder konnten nicht starten. UE4SS.log sagt, warum.'},
+            failed='Die Vorschaubilder konnten nicht starten. UE4SS.log sagt, warum.',
+            cleared='Alle Vorschaubilder sind gelöscht.',
+            busy='Die Vorschaubilder werden erstellt. Lösche sie, sobald das fertig ist.'},
         reset_done='Stellar Closet ist zurückgesetzt. EVE trägt ihren eigenen Look.'},
 }

@@ -100,7 +100,8 @@ local function game(opt)
             clear = function() r.saved = nil end},
         fs = {exists = function(p) return r.files[p] == true end, read = function(p) return r.stamps[p] end,
             write = function(p, s) r.stamps[p] = s; return true end,
-            mkdir = function(d) r.dirs[d] = true; call('mkdir', d) end},
+            mkdir = function(d) r.dirs[d] = true; call('mkdir', d) end,
+            rmdir = function(d) r.removed_dirs = r.removed_dirs or {}; r.removed_dirs[#r.removed_dirs + 1] = d end},
         her = function() return r.eve end, find = function(p) return classes[p] end,
         usable = function(p)
             local m = r.meshes[p]
@@ -490,6 +491,22 @@ local tests = {
         r.menu = false
         drain(r)
         eq(#named(r, 'export'), 24, 'every picture after the close')
+    end,
+
+    -- clear() deletes the pictures' folder (<mod folder>\closet-thumbs) with everything in it; refused while a run
+    -- goes (its files would come back half made) or with no mod folder.
+    clear_deletes_the_pictures_folder = function()
+        local r = game()
+        local good, line = r.thumbs.clear()
+        ok(good, tostring(line))
+        same(r.removed_dirs, {'M\\' .. Thumbs.DIR}, 'the pictures folder deleted')
+        r.menu = false
+        ok(r.thumbs.run(false), 'a run')
+        good, line = r.thumbs.clear()
+        ok(not good and line:find('running', 1, true), 'refused while running: ' .. tostring(line))
+        eq(#r.removed_dirs, 1, 'nothing deleted then')
+        good, line = Thumbs.new({log = function() end, fs = {rmdir = function() error('called') end}}).clear()
+        ok(not good and line:find('folder', 1, true), 'no mod folder: refused, ' .. tostring(line))
     end,
 
     -- The header cites each AActor function by its FClassFunctionLinkInfo entry {CreateFuncPtr, Name}, 16 bytes, and

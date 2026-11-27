@@ -496,7 +496,10 @@ return {
             thumbs='Luo esikatselukuvat',
             thumbs_desc='Ottaa kuvan jokaisesta osasta, jolla ei vielä ole kuvaa, yhden ruutua kohden. Se alkaa, kun '
                 ..'valikko on suljettu, taistelun ulkopuolella. Ruudut näyttävät kuvat, kun valikko avataan seuraavan '
-                ..'kerran.'},
+                ..'kerran.',
+            clear_thumbs='Tyhjennä esikatselukuvat',
+            clear_thumbs_desc='Poistaa kaikki esikatselukuvat. Ruudut näyttävät taas asujen omat kuvat. Luo '
+                ..'esikatselukuvat ottaa ne uudelleen.'},
         detail={outfit='Asu: %s',slot='Paikka: %s',covers='Peittää: %s',also='Vie myös: %s',
             off='Piilotettu oletuksena asussaan'},
         origin={original='Alkuperäinen',custom='Mukautettu: %s'},
@@ -549,7 +552,9 @@ return {
         popup={title='Pidetäänkö tämä tyyli?',desc='Kyllä tallentaa sen. Ei palauttaa EVElle aiemman tyylin.',
             yes='Pidä',no='Kumoa',reset_title='Nollataanko Stellar Closet?',
             reset_desc='Kaikki Stellar Closetin osat riisutaan EVEltä. Tallennettu tyyli poistetaan. '
-                ..'Stellar Closet ei muuta mitään, ennen kuin puet tyylin uudelleen.'},
+                ..'Stellar Closet ei muuta mitään, ennen kuin puet tyylin uudelleen.',
+            clear_title='Tyhjennetäänkö esikatselukuvat?',
+            clear_desc='Kaikki esikatselukuvat poistetaan modin kansiosta. Luo esikatselukuvat ottaa ne uudelleen.'},
         refused={combat='Stellar Closet ei aukea taistelussa.',
             cutscene='Stellar Closet ei aukea välianimaation aikana.',
             photo='Stellar Closet ei aukea kuvaustilassa.',tachy='Stellar Closet ei aukea Tachy-tilassa.',
@@ -567,6 +572,8 @@ return {
         clips='Tämän vartalon iho näkyy osien läpi kohdissa: %s.',
         thumbs={started='Esikatselukuvat alkavat, kun valikko on suljettu.',
             cached='Jokaisella osalla on jo esikatselukuva.',
-            failed='Esikatselukuvia ei voitu aloittaa. UE4SS.log kertoo syyn.'},
+            failed='Esikatselukuvia ei voitu aloittaa. UE4SS.log kertoo syyn.',
+            cleared='Kaikki esikatselukuvat on poistettu.',
+            busy='Esikatselukuvia luodaan. Tyhjennä ne, kun se on valmis.'},
         reset_done='Stellar Closet on nollattu. EVEllä on oma tyylinsä.'},
 }
