@@ -7,9 +7,8 @@
 // The menu and the co-op saves' question take the game's input (UIOnly), so the game ignores the pad then, and UE4SS
 // binds only keyboard keys: this is the pad's only way in. In play, View held opens the menu, D-pad Right held gets
 // on or off the bike and D-pad Left held opens the emote wheel, which reads the right stick's direction and whether
-// D-pad Left is still held from the last step. LB held + D-pad Left opens the closet menu, which reads X, L3 and R3
-// (pad_bits) and the right stick and triggers (pad_level). tests/native/ui/pad_test.cpp checks this file on the build
-// machine.
+// D-pad Left is still held from the last step. LB held + D-pad Left opens the closet menu, which reads X, L3 and R3,
+// the right stick and the triggers (closet/keys.h). tests/native/ui/pad_test.cpp checks this file on the build machine.
 #pragma once
 
 #include <algorithm>
@@ -46,22 +45,6 @@ struct PadState {
   int16_t rx = 0, ry = 0;
   uint8_t lt = 0, rt = 0;
 };
-
-// X, L3 and R3 of the buttons as coop_padbits hands them to Lua: 1 X, 2 L3, 4 R3.
-inline int pad_bits(uint16_t buttons) {
-  return ((buttons & PadState::X) ? 1 : 0) | ((buttons & PadState::LEFT_THUMB) ? 2 : 0) |
-         ((buttons & PadState::RIGHT_THUMB) ? 4 : 0);
-}
-
-// The right stick and the triggers as coop_levels hands them to Lua, one a call: which 0 right x, 1 right y, 2 left
-// trigger, 3 right trigger. The answer is 1 + 65 * which + the level, so it says which it is (260 at most). A stick
-// axis's level is 0 to 64, 32 at rest, 1/32 of full scale a level (up and right above 32); a trigger's 0 to 64, 0 at
-// rest.
-inline int pad_level(const PadState &s, int which) {
-  const int level = which < 2 ? 32 + int(std::lround((which ? s.ry : s.rx) * 32.0 / 32767))
-                              : int(std::lround((which == 2 ? s.lt : s.rt) * 64.0 / 255));
-  return 1 + 65 * which + level;
-}
 
 // The right stick's direction as the emote wheel reads it: 0 under kPadStickPress (its dead zone), else its 5 degree
 // sector, 1 to 72, clockwise from up (1: up to 5 degrees right of up).

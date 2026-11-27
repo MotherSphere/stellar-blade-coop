@@ -5,7 +5,7 @@
 // direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB, RB and Y, a disconnect,
 // the ring and the Online tab's event posted into it, the slots asked at each poll and PadKeys (the game's
 // controller events as one read); the emote wheel's D-pad Left hold, right stick sector and held buttons; the closet's
-// chord (LB held + D-pad Left), X, L3 and R3 as bits and the right stick and triggers as levels.
+// chord (LB held + D-pad Left) and the X, L3, R3 and trigger reads (closet/keys.h hands them to Lua).
 #include "ui/pad.h"
 
 #include <cassert>
@@ -572,11 +572,8 @@ int main() {
     chord.step(keys.state(), 16), chord.step(keys.state(), 400);
     assert(drain(chord) == (V{Pad::kTabLeft, Pad::kLeft, Pad::kCloset}));
   }
-  { // X, L3 and R3: coop_padbits' bits (1 X, 2 L3, 4 R3) of the last step's buttons, from XInput's slots and from
-    // PadKeys; they make no event.
-    assert(coop::pad_bits(0) == 0 && coop::pad_bits(PadState::X) == 1 && coop::pad_bits(PadState::LEFT_THUMB) == 2 &&
-           coop::pad_bits(PadState::RIGHT_THUMB) == 4 && coop::pad_bits(0xffff) == 7);
-    assert(coop::pad_bits(uint16_t(~(PadState::X | PadState::LEFT_THUMB | PadState::RIGHT_THUMB))) == 0);
+  { // X, L3 and R3 in the last step's buttons, from XInput's slots and from PadKeys; they make no event.
+    constexpr uint16_t X = PadState::X, L3 = PadState::LEFT_THUMB, R3 = PadState::RIGHT_THUMB;
     PadSlots slots;
     const auto two = [](unsigned slot, PadState &got) {
       got = buttons(slot == 0 ? PadState::X : PadState::RIGHT_THUMB);
@@ -586,35 +583,24 @@ int main() {
     PadState s = slots.poll(16, two);
     Pad pad;
     pad.step(s, 0);
-    assert(drain(pad).empty() && coop::pad_bits(pad.held()) == 5);
+    assert(drain(pad).empty() && (pad.held() & (X | L3 | R3)) == (X | R3));
     PadKeys keys;
     for (size_t i = 0; i < PadKeys::kKeys; ++i)
       keys.names[i] = 1000 + i;
     keys.press(1000 + PadKeys::kX, 0, false), keys.press(1000 + PadKeys::kL3, 1, false);
     keys.press(1000 + PadKeys::kR3, 0, false), keys.release(1000 + PadKeys::kR3, 0);
     pad.step(keys.state(), 16);
-    assert(drain(pad).empty() && coop::pad_bits(pad.held()) == 7);
+    assert(drain(pad).empty() && (pad.held() & (X | L3 | R3)) == (X | L3 | R3));
     pad.step(keys.state(), 32); // R3's tap went with the last read.
-    assert(coop::pad_bits(pad.held()) == 3);
+    assert((pad.held() & (X | L3 | R3)) == (X | L3));
     pad.step(PadState{}, 48);
-    assert(coop::pad_bits(pad.held()) == 0);
+    assert(pad.held() == 0);
     assert(std::string(PadKeys::kNames[PadKeys::kX]) == "Gamepad_FaceButton_Left" &&
            std::string(PadKeys::kNames[PadKeys::kL3]) == "Gamepad_LeftThumbstick" &&
            std::string(PadKeys::kNames[PadKeys::kR3]) == "Gamepad_RightThumbstick");
   }
-  { // The right stick and the triggers as coop_levels' answers: 1 + 65 * which + the level, which 0 right x, 1 right
-    // y, 2 left trigger, 3 right trigger; a stick axis 0 to 64 (32 at rest), a trigger 0 to 64 (0 at rest).
+  { // The triggers (0 let go to 255 fully pulled) in the last step's read, from XInput's slots and from PadKeys.
     PadState s;
-    assert(coop::pad_level(s, 0) == 1 + 32 && coop::pad_level(s, 1) == 1 + 65 + 32 &&
-           coop::pad_level(s, 2) == 1 + 130 && coop::pad_level(s, 3) == 1 + 195);
-    s.rx = 32767, s.ry = -32768, s.lt = 255, s.rt = 128;
-    assert(coop::pad_level(s, 0) == 1 + 64 && coop::pad_level(s, 1) == 1 + 65 &&
-           coop::pad_level(s, 2) == 1 + 130 + 64 && coop::pad_level(s, 3) == 1 + 195 + 32);
-    PadState full;
-    full.rt = 255;
-    assert(coop::pad_level(full, 3) == 260); // The most: Lua passes 260 arguments.
-    s.rx = 16384, s.ry = -1000;
-    assert(coop::pad_level(s, 0) == 1 + 48 && coop::pad_level(s, 1) == 1 + 65 + 31);
     // From XInput's slots: the first connected pad's triggers.
     PadSlots slots;
     const auto two = [](unsigned slot, PadState &got) {
@@ -629,7 +615,7 @@ int main() {
     pad.step(s, 0);
     assert(drain(pad).empty() && pad.read().lt == 200 && pad.read().rt == 10);
     pad.step(PadState{}, 16);
-    assert(pad.read().lt == 0 && coop::pad_level(pad.read(), 0) == 1 + 32);
+    assert(pad.read().lt == 0 && pad.read().rx == 0 && !pad.read().connected);
     // From PadKeys: 0 to 1 as 0 to 255, clamped, the trigger pulled furthest of any controller.
     PadKeys keys;
     for (size_t i = 0; i < PadKeys::kKeys; ++i)

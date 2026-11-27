@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "link/pak_list.h"
+#include "closet/packs.h" // pack_list: coop-cns-packs.txt
 #include "glue/clipboard.h"
 #include "glue/tick.h"
 #include "link/core.h"
@@ -297,8 +298,8 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
 // outfits for the log and the status's cns= line, and the assets they declare (cns_assets) go to coop-cns.txt, a
 // "<path> <outfit>" line each, sorted, written at every start (empty without CNS packs): the only paths of a mod
 // online/partner/puppet.lua loads when a friend's table names one, and the outfits online/partner/capture.lua tags her
-// parts with. The pack files themselves go to coop-cns-packs.txt ("<size> <time> <path>" lines, cns_pack_list), also
-// at every start, for closet/packs.lua, which reads and parses them.
+// parts with. The pack files themselves go to coop-cns-packs.txt ("<size> <time> <path>" lines, closet/packs.h's
+// pack_list), also at every start, for closet/packs.lua, which reads and parses them.
 // The .uasset paths each mod container's .utoc indexes (utoc_assets, kMaxUtocBytes read of each), by container name,
 // kMaxModAssets in all, each path one game/table.h's path_allowed takes: what coop-shared-assets.txt lists of the
 // containers a friend has in the same version.
@@ -316,11 +317,13 @@ void log_paks() {
   if (!dir.empty())
     list_saves(dir + L"\\Content\\Paks", "", files, 0, 8, 4096);
   std::vector<coop::PakFile> paks;
+  std::vector<coop::closet::PackFile> listed; // Every file, for the closet's pack list.
   size_t packs = 0;
   uint64_t outfits = 0;
   std::map<std::string, std::string> assets;
   for (auto &f : files) {
-    paks.push_back({f.name, f.size, f.mtime});
+    paks.push_back({f.name, f.size});
+    listed.push_back({f.name, f.size, f.mtime});
     if (packs < coop::kMaxCnsPacks && coop::cns_pack(f.name)) {
       bool exists = false;
       ++packs;
@@ -349,7 +352,7 @@ void log_paks() {
   for (const auto &[path, fit] : assets)
     declared += path + " " + fit + "\n";
   write_text(folder + L"coop-cns.txt", declared);
-  write_text(folder + L"coop-cns-packs.txt", coop::cns_pack_list(paks)); // The pack files closet/packs.lua reads.
+  write_text(folder + L"coop-cns-packs.txt", coop::closet::pack_list(std::move(listed))); // For closet/packs.lua.
   game_paks = coop::digest(paks);
   game_mods = coop::mods(paks);
   std::string names = game_paks.names.size() > 1000 ? game_paks.names.substr(0, 1000) + "..." : game_paks.names;

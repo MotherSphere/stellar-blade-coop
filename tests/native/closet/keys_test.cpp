@@ -1,17 +1,21 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// The closet camera's held keys as coop_keys hands them to Lua (ui/keys.h), checked on the build machine (no
-// Windows): 1 + one bit a key held, 1 alone when no window of SB's is in front.
-#include "ui/keys.h"
+// The closet's native reads as glue/tick.cpp's exports hand them to Lua (closet/keys.h), checked on the build machine
+// (no Windows): the camera's held keys (1 + one bit a key held, 1 alone when no window of SB's is in front), the mouse
+// wheel's notches, the menu's held up and down, and the pad's X, L3 and R3 as bits and its right stick and triggers as
+// levels.
+#include "closet/keys.h"
 
 #include <cassert>
 #include <cstdio>
 #include <set>
 
+using coop::PadState;
+
 int main() {
-  using coop::held_keys;
-  using coop::kHeldKeys;
+  using coop::closet::held_keys;
+  using coop::closet::kHeldKeys;
   // The keys in bit order: right mouse, middle mouse, Shift, I, J, K, L, U, O (Win32 virtual-key codes).
   assert(kHeldKeys.size() == 9);
   assert(kHeldKeys[0] == 0x02 && kHeldKeys[1] == 0x04 && kHeldKeys[2] == 0x10);
@@ -32,7 +36,7 @@ int main() {
   const std::set<int> some = {0x02, 0x10, 'L', 'A'};
   assert(held_keys(true, [&](int k) { return some.count(k) > 0; }) == 1 + 1 + 4 + 64);
   // The mouse wheel: 65 + the whole notches (120 a notch, up positive), the part of a notch kept for the next read.
-  using coop::wheel_answer;
+  using coop::closet::wheel_answer;
   int carry = 0;
   assert(wheel_answer(true, carry, 0) == 65 && carry == 0);
   assert(wheel_answer(true, carry, 120) == 66 && carry == 0);
@@ -50,7 +54,7 @@ int main() {
   carry = 70;
   assert(wheel_answer(false, carry, 240) == 65 && carry == 0);
   // The menu's held up and down (coop_nav): 1 + 1 for up (Up arrow, W, Z), + 2 for down (Down arrow, S).
-  using coop::nav_keys;
+  using coop::closet::nav_keys;
   assert(nav_keys(true, none) == 1 && nav_keys(true, all) == 4);
   assert(nav_keys(false, all) == 1);
   for (int vk : {0x26, int('W'), int('Z')})
@@ -58,6 +62,26 @@ int main() {
   for (int vk : {0x28, int('S')})
     assert(nav_keys(true, [vk](int k) { return k == vk; }) == 3);
   assert(nav_keys(true, [](int k) { return k == 'A' || k == 0x25; }) == 1);
+  // X, L3 and R3: coop_padbits' bits (1 X, 2 L3, 4 R3) of the buttons; no other button counts.
+  using coop::closet::pad_bits;
+  assert(pad_bits(0) == 0 && pad_bits(PadState::X) == 1 && pad_bits(PadState::LEFT_THUMB) == 2 &&
+         pad_bits(PadState::RIGHT_THUMB) == 4 && pad_bits(0xffff) == 7);
+  assert(pad_bits(uint16_t(~(PadState::X | PadState::LEFT_THUMB | PadState::RIGHT_THUMB))) == 0);
+  assert(pad_bits(PadState::X | PadState::RIGHT_THUMB) == 5);
+  // The right stick and the triggers as coop_levels' answers: 1 + 65 * which + the level, which 0 right x, 1 right
+  // y, 2 left trigger, 3 right trigger; a stick axis 0 to 64 (32 at rest), a trigger 0 to 64 (0 at rest).
+  using coop::closet::pad_level;
+  PadState s;
+  assert(pad_level(s, 0) == 1 + 32 && pad_level(s, 1) == 1 + 65 + 32 && pad_level(s, 2) == 1 + 130 &&
+         pad_level(s, 3) == 1 + 195);
+  s.rx = 32767, s.ry = -32768, s.lt = 255, s.rt = 128;
+  assert(pad_level(s, 0) == 1 + 64 && pad_level(s, 1) == 1 + 65 && pad_level(s, 2) == 1 + 130 + 64 &&
+         pad_level(s, 3) == 1 + 195 + 32);
+  PadState full;
+  full.rt = 255;
+  assert(pad_level(full, 3) == 260); // The most: Lua passes 260 arguments.
+  s.rx = 16384, s.ry = -1000;
+  assert(pad_level(s, 0) == 1 + 48 && pad_level(s, 1) == 1 + 65 + 31);
   std::puts("keys_test: ok");
   return 0;
 }

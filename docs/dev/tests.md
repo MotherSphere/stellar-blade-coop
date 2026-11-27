@@ -1700,9 +1700,17 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   `PadKeys` (the controller pushed furthest, `clear()`); the closet's reads: LB held + D-pad Left making event 14 once
   (after its left, both in one step too, from `PadKeys` too) and never the wheel's event, LB let go first or not,
   D-pad Left alone still the wheel's, D-pad Left held before LB no chord and no wheel, the stick held left no chord;
-  X, L3 and R3 as `pad_bits` (1, 2, 4) from XInput's slots and `PadKeys`; the right stick and triggers as `pad_level`'s
-  `1 + 65 * which + level` (at rest, the ends, 260 at most), the triggers from XInput's first pad and from `PadKeys`
-  (0 to 1 as 0 to 255, clamped, the one pulled furthest, `clear()`);
+  X, L3 and R3 in the buttons from XInput's slots and `PadKeys`; the triggers from XInput's first pad and from
+  `PadKeys` (0 to 1 as 0 to 255, clamped, the one pulled furthest, `clear()`);
+- `closet_keys_test`: the closet's reads as the DLL hands them to Lua (`closet/keys.h`): the camera's held keys as
+  `1 +` one bit a key (right mouse, middle mouse, Shift, I, J, K, L, U, O; 1 alone with no window of the game's in
+  front), the mouse wheel's notches as `65 +` the whole notches (a smooth wheel's small steps adding up, the part of a
+  notch kept, 64 notches at most each way, nothing kept out of front), the menu's held up and down (Up arrow, W, Z; Down
+  arrow, S), X, L3 and R3 as `pad_bits` (1, 2, 4) and the right stick and triggers as `pad_level`'s
+  `1 + 65 * which + level` (at rest, the ends, 260 at most);
+- `closet_packs_test`: the CNS pack list for `closet/packs.lua` (`closet/packs.h`, `coop-cns-packs.txt`): only CNS
+  packs, `<size> <time> <path>` in decimal, sorted by path, the path's spaces and `\` kept, empty text without packs,
+  256 lines at most;
 - `ui_pause_tab_test`: the Online tab's decision on the GameMenu logic's input (RB on the highest enabled tab while the
   game's tab lock is off opens it; any other tab, action or lock passes the action on to the game; a tab list the game
   never builds passes too; a press and its release within 500 ms open once) and its pinned slot, function, FName

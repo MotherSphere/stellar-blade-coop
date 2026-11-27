@@ -2,7 +2,7 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Stellar Closet's pack catalogue: every installed *.dekcns.json pack read into one table of outfits by UniqueFitID.
--- The DLL lists the packs at game start in coop-cns-packs.txt (link/pak_list.h cns_pack_list): a "<size> <time>
+-- The DLL lists the packs at game start in coop-cns-packs.txt (native closet/packs.h pack_list): a "<size> <time>
 -- <path from Content\Paks>" line each. Each pack is read in place with closet/cns_import.lua and never changed.
 -- Packs.new{paks = SB\Content\Paks (core/pak_gate.lua paks_of) or nil, list = full path of coop-cns-packs.txt,
 --     read = function(path, limit) -> text | nil, message (core/link.lua Link.files.read), log = function(line)}

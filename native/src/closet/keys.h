@@ -1,16 +1,22 @@
 // Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
-// The keyboard keys and mouse buttons held now, as coop_keys (glue/tick.cpp) hands them to Lua, free of Windows. UE4SS's
-// binds see a key's press only: the closet camera reads its held keys here (right mouse drag orbits, middle mouse drag
-// pans, I, J, K, L, U and O held orbit and zoom, Shift + I, J, K, L pans), and the mouse wheel's notches (coop_wheel),
-// which GetAsyncKeyState cannot see. tests/native/ui/keys_test.cpp checks this file on the build machine.
+// The closet's native reads as glue/tick.cpp's exports hand them to Lua, free of Windows: the keyboard keys and mouse
+// buttons held now (coop_keys), the keys that walk the menu's rows (coop_nav), the mouse wheel's notches (coop_wheel)
+// and the pad's X, L3, R3, right stick and triggers (coop_padbits, coop_levels). UE4SS's binds see a key's press only:
+// the closet camera reads its held keys here (right mouse drag orbits, middle mouse drag pans, I, J, K, L, U and O held
+// orbit and zoom, Shift + I, J, K, L pans), and the mouse wheel, which GetAsyncKeyState cannot see.
+// tests/native/closet/keys_test.cpp checks this file on the build machine.
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <cstddef>
+#include <cstdint>
 
-namespace coop {
+#include "ui/pad.h"
+
+namespace coop::closet {
 
 // Win32 virtual-key codes in bit order (bit 0 first): VK_RBUTTON 0x02, VK_MBUTTON 0x04, VK_SHIFT 0x10, then the
 // letters, whose codes are their upper-case ASCII. glue/tick.cpp checks the first three against windows.h.
@@ -67,4 +73,20 @@ inline int wheel_answer(bool front, int &carry, int delta) {
   return 1 + kWheelMost + static_cast<int>(notches);
 }
 
-} // namespace coop
+// X, L3 and R3 of the buttons (ui/pad.h's PadState) as coop_padbits hands them to Lua: 1 X, 2 L3, 4 R3.
+inline int pad_bits(uint16_t buttons) {
+  return ((buttons & PadState::X) ? 1 : 0) | ((buttons & PadState::LEFT_THUMB) ? 2 : 0) |
+         ((buttons & PadState::RIGHT_THUMB) ? 4 : 0);
+}
+
+// The right stick and the triggers as coop_levels hands them to Lua, one a call: which 0 right x, 1 right y, 2 left
+// trigger, 3 right trigger. The answer is 1 + 65 * which + the level, so it says which it is (260 at most). A stick
+// axis's level is 0 to 64, 32 at rest, 1/32 of full scale a level (up and right above 32); a trigger's 0 to 64, 0 at
+// rest.
+inline int pad_level(const PadState &s, int which) {
+  const int level = which < 2 ? 32 + int(std::lround((which ? s.ry : s.rx) * 32.0 / 32767))
+                              : int(std::lround((which == 2 ? s.lt : s.rt) * 64.0 / 255));
+  return 1 + 65 * which + level;
+}
+
+} // namespace coop::closet
