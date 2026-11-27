@@ -29,9 +29,9 @@ local options=Options.new({dress=M.closet,store=M.link and M.link.store(Options.
 M.closet_options=options
 -- The colour layer (closet/colour.lua): its palette in coop-closet-colour.txt; its tick runs each frame right after the
 -- dress's, menu open or not, so a look the dress puts on gets the palette in the same frame. The menu's Colour tab and
--- coop closet colour set it.
+-- coop closet colour set it. A slot with a pack colour control is the options layer's (options.owns).
 local Colour=require('closet.colour')
-local colour=Colour.new({dress=M.closet,store=M.link and M.link.store(Colour.FILE),
+local colour=Colour.new({dress=M.closet,store=M.link and M.link.store(Colour.FILE),options=options,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 M.closet_colour=colour
 -- The shape layer (closet/shape.lua): its values in coop-closet-shape.txt; its tick runs each frame right after the

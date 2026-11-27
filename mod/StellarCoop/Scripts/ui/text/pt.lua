@@ -499,8 +499,16 @@ return {
         detail={outfit='Roupa: %s',slot='Espaço: %s',covers='Cobre: %s',also='Ocupa também: %s',
             off='Escondido por predefinição na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
-        hints={wear='Vestir',take_off='Tirar',whole='Roupa completa',options='Opções',change='Alterar'},
+        hints={wear='Vestir',take_off='Tirar',whole='Roupa completa',options='Opções',change='Alterar',
+            reset='Repor'},
         options={variant='Variante',on='Ligado',off='Desligado',other='Outros',
+            shape='Forma',reset='Repor esta roupa',pack='Cor do pacote',
+            channels={r='Vermelho',g='Verde',b='Azul',a='Alfa'},
+            reset_desc='Cada opção desta roupa volta ao valor do pacote. É guardado de imediato.',
+            piece_help={key='Enter ou um clique mostra as cores, acabamentos e valores. As setas esquerda e direita '
+                    ..'ligam ou desligam.',
+                pad='A mostra as cores, acabamentos e valores. O botão direcional esquerdo e direito ligam ou '
+                    ..'desligam.'},
             open={key='Seta direita ou D: opções desta roupa (variante e peças).',
                 pad='Botão direcional direito: opções desta roupa (variante e peças).'},
             help={key='As setas esquerda e direita ou um clique mudam isto. É guardado de imediato.',

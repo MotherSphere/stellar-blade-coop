@@ -503,8 +503,16 @@ return {
         detail={outfit='Tenue : %s',slot='Emplacement : %s',covers='Couvre : %s',also='Prend aussi : %s',
             off='Masqué par défaut dans sa tenue'},
         origin={original='Original',custom='Personnalisé : %s'},
-        hints={wear='Porter',take_off='Retirer',whole='Tenue complète',options='Options',change='Modifier'},
+        hints={wear='Porter',take_off='Retirer',whole='Tenue complète',options='Options',change='Modifier',
+            reset='Réinitialiser'},
         options={variant='Variante',on='Oui',off='Non',other='Autres',
+            shape='Forme',reset='Réinitialiser cette tenue',pack='Couleur du pack',
+            channels={r='Rouge',g='Vert',b='Bleu',a='Alpha'},
+            reset_desc="Chaque option de cette tenue reprend la valeur du pack. C'est enregistré tout de suite.",
+            piece_help={key="Entrée ou un clic montre ses couleurs, finitions et valeurs. Les flèches gauche et droite "
+                    .."l'activent ou la désactivent.",
+                pad="A montre ses couleurs, finitions et valeurs. La croix gauche et droite l'activent ou la "
+                    .."désactivent."},
             open={key='Flèche droite ou D : options de cette tenue (variante et pièces).',
                 pad='Croix droite : options de cette tenue (variante et pièces).'},
             help={key="Les flèches gauche et droite ou un clic le changent. C'est enregistré tout de suite.",

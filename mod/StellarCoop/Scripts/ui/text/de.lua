@@ -510,8 +510,16 @@ return {
         detail={outfit='Outfit: %s',slot='Platz: %s',covers='Bedeckt: %s',also='Belegt auch: %s',
             off='Im Outfit standardmäßig ausgeblendet'},
         origin={original='Original',custom='Benutzerdefiniert: %s'},
-        hints={wear='Tragen',take_off='Ausziehen',whole='Ganzes Outfit',options='Optionen',change='Ändern'},
+        hints={wear='Tragen',take_off='Ausziehen',whole='Ganzes Outfit',options='Optionen',change='Ändern',
+            reset='Zurücksetzen'},
         options={variant='Variante',on='An',off='Aus',other='Sonstiges',
+            shape='Form',reset='Dieses Outfit zurücksetzen',pack='Farbe des Pakets',
+            channels={r='Rot',g='Grün',b='Blau',a='Alpha'},
+            reset_desc='Jede Option dieses Outfits bekommt den Wert des Pakets zurück. Es wird sofort gespeichert.',
+            piece_help={key='Enter oder ein Klick zeigt seine Farben, Oberflächen und Werte. Pfeil links und rechts '
+                    ..'schalten es an oder aus.',
+                pad='A zeigt seine Farben, Oberflächen und Werte. Steuerkreuz links und rechts schalten es an '
+                    ..'oder aus.'},
             open={key='Pfeil rechts oder D: Optionen dieses Outfits (Variante und Teile).',
                 pad='Steuerkreuz rechts: Optionen dieses Outfits (Variante und Teile).'},
             help={key='Pfeil links und rechts oder ein Klick ändern es. Es wird sofort gespeichert.',

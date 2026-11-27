@@ -498,8 +498,16 @@ return {
         detail={outfit='Atuendo: %s',slot='Ranura: %s',covers='Cubre: %s',also='También ocupa: %s',
             off='Oculto por defecto en su atuendo'},
         origin={original='Original',custom='Personalizado: %s'},
-        hints={wear='Poner',take_off='Quitar',whole='Atuendo entero',options='Opciones',change='Cambiar'},
+        hints={wear='Poner',take_off='Quitar',whole='Atuendo entero',options='Opciones',change='Cambiar',
+            reset='Restablecer'},
         options={variant='Variante',on='Sí',off='No',other='Otros',
+            shape='Forma',reset='Restablecer este atuendo',pack='Color del pack',
+            channels={r='Rojo',g='Verde',b='Azul',a='Alfa'},
+            reset_desc='Cada opción de este atuendo vuelve al valor del pack. Se guarda al instante.',
+            piece_help={key='Enter o un clic muestra sus colores, acabados y valores. Las flechas izquierda y derecha '
+                    ..'lo activan o desactivan.',
+                pad='A muestra sus colores, acabados y valores. La cruz direccional izquierda y derecha lo activan o '
+                    ..'desactivan.'},
             open={key='Flecha derecha o D: opciones de este atuendo (variante y piezas).',
                 pad='Cruz direccional derecha: opciones de este atuendo (variante y piezas).'},
             help={key='Las flechas izquierda y derecha o un clic lo cambian. Se guarda al instante.',

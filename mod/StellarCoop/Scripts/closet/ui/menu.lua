@@ -55,12 +55,16 @@
 -- row too) takes the next step, 0 after 100: the value is saved at once, apart from the look. Rows that change with the
 -- look are drawn again at the next tick.
 -- Right (the hint Options on UI_DPad_Right) on a pack outfit's row with toggles opens its options page (model.options:
--- the outfit's name as a header row, Variant, each section and its pieces), focused on its first setting. Left, right
--- and Select (a click too) change a row (change: closet/options.lua saves it at once, its tick shows it on the worn
--- look), so it never asks Keep this look? Back closes an open piece's controls (none yet), then the page: the focus
--- goes back to the outfit's row. Up stops on the page's header row. A tab change or an open drops the page; the pad
--- chord's undo keeps it. The page's hints: Back, Change on UI_DPad_Left and UI_DPad_Right, Move. The detail's open
--- line and help follow the device: a device switch draws them again at the next tick.
+-- the outfit's name as a header row, Variant, each section and its pieces, the Shape section, Reset this outfit),
+-- focused on its first setting. Left, right and Select (a click too) change a row (change: closet/options.lua saves
+-- it at once, its tick shows it on the worn look), so it never asks Keep this look? Select on a piece with controls
+-- opens them as rows below it (a colour with a kit swatch right of the row, a Custom colour's channels, a finish, a
+-- number); left and right still turn the piece. F (refresh, UI_FaceButton_Top) gives the focused row its pack value
+-- back; Select on Reset this outfit gives every one. Back closes an open piece's controls (the focus on the piece),
+-- then the page: the focus goes back to the outfit's row. Up stops on the page's header row. A tab change or an open
+-- drops the page; the pad chord's undo keeps it. The page's hints: Back, Change on UI_DPad_Left and UI_DPad_Right,
+-- Reset on UI_FaceButton_Top (Select instead on a piece with controls), Move. The detail's open line and help follow
+-- the device: a device switch draws them again at the next tick.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -190,10 +194,31 @@ function Menu.new(o)
         return nil
     end
 
-    -- The rows shown: the options page's, else the tab's.
+    -- The rows shown: the options page's (the open piece's controls, a Custom colour's channels), else the tab's.
     local function list()
-        if page then return model.options(page.fit) end
+        if page then
+            local v=o.options.variant(page.fit)
+            return model.options(page.fit,page.open,function(n) return o.options.choice(page.fit,v,n)=='custom' end)
+        end
         return model.rows(model.tabs()[tab])
+    end
+    -- The options key of a control row (a channel's is its colour's), or nil.
+    local function key_of(item)
+        if item.colour or item.channel then return 'colour:'..(item.colour or item.channel) end
+        for _,kind in ipairs({'finish','number','shape'}) do
+            if item[kind] then return kind..':'..item[kind] end
+        end
+    end
+    -- Whether F (refresh) gives an options row its pack value back: the rows that show the Reset hint.
+    local function resettable(item)
+        return item and (item.variant or item.toggles and #item.toggles>0 or item.toggle and not item.controls
+            or key_of(item)~=nil) or false
+    end
+    -- A colour channel in 0-255; a number with the decimals of its step (3 at most).
+    local function byte(x) return tostring(math.floor(x*255+0.5)) end
+    local function decimals(x,step)
+        local d=math.min(3,#((('%g'):format(step or 1)):match('%.(%d+)$') or ''))
+        return ('%.'..d..'f'):format(x)
     end
     -- Whether an outfit's row opens an options page: an installed pack outfit with toggles, with the options layer.
     local function has_options(item)
@@ -270,12 +295,32 @@ function Menu.new(o)
             elseif item.toggle then -- A piece (its section named too).
                 local on=o.options.get(page.fit,v,'toggle:'..item.toggle)
                 s.rows[i]={title=item.name,value=on and w.options.on or w.options.off}
-            elseif item.section then -- How many of its pieces show.
+            elseif item.section then -- How many of its pieces show (none for a section of controls only).
                 local on=0
                 for _,index in ipairs(item.toggles) do
                     if o.options.get(page.fit,v,'toggle:'..index) then on=on+1 end
                 end
-                s.rows[i]={title=w.slots[item.section] or w.options.other,value=('%d/%d'):format(on,#item.toggles)}
+                s.rows[i]={title=item.section=='Shape' and w.options.shape or w.slots[item.section] or w.options.other,
+                    value=#item.toggles>0 and ('%d/%d'):format(on,#item.toggles) or ''}
+            elseif item.reset_fit then
+                s.rows[i]={title=w.options.reset,value=''}
+            elseif item.colour or item.channel then -- Pack colour, a swatch's name or R G B; a channel in 0-255.
+                local n=item.colour or item.channel
+                local c=o.options.get(page.fit,v,'colour:'..n)
+                local choice=o.options.choice(page.fit,v,n)
+                local value=item.channel and byte(c[item.c:upper()]) or choice=='pack' and w.options.pack or
+                    choice=='custom' and byte(c.R)..' '..byte(c.G)..' '..byte(c.B) or w.colour.swatches[choice]
+                s.rows[i]={title=item.channel and w.options.channels[item.c] or item.name,value=value,
+                    swatch=item.colour and {R=c.R,G=c.G,B=c.B} or nil}
+            elseif item.finish then -- Its option's name, else its number.
+                local at=o.options.get(page.fit,v,'finish:'..item.finish)
+                local c=Fits.get(page.fit).Controls.TextureOptions[item.finish]
+                local name=type(c.OptionNames)=='table' and c.OptionNames[at+1]
+                s.rows[i]={title=item.name,value=type(name)=='string' and name or tostring(at+1)}
+            elseif item.number or item.shape then
+                local key=key_of(item)
+                local _,_,step=o.options.range(page.fit,key)
+                s.rows[i]={title=item.name,value=decimals(o.options.get(page.fit,v,key),step)}
             elseif item.role then
                 s.rows[i]={title=w.colour.roles[item.role],value=w.colour.swatches[swatch(item.role)]}
             elseif item.morph then -- The morph name as its mesh writes it.
@@ -317,9 +362,19 @@ function Menu.new(o)
                 s.detail.desc=s.detail.desc..'\n'..w.options.open[s.pad and 'pad' or 'key']
                 s.hints[3]={w.hints.options,'UI_DPad_Right',word='right'}
             end
-        elseif item and page and (item.variant or item.section or item.toggle) then
+        elseif item and page and item.reset_fit then -- Reset this outfit.
+            s.detail.desc=w.options.reset_desc
+            s.hints[2]={t.hint.select,'Positive',word='select'}
+        elseif item and page and item.toggle and item.controls then -- Select opens or closes its controls.
+            s.detail.desc=(item.desc and item.desc..'\n' or '')..w.options.piece_help[s.pad and 'pad' or 'key']
+            s.hints[2]={t.hint.select,'Positive',word='select'}
+            s.hints[3]={w.hints.change,'UI_DPad_Left','UI_DPad_Right',word='right'}
+        elseif item and page and resettable(item) then
             s.detail.desc=(item.desc and item.desc..'\n' or '')..help(w)
             s.hints[2]={w.hints.change,'UI_DPad_Left','UI_DPad_Right',word='right'}
+            -- UI_FaceButton_Top (F, the pad's Y): as the refresh hint of a row of pieces below.
+            s.hints[3]={w.hints.reset,'UI_FaceButton_Top',word='refresh'}
+        elseif item and page then -- A section of controls only: Back and Move.
         elseif item and (item.reset or item.thumbs) then
             s.detail.desc=item.reset and w.popup.reset_desc or w.row.thumbs_desc
             s.hints[2]={t.hint.select,'Positive',word='select'}
@@ -563,11 +618,25 @@ function Menu.new(o)
     -- An options page row changed (closet/options.lua: saved at once, shown on the worn look by its tick): Variant
     -- steps left or right (select: right) past variants whose mesh does not load (dress.loads), a section turns all its
     -- pieces off when every one shows, else on, a piece turns. A left keeps what puts it back for the pad chord.
+    -- A colour takes the choice after or before (closet/options.lua's cycle: Pack colour, the swatches, Custom), a
+    -- channel, a number or a shape key steps (options.step), a finish takes the next option whose texture loads.
     local function change(item,word)
         local fit,options=page.fit,o.options
         local v=options.variant(fit)
+        local key,dir=key_of(item),word=='left' and -1 or 1
         local back
-        if item.variant then
+        if key then
+            local was=options.get(fit,v,key)
+            if item.colour then options.cycle(fit,v,item.colour,dir)
+            elseif item.channel then options.step(fit,v,key,dir,item.c)
+            elseif item.finish then
+                local list,at=options.finishes(fit,item.finish),nil
+                for k,i in ipairs(list) do if i==was then at=k end end
+                local to=at and list[(at-1+dir)%#list+1] or list[dir>0 and 1 or #list]
+                if to then options.set(fit,v,key,to) end
+            else options.step(fit,v,key,dir) end
+            back=function() options.set(fit,v,key,was) end
+        elseif item.variant then
             local all=Fits.get(fit).Variants
             local dir=word=='left' and -1 or 1
             for k=1,#all-1 do
@@ -588,6 +657,21 @@ function Menu.new(o)
             back=function() for index,on in pairs(was) do options.set(fit,v,'toggle:'..index,on) end end
         end
         if word=='left' and back then stepped={at=frame,back=back} end
+        kit.sound('change')
+    end
+    -- F (refresh) on an options row: its pack value back (Variant: the first, when its mesh loads; a section: each
+    -- of its pieces').
+    local function reset_row(item)
+        local fit,options=page.fit,o.options
+        local v,key=options.variant(fit),key_of(item)
+        if item.variant then
+            if dress.loads(Fits.get(fit).Variants[1].Mesh) then options.set_variant(fit,1) end
+        elseif key then options.set(fit,v,key,options.default(fit,key))
+        else
+            for _,index in ipairs(item.toggles or {item.toggle}) do
+                options.set(fit,v,'toggle:'..index,options.default(fit,'toggle:'..index))
+            end
+        end
         kit.sound('change')
     end
     -- A menu word from main/keys.lua: up, down, left, right, select, back, tab_left, tab_right, refresh, a camera or
@@ -626,6 +710,8 @@ function Menu.new(o)
         if word=='tab_left' or word=='tab_right' then set_tab(tab+(word=='tab_left' and -1 or 1))
         elseif word=='select' and col=='rows' and item and item.reset then asking='reset'
         elseif word=='select' and col=='rows' and item and item.thumbs then pictures()
+        elseif word=='refresh' and page then
+            if resettable(item) then reset_row(item) end
         elseif word=='refresh' or word=='select' and col=='rows' and item and item.whole then wear_whole()
         elseif col=='grid' then
             local C=View.COLUMNS
@@ -638,8 +724,12 @@ function Menu.new(o)
                 end
                 if to~=tile then tile,due=to,now()+Menu.PREVIEW; kit.sound('move') end
             elseif word=='select' then wear_tile(); col='rows' end
-        elseif word=='back' and page then -- An open piece's controls close first, then the page.
-            if page.open then page.open=nil else row,page=from_row,nil end
+        elseif word=='back' and page then -- An open piece's controls close first (the focus on it), then the page.
+            if page.open then
+                local open=page.open
+                page.open=nil
+                for i,one in ipairs(list()) do if one.toggle==open then row=i end end
+            else row,page=from_row,nil end
             kit.sound('move')
         elseif word=='back' then
             if not changed then return self.close('revert') end
@@ -661,8 +751,14 @@ function Menu.new(o)
             else o.shape.step(name,word=='left' and -1 or 1) end
             if word=='left' then stepped={at=frame,back=function() o.shape.set(name,was) end} end -- The pad chord.
             kit.sound('change')
-        elseif page and item and (item.variant or item.section or item.toggle)
-            and (word=='left' or word=='right' or word=='select') then
+        elseif page and item and item.reset_fit and word=='select' then -- Reset this outfit.
+            o.options.reset(page.fit)
+            kit.sound('change')
+        elseif page and item and item.toggle and item.controls and word=='select' then -- Its controls open or close.
+            page.open=page.open~=item.toggle and item.toggle or nil
+            kit.sound('move')
+        elseif page and (resettable(item) or item and item.toggle) and (word=='left' or word=='right' or word=='select')
+            then
             change(item,word)
         elseif word=='up' or word=='down' then
             local n=#list()

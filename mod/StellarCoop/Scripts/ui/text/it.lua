@@ -503,8 +503,16 @@ return {
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Copre: %s',also='Occupa anche: %s',
             off='Nascosto di default nel suo outfit'},
         origin={original='Originale',custom='Personalizzato: %s'},
-        hints={wear='Indossa',take_off='Togli',whole='Outfit intero',options='Opzioni',change='Cambia'},
+        hints={wear='Indossa',take_off='Togli',whole='Outfit intero',options='Opzioni',change='Cambia',
+            reset='Ripristina'},
         options={variant='Variante',on='Sì',off='No',other='Altro',
+            shape='Forma',reset='Ripristina questo outfit',pack='Colore del pacchetto',
+            channels={r='Rosso',g='Verde',b='Blu',a='Alfa'},
+            reset_desc='Ogni opzione di questo outfit torna al valore del pacchetto. Viene salvato subito.',
+            piece_help={key='Invio o un clic mostra colori, finiture e valori. Le frecce sinistra e destra lo attivano '
+                    ..'o disattivano.',
+                pad='A mostra colori, finiture e valori. La croce direzionale sinistra e destra lo attivano o '
+                    ..'disattivano.'},
             open={key='Freccia destra o D: opzioni di questo outfit (variante e pezzi).',
                 pad='Croce direzionale destra: opzioni di questo outfit (variante e pezzi).'},
             help={key='Le frecce sinistra e destra o un clic lo cambiano. Viene salvato subito.',

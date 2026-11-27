@@ -90,6 +90,28 @@ local function near(got, want, what)
 end
 
 local tests = {
+    -- A slot with a pack colour control belongs to the options layer (closet/options.lua's owns): the palette never
+    -- paints it; a record the palette made there before is forgotten, its material left to the options layer.
+    the_palette_never_paints_a_slot_with_a_pack_colour = function()
+        local r = rig()
+        local owned = {}
+        r.c = r.Colour.new({dress = r.dress, store = r.store, log = function(m) r.log[#r.log + 1] = m end,
+            options = {owns = function(c, i) return c == r.body and owned[i] == true end}})
+        r.c.set('primary', 'crimson')
+        r.c.tick()
+        local top = r.body.mats[3]
+        ok(top.mid, 'no pack colour yet: the top tinted')
+        owned[3], owned[4] = true, true
+        r.c.set('primary', 'azure') r.c.set('secondary', 'navy')
+        r.c.tick()
+        ok(r.body.mats[3] == top, 'the instance stays: no material given back')
+        near(top.values[TINT], {R = 0.515, G = 0.007, B = 0.021, A = 1}, 'the palette wrote no more on it')
+        ok(r.body.mats[4] == r.glove, 'the gloves never painted')
+        r.gen = 2
+        r.body.mats[3] = r.top
+        r.c.tick()
+        ok(r.body.mats[3] == r.top, 'a new look: the top never painted')
+    end,
     -- dress.reshow (an options toggle) shows a slot without a new look: the palette reaches it, the other instances
     -- kept.
     a_slot_shown_again_gets_the_palette_and_keeps_the_others = function()

@@ -66,8 +66,42 @@ local tests = {
                 {section = 'Shoes', toggles = {35}}, {toggle = 35, name = 'Long boots', section = 'Shoes'},
                 {section = 'Outerwear', toggles = {3}}, {toggle = 3, name = 'Jacket', section = 'Outerwear'},
                 {section = 'Other', toggles = {39}}, {toggle = 39, name = 'Bag', section = 'Other'},
+                {reset_fit = true},
             }, 'sections in slot order, Other last; no row for the follower or a second toggle on slot 3')
             same(new().options(CH46), {}, 'a hand fit with no pack controls: no page')
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+    -- The open piece's controls below it (its follower's slot too): finishes, colours (a Custom one's channels per
+    -- Sliders), numbers; the controls of a slot no piece has at the end of Other; the Shape section; Reset this outfit.
+    a_piece_opens_its_controls_and_shape_keys_close_the_page = function()
+        local item = maid_item({
+            {DisplayName = 'Long boots', MaterialIndex = 35, Value = true},
+            {DisplayName = 'Boots lining', MaterialIndex = 36, Value = true, ControlledBy = 'Long boots'}})
+        item.Variants[2] = nil
+        item.UserConfigs.VectorControls = {
+            {DisplayName = 'Boot colour', Description = 'Leather', MaterialIndex = 35, Value = {1, 1, 1, 1},
+                Sliders = {true, true, true, true}},
+            {DisplayName = 'Lining colour', MaterialIndex = 36, Value = {1, 1, 1, 1}},
+            {DisplayName = 'Follower', MaterialIndex = 36, Value = {1, 1, 1, 1}, ControlledBy = 'Lining colour'},
+            {DisplayName = 'Glow', MaterialIndex = 50, Value = {1, 1, 1, 1}}}
+        item.UserConfigs.ScalarControls = {{DisplayName = 'Shine', MaterialIndex = 35, Value = 0}}
+        item.UserConfigs.TextureOptions = {{DisplayName = 'Finish', MaterialIndex = 36, Textures = {}, Value = 0}}
+        item.UserConfigs.ShapeKeys = {{DisplayName = 'Hips', Min = -1, Max = 1, Value = 0}}
+        Fits.use({[CH27] = item})
+        local good, why = pcall(function()
+            local boots = {toggle = 35, name = 'Long boots', section = 'Shoes', controls = true}
+            local tail = {{section = 'Other', toggles = {}}, {colour = 4, name = 'Glow'},
+                {section = 'Shape', toggles = {}}, {shape = 1, name = 'Hips'}, {reset_fit = true}}
+            same(new().options(CH27), {{header = 'Ocean Maid'}, {section = 'Shoes', toggles = {35}}, boots,
+                table.unpack(tail)}, 'closed: one variant, no Variant row')
+            same(new().options(CH27, 35, function(n) return n == 1 end), {{header = 'Ocean Maid'},
+                {section = 'Shoes', toggles = {35}}, boots,
+                {colour = 1, name = 'Boot colour', desc = 'Leather'}, {channel = 1, c = 'r'}, {channel = 1, c = 'g'},
+                {channel = 1, c = 'b'}, {channel = 1, c = 'a'}, {number = 1, name = 'Shine'},
+                {finish = 1, name = 'Finish'}, {colour = 2, name = 'Lining colour'}, table.unpack(tail)},
+                'open: its slot, then its follower\'s; Boot colour is Custom')
         end)
         Fits.use(nil)
         ok(good, why)

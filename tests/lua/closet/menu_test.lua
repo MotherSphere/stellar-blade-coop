@@ -1972,7 +1972,8 @@ local tests = {
             eq(row_value(r, 'Lining'), nil, 'a follower')
             eq(row_value(r, O.other), '0/1', 'the Other section')
             same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.change, 'UI_DPad_Left', 'UI_DPad_Right'},
-                {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}}, 'the page\'s hints')
+                {H.reset, 'UI_FaceButton_Top', 'None'}, {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}},
+                'the page\'s hints')
             at(r, 0.6, 'up', 'up')
             eq((detail(r)), 'Aria', 'up stops on the header') eq(r.menu.is_open(), true)
             at(r, 0.7, 'back')
@@ -2033,6 +2034,76 @@ local tests = {
             r.menu.open()
             at(r, 0.5, 'right', 'right')
             eq(row_value(r, O.variant), '2/3', 'a variant with no name: its number')
+        end)
+    end,
+    -- Select on a piece opens its controls below it (a colour with a kit swatch right of the row, a number); the
+    -- Shape section and Reset this outfit close the page. F (the pad's Y) gives the focused row its pack value back.
+    -- Every prompt follows the device.
+    refresh_resets_the_focused_row_to_the_pack_value = function()
+        local O, H = T.en.closet.options, T.en.closet.hints
+        with_aria(function(r)
+            local item = aria()
+            item.UserConfigs.VectorControls = {{DisplayName = 'Bolero colour', Description = 'Its cloth',
+                ParamName = 'Base Color Tint', MaterialIndex = 3, Value = {0.5, 0.5, 0.5, 1}}}
+            item.UserConfigs.ScalarControls = {{DisplayName = 'Bolero shine', ParamName = 'Metallic', MaterialIndex = 3,
+                Value = 0.5, Step = 0.1}}
+            item.UserConfigs.ShapeKeys = {{DisplayName = 'Hips', Min = -1, Max = 1, Step = 0.25, Value = 0}}
+            Fits.use({[ARIA] = item})
+            -- The swatch beside visible row i: a kit image right of the rows.
+            local function swatch()
+                for _, i in ipairs(r.kit.groups.closet_menu.images) do
+                    if i.x == 1068 and i.shown then return i end
+                end
+            end
+            r.menu.open()
+            at(r, 0.5, 'right', 'down', 'down', 'down', 'down')
+            eq((detail(r)), 'Bolero')
+            same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {T.en.hint.select, 'Positive', 'None'},
+                {H.change, 'UI_DPad_Left', 'UI_DPad_Right'}, {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}},
+                'a piece with controls: Select opens them')
+            eq(row_value(r, 'Bolero colour'), nil, 'closed') eq(swatch(), nil, 'no swatch')
+            at(r, 0.6, 'select')
+            eq(row_value(r, 'Bolero'), O.on, 'Select opens, it does not turn the piece')
+            eq(row_value(r, 'Bolero colour'), O.pack) eq(row_value(r, 'Bolero shine'), '0.5')
+            same(swatch().tint, {R = 0.5, G = 0.5, B = 0.5, A = 1}, 'the swatch shows the colour')
+            at(r, 0.7, 'down')
+            local title, desc = detail(r)
+            eq(title, 'Bolero colour') ok(desc:find('Its cloth', 1, true), 'the pack\'s description')
+            ok(desc:find(O.help.key, 1, true), desc)
+            same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.change, 'UI_DPad_Left', 'UI_DPad_Right'},
+                {H.reset, 'UI_FaceButton_Top', 'None'}, {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}}, 'Reset on F')
+            r.dev = 4
+            tick(r, 0.75)
+            desc = select(2, detail(r))
+            ok(desc:find(O.help.pad, 1, true) and not desc:find(O.help.key, 1, true), desc)
+            at(r, 0.8, 'right')
+            eq(row_value(r, 'Bolero colour'), T.en.closet.colour.swatches.white)
+            same(swatch().tint, {R = 0.888, G = 0.888, B = 0.888, A = 1})
+            ok(r.store.file:find('colour:1=0.888', 1, true), r.store.file)
+            at(r, 0.9, 'refresh')
+            eq(row_value(r, 'Bolero colour'), O.pack, 'F: the pack value') eq(r.store.file, nil)
+            at(r, 1, 'left')
+            eq(row_value(r, 'Bolero colour'), '128 128 128', 'Custom before Pack colour: its R G B')
+            eq(row_value(r, O.channels.r), '128', 'its channels in 0-255') eq(row_value(r, O.channels.a), nil,
+                'no alpha slider')
+            at(r, 1.1, 'down', 'right')
+            eq(row_value(r, O.channels.r), '140', 'a step of 1/20') eq(row_value(r, 'Bolero colour'), '140 128 128')
+            at(r, 1.2, 'down', 'down', 'down', 'right')
+            eq(row_value(r, 'Bolero shine'), '0.6', 'the pack step')
+            at(r, 1.3, 'refresh')
+            eq(row_value(r, 'Bolero shine'), '0.5')
+            at(r, 1.4, 'back')
+            eq(row_value(r, 'Bolero colour'), nil, 'Back closes the controls') eq((detail(r)), 'Bolero')
+            eq(r.menu.is_open(), true)
+            at(r, 1.5, 'down', 'down', 'down', 'down')
+            eq((detail(r)), 'Hips') eq(row_value(r, O.shape), '', 'the Shape section')
+            at(r, 1.6, 'left')
+            eq(row_value(r, 'Hips'), '-0.25')
+            at(r, 1.7, 'down')
+            eq((detail(r)), O.reset)
+            at(r, 1.8, 'select')
+            eq(row_value(r, 'Hips'), '0.00', 'every pack value back') eq(r.store.file, nil)
+            eq(#r.previews, 0, 'nothing worn')
         end)
     end,
     reset_stellar_closet_clears_the_options = function()

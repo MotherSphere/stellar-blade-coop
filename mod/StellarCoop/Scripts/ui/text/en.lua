@@ -595,11 +595,18 @@ return {
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Covers: %s',also='Also takes: %s',
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
-        hints={wear='Wear',take_off='Take off',whole='Whole outfit',options='Options',change='Change'},
-        -- An outfit's options page (closet/options.lua): the Variant row, a piece's value, the Other section, the line
-        -- on an outfit's row that opens the page and the help of the page's rows, on the keyboard (key) and a pad
-        -- (pad).
+        hints={wear='Wear',take_off='Take off',whole='Whole outfit',options='Options',change='Change',
+            reset='Reset'},
+        -- An outfit's options page (closet/options.lua): the Variant row, a piece's value, the Other section, the
+        -- Shape section, the Reset this outfit row and its line, a colour's Pack colour value, the Custom colour's
+        -- channel rows, the line on a piece with controls, the line on an outfit's row that opens the page and the
+        -- help of the page's rows, on the keyboard (key) and a pad (pad).
         options={variant='Variant',on='On',off='Off',other='Other',
+            shape='Shape',reset='Reset this outfit',pack='Pack colour',channels={r='Red',g='Green',b='Blue',a='Alpha'},
+            reset_desc='Every option of this outfit goes back to its pack value. It is saved at once.',
+            piece_help={key='Enter or a click shows its colours, finishes and numbers. '
+                    ..'The left and right arrows turn it on or off.',
+                pad='A shows its colours, finishes and numbers. D-pad Left and Right turn it on or off.'},
             open={key='Right arrow or D: this outfit\'s options (variant and pieces).',
                 pad='D-pad Right: this outfit\'s options (variant and pieces).'},
             help={key='The left and right arrows or a click change it. It is saved at once.',

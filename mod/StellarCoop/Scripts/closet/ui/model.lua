@@ -101,25 +101,74 @@ function Model.new(o)
         return out
     end
 
-    -- The options page of a pack outfit ({} for an outfit with no pack controls): {header=its name}, {variant=true}
-    -- with two variants or more, then each section ({section=<Slot id or 'Other'>, toggles={slots}}) followed by its
-    -- pieces ({toggle=<material slot>, name=, desc=}), sections in closet/slots.lua's order, Other last. A follower
-    -- (ControlledBy) and a second toggle on one material slot get no row. A piece's section: the hand map's piece (or
-    -- skin: Body) on its slot, else its piece hint's slot, else a word of Model.SECTION_WORDS in its name, else Other.
-    function m.options(fit_id)
+    -- The options page of a pack outfit ({} for an outfit with no pack controls and one variant): {header=its name},
+    -- {variant=true} with two variants or more, then each section ({section=<Slot id or 'Other'>, toggles={slots}})
+    -- followed by its pieces ({toggle=<material slot>, name=, desc=, controls=true when a material control is on its
+    -- slots}), sections in closet/slots.lua's order, Other last. A follower (ControlledBy) and a second toggle on one
+    -- material slot get no row. A piece's section: the hand map's piece (or skin: Body) on its slot, else its piece
+    -- hint's slot, else a word of Model.SECTION_WORDS in its name, else Other.
+    -- The piece whose toggle is open (open: its material slot) has its controls as rows right below it: each finish
+    -- ({finish=n}, TextureOptions), colour ({colour=n}, VectorControls) and, when custom(n) says its colour is Custom,
+    -- its channels ({channel=n, c='r'|'g'|'b'|'a'}, those its Sliders show: R, G, B when left out), each number
+    -- ({number=n}, ScalarControls); n is the control's place in its list. A piece's slots: its own and its followers'.
+    -- The controls on a slot no piece has close the Other section, always shown. The Shape section ({section='Shape',
+    -- toggles={}}) lists each shape key ({shape=n}), then {reset_fit=true} (Reset this outfit) is the last row.
+    -- Control rows carry name= and desc= (the pack's DisplayName and Description); followers get no row.
+    function m.options(fit_id, open, custom)
         local fit = Fits.get(fit_id)
-        local list = fit and fit.Controls and fit.Controls.MaterialToggles
-        if not list then return {} end
+        local cfg = fit and fit.Controls
+        if not cfg then return {} end
+        local function list_of(kind) return type(cfg[kind]) == 'table' and cfg[kind] or {} end
+        local list = list_of('MaterialToggles')
+        local function text(v) return type(v) == 'string' and v ~= '' and v or nil end
+        -- The control rows of each material slot: finishes, colours (with their channels), numbers.
+        local on_slot, any = {}, #list > 0 or #(fit.Variants or {}) > 1
+        for _, kind in ipairs({{'TextureOptions', 'finish'}, {'VectorControls', 'colour'}, {'ScalarControls', 'number'},
+            {'ShapeKeys', 'shape'}}) do
+            local controls = list_of(kind[1])
+            for n, c in ipairs(controls) do
+                local index = type(c) == 'table' and type(c.MaterialIndex) == 'number'
+                    and math.tointeger(c.MaterialIndex)
+                if type(c) == 'table' and Fits.leader(controls, c) == c and (index or kind[2] == 'shape') then
+                    any = true
+                    local key = index or 'shape'
+                    on_slot[key] = on_slot[key] or {}
+                    table.insert(on_slot[key],
+                        {[kind[2]] = n, name = text(c.DisplayName) or '', desc = text(c.Description)})
+                    if kind[2] == 'colour' and custom and custom(n) then
+                        local sliders = type(c.Sliders) == 'table' and c.Sliders or {true, true, true, false}
+                        for i, ch in ipairs({'r', 'g', 'b', 'a'}) do
+                            if sliders[i] then table.insert(on_slot[key], {channel = n, c = ch}) end
+                        end
+                    end
+                end
+            end
+        end
+        if not any then return {} end
         local hand, hints = {}, {}
         for index in pairs(fit.Skin or {}) do hand[index] = 'BaseBody' end
         for _, piece in ipairs(fit.Pieces or {}) do
             for _, index in ipairs(piece.Materials) do hand[index] = piece.Slot end
         end
         for _, h in ipairs(fit.Hints or {}) do hints[h.MaterialIndex] = hints[h.MaterialIndex] or h.Slot end
+        local function index_of(t)
+            local i = type(t) == 'table' and type(t.MaterialIndex) == 'number' and math.tointeger(t.MaterialIndex)
+            return i and i >= 0 and i or nil
+        end
+        -- Each piece's slots: its own, then its followers'.
+        local covers, covered = {}, {}
+        for _, t in ipairs(list) do
+            local index, lead = index_of(t), type(t) == 'table' and index_of(Fits.leader(list, t))
+            if index and lead and not covered[index] then
+                covers[lead] = covers[lead] or {}
+                table.insert(covers[lead], index)
+                covered[index] = true
+            end
+        end
         local sections, seen = {}, {}
         for _, t in ipairs(list) do
-            local index = type(t) == 'table' and type(t.MaterialIndex) == 'number' and math.tointeger(t.MaterialIndex)
-            if index and index >= 0 and not seen[index] and Fits.leader(list, t) == t then
+            local index = index_of(t)
+            if index and not seen[index] and Fits.leader(list, t) == t then
                 seen[index] = true
                 local name = type(t.DisplayName) == 'string' and t.DisplayName or ''
                 local id = hand[index] or hints[index]
@@ -128,21 +177,41 @@ function Model.new(o)
                 end
                 id = id or 'Other'
                 if not sections[id] then sections[id] = {}; sections[#sections + 1] = id end
-                table.insert(sections[id], {toggle = index, name = name, section = id,
-                    desc = type(t.Description) == 'string' and t.Description ~= '' and t.Description or nil})
+                local piece = {toggle = index, name = name, section = id, desc = text(t.Description)}
+                local rows = {}
+                for _, i in ipairs(covers[index] or {}) do
+                    for _, row in ipairs(on_slot[i] or {}) do rows[#rows + 1] = row end
+                end
+                piece.controls = #rows > 0 or nil
+                table.insert(sections[id], piece)
+                if open == index then
+                    for _, row in ipairs(rows) do table.insert(sections[id], row) end
+                end
             end
         end
+        -- The controls of the slots no piece has: at the end of Other.
+        local loose = {}
+        for index, rows in pairs(on_slot) do
+            if index ~= 'shape' and not covered[index] then loose[#loose + 1] = index end
+        end
+        table.sort(loose)
+        for _, index in ipairs(loose) do
+            if not sections.Other then sections.Other = {}; sections[#sections + 1] = 'Other' end
+            for _, row in ipairs(on_slot[index]) do table.insert(sections.Other, row) end
+        end
         table.sort(sections, function(a, b) return (Slots.order(a) or math.huge) < (Slots.order(b) or math.huge) end)
+        if on_slot.shape then sections[#sections + 1], sections.Shape = 'Shape', on_slot.shape end
         local out = {{header = fit.Outfit}}
         if #(fit.Variants or {}) > 1 then out[2] = {variant = true} end
         for _, id in ipairs(sections) do
             local row = {section = id, toggles = {}}
             out[#out + 1] = row
             for _, piece in ipairs(sections[id]) do
-                row.toggles[#row.toggles + 1] = piece.toggle
+                if piece.toggle then row.toggles[#row.toggles + 1] = piece.toggle end
                 out[#out + 1] = piece
             end
         end
+        out[#out + 1] = {reset_fit = true}
         return out
     end
 

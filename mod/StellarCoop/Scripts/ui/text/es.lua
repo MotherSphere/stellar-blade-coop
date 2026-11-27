@@ -499,8 +499,16 @@ return {
         detail={outfit='Traje: %s',slot='Ranura: %s',covers='Cubre: %s',also='También ocupa: %s',
             off='Oculto por defecto en su traje'},
         origin={original='Original',custom='Personalizado: %s'},
-        hints={wear='Poner',take_off='Quitar',whole='Traje completo',options='Opciones',change='Cambiar'},
+        hints={wear='Poner',take_off='Quitar',whole='Traje completo',options='Opciones',change='Cambiar',
+            reset='Restablecer'},
         options={variant='Variante',on='Sí',off='No',other='Otros',
+            shape='Forma',reset='Restablecer este traje',pack='Color del pack',
+            channels={r='Rojo',g='Verde',b='Azul',a='Alfa'},
+            reset_desc='Cada opción de este traje vuelve al valor del pack. Se guarda al instante.',
+            piece_help={key='Intro o un clic muestra sus colores, acabados y valores. Las flechas izquierda y derecha '
+                    ..'lo activan o desactivan.',
+                pad='A muestra sus colores, acabados y valores. La cruceta izquierda y derecha lo activan o '
+                    ..'desactivan.'},
             open={key='Flecha derecha o D: opciones de este traje (variante y piezas).',
                 pad='Cruceta derecha: opciones de este traje (variante y piezas).'},
             help={key='Las flechas izquierda y derecha o un clic lo cambian. Se guarda al instante.',

@@ -25,7 +25,8 @@
 -- loads as a Texture2D: a slot whose path does not load keeps the icon it had), its glyph. A source that fails is said
 -- once. reread() drops the imported pictures: the next draws import them again (a capture may have made them anew).
 -- v.draw(s), s: {tabs={labels}, tab=focused index, tab_top=the first tab shown (1 when nil), rows={{title, value,
--- locked, header=drawn as SB's settings category header with its title}}, row=focused index, tiles=nil or {{name,
+-- locked, header=drawn as SB's settings category header with its title, swatch={R, G, B} shown right of the row}},
+-- row=focused index, tiles=nil or {{name,
 -- equipped, locked, picture=a PNG file or nil, image=an object path or nil, icon=its glyph or nil}}, tile=selected
 -- index or nil,
 -- detail={title, desc, equipped, badge='original', 'custom' or nil}, hints={{label, icon, icon2, word=the menu word a
@@ -90,6 +91,9 @@ local SINGLE=1 -- ESelectionMode Single (None is 0).
 local TAB_X,TAB_Y,TAB_STEP=160,120,266 -- TABS tabs from 160, a tab key's icon at each end (the lobby's settings tabs).
 local TAB_ICON_X=86 -- The left tab key's icon (UI_LeftShoulder: Q, the pad's LB); the right one after the last tab.
 local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: a window of 10.
+-- A colour row's swatch: a flat kit image right of the row (a kit image draws under the SB row part), 28 by 76 units at
+-- the height of the kit row over it, before the grid's left edge.
+local SWATCH_X,SWATCH_W,SWATCH_H=ROW_X+ROW_W+8,28,76
 local NOTICE_Y=1640 -- The notice's top: under the rows' window (it ends at y 1600), above the hints.
 local GRID_X,GRID_Y,GRID_W,GRID_H=1100,300,1000,820
 -- The TileView's entry size: 5 columns of 200 in GRID_W, 3 rows of 270 in GRID_H. SetEntryWidth and SetEntryHeight
@@ -126,8 +130,12 @@ function View.new(kit,log)
         b.shade(0,0,1700,2160,{A=0.72})
         b.image(1700,0,800,2160,'shade_left') -- online/lobby/ui/lobby.lua's left gradient: the shade fades out.
         b.image(0,1860,2560,300,'dither',{A=0.8})
-        local zones={}
+        local zones,swatches={},{}
         for i=1,WINDOW do zones[i]=b.row(ROW_X,ROW_Y+(i-1)*PITCH+27,ROW_W) end
+        for i=1,WINDOW do
+            swatches[i]=b.image(SWATCH_X,ROW_Y+(i-1)*PITCH+27,SWATCH_W,SWATCH_H,nil)
+            swatches[i].show(false)
+        end
         -- A chip over each menu hint, then over each camera hint (the SB hint part never takes the mouse,
         -- ui/kit/parts.lua): a clear kit row.
         for i=1,HINTS do zones[WINDOW+i]=b.row(View.EDGE-HINT_STEP*i,HINT_Y,HINT_STEP-20) end
@@ -155,7 +163,8 @@ function View.new(kit,log)
             cam_keys[i]=b.text(c.x,KEY_Y,'','hint',THEME.white)
             cam_labels[i]=b.text(c.x+c.col,KEY_Y,'','hint')
         end
-        return {zones=zones,notice=notice,held=held,badge=badge,pics=pics,cam_keys=cam_keys,cam_labels=cam_labels}
+        return {zones=zones,notice=notice,held=held,badge=badge,pics=pics,cam_keys=cam_keys,cam_labels=cam_labels,
+            swatches=swatches}
     end)
     -- What is made and what it shows. top: the rows above the window; count: the rows of the last draw; tab_top: the
     -- first tab shown; camera: the camera's hint row.
@@ -257,7 +266,7 @@ function View.new(kit,log)
         end
     end
 
-    local function draw_rows(s,zones)
+    local function draw_rows(s,zones,swatches)
         local n=#s.rows
         count=n
         top=math.max(0,math.min(top,n-WINDOW))
@@ -285,6 +294,10 @@ function View.new(kit,log)
             -- The kit fallback: a row with no SB part shows on the kit row under it.
             if not row or kit.alive(rec) then zones[i].set('','')
             else zones[i].set(row.title,row.value,row.locked and 'disabled' or top+i==s.row and 'focus' or 'normal') end
+            -- The swatch shows the colour as a tint (linear; an HDR channel shows at 1).
+            local c=row and row.swatch
+            swatches[i].show(c~=nil)
+            if c then swatches[i].tint({R=math.min(1,c.R),G=math.min(1,c.G),B=math.min(1,c.B),A=1}) end
         end
     end
 
@@ -393,7 +406,7 @@ function View.new(kit,log)
         local view=kit.view(View.GROUP)
         if not view then error('the UI is not up',0) end
         draw_tabs(s)
-        draw_rows(s,view.zones)
+        draw_rows(s,view.zones,view.swatches)
         view.notice.set(s.notice)
         draw_grid(s)
         draw_detail(s,view)

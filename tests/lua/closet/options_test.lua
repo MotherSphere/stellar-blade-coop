@@ -51,7 +51,212 @@ local function with_suit(f)
     ok(good, why)
 end
 
+-- The engine side of the material values: a component (closet/colour_test.lua's: CreateDynamicMaterialInstance hands
+-- back an instance already on the slot, else makes one) whose instances keep each value set and whose SetMorphTarget
+-- keeps each curve; textures by object path (StaticFindObject), a Texture2D when F_TEXTURES names it.
+local addresses = 0
+local function obj(name)
+    addresses = addresses + 1
+    local o = {name = name, alive = true, address = addresses}
+    o.type = function() return 'UObject' end
+    function o:IsValid() return self.alive end
+    function o:GetAddress() return self.address end
+    return o
+end
+local TEXTURE2D = obj('Texture2D class')
+local textures = {}
+StaticFindObject = function(path)
+    if path == '/Script/Engine.Texture2D' then return TEXTURE2D end
+    return textures[path]
+end
+LoadAsset = function() end
+FName = function(s) return s end
+local function texture(path)
+    local t = obj(path)
+    function t:IsA(class) return class == TEXTURE2D end
+    textures[path] = t
+    return t
+end
+local function component(name, slots)
+    local c = obj(name)
+    c.mats, c.creates, c.morphs, c.morph_calls = {}, 0, {}, 0
+    for _, i in ipairs(slots) do c.mats[i] = obj(name .. ' material ' .. i) end
+    function c:GetMaterial(i) return self.mats[i] end
+    function c:SetMaterial(i, m) self.mats[i] = m end
+    function c:CreateDynamicMaterialInstance(i, source)
+        if source then self.mats[i] = source end
+        local now = self.mats[i]
+        if not now then return nil end
+        if now.mid then return now end
+        local m = obj('MID ' .. i)
+        m.mid, m.values, m.writes = true, {}, 0
+        local function keep(self2, n, v) self2.values[n] = v; self2.writes = self2.writes + 1 end
+        m.SetVectorParameterValue = function(self2, n, v)
+            keep(self2, n, {R = v.R, G = v.G, B = v.B, A = v.A})
+        end
+        m.SetScalarParameterValue, m.SetTextureParameterValue = keep, keep
+        self.mats[i], self.creates = m, self.creates + 1
+        return m
+    end
+    function c:SetMorphTarget(n, v, remove)
+        self.morph_calls = self.morph_calls + 1
+        if remove and math.abs(v) <= 1e-5 then self.morphs[n] = nil else self.morphs[n] = v end
+    end
+    return c
+end
+-- A pack suit with material controls: colours on slots 3 (Top, 0..1), 4 (Glow, an HDR default above its Max) and 5
+-- (Lining, follows Top); numbers on 3 (Shine, its own step) and 4 (Opacity, no range); a finish on 3 (Pattern, three
+-- textures, the second missing); shape keys FB_Breast (named by ShapeKeyName) and TopReveal (by DisplayName).
+local function dyed(id)
+    local s = suit(id)
+    s.UserConfigs.VectorControls = {
+        {DisplayName = 'Top', ParamName = 'Base Color Tint', MaterialIndex = 3, Value = {0.5, 0.5, 0.5, 1},
+            Min = {0, 0, 0, 0}, Max = {1, 1, 1, 1}, Step = {0.01, 0.01, 0.01, 0.01},
+            Sliders = {true, true, true, false}},
+        {DisplayName = 'Glow', ParamName = 'EmissiveColor', MaterialIndex = 4, Value = {32, 0, 0, 1},
+            Min = {0, 0, 0, 0}, Max = {10, 10, 10, 1}},
+        {DisplayName = 'Lining', ParamName = 'Base Color Tint', MaterialIndex = 5, Value = {0.5, 0.5, 0.5, 1},
+            ControlledBy = 'Top'}}
+    s.UserConfigs.ScalarControls = {
+        {DisplayName = 'Shine', ParamName = 'Metallic', MaterialIndex = 3, Value = 0.5, Min = 0, Max = 1, Step = 0.1},
+        {DisplayName = 'Opacity', ParamName = 'Opacity Inner', MaterialIndex = 4, Value = 0.32}}
+    s.UserConfigs.TextureOptions = {
+        {DisplayName = 'Pattern', ParamName = 'BaseColor', MaterialIndex = 3,
+            OptionNames = {'Plain', 'Stripes', 'Dots'}, Textures = {'/Game/P/T0.T0', '/Game/P/T1.T1', '/Game/P/T2.T2'}, Value = 0}}
+    s.UserConfigs.ShapeKeys = {
+        {DisplayName = 'Breast', ShapeKeyName = 'FB_Breast', Min = -2, Max = 0, Step = 0.5, Value = 0},
+        {DisplayName = 'TopReveal', Min = 0, Max = 1, Step = 1, Value = 0}}
+    return s
+end
+-- f(r) with the dyed suit s worn as her body (dress.applied, dress.parts), textures T0 and T2 loading.
+local function dyed_rig(f)
+    Fits.use({s = dyed('s')})
+    textures = {}
+    local t0, t2 = texture('/Game/P/T0.T0'), texture('/Game/P/T2.T2')
+    local good, why = pcall(function()
+        local r = rig()
+        r.gen, r.body = 1, component('Body', {3, 4, 5})
+        r.parts = {{c = r.body, fit = 's', mesh = '/Game/P/V1.V1', slots = {}}}
+        r.dress.applied = function() return r.gen end
+        r.dress.parts = function() return r.parts end
+        r.t0, r.t2 = t0, t2
+        r.value = function(i, n) local m = r.body.mats[i]; return m.mid and m.values[n] end
+        f(r)
+    end)
+    Fits.use(nil)
+    Fits.CHOSEN = {}
+    ok(good, why)
+end
+local function near(got, want, what)
+    for _, k in ipairs({'R', 'G', 'B', 'A'}) do
+        ok(got and math.abs(got[k] - want[k]) < 1e-6, ('%s: %s %s, want %s'):format(what, k,
+            tostring(got and got[k]), tostring(want[k])))
+    end
+end
+
 local tests = {
+    a_colour_swatch_and_custom_rgb_write_the_param = function()
+        dyed_rig(function(r)
+            r.o.tick()
+            near(r.value(3, 'Base Color Tint'), {R = 0.5, G = 0.5, B = 0.5, A = 1}, 'the pack value written')
+            near(r.value(5, 'Base Color Tint'), {R = 0.5, G = 0.5, B = 0.5, A = 1}, 'the follower too')
+            eq(r.o.choice('s', 1, 1), 'pack')
+            ok(r.o.cycle('s', 1, 1, 1))
+            eq(r.o.choice('s', 1, 1), 'white', 'the first swatch after Pack colour')
+            r.o.tick()
+            near(r.value(3, 'Base Color Tint'), {R = 0.888, G = 0.888, B = 0.888, A = 1}, 'the swatch, the pack alpha')
+            near(r.value(5, 'Base Color Tint'), {R = 0.888, G = 0.888, B = 0.888, A = 1}, 'Lining follows Top')
+            eq(r.file, 's 1 colour:1=0.888,0.888,0.888,1', 'kept')
+            ok(r.o.cycle('s', 1, 1, -1)) eq(r.o.choice('s', 1, 1), 'pack') eq(r.file, nil, 'the pack value again')
+            ok(r.o.cycle('s', 1, 1, -1)) eq(r.o.choice('s', 1, 1), 'custom', 'Custom before Pack colour')
+            ok(r.o.step('s', 1, 'colour:1', 1, 'r'))
+            r.o.tick()
+            near(r.value(3, 'Base Color Tint'), {R = 0.55, G = 0.5, B = 0.5, A = 1}, 'red a step up')
+            eq(r.o.choice('s', 1, 1), 'custom')
+            eq(r.file, 's 1 colour:1=custom:0.55,0.5,0.5,1', 'a custom value kept')
+            eq(r.new().choice('s', 1, 1), 'custom', 'read back')
+            ok(r.o.cycle('s', 1, 1, 1)) eq(r.o.choice('s', 1, 1), 'pack', 'Pack colour after Custom')
+        end)
+    end,
+    a_value_above_max_is_kept_until_moved = function()
+        dyed_rig(function(r)
+            r.o.tick()
+            near(r.value(4, 'EmissiveColor'), {R = 32, G = 0, B = 0, A = 1}, 'the HDR default written as it is')
+            eq(r.o.get('s', 1, 'colour:2').R, 32, 'shown as it is')
+            ok(r.o.step('s', 1, 'colour:2', -1, 'r'))
+            eq(r.o.get('s', 1, 'colour:2').R, 10, 'moved: into its range')
+            r.o.tick()
+            near(r.value(4, 'EmissiveColor'), {R = 10, G = 0, B = 0, A = 1}, 'written')
+        end)
+    end,
+    steps_are_one_twentieth_of_the_range_or_the_pack_step = function()
+        dyed_rig(function(r)
+            same({r.o.range('s', 'colour:1', 'r')}, {0, 1, 0.05}, 'a colour: 1/20 of its range')
+            same({r.o.range('s', 'colour:2', 'g')}, {0, 10, 0.5}, 'an HDR colour: 1/20 of its range')
+            same({r.o.range('s', 'number:1')}, {0, 1, 0.1}, 'a number: the pack step')
+            same({r.o.range('s', 'number:2')}, {0, 1, 0.05}, 'no range: 0..1 in 1/20')
+            same({r.o.range('s', 'shape:1')}, {-2, 0, 0.5}, 'a shape key: the pack range and step')
+        end)
+    end,
+    a_finish_loads_its_texture_and_a_missing_one_is_dropped_once = function()
+        dyed_rig(function(r)
+            same(r.o.finishes('s', 1), {0, 2}, 'Stripes does not load: dropped')
+            same(r.o.finishes('s', 1), {0, 2})
+            eq(count(r.log, 'T1.T1'), 1, 'said once')
+            r.o.tick()
+            eq(r.value(3, 'BaseColor'), r.t0, 'the pack finish written')
+            ok(r.o.set('s', 1, 'finish:1', 2))
+            eq(r.file, 's 1 finish:1=2')
+            r.o.tick()
+            eq(r.value(3, 'BaseColor'), r.t2, 'Dots')
+            ok(r.o.set('s', 1, 'finish:1', 1))
+            r.o.tick()
+            eq(r.value(3, 'BaseColor'), r.t2, 'a missing finish writes nothing')
+            eq(count(r.log, 'T1.T1'), 1, 'still said once')
+        end)
+    end,
+    a_number_row_clamps_to_min_max = function()
+        dyed_rig(function(r)
+            for _ = 1, 8 do r.o.step('s', 1, 'number:1', 1) end
+            eq(r.o.get('s', 1, 'number:1'), 1, 'up to Max')
+            for _ = 1, 30 do r.o.step('s', 1, 'number:1', -1) end
+            eq(r.o.get('s', 1, 'number:1'), 0, 'down to Min')
+            eq(r.file, 's 1 number:1=0')
+            r.o.tick()
+            eq(r.value(3, 'Metallic'), 0, 'written') eq(r.value(4, 'Opacity Inner'), 0.32, 'the other: its pack value')
+            local good = r.o.set('s', 1, 'number:9', 1)
+            eq(good, false, 'no such number')
+        end)
+    end,
+    shape_keys_use_shapekeyname_else_displayname = function()
+        dyed_rig(function(r)
+            ok(r.o.step('s', 1, 'shape:1', -1)) ok(r.o.step('s', 1, 'shape:2', 1))
+            r.o.tick()
+            same(r.body.morphs, {FB_Breast = -0.5, TopReveal = 1}, 'ShapeKeyName, else DisplayName')
+            r.o.reset('s')
+            r.o.tick()
+            same(r.body.morphs, {}, 'the pack values: the curves removed')
+        end)
+    end,
+    values_apply_again_after_applied_changes = function()
+        dyed_rig(function(r)
+            r.o.tick()
+            local writes, morphs = r.body.mats[3].writes, r.body.morph_calls
+            ok(writes >= 3, 'tint, number, finish on slot 3')
+            r.o.tick()
+            eq(r.body.mats[3].writes, writes, 'nothing changed: nothing written') eq(r.body.morph_calls, morphs)
+            ok(r.o.set('s', 1, 'number:1', 0.7))
+            r.o.tick()
+            eq(r.body.mats[3].writes, writes + 1, 'only the changed value') eq(r.value(3, 'Metallic'), 0.7)
+            r.gen, r.body = 2, component('Body again', {3, 4, 5}) -- A map load: the dress put the look on again.
+            r.parts = {{c = r.body, fit = 's', mesh = '/Game/P/V1.V1', slots = {}}}
+            r.o.tick()
+            eq(r.value(3, 'Metallic'), 0.7, 'the kept value on the new body')
+            near(r.value(3, 'Base Color Tint'), {R = 0.5, G = 0.5, B = 0.5, A = 1}, 'the pack values too')
+            ok(r.o.owns(r.body, 3) and r.o.owns(r.body, 4), 'the slots with a pack colour')
+            ok(not r.o.owns(r.body, 6), 'a slot without one')
+        end)
+    end,
     a_follower_copies_its_leader = function()
         with_suit(function()
             local r = rig()

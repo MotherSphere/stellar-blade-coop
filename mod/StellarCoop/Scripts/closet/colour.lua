@@ -22,7 +22,11 @@
 -- look. It is read once at new: it survives a restart. off() (Reset Stellar Closet, coop closet colour off) turns every
 -- role off and clears the file. stop() (coop off) forgets the instances: the dress's off gave the body its own
 -- materials back and removed the added components.
--- o: {dress=closet/dress.lua's (applied, parts), store=link.store(Colour.FILE), log=}.
+-- A slot with a pack colour control (o.options.owns, closet/options.lua: a worn pack outfit's VectorControls) belongs
+-- to the options layer: the palette never paints it; a record of the palette's there is forgotten, its material and
+-- instance left as they are (one layer owns each slot's instance).
+-- o: {dress=closet/dress.lua's (applied, parts), store=link.store(Colour.FILE), log=, options=closet/options.lua's
+-- or nil}.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
 --   UPrimitiveComponent.CreateDynamicMaterialInstance(ElementIndex int32, SourceMaterial, OptionalName FName) ->
@@ -179,6 +183,7 @@ function Colour.new(o)
         end)
         return s and ok and same and s or nil
     end
+    local function owned(c,index) return o.options~=nil and o.options.owns(c,index) end
     -- The palette on the worn parts; the slots it no longer reaches given back.
     local function paint(parts)
         local kept,coloured,back={},0,0
@@ -188,7 +193,8 @@ function Colour.new(o)
                 local tint=role~='glow' and palette[role]
                 local glow=role=='glow' and palette.glow
                 local key=i..':'..index
-                local s=(tint or glow) and (mine(slots[key],part.c) or part.c and instance(part.c,index))
+                local s=(tint or glow) and not owned(part.c,index)
+                    and (mine(slots[key],part.c) or part.c and instance(part.c,index))
                 if s then
                     kept[key],coloured=s,coloured+1
                     local r,g,b=Colour.swatch(tint)
@@ -201,7 +207,7 @@ function Colour.new(o)
             end
         end
         for key,s in pairs(slots) do
-            if not kept[key] then give_back(s); back=back+1 end
+            if not kept[key] and not owned(s.c,s.index) then give_back(s); back=back+1 end
         end
         slots=kept
         if coloured+back>0 then

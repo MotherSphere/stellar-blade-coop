@@ -78,7 +78,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`,
 | `thumbs.lua` | `coop closet thumbs`: the capture rig (one picture a frame) and the picture cache's folders, files and stamps |
 | `colour.lua` | `coop closet colour`: the palette, each slot's role, the swatches and the dynamic material instances on the worn pieces |
 | `shape.lua` | `coop closet shape`: the morph names of the worn meshes, the Body tab's shape rows and the morph values on EVE's body and the added pieces |
-| `options.lua` | `coop closet option`: each pack outfit's variant and piece toggles per variant, kept in `coop-closet-options.txt` |
+| `options.lua` | `coop closet option`: each pack outfit's variant and, per variant, its piece toggles, colours, finishes, numbers and shape keys, kept in `coop-closet-options.txt`, and those values on the worn outfit |
 
 The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
 
@@ -275,7 +275,9 @@ On each shown material slot of a worn piece that a set role reaches, the closet 
 (it reuses one the game put there) and sets the role's parameter. `Base Color Tint` multiplies the piece's base
 colour texture: the truest colour comes on a piece whose texture is white. A glow keeps its brightness and takes the
 swatch's hue. A piece whose glow is off keeps it off. The glow of a piece in another role's slot (a jacket's, a
-watch's) keeps the pack's colour. A piece whose material has no such parameter keeps its look.
+watch's) keeps the pack's colour. A piece whose material has no such parameter keeps its look. A slot with a colour
+control of its pack outfit belongs to the outfit's options (see [Outfit options](#outfit-options)): the palette never
+paints it.
 The palette goes on again after every wear, preview, revert and mix again, in the same frame. A role set back to Off
 gives each slot its own material back. Nothing changes while Tachy Mode pauses the mix. `coop off` and
 `coop closet off` give EVE her own materials back. Reset Stellar Closet sets every role back to Off.
@@ -284,7 +286,8 @@ gives each slot its own material back. Nothing changes while Tachy Mode pauses t
 
 Right on a pack outfit's row of the Full outfit tab (D-pad Right on a pad, the right arrow or D on the keyboard) opens
 its options page. Select still wears the outfit. The row's hints show Options on D-pad Right and its detail says how
-to open the page, in the words of the device in use. An outfit without material toggles in its pack has no page.
+to open the page, in the words of the device in use. An outfit with one variant and no toggle, colour, finish,
+number or shape key in its pack has no page.
 
 The page lists the outfit's name as a header row, then Variant when the pack has two variants or more, then a row
 per section, each followed by its pieces. A piece is a material toggle of the pack. Its section is the slot of the
@@ -299,12 +302,39 @@ word of `Model.SECTION_WORDS` in its name, else Other. Sections follow the slot 
   `PonyPhysics` is not applied yet.
 - A section row shows how many of its pieces show (`2/3`). Left, right, Select or a click turns every piece of the
   section off when all show, else on.
-- A piece row shows On or Off. Left, right, Select or a click turns it.
+- A piece row shows On or Off. Left and right turn it. On a piece without controls, Select or a click turns it too.
+- On a piece with controls (a colour, finish or number of the pack on its material slot or a follower's slot),
+  Select or a click opens its controls as rows right below it. Select again or Back closes them, with the focus back
+  on the piece. The rows are:
+  - Finish (`TextureOptions`): the option's name (`OptionNames`). Left and right step through the options whose
+    texture loads. A texture that does not load is left out and logged once.
+  - Colour (`VectorControls`): Pack colour, a swatch's name or `R G B` in 0-255. Left and right step through Pack
+    colour, the 14 swatches of the Colour tab (with the pack's alpha) and Custom. A kit swatch right of the row shows
+    the colour. Custom adds a row per channel its `Sliders` show (R, G and B when left out), in 0-255. Left and right
+    step a channel by 1/20 of its `Min`..`Max` range (0..1 when left out).
+  - Number (`ScalarControls`): the value with the decimals of its step. Left and right step it by the pack's `Step`,
+    else 1/20 of its range (0..1 when left out), within `Min` and `Max`.
+- The controls on a material slot that no piece has close the Other section, always shown.
+- The Shape section lists the outfit's shape keys (`ShapeKeys`), each in its range and step as a number is.
+- The last row, Reset this outfit, gives every value of the outfit its pack value back with Select or a click.
 
-The hints show Back, Change on D-pad Left and Right, then Move. The detail shows the pack's description of a piece and
-how to change the row, in the words of the device in use. A device switch draws them again. Back closes the page with
-the focus on the outfit's row. Up stops on the header row. The pad chord LB + D-pad Left on the page puts the page
-back before its Back.
+A pack value outside its range (an HDR glow above its `Max`) stays as it is until it is moved: a step puts it in the
+range. A follower (`ControlledBy`) of a colour, finish, number or shape key has no row and takes its leader's value.
+There is no slider bar on these rows yet: a shared kit change needs Schizo's yes.
+
+The hints show Back, Change on D-pad Left and Right, Reset on F (the pad's Y), then Move. F gives the focused row its
+pack value back (Variant: the first variant). A piece with controls shows Select instead of Reset. The detail shows
+the pack's name and description of the row and how to change it, in the words of the device in use. A device switch
+draws them again. Back closes the page with the focus on the outfit's row. Up stops on the header row. The pad chord
+LB + D-pad Left on the page puts the page back before its Back.
+
+On a worn pack outfit the options layer writes every colour, number, finish and shape key it has, the pack value or
+the kept one, so no value another mod set stays on screen. Colours, numbers and finishes go on the material slot's
+dynamic instance (`SetVectorParameterValue`, `SetScalarParameterValue`, `SetTextureParameterValue`), after the
+variant's `Parameters`. Shape keys go on the outfit's mesh with `SetMorphTarget` (`ShapeKeyName`, else `DisplayName`;
+0 takes the curve off). They go on again in the same frame after each wear, map load, cutscene, rest and revive.
+They also go on again after each change. A slot with a pack colour control belongs to the options layer: the Colour
+tab's palette never paints it. `coop off` takes the shape keys off.
 
 Each change is saved at once in `coop-closet-options.txt` per outfit and variant, apart from the look: only values
 that differ from the pack's are kept. The menu does not ask "Keep this look?" for it. On a worn outfit a toggle change
@@ -387,8 +417,10 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
   pieces for the names the body lacks, the shape put on again after a wear, her own look, the shape file, `coop off`
   and `coop closet shape`.
 - `tests/lua/closet/options_test.lua` runs the options layer on a fake dress: followers, values per outfit and variant
-  kept only when they differ from the pack, gone values said once, the tick, reset and off. It runs
-  `coop closet option` too.
+  kept only when they differ from the pack, gone values said once, the tick, reset and off. On fake components it
+  checks the colours (swatches and Custom channels), a value above its range, the steps, the finishes and a missing
+  texture, the numbers, the shape keys and the values written again after a new look. It runs `coop closet option`
+  too.
 - `tests/lua/closet/thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
   sections, the rig's settings and its removal on each end path, the refusals, a run from the menu that waits for its
   close and the framing.
