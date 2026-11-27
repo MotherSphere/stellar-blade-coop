@@ -196,9 +196,12 @@ local function give_back(c,n,own)
     return missed
 end
 
--- field 6 of coop-closet.txt (line): EVE's path, then per component '|<name>;<hidden>;<mesh>;<anim>;<physics>;
--- <slot>=<base>,...;<visible 1|0>;<cloth>;<pitch>,<yaw>,<roll>', '' for none: the game's own pieces only, as the dress
--- writes it before each wear. hidden: '-' when the closet hid that component at the time.
+-- field 6 of coop-closet.txt (line): EVE's path, then per component '|<name>;<mark>;<mesh>;<anim>;<physics>;
+-- <slot>=<base>,...;<visible 1|0>;<cloth>;<pitch>,<yaw>,<roll>', '' for none: the game's own pieces with a mark, '+'
+-- when the closet wears a piece there, '-' when it hides it, '' when it leaves it. The dress writes it before each
+-- wear and again after a head wear that went on, so the marks are the worn ones.
+-- shortcut: a crash between the first write and the second leaves that wear's components unmarked (left at the next
+-- load); write the marks before the calls if that shows in game.
 local function encode(n,state,own)
     local mats={}
     for _,m in ipairs(own.materials) do mats[#mats+1]=m.slot..'='..m.base end
@@ -451,7 +454,7 @@ function Head.new(o)
         for _,n in ipairs(NAMES) do
             local p=parts[n]
             if p then
-                f[#f+1]=encode(n,p.worn and p.worn.hidden and '-' or '',p.own)
+                f[#f+1]=encode(n,p.worn and (p.worn.hidden and '-' or '+') or '',p.own)
             end
         end
         return table.concat(f,'|')
@@ -544,9 +547,9 @@ function Head.new(o)
         return found
     end
 
-    -- An earlier Lua load's leftovers (field 6 of its file: the game's own pieces): a component is the closet's when
-    -- it wears a head fit's mesh other than its own, a head fit's material on its own mesh, or (a ponytail) is hidden
-    -- by the closet or under the closet's hair. That one gets the game's own look back; any other is left alone.
+    -- An earlier Lua load's leftovers (field 6 of its file): only a component marked worn ('+') or hidden ('-') is
+    -- looked at. A '+' one is the closet's while it wears a head fit's mesh other than its own or a head fit's material
+    -- on its own mesh; a '-' one while it is still hidden. That one gets the game's own look back; any other is left.
     function self.restore(field)
         if not field or field=='' then return end
         local f={}
@@ -559,26 +562,21 @@ function Head.new(o)
         end
         local eve=U.her(valid(StaticFindObject(f[1])))
         local cs=eve and components(eve) or {}
-        local lines,hair_ours={},false
+        local lines={}
         for i=2,#f do
             local n,state,own=decode(f[i])
             local c=cs[n]
             local ours=false
-            if c then
-                local hidden=n~=HAIR and visible(c)~=own.visible and (state=='-' or hair_ours)
-                if n==SHORT then ours=hidden
-                else
-                    local now=mesh_of(c)
-                    ours=(now~=own.mesh and meshes[now]==true) or (now==own.mesh and painted(c,own,materials))
-                        or (n==PONY and hidden)
-                end
+            if c and state=='-' then ours=visible(c)~=own.visible
+            elseif c and state=='+' then
+                local now=mesh_of(c)
+                ours=(now~=own.mesh and meshes[now]==true) or (now==own.mesh and painted(c,own,materials))
             end
-            if n==HAIR then hair_ours=ours end
             if ours then
                 local ok,missed=pcall(give_back,c,n,own)
                 lines[#lines+1]=ok and n..' back'..(#missed>0 and ' ('..table.concat(missed,', ')..' not found)' or '')
                     or n..' not given back: '..tostring(missed)
-            elseif n~=SHORT then
+            elseif state~='' then
                 lines[#lines+1]=n..': nothing to give back'
             end
         end

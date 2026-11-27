@@ -234,10 +234,12 @@ local function world(o)
     player = w.eve
     w.head = Head.new({log = function(m) w.logs[#w.logs + 1] = m end, fits = fits,
         paused = function() return w.paused end, clock = function() return w.now end})
-    -- closet/dress.lua's order: the file first (field 6), then the head part's wear.
+    -- closet/dress.lua's order: the file first (field 6), then the head part's wear, then the file again (the marks).
     function w.wear(list)
         w.file = w.head.line(); said('save')
-        return w.head.wear(list)
+        local good, why = w.head.wear(list)
+        if good then w.file = w.head.line(); said('save') end
+        return good, why
     end
     function w.tick(s) w.now = w.now + (s or 1); w.head.tick() end
     function w.last() return w.logs[#w.logs] end
@@ -367,7 +369,7 @@ local tests = {
         local f = {}
         for x in (line .. '|'):gmatch('([^|]*)|') do f[#f + 1] = x end
         eq(f[1], '/Game/Map.Map:PersistentLevel.EVE_1')
-        eq(f[2], 'SBHair;;' .. hr01.at_path .. ';' .. hr01_anim.at_path .. ';;0=' .. hr01_type_b.at_path .. ';;;0,0,0')
+        eq(f[2], 'SBHair;+;' .. hr01.at_path .. ';' .. hr01_anim.at_path .. ';;0=' .. hr01_type_b.at_path .. ';;;0,0,0')
         ok(not line:find('\t', 1, true), 'one field of the dress\'s line')
         -- The next Lua load: a new head part gives the game's pieces back (her colour as the asset it was made from).
         local logs = {}
@@ -433,13 +435,37 @@ local tests = {
         eq(w.eve.pony.OverrideMaterials[1], pony2.Materials[1].MaterialInterface, 'the ponytail mesh\'s own colour')
     end,
 
+    a_salon_hair_with_nothing_worn_stays = function()
+        -- Nothing worn on her head: no component is marked, so a reload leaves the salon's hair.
+        local w = world()
+        local line = w.head.line()
+        w.eve.hair.SkeletalMesh = h07 -- The salon: a stock hair the closet also lists.
+        Head.new({log = function() end, fits = fits}).restore(line)
+        eq(w.eve.hair.SkeletalMesh, h07, 'the salon hair stays')
+        -- A closet body look only (the dress wears an empty head list and keeps field 6), then the salon.
+        w = world()
+        ok(w.wear({}))
+        w.eve.hair.SkeletalMesh = h07
+        local n = #calls
+        Head.new({log = function() end, fits = fits}).restore(w.file)
+        eq(w.eve.hair.SkeletalMesh, h07) eq(#calls, n, 'no call')
+        -- Worn, then off: the file after off marks nothing.
+        w = world()
+        ok(w.wear({hair('SB.Hair_001')}))
+        ok(w.head.give_back())
+        line = w.head.line()
+        w.eve.hair.SkeletalMesh = h07
+        Head.new({log = function() end, fits = fits}).restore(line)
+        eq(w.eve.hair.SkeletalMesh, h07)
+    end,
+
     the_salon_taken_in_is_written_at_the_next_line = function()
         local w = world()
         ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_None')}))
         w.eve.hair.SkeletalMesh = nier -- The salon: her own hair from now on.
         w.tick(1) w.tick(1)
         eq(w.eve.hair.SkeletalMesh, h07)
-        ok(w.head.line():find('|SBHair;;' .. nier.at_path, 1, true), 'the next keep writes it')
+        ok(w.head.line():find('|SBHair;+;' .. nier.at_path, 1, true), 'the next keep writes it')
         -- Nothing worn: the line follows her head as it is now.
         w = world()
         ok(w.wear({hair('SB.Hair_001')}))
@@ -584,12 +610,14 @@ local tests = {
         ok(w.wear({hair('SB.Hair_001')}))
         local applied, n = w.head.applied(), #calls
         ok(w.wear({hair('SB.Hair_001')}))
-        eq(since(n), 'save', 'the file only') eq(w.head.applied(), applied)
+        eq(since(n), 'save|save', 'the file only') eq(w.head.applied(), applied)
         -- A variant change shows at the next wear as materials only.
         chosen['SB.Hair_001'] = 2
         n = #calls
         ok(w.wear({hair('SB.Hair_001')}))
         ok(since(n):find('^save|SBHair material 0 MI_H07_TypeB|SBPonytail material 0 MI_H07_Tail_TypeB'), since(n))
+        ok(w.file:find('|SBHair;+;', 1, true) and w.file:find('|SBPonytail;+;', 1, true), w.file)
+        ok(w.file:find('|SBPonytailShort;-;', 1, true), 'hidden by the closet: ' .. w.file)
     end,
 
     a_refusal_changes_nothing = function()

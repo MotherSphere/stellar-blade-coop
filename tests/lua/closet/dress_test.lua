@@ -1315,6 +1315,17 @@ local tests = {
             same(h2.worn, {{{fit = 'h.hair', slot = 'Hair'}}}, 'and wears the hair again')
         end)
     end,
+    field_six_is_written_again_after_the_head_wear = function()
+        -- The file first (before any change), then again once the head part wore its pieces: field 6 marks them.
+        with_head(function(w, h, d)
+            local wear = h.wear
+            function h.wear(list) h.out = 'marked'; return wear(list) end
+            assert(d.wear(HAIR_ONLY))
+            eq(fields(w.file)[6], 'marked', 'the line after the wear')
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair'}}))
+            eq(fields(w.file)[6], 'marked')
+        end)
+    end,
     an_old_five_field_line_restores_without_head = function()
         with_head(function(w)
             assert(w.d.wear({{fit = 'p.suit'}})) -- The dress before the head part: five fields.

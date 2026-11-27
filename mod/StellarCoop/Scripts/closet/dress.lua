@@ -515,6 +515,7 @@ function Dress.new(o)
             if prev or not restoring then keep() end
             return nil,why_not
         end
+        keep() -- Again: field 6 now marks the head pieces worn (the head part's restore takes only those).
         -- No added mesh of an earlier mix stays: the old one's and this plan's outfits are swept off EVE first.
         local paths={}
         for _,a in ipairs(prev and prev.added or {}) do paths[#paths+1]=a.mesh end
