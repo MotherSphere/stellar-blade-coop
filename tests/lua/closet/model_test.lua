@@ -394,6 +394,44 @@ local tests = {
         eq(m.worn(w, 'Chest'), nil) eq(m.worn(w, 'Collar'), CH27)
     end,
 
+    -- Head fits: the Full tab lists suits only; the Hair row lists stock then pack fits; a head pick keeps the suit;
+    -- a fit whose mesh does not load is locked, read lazily; an empty Mesh counts as installed.
+    head_fits_in_the_model = function()
+        local function head(slot, name, origin, mesh)
+            return {Outfit = name, Pack = 'p', Origin = origin, Slot = slot, Mesh = mesh or '/Game/H.H', Whole = true,
+                Pieces = {{Slot = slot, Name = name}}}
+        end
+        Fits.PACKS = {['p.suit'] = {Outfit = 'P', Pack = 'p', Origin = 'custom', Slot = 'FullOutfit',
+            Mesh = '/Game/P.P', Whole = true, Pieces = {}},
+            b = head('Hair', 'Bee', 'custom'), ['SB.Hair_001'] = head('Hair', 'Hair 1', 'original'),
+            ['SB.Hair_Nier_002'] = head('Hair', 'Nier', 'original'),
+            ['SB.Ponytail_None'] = head('Ponytail', 'None', 'original', '')}
+        local good, why = pcall(function()
+            local asked = {}
+            local m = new({installed = function(id) asked[#asked + 1] = id return id ~= 'SB.Hair_Nier_002' end})
+            local full = {}
+            for _, r in ipairs(m.rows('full')) do if r.whole then full[r.whole] = true end end
+            ok(full['p.suit'] and not full.b and not full['SB.Hair_001'], 'Full lists the suit, not the hair')
+            local row
+            for _, r in ipairs(m.rows('head')) do if r.slot == 'Hair' then row = r end end
+            eq(row.state, 'pieces')
+            local tiles, names = m.tiles('Hair'), {}
+            eq(#asked, 0, 'no installed call yet')
+            for _, t in ipairs(tiles) do names[#names + 1] = t.none and 'none' or t.fit end
+            same(names, {'none', 'SB.Hair_001', 'SB.Hair_Nier_002', 'b'}, 'none, stock, then pack')
+            eq(#asked, 0, 'tiles built without loading a mesh')
+            eq(tiles[3].locked, true, 'mesh does not load: locked') eq(tiles[2].locked, false)
+            same(asked, {'SB.Hair_Nier_002', 'SB.Hair_001'}, 'asked on read only') -- order of reading below
+            eq(m.tiles('Ponytail')[2].locked, false, 'an empty mesh is installed')
+            eq(#asked, 2, 'and is never asked')
+            same(m.choose(m.whole('p.suit'), 'Hair', 'b'), {{fit = 'p.suit'}, {fit = 'b', slots = {'Hair'}}})
+            same(m.whole('q.suit', {{fit = 'p.suit'}, {fit = 'b', slots = {'Hair'}}}),
+                {{fit = 'q.suit'}, {fit = 'b', slots = {'Hair'}}})
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
     -- User decision: Original (game) suits are worn whole only, from Full outfit; the region tabs and the Body tab list
     -- Custom pieces only.
     original_suits_are_listed_in_full_outfit_only = function()
@@ -408,7 +446,8 @@ local tests = {
             local n = 0
             for _, tab in ipairs(m.tabs()) do
                 for _, r in ipairs(tab ~= 'full' and m.rows(tab) or {}) do
-                    for _, t in ipairs(r.slot and m.tiles(r.slot) or {}) do -- The Colour tab's rows have no tiles.
+                    -- Stock hair is listed on the Head tab (Schizo's decision): head slots are not in this rule.
+                    for _, t in ipairs(r.slot and Slots.group(r.slot) ~= 'head' and m.tiles(r.slot) or {}) do -- The Colour tab's rows have no tiles.
                         ok(t.fit ~= 'ZZ_ORIG', tab .. ' ' .. r.slot .. ': an Original tile')
                         n = n + (t.fit and 1 or 0)
                     end
