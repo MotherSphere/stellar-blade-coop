@@ -49,6 +49,6 @@ The DLL lists the packs only at game start. A pack added or removed while the ga
 ## Piece hints
 
 For a Body outfit, each `MaterialToggles` entry names one material slot. Stellar Closet guesses that slot's piece
-from the toggle's name (`Heels` → `Shoes`, `Jacket P2` → `Outerwear`, `Nipple piercing` → `ChestHardware`) and keeps
+from the toggle's name (`Heels` → `Shoes`, `Jacket P2` → `Outerwear`, `Nipple piercing` → `NippleL`) and keeps
 the guess as `PieceHints`. These seed the region maps that let parts of two outfits be worn together. A name it
 cannot place keeps no slot. A later in-game tagger is to let players fix or fill these.
