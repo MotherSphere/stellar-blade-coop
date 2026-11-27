@@ -25,7 +25,8 @@ local function sorted_fits(fits, custom)
 end
 
 -- o = {slots=closet.slots, fits=closet.fits, installed=function(fit)->bool, adult=bool,
--- shapes=function()->morph names or nil}
+-- shapes=function()->morph names or nil, presets=closet/presets.lua's or nil (no Presets rows, filter or favourite
+-- marks then), favourites=function()->true while the filter shows the favourites only}
 function Model.new(o)
     local Slots, Fits = o.slots, o.fits
     local m = {}
@@ -62,10 +63,22 @@ function Model.new(o)
     function m.rows(tab)
         local out = {}
         if tab == 'full' then
+            -- With presets: Save look as preset, each preset (locked: its outfit is not installed), the filter row.
+            local presets = o.presets
+            if presets then
+                out[1] = {save_preset = true}
+                for _, p in ipairs(presets.list()) do
+                    out[#out + 1] = {preset = p.n, name = p.name, fit = p.fit, locked = p.gone}
+                end
+                out[#out + 1] = {filter = true}
+            end
+            local only = presets and o.favourites and o.favourites()
             -- Every suit (the pack fits and the hand fits, Fits.all) by name in any case, then by id; Shift Up's own
-            -- suits after the others, under the Original header.
+            -- suits after the others, under the Original header. The filter on Favourites keeps the favourites only.
             local all, ids = Fits.all(), {custom = {}, original = {}}
-            for id, fit in pairs(all) do table.insert(ids[Fits.origin(id)], id) end
+            for id, fit in pairs(all) do
+                if not only or presets.is_fav(id) then table.insert(ids[Fits.origin(id)], id) end
+            end
             local function by_name(a, b)
                 local x, y = all[a].Outfit:lower(), all[b].Outfit:lower()
                 if x ~= y then return x < y end
@@ -76,7 +89,8 @@ function Model.new(o)
                 if origin == 'original' and #ids.original > 0 then out[#out + 1] = {header = 'original'} end
                 for _, id in ipairs(ids[origin]) do
                     local fit = all[id]
-                    out[#out + 1] = {whole = id, outfit = fit.Outfit, pack = fit.Pack, locked = not o.installed(id)}
+                    out[#out + 1] = {whole = id, outfit = fit.Outfit, pack = fit.Pack, locked = not o.installed(id),
+                        fav = presets and presets.is_fav(id) or nil}
                 end
             end
             out[#out + 1] = {thumbs = true} -- Make preview pictures (coop closet thumbs).

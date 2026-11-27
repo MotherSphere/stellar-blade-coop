@@ -105,7 +105,7 @@ local DETAIL_X,DETAIL_Y=1100,1160
 -- A kit image draws under every part, so it sits beside the panel, not on it.
 local BADGE_X,BADGE_Y,BADGE=View.EDGE-88,DETAIL_Y+8,64
 -- Key hints, right to left from EDGE (the lobby's step): the menu's row.
-local HINT_STEP,HINT_Y,HINTS=420,1990,4
+local HINT_STEP,HINT_Y,HINTS=420,1990,5 -- Five: an outfit's row shows Back, Whole outfit, Options, Favourite, Move.
 -- The camera's row above it: a fixed slot per chip in s.camera_hints' order (mode, reset, light), 90 apart, the last
 -- ending at EDGE. x and w: the chip's left edge and its click zone's width; col: where the label starts after the
 -- keyboard key (C, Backspace, V at about 17 units a Bold 30 character, plus 12). KEY_Y: the kit text's y in the row,

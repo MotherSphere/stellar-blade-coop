@@ -28,6 +28,10 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet rescan` | Reads every installed CNS-format pack again and answers how many packs, reused packs, outfits and failed packs it found. See [Importing CNS-format packs](cns-import.md#the-pack-catalogue) |
 | `coop closet option <fit> variant <n>` | Sets the variant a pack outfit wears (1 is the pack's first). See [Outfit options](#outfit-options) |
 | `coop closet option <fit> toggle <slot> on\|off` | Shows or hides the piece on one material slot (a number) of a pack outfit in the variant it wears. See [Outfit options](#outfit-options) |
+| `coop closet preset save [name]` | Keeps the worn whole outfit, its variant and its options as a new preset. See [Presets and favourites](#presets-and-favourites) |
+| `coop closet preset wear\|delete <n>` | Wears or deletes preset n |
+| `coop closet preset rename <n> [name]` | Names preset n. No name gives it "Preset n" again |
+| `coop closet favourite <fit>` | Marks an outfit as a favourite, or takes the mark off |
 
 For example, `coop closet wear AiK_CH27_14595:Chest,Legs AiK_CH46_xSH_14462:Shoes` wears Ocean Maid's top and
 stockings with Kunoichi Shadow's boots.
@@ -79,6 +83,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`,
 | `colour.lua` | `coop closet colour`: the palette, each slot's role, the swatches and the dynamic material instances on the worn pieces |
 | `shape.lua` | `coop closet shape`: the morph names of the worn meshes, the Body tab's shape rows and the morph values on EVE's body and the added pieces |
 | `options.lua` | `coop closet option`: each pack outfit's variant and, per variant, its piece toggles, colours, finishes, numbers and shape keys, kept in `coop-closet-options.txt`, and those values on the worn outfit |
+| `presets.lua` | `coop closet preset` and `coop closet favourite`: the presets and the favourite outfits, kept in `coop-closet-presets.txt` |
 
 The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
 
@@ -91,10 +96,11 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
 
-`wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `colour.lua` as `M.closet_colour`,
-`shape.lua` as `M.closet_shape`, `thumbs.lua` as `M.closet_thumbs` and `commands.lua`. Its build step `menu`, which
-`main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its
-Make preview pictures row, `M.closet_options` for the options pages, `M.closet_colour` for its Colour tab and
+`wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `presets.lua` as
+`M.closet_presets`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`, `thumbs.lua` as
+`M.closet_thumbs` and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with the Steam link only, builds
+`ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its Make preview pictures row, `M.closet_options` for the
+options pages, `M.closet_presets` for the Presets rows and favourites, `M.closet_colour` for its Colour tab and
 `M.closet_shape` for the Body tab's shape rows). `main/frame.lua` runs the restore at the first tick and the dress,
 options, colour, shape, probe, thumbs and menu ticks each frame.
 `coop off` stops them. The module reads no other module.
@@ -342,6 +348,24 @@ shows on her at the next frame on the meshes she wears; a variant change puts th
 every plan of the dress, so a wear, a map load, a cutscene or the watchdog's mix again keeps them. A kept value for an
 outfit, variant or material slot that is no longer installed is ignored and logged once after each pack scan.
 
+### Presets and favourites
+
+The Full outfit tab starts with the Presets rows, then a filter row, then the outfits:
+
+- Save look as preset (Select) keeps the worn whole outfit, its variant and its option values as preset n, the first
+  free number. It shows as "Preset n". When pieces of several outfits are worn, it says that a preset needs one whole
+  outfit and saves nothing. `coop closet preset rename <n> <name>` names a preset; the menu has no text field yet.
+- Each preset row shows its name and its outfit. Select wears it as a preview: the outfit gets the preset's variant
+  and values, then the menu asks "Keep this look?" at the Back as for any other look. F (the pad's Y) asks
+  "Delete this preset?" with the game's Yes/No popup. A preset whose outfit is no longer installed stays in the file,
+  is greyed and does not wear.
+- Show switches between All and Favourites (left, right or Select). Favourites lists the favourite outfits only.
+- On an outfit's row F (the pad's Y) marks the outfit as a favourite or takes the mark off. Its value then says
+  "favourite". The hint shows Favourite or Unfavourite on the key or the pad button of the device in use. Select
+  still wears the outfit.
+
+Presets and favourites are kept in `coop-closet-presets.txt`. The filter is kept until the next Lua load.
+
 ### Body shape
 
 A pack's meshes can carry morph targets: the FitBase family, Muse and UPS, Minervha and Ayane's body and outfit
@@ -421,6 +445,9 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
   checks the colours (swatches and Custom channels), a value above its range, the steps, the finishes and a missing
   texture, the numbers, the shape keys and the values written again after a new look. It runs `coop closet option`
   too.
+- `tests/lua/closet/presets_test.lua` runs the presets over the real options layer and a fake dress: a save and a
+  wear of the outfit, its variant and its values, the numbers after a delete, a rename, a preset of a gone outfit,
+  the favourites, the file read back and `coop closet preset` and `coop closet favourite`.
 - `tests/lua/closet/thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
   sections, the rig's settings and its removal on each end path, the refusals, a run from the menu that waits for its
   close and the framing.

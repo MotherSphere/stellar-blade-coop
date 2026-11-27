@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The wiring of Stellar Closet (closet/): coop closet, which wears pieces of several outfits at once (M.closet,
 -- closet/dress.lua), coop closet colour (M.closet_colour, closet/colour.lua), coop closet shape (M.closet_shape,
--- closet/shape.lua), coop closet option (M.closet_options, closet/options.lua),
+-- closet/shape.lua), coop closet option (M.closet_options, closet/options.lua), coop closet preset and favourite
+-- (M.closet_presets, closet/presets.lua),
 -- coop closet probe (closet/ui/probe.lua),
 -- coop closet thumbs (M.closet_thumbs, closet/thumbs.lua), the pack catalogue (M.closet_packs, closet/packs.lua, coop
 -- closet rescan) and the closet menu (M.closet_menu, closet/ui/menu.lua,
@@ -11,7 +12,8 @@
 -- tick each frame; coop off stops it.
 return {
 uses={},
-exports={'closet','closet_menu','closet_thumbs','closet_colour','closet_shape','closet_packs','closet_options'},
+exports={'closet','closet_menu','closet_thumbs','closet_colour','closet_shape','closet_packs','closet_options',
+    'closet_presets'},
 new=function(M)
 local print=M.print
 -- closet/dress.lua, logging [CL] lines: coop-closet.txt lets the next Lua load give EVE her own look back. No look
@@ -27,6 +29,11 @@ local Options=require('closet.options')
 local options=Options.new({dress=M.closet,store=M.link and M.link.store(Options.FILE),
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 M.closet_options=options
+-- Presets and favourites (closet/presets.lua) in coop-closet-presets.txt: the Full outfit tab's Presets rows, F on an
+-- outfit's row, coop closet preset and coop closet favourite. It has no tick.
+local Presets=require('closet.presets')
+M.closet_presets=Presets.new({store=M.link and M.link.store(Presets.FILE),options=options,dress=M.closet,
+    log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 -- The colour layer (closet/colour.lua): its palette in coop-closet-colour.txt; its tick runs each frame right after the
 -- dress's, menu open or not, so a look the dress puts on gets the palette in the same frame. The menu's Colour tab and
 -- coop closet colour set it. A slot with a pack colour control is the options layer's (options.owns).
@@ -88,7 +95,8 @@ M.closet.stop=function()
     if M.closet_menu then M.closet_menu.stop() end
 end
 return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,thumbs=thumbs,
-    menu=function() return M.closet_menu end,colour=colour,shape=shape,packs=M.closet_packs,options=options})
+    menu=function() return M.closet_menu end,colour=colour,shape=shape,packs=M.closet_packs,options=options,
+    presets=M.closet_presets})
 end,
 build={
 -- coop closet menu (closet/ui/menu.lua) on the kit: its group added before the first slow. Its camera
@@ -107,7 +115,7 @@ menu=function(M,Ui)
     M.closet_menu=require('closet.ui.menu').new({kit=M.kit,dress=M.closet,words=M.words,tell=M.tell,log=log,
         world=function() return M.hud_shown end,photo=M.photo_state,status=function() return M.link and M.link.status() end,
         camera=camera,folder=M.folder,thumbs=M.closet_thumbs,colour=M.closet_colour,shape=M.closet_shape,
-        options=M.closet_options,uidev=M.link.uidev})
+        options=M.closet_options,presets=M.closet_presets,uidev=M.link.uidev})
     -- The first open (the closet key's too: it calls the field) reads every pack once, under a guard of its own.
     local open=M.closet_menu.open
     M.closet_menu.open=function(...)

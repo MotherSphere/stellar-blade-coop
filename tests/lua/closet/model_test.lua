@@ -172,6 +172,30 @@ local tests = {
         same(rows[4], {reset = true}, 'the Reset row last')
     end,
 
+    -- With presets: Save look as preset, each preset (a gone outfit's greyed), the filter row, then the outfits, each
+    -- with its favourite mark; the filter on Favourites lists the favourites only.
+    favourites_filter_the_list = function()
+        local favs, only = {[CH27] = true}, false
+        local presets = {is_fav = function(f) return favs[f] == true end,
+            list = function() return {{n = 1, fit = CH27, variant = 1, gone = false},
+                {n = 3, name = 'Old', fit = 'gone.suit', variant = 2, gone = true}} end}
+        local m = Model.new({slots = Slots, fits = Fits, installed = function() return true end, presets = presets,
+            favourites = function() return only end})
+        local rows = m.rows('full')
+        same(rows[1], {save_preset = true}, 'Save look as preset first')
+        same(rows[2], {preset = 1, fit = CH27, locked = false}, 'preset 1')
+        same(rows[3], {preset = 3, name = 'Old', fit = 'gone.suit', locked = true}, 'a gone outfit: greyed')
+        same(rows[4], {filter = true}, 'the filter row')
+        same(rows[5], {whole = CH46, outfit = 'Kunoichi Shadow', pack = 'AiK', locked = false}, 'not a favourite')
+        same(rows[6], {whole = CH27, outfit = 'Ocean Maid', pack = 'AiK', locked = false, fav = true}, 'a favourite')
+        eq(#rows, 8, 'then Make preview pictures and Reset')
+        only = true
+        rows = m.rows('full')
+        eq(rows[5].whole, CH27, 'Favourites: the favourite only')
+        ok(rows[6].thumbs and rows[7].reset, 'then the two rows')
+        eq(#rows, 7, 'no other outfit')
+    end,
+
     -- Every installed pack's suit (FitMeshType Body or none, EVE's) gets a row, the hand fits with them, by name.
     every_pack_suit_gets_a_row = function()
         local file = '~mods\\P\\p.dekcns.json'

@@ -30,7 +30,8 @@
 -- for each of closet/slots.lua's Slots.LIST ids, a tab for each Slots.MENUS id and a region for each Slots.REGIONS
 -- name, each tab within 16 columns, each key hint within 14, its notices within 200 bytes, the Colour tab's name and
 -- about line for each closet/colour.lua role and a name for Off and each swatch, the roles within a row's title column,
--- the swatches within its value column, the Body tab's shape value (closet/shape.lua) at 100 within its value column.
+-- the swatches within its value column, the Body tab's shape value (closet/shape.lua) at 100 within its value column,
+-- the presets rows' titles (closet/presets.lua) within the title column and the filter's values within the value one.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('online.modes.nightop.recruiter_text')
@@ -257,6 +258,8 @@ local function notices(w)
     lines[#lines+1]=w.closet.saved
     lines[#lines+1]=w.closet.failed
     lines[#lines+1]=w.closet.reset_done
+    lines[#lines+1]=fill(w.closet.presets.saved) -- A preset's name: a 32-byte one.
+    lines[#lines+1]=w.closet.presets.none
     lines[#lines+1]=fill(w.closet.switched)
     local r=w.closet.regions
     lines[#lines+1]=w.closet.clips:format(table.concat({r.ArmUpper,r.Forearm,r.Hand,r.Calf,r.Foot},', '))
@@ -475,6 +478,14 @@ for name in pairs(R.TEXT) do
     for k,text in pairs(w.closet.colour.swatches) do fits(name..'.closet.colour.swatches.'..k,text,VALUE) end
     -- The Body tab's shape rows (closet/shape.lua): a value of 100 within a row's value column.
     fits(name..'.closet.shape.value',w.closet.shape.value:format(100),VALUE)
+    -- The Full tab's presets rows (closet/presets.lua): Save look as preset, Preset 99 and the filter row's title
+    -- within a row's title column, its values within the value column.
+    local pr=w.closet.presets
+    fits(name..'.closet.presets.save',pr.save,LABEL)
+    fits(name..'.closet.presets.name',pr.name:format(99),LABEL)
+    fits(name..'.closet.presets.filter',pr.filter,LABEL)
+    fits(name..'.closet.presets.all',pr.all,VALUE)
+    fits(name..'.closet.presets.favourites',pr.favourites,VALUE)
 end
 -- Stellar Closet's names: a slot name for each Slots.LIST id, a tab for each Slots.MENUS id, a region for each
 -- Slots.REGIONS name, and no other (the other tables have T.en's keys, checked above).

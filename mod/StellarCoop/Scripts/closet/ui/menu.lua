@@ -65,6 +65,11 @@
 -- drops the page; the pad chord's undo keeps it. The page's hints: Back, Change on UI_DPad_Left and UI_DPad_Right,
 -- Reset on UI_FaceButton_Top (Select instead on a piece with controls), Move. The detail's open line and help follow
 -- the device: a device switch draws them again at the next tick.
+-- With presets (o.presets, closet/presets.lua) the Full tab starts with Save look as preset (Select saves the worn
+-- whole outfit as Preset n, told), each preset (Select wears it as a preview; F, UI_FaceButton_Top, asks Delete this
+-- preset? with the game's Yes/No popup: Yes deletes it, No and Back stay; a gone outfit's preset is greyed and does
+-- not wear) and the filter row (left, right and Select turn All / Favourites, kept for this Lua load). On an outfit's
+-- row F then marks it as a favourite or not (its hint Favourite or Unfavourite) instead of wearing it.
 -- Each GUARD s while open: a map change, photo mode, a cutscene or the input given back (coop ui reset) closes it with
 -- a revert and a closet.closed notice; combat is read each COMBAT s. A preview ended by a typed coop closet wear or off
 -- closes it without a revert.
@@ -85,7 +90,8 @@
 -- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
 -- thumbs=closet/thumbs.lua's or nil, colour=closet/colour.lua's or nil (the Colour rows then show Off and pick
 -- nothing), shape=closet/shape.lua's or nil (no shape row then), options=closet/options.lua's or nil (no options
--- page then), uidev=function() SB's input device byte or nil
+-- page then), presets=closet/presets.lua's or nil (no Presets rows, filter or favourites then),
+-- uidev=function() SB's input device byte or nil
 -- (core/link.lua's uidev; nil: the keyboard)}.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
@@ -108,8 +114,10 @@ function Menu.new(o)
     local kit,dress=o.kit,o.dress
     local log=o.log or function() end
     local now=o.now or os.clock
+    local only_favs=false -- The Full tab's filter: true lists the favourites only (kept for this Lua load).
+    local deleting -- The preset the Delete this preset? popup asks about.
     local model=Model.new({slots=Slots,fits=Fits,installed=dress.installed,adult=o.adult==true,
-        shapes=o.shape and o.shape.rows})
+        shapes=o.shape and o.shape.rows,presets=o.presets,favourites=function() return only_favs end})
     local view=View.new(kit,log)
     local self={}
     local open=false
@@ -284,7 +292,16 @@ function Menu.new(o)
         local v=page and o.options.variant(page.fit)
         for i,item in ipairs(shown_rows) do
             if item.whole then
-                s.rows[i]={title=item.outfit,value=item.pack,locked=item.locked}
+                s.rows[i]={title=item.outfit,value=item.fav and w.presets.fav:format(item.pack) or item.pack,
+                    locked=item.locked}
+            elseif item.save_preset then
+                s.rows[i]={title=w.presets.save,value=''}
+            elseif item.preset then -- Its name, else Preset n; its outfit as the value.
+                local fit=Fits.get(item.fit)
+                s.rows[i]={title=item.name or w.presets.name:format(item.preset),value=fit and fit.Outfit or item.fit,
+                    locked=item.locked}
+            elseif item.filter then
+                s.rows[i]={title=w.presets.filter,value=only_favs and w.presets.favourites or w.presets.all}
             elseif item.reset or item.thumbs then
                 s.rows[i]={title=item.reset and w.row.reset or w.row.thumbs,value=''}
             elseif item.header then -- The Original header above Shift Up's own suits, or the options page's outfit.
@@ -362,6 +379,24 @@ function Menu.new(o)
                 s.detail.desc=s.detail.desc..'\n'..w.options.open[s.pad and 'pad' or 'key']
                 s.hints[3]={w.hints.options,'UI_DPad_Right',word='right'}
             end
+            -- UI_FaceButton_Top (F, the pad's Y): as the refresh hint of a row of pieces below (its UTF-16 string at
+            -- 0x145c4e728 of the 26123051 exe, Ghidra, read again 26 Nov 2026). SB draws the key or the pad's button
+            -- for it, so the hint follows the device.
+            if o.presets then
+                s.hints[#s.hints+1]={item.fav and w.hints.unfav or w.hints.fav,'UI_FaceButton_Top',word='refresh'}
+            end
+        elseif item and item.save_preset then
+            s.detail.desc=w.presets.save_desc
+            s.hints[2]={t.hint.select,'Positive',word='select'}
+        elseif item and item.preset then -- Select wears it (not a gone outfit's); F (UI_FaceButton_Top) deletes it.
+            local fit=Fits.get(item.fit)
+            s.detail.desc=w.detail.outfit:format(fit and fit.Outfit or item.fit)..
+                (item.locked and '\n'..w.row.locked:format(fit and fit.Pack or item.fit) or '')
+            if not item.locked then s.hints[2]={w.hints.wear,'Positive',word='select'} end
+            s.hints[#s.hints+1]={w.hints.delete,'UI_FaceButton_Top',word='refresh'}
+        elseif item and item.filter then
+            s.detail.desc=w.presets.filter_desc
+            s.hints[2]={w.hints.change,'UI_DPad_Left','UI_DPad_Right',word='right'}
         elseif item and page and item.reset_fit then -- Reset this outfit.
             s.detail.desc=w.options.reset_desc
             s.hints[2]={t.hint.select,'Positive',word='select'}
@@ -428,6 +463,10 @@ function Menu.new(o)
         if plan and plan.clips then notes[#notes+1]=w.clips:format(names(plan.clips,w.regions)) end
         s.notice=table.concat(notes,'\n')
         if asking=='reset' then s.popup={title=w.popup.reset_title,desc=w.popup.reset_desc}
+        elseif asking=='delete' then
+            local name=w.presets.name:format(deleting)
+            for _,p in ipairs(o.presets.list()) do if p.n==deleting and p.name then name=p.name end end
+            s.popup={title=w.presets.delete_title,desc=w.presets.delete_desc:format(name)}
         elseif asking then s.popup={title=w.popup.title,desc=w.popup.desc} end
         return s
     end
@@ -565,6 +604,11 @@ function Menu.new(o)
         kit.sound('change')
     end
     local function answer(yes)
+        if asking=='delete' then -- Delete this preset?: Yes deletes it, the menu stays.
+            if yes then o.presets.delete(deleting); kit.sound('change') end
+            asking=false
+            return redraw()
+        end
         if asking=='reset' and not yes then asking=false; return redraw() end
         if asking=='reset' then -- coop closet off: the kept look cleared, nothing of the closet left on EVE.
             local ran,why=pcall(dress.off)
@@ -712,6 +756,29 @@ function Menu.new(o)
         elseif word=='select' and col=='rows' and item and item.thumbs then pictures()
         elseif word=='refresh' and page then
             if resettable(item) then reset_row(item) end
+        elseif word=='refresh' and item and item.whole and o.presets then -- F: a favourite or not.
+            o.presets.fav(item.whole)
+            kit.sound('change')
+        elseif word=='refresh' and item and item.preset then deleting,asking=item.preset,'delete'
+        elseif word=='select' and item and item.save_preset then -- Saved as Preset n; renamed by command.
+            local n,why=o.presets.save()
+            if n then o.tell(function(t) return t.closet.presets.saved:format(t.closet.presets.name:format(n)) end)
+            else
+                log('menu: no preset saved: '..tostring(why))
+                o.tell(function(t) return t.closet.presets.none end)
+            end
+            kit.sound(n and 'change' or 'move')
+        elseif word=='select' and item and item.preset then -- Worn as a preview: Keep this look? at the Back.
+            if not item.locked then
+                local good,why=o.presets.wear(item.preset,function(choices) wear(choices); return true end)
+                if not good then
+                    log('menu: preset not worn: '..tostring(why))
+                    o.tell(function(t) return t.closet.failed end)
+                end
+            end
+        elseif item and item.filter and (word=='left' or word=='right' or word=='select') then
+            only_favs=not only_favs
+            kit.sound('change')
         elseif word=='refresh' or word=='select' and col=='rows' and item and item.whole then wear_whole()
         elseif col=='grid' then
             local C=View.COLUMNS

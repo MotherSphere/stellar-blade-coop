@@ -384,6 +384,29 @@ function Options.new(o)
         end
         return out
     end
+    -- The kept values of an outfit in variant v as file words ('<key>=<value>', sorted): closet/presets.lua keeps them.
+    function self.words(fit,v)
+        local out={}
+        for key,value in pairs(values[fit..' '..v] or {}) do out[#out+1]=key..'='..word(value) end
+        table.sort(out)
+        return out
+    end
+    -- Those words back as an outfit's kept values in variant v; every other value of it there is the pack's again. A
+    -- word that does not read is left out.
+    function self.take(fit,v,list)
+        local set={}
+        for _,item in ipairs(list) do
+            local key,text=tostring(item):match('^(%S+)=(%S+)$')
+            local kind=key and split(key)
+            local value=kind and parse(kind,text)
+            if value~=nil then set[key]=value end
+        end
+        values[fit..' '..v]=next(set) and set or nil
+        keep()
+        reshow[fit]=true
+        log('options: '..fit..' variant '..v..' takes '..#list..' kept value(s)')
+        return true
+    end
     -- One outfit's pack values back: every variant's values and the first variant.
     function self.reset(fit)
         for at in pairs(values) do

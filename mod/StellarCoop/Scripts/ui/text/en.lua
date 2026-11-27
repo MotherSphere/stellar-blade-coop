@@ -596,7 +596,17 @@ return {
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
         hints={wear='Wear',take_off='Take off',whole='Whole outfit',options='Options',change='Change',
-            reset='Reset'},
+            reset='Reset',fav='Favourite',unfav='Unfavourite',delete='Delete'},
+        -- The Full outfit tab's presets and favourites (closet/presets.lua): the Save look as preset row and its line,
+        -- a preset with no name, the filter row and its two values, a favourite outfit's value (its pack in %s), the
+        -- notices of a save and of a save with no whole outfit, the Delete popup (the preset's name in %s).
+        presets={save='Save look as preset',
+            save_desc='Keeps the worn outfit, its variant and its options as a new preset. Rename it with coop closet '
+                ..'preset rename.',
+            name='Preset %d',filter='Show',all='All',favourites='Favourites',
+            filter_desc='Lists every outfit or your favourites only.',fav='%s, favourite',
+            saved='Saved as %s.',none='Wear one whole outfit first: a preset keeps one outfit.',
+            delete_title='Delete this preset?',delete_desc='%s is deleted. The outfit and its options stay.'},
         -- An outfit's options page (closet/options.lua): the Variant row, a piece's value, the Other section, the
         -- Shape section, the Reset this outfit row and its line, a colour's Pack colour value, the Custom colour's
         -- channel rows, the line on a piece with controls, the line on an outfit's row that opens the page and the

@@ -595,6 +595,15 @@ package.loaded['closet.options']={FILE='coop-closet-options.txt',USE='Use: coop 
         set=function() return true,'op set' end,set_variant=function() return true,'op variant' end,
         reset=function() return true,'op reset' end,off=function() return true,'op off' end}
 end}
+-- The closet's presets and favourites (closet/presets.lua; closet/presets_test tests it, closet/menu_test its rows):
+-- what new got. No preset and no favourite. It never reads: link.store here gives a name, not a file.
+pr={}
+package.loaded['closet.presets']={FILE='coop-closet-presets.txt',USE='Use: coop closet preset',new=function(o)
+    pr.o=o
+    return {list=function() return {} end,is_fav=function() return false end,fav=function() return true,'pr fav' end,
+        save=function() return 1,'pr save' end,wear=function() return true,'pr wear' end,
+        delete=function() return true,'pr delete' end,rename=function() return true,'pr rename' end}
+end}
 -- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
 -- stops, what a tick says; its scenes' words.
 sc={}

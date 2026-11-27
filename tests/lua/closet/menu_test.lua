@@ -42,7 +42,7 @@ local function rig(o)
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
         camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape,
-        options = o.options, uidev = function() return r.dev end})
+        options = o.options, presets = o.presets, uidev = function() return r.dev end})
     return r
 end
 -- A pack suit named Aria (first by name on the Full tab) with two variants, the second's mesh missing when the rig
@@ -72,6 +72,7 @@ local function with_aria(f, o)
         store.clear = function() store.file = nil end
         o.options = require('closet.options').new({store = store, dress = {plan = function() end,
             loads = function() return true end}, log = function() end})
+        if o.with then o.with(o) end
         local r = rig(o)
         r.store, r.options = store, o.options
         local ran, failed = pcall(f, r)
@@ -80,6 +81,24 @@ local function with_aria(f, o)
     Fits.use(nil)
     Fits.CHOSEN = {}
     ok(good, why)
+end
+-- f(r) as with_aria's, with real presets (closet/presets.lua, r.presets) on a fake store (r.pstore) over the rig's
+-- dress: the Full tab's rows Save look as preset, the presets, the filter, then the outfits.
+local function with_presets(f)
+    local box, pstore = {}, {}
+    pstore.save = function(l) pstore.file = l; return true end
+    pstore.load = function() return pstore.file end
+    pstore.clear = function() pstore.file = nil end
+    with_aria(function(r)
+        r.presets, r.pstore = box.p, pstore
+        box.r = r
+        f(r)
+    end, {with = function(o)
+        box.p = require('closet.presets').new({store = pstore, options = o.options, log = function() end,
+            dress = {choices = function() return box.r.dress.choices() end, installed = function() return true end,
+                wear = function() error('the menu wears through its preview') end}})
+        o.presets = box.p
+    end})
 end
 -- The menu row's SB hint parts as drawn now: {label, icon, icon2} right to left.
 local function menu_hints(r)
@@ -312,7 +331,7 @@ local tests = {
         for _, c in ipairs(rows[4].o.calls) do if c[1] == 'EventNotification' then looks[#looks + 1] = c[2] end end
         eq(looks[#looks], 'StateNormal', 'row 4 left: not focused')
         -- A transparent kit row over each slot row takes the mouse; it shows nothing while the part is there.
-        eq(#g.zones, 17, 'zones: 10 rows, 4 hint chips, 3 camera hint chips')
+        eq(#g.zones, 18, 'zones: 10 rows, 5 hint chips, 3 camera hint chips')
         for i, z in ipairs(g.zones) do
             eq(z.label, '', 'zone label ' .. i)
             if i <= 10 then eq(z.y, rows[i].y + 27, 'zone y ' .. i) end
@@ -2269,20 +2288,20 @@ local tests = {
             {x = 1672, text = w.camera.reset_hint, icon = 'UI_RightThumbstick'}}, 'camera hints')
         -- A click on a camera chip runs its word: the mode's, the reset's, then the light's zone.
         local zones = r.kit.groups.closet_menu.zones
-        eq(#zones, 17, 'three camera chips')
-        same({zones[15].x, zones[15].y, zones[15].w}, {1162, 1890, 420}, 'the mode chip zone')
-        same({zones[16].x, zones[16].y, zones[16].w}, {1672, 1890, 440}, 'the reset chip zone')
-        same({zones[17].x, zones[17].y, zones[17].w}, {432, 1890, 640}, 'the light chip zone')
-        zones[15].hover = true
+        eq(#zones, 18, 'ten rows, five menu hints, three camera chips')
+        same({zones[16].x, zones[16].y, zones[16].w}, {1162, 1890, 420}, 'the mode chip zone')
+        same({zones[17].x, zones[17].y, zones[17].w}, {1672, 1890, 440}, 'the reset chip zone')
+        same({zones[18].x, zones[18].y, zones[18].w}, {432, 1890, 640}, 'the light chip zone')
+        zones[16].hover = true
         at(r, 0.5, 'click')
         eq(cam.calls[#cam.calls], 'cam_mode', 'the mode chip')
-        zones[15].hover, zones[16].hover = false, true
+        zones[16].hover, zones[17].hover = false, true
         at(r, 0.6, 'click')
         eq(cam.calls[#cam.calls], 'cam_reset', 'the reset chip')
-        zones[16].hover, zones[17].hover = false, true
+        zones[17].hover, zones[18].hover = false, true
         at(r, 0.65, 'click')
         eq(cam.calls[#cam.calls], 'light_next', 'the light chip')
-        zones[17].hover = false
+        zones[18].hover = false
         -- The pad's X switched the mode inside the camera: the next tick shows it.
         cam.now = 'free'
         tick(r, 0.7)
@@ -2326,10 +2345,10 @@ local tests = {
             end
             -- A click on a chip still runs its word.
             local zones = r.kit.groups.closet_menu.zones
-            zones[17].hover = true
+            zones[18].hover = true
             at(r, 0.5, 'click')
             eq(cam.calls[#cam.calls], 'light_next', dev .. ': the light chip')
-            zones[17].hover = false
+            zones[18].hover = false
             -- The camera stopped: the row shows nothing.
             cam.on = false
             tick(r, 0.6)
@@ -2388,7 +2407,7 @@ local tests = {
         local r = rig({camera = fake_camera(), uidev = 1})
         r.menu.open()
         local zones = r.kit.groups.closet_menu.zones
-        local slots = {light = zones[17], mode = zones[15], reset = zones[16]}
+        local slots = {light = zones[18], mode = zones[16], reset = zones[17]}
         ok(slots.light.x + slots.light.w <= slots.mode.x, 'light zone before mode zone')
         ok(slots.mode.x + slots.mode.w <= slots.reset.x, 'mode zone before reset zone')
         ok(slots.reset.x + slots.reset.w <= 2112, 'reset zone by the edge')
@@ -2674,6 +2693,79 @@ local tests = {
             r.menu.nav('back')
             eq(#r.kit.inputs, calls, name .. ': nothing after the close')
         end
+    end,
+
+    -- F on an outfit's row marks it as a favourite (Select still wears it); the hint says Favourite, then Unfavourite,
+    -- on the top face button's action (SB draws F on the keyboard, the pad's button on a pad). The filter row turns
+    -- All / Favourites.
+    f_toggles_the_focused_favourite = function()
+        local P, H = T.en.closet.presets, T.en.closet.hints
+        with_presets(function(r)
+            r.menu.open()
+            eq((detail(r)), P.save, 'Save look as preset first')
+            at(r, 0.5, 'down')
+            eq((detail(r)), P.filter, 'then the filter row') eq(row_value(r, P.filter), P.all, 'All at first')
+            same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.change, 'UI_DPad_Left', 'UI_DPad_Right'},
+                {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}}, 'the filter row\'s hints')
+            at(r, 0.6, 'down')
+            eq((detail(r)), 'Aria', 'the first outfit')
+            same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.whole, 'Positive', 'None'},
+                {H.options, 'UI_DPad_Right', 'None'}, {H.fav, 'UI_FaceButton_Top', 'None'},
+                {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}}, 'the Favourite hint, Move still shown')
+            at(r, 0.7, 'refresh')
+            eq(r.presets.is_fav(ARIA), true, 'F marks it') eq(#r.previews, 0, 'F wears nothing')
+            eq(row_value(r, 'Aria'), P.fav:format('aria'), 'the row says it')
+            eq(menu_hints(r)[4][1], H.unfav, 'the hint turns')
+            r.dev = 4 -- A pad: the same action, SB draws the pad's button.
+            tick(r, 0.75)
+            eq(menu_hints(r)[4][2], 'UI_FaceButton_Top', 'the pad\'s top face button')
+            at(r, 0.8, 'up', 'right')
+            eq(row_value(r, P.filter), P.favourites, 'the filter on Favourites')
+            at(r, 0.9, 'down')
+            eq((detail(r)), 'Aria', 'the favourite listed')
+            at(r, 1, 'down')
+            eq((detail(r)), T.en.closet.row.thumbs, 'no other outfit: Make preview pictures next')
+            at(r, 1.1, 'up', 'select')
+            same(r.previews[1], {{fit = ARIA}}, 'Select still wears the outfit')
+            at(r, 1.2, 'refresh')
+            eq(r.presets.is_fav(ARIA), false, 'F again: not a favourite')
+            eq((detail(r)), T.en.closet.row.thumbs, 'it leaves the Favourites list')
+        end)
+    end,
+    -- Save look as preset keeps the worn outfit as Preset n; Select on a preset wears it as a preview; F asks Delete
+    -- this preset? with the game's Yes/No popup: No keeps it, Yes deletes it.
+    delete_asks_yes_no = function()
+        local P, H = T.en.closet.presets, T.en.closet.hints
+        with_presets(function(r)
+            r.choices = {{fit = 'AiK_CH27_14595', slots = {'Chest'}}}
+            r.menu.open()
+            at(r, 0.5, 'select')
+            eq(#r.presets.list(), 0, 'pieces of an outfit: no preset')
+            eq(r.told[#r.told], P.none, 'said why')
+            r.choices = {{fit = ARIA}}
+            r.options.set_variant(ARIA, 3)
+            at(r, 0.6, 'select')
+            eq(#r.presets.list(), 1, 'saved') eq(r.told[#r.told], P.saved:format(P.name:format(1)), 'told')
+            at(r, 0.7, 'down')
+            local title, desc = detail(r)
+            eq(title, P.name:format(1), 'Preset 1') ok(desc:find('Aria', 1, true), desc)
+            eq(row_value(r, P.name:format(1)), 'Aria', 'its outfit as the value')
+            same(menu_hints(r), {{T.en.hint.back, 'Negative', 'None'}, {H.wear, 'Positive', 'None'},
+                {H.delete, 'UI_FaceButton_Top', 'None'}, {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}},
+                'the preset\'s hints')
+            r.options.set_variant(ARIA, 1)
+            r.choices = nil
+            at(r, 0.8, 'select')
+            same(r.previews[1], {{fit = ARIA}}, 'Select wears it as a preview')
+            eq(r.options.variant(ARIA), 3, 'with its variant')
+            at(r, 0.9, 'refresh')
+            eq(popups(r), 1, 'Delete this preset? asks')
+            at(r, 1, 'no')
+            eq(popups(r), 0, 'No: the popup goes') eq(#r.presets.list(), 1, 'kept')
+            at(r, 1.1, 'refresh', 'yes')
+            eq(#r.presets.list(), 0, 'Yes: deleted') eq(r.menu.is_open(), true, 'the menu stays open')
+            eq((detail(r)), P.filter, 'the focus on the row that took its place')
+        end)
     end,
 }
 
