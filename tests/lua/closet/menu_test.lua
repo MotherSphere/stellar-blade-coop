@@ -1602,6 +1602,22 @@ local tests = {
             Fits.get(MAID).Image = image
             eq(looked, false, 'not looked up')
             eq(grid(r).items[2].IconAssetPath, F.path('top'), 'the glyph')
+            -- A pack's Image that memory and LoadAsset do not find: the asset registry helpers' GetAsset does.
+            local path = Fits.get(MAID).Image
+            F.textures[path] = true
+            local asset = find(path)
+            StaticFindObject = function(p)
+                if p == path then return nil end
+                if p == '/Script/AssetRegistry.Default__AssetRegistryHelpers' then
+                    return {GetAsset = function(_, data) return data.ObjectPath == path and asset or nil end}
+                end
+                return find(p)
+            end
+            r = rig({folder = 'F'})
+            on_top(r)
+            StaticFindObject = find
+            F.textures[path] = nil
+            eq(grid(r).items[2].IconAssetPath, path, 'Ocean Maid: its Image, found through the asset registry')
         end)
         Thumbs.fs.exists = exists
         F.textures = {}

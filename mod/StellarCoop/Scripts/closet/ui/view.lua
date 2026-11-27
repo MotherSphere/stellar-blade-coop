@@ -172,13 +172,20 @@ function View.fit(value)
     return table.concat(out)..'...'
 end
 
--- A game object by path: in memory, else after a synchronous LoadAsset (closet/ui/probe.lua's default_find).
+-- A game object by path: in memory, else after a synchronous LoadAsset (closet/ui/probe.lua's default_find), else
+-- the asset registry helpers' GetAsset: a mod pack's asset that the cooked registry does not list (pack outfit images
+-- were not found before, 27 Nov 2026). The registry step is a copy of closet/dress.lua's resolve.
 local function find(path)
     local o=StaticFindObject(path)
     if o and o:IsValid() then return o end
     pcall(LoadAsset,path:match('^(.*)_C$') or path)
     o=StaticFindObject(path)
-    return o and o:IsValid() and o or nil
+    if o and o:IsValid() then return o end
+    local got,asset=pcall(function()
+        local helpers=StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers')
+        return helpers:GetAsset({ObjectPath=FName(path)})
+    end)
+    return got and asset and asset:IsValid() and asset or nil
 end
 
 function View.new(kit,log)
