@@ -50,6 +50,7 @@ View.CHECK=0.25 -- s between two looks at the shown tiles' glyphs (v.tick).
 -- brush (its Set calls SetBrushFromTexture with bMatchSize false, widget JSON), so an opaque picture filled the tile
 -- past its frame while the game's hair icons are white art in a clear margin (Schizo's screenshots of 27 Nov 2026).
 View.PICTURE_SCALE=0.55
+View.SHOW=1 -- s after a fill or a move in the grid that the shown slots are looked at for a stuck spawn animation.
 View.HOLD=64 -- Hidden kit images that hold the shown tiles' pictures (a grid of 64 tiles).
 -- The glyphs a hidden kit image may hold: None's, the origin badges' and each slot's (closet/slots.lua).
 View.GLYPHS={'none','original','custom'}
@@ -261,6 +262,9 @@ function View.new(kit,log)
     -- filled more than 3 times in 5 s is said with its last change (the picture glitch of 27 Nov 2026).
     local fills,fill_note,filled_names,check_fills=0,'',{},0
     local brushed={} -- Tile indices set by brush since the last fill, each said once.
+    -- show_due: a fill or a move in the grid since the last tick; show_until: the end of the looks for slots left
+    -- mid spawn animation (View.SHOW s after it); show_at: the next look; unstuck: such slots said, once a fill.
+    local show_due,show_until,show_at,unstuck=false,-1,0,0
     local function make(class,x,y,w,h,fill,hit)
         local rec,why=kit.part(View.GROUP,class,x,y,w,h,fill,hit)
         if not rec then error(why,0) end
@@ -475,7 +479,7 @@ function View.new(kit,log)
         end
         if sig~=tiles_sig then
             tiles_sig,selected=sig,nil
-            fills,brushed=fills+1,{}
+            fills,brushed,show_due,unstuck=fills+1,{},#names>0,0
             local changed={}
             for i=1,math.max(#names,#filled_names) do
                 if names[i]~=filled_names[i] and #changed<4 then
@@ -515,7 +519,7 @@ function View.new(kit,log)
             if not filled then tiles_sig=nil end
         end
         if s.tiles and s.tile and s.tile~=selected then
-            selected=s.tile
+            selected,show_due=s.tile,true
             -- UListView.ScrollIndexIntoView(Index int): native table entry 0x1461e8850 (name 0x1461e6f90), exec
             -- 0x143d4b0d0 reads the index, checks it against the list's items (+0x810, count +0x818) and gives that
             -- item to the Slate list to scroll to (+0x728, then FUN_142e28210) (Ghidra, build 26123051, 27 Nov 2026).
@@ -612,7 +616,31 @@ function View.new(kit,log)
     -- Each frame while open (closet/ui/menu.lua's tick; t: its time in s). After a fill, a look at the shown tiles each
     -- View.CHECK s until one finds each with its glyph (Slate builds them on later frames). A tile that lacks it (its
     -- path did not load in the slot) gets it on its Image_Icon. From then on every look does that, said once.
+    -- A slot the TileView took back mid ListSpawn (WB_HairSalon_GridSlot's animation: SizeBox_20's RenderOpacity from 0
+    -- and a RenderTransform slide, widget JSON) stays see-through: with no animation playing it is shown whole.
+    -- UUserWidget IsAnyAnimationPlaying (native entry 0x1461fe0c0, exec 0x143d69990: its active players at +0x1c8 > 0),
+    -- UWidget GetRenderOpacity (entry 0x146202f10, exec 0x143d75050), SetRenderOpacity (entry 0x1462030d0, exec
+    -- 0x143d74f80), SetRenderTranslation (entry 0x146203130, exec 0x143d758b0 writes the FVector2D at +0x90) (Ghidra,
+    -- build 26123051, 27 Nov 2026).
+    local function unstick(entry)
+        local box=entry.SizeBox_20
+        if not box or entry:IsAnyAnimationPlaying() or box:GetRenderOpacity()>=0.99 then return end
+        box:SetRenderOpacity(1)
+        box:SetRenderTranslation({X=0,Y=0})
+        unstuck=unstuck+1
+        if unstuck==1 then log('menu: tile '..(entry.Data.Index+1)..' was left mid spawn animation: shown') end
+    end
     function v.tick(t)
+        if show_due then show_due,show_until,show_at=false,t+View.SHOW,0 end
+        local show=t<show_until and t>=show_at
+        if show then show_at=t+View.CHECK end
+        local glyph_look=glyphed and (checking or by_brush) and t>=check_at
+        -- A look for stuck slots on its own only when the glyph look below does not run this tick.
+        if show and not glyph_look then
+            call(grid,'grid show',function(w)
+                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry) unstick(entry) end)
+            end)
+        end
         if t>=check_fills then
             if fills>3 then log('menu: the grid filled '..fills..' times in 5 s; last change '..fill_note) end
             fills,check_fills=0,t+5
@@ -637,11 +665,12 @@ function View.new(kit,log)
                 end)
             end)
         end
-        if not (glyphed and (checking or by_brush)) or t<check_at then return end
+        if not glyph_look then return end
         check_at=t+View.CHECK
         local seen,wrong,done=0,0,false
         call(grid,'grid glyphs',function(w)
             U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                if show then unstick(entry) end
                 local g=glyphed[entry.Data.Index+1]
                 if not g then return end
                 seen=seen+1

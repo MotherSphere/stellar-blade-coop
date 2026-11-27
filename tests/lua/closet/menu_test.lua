@@ -3579,6 +3579,26 @@ local tests = {
         end, o)
     end,
 
+    a_tile_left_mid_spawn_animation_is_shown = function()
+        -- WB_HairSalon_GridSlot's ListSpawn fades its SizeBox_20 in (RenderOpacity from 0) and slides it; a slot the
+        -- TileView took back mid-animation as the grid scrolled stayed see-through, frame and all (Schizo's screenshot
+        -- of 27 Nov 2026). After a fill or a move in the grid each shown slot with no animation playing is shown whole.
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            local entries = tv:GetDisplayedEntryWidgets()
+            entries[2].SizeBox_20.opacity, entries[2].SizeBox_20.translation = 0, {X = 0, Y = 40}
+            entries[3].SizeBox_20.opacity, entries[3].playing = 0.2, true
+            at(r, 0.6, 'right')
+            tick(r, 1.0)
+            eq(entries[2].SizeBox_20.opacity, 1, 'the stuck slot shown')
+            same(entries[2].SizeBox_20.translation, {X = 0, Y = 0}, 'back in place')
+            eq(entries[3].SizeBox_20.opacity, 0.2, 'a slot still animating left to its animation')
+            has(r.log, 'mid spawn animation', 'said')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
     the_grid_scrolls_to_the_focused_tile = function()
         -- 13 hair tiles in rows of 4 (in game only two rows showed and the focus ran off them, Schizo, 27 Nov 2026):
         -- each move asks the TileView to bring the focused tile into view.

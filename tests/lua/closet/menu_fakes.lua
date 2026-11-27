@@ -121,8 +121,13 @@ local function tileview(events)
                     self.Brush.ResourceObject = t
                     self.set[#self.set + 1] = {t, match}
                 end
-                e = {Data = item, Image_Icon = icon, equips = {}}
+                local box = {opacity = 1, translation = {X = 0, Y = 0}}
+                function box:GetRenderOpacity() return self.opacity end
+                function box:SetRenderOpacity(o) self.opacity = o end
+                function box:SetRenderTranslation(v) self.translation = {X = v.X, Y = v.Y} end
+                e = {Data = item, Image_Icon = icon, equips = {}, SizeBox_20 = box, playing = false}
                 function e:UpdateEquip(on) self.equips[#self.equips + 1] = on end
+                function e:IsAnyAnimationPlaying() return self.playing end
                 self.entries[item] = e
             end
             out[k] = e
