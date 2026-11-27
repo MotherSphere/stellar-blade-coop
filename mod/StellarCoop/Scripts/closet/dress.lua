@@ -445,7 +445,8 @@ function Dress.new(o)
     end
 
     -- kept: the confirmed choices of a preview (or false), nil when none is going.
-    local function apply(plan,choices,kept)
+    -- base: her own look ({own=,materials=}) a mix again carries over, so its first save already holds it.
+    local function apply(plan,choices,kept,base)
         local eve=her()
         if not eve then return nil,'no EVE in the world' end
         local body=valid(eve.Mesh)
@@ -459,7 +460,8 @@ function Dress.new(o)
         end
         -- Her own look first, kept across a mix that changes (the first mix's).
         local own,materials=state and state.own,state and state.materials
-        if not state then
+        if base then own,materials=base.own,base.materials
+        elseif not state then
             local mesh=valid(body.SkeletalMesh)
             own,materials=mesh and path_of(mesh) or '',current_materials(body)
         end
@@ -827,9 +829,8 @@ function Dress.new(o)
             local old,before=state,applied
             state=nil
             sweep(eve,was) -- The earlier added meshes: a forced body's plan adds other outfits.
-            local ok,why=apply(plan,choices,kept)
-            if ok then state.own,state.materials=own,materials; keep()
-            else
+            local ok,why=apply(plan,choices,kept,{own=own,materials=materials})
+            if not ok then
                 log('mix again failed: '..tostring(why))
                 -- Failed before it changed anything (off() counts in applied): tried again next second.
                 -- The fight count stops the retries after Dress.FIGHT.mixes.

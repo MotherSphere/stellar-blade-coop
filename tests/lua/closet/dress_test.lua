@@ -653,6 +653,27 @@ local tests = {
         w.d.off()
         eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off still gives her own look')
     end,
+    -- A mix again with the closet mesh still on her body writes her own look in its first save: a later save that
+    -- fails never leaves the closet mesh in coop-closet.txt as her own look.
+    a_mix_again_saves_her_own_look_first = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH27_14595', slots = {'Chest'}}, {fit = 'AiK_CH46_xSH_14462',
+            slots = {'Shoes'}}}))
+        w.eve.comps[2]:K2_DestroyComponent()
+        local lines = {}
+        w.store.save = function(line)
+            lines[#lines + 1] = line
+            if #lines > 1 then return false, 'disk full' end
+            w.file = line
+            return true
+        end
+        second(w) second(w)
+        ok(logged(w, 'mix again'))
+        eq(fields(lines[1])[2], OWN, 'the first save keeps her own look')
+        eq(fields(w.file)[2], OWN, 'the file keeps her own look')
+        w.d.off()
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off gives her own look')
+    end,
     -- A mix again that fails before it changes anything (her body mesh not valid) is tried again the next second.
     a_failed_mix_again_is_tried_again = function()
         local w = world()
