@@ -2590,7 +2590,7 @@ local tests = {
         tick(r, 0.2)
         local w = T.en.closet
         local function camera_hints() return (camera_row(r)) end
-        same(camera_hints(), {{x = 112, text = w.picture.pad, icon = 'UI_SpecialLeft'},
+        same(camera_hints(), {{x = 112, text = w.picture.pad, icon = 'UI_Scan'},
             {x = 600, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
             {x = 1162, text = w.camera.title:format(w.camera.region), icon = 'UI_FaceButton_Left'},
             {x = 1672, text = w.camera.reset_hint, icon = 'UI_RightThumbstick'}}, 'camera hints')
@@ -2676,7 +2676,7 @@ local tests = {
             r.menu.open()
             local w = T.en.closet
             local parts, texts = camera_row(r)
-            same(parts, {{x = 112, text = w.picture.pad, icon = 'UI_SpecialLeft'},
+            same(parts, {{x = 112, text = w.picture.pad, icon = 'UI_Scan'},
                 {x = 600, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
                 {x = 1162, text = w.camera.title:format(w.camera.region), icon = 'UI_FaceButton_Left'},
                 {x = 1672, text = w.camera.reset_hint, icon = 'UI_RightThumbstick'}}, dev .. ': SB parts')
@@ -2768,7 +2768,12 @@ local tests = {
         local MAPPED = {Negative = true, Positive = true, UI_FaceButton_Top = true, UI_DPad_Up = true,
             UI_DPad_Down = true, UI_LeftShoulder = true, UI_RightShoulder = true}
         local CAMERA = {UI_LeftThumbstick = true, UI_FaceButton_Left = true, UI_RightThumbstick = true,
-            UI_SpecialLeft = true}
+            UI_Scan = true}
+        -- Some of the actions with an entry in SB's /Game/Art/UI/TextureStyleSet/SBCommonBrush, where the hint widget
+        -- reads its icon: an action without one shows the widget's default white circle (btn_ps_00).
+        local BRUSH = {Negative = true, Positive = true, UI_FaceButton_Top = true, UI_FaceButton_Left = true,
+            UI_DPad_Up = true, UI_DPad_Down = true, UI_DPad_Left = true, UI_DPad_Right = true, UI_LeftShoulder = true,
+            UI_RightShoulder = true, UI_LeftThumbstick = true, UI_RightThumbstick = true, UI_Scan = true}
         for _, dev in ipairs({1, 3}) do
             local pad = dev >= 3
             local cam = fake_camera()
@@ -2790,6 +2795,7 @@ local tests = {
                         if c[1] == 'SetText' then text = c[2].text elseif c[1] == 'SetResourceAction' then icon = c[2] end
                     end
                     no_key(text, what .. ' SB part')
+                    ok(BRUSH[icon], what .. ': SB has no icon for ' .. tostring(icon))
                     if pad then ok(MAPPED[icon] or CAMERA[icon], what .. ': pad part ' .. tostring(icon))
                     else ok(MAPPED[icon], what .. ': keyboard part ' .. tostring(icon)) end
                 end

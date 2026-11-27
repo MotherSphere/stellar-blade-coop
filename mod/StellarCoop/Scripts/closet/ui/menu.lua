@@ -408,9 +408,12 @@ function Menu.new(o)
             s.camera_hints={{w.camera.title:format(w.camera[camera.mode()]),'UI_FaceButton_Left',word='cam_mode',
                 key=w.keys.mode},{w.camera.reset_hint,'UI_RightThumbstick',word='cam_reset',key=w.keys.reset},
                 {w.light.title:format(light),'UI_LeftThumbstick',word='light_next',key=w.keys.light},
-                -- UI_SpecialLeft: SB's UI action for the pad's View button, a UTF-16 string of the same exe at
-                -- 0x145c4ec28 (Ghidra, 27 Nov 2026), in the list with UI_LeftThumbstick; held, it takes the picture.
-                {s.pad and w.picture.pad or w.picture.hint,'UI_SpecialLeft',word='picture',key=w.keys.picture}}
+                -- UI_Scan: the hint's icon for the pad's View button (the DualSense touchpad), which held takes the
+                -- picture. WB_Common_IndicatorBtnDefault's SetResourceAction draws its brush from the asset
+                -- /Game/Art/UI/TextureStyleSet/SBCommonBrush, whose UI_Scan entry is btn_ps_track (the touchpad) on
+                -- PS4 / PS5 and KeyIcon_XboxOne_Gamepad_Special_Left (View) on Xbox. That asset has no UI_SpecialLeft
+                -- entry: the hint kept its default btn_ps_00, a white circle (read 27 Nov 2026).
+                {s.pad and w.picture.pad or w.picture.hint,'UI_Scan',word='picture',key=w.keys.picture}}
         end
         s.detail={title=shown and (shown.plain or shown.title) or '',desc=''}
         if item and item.whole then
