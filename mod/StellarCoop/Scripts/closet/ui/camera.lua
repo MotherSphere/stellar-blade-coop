@@ -95,9 +95,10 @@ Camera.MOUSE,Camera.MPAN=0.25,0.25 -- degrees a right drag orbits, cm a middle d
 Camera.CLICK=8 -- layout units: a right press released with less mouse movement is Back.
 Camera.MEASURE=Camera.BLEND+0.1 -- s after an open: the lens is measured once the view is ours.
 Camera.LENS_TOL,Camera.LENS_TRIES=0.1,30 -- A reading's tangent within 10% of an axis rule's; readings before giving up.
--- Each region's framing (starting values, to tune in game): {centre, span} in parts of her height from her feet, the
--- span filling the screen's height; {yaw, pitch} in degrees.
-Camera.REGIONS={head={0.92,0.20,15,5},torso={0.70,0.34,15,8},arms={0.64,0.46,25,8},hands={0.47,0.20,25,12},
+-- Each region's framing: {centre, span} in parts of her height from her feet, the span filling the screen's height;
+-- {yaw, pitch} in degrees. Starting values to tune in game. The head was tuned there: her capsule is taller than her
+-- head, so 0.92 aimed above it; her face sits at about 0.80.
+Camera.REGIONS={head={0.80,0.22,15,5},torso={0.70,0.34,15,8},arms={0.64,0.46,25,8},hands={0.47,0.20,25,12},
     hips={0.52,0.28,20,5},legs={0.27,0.56,15,8},feet={0.05,0.16,20,25},full={0.52,1.10,15,5}}
 -- TAB: each menu tab's region (closet/slots.lua Slots.MENUS); SLOT: the slots that go to the hands or the feet.
 local TAB={full='full',head='head',torso='torso',arms='arms',hips='hips',intimate='hips',legs='legs',body='full',
