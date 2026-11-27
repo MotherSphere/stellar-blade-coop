@@ -494,7 +494,7 @@ end)()
         local c={words={},closes=0,up=true}
         c.is_open=function() return c.up end
         c.nav=function(word) c.words[#c.words+1]=word end
-        c.close=function() c.closes=c.closes+1; c.up=false end
+        c.close=function(how,why) c.closes,c.how,c.why=c.closes+1,how,why; c.up=false end
         return c
     end
     local c=spy()
@@ -541,6 +541,11 @@ end)()
     for _,k in ipairs({'E','Q','F','SPACE','ESCAPE','J','C','BACKSPACE'}) do key(k) end
     M.ui_reset()
     assert(not logged('error'),'the stub takes no key and raises nothing')
+    -- coop_ui_off_closes_the_closet_menu: as coop ui reset does (its preview turned down), before the kit stops.
+    M.closet_menu=c
+    c.up=true
+    coop('ui','off')
+    assert(c.closes==2 and not c.up and c.how=='revert' and c.why=='coop ui off','coop ui off closes the closet menu')
 end)()
 
 -- The pad's closet event (LB held + D-pad Left, the native part's 14) runs the closet menu's toggle as closet_key does.
