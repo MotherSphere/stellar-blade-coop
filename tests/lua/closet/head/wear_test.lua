@@ -133,7 +133,13 @@ local raven = asset(PACK .. 'CH_M_NA_53_Facial.CH_M_NA_53_Facial', {'/Script/Eng
     {Skeleton = raven_skeleton, Materials = {{MaterialInterface = material('P/MI_raven')}}})
 local ear01 = mesh('00_ACC/ACC_EAR_01/ACC_EAR_01M', {material('00_ACC/ACC_EAR_01/MI_EAR_01')})
 local ear01_anim = asset(p('00_ACC/ACC_EAR_01/ACC_EAR_01M_AnimBP') .. '_C', ANIM)
-local glasses = mesh('00_ACC/ACC_GLA_01/ACC_GLA_01M', {material('00_ACC/ACC_GLA_01/MI_GLA_01')})
+-- Stock glasses on their own one-bone skeleton (ACC_GLA_01M_Skeleton), two of them, and a pack hat on the body's.
+local glasses = mesh('00_ACC/ACC_GLA_01/ACC_GLA_01M', {material('00_ACC/ACC_GLA_01/MI_GLA_01'),
+    material('00_ACC/ACC_GLA_01/MI_ACC_Glass_Base')})
+local glasses2 = mesh('00_ACC/ACC_GLA_29/ACC_GLA_29M', {material('00_ACC/ACC_GLA_29/MI_GLA_29')})
+glasses.Skeleton = asset('/Game/G/ACC_GLA_01M_Skeleton.ACC_GLA_01M_Skeleton', {'/Script/Engine.Skeleton'})
+glasses2.Skeleton = glasses.Skeleton
+local hat = mesh('P/Hat', {material('P/MI_Hat')})
 
 -- The head fits as closet/fits.lua gives them (Fits.get), in each outfit's chosen variant.
 local chosen = {}
@@ -178,8 +184,10 @@ local ITEMS = {
             MaterialIndex = 4}}}},
     ['SB.FaceAccessory_001'] = {Slot = 'Glasses', Origin = 'original', Mesh = glasses.at_path,
         Variants = {{Mesh = glasses.at_path, Materials = {}}}},
-    ['p.hat'] = {Slot = 'Headwear', Origin = 'custom', Mesh = glasses.at_path,
-        Variants = {{Mesh = glasses.at_path, Materials = {}}}},
+    ['SB.FaceAccessory_029'] = {Slot = 'Glasses', Origin = 'original', Mesh = glasses2.at_path,
+        Variants = {{Mesh = glasses2.at_path, Materials = {}}}},
+    ['p.hat'] = {Slot = 'Headwear', Origin = 'custom', Mesh = hat.at_path,
+        Variants = {{Mesh = hat.at_path, Materials = {}}, {Mesh = hat.at_path, Materials = {band.at_path}}}},
     ['p.mask'] = {Slot = 'Mask', Origin = 'custom', Mesh = glasses.at_path,
         Variants = {{Mesh = glasses.at_path, Materials = {}}}},
 }
@@ -245,6 +253,11 @@ local function part(eve_name, name, fields)
         rawset(self, 'visible', v); said(name, 'visible', tostring(v))
     end
     function c:IsVisible() return rawget(self, 'visible') end
+    -- A made component's calls (closet/head/made.lua).
+    function c:SetCollisionEnabled() end
+    function c:K2_AttachToComponent(parent, socket) said(name, 'attach', parent.name, socket) end
+    function c:SetMasterPoseComponent(x) said(name, 'master', x.name) end
+    function c:K2_DestroyComponent(x) assert(x == self); rawset(self, 'destroyed', true); said(name, 'destroy') end
     function c:K2_SetRelativeRotation(r, sweep, _, teleport)
         assert(sweep == false and teleport == false)
         rawset(self, 'RelativeRotation', {Pitch = r.Pitch, Yaw = r.Yaw, Roll = r.Roll})
@@ -260,7 +273,7 @@ local function part(eve_name, name, fields)
 end
 -- EVE: strict, so a read of anything but these fails the test (her equipment and saves among them).
 local ALLOWED = {Mesh = true, K2_GetComponentsByClass = true, IsA = true, GetFullName = true, IsValid = true,
-    type = true, GetAddress = true, destroyed = true}
+    type = true, GetAddress = true, destroyed = true, AddComponentByClass = true}
 local function eve_of(name, o)
     o = o or {}
     local e = object()
@@ -277,6 +290,14 @@ local function eve_of(name, o)
     function e:K2_GetComponentsByClass(k)
         assert(k.path == '/Script/Engine.SkeletalMeshComponent')
         return parts
+    end
+    -- Each made component gets the next name of its class (SBSkeletalMeshComponent_<n>).
+    e.made = {}
+    function e:AddComponentByClass(k, manual, _, deferred)
+        assert(k.path == '/Script/SB.SBSkeletalMeshComponent' and manual == true and deferred == false)
+        local c = part(name, 'SBSkeletalMeshComponent_' .. #e.made, {})
+        e.made[#e.made + 1], parts[#parts + 1] = c, c
+        return c
     end
     e.parts, e.hair, e.pony, e.short, e.read = parts, parts[3], parts[4], parts[5], {}
     e.face, e.acc = parts[2], parts[6]
@@ -821,25 +842,99 @@ local tests = {
         ok(not since(0):find('SBPonytail', 1, true), since(0))
     end,
 
-    -- Glasses, Headwear and Mask go on a component the closet makes (not built yet): that slot alone stays unworn and
-    -- is said so (never a false success); the rest of the list is worn.
-    made_slots_are_not_worn_yet = function()
-        for _, c in ipairs({{fit = 'SB.FaceAccessory_001', slot = 'Glasses'}, {fit = 'p.hat', slot = 'Headwear'},
-                {fit = 'p.mask', slot = 'Mask'}}) do
-            local w = world()
-            ok(w.wear({hair('SB.Hair_001'), c}))
-            eq(w.eve.hair.SkeletalMesh, h07, 'the hair worn')
-            ok(not since(0):find(short(glasses), 1, true), since(0))
-            same(w.head.worn(), {['SB.Hair_001'] = 'Hair'})
-            same(w.head.unworn(), {[c.fit] = c.slot})
-            local said_it = 0
-            for _, l in ipairs(w.logs) do if l:find('not worn: ' .. c.fit, 1, true) then said_it = said_it + 1 end end
-            eq(said_it, 1, table.concat(w.logs, ' / '))
-        end
-        -- Only a made slot: nothing worn, nothing called.
+    -- Glasses, Headwear and Mask go on a component the closet makes: a piece on another skeleton than the body's on the
+    -- head socket with SBAccSlot1's rotation, one on the body's skeleton master-posed to her body.
+    made_slots_wear_on_a_made_component = function()
+        local w = world()
+        local GLA = {fit = 'SB.FaceAccessory_001', slot = 'Glasses'}
+        ok(w.wear({hair('SB.Hair_001'), GLA}))
+        eq(w.eve.hair.SkeletalMesh, h07, 'the hair worn')
+        ok(since(0):find('|SBSkeletalMeshComponent_0 attach CharacterMesh0 Bip001-Head|SBSkeletalMeshComponent_0 '
+            .. 'rotation -90 180 90|SBSkeletalMeshComponent_0 mesh ACC_GLA_01M true|SBSkeletalMeshComponent_0 '
+            .. 'material 0 MI_GLA_01|SBSkeletalMeshComponent_0 material 1 MI_ACC_Glass_Base|save', 1, true), since(0))
+        local c = w.eve.made[1]
+        eq(#w.eve.made, 1) eq(c.SkeletalMesh, glasses)
+        same(w.head.worn(), {['SB.Hair_001'] = 'Hair', ['SB.FaceAccessory_001'] = 'Glasses'})
+        same(w.head.unworn(), {})
+        local parts = w.head.parts()
+        same(parts[#parts], {c = c, fit = 'SB.FaceAccessory_001', mesh = glasses.at_path,
+            slots = {[0] = 'Glasses', [1] = 'Glasses'}, head = true})
+        -- The same list again: no call.
+        local n = #calls
+        ok(w.wear({hair('SB.Hair_001'), GLA}))
+        eq(since(n), 'save|save')
+        -- A body-skeleton piece follows her pose, no socket.
+        w = world()
+        ok(w.wear({{fit = 'p.hat', slot = 'Headwear'}}))
+        eq(since(0), 'save|SBSkeletalMeshComponent_0 attach CharacterMesh0 None|SBSkeletalMeshComponent_0 mesh Hat '
+            .. 'true|SBSkeletalMeshComponent_0 master CharacterMesh0|SBSkeletalMeshComponent_0 material 0 MI_Hat|save')
+        chosen['p.hat'] = 2 -- A variant change: its materials only, on the same component.
+        n = #calls
+        ok(w.head.rewear('p.hat'))
+        eq(since(n), 'SBSkeletalMeshComponent_0 material 0 MI_Band') eq(#w.eve.made, 1)
+        clean(w.eve)
+    end,
+
+    -- Never two of one slot: the next piece makes a new component and destroys the last, with all its materials.
+    never_two_of_one_made_slot = function()
+        local w = world()
+        ok(w.wear({{fit = 'SB.FaceAccessory_001', slot = 'Glasses'}}))
+        local n = #calls
+        ok(w.wear({{fit = 'SB.FaceAccessory_029', slot = 'Glasses'}}))
+        ok(since(n):find('^save|SBSkeletalMeshComponent_0 destroy|SBSkeletalMeshComponent_1 attach'), since(n))
+        eq(w.eve.made[1]:IsValid(), false) eq(w.eve.made[2].SkeletalMesh, glasses2)
+        eq(#w.eve.made[2].OverrideMaterials, 1, 'no material of the last piece')
+        -- Glasses and a mask together: one component each.
+        ok(w.wear({{fit = 'SB.FaceAccessory_029', slot = 'Glasses'}, {fit = 'p.mask', slot = 'Mask'}}))
+        eq(#w.eve.made, 3) eq(w.eve.made[2]:IsValid(), true) eq(w.eve.made[3]:IsValid(), true)
+    end,
+
+    -- Taken off (its None tile), closet off and coop off destroy a made component.
+    a_made_piece_off_is_destroyed = function()
+        local w = world()
+        ok(w.wear({hair('SB.Hair_001'), {fit = 'p.mask', slot = 'Mask'}}))
+        local n = #calls
+        ok(w.wear({hair('SB.Hair_001')}))
+        eq(since(n), 'save|SBSkeletalMeshComponent_0 destroy|save')
+        same(w.head.worn(), {['SB.Hair_001'] = 'Hair'})
+        ok(w.wear({{fit = 'p.mask', slot = 'Mask'}}))
+        n = #calls
+        ok(w.head.give_back())
+        eq(since(n), 'SBSkeletalMeshComponent_1 destroy') same(w.head.parts(), {})
+        ok(w.wear({{fit = 'p.mask', slot = 'Mask'}}))
+        w.head.stop()
+        eq(w.eve.made[3]:IsValid(), false)
+        ok(not w.head.line():find('Mask', 1, true), 'off: no made piece in the line')
+    end,
+
+    -- The line names the made piece's mesh; the next Lua load sweeps the leftover by its name prefix and that mesh,
+    -- then the dress's restore wears the kept look again: one component.
+    a_made_leftover_is_swept_at_the_next_load = function()
+        local w = world()
+        ok(w.wear({{fit = 'SB.FaceAccessory_001', slot = 'Glasses'}}))
+        ok(w.file:find('|Glasses;+;' .. glasses.at_path, 1, true), w.file)
+        local logs = {}
+        local h2 = Head.new({log = function(m) logs[#logs + 1] = m end, fits = fits})
+        h2.restore(w.file)
+        eq(w.eve.made[1]:IsValid(), false)
+        ok(logs[1]:find('Glasses removed', 1, true), tostring(logs[1]))
+        ok(h2.wear({{fit = 'SB.FaceAccessory_001', slot = 'Glasses'}}))
+        local live = 0
+        for _, c in ipairs(w.eve.made) do if c:IsValid() then live = live + 1 end end
+        eq(live, 1)
+    end,
+
+    -- A made component gone (something destroyed it, a new EVE) is made again by the watchdog.
+    a_lost_made_piece_comes_back = function()
         local w = world()
         ok(w.wear({{fit = 'p.mask', slot = 'Mask'}}))
-        eq(since(0), 'save|save') same(w.head.worn(), {})
+        w.eve.made[1].destroyed = true
+        w.tick(1) w.tick(1)
+        eq(#w.eve.made, 2) eq(w.eve.made[2].SkeletalMesh, glasses)
+        local eve2 = eve_of('EVE_2')
+        player = eve2
+        w.tick(1) w.tick(1)
+        eq(#eve2.made, 1, 'made on the new EVE') eq(w.eve.made[2]:IsValid(), false, 'the old EVE\'s destroyed')
     end,
 
     -- Off gives each component the game's own back: no closet AnimBP or material left behind.

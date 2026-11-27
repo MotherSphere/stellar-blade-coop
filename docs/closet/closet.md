@@ -93,6 +93,7 @@ The files in `mod/StellarCoop/Scripts/closet/head/` make the Head tab's pieces. 
 | `head/stock.lua` | The stock hairs and ponytails: the game's three tables read live as pack-shaped items, their salon colours and colour controls |
 | `head/cut.lua` | The two cut hairs (Nyaaa, Mecha Rabbit), their paths read in the game's asset data |
 | `head/wear.lua` | The dress's head part: the Hair and Ponytail fits on EVE's own head components, the ponytail rule, field 6 of `coop-closet.txt`, its own watchdog |
+| `head/made.lua` | The components the closet makes for Glasses, Headwear and Mask: made, put on the head socket or master-posed to her body, destroyed, an earlier Lua load's swept |
 
 The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
 
@@ -554,7 +555,10 @@ hairs are always there, so 2 hairs or fewer fail too (`no stock hair row read`).
 - `tests/lua/closet/head/wear_test.lua` runs the head part on a fake EVE: a stock hair and its ponytail in its colour,
   a pack hair's AnimBP, cloth collision and hidden ponytails, No ponytail, off, field 6 and the restore (after two
   wears, a salon hair with nothing worn), the watchdog's re-wear after 2 s, the fight limit, a new EVE, `parts`,
-  `rewear`, a refusal and the hair physics rule.
+  `rewear`, a refusal and the hair physics rule, and the made Glasses, Headwear and Mask pieces: worn, one per slot,
+  taken off, swept at the next load, made again on a new EVE.
+- `tests/lua/closet/head/made_test.lua` runs `head/made.lua` on a fake EVE: the head socket and its rotation, the
+  master pose for a piece on the body's skeleton, a component that is not made, the destroy and the sweep.
 - `tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style.
 - `tests/lua/closet/slots_test.lua` (8 checks), `fits_test.lua` (4), `dress_test.lua` (12), `resolver_test.lua` (23),
   `manifest_test.lua` (13) and `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`,
