@@ -1762,6 +1762,7 @@ local tests = {
             at(r, 0.6, 'down')
             eq((detail(r)), 'Ocean Maid', 'its row')
             eq(#grid(r).items, 0, 'its new picture in place of the tile')
+            has(r.log, 'imported as', 'the picture\'s import said')
             r.choices = {{fit = MAID, slots = {'Chest'}}}
             at(r, 0.7, 'picture')
             eq(#snaps, 1, 'pieces: no picture') eq(r.told[#r.told], P.none, 'told why')
@@ -3530,7 +3531,6 @@ local tests = {
             ok(by['Pack hair'].Data.IconAssetPath ~= F.path('hair'), 'the pack hair shows its picture, not the glyph')
             eq(by['Pack hair'].Image_Icon.RenderTransform.Scale.X, View.PICTURE_SCALE, 'drawn small')
             eq(by.Bob.Image_Icon.RenderTransform.Scale.X, 1, 'the stock hair\'s icon at full size')
-            has(r.log, 'imported as', 'each picture import said')
             has(r.log, 'set by brush', 'a tile set by brush said')
         end, o)
         F.textures = {}
