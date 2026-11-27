@@ -156,13 +156,14 @@ if M.settings then
     end
     -- The closet camera's keys (closet/ui/camera.lua), only while the closet menu is the open screen: J, L, I and K
     -- orbit, U and O zoom, C switches region and free, Backspace resets the free camera; its lights
-    -- (closet/ui/lights.lua): V the next preset, Shift+U and Shift+O the intensity down and up. Nothing anywhere else.
+    -- (closet/ui/lights.lua): V the next preset, Shift+U and Shift+O the intensity down and up; P the worn outfit's
+    -- preview picture (closet/thumbs.lua's snap). Nothing anywhere else.
     -- Shift+U and Shift+O are bound before the plain U and O: a plain press within 0.2 s after one of them, if UE4SS
     -- also calls the plain bind for it, is the same press, dropped (as an F-key's).
     local shifted={} -- U or O to when it was last pressed with Shift (os.clock).
     for _,cam in ipairs({{'U','light_down','SHIFT'},{'O','light_up','SHIFT'},{'J','cam_left'},{'L','cam_right'},
             {'I','cam_up'},{'K','cam_down'},{'U','cam_in'},{'O','cam_out'},{'C','cam_mode'},{'BACKSPACE','cam_reset'},
-            {'V','light_next'}}) do
+            {'V','light_next'},{'P','picture'}}) do
         bind(cam[1],cam[3],function()
             if M.open_screen()~=M.closet_menu then return end
             ExecuteInGameThread(function()

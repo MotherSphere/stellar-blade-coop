@@ -169,11 +169,10 @@ local tests = {
     full_tab_lists_outfits = function()
         local m = new({installed = function(f) return f == CH27 end})
         local rows = m.rows('full')
-        eq(#rows, 4, 'rows: the outfits, Make preview pictures, then Reset Stellar Closet')
+        eq(#rows, 3, 'rows: the outfits, then Reset Stellar Closet')
         same(rows[1], {whole = CH46, outfit = 'Kunoichi Shadow', pack = 'AiK', locked = true}, 'first by name')
         same(rows[2], {whole = CH27, outfit = 'Ocean Maid', pack = 'AiK', locked = false}, 'second')
-        same(rows[3], {thumbs = true}, 'the Make preview pictures row after the outfits')
-        same(rows[4], {reset = true}, 'the Reset row last')
+        same(rows[3], {reset = true}, 'the Reset row last')
     end,
 
     -- With presets: Save look as preset, each preset (a gone outfit's greyed), the filter row, then the outfits, each
@@ -192,12 +191,12 @@ local tests = {
         same(rows[4], {filter = true}, 'the filter row')
         same(rows[5], {whole = CH46, outfit = 'Kunoichi Shadow', pack = 'AiK', locked = false}, 'not a favourite')
         same(rows[6], {whole = CH27, outfit = 'Ocean Maid', pack = 'AiK', locked = false, fav = true}, 'a favourite')
-        eq(#rows, 8, 'then Make preview pictures and Reset')
+        eq(#rows, 7, 'then Reset')
         only = 'favourites'
         rows = m.rows('full')
         eq(rows[5].whole, CH27, 'Favourites: the favourite only')
-        ok(rows[6].thumbs and rows[7].reset, 'then the two rows')
-        eq(#rows, 7, 'no other outfit')
+        ok(rows[6].reset, 'then Reset')
+        eq(#rows, 6, 'no other outfit')
     end,
 
     -- The filter on Original lists Shift Up's own suits only, under their header; on Custom, the pack and hand
@@ -213,23 +212,23 @@ local tests = {
             local rows = m.rows('full')
             same(rows[2], {filter = true}, 'the filter row')
             same(rows[3], {header = 'original'}, 'Original: the header')
-            eq(rows[4].whole, 'ZZ_ORIG', 'the Original suit') ok(rows[5].thumbs and rows[6].reset, 'then the rows')
-            eq(#rows, 6, 'no Custom suit')
+            eq(rows[4].whole, 'ZZ_ORIG', 'the Original suit') ok(rows[5].reset, 'then Reset')
+            eq(#rows, 5, 'no Custom suit')
             show = 'custom'
             rows = m.rows('full')
             eq(rows[3].whole, CH46) eq(rows[4].whole, CH27)
-            ok(rows[5].thumbs and rows[6].reset, 'Custom: no header, no Original suit')
-            eq(#rows, 6, 'the two Custom suits only')
+            ok(rows[5].reset, 'Custom: no header, no Original suit')
+            eq(#rows, 5, 'the two Custom suits only')
         end)
         Fits.BY_ID.ZZ_ORIG = nil
         ok(good, why)
     end,
 
-    -- With pictures (coop closet thumbs given), Clear preview pictures comes after Make preview pictures.
-    clear_preview_pictures_follows_make = function()
+    -- With pictures (coop closet thumbs given), Clear preview pictures is the row before Reset Stellar Closet.
+    clear_preview_pictures_comes_before_reset = function()
         local rows = Model.new({slots = Slots, fits = Fits, installed = function() return true end, pictures = true})
             .rows('full')
-        ok(rows[#rows - 2].thumbs, 'Make preview pictures')
+        eq(rows[#rows - 2].whole, CH27, 'the last outfit')
         same(rows[#rows - 1], {clear_thumbs = true}, 'then Clear preview pictures')
         ok(rows[#rows].reset, 'Reset Stellar Closet last')
         for _, r in ipairs(new().rows('full')) do eq(r.clear_thumbs, nil, 'no pictures: no Clear row') end
@@ -247,11 +246,11 @@ local tests = {
         Fits.use(catalogue)
         local good, why = pcall(function()
             local rows = new({installed = function(f) return f ~= 'z.suit' end}).rows('full')
-            eq(#rows, 6, 'four suits, Make preview pictures, Reset')
+            eq(#rows, 5, 'four suits, Reset')
             same(rows[1], {whole = 'a.suit', outfit = 'alpha', pack = 'p', locked = false}, 'by name in any case')
             eq(rows[2].whole, CH46) eq(rows[3].whole, CH27)
             same(rows[4], {whole = 'z.suit', outfit = 'Zeta', pack = 'p', locked = true}, 'not installed: locked')
-            ok(rows[5].thumbs and rows[6].reset, 'then the two rows')
+            ok(rows[5].reset, 'then Reset')
         end)
         Fits.use(nil)
         ok(good, why)
@@ -278,11 +277,11 @@ local tests = {
             Mesh = '/Game/O2.O2', Pieces = {}}
         local good, why = pcall(function()
             local rows = new().rows('full')
-            eq(#rows, 7, 'two Custom suits, the header, two Original suits, the two rows')
+            eq(#rows, 6, 'two Custom suits, the header, two Original suits, Reset')
             eq(rows[1].whole, CH46) eq(rows[2].whole, CH27)
             same(rows[3], {header = 'original'}, 'the header after the pack outfits')
             eq(rows[4].whole, 'ZZ_ORIG2', 'by name') eq(rows[5].whole, 'ZZ_ORIG')
-            ok(rows[6].thumbs and rows[7].reset, 'then the two rows')
+            ok(rows[6].reset, 'then Reset')
         end)
         Fits.BY_ID.ZZ_ORIG, Fits.BY_ID.ZZ_ORIG2 = nil, nil
         ok(good, why)

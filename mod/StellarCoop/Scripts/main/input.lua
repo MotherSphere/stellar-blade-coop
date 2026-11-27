@@ -161,6 +161,8 @@ function M.pad_event(what)
     if screen and not M.lobby.is_open() then
         if what~='menu' then return screen.nav(what) end
         log('pad: menu')
+        -- On the closet menu View held is its Preview picture (the keyboard's P): B and the closet chord close it.
+        if screen==M.closet_menu then return screen.nav('picture') end
         return screen.close()
     end
     if what=='tab_left' or what=='tab_right' or what=='refresh' then

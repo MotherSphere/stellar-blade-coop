@@ -493,13 +493,9 @@ return {
         row={whole='Pue koko asu',soon='Tulossa pian',
             empty='Millään asennetulla asulla ei ole osaa tähän paikkaan.',none='Ei mitään',
             locked='Lukittu: %s ei ole asennettu.',reset='Nollaa Stellar Closet',
-            thumbs='Luo esikatselukuvat',
-            thumbs_desc='Ottaa kuvan jokaisesta osasta, jolla ei vielä ole kuvaa, yhden ruutua kohden. Se alkaa, kun '
-                ..'valikko on suljettu, taistelun ulkopuolella. Ruudut näyttävät kuvat, kun valikko avataan seuraavan '
-                ..'kerran.',
             clear_thumbs='Tyhjennä esikatselukuvat',
-            clear_thumbs_desc='Poistaa kaikki esikatselukuvat. Ruudut näyttävät taas asujen omat kuvat. Luo '
-                ..'esikatselukuvat ottaa ne uudelleen.'},
+            clear_thumbs_desc='Poistaa kaikki esikatselukuvat. Ruudut näyttävät taas asujen omat kuvat. '
+                ..'Esikatselukuva ottaa sen uudelleen.'},
         detail={outfit='Asu: %s',slot='Paikka: %s',covers='Peittää: %s',also='Vie myös: %s',
             off='Piilotettu oletuksena asussaan'},
         origin={original='Alkuperäinen',custom='Mukautettu: %s'},
@@ -534,7 +530,13 @@ return {
                     ..'Shift+U / Shift+O.',
                 pad='Oikea tikku kiertää. Siirrä pitämällä X pohjassa ja kääntämällä oikeaa tikkua. LT / RT zoomaavat. Valon voimakkuus: pidä L3 pohjassa ja käytä sitten LT / RT.'}}},
         light={game='Peli',studio='Studio',warm='Lämmin',cool='Viileä',rim='Takavalo',title='Valaistus: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Esikatselukuva',pad='Pidä: Esikatselukuva',
+            saved='Esikatselukuva tallennettu: %s.',
+            none='Pue ensin yksi koko asu: esikatselukuva näyttää yhden asun.',
+            failed='Esikatselukuvaa ei voitu ottaa. UE4SS.log kertoo syyn.'},
         colour={roles={primary='Ensisijainen',secondary='Toissijainen',accent='Korostus',glow='Hehku'},
             about={primary='Päävaatteet: yläosat, alaosat, rintaliivit, alusvaatteet, takit, viitat, hatut ja '
                 ..'kokonaiset asut.',
@@ -554,7 +556,7 @@ return {
             reset_desc='Kaikki Stellar Closetin osat riisutaan EVEltä. Tallennettu tyyli poistetaan. '
                 ..'Stellar Closet ei muuta mitään, ennen kuin puet tyylin uudelleen.',
             clear_title='Tyhjennetäänkö esikatselukuvat?',
-            clear_desc='Kaikki esikatselukuvat poistetaan modin kansiosta. Luo esikatselukuvat ottaa ne uudelleen.'},
+            clear_desc='Kaikki esikatselukuvat poistetaan modin kansiosta. Esikatselukuva ottaa sen uudelleen.'},
         refused={combat='Stellar Closet ei aukea taistelussa.',
             cutscene='Stellar Closet ei aukea välianimaation aikana.',
             photo='Stellar Closet ei aukea kuvaustilassa.',tachy='Stellar Closet ei aukea Tachy-tilassa.',
@@ -570,10 +572,7 @@ return {
         saved='Tyyli tallennettu.',failed='Osaa ei voitu pukea. UE4SS.log kertoo syyn.',
         switched='Vartalo vaihdettu: %s, jotta iho ei näy osien läpi.',
         clips='Tämän vartalon iho näkyy osien läpi kohdissa: %s.',
-        thumbs={started='Esikatselukuvat alkavat, kun valikko on suljettu.',
-            cached='Jokaisella osalla on jo esikatselukuva.',
-            failed='Esikatselukuvia ei voitu aloittaa. UE4SS.log kertoo syyn.',
-            cleared='Kaikki esikatselukuvat on poistettu.',
+        thumbs={cleared='Kaikki esikatselukuvat on poistettu.',
             busy='Esikatselukuvia luodaan. Tyhjennä ne, kun se on valmis.'},
         reset_done='Stellar Closet on nollattu. EVEllä on oma tyylinsä.'},
 }

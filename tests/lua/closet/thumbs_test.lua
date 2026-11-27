@@ -493,6 +493,34 @@ local tests = {
         eq(#named(r, 'export'), 24, 'every picture after the close')
     end,
 
+    -- snap(fit, shot) takes the outfit's picture as the closet camera shows it: a SceneCapture2D at the camera's place
+    -- looking at its look point, the whole scene (no show-only list), a SNAP_W x SNAP_H target (EVE's part of the
+    -- screen), its FOV from the screen's vertical half-angle; exported as full.png, then the capture and the target go.
+    snap_takes_the_camera_view_as_full_png = function()
+        local function near(got, want, tol, what)
+            ok(math.abs(got - want) <= tol, what .. ': ' .. got .. ' vs ' .. want)
+        end
+        local r = game()
+        local shot = {at = {X = 300, Y = 0, Z = 100}, look = {X = 0, Y = 0, Z = 100}, tanv = 0.4}
+        local good, line = r.thumbs.snap(MAID, shot)
+        ok(good, tostring(line))
+        local spawn = named(r, 'spawn')[1]
+        eq(spawn[2], CAPTURE, 'a SceneCapture2D') same(spawn[3], shot.at, 'at the camera')
+        near(spawn[4].Yaw, 180, 1e-6, 'facing the look point') near(spawn[4].Pitch, 0, 1e-6, 'level')
+        same(named(r, 'rt')[1], {'rt', Thumbs.SNAP_W, Thumbs.SNAP_H, 2, {R = 0, G = 0, B = 0, A = 1}, false},
+            'EVE\'s part of the screen')
+        local c = r.capture
+        eq(c.CaptureSource, 2, 'SCS_FinalColorLDR') eq(c.PrimitiveRenderMode, nil, 'the whole scene')
+        near(c.FOVAngle, 2 * math.deg(math.atan(0.4 * Thumbs.SNAP_W / Thumbs.SNAP_H)), 1e-6, 'the screen\'s height')
+        eq(#named(r, 'capture'), 1, 'one capture')
+        same(named(r, 'export')[1], {'export', 'M\\closet-thumbs\\' .. MAID, 'full.png'}, 'full.png in its folder')
+        eq(#named(r, 'release'), 1, 'the target released') eq(#named(r, 'destroy'), 1, 'the capture gone')
+        good, line = r.thumbs.snap('no.such.fit', shot)
+        ok(not good and line:find('no.such.fit', 1, true), tostring(line))
+        good, line = r.thumbs.snap(MAID, nil)
+        ok(not good and line:find('camera', 1, true), 'no camera: ' .. tostring(line))
+    end,
+
     -- clear() deletes the pictures' folder (<mod folder>\closet-thumbs) with everything in it; refused while a run
     -- goes (its files would come back half made) or with no mod folder.
     clear_deletes_the_pictures_folder = function()

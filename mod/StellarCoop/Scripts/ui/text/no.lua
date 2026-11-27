@@ -479,12 +479,9 @@ return {
         row={whole='Ta på hele antrekket',soon='Kommer snart',
             empty='Ingen installerte antrekk har en del for denne plassen.',none='Ingen',
             locked='Låst: %s er ikke installert.',reset='Tilbakestill Stellar Closet',
-            thumbs='Lag forhåndsvisningsbilder',
-            thumbs_desc='Tar et bilde av hver del som ikke har et ennå, ett per frame. Det starter når menyen er '
-                ..'lukket, utenfor kamp. Rutene viser bildene neste gang menyen åpnes.',
             clear_thumbs='Fjern forhåndsvisningsbilder',
-            clear_thumbs_desc='Sletter alle forhåndsvisningsbilder. Rutene viser antrekkenes egne bilder igjen. Lag '
-                ..'forhåndsvisningsbilder tar dem på nytt.'},
+            clear_thumbs_desc='Sletter alle forhåndsvisningsbilder. Rutene viser antrekkenes egne bilder igjen. '
+                ..'Forhåndsvisningsbilde tar ett på nytt.'},
         detail={outfit='Antrekk: %s',slot='Plass: %s',covers='Dekker: %s',also='Tar også: %s',
             off='Skjult som standard i antrekket sitt'},
         origin={original='Original',custom='Egendefinert: %s'},
@@ -518,7 +515,13 @@ return {
                     ..'museknapp flytter. U / O eller musehjulet zoomer. Lysstyrke: Shift+U / Shift+O.',
                 pad='Høyre stikke roterer rundt. Hold X med høyre stikke for å flytte. LT / RT zoomer. Lysstyrke: hold L3, og bruk så LT / RT.'}}},
         light={game='Spill',studio='Studio',warm='Varm',cool='Kjølig',rim='Motlys',title='Lys: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Forhåndsvisningsbilde',pad='Hold: Forhåndsvisning',
+            saved='Forhåndsvisningsbilde lagret for %s.',
+            none='Ta først på ett helt antrekk: et forhåndsvisningsbilde viser ett antrekk.',
+            failed='Forhåndsvisningsbildet kunne ikke tas. UE4SS.log sier hvorfor.'},
         colour={roles={primary='Primær',secondary='Sekundær',accent='Aksent',glow='Glød'},
             about={primary='Hovedplagg: overdeler, underdeler, BH-er, undertøy, jakker, kapper, hatter og hele '
                 ..'antrekk.',
@@ -538,8 +541,7 @@ return {
             reset_desc='Alle delene fra Stellar Closet tas av EVE. Det lagrede utseendet slettes. '
                 ..'Stellar Closet endrer ingenting før du tar på et utseende igjen.',
             clear_title='Fjerne forhåndsvisningsbilder?',
-            clear_desc='Alle forhåndsvisningsbilder slettes fra mod-mappen. Lag forhåndsvisningsbilder tar dem på '
-                ..'nytt.'},
+            clear_desc='Alle forhåndsvisningsbilder slettes fra mod-mappen. Forhåndsvisningsbilde tar ett på nytt.'},
         refused={combat='Stellar Closet åpnes ikke i kamp.',
             cutscene='Stellar Closet åpnes ikke under en mellomsekvens.',
             photo='Stellar Closet åpnes ikke i fotomodus.',tachy='Stellar Closet åpnes ikke i Tachy-modus.',
@@ -555,10 +557,7 @@ return {
         saved='Utseendet er lagret.',failed='Delen kunne ikke tas på. UE4SS.log sier hvorfor.',
         switched='Kroppen er byttet til %s, så ingen hud synes gjennom delene.',
         clips='Huden på denne kroppen synes gjennom delene på: %s.',
-        thumbs={started='Forhåndsvisningsbildene starter når menyen er lukket.',
-            cached='Hver del har allerede sitt forhåndsvisningsbilde.',
-            failed='Forhåndsvisningsbildene kunne ikke starte. UE4SS.log sier hvorfor.',
-            cleared='Alle forhåndsvisningsbilder er slettet.',
+        thumbs={cleared='Alle forhåndsvisningsbilder er slettet.',
             busy='Forhåndsvisningsbildene lages. Fjern dem når det er ferdig.'},
         reset_done='Stellar Closet er tilbakestilt. EVE har sitt eget utseende.'},
 }

@@ -660,6 +660,20 @@ local tests = {
             'zoomed in from the region framing')
     end,
 
+    -- shot() gives the camera's place, its look point and the screen's vertical half-angle tangent as last placed
+    -- (closet/thumbs.lua's snap); nil with no camera.
+    shot_is_the_last_placed_view = function()
+        local c = world()
+        eq(c.shot(), nil, 'no camera: no shot')
+        c.open()
+        frames(c, 0.5, 'full')
+        local s = c.shot()
+        ok(s and gap(s.at, last().at) < 1e-6, 'at the camera')
+        ok(s.look and s.tanv > 0, 'a look point and the lens')
+        c.close()
+        eq(c.shot(), nil, 'closed: no shot')
+    end,
+
     the_lens_is_measured_from_the_screen = function()
         local hfov = 90 -- What the view really renders.
         local tanv = math.tan(math.rad(hfov / 2)) * 9 / 16

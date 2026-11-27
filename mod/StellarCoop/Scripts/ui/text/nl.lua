@@ -488,12 +488,9 @@ return {
         row={whole='Hele outfit dragen',soon='Binnenkort',
             empty='Geen geïnstalleerde outfit heeft een stuk voor dit vak.',none='Geen',
             locked='Vergrendeld: %s is niet geïnstalleerd.',reset='Stellar Closet resetten',
-            thumbs='Voorbeeldafbeeldingen maken',
-            thumbs_desc='Maakt een afbeelding van elk stuk dat er nog geen heeft, één per frame. Het begint zodra het '
-                ..'menu dicht is, buiten gevechten. De tegels tonen de afbeeldingen als je het menu weer opent.',
             clear_thumbs='Voorbeeldafbeeldingen wissen',
             clear_thumbs_desc='Wist alle voorbeeldafbeeldingen. De tegels tonen weer de eigen afbeeldingen van de '
-                ..'outfits. Voorbeeldafbeeldingen maken maakt ze opnieuw.'},
+                ..'outfits. Voorbeeldafbeelding maakt er een opnieuw.'},
         detail={outfit='Outfit: %s',slot='Vak: %s',covers='Bedekt: %s',also='Neemt ook: %s',
             off='Standaard verborgen in zijn outfit'},
         origin={original='Origineel',custom='Aangepast: %s'},
@@ -526,7 +523,13 @@ return {
                     ..'middelste muisknop verschuiven. U / O of het muiswiel zoomen. Lichtsterkte: Shift+U / Shift+O.',
                 pad='De rechterstick draait rond. Houd X ingedrukt met de rechterstick om te verschuiven. LT / RT zoomen. Lichtsterkte: houd L3 ingedrukt, dan LT / RT.'}}},
         light={game='Spel',studio='Studio',warm='Warm',cool='Koel',rim='Tegenlicht',title='Belichting: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Voorbeeldafbeelding',pad='Houd vast: Voorbeeld',
+            saved='Voorbeeldafbeelding opgeslagen voor %s.',
+            none='Draag eerst één hele outfit: een voorbeeldafbeelding toont één outfit.',
+            failed='De voorbeeldafbeelding kon niet worden gemaakt. UE4SS.log zegt waarom.'},
         colour={roles={primary='Primair',secondary='Secundair',accent='Accent',glow='Gloed'},
             about={primary="Hoofdkleding: tops, broeken, beha's, ondergoed, jassen, capes, hoeden en hele outfits.",
                 secondary='Handschoenen, mouwen, schoenen, kousen, riemen, kousenbanden, bandjes, banden en maskers.',
@@ -545,7 +548,7 @@ return {
             reset_desc='Alle stukken van Stellar Closet gaan van EVE af. De opgeslagen look wordt gewist. '
                 ..'Stellar Closet verandert niets tot je weer een look draagt.',
             clear_title='Voorbeeldafbeeldingen wissen?',
-            clear_desc='Alle voorbeeldafbeeldingen worden uit de modmap gewist. Voorbeeldafbeeldingen maken maakt ze '
+            clear_desc='Alle voorbeeldafbeeldingen worden uit de modmap gewist. Voorbeeldafbeelding maakt er een '
                 ..'opnieuw.'},
         refused={combat='Stellar Closet opent niet tijdens een gevecht.',
             cutscene='Stellar Closet opent niet tijdens een tussenfilmpje.',
@@ -562,10 +565,7 @@ return {
         saved='Look opgeslagen.',failed='Dit stuk kon niet aan. UE4SS.log zegt waarom.',
         switched='Lichaam gewisseld naar %s, zodat er geen huid door de stukken komt.',
         clips='De huid van dit lichaam komt door de stukken bij: %s.',
-        thumbs={started='De voorbeeldafbeeldingen beginnen zodra het menu dicht is.',
-            cached='Elk stuk heeft al een voorbeeldafbeelding.',
-            failed='De voorbeeldafbeeldingen konden niet starten. UE4SS.log zegt waarom.',
-            cleared='Alle voorbeeldafbeeldingen zijn gewist.',
+        thumbs={cleared='Alle voorbeeldafbeeldingen zijn gewist.',
             busy='De voorbeeldafbeeldingen worden gemaakt. Wis ze zodra dat klaar is.'},
         reset_done='Stellar Closet is gereset. EVE draagt haar eigen look.'},
 }

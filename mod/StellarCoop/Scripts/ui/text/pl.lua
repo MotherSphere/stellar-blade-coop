@@ -484,12 +484,9 @@ return {
         row={whole='Załóż cały strój',soon='Wkrótce',
             empty='Żaden zainstalowany strój nie ma elementu na to miejsce.',none='Brak',
             locked='Zablokowane: %s nie jest zainstalowany.',reset='Zresetuj Stellar Closet',
-            thumbs='Utwórz podglądy',
-            thumbs_desc='Robi zdjęcie każdego elementu, który go jeszcze nie ma, jedno na klatkę. Zaczyna po '
-                ..'zamknięciu menu, poza walką. Kafelki pokażą zdjęcia przy następnym otwarciu.',
             clear_thumbs='Wyczyść podglądy',
-            clear_thumbs_desc='Usuwa wszystkie podglądy. Kafelki znów pokażą własne obrazy strojów. Utwórz podglądy '
-                ..'zrobi je ponownie.'},
+            clear_thumbs_desc='Usuwa wszystkie podglądy. Kafelki znów pokażą własne obrazy strojów. Podgląd zrobi '
+                ..'jeden ponownie.'},
         detail={outfit='Strój: %s',slot='Miejsce: %s',covers='Zakrywa: %s',also='Zajmuje też: %s',
             off='Domyślnie ukryte w swoim stroju'},
         origin={original='Oryginalny',custom='Własny: %s'},
@@ -524,7 +521,13 @@ return {
                     ..'Natężenie światła: Shift+U / Shift+O.',
                 pad='Prawa gałka obraca kamerę. Przytrzymaj X z prawą gałką, aby przesunąć. LT / RT przybliżają i oddalają. Natężenie światła: przytrzymaj L3, potem LT / RT.'}}},
         light={game='Gra',studio='Studio',warm='Ciepłe',cool='Chłodne',rim='Kontra',title='Oświetlenie: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Podgląd',pad='Przytrzymaj: Podgląd',
+            saved='Zapisano podgląd dla: %s.',
+            none='Najpierw załóż jeden cały strój: podgląd pokazuje jeden strój.',
+            failed='Nie udało się zrobić podglądu. UE4SS.log mówi dlaczego.'},
         colour={roles={primary='Główny',secondary='Drugorzędny',accent='Akcent',glow='Poświata'},
             about={primary='Główne ubrania: góry, doły, staniki, bielizna, kurtki, peleryny, kapelusze i całe stroje.',
                 secondary='Rękawiczki, rękawy, buty, pończochy, paski, podwiązki, rzemienie, opaski i maski.',
@@ -543,7 +546,7 @@ return {
             reset_desc='Wszystkie elementy Stellar Closet zostają zdjęte z EVE. Zapisany wygląd zostaje usunięty. '
                 ..'Stellar Closet nic nie zmienia, dopóki znów nie założysz wyglądu.',
             clear_title='Wyczyścić podglądy?',
-            clear_desc='Wszystkie podglądy zostaną usunięte z folderu moda. Utwórz podglądy zrobi je ponownie.'},
+            clear_desc='Wszystkie podglądy zostaną usunięte z folderu moda. Podgląd zrobi jeden ponownie.'},
         refused={combat='Stellar Closet nie otwiera się w walce.',
             cutscene='Stellar Closet nie otwiera się podczas przerywnika.',
             photo='Stellar Closet nie otwiera się w trybie fotograficznym.',
@@ -560,9 +563,7 @@ return {
         saved='Wygląd zapisany.',failed='Nie udało się założyć tego elementu. UE4SS.log mówi dlaczego.',
         switched='Ciało zmienione na %s, aby skóra nie prześwitywała przez elementy.',
         clips='Skóra tego ciała prześwituje przez elementy w miejscach: %s.',
-        thumbs={started='Podglądy zaczną się po zamknięciu menu.',cached='Każdy element ma już swój podgląd.',
-            failed='Nie udało się uruchomić podglądów. UE4SS.log mówi dlaczego.',
-            cleared='Wszystkie podglądy zostały usunięte.',
+        thumbs={cleared='Wszystkie podglądy zostały usunięte.',
             busy='Podglądy są właśnie tworzone. Wyczyść je, gdy to się skończy.'},
         reset_done='Stellar Closet zresetowany. EVE ma swój własny wygląd.'},
 }

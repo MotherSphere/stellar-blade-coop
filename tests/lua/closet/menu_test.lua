@@ -4,7 +4,7 @@
 -- The closet menu (closet/ui/menu.lua over closet/ui/view.lua) on menu_fakes.lua's fake kit and parts: open draws the
 -- tab row, the slot rows, the grid with the None tile first, the detail panel and the hints; coop closet menu opens
 -- and closes it; every close path drops every part and gives the input back; coop off does not revert; a draw that
--- raises closes the menu; the Body row, the origin line, the body switch notices, the Make preview pictures row and
+-- raises closes the menu; the Body row, the origin line, the body switch notices, the Clear preview pictures row and
 -- the Reset Stellar Closet row.
 local run = dofile('tests/lua/closet/run.lua')
 local F = dofile('tests/lua/closet/menu_fakes.lua')
@@ -325,12 +325,11 @@ local tests = {
             ok(F.called(tabs[i].o, i == 1 and 'FocusTabButton' or 'DefocusTabButton'), 'tab focus ' .. i)
             eq(tabs[i].x, 160 + (i - 1) * 266, 'tab x ' .. i)
         end
-        -- The Full tab's rows: one an outfit by name, then Make preview pictures and Reset Stellar Closet, Kunoichi
-        -- Shadow focused; the hints Back, Whole outfit, Move.
+        -- The Full tab's rows: one an outfit by name, then Reset Stellar Closet, Kunoichi Shadow focused; the hints
+        -- Back, Whole outfit, Move.
         local rows = r.kit.live(F.OPTION)
-        eq(#rows, 4, 'outfit rows, the Make preview pictures row and the Reset row')
-        eq(rows[3].o.Text_TitleValue.text, T.en.closet.row.thumbs, 'the Make preview pictures row after the outfits')
-        eq(rows[4].o.Text_TitleValue.text, T.en.closet.row.reset, 'the Reset row last')
+        eq(#rows, 3, 'outfit rows and the Reset row')
+        eq(rows[3].o.Text_TitleValue.text, T.en.closet.row.reset, 'the Reset row last')
         eq(rows[1].o.Text_TitleValue.text, 'Kunoichi Shadow', 'outfit row 1, first by name')
         eq(rows[1].o.Text_ItemValue.text, 'AiK', 'outfit row 1 pack')
         eq(rows[2].o.Text_TitleValue.text, 'Ocean Maid', 'outfit row 2')
@@ -358,7 +357,7 @@ local tests = {
         for _, c in ipairs(rows[4].o.calls) do if c[1] == 'EventNotification' then looks[#looks + 1] = c[2] end end
         eq(looks[#looks], 'StateNormal', 'row 4 left: not focused')
         -- A transparent kit row over each slot row takes the mouse; it shows nothing while the part is there.
-        eq(#g.zones, 18, 'zones: 10 rows, 5 hint chips, 3 camera hint chips')
+        eq(#g.zones, 19, 'zones: 10 rows, 5 hint chips, 4 camera hint chips')
         for i, z in ipairs(g.zones) do
             eq(z.label, '', 'zone label ' .. i)
             if i <= 10 then eq(z.y, rows[i].y + 27, 'zone y ' .. i) end
@@ -520,9 +519,8 @@ local tests = {
         local r = rig()
         r.menu.open()
         local tv = r.kit.live(F.GRID)[1].o.TileView_ItemList
-        -- The Full tab: 7 tabs, 2 outfit rows, the Make preview pictures and Reset rows, the grid, the detail, 2 tab
-        -- keys and 3 hints.
-        eq(#r.kit.made, 18, 'parts made')
+        -- The Full tab: 7 tabs, 2 outfit rows, the Reset row, the grid, the detail, 2 tab keys and 3 hints.
+        eq(#r.kit.made, 17, 'parts made')
         local good = r.menu.close()
         ok(good, 'close')
         all_gone(r)
@@ -1223,7 +1221,7 @@ local tests = {
         sh.values.Butt = 50
         local r = rig({colour = col, shape = sh, before = function(r) r.choices = {{fit = MAID}} end})
         r.menu.open()
-        at(r, 0.5, 'down', 'down', 'down')
+        at(r, 0.5, 'down', 'down')
         local title, desc = detail(r)
         eq(title, T.en.closet.row.reset, 'the last row of the Full tab')
         eq(desc, T.en.closet.popup.reset_desc, 'its detail')
@@ -1241,7 +1239,7 @@ local tests = {
         eq(popups(r), 0, 'Back: the popup goes') ok(r.menu.is_open(), 'Back: the menu stays')
         eq(r.offs, 0, 'nothing reset yet') eq(col.offs, 0, 'the palette kept') eq(sh.offs, 0, 'the shape kept')
         -- A preview, then Yes.
-        at(r, 0.5, 'up', 'up', 'refresh', 'down', 'down', 'select', 'select')
+        at(r, 0.5, 'up', 'refresh', 'down', 'select', 'select')
         same(r.previews, {{{fit = MAID}}}, 'previewed before the reset (row 2 by name)')
         eq(r.offs, 1, 'coop closet off ran')
         eq(col.offs, 1, 'the palette cleared (coop-closet-colour.txt)') eq(col.get('primary'), 'off')
@@ -1291,7 +1289,7 @@ local tests = {
         eq((detail(r)), second, 'no read: no repeat')
     end,
 
-    -- Clear preview pictures, after Make preview pictures: Select asks with the game's Yes/No popup. No keeps them; Yes
+    -- Clear preview pictures, after the outfits: Select asks with the game's Yes/No popup. No keeps them; Yes
     -- deletes them (closet/thumbs.lua's clear), tells it and re-reads which pictures are there; a run going refuses.
     the_clear_row_asks_then_deletes_the_pictures = function()
         local th = {cleared = 0, answer = {true}}
@@ -1300,9 +1298,9 @@ local tests = {
         th.clear = function() th.cleared = th.cleared + 1; return table.unpack(th.answer) end
         local r = rig({thumbs = th})
         r.menu.open()
-        at(r, 0.5, 'down', 'down', 'down')
+        at(r, 0.5, 'down', 'down')
         local title, desc = detail(r)
-        eq(title, T.en.closet.row.clear_thumbs, 'the row after Make preview pictures')
+        eq(title, T.en.closet.row.clear_thumbs, 'the row after the outfits')
         eq(desc, T.en.closet.row.clear_thumbs_desc, 'its detail')
         at(r, 0.6, 'select')
         eq(popups(r), 1, 'Clear preview pictures? asks')
@@ -1316,66 +1314,6 @@ local tests = {
         at(r, 0.9, 'select', 'yes')
         eq(r.told[#r.told], T.en.closet.thumbs.busy, 'a run going: told to wait')
         has(r.log, 'closet thumbs: running', 'its reason logged')
-    end,
-
-    -- Make preview pictures, the Full tab's row before Reset Stellar Closet: Select (Enter, the pad's A or a click)
-    -- starts coop closet thumbs from the menu (closet/thumbs.lua: it waits for the close) and tells what it did. The
-    -- menu stays open; a run already going is not started again.
-    the_pictures_row_starts_a_capture = function()
-        local th = {runs = {}, on = false, answer = {true, 'closet thumbs: 24 picture(s)'}}
-        th.running = function() return th.on end
-        th.run = function(redo, only, menu)
-            th.runs[#th.runs + 1] = {redo, only or false, menu}
-            th.on = th.answer[1] and th.starts ~= false
-            return table.unpack(th.answer)
-        end
-        local r = rig({thumbs = th})
-        r.menu.open()
-        at(r, 0.5, 'down', 'down')
-        local title, desc = detail(r)
-        eq(title, T.en.closet.row.thumbs, 'the row after the outfits')
-        eq(desc, T.en.closet.row.thumbs_desc, 'its detail')
-        eq(#grid(r).items, 0, 'no tile')
-        eq(badge(r), nil, 'no origin')
-        local hints = {}
-        for _, h in ipairs(r.kit.live(F.HINT)) do
-            local text
-            for _, c in ipairs(h.o.calls) do if c[1] == 'SetText' then text = c[2].text end end
-            if text ~= '' then hints[text] = true end
-        end
-        ok(hints[T.en.hint.select] and not hints[T.en.closet.hints.whole], 'the Select hint, no Whole outfit hint')
-        at(r, 0.5, 'refresh')
-        eq(#th.runs + #r.previews, 0, 'refresh starts and wears nothing')
-        at(r, 0.5, 'select')
-        same(th.runs, {{false, false, true}}, 'every missing picture, from the menu')
-        same(r.told, {T.en.closet.thumbs.started}, 'told it starts after the close')
-        ok(r.menu.is_open(), 'the menu stays open')
-        at(r, 0.5, 'select')
-        eq(#th.runs, 1, 'a run going: not started again')
-        eq(r.told[2], T.en.closet.thumbs.started, 'told again')
-        th.on, th.starts = false, false
-        at(r, 0.5, 'select')
-        eq(r.told[3], T.en.closet.thumbs.cached, 'every picture there: told')
-        th.answer = {false, 'closet thumbs: the mod folder is not known'}
-        at(r, 0.5, 'select')
-        eq(r.told[4], T.en.closet.thumbs.failed, 'a refusal: told')
-        has(r.log, 'the mod folder is not known', 'its reason logged')
-        -- The mouse: a click on the row runs Select.
-        th.answer, th.starts = {true, 'x'}, nil
-        local zones = r.kit.groups.closet_menu.zones
-        zones[1].hover = true
-        at(r, 0.5, 'click')
-        zones[1].hover = false
-        zones[3].hover = true
-        at(r, 0.5, 'click')
-        eq(#th.runs, 4, 'the click ran it')
-        eq(r.told[5], T.en.closet.thumbs.started, 'told')
-        eq(#r.previews, 1, 'only the first click wore an outfit')
-        -- No thumbs given: a refusal, told.
-        r = rig()
-        r.menu.open()
-        at(r, 0.5, 'down', 'down', 'select')
-        same(r.told, {T.en.closet.thumbs.failed}, 'no thumbs: told')
     end,
 
     the_detail_names_the_origin = function()
@@ -1422,7 +1360,7 @@ local tests = {
             eq(title, 'Ocean Maid', 'the Full outfit row')
             ok(desc:find(T.en.closet.origin.original, 1, true) and not desc:find('Custom', 1, true), desc)
             eq(badge(r), 'original', 'the original badge')
-            at(r, 0.5, 'down', 'down')
+            at(r, 0.5, 'down')
             eq((detail(r)), T.en.closet.row.reset, 'the Reset row') eq(badge(r), nil, 'the Reset row has no origin')
         end)
         Fits.BY_ID[MAID].Origin = nil
@@ -1562,7 +1500,7 @@ local tests = {
         -- A grid with no glyph to show (the Reset row's, empty): never looked at.
         r = rig()
         r.menu.open()
-        at(r, 0.05, 'down', 'down', 'down')
+        at(r, 0.05, 'down', 'down')
         eq(#grid(r).items, 0, 'the Reset row has no tile')
         tick(r, 1)
         tick(r, 2)
@@ -1635,15 +1573,62 @@ local tests = {
             eq(#tv.items, 1, 'one tile')
             eq(tv.items[1].ItemName.text, 'Kunoichi Shadow', 'the first outfit by name')
             eq(tv.items[1].IconAssetPath, F.path('full_outfit'), 'no picture, no texture: the glyph')
+            local function preview()
+                for _, i in ipairs(r.kit.groups.closet_menu.images) do
+                    if i.h == 820 and i.w == 656 then return i end
+                end
+            end
+            ok(preview() and not preview().shown, 'no picture: no preview')
             at(r, 0.05, 'down')
-            eq(grid(r).items[1].ItemName.text, 'Ocean Maid', 'the next outfit')
-            eq(grid(r).items[1].IconAssetPath, F.path('full'), 'its whole picture')
+            eq((detail(r)), 'Ocean Maid', 'the next outfit')
+            eq(#grid(r).items, 0, 'a picture: no tile')
+            ok(preview().shown and preview().texture, 'its whole picture large, above the detail')
             eq(F.made.full.file, Thumbs.file('F', MAID, 'full'), 'from full.png')
+            same({preview().x, preview().y}, {1308, 300}, 'centred between the detail panel\'s left and the edge')
             at(r, 0.05, 'down')
-            eq(#grid(r).items, 0, 'the Make preview pictures row: no tile')
+            eq(#grid(r).items, 0, 'the Reset row: no tile')
             -- Select on an outfit row still wears it whole (the tile is only its picture).
             at(r, 0.5, 'up', 'select')
             same(r.previews[#r.previews], {{fit = MAID}}, 'worn whole')
+        end)
+        Thumbs.fs.exists = exists
+        ok(good, why)
+    end,
+
+    -- Preview picture: the camera row's last chip (P on the keyboard; on a pad SB's View glyph, held), and the word
+    -- picture, take the one whole outfit EVE wears as the screen shows her (thumbs.snap with the camera's shot), tell
+    -- it and show it; with pieces or nothing worn they tell why; a failed snap tells it failed.
+    preview_picture_takes_the_worn_outfit = function()
+        local Thumbs = require('closet.thumbs')
+        local exists = Thumbs.fs.exists
+        local files = {}
+        Thumbs.fs.exists = function(p) return files[p] == true end
+        local good, why = pcall(function()
+            local snaps, answer = {}, {true}
+            local th = {running = function() return false end, clear = function() return true end}
+            th.snap = function(fit, shot)
+                snaps[#snaps + 1] = {fit, shot}
+                if answer[1] then files[Thumbs.file('F', fit, Thumbs.FULL)] = true end
+                return table.unpack(answer)
+            end
+            local r = rig({folder = 'F', thumbs = th})
+            r.menu.open()
+            local P = T.en.closet.picture
+            r.choices = {{fit = MAID}}
+            at(r, 0.5, 'picture')
+            eq(snaps[1][1], MAID, 'the worn whole outfit') eq(r.told[#r.told], P.saved:format('Ocean Maid'), 'told')
+            at(r, 0.6, 'down')
+            eq((detail(r)), 'Ocean Maid', 'its row')
+            eq(#grid(r).items, 0, 'its new picture in place of the tile')
+            r.choices = {{fit = MAID, slots = {'Chest'}}}
+            at(r, 0.7, 'picture')
+            eq(#snaps, 1, 'pieces: no picture') eq(r.told[#r.told], P.none, 'told why')
+            r.choices = nil
+            at(r, 0.8, 'picture')
+            eq(r.told[#r.told], P.none, 'nothing worn: told why')
+            r.choices, answer = {{fit = MAID}}, {false, 'closet thumbs: no closet camera'}
+            at(r, 0.9, 'picture')
+            eq(r.told[#r.told], P.failed, 'a failed snap: told') has(r.log, 'no closet camera', 'its reason logged')
         end)
         Thumbs.fs.exists = exists
         ok(good, why)
@@ -2423,7 +2408,7 @@ local tests = {
             ok(r.options.set(ARIA, 1, 'toggle:4', false)) ok(r.options.set_variant(ARIA, 3))
             ok(r.store.file ~= nil, 'kept')
             r.menu.open()
-            at(r, 0.5, 'down', 'down', 'down', 'down', 'select', 'select')
+            at(r, 0.5, 'down', 'down', 'down', 'select', 'select')
             eq(r.menu.is_open(), false, 'reset') eq(r.offs, 1)
             eq(r.store.file, nil, 'the options file cleared') eq(r.options.variant(ARIA), 1)
             eq(r.options.get(ARIA, 1, 'toggle:4'), true)
@@ -2486,7 +2471,7 @@ local tests = {
             close = function(r) r.menu.close() end,
             keep = function(r) r.menu.close('keep') end,
             reset = function(r)
-                at(r, 1, 'tab_left', 'tab_left', 'tab_left', 'down', 'down', 'down', 'select', 'select')
+                at(r, 1, 'tab_left', 'tab_left', 'tab_left', 'down', 'down', 'select', 'select')
             end,
             draw = function(r) r.kit.up = false; at(r, 1, 'up') end,
             stop = function(r) r.menu.stop() end,
@@ -2571,20 +2556,22 @@ local tests = {
         same(cam.calls, {'open', 'cam_left', 'cam_right', 'cam_up', 'cam_down', 'cam_in', 'cam_out', 'cam_mode',
             'cam_reset', 'light_next', 'light_up', 'light_down'}, 'every camera and light word')
         ok(r.menu.is_open(), 'still open')
-        -- On the pad, the camera hint row at y 1890 left to right: the light preset on L3, the mode on X, Reset on R3.
+        -- On the pad, the camera hint row at y 1890 left to right: Preview picture on View (held), the light preset on
+        -- L3, the mode on X, Reset on R3.
         r.dev = 3
         tick(r, 0.2)
         local w = T.en.closet
         local function camera_hints() return (camera_row(r)) end
-        same(camera_hints(), {{x = 432, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
+        same(camera_hints(), {{x = 112, text = w.picture.pad, icon = 'UI_SpecialLeft'},
+            {x = 600, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
             {x = 1162, text = w.camera.title:format(w.camera.region), icon = 'UI_FaceButton_Left'},
             {x = 1672, text = w.camera.reset_hint, icon = 'UI_RightThumbstick'}}, 'camera hints')
         -- A click on a camera chip runs its word: the mode's, the reset's, then the light's zone.
         local zones = r.kit.groups.closet_menu.zones
-        eq(#zones, 18, 'ten rows, five menu hints, three camera chips')
+        eq(#zones, 19, 'ten rows, five menu hints, four camera chips')
         same({zones[16].x, zones[16].y, zones[16].w}, {1162, 1890, 420}, 'the mode chip zone')
         same({zones[17].x, zones[17].y, zones[17].w}, {1672, 1890, 440}, 'the reset chip zone')
-        same({zones[18].x, zones[18].y, zones[18].w}, {432, 1890, 640}, 'the light chip zone')
+        same({zones[18].x, zones[18].y, zones[18].w}, {600, 1890, 560}, 'the light chip zone')
         zones[16].hover = true
         at(r, 0.5, 'click')
         eq(cam.calls[#cam.calls], 'cam_mode', 'the mode chip')
@@ -2598,14 +2585,14 @@ local tests = {
         -- The pad's X switched the mode inside the camera: the next tick shows it.
         cam.now = 'free'
         tick(r, 0.7)
-        eq(camera_hints()[2].text, w.camera.title:format(w.camera.free), 'the mode word follows the camera')
+        eq(camera_hints()[3].text, w.camera.title:format(w.camera.free), 'the mode word follows the camera')
         -- The pad's L3 changed the preset, Shift+O the intensity: the next tick shows them.
         cam.preset, cam.factor = 'studio', 1.25
         tick(r, 0.75)
-        eq(camera_hints()[1].text, w.light.title:format(w.light.studio .. ' x1.25'), 'the preset and its intensity')
+        eq(camera_hints()[2].text, w.light.title:format(w.light.studio .. ' x1.25'), 'the preset and its intensity')
         cam.factor = 1
         tick(r, 0.76)
-        eq(camera_hints()[1].text, w.light.title:format(w.light.studio .. ' x1'), 'x1')
+        eq(camera_hints()[2].text, w.light.title:format(w.light.studio .. ' x1'), 'x1')
         -- A camera that stopped (the game took the view) shows no hints.
         cam.on = false
         tick(r, 0.8)
@@ -2623,16 +2610,19 @@ local tests = {
             local w = T.en.closet
             local parts, texts = camera_row(r)
             same(parts, {}, dev .. ': no SB part in the camera row')
-            eq(#texts, 6, dev .. ': three keys and three labels')
-            same({texts[1].x, texts[1].s}, {432, w.keys.light}, dev .. ': the light key')
-            eq(texts[2].s, w.light.title:format(w.light.game), dev .. ': the light label')
-            ok(texts[2].x >= 432 + text_width(w.keys.light), dev .. ': the label after its key')
-            same({texts[3].x, texts[3].s}, {1162, w.keys.mode}, dev .. ': the mode key')
-            eq(texts[4].s, w.camera.title:format(w.camera.region), dev .. ': the mode label')
-            ok(texts[4].x >= 1162 + text_width(w.keys.mode), dev .. ': the label after its key')
-            same({texts[5].x, texts[5].s}, {1672, w.keys.reset}, dev .. ': the reset key')
-            eq(texts[6].s, w.camera.reset_hint, dev .. ': the reset label')
-            ok(texts[6].x >= 1672 + text_width(w.keys.reset), dev .. ': the label after its key')
+            eq(#texts, 8, dev .. ': four keys and four labels')
+            same({texts[1].x, texts[1].s}, {112, w.keys.picture}, dev .. ': the picture key')
+            eq(texts[2].s, w.picture.hint, dev .. ': the picture label')
+            ok(texts[2].x >= 112 + text_width(w.keys.picture), dev .. ': the label after its key')
+            same({texts[3].x, texts[3].s}, {600, w.keys.light}, dev .. ': the light key')
+            eq(texts[4].s, w.light.title:format(w.light.game), dev .. ': the light label')
+            ok(texts[4].x >= 600 + text_width(w.keys.light), dev .. ': the label after its key')
+            same({texts[5].x, texts[5].s}, {1162, w.keys.mode}, dev .. ': the mode key')
+            eq(texts[6].s, w.camera.title:format(w.camera.region), dev .. ': the mode label')
+            ok(texts[6].x >= 1162 + text_width(w.keys.mode), dev .. ': the label after its key')
+            same({texts[7].x, texts[7].s}, {1672, w.keys.reset}, dev .. ': the reset key')
+            eq(texts[8].s, w.camera.reset_hint, dev .. ': the reset label')
+            ok(texts[8].x >= 1672 + text_width(w.keys.reset), dev .. ': the label after its key')
             for _, t in ipairs(r.kit.groups.closet_menu.texts) do
                 if t.y == 1899 then eq(t.style, 'hint', 'the hint style') end
             end
@@ -2658,7 +2648,8 @@ local tests = {
             r.menu.open()
             local w = T.en.closet
             local parts, texts = camera_row(r)
-            same(parts, {{x = 432, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
+            same(parts, {{x = 112, text = w.picture.pad, icon = 'UI_SpecialLeft'},
+                {x = 600, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
                 {x = 1162, text = w.camera.title:format(w.camera.region), icon = 'UI_FaceButton_Left'},
                 {x = 1672, text = w.camera.reset_hint, icon = 'UI_RightThumbstick'}}, dev .. ': SB parts')
             same(texts, {}, dev .. ': no kit text')
@@ -2671,20 +2662,20 @@ local tests = {
         r.menu.open()
         local w = T.en.closet
         local parts, texts = camera_row(r)
-        eq(#parts, 0, 'keyboard: no SB part') eq(#texts, 6, 'keyboard: kit texts')
+        eq(#parts, 0, 'keyboard: no SB part') eq(#texts, 8, 'keyboard: kit texts')
         ok(r.kit.live(F.DETAIL)[1].o.DescriptionText.text:find(w.camera.moves.region.key, 1, true),
             'keyboard: the keyboard camera line')
         r.dev = 4 -- The pad used: SB reports it.
         tick(r, 0.1)
         parts, texts = camera_row(r)
-        eq(#parts, 3, 'pad: SB parts') eq(#texts, 0, 'pad: no kit text')
+        eq(#parts, 4, 'pad: SB parts') eq(#texts, 0, 'pad: no kit text')
         local desc = r.kit.live(F.DETAIL)[1].o.DescriptionText.text
         ok(desc:find(w.camera.moves.region.pad, 1, true), 'pad: the pad camera line')
         ok(not desc:find(w.camera.moves.region.key, 1, true), 'pad: no keyboard camera line')
         r.dev = 2 -- Back on the keyboard.
         tick(r, 0.2)
         parts, texts = camera_row(r)
-        eq(#parts, 0, 'keyboard again: no SB part') eq(#texts, 6, 'keyboard again: kit texts')
+        eq(#parts, 0, 'keyboard again: no SB part') eq(#texts, 8, 'keyboard again: kit texts')
         -- The Free mode's line on each device.
         cam.now = 'free'
         tick(r, 0.3)
@@ -2700,21 +2691,23 @@ local tests = {
         local r = rig({camera = fake_camera(), uidev = 1})
         r.menu.open()
         local zones = r.kit.groups.closet_menu.zones
-        local slots = {light = zones[18], mode = zones[16], reset = zones[17]}
+        local slots = {light = zones[18], mode = zones[16], reset = zones[17], picture = zones[19]}
+        ok(slots.picture.x + slots.picture.w <= slots.light.x, 'picture zone before light zone')
         ok(slots.light.x + slots.light.w <= slots.mode.x, 'light zone before mode zone')
         ok(slots.mode.x + slots.mode.w <= slots.reset.x, 'mode zone before reset zone')
         ok(slots.reset.x + slots.reset.w <= 2112, 'reset zone by the edge')
         -- Where each keyboard label starts after its slot's left edge, as drawn.
         local _, texts = camera_row(r)
-        local col = {light = texts[2].x - slots.light.x, mode = texts[4].x - slots.mode.x,
-            reset = texts[6].x - slots.reset.x}
+        local col = {picture = texts[2].x - slots.picture.x, light = texts[4].x - slots.light.x,
+            mode = texts[6].x - slots.mode.x, reset = texts[8].x - slots.reset.x}
         local checked = 0
         for lang, t in pairs(T) do
             local w = type(t) == 'table' and t.closet
             if w then
                 checked = checked + 1
                 local labels = {light = {}, mode = {w.camera.title:format(w.camera.region),
-                    w.camera.title:format(w.camera.free)}, reset = {w.camera.reset_hint}}
+                    w.camera.title:format(w.camera.free)}, reset = {w.camera.reset_hint},
+                    picture = {w.picture.hint, w.picture.pad}}
                 for preset, name in pairs(w.light) do
                     if preset ~= 'title' then
                         labels.light[#labels.light + 1] = w.light.title:format(name .. (preset ~= 'game' and ' x1.25' or ''))
@@ -2725,8 +2718,14 @@ local tests = {
                     for _, label in ipairs(list) do
                         local key = col[slot] + text_width(label)
                         local pad = SB_ICON + text_width(label)
-                        ok(key <= slots[slot].w, lang .. ' keyboard ' .. slot .. ': ' .. label .. ' (' .. key .. ')')
-                        ok(pad <= slots[slot].w, lang .. ' pad ' .. slot .. ': ' .. label .. ' (' .. pad .. ')')
+                        -- The picture chip's labels differ by device: its keyboard one, its pad one (View held).
+                        if label ~= w.picture.pad then
+                            ok(key <= slots[slot].w,
+                                lang .. ' keyboard ' .. slot .. ': ' .. label .. ' (' .. key .. ')')
+                        end
+                        if label ~= w.picture.hint then
+                            ok(pad <= slots[slot].w, lang .. ' pad ' .. slot .. ': ' .. label .. ' (' .. pad .. ')')
+                        end
                     end
                 end
             end
@@ -2740,7 +2739,8 @@ local tests = {
         -- SB part is one whose action SB maps to the closet's own key (Back, Select, F, the D-pad, Q / E).
         local MAPPED = {Negative = true, Positive = true, UI_FaceButton_Top = true, UI_DPad_Up = true,
             UI_DPad_Down = true, UI_LeftShoulder = true, UI_RightShoulder = true}
-        local CAMERA = {UI_LeftThumbstick = true, UI_FaceButton_Left = true, UI_RightThumbstick = true}
+        local CAMERA = {UI_LeftThumbstick = true, UI_FaceButton_Left = true, UI_RightThumbstick = true,
+            UI_SpecialLeft = true}
         for _, dev in ipairs({1, 3}) do
             local pad = dev >= 3
             local cam = fake_camera()
@@ -2766,8 +2766,8 @@ local tests = {
                     else ok(MAPPED[icon], what .. ': keyboard part ' .. tostring(icon)) end
                 end
                 local parts, texts = camera_row(r)
-                eq(#parts, pad and 3 or 0, what .. ': camera SB parts')
-                eq(#texts, pad and 0 or 6, what .. ': camera kit texts')
+                eq(#parts, pad and 4 or 0, what .. ': camera SB parts')
+                eq(#texts, pad and 0 or 8, what .. ': camera kit texts')
                 local d = r.kit.live(F.DETAIL)[1]
                 local desc = d and d.o.DescriptionText and d.o.DescriptionText.text or ''
                 local mine, other = w.camera.moves[cam.now], nil
@@ -2807,7 +2807,7 @@ local tests = {
             r.t = 1
             r.menu.open()
             -- The Full tab's Reset row.
-            at(r, 1.5, 'tab_left', 'tab_left', 'tab_left', 'down', 'down', 'down', 'select')
+            at(r, 1.5, 'tab_left', 'tab_left', 'tab_left', 'down', 'down', 'select')
             eq(popups(r), 1, dev .. ': Reset Stellar Closet?') check('reset popup')
             ok(steps > 100, dev .. ': every step checked')
         end
@@ -2844,7 +2844,7 @@ local tests = {
         eq(got.pad_bits(), 5, 'the pad bits')
         same({got.pad_levels()}, {0.5, -0.5, 0, 1}, 'the pad levels')
         ok(menu_got.camera ~= nil and menu_got.camera.word ~= nil, 'the menu has the camera')
-        ok(menu_got.thumbs == M.closet_thumbs, 'the menu has coop closet thumbs (its Make preview pictures row)')
+        ok(menu_got.thumbs == M.closet_thumbs, 'the menu has coop closet thumbs (its Clear preview pictures row)')
         ok(menu_got.colour == M.closet_colour, 'the menu has the colour layer (its Colour tab)')
         ok(menu_got.shape == M.closet_shape, 'the menu has the shape layer (the Body tab\'s shape rows)')
         ok(menu_got.uidev == M.link.uidev, 'the menu reads SB\'s input device through the link (its prompts follow it)')
@@ -2972,7 +2972,7 @@ local tests = {
             close = function(r) r.menu.close() end,
             keep = function(r) r.menu.close('keep') end,
             reset = function(r)
-                at(r, 1, 'tab_left', 'tab_left', 'tab_left', 'down', 'down', 'down', 'select', 'select')
+                at(r, 1, 'tab_left', 'tab_left', 'tab_left', 'down', 'down', 'select', 'select')
             end,
         }
         for name, path in pairs(paths) do
@@ -3017,12 +3017,12 @@ local tests = {
             at(r, 0.9, 'down')
             eq((detail(r)), 'Aria', 'the favourite listed')
             at(r, 1, 'down')
-            eq((detail(r)), T.en.closet.row.thumbs, 'no other outfit: Make preview pictures next')
+            eq((detail(r)), T.en.closet.row.reset, 'no other outfit: Reset Stellar Closet next')
             at(r, 1.1, 'up', 'select')
             same(r.previews[1], {{fit = ARIA}}, 'Select still wears the outfit')
             at(r, 1.2, 'refresh')
             eq(r.presets.is_fav(ARIA), false, 'F again: not a favourite')
-            eq((detail(r)), T.en.closet.row.thumbs, 'it leaves the Favourites list')
+            eq((detail(r)), T.en.closet.row.reset, 'it leaves the Favourites list')
         end)
     end,
     -- The filter row turns All, Favourites, Original, Custom with right or Select, back with left; Original lists
@@ -3044,7 +3044,7 @@ local tests = {
                 at(r, 0.9, 'down')
                 eq((detail(r)), 'Ocean Maid', 'the Original suit')
                 at(r, 1, 'down')
-                eq((detail(r)), T.en.closet.row.thumbs, 'no Custom suit')
+                eq((detail(r)), T.en.closet.row.reset, 'no Custom suit')
                 at(r, 1.1, 'up', 'up', 'up', 'right')
                 eq(row_value(r, P.filter), P.custom, 'then Custom')
                 at(r, 1.2, 'down')

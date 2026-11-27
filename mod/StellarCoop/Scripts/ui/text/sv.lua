@@ -475,12 +475,9 @@ return {
         row={whole='Bär hela dräkten',soon='Kommer snart',
             empty='Ingen installerad dräkt har ett plagg för den här platsen.',none='Inget',
             locked='Låst: %s är inte installerad.',reset='Återställ Stellar Closet',
-            thumbs='Skapa förhandsbilder',
-            thumbs_desc='Tar en bild av varje plagg som inte har någon än, en per bildruta. Det börjar när menyn är '
-                ..'stängd, utanför strid. Rutorna visar bilderna nästa gång menyn öppnas.',
             clear_thumbs='Rensa förhandsbilder',
-            clear_thumbs_desc='Tar bort alla förhandsbilder. Rutorna visar dräkternas egna bilder igen. Skapa '
-                ..'förhandsbilder tar dem på nytt.'},
+            clear_thumbs_desc='Tar bort alla förhandsbilder. Rutorna visar dräkternas egna bilder igen. Förhandsbild '
+                ..'tar en på nytt.'},
         detail={outfit='Dräkt: %s',slot='Plats: %s',covers='Täcker: %s',also='Tar även: %s',
             off='Dold som standard i sin dräkt'},
         origin={original='Original',custom='Anpassad: %s'},
@@ -513,7 +510,13 @@ return {
                     ..'mittenknappen flyttar. U / O eller mushjulet zoomar. Ljusstyrka: Shift+U / Shift+O.',
                 pad='Höger spak roterar runt. Håll X med höger spak för att flytta. LT / RT zoomar. Ljusstyrka: håll L3 och använd sedan LT / RT.'}}},
         light={game='Spel',studio='Studio',warm='Varm',cool='Sval',rim='Motljus',title='Ljus: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Förhandsbild',pad='Håll: Förhandsbild',
+            saved='Förhandsbild sparad för %s.',
+            none='Ta först på en hel dräkt: en förhandsbild visar en dräkt.',
+            failed='Förhandsbilden kunde inte tas. UE4SS.log säger varför.'},
         colour={roles={primary='Primär',secondary='Sekundär',accent='Accent',glow='Glöd'},
             about={primary='Huvudplagg: överdelar, underdelar, behåar, underkläder, jackor, kappor, hattar och hela '
                 ..'dräkter.',
@@ -533,7 +536,7 @@ return {
             reset_desc='Alla plagg från Stellar Closet tas av EVE. Den sparade looken raderas. '
                 ..'Stellar Closet ändrar ingenting förrän du tar på en look igen.',
             clear_title='Rensa förhandsbilder?',
-            clear_desc='Alla förhandsbilder tas bort från modmappen. Skapa förhandsbilder tar dem på nytt.'},
+            clear_desc='Alla förhandsbilder tas bort från modmappen. Förhandsbild tar en på nytt.'},
         refused={combat='Stellar Closet öppnas inte under strid.',
             cutscene='Stellar Closet öppnas inte under en mellansekvens.',
             photo='Stellar Closet öppnas inte i fotoläget.',tachy='Stellar Closet öppnas inte i Tachy-läget.',
@@ -549,9 +552,7 @@ return {
         saved='Looken sparad.',failed='Plagget gick inte att ta på. UE4SS.log säger varför.',
         switched='Kroppen bytt till %s så att ingen hud syns genom plaggen.',
         clips='Den här kroppens hud syns genom plaggen på: %s.',
-        thumbs={started='Förhandsbilderna börjar när menyn är stängd.',cached='Varje plagg har redan sin förhandsbild.',
-            failed='Förhandsbilderna kunde inte starta. UE4SS.log säger varför.',
-            cleared='Alla förhandsbilder är borttagna.',
+        thumbs={cleared='Alla förhandsbilder är borttagna.',
             busy='Förhandsbilderna håller på att skapas. Rensa dem när det är klart.'},
         reset_done='Stellar Closet är återställd. EVE bär sin egen look.'},
 }

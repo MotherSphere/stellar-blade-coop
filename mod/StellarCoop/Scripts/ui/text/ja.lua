@@ -424,11 +424,8 @@ return {
         row={whole='衣装一式を着る',soon='近日対応',
             empty='このスロットのパーツがあるインストール済み衣装はありません。',none='なし',
             locked='ロック中：%sがインストールされていません。',reset='Stellar Closetをリセット',
-            thumbs='プレビュー画像を作成',
-            thumbs_desc='まだ画像のない各パーツを1フレームに1枚ずつ撮影します。メニューを閉じた後、戦闘外で始まります。'
-                ..'次に開いたときにタイルに表示されます。',
             clear_thumbs='プレビュー画像を消去',
-            clear_thumbs_desc='すべてのプレビュー画像を削除します。タイルには衣装本来の画像が再び表示されます。プレビュー画像を作成で撮り直せます。'},
+            clear_thumbs_desc='すべてのプレビュー画像を削除します。タイルには衣装本来の画像が再び表示されます。プレビュー画像で撮り直せます。'},
         detail={outfit='衣装：%s',slot='スロット：%s',covers='覆う部位：%s',also='他に使うスロット：%s',
             off='衣装では初期状態で非表示'},
         origin={original='オリジナル',custom='カスタム：%s'},
@@ -460,7 +457,13 @@ return {
                     ..'またはマウスホイールでズーム。ライトの強さ：Shift+U / Shift+O。',
                 pad='右スティックで回転。Xを押しながら右スティックで移動。LT / RT でズーム。ライトの強さ：L3を押しながらLT / RT。'}}},
         light={game='ゲーム',studio='スタジオ',warm='ウォーム',cool='クール',rim='リム',title='ライト：%s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='プレビュー画像',pad='長押し：プレビュー画像',
+            saved='%s のプレビュー画像を保存しました。',
+            none='まず衣装一式を1着着てください。プレビュー画像は1着の衣装を写します。',
+            failed='プレビュー画像を撮影できませんでした。理由はUE4SS.logにあります。'},
         colour={roles={primary='メイン',secondary='サブ',accent='アクセント',glow='発光'},
             about={primary='主な衣服：トップス、ボトムス、ブラ、下着、ジャケット、ケープ、帽子、衣装一式。',
                 secondary='手袋、袖、靴、レッグウェア、ベルト、ガーター、ストラップ、バンド、マスク。',
@@ -477,7 +480,7 @@ return {
             reset_desc='Stellar ClosetのパーツをすべてEVEから外し、保存した見た目を消去します。'
                 ..'もう一度見た目を着るまで、Stellar Closetは何も変えません。',
             clear_title='プレビュー画像を消去しますか？',
-            clear_desc='すべてのプレビュー画像をMODフォルダから削除します。プレビュー画像を作成で撮り直せます。'},
+            clear_desc='すべてのプレビュー画像をMODフォルダから削除します。プレビュー画像で撮り直せます。'},
         refused={combat='戦闘中はStellar Closetを開けません。',cutscene='ムービー中はStellar Closetを開けません。',
             photo='フォトモード中はStellar Closetを開けません。',tachy='Tachyモード中はStellar Closetを開けません。',
             screen='ゲームのメニューを開いている間はStellar Closetを開けません。',
@@ -492,10 +495,7 @@ return {
         saved='見た目を保存しました。',failed='このパーツを着られませんでした。理由はUE4SS.logにあります。',
         switched='肌がパーツから透けないよう、体を%sに切り替えました。',
         clips='この体はパーツから肌が透けます：%s。',
-        thumbs={started='メニューを閉じるとプレビュー画像の作成が始まります。',
-            cached='すべてのパーツにプレビュー画像があります。',
-            failed='プレビュー画像の作成を開始できませんでした。理由はUE4SS.logにあります。',
-            cleared='すべてのプレビュー画像を削除しました。',
+        thumbs={cleared='すべてのプレビュー画像を削除しました。',
             busy='プレビュー画像を作成中です。完了してから消去してください。'},
         reset_done='Stellar Closetをリセットしました。EVEは自分の見た目に戻りました。'},
 }

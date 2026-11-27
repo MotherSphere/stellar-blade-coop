@@ -419,6 +419,7 @@ function Camera.new(o)
         -- The first frame there at once: the view's blend moves from the game's camera.
         cur=cur and ease(cur,target,1-math.exp(-4*dt/Camera.EASE)) or ease(target,target,0)
         local at,rot,T=Camera.place(cur,L,yaw,L.Z-cam.h/2,cam.k)
+        cam.at,cam.look=at,T -- shot()'s.
         d.mesh:K2_SetWorldLocationAndRotation(at,rot,false,{},false)
         lights.place(cur.dist,cam.k)
         if not cam.measured and o.project and clock>=cam.since+Camera.MEASURE then measure(T) end
@@ -554,6 +555,9 @@ function Camera.new(o)
     end
     function self.running() return cam~=nil end
     function self.mode() return mode end
+    -- The view as last placed, for the menu's Preview picture (closet/thumbs.lua's snap): {at=the camera, look=its look
+    -- point, tanv=the screen's vertical half-angle tangent}; nil with no camera or before its first place.
+    function self.shot() return cam and cam.at and {at=cam.at,look=cam.look,tanv=cam.tanv} or nil end
     -- The light preset (closet/ui/lights.lua Lights.ORDER) and its intensity factor.
     function self.light() return lights.preset(),lights.factor() end
     return self

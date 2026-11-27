@@ -35,13 +35,14 @@
 -- origin's badge. The Full tab lists every installed pack's suit by name (closet/fits.lua's Fits.all), then Shift Up's
 -- own suits under the closet.original header row, which does nothing. Each tile shows its piece's picture (closet/thumbs.lua's cached PNG), else its outfit's Image, else
 -- its slot's glyph (closet/slots.lua); the None tile None's glyph. The Full tab's outfit row shows one tile, its
--- outfit's whole picture (full.png), else its Image, else the Full outfit glyph; Select still wears the row. Which
--- pictures are there is read again at each open. The Full tab's row before the last, Make preview pictures (hint
--- Select), starts coop closet thumbs (closet/thumbs.lua) for every picture not there yet. That run waits for the
--- menu's close. It tells closet.thumbs.started (also when a run is going), cached (every picture is there) or failed
--- (the reason logged); the menu stays open. With thumbs, Clear preview pictures follows it: Select asks with the game's
--- Yes/No popup; Yes deletes every picture (thumbs.clear), tells closet.thumbs.cleared (busy while a run goes) and reads
--- which pictures are there again; No and Back stay.
+-- outfit's whole picture (full.png), else its Image, else the Full outfit glyph; Select still wears the row. An outfit
+-- row whose full.png is there shows it large (s.preview) in place of the tile. Which pictures are there is read again
+-- at each open. Preview picture, the camera row's last chip (P on the keyboard, View held on a pad: main/keys.lua and
+-- main/input.lua's word picture), takes the worn whole outfit's full.png as the screen shows EVE (closet/thumbs.lua's
+-- snap with camera.shot()) and tells closet.picture.saved, none (no one whole outfit worn) or failed (logged). With
+-- thumbs, the Full tab's row before the last, Clear preview pictures, asks with the game's Yes/No popup; Yes deletes
+-- every picture (thumbs.clear), tells closet.thumbs.cleared (busy while a run goes) and reads which pictures are there
+-- again; No and Back stay.
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
 -- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
 -- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
@@ -331,8 +332,8 @@ function Menu.new(o)
             elseif item.filter then
                 local show=FILTERS[filter]
                 s.rows[i]={title=w.presets.filter,value=show=='original' and w.origin.original or w.presets[show]}
-            elseif item.reset or item.thumbs or item.clear_thumbs then
-                s.rows[i]={title=item.reset and w.row.reset or item.thumbs and w.row.thumbs or w.row.clear_thumbs,
+            elseif item.reset or item.clear_thumbs then
+                s.rows[i]={title=item.reset and w.row.reset or w.row.clear_thumbs,
                     value=''}
             elseif item.header then -- The Original header above Shift Up's own suits, or the options page's outfit.
                 s.rows[i]={title=page and item.header or w.original,value='',header=true}
@@ -406,14 +407,18 @@ function Menu.new(o)
             -- closet's bind (main/keys.lua), as kit text. No label names a key.
             s.camera_hints={{w.camera.title:format(w.camera[camera.mode()]),'UI_FaceButton_Left',word='cam_mode',
                 key=w.keys.mode},{w.camera.reset_hint,'UI_RightThumbstick',word='cam_reset',key=w.keys.reset},
-                {w.light.title:format(light),'UI_LeftThumbstick',word='light_next',key=w.keys.light}}
+                {w.light.title:format(light),'UI_LeftThumbstick',word='light_next',key=w.keys.light},
+                -- UI_SpecialLeft: SB's UI action for the pad's View button, a UTF-16 string of the same exe at
+                -- 0x145c4ec28 (Ghidra, 27 Nov 2026), in the list with UI_LeftThumbstick; held, it takes the picture.
+                {s.pad and w.picture.pad or w.picture.hint,'UI_SpecialLeft',word='picture',key=w.keys.picture}}
         end
         s.detail={title=shown and (shown.plain or shown.title) or '',desc=''}
         if item and item.whole then
             s.detail.desc=(item.locked and w.row.locked:format(item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
             s.detail.badge=Fits.origin(item.whole)
-            s.tiles={{name=item.outfit,locked=item.locked,picture=picture(item.whole,Thumbs.FULL),
-                image=Fits.get(item.whole).Image,icon=Slots.glyph(Slots.FULL_OUTFIT)}}
+            s.preview=picture(item.whole,Thumbs.FULL) -- Its picture large, in place of the tile.
+            s.tiles=not s.preview and {{name=item.outfit,locked=item.locked,picture=nil,
+                image=Fits.get(item.whole).Image,icon=Slots.glyph(Slots.FULL_OUTFIT)}} or nil
             if not item.locked then s.hints[2]={w.hints.whole,'Positive',word='select'} end
             -- UI_DPad_Right: SB's UI action for the D-pad's right (its keyboard key on a keyboard), a UTF-16 string of
             -- the 26123051 exe at 0x145c4e940 (Ghidra), as online/lobby/ui/lobby.lua's Change hint uses it.
@@ -452,9 +457,8 @@ function Menu.new(o)
             -- UI_FaceButton_Top (F, the pad's Y): as the refresh hint of a row of pieces below.
             s.hints[3]={w.hints.reset,'UI_FaceButton_Top',word='refresh'}
         elseif item and page then -- A section of controls only: Back and Move.
-        elseif item and (item.reset or item.thumbs or item.clear_thumbs) then
-            s.detail.desc=item.reset and w.popup.reset_desc or item.thumbs and w.row.thumbs_desc
-                or w.row.clear_thumbs_desc
+        elseif item and (item.reset or item.clear_thumbs) then
+            s.detail.desc=item.reset and w.popup.reset_desc or w.row.clear_thumbs_desc
             s.hints[2]={t.hint.select,'Positive',word='select'}
         elseif item and item.role then
             s.detail.desc=w.colour.about[item.role]..'\n'..w.colour.help
@@ -633,20 +637,25 @@ function Menu.new(o)
         if one and one.fit and not one.locked then wear(model.whole(one.fit)) end
     end
 
-    -- Make preview pictures: coop closet thumbs started from the menu (it waits for the close), told; a run going is
-    -- told the same way, not started again.
-    local function pictures()
-        local thumbs=o.thumbs
-        local ran,good,why=true,true,nil
-        if not (thumbs and thumbs.running()) then
-            ran,good,why=pcall(function() return thumbs.run(false,nil,true) end)
-        end
+    -- Preview picture: the one whole outfit EVE wears now, as the closet camera shows her, saved as its full.png; told.
+    local function snapshot()
+        local choices=dress.choices() or {}
+        local fit=#choices==1 and not choices[1].slots and choices[1].fit or nil
+        if not fit then return o.tell(function(t) return t.closet.picture.none end) end
+        local ran,good,why=pcall(function()
+            if not o.thumbs then return false,'no coop closet thumbs' end
+            return o.thumbs.snap(fit,camera and camera.shot())
+        end)
         if not (ran and good) then
-            log('menu: preview pictures not started: '..tostring(ran and why or good))
-            return o.tell(function(t) return t.closet.thumbs.failed end)
+            log('menu: preview picture not taken: '..tostring(ran and why or good))
+            return o.tell(function(t) return t.closet.picture.failed end)
         end
-        local key=thumbs.running() and 'started' or 'cached' -- Not running after a good run: every picture is there.
-        o.tell(function(t) return t.closet.thumbs[key] end)
+        there={} -- Read again: the focused outfit's row shows the new picture.
+        view.reread()
+        kit.sound('change')
+        local name=Fits.get(fit) and Fits.get(fit).Outfit or fit
+        o.tell(function(t) return t.closet.picture.saved:format(name) end)
+        redraw()
     end
 
     local function set_tab(i)
@@ -807,6 +816,7 @@ function Menu.new(o)
     function self.nav(word)
         if not open then return end
         if camera_word(word) then return cam_word(word) end
+        if word=='picture' then return snapshot() end
         -- A right press may start a camera drag: its Back waits for the release (self.tick, camera.take_back).
         if word=='back' and camera and camera.hold_back() then return end
         if word=='tab_left' then undo={tab,row,col,tile,tab_top,page,from_row,at=frame} -- The pad chord (self.toggle).
@@ -825,7 +835,8 @@ function Menu.new(o)
             local i=view.tab_hovered()
             if i then set_tab(i); return redraw() end
             local chip=view.hint_hovered() -- A hint chip runs its word.
-            if chip and camera_word(chip) then return cam_word(chip)
+            if chip=='picture' then return snapshot()
+            elseif chip and camera_word(chip) then return cam_word(chip)
             elseif chip then word=chip
             else
                 i=view.row_hovered()
@@ -845,7 +856,6 @@ function Menu.new(o)
         local item,tiles,at=focused()
         if word=='tab_left' or word=='tab_right' then set_tab(tab+(word=='tab_left' and -1 or 1))
         elseif word=='select' and col=='rows' and item and item.reset then asking='reset'
-        elseif word=='select' and col=='rows' and item and item.thumbs then pictures()
         elseif word=='select' and col=='rows' and item and item.clear_thumbs then asking='clear'
         elseif word=='refresh' and page then
             if resettable(item) then reset_row(item) end

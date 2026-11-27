@@ -132,16 +132,22 @@ local DETAIL_X,DETAIL_Y=SWATCH_X+SWATCH_W+4,1160
 -- the badge at EDGE with 3 units between them.
 local BADGE=48
 local BADGE_X,BADGE_Y=View.EDGE-BADGE,DETAIL_Y+8
+-- An outfit row's preview picture (closet/thumbs.lua's snap: SNAP_W x SNAP_H, 0.8 as wide as tall) in the space
+-- between the tabs and the detail panel (y 300 to DETAIL_Y, x DETAIL_X to EDGE), as tall as it fits, centred.
+local PREVIEW_H=DETAIL_Y-40-300
+local PREVIEW_W=math.floor(PREVIEW_H*0.8)
+local PREVIEW_X,PREVIEW_Y=math.floor(DETAIL_X+(View.EDGE-DETAIL_X-PREVIEW_W)/2),300
 -- Key hints, right to left from EDGE: the menu's row. Five (an outfit's row shows Back, Whole outfit, Options,
 -- Favourite, Move) at the lobby's step of 420 would start at x 12, at the screen's edge: 400 starts them at x 112,
 -- right of the left tab key's icon (TAB_ICON_X).
 local HINT_STEP,HINT_Y,HINTS=400,1990,5
--- The camera's row above it: a fixed slot per chip in s.camera_hints' order (mode, reset, light), 90 apart, the last
--- ending at EDGE. x and w: the chip's left edge and its click zone's width; col: where the label starts after the
--- keyboard key (C, Backspace, V at about 17 units a Bold 30 character, plus 12). KEY_Y: the kit text's y in the row,
+-- The camera's row above it: a fixed slot per chip in s.camera_hints' order (mode, reset, light, picture), the reset
+-- chip ending at EDGE, Preview picture first at the row's left (x 112, the hints' left). x and w: the chip's left
+-- edge and its click zone's width; col: where the label starts after the keyboard key (C, Backspace, V, P at about 17
+-- units a Bold 30 character, plus 12). KEY_Y: the kit text's y in the row,
 -- as ui/kit/kit.lua's hints put theirs (KEY_TEXT 9).
 local CAMERA_Y,KEY_Y=1890,1899
-local CAMERA={{x=1162,w=420,col=62},{x=1672,w=440,col=182},{x=432,w=640,col=62}}
+local CAMERA={{x=1162,w=420,col=62},{x=1672,w=440,col=182},{x=600,w=560,col=62},{x=112,w=480,col=62}}
 
 -- A value cut to VALUE_COLS columns: a CJK character takes two (as the menu test's width estimate counts them), a
 -- narrow one (NARROW: a space, i, l, punctuation) a half, any other one. Whole when it fits, else its first characters
@@ -201,6 +207,8 @@ function View.new(kit,log)
         end
         local badge=b.image(BADGE_X,BADGE_Y,BADGE,BADGE,nil)
         badge.show(false)
+        local preview=b.image(PREVIEW_X,PREVIEW_Y,PREVIEW_W,PREVIEW_H,nil)
+        preview.show(false)
         -- A hidden image a tile: tile i's picture, kept from the engine while the grid lists it.
         local pics={}
         for i=1,View.HOLD do
@@ -217,7 +225,7 @@ function View.new(kit,log)
             cam_labels[i]=b.text(c.x+c.col,KEY_Y,'','hint')
         end
         return {zones=zones,notice=notice,held=held,badge=badge,pics=pics,cam_keys=cam_keys,cam_labels=cam_labels,
-            swatches=swatches}
+            swatches=swatches,preview=preview}
     end)
     -- What is made and what it shows. top: the rows above the window; count: the rows of the last draw; tab_top: the
     -- first tab shown; camera: the camera's hint row.
@@ -276,7 +284,7 @@ function View.new(kit,log)
     end
     -- A cached picture's texture (held by the grid fill), dropped by reread; an outfit's Image when it is a Texture2D
     -- (a cooked asset: the slot loads it again by its path).
-    local pics,images={},{}
+    local pics,images,reads={},{},0
     local function picture(file)
         return texture(pics,file,'the picture '..file,': its tile shows its outfit\'s image or its glyph',
             function() return import(file) end)
@@ -444,6 +452,14 @@ function View.new(kit,log)
         end
     end
 
+    -- The focused outfit's preview picture, on change only (reads: a picture taken anew is the same file).
+    local function draw_preview(s,view)
+        local want=s.preview and s.preview..'#'..reads or false
+        if view.preview_shown==want then return end
+        local g=s.preview and picture(s.preview)
+        view.preview_shown=g and want or false
+        view.preview.show(g~=nil and view.preview.texture(g.o))
+    end
     local function draw_detail(s,view)
         if not kit.alive(detail) then detail,detail_sig=make(DETAIL,DETAIL_X,DETAIL_Y),nil end
         local d=s.detail
@@ -492,6 +508,7 @@ function View.new(kit,log)
         view.notice.set(s.notice)
         draw_grid(s)
         draw_detail(s,view)
+        draw_preview(s,view)
         words={}
         local specs={}
         for i=1,HINTS do
@@ -588,7 +605,7 @@ function View.new(kit,log)
         return hit
     end
     -- The imported pictures dropped: imported again as next drawn (the menu's open).
-    function v.reread() pics={} end
+    function v.reread() pics,reads={},reads+1 end
     -- false once a part made since the open is gone.
     function v.alive()
         for _,set in ipairs({tabs,rows,hints,keys,camera}) do

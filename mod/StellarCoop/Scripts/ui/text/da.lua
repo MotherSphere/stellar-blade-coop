@@ -478,12 +478,9 @@ return {
         row={whole='Tag hele dragten på',soon='Kommer snart',
             empty='Ingen installeret dragt har en del til denne plads.',none='Ingen',
             locked='Låst: %s er ikke installeret.',reset='Nulstil Stellar Closet',
-            thumbs='Lav forhåndsvisningsbilleder',
-            thumbs_desc='Tager et billede af hver del, der ikke har et endnu, ét pr. frame. Det starter, når menuen '
-                ..'er lukket, uden for kamp. Felterne viser billederne, næste gang menuen åbnes.',
             clear_thumbs='Ryd forhåndsvisningsbilleder',
             clear_thumbs_desc='Sletter alle forhåndsvisningsbilleder. Felterne viser dragternes egne billeder igen. '
-                ..'Lav forhåndsvisningsbilleder tager dem igen.'},
+                ..'Forhåndsvisningsbillede tager et igen.'},
         detail={outfit='Dragt: %s',slot='Plads: %s',covers='Dækker: %s',also='Optager også: %s',
             off='Skjult som standard i sin dragt'},
         origin={original='Original',custom='Tilpasset: %s'},
@@ -516,7 +513,13 @@ return {
                     ..'museknap flytter. U / O eller musehjulet zoomer. Lysstyrke: Shift+U / Shift+O.',
                 pad='Højre stick drejer rundt. Hold X med højre stick for at flytte. LT / RT zoomer. Lysstyrke: hold L3, og brug så LT / RT.'}}},
         light={game='Spil',studio='Studie',warm='Varm',cool='Kølig',rim='Modlys',title='Lys: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Forhåndsvisningsbillede',pad='Hold: Forhåndsvisning',
+            saved='Forhåndsvisningsbillede gemt for %s.',
+            none='Tag først en hel dragt på: et forhåndsvisningsbillede viser én dragt.',
+            failed='Forhåndsvisningsbilledet kunne ikke tages. UE4SS.log siger hvorfor.'},
         colour={roles={primary='Primær',secondary='Sekundær',accent='Accent',glow='Glød'},
             about={primary="Primære beklædningsdele: toppe, bunde, bh'er, undertøj, jakker, kapper, hatte og hele "
                 ..'dragter.',
@@ -536,8 +539,7 @@ return {
             reset_desc='Alle dele fra Stellar Closet tages af EVE. Det gemte look slettes. '
                 ..'Stellar Closet ændrer intet, før du tager et look på igen.',
             clear_title='Ryd forhåndsvisningsbilleder?',
-            clear_desc='Alle forhåndsvisningsbilleder slettes fra mod-mappen. Lav forhåndsvisningsbilleder tager dem '
-                ..'igen.'},
+            clear_desc='Alle forhåndsvisningsbilleder slettes fra mod-mappen. Forhåndsvisningsbillede tager et igen.'},
         refused={combat='Stellar Closet åbner ikke under kamp.',
             cutscene='Stellar Closet åbner ikke under en mellemsekvens.',
             photo='Stellar Closet åbner ikke i fototilstand.',tachy='Stellar Closet åbner ikke i Tachy-tilstand.',
@@ -553,10 +555,7 @@ return {
         saved='Look gemt.',failed='Delen kunne ikke tages på. UE4SS.log siger hvorfor.',
         switched='Kroppen er skiftet til %s, så ingen hud skinner igennem delene.',
         clips='Denne krops hud skinner igennem delene på: %s.',
-        thumbs={started='Forhåndsvisningsbillederne starter, når menuen er lukket.',
-            cached='Hver del har allerede sit forhåndsvisningsbillede.',
-            failed='Forhåndsvisningsbillederne kunne ikke starte. UE4SS.log siger hvorfor.',
-            cleared='Alle forhåndsvisningsbilleder er slettet.',
+        thumbs={cleared='Alle forhåndsvisningsbilleder er slettet.',
             busy='Forhåndsvisningsbillederne bliver lavet. Ryd dem, når det er færdigt.'},
         reset_done='Stellar Closet er nulstillet. EVE har sit eget look på.'},
 }

@@ -74,6 +74,16 @@ Thumbs.NEAR=3000 -- cm: the closet menu's combat distance.
 Thumbs.FOV=30 -- degrees.
 Thumbs.VIEW={25,5} -- degrees: the capture turned right of her front, then raised above it.
 Thumbs.MARGIN=1.2 -- The framed span over the bones' span.
+-- px: the menu's Preview picture (snap), EVE's part of the screen: x 2112 to 3840 of 3840, the whole height, 0.8 as
+-- wide as tall.
+Thumbs.SNAP_W,Thumbs.SNAP_H=512,640
+-- The capture's rotation from at to look and its horizontal FOV (degrees) for a target aspect (width over height) as
+-- tall as a screen whose vertical half-angle has tangent tanv.
+function Thumbs.aim(at,look,tanv,aspect)
+    local dx,dy,dz=look.X-at.X,look.Y-at.Y,look.Z-at.Z
+    local rot={Pitch=math.deg(math.atan(dz,math.sqrt(dx*dx+dy*dy))),Yaw=math.deg(math.atan(dy,dx)),Roll=0}
+    return rot,2*math.deg(math.atan(tanv*aspect))
+end
 -- Each region's two bones on the rig mesh (EVE's skeleton names, online/partner/puppet.lua's COLLISION_BONES), the
 -- least span framed (cm) and how far the middle is raised (cm). Starting values, to tune in game: the rig mesh stands
 -- in its reference pose, arms out.
@@ -375,6 +385,45 @@ function Thumbs.new(o)
         if not o.folder then return false,'closet thumbs: the mod folder is not known' end
         fs.rmdir(o.folder..'\\'..Thumbs.DIR)
         log('closet thumbs: every picture deleted')
+        return true
+    end
+    -- The closet menu's Preview picture: fit's full.png as the closet camera shows EVE now (shot: the camera's
+    -- {at, look, tanv}, closet/ui/camera.lua's shot): a SceneCapture2D at the camera looking at its look point, the
+    -- whole scene, a SNAP_W x SNAP_H target, exported, then the capture and the target go. The file is there, or why
+    -- not.
+    function self.snap(fit,shot)
+        if run then return false,'closet thumbs: running' end
+        if not o.folder then return false,'closet thumbs: the mod folder is not known' end
+        if not (fit and fits.get(fit)) then return false,'closet thumbs: no fit map for '..tostring(fit) end
+        if not (shot and shot.at and shot.look and shot.tanv) then return false,'closet thumbs: no closet camera' end
+        local eve=her()
+        if not eve then return false,'closet thumbs: '..WHY.loading end
+        local world=eve:GetWorld()
+        local rot,fov=Thumbs.aim(shot.at,shot.look,shot.tanv,Thumbs.SNAP_W/Thumbs.SNAP_H)
+        local a,rt
+        local ran,why=pcall(function()
+            a=U.valid(world:SpawnActor(find(CAPTURE),shot.at,rot)) or error('no SceneCapture2D could be spawned',0)
+            local c=a.CaptureComponent2D
+            rt=find(RENDER):CreateRenderTarget2D(world,Thumbs.SNAP_W,Thumbs.SNAP_H,RGBA8,{R=0,G=0,B=0,A=1},false)
+            c.TextureTarget=rt
+            c.bCaptureEveryFrame=false
+            c.bCaptureOnMovement=false
+            c.CaptureSource=FINAL_LDR
+            c.FOVAngle=fov
+            c:CaptureScene()
+            local dir=Thumbs.folder(o.folder,fit)
+            local file=dir..'\\'..Thumbs.FULL..'.png'
+            find(RENDER):ExportRenderTarget(world,rt,dir,Thumbs.FULL..'.png')
+            if not fs.exists(file) then -- The export made no folder: made, the picture exported again.
+                fs.mkdir(dir)
+                find(RENDER):ExportRenderTarget(world,rt,dir,Thumbs.FULL..'.png')
+            end
+            if not fs.exists(file) then error(file..' not written',0) end
+        end)
+        if rt then pcall(function() find(RENDER):ReleaseRenderTarget2D(rt) end) end
+        if a then pcall(function() a:K2_DestroyActor() end) end
+        if not ran then return false,'closet thumbs: '..tostring(why) end
+        log('closet thumbs: '..fit..' picture taken')
         return true
     end
     return self

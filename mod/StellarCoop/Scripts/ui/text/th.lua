@@ -445,11 +445,8 @@ return {
             ArmUpper='ต้นแขน',Forearm='แขนท่อนล่าง',Hand='มือ',Thigh='ต้นขา',Calf='น่อง',Foot='เท้า'},
         row={whole='สวมชุดทั้งชุด',soon='เร็ว ๆ นี้',empty='ไม่มีชุดที่ติดตั้งไว้ชุดใดมีชิ้นสำหรับช่องนี้',
             none='ไม่มี',locked='ล็อกอยู่: ไม่ได้ติดตั้ง %s',reset='รีเซ็ต Stellar Closet',
-            thumbs='สร้างภาพตัวอย่าง',
-            thumbs_desc='ถ่ายภาพทุกชิ้นที่ยังไม่มีภาพ เฟรมละหนึ่งภาพ เริ่มหลังปิดเมนูเมื่อไม่ได้อยู่ในการต่อสู้ '
-                ..'ช่องจะแสดงภาพเมื่อเปิดครั้งถัดไป',
             clear_thumbs='ล้างภาพตัวอย่าง',
-            clear_thumbs_desc='ลบภาพตัวอย่างทั้งหมด ช่องจะแสดงภาพของชุดเองอีกครั้ง สร้างภาพตัวอย่างจะถ่ายใหม่'},
+            clear_thumbs_desc='ลบภาพตัวอย่างทั้งหมด ช่องจะแสดงภาพของชุดเองอีกครั้ง ภาพตัวอย่างจะถ่ายใหม่หนึ่งภาพ'},
         detail={outfit='ชุด: %s',slot='ช่อง: %s',covers='ปกปิด: %s',also='ใช้ช่องอื่นด้วย: %s',
             off='ซ่อนไว้เป็นค่าเริ่มต้นในชุดของมัน'},
         origin={original='ต้นฉบับ',custom='กำหนดเอง: %s'},
@@ -481,7 +478,13 @@ return {
                     ..'หรือลากด้วยปุ่มกลางเพื่อเลื่อน U / O หรือล้อเมาส์ซูม ความแรงของแสง: Shift+U / Shift+O',
                 pad='สติกขวาหมุนรอบ กด X ค้างไว้พร้อมสติกขวาเพื่อเลื่อน LT / RT ซูม ความแรงของแสง: กด L3 ค้างไว้ แล้วกด LT / RT'}}},
         light={game='เกม',studio='สตูดิโอ',warm='อบอุ่น',cool='เย็น',rim='ไฟขอบ',title='แสง: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='ภาพตัวอย่าง',pad='กดค้าง: ภาพตัวอย่าง',
+            saved='บันทึกภาพตัวอย่างของ %s แล้ว',
+            none='สวมชุดทั้งชุดหนึ่งชุดก่อน ภาพตัวอย่างจะแสดงหนึ่งชุด',
+            failed='ถ่ายภาพตัวอย่างไม่ได้ ดูสาเหตุใน UE4SS.log'},
         colour={roles={primary='หลัก',secondary='รอง',accent='เน้น',glow='เรืองแสง'},
             about={primary='เสื้อผ้าหลัก: เสื้อ กางเกง บรา ชุดชั้นใน แจ็กเก็ต ผ้าคลุม หมวก และชุดทั้งชุด',
                 secondary='ถุงมือ แขนเสื้อ รองเท้า ถุงน่อง เข็มขัด สายรัดถุงน่อง สายรัด ปลอกแขน และหน้ากาก',
@@ -500,7 +503,7 @@ return {
             reset_desc='ชิ้นส่วนทั้งหมดของ Stellar Closet จะถูกถอดออกจาก EVE และลุคที่บันทึกไว้จะถูกลบ '
                 ..'Stellar Closet จะไม่เปลี่ยนอะไรจนกว่าคุณจะสวมลุคอีกครั้ง',
             clear_title='ล้างภาพตัวอย่างหรือไม่',
-            clear_desc='ภาพตัวอย่างทั้งหมดจะถูกลบออกจากโฟลเดอร์ม็อด สร้างภาพตัวอย่างจะถ่ายใหม่'},
+            clear_desc='ภาพตัวอย่างทั้งหมดจะถูกลบออกจากโฟลเดอร์ม็อด ภาพตัวอย่างจะถ่ายใหม่หนึ่งภาพ'},
         refused={combat='เปิด Stellar Closet ระหว่างต่อสู้ไม่ได้',cutscene='เปิด Stellar Closet ระหว่างคัตซีนไม่ได้',
             photo='เปิด Stellar Closet ในโหมดถ่ายภาพไม่ได้',tachy='เปิด Stellar Closet ในโหมด Tachy ไม่ได้',
             screen='เปิด Stellar Closet ขณะเมนูเกมเปิดอยู่ไม่ได้',loading='เปิด Stellar Closet ขณะโหลดแผนที่ไม่ได้',
@@ -514,9 +517,7 @@ return {
         saved='บันทึกลุคแล้ว',failed='สวมชิ้นนี้ไม่ได้ ดูสาเหตุใน UE4SS.log',
         switched='เปลี่ยนร่างเป็น %s เพื่อไม่ให้ผิวทะลุชิ้นส่วน',
         clips='ผิวของร่างนี้ทะลุชิ้นส่วนที่: %s',
-        thumbs={started='ภาพตัวอย่างจะเริ่มสร้างเมื่อปิดเมนู',cached='ทุกชิ้นมีภาพตัวอย่างแล้ว',
-            failed='เริ่มสร้างภาพตัวอย่างไม่ได้ ดูสาเหตุใน UE4SS.log',
-            cleared='ลบภาพตัวอย่างทั้งหมดแล้ว',
+        thumbs={cleared='ลบภาพตัวอย่างทั้งหมดแล้ว',
             busy='กำลังสร้างภาพตัวอย่าง ให้ล้างหลังจากเสร็จแล้ว'},
         reset_done='รีเซ็ต Stellar Closet แล้ว EVE กลับมาใช้ลุคของเธอเอง'},
 }

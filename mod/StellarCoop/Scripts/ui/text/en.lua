@@ -589,12 +589,9 @@ return {
             ArmUpper='Upper arms',Forearm='Forearms',Hand='Hands',Thigh='Thighs',Calf='Calves',Foot='Feet'},
         row={whole='Wear whole outfit',soon='Coming soon',empty='No installed outfit has a piece for this slot.',
             none='None',locked='Locked: %s is not installed.',reset='Reset Stellar Closet',
-            thumbs='Make preview pictures',
-            thumbs_desc='Takes a picture of each piece that has none yet, one a frame. It starts once the menu is '
-                ..'closed, out of combat. The tiles show the pictures at the next open.',
             clear_thumbs='Clear preview pictures',
-            clear_thumbs_desc="Deletes every preview picture. The tiles show the outfits' own images again. Make "
-                ..'preview pictures takes them again.'},
+            clear_thumbs_desc="Deletes every preview picture. The tiles show the outfits' own images again. "
+                ..'Preview picture takes one again.'},
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Covers: %s',also='Also takes: %s',
             off='Hidden by default in its outfit'},
         origin={original='Original',custom='Custom: %s'},
@@ -640,7 +637,12 @@ return {
                     ..'Light level: hold L3, then LT / RT.'}}},
         -- The preview light presets and the light chip (title formatted with the preset).
         light={game='Game',studio='Studio',warm='Warm',cool='Cool',rim='Rim',title='Lighting: %s'},
-        keys={mode='C',reset='Backspace',light='V'}, -- The keyboard keys of the camera chips (main/keys.lua's binds).
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Preview picture',pad='Hold: Preview picture',saved='Preview picture saved for %s.',
+            none='Wear one whole outfit first: a preview picture shows one outfit.',
+            failed='The preview picture could not be taken. UE4SS.log says why.'},
         -- The Colour tab (closet/colour.lua): each role's row and what it colours, how to pick, each swatch's name.
         colour={roles={primary='Primary',secondary='Secondary',accent='Accent',glow='Glow'},
             about={primary='Main garments: tops, bottoms, bras, underwear, jackets, capes, hats and full outfits.',
@@ -661,7 +663,7 @@ return {
             reset_desc='Every closet piece comes off EVE and the saved look is deleted. Stellar Closet changes nothing '
                 ..'until you wear a look again.',
             clear_title='Clear preview pictures?',
-            clear_desc='Every preview picture is deleted from the mod folder. Make preview pictures takes them again.'},
+            clear_desc='Every preview picture is deleted from the mod folder. Preview picture takes one again.'},
         refused={combat='Stellar Closet does not open in combat.',
             cutscene='Stellar Closet does not open during a cutscene.',
             photo='Stellar Closet does not open in photo mode.',tachy='Stellar Closet does not open in Tachy Mode.',
@@ -677,10 +679,7 @@ return {
         saved='Look saved.',failed='Could not wear this piece. UE4SS.log says why.',
         switched='Body switched to %s so no skin shows through the pieces.',
         clips='Skin of this body shows through the pieces on: %s.',
-        thumbs={started='Preview pictures start once the menu is closed.',
-            cached='Every piece already has its preview picture.',
-            failed='Preview pictures could not start. UE4SS.log says why.',
-            cleared='Every preview picture is deleted.',
+        thumbs={cleared='Every preview picture is deleted.',
             busy='Preview pictures are being made. Clear them once that is done.'},
         reset_done='Stellar Closet is reset. EVE wears her own look.'},
 }

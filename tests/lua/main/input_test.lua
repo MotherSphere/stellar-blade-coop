@@ -524,8 +524,11 @@ end)()
     assert(table.concat(c.words,' ')=='light_down','the plain U of a Shift+U: dropped')
     clock=clock+0.3; key('U')
     assert(table.concat(c.words,' ')=='light_down cam_in','a later U zooms')
-    c.up=false; c.words={}
-    for _,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE','V'}) do key(k) end
+    c.words={}
+    key('P')
+    assert(c.words[1]=='picture','P: the preview picture') c.words={}
+    c.up=false
+    for _,k in ipairs({'J','L','I','K','U','O','C','BACKSPACE','V','P'}) do key(k) end
     key('U','SHIFT'); key('O','SHIFT')
     assert(#c.words==0,'closed: the camera keys do nothing')
     c.up=true
@@ -579,6 +582,12 @@ end)()
     answer={false,'Stellar Closet does not open in combat.'}
     pad(14)
     assert(toggles==3 and not up and last()=='[StellarCoop] STOP: Stellar Closet does not open in combat.\n',last())
+    -- On the open closet menu View held (the pad's menu event, 7) is its Preview picture: the menu stays open.
+    local words={}
+    up=true; M.closet_menu.nav=function(w) words[#words+1]=w end
+    pad(7)
+    assert(up and words[1]=='picture','View held on the closet menu: its picture, no close')
+    M.closet_menu.nav=function() end
     -- The host's question over the open menu: the chord does nothing.
     up,answer=true,{true,'closet menu: closed'}
     link_mode,link_pending='host',{id='76561198000000030',name='Nine'}

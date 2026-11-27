@@ -464,12 +464,9 @@ return {
             Foot='القدمان'},
         row={whole='ارتداء الزي كاملًا',soon='قريبًا',empty='لا يحتوي أي زي مثبت على قطعة لهذه الخانة.',
             none='لا شيء',locked='مقفل: %s غير مثبت.',reset='إعادة ضبط Stellar Closet',
-            thumbs='إنشاء صور المعاينة',
-            thumbs_desc='يلتقط صورة لكل قطعة ليست لها صورة بعد، صورة في كل إطار. يبدأ بعد إغلاق القائمة، خارج '
-                ..'القتال. تظهر الصور في المربعات عند الفتح التالي.',
             clear_thumbs='مسح صور المعاينة',
-            clear_thumbs_desc='يحذف كل صور المعاينة. تعرض المربعات صور الأزياء نفسها من جديد. إنشاء صور المعاينة '
-                ..'يلتقطها مرة أخرى.'},
+            clear_thumbs_desc='يحذف كل صور المعاينة. تعرض المربعات صور الأزياء نفسها من جديد. صورة المعاينة تلتقط '
+                ..'واحدة مرة أخرى.'},
         detail={outfit='الزي: %s',slot='الخانة: %s',covers='يغطي: %s',also='يشغل أيضًا: %s',
             off='مخفي افتراضيًا في زيه'},
         origin={original='أصلي',custom='مخصص: %s'},
@@ -501,7 +498,13 @@ return {
                     ..'تحرّك. U / O أو عجلة الفأرة للتقريب والتبعيد. شدة الإضاءة: Shift+U / Shift+O.',
                 pad='العصا اليمنى تدور حولها. اضغط مطولاً على X مع العصا اليمنى للتحريك. LT / RT للتقريب والتبعيد. شدة الإضاءة: اضغط مطولاً على L3 ثم LT / RT.'}}},
         light={game='اللعبة',studio='استوديو',warm='دافئ',cool='بارد',rim='حافة',title='الإضاءة: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='صورة المعاينة',pad='اضغط مطولًا: معاينة',
+            saved='حُفظت صورة المعاينة لـ %s.',
+            none='ارتدِ زيًا كاملًا واحدًا أولًا: صورة المعاينة تعرض زيًا واحدًا.',
+            failed='تعذّر التقاط صورة المعاينة. يذكر UE4SS.log السبب.'},
         colour={roles={primary='أساسي',secondary='ثانوي',accent='تمييز',glow='توهج'},
             about={primary='الملابس الرئيسية: البلوزات والسراويل وحمالات الصدر والملابس الداخلية والسترات والعباءات '
                 ..'والقبعات والأزياء الكاملة.',
@@ -520,7 +523,7 @@ return {
             reset_desc='تُزال كل قطع Stellar Closet عن EVE ويُحذف المظهر المحفوظ. لن يغيّر Stellar Closet شيئًا حتى '
                 ..'ترتدي مظهرًا من جديد.',
             clear_title='مسح صور المعاينة؟',
-            clear_desc='تُحذف كل صور المعاينة من مجلد المود. إنشاء صور المعاينة يلتقطها مرة أخرى.'},
+            clear_desc='تُحذف كل صور المعاينة من مجلد المود. صورة المعاينة تلتقط واحدة مرة أخرى.'},
         refused={combat='لا يفتح Stellar Closet أثناء القتال.',cutscene='لا يفتح Stellar Closet أثناء مشهد سينمائي.',
             photo='لا يفتح Stellar Closet في وضع الصور.',tachy='لا يفتح Stellar Closet في وضع Tachy.',
             screen='لا يفتح Stellar Closet عندما تكون قائمة اللعبة مفتوحة.',
@@ -535,9 +538,7 @@ return {
         saved='حُفظ المظهر.',failed='تعذّر ارتداء هذه القطعة. يذكر UE4SS.log السبب.',
         switched='تم تبديل الجسم إلى %s حتى لا يظهر الجلد من خلال القطع.',
         clips='يظهر جلد هذا الجسم من خلال القطع في: %s.',
-        thumbs={started='تبدأ صور المعاينة بعد إغلاق القائمة.',cached='لكل قطعة صورة معاينة بالفعل.',
-            failed='تعذّر بدء صور المعاينة. يذكر UE4SS.log السبب.',
-            cleared='حُذفت كل صور المعاينة.',
+        thumbs={cleared='حُذفت كل صور المعاينة.',
             busy='صور المعاينة قيد الإنشاء. امسحها بعد انتهاء ذلك.'},
         reset_done='أُعيد ضبط Stellar Closet. ترتدي EVE مظهرها الخاص.'},
 }

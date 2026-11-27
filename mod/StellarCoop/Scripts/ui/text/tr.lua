@@ -488,12 +488,9 @@ return {
             ArmUpper='Üst kollar',Forearm='Ön kollar',Hand='Eller',Thigh='Uyluklar',Calf='Baldırlar',Foot='Ayaklar'},
         row={whole='Tüm kıyafeti giy',soon='Yakında',empty='Kurulu hiçbir kıyafette bu yuva için parça yok.',
             none='Hiçbiri',locked='Kilitli: %s kurulu değil.',reset="Stellar Closet'ı sıfırla",
-            thumbs='Önizleme resimleri oluştur',
-            thumbs_desc='Henüz resmi olmayan her parçanın resmini çeker, kare başına bir tane. Menü kapandığında, '
-                ..'savaş dışında başlar. Kutular resimleri bir sonraki açılışta gösterir.',
             clear_thumbs='Önizleme resimlerini temizle',
             clear_thumbs_desc='Tüm önizleme resimlerini siler. Kutular yeniden kıyafetlerin kendi resimlerini '
-                ..'gösterir. Önizleme resimleri oluştur onları tekrar çeker.'},
+                ..'gösterir. Önizleme resmi birini tekrar çeker.'},
         detail={outfit='Kıyafet: %s',slot='Yuva: %s',covers='Örter: %s',also='Ayrıca kaplar: %s',
             off='Kıyafetinde varsayılan olarak gizli'},
         origin={original='Orijinal',custom='Özel: %s'},
@@ -528,7 +525,13 @@ return {
                     ..'şiddeti: Shift+U / Shift+O.',
                 pad='Sağ çubuk etrafında döndürür. Kaydırmak için X\'i sağ çubukla birlikte basılı tutun. LT / RT yakınlaştırır ve uzaklaştırır. Işık şiddeti: L3\'ü basılı tutun, sonra LT / RT.'}}},
         light={game='Oyun',studio='Stüdyo',warm='Sıcak',cool='Soğuk',rim='Kontra',title='Işık: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Önizleme resmi',pad='Basılı tut: Önizleme',
+            saved='Önizleme resmi %s için kaydedildi.',
+            none='Önce tüm bir kıyafeti giy: önizleme resmi tek bir kıyafeti gösterir.',
+            failed='Önizleme resmi çekilemedi. Nedeni UE4SS.log içinde.'},
         colour={roles={primary='Birincil',secondary='İkincil',accent='Vurgu',glow='Parıltı'},
             about={primary='Ana giysiler: üstler, altlar, sütyenler, iç çamaşırları, ceketler, pelerinler, şapkalar ve '
                 ..'tüm kıyafetler.',
@@ -549,8 +552,7 @@ return {
             reset_desc="Stellar Closet'ın tüm parçaları EVE'den çıkarılır. Kaydedilen görünüm silinir. "
                 ..'Yeniden bir görünüm giyene kadar Stellar Closet hiçbir şeyi değiştirmez.',
             clear_title='Önizleme resimleri temizlensin mi?',
-            clear_desc='Tüm önizleme resimleri mod klasöründen silinir. Önizleme resimleri oluştur onları tekrar '
-                ..'çeker.'},
+            clear_desc='Tüm önizleme resimleri mod klasöründen silinir. Önizleme resmi birini tekrar çeker.'},
         refused={combat='Stellar Closet savaşta açılmaz.',cutscene='Stellar Closet ara sahne sırasında açılmaz.',
             photo='Stellar Closet fotoğraf modunda açılmaz.',tachy='Stellar Closet Tachy modunda açılmaz.',
             screen='Stellar Closet bir oyun menüsü açıkken açılmaz.',
@@ -565,9 +567,7 @@ return {
         saved='Görünüm kaydedildi.',failed='Bu parça giyilemedi. Nedeni UE4SS.log içinde.',
         switched='Ten parçalardan görünmesin diye vücut %s olarak değiştirildi.',
         clips='Bu vücudun teni şu bölgelerde parçalardan görünüyor: %s.',
-        thumbs={started='Önizleme resimleri menü kapandığında başlar.',cached='Her parçanın zaten önizleme resmi var.',
-            failed='Önizleme resimleri başlatılamadı. Nedeni UE4SS.log içinde.',
-            cleared='Tüm önizleme resimleri silindi.',
+        thumbs={cleared='Tüm önizleme resimleri silindi.',
             busy='Önizleme resimleri oluşturuluyor. Bu bitince temizle.'},
         reset_done='Stellar Closet sıfırlandı. EVE kendi görünümünde.'},
 }

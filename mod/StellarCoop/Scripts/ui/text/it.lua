@@ -497,12 +497,9 @@ return {
         row={whole="Indossa l'outfit completo",soon='In arrivo',
             empty='Nessun outfit installato ha un capo per questo slot.',none='Nessuno',
             locked='Bloccato: %s non è installato.',reset='Reimposta Stellar Closet',
-            thumbs='Crea anteprime',
-            thumbs_desc="Scatta un'immagine di ogni capo che non ne ha ancora una, una per frame. Inizia quando il "
-                ..'menu è chiuso, fuori dal combattimento. Le caselle mostrano le immagini alla prossima apertura.',
             clear_thumbs='Cancella anteprime',
             clear_thumbs_desc='Elimina tutte le anteprime. Le caselle mostrano di nuovo le immagini proprie degli '
-                ..'outfit. Crea anteprime le scatta di nuovo.'},
+                ..'outfit. Anteprima ne scatta una di nuovo.'},
         detail={outfit='Outfit: %s',slot='Slot: %s',covers='Copre: %s',also='Occupa anche: %s',
             off='Nascosto di default nel suo outfit'},
         origin={original='Originale',custom='Personalizzato: %s'},
@@ -539,7 +536,13 @@ return {
                     ..'Shift+U / Shift+O.',
                 pad='La levetta destra ruota attorno. Tieni premuto X con la levetta destra per spostare. LT / RT zoomano. Intensità della luce: tieni premuto L3, poi LT / RT.'}}},
         light={game='Gioco',studio='Studio',warm='Calda',cool='Fredda',rim='Controluce',title='Luce: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Anteprima',pad='Tieni premuto: Anteprima',
+            saved='Anteprima salvata per %s.',
+            none="Indossa prima un outfit completo: un'anteprima mostra un outfit.",
+            failed="Impossibile scattare l'anteprima. UE4SS.log dice perché."},
         colour={roles={primary='Primario',secondary='Secondario',accent='Accento',glow='Bagliore'},
             about={primary='Capi principali: top, pantaloni, reggiseni, intimo, giacche, mantelli, cappelli e outfit '
                 ..'completi.',
@@ -559,7 +562,7 @@ return {
             reset_desc='Tutti i capi di Stellar Closet vengono tolti a EVE. Il look salvato viene cancellato. '
                 ..'Stellar Closet non cambia nulla finché non indossi di nuovo un look.',
             clear_title='Cancellare le anteprime?',
-            clear_desc='Tutte le anteprime vengono eliminate dalla cartella della mod. Crea anteprime le scatta di '
+            clear_desc='Tutte le anteprime vengono eliminate dalla cartella della mod. Anteprima ne scatta una di '
                 ..'nuovo.'},
         refused={combat='Stellar Closet non si apre in combattimento.',
             cutscene='Stellar Closet non si apre durante una scena.',
@@ -576,9 +579,7 @@ return {
         saved='Look salvato.',failed='Impossibile indossare questo capo. UE4SS.log dice perché.',
         switched='Corpo cambiato in %s perché la pelle non trapassi i capi.',
         clips='La pelle di questo corpo trapassa i capi su: %s.',
-        thumbs={started='Le anteprime iniziano quando il menu è chiuso.',cached='Ogni capo ha già la sua anteprima.',
-            failed='Impossibile avviare le anteprime. UE4SS.log dice perché.',
-            cleared='Tutte le anteprime sono state eliminate.',
+        thumbs={cleared='Tutte le anteprime sono state eliminate.',
             busy='Le anteprime sono in corso di creazione. Cancellale a operazione terminata.'},
         reset_done='Stellar Closet reimpostato. EVE indossa il suo look.'},
 }

@@ -493,12 +493,9 @@ return {
         row={whole='Ponerse el traje completo',soon='Próximamente',
             empty='Ningún traje instalado tiene una pieza para esta ranura.',none='Nada',
             locked='Bloqueado: %s no está instalado.',reset='Restablecer Stellar Closet',
-            thumbs='Crear imágenes de vista previa',
-            thumbs_desc='Saca una imagen de cada pieza que aún no tiene, una por fotograma. Empieza cuando se cierra '
-                ..'el menú, fuera de combate. Las casillas muestran las imágenes la próxima vez que lo abras.',
             clear_thumbs='Borrar imágenes de vista previa',
             clear_thumbs_desc='Borra todas las imágenes de vista previa. Las casillas vuelven a mostrar las imágenes '
-                ..'propias de los trajes. Crear imágenes de vista previa las saca de nuevo.'},
+                ..'propias de los trajes. Imagen de vista previa saca una de nuevo.'},
         detail={outfit='Traje: %s',slot='Ranura: %s',covers='Cubre: %s',also='También ocupa: %s',
             off='Oculto por defecto en su traje'},
         origin={original='Original',custom='Personalizado: %s'},
@@ -534,7 +531,13 @@ return {
                     ..'Shift+U / Shift+O.',
                 pad='El stick derecho gira alrededor. Mantén X con el stick derecho para desplazar. LT / RT acercan y alejan. Intensidad de la luz: mantén L3 y luego LT / RT.'}}},
         light={game='Juego',studio='Estudio',warm='Cálida',cool='Fría',rim='Contraluz',title='Iluminación: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Imagen de vista previa',pad='Mantén: Vista previa',
+            saved='Imagen de vista previa guardada para %s.',
+            none='Ponte primero un traje completo: una imagen de vista previa muestra un traje.',
+            failed='No se pudo sacar la imagen de vista previa. UE4SS.log dice por qué.'},
         colour={roles={primary='Principal',secondary='Secundario',accent='Acento',glow='Brillo'},
             about={primary='Prendas principales: tops, partes de abajo, sujetadores, ropa interior, chaquetas, capas, '
                 ..'sombreros y trajes completos.',
@@ -554,8 +557,8 @@ return {
             reset_desc='Todas las piezas de Stellar Closet se le quitan a EVE. El look guardado se borra. '
                 ..'Stellar Closet no cambia nada hasta que te pongas un look de nuevo.',
             clear_title='¿Borrar imágenes de vista previa?',
-            clear_desc='Todas las imágenes de vista previa se borran de la carpeta del mod. Crear imágenes de vista '
-                ..'previa las saca de nuevo.'},
+            clear_desc='Todas las imágenes de vista previa se borran de la carpeta del mod. Imagen de vista previa '
+                ..'saca una de nuevo.'},
         refused={combat='Stellar Closet no se abre en combate.',
             cutscene='Stellar Closet no se abre durante una cinemática.',
             photo='Stellar Closet no se abre en el modo foto.',tachy='Stellar Closet no se abre en el modo Tachy.',
@@ -571,10 +574,7 @@ return {
         saved='Look guardado.',failed='No se pudo poner esta pieza. UE4SS.log dice por qué.',
         switched='Cuerpo cambiado a %s para que la piel no se vea a través de las piezas.',
         clips='La piel de este cuerpo se ve a través de las piezas en: %s.',
-        thumbs={started='Las imágenes de vista previa empiezan cuando se cierre el menú.',
-            cached='Cada pieza ya tiene su imagen de vista previa.',
-            failed='No se pudieron iniciar las imágenes de vista previa. UE4SS.log dice por qué.',
-            cleared='Todas las imágenes de vista previa están borradas.',
+        thumbs={cleared='Todas las imágenes de vista previa están borradas.',
             busy='Se están creando las imágenes de vista previa. Bórralas cuando termine.'},
         reset_done='Stellar Closet restablecido. EVE lleva su propio look.'},
 }

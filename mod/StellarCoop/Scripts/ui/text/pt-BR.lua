@@ -494,12 +494,9 @@ return {
         row={whole='Vestir a roupa completa',soon='Em breve',
             empty='Nenhuma roupa instalada tem uma peça para este espaço.',none='Nada',
             locked='Bloqueado: %s não está instalado.',reset='Redefinir o Stellar Closet',
-            thumbs='Criar imagens de prévia',
-            thumbs_desc='Tira uma imagem de cada peça que ainda não tem, uma por quadro. Começa quando o menu é '
-                ..'fechado, fora de combate. Os blocos mostram as imagens na próxima abertura.',
             clear_thumbs='Limpar imagens de prévia',
             clear_thumbs_desc='Apaga todas as imagens de prévia. Os blocos voltam a mostrar as imagens próprias das '
-                ..'roupas. Criar imagens de prévia tira todas de novo.'},
+                ..'roupas. Imagem de prévia tira uma de novo.'},
         detail={outfit='Roupa: %s',slot='Espaço: %s',covers='Cobre: %s',also='Ocupa também: %s',
             off='Escondido por padrão na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
@@ -533,7 +530,13 @@ return {
                     ..'/ Shift+O.',
                 pad='O analógico direito gira ao redor. Segure X com o analógico direito para mover. LT / RT aproximam e afastam. Intensidade da luz: segure L3 e depois LT / RT.'}}},
         light={game='Jogo',studio='Estúdio',warm='Quente',cool='Fria',rim='Contraluz',title='Iluminação: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Imagem de prévia',pad='Segure: Imagem de prévia',
+            saved='Imagem de prévia salva para %s.',
+            none='Vista primeiro uma roupa completa: uma imagem de prévia mostra uma roupa.',
+            failed='Não foi possível tirar a imagem de prévia. UE4SS.log diz por quê.'},
         colour={roles={primary='Primária',secondary='Secundária',accent='Destaque',glow='Brilho'},
             about={primary='Roupas principais: blusas, partes de baixo, sutiãs, roupa íntima, jaquetas, capas, chapéus '
                 ..'e roupas completas.',
@@ -553,8 +556,7 @@ return {
             reset_desc='Todas as peças do Stellar Closet saem de EVE. O visual salvo é apagado. '
                 ..'O Stellar Closet não muda nada até você vestir um visual de novo.',
             clear_title='Limpar imagens de prévia?',
-            clear_desc='Todas as imagens de prévia são apagadas da pasta do mod. Criar imagens de prévia tira todas '
-                ..'de novo.'},
+            clear_desc='Todas as imagens de prévia são apagadas da pasta do mod. Imagem de prévia tira uma de novo.'},
         refused={combat='Stellar Closet não abre em combate.',cutscene='Stellar Closet não abre durante uma cena.',
             photo='Stellar Closet não abre no modo foto.',tachy='Stellar Closet não abre no modo Tachy.',
             screen='Stellar Closet não abre com um menu do jogo aberto.',
@@ -569,10 +571,7 @@ return {
         saved='Visual salvo.',failed='Não foi possível vestir esta peça. UE4SS.log diz por quê.',
         switched='Corpo trocado para %s para a pele não aparecer através das peças.',
         clips='A pele deste corpo aparece através das peças em: %s.',
-        thumbs={started='As imagens de prévia começam quando o menu for fechado.',
-            cached='Cada peça já tem sua imagem de prévia.',
-            failed='Não foi possível iniciar as imagens de prévia. UE4SS.log diz por quê.',
-            cleared='Todas as imagens de prévia foram apagadas.',
+        thumbs={cleared='Todas as imagens de prévia foram apagadas.',
             busy='As imagens de prévia estão sendo criadas. Limpe-as quando terminar.'},
         reset_done='Stellar Closet redefinido. EVE usa o próprio visual.'},
 }

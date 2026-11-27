@@ -504,12 +504,9 @@ return {
         row={whole='Ganzes Outfit tragen',soon='Bald verfügbar',
             empty='Kein installiertes Outfit hat ein Teil für diesen Platz.',none='Nichts',
             locked='Gesperrt: %s ist nicht installiert.',reset='Stellar Closet zurücksetzen',
-            thumbs='Vorschaubilder erstellen',
-            thumbs_desc='Macht ein Bild von jedem Teil, das noch keins hat, eins pro Frame. Es beginnt, sobald das '
-                ..'Menü geschlossen ist, außerhalb des Kampfes. Die Kacheln zeigen die Bilder beim nächsten Öffnen.',
             clear_thumbs='Vorschaubilder löschen',
             clear_thumbs_desc='Löscht alle Vorschaubilder. Die Kacheln zeigen wieder die eigenen Bilder der Outfits. '
-                ..'Vorschaubilder erstellen nimmt sie neu auf.'},
+                ..'Vorschaubild nimmt eins neu auf.'},
         detail={outfit='Outfit: %s',slot='Platz: %s',covers='Bedeckt: %s',also='Belegt auch: %s',
             off='Im Outfit standardmäßig ausgeblendet'},
         origin={original='Original',custom='Benutzerdefiniert: %s'},
@@ -547,7 +544,13 @@ return {
                     ..'Umschalt+O.',
                 pad='Der rechte Stick kreist. X mit dem rechten Stick halten verschiebt. LT / RT zoomen. Lichtstärke: L3 halten, dann LT / RT.'}}},
         light={game='Spiel',studio='Studio',warm='Warm',cool='Kühl',rim='Gegenlicht',title='Beleuchtung: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Vorschaubild',pad='Halten: Vorschaubild',
+            saved='Vorschaubild gespeichert für %s.',
+            none='Trage zuerst ein ganzes Outfit: Ein Vorschaubild zeigt ein Outfit.',
+            failed='Das Vorschaubild konnte nicht aufgenommen werden. UE4SS.log sagt, warum.'},
         colour={roles={primary='Primär',secondary='Sekundär',accent='Akzent',glow='Leuchten'},
             about={primary='Hauptkleidung: Oberteile, Unterteile, BHs, Unterwäsche, Jacken, Umhänge, Hüte und ganze '
                 ..'Outfits.',
@@ -567,8 +570,7 @@ return {
             reset_desc='Alle Teile von Stellar Closet werden EVE ausgezogen. Der gespeicherte Look wird gelöscht. '
                 ..'Stellar Closet ändert nichts, bis du wieder einen Look anziehst.',
             clear_title='Vorschaubilder löschen?',
-            clear_desc='Alle Vorschaubilder werden aus dem Mod-Ordner gelöscht. Vorschaubilder erstellen nimmt sie '
-                ..'neu auf.'},
+            clear_desc='Alle Vorschaubilder werden aus dem Mod-Ordner gelöscht. Vorschaubild nimmt eins neu auf.'},
         refused={combat='Stellar Closet öffnet sich nicht im Kampf.',
             cutscene='Stellar Closet öffnet sich nicht während einer Zwischensequenz.',
             photo='Stellar Closet öffnet sich nicht im Fotomodus.',
@@ -585,10 +587,7 @@ return {
         saved='Look gespeichert.',failed='Dieses Teil ließ sich nicht anziehen. UE4SS.log sagt, warum.',
         switched='Körper auf %s gewechselt, damit keine Haut durch die Teile scheint.',
         clips='Die Haut dieses Körpers scheint durch die Teile an: %s.',
-        thumbs={started='Die Vorschaubilder beginnen, sobald das Menü geschlossen ist.',
-            cached='Jedes Teil hat schon sein Vorschaubild.',
-            failed='Die Vorschaubilder konnten nicht starten. UE4SS.log sagt, warum.',
-            cleared='Alle Vorschaubilder sind gelöscht.',
+        thumbs={cleared='Alle Vorschaubilder sind gelöscht.',
             busy='Die Vorschaubilder werden erstellt. Lösche sie, sobald das fertig ist.'},
         reset_done='Stellar Closet ist zurückgesetzt. EVE trägt ihren eigenen Look.'},
 }

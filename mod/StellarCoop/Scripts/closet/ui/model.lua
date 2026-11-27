@@ -104,8 +104,8 @@ function Model.new(o)
                         end})
                 end
             end
-            out[#out + 1] = {thumbs = true} -- Make preview pictures (coop closet thumbs).
-            if o.pictures then out[#out + 1] = {clear_thumbs = true} end -- Clear preview pictures.
+            -- Clear preview pictures (the camera hint row's Preview picture makes them, closet/ui/menu.lua).
+            if o.pictures then out[#out + 1] = {clear_thumbs = true} end
             out[#out + 1] = {reset = true} -- Reset Stellar Closet, last.
             return out
         end

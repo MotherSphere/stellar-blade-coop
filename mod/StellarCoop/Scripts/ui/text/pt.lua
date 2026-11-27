@@ -493,12 +493,9 @@ return {
         row={whole='Vestir a roupa completa',soon='Em breve',
             empty='Nenhuma roupa instalada tem uma peça para este espaço.',none='Nada',
             locked='Bloqueado: %s não está instalado.',reset='Repor o Stellar Closet',
-            thumbs='Criar pré-visualizações',
-            thumbs_desc='Tira uma imagem de cada peça que ainda não tem, uma por fotograma. Começa quando o menu é '
-                ..'fechado, fora de combate. Os quadrados mostram as imagens na próxima abertura.',
             clear_thumbs='Limpar pré-visualizações',
             clear_thumbs_desc='Apaga todas as pré-visualizações. Os quadrados voltam a mostrar as imagens próprias '
-                ..'das roupas. Criar pré-visualizações tira-as de novo.'},
+                ..'das roupas. Pré-visualização tira uma de novo.'},
         detail={outfit='Roupa: %s',slot='Espaço: %s',covers='Cobre: %s',also='Ocupa também: %s',
             off='Escondido por predefinição na sua roupa'},
         origin={original='Original',custom='Personalizado: %s'},
@@ -533,7 +530,13 @@ return {
                     ..'/ Shift+O.',
                 pad='O manípulo direito roda à volta. Mantenha X premido com o manípulo direito para mover. LT / RT aproximam e afastam. Intensidade da luz: mantenha L3 premido e depois LT / RT.'}}},
         light={game='Jogo',studio='Estúdio',warm='Quente',cool='Fria',rim='Contraluz',title='Iluminação: %s'},
-        keys={mode='C',reset='Backspace',light='V'},
+        keys={mode='C',reset='Backspace',light='V',picture='P'}, -- The camera chips' keyboard keys (main/keys.lua).
+        -- The camera row's Preview picture chip (closet/thumbs.lua's snap: the worn outfit as the screen shows EVE),
+        -- its label on a pad (View held), the notices of a picture taken, of no whole outfit worn and of a failure.
+        picture={hint='Pré-visualização',pad='Manter: Pré-visualização',
+            saved='Pré-visualização guardada para %s.',
+            none='Vista primeiro uma roupa completa: uma pré-visualização mostra uma roupa.',
+            failed='Não foi possível tirar a pré-visualização. UE4SS.log diz porquê.'},
         colour={roles={primary='Primária',secondary='Secundária',accent='Destaque',glow='Brilho'},
             about={primary='Roupas principais: tops, partes de baixo, soutiens, roupa interior, casacos, capas, '
                 ..'chapéus e roupas completas.',
@@ -553,8 +556,7 @@ return {
             reset_desc='Todas as peças do Stellar Closet saem de EVE. O visual guardado é apagado. '
                 ..'O Stellar Closet não muda nada até vestires um visual outra vez.',
             clear_title='Limpar pré-visualizações?',
-            clear_desc='Todas as pré-visualizações são apagadas da pasta do mod. Criar pré-visualizações tira-as de '
-                ..'novo.'},
+            clear_desc='Todas as pré-visualizações são apagadas da pasta do mod. Pré-visualização tira uma de novo.'},
         refused={combat='Stellar Closet não abre em combate.',cutscene='Stellar Closet não abre durante uma cena.',
             photo='Stellar Closet não abre no modo de fotografia.',tachy='Stellar Closet não abre no modo Tachy.',
             screen='Stellar Closet não abre com um menu do jogo aberto.',
@@ -569,10 +571,7 @@ return {
         saved='Visual guardado.',failed='Não foi possível vestir esta peça. UE4SS.log diz porquê.',
         switched='Corpo trocado para %s para a pele não aparecer através das peças.',
         clips='A pele deste corpo aparece através das peças em: %s.',
-        thumbs={started='As pré-visualizações começam quando o menu for fechado.',
-            cached='Cada peça já tem a sua pré-visualização.',
-            failed='Não foi possível iniciar as pré-visualizações. UE4SS.log diz porquê.',
-            cleared='Todas as pré-visualizações foram apagadas.',
+        thumbs={cleared='Todas as pré-visualizações foram apagadas.',
             busy='As pré-visualizações estão a ser criadas. Limpa-as quando terminar.'},
         reset_done='Stellar Closet reposto. EVE usa o seu próprio visual.'},
 }
