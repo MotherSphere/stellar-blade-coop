@@ -604,6 +604,11 @@ package.loaded['closet.presets']={FILE='coop-closet-presets.txt',USE='Use: coop 
         save=function() return 1,'pr save' end,wear=function() return true,'pr wear' end,
         delete=function() return true,'pr delete' end,rename=function() return true,'pr rename' end}
 end}
+-- The closet's HUD entry (closet/ui/hud.lua; closet/hud_test tests it): the keys its ticks got and its hides.
+hu={keys={},hides=0}
+package.loaded['closet.ui.hud']={helpers=function(env) hu.env=env; return {} end,new=function()
+    return {tick=function(key) hu.keys[#hu.keys+1]=key or 'none' end,hide=function() hu.hides=hu.hides+1 end}
+end}
 -- coop scene (story/scenes/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and
 -- stops, what a tick says; its scenes' words.
 sc={}

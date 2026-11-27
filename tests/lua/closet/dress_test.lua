@@ -513,6 +513,22 @@ local tests = {
         eq(w.d.choices()[1].fit, 'AiK_CH27_14595')
         eq(fields(w.file)[5], 'AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes')
     end,
+    -- A failed write of coop-closet.txt changes nothing on EVE: the preview and its added mesh stay. off() still works.
+    a_failed_save_keeps_the_preview_on_eve = function()
+        local w = world()
+        assert(w.d.preview(A))
+        eq(#w.eve.comps, 2, 'one added mesh')
+        local added = w.eve.comps[2]
+        local save = w.store.save
+        w.store.save = function() return false, 'disk full' end
+        local ok_, line = w.d.preview(B)
+        eq(ok_, false, 'the preview failed') ok(line:find('disk full', 1, true), line)
+        ok(w.d.previewing(), 'still previewing')
+        eq(#w.eve.comps, 2, 'the added mesh stays') ok(w.eve.comps[2] == added, 'the same added mesh')
+        w.store.save = save
+        assert(w.d.off())
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'her own body mesh') eq(#w.eve.comps, 1, 'no added mesh')
+    end,
     a_revert_without_eve_keeps_the_confirmed_words = function()
         local w = world()
         assert(w.d.wear(A))
@@ -782,6 +798,46 @@ local tests = {
         ok(w.file:find('AiK_CH27_14595:Chest AiK_CH46_xSH_14462:Shoes', 1, true), 'choices kept after mix again')
         w.d.off()
         eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off still gives her own look')
+    end,
+    -- A mix again with the closet mesh still on her body writes her own look in its first save: a later save that
+    -- fails never leaves the closet mesh in coop-closet.txt as her own look.
+    a_mix_again_saves_her_own_look_first = function()
+        local w = world()
+        assert(w.d.wear({{fit = 'AiK_CH27_14595', slots = {'Chest'}}, {fit = 'AiK_CH46_xSH_14462',
+            slots = {'Shoes'}}}))
+        w.eve.comps[2]:K2_DestroyComponent()
+        local lines = {}
+        w.store.save = function(line)
+            lines[#lines + 1] = line
+            if #lines > 1 then return false, 'disk full' end
+            w.file = line
+            return true
+        end
+        second(w) second(w)
+        ok(logged(w, 'mix again'))
+        eq(fields(lines[1])[2], OWN, 'the first save keeps her own look')
+        eq(fields(w.file)[2], OWN, 'the file keeps her own look')
+        w.d.off()
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off gives her own look')
+    end,
+    -- While her body mesh is not valid the mix waits: no mix again, no count toward Dress.FIGHT. Back after longer
+    -- than the fight limit, the body gets the mix again.
+    a_missing_body_waits_past_the_fight_limit = function()
+        local w = world()
+        assert(w.d.wear(A))
+        local body = w.eve.Mesh
+        body.alive = false
+        for _ = 1, 2 * w.Dress.FIGHT.mixes + 2 do second(w) end
+        ok(logged(w, 'no valid body mesh'), 'the wait logged')
+        ok(not logged(w, 'stops mixing'), 'the missing body is no outside fight')
+        body.alive = true
+        body:SetSkeletalMesh(w.assets[OWN])
+        local n = #w.log
+        second(w) second(w) -- The watchdog's two looks at a changed body.
+        local again
+        for i = n + 1, #w.log do again = again or (w.log[i]:find('mix again', 1, true) ~= nil) end
+        ok(again, 'mixed again')
+        eq(body.SkeletalMesh.path, KS, 'the plan\'s body mesh back') ok(w.d.worn(), 'still worn')
     end,
     -- Stellar Closet keeps control over CNS (design 9): a look changed from outside while one is kept is worn again.
     -- A change the closet made itself (a preview, its own mesh still on her body) is never taken as her own look.

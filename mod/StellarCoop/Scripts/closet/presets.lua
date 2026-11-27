@@ -93,7 +93,9 @@ function Presets.new(o)
         end
         options.take(p.fit,p.variant,p.values)
         log('presets: '..label(tonumber(n))..' worn')
-        return (put or dress.wear)({{fit=p.fit}},back)
+        local good,why=(put or dress.wear)({{fit=p.fit}},back)
+        if not good then back() end -- A wear that failed (no EVE during a map change): the outfit's options as before.
+        return good,why
     end
     function self.delete(n)
         n=tonumber(n)

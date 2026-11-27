@@ -128,6 +128,40 @@ local tests = {
         ok(r.body.mats[3] == top, 'off: the instance stays on the slot')
         near(top.values[TINT], top.was and top.was[TINT] or top.values[TINT], 'its value from before')
     end,
+    -- The options layer paints with no new look and no palette change (options.revision grows): a slot set to a
+    -- custom colour keeps it. Set back to the pack's colour, it gets the palette again.
+    a_slot_back_on_the_pack_colour_gets_the_palette_again = function()
+        local r = rig()
+        local owned, rev = {}, 0
+        r.c = r.Colour.new({dress = r.dress, store = r.store, log = function(m) r.log[#r.log + 1] = m end,
+            options = {owns = function(c, i) return c == r.body and owned[i] == true end,
+                holds = function(c, i) return c == r.body and i == 3 end, revision = function() return rev end}})
+        r.c.set('primary', 'crimson')
+        r.c.tick()
+        local top = r.body.mats[3]
+        local cr, cg, cb = rgb('crimson')
+        near(top.values[TINT], {R = cr, G = cg, B = cb, A = 1}, 'the top tinted crimson')
+        local custom, pack = {R = 0, G = 1, B = 0, A = 1}, {R = 0.75, G = 0.75, B = 0.75, A = 1}
+        owned[3], top.values[TINT], rev = true, custom, rev + 1
+        r.c.tick()
+        near(top.values[TINT], custom, 'a custom colour: the palette leaves it')
+        owned[3], top.values[TINT], rev = false, pack, rev + 1
+        r.c.tick()
+        near(top.values[TINT], {R = cr, G = cg, B = cb, A = 1}, 'back on the pack colour: crimson again')
+        -- An options repaint of the pack value that never owned the slot (a pack rescan, a lost instance record):
+        -- the palette writes its colour again, though its own record already holds it.
+        top.values[TINT], rev = pack, rev + 1
+        r.c.tick()
+        near(top.values[TINT], {R = cr, G = cg, B = cb, A = 1}, 'an options repaint: crimson again')
+        r.c.tick()
+        near(top.values[TINT], {R = cr, G = cg, B = cb, A = 1}, 'no repaint: kept')
+        -- A repaint that skipped the unchanged pack tint while the role turns off on the same tick: the value from
+        -- before still comes back.
+        rev = rev + 1
+        r.c.set('primary', 'off')
+        r.c.tick()
+        near(top.values[TINT], pack, 'the role off during a repaint: the pack value back')
+    end,
     -- dress.reshow (an options toggle) shows a slot without a new look: the palette reaches it, the other instances
     -- kept.
     a_slot_shown_again_gets_the_palette_and_keeps_the_others = function()

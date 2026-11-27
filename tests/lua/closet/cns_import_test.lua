@@ -103,6 +103,11 @@ local tests={
         has(out.errors, 'no UniqueFitID') has(out.errors, 'unknown FitMeshType Tail')
         has(out.errors, 'no mesh') has(out.errors, 'UniqueFitID repeats') has(out.errors, 'not an outfit object')
     end,
+    id_with_a_space_imported = function()
+        -- The closet's files write such an id as one word (Fits.word), so "Foo Suit" is worn again after a reload
+        -- (dress_test's any_pack_id_survives_the_file).
+        eq(one('[{"UniqueFitID":"Foo Suit","OutfitPaths":["/Game/M/A.A"]}]').Id, 'cns:Foo Suit')
+    end,
     comments_trailing_commas_and_lone_object = function()
         eq(one('// c\n{"UniqueFitID":"a","OutfitPaths":["/Game/M/A.A",],}').Slot, Slots.FULL_OUTFIT)
     end,

@@ -48,7 +48,7 @@ local function component(name, m)
 end
 
 -- EVE's body (Breasts, Butt) with two added pieces: a skirt (Butt, Hips, Legs) and a belt (Hips, Arms).
-local function rig(file)
+local function rig(file, options)
     local r = {gen = 1, log = {}, file = file}
     r.store = {save = function(line) r.file = line; return true end, load = function() return r.file end,
         clear = function() r.file = nil end}
@@ -63,7 +63,8 @@ local function rig(file)
     FName = function(s) return s end
     package.loaded['closet.shape'] = nil
     r.Shape = require('closet.shape')
-    r.s = r.Shape.new({dress = r.dress, store = r.store, log = function(m) r.log[#r.log + 1] = m end})
+    r.s = r.Shape.new({dress = r.dress, store = r.store, options = options,
+        log = function(m) r.log[#r.log + 1] = m end})
     return r
 end
 
@@ -292,6 +293,22 @@ local tests = {
             good, line = C.closet('shape', table.unpack(words))
             ok(not good and line == r.Shape.USE, table.concat(words, ' ') .. ': ' .. tostring(line))
         end
+    end,
+    -- A name the options layer wrote on the same component (a pack ShapeKey) gets its pack value back, not removal.
+    a_pack_shape_key_comes_back_when_its_row_goes_to_0 = function()
+        local options = {}
+        local r = rig(nil, options)
+        function options.shaped(c, name) if c == r.body and name == 'Breasts' then return 0.5 end end
+        r.s.set('Breasts', 30) r.s.set('Butt', 40)
+        r.s.tick()
+        eq(r.body.curves.Breasts, 0.3, 'the row on her body')
+        r.s.set('Breasts', 0) r.s.set('Butt', 0)
+        r.s.tick()
+        local back = {}
+        for _, call in ipairs(r.body.calls) do back[call[1]] = call end
+        eq(back.Breasts[2], 0.5, 'the pack value written back') eq(back.Breasts[3], true)
+        eq(r.body.curves.Breasts, 0.5, 'the pack shape key stays')
+        eq(r.body.curves.Butt, nil, 'a name options does not hold is removed')
     end,
 }
 run('shape_test', tests)

@@ -16,12 +16,14 @@
 -- is another writer's (the options layer's shape keys on the same component, another mod) and is left alone, so two
 -- writers of one name never take turns. A name set before that is
 -- no longer wanted is removed (SetMorphTarget with 0 and bRemoveZeroWeight): her own look (own_look, off) loses the
--- closet's names, a curve set from outside stays. Nothing while the dress is paused (Tachy Mode) or stopped.
+-- closet's names, a curve set from outside stays. A name the options layer wrote on that component (a pack ShapeKey,
+-- options.shaped) gets the pack's value back instead. Nothing while the dress is paused (Tachy Mode) or stopped.
 -- The values are kept in coop-closet-shape.txt (link.store) as name=value words split by tabs, in name order, apart
 -- from the look. They are read once at new: they survive a restart. off() (Reset Stellar Closet, coop closet shape off)
 -- sets every value to 0 and clears the file. stop() (coop off) removes the closet's names from what it set: her body
 -- may wear the same mesh again, which keeps its curves.
--- o: {dress=closet/dress.lua's (applied, parts), store=link.store(Shape.FILE), log=, clock= (os.clock)}.
+-- o: {dress=closet/dress.lua's (applied, parts), store=link.store(Shape.FILE), options=closet/options.lua's (shaped),
+-- log=, clock= (os.clock)}.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
 --   USkinnedMeshComponent.SkeletalMesh: object property at 0x568, params 0x14665d7e0 (name 0x145a76dc0).
@@ -50,7 +52,7 @@ Shape.USE='Use: coop closet shape <morph> <0-100> | coop closet shape off'
 local function clamp(v) return math.max(0,math.min(100,math.floor(v/Shape.STEP+0.5)*Shape.STEP)) end
 
 function Shape.new(o)
-    local dress,log=o.dress,o.log or function() end
+    local dress,options,log=o.dress,o.options,o.log or function() end
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local self={}
     local values={} -- Name -> % (STEP to 100); a name left out is 0.
@@ -134,7 +136,10 @@ function Shape.new(o)
         end
         local on,off=0,0
         for key,s in pairs(set) do
-            if not want[key] then morph(s.c,s.name,0); off=off+1 end
+            if not want[key] then
+                local keep=options and options.shaped(s.c,s.name) -- 0 to 1: the pack's ShapeKey on this component.
+                morph(s.c,s.name,keep and keep*100 or 0); off=off+1
+            end
         end
         for key,s in pairs(want) do
             if again or not set[key] or set[key].v~=s.v then morph(s.c,s.name,s.v); on=on+1 end

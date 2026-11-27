@@ -900,6 +900,13 @@ function Dress.new(o)
         local intact=path==state.plan.body.mesh
         for _,a in ipairs(state.added) do intact=intact and valid(a.c)~=nil end
         if not intact then
+            -- No valid body mesh (a pawn still spawning): the mix waits, counted toward no outside fight, and goes on
+            -- at the first second the body is back.
+            if not path then
+                if not state.waiting then state.waiting=true; log('EVE has no valid body mesh: the mix waits') end
+                return
+            end
+            state.waiting=nil
             state.wrong=state.wrong+1
             if state.wrong<2 and not was_paused then return end
             log(string.format('the game changed EVE (body %s): mix again',tostring(path)))

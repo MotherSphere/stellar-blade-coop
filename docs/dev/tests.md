@@ -29,8 +29,8 @@ The Lua tests (`vehicles/bike/`: `drive`, `drive_model`, `fetch`, `model`, `off`
 `mask`, `pak_gate`, `picks`, `player`, `row_edit`, `settings_file`, `ue4ss_settings`, `unreal`, `where`, `worlds`;
 `fight/bosses/`: `enemy`, `gardener`, `leviathan`, `lion`, `off`, `tendril`; `eve/`: `chainspin`, `emote`, `flight`,
 `glide`, `off`, `wear`, `wiring`;
-`closet/`: `camera`, `closet`, `cns_import`, `colour`, `dress`, `fits`, `json`, `lights`, `menu`, `model`, `off`,
-`options`, `packs`, `presets`, `probe`, `shape`, `slots`, `thumbs`, `wiring`; `cutmenus/`: `devmenu`,
+`closet/`: `camera`, `closet`, `cns_import`, `colour`, `dress`, `fits`, `hud`, `json`, `lights`, `menu`, `model`,
+`off`, `options`, `packs`, `presets`, `probe`, `shape`, `slots`, `thumbs`, `wiring`; `cutmenus/`: `devmenu`,
 `mailbox`, `off`; `story/scenes/`: `lines`, `off`, `scene`; `fight/enemies/`: `off`, `wiring`, `wiring_notices`;
 `online/group/`: `group`, `off`, `region_tabs`, `travel`; `online/lobby/`: `arrival`, `commands`,
 `halls_rows`, `off`, `sbo`, `wiring`; `online/lobby/ui/`: `lobby`, `lobby_model`; `main/`: `bike`, `boot`, `collide`,
@@ -587,9 +587,9 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   question, the two boxes and the host's question, which ignores them for 1 s and never takes View held; LB, RB and Y
   taken and doing nothing there; the Online tab's event 12 going to the pause tab only, the open menu and the host's
   question keeping their focus; at most 8 a frame; an older DLL without it; the closet's event 14 toggling the closet
-  menu, closed under the bike's refusals, open as its Back paused or not, nothing under the host's question; `closet
-  on` asked at the load's first pass while the closet module is on, `closet off` once it is off, each change once,
-  nothing after `coop off`), the Online tab's close from a fake
+  menu, closed under the bike's refusals and not while spectate watches, open as its Back paused or not, nothing under
+  the host's question; `closet on` asked at the load's first pass while the closet module is on, `closet off` once it
+  is off, each change once, nothing after `coop off`), the Online tab's close from a fake
   `coop_pause_close` (its three answers, an older DLL without it), the mouse in the menu and on the host's question (a
   left click going to the pause menu's Online tab while a pause menu holds it), the focus watchdog's reset, the Lua
   frame time line with its longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call

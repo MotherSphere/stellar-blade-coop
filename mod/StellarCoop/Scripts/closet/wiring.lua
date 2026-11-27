@@ -50,14 +50,16 @@ M.closet_presets=Presets.new({store=M.link and M.link.store(Presets.FILE),option
 -- dress's, menu open or not, so a look the dress puts on gets the palette in the same frame. The menu's Colour tab and
 -- coop closet colour set it. A slot whose pack colour control is set away from the pack's colour is the options
 -- layer's (options.owns): options ticks before colour, so on a slot on the pack's colour the palette writes last.
+-- The palette paints again in the frame of each options paint (options.revision).
 local Colour=require('closet.colour')
 local colour=Colour.new({dress=M.closet,store=M.link and M.link.store(Colour.FILE),options=options,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 M.closet_colour=colour
 -- The shape layer (closet/shape.lua): its values in coop-closet-shape.txt; its tick runs each frame right after the
--- colour layer's, menu open or not. The menu's Body tab and coop closet shape set it.
+-- colour layer's, menu open or not. The menu's Body tab and coop closet shape set it. A name its Body row lets go of
+-- gets back the value the options layer wrote there (options.shaped).
 local Shape=require('closet.shape')
-local shape=Shape.new({dress=M.closet,store=M.link and M.link.store(Shape.FILE),
+local shape=Shape.new({dress=M.closet,store=M.link and M.link.store(Shape.FILE),options=options,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 M.closet_shape=shape
 -- coop closet probe (closet/ui/probe.lua) and the closet menu: their ticks run each frame after the dress watchdog's,
@@ -93,8 +95,26 @@ local scanned=false
 M.closet_packs.once=function()
     if not scanned then scanned=true; M.guarded('closet packs',M.closet_packs.scan) end
 end
+-- The closet's entry in SB's HUD item column (closet/ui/hud.lua), right of gun mode's: ten times a second, under a
+-- guard of its own, with the closet key's F-key (core/keybind.lua's key field: nil for none, so the keyboard shows no
+-- key cell). Without settings, F1, the default. Its hook on SB's HUD Construct (d2de021b) is registered once a Lua load
+-- and stays while the module is off. It raises when UE4SS cannot hook the function.
+local Hud=require('closet.ui.hud')
+local hud=Hud.new(Hud.helpers({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
+    hook_hud=function(path,cb)
+        RegisterHook(path..':Construct',function(ctx)
+            if M.off_modules['closet'] then return end
+            cb(ctx)
+        end)
+    end}))
+local hud_at=0
+local function hud_key()
+    if not (M.settings and M.settings.closet_key) then return 'F1' end
+    return M.settings.closet_key.key
+end
 local dress_tick,dress_stop=M.closet.tick,M.closet.stop
 M.closet.tick=function()
+    if os.clock()>=hud_at then hud_at=os.clock()+0.1; M.guarded('closet hud',hud.tick,hud_key()) end
     M.guarded('closet',dress_tick)
     M.guarded('closet options',options.tick)
     M.guarded('closet colour',colour.tick)
@@ -113,6 +133,7 @@ M.closet.stop=function()
     M.guarded('closet shape',shape.stop)
     M.guarded('closet probe',probe.stop)
     M.guarded('closet thumbs',thumbs.stop)
+    M.guarded('closet hud',hud.hide)
 end
 return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,thumbs=thumbs,
     menu=function() return M.closet_menu end,colour=colour,shape=shape,packs=M.closet_packs,options=options,

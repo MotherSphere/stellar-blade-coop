@@ -633,6 +633,28 @@ local tests = {
         has(r.log, 'WB_NanoSuit_Detail', 'log names the part')
     end,
 
+    a_failed_grid_fill_is_filled_again = function()
+        local r = rig()
+        local construct, failed = StaticConstructObject, false
+        StaticConstructObject = function(...)
+            if not failed then failed = true; error('construct refused', 0) end
+            return construct(...)
+        end
+        local good, why = pcall(function()
+            r.menu.open()
+            local tv = grid(r)
+            eq(#tv.items, 0, 'the first fill failed')
+            local cleared = tv.cleared
+            at(r, 0.1, 'left')
+            ok(#tv.items > 0, 'the next draw fills the grid with the same tiles')
+            eq(tv.cleared, cleared + 1, 'cleared before the second fill')
+            at(r, 0.2, 'left')
+            eq(tv.cleared, cleared + 1, 'a filled grid is not filled again')
+        end)
+        StaticConstructObject = construct
+        if not good then error(why, 0) end
+    end,
+
     tabs_rows_and_grid_move_with_their_keys = function()
         local r = rig()
         r.menu.open()
@@ -1311,9 +1333,15 @@ local tests = {
         eq(th.cleared, 1, 'Yes: deleted') eq(popups(r), 0, 'the popup goes')
         eq(r.told[#r.told], T.en.closet.thumbs.cleared, 'told') ok(r.menu.is_open(), 'the menu stays open')
         th.answer = {false, 'closet thumbs: running'}
+        th.running = function() return true end
         at(r, 0.9, 'select', 'yes')
         eq(r.told[#r.told], T.en.closet.thumbs.busy, 'a run going: told to wait')
         has(r.log, 'closet thumbs: running', 'its reason logged')
+        th.answer = {false, 'closet thumbs: the mod folder is not known'}
+        th.running = function() return false end
+        at(r, 1.0, 'select', 'yes')
+        eq(r.told[#r.told], T.en.closet.thumbs.failed, 'no run going: told it failed')
+        has(r.log, 'closet thumbs: the mod folder is not known', 'that reason logged')
     end,
 
     the_detail_names_the_origin = function()
@@ -3149,6 +3177,24 @@ local tests = {
     end,
     -- A preset worn as a preview and turned down (No at Keep this look?, a guard's close, coop off) gives its outfit
     -- the variant and values it had before; Yes keeps the preset's.
+    -- A preset whose preview fails (dress.preview false: no EVE during a map change) gives its outfit the variant and
+    -- values it had before, at once; told once.
+    a_failed_preset_preview_gives_the_options_back = function()
+        with_presets(function(r)
+            r.choices = {{fit = ARIA}}
+            ok(r.options.set_variant(ARIA, 3)) ok(r.options.set(ARIA, 3, 'toggle:4', false))
+            eq(r.presets.save(), 1, 'Preset 1: variant 3, Boots off')
+            ok(r.options.set(ARIA, 3, 'toggle:4', true)) ok(r.options.set_variant(ARIA, 1))
+            r.choices = nil
+            r.dress.preview = function() return false, 'closet: no EVE in the world' end
+            r.menu.open()
+            local told = #r.told
+            at(r, 0.5, 'down', 'select')
+            eq(r.options.variant(ARIA), 1, 'the variant from before')
+            same(r.options.words(ARIA, 3), {}, 'variant 3\'s values from before')
+            eq(#r.told, told + 1, 'told once')
+        end)
+    end,
     turned_down_preset_gives_the_options_back = function()
         local function worn(r, t)
             r.choices = {{fit = ARIA}}

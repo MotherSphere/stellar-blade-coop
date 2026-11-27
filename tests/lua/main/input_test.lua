@@ -550,8 +550,8 @@ end)()
 
 -- The pad's closet event (LB held + D-pad Left, the native part's 14) runs the closet menu's toggle as closet_key does.
 -- Closed, it opens under the bike's refusals (our HUD hidden, one of our screens open, the game paused or on one of
--- its screens: logged only), a refused open reported; open, it is the menu's Back, paused or not. The loader stub of an
--- off closet module takes it and raises nothing.
+-- its screens) and not while spectate watches: logged only. A refused open is reported; open, it is the menu's Back,
+-- paused or not. The loader stub of an off closet module takes it and raises nothing.
 ;(function()
     local Loader=require('main.loader')
     local M
@@ -576,6 +576,10 @@ end)()
     pad(14)
     assert(toggles==2 and logged('pad: closet ignored: the game is paused or shows one of its screens'))
     kit_paused=false
+    M.spectate={watching=function() return true end,switch=function() end}
+    pad(14)
+    assert(toggles==2 and logged('pad: closet ignored: spectate is watching'),'spectating: left switches the member')
+    M.spectate=nil
     key('F5'); assert(kit_shown.menu)
     pad(14)
     assert(toggles==2 and logged('pad: closet ignored: one of our screens is open'),'the co-op menu open')

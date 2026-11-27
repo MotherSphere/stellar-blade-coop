@@ -44,8 +44,8 @@
 -- main/input.lua's word picture), takes the worn whole outfit's full.png as the screen shows EVE (closet/thumbs.lua's
 -- snap with camera.shot()) and tells closet.picture.saved, none (no one whole outfit worn) or failed (logged). With
 -- thumbs, the Full tab's row before the last, Clear preview pictures, asks with the game's Yes/No popup; Yes deletes
--- every picture (thumbs.clear), tells closet.thumbs.cleared (busy while a run goes) and reads which pictures are there
--- again; No and Back stay.
+-- every picture (thumbs.clear), tells closet.thumbs.cleared (busy while a run goes, failed otherwise; logged) and
+-- reads which pictures are there again; No and Back stay.
 -- A preview whose plan switched the body or leaves skin showing under a piece tells closet.switched or closet.clips,
 -- once until that changes. The menu shows the same lines under its rows as long as the look on EVE has them (the
 -- chat feed draws under the menu's shade). The Full tab's last row, Reset Stellar Closet (hint Select), asks with the
@@ -622,6 +622,7 @@ function Menu.new(o)
             end
         end
         changed=changed or dress.previewing()
+        return ran and good==true
     end
     -- The focused tile worn, None taking the slot off; a locked tile or the worn one: nothing.
     local function wear_tile()
@@ -682,7 +683,8 @@ function Menu.new(o)
             local ran,good,why=pcall(o.thumbs.clear)
             if not (ran and good) then
                 log('menu: preview pictures not cleared: '..tostring(ran and why or good))
-                o.tell(function(t) return t.closet.thumbs.busy end)
+                local busy=ran and o.thumbs.running and o.thumbs.running()
+                o.tell(function(t) return busy and t.closet.thumbs.busy or t.closet.thumbs.failed end)
                 return redraw()
             end
             there={}
@@ -880,12 +882,14 @@ function Menu.new(o)
             kit.sound(n and 'change' or 'move')
         elseif word=='select' and item and item.preset then -- Worn as a preview: Keep this look? at the Back.
             if not item.locked then
+                -- A preview that failed (told by wear) hands the failure to presets.wear, which gives the options back.
+                local failed=false
                 local good,why=o.presets.wear(item.preset,function(choices,back)
+                    if not wear(choices) then failed=true; return false,'menu: the preview failed' end
                     unwear[#unwear+1]=back
-                    wear(choices)
                     return true
                 end)
-                if not good then
+                if not good and not failed then
                     log('menu: preset not worn: '..tostring(why))
                     o.tell(function(t) return t.closet.failed end)
                 end

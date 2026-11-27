@@ -685,7 +685,8 @@ return {
         switched='Body switched to %s so no skin shows through the pieces.',
         clips='Skin of this body shows through the pieces on: %s.',
         thumbs={cleared='Every preview picture is deleted.',
-            busy='Preview pictures are being made. Clear them once that is done.'},
+            busy='Preview pictures are being made. Clear them once that is done.',
+            failed='The preview pictures could not be deleted. UE4SS.log says why.'},
         reset_done='Stellar Closet is reset. EVE wears her own look.'},
     -- SBO Xion's NPCs (world/maps/sboxion/npcs/npcs.lua): says is the line with its speaker (%s the name, %s the
     -- words), then each NPC's name and what it says when EVE comes close.

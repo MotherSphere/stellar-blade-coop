@@ -95,7 +95,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`,
 | `options.lua` | `coop closet option`: each pack outfit's variant and, per variant, its piece toggles, colours, finishes, numbers and shape keys, kept in `coop-closet-options.txt`, and those values on the worn outfit |
 | `presets.lua` | `coop closet preset` and `coop closet favourite`: the presets and the favourite outfits, kept in `coop-closet-presets.txt` |
 
-The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
+The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu, its HUD entry and the parts probe.
 
 | File | Holds |
 | --- | --- |
@@ -105,6 +105,7 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/camera.lua` | The menu's camera: region and free modes, its pose kept in `coop-closet-camera.txt` |
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
+| `ui/hud.lua` | The closet's entry in SB's HUD item column, right of gun mode's: the closet key's icon on the keyboard or the D-pad Left glyph on a controller, then the hanger icon |
 
 `wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `presets.lua` as
 `M.closet_presets`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`, `thumbs.lua` as
@@ -112,19 +113,21 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 `ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its Make preview pictures row, `M.closet_options` for the
 options pages, `M.closet_presets` for the Presets rows and favourites, `M.closet_colour` for its Colour tab and
 `M.closet_shape` for the Body tab's shape rows). `main/frame.lua` runs the restore at the first tick and the dress,
-options, colour, shape, probe, thumbs and menu ticks each frame.
-`coop off` stops them. For its refusals the module reads `eve`, `fight.gunmode` and `online.modes.race` through
-their exports (`uses` in `wiring.lua`).
+options, colour, shape, probe, thumbs and menu ticks each frame. The HUD entry ticks ten times a second.
+`coop off` stops them and takes the HUD entry off. For its refusals the module reads `eve`, `fight.gunmode` and
+`online.modes.race` through their exports (`uses` in `wiring.lua`).
 
 ## The closet menu
 
 F1 (`closet_key`, which you can change in the co-op menu's Options page or in
 [coop-settings.txt](../players/settings.md#coop-settingstxt)), LB held + D-pad Left on a controller and
 `coop closet menu` open the menu in the game world, the SBO lobby world included. Pressed while the menu is open, F1
-and LB + D-pad Left go back as Esc does. It needs the Steam link (the kit needs it). It does not open while the UI is
-not up, outside the game world, while another SBO screen holds the input, while the game is paused or shows one of its
-screens, in photo mode, during a cutscene, in combat, in Tachy Mode, while EVE rides the bike, with the Doro look on,
-with the rifle out, while an emote plays or while a `coop wear` suit is on. One notice says why.
+and LB + D-pad Left go back as Esc does. LB + D-pad Left does nothing while you watch a friend after a fall
+(spectate): D-pad Left switches the member you watch then. It needs the Steam link (the kit needs it). It does not
+open while the UI is not up, outside the game world, while another SBO screen holds the input, while the game is
+paused or shows one of its screens, in photo mode, during a cutscene, in combat, in Tachy Mode, while EVE rides the
+bike, with the Doro look on, with the rifle out, while an emote plays or while a `coop wear` suit is on. One notice
+says why.
 
 The menu covers the left 55% of the screen. The rest stays clear for EVE. It is made of the game's own
 widget parts in the kit group `closet_menu`:
@@ -514,6 +517,9 @@ The Lua tests are in `tests/lua/closet/`. All but `off_test.lua` and `closet_tes
   close path and the preview lights on the camera.
 - `lights_test.lua` runs the preview lights on a fake camera actor: each preset's lights, the preset cycle, the
   intensity steps and limits, a saved preset read back and the lights' end with the camera.
+- `hud_test.lua` runs the HUD entry over a fake UMG: the D-pad Left twin of the pad glyph the game shows or the
+  closet key's keyboard icon, the hanger icon, the place right of gun mode's entry and an earlier Lua load's widgets
+  taken again.
 - `probe_test.lua` runs `coop closet probe` over a fake kit and fake widgets: the runner, its console words and the
   tests of the game's parts.
 

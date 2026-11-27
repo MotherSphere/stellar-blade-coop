@@ -96,6 +96,8 @@ local function component(name, slots)
             keep(self2, n, {R = v.R, G = v.G, B = v.B, A = v.A})
         end
         m.SetScalarParameterValue, m.SetTextureParameterValue = keep, keep
+        -- closet/colour.lua reads a vector parameter before it sets one (its value from before).
+        m.K2_GetVectorParameterValue = function(self2, n) return self2.values[n] or {R = 0, G = 0, B = 0, A = 1} end
         self.mats[i], self.creates = m, self.creates + 1
         return m
     end
@@ -158,6 +160,53 @@ local function near(got, want, what)
 end
 
 local tests = {
+    -- The options layer and the palette (closet/colour.lua) together on one held slot, through the real pack scan
+    -- (closet/packs.lua over a fake list file, then Fits.use, as closet/wiring.lua's scan) and ticked in the wiring's
+    -- order: a rescan whose pack list cannot be read, then one that reads it again, keeps the palette's colour; Primary
+    -- turned off during a rescan's repaint gives the pack colour back.
+    the_palette_and_options_agree_across_a_rescan = function()
+        dyed_rig(function(r)
+            local paks, list = 'C:\\SB\\Content\\Paks', 'C:\\SB\\coop-cns-packs.txt'
+            local file = '~mods\\S\\s.dekcns.json'
+            local listed = '1 1 ' .. file .. '\n'
+            local text = '[{"UniqueFitID":"s","DisplayName":"S","OutfitPaths":["/Game/P/V1.V1"],'
+                .. '"UserConfigs":{"VectorControls":[{"DisplayName":"Top","ParamName":"Base Color Tint",'
+                .. '"MaterialIndex":3,"Value":[0.5,0.5,0.5,1]}]}}]'
+            local packs = require('closet.packs').new({paks = paks, list = list, log = function() end,
+                read = function(path, limit)
+                    if path == list then
+                        if not listed then return nil, list .. ': No such file or directory', 2 end
+                        return listed
+                    end
+                    return limit and text:sub(1, limit) or text
+                end})
+            local function rescan() Fits.use((packs.scan())) end
+            rescan()
+            r.parts[1].slots = {[3] = 'FullOutfit'} -- A pack suit worn whole: its section is Primary's.
+            local c = require('closet.colour').new({dress = r.dress, log = function() end, options = r.o,
+                store = {save = function() return true end, load = function() return nil end, clear = function() end}})
+            local function tick() r.o.tick(); c.tick() end
+            local cr, cg, cb = require('closet.colour').swatch('crimson')
+            local crimson, pack = {R = cr, G = cg, B = cb, A = 1}, {R = 0.5, G = 0.5, B = 0.5, A = 1}
+            tick()
+            near(r.value(3, 'Base Color Tint'), pack, 'the pack colour first')
+            c.set('primary', 'crimson')
+            tick()
+            near(r.value(3, 'Base Color Tint'), crimson, 'the palette on the held slot')
+            listed = nil -- The list file cannot be read.
+            rescan()
+            tick()
+            near(r.value(3, 'Base Color Tint'), crimson, 'a failed list read: the palette stays')
+            listed = '1 1 ' .. file .. '\n' -- Read again: options writes its pack colour anew.
+            rescan()
+            tick()
+            near(r.value(3, 'Base Color Tint'), crimson, 'recovered: the palette over the pack colour again')
+            rescan() -- The same pack again, Primary turned off before the next tick.
+            c.set('primary', 'off')
+            tick()
+            near(r.value(3, 'Base Color Tint'), pack, 'Primary off during a repaint: the pack colour back')
+        end)
+    end,
     a_colour_swatch_and_custom_rgb_write_the_param = function()
         dyed_rig(function(r)
             r.o.tick()
@@ -236,6 +285,10 @@ local tests = {
             ok(r.o.step('s', 1, 'shape:1', -1)) ok(r.o.step('s', 1, 'shape:2', 1))
             r.o.tick()
             same(r.body.morphs, {FB_Breast = -0.5, TopReveal = 1}, 'ShapeKeyName, else DisplayName')
+            -- shaped finds the value by the component's address: each read of her body is a new UE4SS wrapper.
+            local again = setmetatable({}, {__index = r.body})
+            eq(r.o.shaped(again, 'FB_Breast'), -0.5, 'another wrapper of her body: its value')
+            eq(r.o.shaped(again, 'Nothing'), nil, 'a name not written: nil')
             r.o.reset('s')
             r.o.tick()
             same(r.body.morphs, {}, 'the pack values: the curves removed')
@@ -310,6 +363,12 @@ local tests = {
             eq(r.value(3, 'Metallic'), 0.7, 'the kept value on the new body')
             near(r.value(3, 'Base Color Tint'), {R = 0.5, G = 0.5, B = 0.5, A = 1}, 'the pack values too')
             ok(r.o.holds(r.body, 3) and r.o.holds(r.body, 4), 'the slots with a pack colour control')
+            -- revision grows with every paint, a pack rescan's too (Fits.PACKS replaced, no value changed): the
+            -- palette (closet/colour.lua) paints after each.
+            local rev = r.o.revision()
+            require('closet.fits').PACKS = setmetatable({}, {__index = require('closet.fits').PACKS})
+            r.o.tick()
+            ok(r.o.revision() ~= rev, 'a rescan\'s repaint: a new revision')
             ok(not r.o.holds(r.body, 6), 'a slot without one')
             -- owns: a control changed away from the pack's colour (the palette leaves only those alone).
             ok(not r.o.owns(r.body, 3) and not r.o.owns(r.body, 4), 'on the pack colour: not owned')

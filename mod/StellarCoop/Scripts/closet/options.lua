@@ -452,6 +452,21 @@ function Options.new(o)
     end
     function self.holds(c,index) return at_slot(held,c,index) end
     function self.owns(c,index) return at_slot(owned,c,index) end
+    -- Grows with each paint (a value change, a new look, a pack rescan): closet/colour.lua paints after each.
+    local paints=0
+    function self.revision() return paints end
+    -- The value (0 to 1) of the shape key name last written on component c, or nil: closet/shape.lua puts it back.
+    -- By address, as mine() compares: each read of her body (dress.parts) is a new UE4SS wrapper.
+    function self.shaped(c,name)
+        local ok,at=pcall(U.address,c)
+        if not ok then return nil end
+        for _,m in pairs(morphs) do
+            if m.name==name then
+                local same,mat=pcall(U.address,m.c)
+                if same and mat==at then return m.v end
+            end
+        end
+    end
 
     -- A slot's dynamic instance (an instance already there is reused); nil when the slot has no material or the
     -- engine refuses (said in the log).
@@ -594,6 +609,7 @@ function Options.new(o)
             log('options: a shape key written is gone (a worn mesh was put on again): written again')
         end
         local wrote=paint(parts)
+        paints=paints+1
         seen,drawn,painted=gen,changed,Fits.PACKS
         if wrote>0 then log(('options: %d value(s) written'):format(wrote)) end
     end
