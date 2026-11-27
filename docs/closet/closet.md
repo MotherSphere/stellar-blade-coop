@@ -52,7 +52,8 @@ again at each wear.
 A material override stays on her body mesh when the mesh changes. So each wear first takes every override off her body
 and then sets only those the look needs (a variant's materials, then the colour layer's instances). A friend's ghost
 gets the first 16 overrides, which are then the look's own. `coop closet off` puts back only the overrides her own
-suit had.
+suit had. A dynamic material instance she wore (CNS colours, for one) comes back as a new instance of its parent with
+her values. After a Lua load it comes back as its parent only.
 
 Once a second the mix is checked. Tachy Mode's suit (`CH_P_EVE_10`) pauses it, with the added meshes hidden, until
 Tachy Mode ends. Any other look the game puts on for 2 s, after a map load or a game reset, gets the mix again. So

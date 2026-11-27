@@ -212,6 +212,51 @@ local tests = {
         eq(body.SkeletalMesh.path, OWN) same(held(body), {2}, 'off: her own override only')
         eq(body:GetMaterial(2).path, X)
     end,
+    -- Her dynamic instances (CNS colours, the game's) come back as new instances of their parents with her values,
+    -- after off and after a preview turned down. A parent on her mesh's own material is given back too.
+    her_dynamic_instances_come_back_with_their_values = function()
+        for _, how in ipairs({'off', 'revert'}) do
+            local w = world()
+            local body = w.eve.Mesh
+            local MIDC = '/Script/Engine.MaterialInstanceDynamic'
+            local TEX = '/Game/Mods/CNS/T_Lace.T_Lace'
+            w.assets[TEX] = obj(TEX)
+            local function mid(parent, values)
+                local m = obj('MID of ' .. parent.path, values)
+                m.Parent, m.sets = parent, {}
+                function m:IsA(class) return class.path == MIDC end
+                for _, kind in ipairs({'Vector', 'Scalar', 'Texture'}) do
+                    m['Set' .. kind .. 'ParameterValue'] = function(self, n, v)
+                        self.sets[#self.sets + 1] = {kind, n, kind == 'Texture' and v.path or v}
+                    end
+                end
+                return m
+            end
+            function body:CreateDynamicMaterialInstance(i, source)
+                local m = mid(source, {})
+                self:SetMaterial(i, m)
+                return m
+            end
+            local own3 = w.assets[OWN].Materials[4].MaterialInterface
+            w.assets[own3.path] = own3
+            -- An instance over an instance of her slot 3's own material: the nearest value of a name wins.
+            local inner = mid(own3, {VectorParameterValues = {{ParameterInfo = {Name = 'Tint'},
+                ParameterValue = {R = 0, G = 0, B = 1, A = 1}}}})
+            body:SetMaterial(3, mid(inner, {
+                VectorParameterValues = {{ParameterInfo = {Name = 'Tint'}, ParameterValue = {R = 1, G = 0, B = 0, A = 1}}},
+                ScalarParameterValues = {{ParameterInfo = {Name = 'Rough'}, ParameterValue = 0.25}},
+                TextureParameterValues = {{ParameterInfo = {Name = 'Lace'}, ParameterValue = w.assets[TEX]}}}))
+            if how == 'off' then assert(w.d.wear(B)) else assert(w.d.preview(B)) end
+            eq(body:GetMaterial(3).path, KS .. ':M3', how .. ': the look\'s own material on slot 3')
+            eq(fields(w.file)[3], '3=' .. own3.path, how .. ': the slot kept by its parent')
+            assert(w.d[how]())
+            local back = body:GetMaterial(3)
+            eq(back.Parent, own3, how .. ': a new instance of her parent')
+            same(back.sets, {{'Vector', 'Tint', {R = 1, G = 0, B = 0, A = 1}}, {'Scalar', 'Rough', 0.25},
+                {'Texture', 'Lace', TEX}}, how .. ': with her values')
+            same(held(body), {3}, how .. ': her one override')
+        end
+    end,
     -- An older coop-closet.txt line lists every slot of her suit: the slots on her mesh's own material get no override.
     an_older_line_with_every_slot_overrides_only_hers = function()
         local w = world()

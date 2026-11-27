@@ -139,20 +139,53 @@ end
 local function clear(c)
     for _,i in ipairs(overridden(c)) do pcall(function() c:SetMaterial(i,nil) end) end
 end
+-- The values set on dynamic instances, nearest instance first and each name once per kind: {{kind='Vector'|'Scalar'|
+-- 'Texture', name=<text>, value=}}. Ghidra, build 26123051: UMaterialInstance's ScalarParameterValues (+0xe0, property
+-- params 0x1465d9fe8), VectorParameterValues (+0xf0, 0x1465da110) and TextureParameterValues (+0x100, 0x1465da0b0);
+-- each value is ParameterInfo (+0, MaterialParameterInfo, whose Name is its FName at +0) and ParameterValue (+0x10: a
+-- LinearColor, a float or a Texture).
+local VALUES={{'Vector','VectorParameterValues'},{'Scalar','ScalarParameterValues'},{'Texture','TextureParameterValues'}}
+local function values_of(levels)
+    local out,seen={},{}
+    for _,mid in ipairs(levels) do
+        for _,list in ipairs(VALUES) do
+            local kind=list[1]
+            pcall(function()
+                each(mid[list[2]],function(_,v)
+                    local name=text(U.value_of(v.ParameterInfo).Name)
+                    local x=U.value_of(v.ParameterValue)
+                    if kind=='Vector' then x={R=x.R,G=x.G,B=x.B,A=x.A} elseif kind=='Texture' then x=valid(x) end
+                    if x~=nil and not seen[kind..name] then
+                        seen[kind..name]=true
+                        out[#out+1]={kind=kind,name=name,value=x}
+                    end
+                end)
+            end)
+        end
+    end
+    return out
+end
 -- Her overridden slots now, as 'slot=path' words split by commas: each override that is not the mesh's own material on
--- that slot, a dynamic one as its parent asset. A slot with no override needs no word: it shows the mesh's own.
-local function current_materials(c)
+-- that slot, a dynamic one as its parent asset (MaterialInstance.Parent, +0xd0, property params 0x1465da3f0). A slot
+-- with no override needs no word: it shows the mesh's own. dynamic (a table, or nil): each dynamic slot's values
+-- (values_of), so give_back makes the instance again with them.
+local function current_materials(c,dynamic)
     local mesh=valid(c.SkeletalMesh)
     local own=mesh and own_materials(mesh) or {}
     local out={}
     for _,i in ipairs(overridden(c)) do
         local m=valid(c:GetMaterial(i))
+        local levels={}
         for _=1,4 do
             if not (m and m:IsA(StaticFindObject(MID))) then break end
+            levels[#levels+1]=m
             m=valid(m.Parent)
         end
         local p=m and path_of(m) or ''
-        if p~=(own[i] and path_of(own[i]) or '') then out[#out+1]=i..'='..p end
+        if #levels>0 or p~=(own[i] and path_of(own[i]) or '') then
+            out[#out+1]=i..'='..p
+            if #levels>0 and dynamic then dynamic[i]=values_of(levels) end
+        end
     end
     return table.concat(out,',')
 end
@@ -346,8 +379,8 @@ function Dress.new(o)
     local fits=o.fits or Fits
     local clock=o.clock or os.clock
     local self={}
-    local state -- While a mix is on: {plan=, eve_path=, own=<mesh path>, materials=<line>, added={c,count,show},
-                -- count=, paused=, wrong=}
+    local state -- While a mix is on: {plan=, eve_path=, own=<mesh path>, materials=<line>, dynamic=<her dynamic slots'
+                -- values>, added={c,count,show}, count=, paused=, wrong=}
     local restored,due=false,0
     local pending,tries,retry_at=nil,0,0 -- The kept line's fields once read; restore's failed wears; its next try.
     local mode='auto' -- Dress.plan's body rule for this Lua load (body_mode).
@@ -448,8 +481,12 @@ function Dress.new(o)
         end)
         return removed
     end
-    -- Removes the added components wearing the given mesh paths and gives the body its own mesh and materials back.
-    local function give_back(eve,own,materials,added_paths)
+    -- Removes the added components wearing the given mesh paths and gives the body its own mesh and materials back. A
+    -- slot in dynamic (current_materials') gets a new dynamic instance of its parent with her values: the one she wore
+    -- went with the first mix, and the engine may have freed it since.
+    -- shortcut: the values live in memory only, so after a Lua reload her dynamic slots come back as their parents;
+    -- write them into coop-closet.txt if a pack or the game is seen to need them.
+    local function give_back(eve,own,materials,added_paths,dynamic)
         local body=valid(eve.Mesh)
         local removed=sweep(eve,added_paths)
         if body and own and own~='' then
@@ -461,8 +498,18 @@ function Dress.new(o)
                 for slot,p in (materials or ''):gmatch('(%d+)=([^,]*)') do
                     slot=tonumber(slot)
                     -- An older line lists every slot: one on its mesh's own material needs no override.
-                    local m=p~='' and p~=(mats[slot] and path_of(mats[slot])) and resolve(p)
-                    if m then pcall(function() body:SetMaterial(slot,m) end) end
+                    local values=dynamic and dynamic[slot]
+                    local m=p~='' and (values or p~=(mats[slot] and path_of(mats[slot]))) and resolve(p)
+                    if m and values then
+                        local done,why=pcall(function()
+                            local mid=valid(body:CreateDynamicMaterialInstance(slot,m,FName('None')))
+                            for _,v in ipairs(mid and values or {}) do
+                                local x=v.kind=='Texture' and valid(v.value) or v.value
+                                if x then mid['Set'..v.kind..'ParameterValue'](mid,FName(v.name),x) end
+                            end
+                        end)
+                        if not done then log('her dynamic material on slot '..slot..' not made again: '..tostring(why)) end
+                    elseif m then pcall(function() body:SetMaterial(slot,m) end) end
                 end
                 for lod=0,lods(body)-1 do pcall(function() body:ShowAllMaterialSections(lod) end) end
             end
@@ -484,16 +531,17 @@ function Dress.new(o)
             if not added_meshes[i] then return nil,why end
         end
         -- Her own look first, kept across a mix that changes (the first mix's).
-        local own,materials=state and state.own,state and state.materials
+        local own,materials,dynamic=state and state.own,state and state.materials,state and state.dynamic
         if not state then
             local mesh=valid(body.SkeletalMesh)
-            own,materials=mesh and path_of(mesh) or '',current_materials(body)
+            dynamic={}
+            own,materials=mesh and path_of(mesh) or '',current_materials(body,dynamic)
         end
         -- The new look is written before anything on EVE changes. A save that fails (a virus scanner holding the
         -- temporary file) leaves the look on EVE and the state as they were, and writes the old line again.
         local was=state
-        state={plan=plan,choices=choices,kept=kept,eve_path=path_of(eve),own=own,materials=materials,added={},paused=false,
-            wrong=0}
+        state={plan=plan,choices=choices,kept=kept,eve_path=path_of(eve),own=own,materials=materials,dynamic=dynamic,
+            added={},paused=false,wrong=0}
         for _,a in ipairs(plan.added) do state.added[#state.added+1]={mesh=a.mesh} end
         local saved,e=keep()
         if saved==false then
@@ -542,9 +590,9 @@ function Dress.new(o)
         if not eve then return false,'no EVE in the world' end
         local paths={}
         for _,a in ipairs(state.added) do paths[#paths+1]=a.mesh end
-        local removed=give_back(eve,state.own,state.materials,paths)
-        state={choices={},kept=kept,eve_path=path_of(eve),own=state.own,materials=state.materials,added={},
-            paused=false,wrong=0}
+        local removed=give_back(eve,state.own,state.materials,paths,state.dynamic)
+        state={choices={},kept=kept,eve_path=path_of(eve),own=state.own,materials=state.materials,dynamic=state.dynamic,
+            added={},paused=false,wrong=0}
         applied=applied+1
         local saved,e=keep()
         if saved==false then return false,'coop-closet.txt not written: '..tostring(e) end
@@ -731,7 +779,7 @@ function Dress.new(o)
         local eve=her()
         local paths={}
         for _,a in ipairs(state.added) do paths[#paths+1]=a.mesh end
-        local removed=eve and give_back(eve,state.own,state.materials,paths) or 0
+        local removed=eve and give_back(eve,state.own,state.materials,paths,state.dynamic) or 0
         state=nil
         applied=applied+1
         keep()
@@ -840,7 +888,10 @@ function Dress.new(o)
             log(string.format('the game changed EVE (body %s): mix again',tostring(path)))
             local plan,choices,kept=state.plan,state.choices,state.kept
             -- A look put on from outside is hers from now on; a closet mesh still on her body is the closet's own.
-            if path and not closet_mesh(path) then state.own,state.materials=path,current_materials(body) end
+            if path and not closet_mesh(path) then
+                state.own,state.dynamic=path,{}
+                state.materials=current_materials(body,state.dynamic)
+            end
             -- Something outside undoes every mix: the look's outfit it keeps putting on her body is worn as the body
             -- unless a body is picked (no switch, the menu warns of the clipping). Otherwise the mix stops until the next
             -- wear or preview.
