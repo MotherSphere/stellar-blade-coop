@@ -219,6 +219,12 @@ local tests = {
 
     -- A hair is worn on her head: no picture of it in a run (even a fit list that holds it), nor a full.png by snap;
     -- snap with its slot saves <slot>.png (the Preview picture on a head row, Schizo, 27 Nov 2026).
+    every_head_slot_is_a_head_fit = function()
+        for _, slot in ipairs({'Hair', 'Ponytail', 'Face', 'Glasses', 'Mask', 'Headwear', 'EarringL'}) do
+            ok(Thumbs.head({Slot = slot}), slot)
+        end
+        ok(not Thumbs.head({Slot = 'FullOutfit'}) and not Thumbs.head({}) and not Thumbs.head(nil), 'not a suit')
+    end,
     head_fits_get_no_pictures = function()
         Fits.use({['h.hair'] = {UniqueFitID = 'h.hair', DisplayName = 'H', Slot = 'Hair',
             File = '~mods\\H\\h.dekcns.json', Variants = {{Mesh = '/Game/H.H', HiddenMats = {}}},

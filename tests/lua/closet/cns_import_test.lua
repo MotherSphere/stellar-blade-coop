@@ -27,8 +27,27 @@ local tests={
         eq(one('[{"UniqueFitID":"a","OutfitPaths":["/Game/M/A.A"]}]').Slot, Slots.FULL_OUTFIT, 'missing')
         eq(one('[{"UniqueFitID":"a","FitMeshType":"","OutfitPaths":["/Game/M/A.A"]}]').Slot, Slots.FULL_OUTFIT, 'empty')
     end,
+    eyes_and_ears_items_are_sorted_by_name_and_mesh = function()
+        local function slot_of(kind, name, mesh)
+            return one(('[{"UniqueFitID":"a","FitMeshType":"%s","DisplayName":"%s","OutfitPaths":["%s"]}]')
+                :format(kind, name, mesh)).Slot
+        end
+        for _, kind in ipairs({'Eyes', 'Ears'}) do
+            eq(slot_of(kind, 'Red Mask', '/Game/M/A.A'), 'Mask', kind .. ' mask')
+            eq(slot_of(kind, 'Round GLASSES', '/Game/M/A.A'), 'Glasses', kind .. ' glass')
+            eq(slot_of(kind, 'Shades', '/Game/M/Gla_01.Gla_01'), 'Glasses', kind .. ' gla_ in the path')
+            eq(slot_of(kind, 'Goggles', '/Game/M/A.A'), 'Glasses', kind .. ' goggle')
+            eq(slot_of(kind, 'Gold Earrings', '/Game/M/A.A'), 'EarringL', kind .. ' earring')
+            for _, word in ipairs({'Hat', 'Horns', 'Cap', 'Helmet', 'Crown', 'Whatever'}) do
+                eq(slot_of(kind, word, '/Game/M/A.A'), 'Headwear', kind .. ' ' .. word)
+            end
+        end
+        eq(slot_of('Eyes', 'Mask glasses', '/Game/M/A.A'), 'Mask', 'mask is checked first')
+        eq(slot_of('Ears', 'Glass earrings', '/Game/M/A.A'), 'Glasses', 'glass before earring')
+        eq(slot_of('Face', 'Red Mask', '/Game/M/A.A'), 'Face', 'Face stays Face')
+    end,
     head_slots_and_ponytail = function()
-        for kind, slot in pairs({Face = 'Face', Ears = 'Ears', Eyes = 'Eyes', Weapon = 'Weapon', Hair = 'Hair'}) do
+        for kind, slot in pairs({Face = 'Face', Ears = 'Headwear', Eyes = 'Headwear', Weapon = 'Weapon', Hair = 'Hair'}) do
             eq(one(('[{"UniqueFitID":"a","FitMeshType":"%s","OutfitPaths":["/Game/M/A.A"]}]'):format(kind)).Slot,
                 slot, kind)
         end

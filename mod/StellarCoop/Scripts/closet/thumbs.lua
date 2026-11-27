@@ -60,6 +60,7 @@
 local U=require('core.unreal')
 local Player=require('core.player')
 local Fits=require('closet.fits')
+local Slots=require('closet.slots')
 local Dress=require('closet.dress')
 local Camera=require('closet.ui.camera')
 local Thumbs={}
@@ -185,8 +186,8 @@ local function same(o,path)
     return o and path_of(o)==path and o or nil
 end
 
--- A head fit (Hair, Ponytail): worn on her head, never a picture of its own.
-function Thumbs.head(fit) return fit~=nil and (fit.Slot=='Hair' or fit.Slot=='Ponytail') end
+-- A head fit (any slot of the head group): worn on her head, never a picture of its own.
+function Thumbs.head(fit) return fit~=nil and Slots.group(fit.Slot)=='head' end
 
 function Thumbs.new(o)
     local log=o.log or function() end

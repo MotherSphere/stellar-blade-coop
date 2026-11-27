@@ -23,6 +23,7 @@
 --            fit id of the ponytail it brings) as its item has them; its one piece is {Slot, Name = Outfit}
 --   Unknown  {indexes}: slots whose piece and place are not known yet (no toggle name says it); they stay hidden
 --            when the outfit is worn as pieces
+local Slots = require('closet.slots')
 local Fits = {}
 
 local ALL_SKIN = {'HeadNeck', 'TorsoUpper', 'TorsoLower', 'Pelvis', 'ArmUpper', 'Forearm', 'Hand', 'Thigh', 'Calf',
@@ -124,11 +125,11 @@ Fits.CHOSEN = {}
 -- The suits of the catalogue last given to Fits.use, by UniqueFitID (Fits.choose builds a variant's fit from them).
 Fits.ITEMS = {}
 
--- The catalogue's suits and head pieces (Hair, Ponytail) as pack fits in their chosen variant.
+-- The catalogue's suits and head pieces (every slot of the head group) as pack fits in their chosen variant.
 local function packs_of(catalogue)
     local out = {}
     for id, item in pairs(catalogue) do
-        if item.Slot == 'FullOutfit' or item.Slot == 'Hair' or item.Slot == 'Ponytail' then
+        if item.Slot == 'FullOutfit' or Slots.group(item.Slot) == 'head' then
             out[id] = Fits.pack(item, Fits.CHOSEN[id] or 1) or Fits.pack(item, 1)
         end
     end

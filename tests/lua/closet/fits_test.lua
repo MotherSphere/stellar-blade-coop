@@ -88,6 +88,23 @@ local tests = {
         Fits.use(nil)
         ok(ok_use and good, why)
     end,
+    every_head_slot_reaches_the_packs = function()
+        local catalogue = {s = item('s')}
+        for _, slot in ipairs({'Face', 'Glasses', 'Mask', 'Headwear', 'EarringL'}) do
+            catalogue['h.' .. slot] = item('h.' .. slot, {Slot = slot})
+        end
+        catalogue['w'] = item('w', {Slot = 'Weapon'})
+        local ok_use = pcall(Fits.use, catalogue)
+        local good, why = pcall(function()
+            for _, slot in ipairs({'Face', 'Glasses', 'Mask', 'Headwear', 'EarringL'}) do
+                same(Fits.heads(slot), {'h.' .. slot}, slot)
+                eq(Fits.get('h.' .. slot).Slot, slot)
+            end
+            eq(Fits.get('w'), nil, 'a weapon is not a head fit')
+        end)
+        Fits.use(nil)
+        ok(ok_use and good, why)
+    end,
     variant_one_is_worn_by_default = function()
         local all = Fits.all({['p.suit'] = item('p.suit')})
         eq(all['p.suit'].Variant, 1) eq(all['p.suit'].Mesh, '/Game/P/V1.V1')

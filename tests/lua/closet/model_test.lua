@@ -182,6 +182,22 @@ local tests = {
         eq(#m.rows('torso'), #Slots.in_menu('torso'), 'one row per slot')
     end,
 
+    a_pack_head_item_lights_its_row = function()
+        local function it(id, slot)
+            return {UniqueFitID = id, DisplayName = id, Slot = slot, File = 'P.dekcns.json',
+                Variants = {{Mesh = '/Game/P/V.V', HiddenMats = {}}}, UserConfigs = {MaterialToggles = {}}}
+        end
+        Fits.use({f = it('f', 'Face'), g = it('g', 'Glasses'), m = it('m', 'Mask'), h = it('h', 'Headwear'),
+            e = it('e', 'EarringL')})
+        local good, why = pcall(function()
+            local state = {}
+            for _, r in ipairs(new().rows('head')) do state[r.slot] = r.state end
+            for _, slot in ipairs({'Face', 'Glasses', 'Mask', 'Headwear', 'EarringL'}) do eq(state[slot], 'pieces', slot) end
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
     head_rows_skip_hidden_slots = function()
         local ids = {}
         for _, r in ipairs(new().rows('head')) do ids[#ids + 1] = r.slot end
