@@ -520,8 +520,8 @@ local tests = {
     end,
 
     a_long_region_pan_keeps_eve_on_screen = function()
-        -- EVE's look point (NDC 0.55 right, mid height) stays within 0.35 half widths either side of it and half a
-        -- half height up or down however long a pan key is held.
+        -- EVE's look point (NDC 0.55 right, mid height) stays between 0.35 and 0.85 of the half width
+        -- (Camera.RPAN) and within half a half height up or down however long a pan key is held.
         for _, case in ipairs({{16, 'J', 0.85, 0}, {64, 'L', 0.35, 0}, {8, 'I', 0.55, -0.5}, {32, 'K', 0.55, 0.5}}) do
             local c = world(function(w) w.keys = 0 end)
             c.open()
@@ -669,7 +669,7 @@ local tests = {
 
     a_wrong_lens_reading_is_never_taken = function()
         -- In game a reading taken while the view still lagged put the look point at x 2.5: tan 0.170 for a 0.767
-        -- lens, and the camera stood ten metres off. Only a tangent one of the axis rules can give is taken.
+        -- lens. The camera stood ten metres off. Only a tangent one of the axis rules can give is taken.
         local hfov = 90
         local tanv = math.tan(math.rad(hfov / 2)) * 9 / 16
         local calls = 0
@@ -679,7 +679,9 @@ local tests = {
                 local m = last()
                 if not m then return nil end
                 calls = calls + 1
-                if calls <= 3 then return {width = 3840, height = 2160, screen = {x = (1 + 2.5) / 2 * 3840, y = 1080}} end
+                if calls <= 3 then
+                    return {width = 3840, height = 2160, screen = {x = (1 + 2.5) / 2 * 3840, y = 1080}}
+                end
                 local x, y = project(m.at, m.rot, at, hfov, tanv)
                 return {width = 3840, height = 2160, screen = {x = (1 + x) / 2 * 3840, y = (1 - y) / 2 * 2160}}
             end
@@ -703,6 +705,21 @@ local tests = {
         local T = {X = W.at.X, Y = W.at.Y, Z = W.at.Z - 90 + r[1] * 180}
         local x = project(m.at, m.rot, T, 90, 9 / 16)
         near(x, 0.55, 0.01, 'the formula lens frames her')
+        -- The vertical axis rule: the read says horizontal, the view keeps a 60 degree vertical FOV.
+        local vfov = 60
+        local tv = math.tan(math.rad(vfov / 2))
+        c = world(function(w)
+            w.axis, w.fov = 1, vfov
+            w.project = function(at)
+                local m = last()
+                if not m then return nil end
+                local px, py = project(m.at, m.rot, at, 2 * math.deg(math.atan(tv * 16 / 9)), tv)
+                return {width = 3840, height = 2160, screen = {x = (1 + px) / 2 * 3840, y = (1 - py) / 2 * 2160}}
+            end
+        end)
+        c.open()
+        frames(c, 1, 'full')
+        eq(logged(string.format('camera: lens measured, tan(hfov/2)=%.3f', tv * 16 / 9)), 1, 'the vertical rule')
     end,
 
     x_toggles_on_release_only_without_the_stick = function()

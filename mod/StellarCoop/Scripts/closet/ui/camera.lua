@@ -350,10 +350,10 @@ function Camera.new(o)
     end
     -- The real lens from the engine's projection of the look point T, which place put at tangent cam.k: its screen x
     -- in half widths is k / tan(hfov / 2). Once an open, at the first answer (nil while the kit is hidden: later).
-    -- A reading is taken only when its tangent is within LENS_TOL of one an axis rule gives for the FOV (tan(fov / 2)
-    -- times 1, the aspect or 1 / the aspect), and that rule's tangent is used. A reading taken while the view still
-    -- lagged (in game: x 2.5, tan 0.170 for a 0.767 lens) is skipped; after LENS_TRIES skipped readings the first
-    -- lens stays, said once.
+    -- A reading is taken only when its tangent is within LENS_TOL of one an axis rule gives for the FOV:
+    -- tan(fov / 2) for the horizontal axis, times the aspect for the vertical one. That rule's tangent is used.
+    -- A reading taken while the view still lagged (in game: x 2.5, tan 0.170 for a 0.767 lens) is skipped. After
+    -- LENS_TRIES skipped readings the first lens stays, said once with the last reading.
     -- shortcut: T is this frame's; if the view's pose lags a frame, a pose still easing skews it a little.
     local function measure(T)
         local v=o.project(T,os.clock())
@@ -361,15 +361,19 @@ function Camera.new(o)
         local x=v.screen and tonumber(v.width) and v.width>0 and v.height>0 and 2*v.screen.x/v.width-1
         local tanh=x and x>0.05 and cam.k/x
         local fit
-        for _,t in ipairs(tanh and {cam.t,cam.t*cam.aspect,cam.t/cam.aspect} or {}) do
+        for _,t in ipairs(tanh and {cam.t,cam.t*cam.aspect} or {}) do
             if math.abs(tanh/t-1)<Camera.LENS_TOL then fit=t; break end
         end
         if not fit then
             cam.tries=(cam.tries or 0)+1
             if cam.tries<Camera.LENS_TRIES then return end
             cam.measured=true
-            return log('camera: lens not measured: '..(x and string.format('the look point at x %.3f',x) or
-                'no screen point'))
+            local why=x and string.format('the look point at x %.3f',x) or 'no screen point'
+            if tanh then
+                why=string.format('the last reading tan(hfov/2)=%.3f fits neither %.3f nor %.3f',tanh,cam.t,
+                    cam.t*cam.aspect)
+            end
+            return log('camera: lens not measured: '..why)
         end
         cam.measured=true
         cam.k,cam.tanv=Camera.NDC*fit,fit*v.height/v.width
