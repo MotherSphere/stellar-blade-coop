@@ -21,8 +21,8 @@ for other bodies are to be fitted to it by region maps. The body is not in this 
 | `coop closet probe <1-6\|off>` | Runs one in-game test of the game's widget parts for the closet menu (1-5) or of the reads for its camera and fit (6). It writes `probe:` PASS/FAIL lines to UE4SS.log. `off` ends it |
 | `coop closet body <auto\|shoes\|first\|<fit>>` | Sets the body rule of the next wears until the next Lua load: `auto` (the default, below), `shoes` (the outfit that supplies the shoes, else the first), `first` (the first outfit) or a fit id with skin, which forces that body |
 | `coop closet skin <fit> <slot> on\|off` | Shows or hides one material slot (a number) of that outfit's mesh now, on every LOD, for trying a setup in game. The next wear clears it |
-| `coop closet colour <role> <swatch\|off>` | Sets one role of the colour palette (`primary`, `secondary`, `accent` or `glow`) to a swatch, or back to the packs' own colours with `off`. See [Colours](#colours) |
-| `coop closet colour off` | Sets every role back to the packs' own colours and deletes `coop-closet-colour.txt` |
+| `coop closet colour <role> <on\|off\|swatch\|r g b>` | Turns one role of the colour palette (`primary`, `secondary`, `accent` or `glow`) on or off (its colour kept), or on with a swatch's colour or with R G B in 0-255. See [Colours](#colours) |
+| `coop closet colour off` | Turns every role off, forgets their colours and deletes `coop-closet-colour.txt` |
 | `coop closet shape <morph> <0-100>` | Sets one body shape value (a morph target name of the worn meshes) in percent, in steps of 10. `0` takes it off. See [Body shape](#body-shape) |
 | `coop closet shape off` | Sets every body shape value back to 0 and deletes `coop-closet-shape.txt` |
 | `coop closet rescan` | Reads every installed CNS-format pack again and answers how many packs, reused packs, outfits and failed packs it found. See [Importing CNS-format packs](cns-import.md#the-pack-catalogue) |
@@ -271,19 +271,23 @@ One palette colours every worn piece, whatever pack it comes from. It has four r
 
 A material slot takes the role of the closet slot its piece sits in (`Colour.SLOTS` in `colour.lua` lists all 73).
 Her skin, tattoos, makeup, hair, face, eyes, nails and the weapon have no role. Each role is Off (the pack's own
-colours) or one of 14 swatches: White, Black, Charcoal, Silver, Gold, Crimson, Wine, Rose, Violet, Navy, Azure, Teal,
-Emerald and Sand. The swatches are linear RGB values picked to read well as a tint on cloth.
+colours) or On with its own colour: linear R, G and B, each 0 to 1.
 
-The Colour tab, after the Body tab, has one row for each role. The row shows the swatch. Right, Select or a click on
-the row takes the next swatch, left the one before; Off comes before White. The camera frames her whole body. A
-colour change is saved at once in `coop-closet-colour.txt`, apart from the look. The menu does not ask "Keep this
-look?" for it. A revert does not undo it. The palette survives a restart. On a controller, B closes the menu
-on a Colour row with the swatch as it was.
+The Colour tab, after the Full outfit tab, has one row for each role. The row shows On or Off. Left, right, Select or a
+click on the row turns it on or off. A role that is on has three slider rows below it: Red, Green and Blue, in 0-255
+(the settings menu's own slider, `WB_Setting_Slider_Slot`). Left and right step a slider by 1/20 of its range. A click
+on its bar sets it there. A role turned on for the first time starts at 226 226 226 (the White swatch), which keeps
+the look. A role turned off keeps its colour for the next time it is on. The camera frames her whole body. A colour
+change is saved at once in `coop-closet-colour.txt`, apart from the look. The menu does not ask "Keep this look?" for
+it. A revert does not undo it. The palette survives a restart. The file holds one word for each role with a colour
+(`primary=on:0.515,0.007,0.021`). A word of the earlier swatch file (`primary=crimson`) reads as that swatch's
+colour, on. `coop closet colour <role> <swatch>` still takes the 14 swatch names: White, Black, Charcoal, Silver,
+Gold, Crimson, Wine, Rose, Violet, Navy, Azure, Teal, Emerald and Sand.
 
 On each shown material slot of a worn piece that a set role reaches, the closet makes a dynamic material instance
 (it reuses one the game put there) and sets the role's parameter. `Base Color Tint` multiplies the piece's base
 colour texture: the truest colour comes on a piece whose texture is white. A glow keeps its brightness and takes the
-swatch's hue. A piece whose glow is off keeps it off. The glow of a piece in another role's slot (a jacket's, a
+role's hue. A piece whose glow is off keeps it off. The glow of a piece in another role's slot (a jacket's, a
 watch's) keeps the pack's colour. A piece whose material has no such parameter keeps its look. A slot with a colour
 control of its pack outfit belongs to the outfit's options (see [Outfit options](#outfit-options)): the palette never
 paints it.
@@ -326,7 +330,7 @@ its pieces.
   - Finish (`TextureOptions`): the option's name (`OptionNames`). Left and right step through the options whose
     texture loads. A texture that does not load is left out and logged once.
   - Colour (`VectorControls`): Pack colour, a swatch's name or `R G B` in 0-255. Left and right step through Pack
-    colour, the 14 swatches of the Colour tab (with the pack's alpha) and Custom. A kit swatch right of the row shows
+    colour, the 14 swatches of `colour.lua` (with the pack's alpha) and Custom. A kit swatch right of the row shows
     the colour. Custom adds a row per channel its `Sliders` show (R, G and B when left out), in 0-255. Left and right
     step a channel by 1/20 of its `Min`..`Max` range (0..1 when left out).
   - Number (`ScalarControls`): the value with the decimals of its step. Left and right step it by the pack's `Step`,
@@ -444,8 +448,8 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
 - `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.
 - `tests/lua/closet/closet_test.lua` checks `coop closet`.
 - `tests/lua/closet/colour_test.lua` runs the colour layer on a fake dress and fake components: every slot's role, the
-  swatch cycle, instances only where a set role reaches, the parameter names, the palette put on again after a wear,
-  Off giving the materials back, the palette file and `coop closet colour`.
+  swatches, a role on and off with its channels, instances only where a set role reaches, the parameter names, the
+  palette put on again after a wear, Off giving the materials back, the palette file and `coop closet colour`.
 - `tests/lua/closet/shape_test.lua` runs the shape layer on a fake dress and fake components and meshes: the morph
   names read once per mesh path, the rows the rule allows, the steps from 0 to 100, the values on the body and on the
   pieces for the names the body lacks, the shape put on again after a wear, her own look, the shape file, `coop off`

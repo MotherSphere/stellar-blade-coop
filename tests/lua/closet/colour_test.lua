@@ -2,7 +2,8 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The closet's colour layer (closet/colour.lua) over a fake dress and fake components and materials: a role for every
--- slot of closet/slots.lua, the swatch cycle with Off, dynamic instances only on the slots a set role reaches, the
+-- slot of closet/slots.lua, the swatches, a role on and off with its R G B channels, dynamic instances only on the
+-- slots a set role reaches, the
 -- parameter names (Base Color Tint, EmissiveColor on a glow only), the palette applied again when dress.applied()
 -- changes and when it changes, Off giving the materials from before back, a slot that fails left alone, the palette
 -- kept in its file and read back, off() clearing it; coop closet colour (closet/commands.lua).
@@ -203,7 +204,7 @@ local tests = {
         eq(Colour.role('Fingernails'), nil) eq(Colour.role('Nope'), nil)
     end,
 
-    swatches_cycle_through_off = function()
+    swatches = function()
         local Colour = require('closet.colour')
         local ids = {}
         for i, s in ipairs(Colour.SWATCHES) do
@@ -213,16 +214,52 @@ local tests = {
         end
         same(ids, {'white', 'black', 'charcoal', 'silver', 'gold', 'crimson', 'wine', 'rose', 'violet', 'navy', 'azure',
             'teal', 'emerald', 'sand'}, 'the 14 swatches')
-        eq(Colour.cycle('off', 1), 'white') eq(Colour.cycle('white', 1), 'black') eq(Colour.cycle('sand', 1), 'off')
-        eq(Colour.cycle('off', -1), 'sand') eq(Colour.cycle('white', -1), 'off')
         eq(Colour.swatch('off'), nil) eq(Colour.swatch('pink'), nil)
+    end,
+
+    a_role_turns_on_and_off_and_its_channels_step = function()
+        local Colour = require('closet.colour')
         local r = rig()
-        eq(r.c.get('primary'), 'off', 'off at first')
-        local steps = {}
-        for i = 1, 16 do r.c.step('primary', 1); steps[i] = r.c.get('primary') end
-        eq(steps[14], 'sand') eq(steps[15], 'off', 'back to off after the last') eq(steps[16], 'white')
-        r.c.step('primary', -1)
-        eq(r.c.get('primary'), 'off', 'left from the first: off')
+        local on, c = r.c.get('primary')
+        eq(on, false, 'off at first') same(c, Colour.DEFAULT, 'the default colour')
+        ok(r.c.turn('primary', true))
+        on, c = r.c.get('primary')
+        eq(on, true, 'on') same(c, Colour.DEFAULT, 'it starts at the default')
+        c.R = 0 -- get gives a copy.
+        same(select(2, r.c.get('primary')), Colour.DEFAULT, 'a copy')
+        ok(r.c.step('primary', 'r', 1))
+        eq(select(2, r.c.get('primary')).R, 0.938, 'red one step up (STEP 1/20)')
+        for _ = 1, 5 do r.c.step('primary', 'r', 1) end
+        eq(select(2, r.c.get('primary')).R, 1, 'clamped at 1')
+        for _ = 1, 30 do r.c.step('primary', 'b', -1) end
+        eq(select(2, r.c.get('primary')).B, 0, 'clamped at 0')
+        ok(r.c.channel('primary', 'g', 0.25))
+        eq(select(2, r.c.get('primary')).G, 0.25, 'a channel set')
+        ok(r.c.channel('primary', 'g', 7))
+        eq(select(2, r.c.get('primary')).G, 1, 'a channel set past 1: clamped')
+        ok(r.c.turn('primary', false))
+        on, c = r.c.get('primary')
+        eq(on, false, 'off') same(c, {R = 1, G = 1, B = 0}, 'off keeps the colour')
+        ok(r.c.turn('primary', true))
+        same(select(2, r.c.get('primary')), {R = 1, G = 1, B = 0}, 'on again: the same colour')
+        ok(r.c.channel('accent', 'b', 0.5))
+        eq((r.c.get('accent')), true, 'a channel set turns its role on')
+        eq(r.c.channel('primary', 'a', 0.5), false, 'no alpha channel')
+        eq(r.c.step('primary', 'x', 1), false, 'no such channel')
+        eq(r.c.turn('nope', true), false, 'no such role')
+    end,
+
+    the_rgb_colour_is_painted = function()
+        local r = rig()
+        r.c.channel('primary', 'r', 0.2) -- On at the default, red set.
+        r.c.tick()
+        near(r.body.mats[3].values[TINT], {R = 0.2, G = 0.888, B = 0.888, A = 1}, 'the top takes the RGB colour')
+        r.c.step('primary', 'g', -1)
+        r.c.tick()
+        near(r.body.mats[3].values[TINT], {R = 0.2, G = 0.838, B = 0.888, A = 1}, 'a step shows at the next tick')
+        r.c.turn('primary', false)
+        r.c.tick()
+        ok(r.body.mats[3] == r.top, 'off: the top gets its material back')
     end,
 
     instances_only_where_a_set_role_reaches = function()
@@ -404,25 +441,29 @@ local tests = {
         local r = rig()
         r.c.set('glow', 'azure')
         r.c.set('primary', 'crimson')
-        eq(r.file, 'primary=crimson glow=azure', 'the file in role order')
+        eq(r.file, 'primary=on:0.515,0.007,0.021 glow=on:0.021,0.223,0.791', 'the file in role order')
         local again = r.Colour.new({dress = r.dress, store = r.store, log = function() end})
-        eq(again.get('primary'), 'crimson', 'read back') eq(again.get('glow'), 'azure')
-        eq(again.get('secondary'), 'off')
+        local on, c = again.get('primary')
+        eq(on, true, 'read back on') same(c, {R = 0.515, G = 0.007, B = 0.021}, 'read back: its colour')
+        eq((again.get('secondary')), false)
         again.tick()
         ok(r.body.mats[3].mid, 'worn again after a restart')
         r.c.set('primary', 'off')
-        eq(r.file, 'glow=azure')
+        eq(r.file, 'primary=off:0.515,0.007,0.021 glow=on:0.021,0.223,0.791', 'off keeps its colour in the file')
         ok(r.c.off())
         eq(r.file, nil, 'off clears the file')
-        eq(r.c.get('glow'), 'off')
-        -- Words it does not know are left out.
-        r.file = 'primary=pink nope=gold accent=gold'
+        eq((r.c.get('glow')), false)
+        same(select(2, r.c.get('glow')), r.Colour.DEFAULT, 'off forgets the colours')
+        -- The swatch file before reads as that swatch, on; words it does not know are left out.
+        r.file = 'primary=pink nope=gold accent=gold secondary=on:x glow=maybe:0.1,0.2,0.3'
         local odd = r.Colour.new({dress = r.dress, store = r.store, log = function() end})
-        eq(odd.get('primary'), 'off') eq(odd.get('accent'), 'gold')
+        eq((odd.get('primary')), false) eq((odd.get('secondary')), false) eq((odd.get('glow')), false)
+        on, c = odd.get('accent')
+        eq(on, true, 'gold read as on') same(c, {R = 0.745, G = 0.456, B = 0.08}, 'gold read as its colour')
         -- A file that cannot be written: logged, the palette still on.
         r.store.save = function() return false, 'disk full' end
         ok(r.c.set('accent', 'wine'))
-        has(r.log, 'disk full', 'logged') eq(r.c.get('accent'), 'wine')
+        has(r.log, 'disk full', 'logged') eq((r.c.get('accent')), true)
     end,
 
     refusals = function()
@@ -442,21 +483,29 @@ local tests = {
         r.body.mats[3] = r.top
         r.c.tick()
         eq(r.body.creates, 2, 'coloured again at the next tick')
-        eq(r.file, 'primary=crimson', 'the palette stays')
+        eq(r.file, 'primary=on:0.515,0.007,0.021', 'the palette stays')
     end,
 
     commands = function()
         local r = rig()
         local C = require('closet.commands').new({dress = {}, fits = require('closet.fits'), colour = r.c})
         local good, line = C.closet('colour', 'primary', 'crimson', nil, nil, nil)
-        ok(good and line == 'closet: colour primary crimson', line)
-        eq(r.c.get('primary'), 'crimson')
+        ok(good and line == 'closet: colour primary on 131 2 5', line)
+        eq((r.c.get('primary')), true)
+        good, line = C.closet('colour', 'primary', '255', '128', '0', nil)
+        ok(good and line == 'closet: colour primary on 255 128 0', line)
+        same(select(2, r.c.get('primary')), {R = 1, G = 0.501961, B = 0}, 'R G B in 0-255')
+        good, line = C.closet('colour', 'primary', 'off', nil, nil, nil)
+        ok(good and line == 'closet: colour primary off 255 128 0', line)
+        good, line = C.closet('colour', 'primary', 'on', nil, nil, nil)
+        ok(good and line == 'closet: colour primary on 255 128 0', line)
         good, line = C.closet('colour', 'glow', 'off', nil, nil, nil)
-        ok(good and line == 'closet: colour glow off', line)
+        ok(good and line == 'closet: colour glow off 226 226 226', line)
         good, line = C.closet('colour', 'off', nil, nil, nil, nil)
         ok(good and line == 'closet: colours off', line)
-        eq(r.c.get('primary'), 'off')
-        for _, words in ipairs({{}, {'primary'}, {'primary', 'crimson', 'x'}, {'off', 'x'}}) do
+        eq((r.c.get('primary')), false)
+        for _, words in ipairs({{}, {'primary'}, {'primary', 'crimson', 'x'}, {'off', 'x'}, {'primary', '1', '2'},
+                {'primary', '1', '2', '3', '4'}}) do
             good, line = C.closet('colour', table.unpack(words))
             ok(not good and line == r.Colour.USE, table.concat(words, ' ') .. ': ' .. tostring(line))
         end

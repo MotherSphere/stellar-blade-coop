@@ -528,7 +528,9 @@ return {
                 secondary='Hansker, ermer, sko, strømper, belter, strømpebånd, stropper, bånd og masker.',
                 accent='Smykker, piercinger, ringer, halsbånd, briller og hårpynt.',
                 glow='Gløden til deler for kroppsglød. Styrken beholdes.'},
-            help='Venstre og høyre velger fargen. Av beholder fargene fra pakken.',
+            help='Velg, venstre eller høyre slår den på eller av. På viser glidebryterne for rød, grønn og blå. Av '
+                ..'beholder fargene fra pakken.',
+            channel_help='Venstre og høyre endrer den. Et klikk på linjen setter den der.',
             swatches={off='Av',white='Hvit',black='Svart',charcoal='Koksgrå',silver='Sølv',gold='Gull',
                 crimson='Karmosin',wine='Vinrød',rose='Rosa',violet='Fiolett',navy='Marineblå',azure='Asurblå',
                 teal='Petrol',emerald='Smaragd',sand='Sand'}},

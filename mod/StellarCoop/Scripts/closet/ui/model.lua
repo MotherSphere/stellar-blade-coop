@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Stellar Closet: the menu's data model. Pure Lua, no engine calls: what the tabs, rows and tiles list, and the edits
 -- of a list of choices {{fit=<UniqueFitID>, slots=<Slot ids, or nil for every piece the fit shows by default>}}
--- (the shape of Dress.plan's input). Edits never touch their input. The Colour tab lists closet/colour.lua's roles.
+-- (the shape of Dress.plan's input). Edits never touch their input. The Colour tab lists closet/colour.lua's roles,
+-- each role that is on followed by its channels.
 -- The Body tab lists a shape row for each name of o.shapes (closet/shape.lua's rows) right below its Body row.
 -- Full outfit lists every suit of closet/fits.lua's Fits.all (the installed packs' and the hand fits); the fitting tabs
 -- list the hand fits' pieces only.
@@ -27,7 +28,8 @@ end
 -- o = {slots=closet.slots, fits=closet.fits, installed=function(fit)->bool, adult=bool,
 -- shapes=function()->morph names or nil, presets=closet/presets.lua's or nil (no Presets rows, filter or favourite
 -- marks then), filter=function()->the filter row's list: 'all', 'favourites', 'original' (Shift Up's own suits) or
--- 'custom' (the pack and hand outfits), pictures=true with coop closet thumbs (a Clear preview pictures row then)}
+-- 'custom' (the pack and hand outfits), pictures=true with coop closet thumbs (a Clear preview pictures row then),
+-- colour_on=function(role)->bool or nil (a role that is on gets its Red, Green and Blue rows below its row)}
 function Model.new(o)
     local Slots, Fits = o.slots, o.fits
     local m = {}
@@ -110,7 +112,12 @@ function Model.new(o)
             return out
         end
         if tab == 'colour' then
-            for _, role in ipairs(Colour.ROLES) do out[#out + 1] = {role = role} end
+            for _, role in ipairs(Colour.ROLES) do
+                out[#out + 1] = {role = role}
+                if o.colour_on and o.colour_on(role) then
+                    for _, c in ipairs(Colour.CHANNELS) do out[#out + 1] = {role = role, c = c, depth = 1} end
+                end
+            end
             return out
         end
         for _, slot in ipairs(Slots.in_menu(tab)) do

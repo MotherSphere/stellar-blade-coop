@@ -544,7 +544,9 @@ return {
                 secondary='Guantes, mangas, zapatos, medias, cinturones, ligas, correas, bandas y máscaras.',
                 accent='Joyas, piercings, anillos, collares, gafas y accesorios para el pelo.',
                 glow='El brillo de las piezas de brillo corporal. Su intensidad se mantiene.'},
-            help='Izquierda y derecha eligen el color. Desactivado mantiene los colores del pack.',
+            help='Seleccionar, izquierda o derecha lo activa o desactiva. Activado muestra los controles de rojo, '
+                ..'verde y azul. Desactivado mantiene los colores del pack.',
+            channel_help='Izquierda y derecha lo cambian. Un clic en la barra lo fija ahí.',
             swatches={off='Desactivado',white='Blanco',black='Negro',charcoal='Carbón',silver='Plata',gold='Oro',
                 crimson='Carmesí',wine='Vino',rose='Rosa',violet='Violeta',navy='Azul marino',azure='Azur',
                 teal='Verde azulado',emerald='Esmeralda',sand='Arena'}},

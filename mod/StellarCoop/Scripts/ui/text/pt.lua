@@ -543,7 +543,9 @@ return {
                 secondary='Luvas, mangas, sapatos, meias, cintos, ligas, tiras, faixas e máscaras.',
                 accent='Joias, piercings, anéis, coleiras, óculos e acessórios de cabelo.',
                 glow='O brilho das peças de brilho do corpo. A intensidade mantém-se.'},
-            help='Esquerda e direita escolhem a cor. Desligado mantém as cores do pacote.',
+            help='Selecionar, esquerda ou direita liga ou desliga. Ativado mostra os controlos de vermelho, verde e '
+                ..'azul. Desativado mantém as cores do pacote.',
+            channel_help='Esquerda e direita mudam o valor. Um clique na barra define-o aí.',
             swatches={off='Desligado',white='Branco',black='Preto',charcoal='Carvão',silver='Prata',gold='Dourado',
                 crimson='Carmesim',wine='Vinho',rose='Rosa',violet='Violeta',navy='Azul-marinho',azure='Azul-celeste',
                 teal='Verde-azulado',emerald='Esmeralda',sand='Areia'}},

@@ -12,8 +12,8 @@ local Cmd=require('closet.commands').new({dress={status=function() return 'close
     fits=require('closet.fits'),thumbs={run=function(redo,fit) runs[#runs+1]={redo,fit}; return true,'ran' end},
     packs={scan=function() scans=scans+1; return {},{packs=2,reused=1,items=3,failed={}} end}})
 local USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|thumbs [redo] [<fit>]|'..
-    'probe <1-6|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <swatch|off>|colour off|'..
-    'shape <morph> <0-100>|shape off|rescan|option <fit> variant <n>|option <fit> toggle <slot> on|off|'..
+    'probe <1-6|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <on|off|swatch|r g b>|'..
+    'colour off|shape <morph> <0-100>|shape off|rescan|option <fit> variant <n>|option <fit> toggle <slot> on|off|'..
     'preset save [name]|preset wear|delete <n>|preset rename <n> [name]|favourite <fit>]'
 -- rescan reads every installed pack again (closet/packs.lua) and answers its report line.
 local ok,line=Cmd.closet('rescan')

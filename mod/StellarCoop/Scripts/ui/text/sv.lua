@@ -523,7 +523,9 @@ return {
                 secondary='Handskar, ärmar, skor, strumpor, bälten, strumpeband, remmar, band och masker.',
                 accent='Smycken, piercingar, ringar, halsband, glasögon och håraccessoarer.',
                 glow='Glöden hos delar för kroppsglöd. Ljusstyrkan behålls.'},
-            help='Vänster och höger väljer färgen. Av behåller paketets färger.',
+            help='Välj, vänster eller höger slår på eller av den. På visar reglagen för rött, grönt och blått. Av '
+                ..'behåller paketets färger.',
+            channel_help='Vänster och höger ändrar den. Ett klick på stapeln sätter den där.',
             swatches={off='Av',white='Vit',black='Svart',charcoal='Koksgrå',silver='Silver',gold='Guld',
                 crimson='Karmosin',wine='Vinröd',rose='Rosa',violet='Violett',navy='Marinblå',azure='Azurblå',
                 teal='Petrol',emerald='Smaragd',sand='Sand'}},

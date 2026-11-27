@@ -166,14 +166,34 @@ local function fake_shape(names)
     s.off = function() s.offs = s.offs + 1; s.values = {}; return true end
     return s
 end
--- A fake colour layer (closet/colour.lua's face): its palette, its steps and offs.
+-- A fake colour layer (closet/colour.lua's face): its palette ({on, R, G, B} a role), its calls (steps) and offs.
 local function fake_colour()
     local Colour = require('closet.colour')
     local c = {palette = {}, steps = {}, offs = 0}
-    c.get = function(role) return c.palette[role] or 'off' end
-    c.step = function(role, dir)
-        c.steps[#c.steps + 1] = role .. ' ' .. dir
-        c.palette[role] = Colour.cycle(c.get(role), dir)
+    local function rec(role)
+        local d = Colour.DEFAULT
+        c.palette[role] = c.palette[role] or {on = false, R = d.R, G = d.G, B = d.B}
+        return c.palette[role]
+    end
+    c.get = function(role)
+        local p = c.palette[role] or Colour.DEFAULT
+        return p.on == true, {R = p.R, G = p.G, B = p.B}
+    end
+    c.turn = function(role, on)
+        c.steps[#c.steps + 1] = role .. (on and ' on' or ' off')
+        rec(role).on = on
+        return true
+    end
+    c.channel = function(role, ch, x)
+        c.steps[#c.steps + 1] = ('%s %s=%g'):format(role, ch, x)
+        local p = rec(role)
+        p.on, p[ch:upper()] = true, math.max(0, math.min(1, x))
+        return true
+    end
+    c.step = function(role, ch, dir)
+        c.steps[#c.steps + 1] = role .. ' ' .. ch .. ' ' .. dir
+        local p = rec(role)
+        p.on, p[ch:upper()] = true, math.max(0, math.min(1, p[ch:upper()] + dir * Colour.STEP))
         return true
     end
     c.off = function() c.offs = c.offs + 1; c.palette = {}; return true end
@@ -1116,9 +1136,9 @@ local tests = {
         r.t = 6
         r.menu.open()
         eq((detail(r)), 'Chest tattoo', 'one poll: the torso tab kept')
-        -- On a Colour row the chord's left steps the role's swatch (colour.step, saved at once): the close steps it
+        -- On a Colour row the chord's left turns the role on or off (colour.turn, saved at once): the close turns it
         -- back, so the palette and coop-closet-colour.txt stay as they were. From the Head tab, LB lands on the Colour
-        -- tab's Primary row: the frames-later left steps the swatch.
+        -- tab's Primary row: the frames-later left turns it.
         local col = fake_colour()
         r = rig({colour = col})
         r.menu.open()
@@ -1126,20 +1146,20 @@ local tests = {
         title = detail(r)
         chord(0.5)
         all_gone(r)
-        eq(#col.steps, 2, 'from the Head tab: the left stepped the swatch, the close stepped it back')
-        eq(col.get('primary'), 'off', 'from the Head tab: the palette as it was')
+        same(col.steps, {'primary on', 'primary off'}, 'from the Head tab: the left turned it on, the close back off')
+        eq((col.get('primary')), false, 'from the Head tab: the palette as it was')
         r.t = 1
         r.menu.open()
         eq((detail(r)), title, 'the Head tab kept')
         -- On the Colour tab, both pressed in one poll: left, tab_left, then closet.
-        col.palette.primary = 'crimson'
+        col.palette.primary = {on = true, R = 0.5, G = 0, B = 0}
         at(r, 1.4, 'tab_left') -- Head, Colour.
         tick(r, 1.45)
         eq((detail(r)), T.en.closet.colour.roles.primary, 'on the Primary row')
         at(r, 1.5, 'left', 'tab_left')
         r.menu.toggle()
         all_gone(r)
-        eq(col.get('primary'), 'crimson', 'one poll on the Colour tab: the palette as it was')
+        eq((col.get('primary')), true, 'one poll on the Colour tab: the palette as it was')
         r.t = 2
         r.menu.open()
         eq((detail(r)), T.en.closet.colour.roles.primary, 'the Colour tab kept')
@@ -1148,7 +1168,7 @@ local tests = {
         tick(r, 2.5)
         r.menu.toggle()
         all_gone(r)
-        eq(col.get('primary'), 'gold', 'left, then F1: the swatch before crimson')
+        eq((col.get('primary')), false, 'left, then F1: the left turned it off')
         -- On a shape row of the Body tab, both pressed in one poll: the chord's left stepped the value down (saved at
         -- once); the close sets it back, so the shape and coop-closet-shape.txt stay as they were.
         local sh = fake_shape({'Butt'})
@@ -1239,7 +1259,7 @@ local tests = {
     -- menu without the Keep popup or a revert, so nothing of the closet stays on EVE for its watchdog.
     reset_row_clears_and_stops_the_watchdog = function()
         local col, sh = fake_colour(), fake_shape({'Butt'})
-        col.palette.primary = 'crimson'
+        col.palette.primary = {on = true, R = 0.5, G = 0, B = 0}
         sh.values.Butt = 50
         local r = rig({colour = col, shape = sh, before = function(r) r.choices = {{fit = MAID}} end})
         r.menu.open()
@@ -1264,7 +1284,7 @@ local tests = {
         at(r, 0.5, 'up', 'refresh', 'down', 'select', 'select')
         same(r.previews, {{{fit = MAID}}}, 'previewed before the reset (row 2 by name)')
         eq(r.offs, 1, 'coop closet off ran')
-        eq(col.offs, 1, 'the palette cleared (coop-closet-colour.txt)') eq(col.get('primary'), 'off')
+        eq(col.offs, 1, 'the palette cleared (coop-closet-colour.txt)') eq((col.get('primary')), false)
         eq(sh.offs, 1, 'the shape cleared (coop-closet-shape.txt)') eq(sh.get('Butt'), 0)
         eq(r.reverted + r.confirmed, 0, 'no revert, no confirm')
         same(r.told, {T.en.closet.reset_done}, 'the notice')
@@ -1830,7 +1850,7 @@ local tests = {
     -- The Colour tab (after Full outfit): a row for each role of closet/colour.lua, its value the swatch's name. Left,
     -- right, Select and a click on the row pick the swatch; nothing is previewed, so Back asks nothing. The camera
     -- frames her whole body.
-    the_colour_tab_picks_a_swatch_per_role = function()
+    the_colour_tab_turns_roles_on_with_rgb_sliders = function()
         local col, cam = fake_colour(), fake_camera()
         local r = rig({colour = col, camera = cam})
         r.menu.open()
@@ -1862,22 +1882,54 @@ local tests = {
         local hints = {}
         for i, h in ipairs(parts) do hints[i] = h.text end
         same(hints, {T.en.hint.back, T.en.hint.select, T.en.hint.move}, 'Back, Select, Move')
+        local O = T.en.closet.options
+        local function red() return row_value(r, child(1, O.channels.r)) end
+        local all_off = {w.roles.primary .. '=Off', w.roles.secondary .. '=Off', w.roles.accent .. '=Off',
+            w.roles.glow .. '=Off'}
         at(r, 0.5, 'right')
-        eq(rows()[1], w.roles.primary .. '=' .. w.swatches.white, 'right: the next swatch')
+        same(rows(), {w.roles.primary .. '=' .. O.on, w.roles.secondary .. '=Off', w.roles.accent .. '=Off',
+            w.roles.glow .. '=Off'}, 'right: Primary on')
+        eq(#r.kit.live(F.SLIDER), 3, 'its Red, Green and Blue slider rows')
+        eq(red(), '226', 'Red at the default (226)') eq(row_value(r, child(1, O.channels.g)), '226')
+        eq(row_value(r, child(1, O.channels.b)), '226')
+        same(slider(r, child(1, O.channels.r)).o.ItemTextRange, {Min = 0, Max = 255}, 'a slider in 0-255')
+        at(r, 0.5, 'down')
+        title, desc = detail(r)
+        eq(title, O.channels.r, 'the Red row: its detail title has no lead mark')
+        ok(desc:find(w.channel_help, 1, true), desc)
+        parts = {}
+        for _, h in ipairs(r.kit.live(F.HINT)) do
+            local text
+            for _, c in ipairs(h.o.calls) do if c[1] == 'SetText' then text = c[2].text or c[2] end end
+            if h.y == 1990 then parts[#parts + 1] = {x = h.x, text = text} end
+        end
+        table.sort(parts, function(a, b) return a.x > b.x end)
+        hints = {}
+        for i, h in ipairs(parts) do hints[i] = h.text end
+        same(hints, {T.en.hint.back, T.en.closet.hints.change, T.en.hint.move}, 'Back, Change, Move')
+        at(r, 0.5, 'right')
+        eq(red(), '239', 'right: Red one step up')
+        at(r, 0.5, 'left', 'left')
+        eq(red(), '214', 'left twice: one step under the default')
         at(r, 0.5, 'select')
-        eq(rows()[1], w.roles.primary .. '=' .. w.swatches.black, 'Select: the next swatch')
-        at(r, 0.5, 'left')
-        eq(rows()[1], w.roles.primary .. '=' .. w.swatches.white, 'left: the one before')
+        eq(red(), '214', 'Select on a channel changes nothing')
+        at(r, 0.5, 'up', 'select')
+        same(rows(), all_off, 'Select on Primary: off')
+        eq(#r.kit.live(F.SLIDER), 0, 'its sliders gone')
+        at(r, 0.5, 'select')
+        eq(red(), '214', 'on again: the colour kept')
+        at(r, 0.5, 'select')
         at(r, 0.5, 'down', 'left')
-        eq(rows()[2], w.roles.secondary .. '=' .. w.swatches.sand, 'left from Off: the last swatch')
+        eq(rows()[2], w.roles.secondary .. '=' .. O.on, 'left on Secondary: on')
         eq((detail(r)), w.roles.secondary, 'the Secondary row focused')
-        same(col.steps, {'primary 1', 'primary 1', 'primary -1', 'secondary -1'}, 'the steps')
+        same(col.steps, {'primary on', 'primary r 1', 'primary r -1', 'primary r -1', 'primary off', 'primary on',
+            'primary off', 'secondary on'}, 'the calls')
         eq(#r.previews, 0, 'nothing previewed')
         tick(r, 0.6)
         eq(cam.ticks[#cam.ticks].region, 'full', 'her whole body framed')
         at(r, 0.7, 'back')
         eq(popups(r), 0, 'no Keep popup') eq(r.menu.is_open(), false, 'closed')
-        eq(col.palette.primary, 'white', 'the palette stays: it is saved apart from the look')
+        eq(col.palette.secondary.on, true, 'the palette stays: it is saved apart from the look')
         -- Without a colour layer the rows show Off and pick nothing.
         r = rig()
         r.menu.open()
@@ -2981,7 +3033,7 @@ local tests = {
             eq(runs[1], 'dress') eq(runs[2], 'colour', 'the colour tick right after the dress\'s')
             local good, line = commands.closet('colour', 'accent', 'gold', nil, nil, nil)
             ok(good, line)
-            eq(files['coop-closet-colour.txt'], 'accent=gold', 'coop closet colour sets the palette')
+            eq(files['coop-closet-colour.txt'], 'accent=on:0.745,0.456,0.08', 'coop closet colour sets the palette')
             local stop = M.closet_colour.stop
             M.closet_colour.stop = function() runs[#runs + 1] = 'colour stop'; return stop() end
             M.closet.stop()

@@ -549,7 +549,9 @@ return {
                 secondary='Guanti, maniche, scarpe, calze, cinture, giarrettiere, cinghie, fasce e maschere.',
                 accent='Gioielli, piercing, anelli, collari, occhiali e accessori per capelli.',
                 glow='Il bagliore dei pezzi di bagliore del corpo. La sua intensità resta.'},
-            help='Sinistra e destra scelgono il colore. Spento mantiene i colori del pack.',
+            help='Seleziona, sinistra o destra lo accende o lo spegne. Attiva mostra i cursori di rosso, verde e blu. '
+                ..'Disattiva mantiene i colori del pack.',
+            channel_help='Sinistra e destra lo cambiano. Un clic sulla barra lo imposta lì.',
             swatches={off='Spento',white='Bianco',black='Nero',charcoal='Antracite',silver='Argento',gold='Oro',
                 crimson='Cremisi',wine='Vinaccia',rose='Rosa',violet='Viola',navy='Blu navy',azure='Azzurro',
                 teal='Verde acqua',emerald='Smeraldo',sand='Sabbia'}},

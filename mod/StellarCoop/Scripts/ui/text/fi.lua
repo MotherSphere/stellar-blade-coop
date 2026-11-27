@@ -543,7 +543,9 @@ return {
                 secondary='Hanskat, hihat, kengät, sukat, vyöt, sukkanauhat, remmit, nauhat ja naamiot.',
                 accent='Korut, lävistykset, sormukset, kaulapannat, lasit ja hiusasusteet.',
                 glow='Kehon hehku -osien hehku. Sen kirkkaus säilyy.'},
-            help='Vasen ja oikea valitsevat värin. Pois pitää paketin värit.',
+            help='Valinta, vasen tai oikea kytkee sen päälle tai pois. Päällä näyttää punaisen, vihreän ja sinisen '
+                ..'liukusäätimet. Pois pitää paketin värit.',
+            channel_help='Vasen ja oikea muuttavat sitä. Napsautus palkkiin asettaa sen siihen.',
             swatches={off='Pois',white='Valkoinen',black='Musta',charcoal='Hiilenharmaa',silver='Hopea',gold='Kulta',
                 crimson='Karmiininpunainen',wine='Viininpunainen',rose='Ruusu',violet='Violetti',
                 navy='Laivastonsininen',azure='Taivaansininen',teal='Sinivihreä',emerald='Smaragdi',sand='Hiekka'}},

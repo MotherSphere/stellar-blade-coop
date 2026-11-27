@@ -535,7 +535,9 @@ return {
                 secondary='Handschoenen, mouwen, schoenen, kousen, riemen, kousenbanden, bandjes, banden en maskers.',
                 accent='Sieraden, piercings, ringen, halsbanden, brillen en haaraccessoires.',
                 glow='De gloed van stukken voor lichaamsgloed. De helderheid blijft.'},
-            help='Links en rechts kiezen de kleur. Uit houdt de kleuren van het pakket.',
+            help='Selecteren, links of rechts zet hem aan of uit. Aan toont de schuifregelaars voor rood, groen en '
+                ..'blauw. Uit houdt de kleuren van het pakket.',
+            channel_help='Links en rechts veranderen hem. Een klik op de balk zet hem daar.',
             swatches={off='Uit',white='Wit',black='Zwart',charcoal='Antraciet',silver='Zilver',gold='Goud',
                 crimson='Karmozijn',wine='Wijnrood',rose='Roze',violet='Violet',navy='Marineblauw',azure='Azuur',
                 teal='Petrol',emerald='Smaragd',sand='Zand'}},

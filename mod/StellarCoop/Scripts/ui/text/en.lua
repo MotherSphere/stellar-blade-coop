@@ -649,7 +649,9 @@ return {
                 secondary='Gloves, sleeves, shoes, legwear, belts, garters, straps, bands and masks.',
                 accent='Jewellery, piercings, rings, collars, glasses and hair accessories.',
                 glow='The glow of body glow pieces. Its brightness stays.'},
-            help='Left and right pick the colour. Off keeps the colours of the pack.',
+            help='Select, left or right turns it on or off. On shows its Red, Green and Blue sliders. Off keeps the '
+                ..'colours of the pack.',
+            channel_help='Left and right change it. A click on the bar sets it there.',
             swatches={off='Off',white='White',black='Black',charcoal='Charcoal',silver='Silver',gold='Gold',
                 crimson='Crimson',wine='Wine',rose='Rose',violet='Violet',navy='Navy',azure='Azure',teal='Teal',
                 emerald='Emerald',sand='Sand'}},

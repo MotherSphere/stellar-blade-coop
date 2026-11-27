@@ -539,7 +539,9 @@ return {
                     ..'maskeler.',
                 accent='Takılar, piercingler, yüzükler, tasmalar, gözlükler ve saç aksesuarları.',
                 glow='Vücut ışıltısı parçalarının parıltısı. Parlaklığı aynı kalır.'},
-            help='Sol ve sağ rengi seçer. Kapalı, paketin renklerini korur.',
+            help='Seç, sol veya sağ açar ya da kapatır. Açık; kırmızı, yeşil ve mavi kaydırıcılarını gösterir. '
+                ..'Kapalı, paketin renklerini korur.',
+            channel_help='Sol ve sağ değeri değiştirir. Çubuğa tıklamak onu oraya ayarlar.',
             swatches={off='Kapalı',white='Beyaz',black='Siyah',charcoal='Antrasit',silver='Gümüş',gold='Altın',
                 crimson='Kızıl',wine='Şarap',rose='Gül',violet='Mor',navy='Lacivert',azure='Gök mavisi',
                 teal='Camgöbeği',emerald='Zümrüt',sand='Kum'}},

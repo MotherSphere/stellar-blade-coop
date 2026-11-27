@@ -548,7 +548,9 @@ return {
                 secondary='Gants, manches, chaussures, bas, ceintures, jarretières, sangles, bandes et masques.',
                 accent='Bijoux, piercings, bagues, colliers, lunettes et accessoires pour cheveux.',
                 glow='La lueur des pièces de lueur du corps. Son intensité reste la même.'},
-            help='Gauche et droite choisissent la couleur. Aucune garde les couleurs du pack.',
+            help='Sélection, gauche ou droite l\'active ou la désactive. Oui affiche les curseurs Rouge, Vert et Bleu. '
+                ..'Non garde les couleurs du pack.',
+            channel_help='Gauche et droite la changent. Un clic sur la barre la règle à cet endroit.',
             swatches={off='Aucune',white='Blanc',black='Noir',charcoal='Anthracite',silver='Argent',gold='Or',
                 crimson='Cramoisi',wine='Bordeaux',rose='Rose',violet='Violet',navy='Marine',azure='Azur',
                 teal='Sarcelle',emerald='Émeraude',sand='Sable'}},

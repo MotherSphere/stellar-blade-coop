@@ -49,10 +49,12 @@
 -- game's Yes/No popup: Yes runs coop closet off (dress.off), turns every colour off (colour.off: its file cleared),
 -- sets every shape value to 0 (shape.off: its file cleared), tells closet.reset_done, closes without the Keep popup or
 -- a revert and has the camera forget its mode and pose (its file cleared); No and Back stay.
--- The Colour tab (after Full outfit) has a row for each role of closet/colour.lua; its value is the role's swatch.
--- Right and Select (a click on the row too) take the next swatch, left the one before (colour.step): the palette is
--- saved at once, apart from the look, so it never asks Keep this look? Its detail says what the role colours and how
--- to pick. The fitting tabs (Head..Body, Intimate) are labelled through closet.beta ("Head (Beta)").
+-- The Colour tab (after Full outfit) has a row for each role of closet/colour.lua; its value is On or Off. Left, right
+-- and Select (a click on the row too) turn it on or off (colour.turn). A role that is on has a Red, a Green and a Blue
+-- slider row below it (its colour in 0-255): left and right step it (colour.step), a click on the bar sets it there
+-- (colour.channel). The palette is saved at once, apart from the look, so it never asks Keep this look? Its detail says
+-- what the role colours and how to change it. The fitting tabs (Head..Body, Intimate) are labelled through
+-- closet.beta ("Head (Beta)").
 -- The Body tab lists, below its Body row, a row for each name of closet/shape.lua's rows (the look as last put on);
 -- its value is the name's value in percent. Left and right step it by Shape.STEP from 0 to 100, Select (a click on the
 -- row too) takes the next step, 0 after 100: the value is saved at once, apart from the look. Rows that change with the
@@ -140,7 +142,7 @@ function Menu.new(o)
     local unwear={}
     local model=Model.new({slots=Slots,fits=Fits,installed=dress.installed,adult=o.adult==true,
         shapes=o.shape and o.shape.rows,presets=o.presets,filter=function() return FILTERS[filter] end,
-        pictures=o.thumbs~=nil})
+        pictures=o.thumbs~=nil,colour_on=o.colour and function(role) return (o.colour.get(role)) end})
     local view=View.new(kit,log)
     local self={}
     local open=false
@@ -189,7 +191,6 @@ function Menu.new(o)
         return camera.mode()..'|'..preset..'|'..factor..'|'..(pad() and 'pad' or 'key')
     end
     local function camera_word(w) return w:sub(1,4)=='cam_' or w:sub(1,6)=='light_' end
-    local function swatch(role) return o.colour and o.colour.get(role) or 'off' end
 
     local function cutscene(eve)
         local theater=(o.status() or ''):match('theater=(%S+)')
@@ -373,8 +374,14 @@ function Menu.new(o)
                 local x=o.options.get(page.fit,v,key)
                 s.rows[i]={title=item.number and kind_title(w,item,'number') or item.name,value=decimals(x,step),
                     slider=lo and {pct=place(x,lo,hi),lo=lo,hi=hi,digits=digits(step)} or nil}
+            elseif item.role and item.c then -- A channel of a role that is on, in 0-255.
+                local _,c=o.colour.get(item.role)
+                local value=byte(c[item.c:upper()])
+                s.rows[i]={title=w.options.channels[item.c],value=value,
+                    slider={pct=tonumber(value)/255,lo=0,hi=255,digits=0}}
             elseif item.role then
-                s.rows[i]={title=w.colour.roles[item.role],value=w.colour.swatches[swatch(item.role)]}
+                local on=o.colour and (o.colour.get(item.role))
+                s.rows[i]={title=w.colour.roles[item.role],value=on and w.options.on or w.options.off}
             elseif item.morph then -- The morph name as its mesh writes it.
                 s.rows[i]={title=item.morph,value=w.shape.value:format(o.shape.get(item.morph))}
             else
@@ -463,6 +470,9 @@ function Menu.new(o)
         elseif item and (item.reset or item.clear_thumbs) then
             s.detail.desc=item.reset and w.popup.reset_desc or w.row.clear_thumbs_desc
             s.hints[2]={t.hint.select,'Positive',word='select'}
+        elseif item and item.role and item.c then -- A channel: left and right step it.
+            s.detail.desc=w.colour.about[item.role]..'\n'..w.colour.channel_help
+            s.hints[2]={w.hints.change,'UI_DPad_Left','UI_DPad_Right',word='right'}
         elseif item and item.role then
             s.detail.desc=w.colour.about[item.role]..'\n'..w.colour.help
             s.hints[2]={t.hint.select,'Positive',word='select'}
@@ -740,6 +750,7 @@ function Menu.new(o)
     -- A slider row's value at place pct (0..1) of its bar: a channel's in 0..1 (the colour becomes Custom), a number's or
     -- a shape key's in its range on its step.
     local function slide_to(item,pct)
+        if item.role then return o.colour.channel(item.role,item.c,pct) end -- A Colour tab channel.
         local fit,options=page.fit,o.options
         local v,key=options.variant(fit),key_of(item)
         local lo,hi,step=options.range(fit,key,item.c)
@@ -847,8 +858,8 @@ function Menu.new(o)
                 row,col,due,word=i,'rows',nil,'select'
                 -- On a slider's bar (a channel, a number or a shape key): its value at that place.
                 local x=kit.pointer and kit.pointer()
-                local item=page and list()[i]
-                local slides=item and (item.channel or item.number or item.shape)
+                local item=list()[i]
+                local slides=item and (page and (item.channel or item.number or item.shape) or item.role and item.c)
                 if x and slides and x>=View.SLIDER_X0-20 and x<=View.SLIDER_X1+20 then
                     slide_to(item,math.max(0,math.min(1,(x-View.SLIDER_X0)/(View.SLIDER_X1-View.SLIDER_X0))))
                     kit.sound('change')
@@ -916,12 +927,20 @@ function Menu.new(o)
         elseif col=='tabs' then
             if word=='left' or word=='right' then set_tab(tab+(word=='left' and -1 or 1))
             elseif word=='down' then col='rows'; kit.sound('move') end
-        elseif item and item.role and (word=='left' or word=='right' or word=='select') then
+        elseif item and item.role and item.c and (word=='left' or word=='right') then -- A channel steps.
+            local role,ch=item.role,item.c
+            local _,was=o.colour.get(role)
+            o.colour.step(role,ch,word=='left' and -1 or 1)
+            -- For closet_key (self.toggle).
+            if word=='left' then stepped={at=frame,back=function() o.colour.channel(role,ch,was[ch:upper()]) end} end
+            kit.sound('change')
+        elseif item and item.role and not item.c and (word=='left' or word=='right' or word=='select') then
             if o.colour then
                 local role=item.role
-                o.colour.step(role,word=='left' and -1 or 1)
+                local on=o.colour.get(role)
+                o.colour.turn(role,not on)
                 -- For closet_key (self.toggle).
-                if word=='left' then stepped={at=frame,back=function() o.colour.step(role,1) end} end
+                if word=='left' then stepped={at=frame,back=function() o.colour.turn(role,on) end} end
                 kit.sound('change')
             end
         elseif item and item.morph and (word=='left' or word=='right' or word=='select') then
