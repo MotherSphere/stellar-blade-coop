@@ -296,6 +296,12 @@ function Stock.read(env)
             if c and c:find('Hair$') then
                 rows.items[n] = copy(row, ITEM_FIELDS, {Category = c, Name = n})
                 local ok, words = pcall(env.text, U.value_of(row.Name))
+                -- The live FText gave back its own ItemStringTable key in game (Item_Hair_003_Name on the tiles, 27
+                -- Nov 2026): such words are looked up as a key, the key kept when the table has no entry.
+                if ok and type(words) == 'string' and words:match('^Item_[%w_]+_Name$') then
+                    local found, named = pcall(env.text, words)
+                    if found and named then words = named end
+                end
                 rows.names[n] = ok and words or nil
             end
         end,

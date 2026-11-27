@@ -362,7 +362,7 @@ local tests = {
         local g = r.kit.groups.closet_menu
         same(g.place, {x = 0, y = 0, w = 3840, h = 2160, fixed = true, hit = true}, 'group place')
         local View = require('closet.ui.view')
-        eq(View.EDGE, 2112, 'the menu edge') eq(View.COLUMNS, 5, 'grid columns')
+        eq(View.EDGE, 2112, 'the menu edge') eq(View.COLUMNS, 4, 'grid columns')
         -- A flat shade to x 2162: past the right tab key's icon (art at 2028 to 2070) by the left one's margin (its
         -- art starts at x 92). Then the lobby's left gradient to x 2562; the dither under the hints, to the shade's edge
         -- (no dark box beside EVE).
@@ -2075,10 +2075,11 @@ local tests = {
         eq(rows()[2]:match('^[^=]+'), w.slots.SkinSuit, 'no layer: no shape row')
     end,
 
-    grid_up_down_walk_rows_of_five = function()
-        -- 9 more outfits with a top: the Top row's grid has 12 tiles (None, Maid, Kunoichi, Top 1-9), 3 rows of 5.
+    grid_up_down_walk_rows_of_four = function()
+        -- 8 more outfits with a top: the Top row's grid has 11 tiles (None, Maid, Kunoichi, Top 1-8), rows of 4
+        -- (View.COLUMNS): 1-4, 5-8 and a shorter last row 9-11.
         local added = {}
-        for i = 1, 9 do
+        for i = 1, 8 do
             local id = 'ZZ_' .. i
             Fits.BY_ID[id] = {Outfit = 'Outfit ' .. i, Pack = 'ZZ', Pieces = {{Slot = 'Chest', Name = 'Top ' .. i}}}
             added[#added + 1] = id
@@ -2089,29 +2090,29 @@ local tests = {
             local tv = grid(r)
             local function on(n, what) eq(tv:GetIndexForItem(tv:BP_GetSelectedItem()) + 1, n, what) end
             at(r, 0.5, 'right', 'right', 'right')
-            eq(#tv.items, 12, 'tiles')
+            eq(#tv.items, 11, 'tiles')
             on(3, 'tile 3')
             at(r, 0.5, 'down')
-            on(8, 'down: tile 8')
+            on(7, 'down: tile 7')
             eq(r.kit.sounds[#r.kit.sounds], 'move', 'move sound')
             at(r, 0.5, 'down')
-            on(12, 'down: tile 12, the last')
+            on(11, 'down: tile 11, the last (its row is short of a tile under 7)')
             at(r, 0.5, 'down')
-            on(12, 'down on the last row stays')
+            on(11, 'down on the last row stays')
             at(r, 0.5, 'up')
             on(7, 'up: tile 7')
             at(r, 0.5, 'up')
-            on(2, 'up: tile 2')
+            on(3, 'up: tile 3')
             at(r, 0.5, 'up')
-            on(2, 'up on the first row stays in the grid')
+            on(3, 'up on the first row stays in the grid')
             ok(r.menu.is_open(), 'open')
             tick(r, 0.8)
-            same(r.previews, {{{fit = MAID, slots = {'Chest'}}}}, 'the tile reached by up and down is previewed')
-            -- Down on the last row, short of its 5th tile, stays: tile 11 has no tile under it.
-            at(r, 1, 'down', 'down', 'left')
-            on(11, 'tile 11, on the last row')
+            same(r.previews, {{{fit = KUNOICHI, slots = {'Chest'}}}}, 'the tile reached by up and down is previewed')
+            -- Tile 8 is over the shorter last row's missing 12th: down takes its last tile.
+            at(r, 1, 'down', 'right')
+            on(8, 'tile 8')
             at(r, 1, 'down')
-            on(11, 'down on the last row stays on tile 11')
+            on(11, 'down to the shorter last row: its last tile')
         end)
         for _, id in ipairs(added) do Fits.BY_ID[id] = nil end
         ok(good, why)
@@ -3433,6 +3434,50 @@ local tests = {
             at(r, 0.5, 'right')
             eq(row_value(r, child(1, 'Colour: Root')), T.en.closet.options.pack, "a pack hair's colour: the pack's name")
         end, heads({{fit = 'p.hair', slots = {'Hair'}}}))
+    end,
+
+    the_row_lets_go_of_its_highlight_in_the_grid = function()
+        -- In the grid the focused tile is the only highlight: the row's white box went on showing focus, so a move
+        -- into the grid changed nothing on screen (Schizo's screenshot, 27 Nov 2026). Back on the rows it is focused.
+        with_aria(function(r)
+            on_hair(r)
+            local function hair_look()
+                for _, rec in ipairs(r.kit.live(F.OPTION)) do
+                    if rec.o.Text_TitleValue.text == 'Hair' then
+                        local last
+                        for _, c in ipairs(rec.o.calls) do if c[1] == 'EventNotification' then last = c[2] end end
+                        return last
+                    end
+                end
+            end
+            eq(hair_look(), 'StateFocus', 'on the rows: the Hair row focused')
+            at(r, 0.5, 'select')
+            eq(hair_look(), 'StateNormal', 'in the grid: the row lets go')
+            at(r, 0.5, 'back')
+            eq(hair_look(), 'StateFocus', 'back on the rows: focused again')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    the_grid_scrolls_to_the_focused_tile = function()
+        -- 13 hair tiles in rows of 4 (in game only two rows showed and the focus ran off them, Schizo, 27 Nov 2026):
+        -- each move asks the TileView to bring the focused tile into view.
+        local o = heads()
+        for i = 1, 10 do
+            local id = ('p.hair%02d'):format(i)
+            o.catalogue[id] = head_item('Hair', id, ('Pack hair %02d'):format(i), 'custom')
+        end
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            ok(#tv.items >= 13, 'at least 13 tiles: ' .. #tv.items)
+            eq(tv.scrolled, 0, 'Game\'s own in view')
+            at(r, 0.5, 'down', 'down', 'down')
+            eq(tv:BP_GetSelectedItem(), tv.items[13], 'down three rows of 4: the 13th tile')
+            eq(tv.scrolled, 12, 'scrolled to it')
+            at(r, 0.5, 'up')
+            eq(tv.scrolled, 8, 'up: scrolled back to the 9th tile')
+        end, o)
     end,
 
     select_on_a_hair_row_opens_the_grid = function()

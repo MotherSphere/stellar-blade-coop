@@ -97,6 +97,7 @@ local function tileview(events)
     function tv:GetNumItems() return #self.items end
     function tv:GetItemAt(i) return self.items[i + 1] end
     function tv:SetSelectedIndex(i) self.sel = self.items[i + 1] end
+    function tv:ScrollIndexIntoView(i) self.scrolled = i end
     function tv:GetIndexForItem(item)
         for i, it in ipairs(self.items) do if it == item then return i - 1 end end
         return -1

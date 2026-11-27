@@ -96,6 +96,20 @@ local function live()
 end
 
 local tests = {
+    a_row_text_that_is_its_key_is_looked_up = function()
+        -- In game the live row's FText gave back its ItemStringTable key (Item_Hair_003_Name on the tiles, Schizo's
+        -- screenshot of 27 Nov 2026): such words are looked up as a key; a key the table lacks keeps the key.
+        local env = live()
+        env.text = function(v)
+            if type(v) == 'string' then return v == 'Item_Hair_001_Name' and 'Sharp Bob' or nil end
+            return v:ToString()
+        end
+        local r = assert(Stock.read(env))
+        same(r.names, {Hair_001 = 'Sharp Bob'}, 'the key looked up')
+        env.text = function(v) if type(v) == 'string' then return nil end return v:ToString() end
+        r = assert(Stock.read(env))
+        same(r.names, {Hair_001 = 'Item_Hair_001_Name'}, 'no entry: the key stays')
+    end,
     the_reader_turns_fake_tables_into_rows = function()
         local env = live()
         local r = assert(Stock.read(env))

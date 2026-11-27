@@ -343,6 +343,7 @@ function Menu.new(o)
         local shown_rows=list()
         row=math.max(1,math.min(row,#shown_rows))
         s.row=#shown_rows>0 and row or nil
+        s.grid=col=='grid' -- The grid has the focus: the row lets go of its highlight (closet/ui/view.lua).
         local choices=dress.choices() or {}
         local plan=dress.plan() -- The look on EVE now: its body and notice.
         local v=page and o.options.variant(page.fit)

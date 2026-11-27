@@ -26,7 +26,8 @@
 -- once. reread() drops the imported pictures: the next draws import them again (a capture may have made them anew).
 -- v.draw(s), s: {tabs={labels}, tab=focused index, tab_top=the first tab shown (1 when nil), rows={{title, value,
 -- locked, header=drawn as SB's settings category header with its title, swatch={R, G, B} shown right of the row}},
--- row=focused index, show=nil or a row index brought into the window too while row stays in it, tiles=nil or {{name,
+-- row=focused index, grid=true while the grid has the focus (the row then drawn normal), show=nil or a row index
+-- brought into the window too while row stays in it, tiles=nil or {{name,
 -- equipped, locked, picture=a PNG file or nil, image=an object path or nil, icon=its glyph or nil}}, tile=selected
 -- index or nil,
 -- detail={title, desc, equipped, badge='original', 'custom' or nil}, hints={{label, icon, icon2, word=the menu word a
@@ -41,7 +42,9 @@ local View={}
 View.GROUP='closet_menu'
 View.EDGE=2112 -- Kit units: the menu's right edge (55% of 3840).
 View.TABS=7 -- Tab buttons shown at once.
-View.COLUMNS=5 -- Grid tiles a row: GRID_W over the entry width.
+-- Grid tiles a row: the TileView lays out 4 entries a row in GRID_W (Schizo's screenshot of the Head tab, 27 Nov
+-- 2026), not GRID_W over the entry width.
+View.COLUMNS=4
 View.CHECK=0.25 -- s between two looks at the shown tiles' glyphs (v.tick).
 View.HOLD=64 -- Hidden kit images that hold the shown tiles' pictures (a grid of 64 tiles).
 -- The glyphs a hidden kit image may hold: None's, the origin badges' and each slot's (closet/slots.lua).
@@ -370,7 +373,9 @@ function View.new(kit,log)
         sync(rows,View.GROUP,specs,WINDOW)
         for i=1,WINDOW do
             local rec,row=rows[i],s.rows[top+i]
-            if rec and not (row and row.header) then look(rec,top+i==s.row and 'focus' or 'normal') end
+            -- While the grid has the focus (s.grid) the focused tile is the only highlight: the row goes normal.
+            local lit=top+i==s.row and not s.grid
+            if rec and not (row and row.header) then look(rec,lit and 'focus' or 'normal') end
             -- A slider's place, on change only: CurrentPercent (its value text's) and UpdatePercentOffset (its bar).
             local sl=rec and row and row.slider
             if sl and not rec.sized then -- Once a part: its boxes sized to the row (see SLIDER_TITLE).
@@ -390,7 +395,7 @@ function View.new(kit,log)
             if not row or kit.alive(rec) then zones[i].set('','')
             else
                 zones[i].set(row.title,View.fit(row.value or ''),
-                    row.locked and 'disabled' or top+i==s.row and 'focus' or 'normal')
+                    row.locked and 'disabled' or lit and 'focus' or 'normal')
             end
             -- The swatch shows the colour as a tint (linear; an HDR channel shows at 1).
             local c=row and row.swatch
@@ -460,7 +465,14 @@ function View.new(kit,log)
         end
         if s.tiles and s.tile and s.tile~=selected then
             selected=s.tile
-            call(grid,'grid select',function(w) w.TileView_ItemList:SetSelectedIndex(s.tile-1) end)
+            -- UListView.ScrollIndexIntoView(Index int): native table entry 0x1461e8850 (name 0x1461e6f90), exec
+            -- 0x143d4b0d0 reads the index, checks it against the list's items (+0x810, count +0x818) and gives that
+            -- item to the Slate list to scroll to (+0x728, then FUN_142e28210) (Ghidra, build 26123051, 27 Nov 2026).
+            -- Without it the focus ran past the rows on screen.
+            call(grid,'grid select',function(w)
+                w.TileView_ItemList:SetSelectedIndex(s.tile-1)
+                w.TileView_ItemList:ScrollIndexIntoView(s.tile-1)
+            end)
         end
     end
 
