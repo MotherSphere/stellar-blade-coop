@@ -195,7 +195,8 @@ function View.new(kit,log)
     kit.add(View.GROUP,{x=0,y=0,w=3840,h=2160,fixed=true,hit=true},function(b)
         b.shade(0,0,SHADE_W,2160,{A=0.72})
         b.image(SHADE_W,0,FADE_W,2160,'shade_left') -- online/lobby/ui/lobby.lua's left gradient: the shade fades out.
-        b.image(0,1860,2560,300,'dither',{A=0.8})
+        -- The dither under the hints ends with the shade: past it, beside EVE, it showed as a dark box.
+        b.image(0,1860,SHADE_W,300,'dither',{A=0.8})
         local zones,swatches={},{}
         for i=1,WINDOW do zones[i]=b.row(ROW_X,ROW_Y+(i-1)*PITCH+27,ROW_W) end
         for i=1,WINDOW do
