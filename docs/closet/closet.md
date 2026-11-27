@@ -67,6 +67,12 @@ wear or preview before that (on a loading screen or with the game paused) gives 
 kept words. Words
 it can no longer wear (an outfit pack removed) are dropped with one log line. Her own look stays.
 
+`coop closet wear` and the menu's previews refuse while SBO itself holds EVE's body or her rig: while she rides the
+bike, with the Doro look on (`coop race look`), with the rifle out in gun mode, while an emote plays or while a
+[`coop wear`](../eve/eve.md#cut-hairs-and-suits-coop-wear) look is on. `coop closet off` still works then. `coop wear`
+refuses the other way round while a closet look is on EVE or waits to be worn again after a Lua load. So the closet and
+`coop wear` never set her body mesh against each other.
+
 ## Packs
 
 - Native packs are `*.stellarcloset.json` files: [Pack format](pack-format.md).
@@ -121,7 +127,8 @@ F1 (`closet_key`, which you can change in the co-op menu's Options page or in
 `coop closet menu` open the menu in the game world, the SBO lobby world included. Pressed while the menu is open, F1
 and LB + D-pad Left go back as Esc does. It needs the Steam link (the kit needs it). It does not open while the UI is
 not up, outside the game world, while another SBO screen holds the input, while the game is paused or shows one of its
-screens, in photo mode, during a cutscene, in combat or in Tachy Mode. One notice says why.
+screens, in photo mode, during a cutscene, in combat, in Tachy Mode, while EVE rides the bike, with the Doro look on,
+with the rifle out, while an emote plays or while a `coop wear` look is on. One notice says why.
 
 The menu covers the left 55% of the screen. The rest stays clear for EVE. It is made of the game's own
 widget parts in the kit group `closet_menu`:

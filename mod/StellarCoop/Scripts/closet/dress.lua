@@ -38,6 +38,8 @@
 -- the confirmed words, so a reload gives the confirmed look. confirm() saves the previewed look, revert() wears the
 -- confirmed one again (her own look when none). wear and off end a preview. preview({}) while a look is on previews
 -- her own look; confirm() of it clears the file, as off does.
+-- wear and preview refuse while o.busy() names SBO's own state that holds EVE's body (closet/wiring.lua: the bike
+-- ride, the Doro look, the rifle out, an emote, a coop wear look): its key, then the words for the line.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Fits=require('closet.fits')
@@ -620,8 +622,16 @@ function Dress.new(o)
         end
         restored,pending=true,{}
     end
+    -- The line that refuses a wear or preview while SBO's own state holds EVE's body, or nil.
+    local function held()
+        local key,why=nil,nil
+        if o.busy then key,why=o.busy() end
+        return key and 'closet: not while '..tostring(why or key) or nil
+    end
     -- coop closet wear: the plan for choices, put on now.
     function self.wear(choices)
+        local busy=held()
+        if busy then return false,busy end
         self.restore()
         settle()
         fights={}
@@ -639,6 +649,8 @@ function Dress.new(o)
     -- A look put on without saving it: the confirmed choices stay in the file until confirm. No choices while a look is
     -- on: her own look (own_look). Gives true, the line and the plan (the menu tells its switched and clips).
     function self.preview(choices)
+        local busy=held()
+        if busy then return false,busy end
         self.restore()
         settle()
         fights={}
@@ -944,7 +956,9 @@ function Dress.new(o)
             p.parts==1 and '' or 'es',state.stopped and ', stopped (something outside keeps changing her body)'
             or state.paused and ', paused (a game look is on)' or '')
     end
-    function self.worn() return state~=nil end
+    -- Whether a look of the closet is on EVE, or a kept one waits for restore to wear it again (eve/wear.lua refuses
+    -- then: its own look of her would be the closet's mesh).
+    function self.worn() return state~=nil or not restored and #kept_fields()>0 end
     -- The plan on EVE now (Dress.plan's, the preview's or the confirmed look's), or nil: the menu shows its body and
     -- its switched and clips.
     function self.plan() return state and state.plan end

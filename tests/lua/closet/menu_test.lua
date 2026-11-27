@@ -43,7 +43,7 @@ local function rig(o)
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
         camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape,
         options = o.options, presets = o.presets, uidev = function() return r.dev end,
-        nav_held = function() return r.held end})
+        nav_held = function() return r.held end, busy = function() return r.busy, r.busy and 'busy: ' .. r.busy end})
     return r
 end
 -- A pack suit named Aria (first by name on the Full tab) with two variants, the second's mesh missing when the rig
@@ -1974,6 +1974,12 @@ local tests = {
             {'cutscene', function() eve.IsAttachedToLevelSequenceWithoutPlayable = function() return true end end},
             {'combat', function() eve.IsBattle = function() return true end end},
             {'tachy', function(r) r.game_look = '/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10' end},
+            -- SBO's own state that holds EVE's body (closet/wiring.lua's busy gives the key).
+            {'bike', function(r) r.busy = 'bike' end},
+            {'doro', function(r) r.busy = 'doro' end},
+            {'rifle', function(r) r.busy = 'rifle' end},
+            {'emote', function(r) r.busy = 'emote' end},
+            {'wear', function(r) r.busy = 'wear' end},
         }
         package.loaded.UEHelpers.GetPlayer = function() return eve end
         for _, case in ipairs(cases) do
@@ -1984,6 +1990,7 @@ local tests = {
             local held = r.kit.held
             local good, line = r.menu.open()
             eq(good, false, case[1])
+            eq(type(T.en.closet.refused[case[1]]), 'string', case[1] .. ': its text')
             eq(line, T.en.closet.refused[case[1]], case[1] .. ' line')
             same(r.told, {T.en.closet.refused[case[1]]}, case[1] .. ' notice')
             eq(#r.kit.made, 0, case[1] .. ': nothing made')

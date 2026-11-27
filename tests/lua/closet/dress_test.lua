@@ -422,6 +422,31 @@ local tests = {
             eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'the first variant\'s mesh')
         end)
     end,
+    -- SBO's own state that holds EVE's body (closet/wiring.lua's busy: the bike, the Doro look, the rifle, an emote, a
+    -- coop wear look): wear and preview refuse with its words, nothing on EVE and no file; once it ends they wear.
+    -- worn() (eve/wear.lua refuses on it) also says yes for a kept look the next Lua load has not worn again yet.
+    wear_and_preview_refuse_while_sbo_holds_her_body = function()
+        local w = world()
+        local key
+        local d = w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
+            clock = function() return w.now end, busy = function() return key, key and 'the rifle is out' end})
+        key = 'rifle'
+        local good, line = d.wear(B)
+        eq(good, false, 'wear refused') eq(line, 'closet: not while the rifle is out', 'its line')
+        good, line = d.preview(B)
+        eq(good, false, 'preview refused') eq(line, 'closet: not while the rifle is out', 'its line')
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'her own look') eq(w.file, nil, 'no file')
+        ok(not d.worn(), 'nothing worn')
+        key = nil
+        assert(d.wear(B))
+        ok(d.worn(), 'worn')
+        w.paused = true
+        local again = w.new()
+        ok(again.worn(), 'a kept look waiting for its restore counts as worn')
+        w.paused = false
+        assert(again.off())
+        ok(not again.worn(), 'off: nothing worn')
+    end,
     -- The next Lua load has no catalogue until the packs are read: restore reads them (o.packs) before the kept words.
     a_kept_pack_suit_is_worn_again_after_the_packs_are_read = function()
         with_packs(function(w)

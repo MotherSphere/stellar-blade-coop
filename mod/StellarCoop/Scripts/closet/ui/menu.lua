@@ -4,7 +4,10 @@
 -- Stellar Closet's menu (coop closet menu): opens, draws its screen (closet/ui/view.lua) and closes. The tabs, rows and
 -- tiles are closet/ui/model.lua's over closet/fits.lua, with what is worn read from the dress (closet/dress.lua's
 -- choices). It opens out of combat in the game world, the SBO lobby world included; it refuses on the first guard that
--- fails, with one notice. Open, it holds the kit's input as closet_menu with the mouse cursor. The tab shown is kept
+-- fails, with one notice. o.busy (closet/wiring.lua) names SBO's own state that holds EVE's body (the bike ride, the
+-- Doro look, the rifle out, an emote, a coop wear look) as a key of closet.refused, or nil. Open, it holds the kit's
+-- input as closet_menu with the mouse cursor, taken again when the game takes it back (the kit's again) or another
+-- holder gave it to the game (the host's question, answered). The tab shown is kept
 -- across opens; the first open shows the first tab, Full outfit. Each close drops every game part first (the
 -- game holds EVE still while one is up) and hides the group. The input comes back BACK s after the close, so the key
 -- that closed it (Esc would open the pause menu) never reaches the game. It is asked again each tick while closed until
@@ -209,7 +212,7 @@ function Menu.new(o)
         if cutscene(eve) then return 'cutscene' end
         if combat(eve) then return 'combat' end
         if dress.game_look()~=nil then return 'tachy' end
-        return nil
+        return o.busy and o.busy() or nil -- SBO's own state that holds EVE's body (closet/wiring.lua's busy).
     end
     -- While open: the key of the first guard that fails (closet.closed.<key>), or nil. Combat each COMBAT s.
     local function closing(t)

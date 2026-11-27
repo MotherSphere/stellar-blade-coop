@@ -10,18 +10,29 @@
 -- closet rescan) and the closet menu (M.closet_menu, closet/ui/menu.lua,
 -- built at main/ui.lua's step menu with the Steam link only). main/frame.lua runs its restore at the first tick and its
 -- tick each frame; coop off stops it.
+-- SBO's own state that holds EVE's body or her rig, read at each call: the menu does not open, coop closet wear and
+-- the menu's previews refuse, while it is on. Its key in closet.refused, then the console's words. An off module's
+-- stub reads nil: it holds nothing. coop wear refuses the other way round (eve/wiring.lua reads M.closet.worn).
+local function busy_of(M)
+    if M.riding() then return 'bike','EVE rides the bike: bike_key gets her off' end
+    if M.doro.active() then return 'doro','the Doro look is on: coop race look off ends it' end
+    if M.gun.out() then return 'rifle','the rifle is out: put it away first' end
+    if M.emote.active() then return 'emote','coop emote plays: coop emote off ends it' end
+    if M.wear.worn() then return 'wear',"a coop wear look is on: coop wear off gives the game's back" end
+end
 return {
-uses={},
+uses={'eve','fight.gunmode','online.modes.race'},
 exports={'closet','closet_menu','closet_thumbs','closet_colour','closet_shape','closet_packs','closet_options',
     'closet_presets'},
 new=function(M)
 local print=M.print
+local busy=function() return busy_of(M) end
 -- closet/dress.lua, logging [CL] lines: coop-closet.txt lets the next Lua load give EVE her own look back. No look
 -- goes on again while the game is paused or shows one of its screens (its wardrobe among them). The pack catalogue is
 -- read before a kept look is worn again (it may be a pack's suit).
 M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
     store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
-    packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end})
+    packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end,busy=busy})
 -- The options layer (closet/options.lua): each pack outfit's variant and piece toggles in coop-closet-options.txt; the
 -- dress's plans take its toggles. Its tick runs each frame right after the dress's, before the colour layer's, so a
 -- variant or toggle change shows before the palette paints. The menu's options page and coop closet option set it.
@@ -126,7 +137,7 @@ menu=function(M,Ui)
         world=function() return M.hud_shown end,photo=M.photo_state,status=function() return M.link and M.link.status() end,
         camera=camera,folder=M.folder,thumbs=M.closet_thumbs,colour=M.closet_colour,shape=M.closet_shape,
         options=M.closet_options,presets=M.closet_presets,uidev=M.link.uidev,
-        nav_held=function() return M.nav_held and M.nav_held() end})
+        nav_held=function() return M.nav_held and M.nav_held() end,busy=function() return busy_of(M) end})
     -- The first open (the closet key's too: it calls the field) reads every pack once, under a guard of its own.
     local open=M.closet_menu.open
     M.closet_menu.open=function(...)
