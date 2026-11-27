@@ -166,7 +166,9 @@ function Colour.new(o)
     local function put(s,name,value)
         local on=s.set[name]
         if not (value or on) then return end
-        if value and on and on.R==value.R and on.G==value.G and on.B==value.B and on.A==value.A then return end
+        if value and on and not s.force and on.R==value.R and on.G==value.G and on.B==value.B and on.A==value.A then
+            return
+        end
         s.set[name]=value
         local done,why=pcall(function() s.mid:SetVectorParameterValue(fname(name),value or s.was[name]) end)
         if not done then log('colour: '..name..' not set on slot '..s.index..': '..tostring(why)) end
@@ -232,11 +234,13 @@ function Colour.new(o)
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
         if gen~=seen then slots={} end -- The dress made its materials and components again: ours went with them.
-        -- An options paint may have written over a slot both layers write (held): its values are sent again.
+        -- An options paint may have written over a slot both layers write (held): its values are sent again
+        -- (force), its record kept, so a role turned off still gives its value from before back.
         if rev~=revised and o.options and o.options.holds then
-            for _,s in pairs(slots) do if o.options.holds(s.c,s.index) then s.set={} end end
+            for _,s in pairs(slots) do if o.options.holds(s.c,s.index) then s.force=true end end
         end
         paint(parts)
+        for _,s in pairs(slots) do s.force=nil end
         seen,drawn,viewed,revised=gen,wanted,view,rev
     end
     -- coop closet colour <role> <swatch|off> and the Colour tab: one role's swatch, kept in the file at once.

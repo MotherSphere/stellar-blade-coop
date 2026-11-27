@@ -155,6 +155,12 @@ local tests = {
         near(top.values[TINT], {R = cr, G = cg, B = cb, A = 1}, 'an options repaint: crimson again')
         r.c.tick()
         near(top.values[TINT], {R = cr, G = cg, B = cb, A = 1}, 'no repaint: kept')
+        -- A repaint that skipped the unchanged pack tint while the role turns off on the same tick: the value from
+        -- before still comes back.
+        rev = rev + 1
+        r.c.set('primary', 'off')
+        r.c.tick()
+        near(top.values[TINT], pack, 'the role off during a repaint: the pack value back')
     end,
     -- dress.reshow (an options toggle) shows a slot without a new look: the palette reaches it, the other instances
     -- kept.
