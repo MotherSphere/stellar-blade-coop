@@ -22,8 +22,11 @@ local function rows()
             Hair_001 = {Category = 'ESBItemCategory::ESBItemCategory_Hair', Name = 'Item_Hair_001_Name',
                 Asset2D = "Texture2D'/Game/UI/Hair_001.Hair_001'", EquipmentAlias = 'Hair_001_Part1',
                 EquipmentAlias2 = 'Hair_001_Part2'},
-            Earring_001 = {Category = 'ESBItemCategory::ESBItemCategory_EarRing', Name = 'x',
-                EquipmentAlias = 'Earring_001', EquipmentAlias2 = 'None'},
+            Earring_001 = {Category = 'ESBItemCategory::ESBItemCategory_EarRing', Name = 'Item_Earring_001_Name',
+                Asset2D = "Texture2D'/Game/UI/Earring_001.Earring_001'", EquipmentAlias = 'Earring_001',
+                EquipmentAlias2 = 'None'},
+            FaceAccessory_001 = {Category = 'ESBItemCategory::ESBItemCategory_FaceAccessory', Name = 'g',
+                EquipmentAlias = 'FaceAccessory_001'},
         },
         equipment = {
             Hair_001_Part1 = {Type = 'EquipmentType_Hair1', MountingResourcePath = '/Game/A/H07.H07',
@@ -34,8 +37,30 @@ local function rows()
             Hair_Default_Part2_Short = {Type = 'EquipmentType_Ponytail',
                 MountingResourcePath = "SkeletalMesh'/Game/A/PonyShort.PonyShort'", AnimAssetPath = 'None',
                 MaterialGroup = 'EM_Hair_Default_Part2'},
+            Earring_001 = {Type = 8, MountingResourcePath = "SkeletalMesh'/Game/E/E1.E1'",
+                AnimAssetPath = '/Game/E/E1_AnimBP.E1_AnimBP_C', MaterialGroup = 'None'},
+            FaceAccessory_001 = {Type = 9, MountingResourcePath = "SkeletalMesh'/Game/E/G1.G1'",
+                AnimAssetPath = 'None', MaterialGroup = 'None'},
         },
-        materials = {}, names = {Item_Hair_001_Name = 'Hair 1'}, mats = {},
+        materials = {}, names = {Item_Hair_001_Name = 'Hair 1', Item_Earring_001_Name = 'Ring'}, mats = {},
+        -- The meshes' own materials: an earring (MA_ACC), glasses (frame MA_ACC, lens MA_ACC_Glass), EVE's face.
+        mesh_mats = {['/Game/E/E1.E1'] = {'/Game/E/MI_E1'}, ['/Game/E/G1.G1'] = {'/Game/E/MI_G1', '/Game/E/MI_Lens'},
+            [Stock.FACE_MESH] = {[5] = '/Game/F/MI_Eye', [8] = '/Game/F/MI_Brow'}},
+    }
+    local function v(R, G, B) return {R = R, G = G, B = B, A = 1} end
+    r.mats = {
+        ['/Game/E/MI_E1'] = {parent = '/Game/E/MA_ACC.MA_ACC', scalars = {Brightness = 0.5, FlakeIntencity = 3},
+            vectors = {MetalTint = v(1, 0.5, 0.4), GemTint = v(9, 0, 0), Flakecolor = v(1, 1, 1)}},
+        ['/Game/E/MI_G1'] = {parent = '/Game/E/MA_ACC.MA_ACC', scalars = {Metallic = 1, GlobalRoughness = 0.3},
+            vectors = {}},
+        ['/Game/E/MI_Lens'] = {parent = '/Game/E/MA_ACC_Glass.MA_ACC_Glass', scalars = {['Opacity Out'] = 1,
+            HDR_Intensity = 2}, vectors = {['GlassColor In'] = v(0.1, 0.1, 0.1)}},
+        ['/Game/E/MA_ACC.MA_ACC'] = {vectors = {}, scalars = {}},
+        ['/Game/F/MI_Eye'] = {parent = '/Game/F/M_Eye.M_Eye',
+            scalars = {IrisHueShift = 0, IrisBrightness = 5, PupilScale = 1},
+            vectors = {IrisHueTint = v(0.65, 0.6, 1), ScleraTint = v(1, 1, 1),
+                EyeCornerDarknessColor = v(0.3, 0.1, 0.1)}},
+        ['/Game/F/MI_Brow'] = {parent = '/Game/F/M_Brow.M_Brow', vectors = {BaseColour = v(0.01, 0.004, 0.0006)}},
     }
     for v = 0, 3 do
         local p = '/Game/A/MI_H07_V' .. v
@@ -92,7 +117,22 @@ local function live()
                 IconColorAssetPath = name("Texture2D'/Game/I/V0.V0'")}}),
     }
     env.find = function(path) return env.tables[path] end
-    env.load = function(path) env.loaded[#env.loaded + 1] = path; return path == '/Game/A/MI.MI' and mi or nil end
+    -- EVE's face mesh: slot 4 the eyeball, slot 7 the brow (0-based), the others plain.
+    local eye = object('/Game/F/MI_Eye.MI_Eye', nil, {
+        {ParameterInfo = {Name = name('IrisHueTint')}, ParameterValue = {R = 0.65, G = 0.6, B = 1, A = 1}},
+        {ParameterInfo = {Name = name('ScleraTint')}, ParameterValue = {R = 1, G = 1, B = 1, A = 1}}})
+    eye.ScalarParameterValues = {{ParameterInfo = {Name = name('IrisBrightness')}, ParameterValue = 5}}
+    local brow = object('/Game/F/MI_Brow.MI_Brow', nil,
+        {{ParameterInfo = {Name = name('BaseColour')}, ParameterValue = {R = 0.01, G = 0.004, B = 0.0006, A = 1}}})
+    local face = {Materials = {}}
+    for i = 1, 8 do
+        face.Materials[i] = {MaterialInterface = i == 5 and eye or i == 8 and brow
+            or object('/Game/F/Other' .. i .. '.Other' .. i)}
+    end
+    env.load = function(path)
+        env.loaded[#env.loaded + 1] = path
+        return path == '/Game/A/MI.MI' and mi or path == Stock.FACE_MESH and face or nil
+    end
     return env, log
 end
 
@@ -106,10 +146,10 @@ local tests = {
             return v:ToString()
         end
         local r = assert(Stock.read(env))
-        same(r.names, {Hair_001 = 'Sharp Bob'}, 'the key looked up')
+        same(r.names, {Hair_001 = 'Sharp Bob', Earring_001 = 'E'}, 'the key looked up')
         env.text = function(v) if type(v) == 'string' then return nil end return v:ToString() end
         r = assert(Stock.read(env))
-        same(r.names, {Hair_001 = 'Item_Hair_001_Name'}, 'no entry: the key stays')
+        same(r.names, {Hair_001 = 'Item_Hair_001_Name', Earring_001 = 'E'}, 'no entry: the key stays')
     end,
     the_reader_loads_a_one_colour_hairs_mesh_materials = function()
         local env = live()
@@ -128,7 +168,7 @@ local tests = {
                 MaterialAssetPath = name('')}})
         env.load = function(path) env.loaded[#env.loaded + 1] = path; return path == '/Game/Y/Y.Y' and mesh_y or nil end
         local r = assert(Stock.read(env))
-        same(env.loaded, {'/Game/Y/Y.Y'}, 'the one-colour hair\'s mesh loaded')
+        same(env.loaded, {'/Game/Y/Y.Y', Stock.FACE_MESH}, 'the one-colour hair\'s mesh loaded, then the face')
         same(r.mesh_mats['/Game/Y/Y.Y'], {[1] = '/Game/Y/MI_Y.MI_Y'}, 'its material slots')
         eq(r.mats['/Game/Y/MI_Y.MI_Y'].scalars.Roughness, 0.4, 'its numbers read')
         local it = Stock.items(r)['SB.Hair_Nier_001']
@@ -161,15 +201,17 @@ local tests = {
         local r = assert(Stock.read(env))
         same(r.items, {Hair_001 = {Category = 'ESBItemCategory_Hair', Name = 'Hair_001',
             Asset2D = "Texture2D'/Game/UI/Hair_001.Hair_001'", EquipmentAlias = 'Hair_001_Part1',
-            EquipmentAlias2 = 'Hair_001_Part2'}}, 'hair rows only, the enum named')
-        same(r.names, {Hair_001 = 'said Item_Hair_001_Name'}, 'name through the text reader')
+            EquipmentAlias2 = 'Hair_001_Part2'},
+            Earring_001 = {Category = 'ESBItemCategory_EarRing', Name = 'Earring_001', EquipmentAlias = 'Earring_001'}},
+            'hair and earring rows, the enums named (21, 23)')
+        same(r.names, {Hair_001 = 'said Item_Hair_001_Name', Earring_001 = 'said E'}, 'name through the text reader')
         same(r.equipment.Hair_001_Part1, {Type = 5, MountingResourcePath = "SkeletalMesh'/Game/A/H07.H07'",
             AnimAssetPath = '/Game/A/H07_AnimBP.H07_AnimBP_C', MaterialGroup = 'EM_Hair_001_Part1',
             RelativeRotation = {Pitch = -90, Yaw = 0, Roll = -90}, bUseHidePonytail = false}, 'equipment row')
         same(r.materials, {{Group = 'EM_Hair_001_Part1', VariationIndex = 0, MaterialIndex = 0,
             MaterialAssetPath = "MaterialInstanceConstant'/Game/A/MI.MI'",
             IconColorAssetPath = "Texture2D'/Game/I/V0.V0'"}}, 'material row')
-        same(env.loaded, {'/Game/A/MI.MI'}, 'the hair group material loaded by its plain path')
+        same(env.loaded, {'/Game/A/MI.MI', Stock.FACE_MESH}, 'the hair group material by its plain path, the face')
         same(r.mats['/Game/A/MI.MI'], {parent = '/Game/A/Mid.Mid',
             vectors = {RootColor = {R = 0.1, G = 0.2, B = 0.3, A = 1}}, scalars = {Scatter = 0.25}}, 'the instance')
         same(r.mats['/Game/A/Mid.Mid'], {parent = MASTER .. '.MA_CH_Hair',
@@ -260,10 +302,11 @@ local tests = {
         local items = assert(Stock.build(env))
         ok(items['SB.Hair_001'] and items['SB.Ponytail_None'] and items['SB.Hair_024'] and items['SB.Hair_025'],
             'stock and cut')
-        same(log, {'stock: Ponytail_Long: no equipment row Hair_Default_Part2',
+        same(log, {'stock: Earring_001: no equipment row Earring_001',
+            'stock: Ponytail_Long: no equipment row Hair_Default_Part2',
             'stock: Ponytail_Short: no equipment row Hair_Default_Part2_Short'}, 'rows left out are said')
         Stock.build(env)
-        eq(#log, 2, 'said once')
+        eq(#log, 3, 'said once')
     end,
 
     a_stock_hair_becomes_a_hair_item = function()
@@ -281,7 +324,6 @@ local tests = {
         eq(it.AnimationBP, '/Game/A/H07_AnimBP.H07_AnimBP_C', 'anim class')
         same(it.Rotation, {Pitch = -90, Yaw = 0, Roll = -90}, 'rotation')
         eq(it.UserConfigs, it.Variants[1].UserConfigs, 'item configs are the first variant\'s')
-        ok(items['SB.Earring_001'] == nil, 'an earring is not hair')
         for _, v in ipairs(it.Variants) do
             for _, k in ipairs(KINDS) do ok(type(v.UserConfigs[k]) == 'table', k .. ' list') end
         end
@@ -463,18 +505,99 @@ local tests = {
         r.mats = {['/Game/A/Child'] = {parent = '/Game/A/Mid', vectors = {RootColor = {R = 1, G = 2, B = 3, A = 1}}},
             ['/Game/A/Mid'] = {parent = MASTER .. '.MA_CH_Hair', vectors = {}},
             [MASTER] = {vectors = {TipColor = {R = 0.5, G = 0.6, B = 0.7, A = 1}}}}
+        local function hair_lines(missing)
+            local out = {}
+            for _, l in ipairs(missing) do if l:find('^Hair') then out[#out + 1] = l end end
+            return out
+        end
         local items, missing = Stock.items(r)
         local c = items['SB.Hair_001'].UserConfigs.VectorControls
         eq(#c, 2, 'both controls')
         same(c[1].Value, {1, 2, 3, 1}, 'root from the instance')
         same(c[2].Value, {0.5, 0.6, 0.7, 1}, 'tip from the master')
-        same(missing, {}, 'nothing lost')
+        same(hair_lines(missing), {}, 'nothing lost')
         r.mats[MASTER] = nil
         items, missing = Stock.items(r)
         c = items['SB.Hair_001'].UserConfigs.VectorControls
         eq(#c, 1, 'no tip without a value')
         eq(c[1].ParamName, 'RootColor', 'root stays')
-        same(missing, {'Hair_001: no TipColor on /Game/A/Child or its parents'}, 'said once')
+        same(hair_lines(missing), {'Hair_001: no TipColor on /Game/A/Child or its parents'}, 'said once')
+    end,
+
+    stock_earrings_and_glasses_are_head_items = function()
+        local items, missing = Stock.items(rows())
+        local e, g = items['SB.Earring_001'], items['SB.FaceAccessory_001']
+        eq(e.Slot, 'EarringL', 'earring slot') eq(g.Slot, 'Glasses', 'glasses slot')
+        eq(e.Origin, 'original', 'origin') eq(e.UniqueFitID, 'SB.Earring_001', 'id')
+        eq(e.Mesh, '/Game/E/E1.E1', 'class wrapper cut') eq(e.Variants[1].Mesh, e.Mesh, 'variant mesh')
+        eq(e.AnimationBP, '/Game/E/E1_AnimBP.E1_AnimBP_C', 'earrings carry their anim class')
+        eq(g.AnimationBP, nil, 'glasses have none')
+        eq(e.DisplayName, 'Ring', 'name from names') eq(g.DisplayName, 'FaceAccessory_001', 'row when unnamed')
+        eq(e.Image, '/Game/UI/Earring_001.Earring_001', 'icon path') eq(e.HidePonytail, false, 'no ponytail change')
+        same(e.Variants[1].Materials, {}, 'the mesh keeps its materials')
+        same(missing, {}, 'nothing lost')
+    end,
+
+    accessory_controls_are_the_look_changing_values_of_their_master = function()
+        local items = Stock.items(rows())
+        local c = items['SB.Earring_001'].UserConfigs
+        local v, s = {}, {}
+        for _, x in ipairs(c.VectorControls) do v[#v + 1] = x.ParamName end
+        for _, x in ipairs(c.ScalarControls) do s[#s + 1] = x.ParamName end
+        same(v, {'MetalTint', 'GemTint'}, 'allow-listed colours it sets, not Flakecolor')
+        same(s, {'Brightness'}, 'allow-listed numbers it sets (FlakeIntencity is not one)')
+        eq(c.VectorControls[1].MaterialIndex, 0, 'slot') same(c.VectorControls[1].Value, {1, 0.5, 0.4, 1}, 'value')
+        local g = items['SB.FaceAccessory_001'].UserConfigs
+        local gv, gs = {}, {}
+        for _, x in ipairs(g.VectorControls) do gv[#gv + 1] = x.ParamName .. '@' .. x.MaterialIndex end
+        for _, x in ipairs(g.ScalarControls) do gs[#gs + 1] = x.ParamName .. '@' .. x.MaterialIndex end
+        same(gv, {'GlassColor In@1'}, 'the lens colour on slot 1 (MA_ACC_Glass)')
+        same(gs, {'Metallic@0', 'GlobalRoughness@0', 'Opacity Out@1'}, 'frame and lens numbers, not HDR_Intensity')
+        local m = g.ScalarControls[1]
+        ok(m.Min <= m.Value and m.Value <= m.Max, 'a range around the value')
+    end,
+
+    an_accessory_with_no_equipment_row_is_left_out_and_said = function()
+        local r = rows()
+        r.equipment.Earring_001 = nil
+        r.items.FaceAccessory_002 = {Category = 'ESBItemCategory_FaceAccessory', Name = 'h',
+            EquipmentAlias = 'None'}
+        local items, missing = Stock.items(r)
+        eq(items['SB.Earring_001'], nil, 'left out')
+        eq(items['SB.FaceAccessory_002'], nil, 'no alias, left out')
+        same(missing, {'Earring_001: no equipment row Earring_001', 'FaceAccessory_002: no equipment alias'}, 'said')
+    end,
+
+    the_stock_eyes_are_colours_on_the_face_mesh = function()
+        local it = Stock.items(rows())['SB.Eyes_Own']
+        eq(it.Slot, 'Eyes', 'slot') eq(it.Origin, 'original', 'origin') eq(it.UniqueFitID, 'SB.Eyes_Own', 'id')
+        eq(it.Mesh, '', 'no mesh swap') eq(it.Variants[1].Mesh, '', 'variant too')
+        local c = it.UserConfigs
+        local v, s = {}, {}
+        for _, x in ipairs(c.VectorControls) do v[#v + 1] = x.ParamName .. '@' .. x.MaterialIndex end
+        for _, x in ipairs(c.ScalarControls) do s[#s + 1] = x.ParamName .. '@' .. x.MaterialIndex end
+        same(v, {'IrisHueTint@4', 'ScleraTint@4', 'BaseColour@7'}, 'iris and sclera on slot 4, brow on 7')
+        same(s, {'IrisHueShift@4', 'IrisBrightness@4'}, 'the numbers the eye sets')
+        same(c.VectorControls[1].Value, {0.65, 0.6, 1, 1}, 'the material value')
+        eq(it.Variants[1].UserConfigs, c, 'on its variant too')
+    end,
+
+    eyes_without_their_face_materials_keep_the_item_and_say_so = function()
+        local r = rows()
+        r.mesh_mats[Stock.FACE_MESH] = nil
+        local it, missing = Stock.items(r)
+        ok(it['SB.Eyes_Own'] ~= nil, 'the item stays')
+        same(it['SB.Eyes_Own'].UserConfigs.VectorControls, {}, 'no controls')
+        eq(#missing, 2, 'both slots said')
+    end,
+
+    the_reader_loads_the_face_and_accessory_meshes = function()
+        local env = live()
+        local r = assert(Stock.read(env))
+        eq(r.mats['/Game/F/MI_Eye.MI_Eye'].scalars.IrisBrightness, 5, 'the eye material read')
+        same(r.mesh_mats[Stock.FACE_MESH][5], '/Game/F/MI_Eye.MI_Eye', 'slot 4, one-based')
+        local items = Stock.items(r)
+        eq(items['SB.Eyes_Own'].UserConfigs.VectorControls[3].ParamName, 'BaseColour', 'from the live reads')
     end,
 
     a_hair_row_with_no_alias_is_reported = function()

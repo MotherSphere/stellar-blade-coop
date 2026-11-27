@@ -208,7 +208,94 @@ local function hair_controls(slots, mats, lost)
 end
 Stock.hair_controls = hair_controls
 
-local function variants_of(rows, group, mesh, lost)
+-- The master a material's chain ends at, by its object name ('MA_ACC'), '' when unknown.
+local function master_of(mats, path)
+    for _ = 1, 8 do
+        local mat = mats[path] or mats[package_of(path)]
+        if not mat or not plain(mat.parent) then break end
+        path = mat.parent
+    end
+    return (plain(path) or ''):match('([^./]+)$') or ''
+end
+
+-- Earrings and glasses: the look-changing colours and numbers of their masters (MA_ACC, MA_ACC_Glass; names as the
+-- asset dumps list them, 27 Nov 2026). Each is a control on the slot whose material chain ends at that master and
+-- sets it; the other parameters (flake, AO, textures, glass fresnel and HDR) are not.
+local ACC_PARAMS = {
+    MA_ACC = {vectors = {'Base Color Tint', 'MetalTint', 'GemTint', 'Gem02_Tint'},
+        scalars = {'Brightness', 'Metallic', 'GlobalRoughness'}},
+    MA_ACC_Glass = {vectors = {'GlassColor In', 'GlassColor Out'}, scalars = {'Opacity Inner', 'Opacity Out'}},
+}
+local function accessory_controls(slots, mats, lost)
+    local configs = lists()
+    local last = 0
+    for i in pairs(slots) do if i > last then last = i end end
+    for i = 1, last do
+        local allow = slots[i] and mats[slots[i]] and ACC_PARAMS[master_of(mats, slots[i])]
+        if allow then
+            local set = set_by_chain(mats, slots[i])
+            for _, name in ipairs(allow.vectors) do
+                local v = set.vectors[name]
+                if type(v) == 'table' and type(v.R) == 'number' then
+                    configs.VectorControls[#configs.VectorControls + 1] = {DisplayName = name, ParamName = name,
+                        MaterialIndex = i - 1, Value = {v.R, v.G or 0, v.B or 0, v.A or 1}}
+                end
+            end
+            for _, name in ipairs(allow.scalars) do
+                local x = set.scalars[name]
+                if type(x) == 'number' then
+                    configs.ScalarControls[#configs.ScalarControls + 1] = {DisplayName = name, ParamName = name,
+                        MaterialIndex = i - 1, Value = x, Min = math.min(0, x * 2), Max = math.max(1, x * 2)}
+                end
+            end
+        end
+    end
+    configs.VectorControls, configs.ScalarControls = merged(configs.VectorControls), merged(configs.ScalarControls)
+    return configs
+end
+Stock.accessory_controls = accessory_controls
+
+-- EVE's own eyes: Mesh_Face's mesh, from the asset dump of CH_P_EVE_Face_Jali3 (27 Nov 2026): material slot 4 EyeBall =
+-- MI_EyeRefractive1 and slot 7 brow = MI_EyeBrow1. The colour parameters that change the look, per slot.
+Stock.FACE_MESH = '/Game/Art/Character/PC/CH_P_EVE_Head/CH_P_EVE_Face_Jali3.CH_P_EVE_Face_Jali3'
+Stock.EYES_ID = 'SB.Eyes_Own'
+local EYES = {
+    {slot = 4, vectors = {{'IrisHueTint', 'Iris colour'}, {'ScleraTint', 'Sclera colour'}},
+        scalars = {'IrisHueShift', 'IrisBrightness'}},
+    {slot = 7, vectors = {{'BaseColour', 'Brow colour'}}, scalars = {}},
+}
+local function eyes_controls(rows, lost)
+    local configs = lists()
+    local slots, mats = (rows.mesh_mats or {})[Stock.FACE_MESH] or {}, rows.mats or {}
+    for _, e in ipairs(EYES) do
+        local path = slots[e.slot + 1]
+        if not (path and mats[path]) then
+            lost('no material in slot ' .. e.slot .. ' of ' .. Stock.FACE_MESH)
+        else
+            local set = set_by_chain(mats, path)
+            for _, p in ipairs(e.vectors) do
+                local v = vector_of(mats, path, p[1])
+                if v then
+                    configs.VectorControls[#configs.VectorControls + 1] = {DisplayName = p[2], ParamName = p[1],
+                        MaterialIndex = e.slot, Value = {v.R, v.G, v.B, v.A or 1}}
+                else
+                    lost('no ' .. p[1] .. ' on ' .. path .. ' or its parents')
+                end
+            end
+            for _, name in ipairs(e.scalars) do
+                local x = set.scalars[name]
+                if type(x) == 'number' then
+                    configs.ScalarControls[#configs.ScalarControls + 1] = {DisplayName = name, ParamName = name,
+                        MaterialIndex = e.slot, Value = x, Min = math.min(0, x * 2), Max = math.max(1, x * 2)}
+                end
+            end
+        end
+    end
+    return configs
+end
+
+-- controls(slots, mats, lost) builds a variant's controls from its materials by slot: hair_controls for hair.
+local function variants_of(rows, group, mesh, lost, controls)
     local variants = {}
     for _, v in ipairs(group_variations(rows.materials or {}, group)) do
         -- A variation with no material of its own (a one-colour hair) keeps its mesh's materials: its controls come
@@ -216,11 +303,11 @@ local function variants_of(rows, group, mesh, lost)
         local own = next(v.slots) ~= nil
         local slots = own and v.slots or (rows.mesh_mats or {})[mesh] or {}
         variants[#variants + 1] = {Mesh = mesh, Materials = v.slots, Icon = v.icon,
-            UserConfigs = hair_controls(slots, rows.mats or {}, lost)}
+            UserConfigs = controls(slots, rows.mats or {}, lost)}
     end
     if #variants == 0 then
         variants[1] = {Mesh = mesh, Materials = {},
-            UserConfigs = hair_controls((rows.mesh_mats or {})[mesh] or {}, rows.mats or {}, lost)}
+            UserConfigs = controls((rows.mesh_mats or {})[mesh] or {}, rows.mats or {}, lost)}
     end
     return variants
 end
@@ -231,9 +318,9 @@ local function rotation_of(eq)
     return {Pitch = r.Pitch or 0, Yaw = r.Yaw or 0, Roll = r.Roll or 0}
 end
 
-local function item_of(rows, id, slot, name, image, eq, extra, lost)
+local function item_of(rows, id, slot, name, image, eq, extra, lost, controls)
     local mesh = plain(eq.MountingResourcePath)
-    local variants = variants_of(rows, eq.MaterialGroup, mesh, lost)
+    local variants = variants_of(rows, eq.MaterialGroup, mesh, lost, controls or hair_controls)
     local item = {UniqueFitID = id, Slot = slot, Origin = 'original', DisplayName = name, Image = image,
         AnimationBP = plain(eq.AnimAssetPath), Rotation = rotation_of(eq), HidePonytail = false, Mesh = mesh,
         Variants = variants, UserConfigs = variants[1].UserConfigs, PieceHints = {}}
@@ -241,9 +328,13 @@ local function item_of(rows, id, slot, name, image, eq, extra, lost)
     return item
 end
 
--- A row not in the Hair category (earrings, glasses, ...) is not ours; a fake row without one is taken.
-local function is_hair(row)
-    return type(row.Category) ~= 'string' or row.Category:find('Hair$') ~= nil
+-- A row's closet slot by its category: Hair, EarRing -> EarringL (one mesh carries both ears), FaceAccessory ->
+-- Glasses. Another category is not ours; a fake row without one is taken as hair.
+local function slot_of(row)
+    local c = row.Category
+    if type(c) ~= 'string' then return 'Hair' end
+    return c:find('Hair$') and 'Hair' or c:find('EarRing$') and 'EarringL' or c:find('FaceAccessory$') and 'Glasses'
+        or nil
 end
 
 function Stock.items(rows)
@@ -275,8 +366,9 @@ function Stock.items(rows)
         Variants = {{Mesh = '', Materials = {}, UserConfigs = none}}, UserConfigs = none, PieceHints = {}}
 
     for row, it in pairs(rows.items or {}) do
-        local alias = is_hair(it) and plain(it.EquipmentAlias)
-        if is_hair(it) and not alias then
+        local slot = slot_of(it)
+        local alias = slot and plain(it.EquipmentAlias)
+        if slot and not alias then
             lost(row, 'no equipment alias')
         elseif alias then
             local eq = equipment[alias]
@@ -285,14 +377,25 @@ function Stock.items(rows)
             elseif not plain(eq.MountingResourcePath) then
                 lost(row, 'no mesh in equipment row ' .. alias)
             else
-                local hide = plain(it.EquipmentAlias2) == nil or eq.bUseHidePonytail == true
                 local id = 'SB.' .. row
-                items[id] = item_of(rows, id, 'Hair', names[it.Name] or row, plain(it.Asset2D), eq,
-                    {HidePonytail = hide, Ponytail = (not hide and have_long) and 'SB.Ponytail_Long' or nil},
-                    function(why) lost(row, why) end)
+                local function why(w) lost(row, w) end
+                if slot == 'Hair' then
+                    local hide = plain(it.EquipmentAlias2) == nil or eq.bUseHidePonytail == true
+                    items[id] = item_of(rows, id, slot, names[it.Name] or row, plain(it.Asset2D), eq,
+                        {HidePonytail = hide, Ponytail = (not hide and have_long) and 'SB.Ponytail_Long' or nil}, why)
+                else -- Earrings carry their AnimAssetPath (KawaiiPhysics, probe 8); glasses have none.
+                    items[id] = item_of(rows, id, slot, names[it.Name] or row, plain(it.Asset2D), eq, nil, why,
+                        accessory_controls)
+                end
             end
         end
     end
+
+    -- EVE's own eyes: no mesh swap, colours on Mesh_Face's slots 4 and 7 (the menu locks the row for another face).
+    local configs = eyes_controls(rows, function(why) lost('Eyes_Own', why) end)
+    items[Stock.EYES_ID] = {UniqueFitID = Stock.EYES_ID, Slot = 'Eyes', Origin = 'original',
+        DisplayName = names[Stock.EYES_ID] or 'Eyes_Own', HidePonytail = false, Mesh = '',
+        Variants = {{Mesh = '', Materials = {}, UserConfigs = configs}}, UserConfigs = configs, PieceHints = {}}
     table.sort(missing)
     return items, missing
 end
@@ -304,7 +407,10 @@ Stock.TABLES = {'/Game/Local/Data/ItemTable.ItemTable', '/Game/Local/Data/Equipm
     '/Game/Local/Data/EquipmentMaterialTable.EquipmentMaterialTable'}
 -- ESBItemCategory_Hair = 21: the enumerator array 0x145e2b9a0 pairs the name 0x145e49098 with 21 (a UE4SS enum
 -- property reads as its number). A string category (a fake, a future UE4SS) passes as it is.
-local HAIR_CATEGORY = 21
+-- Read again 27 Nov 2026 (the same array, 16-byte entries of name pointer and value): 0x145e49110 "ESBItemCategory_
+-- FaceAccessory" pairs with 22 and 0x145e49130 "ESBItemCategory_EarRing" with 23 (the number probe 8 read in game).
+local CATEGORIES = {[21] = 'ESBItemCategory_Hair', [22] = 'ESBItemCategory_FaceAccessory',
+    [23] = 'ESBItemCategory_EarRing'}
 
 -- Row fields and their reflected types (EPropertyGenFlags in the FGenericPropertyParams that name them): ItemTable
 -- (SBItemTableProperty) Asset2D Str (0x145e0edf0), EquipmentAlias and EquipmentAlias2 Name (0x145e0d818, 0x145e0d7f0),
@@ -395,9 +501,8 @@ function Stock.read(env)
     local readers = {
         function(n, row)
             local c = U.value_of(row.Category)
-            c = type(c) == 'number' and (c == HAIR_CATEGORY and 'ESBItemCategory_Hair' or 'ESBItemCategory_' .. c)
-                or str(c)
-            if c and c:find('Hair$') then
+            c = type(c) == 'number' and (CATEGORIES[c] or 'ESBItemCategory_' .. c) or str(c)
+            if c and (c:find('Hair$') or c:find('EarRing$') or c:find('FaceAccessory$')) then
                 rows.items[n] = copy(row, ITEM_FIELDS, {Category = c, Name = n})
                 local ok, words = pcall(env.text, U.value_of(row.Name))
                 -- The live FText gave back its own ItemStringTable key in game (Item_Hair_003_Name on the tiles, 27
@@ -457,28 +562,33 @@ function Stock.read(env)
     -- A hair whose group has no material (a one-colour hair: Nier, Nikke) keeps its mesh's: those load for its
     -- controls. USkeletalMesh.Materials, each FSkeletalMaterial's MaterialInterface, as closet/dress.lua's
     -- own_materials reads them.
+    -- Earrings and glasses have no group either: their meshes' materials load the same way, and EVE's face mesh
+    -- (Stock.FACE_MESH) for the eyes.
     rows.mesh_mats = {}
+    local function load_mesh(mesh)
+        if rows.mesh_mats[mesh] then return end
+        local ok, object = pcall(env.load, mesh)
+        local slots = {}
+        if ok and object ~= nil then
+            pcall(U.each, object.Materials, function(index, slot)
+                local m = U.value_of(U.value_of(slot).MaterialInterface)
+                local path = m and path_of(m)
+                if path then
+                    slots[index] = path
+                    if not rows.mats[path] then add_chain(rows.mats, path, m) end
+                end
+            end)
+        else
+            say(env, 'stock: ' .. mesh .. ' did not load')
+        end
+        rows.mesh_mats[mesh] = slots
+    end
     for _, it in pairs(rows.items) do
         local eq = rows.equipment[it.EquipmentAlias or '']
         local mesh = eq and plain(eq.MountingResourcePath)
-        if mesh and not with_material[eq.MaterialGroup or ''] and not rows.mesh_mats[mesh] then
-            local ok, object = pcall(env.load, mesh)
-            local slots = {}
-            if ok and object ~= nil then
-                pcall(U.each, object.Materials, function(index, slot)
-                    local m = U.value_of(U.value_of(slot).MaterialInterface)
-                    local path = m and path_of(m)
-                    if path then
-                        slots[index] = path
-                        if not rows.mats[path] then add_chain(rows.mats, path, m) end
-                    end
-                end)
-            else
-                say(env, 'stock: ' .. mesh .. ' did not load')
-            end
-            rows.mesh_mats[mesh] = slots
-        end
+        if mesh and not with_material[eq.MaterialGroup or ''] then load_mesh(mesh) end
     end
+    load_mesh(Stock.FACE_MESH)
     return rows
 end
 
