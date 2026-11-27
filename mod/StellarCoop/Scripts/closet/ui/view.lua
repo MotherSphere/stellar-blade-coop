@@ -477,6 +477,34 @@ function View.new(kit,log)
                 end)
             end)
         end
+        -- Only pictures changed (the same tiles, names and locks: a preview picture taken, the pictures read again):
+        -- those tiles get theirs in place, through their data objects and shown slots' brushes. A fill made every slot
+        -- replay its spawn animation and left some see-through (Schizo, 27 Nov 2026).
+        if sig~=tiles_sig and tiles_sig and #names>0 and #names==#filled_names then
+            local changed={}
+            for i,n in ipairs(names) do
+                if (n:gsub('@.*$',''))~=(filled_names[i]:gsub('@.*$','')) then changed=nil; break end
+                if n~=filled_names[i] then changed[#changed+1]=i end
+            end
+            if changed then
+                tiles_sig,filled_names=sig,names
+                glyphed,checking,check_at=any and shown or nil,any,0
+                scaled,scale_at=any_small and small or nil,0
+                local view=kit.view(View.GROUP)
+                local now={}
+                for _,i in ipairs(changed) do
+                    now[i]=true
+                    if pictured[i] and view and view.pics[i] then view.pics[i].texture(pictured[i].o) end
+                    if tile_items[i] then tile_items[i].IconAssetPath=shown[i] and shown[i].path or ICON end
+                end
+                call(grid,'grid pictures',function(w)
+                    U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                        local i=entry.Data.Index+1
+                        if now[i] and shown[i] then entry.Image_Icon:SetBrushFromTexture(shown[i].o,false) end
+                    end)
+                end)
+            end
+        end
         if sig~=tiles_sig then
             tiles_sig,selected=sig,nil
             fills,brushed,show_due,unstuck=fills+1,{},#names>0,0

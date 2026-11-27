@@ -1740,6 +1740,48 @@ local tests = {
         ok(good, why)
     end,
 
+    a_new_picture_changes_its_tile_in_place = function()
+        -- A preview picture filled the whole grid again: every slot replayed its spawn animation and some stayed
+        -- see-through (Schizo, 27 Nov 2026). Only the tile whose picture changed gets it, through its data object and
+        -- its shown slot's brush; the grid is not cleared.
+        local Thumbs = require('closet.thumbs')
+        local exists = Thumbs.fs.exists
+        local files = {}
+        Thumbs.fs.exists = function(p) return files[p] == true end
+        local good, why = pcall(function()
+            local th = {running = function() return false end, clear = function() return true end}
+            th.snap = function(fit, _, slot)
+                files[Thumbs.file('F', fit, slot)] = true
+                return true
+            end
+            local o = heads({{fit = 'p.hair', slots = {'Hair'}}})
+            o.folder, o.thumbs = 'F', th
+            with_aria(function(r)
+                on_hair(r)
+                r.choices = {{fit = 'p.hair', slots = {'Hair'}}}
+                at(r, 0.5, 'select')
+                local tv = grid(r)
+                local entries = tv:GetDisplayedEntryWidgets()
+                local cleared = tv.cleared
+                local before = {}
+                for i, item in ipairs(tv.items) do before[i] = item.IconAssetPath end
+                at(r, 0.6, 'picture')
+                tick(r, 1.0)
+                eq(tv.cleared, cleared, 'the grid not cleared')
+                local changed, at_tile = 0, nil
+                for i, item in ipairs(tv.items) do
+                    if item.IconAssetPath ~= before[i] then changed, at_tile = changed + 1, i end
+                end
+                eq(changed, 1, 'one tile changed')
+                local e = entries[at_tile]
+                eq(e.Image_Icon.Brush.ResourceObject:GetFullName():match('^%S+ (.+)$'), tv.items[at_tile].IconAssetPath,
+                    'its shown slot has the new picture')
+            end, o)
+        end)
+        Thumbs.fs.exists = exists
+        ok(good, why)
+    end,
+
     preview_picture_takes_the_worn_outfit = function()
         local Thumbs = require('closet.thumbs')
         local exists = Thumbs.fs.exists
