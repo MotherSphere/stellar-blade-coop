@@ -667,6 +667,44 @@ local tests = {
         eq(logged('camera: lens measured'), 0, 'no projection: nothing measured')
     end,
 
+    a_wrong_lens_reading_is_never_taken = function()
+        -- In game a reading taken while the view still lagged put the look point at x 2.5: tan 0.170 for a 0.767
+        -- lens, and the camera stood ten metres off. Only a tangent one of the axis rules can give is taken.
+        local hfov = 90
+        local tanv = math.tan(math.rad(hfov / 2)) * 9 / 16
+        local calls = 0
+        local c = world(function(w)
+            w.axis, w.fov = 0, 90
+            w.project = function(at)
+                local m = last()
+                if not m then return nil end
+                calls = calls + 1
+                if calls <= 3 then return {width = 3840, height = 2160, screen = {x = (1 + 2.5) / 2 * 3840, y = 1080}} end
+                local x, y = project(m.at, m.rot, at, hfov, tanv)
+                return {width = 3840, height = 2160, screen = {x = (1 + x) / 2 * 3840, y = (1 - y) / 2 * 2160}}
+            end
+        end)
+        c.open()
+        frames(c, 1, 'full')
+        eq(logged('camera: lens measured, tan(hfov/2)=1.000'), 1, 'the first good reading after the wrong ones')
+        eq(logged('tan(hfov/2)=0.'), 0, 'no wrong tangent taken')
+        -- Only wrong readings: the formula's lens stays, said once.
+        c = world(function(w)
+            w.project = function()
+                if not last() then return nil end
+                return {width = 3840, height = 2160, screen = {x = (1 + 2.5) / 2 * 3840, y = 1080}}
+            end
+        end)
+        c.open()
+        frames(c, 2, 'full')
+        eq(logged('camera: lens measured'), 0, 'nothing measured')
+        eq(logged('camera: lens not measured'), 1, 'said once')
+        local m, r = last(), Camera.REGIONS.full
+        local T = {X = W.at.X, Y = W.at.Y, Z = W.at.Z - 90 + r[1] * 180}
+        local x = project(m.at, m.rot, T, 90, 9 / 16)
+        near(x, 0.55, 0.01, 'the formula lens frames her')
+    end,
+
     x_toggles_on_release_only_without_the_stick = function()
         local c = world()
         c.open()

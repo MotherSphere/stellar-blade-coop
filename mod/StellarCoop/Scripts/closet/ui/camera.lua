@@ -94,6 +94,7 @@ Camera.ORBIT,Camera.TILT,Camera.SLIDE=120,80,120 -- deg/s, deg/s, cm/s at full s
 Camera.MOUSE,Camera.MPAN=0.25,0.25 -- degrees a right drag orbits, cm a middle drag pans, per unit of the kit's layout.
 Camera.CLICK=8 -- layout units: a right press released with less mouse movement is Back.
 Camera.MEASURE=Camera.BLEND+0.1 -- s after an open: the lens is measured once the view is ours.
+Camera.LENS_TOL,Camera.LENS_TRIES=0.1,30 -- A reading's tangent within 10% of an axis rule's; readings before giving up.
 -- Each region's framing (starting values, to tune in game): {centre, span} in parts of her height from her feet, the
 -- span filling the screen's height; {yaw, pitch} in degrees.
 Camera.REGIONS={head={0.92,0.20,15,5},torso={0.70,0.34,15,8},arms={0.64,0.46,25,8},hands={0.47,0.20,25,12},
@@ -249,8 +250,8 @@ function Camera.new(o)
         local read,axis=pcall(function() return U.value_of(pc.Player.AspectRatioAxisConstraint) end)
         axis=read and axis or 1
         local t=math.tan(math.rad(fov/2))
-        if axis==0 or axis==2 and aspect<1 then return Camera.NDC*t*aspect,t end
-        return Camera.NDC*t,t/aspect
+        if axis==0 or axis==2 and aspect<1 then return Camera.NDC*t*aspect,t,t,aspect end
+        return Camera.NDC*t,t/aspect,t,aspect
     end
     local function toggle()
         mode=mode=='free' and 'region' or 'free'
@@ -348,19 +349,30 @@ function Camera.new(o)
     end
     -- The real lens from the engine's projection of the look point T, which place put at tangent cam.k: its screen x
     -- in half widths is k / tan(hfov / 2). Once an open, at the first answer (nil while the kit is hidden: later).
+    -- A reading is taken only when its tangent is within LENS_TOL of one an axis rule gives for the FOV (tan(fov / 2)
+    -- times 1, the aspect or 1 / the aspect), and that rule's tangent is used. A reading taken while the view still
+    -- lagged (in game: x 2.5, tan 0.170 for a 0.767 lens) is skipped; after LENS_TRIES skipped readings the first
+    -- lens stays, said once.
     -- shortcut: T is this frame's; if the view's pose lags a frame, a pose still easing skews it a little.
     local function measure(T)
         local v=o.project(T,os.clock())
         if not v then return end
-        cam.measured=true
         local x=v.screen and tonumber(v.width) and v.width>0 and v.height>0 and 2*v.screen.x/v.width-1
-        if not (x and x>0.05 and x<5) then
+        local tanh=x and x>0.05 and cam.k/x
+        local fit
+        for _,t in ipairs(tanh and {cam.t,cam.t*cam.aspect,cam.t/cam.aspect} or {}) do
+            if math.abs(tanh/t-1)<Camera.LENS_TOL then fit=t; break end
+        end
+        if not fit then
+            cam.tries=(cam.tries or 0)+1
+            if cam.tries<Camera.LENS_TRIES then return end
+            cam.measured=true
             return log('camera: lens not measured: '..(x and string.format('the look point at x %.3f',x) or
                 'no screen point'))
         end
-        local tanh=cam.k/x
-        cam.k,cam.tanv=Camera.NDC*tanh,tanh*v.height/v.width
-        log(string.format('camera: lens measured, tan(hfov/2)=%.3f',tanh))
+        cam.measured=true
+        cam.k,cam.tanv=Camera.NDC*fit,fit*v.height/v.width
+        log(string.format('camera: lens measured, tan(hfov/2)=%.3f',fit))
     end
     -- One frame: the camera alive and the view ours, else it stops; the pad; the pose eased and placed.
     local function drive(dt)
@@ -410,7 +422,7 @@ function Camera.new(o)
             local hh=U.value_of(eve.CapsuleComponent:GetScaledCapsuleHalfHeight())
             d=actors.spawn(eve:GetWorld(),{X=at.X,Y=at.Y,Z=at.Z},{Pitch=r.Pitch,Yaw=r.Yaw,Roll=0},{camera=true})
             cam={d=d,was=view,was_path=view:GetFullName():match('^%S+ (.+)$'),h=2*hh,since=clock}
-            cam.k,cam.tanv=lens(pc,fov)
+            cam.k,cam.tanv,cam.t,cam.aspect=lens(pc,fov)
             rpan.pan,rpan.height=0,0
             if mode=='free' and not free then free=clamp(framing()) end
             -- The file before the view changes: a camera the next Lua load could not sweep never takes it.
