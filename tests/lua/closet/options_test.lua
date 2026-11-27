@@ -102,6 +102,8 @@ local function component(name, slots)
         self.morph_calls = self.morph_calls + 1
         if remove and math.abs(v) <= 1e-5 then self.morphs[n] = nil else self.morphs[n] = v end
     end
+    -- As exec 0x14491efb0: the name's value in the curves, else 0.
+    function c:GetMorphTarget(n) return self.morphs[n] or 0 end
     return c
 end
 -- A pack suit with material controls: colours on slots 3 (Top, 0..1), 4 (Glow, an HDR default above its Max) and 5
@@ -236,6 +238,26 @@ local tests = {
             r.o.reset('s')
             r.o.tick()
             same(r.body.morphs, {}, 'the pack values: the curves removed')
+        end)
+    end,
+    -- A worn mesh put on again (gun mode's rebuild of her body) empties the curves while dress.applied() stays: the
+    -- shape keys written are read back once a second and written again.
+    a_shape_key_gone_with_a_rebuilt_body_is_written_again = function()
+        dyed_rig(function(r)
+            local now = 0
+            local o = Options.new({store = r.store, dress = r.dress, log = function(m) r.log[#r.log + 1] = m end,
+                clock = function() return now end})
+            ok(o.step('s', 1, 'shape:2', 1))
+            o.tick()
+            same(r.body.morphs, {TopReveal = 1}, 'written')
+            local calls = r.body.morph_calls
+            now = now + 1.01
+            o.tick()
+            eq(r.body.morph_calls, calls, 'the curves still there: nothing written again')
+            r.body.morphs = {}
+            now = now + 1.01
+            o.tick()
+            same(r.body.morphs, {TopReveal = 1}, 'written again') ok(count(r.log, 'written again') == 1, 'said')
         end)
     end,
     values_apply_again_after_applied_changes = function()

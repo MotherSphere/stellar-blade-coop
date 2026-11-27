@@ -356,6 +356,7 @@ the kept one, so no value another mod set stays on screen. Colours, numbers and 
 dynamic instance (`SetVectorParameterValue`, `SetScalarParameterValue`, `SetTextureParameterValue`), after the
 variant's `Parameters`. Shape keys go on the outfit's mesh with `SetMorphTarget` (`ShapeKeyName`, else `DisplayName`;
 0 takes the curve off). They go on again in the same frame after each wear, map load, cutscene, rest and revive.
+They are read back once a second, as the body shape is, so they come back after gun mode rebuilds her body.
 They also go on again after each change. A slot with a pack colour control belongs to the options layer: the Colour
 tab's palette never paints it. `coop off` takes the shape keys off.
 
@@ -395,7 +396,9 @@ A mesh without morph targets cannot be refitted at run time.
 A name EVE's body has goes on her body with `SetMorphTarget`. Every added piece whose mesh has the same name follows
 it: the engine adds the body's morphs to each follower by name. A name her body lacks goes on each added piece that
 has it. A value of 0 takes the name off. The shape goes on again in the same frame after every wear, preview, revert
-and mix again. It also goes on again when a value changes. A look that drops a name takes it off. Her own look
+and mix again. It also goes on again when a value changes. Once a second the closet reads its names back with
+`GetMorphTarget`. Gun mode rebuilds her body by putting another body mesh on and hers back in one frame, which empties
+the morph curves. A name found gone puts the whole shape on again. A look that drops a name takes it off. Her own look
 (`coop closet off`, the None tile on the last piece) and `coop off` take the closet's names off her body. A morph set
 by another mod stays. Nothing changes while Tachy Mode pauses the mix.
 

@@ -9,14 +9,17 @@
 -- SetMorphTarget when her body has the name: every added piece whose mesh has it follows (the engine's follower
 -- merge, below). A name her body lacks goes on each added component that has it. A name no row lists is never set.
 -- tick (each frame, on the game thread, menu open or not) puts the shape on when dress.applied() changes (a new body
--- mesh clears her body's curves, the added components are new) and when a value changes. A name set before that is
+-- mesh clears her body's curves, the added components are new) and when a value changes. Once a second (CHECK) it reads
+-- the curves it set back (GetMorphTarget): another mesh put on a worn component and its own back in one frame (gun
+-- mode's rebuild of her body, fight/gunmode/overlay.lua) empties them while applied() stays, so a gone curve puts the
+-- whole shape on again. A name set before that is
 -- no longer wanted is removed (SetMorphTarget with 0 and bRemoveZeroWeight): her own look (own_look, off) loses the
 -- closet's names, a curve set from outside stays. Nothing while the dress is paused (Tachy Mode) or stopped.
 -- The values are kept in coop-closet-shape.txt (link.store) as name=value words split by tabs, in name order, apart
 -- from the look. They are read once at new: they survive a restart. off() (Reset Stellar Closet, coop closet shape off)
 -- sets every value to 0 and clears the file. stop() (coop off) removes the closet's names from what it set: her body
 -- may wear the same mesh again, which keeps its curves.
--- o: {dress=closet/dress.lua's (applied, parts), store=link.store(Shape.FILE), log=}.
+-- o: {dress=closet/dress.lua's (applied, parts), store=link.store(Shape.FILE), log=, clock= (os.clock)}.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
 --   USkinnedMeshComponent.SkeletalMesh: object property at 0x568, params 0x14665d7e0 (name 0x145a76dc0).
@@ -32,10 +35,13 @@
 --     own; FUN_143f8d220 finds each name on that mesh (FUN_144531b00) and skips a name the mesh lacks.
 --   USkeletalMeshComponent::SetSkeletalMesh FUN_14411a4f0: returns at once for the mesh it wears (+0x568), its
 --     curves kept; a new mesh empties the curves at +0xec8 (FUN_140e6c6a0, FUN_140e6c3f0).
+--   USkeletalMeshComponent.GetMorphTarget(MorphTargetName FName) -> float: native entry 0x146659830 (name 0x1466546c0),
+--     exec 0x14491efb0 finds the name in the TMap at +0xec8 (FUN_140e6c8e0) and answers its value, else 0.
 local U=require('core.unreal')
 local Shape={}
 Shape.FILE='coop-closet-shape.txt'
 Shape.STEP=10 -- %: a row's step.
+Shape.CHECK=1 -- s: how often the curves set are read back.
 Shape.USE='Use: coop closet shape <morph> <0-100> | coop closet shape off'
 -- A value in steps of STEP from 0 to 100.
 local function clamp(v) return math.max(0,math.min(100,math.floor(v/Shape.STEP+0.5)*Shape.STEP)) end
@@ -50,6 +56,7 @@ function Shape.new(o)
     local set={} -- 'part:name' (dress.parts()'s order) -> {c, name, v} as last set.
     local listed={} -- The rows' names as of the last paint.
     local wanted,seen,drawn='',nil,nil -- The values' words; applied() and the words as last put on.
+    local clock,due=o.clock or os.clock,0 -- The next read back of the curves set.
     local function words()
         local list={}
         for name,v in pairs(values) do list[#list+1]=name..'='..v end
@@ -136,13 +143,27 @@ function Shape.new(o)
         end
     end
 
-    -- Each frame: the shape put on again once the dress applied a look or a value changed.
+    -- Whether a curve set is gone, read back once a second.
+    local function lost()
+        local now=clock()
+        if now<due then return false end
+        due=now+Shape.CHECK
+        for _,s in pairs(set) do
+            local ok,v=pcall(function() return U.valid(s.c) and s.c:GetMorphTarget(fname(s.name)) end)
+            if ok and type(v)=='number' and math.abs(v-s.v/100)>1e-4 then return true end
+        end
+        return false
+    end
+    -- Each frame: the shape put on again once the dress applied a look, a value changed or a curve set is gone.
     function self.tick()
         local gen=dress.applied()
-        if gen==seen and wanted==drawn then return end
+        local same=gen==seen and wanted==drawn
+        local gone=same and lost()
+        if same and not gone then return end
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
-        paint(parts,gen~=seen)
+        if gone then log('shape: a curve set is gone (a worn mesh was put on again): the shape goes on again') end
+        paint(parts,gen~=seen or gone)
         seen,drawn=gen,wanted
     end
     -- The Body tab's rows: the morph names the rule allows on the look as last put on.

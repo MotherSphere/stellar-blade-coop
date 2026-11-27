@@ -25,7 +25,9 @@
 -- value changed, every material value and shape key of each worn pack outfit is written on its component (the pack
 -- value or the kept one, so no value another mod set stays): each colour, number and finish on its slot's dynamic
 -- instance, each shape key (ShapeKeyName, else DisplayName) with SetMorphTarget. A value already written is not sent
--- again. holds(component, slot) says whether a worn pack outfit has a colour control on that slot; owns, whether that
+-- again. Once a second (CHECK) the shape keys written are read back (GetMorphTarget, as closet/shape.lua does): a worn
+-- mesh put on again (gun mode's rebuild of her body) empties the curves while applied() stays, so a gone one writes
+-- every shape key again. holds(component, slot) says whether a worn pack outfit has a colour control on that slot; owns, whether that
 -- control is set away from the pack's colour: closet/colour.lua's palette leaves an owned slot alone and paints a held
 -- one on the same instance. After each pack scan it says once each kept value
 -- whose outfit, variant or control is gone: that value is ignored and stays in the file (the pack may come back). A
@@ -36,7 +38,8 @@
 -- fit id as Fits.word gives it. They are read once at new. reset(fit) gives one outfit its pack values back, off() (Reset Stellar Closet) every outfit and
 -- clears the file. stop() (coop off) drops the changes not shown yet and removes the shape keys it set: the dress gave
 -- EVE her own look back.
--- o: {dress=closet/dress.lua's (plan, again, reshow, loads, applied, parts), store=link.store(Options.FILE), log=}.
+-- o: {dress=closet/dress.lua's (plan, again, reshow, loads, applied, parts), store=link.store(Options.FILE), log=,
+-- clock= (os.clock)}.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
 --   UPrimitiveComponent.GetMaterial, CreateDynamicMaterialInstance and
@@ -49,7 +52,8 @@
 --     (name 0x1465dd3a8), exec 0x144883de0 reads the name and an object and calls FUN_14430e910(this, name, it).
 --   USkeletalMeshComponent.SetMorphTarget(MorphTargetName FName, Value float, bRemoveZeroWeight bool): native entry
 --     0x146659b90 (name 0x1464d8d18), exec 0x14491f120, as closet/shape.lua's comment says: with bRemoveZeroWeight a
---     value of 0 removes the curve.
+--     value of 0 removes the curve. GetMorphTarget(MorphTargetName FName) -> float: native entry 0x146659830 (name
+--     0x1466546c0), exec 0x14491efb0 answers the name's value in the curves at +0xec8, else 0.
 --   A finish's texture: found in memory (StaticFindObject), else after UE4SS's LoadAsset, used only when it is a
 --     UTexture2D (closet/ui/view.lua's find and class; its tiles load a texture path through LoadAsset_Blocking,
 --     native entry 0x1465b5cb0, name 0x1465a59e8, exec 0x14482cf00, read again).
@@ -58,6 +62,7 @@ local Fits=require('closet.fits')
 local Colour=require('closet.colour')
 local Options={}
 Options.FILE='coop-closet-options.txt'
+Options.CHECK=1 -- s: how often the shape keys written are read back.
 Options.USE='Use: coop closet option <fit> variant <n> | coop closet option <fit> toggle <slot> on|off'
 -- A key's kind -> the UserConfigs list of its controls.
 local LISTS={colour='VectorControls',finish='TextureOptions',number='ScalarControls',shape='ShapeKeys'}
@@ -135,6 +140,7 @@ function Options.new(o)
     local slots,morphs,owned,held={},{},{},{}
     -- changed: grows with each value change; seen, drawn, painted: applied(), changed and Fits.PACKS as last written.
     local changed,seen,drawn,painted=0,nil,nil,nil
+    local clock,due=o.clock or os.clock,0 -- The next read back of the shape keys written.
     local names,textures={},{} -- FNames by text; finish textures by path (false: does not load).
     local function fname(text)
         names[text]=names[text] or FName(text)
@@ -556,14 +562,32 @@ function Options.new(o)
         if not done then return say('options: the change waits: '..tostring(why)) end
         redress,reshow={},{}
     end
+    -- Whether a shape key written is gone, read back once a second.
+    local function lost()
+        local now=clock()
+        if now<due then return false end
+        due=now+Options.CHECK
+        for _,m in pairs(morphs) do
+            local ok,v=pcall(function() return U.valid(m.c) and m.c:GetMorphTarget(fname(m.name)) end)
+            if ok and type(v)=='number' and math.abs(v-m.v)>1e-4 then return true end
+        end
+        return false
+    end
     function self.tick()
         check()
         show()
         local gen=dress.applied and dress.applied()
-        if gen==nil or gen==seen and changed==drawn and Fits.PACKS==painted then return end
+        if gen==nil then return end
+        local same=gen==seen and changed==drawn and Fits.PACKS==painted
+        local gone=same and lost()
+        if same and not gone then return end
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
         if gen~=seen then slots,morphs={},{} end -- A new look: its components and instances are new.
+        if gone then -- The curves went with a worn mesh put on again: every shape key is written again.
+            morphs={}
+            log('options: a shape key written is gone (a worn mesh was put on again): written again')
+        end
         local wrote=paint(parts)
         seen,drawn,painted=gen,changed,Fits.PACKS
         if wrote>0 then log(('options: %d value(s) written'):format(wrote)) end
