@@ -16,7 +16,9 @@
 -- Its variants (OutfitPaths, or OutfitDatas, which wins when it has entries) stay together on the item, as do its
 -- UserConfigs. Entries for other characters are skipped (Stellar Closet dresses EVE only for now).
 -- A Body outfit's MaterialToggles become PieceHints: a guess, from each toggle's name, at which slot that material
--- slot's piece belongs to. They seed the region maps that let parts of two outfits be worn together.
+-- slot's piece belongs to. The options page sorts the outfit's pieces into sections by them (closet/ui/model.lua).
+-- On the outfit worn whole they give a closet slot to each material slot the hand fit map leaves without one
+-- (closet/dress.lua), which the colour layer reads for its role.
 local Json = require('closet.json')
 local Slots = require('closet.slots')
 

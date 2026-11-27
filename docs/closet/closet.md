@@ -1,12 +1,8 @@
 # Stellar Closet
 
-Stellar Closet is an outfit system for EVE that is to replace the one-mesh-per-outfit model of the Custom Nanosuit
-System (CNS). EVE wears pieces in slots: base body, skin suit, underwear, stockings, top, pants, shoes, gloves, belt,
-coat, cape, jewellery and body hardware. Pieces from different outfits can be worn together. A full-body outfit
-overrides the body slots. It leaves the head, the hair and the weapon alone.
-
-The base body is to be xHorsen's "Eve Nude Original Proportions", split into ten region material slots. Outfits made
-for other bodies are to be fitted to it by region maps. The body is not in this repository.
+Stellar Closet is an outfit system for EVE. EVE wears pieces in slots: base body, skin suit, underwear, stockings, top,
+pants, shoes, gloves, belt, coat, cape, jewellery and body hardware. Pieces from different outfits can be worn
+together. A full-body outfit overrides the body slots. It leaves the head, the hair and the weapon alone.
 
 ## Console words
 
@@ -357,7 +353,8 @@ its pieces.
 
 A pack value outside its range (an HDR glow above its `Max`) stays as it is until it is moved: a step puts it in the
 range. A follower (`ControlledBy`) of a colour, finish, number or shape key has no row and takes its leader's value.
-There is no slider bar on these rows yet: a shared kit change needs Schizo's yes.
+A colour channel, a number and a shape key show on the settings menu's slider row (`WB_Setting_Slider_Slot`), whose bar
+shows the value's place in its range. A click on the bar sets the value at that place.
 
 The hints show Back, Change on D-pad Left and Right, Reset on F (the pad's Y), then Move. F gives the focused row its
 pack value back (Variant: the first variant). A piece with controls shows Select instead of Reset. The detail shows
@@ -429,9 +426,9 @@ the native scan in `native/src/link/pak_list.h`) and those of a mod both players
 
 ## The parts probe
 
-`coop closet probe <n>` tests Stellar Blade's own widget parts for the closet menu that is to come. Run one test at a
-time in the game world, out of combat, with the Steam link (the kit needs it). Each check writes
-`probe: PASS <n> <check>` or `probe: FAIL <n> <check>: <why>` to UE4SS.log. The first FAIL ends the test. Each test
+`coop closet probe <n>` tests Stellar Blade's own widget parts that the closet menu is made of (1-5) and the reads
+for its camera and fit maps (6). Run one test at a time in the game world, out of combat, with the Steam link (the
+kit needs it). Each check writes `probe: PASS <n> <check>` or `probe: FAIL <n> <check>: <why>` to UE4SS.log. The first FAIL ends the test. Each test
 ends with `probe: END <n> <passed>/<total>`. `NOTE` lines say what to do or what was seen.
 
 | Test | What it shows | What to do |

@@ -4,8 +4,8 @@
 -- Copies online/partner/puppet.lua's resolve (find, LoadAsset, AssetRegistryHelpers:GetAsset for a mod pack's asset)
 -- and its SetSkeletalMesh skeleton guard (usable).
 -- coop closet wear: pieces of several CNS-format outfits worn at once on EVE, by fit map (closet/fits.lua). Display
--- only: her equipment, inventory and saves are never read or written. Built on the Phase 0 spike's tested way
--- (Stellar-Closet repository, spike/, 25 Nov 2026):
+-- only: her equipment, inventory and saves are never read or written. It works this way, tried in game on 25 Nov
+-- 2026:
 --   - One outfit goes on her body mesh (eve.Mesh, the animation leader), with its own skin. It shows its skin and its
 --     chosen pieces only. The body is the one picked (<fit>:BaseBody), else the body rule's (Dress.plan): by default
 --     the outfit that supplies the shoes (its feet are the ones its shoes were shaped around), else the first, unless
@@ -47,8 +47,8 @@ local Slots=require('closet.slots')
 local valid,each,text=U.valid,U.each,U.text
 local Dress={}
 local SKINNED,MID='/Script/Engine.SkeletalMeshComponent','/Script/Engine.MaterialInstanceDynamic'
--- Body meshes the game puts on EVE that pause the mix while they are on: Tachy Mode's suit (seen in the spike's
--- UE4SS.log at 11:33 and 11:39 on 25 Nov 2026, the mix paused and back as it ended).
+-- Body meshes the game puts on EVE that pause the mix while they are on: Tachy Mode's suit (seen in UE4SS.log at
+-- 11:33 and 11:39 on 25 Nov 2026, the mix paused and back as it ended).
 Dress.GAME_LOOKS={['/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10']=true}
 Dress.USE='Use: coop closet wear <fit>[:<Slot>,<Slot>...] [<fit>[:...]] | coop closet off | coop closet fits'
 local installed_cache={} -- mesh path -> whether it loads; once per path per Lua load (installed, loads).
@@ -193,7 +193,7 @@ local function current_materials(c,dynamic)
 end
 
 -- The body rules of Dress.plan: auto (the switch below), shoes (the Shoes' outfit, else the first), first (the first
--- choice). A fit id with Skin forces that body. Schizo, 26 Nov 2026: the rule needs trying in game.
+-- choice). A fit id with Skin forces that body. On 26 Nov 2026 the rule was not tried in game yet.
 Dress.BODY_MODES={'auto','shoes','first'}
 local NAILS={Fingernails='Hand',Toenails='Foot'} -- Hidden under a covering piece of another outfit.
 -- Whether a skin slot can be hidden: each of its regions is covered.

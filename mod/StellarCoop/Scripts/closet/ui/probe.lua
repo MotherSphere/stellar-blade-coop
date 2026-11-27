@@ -323,9 +323,9 @@ Probe.TESTS['5']={timeout=90,steps={grid_steps[1],grid_steps[2],grid_steps[3],
         if ctx.now()<d.keys then return 'wait' end
         return true
     end},
-    -- The input goes back to the game first, so Schizo can open the map. A UI that hides and comes back with its parts
-    -- was a pause or a game screen, not a map change: the step waits on. After a map change the parts are gone (the
-    -- kit rebuilt its root) and the probe holds no input.
+    -- The input goes back to the game first, so the player can open the map. A UI that hides and comes back with its
+    -- parts was a pause or a game screen, not a map change: the step waits on. After a map change the parts are gone
+    -- (the kit rebuilt its root) and the probe holds no input.
     {frames=0,name='map_change',run=function(ctx)
         local d,kit=ctx.data,ctx.kit
         if not d.phase then

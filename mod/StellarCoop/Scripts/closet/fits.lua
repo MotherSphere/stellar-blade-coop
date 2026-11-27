@@ -5,8 +5,8 @@
 --
 -- A fit map is keyed by the outfit's UniqueFitID and names, for its mesh, which material slots make each piece and
 -- which show the skin. It holds only slot numbers and names: nothing of the creator's pack is copied. The numbers come
--- from the mesh's material slots (the spike's slot dump, 25 Nov 2026) and the names from the pack's own
--- UserConfigs.MaterialToggles.
+-- from the mesh's material slots, read in game on 25 Nov 2026 (coop closet skin <fit> <n> on refuses an n past the
+-- mesh's last slot), and the names from the pack's own UserConfigs.MaterialToggles.
 --   Outfit   the outfit's name on screen, Pack the pack that makes it
 --   Origin   'original' (Shift Up's own suits, CH_P_EVE_*) or 'custom' (an installed pack's outfit, the default when
 --            left out: Fits.origin)
