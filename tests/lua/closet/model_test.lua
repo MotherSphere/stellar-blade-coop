@@ -422,9 +422,11 @@ local tests = {
 
     hair_rows_list_stock_then_custom = function()
         with_heads(function()
-            local m, row, names = new(), nil, {}
+            local asked = {}
+            local m, row, names = new({installed = function(id) asked[#asked + 1] = id return true end}), nil, {}
             for _, r in ipairs(m.rows('head')) do if r.slot == 'Hair' then row = r end end
             eq(row.state, 'pieces')
+            eq(#asked, 0, 'no installed call yet')
             for _, t in ipairs(m.tiles('Hair')) do names[#names + 1] = t.none and 'none' or t.fit end
             same(names, {'none', 'SB.Hair_001', 'SB.Hair_Nier_002', 'b'}, 'none, stock, then pack')
         end)
