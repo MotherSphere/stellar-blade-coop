@@ -549,6 +549,24 @@ local tests = {
         near(fields().yaw, 0, 0.01, 'Shift + L: no orbit')
     end,
 
+    a_right_click_with_jitter_in_region_mode_stays_region_and_is_back = function()
+        local c = world(function(w) w.keys = 0; w.ptr = {500, 500} end)
+        c.open()
+        frames(c, 0.05, 'full')
+        eq(c.mode(), 'region', 'starts in region mode')
+        local saves = #W.saves
+        W.keys = 1
+        ok(c.hold_back(), 'the press may start a drag')
+        c.tick(1 / 60, 'full')
+        W.ptr = {502, 501}
+        c.tick(1 / 60, 'full')
+        W.keys = 0
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'region', '3 units of jitter: still region mode')
+        eq(#W.saves, saves, '3 units of jitter: nothing written')
+        eq(c.take_back(), true, '3 units of jitter: Back')
+    end,
+
     a_right_drag_in_region_mode_switches_to_free = function()
         local c = world(function(w) w.keys = 0; w.ptr = {500, 500} end)
         c.open()

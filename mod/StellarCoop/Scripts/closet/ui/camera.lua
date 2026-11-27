@@ -313,7 +313,8 @@ function Camera.new(o)
         local kx=(on(64) and 1 or 0)-(on(16) and 1 or 0) -- L right, J left.
         local ky=(on(8) and 1 or 0)-(on(32) and 1 or 0) -- I up, K down.
         local kz=shift and 0 or (on(256) and 1 or 0)-(on(128) and 1 or 0) -- O out, U in; Shift + U/O are the light's.
-        if rmb and (dx~=0 or dy~=0) then to_free()
+        -- A press hold_back took leaves Region mode only once it counts as a drag (CLICK units): jitter stays a Back.
+        if rmb and (dx~=0 or dy~=0) and (not back or back.travel>=Camera.CLICK) then to_free()
         elseif mode~='free' then -- I/J/K/L and a middle drag pan the framing; U/O zoom nothing.
             slide(kx*Camera.SLIDE*dt,ky*Camera.SLIDE*dt)
             if mmb then slide(-dx*Camera.MPAN,dy*Camera.MPAN) end
