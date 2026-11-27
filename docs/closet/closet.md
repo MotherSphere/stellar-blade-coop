@@ -180,6 +180,10 @@ takes the keys, the controller and the clicks until you answer. Then the menu ta
 the look you were trying. When the game takes the input back on its own (a window switch, a change between keyboard
 and controller), the menu takes it again within half a second. The other SBO screens leave the input to the game then.
 
+The closet's keys (J, L, I, K, U, O, C, Backspace, V, P, Shift+U and Shift+O) are bound when the mod loads, for every
+player, since UE4SS cannot take a bind back. They act only while the closet menu is the open screen. Anywhere else a
+press of them does nothing in SBO.
+
 Every close removes every game part first: the game holds EVE still while one of its widgets is up. The game gets its
 input back 150 ms after the close, so the Esc that closed the menu does not open the pause menu. `coop off` closes the
 menu at once. It runs `coop closet off` too: EVE gets her own look back and `coop-closet.txt` is cleared.
