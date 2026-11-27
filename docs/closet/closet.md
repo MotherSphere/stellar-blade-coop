@@ -105,7 +105,7 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu, its HUD 
 | `ui/camera.lua` | The menu's camera: region and free modes, its pose kept in `coop-closet-camera.txt` |
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
-| `ui/hud.lua` | The closet's entry in SB's HUD item column, right of gun mode's: the closet key's icon on the keyboard or the D-pad Left glyph on a controller, then the hanger icon |
+| `ui/hud.lua` | The closet's entry in SB's HUD item column, right of gun mode's: the closet key's icon on the keyboard or the LB and D-pad Left glyphs of the LB + D-pad Left chord on a controller, then the hanger icon |
 
 `wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `presets.lua` as
 `M.closet_presets`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`, `thumbs.lua` as
@@ -517,9 +517,9 @@ The Lua tests are in `tests/lua/closet/`. All but `off_test.lua` and `closet_tes
   close path and the preview lights on the camera.
 - `lights_test.lua` runs the preview lights on a fake camera actor: each preset's lights, the preset cycle, the
   intensity steps and limits, a saved preset read back and the lights' end with the camera.
-- `hud_test.lua` runs the HUD entry over a fake UMG: the D-pad Left twin of the pad glyph the game shows or the
-  closet key's keyboard icon, the hanger icon, the place right of gun mode's entry and an earlier Lua load's widgets
-  taken again.
+- `hud_test.lua` runs the HUD entry over a fake UMG: the LB and D-pad Left twins of the pad glyph the game shows
+  (both or none, never D-pad Left alone) or the closet key's keyboard icon, the hanger icon, the place right of gun
+  mode's entry and an earlier Lua load's widgets taken again.
 - `probe_test.lua` runs `coop closet probe` over a fake kit and fake widgets: the runner, its console words and the
   tests of the game's parts.
 

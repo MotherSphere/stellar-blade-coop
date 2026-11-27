@@ -2,10 +2,13 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Copied from fight/gunmode/ui/dpad.lua (November 2026), cut to the closet's entry.
--- Stellar Closet's entry in the HUD's item column, right of gun mode's entry (the D-pad Left spot): the button that
--- opens the closet, then the closet's hanger glyph (icons/full_outfit.png, Slots.glyph(Slots.FULL_OUTFIT)), imported
--- at run time with ImportFileAsTexture2D as closet/ui/view.lua imports its glyphs. The button follows the game's own
--- D-pad marker: on a gamepad the D-pad Left glyph of the pad the game shows (its DPad_Up glyph's Left twin), on the
+-- Stellar Closet's entry in the HUD's item column, right of gun mode's entry: the buttons that open the closet, then
+-- the closet's hanger glyph (icons/full_outfit.png, Slots.glyph(Slots.FULL_OUTFIT)), imported at run time with
+-- ImportFileAsTexture2D as closet/ui/view.lua imports its glyphs. The buttons follow the game's own D-pad marker: on a
+-- gamepad the LB glyph, then the D-pad Left glyph, of the pad the game shows (the LeftShoulder and DPad_Left twins of
+-- its DPad_Up glyph), for the LB + D-pad Left chord that opens the closet (ui/pad.h). D-pad Left alone stays the
+-- game's: its DefaultInput.ini on 26123051 maps Gamepad_DPad_Left to the action CrossKey_Left, which the player's input
+-- setup FUN_1420473b0 binds pressed (0x1420477d0) and released (0x142047bc8) with ESBKeyEvent_CrossKey_Left (4). On the
 -- keyboard the closet key's icon on the game's own key cell (btn_PcEmpty), the way the marker shows Q and R. Sizes
 -- come from the game's own widgets (the key icon from btn_up, the hanger from the heal item's icon), so the entry
 -- scales with the HUD. It is the HUD's own child (Overlay_ItemSlot), so it shows and hides with the HUD. Its parts are
@@ -55,12 +58,18 @@ Hud.ICON_FILE=HERE..'icons'..HERE:sub(-1)..Hud.ICON..'.png'
 -- with GetFullName (Ghidra, build 26123051, 26 Nov 2026).
 local RENDER='/Script/Engine.Default__KismetRenderingLibrary'
 
--- The glyph texture for our entry from the one the game shows on its D-pad marker's up button: a pad's DPad_Up becomes
--- its DPad_Left; a keyboard key icon becomes the closet key's (KeyIcon_KeyBoard_<key>). nil: no change known, or no
--- closet key on the keyboard.
+-- The glyph textures for our entry from the one the game shows on its D-pad marker's up button: a pad's DPad_Up gives
+-- its DPad_Left, then its LeftShoulder (LB) second; a keyboard key icon gives the closet key's (KeyIcon_KeyBoard_<key>)
+-- alone. nil: no change known, or no closet key on the keyboard. In pakchunk0 of 26123051 (listed with retoc on 27 Nov
+-- 2026) every folder of /Game/Art/UI/Texture/Interaction/ that holds a KeyIcon_<pad>_Gamepad_DPad_Up holds its
+-- _DPad_Left and _LeftShoulder too, for the pads XboxOne (XBOX), DualShock4 (DualShock) and DualSense (DualSense):
+-- /Game/Art/UI/Texture/Interaction/XBOX/KeyIcon_XboxOne_Gamepad_DPad_Left.KeyIcon_XboxOne_Gamepad_DPad_Left and
+-- /Game/Art/UI/Texture/Interaction/XBOX/KeyIcon_XboxOne_Gamepad_LeftShoulder.KeyIcon_XboxOne_Gamepad_LeftShoulder.
 function Hud.glyph_path(up_path,key)
     if type(up_path)~='string' then return nil end
-    if up_path:find('DPad_Up',1,true) then return (up_path:gsub('DPad_Up','DPad_Left')) end
+    if up_path:find('DPad_Up',1,true) then
+        return (up_path:gsub('DPad_Up','DPad_Left')),(up_path:gsub('DPad_Up','LeftShoulder'))
+    end
     local dir=up_path:match('^(.*/)KeyIcon_KeyBoard_[%w_]+%.KeyIcon_KeyBoard_[%w_]+$')
     if dir and key then return dir..'KeyIcon_KeyBoard_'..key..'.KeyIcon_KeyBoard_'..key end
     return nil
@@ -211,16 +220,19 @@ function Hud.new(g)
             local again=inside(overlay,'ClosetSlot','HorizontalBox')~=nil
             local C=function(cls,outer,name) return part(cls,outer,name,again) end
             local box=C('HorizontalBox',overlay,'ClosetSlot')
+            local lb=C('Image',box,'ClosetPadLB')       -- the pad's LB glyph, before the D-pad Left one
             local keyo=C('Overlay',box,'ClosetKey')     -- the key cell (keyboard) under the glyph
             local bg=C('Image',keyo,'ClosetKeyCell')
             local glyph=C('Image',keyo,'ClosetKeyGlyph')
             local img=C('Image',box,'ClosetIcon')
             if cell then pcall(function() bg:SetBrush(cell.Brush) end) end
+            -- HAlign_Center, VAlign_Center
             local function center(sl) pcall(function() sl:SetHorizontalAlignment(2); sl:SetVerticalAlignment(2) end) end
             center(keyo:AddChildToOverlay(bg)); center(keyo:AddChildToOverlay(glyph))
+            local sl=box:AddChildToHorizontalBox(lb)
             local sk=box:AddChildToHorizontalBox(keyo)
             local si=box:AddChildToHorizontalBox(img)
-            for _,sl in ipairs({sk,si}) do pcall(function() sl:SetVerticalAlignment(2) end) end
+            for _,s in ipairs({sl,sk,si}) do pcall(function() s:SetVerticalAlignment(2) end) end -- VAlign_Center
             pcall(function() si:SetPadding({Left=Hud.GAP,Top=0,Right=0,Bottom=0}) end)
             -- held in a size box exactly the marker's laid-out size, so the marker never grows (a larger child, or a
             -- canvas, grew it and pushed the whole item column off the screen). The row inside keeps its own sizes and
@@ -233,12 +245,12 @@ function Hud.new(g)
             pcall(function() slot:SetHorizontalAlignment(1); slot:SetVerticalAlignment(2) end)
             box:SetVisibility(4); holder:SetVisibility(4) -- SelfHitTestInvisible
             -- Collapsed until follow shows them: a new Image with no brush draws a white square
-            bg:SetVisibility(1); glyph:SetVisibility(1); img:SetVisibility(1)
+            bg:SetVisibility(1); glyph:SetVisibility(1); img:SetVisibility(1); lb:SetVisibility(1)
             ui.holder=holder
             ui.overlay,ui.dpad,ui.up,ui.thumb,ui.box,ui.slot=overlay,dpad,up,thumb,box,slot
             ui.box_at,ui.overlay_at,ui.holder_at=g.path(box),g.path(overlay),g.path(holder)
             ui.pad_layer=pad_layer
-            ui.keyo,ui.bg,ui.glyph,ui.img=keyo,bg,glyph,img
+            ui.keyo,ui.bg,ui.glyph,ui.img,ui.lb=keyo,bg,glyph,img,lb
             ui.cell=cell~=nil
             ui.k,ui.i=Hud.KEY_SIZE,Hud.ICON_SIZE
             -- what follow last applied was applied to the last HUD's widgets: a new HUD gets its glyph, cell, icon,
@@ -290,6 +302,7 @@ function Hud.new(g)
         if ui.k~=k or ui.i~=i or not ui.sized then
             ui.k,ui.i,ui.sized=k,i,true
             pcall(function() ui.glyph:SetBrushSize({X=k,Y=k}) end)
+            pcall(function() ui.lb:SetBrushSize({X=k,Y=k}) end)
             pcall(function() ui.bg:SetBrushSize({X=k*1.25,Y=k*1.25}) end)
             pcall(function() ui.img:SetBrushSize({X=i,Y=i}) end)
         end
@@ -300,13 +313,13 @@ function Hud.new(g)
             if ok and t then
                 ui.icon=true
                 pcall(function() ui.img:SetBrushFromTexture(t,false); ui.img:SetBrushSize({X=ui.i,Y=ui.i}) end)
-                pcall(function() ui.img:SetVisibility(4) end)
+                pcall(function() ui.img:SetVisibility(4) end) -- SelfHitTestInvisible
             elseif not ok and not ui.icon_logged then
                 ui.icon_logged=true; g.log('hud: no hanger icon: '..tostring(t))
             end
         end
-        -- the glyph: the Left twin of what the game's marker shows. The marker's keyboard icons stay set while a
-        -- gamepad is used (its gamepad layer, Overlay_ps, is shown instead), so a shown gamepad layer picks the pad
+        -- the glyphs: the Left and LB twins of what the game's marker shows. The marker's keyboard icons stay set while
+        -- a gamepad is used (its gamepad layer, Overlay_ps, is shown instead), so a shown gamepad layer picks the pad
         -- glyph: the loaded DPad_Up of the pad the game shows (DualShock or Xbox), else the Xbox one. It is a walk of
         -- every texture, made once each time the layer comes up until one is found (0e51255f, ed6385e6).
         local up=g.try(function()
@@ -335,21 +348,29 @@ function Hud.new(g)
         end
         if up and (up~=ui.up_path or key~=ui.key) then
             ui.up_path,ui.key=up,key
-            local path=Hud.glyph_path(up,key)
+            local path,lb_path=Hud.glyph_path(up,key)
             local t=path and g.asset(path)
+            local lt=lb_path and g.asset(lb_path)
+            -- on a pad both glyphs or none: D-pad Left alone would point at the game's CrossKey_Left
+            if lb_path and not lt then t=nil end
             if t then
                 pcall(function() ui.glyph:SetBrushFromTexture(t,false); ui.glyph:SetBrushSize({X=ui.k,Y=ui.k}) end)
             end
+            if lt and t then
+                pcall(function() ui.lb:SetBrushFromTexture(lt,false); ui.lb:SetBrushSize({X=ui.k,Y=ui.k}) end)
+            end
             if path and not t and not ui.glyph_logged then
-                ui.glyph_logged=true; g.log('hud: no glyph for '..tostring(path)..' (from '..up..')')
+                ui.glyph_logged=true
+                g.log('hud: no glyph for '..tostring(lt==nil and lb_path or path)..' (from '..up..')')
             end
             -- no glyph (no closet key on the keyboard, or no texture): neither glyph nor cell shows. The key cell only
             -- with the keyboard (the marker's own cells belong to its keyboard layer). Never without the marker's
             -- cell: an Image with no brush draws a white square
             local kb=up:find('KeyBoard',1,true)~=nil
-            pcall(function() ui.glyph:SetVisibility(t and 4 or 1) end)
+            pcall(function() ui.glyph:SetVisibility(t and 4 or 1) end) -- SelfHitTestInvisible or Collapsed
+            pcall(function() ui.lb:SetVisibility((t and lt) and 4 or 1) end)
             pcall(function() ui.bg:SetVisibility((t and kb and ui.cell) and 4 or 1) end)
-            g.log('hud: glyph '..tostring(path)..(t and '' or ' (missing)'))
+            g.log('hud: glyph '..tostring(path)..(lb_path and (' after '..lb_path) or '')..(t and '' or ' (missing)'))
         end
         -- place: the holder takes the marker's size, the row is moved right of gun mode's entry by a render
         -- translation. Gun mode's row starts at the marker's width + GAP and holds its key cell (k*1.25), GAP, its
@@ -371,7 +392,7 @@ function Hud.new(g)
         if not ok and not ui.place_logged then ui.place_logged=true; g.log('hud: not placed yet: '..tostring(perr)) end
     end
 
-    -- From the closet's tick: the entry on the HUD with the closet key (key: 'F1'; nil: no closet key, the pad glyph
+    -- From the closet's tick: the entry on the HUD with the closet key (key: 'F1'; nil: no closet key, the pad glyphs
     -- only). Nothing once hide took the entry off (coop off).
     function self.tick(key)
         if gone then return end
