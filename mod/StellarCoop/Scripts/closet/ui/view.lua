@@ -91,27 +91,58 @@ local SINGLE=1 -- ESelectionMode Single (None is 0).
 local TAB_X,TAB_Y,TAB_STEP=160,120,266 -- TABS tabs from 160, a tab key's icon at each end (the lobby's settings tabs).
 local TAB_ICON_X=86 -- The left tab key's icon (UI_LeftShoulder: Q, the pad's LB); the right one after the last tab.
 local ROW_X,ROW_Y,ROW_W,ROW_H,PITCH,WINDOW=160,300,900,130,130,10 -- Slot rows: a window of 10.
--- A colour row's swatch: a flat kit image right of the row (a kit image draws under the SB row part), 28 by 76 units at
--- the height of the kit row over it, before the grid's left edge.
-local SWATCH_X,SWATCH_W,SWATCH_H=ROW_X+ROW_W+8,28,76
+-- The SB row's value box (WB_Setting_Button_Slot in a 900-unit slot at x 160), measured on the in-game screenshots of
+-- build 65b52c49 at 1456x819: its focused white box spans x 828 to 1121. Its value and copy icon are centred in it.
+-- A longer value starts at the box's left and runs out of it: 'Reshape 50%' ran out, 'Pack colour', 'No Reshape' and
+-- 'Coming soon' fit. So a value shows whole up to VALUE_COLS columns, else cut with '...' (View.fit).
+View.ROW_RIGHT,View.VALUE_COLS=1121,10
+-- A colour row's swatch: a flat kit image right of the row's value box (a kit image draws under the SB row part, so a
+-- swatch inside the box is hidden by the focused white box), 28 by 76 units at the height of the kit row over it.
+local SWATCH_X,SWATCH_W,SWATCH_H=View.ROW_RIGHT+8,28,76
 local NOTICE_Y=1640 -- The notice's top: under the rows' window (it ends at y 1600), above the hints.
 local GRID_X,GRID_Y,GRID_W,GRID_H=1100,300,1000,820
 -- The TileView's entry size: 5 columns of 200 in GRID_W, 3 rows of 270 in GRID_H. SetEntryWidth and SetEntryHeight
 -- (one float each) are in /Script/UMG.TileView's native table 0x1461ff110 (registered by FUN_143d66670), execs
 -- 0x143d66330 and 0x143d66440 (Ghidra, build 26123051, 26 Nov 2026).
 local ENTRY_W,ENTRY_H=200,270
-local DETAIL_X,DETAIL_Y=1100,1160
+-- The detail panel right of a colour row's swatch, so it never covers a row's value box.
+local DETAIL_X,DETAIL_Y=SWATCH_X+SWATCH_W+4,1160
 -- The origin badge: 64 units square, by the detail panel's title, right of its 900-unit wide SizeBox_4 (widget JSON).
 -- A kit image draws under every part, so it sits beside the panel, not on it.
 local BADGE_X,BADGE_Y,BADGE=View.EDGE-88,DETAIL_Y+8,64
--- Key hints, right to left from EDGE (the lobby's step): the menu's row.
-local HINT_STEP,HINT_Y,HINTS=420,1990,5 -- Five: an outfit's row shows Back, Whole outfit, Options, Favourite, Move.
+-- Key hints, right to left from EDGE: the menu's row. Five (an outfit's row shows Back, Whole outfit, Options,
+-- Favourite, Move) at the lobby's step of 420 would start at x 12, at the screen's edge: 400 starts them at x 112,
+-- right of the left tab key's icon (TAB_ICON_X).
+local HINT_STEP,HINT_Y,HINTS=400,1990,5
 -- The camera's row above it: a fixed slot per chip in s.camera_hints' order (mode, reset, light), 90 apart, the last
 -- ending at EDGE. x and w: the chip's left edge and its click zone's width; col: where the label starts after the
 -- keyboard key (C, Backspace, V at about 17 units a Bold 30 character, plus 12). KEY_Y: the kit text's y in the row,
 -- as ui/kit/kit.lua's hints put theirs (KEY_TEXT 9).
 local CAMERA_Y,KEY_Y=1890,1899
 local CAMERA={{x=1162,w=420,col=62},{x=1672,w=440,col=182},{x=432,w=640,col=62}}
+
+-- A value cut to VALUE_COLS columns: a CJK character takes two (as the menu test's width estimate counts them), a
+-- narrow one (NARROW: a space, i, l, punctuation) a half, any other one. Whole when it fits, else its first characters
+-- and '...' (three narrow ones) within them. Text that is not UTF-8 (a pack's own name) is cut by bytes: utf8.codes
+-- raises on it.
+local NARROW=" ilIjtfr.,:;'|!()-1"
+local function cols(c)
+    if c>=0x2E80 and c<0xFB00 or c>=0xFF00 and c<0xFFF0 then return 2 end
+    return c<128 and NARROW:find(string.char(c),1,true) and 0.5 or 1
+end
+function View.fit(value)
+    if not utf8.len(value) then return #value<=View.VALUE_COLS and value or value:sub(1,View.VALUE_COLS-2)..'...' end
+    local n=0
+    for _,c in utf8.codes(value) do n=n+cols(c) end
+    if n<=View.VALUE_COLS then return value end
+    local out,used={},1.5
+    for _,c in utf8.codes(value) do
+        if used+cols(c)>View.VALUE_COLS then break end
+        used=used+cols(c)
+        out[#out+1]=utf8.char(c)
+    end
+    return table.concat(out)..'...'
+end
 
 -- A game object by path: in memory, else after a synchronous LoadAsset (closet/ui/probe.lua's default_find).
 local function find(path)
@@ -278,14 +309,15 @@ function View.new(kit,log)
         local specs={}
         for i=1,WINDOW do
             local row=s.rows[top+i]
+            local value=row and not row.header and View.fit(row.value)
             -- A header row: SB's settings category header (ui/kit/parts.lua's header, as
             -- online/session/ui/create.lua shows its sections).
             if row and row.header then specs[i]=Parts.header(ROW_X,ROW_Y+(i-1)*PITCH+27,row.title)
             else specs[i]=row and {kind='option',x=ROW_X,y=ROW_Y+(i-1)*PITCH,w=ROW_W,h=ROW_H,
-                sig=row.title..'|'..row.value..(row.locked and '*' or ''),
+                sig=row.title..'|'..value..(row.locked and '*' or ''),
                 after=row.locked and 'RefreshAppearance' or nil,fill=function(w) -- SB's locked look.
                     w.Text_TitleValue=FText(row.title)
-                    w.Text_ItemValue=FText(row.value)
+                    w.Text_ItemValue=FText(value)
                     if row.locked then w.bLockItem=true end
                 end} or false end
         end
@@ -295,7 +327,10 @@ function View.new(kit,log)
             if rec and not (row and row.header) then look(rec,top+i==s.row and 'focus' or 'normal') end
             -- The kit fallback: a row with no SB part shows on the kit row under it.
             if not row or kit.alive(rec) then zones[i].set('','')
-            else zones[i].set(row.title,row.value,row.locked and 'disabled' or top+i==s.row and 'focus' or 'normal') end
+            else
+                zones[i].set(row.title,View.fit(row.value or ''),
+                    row.locked and 'disabled' or top+i==s.row and 'focus' or 'normal')
+            end
             -- The swatch shows the colour as a tint (linear; an HDR channel shows at 1).
             local c=row and row.swatch
             swatches[i].show(c~=nil)

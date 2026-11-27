@@ -122,6 +122,8 @@ local function menu_hints(r)
 end
 -- A row title as the options page writes a child row: its lead mark at depth (1: a piece under its section).
 local function child(depth, title) return string.rep('    ', depth - 1) .. '- ' .. title end
+-- A value as the SB row shows it: cut to its value box (closet/ui/view.lua's fit).
+local function fit(value) return require('closet.ui.view').fit(value) end
 -- The value of the shown setting row titled title, or nil.
 local function row_value(r, title)
     for _, rec in ipairs(r.kit.live(F.OPTION)) do
@@ -362,7 +364,7 @@ local tests = {
         -- The detail panel: the focused slot, craft state 0, refreshed, the hold button hidden after it.
         local details = r.kit.live(F.DETAIL)
         eq(#details, 1, 'detail')
-        same({details[1].x, details[1].y}, {1100, 1160}, 'detail place')
+        same({details[1].x, details[1].y}, {1161, 1160}, 'detail place: right of a swatch')
         local d = details[1].o
         eq(d.TitleText.text, 'Bra', 'detail title')
         eq(d.CraftState, 0, 'craft state')
@@ -377,10 +379,10 @@ local tests = {
         eq(hints[1].x, 86, 'left tab key x') eq(hints[2].x, 160 + 7 * 266, 'right tab key x')
         local place = {}
         for _, h in ipairs(hints) do place[said(h, 'SetText')] = h end
-        same({place[T.en.hint.back].x, place[T.en.hint.back].y}, {2112 - 420, 1990}, 'Back hint place')
-        same({place[T.en.closet.hints.wear].x, place[T.en.closet.hints.wear].y}, {2112 - 2 * 420, 1990}, 'Wear hint')
+        same({place[T.en.hint.back].x, place[T.en.hint.back].y}, {2112 - 400, 1990}, 'Back hint place')
+        same({place[T.en.closet.hints.wear].x, place[T.en.closet.hints.wear].y}, {2112 - 2 * 400, 1990}, 'Wear hint')
         local move = place[T.en.hint.move]
-        same({move.x, move.y}, {2112 - 3 * 420, 1990}, 'Move hint place')
+        same({move.x, move.y}, {2112 - 3 * 400, 1990}, 'Move hint place')
         eq(said(move, 'SetResourceAction'), 'UI_DPad_Up', 'Move icon')
         eq(said(move, 'SetResourceAction2'), 'UI_DPad_Down', 'Move icon 2')
         for _, rec in ipairs(r.kit.made) do ok(rec.x >= 0 and rec.x < 2112, 'part x ' .. tostring(rec.x)) end
@@ -396,6 +398,61 @@ local tests = {
         eq(#tabs, 7, 'tabs') eq(#grids, 1, 'grid')
         for i, rec in ipairs(tabs) do eq(rec.hit, true, 'tab ' .. i .. ' takes the mouse') end
         eq(grids[1].hit, true, 'the grid takes the mouse')
+    end,
+
+    -- The layout keeps the list clear: a value fits the SB row's value box (cut with '...'), the detail panel and a
+    -- colour row's swatch sit right of that box, the menu's five hints start right of the menu's left edge (x 86).
+    layout_keeps_the_list_clear = function()
+        local View = require('closet.ui.view')
+        ok(type(View.ROW_RIGHT) == 'number' and type(View.VALUE_COLS) == 'number', 'the value box is known')
+        -- fit: whole up to VALUE_COLS columns, else cut with '...' within them (a CJK character takes two, a narrow
+        -- one a half). The in-game test saw 'Reshape 50%' run out of the box, 'Pack colour' and 'No Reshape' fit.
+        eq(View.fit('Pack colour'), 'Pack colour', 'Pack colour fits')
+        eq(View.fit('No Reshape'), 'No Reshape', 'No Reshape fits')
+        eq(View.fit(T.en.closet.row.soon), T.en.closet.row.soon, 'Coming soon fits')
+        eq(View.fit('Reshape 50%'), 'Reshape 5...', 'Reshape 50% is cut')
+        eq(View.fit('LKE_SF6_Mai_BikerOutfit'), 'LKE_SF6_...', 'a pack id is cut')
+        eq(View.fit('外观外观外'), '外观外观外', 'five CJK characters fit')
+        eq(View.fit('外观外观外观'), '外观外观...', 'six are cut')
+        local e = string.char(0xE9) -- Latin-1, not UTF-8.
+        eq(View.fit(e .. 't' .. e .. ' tenue longue'), e .. 't' .. e .. ' tenu...', 'not UTF-8: cut by bytes')
+        eq(View.fit(''), '', 'empty')
+        with_presets(function(r)
+            r.menu.open()
+            at(r, 0.5, 'down', 'down') -- Aria: Back, Whole outfit, Options, Favourite, Move.
+            eq((detail(r)), 'Aria', 'on Aria')
+            local hints = {}
+            for _, h in ipairs(r.kit.live(F.HINT)) do if h.y == 1990 then hints[#hints + 1] = h end end
+            eq(#hints, 5, 'five hints')
+            for _, h in ipairs(hints) do ok(h.x >= 86, 'a hint starts right of the menu\'s left edge: ' .. h.x) end
+            local d = r.kit.live(F.DETAIL)[1]
+            ok(d.x >= View.ROW_RIGHT, 'the detail panel starts right of the value box: ' .. d.x)
+            ok(d.y > 300, 'the detail panel under the grid')
+            for _, z in ipairs(r.kit.groups.closet_menu.images) do
+                if z.w == 28 then -- A colour row's swatch: right of the value box, left of the detail panel.
+                    ok(z.x >= View.ROW_RIGHT and z.x + z.w <= d.x, 'swatch x ' .. z.x)
+                end
+            end
+        end)
+        -- A long pack id on the Full tab shows cut in the SB row and on the kit row under it when the SB part fails.
+        Fits.use({['long.suit'] = {UniqueFitID = 'long.suit', DisplayName = 'Long', Slot = 'FullOutfit',
+            File = '~mods/L/LKE_SF6_Mai_BikerOutfit.dekcns.json', UserConfigs = {MaterialToggles = {}},
+            Variants = {{Mesh = '/Game/L/V.V', HiddenMats = {}, Materials = {}, Parameters = {}}}}})
+        local good, why = pcall(function()
+            for _, broken in ipairs({false, true}) do
+                local r = rig({before = function(r) r.kit.fail[F.OPTION] = broken end})
+                r.menu.open()
+                if broken then
+                    local shown = {}
+                    for i = 1, 10 do shown[i] = r.kit.groups.closet_menu.zones[i].value end
+                    ok(table.concat(shown, '|'):find('LKE_SF6_...', 1, true), 'the kit row: ' .. table.concat(shown, '|'))
+                else
+                    eq(row_value(r, 'Long'), 'LKE_SF6_...', 'the SB row')
+                end
+            end
+        end)
+        Fits.use(nil)
+        ok(good, why)
     end,
 
     typed_menu_toggles = function()
@@ -684,7 +741,7 @@ local tests = {
         local zones = r.kit.groups.closet_menu.zones
         local chips = {} -- The chip zones follow the 10 row zones, right to left from the menu's edge.
         for i = 1, 4 do chips[i] = zones[10 + i] end
-        eq(chips[1].x, 2112 - 420, 'first chip place') eq(chips[1].y, 1990, 'chip row')
+        eq(chips[1].x, 2112 - 400, 'first chip place') eq(chips[1].y, 1990, 'chip row')
         chips[3].hover = true -- The third hint: Whole outfit (refresh).
         at(r, 0.6, 'click')
         chips[3].hover = false
@@ -1564,7 +1621,7 @@ local tests = {
         at(r, 0.5, 'select')
         eq(#r.previews, 1, 'worn')
         eq(text.s, T.en.closet.switched:format('Kunoichi Shadow'), 'the switch shown in the menu')
-        eq(body_row(), 'Kunoichi Shadow', 'the Body row names the switched body, not None')
+        eq(body_row(), fit('Kunoichi Shadow'), 'the Body row names the switched body, not None')
         tick(r, 20)
         eq(text.s, T.en.closet.switched:format('Kunoichi Shadow'), 'no fade while the plan has it')
         -- A plan that leaves skin showing: the clips line; the Body row the plan's body.
@@ -2103,7 +2160,7 @@ local tests = {
             -- The swatch beside visible row i: a kit image right of the rows.
             local function swatch()
                 for _, i in ipairs(r.kit.groups.closet_menu.images) do
-                    if i.x == 1068 and i.shown then return i end
+                    if i.x == 1129 and i.shown then return i end
                 end
             end
             r.menu.open()
@@ -2821,7 +2878,8 @@ local tests = {
                 {T.en.hint.move, 'UI_DPad_Up', 'UI_DPad_Down'}}, 'the Favourite hint, Move still shown')
             at(r, 0.7, 'refresh')
             eq(r.presets.is_fav(ARIA), true, 'F marks it') eq(#r.previews, 0, 'F wears nothing')
-            eq(row_value(r, 'Aria'), P.fav:format('aria'), 'the row says it')
+            -- The value box holds 10 columns: the favourite word is cut with the rest (closet/ui/view.lua's fit).
+            eq(row_value(r, 'Aria'), fit(P.fav:format('aria')), 'the row says it')
             eq(menu_hints(r)[4][1], H.unfav, 'the hint turns')
             r.dev = 4 -- A pad: the same action, SB draws the pad's button.
             tick(r, 0.75)
