@@ -12,9 +12,10 @@
 -- mesh clears her body's curves, the added components are new) and when a value changes. Once a second (CHECK) it reads
 -- the curves it set back (GetMorphTarget): another mesh put on a worn component and its own back in one frame (gun
 -- mode's rebuild of her body, fight/gunmode/overlay.lua) empties them while applied() stays, so a gone curve puts the
--- whole shape on again. A curve counts as gone only when it reads 0 (its name no longer in the curves): another value
--- is another writer's (the options layer's shape keys on the same component, another mod) and is left alone, so two
--- writers of one name never take turns. A name set before that is
+-- whole shape on again. A curve counts as gone when it reads 0 (its name no longer in the curves) or when it reads the
+-- options layer's value for that name on that component (options.shaped), which the options layer writes back first
+-- after such a rebuild. Any other value is another writer's (another mod) and is left alone, so two writers of one name
+-- never take turns. A name set before that is
 -- no longer wanted is removed (SetMorphTarget with 0 and bRemoveZeroWeight): her own look (own_look, off) loses the
 -- closet's names, a curve set from outside stays. A name the options layer wrote on that component (a pack ShapeKey,
 -- options.shaped) gets the pack's value back instead. Nothing while the dress is paused (Tachy Mode) or stopped.
@@ -151,14 +152,20 @@ function Shape.new(o)
         end
     end
 
-    -- Whether a curve set is gone, read back once a second.
+    -- Whether a curve set is gone, read back once a second. A curve that reads the options layer's value on that
+    -- component, not ours, is gone too: after her body is rebuilt the options layer (it ticks first) wrote its value
+    -- back over the name.
     local function lost()
         local now=clock()
         if now<due then return false end
         due=now+Shape.CHECK
         for _,s in pairs(set) do
             local ok,v=pcall(function() return U.valid(s.c) and s.c:GetMorphTarget(fname(s.name)) end)
-            if ok and type(v)=='number' and math.abs(v)<=Shape.ZERO and s.v/100>Shape.ZERO then return true end
+            if ok and type(v)=='number' and s.v/100>Shape.ZERO then
+                if math.abs(v)<=Shape.ZERO then return true end
+                local theirs=options and options.shaped(s.c,s.name)
+                if theirs and math.abs(v-theirs)<=Shape.ZERO and math.abs(v-s.v/100)>Shape.ZERO then return true end
+            end
         end
         return false
     end
@@ -170,7 +177,10 @@ function Shape.new(o)
         if same and not gone then return end
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
-        if gone then log('shape: a curve set is gone (a worn mesh was put on again): the shape goes on again') end
+        if gone then
+            log('shape: a curve set is gone (a worn mesh was put on again, or the options layer wrote its value): the'
+                ..' shape goes on again')
+        end
         paint(parts,gen~=seen or gone)
         seen,drawn=gen,wanted
     end

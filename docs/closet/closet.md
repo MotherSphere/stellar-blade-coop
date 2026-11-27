@@ -416,9 +416,9 @@ it: the engine adds the body's morphs to each follower by name. A name her body 
 has it. A value of 0 takes the name off. The shape goes on again in the same frame after every wear, preview, revert
 and mix again. It also goes on again when a value changes. Once a second the closet reads its names back with
 `GetMorphTarget`. Gun mode rebuilds her body by putting another body mesh on and hers back in one frame, which empties
-the morph curves. A name that reads 0 is gone and puts the whole shape on again. A name that reads another value
-is left alone: a pack's shape key on the same name, or another mod, wrote it last. A look that drops a name takes it
-off. Her own look (`coop closet off`, the None tile on the last piece) and `coop off` take the closet's names off her
+the morph curves. A name that reads 0 is gone and puts the whole shape on again. So does a name that reads the value
+of the pack's shape key on that piece: after the rebuild the options layer writes it back first. A name that reads
+any other value is left alone: another mod wrote it last. A look that drops a name takes it off. Her own look (`coop closet off`, the None tile on the last piece) and `coop off` take the closet's names off her
 body. A morph set by another mod stays. Nothing changes while Tachy Mode pauses the mix.
 
 A shape change is saved at once in `coop-closet-shape.txt`, apart from the look. The menu does not ask "Keep this

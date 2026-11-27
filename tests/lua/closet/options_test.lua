@@ -347,6 +347,41 @@ local tests = {
             eq(r.body.morphs.FB_Breast, 0.5, 'set again') has(r.log, 'a curve set is gone', 'the shape said it')
         end)
     end,
+    -- The same two writers with the pack's shape key set away from 0 on the options page: after her body is rebuilt the
+    -- options layer writes its value first. The shape reads that value as the pack's, not its own, and puts its value
+    -- back. Then neither reads the other's value as gone.
+    the_shape_wins_again_over_a_pack_value_after_a_rebuild = function()
+        dyed_rig(function(r)
+            package.loaded['closet.shape'] = nil
+            local Shape = require('closet.shape')
+            local now = 0
+            local clock = function() return now end
+            local morph = obj('FB_Breast')
+            function morph:GetFName() return 'FB_Breast' end
+            r.body.SkeletalMesh = {MorphTargets = {morph}}
+            local o = Options.new({store = r.store, dress = r.dress, log = function(m) r.log[#r.log + 1] = m end,
+                clock = clock})
+            local file
+            local s = Shape.new({dress = r.dress, options = o, log = function(m) r.log[#r.log + 1] = m end,
+                clock = clock, store = {save = function(l) file = l; return true end, load = function() return file end,
+                    clear = function() file = nil end}})
+            ok(o.step('s', 1, 'shape:1', -1)) -- The pack's FB_Breast at -0.5.
+            s.set('FB_Breast', 50)
+            o.tick() s.tick()
+            eq(r.body.morphs.FB_Breast, 0.5, 'the shape written last')
+            r.body.morphs = {} -- Her body rebuilt: both find their curve gone.
+            now = now + 1.01
+            o.tick() s.tick() -- The options layer writes -0.5 back first: the shape reads it as the pack's.
+            eq(r.body.morphs.FB_Breast, 0.5, 'set again') has(r.log, 'a curve set is gone', 'the shape said it')
+            local calls, lines = r.body.morph_calls, #r.log
+            for _ = 1, 600 do -- 10 s at 60 frames a second.
+                now = now + 1 / 60
+                o.tick() s.tick()
+            end
+            eq(r.body.morph_calls, calls, 'nothing written again') eq(#r.log, lines, 'nothing said again')
+            eq(r.body.morphs.FB_Breast, 0.5, 'the shape\'s value stays')
+        end)
+    end,
     values_apply_again_after_applied_changes = function()
         dyed_rig(function(r)
             r.o.tick()
