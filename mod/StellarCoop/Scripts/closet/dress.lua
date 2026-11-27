@@ -193,8 +193,12 @@ function Dress.plan(choices,fits,mode,toggles)
         -- A head choice (its slots all of group head, or a head fit worn with none named) goes to plan.head for the
         -- head part: never on her body, an added mesh or the sweep (which would destroy SBHair).
         local heads=choice.slots or {fit.Slot}
-        local is_head=#heads>0
-        for _,slot in ipairs(heads) do is_head=is_head and Slots.group(slot)=='head' end
+        local is_head,some=#heads>0,false
+        for _,slot in ipairs(heads) do
+            local h=Slots.group(slot)=='head'
+            is_head,some=is_head and h,some or h
+        end
+        if some and not is_head then return nil,choice.fit..' mixes head and body slots' end
         local pieces,body={},false
         if is_head then
             for _,slot in ipairs(heads) do
@@ -464,6 +468,11 @@ function Dress.new(o)
         return removed
     end
 
+    -- Whether a mesh path is one a fit map puts on her body: her body still wears an earlier mix.
+    local function closet_mesh(path)
+        for _,fit in pairs(fits.all and fits.all() or fits.BY_ID or {}) do if fit.Mesh==path then return true end end
+        return false
+    end
     -- kept: the confirmed choices of a preview (or false), nil when none is going.
     -- base: her own look ({own=,materials=}) a mix again carries over, so its first save already holds it.
     local function apply(plan,choices,kept,base)
@@ -481,12 +490,15 @@ function Dress.new(o)
             added_meshes[i],why=usable(a.mesh)
             if not added_meshes[i] then return nil,why end
         end
-        -- Her own look first, kept across a mix that changes (the first mix's).
+        -- Her own look first, kept across a mix that changes (the first mix's). With no body mixed (a head-only look,
+        -- her own look previewed) no watchdog read an outside change: her body is read again unless it wears a closet
+        -- mesh.
         local own,materials=state and state.own,state and state.materials
         if base then own,materials=base.own,base.materials
-        elseif not state then
+        elseif not (state and state.plan and state.plan.body) then
             local mesh=valid(body.SkeletalMesh)
-            own,materials=mesh and path_of(mesh) or '',current_materials(body)
+            local path=mesh and path_of(mesh) or ''
+            if not (state and closet_mesh(path)) then own,materials=path,current_materials(body) end
         end
         local prev=state
         state={plan=plan,choices=choices,kept=kept,eve_path=path_of(eve),own=own,materials=materials,added={},paused=false,
@@ -762,11 +774,6 @@ function Dress.new(o)
         end
         return pending
     end
-    -- Whether a mesh path is one a fit map puts on her body: her body still wears an earlier mix.
-    local function closet_mesh(path)
-        for _,fit in pairs(fits.all and fits.all() or fits.BY_ID or {}) do if fit.Mesh==path then return true end end
-        return false
-    end
     -- An earlier mix's leftovers off EVE: its added meshes, and her own look from the file when her body still wears
     -- a closet mesh (a Lua reload). On a new game she wears the game's look, which stays hers.
     function undo_kept(eve,f)
@@ -906,7 +913,7 @@ function Dress.new(o)
                 -- Failed before apply changed the look (off() counts in applied; the sweep above already removed the
                 -- added meshes): the old state stays, so the next tick finds it not intact and tries again. The fight
                 -- count stops the retries after Dress.FIGHT.mixes; a missing body mesh waits above without a count.
-                if applied==before then old.plan=plan; state=old end
+                if applied==before then old.plan=plan; state=old; keep() end -- A head refusal cleared the file.
             end
             return
         end

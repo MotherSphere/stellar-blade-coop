@@ -1361,6 +1361,34 @@ local tests = {
             eq(fields(w.file)[5], 'h.hair:Hair', 'the hair kept') ok(d.worn()) eq(h.gave_back, 0, 'no off')
         end)
     end,
+    -- No watchdog runs on a head-only look: her own look is read again at the next wear, so off gives the new one back.
+    an_outside_change_during_a_hair_only_look_becomes_her_own_look = function()
+        with_head(function(w, h, d)
+            assert(d.wear(HAIR_ONLY))
+            w.eve.Mesh:SetSkeletalMesh(w.assets[TACHY]) -- The game changes her outfit.
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair'}}))
+            eq(fields(w.file)[2], TACHY, 'the file keeps the new look as hers')
+            assert(d.off())
+            eq(w.eve.Mesh.SkeletalMesh.path, TACHY, 'off gives the new look back')
+        end)
+    end,
+    a_head_refused_at_mix_again_keeps_the_file = function()
+        with_head(function(w, h, d)
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair'}}))
+            local kept = w.file
+            h.fail = 'no hair now'
+            w.eve.Mesh:SetSkeletalMesh(w.assets[OWN])
+            for _ = 1, 2 do w.now = w.now + 1.01; d.tick() end
+            ok(logged(w, 'mix again failed: no hair now'), 'the refusal said')
+            eq(w.file, kept, 'the kept line stays')
+        end)
+    end,
+    a_choice_mixing_head_and_body_slots_is_refused = function()
+        with_head(function(w, h, d)
+            local ok_, why = d.wear({{fit = 'h.hair', slots = {'Hair', 'Chest'}}})
+            eq(ok_, false) eq(why, 'h.hair mixes head and body slots')
+        end)
+    end,
     -- A head piece the head part refuses changes nothing: not her body, not the file (a kept line stays for restore).
     a_refused_head_piece_changes_nothing = function()
         with_head(function(w, h, d)
