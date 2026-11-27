@@ -85,6 +85,15 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`,
 | `options.lua` | `coop closet option`: each pack outfit's variant and, per variant, its piece toggles, colours, finishes, numbers and shape keys, kept in `coop-closet-options.txt`, and those values on the worn outfit |
 | `presets.lua` | `coop closet preset` and `coop closet favourite`: the presets and the favourite outfits, kept in `coop-closet-presets.txt` |
 
+The files in `mod/StellarCoop/Scripts/closet/head/` make the Head tab's pieces. `head/wear.lua` makes engine calls.
+`head/stock.lua` reaches the game only through its reader's env.
+
+| File | Holds |
+| --- | --- |
+| `head/stock.lua` | The stock hairs and ponytails: the game's three tables read live as pack-shaped items, their salon colours and colour controls |
+| `head/cut.lua` | The two cut hairs (Nyaaa, Mecha Rabbit), their paths read in the game's asset data |
+| `head/wear.lua` | The dress's head part: the Hair and Ponytail fits on EVE's own head components, the ponytail rule, field 6 of `coop-closet.txt`, its own watchdog |
+
 The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
 
 | File | Holds |
@@ -98,8 +107,9 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 
 `wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `presets.lua` as
 `M.closet_presets`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`, `thumbs.lua` as
-`M.closet_thumbs` and `commands.lua`. Its build step `menu`, which `main/ui.lua` runs with the Steam link only, builds
-`ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its Make preview pictures row, `M.closet_options` for the
+`M.closet_thumbs` and `commands.lua`. It builds `head/wear.lua` as the dress's head part (the options layer gets it
+too) and merges the stock hairs of `head/stock.lua` into each pack scan. Its build step `menu`, which
+`main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its Make preview pictures row, `M.closet_options` for the
 options pages, `M.closet_presets` for the Presets rows and favourites, `M.closet_colour` for its Colour tab and
 `M.closet_shape` for the Body tab's shape rows). `main/frame.lua` runs the restore at the first tick and the dress,
 options, colour, shape, probe, thumbs and menu ticks each frame.
@@ -142,7 +152,8 @@ keyboard focus back to the kit's root: on the game's grid a key reached EVE (E f
 The Body tab's Body row lists None, where the body rule picks the body, then each outfit with skin. Its tile picks
 that outfit's body (`<fit>:BaseBody`). The row shows the body in use: the picked one, else the one the body rule chose.
 The detail panel names each outfit's origin: Original (Shift Up's own suits) or Custom with its pack ("Custom: AiK").
-Original suits are worn whole only: they are listed on the Full outfit tab only. The other tabs list Custom pieces.
+Original suits are worn whole only: they are listed on the Full outfit tab only. The other tabs list Custom pieces,
+except the Head tab, which lists the game's own hairs and ponytails too (see [The Head tab](#the-head-tab)).
 When the look switches the body or leaves skin showing under a piece, a line under the rows says so as long as the
 look stays that way. A notice says it once too. The row before the last of the Full outfit tab, Make preview pictures,
 starts `coop closet thumbs` for every picture not there yet (see [Preview pictures](#preview-pictures)). The last row
@@ -400,6 +411,64 @@ A shape change is saved at once in `coop-closet-shape.txt`, apart from the look.
 look?" for it. A revert does not undo it. The shape survives a restart. On a controller, B closes the menu
 on a shape row with the value as it was. Reset Stellar Closet sets every value back to 0.
 
+### The Head tab
+
+The Head tab ("Head (Beta)") has two rows with pieces: Hair and Ponytail. Its other slots show as locked "Coming
+soon". Each grid starts with the None tile, named "Game's own": it leaves the game's own piece on her head. Then come
+the stock pieces (Original, sorted by name), then the hairs and ponytails of the installed packs (Custom). A head pick
+never takes the worn suit off. A whole outfit keeps the worn head pieces. A head piece is no outfit: its tiles have no
+Whole outfit hint. A stock tile shows the game's hair icon when it loads, else the slot's glyph. Head pieces are
+display only: her equipment, the saves and the Hair Salon are never read or written. The closet swaps every piece
+itself.
+
+- Stock pieces come from the game's own tables (`ItemTable`, `EquipmentTable`, `EquipmentMaterialTable`), read live
+  at the first pack scan. Every hair row of the Hair category whose equipment row and mesh exist is listed: a row
+  left out is logged once with why. Their ids are `SB.<ItemTable row>` (`SB.Hair_003`). The ponytails are
+  `SB.Ponytail_Long`, `SB.Ponytail_Short` and `SB.Ponytail_None` (the No ponytail tile, never locked: it has nothing
+  to load). A pack item whose id starts with `SB.` is refused with one log line.
+- Two hairs the game ships without a table row are added by hand, their paths read in the game's asset data: Nyaaa
+  (`SB.Hair_024`, `EVE_HR_14`) and Mecha Rabbit (`SB.Hair_025`, `EVE_HR_15`). Each has one variant (the mesh's own
+  materials), no colour controls and no rotation. They keep the game's long ponytail.
+- A failed read is logged once. It leaves the stock rows out and keeps the two cut hairs. The read is made again at
+  the next map load.
+
+The ponytail rule: one ponytail shows at a time. A stock hair brings its own: `SB.Ponytail_Short` when the game's
+ponytail is the short mesh (the game's ponytail length option), else `SB.Ponytail_Long`. A stock hair whose row hides
+the ponytail hides it. A picked ponytail wins over the hair's own. A pack hair hides the game's ponytail: the detail of
+a pack ponytail says that pack hairs usually carry their own. No ponytail hides it. The ponytail's cloth collision is
+the hair's or ponytail's `PonyPhysics`, else the one the game names from her body mesh.
+
+Colour: a stock hair's variants are its salon colours (the variations of its material group). Its options page (Right
+on the Hair row while it is worn) has the Variant row and, for each material whose parent chain reaches
+`MA_CH_Hair`, Root colour and Tip colour (Dye colour too where the instance sets one) with R, G and B sliders. Other
+masters (the Nikke hair, a hairpin) get no colour row. A stock ponytail worn with a stock hair follows the hair's
+variant and colours: the Ponytail row then has no page of its own. With a pack hair the ponytail keeps its own values.
+A pack hair or ponytail has the options of its pack as a pack outfit does. The colour palette never paints a hair.
+
+On EVE the Hair piece goes on her own `SBHair` component: its mesh, its AnimBP class, its physics asset (a cut hair's
+own, else the mesh's own, else the one the game names after the mesh, as the game does), its variant's materials and a
+stock row's rotation. The ponytail goes on `SBPonytail`. `SBPonytailShort` is hidden while the closet holds the
+ponytail. The game's own pieces on these three components are read before the first change.
+
+Once a second, unless the game is paused or shows one of its screens, the head part checks its pieces. A component
+the game changed for 2 s (the Hair Salon, photo mode, a map load with a new EVE) gets the game's new look as the one to
+give back and gets the closet's piece again. When something outside undoes every re-wear 5 times within 15 s, the
+closet leaves her hair until the next wear, with one log line. `coop closet off` and `coop off` give the game's own
+pieces back.
+
+`coop-closet.txt` has a sixth field for the head: EVE's path, then one entry per component,
+`|<name>;<mark>;<mesh>;<anim>;<physics>;<slot>=<material>,...;<visible 1|0>;<cloth>;<pitch>,<yaw>,<roll>`. It holds
+the game's own pieces with a mark: `+` when the closet wears a piece there, `-` when it hides it, nothing when it
+leaves it. The dress writes the line before each wear and again after a head wear that went on, so the marks are the
+worn ones. At the next Lua load, once the catalogue is read, only a marked component is looked at. A `+` one still
+showing a head piece's mesh or material, or a `-` one still hidden, gets the game's own pieces back. A salon change
+the closet never wore over stays.
+
+Presets keep the worn head pieces with their variants and values (`<n> head <fit> <slot> <variant>` and
+`<n> h:<fit> <key>=<value>` in `coop-closet-presets.txt`). A preset head piece whose pack is gone is left out and
+logged: the preset still wears. A preset with no head piece (an older file) leaves the worn ones on.
+`coop closet thumbs` makes no picture of a head piece. A head piece has no body shape.
+
 ## Online sessions
 
 The ghost's capture (`online/partner/capture.lua`) reads every skeletal mesh component on EVE. Pieces on EVE show on
@@ -422,11 +491,12 @@ ends with `probe: END <n> <passed>/<total>`. `NOTE` lines say what to do or what
 | 4 | The NanoSuit detail panel in its three craft states | Nothing |
 | 5 | Focus and input with the parts on screen, then a map change | Press Esc when asked, then fast travel |
 | 6 | Reads for the camera and fit work: EVE's bones, the camera's FOV, mesh slot names, LODs, skin parameters | Nothing |
+| 7 | The live read of the stock hair tables for the Head tab | Nothing |
 
 A test ends by itself after 30 s (test 5: 90 s, test 6: 300 s). `coop closet probe off` ends it at once. While a test
 holds the input (the mouse windows of tests 1, 3 and 5), `coop ui reset` gives it back and ends the test. In test 5 the
 game gets its keys back before the fast travel. Tests 1-5 touch only their own widgets. Test 6 reads EVE and loads
-meshes. No test writes to EVE, the closet's look or a save.
+meshes. Test 7 reads the tables and loads the hair materials. No test writes to EVE, the closet's look or a save.
 
 Test 6 logs one line per check:
 
@@ -442,6 +512,11 @@ Test 6 logs one line per check:
   or `no closet fit on the body (<mesh>)`.
 
 A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes on. A SKIP does not count as passed.
+
+Test 7 runs the Head tab's stock read (`head/stock.lua`'s `Stock.build`) once and logs
+`probe: PASS 7 stock: <n> hairs, <m> ponytails`, or `probe: FAIL 7 stock: <why>` when the read fails. The two cut
+hairs are always there, so 2 hairs or fewer fail too (`no stock hair row read`). It passed in game on 27 Nov 2026 with
+25 hairs and 3 ponytails.
 
 ## Tests
 
@@ -467,6 +542,13 @@ A read that raises logs `SKIP 6 <check>: not verified: <why>` and the test goes 
   close and the framing.
 - `tests/lua/closet/menu_test.lua` (5 checks) runs the closet menu on the fake kit and parts of
   `tests/lua/closet/menu_fakes.lua`: what open draws, `coop closet menu`, the close paths and a draw that fails.
+- `tests/lua/closet/head/stock_test.lua` runs the stock read on fake tables and materials: the rows, a missing or
+  raising table, a material row with no index, the cut hairs, the build with a failed read, the colour controls on
+  hair materials only, a colour from a parent, the stock ponytails, a hair that hides the ponytail and rows left out.
+- `tests/lua/closet/head/wear_test.lua` runs the head part on a fake EVE: a stock hair and its ponytail in its colour,
+  a pack hair's AnimBP, cloth collision and hidden ponytails, No ponytail, off, field 6 and the restore (after two
+  wears, a salon hair with nothing worn), the watchdog's re-wear after 2 s, the fight limit, a new EVE, `parts`,
+  `rewear`, a refusal and the hair physics rule.
 - `tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style.
 - `tests/lua/closet/slots_test.lua` (8 checks), `fits_test.lua` (4), `dress_test.lua` (12), `resolver_test.lua` (23),
   `manifest_test.lua` (13) and `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`,

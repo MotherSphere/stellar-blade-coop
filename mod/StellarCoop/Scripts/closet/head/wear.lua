@@ -26,7 +26,7 @@
 --   USkinnedMeshComponent.SetPhysicsAsset(NewPhysicsAsset, bForceReInit): entry 0x14665f1a0 (name 0x14665bee0), exec
 --     0x14492aea0 calls vtable +0x908. FUN_1424c12e0 sets it to the new mesh's own physics asset (mesh +0x178), else
 --     "{0}/{1}_PhysicsAsset.{2}_PhysicsAsset'" (0x145c6eda0; {0} the mesh path before its last '/', FUN_142903b70;
---     {1} {2} its name, FUN_142910570) when it loads (FUN_14213a310), else none. The closet does the same.
+--     {1} {2} its name, FUN_142910780) when it loads (FUN_14213a310), else none. The closet does the same.
 --   USkeletalMeshComponent.SetAnimClass(NewClass): entry 0x146659ae0 (name 0x1466542d8), exec 0x144920a70 calls
 --     vtable +0xa08. FUN_1424c12e0 sets a row's AnimAssetPath class through FUN_14411af10.
 --   USceneComponent.K2_SetRelativeRotation(NewRotation, bSweep, SweepHitResult, bTeleport): entry 0x14664bb90 (name
