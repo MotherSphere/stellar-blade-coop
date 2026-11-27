@@ -96,8 +96,8 @@ end
 -- nothing. While the wheel is open it takes LB and RB (its pages), A (play) and B (cancel); every other word is dropped.
 -- closet (D-pad Left tapped, the native part's event 14, after its left) opens the closet menu as closet_key does
 -- (closet/ui/menu.lua's toggle), under the bike's refusals and not while spectate watches (D-pad Left switches the
--- member then). A refusal of the menu's own (combat, a cutscene) is logged only: D-pad Left is tapped in play. Open, the
--- tap does nothing: its left moved in the menu, and B closes it.
+-- member then). A refusal of the menu's own (combat, a cutscene) is logged only: D-pad Left is tapped in play. Open,
+-- the tap does nothing: its left moved in the menu. B closes it.
 M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab','wheel',
     'closet'}
 -- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in

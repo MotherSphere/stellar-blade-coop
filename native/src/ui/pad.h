@@ -89,8 +89,9 @@ public:
   // never changes a value too. A, B, LB, RB and Y (the session list's Refresh) on their press only; View (kMenu) and
   // D-pad Right (kBike, after its kRight) once each was held kPadMenuHoldMs, D-pad Left (kWheel, after its kLeft) once
   // it was held kPadWheelHoldMs, once a hold. D-pad Left let go before that, with no other D-pad direction held since
-  // its press, is kCloset at the release (LB is the game's combat: the closet takes D-pad Left alone). One step's events go in event order. No pad
-  // connected forgets what was held, so the next press is a new one; the events already made stay.
+  // its press, is kCloset at the release (LB is the game's combat: the closet takes D-pad Left alone). One step's
+  // events go in event order. No pad connected forgets what was held, so the next press is a new one; the events
+  // already made stay.
   void step(const PadState &s, uint64_t now_ms) {
     last_ = s.connected ? s : PadState{};
     if (!s.connected) {
