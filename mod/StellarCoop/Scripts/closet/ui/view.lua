@@ -106,7 +106,9 @@ View.ROW_RIGHT,View.VALUE_COLS=1121,10
 -- swatch inside the box is hidden by the focused white box), 28 by 76 units at the height of the kit row over it.
 local SWATCH_X,SWATCH_W,SWATCH_H=View.ROW_RIGHT+8,28,76
 local NOTICE_Y=1640 -- The notice's top: under the rows' window (it ends at y 1600), above the hints.
-local GRID_X,GRID_Y,GRID_W,GRID_H=1100,300,1000,820
+-- The grid starts where the detail panel does, right of a colour row's swatch: at x 1100 the Full tab's tile sat on the
+-- value box's copy icon (Schizo's screenshots, 27 Nov 2026).
+local GRID_X,GRID_Y,GRID_W,GRID_H=SWATCH_X+SWATCH_W+4,300,1000,820
 -- The TileView's entry size: 5 columns of 200 in GRID_W, 3 rows of 270 in GRID_H. SetEntryWidth and SetEntryHeight
 -- (one float each) are in /Script/UMG.TileView's native table 0x1461ff110 (registered by FUN_143d66670), execs
 -- 0x143d66330 and 0x143d66440 (Ghidra, build 26123051, 26 Nov 2026).

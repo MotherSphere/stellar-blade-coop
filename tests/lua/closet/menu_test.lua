@@ -353,7 +353,7 @@ local tests = {
         -- The grid: the hair salon's TileView, cleared, then the None tile and Ocean Maid's leotard, None selected.
         local grids = r.kit.live(F.GRID)
         eq(#grids, 1, 'grid')
-        same({grids[1].x, grids[1].y, grids[1].w, grids[1].h}, {1100, 300, 1000, 820}, 'grid place')
+        same({grids[1].x, grids[1].y, grids[1].w, grids[1].h}, {1161, 300, 1000, 820}, 'grid place: left-aligned with the detail panel')
         ok(F.called(grids[1].o, 'Set Goods'), 'Set Goods')
         local tv = grids[1].o.TileView_ItemList
         eq(tv.entry_w, 200, 'entry width: 5 columns') eq(tv.entry_h, 270, 'entry height: 3 rows')
