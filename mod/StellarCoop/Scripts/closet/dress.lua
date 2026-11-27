@@ -356,6 +356,7 @@ function Dress.new(o)
     local restored,due=false,0
     local head_kept,restoring=false,false -- head.restore called this Lua load; restore's apply going on.
     local pending,tries,retry_at=nil,0,0 -- The kept line's fields once read; restore's failed wears; its next try.
+    local bare,left_out=false,{} -- Restore wears without head pieces (after RETRIES head refusals); the ones said.
     local mode='auto' -- Dress.plan's body rule for this Lua load (body_mode).
     local fights={} -- The clock of each mix again since the last wear or preview (an outside fight, Dress.FIGHT).
     local kept_fields,undo_kept -- Set with restore below; off uses them too.
@@ -795,8 +796,10 @@ function Dress.new(o)
     -- What an earlier Lua load or game left: its leftovers off EVE (undo_kept), then the kept choices worn again (the
     -- file rewritten), or the file goes when there are none or they cannot be worn. It waits, the file untouched,
     -- while there is no EVE (the title screen) or the game is paused or shows one of its screens (a loading screen).
-    -- A wear that fails while she spawns is tried again once a second, RETRIES times. On the game thread (a tick, or
-    -- a command).
+    -- A wear that fails while she spawns is tried again once a second, RETRIES times. A head piece that no longer
+    -- plans or loads (its pack gone, or the stock read failed) is left out, logged: the rest is worn and kept (as a
+    -- preset's). After RETRIES failed wears with head pieces, the look is tried RETRIES times more without them. On
+    -- the game thread (a tick, or a command).
     function self.restore()
         if restored then return end
         local f=kept_fields()
@@ -818,7 +821,26 @@ function Dress.new(o)
         for x in kept:gmatch('%S+') do words[#words+1]=x end
         local choices,why=Dress.parse(words)
         local plan
-        if choices then plan,why=Dress.plan(choices,fits,mode,toggles()) end
+        if choices then
+            local rest,heads={},false
+            for _,c in ipairs(choices) do
+                local fit=fits.get(c.fit)
+                local slots=c.slots or {fit and fit.Slot}
+                local head=#slots>0
+                for _,slot in ipairs(slots) do head=head and Slots.group(slot)=='head' end
+                heads=heads or head
+                if head and (bare or not (fit and self.installed(c.fit))) then
+                    if not left_out[c.fit] then
+                        left_out[c.fit]=true
+                        log('restore: '..c.fit..(bare and ' left out' or ' is not installed, left out'))
+                    end
+                else rest[#rest+1]=c end
+            end
+            -- Only gone head pieces: the file stays for a later Lua load (their pack back).
+            if heads and #rest==0 then return done(false,'nothing of '..kept..' can be worn now') end
+            choices,bare=rest,bare or not heads -- bare: a later refusal is not a head's.
+            plan,why=Dress.plan(choices,fits,mode,toggles())
+        end
         if not plan then return done(true,'could not wear '..kept..' again: '..tostring(why)) end
         restoring=true
         local ran,worn,e=pcall(apply,plan,choices)
@@ -826,6 +848,11 @@ function Dress.new(o)
         if ran and worn then return done(false,'worn again: '..kept..body_notes(plan)) end
         tries=tries+1
         if tries<Dress.RETRIES then retry_at=now+1; return end
+        if not bare then
+            bare,tries,retry_at=true,0,now+1
+            log('restore: '..kept..' not worn after '..Dress.RETRIES..' tries: tried without its head pieces')
+            return
+        end
         done(not state,'could not wear '..kept..' again after '..tries..' tries: '..tostring(ran and e or worn))
     end
     -- Once a second at most, on the game thread: the watchdog.

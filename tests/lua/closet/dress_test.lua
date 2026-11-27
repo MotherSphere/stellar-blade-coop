@@ -1417,6 +1417,61 @@ local tests = {
             eq(w.file, kept, 'the kept line stays while restore tries again')
         end)
     end,
+    -- Restore leaves out a head piece that no longer plans (its pack gone) or loads, logged; the suit and the rest of
+    -- the look are worn again and kept (the presets' rule): the file is never cleared for it.
+    a_restore_leaves_out_a_gone_head_piece = function()
+        with_head(function(w, h, d)
+            local Fits = require('closet.fits')
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair', slots = {'Hair'}}})) -- As the Head tab wears it.
+            w.eve.Mesh:SetSkeletalMesh(w.assets[OWN]) -- A new game: her own look.
+            Fits.use({['p.suit'] = pack_item('p.suit')}) -- The hair pack removed.
+            local h2 = fake_head()
+            headed(w, h2).tick()
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'the suit worn again')
+            same(h2.worn[#h2.worn], {}, 'no head piece')
+            ok(logged(w, 'h.hair is not installed, left out'), 'the gone hair said')
+            ok(w.file, 'the file kept') eq(fields(w.file)[5], 'p.suit')
+            -- A hair-only look whose hair is gone: nothing worn, the file stays for a later Lua load.
+            local f = fields(w.file)
+            f[5] = 'h.hair:Hair'
+            local line = table.concat(f, '\t')
+            w.file = line
+            local h3 = fake_head()
+            headed(w, h3).tick()
+            eq(w.file, line, 'the file untouched')
+        end)
+    end,
+    a_restore_leaves_out_a_head_piece_whose_mesh_does_not_load = function()
+        with_head(function(w, h, d)
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair', slots = {'Hair'}}}))
+            w.eve.Mesh:SetSkeletalMesh(w.assets[OWN])
+            w.assets[HAIR] = nil
+            local h2 = fake_head()
+            headed(w, h2).tick()
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'the suit worn again')
+            same(h2.worn[#h2.worn], {}, 'no head piece')
+            ok(logged(w, 'h.hair is not installed, left out'), 'the hair said')
+            eq(fields(w.file)[5], 'p.suit')
+        end)
+    end,
+    -- A head part that keeps refusing at restore: after Dress.RETRIES tries the head pieces go, the rest is worn.
+    a_restore_whose_head_keeps_refusing_wears_the_rest = function()
+        with_head(function(w, h, d)
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair', slots = {'Hair'}}}))
+            w.eve.Mesh:SetSkeletalMesh(w.assets[OWN])
+            local h2 = fake_head()
+            function h2.wear(list) -- Refuses any head piece (a class that never loads); an empty list goes.
+                h2.worn[#h2.worn + 1] = list
+                if list[1] then return nil, 'no class' end
+                return true
+            end
+            local d2 = headed(w, h2)
+            for _ = 1, w.Dress.RETRIES + 1 do d2.tick(); w.now = w.now + 1.01 end
+            eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'the suit worn again')
+            ok(logged(w, 'without its head pieces'), 'the drop said')
+            ok(w.file, 'the file kept') eq(fields(w.file)[5], 'p.suit')
+        end)
+    end,
     -- A head fit with an empty Mesh (SB.Ponytail_None) has nothing to load: installed (a preset keeps No ponytail).
     an_empty_mesh_head_fit_is_installed = function()
         with_packs(function(w)

@@ -465,7 +465,10 @@ the game's own pieces with a mark: `+` when the closet wears a piece there, `-` 
 leaves it. The dress writes the line before each wear and again after a head wear that went on, so the marks are the
 worn ones. At the next Lua load, once the catalogue is read, only a marked component is looked at. A `+` one still
 showing a head piece's mesh or material, or a `-` one still hidden, gets the game's own pieces back. A salon change
-the closet never wore over stays.
+the closet never wore over stays. When the kept look is worn again, a head piece whose pack is gone or whose mesh does
+not load is left out and logged: the suit and the rest of the look are worn and kept. A look of gone head pieces only
+leaves the file for a later Lua load. A head part that refuses five tries in a row: the look is worn without its head
+pieces.
 
 Presets keep the worn head pieces with their variants and values (`<n> head <fit> <slot> <variant>` and
 `<n> h:<fit> <key>=<value>` in `coop-closet-presets.txt`). A preset head piece whose pack is gone is left out and
