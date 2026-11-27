@@ -615,6 +615,7 @@ function Menu.new(o)
             end
         end
         changed=changed or dress.previewing()
+        return ran and good==true
     end
     -- The focused tile worn, None taking the slot off; a locked tile or the worn one: nothing.
     local function wear_tile()
@@ -872,12 +873,14 @@ function Menu.new(o)
             kit.sound(n and 'change' or 'move')
         elseif word=='select' and item and item.preset then -- Worn as a preview: Keep this look? at the Back.
             if not item.locked then
+                -- A preview that failed (told by wear) hands the failure to presets.wear, which gives the options back.
+                local failed=false
                 local good,why=o.presets.wear(item.preset,function(choices,back)
+                    if not wear(choices) then failed=true; return false,'menu: the preview failed' end
                     unwear[#unwear+1]=back
-                    wear(choices)
                     return true
                 end)
-                if not good then
+                if not good and not failed then
                     log('menu: preset not worn: '..tostring(why))
                     o.tell(function(t) return t.closet.failed end)
                 end

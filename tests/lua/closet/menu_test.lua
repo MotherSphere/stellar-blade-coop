@@ -3125,6 +3125,24 @@ local tests = {
     end,
     -- A preset worn as a preview and turned down (No at Keep this look?, a guard's close, coop off) gives its outfit
     -- the variant and values it had before; Yes keeps the preset's.
+    -- A preset whose preview fails (dress.preview false: no EVE during a map change) gives its outfit the variant and
+    -- values it had before, at once; told once.
+    a_failed_preset_preview_gives_the_options_back = function()
+        with_presets(function(r)
+            r.choices = {{fit = ARIA}}
+            ok(r.options.set_variant(ARIA, 3)) ok(r.options.set(ARIA, 3, 'toggle:4', false))
+            eq(r.presets.save(), 1, 'Preset 1: variant 3, Boots off')
+            ok(r.options.set(ARIA, 3, 'toggle:4', true)) ok(r.options.set_variant(ARIA, 1))
+            r.choices = nil
+            r.dress.preview = function() return false, 'closet: no EVE in the world' end
+            r.menu.open()
+            local told = #r.told
+            at(r, 0.5, 'down', 'select')
+            eq(r.options.variant(ARIA), 1, 'the variant from before')
+            same(r.options.words(ARIA, 3), {}, 'variant 3\'s values from before')
+            eq(#r.told, told + 1, 'told once')
+        end)
+    end,
     turned_down_preset_gives_the_options_back = function()
         local function worn(r, t)
             r.choices = {{fit = ARIA}}
