@@ -8,8 +8,9 @@
 -- preset's colour and intensity times the factor, a SOURCE cm source, no shadow), then finished: attached to the
 -- actor's root, the camera component. A preset change removes the lights and adds the new preset's; Game adds none.
 -- The factor steps by STEP from LOW to HIGH; Game has none to step. place(d, k) puts each light in the camera's frame
--- around EVE's look point, d cm away at NDC tangent k (closet/ui/camera.lua's), with a radius of 2.5 d (300 cm at
--- least). It moves them again only once d moved 1 cm. The first engine error logs once and turns the lights off until
+-- around EVE's look point, d cm away at NDC tangent k (closet/ui/camera.lua's), at the same distance from that point
+-- whatever d is: a point light's brightness grows as its distance shrinks, so lights that came with the zoom glared on
+-- a close view. Their radius is 2.5 REACH. It moves them again only once d moved 1 cm. The first engine error logs once and turns the lights off until
 -- the next camera.
 -- o: {unreal=core/unreal.lua's (tests), log=}.
 --
@@ -42,14 +43,15 @@ local Lights={}
 Lights.ORDER={'game','studio','warm','cool','rim'}
 Lights.STEP,Lights.LOW,Lights.HIGH=0.25,0.25,2 -- The intensity factor.
 Lights.SOURCE=20 -- cm: each light's source radius, a soft highlight.
+Lights.REACH=300 -- cm: the key and fill offsets are parts of this, the look point's distance in a full view.
 -- Each preset's lights (starting values, to tune in game: SB uses auto exposure): {place, colour R G B, candelas}.
 Lights.PRESETS={game={},
     studio={{'key',{1,1,1},30},{'fill',{0.85,0.92,1},10}},
     warm={{'key',{1,0.8,0.6},30},{'fill',{1,0.8,0.6},8}},
     cool={{'key',{0.7,0.85,1},30},{'fill',{0.7,0.85,1},8}},
     rim={{'rim',{1,1,1},40},{'key',{1,1,1},10}}}
--- Each place from EVE's look point in the camera's frame (X ahead, Y right, Z up): key and fill in parts of the look
--- point's distance (the key above, left and nearer; the fill right), the rim in cm past her.
+-- Each place from EVE's look point in the camera's frame (X ahead, Y right, Z up): key and fill in parts of REACH
+-- (the key above, left and nearer; the fill right), the rim in cm past her.
 local PLACES={key={-0.7,-0.6,0.5,far=true},fill={-0.8,0.7,0,far=true},rim={150,-50,100}}
 local POINT='/Script/Engine.PointLightComponent'
 
@@ -58,7 +60,7 @@ local POINT='/Script/Engine.PointLightComponent'
 function Lights.where(place,d,k)
     local s=1/math.sqrt(1+k*k)
     local o=PLACES[place]
-    local m=o.far and d or 1
+    local m=o.far and Lights.REACH or 1
     return {X=d*s+o[1]*m,Y=d*k*s+o[2]*m,Z=o[3]*m}
 end
 
@@ -130,7 +132,7 @@ function Lights.new(o)
         guard(function()
             for _,l in ipairs(made) do
                 l.c:K2_SetRelativeLocation(Lights.where(l.def[1],d,k),false,{},false)
-                l.c:SetAttenuationRadius(math.max(300,2.5*d))
+                l.c:SetAttenuationRadius(2.5*Lights.REACH)
             end
         end)
     end

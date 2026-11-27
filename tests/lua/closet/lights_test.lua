@@ -122,13 +122,21 @@ local tests = {
         ok(AT.key[3] > 0 and AT.key[2] < 144.576 and AT.key[1] < 262.865, 'key')
         ok(AT.fill[2] > 144.576, 'fill')
         ok(AT.rim[1] > 262.865, 'rim')
-        -- Near, the radius stays at 300 cm.
+        -- Zoomed in to 60 cm: the key and the fill stay as far from her look point as at 300 cm (a point light's
+        -- brightness grows as its distance shrinks), in the same direction; the radius stays 750 cm.
         local lights = world()
         lights.set('studio', 1)
         local a = actor('cam')
         lights.on(a)
         lights.place(60, 0.55)
-        same(calls(a.added[1], 'SetAttenuationRadius'), {{300}}, 'at least 300 cm')
+        local s = 1 / math.sqrt(1 + 0.55 * 0.55)
+        for i, place in ipairs({'key', 'fill'}) do
+            local v = calls(a.added[i], 'K2_SetRelativeLocation')[1][1]
+            near(v.X - 60 * s, AT[place][1] - 300 * s, 0.01, place .. ': the same offset from the look point, X')
+            near(v.Y - 60 * 0.55 * s, AT[place][2] - 300 * 0.55 * s, 0.01, place .. ': Y')
+            near(v.Z, AT[place][3], 0.01, place .. ': Z')
+            same(calls(a.added[i], 'SetAttenuationRadius'), {{750}}, place .. ': the same radius near')
+        end
     end,
 
     the_preset_cycles_and_game_removes_the_lights = function()
