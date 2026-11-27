@@ -17,11 +17,16 @@
 --           equipment={[alias]={Type, MountingResourcePath, AnimAssetPath, MaterialGroup, RelativeRotation,
 --                               bUseHidePonytail}},
 --           materials={{Group, VariationIndex, MaterialIndex, MaterialAssetPath, IconColorAssetPath}...},
---           names={[key]=text}, mats={[path]={parent=path, vectors={[name]={R,G,B,A}}}}}
+--           names={[key]=text}, mats={[path]={parent=path, vectors={[name]={R,G,B,A}}, scalars={[name]=x}}},
+--           mesh_mats={[mesh]={[slot+1]=path}} (a one-colour hair's mesh materials)}
 --   items = {['SB.<row>'] = item}; missing = sorted lines for rows left out, 'Hair_Nikke_02: no equipment row ...'.
--- Every hair row of the game whose parts exist is listed. Colour: a variant's material that has MA_CH_Hair as its
--- parent gets RootColor and TipColor controls (DyeColor too when the instance sets one); any other master (the Nikke
--- hair, a hairpin) gets none. The ponytail a stock hair brings is SB.Ponytail_Long: which length shows is for the
+-- Every hair row of the game whose parts exist is listed. Controls (Schizo, 27 Nov 2026: every hair adjustable,
+-- colour, scatter, gloss and every main parameter it sets): a variant's material under MA_CH_Hair gets RootColor and
+-- TipColor, then every other colour and number its instance chain sets (not its master's own; DyeColor where the
+-- instance sets it). Other slots of that hair (a hairpin) get none. A hair with no slot under MA_CH_Hair (the Nikke
+-- hairs' own master) gets every colour and number its instances set. A one-colour hair (a salon row with no
+-- material) takes these from its mesh's own materials (rows.mesh_mats), which it keeps. The ponytail a stock hair
+-- brings is SB.Ponytail_Long: which length shows is for the
 -- wear part, not here.
 local Stock = {}
 
@@ -37,6 +42,14 @@ local PONYTAILS = {{id = 'SB.Ponytail_Long', alias = 'Hair_Default_Part2'},
 Stock.PONYTAIL_NONE = 'SB.Ponytail_None'
 
 local COLOURS = {{'RootColor', 'Root colour'}, {'TipColor', 'Tip colour'}, {'DyeColor', 'Dye colour'}}
+-- Readable names of MA_CH_Hair's numbers (its dump's scalar parameters); any other keeps its parameter name.
+local NUMBERS = {Scatter = 'Scatter', Roughness = 'Roughness (gloss)', Specular = 'Specular', Brightness = 'Brightness',
+    TipPower = 'Tip power', DyeRoughness = 'Dye roughness', DyeScatter = 'Dye scatter'}
+-- Vectors that place or clip the hair, not colour it (MA_CH_Hair's ClipMask*, ExclusivePlane*, Tangent*): no control.
+local function layout(name)
+    return name:find('^ClipMask') or name:find('^ExclusivePlane') or name:find('^Tangent') or name:find('Pivot')
+        or name:find('Axis$')
+end
 
 -- A table's path "Class'/Game/X.X'" -> '/Game/X.X'; 'None' and '' -> nil.
 local function plain(p)
@@ -95,39 +108,88 @@ local function under_hair_master(mats, path)
     return false
 end
 
--- lost(why) is called for a colour no material of the chain has: its control is left out.
-local function colour_controls(slots, mats, lost)
-    local controls = {}
+-- Every vector and scalar the instances of a material's chain set, the nearest instance's value first: {vectors=
+-- {[name]=v}, scalars={[name]=x}}. The master itself sets none (its own values are not read).
+local function set_by_chain(mats, path)
+    local out = {vectors = {}, scalars = {}}
+    for _ = 1, 8 do
+        local mat = mats[path] or mats[package_of(path)]
+        if not mat then break end
+        for k, v in pairs(mat.vectors or {}) do if out.vectors[k] == nil then out.vectors[k] = v end end
+        for k, x in pairs(mat.scalars or {}) do if out.scalars[k] == nil then out.scalars[k] = x end end
+        path = mat.parent
+        if not plain(path) then break end
+    end
+    return out
+end
+local function sorted_keys(t)
+    local out = {}
+    for k in pairs(t) do out[#out + 1] = k end
+    table.sort(out)
+    return out
+end
+-- lost(why) is called for a root or tip colour no material of a hair chain has: its control is left out.
+local function hair_controls(slots, mats, lost)
+    local configs = lists()
+    local vectors, scalars = configs.VectorControls, configs.ScalarControls
     local last = 0
     for i in pairs(slots) do if i > last then last = i end end
+    local any_hair = false
+    for i = 1, last do any_hair = any_hair or (slots[i] and mats[slots[i]] and under_hair_master(mats, slots[i])) end
     for i = 1, last do
         local mat = slots[i] and mats[slots[i]]
-        if mat and under_hair_master(mats, slots[i]) then
-            for _, c in ipairs(COLOURS) do
-                local name = c[1]
-                -- Dye is only a control where the instance itself sets it.
-                local v = name == 'DyeColor' and mat.vectors and mat.vectors[name] or
-                    name ~= 'DyeColor' and vector_of(mats, slots[i], name)
-                if v then
-                    controls[#controls + 1] = {DisplayName = c[2], ParamName = name, MaterialIndex = i - 1,
-                        Value = {v.R, v.G, v.B, v.A or 1}}
-                elseif name ~= 'DyeColor' then
-                    lost(('no %s on %s or its parents'):format(name, slots[i]))
+        local hair = mat and under_hair_master(mats, slots[i])
+        if mat and (hair or not any_hair) then
+            local set = set_by_chain(mats, slots[i])
+            local done = {}
+            if hair then
+                for _, c in ipairs(COLOURS) do
+                    local name = c[1]
+                    -- Dye is only a control where the instance itself sets it.
+                    local v = name == 'DyeColor' and mat.vectors and mat.vectors[name] or
+                        name ~= 'DyeColor' and vector_of(mats, slots[i], name)
+                    if v then
+                        vectors[#vectors + 1] = {DisplayName = c[2], ParamName = name, MaterialIndex = i - 1,
+                            Value = {v.R, v.G, v.B, v.A or 1}}
+                    elseif name ~= 'DyeColor' then
+                        lost(('no %s on %s or its parents'):format(name, slots[i]))
+                    end
+                    done[name] = true
+                end
+            end
+            for _, name in ipairs(sorted_keys(set.vectors)) do
+                local v = set.vectors[name]
+                if not done[name] and not layout(name) and type(v.R) == 'number' then
+                    vectors[#vectors + 1] = {DisplayName = name, ParamName = name, MaterialIndex = i - 1,
+                        Value = {v.R, v.G or 0, v.B or 0, v.A or 1}}
+                end
+            end
+            for _, name in ipairs(sorted_keys(set.scalars)) do
+                local x = set.scalars[name]
+                if type(x) == 'number' then
+                    scalars[#scalars + 1] = {DisplayName = NUMBERS[name] or name, ParamName = name,
+                        MaterialIndex = i - 1, Value = x, Min = math.min(0, x * 2), Max = math.max(1, x * 2)}
                 end
             end
         end
     end
-    return controls
+    return configs
 end
 
 local function variants_of(rows, group, mesh, lost)
     local variants = {}
     for _, v in ipairs(group_variations(rows.materials or {}, group)) do
-        local configs = lists()
-        configs.VectorControls = colour_controls(v.slots, rows.mats or {}, lost)
-        variants[#variants + 1] = {Mesh = mesh, Materials = v.slots, Icon = v.icon, UserConfigs = configs}
+        -- A variation with no material of its own (a one-colour hair) keeps its mesh's materials: its controls come
+        -- from those (rows.mesh_mats), none while they are not known.
+        local own = next(v.slots) ~= nil
+        local slots = own and v.slots or (rows.mesh_mats or {})[mesh] or {}
+        variants[#variants + 1] = {Mesh = mesh, Materials = v.slots, Icon = v.icon,
+            UserConfigs = hair_controls(slots, rows.mats or {}, lost)}
     end
-    if #variants == 0 then variants[1] = {Mesh = mesh, Materials = {}, UserConfigs = lists()} end
+    if #variants == 0 then
+        variants[1] = {Mesh = mesh, Materials = {},
+            UserConfigs = hair_controls((rows.mesh_mats or {})[mesh] or {}, rows.mats or {}, lost)}
+    end
     return variants
 end
 
@@ -246,10 +308,12 @@ local function each_row(dt, fn)
     return #names
 end
 
--- A material and its parents up to the master into mats, keyed by object path: {parent=path, vectors}. Engine
--- facts as closet/ui/probe.lua's test 6 cites them: UMaterialInstance.VectorParameterValues
--- TArray<FVectorParameterValue> (params 0x1465da110), its ParameterInfo.Name an FName; Parent and ParameterValue
--- (FLinearColor) as the MI_EVE_HR_14_TypeA asset dump holds them. A master has neither: pcall gives none.
+-- A material and its parents up to the master into mats, keyed by object path: {parent=path, vectors, scalars}.
+-- Engine facts as closet/ui/probe.lua's test 6 cites them: UMaterialInstance.VectorParameterValues
+-- TArray<FVectorParameterValue> at 0xf0 (params 0x1465da110), its ParameterInfo.Name an FName; Parent and
+-- ParameterValue (FLinearColor) as the MI_EVE_HR_14_TypeA asset dump holds them. ScalarParameterValues
+-- TArray<FScalarParameterValue> at 0xe0 (params 0x1465d9fe8, name 0x145b52468, its struct's params 0x1465da018),
+-- ParameterValue a float (Ghidra, build 26123051, 27 Nov 2026). A master has neither: pcall gives none.
 local function path_of(o)
     local ok, p = pcall(function() return str(o:GetFullName()):match('^%S+ (.+)$') end)
     return ok and p or nil
@@ -265,10 +329,16 @@ local function add_chain(mats, path, object)
                 vectors[name] = {R = num(v.R), G = num(v.G), B = num(v.B), A = num(v.A)}
             end
         end)
+        local scalars = {}
+        pcall(U.each, object.ScalarParameterValues, function(_, p)
+            local ok, name = pcall(function() return str(p.ParameterInfo.Name) end)
+            local x = num(p.ParameterValue)
+            if ok and name and x ~= nil then scalars[name] = x end
+        end)
         local ok, parent = pcall(function() return U.value_of(object.Parent) end)
         parent = ok and parent or nil
         local parent_path = parent and path_of(parent)
-        mats[path] = {parent = parent_path, vectors = vectors}
+        mats[path] = {parent = parent_path, vectors = vectors, scalars = scalars}
         path, object = parent_path, parent
     end
 end
@@ -337,8 +407,10 @@ function Stock.read(env)
     end
     for _, it in pairs(rows.items) do want(it.EquipmentAlias) want(it.EquipmentAlias2) end
     for _, p in ipairs(PONYTAILS) do want(p.alias) end
+    local with_material = {}
     for _, m in ipairs(rows.materials) do
         local path = groups[m.Group] and plain(m.MaterialAssetPath)
+        if path then with_material[m.Group] = true end
         if path and not rows.mats[path] then
             local ok, object = pcall(env.load, path)
             if ok and object ~= nil then
@@ -346,6 +418,31 @@ function Stock.read(env)
             else
                 say(env, 'stock: ' .. path .. ' did not load')
             end
+        end
+    end
+    -- A hair whose group has no material (a one-colour hair: Nier, Nikke) keeps its mesh's: those load for its
+    -- controls. USkeletalMesh.Materials, each FSkeletalMaterial's MaterialInterface, as closet/dress.lua's
+    -- own_materials reads them.
+    rows.mesh_mats = {}
+    for _, it in pairs(rows.items) do
+        local eq = rows.equipment[it.EquipmentAlias or '']
+        local mesh = eq and plain(eq.MountingResourcePath)
+        if mesh and not with_material[eq.MaterialGroup or ''] and not rows.mesh_mats[mesh] then
+            local ok, object = pcall(env.load, mesh)
+            local slots = {}
+            if ok and object ~= nil then
+                pcall(U.each, object.Materials, function(index, slot)
+                    local m = U.value_of(U.value_of(slot).MaterialInterface)
+                    local path = m and path_of(m)
+                    if path then
+                        slots[index] = path
+                        if not rows.mats[path] then add_chain(rows.mats, path, m) end
+                    end
+                end)
+            else
+                say(env, 'stock: ' .. mesh .. ' did not load')
+            end
+            rows.mesh_mats[mesh] = slots
         end
     end
     return rows
@@ -370,6 +467,31 @@ function Stock.env(log)
         end}
 end
 
+-- The two cut hairs with the stock hairs' controls: their materials (and parents) loaded, then hair_controls.
+local function cut_items(env)
+    local items = Cut.items(env)
+    local mats = {}
+    for _, it in pairs(items) do
+        local v = it.Variants and it.Variants[1]
+        if v then
+            local slots = {}
+            for i, path in pairs(v.Materials or {}) do
+                path = plain(path)
+                if path then
+                    slots[i] = path
+                    if not mats[path] then
+                        local ok, object = pcall(env.load, path)
+                        if ok and object ~= nil then add_chain(mats, path, object) end
+                    end
+                end
+            end
+            local configs = hair_controls(slots, mats, function(line) say(env, 'stock: ' .. line) end)
+            v.UserConfigs, it.UserConfigs = configs, configs
+        end
+    end
+    return items
+end
+
 function Stock.build(env)
     local rows, why = Stock.read(env)
     local ok, items, missing = false, nil, nil
@@ -378,9 +500,9 @@ function Stock.build(env)
         if not ok then why = 'stock: ' .. tostring(items) end
     end
     -- A failed read leaves the stock rows out; the two cut hairs stay (the spec's one exception).
-    if not ok then say(env, why) return Cut.items(env), why end
+    if not ok then say(env, why) return cut_items(env), why end
     for _, line in ipairs(missing) do say(env, 'stock: ' .. line) end
-    for id, it in pairs(Cut.items(env)) do items[id] = it end
+    for id, it in pairs(cut_items(env)) do items[id] = it end
     return items
 end
 

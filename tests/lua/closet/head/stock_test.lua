@@ -71,6 +71,7 @@ local function live()
         {{ParameterInfo = {Name = name('TipColor')}, ParameterValue = {R = 0.5, G = 0.6, B = 0.7, A = 1}}})
     local mi = object('/Game/A/MI.MI', mid,
         {{ParameterInfo = {Name = name('RootColor')}, ParameterValue = {R = 0.1, G = 0.2, B = 0.3, A = 1}}})
+    mi.ScalarParameterValues = {{ParameterInfo = {Name = name('Scatter')}, ParameterValue = 0.25}}
     local log = {}
     local env = {log = function(m) log[#log + 1] = m end, loaded = {},
         text = function(v) if type(v) == 'string' then return v == 'Item_Hair_024_Name' and 'Nyaaa' or nil end
@@ -110,6 +111,51 @@ local tests = {
         r = assert(Stock.read(env))
         same(r.names, {Hair_001 = 'Item_Hair_001_Name'}, 'no entry: the key stays')
     end,
+    the_reader_loads_a_one_colour_hairs_mesh_materials = function()
+        local env = live()
+        local mi_y = object('/Game/Y/MI_Y.MI_Y', nil,
+            {{ParameterInfo = {Name = name('RootColor')}, ParameterValue = {R = 0.9, G = 0.9, B = 0.9, A = 1}}})
+        mi_y.ScalarParameterValues = {{ParameterInfo = {Name = name('Roughness')}, ParameterValue = 0.4}}
+        local mesh_y = {Materials = {{MaterialInterface = mi_y}}}
+        env.tables[Stock.TABLES[1]] = table_of({order = {'Hair_Nier_001'},
+            Hair_Nier_001 = {Category = 21, Name = name('Item_Hair_Nier_001_Name'),
+                EquipmentAlias = name('Hair_Nier_001_Part1'), EquipmentAlias2 = name('None')}})
+        env.tables[Stock.TABLES[2]] = table_of({order = {'Hair_Nier_001_Part1'},
+            Hair_Nier_001_Part1 = {Type = 5, MountingResourcePath = name("SkeletalMesh'/Game/Y/Y.Y'"),
+                AnimAssetPath = name('None'), MaterialGroup = name('EM_Hair_Nier_001_Part1')}})
+        env.tables[Stock.TABLES[3]] = table_of({order = {'EM_Nier_V0'},
+            EM_Nier_V0 = {Group = name('EM_Hair_Nier_001_Part1'), VariationIndex = 0, MaterialIndex = 0,
+                MaterialAssetPath = name('')}})
+        env.load = function(path) env.loaded[#env.loaded + 1] = path; return path == '/Game/Y/Y.Y' and mesh_y or nil end
+        local r = assert(Stock.read(env))
+        same(env.loaded, {'/Game/Y/Y.Y'}, 'the one-colour hair\'s mesh loaded')
+        same(r.mesh_mats['/Game/Y/Y.Y'], {[1] = '/Game/Y/MI_Y.MI_Y'}, 'its material slots')
+        eq(r.mats['/Game/Y/MI_Y.MI_Y'].scalars.Roughness, 0.4, 'its numbers read')
+        local it = Stock.items(r)['SB.Hair_Nier_001']
+        eq(it.UserConfigs.ScalarControls[1].ParamName, 'Roughness', 'a roughness control')
+    end,
+
+    the_cut_hairs_get_controls_too = function()
+        -- Nyaaa and Mecha Rabbit had no controls; like every stock hair they get those their materials set.
+        local env = live()
+        local cut = require('closet.head.cut')
+        local items = cut.items(env)
+        local hair_mat = items['SB.Hair_024'].Variants[1].Materials[1]
+        local path = hair_mat:match("^%w+'(.*)'$") or hair_mat
+        local master = {GetFullName = function() return name('Material ' .. MASTER .. '.MA_CH_Hair') end}
+        local mi = object(path, master,
+            {{ParameterInfo = {Name = name('RootColor')}, ParameterValue = {R = 0.2, G = 0.2, B = 0.2, A = 1}},
+             {ParameterInfo = {Name = name('TipColor')}, ParameterValue = {R = 0.3, G = 0.3, B = 0.3, A = 1}}})
+        mi.ScalarParameterValues = {{ParameterInfo = {Name = name('Scatter')}, ParameterValue = 0.1}}
+        local load = env.load
+        env.load = function(p) if p == path then return mi end return load(p) end
+        local built = Stock.build(env)
+        local c = built['SB.Hair_024'].UserConfigs
+        eq(c.VectorControls[1] and c.VectorControls[1].ParamName, 'RootColor', 'a root colour control')
+        eq(c.ScalarControls[1] and c.ScalarControls[1].ParamName, 'Scatter', 'a scatter control')
+        eq(built['SB.Hair_024'].Variants[1].UserConfigs, c, 'on its variant too')
+    end,
+
     the_reader_turns_fake_tables_into_rows = function()
         local env = live()
         local r = assert(Stock.read(env))
@@ -125,10 +171,10 @@ local tests = {
             IconColorAssetPath = "Texture2D'/Game/I/V0.V0'"}}, 'material row')
         same(env.loaded, {'/Game/A/MI.MI'}, 'the hair group material loaded by its plain path')
         same(r.mats['/Game/A/MI.MI'], {parent = '/Game/A/Mid.Mid',
-            vectors = {RootColor = {R = 0.1, G = 0.2, B = 0.3, A = 1}}}, 'the instance')
+            vectors = {RootColor = {R = 0.1, G = 0.2, B = 0.3, A = 1}}, scalars = {Scatter = 0.25}}, 'the instance')
         same(r.mats['/Game/A/Mid.Mid'], {parent = MASTER .. '.MA_CH_Hair',
-            vectors = {TipColor = {R = 0.5, G = 0.6, B = 0.7, A = 1}}}, 'its parent')
-        same(r.mats[MASTER .. '.MA_CH_Hair'], {vectors = {}}, 'the master ends the chain')
+            vectors = {TipColor = {R = 0.5, G = 0.6, B = 0.7, A = 1}}, scalars = {}}, 'its parent')
+        same(r.mats[MASTER .. '.MA_CH_Hair'], {vectors = {}, scalars = {}}, 'the master ends the chain')
         local c = Stock.items(r)['SB.Hair_001'].UserConfigs.VectorControls
         eq(#c, 2, 'root and tip through the chain')
         same(c[2].Value, {0.5, 0.6, 0.7, 1}, 'tip from the parent')
@@ -280,7 +326,53 @@ local tests = {
         local it = Stock.items(r)['SB.Hair_Nikke_01']
         eq(#it.Variants, 1, 'one variant')
         same(it.Variants[1].Materials, {}, 'no material override')
-        same(it.UserConfigs.VectorControls, {}, 'no colour controls')
+        same(it.UserConfigs.VectorControls, {}, 'no controls while its mesh materials are not known')
+    end,
+
+    a_one_colour_hair_gets_controls_from_its_mesh = function()
+        -- YoRHa (Nier) and Nikke hairs have one salon row with no material (Schizo, 27 Nov 2026: "they should all
+        -- have adjustable color/scatter/gloss"): their controls come from the mesh's own materials; the mesh keeps
+        -- them (no override).
+        local r = rows()
+        r.items.Hair_Nier_001 = {Category = 'ESBItemCategory_Hair', Name = 'Y', EquipmentAlias = 'Hair_Nier_001_Part1',
+            EquipmentAlias2 = 'None'}
+        r.equipment.Hair_Nier_001_Part1 = {MountingResourcePath = '/Game/Y/Y.Y',
+            MaterialGroup = 'EM_Hair_Nier_001_Part1'}
+        r.materials[#r.materials + 1] = {Group = 'EM_Hair_Nier_001_Part1', VariationIndex = 0, MaterialIndex = 0,
+            MaterialAssetPath = ''}
+        r.mesh_mats = {['/Game/Y/Y.Y'] = {[1] = '/Game/Y/MI_Y'}}
+        r.mats['/Game/Y/MI_Y'] = mat(0.4, 0.3, 0.2)
+        r.mats['/Game/Y/MI_Y'].scalars = {Scatter = 0.2, Roughness = 0.5}
+        local it = Stock.items(r)['SB.Hair_Nier_001']
+        same(it.Variants[1].Materials, {}, 'the mesh keeps its materials')
+        local names = {}
+        for _, c in ipairs(it.UserConfigs.VectorControls) do names[#names + 1] = c.ParamName end
+        same(names, {'RootColor', 'TipColor'}, 'root and tip from the mesh material')
+        local s = it.UserConfigs.ScalarControls
+        eq(#s, 2, 'scatter and roughness')
+        eq(s[1].ParamName, 'Roughness') eq(s[1].Value, 0.5) eq(s[1].MaterialIndex, 0)
+        eq(s[2].ParamName, 'Scatter') eq(s[2].Value, 0.2)
+        ok(s[2].Min <= 0 and s[2].Max >= 1, 'a range around its value')
+    end,
+
+    every_parameter_the_instance_sets_is_a_control = function()
+        -- Every colour and number a hair's material instance sets (not its master's own) is a control: scatter,
+        -- brightness and the like, not only root and tip. Layout vectors (ClipMask...) are left out.
+        local r = rows()
+        local m = mat(0.1, 0.2, 0.3, {DyeColor = {R = 0.7, G = 0.8, B = 0.9, A = 1},
+            ClipMaskPlane = {R = 1, G = 0, B = 0, A = 0}})
+        m.scalars = {Brightness = 0.381, Scatter = 0.076, RandomHueVariation = -1.345}
+        r.mats['/Game/A/MI_H07_V0'] = m
+        local c = Stock.items(r)['SB.Hair_001'].Variants[1].UserConfigs
+        local vec = {}
+        for _, x in ipairs(c.VectorControls) do vec[#vec + 1] = x.ParamName end
+        same(vec, {'RootColor', 'TipColor', 'DyeColor'}, 'colours: root, tip, then dye; no layout vector')
+        local sc = {}
+        for _, x in ipairs(c.ScalarControls) do sc[#sc + 1] = x.ParamName end
+        same(sc, {'Brightness', 'RandomHueVariation', 'Scatter'}, 'every number it sets, by name')
+        for _, x in ipairs(c.ScalarControls) do
+            ok(x.Min <= x.Value and x.Value <= x.Max, x.ParamName .. ' within its range')
+        end
     end,
 
     stock_ponytails_follow_their_hair = function()
