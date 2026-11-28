@@ -789,10 +789,10 @@ function Head.new(o)
         local eve=her()
         if not eve then return end -- A load: the pieces wait for her.
         local new_eve=path_of(eve)~=eve_path
-        local changed={}
+        local changed,which={},{}
         for _,n in ipairs(NAMES) do
             local p=parts[n]
-            if p and p.worn and (new_eve or not holds(n,p)) then changed[n]=true end
+            if p and p.worn and (new_eve or not holds(n,p)) then changed[n]=true; which[#which+1]=n end
         end
         if not next(changed) then wrong=0; return end
         wrong=wrong+1
@@ -800,12 +800,13 @@ function Head.new(o)
         wrong=0
         fights[#fights+1]=now
         while now-fights[1]>Head.FIGHT.within do table.remove(fights,1) end
-        local c=not new_eve and parts[HAIR] and Doro.same(parts[HAIR].c,parts[HAIR].c_path)
+        local first=parts[which[1]] -- The first changed piece names the log.
+        local c=not new_eve and first and Doro.same(first.c,first.c_path)
         local what=c and mesh_of(c) or 'a new EVE'
         if #fights>=Head.FIGHT.mixes then
             stopped,fights=true,{}
-            log('something outside keeps changing her hair ('..tostring(what)..'): the closet leaves it until the '
-                ..'next wear')
+            log('something outside keeps changing her '..table.concat(which,', ')..' ('..tostring(what)..'): the '
+                ..'closet leaves it until the next wear')
             return
         end
         if not new_eve then -- A new EVE: capture reads her own components afresh, the old ones are never called.

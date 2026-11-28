@@ -3531,8 +3531,8 @@ local tests = {
         local EYES = 'SB.Eyes_Own'
         local function eyes_o(locked)
             local o = heads()
-            local controls = {MaterialToggles = {}, VectorControls = {{DisplayName = 'Iris colour', ParamName = 'IrisHueTint',
-                MaterialIndex = 4, Value = {0.2, 0.4, 0.8, 1}}},
+            local controls = {MaterialToggles = {}, VectorControls = {{DisplayName = 'Iris colour',
+                ParamName = 'IrisHueTint', MaterialIndex = 4, Value = {0.2, 0.4, 0.8, 1}}},
                 ScalarControls = {{DisplayName = 'IrisBrightness', ParamName = 'IrisBrightness', MaterialIndex = 4,
                     Value = 1, Min = 0, Max = 2}}}
             o.catalogue[EYES] = {UniqueFitID = EYES, Slot = 'Eyes', Origin = 'original', DisplayName = 'Eyes_Own',

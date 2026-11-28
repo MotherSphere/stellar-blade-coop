@@ -565,8 +565,8 @@ function Stock.read(env)
     -- A hair whose group has no material (a one-colour hair: Nier, Nikke) keeps its mesh's: those load for its
     -- controls. USkeletalMesh.Materials, each FSkeletalMaterial's MaterialInterface, as closet/dress.lua's
     -- own_materials reads them.
-    -- Earrings and glasses have no group either: their meshes' materials load the same way, and EVE's face mesh
-    -- (Stock.FACE_MESH) for the eyes.
+    -- Earrings and glasses have no group either: their meshes' materials load the same way. So does EVE's face
+    -- mesh (Stock.FACE_MESH) for the eyes.
     rows.mesh_mats = {}
     local function load_mesh(mesh)
         if rows.mesh_mats[mesh] then return end

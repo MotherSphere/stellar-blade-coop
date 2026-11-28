@@ -703,7 +703,8 @@ Probe.TESTS['8']={timeout=120,steps={
                 for v,variant in ipairs(item.Variants or {}) do
                     local path=variant.Mesh
                     if type(path)=='string' and path~='' then
-                        local mesh=ctx.resolve(path) -- a pack mesh is no cooked asset: LoadAsset alone reads loads=false
+                        -- A pack mesh is no cooked asset: LoadAsset alone reads loads=false.
+                        local mesh=ctx.resolve(path)
                         local skeleton=mesh and live(mesh.Skeleton) and path_of(mesh.Skeleton) or '-'
                         n=n+1
                         if skeleton==body_skeleton then on_body=on_body+1 end

@@ -4,8 +4,8 @@
 -- The make and attach steps are a copy of closet/dress.lua's added meshes (its wear's AddComponentByClass loop), with
 -- the head socket added; the tag write is a copy of vehicles/bike/ride.lua's (its part's ComponentTags).
 -- The head components the closet makes for Glasses, Headwear and Mask (closet/head/wear.lua wears them): EVE's
--- blueprint has none for those slots, and probe 8 read no glasses component while none is worn. A made component has
--- no game original: taking it off destroys it.
+-- blueprint has none for those slots. Probe 8 read no glasses component while none is worn. A made component has no
+-- game original: taking it off destroys it.
 --   A piece on the body mesh's skeleton follows her pose (SetMasterPoseComponent), attached with no socket, as the
 --   dress's added meshes. Any other piece goes on the head socket Bip001-Head with SBAccSlot1's rotation.
 --
@@ -96,7 +96,9 @@ function Made.sweep(eve,meshes)
     each(eve:K2_GetComponentsByClass(find(SKINNED)),function(_,c)
         c=valid(c)
         local mesh=c and valid(c.SkeletalMesh)
-        if mesh and meshes[path_of(mesh)] and c:ComponentHasTag(FName(Made.TAG))==true then
+        -- A check that raises counts as not ours.
+        local tagged=mesh and meshes[path_of(mesh)] and select(2,pcall(c.ComponentHasTag,c,FName(Made.TAG)))
+        if tagged==true then
             pcall(Made.destroy,c)
             n=n+1
         end

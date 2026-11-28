@@ -97,8 +97,8 @@ local tests = {
         eq(good, false) ok(tostring(why):find('could not make', 1, true), tostring(why))
     end,
 
-    -- A step that fails after the make destroys the component, then raises: nothing is left on EVE untracked, and a
-    -- body-skeleton piece never shows unposed.
+    -- A step that fails after the make destroys the component, then raises: nothing is left on EVE untracked.
+    -- A body-skeleton piece never shows unposed.
     a_failed_step_destroys_the_component = function()
         for _, on_body in ipairs({true, false}) do
             calls = {}
@@ -142,6 +142,17 @@ local tests = {
         eq(Made.sweep(e2, {[glasses.name] = true}), 1)
         eq(a:IsValid(), false) eq(b:IsValid(), true) eq(own:IsValid(), true) eq(slot:IsValid(), true)
         eq(e2.Mesh:IsValid(), true)
+    end,
+
+    -- One component whose tag check raises is not ours: the sweep goes on to the others.
+    a_raising_tag_check_does_not_abort_the_sweep = function()
+        local e = eve_of()
+        local bad = component('SBSkeletalMeshComponent_8', glasses)
+        bad.ComponentHasTag = function() error('boom') end
+        e.parts[#e.parts + 1] = bad
+        local a = Made.put(e, glasses, false)
+        eq(Made.sweep(e, {[glasses.name] = true}), 1)
+        eq(a:IsValid(), false) eq(bad:IsValid(), true)
     end,
 }
 

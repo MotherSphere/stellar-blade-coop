@@ -646,7 +646,7 @@ local tests = {
         w.eve.hair.SkeletalMesh = nier
         local n = #calls
         w.tick(1) w.tick(1)
-        ok(w.last():find('^something outside keeps changing her hair'), w.last())
+        ok(w.last():find('^something outside keeps changing her SBHair %('), w.last())
         eq(w.eve.hair.SkeletalMesh, nier, 'the outside hair stays')
         eq(#calls, n)
         w.tick(1) w.tick(1) w.tick(1)
@@ -894,6 +894,20 @@ local tests = {
         -- Glasses and a mask together: one component each.
         ok(w.wear({{fit = 'SB.FaceAccessory_029', slot = 'Glasses'}, {fit = 'p.mask', slot = 'Mask'}}))
         eq(#w.eve.made, 3) eq(w.eve.made[2]:IsValid(), true) eq(w.eve.made[3]:IsValid(), true)
+    end,
+
+    -- The fight log names the piece that changes, not always hair.
+    a_made_piece_fight_names_the_piece = function()
+        local w = world()
+        ok(w.wear({{fit = 'SB.FaceAccessory_001', slot = 'Glasses'}}))
+        for i = 1, Head.FIGHT.mixes - 1 do
+            w.eve.made[#w.eve.made].SkeletalMesh = nier
+            w.tick(1) w.tick(1)
+            ok(w.head.rewear('SB.FaceAccessory_001'), 're-wear ' .. i)
+        end
+        w.eve.made[#w.eve.made].SkeletalMesh = nier
+        w.tick(1) w.tick(1)
+        ok(w.last():find('^something outside keeps changing her Glasses %('), w.last())
     end,
 
     -- Taken off (its None tile), closet off and coop off destroy a made component.
