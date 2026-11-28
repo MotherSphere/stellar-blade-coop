@@ -658,11 +658,21 @@ function View.new(kit,log)
             local box=entry.SizeBox_20
             if not box or entry:IsAnyAnimationPlaying() then return end
             local o=tonumber(U.value_of(box.RenderOpacity))
-            if not o or o>=0.99 then return end
-            box:SetRenderOpacity(1)
-            box:SetRenderTranslation({X=0,Y=0})
+            -- The slot itself too: a whole hair tile, frame and all, stayed hidden with SizeBox_20 whole (27 Nov 2026).
+            local own=tonumber(U.value_of(entry.RenderOpacity))
+            local moved=box.RenderTransform and box.RenderTransform.Translation
+            local slid=moved and ((tonumber(moved.X) or 0)~=0 or (tonumber(moved.Y) or 0)~=0)
+            local fixed={}
+            if o and o<0.99 then box:SetRenderOpacity(1); fixed[#fixed+1]='SizeBox_20 opacity '..o end
+            if own and own<0.99 then entry:SetRenderOpacity(1); fixed[#fixed+1]='slot opacity '..own end
+            if slid or #fixed>0 then box:SetRenderTranslation({X=0,Y=0}) end
+            if slid then fixed[#fixed+1]='slid '..tostring(moved.X)..','..tostring(moved.Y) end
+            if #fixed==0 then return end
             unstuck=unstuck+1
-            if unstuck==1 then log('menu: tile '..(entry.Data.Index+1)..' was left mid spawn animation: shown') end
+            if unstuck==1 then
+                log('menu: tile '..(entry.Data.Index+1)..' was left mid spawn animation ('..table.concat(fixed,', ')
+                    ..'): shown')
+            end
         end)
         if not ran and not unstick_said then
             unstick_said=true

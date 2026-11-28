@@ -3762,6 +3762,11 @@ local tests = {
             same(entries[2].SizeBox_20.translation, {X = 0, Y = 0}, 'back in place')
             eq(entries[3].SizeBox_20.RenderOpacity, 0.2, 'a slot still animating left to its animation')
             has(r.log, 'mid spawn animation', 'said')
+            -- The slot widget itself left see-through (a whole hair tile hidden with SizeBox_20 whole, 27 Nov 2026).
+            entries[1].RenderOpacity = 0
+            at(r, 1.1, 'right')
+            tick(r, 1.5)
+            eq(entries[1].RenderOpacity, 1, 'the see-through slot shown')
             -- A refused call never stops the glyph look; it is said once.
             entries[2].SizeBox_20.RenderOpacity = 0
             entries[2].SizeBox_20.SetRenderOpacity = 7

@@ -126,7 +126,8 @@ local function tileview(events)
                 box.RenderOpacity = 1
                 function box:SetRenderOpacity(o) self.RenderOpacity = o end
                 function box:SetRenderTranslation(v) self.translation = {X = v.X, Y = v.Y} end
-                e = {Data = item, Image_Icon = icon, equips = {}, SizeBox_20 = box, playing = false}
+                e = {Data = item, Image_Icon = icon, equips = {}, SizeBox_20 = box, playing = false, RenderOpacity = 1}
+                function e:SetRenderOpacity(o) self.RenderOpacity = o end
                 function e:UpdateEquip(on) self.equips[#self.equips + 1] = on end
                 function e:IsAnyAnimationPlaying() return self.playing end
                 self.entries[item] = e
