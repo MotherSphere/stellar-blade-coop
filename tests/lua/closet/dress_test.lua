@@ -586,6 +586,23 @@ local tests = {
         w.assets[KS] = mesh(KS, 44)
         ok(not w.d.installed('AiK_CH46_xSH_14462'), 'cached')
     end,
+    a_skeleton_that_reads_later_unlocks_the_row = function()
+        -- In game the Succubus Horns read "Skeleton not valid" and stayed locked for the whole Lua load.
+        local w = world()
+        local Dress = require('closet.dress')
+        local retry = Dress.RETRY
+        Dress.RETRY = 0
+        local skel = w.assets[KS].Skeleton
+        w.assets[KS].Skeleton = nil
+        ok(not w.d.installed('AiK_CH46_xSH_14462'), 'no skeleton yet: locked')
+        w.assets[KS].Skeleton = skel
+        local now = w.d.installed('AiK_CH46_xSH_14462')
+        Dress.RETRY = retry
+        ok(now, 'asked again: the skeleton reads, unlocked')
+        local said = 0
+        for _, line in ipairs(w.log) do if line:find('has no skeleton', 1, true) then said = said + 1 end end
+        ok(said <= 1, 'said once')
+    end,
     a_mesh_with_no_skeleton_names_what_loaded = function()
         -- In game (27 Nov 2026) two pack pieces read "has no skeleton" with nothing to tell why.
         local w = world()

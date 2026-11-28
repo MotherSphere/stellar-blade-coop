@@ -52,6 +52,7 @@ Dress.USE='Use: coop closet wear <fit>[:<Slot>,<Slot>...] [<fit>[:...]] | coop c
 local installed_cache={} -- mesh path -> whether it loads; once per path per Lua load (installed, loads).
 -- Tries of restore's wear of the kept look while EVE spawns, a second apart, before it is dropped.
 Dress.RETRIES=5
+Dress.RETRY=3 -- s before a mesh whose skeleton did not read is asked again (installed()).
 -- An outside fight: this many mixes again within this many seconds (something undoes every mix: CNS put Ocean Maid's
 -- mesh back on her body each second on 26 Nov 2026). A map load sets her body twice or three times, never five.
 Dress.FIGHT={mixes=5,within=15}
@@ -88,6 +89,10 @@ local function usable(path)
         local named,full=pcall(function() return text(mesh:GetFullName()) end)
         local kind=named and full and full:match('^(%S+)') or '?'
         local got=ok and (skeleton==nil and 'nil' or 'not valid') or 'the read failed: '..tostring(skeleton)
+        if ok and skeleton~=nil then -- Which skeleton it names, when the reference still answers.
+            local p_ok,p=pcall(function() return text(skeleton:GetFullName()) end)
+            if p_ok and p then got=got..': '..p end
+        end
         return nil,path..' has no skeleton (a '..kind..', Skeleton '..got..')'
     end
     return mesh
@@ -685,13 +690,18 @@ function Dress.new(o)
         return path and Dress.GAME_LOOKS[path] and path or nil
     end
     -- Whether a mesh loads here, cached per path; one that does not load is logged once (what(why) gives the line).
+    -- A mesh whose skeleton did not read is asked again RETRY s later, never kept as not installed: the Succubus
+    -- Horns and Bayonetta Earrings read "Skeleton not valid" in game (27 Nov 2026) and stayed locked for the load.
+    local skeleton_at,said={},{}
     local function loads(path,what)
-        if installed_cache[path]==nil then
+        if installed_cache[path]==nil and (skeleton_at[path] or 0)<=os.clock() then
             local mesh,why=usable(path)
-            installed_cache[path]=mesh~=nil
-            if not mesh then log(what(tostring(why))) end
+            local again=not mesh and tostring(why):find('has no skeleton',1,true)~=nil
+            if again then skeleton_at[path]=os.clock()+Dress.RETRY else installed_cache[path]=mesh~=nil end
+            if not mesh and not said[path] then said[path]=true; log(what(tostring(why))) end
+            if again then return false end
         end
-        return installed_cache[path]
+        return installed_cache[path]==true
     end
     -- Whether the fit's mesh loads here (its outfit is installed). An empty Mesh (SB.Ponytail_None) has nothing to
     -- load: installed.
