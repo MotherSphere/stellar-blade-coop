@@ -1568,10 +1568,12 @@ local tests = {
         eq(tv.displayed, 2, 'a look CHECK s later')
         for _, e in pairs(tv.entries) do eq(#e.Image_Icon.set, 0, 'nothing set on a right tile') end
         tick(r, 2)
-        eq(tv.displayed, 2, 'no look once every shown tile was right')
+        -- Once every shown tile was right only the stuck-slot look reads them (each CHECK s while the grid shows).
+        eq(tv.displayed, 3, 'only the stuck-slot look once every shown tile was right')
+        for _, e in pairs(tv.entries) do eq(#e.Image_Icon.set, 0, 'still nothing set') end
         at(r, 2, 'down')
         tick(r, 3)
-        eq(tv.displayed, 3, 'a fill looks again')
+        eq(tv.displayed, 4, 'a fill looks again')
         -- The path fails: each shown tile gets its glyph on its Image_Icon (SetBrushFromTexture, no size match),
         -- said once; from then on every look sets the tiles still wrong.
         r = rig()

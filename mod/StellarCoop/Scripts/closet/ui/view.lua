@@ -50,7 +50,6 @@ View.CHECK=0.25 -- s between two looks at the shown tiles' glyphs (v.tick).
 -- brush (its Set calls SetBrushFromTexture with bMatchSize false, widget JSON), so an opaque picture filled the tile
 -- past its frame while the game's hair icons are white art in a clear margin (Schizo's screenshots of 27 Nov 2026).
 View.PICTURE_SCALE=0.55
-View.SHOW=1 -- s after a fill or a move in the grid that the shown slots are looked at for a stuck spawn animation.
 View.HOLD=64 -- Hidden kit images that hold the shown tiles' pictures (a grid of 64 tiles).
 -- The glyphs a hidden kit image may hold: None's, the origin badges' and each slot's (closet/slots.lua).
 View.GLYPHS={'none','original','custom'}
@@ -262,9 +261,10 @@ function View.new(kit,log)
     -- filled more than 3 times in 5 s is said with its last change (the picture glitch of 27 Nov 2026).
     local fills,fill_note,filled_names,check_fills=0,'',{},0
     local brushed={} -- Tile indices set by brush since the last fill, each said once.
-    -- show_due: a fill or a move in the grid since the last tick; show_until: the end of the looks for slots left
-    -- mid spawn animation (View.SHOW s after it); show_at: the next look; unstuck: such slots said, once a fill.
-    local show_due,show_until,show_at,unstuck=false,-1,0,0
+    -- show_due: a fill or a move in the grid since the last tick (a look at once); show_at: the next look for slots
+    -- left mid spawn animation; unstuck: such slots said, once a fill.
+    local show_due,show_at,unstuck=false,0,0
+    local has_tiles=false -- The grid's last fill had tiles: the stuck-slot look runs only then.
     local function make(class,x,y,w,h,fill,hit)
         local rec,why=kit.part(View.GROUP,class,x,y,w,h,fill,hit)
         if not rec then error(why,0) end
@@ -508,6 +508,7 @@ function View.new(kit,log)
         if sig~=tiles_sig then
             tiles_sig,selected=sig,nil
             fills,brushed,show_due,unstuck=fills+1,{},#names>0,0
+            has_tiles=#names>0
             local changed={}
             for i=1,math.max(#names,#filled_names) do
                 if names[i]~=filled_names[i] and #changed<4 then
@@ -669,8 +670,10 @@ function View.new(kit,log)
         end
     end
     function v.tick(t)
-        if show_due then show_due,show_until,show_at=false,t+View.SHOW,0 end
-        local show=t<show_until and t>=show_at
+        if show_due then show_due,show_at=false,0 end
+        -- Every CHECK s while the grid has tiles, not only 1 s after a change: earring tiles stayed see-through past it
+        -- in game (27 Nov 2026).
+        local show=grid~=nil and has_tiles and t>=show_at
         if show then show_at=t+View.CHECK end
         local glyph_look=glyphed and (checking or by_brush) and t>=check_at
         -- A look for stuck slots on its own only when the glyph look below does not run this tick.
