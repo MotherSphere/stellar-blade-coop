@@ -24,8 +24,11 @@ function Suits.items(rows)
     local items, missing = {}, {}
     local equipment, names = rows.equipment or {}, rows.names or {}
     -- Each suit row with a mesh, by its equipment alias.
-    local by_alias, order = {}, {}
-    for row, it in pairs(rows.items or {}) do
+    local by_alias, order, rows_in = {}, {}, {}
+    for row in pairs(rows.items or {}) do rows_in[#rows_in + 1] = row end
+    table.sort(rows_in) -- Of two rows on one alias the first by name is the suit, the same each read.
+    for _, row in ipairs(rows_in) do
+        local it = rows.items[row]
         if type(it.Category) == 'string' and it.Category:find('NanoSuit$') then
             local alias = Stock.plain(it.EquipmentAlias)
             local eq = alias and equipment[alias]
@@ -35,6 +38,8 @@ function Suits.items(rows)
                 missing[#missing + 1] = row .. ': no equipment row ' .. alias
             elseif not Stock.plain(eq.MountingResourcePath) then
                 missing[#missing + 1] = row .. ': no mesh in equipment row ' .. alias
+            elseif by_alias[alias] then
+                missing[#missing + 1] = row .. ': equipment row ' .. alias .. ' is ' .. by_alias[alias].row .. "'s"
             else
                 by_alias[alias] = {row = row, it = it, eq = eq, name = names[row] or row}
                 order[#order + 1] = alias

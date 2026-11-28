@@ -94,6 +94,50 @@ local tests = {
         Fits.ITEMS, Fits.PACKS, Fits.CHOSEN = saved[1], saved[2], saved[3]
     end,
 
+    two_suit_rows_on_one_alias_do_not_raise = function()
+        local r = rows()
+        r.items.BS_Default_Twin = {Category = NANO, Name = 'BS_Default_Twin', EquipmentAlias = 'BS_Default'}
+        r.items.BS_Default_Var2_Twin = {Category = NANO, Name = 'X', EquipmentAlias = 'BS_Default_Var2'}
+        local good, items = pcall(Suits.items, r)
+        ok(good, 'no raise: ' .. tostring(items))
+        eq(#items['SB.BS_Default'].Variants + #((items['SB.BS_Default_Twin'] or {}).Variants or {}), 3,
+            'the alias listed once: its variants not doubled')
+    end,
+
+    a_suit_step_that_raises_keeps_the_head_items = function()
+        local Real = require('closet.suits')
+        local items_of = Real.items
+        Real.items = function() error('boom') end
+        local log = {}
+        local good, built = pcall(function()
+            local function name(s) return {ToString = function() return s end} end
+            local function table_of(t)
+                local dt = {}
+                function dt:ForEachRow(fn) for _, k in ipairs(t.order) do fn(name(k), t[k]) end end
+                function dt:FindRow(k) return t[k] end
+                return dt
+            end
+            local tables = {
+                [Stock.TABLES[1]] = table_of({order = {'Hair_001'}, Hair_001 = {Category = 21, Name = name('H'),
+                    EquipmentAlias = name('Hair_001_Part1'), EquipmentAlias2 = name('None')}}),
+                [Stock.TABLES[2]] = table_of({order = {'Hair_001_Part1'}, Hair_001_Part1 = {Type = 5,
+                    MountingResourcePath = name('/Game/A/H.H'), MaterialGroup = name('None')}}),
+                [Stock.TABLES[3]] = table_of({order = {'X'}, X = {Group = name('EM_X'), VariationIndex = 0,
+                    MaterialIndex = 0, MaterialAssetPath = name('')}}),
+            }
+            return Stock.build({find = function(p) return tables[p] end, load = function() end,
+                log = function(m) log[#log + 1] = m end,
+                text = function(v) return type(v) ~= 'string' and 'H' or nil end})
+        end)
+        Real.items = items_of
+        ok(good, tostring(built))
+        ok(built['SB.Hair_001'], 'the stock hair stays')
+        ok(built[Stock.PONYTAIL_NONE], 'the ponytails stay')
+        local said = false
+        for _, l in ipairs(log) do said = said or l:find('boom', 1, true) ~= nil end
+        ok(said, 'the raise is logged')
+    end,
+
     the_stock_build_reads_suits_without_loading_their_meshes = function()
         -- ESBItemCategory_NanoSuit = 4 (closet/head/stock.lua's Stock.NANOSUIT, Ghidra entry 0x145e2b9e0).
         local function name(s) return {ToString = function() return s end} end

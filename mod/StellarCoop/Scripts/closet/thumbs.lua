@@ -340,8 +340,11 @@ function Thumbs.new(o)
         local why=busy(menu)
         if why then return false,'closet thumbs: '..WHY[why] end
         local ids={}
+        -- The bulk run skips the game's own suits (closet/suits.lua): the game's icon is their picture; a run of one
+        -- (a row's Preview picture) still makes it.
         for id,fit in pairs(fits.all()) do
-            if (not only or id==only) and not Thumbs.head(fit) and o.installed(id) then ids[#ids+1]=id end
+            local stock=not only and fit.Origin=='original' and fit.Slot=='FullOutfit'
+            if (not only or id==only) and not stock and not Thumbs.head(fit) and o.installed(id) then ids[#ids+1]=id end
         end
         table.sort(ids)
         local jobs,outfits,cached={},0,0

@@ -10,7 +10,7 @@
 --   env = {find(path) -> UDataTable or nil (StaticFindObject-like), load(path) -> object or nil (LoadAsset-like),
 --          text(v) -> string (an FText's words; a string is an ItemStringTable key, closet/head/cut.lua's), log(line)}
 -- Stock.build(env) -> items[, why]: Stock.items(Stock.read(env)), the suits of closet/suits.lua's Suits.items on the
--- same rows, plus Cut.items(env). A failed read (or a raise in
+-- same rows (a raise there is logged, the suits left out), plus Cut.items(env). A failed read (or a raise in
 -- Stock.items) gives the cut hairs alone and its why. The why and each row left out are logged once a Lua load.
 --
 -- Stock.items(rows) -> items, missing
@@ -647,16 +647,18 @@ function Stock.build(env)
     local rows, why = Stock.read(env)
     local ok, items, missing = false, nil, nil
     if rows then
-        ok, items, missing = pcall(function()
-            local all, lost = Stock.items(rows)
-            -- Required here: closet/suits.lua requires this file.
-            local suits, gone = require('closet.suits').items(rows)
-            for id, it in pairs(suits) do all[id] = it end
-            table.move(gone, 1, #gone, #lost + 1, lost)
-            table.sort(lost)
-            return all, lost
-        end)
+        ok, items, missing = pcall(Stock.items, rows)
         if not ok then why = 'stock: ' .. tostring(items) end
+        -- The suits on their own pcall: a raise there leaves the suits out, the head items stay. Required here:
+        -- closet/suits.lua requires this file.
+        local fine, suits, gone = pcall(function() return require('closet.suits').items(rows) end)
+        if not fine then
+            say(env, 'stock: suits left out: ' .. tostring(suits))
+        elseif ok then
+            for id, it in pairs(suits) do items[id] = it end
+            table.move(gone, 1, #gone, #missing + 1, missing)
+            table.sort(missing)
+        end
     end
     -- A failed read leaves the stock rows out; the two cut hairs stay (the spec's one exception).
     if not ok then say(env, why) return cut_items(env), why end

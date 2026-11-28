@@ -257,6 +257,29 @@ local tests = {
         ok(good, why)
     end,
 
+    -- The game's own suits (closet/suits.lua, about 90): the bulk run skips them (their icon is their picture; a run
+    -- of each would load ~131 meshes), a run of one still makes its pictures.
+    stock_suits_are_left_out_of_the_bulk_run = function()
+        Fits.use({['SB.BS_1'] = {UniqueFitID = 'SB.BS_1', DisplayName = 'S', Slot = 'FullOutfit', Origin = 'original',
+            Variants = {{Mesh = '/Game/S/S1.S1', Materials = {}}}, UserConfigs = {MaterialToggles = {}}}})
+        local good, why = pcall(function()
+            local r = game()
+            r.meshes['/Game/S/S1.S1'] = {path = '/Game/S/S1.S1', count = 4}
+            local asked = {}
+            local installed = r.installed
+            r.installed = setmetatable({}, {__index = function(_, id) asked[id] = true return installed[id] end})
+            local ok1, line = r.thumbs.run(false)
+            ok(ok1 and line:find('24 picture', 1, true), 'the hand fits 24 only: ' .. tostring(line))
+            ok(not asked['SB.BS_1'], 'its mesh not checked in the bulk run')
+            r.thumbs.stop()
+            ok1, line = r.thumbs.run(false, 'SB.BS_1')
+            ok(ok1 and line:find('of 1 outfit', 1, true), 'a run of the one suit: ' .. tostring(line))
+            r.thumbs.stop()
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
     the_queue_takes_every_installed_fit_and_skips_cached_ones = function()
         local r = game()
         local good, line = r.thumbs.run(false)
