@@ -18,8 +18,9 @@
 -- that is not found; a load or a save that raises is logged and stops nothing. A level read that raises is logged once
 -- and the rooms wait. A room that names a level beside its own is held only when the pak holds that level too: the
 -- fourth full test build, which holds D111, D109 and D029 without D087, opens the other eleven; the fifth opens all
--- fifteen. G18 is the sixteenth entry: its level is the underground district's Under_D1_Arch, so only the sixth
+-- fifteen. G18 is the sixteenth entry: its level is the underground district's Under_P1_Streets, so only the eighth
 -- build, which holds that level, opens it, once the district level and its rows' sublevel read loaded and visible.
+-- The seventh build, which holds the district before it as Under_D1_Arch and Under_D1_ArchHomes, keeps G18 shut.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=50
 os.clock=function() return clock end
@@ -31,8 +32,8 @@ for i=1,15 do
     assert(LIST[i].umap=='/Game/SBO_World/Rooms/Xion_Rooms_'..LIST[i].name,'The game path the pak gate is asked for')
 end
 local G18=LIST[16]
-assert(G18.name=='G18' and G18.umap=='/Game/SBO_World/Rooms/Under_D1_Arch' and G18.beside==nil and #G18.rows==6
-    and table.concat(G18.needs,' ')=='Under_D1_Arch E04_Area02_Object_F_04','G18 opens with the district\'s level')
+assert(G18.name=='G18' and G18.umap=='/Game/SBO_World/Rooms/Under_P1_Streets' and G18.beside==nil and #G18.rows==6
+    and table.concat(G18.needs,' ')=='Under_P1_Streets E04_Area02_Object_F_04','G18 opens with the district\'s level')
 local D011,D031,D158=LIST[1],LIST[2],LIST[5]
 assert(D011.name=='D011' and D011.level=='Xion_Rooms_D011' and #D011.rows==4)
 assert(table.concat(D011.needs,' ')=='Xion_Rooms_D011 E04_Area02_Architecture_A_02 E04_Area02_Object_A_02',
@@ -425,16 +426,28 @@ assert(r.status()=='rooms 15 of 15 open' and select(2,stored:gsub('\t',''))==61,
 r.close('coop off')
 assert(logs[17]=='rooms: closed (coop off): 62 rows put back' and size(hidden)==0,logs[17])
 
--- g18: the sixth full test build holds the fifteen rooms and the district's level. G18 waits for that level, then
+-- g18_shut: the seventh full test build holds the fifteen rooms and the two levels of the district before the plate.
+-- G18 is not among the rooms it holds: its six rows stay.
+r=fresh()
+held={['/Game/SBO_World/Rooms/Under_D1_Arch']=true,['/Game/SBO_World/Rooms/Under_D1_ArchHomes']=true}
+for i=1,15 do held[LIST[i].umap]=true end
+r.arrive()
+assert(logs[1]=='rooms: this pak holds 15 of 16 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, D106, '
+    ..'D039, D087, D111, D109, D029' and asked[#asked]==G18.umap,logs[1])
+ticks(r,4)
+assert(size(hidden)==62 and r.status()=='rooms 15 of 15 open' and not said('G18'),r.status())
+r.close('coop off')
+
+-- g18: the eighth full test build holds the fifteen rooms and the district's level. G18 waits for that level, then
 -- opens with its six rows once it reads loaded and visible.
 r=fresh()
 held=true
-levels=all_levels('Under_D1_Arch')
+levels=all_levels('Under_P1_Streets')
 r.arrive()
 assert(logs[1]=='rooms: this pak holds 16 of 16 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, D106, '
     ..'D039, D087, D111, D109, D029, G18',logs[1])
 r.tick()
-assert(size(hidden)==62 and said('rooms: G18 waits for Under_D1_Arch') and r.status()=='rooms 15 of 16 open, 1 waiting',
+assert(size(hidden)==62 and said('rooms: G18 waits for Under_P1_Streets') and r.status()=='rooms 15 of 16 open, 1 waiting',
     r.status())
 levels=all_levels()
 ticks(r,4)

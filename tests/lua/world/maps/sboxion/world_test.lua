@@ -23,9 +23,11 @@
 -- the rooms close. No room is entered under a black screen: no line and no status part of any other way in. The
 -- fourth full test build (175 levels) holds D111, D109 and D029 with closed rooms in them and five more closed rooms:
 -- the eleven rooms of the third build open and no line names the eight closed ones. The fifth (171 levels, 137 always
--- loaded) opens all fifteen, each door a waypoint. The sixth (173 levels, 139 always loaded) adds the underground
--- district's two levels, Under_D1_Arch and Under_D1_ArchHomes, counted always-loaded: it opens the fifteen rooms and
--- the gate G18 once Under_D1_Arch reads loaded and visible.
+-- loaded) opens all fifteen, each door a waypoint. The seventh (173 levels, 139 always loaded) adds two levels of
+-- the district before the plate, Under_D1_Arch and Under_D1_ArchHomes, counted always-loaded: it opens the fifteen
+-- rooms and keeps the gate G18 shut. The eighth (174 levels, 140 always loaded) holds the fifteen rooms and the three
+-- levels of the underground district's plate, Under_P1_Streets, Under_P1_Shops and Under_P1_Blocks, counted
+-- always-loaded: it opens the fifteen rooms and G18 once Under_P1_Streets reads loaded and visible.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -810,9 +812,18 @@ for _,w in ipairs(D.WAYPOINTS) do
 end
 x.stop()
 assert(logs[#logs]=='sboxion: rooms: closed (coop off): 62 rows put back',logs[#logs])
--- paks_6: the sixth build lists the fifth build's levels and the district's two.
+-- paks_7: the seventh build lists the fifth build's levels and the two of the district before the plate. G18 stays
+-- shut.
 build({'D087','D111','D109','D029','Under_D1_Arch','Under_D1_ArchHomes'},173)
 assert(logged('sboxion: levels: 173 listed, 139 of 139 always-loaded ones loaded and visible, missing: none; by '
+    ..'volume: 34 listed, 20 loaded, 8 visible'),logs[#logs])
+assert(logged('sboxion: rooms: this pak holds 15 of 16 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, '
+    ..'D106, D039, D087, D111, D109, D029') and not logged('G18') and pieces_asked==62 and hidden_rows()==62,
+    logs[#logs])
+x.stop()
+-- paks_8: the eighth build lists the fifth build's levels and the plate's three.
+build({'D087','D111','D109','D029','Under_P1_Streets','Under_P1_Shops','Under_P1_Blocks'},174)
+assert(logged('sboxion: levels: 174 listed, 140 of 140 always-loaded ones loaded and visible, missing: none; by '
     ..'volume: 34 listed, 20 loaded, 8 visible'),logs[#logs])
 assert(logged('sboxion: rooms: this pak holds 16 of 16 rooms: D011, D031, D081, D107, D158, D009, D049, D092, D036, '
     ..'D106, D039, D087, D111, D109, D029, G18') and logged('sboxion: rooms: G18 open: 6 rows hidden')

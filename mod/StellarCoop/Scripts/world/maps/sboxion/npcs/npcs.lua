@@ -3,7 +3,7 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- SBO Xion's NPCs (world/maps/sboxion/sboxion.lua starts this part at each arrival and ticks it each 250 ms pass while
 -- EVE's map is SBO Xion, after the rooms). Experimental: none of the underground district's NPCs has run in game.
--- An NPC of LIST is a display body in a room or on the underground district's deck, as
+-- An NPC of LIST is a display body in a room or on the underground district's plate, as
 -- world/maps/matrix13/level/mila.lua makes Mila: a plain actor with one SkeletalMeshComponent that loops a clip
 -- (world.body, core/actors.lua's spawn), collision off, no SB character, no row, no AI. So nothing of it can fight, die
 -- or reach a save, SB shows no Talk prompt on it and each game makes its own. The mesh and every clip of a row are on
@@ -11,7 +11,7 @@
 -- clips all import CH_NPC_EngineerMale_Skeleton. The district's meshes and clips import CH_NPC_XionGuard_Skeleton,
 -- CH_NPC_CitizenMale_A_Skeleton (the A, B and C meshes), CH_NPC_CitizenFemale_A_Skeleton,
 -- CH_NPC_ScavengerFemale_A_Skeleton or CH_NPC_EngineerMale_Skeleton, each row its own mesh's (read again on
--- 2026-11-27).
+-- 2026-11-27 and on 2026-11-28 for the plate's rows).
 -- Where it stands: a row's place and yaw are world numbers, made from the room's frame in its layout (room origin
 -- plus the spot turned by the room's inward yaw). A skeletal mesh of SB faces its +Y [inference, as Mila's], so the
 -- mesh turns MESH_YAW more.
@@ -21,8 +21,8 @@
 -- stay at most. A map change takes the actor with the world. coop off removes it.
 -- The talk: EVE inside the room (past its door wall, by the room's frame) and within TALK cm of a body gets its line
 -- once (o.say, the feed or the line above EVE). She gets it again only after she went AGAIN cm away. From the street a
--- wall stands between them, so nothing is said there. The district's deck lies 8.7 m and more under the streets, past
--- TALK.
+-- wall stands between them, so nothing is said there. The plate's NPCs stand 3.7 m and more under the lower street
+-- (the gate guard at Z -596, the street at G18 at -228), past TALK.
 -- coop xion npc: the clip (a number of the row's clips) and a turn of the mesh in degrees, picked by hand for the NPC
 -- nearest to EVE, for this Lua load only, on its body at once. A pick also lets a body that failed try again.
 -- A body that cannot be made says so once and is not tried again until the next arrival or a pick. An error in a pass
@@ -42,8 +42,8 @@ local function clips(dir,names)
     return out
 end
 -- name: the key of its words (ui/text: xion.<name> and xion.<name>_hello). room: the level it stands in. frame: the
--- room's origin (the middle of its door wall) and its inward yaw, as its layout gives them. On the district's deck
--- the frame is the deck's north edge or the market's north mouth, turned inward.
+-- room's origin (the middle of its door wall) and its inward yaw, as its layout gives them. On the district's plate
+-- an NPC in the open has the plate's edge as its frame.
 Npcs.LIST={
     -- The repairer of the repair shop D011, at the workbench with the tool board: the spot (132, -347) of the room's
     -- layout, facing the bench.
@@ -51,52 +51,53 @@ Npcs.LIST={
         clips=clips(ENGINEER..'Animation/',{'N_Engineer_Work1','N_Engineer_Work2','N_Engineer_Work3',
             'N_Engineer_Dusting','N_Engineer_Snooping','N_Engineer_Idle'}),
         at={X=-10931.7,Y=3145.4,Z=414.0},yaw=-70,frame={X=-10650.4,Y=3388.3,yaw=-70}},
-    -- The underground district (district 1 of the sixth full test build): ten bodies, seven on the deck of
-    -- Under_D1_Arch and three in the rooms of Under_D1_ArchHomes, each spot, facing and frame from the district's
-    -- layout of 27 November 2026. Z -1100 is the layout's walk. From the seventh build on, the deck's collision top
-    -- lies there too (the sixth build's lay 13.7 cm lower).
-    -- The gate guard beside the foot of the arch stair, 1 m off its last flight, facing the foot.
-    {name='d1_gate_guard',room='Under_D1_Arch',mesh=asset(GUARD,'CH_NPC_XionGuard'),
+    -- The underground district (the plate of the eighth full test build): ten bodies, each place and yaw from the
+    -- plate's layout of 28 November 2026, on the floor it stands on. room: the level of that floor. frame: the door
+    -- wall of the NPC's room, turned inward, or for an NPC in the open the plate's edge on the side of G18's tunnel
+    -- (grid u 26.91, v 35.5, the middle of that edge), turned inward. Each mesh, clips and skeleton as the district
+    -- before the plate had them for the same role.
+    -- The gate guard at the foot of the arch stair, on the terrace.
+    {name='plate_gate_guard',room='Under_P1_Streets',mesh=asset(GUARD,'CH_NPC_XionGuard'),
         clips=clips(GUARD..'Animation/',{'N_XionGuard_KeepWatch1','N_XionGuard_KeepWatch2',
             'N_XionGuard_Idle','N_XionGuard_Idle2'}),
-        at={X=-585.9,Y=5835.2,Z=-1100.0},yaw=112,frame={X=-220.5,Y=4449.2,yaw=130}},
-    -- The storyteller in the Arch Court, by the globe.
-    {name='d1_storyteller',room='Under_D1_Arch',mesh=asset(MALE,'CH_NPC_CitizenMale_B'),
+        at={X=-27.9,Y=6333.9,Z=-596.0},yaw=220,frame={X=-220.5,Y=4449.2,yaw=130}},
+    -- The storyteller on the placette, by the cafe tables.
+    {name='plate_storyteller',room='Under_P1_Streets',mesh=asset(MALE,'CH_NPC_CitizenMale_B'),
         clips=clips(MALE..'Animation/',{'N_Citizen_Stand_Talk_Loop','N_Citizen_Idle'}),
-        at={X=-995.3,Y=6070.4,Z=-1100.0},yaw=310,frame={X=-220.5,Y=4449.2,yaw=130}},
-    -- The porter in the Gate Yard.
-    {name='d1_porter',room='Under_D1_Arch',mesh=asset(SCAVENGER,'CH_NPC_ScavengerFemale_A'),
+        at={X=-1188.6,Y=6534.8,Z=-1107.0},yaw=310,frame={X=-220.5,Y=4449.2,yaw=130}},
+    -- The porter in her store under the yard, 2.25 m inside its door.
+    {name='plate_porter',room='Under_P1_Shops',mesh=asset(SCAVENGER,'CH_NPC_ScavengerFemale_A'),
         clips=clips(SCAVENGER..'Animation/',{'N_Scavenger_Idle3','N_Scavenger_Idle1'}),
-        at={X=575.8,Y=5770.0,Z=-1100.0},yaw=220,frame={X=-220.5,Y=4449.2,yaw=130}},
-    -- The welder in the Frame Yards.
-    {name='d1_welder',room='Under_D1_Arch',mesh=asset(ENGINEER,'CH_NPC_EngineerMale'),
+        at={X=-664.9,Y=5381.7,Z=-1103.0},yaw=220,frame={X=-766.9,Y=5161.6,yaw=43}},
+    -- The welder in the junk yard's court, facing the rack by its back gate.
+    {name='plate_welder',room='Under_P1_Shops',mesh=asset(ENGINEER,'CH_NPC_EngineerMale'),
         clips=clips(ENGINEER..'Animation/',{'N_Engineer_Work2','N_Engineer_Work1','N_Engineer_Work3'}),
-        at={X=-2126.2,Y=4743.0,Z=-1100.0},yaw=220,frame={X=-220.5,Y=4449.2,yaw=130}},
-    -- A stall keeper behind a counter of the Arch Market.
-    {name='d1_stall_keeper_1',room='Under_D1_Arch',mesh=asset(FEMALE,'CH_NPC_CitizenFemale_A'),
+        at={X=-649.6,Y=7666.0,Z=-1103.0},yaw=143,frame={X=-220.5,Y=4449.2,yaw=130}},
+    -- A stall keeper at the stall on crates.
+    {name='plate_stall_keeper_1',room='Under_P1_Streets',mesh=asset(FEMALE,'CH_NPC_CitizenFemale_A'),
         clips=clips(FEMALE..'Animation/',{'N_Citizen_Idle','N_Citizen_Stand_CrossArms','N_Citizen_Stand_Talk_Loop'}),
-        at={X=-1577.7,Y=6793.2,Z=-1100.0},yaw=220,frame={X=-1601.8,Y=6270.4,yaw=130}},
-    -- A stall keeper behind a counter of the Arch Market.
-    {name='d1_stall_keeper_2',room='Under_D1_Arch',mesh=asset(SCAVENGER,'CH_NPC_ScavengerFemale_A'),
+        at={X=-2437.0,Y=5409.0,Z=-1105.0},yaw=198,frame={X=-220.5,Y=4449.2,yaw=130}},
+    -- A stall keeper at the vending kiosk.
+    {name='plate_stall_keeper_2',room='Under_P1_Streets',mesh=asset(SCAVENGER,'CH_NPC_ScavengerFemale_A'),
         clips=clips(SCAVENGER..'Animation/',{'N_Scavenger_Idle1','N_Scavenger_Idle2','N_Scavenger_Idle3'}),
-        at={X=-2037.3,Y=7340.9,Z=-1100.0},yaw=220,frame={X=-1601.8,Y=6270.4,yaw=130}},
-    -- A stall keeper behind a counter of the Arch Market.
-    {name='d1_stall_keeper_3',room='Under_D1_Arch',mesh=asset(MALE,'CH_NPC_CitizenMale_C'),
+        at={X=-584.6,Y=6624.0,Z=-1107.0},yaw=159,frame={X=-220.5,Y=4449.2,yaw=130}},
+    -- The cook behind the cantine's counter, 3.04 m inside its door.
+    {name='plate_stall_keeper_3',room='Under_P1_Shops',mesh=asset(MALE,'CH_NPC_CitizenMale_C'),
         clips=clips(MALE..'Animation/',{'N_Citizen_Idle','N_Citizen_Stand_CrossArms','N_Citizen_Stand_Talk_Loop'}),
-        at={X=-2567.6,Y=7972.9,Z=-1100.0},yaw=220,frame={X=-1601.8,Y=6270.4,yaw=130}},
-    -- A resident in the front room of home A.
-    {name='d1_resident_a',room='Under_D1_ArchHomes',mesh=asset(MALE,'CH_NPC_CitizenMale_A'),
+        at={X=-1158.5,Y=4445.4,Z=-1104.0},yaw=47,frame={X=-932.7,Y=4242.1,yaw=137}},
+    -- A resident in the house with the lean-to, 4.17 m inside its door.
+    {name='plate_resident_a',room='Under_P1_Streets',mesh=asset(MALE,'CH_NPC_CitizenMale_A'),
         clips=clips(MALE..'Animation/',{'N_Citizen_Idle','N_Citizen_Stand_Talk_Loop'}),
-        at={X=-3322.9,Y=5570.3,Z=-1100.0},yaw=310,frame={X=-2929.0,Y=5692.0,yaw=220}},
-    -- The mechanic in the repair room.
-    {name='d1_mechanic',room='Under_D1_ArchHomes',mesh=asset(ENGINEER,'CH_NPC_EngineerMale_B'),
+        at={X=-3281.4,Y=5979.7,Z=-1104.0},yaw=297,frame={X=-2906.6,Y=6163.8,yaw=207}},
+    -- The mechanic at the radio shop's screens, 3.40 m inside its door.
+    {name='plate_mechanic',room='Under_P1_Shops',mesh=asset(ENGINEER,'CH_NPC_EngineerMale_B'),
         clips=clips(ENGINEER..'Animation/',{'N_Engineer_Work1','N_Engineer_Work2',
             'N_Engineer_Work3','N_Engineer_Idle'}),
-        at={X=-4353.6,Y=6689.7,Z=-1100.0},yaw=310,frame={X=-3902.8,Y=6852.5,yaw=220}},
-    -- A resident in the front room of home B.
-    {name='d1_resident_b',room='Under_D1_ArchHomes',mesh=asset(FEMALE,'CH_NPC_CitizenFemale_A'),
+        at={X=-1984.4,Y=4091.8,Z=-1105.0},yaw=305,frame={X=-2180.3,Y=4369.8,yaw=305}},
+    -- A resident in the plank home, 3.66 m inside its open side.
+    {name='plate_resident_b',room='Under_P1_Shops',mesh=asset(FEMALE,'CH_NPC_CitizenFemale_A'),
         clips=clips(FEMALE..'Animation/',{'N_Citizen_Stand_Talk_Loop','N_Citizen_Idle'}),
-        at={X=-770.5,Y=7712.0,Z=-1100.0},yaw=310,frame={X=-958.7,Y=7345.2,yaw=40}},
+        at={X=-3733.0,Y=6984.6,Z=-1103.0},yaw=224,frame={X=-3505.1,Y=7274.9,yaw=224}},
 }
 do
     local paths={}

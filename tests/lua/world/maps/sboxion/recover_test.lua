@@ -36,10 +36,10 @@
 -- leaves her walking sets the failures to 0; a death that starts while a put-back is checked drops the check.
 -- busy, for the Tetrapod's door (tetrapod.lua): whether a guard waits or a put-back or a death is handled, with the
 -- pass's read of EVE.
--- The underground district (data.lua's UNDER): inside its box the deck is ground and a fall under -1275 is caught,
--- with its own words in the fall line, then she goes back to her point on the deck. Walking under -1275 in the box
--- records nothing. Outside the box -1276 is ground as before. Each of the box's four sides is tried 10 cm on each
--- side.
+-- The underground district (data.lua's UNDER): inside its box the plate's walk is ground down to -1200 and a fall
+-- under -1275 is caught, with its own words in the fall line, then she goes back to her point on the walk. Walking
+-- under -1275 in the box records nothing. Outside the box -1276 is ground as before. Each of the box's four sides is
+-- tried 10 cm on each side: the plate's outline with 10 m more, u -3.25 to 57.4 and v 25.5 to 91.43.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Recover=require('world.maps.sboxion.recover')
 local D=require('world.maps.sboxion.data')
@@ -209,19 +209,24 @@ fall()
 pass(r,3)
 assert(#puts==2 and puts[2].at.X==400 and puts[2].at.Z==245,'The new point')
 
--- under_fall: the district's deck is ground and a fall under its floor goes back to the point on the deck.
-assert(D.UNDER.yaw==40 and D.UNDER.floor==-1275 and D.UNDER.u[1]==-3.25 and D.UNDER.u[2]==57.54
-    and D.UNDER.v[1]==21.83 and D.UNDER.v[2]==91.44)
-r=fresh({X=-817,Y=6032.8,Z=-1019}) -- The gate guard's place at the stair foot.
+-- under_fall: the plate's walk is ground at -1200, the low terrace's level. A fall under its floor goes back to the
+-- point on the walk.
+assert(D.UNDER.yaw==40 and D.UNDER.floor==-1275 and D.UNDER.u[1]==-3.25 and D.UNDER.u[2]==57.4
+    and D.UNDER.v[1]==25.5 and D.UNDER.v[2]==91.43)
+r=fresh({X=-1746.2,Y=3590.4,Z=-1200}) -- 3 m from the low terrace (grid u 12.0, v 36.8).
 walk(r,6)
-assert(r.status():find('ground (-517, 6033, -1019)',1,true),r.status())
+assert(r.status():find('ground (-1446, 3590, -1200)',1,true),r.status())
 fall(-1276)
 pass(r,3)
-assert(#puts==1 and puts[1].at.X==-517 and puts[1].at.Y==6032.8 and puts[1].at.Z==-1009,'Back on the deck')
-assert(last()=='fall: EVE at (-217, 6033, -1276) under the floor of the underground district, mode 3, life 1: to the '
-    ..'ground point (-517, 6033, -1019) read 1.5 s ago',last())
+assert(#puts==1 and puts[1].at.X==-1446.2 and puts[1].at.Y==3590.4 and puts[1].at.Z==-1190,'Back on the low terrace')
+assert(last()=='fall: EVE at (-1146, 3590, -1276) under the floor of the underground district, mode 3, life 1: to the '
+    ..'ground point (-1446, 3590, -1200) read 1.5 s ago',last())
+-- The top of the walk band, the yard at -809, is ground too.
+r=fresh({X=-450,Y=5300,Z=-809})
+walk(r,4)
+assert(r.status():find('ground (-350, 5300, -809)',1,true) and #puts==0,r.status())
 -- Walking under the district's floor records nothing.
-r=fresh({X=-817,Y=6032.8,Z=-1276})
+r=fresh({X=-1188.6,Y=6534.8,Z=-1276}) -- The storyteller's place on the placette.
 assert(r.mode('off'))
 walk(r,8)
 assert(r.status()=='recovery off, no ground point, failures 0' and #puts==0,r.status())
@@ -230,9 +235,9 @@ r=fresh({X=0,Y=0,Z=-1276})
 walk(r,4)
 pass(r,3)
 assert(r.status():find('ground (400, 0, -1276)',1,true) and #puts==0,r.status())
--- The box's sides, u 57.54 and -3.25, v 21.83 and 91.44: a fall 10 cm inside, none 10 cm outside.
-for _,side in ipairs({{1096.3,7638.9,1104.0,7645.3},{-3553.6,3737.1,-3561.2,3730.7},{1083.5,3768.0,1093.1,3756.5},
-        {-3383.9,9092.0,-3390.3,9099.7}}) do
+-- The box's sides, u 57.4 and -3.25, v 25.5 and 91.43: a fall 10 cm inside, none 10 cm outside.
+for _,side in ipairs({{631.4,8161.9,646.7,8174.7},{-3999.4,4276.2,-4014.7,4263.3},{428.5,3701.4,441.4,3686.1},
+        {-3796.5,8736.6,-3809.4,8752.0}}) do
     r=fresh({X=side[1],Y=side[2],Z=-1276})
     eve.mode=3
     pass(r,3)

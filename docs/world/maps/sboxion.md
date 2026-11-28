@@ -30,7 +30,7 @@ mod does not ship it and the repository cannot build it: the map tools stay outs
 The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then in `SB/Content/Paks/LogicMods`. The
 `.utoc` must name `SBO_World` and `Xion_P.umap`, with its `.pak` and `.ucas` beside it.
 
-There are ten builds of the pak, under the same three file names. Only one of them is installed at a time.
+There are eleven builds of the pak, under the same three file names. Only one of them is installed at a time.
 
 | Pak | Packages | Levels listed | `.utoc` | `.ucas` | Version in `coop xion status` |
 | --- | --- | --- | --- | --- | --- |
@@ -44,8 +44,9 @@ There are ten builds of the pak, under the same three file names. Only one of th
 | 26 November 2026, full test, fifth build | `Xion_P` and fifteen room levels | 171 | 2303 bytes | 2,267,202 bytes | `2303_2267202` |
 | 27 November 2026, full test, sixth build | `Xion_P`, the fifteen room levels and the two district levels | 173 | 2560 bytes | 2,610,974 bytes | `2560_2610974` |
 | 27 November 2026, full test, seventh build | `Xion_P`, the fifteen room levels and the two district levels, rebuilt | 173 | 2560 bytes | 2,612,399 bytes | `2560_2612399` |
+| 28 November 2026, full test, eighth build | `Xion_P`, the fifteen room levels and the three plate levels | 174 | 2999 bytes | 4,509,629 bytes | `2999_4509629` |
 
-All ten pass the check above. The module looks for package paths, never for a version: `self.gate()` in
+All eleven pass the check above. The module looks for package paths, never for a version: `self.gate()` in
 `sboxion.lua` hands the version to `coop xion status`, which prints it. Nothing else reads it. Two rebuilds of the
 third full test build, made on 25 November 2026 with pieces turned inside the rooms, read the same version: it is
 made of two sizes. At the first arrival
@@ -65,13 +66,15 @@ The fifth build holds the eleven and four new levels, `D087`, `D111`, `D109` and
 the kind the first eleven rooms use: none names a volume. Three of them carry the level names of closed rooms of the
 fourth build, so the module opens those three only with a pak that also holds `Xion_Rooms_D087.umap`.
 
-The sixth build holds the fifth build's fifteen room levels with the same bytes. It adds the two levels of [the
-underground district](#the-underground-district): `Under_D1_Arch.umap` and `Under_D1_ArchHomes.umap`. Its level line reads
-`173 listed, 139 of 139`. With it the module also opens the gate G18.
+The sixth build holds the fifth build's fifteen room levels with the same bytes. It adds the two levels of a first
+underground district: `Under_D1_Arch.umap` and `Under_D1_ArchHomes.umap`. Its level line reads `173 listed, 139 of
+139`. The seventh build holds the same levels with the two district levels built again. The module no longer asks
+for those two levels, so with either build it opens the fifteen rooms and keeps the gate G18 shut.
 
-The seventh build holds the same levels. Only its two district levels are new. The deck plates sit 13.7 cm higher.
-The deck's north edge has rails along its whole length: 44 in place of 41, which closes a gap of 3.9 m under the arch
-landing. `Xion_P` and the fifteen room levels are the same bytes as in the sixth build.
+The eighth build holds the fifteen room levels with the same bytes as the seventh build. In place of the two
+district levels it holds the three levels of [the underground district](#the-underground-district)'s plate:
+`Under_P1_Streets.umap`, `Under_P1_Shops.umap` and `Under_P1_Blocks.umap`. Its level line reads `174 listed, 140 of
+140`. With it the module also opens the gate G18.
 
 ## Commands
 
@@ -140,8 +143,8 @@ above the ground point with `K2_TeleportTo`, facing the way she faced there, the
 point of the upper city and 3500 cm under the city point. In the first game test EVE fell more than 26,000 cm before
 SB's timer ended the fall.
 
-Over [the underground district](#the-underground-district) the floor is -1275, 175 cm under the district's deck, in
-place of -3275. The fall line then reads `under the floor of the underground district`.
+Over [the underground district](#the-underground-district) the floor is -1275, 80 cm under the lowest place of its
+walk, in place of -3275. The fall line then reads `under the floor of the underground district`.
 
 With no ground point, or after a failure, the target is the arrival point of the stay. After a failure the move is
 made at once, in the pass that reads her under the floor. The first read of EVE walking within 3 s of the world's
@@ -834,32 +837,62 @@ Send the `npcs:` lines of `UE4SS.log`.
 
 ## The underground district
 
-The sixth full test build (27 November 2026) adds a district of SBO's own under the lower street: district 1 of the
-underground city, the Arch Quarter. The seventh build of the same day builds its two levels again. None of it has run
-in game.
+The eighth full test build (28 November 2026) holds a district of SBO's own under the lower street: a plate hung under
+the city, made of Stellar Blade's own pieces. None of it has run in game. The sixth and seventh builds held an
+earlier district on the same spot (`Under_D1_Arch` and `Under_D1_ArchHomes`). The module no longer asks for those two
+levels.
 
 The way down starts at the gate G18 on the lower street (`MainStreet_04`), at (252, 4408, -228). Behind the gate,
-SB's brick tunnel runs 14.9 m (4.4 m wide, 5.8 m high) to a far arch at (1300, 5308). SB's floor stops 1.5 to 2 m
-past that arch. The district's three flights of stairs start there and go down 8.84 m to a deck at Z -1100. The
-deck is 40.32 x 45.93 m. It holds the Arch Court, the Gate Yard, the Frame Yards, the Arch Market with six stalls,
-two homes of two rooms each, a repair room and a store room. Every piece names one of Stellar Blade's meshes, which
-loads from the player's own game files. EVE walks down on stairs and decks: there is no warp, no black screen and no
-loading screen on the way.
+SB's brick tunnel runs 14.9 m (4.4 m wide, 5.8 m high) to a far arch at (1300, 5308). Past that arch the plate's walk
+starts at E1, a landing at (1300, 5317, -216.5). EVE walks down on stairs, landings and terraces: there is no warp,
+no black screen and no loading screen on the way.
 
-The district is two levels on the streaming list of `Xion_P`, under the folder of the rooms:
+| Level of the walk (Z) | Where |
+| --- | --- |
+| -216.5 | E1, the landing past the far arch |
+| -593 | The terrace at the foot of the arch stair |
+| -611 | The red stair's landing |
+| -809 | The yard landing, on the roof of the porter's store |
+| -933 and -1015 | The paved terrace and the landing of the low flights |
+| -1000 | The tailor's floor, four steps up from the street |
+| -1075 | The north terrace |
+| -1100 | The main walk: the placette, the Arch street, the lane and the courts |
+| -1190 | The low terrace |
+
+The plate's outline is 40.32 x 45.93 m, in a grid turned 40 degrees from the world's axes. It holds 33 units. Each
+unit copies one or more groups of pieces of SB's own Xion, in SB's own arrangement, then changed to fit its place:
+
+- The stairs: the arch stair, the yard landing and the low flights, from SB's market and yard stairs.
+- The shops: a vending kiosk, the cantine (SB's narrow bar), the radio shop, the tailor (seven parts of SB's hair
+  salon), a stall on crates and the junk yard (six parts of Kaya's shop with its court floor, a service wall and pipe
+  columns).
+- The homes: the house with the lean-to (with shelf, dart and bookcase walls and a sitting corner of SB's rooms), the
+  plank home (Jett's room with his shelf wall) and the porter's store under the yard.
+- The street: a utility pole, cafe tables, barrels, the north terrace's lean-to, a scrap yard at the back of the
+  court, the tailor's dais, workbench and frame wall.
+- The edge: the north edge terrace, a plank door and lattice frames under three edges.
+
+The plate holds 3,269 pieces. 1,283 of them are copied from 44 groups of SB's Xion. The others are SB's kit pieces
+laid as SB lays them: walls, slabs, stairs, rails, hanging blocks under the plate and ground planes with SB's street
+materials. Every piece names one of Stellar Blade's meshes or the engine's plane, which load from the player's own
+game files. The plate has 144 movable lights, 14 of them cast shadows.
+
+The district is three levels on the streaming list of `Xion_P`, under the folder of the rooms:
 
 | Level | What it holds | Pieces | Lights | Streaming slot |
 | --- | --- | --- | --- | --- |
-| `/Game/SBO_World/Rooms/Under_D1_Arch` | The stairs, the deck, the court, the yards and the market | 382 | 23 | `LevelStreamingDynamic_54` |
-| `/Game/SBO_World/Rooms/Under_D1_ArchHomes` | The homes, the repair room, the store room and their lanes | 203 | 16 | `LevelStreamingDynamic_56` |
+| `/Game/SBO_World/Rooms/Under_P1_Streets` | The walk: stairs, landings, terraces, the street, the lane and their ground | 1,047 | 38 | `LevelStreamingDynamic_54` |
+| `/Game/SBO_World/Rooms/Under_P1_Shops` | The shops and the homes | 1,378 | 75 | `LevelStreamingDynamic_56` |
+| `/Game/SBO_World/Rooms/Under_P1_Blocks` | The hanging blocks, their faces, the lattice frames and the lid | 844 | 31 | `LevelStreamingDynamic_58` |
 
-Both slots name volumes in E04 as SB ships them. The build makes them always loaded, so the module counts both
-levels among the always-loaded ones. No level on such a slot has been seen loading in game yet.
+The three slots name volumes in E04 as SB ships them. The build makes them always loaded, so the module counts the
+three levels among the always-loaded ones. The earlier district rode on `_54` and `_56` and loaded in game. `_58` has
+not been seen loading in game.
 
 ### The gate
 
-G18 is the last entry of `rooms/list.lua`. Its level is `Under_D1_Arch`, so only a pak that holds that level opens
-the gate. The module opens it once `Under_D1_Arch` and `E04_Area02_Object_F_04` read loaded and visible, the same
+G18 is the last entry of `rooms/list.lua`. Its level is `Under_P1_Streets`, so only a pak that holds that level opens
+the gate. The module opens it once `Under_P1_Streets` and `E04_Area02_Object_F_04` read loaded and visible, the same
 way it opens a room. It hides the six pieces of SB that close the gate, all of `E04_Area02_Object_F_04`'s
 `Actor_1`:
 
@@ -883,65 +916,70 @@ the last check of that.
 
 ### Falls over the district
 
-The district has its own floor for [the recovery](#falls-and-deaths). `data.lua`'s `UNDER` is a box in the
-district's grid: u along yaw 40 and v along yaw 130, in metres from the world origin, u -3.25 to 57.54 and v 21.83 to
-91.44. It holds every piece of the district with 10 m more on each side. Inside it EVE at or above Z -1275 is on
-ground and EVE under it has fallen. -1275 is the top of SB's fall volume `SBEffectVolume_Xion10_03`, which lies under
-the whole box, 175 cm under the deck. A fall off the deck is caught there, not 21.75 m lower at -3275. Outside the
-box the floor stays -3275.
+The district has its own floor for [the recovery](#falls-and-deaths). `data.lua`'s `UNDER` is a box in the plate's
+grid: u along yaw 40 and v along yaw 130, in metres from the world origin, u -3.25 to 57.4 and v 25.5 to 91.43. It
+holds the plate's outline (u 6.75 to 47.07, v 35.5 to 81.43) and every cell of its walk under Z -800 (u 7.0 to 47.4,
+v 36.0 to 81.2) with 10 m more on each side. Inside it EVE at or above Z -1275 is on ground and EVE under it has
+fallen. Every level of the walk lies over -1275: its lowest walked cell is at -1195, on the low terrace. -1275 is the
+top of SB's fall volume `SBEffectVolume_Xion10_03`, which lies under the whole box. A fall off the plate is caught
+there, not 20 m lower at -3275. Outside the box the floor stays -3275.
 
-In the box, SB's collision under Z -1180 is two pieces of `Architecture/Ceiling/003_B_SM` standing on their edge,
-10 cm thick, with no floor to stand on.
+In the box, SB's collision holds no triangle between Z -3370 and -1180. The plate's own pieces under -1275 (the
+lattice frames and the lower parts of the hanging blocks) are not walked: EVE who lands on one has fallen.
 
 ### The district's NPCs
 
-Ten display bodies of the kind [the NPCs](#the-npcs) describes, each at its spot and facing of the district's
-layout:
+Ten display bodies of the kind [the NPCs](#the-npcs) describes, each at its place and facing of the plate's layout.
+Each stands on the floor of its level:
 
 | NPC | Level | Where | Mesh | Line |
 | --- | --- | --- | --- | --- |
-| `d1_gate_guard` | `Under_D1_Arch` | Beside the foot of the arch stair, 1 m off its last flight, (-586, 5835, -1100) | `CH_NPC_XionGuard` | You came down the arch stair? Then you found us. |
-| `d1_storyteller` | `Under_D1_Arch` | In the Arch Court, by the globe | `CH_NPC_CitizenMale_B` | Before the city was hung here, this was all falling air. |
-| `d1_porter` | `Under_D1_Arch` | In the Gate Yard | `CH_NPC_ScavengerFemale_A` | Everything that comes down, comes down that stair. |
-| `d1_welder` | `Under_D1_Arch` | In the Frame Yards | `CH_NPC_EngineerMale` | Stand back from the sparks. |
-| `d1_stall_keeper_1` to `_3` | `Under_D1_Arch` | Behind three counters of the Arch Market | `CH_NPC_CitizenFemale_A`, `CH_NPC_ScavengerFemale_A`, `CH_NPC_CitizenMale_C` | Fresh from the upper streets. Cells, cable, anything that still works. Ask before you touch. |
-| `d1_resident_a` | `Under_D1_ArchHomes` | In the front room of home A | `CH_NPC_CitizenMale_A` | Mind the curtain, it keeps the dust out. |
-| `d1_mechanic` | `Under_D1_ArchHomes` | In the repair room | `CH_NPC_EngineerMale_B` | Bring me what the upper streets threw away. |
-| `d1_resident_b` | `Under_D1_ArchHomes` | In the front room of home B | `CH_NPC_CitizenFemale_A` | We came down when the stairs were finished. |
+| `plate_gate_guard` | `Under_P1_Streets` | On the terrace at the foot of the arch stair, (-28, 6334, -596) | `CH_NPC_XionGuard` | You came down the arch stair? Then you found us. |
+| `plate_storyteller` | `Under_P1_Streets` | On the placette, by the cafe tables | `CH_NPC_CitizenMale_B` | Before the city was hung here, this was all falling air. |
+| `plate_porter` | `Under_P1_Shops` | In the porter's store under the yard | `CH_NPC_ScavengerFemale_A` | Everything that comes down, comes down that stair. |
+| `plate_welder` | `Under_P1_Shops` | In the junk yard's court, facing the rack by its back gate | `CH_NPC_EngineerMale` | Stand back from the sparks. |
+| `plate_stall_keeper_1` | `Under_P1_Streets` | At the stall on crates | `CH_NPC_CitizenFemale_A` | Fresh from the upper streets. |
+| `plate_stall_keeper_2` | `Under_P1_Streets` | At the vending kiosk | `CH_NPC_ScavengerFemale_A` | Cells, cable, anything that still works. |
+| `plate_stall_keeper_3`, the cook | `Under_P1_Shops` | Behind the cantine's counter | `CH_NPC_CitizenMale_C` | Find yourself a seat and I'll be right with you. |
+| `plate_resident_a` | `Under_P1_Streets` | In the house with the lean-to | `CH_NPC_CitizenMale_A` | Come in if you like. Just keep clear of the dartboard. |
+| `plate_mechanic` | `Under_P1_Shops` | At the radio shop's screens | `CH_NPC_EngineerMale_B` | Bring me what the upper streets threw away. |
+| `plate_resident_b` | `Under_P1_Shops` | In the plank home | `CH_NPC_CitizenFemale_A` | We came down when the stairs were finished. |
 
 Each mesh and its clips import one skeleton in `pakchunk0`: `CH_NPC_XionGuard_Skeleton`,
 `CH_NPC_CitizenMale_A_Skeleton` (the A, B and C meshes), `CH_NPC_CitizenFemale_A_Skeleton`,
 `CH_NPC_ScavengerFemale_A_Skeleton` or `CH_NPC_EngineerMale_Skeleton`. The pak gate is asked for each NPC's own
 level. A body waits for its level to read loaded and visible.
 
-The lines are first drafts in English, translated into the 22 language files. The deck's NPCs talk on the deck side
-of the deck's north edge, the market's on the market side of its north mouth, the residents and the mechanic
-inside their rooms. The street over the deck is 8.7 m up or more, past the 3 m of a line.
+The lines are translated into the 22 language files. The porter, the cook, the mechanic and the two residents talk
+inside their room's door wall. The other five talk on the plate's side of its edge toward G18's tunnel. Every NPC
+stands 3.7 m or more under the lower street at G18 (Z -228), past the 3 m of a line.
 
-### What the seventh build leaves open
+### What the eighth build leaves open
 
-- The deck's collision top meets the walk at Z -1100, where EVE, the props and the NPC spots stand. The plates' drawn
-  grating lies 3.8 cm lower. Low mounds drawn on the plates rise up to 13 cm over the walk, some of them under props.
-- The district has no `SBEnvControlVolume` of its own and its props carry no `LDMaxDrawDistance`.
-- The pieces use the collision profiles the editor gave them: 560 block and 25 let EVE through. Not tested in game.
+- Nothing ran in game: the walk from E1, the collision of the pieces (2,560 block EVE, 709 let her through), the
+  light under SB's own env volumes, the NPC bodies and their lines.
+- The layout's walk check from E1 reached all 10 NPC places. Each NPC stands on a cell EVE walks to.
+- One light copied from SB, in `Under_P1_Streets`, stands at 0 cd and gives no light.
 - `coop xion rooms off` puts G18's pieces back too. With EVE below the gate she then cannot walk out until
   `coop xion rooms on`.
 
 ### Testing the district in game
 
-With the seventh build in `SB/Content/Paks/~mods`, on a co-op save, alone.
+With the eighth build in `SB/Content/Paks/~mods`, on a co-op save, alone.
 
-1. `coop xion`. Within 15 s the log has `levels: 173 listed, 139 of 139`, `rooms: this pak holds 16 of 16 rooms`
+1. `coop xion`. Within 15 s the log has `levels: 174 listed, 140 of 140`, `rooms: this pak holds 16 of 16 rooms`
    and `rooms: G18 open: 6 rows hidden`.
 2. Walk to the gate G18 on the lower street. `coop xion status` names the nearest waypoint, `G18` within a few
    metres there. Note whether the walk from the street reaches it, past the furniture of `E04_Area02_Object_A_03`.
 3. The crates, the fence, the tarp and one barrel are gone. Walk through the tunnel to the far arch and down the
-   three flights. Note any step that stops EVE or drops her.
-4. On the deck the log has `npcs: d1_gate_guard stands in Under_D1_Arch`. Walk up to him: his line shows once.
-5. Walk through the court, the yards, the market, both homes, the repair room and the store room. Note the props
-   and the NPCs' feet over the deck, the light and any piece EVE walks through.
-6. Jump over a deck rail (the rails stand 81 cm over the deck). The log has `black:`, then `fall: EVE at ... under
-   the floor of the underground district` and `put back: EVE walks`. EVE stands on the deck again.
+   arch stair to the terrace. Note any step that stops EVE or drops her.
+4. On the terrace the log has `npcs: plate_gate_guard stands in Under_P1_Streets`. Walk up to him: his line shows
+   once.
+5. Walk the whole plate: the red stair, the yard landing, the low flights, the placette, the Arch street, the lane,
+   the north and low terraces, every shop and both homes. Note the NPCs' feet over the floor, the light and any
+   piece EVE walks through. Walk up to the welder in the junk yard's court: his line shows once.
+6. Jump over a rail at the plate's edge. The log has `black:`, then `fall: EVE at ... under the floor of the
+   underground district` and `put back: EVE walks`. EVE stands on the plate again.
 7. Walk back up the stairs and out through the gate, then `coop xion leave`.
 
 Send the `[SX]` lines of `UE4SS.log`.
@@ -1002,8 +1040,8 @@ The same as with the rooms pak. The rooms open as before. The recovery catches E
 `Zone_SBO_Xion` and waits while it is another. The levels line counts the 34 volume levels apart. The look lines say
 what wakes up ([What the log shows](#what-the-log-shows)). Nothing pins the pak's version: `coop xion status` prints
 `pak 1203_1501548`, `pak 1203_1546008` for the second build, `pak 1863_1918741` for the third, `pak 2719_2331195`
-for the fourth, `pak 2303_2267202` for the fifth, `pak 2560_2610974` for the sixth and `pak 2560_2612399` for the
-seventh.
+for the fourth, `pak 2303_2267202` for the fifth, `pak 2560_2610974` for the sixth, `pak 2560_2612399` for the
+seventh and `pak 2999_4509629` for the eighth.
 
 ### What is not known
 
@@ -1037,8 +1075,9 @@ triggers, its saves and its warps then work again. Stop walking. Do not jump. Le
 
 1. `coop xion`. Do not move. Within 15 s the log has `levels: 161 listed, 127 of 127` (`167 listed, 133 of 133` with
    the third build, `171 listed, 137 of 137` with the fifth, `173 listed, 139 of 139` with the sixth and the
-   seventh), the `rooms: <room> open` lines (five, eleven with the third and fourth builds, fifteen with the fifth,
-   fifteen and `G18` with the sixth and the seventh), a `characters:` line, `zone: zonetype 5 area Zone_SBO_Xion`
+   seventh, `174 listed, 140 of 140` with the eighth), the `rooms: <room> open` lines (five, eleven with the third
+   and fourth builds, fifteen with the fifth to the seventh, fifteen and `G18` with the eighth), a `characters:`
+   line, `zone: zonetype 5 area Zone_SBO_Xion`
    and `life: 1`. Note any hitch.
 2. `coop xion status`. Note the look part: the count of characters, the nearest one, the zone.
 3. Stand still for 2 minutes, then walk on the arrival square for 1 minute. Stay out of the box 7 m to the north
@@ -1218,9 +1257,11 @@ underground and 47 of the 50 level-design sublevels.
   refused, then the wiring's two stores (`coop-xion-rooms.txt`, `coop-xion-npcs.txt`) and an NPC's line in the
   menu's words.
 - `npcs/npcs_test.lua`: the list (names with words in 22 languages, a line within the feed's 200 bytes, each spot on
-  its side of its frame, the repairer's spot from D011's frame, the district's ten in its two levels at Z -1100 inside
-  the district's box), the gate asked for each NPC's level, the ten kept away by a pak without the district, the
-  seven deck bodies and two lines beside the gate guard, nothing said from the street over the deck, no body far away, without the room's level or with a pak that lacks the room,
+  its side of its frame, the repairer's spot from D011's frame, the district's ten with their level, place, yaw and
+  frame inside the district's box and over its floor, the cook's and the house resident's words), the gate asked for
+  each NPC's level, the ten kept away by a pak without the district, the four bodies of `Under_P1_Streets` and two
+  lines beside the gate guard and the storyteller, nothing said from the lower street, no body far away, without the
+  room's level or with a pak that lacks the room,
   the body with its turn and clip, the talk once inside the room and again after 6 m, nothing said through the
   wall, the body gone past 35 m, a dropped body made again three times at most, a body or a clip that fails,
   `coop xion npc`, the sweep of an earlier load's body, `stop()` and an error in a pass.
@@ -1259,15 +1300,16 @@ underground and 47 of the 50 level-design sublevels.
   `coop off`, the recovery ended before the rooms close at `coop off` and at a map change. With the fourth build's
   175 levels the eleven open and no line names its eight closed rooms. With the fifth build's 171 levels the fifteen
   open with 62 rows, the level line reads `171 listed, 137 of 137`, the five newer doors are waypoints and `coop off`
-  puts the 62 rows back. With the sixth build's 173 levels the level line reads `173 listed, 139 of 139`, the
+  puts the 62 rows back. With the seventh build's 173 levels the level line reads `173 listed, 139 of 139` and the
+  fifteen open with G18 shut. With the eighth build's 174 levels the level line reads `174 listed, 140 of 140`, the
   sixteen open with 68 rows, G18 is a waypoint and `coop off` puts the 68 rows back.
 - `recover_test.lua`: the ground point, the fall with its black and the move two passes later, a black that is not
   shown, the move dropped or held back like a check, each guard, the check on the world's time, the two failures
   that stop the recovery, then the death with score attack's respawn cases and this module's own (no death screen
   for 5 s, a respawn that leaves EVE off the ground, a death left from the mode `off` or read during a wait). Over
-  the underground district: the deck is ground, a fall under -1275 goes back to the deck with its own words, walking
-  under -1275 records nothing, the same height outside the box is ground and each side of the box holds 10 cm in and
-  out.
+  the underground district: the plate's walk is ground at -1200 and at -809, a fall under -1275 goes back to the
+  low terrace with its own words, walking under -1275 records nothing, the same height outside the box is ground and
+  each side of the box holds 10 cm in and out.
 - `engine_test.lua`: the UE4SS calls over fake objects, the recovery's included: one read of EVE a pass, no stop call
   after a refused teleport, the black's call and its three answers, the respawn's request, the death screen hidden
   and shown again. No wall call is left. For a piece of a doorway: found by its names and refused for another
@@ -1281,8 +1323,8 @@ underground and 47 of the 50 level-design sublevels.
   room that waits for a level and closes after 30 looks, a row not found, a row that cannot be hidden with the rows
   before it put back, the put-back with a world that still stands and with one that is gone, `coop xion rooms`,
   the store's line and the sweep, a store that raises, a level read that raises, a pak of the fourth build that
-  opens eleven rooms and names none of the other three, all fifteen with the fifth, then G18 with the sixth: it waits
-  for `Under_D1_Arch`, then opens its six rows.
+  opens eleven rooms and names none of the other three, all fifteen with the fifth, G18 shut with the seventh, then
+  G18 with the eighth: it waits for `Under_P1_Streets`, then opens its six rows.
 - `tests/native/world/maps/sboxion/sboxion_test.cpp`: one case for each guard of the two requests, the answer word,
   the status line and the log lines, the inside flag and the `life=` word on each form of the line.
 - `tests/native/rows/rows_test.cpp` runs the batch on the row engine. `tests/native/link/protocol_test.cpp` parses
