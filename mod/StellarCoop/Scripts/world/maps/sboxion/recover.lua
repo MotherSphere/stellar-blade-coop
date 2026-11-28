@@ -14,8 +14,8 @@
 -- The full test pak loads those sublevels as SB ships them. The rows of the city's 19 fall volumes name Zone_Xion_10
 -- as the zone they act in, so in Zone_SBO_Xion the recovery runs the same with each pak. Whether SB's volumes act
 -- there was not seen in game.
--- The floor: data.lua's FLOOR, or UNDER's floor inside the underground district's box. There the district's deck is
--- ground and a fall off it is caught at Z -1275, 175 cm under the deck, not at FLOOR 21.75 m under it.
+-- The floor: data.lua's FLOOR, or UNDER's floor inside the underground district's box. There the plate's walk is
+-- ground down to its low terrace at -1190 and a fall off it is caught at Z -1275, not at FLOOR 20 m lower.
 -- The ground point: each pass, world.move() gives EVE's place, yaw and movement mode from one read. A pass on which
 -- she walks (mode 1 or 2) at or above the floor joins a streak. The oldest of STREAK passes in a row is the
 -- ground point: a place she walked on, at most 1 s old. A jump, a fall, a guard that waits or a step of more than
