@@ -10,6 +10,7 @@
 -- closet rescan) and the closet menu (M.closet_menu, closet/ui/menu.lua,
 -- built at main/ui.lua's step menu with the Steam link only). main/frame.lua runs its restore at the first tick and its
 -- tick each frame; coop off stops it.
+local head -- closet/head/wear.lua's head part: made in new, handed to the menu in build.menu.
 return {
 uses={},
 exports={'closet','closet_menu','closet_thumbs','closet_colour','closet_shape','closet_packs','closet_options',
@@ -20,7 +21,7 @@ local print=M.print
 -- goes on again while the game is paused or shows one of its screens (its wardrobe among them). The pack catalogue is
 -- read before a kept look is worn again (it may be a pack's suit). Its head part (closet/head/wear.lua) wears the Hair
 -- and Ponytail choices on EVE's own head components; the dress keeps its line in coop-closet.txt.
-local head=require('closet.head.wear').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
+head=require('closet.head.wear').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
     fits=require('closet.fits'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
     tell=function(build) if M.tell then M.tell(build) end end})
 M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,

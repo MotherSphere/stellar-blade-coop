@@ -3101,6 +3101,33 @@ local tests = {
         ok(menu_got.uidev == M.link.uidev, 'the menu reads SB\'s input device through the link (its prompts follow it)')
     end,
 
+    the_wiring_gives_the_menu_the_head_part = function()
+        -- In game (27 Nov 2026) the Eyes row opened on Tachy's face: the menu got no head part from closet/wiring.lua.
+        local dress = rig().dress -- First: rig loads the menu again.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.menu', 'closet.wiring'}) do
+            saved[name] = package.loaded[name]
+        end
+        local made
+        package.loaded['closet.dress'] = {new = function(o) made = o.head; return dress end}
+        local menu_got
+        package.loaded['closet.ui.menu'] = {new = function(o) menu_got = o; return {open = function() end} end}
+        package.loaded['closet.wiring'] = nil
+        local W = require('closet.wiring')
+        local M = {print = function() end, kit = F.kit(), words = function() return T.en end, tell = function() end,
+            photo_state = function() return '0' end, closet_thumbs = {run = function() end},
+            closet_colour = fake_colour(), closet_shape = fake_shape(),
+            link = {status = function() return '' end, uidev = function() return 4 end, store = function()
+                return {save = function() return true end, load = function() end, clear = function() end}
+            end}}
+        pcall(W.new, M)
+        local ran, why = pcall(W.build.menu, M)
+        for name, v in pairs(saved) do package.loaded[name] = v end
+        ok(ran, tostring(why))
+        ok(made ~= nil, 'the dress got the head part')
+        ok(menu_got and menu_got.head == made, 'the menu has the same head part')
+    end,
+
     the_wiring_merges_stock_items = function()
         -- closet/wiring.lua's scan wrapper: the stock items (Stock.build) join the pack catalogue at Fits.use; a pack
         -- item with an SB. id is refused with a log line; a failed stock read (items and a why) merges what came back
