@@ -33,10 +33,13 @@ local SLOT_OF = {body = Slots.FULL_OUTFIT, [''] = Slots.FULL_OUTFIT, face = 'Fac
 -- (hat, horn, cap, helmet, crown included) Headwear. Never Eyes or Ears: both are hidden slots.
 CnsImport.HEAD_WORDS = {{'mask', 'Mask'}, {'glass', 'Glasses'}, {'gla_', 'Glasses'}, {'goggle', 'Glasses'},
     {'earring', 'EarringL'}}
+-- The name first, the mesh path only when the name has no keyword: AiK's Classic Glasses sit under a
+-- Glasses_For_Mask folder and landed on the Mask row (probe 8 in game, 27 Nov 2026).
 function CnsImport.head_slot(name, mesh)
-    local text = ((name or '') .. ' ' .. (mesh or '')):lower()
-    for _, w in ipairs(CnsImport.HEAD_WORDS) do
-        if text:find(w[1], 1, true) then return w[2] end
+    for _, text in ipairs({(name or ''):lower(), (mesh or ''):lower()}) do
+        for _, w in ipairs(CnsImport.HEAD_WORDS) do
+            if text:find(w[1], 1, true) then return w[2] end
+        end
     end
     return 'Headwear'
 end

@@ -44,6 +44,9 @@ local tests={
         end
         eq(slot_of('Eyes', 'Mask glasses', '/Game/M/A.A'), 'Mask', 'mask is checked first')
         eq(slot_of('Ears', 'Glass earrings', '/Game/M/A.A'), 'Glasses', 'glass before earring')
+        -- The name before the path: AiK's Classic Glasses sit under Glasses_For_Mask (probe 8, 27 Nov 2026).
+        eq(slot_of('Eyes', 'AiK : Classic Glasses', '/Game/AiK/Glasses_For_Mask/ACC_GLA_15M.ACC_GLA_15M'), 'Glasses',
+            'a keyword in the name wins over the path')
         eq(slot_of('Face', 'Red Mask', '/Game/M/A.A'), 'Face', 'Face stays Face')
     end,
     head_slots_and_ponytail = function()
