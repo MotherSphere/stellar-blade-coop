@@ -3,8 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Copied from tests/lua/fight/gunmode/dpad_test.lua (November 2026), cut to the closet's entry.
 -- The closet's HUD entry: the hanger icon, then the LB and D-pad Left twins of the pad glyph the game shows (the LB +
--- D-pad Left chord) or the closet key's keyboard icon, at the start of gun mode's row. The real entry over a fake UMG: on
--- the keyboard the key's glyph sits on the D-pad marker's own key cell; with no such cell or no closet key the entry
+-- D-pad Left chord) or the closet key's keyboard icon, at the start of gun mode's row. The real entry over a fake UMG:
+-- on the keyboard the key's glyph sits on the D-pad marker's own key cell; with no such cell or no closet key the entry
 -- shows none (an Image with no brush draws a white square). A pad shows both glyphs or none, never D-pad Left alone.
 -- After a Lua reload the entry takes an earlier load's widgets again and makes none over them.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
