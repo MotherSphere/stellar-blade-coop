@@ -25,22 +25,26 @@
 -- value changed, every material value and shape key of each worn pack outfit is written on its component (the pack
 -- value or the kept one, so no value another mod set stays): each colour, number and finish on its slot's dynamic
 -- instance, each shape key (ShapeKeyName, else DisplayName) with SetMorphTarget. A value already written is not sent
--- again. holds(component, slot) says whether a worn pack outfit has a colour control on that slot; owns, whether that
+-- again. Once a second (CHECK) the shape keys written are read back (GetMorphTarget, as closet/shape.lua does): a worn
+-- mesh put on again (gun mode's rebuild of her body) empties the curves while applied() stays, so a gone one writes
+-- every shape key again. A shape key counts as gone only when it reads 0 for a value written away from 0: another value
+-- is another writer's (the Body tab's shape on the same name, another mod) and is left alone.
+-- holds(component, slot) says whether a worn pack outfit has a colour control on that slot; owns, whether that
 -- control is set away from the pack's colour: closet/colour.lua's palette leaves an owned slot alone and paints a held
 -- one on the same instance. After each pack scan it says once each kept value
 -- whose outfit, variant or control is gone: that value is ignored and stays in the file (the pack may come back). A
 -- variant whose mesh does not load (dress.loads) is never worn: set_variant refuses it, a kept one is replaced by the
 -- first after the scan (said once, kept in the file).
 -- The values are kept in coop-closet-options.txt (link.store) as words split by tabs, '<fit> variant=<n>' and
--- '<fit> <variant> <key>=<value>' (on|off, r,g,b,a with custom: before it for a Custom colour, a number), sorted. They
--- are read once at new. reset(fit) gives one outfit its pack values back, off() (Reset Stellar Closet) every outfit and
--- clears the file. stop() (coop off) drops the changes not shown yet and removes the shape keys it set: the dress gave
--- EVE her own look back.
+-- '<fit> <variant> <key>=<value>' (on|off, r,g,b,a with custom: before it for a Custom colour, a number), sorted, each
+-- fit id as Fits.word gives it. They are read once at new. reset(fit) gives one outfit its pack values back, off()
+-- (Reset Stellar Closet) every outfit and clears the file. stop() (coop off) drops the changes not shown yet and
+-- removes the shape keys it set: the dress gave EVE her own look back.
 -- o: {dress=closet/dress.lua's (plan, again, reshow, loads, applied, parts), store=link.store(Options.FILE), log=,
--- head=closet/head/wear.lua's (rewear, applied, worn)}. A change of a worn head fit (Hair, Ponytail) puts that piece
--- on again with head.rewear, not dress.again. A stock ponytail worn with a stock hair takes the hair's variant and
--- values (one set of colours, Schizo's decision, as closet/head/wear.lua's plan): its control takes the hair's of the
--- same ParamName; with a pack hair it keeps its own.
+-- head=closet/head/wear.lua's (rewear, applied, worn), clock= (os.clock)}. A change of a worn head fit (Hair,
+-- Ponytail) puts that piece on again with head.rewear, not dress.again. A stock ponytail worn with a stock hair takes
+-- the hair's variant and values (one set of colours, Schizo's decision, as closet/head/wear.lua's plan): its control
+-- takes the hair's of the same ParamName; with a pack hair it keeps its own.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
 --   UPrimitiveComponent.GetMaterial, CreateDynamicMaterialInstance and
@@ -53,7 +57,8 @@
 --     (name 0x1465dd3a8), exec 0x144883de0 reads the name and an object and calls FUN_14430e910(this, name, it).
 --   USkeletalMeshComponent.SetMorphTarget(MorphTargetName FName, Value float, bRemoveZeroWeight bool): native entry
 --     0x146659b90 (name 0x1464d8d18), exec 0x14491f120, as closet/shape.lua's comment says: with bRemoveZeroWeight a
---     value of 0 removes the curve.
+--     value of 0 removes the curve. GetMorphTarget(MorphTargetName FName) -> float: native entry 0x146659830 (name
+--     0x1466546c0), exec 0x14491efb0 answers the name's value in the curves at +0xec8, else 0.
 --   A finish's texture: found in memory (StaticFindObject), else after UE4SS's LoadAsset, else the asset registry
 --     helpers' GetAsset (a mod pack's asset that the cooked registry does not list: the Rei texture of the Asuka pack
 --     was not found before, 27 Nov 2026), used only when it is a UTexture2D (closet/ui/view.lua's find and class; its
@@ -64,6 +69,8 @@ local Fits=require('closet.fits')
 local Colour=require('closet.colour')
 local Options={}
 Options.FILE='coop-closet-options.txt'
+Options.CHECK=1 -- s: how often the shape keys written are read back.
+Options.ZERO=1e-5 -- FUN_14411b400 removes a curve at |Value| <= 1e-05; exec 0x14491efb0 then answers 0.
 Options.USE='Use: coop closet option <fit> variant <n> | coop closet option <fit> toggle <slot> on|off'
 -- A key's kind -> the UserConfigs list of its controls.
 local LISTS={colour='VectorControls',finish='TextureOptions',number='ScalarControls',shape='ShapeKeys'}
@@ -156,6 +163,7 @@ function Options.new(o)
     -- changed: grows with each value change; seen, drawn, painted: applied(), changed and Fits.PACKS as last written.
     local changed,seen,drawn,painted=0,nil,nil,nil
     local seen_head=nil -- head.applied() as last painted.
+    local clock,due=o.clock or os.clock,0 -- The next read back of the shape keys written.
     local names,textures={},{} -- FNames by text; finish textures by path (false: does not load).
     local function fname(text)
         names[text]=names[text] or FName(text)
@@ -169,11 +177,13 @@ function Options.new(o)
     for item in (store.load() or ''):gmatch('[^\t]+') do
         local fit,v=item:match('^(%S+) variant=(%d+)$')
         if fit then
+            fit=Fits.unword(fit)
             variants[fit]=tonumber(v)
             Fits.choose(fit,variants[fit])
         else
             local key,text
             fit,v,key,text=item:match('^(%S+) (%d+) (%S+)=(%S+)$')
+            fit=fit and Fits.unword(fit)
             local kind=fit and split(key)
             local value=kind and parse(kind,text)
             if value~=nil then
@@ -185,9 +195,10 @@ function Options.new(o)
     local function keep()
         changed=changed+1
         local out={}
-        for fit,v in pairs(variants) do out[#out+1]=fit..' variant='..v end
+        for fit,v in pairs(variants) do out[#out+1]=Fits.word(fit)..' variant='..v end
         for at,set in pairs(values) do
-            for key,value in pairs(set) do out[#out+1]=at..' '..key..'='..word(value) end
+            local fit,v=at:match('^(.+) (%d+)$')
+            for key,value in pairs(set) do out[#out+1]=Fits.word(fit)..' '..v..' '..key..'='..word(value) end
         end
         table.sort(out)
         if #out==0 then return store.clear() end
@@ -231,7 +242,7 @@ function Options.new(o)
             end
         end
         for at,set in pairs(values) do
-            local fit,v=at:match('^(%S+) (%d+)$')
+            local fit,v=at:match('^(.+) (%d+)$')
             local f=Fits.PACKS[fit]
             if not f then say('options: '..fit..' is not installed: its saved options are ignored')
             elseif not (f.Variants or {})[tonumber(v)] then
@@ -454,7 +465,7 @@ function Options.new(o)
             Fits.choose(fit,1)
             redress[fit]=true
         end
-        for at in pairs(values) do reshow[at:match('^(%S+) ')]=true end
+        for at in pairs(values) do reshow[at:match('^(.+) %d+$')]=true end
         values,variants={},{}
         keep()
         log('options: every outfit back to its pack values')
@@ -630,15 +641,36 @@ function Options.new(o)
         end
         redress,reshow={},{}
     end
+    -- Whether a shape key written is gone, read back once a second.
+    local function lost()
+        local now=clock()
+        if now<due then return false end
+        due=now+Options.CHECK
+        for _,m in pairs(morphs) do
+            local ok,v=pcall(function() return U.valid(m.c) and m.c:GetMorphTarget(fname(m.name)) end)
+            if ok and type(v)=='number' and math.abs(v)<=Options.ZERO and math.abs(m.v)>Options.ZERO then
+                return true
+            end
+        end
+        return false
+    end
     function self.tick()
         check()
         show()
         local gen=dress.applied and dress.applied()
         local put=head and head.applied and head.applied() or 0
-        if gen==nil or gen==seen and put==seen_head and changed==drawn and Fits.PACKS==painted then return end
+        if gen==nil then return end
+        local same=gen==seen and put==seen_head and changed==drawn and Fits.PACKS==painted
+        local gone=same and lost()
+        if same and not gone then return end
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
-        if gen~=seen or put~=seen_head then slots,morphs={},{} end -- A new look or head piece: new instances.
+        -- A new look or head piece: its components and instances are new.
+        if gen~=seen or put~=seen_head then slots,morphs={},{} end
+        if gone then -- The curves went with a worn mesh put on again: every shape key is written again.
+            morphs={}
+            log('options: a shape key written is gone (a worn mesh was put on again): written again')
+        end
         local wrote=paint(parts)
         paints=paints+1
         seen,seen_head,drawn,painted=gen,put,changed,Fits.PACKS

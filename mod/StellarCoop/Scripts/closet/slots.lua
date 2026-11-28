@@ -11,8 +11,8 @@
 --          EVE's own meshes: hair, face, ears, weapon), "skin" (painted on the base body: tattoos, makeup, tan),
 --          "colour" (a colour on what is there: eyes, nails, skin tone) or "body" (the base body or one of its own
 --          details). Only "mesh" costs a ghost part.
---   menu   the region of the closet menu that lists it (Slots.MENUS). The "intimate" menu is adult and off until the
---          player turns it on.
+--   menu   the region of the closet menu that lists it (Slots.MENUS). The "intimate" menu is adult. No setting shows
+--          it: closet/wiring.lua builds the menu without adult.
 --   glyph  the picture its menu tiles show: closet/ui/icons/<glyph>.png (tools/closet_icons/ renders it). Slots of
 --          one kind share one (every tattoo slot shows "tattoo").
 -- A left and a right piece have a slot each (EarringL, EarringR). A pair is one item in the L slot that also occupies

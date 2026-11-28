@@ -116,7 +116,7 @@ fades.library={type=function() return 'UObject' end,IsValid=function() return tr
 Link=dofile('mod/StellarCoop/Scripts/core/link.lua') -- The real parser behind the fake link.
 LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
 asked,huds,pausetabs,sessions,ticks,withdrawn,states,photos={},{},{},{},0,{},{},{}
-popup_asks={}
+popup_asks,closet_asks={},{}
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 link_mode='none' -- What link.mode() says, as of the last changes().
 ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
@@ -147,14 +147,14 @@ fake_link={
     -- tests.
     remote_table=function() return nil end,
     -- The hud requests of the lobby's screens go to huds (tests/lua/online/lobby/wiring_test), the pause menu's Online
-    -- tab's to pausetabs, the popups ones (main/pass.lua's switch_pass for hide_popups) to popup_asks, the others to
-    -- asked.
+    -- tab's to pausetabs, the popups ones (main/pass.lua's switch_pass for hide_popups) to popup_asks, the closet ones
+    -- (its switch_pass for the closet's pad chord) to closet_asks, the others to asked.
     -- hud_refuse: a hud request is refused with that why, as link.request answers when coop-request.txt cannot be
     -- written.
     request=function(line)
         if hud_refuse and line:find('^hud ') then return false,hud_refuse end
         local into=line:find('^hud ') and huds or line:find('^pausetab ') and pausetabs
-            or line:find('^popups ') and popup_asks or asked
+            or line:find('^popups ') and popup_asks or line:find('^closet ') and closet_asks or asked
         into[#into+1]=line
         return true,'asked the native part: '..line
     end,
@@ -1185,7 +1185,7 @@ function load_main(with_native,no_folder,source)
     pr.bits,pr.levels,pr.calls=0,{1+32,1+65+32,1+130,1+195},0 -- At rest: the sticks centred, the triggers let go.
     kh.bits=0
     printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
-    pausetabs,popup_asks={},{}
+    pausetabs,popup_asks,closet_asks={},{},{}
     state_names={} -- link.state's mod_names argument, each call.
     state_sounds={} -- link.state's sounds look, each call.
     state_collides={} -- link.state's collide (the solid partner on, outside an SBO session), each call.

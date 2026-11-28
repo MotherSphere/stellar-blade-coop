@@ -1,9 +1,11 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+-- Copies online/partner/puppet.lua's resolve (find, LoadAsset, AssetRegistryHelpers:GetAsset for a mod pack's asset)
+-- and its SetSkeletalMesh skeleton guard (usable).
 -- coop closet wear: pieces of several CNS-format outfits worn at once on EVE, by fit map (closet/fits.lua). Display
--- only: her equipment, inventory and saves are never read or written. Built on the Phase 0 spike's tested way
--- (Stellar-Closet repository, spike/, 25 Nov 2026):
+-- only: her equipment, inventory and saves are never read or written. It works this way, tried in game on 25 Nov
+-- 2026:
 --   - One outfit goes on her body mesh (eve.Mesh, the animation leader), with its own skin. It shows its skin and its
 --     chosen pieces only. The body is the one picked (<fit>:BaseBody), else the body rule's (Dress.plan): by default
 --     the outfit that supplies the shoes (its feet are the ones its shoes were shaped around), else the first, unless
@@ -36,8 +38,8 @@
 -- the confirmed words, so a reload gives the confirmed look. confirm() saves the previewed look, revert() wears the
 -- confirmed one again (her own look when none). wear and off end a preview. preview({}) while a look is on previews
 -- her own look; confirm() of it clears the file, as off does.
--- The resolve (find, LoadAsset, AssetRegistryHelpers:GetAsset for a mod pack's asset) and the skeleton guard are copies
--- of online/partner/puppet.lua's (resolve and its SetSkeletalMesh guard).
+-- wear and preview refuse while o.busy() names SBO's own state that holds EVE's body (closet/wiring.lua: the bike
+-- ride, the Doro look, the rifle out, an emote, a coop wear suit): its key, then the words for the line.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Fits=require('closet.fits')
@@ -45,8 +47,8 @@ local Slots=require('closet.slots')
 local valid,each,text=U.valid,U.each,U.text
 local Dress={}
 local SKINNED,MID='/Script/Engine.SkeletalMeshComponent','/Script/Engine.MaterialInstanceDynamic'
--- Body meshes the game puts on EVE that pause the mix while they are on: Tachy Mode's suit (seen in the spike's
--- UE4SS.log at 11:33 and 11:39 on 25 Nov 2026, the mix paused and back as it ended).
+-- Body meshes the game puts on EVE that pause the mix while they are on: Tachy Mode's suit (seen in UE4SS.log at
+-- 11:33 and 11:39 on 25 Nov 2026, the mix paused and back as it ended).
 Dress.GAME_LOOKS={['/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10']=true}
 Dress.USE='Use: coop closet wear <fit>[:<Slot>,<Slot>...] [<fit>[:...]] | coop closet off | coop closet fits'
 local installed_cache={} -- mesh path -> whether it loads; once per path per Lua load (installed, loads).
@@ -102,6 +104,8 @@ local function usable(path)
     end
     return mesh
 end
+-- USkinnedMeshComponent.GetNumLODs (Ghidra, build 26123051: native entry 0x14665f090, exec 0x14492ae50; table
+-- 0x14665efd0 of /Script/Engine SkinnedMeshComponent, FUN_14492b9e0).
 local function lods(c)
     local ok,n=pcall(function() return c:GetNumLODs() end)
     return ok and n and n>0 and n or 1
@@ -142,23 +146,72 @@ local function own_materials(mesh)
     end)
     return out,n
 end
--- The material on each slot of a component now, as an asset path (a dynamic one as its parent).
-local function current_materials(c)
+-- The slots of c whose override holds a material, 0-based: OverrideMaterials, UMeshComponent's TArray at +0x538
+-- (Ghidra, build 26123051: property params 0x1465e6df0, name 0x1459c08d8, Num at +0x540).
+local function overridden(c)
     local out={}
-    local ok,n=pcall(function() return c:GetNumMaterials() end)
-    for i=0,(ok and n or 0)-1 do
+    pcall(function() each(c.OverrideMaterials,function(index,m) if valid(m) then out[#out+1]=index-1 end end) end)
+    return out
+end
+-- Every override of c taken off: SetMaterial with nil (UE4SS passes nil as a null object) stores a null entry, so the
+-- slot shows its mesh's own material and the ghost's capture (online/partner/capture.lua, which sends the first 16
+-- overrides that hold a material) skips it.
+local function clear(c)
+    for _,i in ipairs(overridden(c)) do pcall(function() c:SetMaterial(i,nil) end) end
+end
+-- The values set on dynamic instances, nearest instance first and each name once per kind: {{kind='Vector'|'Scalar'|
+-- 'Texture', name=<text>, value=}}. Ghidra, build 26123051: UMaterialInstance's ScalarParameterValues (+0xe0, property
+-- params 0x1465d9fe8), VectorParameterValues (+0xf0, 0x1465da110) and TextureParameterValues (+0x100, 0x1465da0b0);
+-- each value is ParameterInfo (+0, MaterialParameterInfo, whose Name is its FName at +0) and ParameterValue (+0x10: a
+-- LinearColor, a float or a Texture).
+local VALUES={{'Vector','VectorParameterValues'},{'Scalar','ScalarParameterValues'},{'Texture','TextureParameterValues'}}
+local function values_of(levels)
+    local out,seen={},{}
+    for _,mid in ipairs(levels) do
+        for _,list in ipairs(VALUES) do
+            local kind=list[1]
+            pcall(function()
+                each(mid[list[2]],function(_,v)
+                    local name=text(U.value_of(v.ParameterInfo).Name)
+                    local x=U.value_of(v.ParameterValue)
+                    if kind=='Vector' then x={R=x.R,G=x.G,B=x.B,A=x.A} elseif kind=='Texture' then x=valid(x) end
+                    if x~=nil and not seen[kind..name] then
+                        seen[kind..name]=true
+                        out[#out+1]={kind=kind,name=name,value=x}
+                    end
+                end)
+            end)
+        end
+    end
+    return out
+end
+-- Her overridden slots now, as 'slot=path' words split by commas: each override that is not the mesh's own material on
+-- that slot, a dynamic one as its parent asset (MaterialInstance.Parent, +0xd0, property params 0x1465da3f0). A slot
+-- with no override needs no word: it shows the mesh's own. dynamic (a table, or nil): each dynamic slot's values
+-- (values_of), so give_back makes the instance again with them.
+local function current_materials(c,dynamic)
+    local mesh=valid(c.SkeletalMesh)
+    local own=mesh and own_materials(mesh) or {}
+    local out={}
+    for _,i in ipairs(overridden(c)) do
         local m=valid(c:GetMaterial(i))
+        local levels={}
         for _=1,4 do
             if not (m and m:IsA(StaticFindObject(MID))) then break end
+            levels[#levels+1]=m
             m=valid(m.Parent)
         end
-        out[#out+1]=i..'='..(m and path_of(m) or '')
+        local p=m and path_of(m) or ''
+        if #levels>0 or p~=(own[i] and path_of(own[i]) or '') then
+            out[#out+1]=i..'='..p
+            if #levels>0 and dynamic then dynamic[i]=values_of(levels) end
+        end
     end
     return table.concat(out,',')
 end
 
 -- The body rules of Dress.plan: auto (the switch below), shoes (the Shoes' outfit, else the first), first (the first
--- choice). A fit id with Skin forces that body. Schizo, 26 Nov 2026: the rule needs trying in game.
+-- choice). A fit id with Skin forces that body. On 26 Nov 2026 the rule was not tried in game yet.
 Dress.BODY_MODES={'auto','shoes','first'}
 local NAILS={Fingernails='Hand',Toenails='Foot'} -- Hidden under a covering piece of another outfit.
 -- Whether a skin slot can be hidden: each of its regions is covered.
@@ -328,28 +381,29 @@ function Dress.plan(choices,fits,mode,toggles)
     return plan
 end
 
--- "fit:Slot,Slot fit2" -> choices, or nil and why.
+-- "fit:Slot,Slot fit2" -> choices, or nil and why. A fit word is Fits.word's: %XX gives the byte back.
 function Dress.parse(words)
     local choices={}
     for _,word in ipairs(words) do
-        local fit,slots=word:match('^([%w_%.%-]+):([%w,]+)$')
+        local fit,slots=word:match('^([%w_%.%-%%]+):([%w,]+)$')
         if fit then
             local list={}
             for slot in slots:gmatch('[^,]+') do list[#list+1]=slot end
-            choices[#choices+1]={fit=fit,slots=list}
-        elseif word:match('^[%w_%.%-]+$') then
-            choices[#choices+1]={fit=word}
+            choices[#choices+1]={fit=Fits.unword(fit),slots=list}
+        elseif word:match('^[%w_%.%-%%]+$') then
+            choices[#choices+1]={fit=Fits.unword(word)}
         else
             return nil,Dress.USE
         end
     end
     return choices
 end
--- choices -> "fit:Slot,Slot fit2", the words parse reads back (split on spaces).
+-- choices -> "fit:Slot,Slot fit2", the words parse reads back (split on spaces), each fit id as Fits.word gives it.
 function Dress.words(choices)
     local out={}
     for _,c in ipairs(choices) do
-        out[#out+1]=c.slots and c.fit..':'..table.concat(c.slots,',') or c.fit
+        local fit=Fits.word(c.fit)
+        out[#out+1]=c.slots and fit..':'..table.concat(c.slots,',') or fit
     end
     return table.concat(out,' ')
 end
@@ -374,8 +428,8 @@ function Dress.new(o)
         if not ran and not pin_said then pin_said=true; log('hairpin: '..tostring(e)) end
     end
     local self={}
-    local state -- While a mix is on: {plan=, eve_path=, own=<mesh path>, materials=<line>, added={c,count,show},
-                -- count=, paused=, wrong=}
+    local state -- While a mix is on: {plan=, eve_path=, own=<mesh path>, materials=<line>, dynamic=<her dynamic slots'
+                -- values>, added={c,count,show}, count=, paused=, wrong=}
     local restored,due=false,0
     local head_kept,restoring=false,false -- head.restore called this Lua load; restore's apply going on.
     local pending,tries,retry_at=nil,0,0 -- The kept line's fields once read; restore's failed wears; its next try.
@@ -410,8 +464,22 @@ function Dress.new(o)
     --     (name 0x1465dd3a8), exec 0x144883de0 reads the name and an object and calls FUN_14430e910(this, name, it).
     --   A texture is used only when it is a UTexture2D (closet/ui/view.lua's class).
     --   USkeletalMeshComponent::SetSkeletalMesh FUN_14411a4f0 returns at once for the mesh it wears (+0x568), as
-    --     closet/shape.lua's comment says: a variant on the same mesh changes nothing there, so apply sets every slot's
-    --     own material before this.
+    --     closet/shape.lua's comment says. Neither it nor USkinnedMeshComponent's FUN_144128b60 touches
+    --     OverrideMaterials (+0x538): an override stays across a mesh change, so apply and give_back take every override
+    --     off (clear) before they set the ones the look needs.
+    --   SetMaterial, vtable +0x590: FUN_1440df060 in USkeletalMeshComponent's vtable 0x1463ef0b0 (set by FUN_144112010
+    --     after FUN_144123900; its SetSkeletalMesh FUN_14411a4f0 at +0x910) and in USkinnedMeshComponent's 0x1463fcac8
+    --     (set by FUN_144123900; its SetSkeletalMesh FUN_144128b60 at +0x910). EVE's body can be SB's
+    --     SBSkeletalMeshComponent (class FUN_1427ade70; its constructor at 0x1427b0750 jumps to FUN_1421bf180, which
+    --     sets the vtable 0x145c7cfa0 after FUN_144112010): the same 0x144124f30, 0x1440df060 and 0x14411a4f0 at
+    --     +0x588, +0x590 and +0x910. FUN_1440df060 returns for an index below 0 or when the entry already holds that
+    --     material, grows OverrideMaterials (+0x538 data, +0x540 Num) to the index, stores the material (a null one as
+    --     null) and marks the render state dirty (FUN_14408e490). It does more than that: over an entry that is not
+    --     null it first sets bit 0x2 of the byte at +0x558, unless the new material is a MaterialInstanceDynamic whose
+    --     Parent (+0xd0) is that entry. After a material that is not null it calls FUN_142b94cb0(material, component,
+    --     1).
+    --     GetMaterial, vtable +0x588 (0x144124f30 in both): the override when it is not null, else the mesh's
+    --     Materials[i] (+0xe0 data, +0xe8 Num, 0x28 a slot), else null.
     -- shortcut: a Parameters texture of another Texture class (a cube map) is left out; read UTexture in Ghidra if a
     -- pack needs one.
     local function wear_variant(c,whole)
@@ -449,7 +517,7 @@ function Dress.new(o)
         return store.save(table.concat(f,'\t'))
     end
     -- Removes every component on EVE but her body that wears one of the given mesh paths: ours, also one an earlier
-    -- mix or Lua load left (a map load can make the game set her body twice, and each change got the mix again).
+    -- mix or Lua load left (a map load can make the game set her body twice: each change got the mix again).
     -- Her body is told by its address: UE4SS hands a new wrapper at each read, so c~=body is true for her body too. A
     -- body whose address does not read: nothing is removed. No valid body: no component can be it.
     local function sweep(eve,paths)
@@ -474,17 +542,35 @@ function Dress.new(o)
         end)
         return removed
     end
-    -- Removes the added components wearing the given mesh paths and gives the body its own mesh and materials back.
-    local function give_back(eve,own,materials,added_paths)
+    -- Removes the added components wearing the given mesh paths and gives the body its own mesh and materials back. A
+    -- slot in dynamic (current_materials') gets a new dynamic instance of its parent with her values: the one she wore
+    -- went with the first mix. The engine may have freed it since.
+    -- shortcut: the values live in memory only, so after a Lua reload her dynamic slots come back as their parents;
+    -- write them into coop-closet.txt if a pack or the game is seen to need them.
+    local function give_back(eve,own,materials,added_paths,dynamic)
         local body=valid(eve.Mesh)
         local removed=sweep(eve,added_paths)
         if body and own and own~='' then
             local mesh=usable(own)
             if mesh then
                 body:SetSkeletalMesh(mesh,true)
+                clear(body)
+                local mats=own_materials(mesh)
                 for slot,p in (materials or ''):gmatch('(%d+)=([^,]*)') do
-                    local m=p~='' and resolve(p)
-                    if m then pcall(function() body:SetMaterial(tonumber(slot),m) end) end
+                    slot=tonumber(slot)
+                    -- An older line lists every slot: one on its mesh's own material needs no override.
+                    local values=dynamic and dynamic[slot]
+                    local m=p~='' and (values or p~=(mats[slot] and path_of(mats[slot]))) and resolve(p)
+                    if m and values then
+                        local done,why=pcall(function()
+                            local mid=valid(body:CreateDynamicMaterialInstance(slot,m,FName('None')))
+                            for _,v in ipairs(mid and values or {}) do
+                                local x=v.kind=='Texture' and valid(v.value) or v.value
+                                if x then mid['Set'..v.kind..'ParameterValue'](mid,FName(v.name),x) end
+                            end
+                        end)
+                        if not done then log('her dynamic material on slot '..slot..' not made again: '..tostring(why)) end
+                    elseif m then pcall(function() body:SetMaterial(slot,m) end) end
                 end
                 for lod=0,lods(body)-1 do pcall(function() body:ShowAllMaterialSections(lod) end) end
                 pinned(pin.give_back,body,eve)
@@ -499,8 +585,7 @@ function Dress.new(o)
         return false
     end
     -- kept: the confirmed choices of a preview (or false), nil when none is going.
-    -- base: her own look ({own=,materials=}) a mix again carries over, so its first save already holds it.
-    local function apply(plan,choices,kept,base)
+    local function apply(plan,choices,kept)
         local eve=her()
         if not eve then return nil,'no EVE in the world' end
         local body=valid(eve.Mesh)
@@ -518,20 +603,27 @@ function Dress.new(o)
         -- Her own look first, kept across a mix that changes (the first mix's). With no body mixed (a head-only look,
         -- her own look previewed) no watchdog read an outside change: her body is read again unless it wears a closet
         -- mesh.
-        local own,materials=state and state.own,state and state.materials
-        if base then own,materials=base.own,base.materials
-        elseif not (state and state.plan and state.plan.body) then
+        local own,materials,dynamic=state and state.own,state and state.materials,state and state.dynamic
+        if not (state and state.plan and state.plan.body) then
             local mesh=valid(body.SkeletalMesh)
             local path=mesh and path_of(mesh) or ''
-            if not (state and closet_mesh(path)) then own,materials=path,current_materials(body) end
+            if not (state and closet_mesh(path)) then
+                dynamic={}
+                own,materials=path,current_materials(body,dynamic)
+            end
         end
-        local prev=state
-        state={plan=plan,choices=choices,kept=kept,eve_path=path_of(eve),own=own,materials=materials,added={},paused=false,
-            wrong=0}
+        -- The new look is written before anything on EVE changes. A save that fails (a virus scanner holding the
+        -- temporary file) leaves the look on EVE and the state as they were. The old line is then written again.
+        local was=state
+        state={plan=plan,choices=choices,kept=kept,eve_path=path_of(eve),own=own,materials=materials,dynamic=dynamic,
+            added={},paused=false,wrong=0}
         for _,a in ipairs(plan.added) do state.added[#state.added+1]={mesh=a.mesh} end
-        -- Saved before anything leaves EVE: a failed write keeps the old look on her and in state.
         local saved,e=keep()
-        if saved==false then state=prev; return nil,'coop-closet.txt not written: '..tostring(e) end
+        if saved==false then
+            state=was
+            if was then keep() end
+            return nil,'coop-closet.txt not written: '..tostring(e)
+        end
         -- The head first: a head piece that does not load changes nothing. The file goes back to the old look (restore
         -- keeps the kept line it tries again).
         -- A suit whose row hides the ponytail (the Bayonetta suits' bUseHidePonytail, probe 9) hides it, as the game
@@ -539,28 +631,27 @@ function Dress.new(o)
         local suit=plan.body and fits.get(plan.body.fit)
         local headed,why_not=head.wear(plan.head,{hide_ponytail=suit~=nil and suit.HidePonytail==true})
         if not headed then
-            state=prev
-            if prev or not restoring then keep() end
+            state=was
+            if was or not restoring then keep() end
             return nil,why_not
         end
         keep() -- Again: field 6 now marks the head pieces worn (the head part's restore takes only those).
         -- No added mesh of an earlier mix stays: the old one's and this plan's outfits are swept off EVE first.
         local paths={}
-        for _,a in ipairs(prev and prev.added or {}) do paths[#paths+1]=a.mesh end
+        for _,a in ipairs(was and was.added or {}) do paths[#paths+1]=a.mesh end
         for _,a in ipairs(plan.added) do paths[#paths+1]=a.mesh end
         if not plan.body then -- A head-only look: her body untouched, or given back after a mix.
-            if prev and prev.plan and prev.plan.body then give_back(eve,own,materials,paths) else sweep(eve,paths) end
+            if was and was.plan and was.plan.body then give_back(eve,own,materials,paths,dynamic)
+            else sweep(eve,paths) end
             applied=applied+1
             return true
         end
         sweep(eve,paths)
-        local mats,count=own_materials(body_mesh)
+        local _,count=own_materials(body_mesh)
         if plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,count) end
         body:SetSkeletalMesh(body_mesh,true)
+        clear(body) -- Hers, an earlier mix's variant and the colour layer's instances: only the look's own go on.
         pinned(pin.fit,eve,body,own and own~='' and resolve(own) or nil)
-        for i=0,count-1 do
-            if mats[i] then pcall(function() body:SetMaterial(i,mats[i]) end) end
-        end
         wear_variant(body,plan.body.whole)
         show_only(body,count,plan.body.show)
         state.count=count
@@ -589,7 +680,7 @@ function Dress.new(o)
     -- The look on EVE taken off: her body's own mesh and materials back, unless a head-only look never changed it.
     local function hand_back(eve,paths)
         if state.plan and not state.plan.body then return sweep(eve,paths) end
-        return give_back(eve,state.own,state.materials,paths)
+        return give_back(eve,state.own,state.materials,paths,state.dynamic)
     end
     -- Her own look as a preview (the menu's None tile on the last piece worn): the added meshes off, her body's own
     -- mesh and materials back, no plan; kept stays, so the file keeps the confirmed words.
@@ -600,8 +691,8 @@ function Dress.new(o)
         for _,a in ipairs(state.added) do paths[#paths+1]=a.mesh end
         local removed=hand_back(eve,paths)
         head.give_back()
-        state={choices={},kept=kept,eve_path=path_of(eve),own=state.own,materials=state.materials,added={},
-            paused=false,wrong=0}
+        state={choices={},kept=kept,eve_path=path_of(eve),own=state.own,materials=state.materials,dynamic=state.dynamic,
+            added={},paused=false,wrong=0}
         applied=applied+1
         local saved,e=keep()
         if saved==false then return false,'coop-closet.txt not written: '..tostring(e) end
@@ -616,9 +707,34 @@ function Dress.new(o)
             (plan.clips and ', skin shows on '..table.concat(plan.clips,',') or '')..
             (#heads>0 and ', head '..table.concat(heads,' ') or '')
     end
+    -- A kept look restore has not worn again yet (it waits while the game is paused, shows a loading screen or is in its
+    -- retry window): its leftovers off EVE and her own look back now. Then restore is done. So a wear or preview right
+    -- after records her own look, never the kept look's mesh. No later restore puts the kept look over it. With no EVE
+    -- it waits: the apply fails anyway.
+    local function settle()
+        if restored then return end
+        if state then restored,pending=true,{}; return end
+        local found,eve=pcall(her)
+        if not (found and eve) then return end
+        local f=kept_fields()
+        if #f>0 then
+            if o.packs then o.packs() end -- A pack suit on her body is a closet mesh once the packs are read.
+            pcall(undo_kept,eve,f)
+        end
+        restored,pending=true,{}
+    end
+    -- The line that refuses a wear or preview while SBO's own state holds EVE's body, or nil.
+    local function held()
+        local key,why=nil,nil
+        if o.busy then key,why=o.busy() end
+        return key and 'closet: not while '..tostring(why or key) or nil
+    end
     -- coop closet wear: the plan for choices, put on now.
     function self.wear(choices)
+        local busy=held()
+        if busy then return false,busy end
         self.restore()
+        settle()
         fights={}
         local plan,why=Dress.plan(choices,fits,mode,toggles())
         if not plan then return false,why end
@@ -635,7 +751,10 @@ function Dress.new(o)
     -- A look put on without saving it: the confirmed choices stay in the file until confirm. No choices while a look is
     -- on: her own look (own_look). Gives true, the line and the plan (the menu tells its switched and clips).
     function self.preview(choices)
+        local busy=held()
+        if busy then return false,busy end
         self.restore()
+        settle()
         fights={}
         local kept=state and state.kept
         if kept==nil then kept=state and state.choices or false end
@@ -931,7 +1050,7 @@ function Dress.new(o)
         local intact=path==state.plan.body.mesh
         for _,a in ipairs(state.added) do intact=intact and valid(a.c)~=nil end
         if not intact then
-            -- No valid body mesh (a pawn still spawning): the mix waits, counted toward no outside fight, and goes on
+            -- No valid body mesh (a pawn still spawning): the mix waits (counted toward no outside fight) and goes on
             -- at the first second the body is back.
             if not path then
                 if not state.waiting then state.waiting=true; log('EVE has no valid body mesh: the mix waits') end
@@ -943,7 +1062,10 @@ function Dress.new(o)
             log(string.format('the game changed EVE (body %s): mix again',tostring(path)))
             local plan,choices,kept=state.plan,state.choices,state.kept
             -- A look put on from outside is hers from now on; a closet mesh still on her body is the closet's own.
-            if path and not closet_mesh(path) then state.own,state.materials=path,current_materials(body) end
+            if path and not closet_mesh(path) then
+                state.own,state.dynamic=path,{}
+                state.materials=current_materials(body,state.dynamic)
+            end
             -- Something outside undoes every mix: the look's outfit it keeps putting on her body is worn as the body
             -- unless a body is picked (no switch, the menu warns of the clipping). Otherwise the mix stops until the next
             -- wear or preview.
@@ -971,20 +1093,10 @@ function Dress.new(o)
                 log('something outside keeps putting '..insisted..' on her body: the look is worn on that body until '
                     ..'the next wear or preview')
             end
-            local own,materials=state.own,state.materials
-            local was={}
-            for _,a in ipairs(state.added) do was[#was+1]=a.mesh end
-            local old,before=state,applied
-            state=nil
-            sweep(eve,was) -- The earlier added meshes: a forced body's plan adds other outfits.
-            local ok,why=apply(plan,choices,kept,{own=own,materials=materials})
-            if not ok then
-                log('mix again failed: '..tostring(why))
-                -- Failed before apply changed the look (off() counts in applied; the sweep above already removed the
-                -- added meshes): the old state stays, so the next tick finds it not intact and tries again. The fight
-                -- count stops the retries after Dress.FIGHT.mixes; a missing body mesh waits above without a count.
-                if applied==before then old.plan=plan; state=old; keep() end -- A head refusal cleared the file.
-            end
+            -- apply keeps the state's own look and sweeps its added meshes (a forced body's plan adds other outfits). A
+            -- mix that fails keeps the state: the next second tries again. coop closet off still gives her look back.
+            local ok,why=apply(plan,choices,kept)
+            if not ok then log('mix again failed: '..tostring(why)) end
             return
         end
         state.wrong=0
@@ -1006,7 +1118,9 @@ function Dress.new(o)
             p.parts,p.parts==1 and '' or 'es',state.stopped and ', stopped (something outside keeps changing her body)'
             or state.paused and ', paused (a game look is on)' or '')
     end
-    function self.worn() return state~=nil end
+    -- Whether a look of the closet is on EVE, or a kept one waits for restore to wear it again (eve/wear.lua refuses
+    -- then: its own look of her would be the closet's mesh).
+    function self.worn() return state~=nil or not restored and #kept_fields()>0 end
     -- Her own body mesh path that off gives back, or nil with nothing worn (probe 10 reads its SC_HairACC).
     function self.own() return state and state.own or nil end
     -- The plan on EVE now (Dress.plan's, the preview's or the confirmed look's), or nil: the menu shows its body and

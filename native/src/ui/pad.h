@@ -7,9 +7,9 @@
 // The menu and the co-op saves' question take the game's input (UIOnly), so the game ignores the pad then, and UE4SS
 // binds only keyboard keys: this is the pad's only way in. In play, View held opens the menu, D-pad Right held gets
 // on or off the bike and D-pad Left held opens the emote wheel, which reads the right stick's direction and whether
-// D-pad Left is still held from the last step. LB held + D-pad Left opens the closet menu, which reads X, L3 and R3
-// (pad_bits) and the right stick and triggers (pad_level). tests/native/ui/pad_test.cpp checks this file on the build
-// machine.
+// D-pad Left is still held from the last step. While the closet is on, LB held + D-pad Left opens the closet menu,
+// which reads X, L3 and R3, the right stick and the triggers (closet/keys.h). tests/native/ui/pad_test.cpp checks this
+// file on the build machine.
 #pragma once
 
 #include <algorithm>
@@ -47,22 +47,6 @@ struct PadState {
   uint8_t lt = 0, rt = 0;
 };
 
-// X, L3 and R3 of the buttons as coop_padbits hands them to Lua: 1 X, 2 L3, 4 R3.
-inline int pad_bits(uint16_t buttons) {
-  return ((buttons & PadState::X) ? 1 : 0) | ((buttons & PadState::LEFT_THUMB) ? 2 : 0) |
-         ((buttons & PadState::RIGHT_THUMB) ? 4 : 0);
-}
-
-// The right stick and the triggers as coop_levels hands them to Lua, one a call: which 0 right x, 1 right y, 2 left
-// trigger, 3 right trigger. The answer is 1 + 65 * which + the level, so it says which it is (260 at most). A stick
-// axis's level is 0 to 64, 32 at rest, 1/32 of full scale a level (up and right above 32); a trigger's 0 to 64, 0 at
-// rest.
-inline int pad_level(const PadState &s, int which) {
-  const int level = which < 2 ? 32 + int(std::lround((which ? s.ry : s.rx) * 32.0 / 32767))
-                              : int(std::lround((which == 2 ? s.lt : s.rt) * 64.0 / 255));
-  return 1 + 65 * which + level;
-}
-
 // The right stick's direction as the emote wheel reads it: 0 under kPadStickPress (its dead zone), else its 5 degree
 // sector, 1 to 72, clockwise from up (1: up to 5 degrees right of up).
 inline int stick_sector(int rx, int ry) {
@@ -80,7 +64,7 @@ public:
     kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight, kBike, kRefresh,
     kPauseTab, // RB on the pause menu's last tab (ui/pause_tab.h): never made by step, only posted.
     kWheel,    // D-pad Left held kPadWheelHoldMs: the emote wheel.
-    kCloset    // D-pad Left tapped (let go before kPadWheelHoldMs): the closet menu (14).
+    kCloset    // D-pad Left pressed while LB is held: the closet menu (14).
   };
 
   // Each poll. Directions (the D-pad or the left stick) on their press; up and down again after kPadRepeatDelayMs
@@ -88,11 +72,11 @@ public:
   // (the stick: its main axis, and near 45 degrees the axis already pressed, so noise does not flip it), so a move
   // never changes a value too. A, B, LB, RB and Y (the session list's Refresh) on their press only; View (kMenu) and
   // D-pad Right (kBike, after its kRight) once each was held kPadMenuHoldMs, D-pad Left (kWheel, after its kLeft) once
-  // it was held kPadWheelHoldMs, once a hold. D-pad Left let go before that, with no other D-pad direction held since
-  // its press, is kCloset at the release (LB is the game's combat: the closet takes D-pad Left alone). One step's
-  // events go in event order. No pad connected forgets what was held, so the next press is a new one; the events
-  // already made stay.
-  void step(const PadState &s, uint64_t now_ms) {
+  // it was held kPadWheelHoldMs, once a hold. With closet (Lua's closet on: the closet module is on), D-pad Left
+  // pressed while LB is held is kCloset (after its kLeft); that hold never makes kWheel, nor does any D-pad Left hold
+  // while LB is held. Without it, LB and D-pad Left make only their own events. One step's events go in event order.
+  // No pad connected forgets what was held, so the next press is a new one; the events already made stay.
+  void step(const PadState &s, uint64_t now_ms, bool closet = false) {
     last_ = s.connected ? s : PadState{};
     if (!s.connected) {
       held_ = {};
@@ -149,18 +133,13 @@ public:
       push(kBike);
     if (pressed & PadState::Y)
       push(kRefresh);
-    const bool left = s.buttons & PadState::DPAD_LEFT;
-    const uint16_t others = PadState::DPAD_UP | PadState::DPAD_DOWN | PadState::DPAD_RIGHT;
-    // Let go before the wheel's hold, alone all along: a diagonal is no tap.
-    const bool tapped = left_.held && !left && !left_.sent && left_alone_;
-    if (left && !left_.held)
-      left_alone_ = true;
-    if (left && (s.buttons & others))
-      left_alone_ = false;
-    if (left_.step(left, now_ms, kPadWheelHoldMs))
+    const bool lb = closet && (s.buttons & PadState::LEFT_SHOULDER);
+    if (left_.step(s.buttons & PadState::DPAD_LEFT, now_ms, kPadWheelHoldMs) && !lb)
       push(kWheel);
-    if (tapped)
+    if ((pressed & PadState::DPAD_LEFT) && lb) {
+      left_.sent = true; // The chord's D-pad Left hold is no wheel's, LB let go first or not.
       push(kCloset);
+    }
   }
 
   // The buttons, the right stick's sector (stick_sector) and the whole read at the last step; nothing after a step with
@@ -209,8 +188,7 @@ private:
 
   std::array<bool, 4> held_{}, stick_{}; // Up, down, left, right: the direction, and the stick's part of it.
   std::array<uint64_t, 4> next_{};       // When each held direction repeats next.
-  uint16_t buttons_ = 0;                 // The last step's, for A's, B's, LB's, RB's and Y's press.
-  bool left_alone_ = false;              // D-pad Left held with no other D-pad direction since its press.
+  uint16_t buttons_ = 0;                 // The last step's, for A's, B's, LB's, RB's, Y's and the chord's press.
   Hold back_, right_, left_; // View, D-pad Right, D-pad Left.
   PadState last_;             // The last step's read, for held() and sector().
   std::array<uint8_t, kPadRing> ring_{};
@@ -322,7 +300,13 @@ public:
     if (key == 0 || !valid(id))
       return;
     const auto v = int16_t(std::lround(std::clamp(value, -1.f, 1.f) * 32767));
-    const auto t = uint8_t(std::lround(std::clamp(value, 0.f, 1.f) * 255)); // A trigger: XInput's 0 to 255.
+    // A trigger comes as XInput's byte / 255 (Ghidra, build 26123051): the XInput poll FUN_142bfd400 calls slot +0x88
+    // with Gamepad_LeftTriggerAxis (FName DAT_146fa9b18, FUN_140981c20) and Gamepad_RightTriggerAxis (DAT_146fa9b20,
+    // FUN_140981d10), each byte times 1/255 (the float at 0x14674f2d8), sent on a change or on each poll while above 30.
+    // FUN_1412ea740, the PlayStation pad poll (libScePad: it calls scePadReadState and scePadSetVibrationMode),
+    // scales both the same way: each byte times the float at 0x14674f2d8, through slot +0x88. It sends a trigger only
+    // when its byte changed, without FUN_142bfd400's resend while above 30. Back to 0 to 255 here.
+    const auto t = uint8_t(std::lround(std::clamp(value, 0.f, 1.f) * 255));
     if (key == names[kLeftX])
       x_[id].store(v, std::memory_order_relaxed);
     else if (key == names[kLeftY])

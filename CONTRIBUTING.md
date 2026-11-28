@@ -49,7 +49,8 @@ Force pushes and branch deletions are refused on `main` and `dev`.
 - Every feature is a module: one folder in its category under
   `mod/StellarCoop/Scripts/` (for example `online/lobby/` or
   `fight/bosses/`), the same folder under `native/src/` for its C++ parts,
-  and under `tests/` for its tests.
+  and under `tests/` for its tests. `eve/`, `cutmenus/` and `closet/` are
+  modules with a folder of their own at the top.
 - A module holds its own logic, its screens in `ui/`, its console words in
   `commands.lua`, its startup in `wiring.lua` and its tests, with an
   `off_test.lua`.

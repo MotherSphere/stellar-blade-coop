@@ -381,6 +381,10 @@ void ask_pause_tab(bool on);
 // worker thread. Lua's popups on or off (Command::popups): the game thread turns both options Off while a peer is
 // linked only while on (on until Lua says off). A change is logged.
 void ask_popups(bool on);
+// The closet's pad chord (ui/pad_game.inc, ui/pad.h's kCloset), worker thread. Lua's closet on or off (Command::closet,
+// main/pass.lua: on while the closet module is on): LB held + D-pad Left makes the closet's event and stops the emote
+// wheel's D-pad Left hold only while on (off until Lua says on). A change is logged.
+void ask_pad_closet(bool on);
 // Every pass: the save slots swapped once a run, the game thread's want from linked (a peer past the handshake), its
 // changes and refusals logged, the slots back once nothing is forced after coop off or a fault.
 void options_pass(bool linked);

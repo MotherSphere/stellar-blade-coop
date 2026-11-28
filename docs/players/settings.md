@@ -250,7 +250,7 @@ photohunt=on
 | `gun_key` | same, or `none`: a key that brings the [gun mode](../fight/gunmode.md) rifle out or puts it away; read when the mod loads | `F4` |
 | `gun_mode` | `on` or `off`: [gun mode](../fight/gunmode.md); off, its key and D-pad Right tap do nothing; read when the mod loads. Without the optional `zNGMSpike_P` pak, gun mode is [parked](../fight/gunmode.md#parked-while-it-is-rebuilt): with `on`, the key and the tap only show the notice `Gun mode: rebuilding`. Its other `gun_` lines are test lines, listed on its page | `on` |
 | `emote_key` | same as `menu_key`, or `none`: the key held to open the [emote wheel](interface.md#emote-wheel); releasing it plays the emote you point at. Options, Controls, Emote wheel key; it applies at once | `F2` |
-| `closet_key` | same as `menu_key`, or `none`: the key that opens the [Stellar Closet](../closet/closet.md#the-closet-menu) menu; pressed while it is open, it goes back as Esc does. On a controller, D-pad Left tapped alone opens it and B closes it. Options, Controls, Open Stellar Closet; it applies at once | `F1` |
+| `closet_key` | same as `menu_key`, or `none`: the key that opens the [Stellar Closet](../closet/closet.md#the-closet-menu) menu; pressed while it is open, it goes back as Esc does. On a controller, LB held + D-pad Left does the same. Options, Controls, Open Stellar Closet; it applies at once | `F1` |
 | `emote_pad` | `dpad_left` or `off`: on a controller, `dpad_left` opens the [emote wheel](interface.md#emote-wheel) while D-pad Left is held 0.3 s and plays the emote you point at on its release. A tap of D-pad Left stays the game's. Options, Controls, Emote wheel on a controller (D-pad Left held or Off); it applies at once | `dpad_left` |
 | `pause_tab` | `on` or `off`: the [Online tab](interface.md#pause-menu) after Settings in the game's pause menu, which opens the co-op menu. Off, RB on Settings goes to Equipment as in the game. Options, Controls, Online tab in the pause menu; it applies from the next pause menu | `on` |
 | `who_can_join` | `public`, `friends`, `invitation` or `closed`: who can join an online session you host. `public`: any player of your version, who finds it in the session list. `friends`: your Steam friends. `invitation`: the friends you invite or anyone with your [join code](playing-with-a-friend.md#join-codes). `closed`: nobody (Private in the co-op menu). The words `code` and `private` from 0.11 and older read as `invitation`; the file keeps them | `public` |
@@ -334,7 +334,7 @@ Rules:
 - A file with no `gun_key` line whose other keys already use `F4`: `gun_key` reads `none` the same way, for example
   `[StellarCoop] settings: F4 is leave_key: gun_key has no key`. `coop gun` and a tap of D-pad Right still work.
 - A file with no `closet_key` line whose other keys already use `F1`: `closet_key` reads `none` the same way, for
-  example `[StellarCoop] settings: F1 is status_key: closet_key has no key`. `coop closet menu` and a tap of D-pad Left
+  example `[StellarCoop] settings: F1 is status_key: closet_key has no key`. `coop closet menu` and LB + D-pad Left
   still open the closet menu.
 - A file with no `menu_key` line (one written before the menu existed): the menu takes `host_key`'s key, and
   `host_key` counts as `none`. The first `menu_key` that the menu writes into such a file also writes `host_key=none`.
@@ -396,6 +396,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from. In a match lobby or an online session of more than 2 players, `coop-remote-<k>.txt` holds the table of the member in ghost slot k, 1 to 6 |
 | `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): with `coop-shared-assets.txt`, the only paths from a mod's folder the ghost loads |
+| `coop-cns-packs.txt` | native, at start | Your CNS packs for the Stellar Closet, one `<size> <time> <path>` line each (see [The pack catalogue](../closet/cns-import.md#the-pack-catalogue)). The line of a copied pack ends in a tab and its copy's name |
+| `coop-cns-pack-<n>.json` | native, at start | A copy of a CNS pack whose path has letters outside ASCII, which Lua cannot open. The closet reads the pack from it |
 | `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare or a mod you both have holds (the container name in place of the outfit), empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](../online/partner.md#when-a-mod-asset-fails)) |
 | `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](../online/partner.md#mods-you-both-have)) |
 | `coop-cns-aside.txt` | Lua | The mod assets set aside after a crash: `version <mod version>`, then one `<path> <outfit>` line each. Cleared by `coop cns reset` and by another mod version |
@@ -444,7 +446,8 @@ Each file shared between Lua and the native part is written in full to a `.tmp` 
 so neither side reads a half-written file. The names and loaded files are appended to instead. Each side reads only the
 whole lines past its last offset. When the native part starts, it deletes the capture, remote, display, state, chat,
 night, parked bike line, drone, names and loaded files, `coop-race.txt` and any stale request or report. Then it writes
-`coop-cns.txt` again. The chat files and `coop-race.txt` are also deleted when a session ends and when the game exits.
+`coop-cns.txt`, `coop-cns-packs.txt` and the pack copies again. The chat files and `coop-race.txt` are also deleted
+when a session ends and when the game exits.
 A run without `coop no` writes no probe file, so `nightop-probe.old.txt` can be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the

@@ -11,12 +11,24 @@
 -- built at main/ui.lua's step menu with the Steam link only). main/frame.lua runs its restore at the first tick and its
 -- tick each frame; coop off stops it.
 local head -- closet/head/wear.lua's head part: made in new, handed to the menu in build.menu.
+-- SBO's own state that holds EVE's body or her rig, read at each call: the menu does not open, coop closet wear and
+-- the menu's previews refuse, while it is on. Its key in closet.refused, then the console's words. An off module's
+-- stub reads nil: it holds nothing. A coop wear hair alone holds nothing the closet sets (SBHair). coop wear refuses
+-- a suit the other way round (eve/wiring.lua reads M.closet.worn).
+local function busy_of(M)
+    if M.riding() then return 'bike','EVE rides the bike: bike_key gets her off' end
+    if M.doro.active() then return 'doro','the Doro look is on: coop race look off ends it' end
+    if M.gun.out() then return 'rifle','the rifle is out: put it away first' end
+    if M.emote.active() then return 'emote','coop emote plays: coop emote off ends it' end
+    if M.wear.worn() then return 'wear',"a coop wear suit is on: coop wear off suit gives the game's back" end
+end
 return {
-uses={},
+uses={'eve','fight.gunmode','online.modes.race'},
 exports={'closet','closet_menu','closet_thumbs','closet_colour','closet_shape','closet_packs','closet_options',
     'closet_presets','closet_hud'},
 new=function(M)
 local print=M.print
+local busy=function() return busy_of(M) end
 -- closet/dress.lua, logging [CL] lines: coop-closet.txt lets the next Lua load give EVE her own look back. No look
 -- goes on again while the game is paused or shows one of its screens (its wardrobe among them). The pack catalogue is
 -- read before a kept look is worn again (it may be a pack's suit). Its head part (closet/head/wear.lua) wears the Hair
@@ -27,6 +39,7 @@ head=require('closet.head.wear').new({log=function(m) print('[StellarCoop][CL] '
 M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
     store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
     packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end,head=head,
+    busy=busy,
     -- The hairpin band (closet/pin.lua) goes on its bone under a body mesh with no SC_HairACC socket.
     pin=require('closet.pin').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})})
 -- The options layer (closet/options.lua): each pack outfit's variant and piece toggles in coop-closet-options.txt; the
@@ -117,10 +130,13 @@ M.closet_packs.once=function()
     elseif not stock_ok and M.hud_shown then M.guarded('closet stock',function() build_stock(); merge() end) end
 end
 -- The closet's entry in SB's HUD item column (closet/ui/hud.lua), at the start of gun mode's row (M.closet_hud: gun
--- mode reads its lead() and moves its own entry right of ours): ten times a second, under a
--- guard of its own, with the closet key's F-key (core/keybind.lua's key field: nil for none, so the keyboard shows no
--- key cell). Without settings, F1, the default. Its hook on SB's HUD Construct (d2de021b) is registered once a Lua load
--- and stays while the module is off. It raises when UE4SS cannot hook the function.
+-- mode reads its lead() and moves its own entry right of ours): ten times a second, under a guard of its own, while
+-- the closet menu exists (main/ui.lua builds it with the Steam link only, as main/keys.lua binds the keys: without it
+-- nothing the entry shows opens the closet). It gets the closet key's F-key (core/keybind.lua's key field: nil for
+-- none, so the keyboard shows no key cell). A key with Shift, Ctrl or Alt gives nil too: the entry shows one key icon,
+-- so Shift+F3 would show F3, the bike's key. Without settings, F1, the default. Its hook on SB's HUD Construct
+-- (d2de021b) is registered once a Lua load and stays while the module is off. It raises when UE4SS cannot hook the
+-- function.
 local Hud=require('closet.ui.hud')
 local hud=Hud.new(Hud.helpers({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
     hook_hud=function(path,cb)
@@ -133,11 +149,12 @@ M.closet_hud=hud
 local hud_at=0
 local function hud_key()
     if not (M.settings and M.settings.closet_key) then return 'F1' end
+    if M.settings.closet_key.mod then return nil end
     return M.settings.closet_key.key
 end
 local dress_tick,dress_stop=M.closet.tick,M.closet.stop
 M.closet.tick=function()
-    if os.clock()>=hud_at then hud_at=os.clock()+0.1; M.guarded('closet hud',hud.tick,hud_key()) end
+    if M.closet_menu and os.clock()>=hud_at then hud_at=os.clock()+0.1; M.guarded('closet hud',hud.tick,hud_key()) end
     M.guarded('closet',dress_tick)
     M.guarded('closet head',head.tick) -- Its own watchdog, also with no body mixed; before the options layer.
     M.guarded('closet options',options.tick)
@@ -147,9 +164,18 @@ M.closet.tick=function()
     M.guarded('closet thumbs',thumbs.tick)
     if M.closet_menu then M.guarded('closet menu',M.closet_menu.tick) end
 end
+-- coop off: each part stopped under a guard of its own, as the tick does, so one that raises never skips the others.
+-- The menu goes first: its camera gives SB's view back.
 M.closet.stop=function()
-    dress_stop(); head.stop(); options.stop(); colour.stop(); shape.stop(); probe.stop(); thumbs.stop(); hud.hide()
-    if M.closet_menu then M.closet_menu.stop() end
+    if M.closet_menu then M.guarded('closet menu',M.closet_menu.stop) end
+    M.guarded('closet',dress_stop)
+    M.guarded('closet head',head.stop)
+    M.guarded('closet options',options.stop)
+    M.guarded('closet colour',colour.stop)
+    M.guarded('closet shape',shape.stop)
+    M.guarded('closet probe',probe.stop)
+    M.guarded('closet thumbs',thumbs.stop)
+    M.guarded('closet hud',hud.hide)
 end
 return require('closet.commands').new({dress=M.closet,fits=require('closet.fits'),probe=probe,thumbs=thumbs,
     menu=function() return M.closet_menu end,colour=colour,shape=shape,packs=M.closet_packs,options=options,
@@ -175,7 +201,7 @@ menu=function(M,Ui)
         world=function() return M.hud_shown end,photo=M.photo_state,status=function() return M.link and M.link.status() end,
         camera=camera,folder=M.folder,thumbs=M.closet_thumbs,colour=M.closet_colour,shape=M.closet_shape,
         options=M.closet_options,presets=M.closet_presets,uidev=M.link.uidev,head=head,
-        nav_held=function() return M.nav_held and M.nav_held() end})
+        nav_held=function() return M.nav_held and M.nav_held() end,busy=function() return busy_of(M) end})
     -- The first open (the closet key's too: it calls the field) reads every pack once, under a guard of its own.
     local open=M.closet_menu.open
     M.closet_menu.open=function(...)

@@ -11,7 +11,8 @@
 -- A favourite is an outfit's UniqueFitID; fav turns it on or off.
 -- Both are kept in coop-closet-presets.txt (link.store, one line) as items split by tabs: 'fav <fit>',
 -- '<n> <fit> <variant>', '<n> name=<name>', '<n> <key>=<value>', and for each head piece (hair, ponytail)
--- '<n> head <fit> <slot> <variant>' and '<n> h:<fit> <key>=<value>', sorted. They are read once at new.
+-- '<n> head <fit> <slot> <variant>' and '<n> h:<fit> <key>=<value>', sorted, each fit id as Fits.word gives it. They
+-- are read once at new.
 -- o: {store=link.store(Presets.FILE), options=closet/options.lua's, dress=closet/dress.lua's (choices, installed,
 -- wear), log=}.
 local Fits=require('closet.fits')
@@ -35,15 +36,17 @@ function Presets.new(o)
         local n4,hfit,hslot,hv=item:match('^(%d+) head (%S+) (%S+) (%d+)$')
         local n5,hof,hvalue=item:match('^(%d+) h:(%S+) (%S+=%S+)$')
         n=tonumber(n or n2 or n3 or n4 or n5)
-        if fit then favs[fit]=true
+        if fit then favs[Fits.unword(fit)]=true
         elseif n then
             presets[n]=presets[n] or {values={},heads={}}
             if name then presets[n].name=name
-            elseif hfit then table.insert(presets[n].heads,{fit=hfit,slot=hslot,variant=tonumber(hv),values={}})
-            elseif hof then presets[n].hvalues=presets[n].hvalues or {}
+            elseif hfit then
+                table.insert(presets[n].heads,{fit=Fits.unword(hfit),slot=hslot,variant=tonumber(hv),values={}})
+            elseif hof then hof=Fits.unword(hof)
+                presets[n].hvalues=presets[n].hvalues or {}
                 presets[n].hvalues[hof]=presets[n].hvalues[hof] or {}
                 table.insert(presets[n].hvalues[hof],hvalue)
-            elseif fit2 then presets[n].fit,presets[n].variant=fit2,tonumber(v)
+            elseif fit2 then presets[n].fit,presets[n].variant=Fits.unword(fit2),tonumber(v)
             else table.insert(presets[n].values,value) end
         end
     end
@@ -53,14 +56,14 @@ function Presets.new(o)
     end
     local function keep()
         local out={}
-        for fit in pairs(favs) do out[#out+1]='fav '..fit end
+        for fit in pairs(favs) do out[#out+1]='fav '..Fits.word(fit) end
         for n,p in pairs(presets) do
-            out[#out+1]=n..' '..p.fit..' '..p.variant
+            out[#out+1]=n..' '..Fits.word(p.fit)..' '..p.variant
             if p.name then out[#out+1]=n..' name='..p.name end
             for _,value in ipairs(p.values) do out[#out+1]=n..' '..value end
             for _,h in ipairs(p.heads) do
-                out[#out+1]=n..' head '..h.fit..' '..h.slot..' '..h.variant
-                for _,value in ipairs(h.values) do out[#out+1]=n..' h:'..h.fit..' '..value end
+                out[#out+1]=n..' head '..Fits.word(h.fit)..' '..h.slot..' '..h.variant
+                for _,value in ipairs(h.values) do out[#out+1]=n..' h:'..Fits.word(h.fit)..' '..value end
             end
         end
         table.sort(out)

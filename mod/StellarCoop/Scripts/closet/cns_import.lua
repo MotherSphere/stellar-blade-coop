@@ -17,7 +17,9 @@
 -- Its variants (OutfitPaths, or OutfitDatas, which wins when it has entries) stay together on the item, as do its
 -- UserConfigs. Entries for other characters are skipped (Stellar Closet dresses EVE only for now).
 -- A Body outfit's MaterialToggles become PieceHints: a guess, from each toggle's name, at which slot that material
--- slot's piece belongs to. They seed the region maps that let parts of two outfits be worn together.
+-- slot's piece belongs to. The options page sorts the outfit's pieces into sections by them (closet/ui/model.lua).
+-- On the outfit worn whole they give a closet slot to each material slot the hand fit map leaves without one
+-- (closet/dress.lua), which the colour layer reads for its role.
 local Json = require('closet.json')
 local Slots = require('closet.slots')
 
@@ -219,9 +221,6 @@ function CnsImport.parse(text_in, source)
             end
             if not id or id == '' then
                 err(where, 'no UniqueFitID')
-            elseif not id:match('^[%w_%.%-]+$') then
-                -- The same characters Dress.parse reads back from coop-closet.txt, which splits worn fits on spaces.
-                err(where, 'UniqueFitID ' .. id .. ' has characters other than letters, digits, _ . -')
             elseif seen[id] then
                 err(where, 'UniqueFitID repeats ' .. seen[id])
             elseif character ~= 'EVE' then
@@ -245,7 +244,6 @@ function CnsImport.parse(text_in, source)
                     Description = text(entry.Description) or '',
                     CharacterID = 'EVE',
                     Slot = slot,
-                    Occupies = {}, HidesSlots = {}, HidesBodyRegions = {}, KeepsSlots = {},
                     Requirement = text(entry.Requirement) or 'None',
                     OutfitTypes = strings(entry.OutfitTypes),
                     Image = text(entry.OutfitImage),

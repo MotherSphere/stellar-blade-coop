@@ -14,9 +14,11 @@ local function pack(id,name,extra)
 end
 
 -- A loader on fake files: list = the list file's text (nil: no file), files = {[path from Content\Paks] = text or
--- false for a file io.open cannot open}. Returns the loader, the log lines and the reads by full path.
-local function fake(list,files)
-    local env={list_text=list,files=files,logs={},reads={}}
+-- false for a file io.open cannot open}, copies = {[name] = text} of the DLL's copies beside the list. Returns the
+-- loader, the log lines and the reads by full path.
+local DIR=LIST:match('^(.*)\\')
+local function fake(list,files,copies)
+    local env={list_text=list,files=files,copies=copies or {},logs={},reads={}}
     env.loader=Packs.new({paks=PAKS,list=LIST,log=function(m) env.logs[#env.logs+1]=m end,
         read=function(path,limit)
             env.reads[path]=(env.reads[path] or 0)+1
@@ -24,7 +26,9 @@ local function fake(list,files)
                 if env.list_text==nil then return nil,LIST..': No such file or directory',2 end
                 return env.list_text
             end
-            local text=env.files[path:sub(#PAKS+2)]
+            local text
+            if path:sub(1,#DIR+1)==DIR..'\\' then text=env.copies[path:sub(#DIR+2)]
+            else text=env.files[path:sub(#PAKS+2)] end
             if not text then return nil,path..': Invalid argument',22 end
             return limit and text:sub(1,limit) or text
         end})
@@ -54,6 +58,11 @@ local tests={
             {path='~mods\\N\\NoDotDekcns.json',size=1,time=2},
             {path='~mods\\Z Pack\\z.dekcns.json',size=9,time=20}},'kept, sorted by path, space and case kept')
         same(Packs.entries(''),{},'empty list')
+        -- A path the DLL copied (a byte outside ASCII): a tab, then the copy's name; any other name is no copy.
+        local U='~mods\\Tenues d\'\195\169t\195\169\\robe.dekcns.json'
+        same(Packs.entries('5 6 '..U..'\tcoop-cns-pack-12.json\n7 8 ~mods\\B\\b.dekcns.json\t..\\x.json\n'),
+            {{path='~mods\\B\\b.dekcns.json',size=7,time=8},{path=U,size=5,time=6,copy='coop-cns-pack-12.json'}},
+            'the copy named, the path without it')
         same(Packs.entries(nil),{},'no text')
     end,
     scan_builds_catalogue_by_unique_fit_id=function()
@@ -64,6 +73,22 @@ local tests={
         eq(env.reads[PAKS..'\\'..A],1,'read at Content\\Paks plus the listed path')
         same({report.packs,report.reused,report.items},{2,0,2},'report') same(report.failed,{},'no failure')
         eq(env.loader.catalogue(),cat,'catalogue() is the last scan')
+    end,
+    a_copied_pack_is_read_from_its_copy=function()
+        -- Lua's io.open cannot open the UTF-8 path (false: the fake refuses it), so the copy beside the list is read;
+        -- the pack keeps its own path in the catalogue and the report.
+        local U='~mods\\Tenues d\'\195\169t\195\169\\robe.dekcns.json'
+        local env=fake('5 6 '..U..'\tcoop-cns-pack-1.json\n1 1 '..A..'\n',{[U]=false,[A]=pack('a.suit','Suit A')},
+            {['coop-cns-pack-1.json']=pack('e.robe','Robe')})
+        local cat,report=env.loader.scan()
+        eq(cat['e.robe'].DisplayName,'Robe') eq(cat['e.robe'].File,U,'File is the pack, not the copy')
+        eq(env.reads[DIR..'\\coop-cns-pack-1.json'],1,'the copy read') eq(env.reads[PAKS..'\\'..U],nil,'never the path')
+        eq(env.reads[PAKS..'\\'..A],1,'an ASCII path still read in place')
+        same({report.packs,report.items},{2,2}) same(report.failed,{},'no failure')
+        -- A copy that is missing fails that pack alone, logged once with the copy's name.
+        env=fake('5 7 '..U..'\tcoop-cns-pack-1.json\n',{[U]=false},{})
+        cat,report=env.loader.scan()
+        ok(report.failed[U]) eq(count(env.logs,'coop-cns-pack-1.json'),1,'logged with the copy')
     end,
     catalogue_is_empty_before_the_first_scan=function()
         same(fake('',{}).loader.catalogue(),{})

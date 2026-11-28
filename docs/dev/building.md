@@ -314,6 +314,7 @@ mod/StellarCoop/            the UE4SS mod folder
                             bike, the fetch, the other players' bikes
     eve/                    coop chainspin, wear, emote, fly, slowmo and glide; chainspin_rows.lua
     cutmenus/               the cut menus: coop devmenu, devinfo and gift (the cut mailbox)
+    closet/                 Stellar Closet: coop closet, its menu and the CNS pack catalogue
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers, tested on the build machine; glue/ is the Windows side

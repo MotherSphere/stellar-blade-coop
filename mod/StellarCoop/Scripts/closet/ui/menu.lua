@@ -4,7 +4,10 @@
 -- Stellar Closet's menu (coop closet menu): opens, draws its screen (closet/ui/view.lua) and closes. The tabs, rows and
 -- tiles are closet/ui/model.lua's over closet/fits.lua, with what is worn read from the dress (closet/dress.lua's
 -- choices). It opens out of combat in the game world, the SBO lobby world included; it refuses on the first guard that
--- fails, with one notice. Open, it holds the kit's input as closet_menu with the mouse cursor. The tab shown is kept
+-- fails, with one notice. o.busy (closet/wiring.lua) names SBO's own state that holds EVE's body (the bike ride, the
+-- Doro look, the rifle out, an emote, a coop wear suit) as a key of closet.refused, or nil. Open, it holds the kit's
+-- input as closet_menu with the mouse cursor, taken again when the game takes it back (the kit's again) or another
+-- holder gave it to the game (the host's question, answered). The tab shown is kept
 -- across opens; the first open shows the first tab, Full outfit. Each close drops every game part first (the
 -- game holds EVE still while one is up) and hides the group. The input comes back BACK s after the close, so the key
 -- that closed it (Esc would open the pause menu) never reaches the game. It is asked again each tick while closed until
@@ -77,7 +80,7 @@
 -- number), brought into the window as far as the focused piece stays in it; left and right still turn the piece. F (refresh, UI_FaceButton_Top) gives the focused row its pack value
 -- back; Select on Reset this outfit gives every one. Back closes an open piece's controls (the focus on the piece),
 -- then the page: the focus goes back to the outfit's row. Up stops on the page's header row. A tab change or an open
--- drops the page; the undo of closet_key keeps it. The page's hints: Back, Change on UI_DPad_Left and UI_DPad_Right,
+-- drops the page; the pad chord's undo keeps it. The page's hints: Back, Change on UI_DPad_Left and UI_DPad_Right,
 -- Reset on UI_FaceButton_Top (Select instead on a piece with controls), Move. The detail's open line and help follow
 -- the device: a device switch draws them again at the next tick.
 -- With presets (o.presets, closet/presets.lua) the Full tab starts with Save look as preset (Select saves the worn
@@ -103,8 +106,8 @@
 -- did not drag (take_back, read each tick).
 -- o: {kit=ui/kit/kit.lua's, dress=closet/dress.lua's, words=function() the ui/text table to show, tell=function(build)
 -- (main/base.lua's M.tell), log=, world=function() M.hud_shown, photo=function() M.photo_state(), status=function()
--- the link's status text or nil, adult=the Intimate tab shown, now=function() the time in s (os.clock when nil),
--- camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
+-- the link's status text or nil, adult=the Intimate tab shown (closet/wiring.lua never passes it),
+-- now=function() the time in s (os.clock when nil), camera=closet/ui/camera.lua's or nil, folder=the mod folder (main.lua's M.folder: the pictures' root) or nil,
 -- thumbs=closet/thumbs.lua's or nil, colour=closet/colour.lua's or nil (the Colour rows then show Off and pick
 -- nothing), shape=closet/shape.lua's or nil (no shape row then), options=closet/options.lua's or nil (no options
 -- page then), presets=closet/presets.lua's or nil (no Presets rows, filter or favourites then),
@@ -165,8 +168,8 @@ function Menu.new(o)
     -- unreverted: a close's revert failed (no EVE during a map change), asked again each RETRY s while closed.
     local back_at,owed,unreverted=nil,false,false
     -- frame: ticks so far; undo: the focus before the last tab_left while only left followed it ({tab, row, col, tile,
-    -- tab_top, at=the frame of the last of them}), for closet_key (self.toggle); stepped: a left on a Colour or
-    -- shape row ({at=its frame, back=what puts the swatch or value back}), given back by closet_key.
+    -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle); stepped: a left on a Colour or
+    -- shape row ({at=its frame, back=what puts the swatch or value back}), given back by the chord.
     local frame,undo,stepped=0,nil,nil
     local listed -- closet/shape.lua's rows as of the last draw: new ones are drawn at the next tick.
     -- page: the options page shown ({fit=<UniqueFitID>, open=<a piece's controls shown, none yet>}) or nil; from_row:
@@ -211,14 +214,14 @@ function Menu.new(o)
     local function refused()
         if not (kit and kit.ready() and not kit.off()) then return 'ui' end
         if not o.world() then return 'loading' end
-        if kit.holding() and not owed then return 'panel' end -- Held for us since a close: not another panel.
+        if kit.holding() and not kit.holding(View.GROUP) then return 'panel' end -- Still ours since a close: none.
         if kit.paused(true) then return 'screen' end
         if o.photo()~='0' then return 'photo' end
         local eve=U.her(UE.GetPlayer())
         if cutscene(eve) then return 'cutscene' end
         if combat(eve) then return 'combat' end
         if dress.game_look()~=nil then return 'tachy' end
-        return nil
+        return o.busy and o.busy() or nil -- SBO's own state that holds EVE's body (closet/wiring.lua's busy).
     end
     -- While open: the key of the first guard that fails (closet.closed.<key>), or nil. Combat each COMBAT s.
     local function closing(t)
@@ -226,7 +229,10 @@ function Menu.new(o)
         if o.photo()~='0' then return 'photo' end
         local eve=U.her(UE.GetPlayer())
         if cutscene(eve) then return 'cutscene' end
-        if not kit.holding() then return 'input' end -- coop ui reset gave the game its input back.
+        -- Another holder took the input over the menu and gave it to the game (the host's question, answered): taken
+        -- again, as at the open. coop ui reset closes the menu itself.
+        if not kit.holding() then kit.input(true,View.GROUP,true,true) end
+        if not kit.holding() then return 'input' end
         if t>=combat_at then
             combat_at=t+Menu.COMBAT
             if combat(eve) then return 'combat' end
@@ -582,7 +588,8 @@ function Menu.new(o)
             end
             s.hints[2]={w.hints.wear,'Positive',word='select'}
             -- UI_FaceButton_Top: the game's UI action for the top face button (F, the pad's Y), as in
-            -- online/session/ui/sessions.lua; the 26123051 exe names it in FUN_14254baf0 (case 1) beside UI_LeftShoulder.
+            -- online/session/ui/sessions.lua; the 26123051 exe names it in FUN_14254baf0 case 1 (string 0x145c4e728;
+            -- UI_LeftShoulder is case 4).
             local one=tiles[col=='grid' and tile or at]
             -- A head piece is no outfit: no Whole outfit. UI_DPad_Right: as the outfit's row's Options hint above.
             if head then
@@ -675,7 +682,7 @@ function Menu.new(o)
         guard_at,combat_at=opened+Menu.GUARD,opened+Menu.COMBAT
         there={} -- The pictures read again: coop closet thumbs may have made some since.
         view.reread()
-        kit.input(true,View.GROUP,true)
+        kit.input(true,View.GROUP,true,true) -- Taken again when the game takes it back (ui/kit/kit.lua's tick).
         kit.sound('open')
         kit.show(View.GROUP,true)
         open=true
@@ -817,12 +824,14 @@ function Menu.new(o)
 
     function self.is_open() return open end
     -- closet_key (main/keys.lua): closed, open(); open, the Back of the rows level (the popup when the look changed, a
-    -- revert close when not; on the popup, its Back). The controller's D-pad Left tap (main/input.lua's closet) only
-    -- opens the menu. On the open menu it does nothing beyond its normal left. B closes the menu. On the keyboard, a
-    -- tab_left, then a left and this toggle in one frame first put the focus back as it was before the tab_left, so
-    -- the toggle leaves the tab and row as they were. A swatch or shape value that left took on a Colour or shape row
-    -- (saved at once) is put back, so the palette and the shape stay as they were. Q, then F1 in a later frame, keeps
-    -- Q's tab.
+    -- revert close when not; on the popup, its Back). The pad chord LB + D-pad Left (main/input.lua's closet) reaches
+    -- the open menu as tab_left at LB's press, then left and this toggle in one frame at D-pad Left's (native pad.h;
+    -- both pressed in one poll: left, tab_left, toggle). That toggle first puts the focus back as it was before the
+    -- tab_left, so the chord leaves the tab and row as they were. A swatch or shape value the chord's left took on a
+    -- Colour or shape row (saved at once) is put back, so the palette and the shape stay as they were. Q, then F1 in a
+    -- later frame, keeps Q's tab.
+    -- shortcut: a chord whose D-pad Left comes with no left (D-pad Up or Down held too) keeps LB's tab move; read the
+    -- pad's held LB in Lua if players hit it.
     function self.toggle()
         if not open then return self.open() end
         if undo and undo.at==frame then
@@ -859,7 +868,7 @@ function Menu.new(o)
         options.set(fit,v,key,value)
     end
     -- steps left or right (select: right) past variants whose mesh does not load (dress.loads), a section turns all its
-    -- pieces off when every one shows, else on, a piece turns. A left keeps what puts it back for closet_key.
+    -- pieces off when every one shows, else on, a piece turns. A left keeps what puts it back for the pad chord.
     -- A colour takes the choice after or before (closet/options.lua's cycle: Pack colour, the swatches, Custom), a
     -- channel, a number or a shape key steps (options.step), a finish takes the next option whose texture loads.
     local function change(item,word)
@@ -927,7 +936,7 @@ function Menu.new(o)
         if word=='back' and camera and camera.hold_back() then return end
         -- A menu move: the mouse wheel is the menu's again until the camera moves another way (Schizo, 27 Nov 2026).
         if camera and camera.menu_used then camera.menu_used() end
-        if word=='tab_left' then undo={tab,row,col,tile,tab_top,page,from_row,at=frame} -- For closet_key (self.toggle).
+        if word=='tab_left' then undo={tab,row,col,tile,tab_top,page,from_row,at=frame} -- The pad chord (self.toggle).
         elseif word=='left' and undo then undo.at=frame
         else undo=nil end
         if word=='select' and now()<opened+Menu.ARM then return end
@@ -1025,7 +1034,7 @@ function Menu.new(o)
             local role,ch=item.role,item.c
             local _,was=o.colour.get(role)
             o.colour.step(role,ch,word=='left' and -1 or 1)
-            -- For closet_key (self.toggle).
+            -- For the pad chord (self.toggle).
             if word=='left' then stepped={at=frame,back=function() o.colour.channel(role,ch,was[ch:upper()]) end} end
             kit.sound('change')
         elseif item and item.role and not item.c and (word=='left' or word=='right' or word=='select') then
@@ -1033,7 +1042,7 @@ function Menu.new(o)
                 local role=item.role
                 local on=o.colour.get(role)
                 o.colour.turn(role,not on)
-                -- For closet_key (self.toggle).
+                -- For the pad chord (self.toggle).
                 if word=='left' then stepped={at=frame,back=function() o.colour.turn(role,on) end} end
                 kit.sound('change')
             end
@@ -1041,7 +1050,7 @@ function Menu.new(o)
             local name,was=item.morph,o.shape.get(item.morph)
             if word=='select' then o.shape.set(name,was>=100 and 0 or was+Shape.STEP)
             else o.shape.step(name,word=='left' and -1 or 1) end
-            if word=='left' then stepped={at=frame,back=function() o.shape.set(name,was) end} end -- For closet_key.
+            if word=='left' then stepped={at=frame,back=function() o.shape.set(name,was) end} end -- The pad chord.
             kit.sound('change')
         elseif page and item and item.reset_fit and word=='select' then -- Reset this outfit.
             o.options.reset(page.fit)
@@ -1084,9 +1093,9 @@ function Menu.new(o)
         ticked=t
         if camera and camera.take_back() then self.nav('back') end -- A right click with no drag.
         if not open then
-            -- shortcut: kit.holding() does not say for whom, so a panel that took the input meanwhile keeps owed set
-            -- (open then skips the panel guard); read the holder once the kit says it.
-            if owed and t>=back_at then kit.input(false,View.GROUP); owed=kit.holding() end
+            -- Owed while the kit still holds it for us (no player controller at the give-back); a panel that took it
+            -- meanwhile has it, nothing is owed.
+            if owed and t>=back_at then kit.input(false,View.GROUP); owed=kit.holding(View.GROUP) end
             -- Like the dress's restore, it waits while the game is paused or shows a screen (a loading screen).
             if unreverted and t>=guard_at and not kit.paused(true) then
                 guard_at=t+Menu.RETRY
@@ -1096,8 +1105,9 @@ function Menu.new(o)
             end
             return
         end
-        -- A held up or down key repeats its move (UE4SS's binds see the press only); the press moved once already.
-        local held=o.nav_held and o.nav_held()
+        -- A held up or down key repeats its move (UE4SS's binds see the press only); the press moved once already. Not
+        -- while another holder has the input over the menu (the host's question takes those keys).
+        local held=kit.holding(View.GROUP) and o.nav_held and o.nav_held()
         local dir=held==1 and 'up' or held==2 and 'down' or nil
         if dir~=held_dir then held_dir,repeat_at=dir,t+Menu.REPEAT_DELAY
         elseif dir and t>=repeat_at then
@@ -1105,7 +1115,7 @@ function Menu.new(o)
             if repeat_at<=t then repeat_at=t+Menu.REPEAT_EVERY end -- A late tick: one move, not a burst.
             self.nav(dir)
         end
-        -- The grid builds its entries on later frames too, and they take the keyboard focus: back to the kit's root.
+        -- The grid builds its entries on later frames too. They take the keyboard focus: back to the kit's root.
         kit.refocus()
         view.tick(t) -- The shown tiles' glyphs after a fill.
         if t>=guard_at then

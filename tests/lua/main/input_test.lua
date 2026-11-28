@@ -494,7 +494,7 @@ end)()
         local c={words={},closes=0,up=true}
         c.is_open=function() return c.up end
         c.nav=function(word) c.words[#c.words+1]=word end
-        c.close=function() c.closes=c.closes+1; c.up=false end
+        c.close=function(how,why) c.closes,c.how,c.why=c.closes+1,how,why; c.up=false end
         return c
     end
     local c=spy()
@@ -541,13 +541,17 @@ end)()
     for _,k in ipairs({'E','Q','F','SPACE','ESCAPE','J','C','BACKSPACE'}) do key(k) end
     M.ui_reset()
     assert(not logged('error'),'the stub takes no key and raises nothing')
+    -- coop_ui_off_closes_the_closet_menu: as coop ui reset does (its preview turned down), before the kit stops.
+    M.closet_menu=c
+    c.up=true
+    coop('ui','off')
+    assert(c.closes==2 and not c.up and c.how=='revert' and c.why=='coop ui off','coop ui off closes the closet menu')
 end)()
 
--- The pad's closet event (D-pad Left tapped, the native part's 14) opens the closet menu as closet_key does, under the
--- bike's refusals (our HUD hidden, one of our screens open, the game paused or on one of its screens) and not while
--- spectate watches: all logged only. A refused open (combat) is logged, not reported: D-pad Left is tapped in play.
--- Open, the tap does nothing (its left moved in the menu; B closes it). The loader stub of an off closet module takes
--- it and raises nothing.
+-- The pad's closet event (LB held + D-pad Left, the native part's 14) runs the closet menu's toggle as closet_key does.
+-- Closed, it opens under the bike's refusals (our HUD hidden, one of our screens open, the game paused or on one of
+-- its screens) and not while spectate watches: logged only. A refused open is reported; open, it is the menu's Back,
+-- paused or not. The loader stub of an off closet module takes it and raises nothing.
 ;(function()
     local Loader=require('main.loader')
     local M
@@ -566,18 +570,16 @@ end)()
     assert(M.PAD[14]=='closet')
     pad(14)
     assert(toggles==1 and up and logged('pad: closet'),'closed: it opens')
-    pad(14)
-    assert(toggles==1 and up,'open: the tap does nothing, the menu stays open')
-    up=false
     kit_paused=true
     pad(14)
-    assert(toggles==1 and logged('pad: closet ignored: the game is paused or shows one of its screens'))
+    assert(toggles==2 and not up,'open: its Back, paused or not')
+    pad(14)
+    assert(toggles==2 and logged('pad: closet ignored: the game is paused or shows one of its screens'))
     kit_paused=false
     M.spectate={watching=function() return true end,switch=function() end}
     pad(14)
-    assert(toggles==1 and logged('pad: closet ignored: spectate is watching'),'spectating: left switches the member')
+    assert(toggles==2 and logged('pad: closet ignored: spectate is watching'),'spectating: left switches the member')
     M.spectate=nil
-    toggles=2
     key('F5'); assert(kit_shown.menu)
     pad(14)
     assert(toggles==2 and logged('pad: closet ignored: one of our screens is open'),'the co-op menu open')
@@ -588,8 +590,7 @@ end)()
     M.hud_shown=true
     answer={false,'Stellar Closet does not open in combat.'}
     pad(14)
-    assert(toggles==3 and not up and not logged('STOP: Stellar Closet does not open in combat.')
-        and logged('pad: closet refused: Stellar Closet does not open in combat.'),'a refusal: logged only')
+    assert(toggles==3 and not up and last()=='[StellarCoop] STOP: Stellar Closet does not open in combat.\n',last())
     -- On the open closet menu View held (the pad's menu event, 7) is its Preview picture: the menu stays open.
     local words={}
     up=true; M.closet_menu.nav=function(w) words[#words+1]=w end
@@ -606,6 +607,35 @@ end)()
     M.closet_menu=Loader.STUB
     pad(14)
     assert(not logged('pad: error'),'the stub takes it and raises nothing')
+end)()
+
+-- The pad's closet chord is the native part's only while Lua asks closet on (main/pass.lua): at the load's first 250 ms
+-- pass with the closet module on, closet off once it is off (it failed at load or at a build step), each change asked
+-- once, nothing after coop off. Without the ask the native part makes no closet event and LB keeps the emote wheel's
+-- D-pad Left hold (ui/pad.h).
+;(function()
+    local Loader=require('main.loader')
+    local M
+    local run=Loader.run
+    Loader.run=function(state,list) M=state; return run(state,list) end
+    settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,false
+    load_main(true)
+    Loader.run=run
+    assert(#closet_asks==0,'nothing asked before the first pass')
+    quarter()
+    assert(closet_asks[1]=='closet on' and #closet_asks==1,'the load asks closet on')
+    quarter()
+    assert(#closet_asks==1,'asked once')
+    M.off_modules.closet='boom'
+    quarter(); quarter()
+    assert(closet_asks[2]=='closet off' and #closet_asks==2,'an off closet module: closet off, once')
+    M.off_modules.closet=nil
+    quarter()
+    assert(closet_asks[3]=='closet on' and #closet_asks==3,'on again')
+    coop('off')
+    M.off_modules.closet='boom'
+    quarter()
+    assert(#closet_asks==3,'nothing asked after coop off')
 end)()
 
 -- The controllers the mod reads, said the same way in INSTALL.md and docs/players/interface.md (any controller the game

@@ -43,7 +43,7 @@ local function rig(o)
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
         camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape,
         options = o.options, presets = o.presets, uidev = function() return r.dev end, head = o.head,
-        nav_held = function() return r.held end})
+        nav_held = function() return r.held end, busy = function() return r.busy, r.busy and 'busy: ' .. r.busy end})
     return r
 end
 -- A pack suit named Aria (first by name on the Full tab) with two variants, the second's mesh missing when the rig
@@ -318,9 +318,9 @@ end
 local function no_pc(r)
     local input = r.kit.input
     r.kit.no_pc = true
-    r.kit.input = function(on, who, mouse)
-        if not on and r.kit.no_pc then r.kit.inputs[#r.kit.inputs + 1] = {on, who, mouse}; return end
-        input(on, who, mouse)
+    r.kit.input = function(on, who, mouse, again)
+        if not on and r.kit.no_pc then r.kit.inputs[#r.kit.inputs + 1] = {on, who, mouse, again}; return end
+        input(on, who, mouse, again)
     end
 end
 -- The camera row as drawn now, left to right: its SB hint parts at y 1890 ({x, text, icon}) and its kit texts at
@@ -357,7 +357,7 @@ local tests = {
         local good, line = r.menu.open()
         ok(good, line)
         eq(r.menu.is_open(), true, 'is_open')
-        same(r.kit.inputs[1], {true, 'closet_menu', true}, 'input')
+        same(r.kit.inputs[1], {true, 'closet_menu', true, true}, 'input: the cursor shown, taken again (again)')
         eq(r.kit.sounds[1], 'open', 'sound')
         eq(r.kit.shown.closet_menu, true, 'group shown')
         local g = r.kit.groups.closet_menu
@@ -2226,6 +2226,12 @@ local tests = {
             {'cutscene', function() eve.IsAttachedToLevelSequenceWithoutPlayable = function() return true end end},
             {'combat', function() eve.IsBattle = function() return true end end},
             {'tachy', function(r) r.game_look = '/Game/Art/Character/PC/CH_P_EVE_10/CH_P_EVE_10.CH_P_EVE_10' end},
+            -- SBO's own state that holds EVE's body (closet/wiring.lua's busy gives the key).
+            {'bike', function(r) r.busy = 'bike' end},
+            {'doro', function(r) r.busy = 'doro' end},
+            {'rifle', function(r) r.busy = 'rifle' end},
+            {'emote', function(r) r.busy = 'emote' end},
+            {'wear', function(r) r.busy = 'wear' end},
         }
         package.loaded.UEHelpers.GetPlayer = function() return eve end
         for _, case in ipairs(cases) do
@@ -2236,6 +2242,7 @@ local tests = {
             local held = r.kit.held
             local good, line = r.menu.open()
             eq(good, false, case[1])
+            eq(type(T.en.closet.refused[case[1]]), 'string', case[1] .. ': its text')
             eq(line, T.en.closet.refused[case[1]], case[1] .. ' line')
             same(r.told, {T.en.closet.refused[case[1]]}, case[1] .. ' notice')
             eq(#r.kit.made, 0, case[1] .. ': nothing made')
@@ -2244,6 +2251,51 @@ local tests = {
             eq(r.menu.is_open(), false, case[1] .. ': closed')
         end
         package.loaded.UEHelpers.GetPlayer = function() return nil end
+    end,
+
+    -- Another panel that takes the input within BACK after a close (F5 twice: the co-op menu) has it: the closet's
+    -- give-back owes nothing then, so its open refuses on the panel guard, before BACK and after it.
+    a_panel_that_took_the_input_after_a_close_refuses_the_open = function()
+        local r = rig()
+        r.menu.open()
+        r.menu.close('revert')
+        ok(r.kit.holding('closet_menu'), 'still ours for BACK s')
+        r.kit.input(true, 'menu')
+        local good, line = r.menu.open()
+        eq(good, false, 'refused before BACK') eq(line, T.en.closet.refused.panel, 'the panel line')
+        tick(r, 0.2)
+        eq(r.kit.held, 'menu', 'the give-back leaves the other panel\'s input')
+        local asked = #r.kit.inputs
+        tick(r, 0.4)
+        eq(#r.kit.inputs, asked, 'nothing owed: the give-back is not asked again')
+        good, line = r.menu.open()
+        eq(good, false, 'refused after BACK') eq(line, T.en.closet.refused.panel, 'the panel line again')
+        eq(r.menu.is_open(), false, 'closed')
+        -- Still ours at the close (no other panel): the next open takes it on.
+        r = rig()
+        r.menu.open()
+        r.menu.close('revert')
+        ok(r.menu.open(), 'an open while it is still ours')
+    end,
+
+    -- The host's question opens over the menu (its own holder, drawn over the closet, main/ui.lua) and gives the input
+    -- to the game at its answer: the menu takes it again at its next guard and stays open, nothing reverted.
+    the_input_comes_back_after_the_host_question = function()
+        local r = rig()
+        on_top(r)
+        tick(r, 0.25)
+        r.kit.input(true, 'ask', true)
+        tick(r, 0.5)
+        ok(r.menu.is_open(), 'open under the question') eq(r.kit.held, 'ask', 'the question holds the input')
+        r.held = 2 -- Down held: the question's key, never a repeat of the menu's.
+        tick(r, 1) tick(r, 1.5) tick(r, 1.7)
+        eq((detail(r)), 'Top', 'no repeat under the question')
+        r.held = nil
+        r.kit.input(false, 'ask')
+        tick(r, 2)
+        ok(r.menu.is_open(), 'still open') eq(r.kit.held, 'closet_menu', 'taken again')
+        same(r.kit.inputs[#r.kit.inputs], {true, 'closet_menu', true, true}, 'as at the open')
+        eq(r.reverted, 0, 'nothing reverted') same(r.told, {}, 'no notice')
     end,
 
     -- A guard that raises while open closes the menu with a revert, the log naming it.
@@ -2267,7 +2319,7 @@ local tests = {
             {'photo', function(r) r.photo = '2' end},
             {'cutscene', function(r) r.status = 'mod=1 theater=boss' end},
             {'cutscene', function() eve.IsAttachedToLevelSequenceWithoutPlayable = function() return true end end},
-            {'input', function(r) r.kit.held = nil end},
+            {'input', function(r) r.kit.held, r.kit.deaf = nil, true end}, -- Given to the game, not taken again.
         }
         for _, case in ipairs(cases) do
             eve.IsAttachedToLevelSequenceWithoutPlayable = function() return false end

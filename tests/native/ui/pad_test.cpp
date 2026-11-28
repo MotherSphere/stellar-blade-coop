@@ -5,7 +5,7 @@
 // direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB, RB and Y, a disconnect,
 // the ring and the Online tab's event posted into it, the slots asked at each poll and PadKeys (the game's
 // controller events as one read); the emote wheel's D-pad Left hold, right stick sector and held buttons; the closet's
-// D-pad Left tap, X, L3 and R3 as bits and the right stick and triggers as levels.
+// chord (LB held + D-pad Left) and the X, L3, R3 and trigger reads (closet/keys.h hands them to Lua).
 #include "ui/pad.h"
 
 #include <cassert>
@@ -78,7 +78,7 @@ int main() {
     pad.step(buttons(PadState::DPAD_LEFT), 5064);
     pad.step(buttons(0), 5080);
     pad.step(buttons(PadState::DPAD_RIGHT), 5096);
-    assert(drain(pad) == (V{Pad::kDown, Pad::kLeft, Pad::kCloset, Pad::kRight}) && "a D-pad Left tap: the closet");
+    assert(drain(pad) == (V{Pad::kDown, Pad::kLeft, Pad::kRight}));
   }
 
   { // The repeat: after 400 ms, then every 120 ms while held; a late step gives one event, not a burst.
@@ -404,7 +404,7 @@ int main() {
     assert(pad.next() == 0);
     pad.step(buttons(0), t += 16);
     pad.step(buttons(PadState::DPAD_RIGHT), t += 16);
-    assert(drain(pad) == (V{Pad::kCloset, Pad::kRight})); // The tap of the dropped left, then right.
+    assert(drain(pad) == V{Pad::kRight});
   }
 
   { // PadKeys: SB's controller key events (Slate's handler) as one XInput-shaped read.
@@ -532,49 +532,69 @@ int main() {
     assert(std::string(PadKeys::kNames[PadKeys::kRightX]) == "Gamepad_RightX" &&
            std::string(PadKeys::kNames[PadKeys::kRightY]) == "Gamepad_RightY");
   }
-  { // D-pad Left tapped (let go before kPadWheelHoldMs): the closet's event at the release, after its left. Held
-    // that long: the wheel's, then no closet at the release. LB plays no part (LB is the game's combat).
+  { // With Lua's closet on, LB held + D-pad Left pressed: the closet's event once, after its left; never the wheel's,
+    // while LB is held or after LB is let go first. D-pad Left alone still gives the wheel.
     Pad pad;
     const uint16_t lb = PadState::LEFT_SHOULDER, left = PadState::DPAD_LEFT;
-    pad.step(buttons(left), 0);
-    assert(drain(pad) == V{Pad::kLeft});
-    pad.step(buttons(left), 200);
+    pad.step(buttons(lb), 0, true);
+    assert(drain(pad) == V{Pad::kTabLeft});
+    pad.step(buttons(lb | left), 16, true);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kCloset}));
+    for (uint64_t t = 32; t <= 1000; t += 16)
+      pad.step(buttons(lb | left), t, true);
     assert(drain(pad).empty());
-    pad.step(buttons(0), 216);
-    assert(drain(pad) == V{Pad::kCloset});
-    pad.step(buttons(left), 1000), pad.step(buttons(left), 1300);
+    pad.step(buttons(left), 1016, true); // LB let go first: the chord's D-pad Left hold stays no wheel's.
+    pad.step(buttons(left), 2000, true);
+    assert(drain(pad).empty());
+    pad.step(buttons(0), 2016, true);
+    pad.step(buttons(left), 2032, true), pad.step(buttons(left), 2332, true);
     assert(drain(pad) == (V{Pad::kLeft, Pad::kWheel}));
-    pad.step(buttons(0), 1316);
-    assert(drain(pad).empty());
-    pad.step(buttons(lb | left), 2000); // With LB: the same tap.
-    pad.step(buttons(lb), 2016);
+    pad.step(buttons(0), 2348, true);
+    pad.step(buttons(lb | left), 3000, true); // Both in one step: the chord.
     assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kCloset}));
-    pad.step(buttons(0), 2032);
-    // A diagonal is no tap: up or down held with it on the way.
-    pad.step(buttons(left | PadState::DPAD_UP), 2500), pad.step(buttons(left), 2516), pad.step(buttons(0), 2532);
-    assert(drain(pad) == (V{Pad::kUp, Pad::kLeft}));
-    // The stick held left is no D-pad: no closet.
-    pad.step(PadState{0, -30000, 0, true}, 3000), pad.step(PadState{0, 0, 0, true}, 3016);
-    assert(drain(pad) == V{Pad::kLeft});
-    // A disconnect while held is no tap.
-    pad.step(buttons(left), 4000), pad.step(PadState{}, 4016);
-    assert(drain(pad) == V{Pad::kLeft});
+    pad.step(buttons(0), 3016, true);
+    // D-pad Left held first, LB after: no chord; no wheel while LB is held.
+    pad.step(buttons(left), 4000, true);
+    pad.step(buttons(left | lb), 4100, true), pad.step(buttons(left | lb), 4400, true);
+    pad.step(buttons(left | lb), 5000, true);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft}));
+    // The stick held left is no D-pad: no chord.
+    pad.step(buttons(0), 5016, true);
+    pad.step(PadState{lb, -30000, 0, true}, 5032, true);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft}));
     // From PadKeys as from XInput.
     PadKeys keys;
     for (size_t i = 0; i < PadKeys::kKeys; ++i)
       keys.names[i] = 1000 + i;
-    Pad tap;
+    Pad chord;
+    keys.press(1000 + PadKeys::kLB, 0, false);
+    chord.step(keys.state(), 0, true);
     keys.press(1000 + PadKeys::kDpadLeft, 0, false);
-    tap.step(keys.state(), 0);
-    keys.release(1000 + PadKeys::kDpadLeft, 0);
-    tap.step(keys.state(), 100);
-    assert(drain(tap) == (V{Pad::kLeft, Pad::kCloset}));
+    chord.step(keys.state(), 16, true), chord.step(keys.state(), 400, true);
+    assert(drain(chord) == (V{Pad::kTabLeft, Pad::kLeft, Pad::kCloset}));
   }
-  { // X, L3 and R3: coop_padbits' bits (1 X, 2 L3, 4 R3) of the last step's buttons, from XInput's slots and from
-    // PadKeys; they make no event.
-    assert(coop::pad_bits(0) == 0 && coop::pad_bits(PadState::X) == 1 && coop::pad_bits(PadState::LEFT_THUMB) == 2 &&
-           coop::pad_bits(PadState::RIGHT_THUMB) == 4 && coop::pad_bits(0xffff) == 7);
-    assert(coop::pad_bits(uint16_t(~(PadState::X | PadState::LEFT_THUMB | PadState::RIGHT_THUMB))) == 0);
+  { // With Lua's closet off (the closet module off or not loaded), LB and D-pad Left as without the closet: no closet
+    // event, the wheel's after 300 ms with LB held, LB pressed during the hold no cancel.
+    Pad pad;
+    const uint16_t lb = PadState::LEFT_SHOULDER, left = PadState::DPAD_LEFT;
+    pad.step(buttons(lb), 0);
+    pad.step(buttons(lb | left), 16), pad.step(buttons(lb | left), 315);
+    assert(drain(pad) == (V{Pad::kTabLeft, Pad::kLeft}));
+    pad.step(buttons(lb | left), 316);
+    assert(drain(pad) == V{Pad::kWheel});
+    pad.step(buttons(0), 400);
+    pad.step(buttons(left), 500), pad.step(buttons(left | lb), 600), pad.step(buttons(left | lb), 800);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kWheel}));
+    pad.step(buttons(0), 900);
+    pad.step(buttons(lb | left), 1000), pad.step(buttons(lb | left), 1300);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kWheel}));
+    // Lua's closet on from the next step: the next D-pad Left press with LB held is the chord's, its hold no wheel's.
+    pad.step(buttons(lb), 1400, true), pad.step(buttons(lb | left), 1416, true);
+    pad.step(buttons(lb | left), 2000, true);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kCloset}));
+  }
+  { // X, L3 and R3 in the last step's buttons, from XInput's slots and from PadKeys; they make no event.
+    constexpr uint16_t X = PadState::X, L3 = PadState::LEFT_THUMB, R3 = PadState::RIGHT_THUMB;
     PadSlots slots;
     const auto two = [](unsigned slot, PadState &got) {
       got = buttons(slot == 0 ? PadState::X : PadState::RIGHT_THUMB);
@@ -584,35 +604,24 @@ int main() {
     PadState s = slots.poll(16, two);
     Pad pad;
     pad.step(s, 0);
-    assert(drain(pad).empty() && coop::pad_bits(pad.held()) == 5);
+    assert(drain(pad).empty() && (pad.held() & (X | L3 | R3)) == (X | R3));
     PadKeys keys;
     for (size_t i = 0; i < PadKeys::kKeys; ++i)
       keys.names[i] = 1000 + i;
     keys.press(1000 + PadKeys::kX, 0, false), keys.press(1000 + PadKeys::kL3, 1, false);
     keys.press(1000 + PadKeys::kR3, 0, false), keys.release(1000 + PadKeys::kR3, 0);
     pad.step(keys.state(), 16);
-    assert(drain(pad).empty() && coop::pad_bits(pad.held()) == 7);
+    assert(drain(pad).empty() && (pad.held() & (X | L3 | R3)) == (X | L3 | R3));
     pad.step(keys.state(), 32); // R3's tap went with the last read.
-    assert(coop::pad_bits(pad.held()) == 3);
+    assert((pad.held() & (X | L3 | R3)) == (X | L3));
     pad.step(PadState{}, 48);
-    assert(coop::pad_bits(pad.held()) == 0);
+    assert(pad.held() == 0);
     assert(std::string(PadKeys::kNames[PadKeys::kX]) == "Gamepad_FaceButton_Left" &&
            std::string(PadKeys::kNames[PadKeys::kL3]) == "Gamepad_LeftThumbstick" &&
            std::string(PadKeys::kNames[PadKeys::kR3]) == "Gamepad_RightThumbstick");
   }
-  { // The right stick and the triggers as coop_levels' answers: 1 + 65 * which + the level, which 0 right x, 1 right
-    // y, 2 left trigger, 3 right trigger; a stick axis 0 to 64 (32 at rest), a trigger 0 to 64 (0 at rest).
+  { // The triggers (0 let go to 255 fully pulled) in the last step's read, from XInput's slots and from PadKeys.
     PadState s;
-    assert(coop::pad_level(s, 0) == 1 + 32 && coop::pad_level(s, 1) == 1 + 65 + 32 &&
-           coop::pad_level(s, 2) == 1 + 130 && coop::pad_level(s, 3) == 1 + 195);
-    s.rx = 32767, s.ry = -32768, s.lt = 255, s.rt = 128;
-    assert(coop::pad_level(s, 0) == 1 + 64 && coop::pad_level(s, 1) == 1 + 65 &&
-           coop::pad_level(s, 2) == 1 + 130 + 64 && coop::pad_level(s, 3) == 1 + 195 + 32);
-    PadState full;
-    full.rt = 255;
-    assert(coop::pad_level(full, 3) == 260); // The most: Lua passes 260 arguments.
-    s.rx = 16384, s.ry = -1000;
-    assert(coop::pad_level(s, 0) == 1 + 48 && coop::pad_level(s, 1) == 1 + 65 + 31);
     // From XInput's slots: the first connected pad's triggers.
     PadSlots slots;
     const auto two = [](unsigned slot, PadState &got) {
@@ -627,7 +636,7 @@ int main() {
     pad.step(s, 0);
     assert(drain(pad).empty() && pad.read().lt == 200 && pad.read().rt == 10);
     pad.step(PadState{}, 16);
-    assert(pad.read().lt == 0 && coop::pad_level(pad.read(), 0) == 1 + 32);
+    assert(pad.read().lt == 0 && pad.read().rx == 0 && !pad.read().connected);
     // From PadKeys: 0 to 1 as 0 to 255, clamped, the trigger pulled furthest of any controller.
     PadKeys keys;
     for (size_t i = 0; i < PadKeys::kKeys; ++i)

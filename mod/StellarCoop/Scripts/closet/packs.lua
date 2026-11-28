@@ -2,8 +2,10 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Stellar Closet's pack catalogue: every installed *.dekcns.json pack read into one table of outfits by UniqueFitID.
--- The DLL lists the packs at game start in coop-cns-packs.txt (link/pak_list.h cns_pack_list): a "<size> <time>
--- <path from Content\Paks>" line each. Each pack is read in place with closet/cns_import.lua and never changed.
+-- The DLL lists the packs at game start in coop-cns-packs.txt (native closet/packs.h pack_list): a "<size> <time>
+-- <path from Content\Paks>" line each. Each pack is read in place with closet/cns_import.lua and never changed. Lua's
+-- io.open takes the ANSI code page while the list is UTF-8, so for a path with a byte outside ASCII the DLL writes a
+-- copy of the pack beside the list and ends the line with a tab and the copy's name: that pack is read from the copy.
 -- Packs.new{paks = SB\Content\Paks (core/pak_gate.lua paks_of) or nil, list = full path of coop-cns-packs.txt,
 --     read = function(path, limit) -> text | nil, message (core/link.lua Link.files.read), log = function(line)}
 --   loader.scan()      -> catalogue, report {packs = listed packs, reused = of them taken from the cache,
@@ -15,21 +17,21 @@
 -- per pack path and stamp. Of two packs with one UniqueFitID the first by sorted path wins.
 -- shortcut: the DLL lists packs only at game start, so rescan sees new files after a restart; add a native re-list
 -- when packs change in play.
--- shortcut: Lua's io.open takes the ANSI code page while the list is UTF-8, so a pack path with non-ASCII bytes fails
--- to open (logged once); let the DLL hand the text over if a real pack hits it.
 local CnsImport = require('closet.cns_import')
 
 local Packs = {}
 
 Packs.MAX_BYTES = 1 << 20 -- the DLL's kMaxCnsBytes (link/pak_list.h): a longer pack is skipped, not parsed cut
 
--- The list's lines CnsImport.should_read accepts, as {path=, size=, time=}, sorted by path. Other lines are dropped.
+-- The list's lines CnsImport.should_read accepts, as {path=, size=, time=, copy=}, sorted by path. Other lines are
+-- dropped. copy: the name of the DLL's copy beside the list (coop-cns-pack-<n>.json), or nil; another name is no copy.
 function Packs.entries(text)
     local out = {}
     for line in (text or ''):gmatch('[^\r\n]+') do
-        local size, time, path = line:match('^(%d+) (%d+) (.+)$')
+        local size, time, path, copy = line:match('^(%d+) (%d+) ([^\t]+)\t?(.*)$')
         if path and CnsImport.should_read(path) then
-            out[#out + 1] = {path = path, size = tonumber(size), time = tonumber(time)}
+            out[#out + 1] = {path = path, size = tonumber(size), time = tonumber(time),
+                copy = copy:match('^coop%-cns%-pack%-%d+%.json$')}
         end
     end
     table.sort(out, function(a, b) return a.path < b.path end)
@@ -60,8 +62,10 @@ function Packs.new(env)
         env.log(line)
     end
 
+    local beside = env.list and env.list:match('^(.*)[\\/]') -- The folder of the list and of the DLL's copies.
     local function load(entry, stamp)
-        local text, message = env.read(env.paks .. '\\' .. entry.path, Packs.MAX_BYTES + 1)
+        local file = entry.copy and beside and beside .. '\\' .. entry.copy or env.paks .. '\\' .. entry.path
+        local text, message = env.read(file, Packs.MAX_BYTES + 1)
         local why = not text and 'cannot open: ' .. tostring(message)
             or #text > Packs.MAX_BYTES and ('larger than %d bytes'):format(Packs.MAX_BYTES)
         if why then

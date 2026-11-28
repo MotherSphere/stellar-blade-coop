@@ -42,6 +42,8 @@ local function component(name, m)
         self.calls[#self.calls + 1] = {n, v, remove}
         if remove and math.abs(v) <= 1e-5 then self.curves[n] = nil else self.curves[n] = v end
     end
+    -- As exec 0x14491efb0: the name's value in the curves, else 0.
+    function c:GetMorphTarget(n) return self.curves[n] or 0 end
     return c
 end
 
@@ -67,6 +69,27 @@ local function rig(file, options)
 end
 
 local tests = {
+    -- Gun mode's rebuild (SetSkeletalMesh with another body, then hers, in one frame) empties her body's curves while
+    -- dress.applied() stays: the curves set are read back once a second and the shape goes on again.
+    a_curve_gone_with_a_rebuilt_body_is_set_again = function()
+        local r = rig()
+        local now = 0
+        r.s = r.Shape.new({dress = r.dress, store = r.store, log = function(m) r.log[#r.log + 1] = m end,
+            clock = function() return now end})
+        r.s.set('Breasts', 50)
+        r.s.tick()
+        eq(r.body.curves.Breasts, 0.5, 'set')
+        local calls = #r.body.calls
+        now = now + 1.01
+        r.s.tick()
+        eq(#r.body.calls, calls, 'the curve still there: nothing set again')
+        r.body.curves = {} -- Her body rebuilt: the curves at +0xec8 emptied.
+        r.s.tick()
+        eq(r.body.curves.Breasts, nil, 'read back once a second only')
+        now = now + 1.01
+        r.s.tick()
+        eq(r.body.curves.Breasts, 0.5, 'set again') has(r.log, 'a curve set is gone', 'said')
+    end,
     morph_names_are_read_once_per_mesh = function()
         local r = rig()
         r.s.tick()

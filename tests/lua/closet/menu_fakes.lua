@@ -201,11 +201,12 @@ function F.kit()
     function k.drop(rec)
         if rec and rec.live then rec.live = false; k.dropped = k.dropped + 1; k.events[#k.events + 1] = 'drop' end
     end
-    function k.input(on, who, mouse)
-        k.inputs[#k.inputs + 1] = {on, who, mouse}
-        if on then k.held = who elseif k.held == who then k.held = nil end
+    -- k.deaf: the kit takes no input (a refused take: no player controller).
+    function k.input(on, who, mouse, again)
+        k.inputs[#k.inputs + 1] = {on, who, mouse, again}
+        if on then if not k.deaf then k.held = who end elseif k.held == who then k.held = nil end
     end
-    function k.holding() return k.held ~= nil end
+    function k.holding(who) return k.held ~= nil and (who == nil or k.held == who) end
     function k.refocus() k.refocused = k.refocused + 1 end
     function k.paused() return k.paused_now end
     function k.sound(name) k.sounds[#k.sounds + 1] = name end

@@ -82,7 +82,6 @@ start with `coop`.
 | Page | What it covers |
 | --- | --- |
 | [Stellar Closet](closet/closet.md) | EVE's outfits as pieces in slots, `coop closet` |
-| [Pack format](closet/pack-format.md) | `*.stellarcloset.json`: items, slots, layers, regions, the rules |
 | [Importing CNS-format packs](closet/cns-import.md) | How `*.dekcns.json` packs map to items, the clean-room rules |
 
 ## Building and internals

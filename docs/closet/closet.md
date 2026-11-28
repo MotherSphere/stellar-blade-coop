@@ -1,12 +1,8 @@
 # Stellar Closet
 
-Stellar Closet is an outfit system for EVE that is to replace the one-mesh-per-outfit model of the Custom Nanosuit
-System (CNS). EVE wears pieces in slots: base body, skin suit, underwear, stockings, top, pants, shoes, gloves, belt,
-coat, cape, jewellery and body hardware. Pieces from different outfits can be worn together. A full-body outfit
-overrides the body slots. It leaves the head, the hair and the weapon alone.
-
-The base body is to be xHorsen's "Eve Nude Original Proportions", split into ten region material slots. Outfits made
-for other bodies are to be fitted to it by region maps. The body is not in this repository.
+Stellar Closet is an outfit system for EVE. EVE wears pieces in slots: base body, skin suit, underwear, stockings, top,
+pants, shoes, gloves, belt, coat, cape, jewellery and body hardware. Pieces from different outfits can be worn
+together. A full-body outfit overrides the body slots. It leaves the head, the hair and the weapon alone.
 
 ## Console words
 
@@ -49,20 +45,36 @@ switched body and the covered regions whose skin still shows. Fingernails and To
 of another outfit that covers the hands or feet. `coop-closet.txt` keeps the picks only: the switch is computed
 again at each wear.
 
+A material override stays on her body mesh when the mesh changes. So each wear first takes every override off her body
+and then sets only those the look needs (a variant's materials, then the colour layer's instances). A friend's ghost
+gets the first 16 overrides, which are then the look's own. `coop closet off` puts back only the overrides her own
+suit had. A dynamic material instance she wore (CNS colours, for one) comes back as a new instance of its parent with
+her values. After a Lua load it comes back as its parent only.
+
 Once a second the mix is checked. Tachy Mode's suit (`CH_P_EVE_10`) pauses it, with the added meshes hidden, until
 Tachy Mode ends. Any other look the game puts on for 2 s, after a map load or a game reset, gets the mix again. So
 does an outfit CNS puts on. That body mesh becomes her own look, which `coop closet off` gives back; a closet mesh
 never does. The closet's own wears and previews never count as a change. After `coop closet off` nothing is watched
 until the next wear. A hidden section the game shows again is hidden again. Her own look and the worn words are kept
-in `coop-closet.txt`. `coop closet off` and `coop off` give her own look back and clear the file. At the next Lua
-load or game start, once EVE is in the world, the closet gives her own look back and wears the kept words again. Words
+in `coop-closet.txt`. In the closet's files each byte of an outfit id outside letters, digits, `_`, `.` and `-` is
+written as `%XX`, so a pack's UniqueFitID with a space, a colon or an accented letter reads back the same. `coop closet off` and `coop off` give her own look back and clear the file. At the next Lua
+load or game start, once EVE is in the world, the closet gives her own look back and wears the kept words again. A
+wear or preview before that (on a loading screen or with the game paused) gives her own look back first and drops the
+kept words. Words
 it can no longer wear (an outfit pack removed) are dropped with one log line. Her own look stays.
+
+`coop closet wear` and the menu's previews refuse while SBO itself holds EVE's body or her rig: while she rides the
+bike, with the Doro look on (`coop race look`), with the rifle out in gun mode, while an emote plays or while a
+[`coop wear`](../eve/eve.md#cut-hairs-and-suits-coop-wear) suit is on. `coop closet off` still works then. `coop wear`
+refuses a suit the other way round while a closet look is on EVE or waits to be worn again after a Lua load. So the
+closet and `coop wear` never set her body mesh against each other. A `coop wear` hair stays on with a closet look,
+since the closet never sets her hair component.
 
 ## Packs
 
-- Native packs are `*.stellarcloset.json` files: [Pack format](pack-format.md).
-- Packs in the CNS JSON format (`*.dekcns.json`) that the player installed are read in place:
-  [Importing CNS-format packs](cns-import.md). No DekCNS code is opened, copied, called or hooked.
+The closet reads the outfit packs in the CNS JSON format (`*.dekcns.json`) that the player installed under `~mods`. It
+reads them in place: [Importing CNS-format packs](cns-import.md). No DekCNS code is opened, copied, called or hooked.
+It reads no other pack format.
 
 ## How it works
 
@@ -72,9 +84,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`,
 | File | Holds |
 | --- | --- |
 | `slots.lua` | The slot list: each slot's layer, kind, menu region and glyph, the ten body regions, the apply order |
-| `resolver.lua` | What is worn and what shows: occupancy, `FullOutfit` suppression, `HidesSlots`, body regions by layer, loadouts |
 | `json.lua` | A JSON decoder for packs: comments, trailing commas, a BOM, `\u` escapes. It never raises |
-| `manifest.lua` | Reads and checks a `*.stellarcloset.json` pack |
 | `cns_import.lua` | Reads a `*.dekcns.json` pack into items, with piece hints from its material toggle names |
 | `packs.lua` | The pack catalogue: every installed `*.dekcns.json` pack from the DLL's `coop-cns-packs.txt`, by `UniqueFitID`, read at the menu's first open and by `coop closet rescan` |
 | `dress.lua` | `coop closet wear`: the plan from fit maps, the mix on EVE, the once-a-second watchdog, her own look kept and given back |
@@ -96,7 +106,7 @@ The files in `mod/StellarCoop/Scripts/closet/head/` make the Head tab's pieces. 
 | `head/wear.lua` | The dress's head part: the Hair and Ponytail fits on EVE's own head components, the ponytail rule, field 6 of `coop-closet.txt`, its own watchdog |
 | `head/made.lua` | The components the closet makes for Glasses, Headwear and Mask: made, put on the head socket or master-posed to her body, destroyed, an earlier Lua load's swept |
 
-The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the parts probe.
+The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu, its HUD entry and the parts probe.
 
 | File | Holds |
 | --- | --- |
@@ -106,6 +116,7 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 | `ui/camera.lua` | The menu's camera: region and free modes, its pose kept in `coop-closet-camera.txt` |
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
+| `ui/hud.lua` | The closet's entry in SB's HUD item column, at the start of gun mode's row: the hanger icon, then the closet key's icon with an arrow on the keyboard (none for a key with Shift, Ctrl or Alt) or the LB and D-pad Left glyphs of the LB + D-pad Left chord on a controller |
 
 `wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `presets.lua` as
 `M.closet_presets`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`, `thumbs.lua` as
@@ -116,34 +127,35 @@ Its build step `menu`, which
 Make preview pictures row, `M.closet_options` for the options pages, `M.closet_presets` for the Presets rows and
 favourites, `M.closet_colour` for its Colour tab and
 `M.closet_shape` for the Body tab's shape rows). `main/frame.lua` runs the restore at the first tick and the dress,
-options, colour, shape, probe, thumbs and menu ticks each frame.
-`coop off` stops them. The module reads no other module.
+options, colour, shape, probe, thumbs and menu ticks each frame. The HUD entry ticks ten times a second.
+`coop off` stops them and takes the HUD entry off. For its refusals the module reads `eve`, `fight.gunmode` and
+`online.modes.race` through their exports (`uses` in `wiring.lua`).
 
 ## The closet menu
 
 F1 (`closet_key`, which you can change in the co-op menu's Options page or in
-[coop-settings.txt](../players/settings.md#coop-settingstxt)), D-pad Left tapped alone on a controller and
-`coop closet menu` open the menu in the game world, the SBO lobby world included. A tap is a press let go before 0.3 s
-with no other D-pad direction held. Holding D-pad Left for 0.3 s still opens the emote wheel. The tap is ignored while
-spectate watches, where D-pad Left switches the watched member. A refusal on a controller (combat, a cutscene and so
-on) is only logged, because D-pad Left is tapped often in play. Pressed while the menu is open, F1 goes back as Esc
-does. On a controller, B closes the menu. It needs the Steam link (the kit needs it). It does not open while the UI is
-not up, outside the game world, while another SBO screen holds the input, while the game is paused or shows one of its
-screens, in photo mode, during a cutscene, in combat or in Tachy Mode. One notice says why.
+[coop-settings.txt](../players/settings.md#coop-settingstxt)), LB held + D-pad Left on a controller and
+`coop closet menu` open the menu in the game world, the SBO lobby world included. Pressed while the menu is open, F1
+and LB + D-pad Left go back as Esc does. LB + D-pad Left does nothing while you watch a friend after a fall
+(spectate): D-pad Left switches the member you watch then. It needs the Steam link (the kit needs it). It does not
+open while the UI is not up, outside the game world, while another SBO screen holds the input, while the game is
+paused or shows one of its screens, in photo mode, during a cutscene, in combat, in Tachy Mode, while EVE rides the
+bike, with the Doro look on, with the rifle out, while an emote plays or while a `coop wear` suit is on. One notice
+says why.
 
 The menu covers the left 55% of the screen. The rest stays clear for EVE. It is made of the game's own
 widget parts in the kit group `closet_menu`:
 
 | Part | Game widget |
 | --- | --- |
-| Tabs | `WB_Common_Tab_Btn`, one a tab. The Intimate tab is left out |
+| Tabs | `WB_Common_Tab_Btn`, one a tab. The Intimate tab never shows: no setting turns it on |
 | Slot rows | `WB_Setting_Button_Slot`, a window of 10. A slot with no piece type yet shows as locked "Coming soon" |
 | Pieces | The hair salon's `WB_HairSalonGridList` TileView, fed with `BP_HairSalonItemData_Tile` data objects. The None tile comes first. Each tile shows its piece's picture (below), the None tile the None glyph. On the Full outfit tab it shows one tile: the focused outfit's whole picture |
 | Detail | `WB_NanoSuit_Detail` with its hold button hidden. The origin badge (the Original or Custom glyph) sits right of it, by its title |
 | Key hints | `WB_Common_IndicatorBtnDefault` |
 
-The tab shown is kept until the next Lua load. The first open shows the first tab, Full outfit. Closing the
-menu leaves the tab where it was. While the menu is open it holds the input with the mouse cursor. Q and E
+The tab shown is kept until the next Lua load. The first open shows the first tab, Full outfit. LB + D-pad Left that
+closes the menu leaves the tab where it was. While the menu is open it holds the input with the mouse cursor. Q and E
 (LB and RB) change the tab. Up and down walk the rows. Right or Select on a row of pieces goes into its grid. A tile
 focused for 250 ms is worn on EVE as a live preview. Select or a left click on the tile wears it at once.
 F (the pad's Y) wears the whole outfit of the focused piece. Each grid starts with a None tile that takes that slot's
@@ -172,10 +184,19 @@ Back with nothing changed since the open closes the menu and gives back the look
 "Keep this look?" with the game's Yes/No popup. Yes keeps the look: it is saved and survives a reload. No gives back
 the look worn before and closes. Back on the popup stays in the menu. With the keyboard and the pad, Select is Yes and
 F (the pad's Y) is No. `coop closet menu` typed while it is open closes it with the look worn before. A map change,
-photo mode, a cutscene, combat or `coop ui reset` closes it without saving. When EVE cannot wear the look from before
-at that moment (no EVE during the map change), the closet tries again each second until she wears it. It waits while
-a loading screen shows. A `coop closet wear` or `coop closet off` typed during a preview closes it and keeps the typed
-look.
+photo mode, a cutscene, combat, `coop ui reset` or `coop ui off` closes it without saving. When EVE cannot wear the
+look from before at that moment (no EVE during the map change), the closet tries again each second until she wears it.
+It waits while a loading screen shows. A `coop closet wear` or `coop closet off` typed during a preview closes it and
+keeps the typed look.
+
+When a friend asks to join your online session while the menu is open, the host's question shows over the menu. It
+takes the keys, the controller and the clicks until you answer. Then the menu takes the input back and stays open with
+the look you were trying. When the game takes the input back on its own (a window switch, a change between keyboard
+and controller), the menu takes it again within half a second. The other SBO screens leave the input to the game then.
+
+The closet's keys (J, L, I, K, U, O, C, Backspace, V, P, Shift+U and Shift+O) are bound when the mod loads, for every
+player, since UE4SS cannot take a bind back. They act only while the closet menu is the open screen. Anywhere else a
+press of them does nothing in SBO.
 
 Every close removes every game part first: the game holds EVE still while one of its widgets is up. The game gets its
 input back 150 ms after the close, so the Esc that closed the menu does not open the pause menu. `coop off` closes the
@@ -226,7 +247,8 @@ the menu is closed, that every picture is there or that it could not start (the 
   path is kept in `coop-closet-thumbs.txt`, so the next Lua load removes a rig a reload left.
 
 The pictures show the creators' assets. They stay on the player's PC: they are never shipped and never committed
-(`.gitignore` lists `mod/StellarCoop/closet-thumbs/`). The framing values are starting values, to tune in game.
+(`.gitignore` lists `mod/StellarCoop/closet-thumbs/`). `tools/install.py` leaves that folder out of the install and the
+release zip. The framing values are starting values, to tune in game.
 
 ### The closet camera
 
@@ -298,6 +320,7 @@ it. A revert does not undo it. The palette survives a restart. The file holds on
 (`primary=on:0.515,0.007,0.021`). A word of the earlier swatch file (`primary=crimson`) reads as that swatch's
 colour, on. `coop closet colour <role> <swatch>` still takes the 14 swatch names: White, Black, Charcoal, Silver,
 Gold, Crimson, Wine, Rose, Violet, Navy, Azure, Teal, Emerald and Sand.
+The pad chord LB + D-pad Left that closes the menu on a Colour row leaves the role and its sliders as they were.
 
 On each shown material slot of a worn piece that a set role reaches, the closet makes a dynamic material instance
 (it reuses one the game put there) and sets the role's parameter. `Base Color Tint` multiplies the piece's base
@@ -356,18 +379,22 @@ its pieces.
 
 A pack value outside its range (an HDR glow above its `Max`) stays as it is until it is moved: a step puts it in the
 range. A follower (`ControlledBy`) of a colour, finish, number or shape key has no row and takes its leader's value.
-There is no slider bar on these rows yet: a shared kit change needs Schizo's yes.
+A colour channel, a number and a shape key show on the settings menu's slider row (`WB_Setting_Slider_Slot`), whose bar
+shows the value's place in its range. A click on the bar sets the value at that place.
 
 The hints show Back, Change on D-pad Left and Right, Reset on F (the pad's Y), then Move. F gives the focused row its
 pack value back (Variant: the first variant). A piece with controls shows Select instead of Reset. The detail shows
 the pack's name and description of the row and how to change it, in the words of the device in use. A device switch
-draws them again. Back closes the page with the focus on the outfit's row. Up stops on the header row.
+draws them again. Back closes the page with the focus on the outfit's row. Up stops on the header row. The pad chord
+LB + D-pad Left on the page puts the page back before its Back.
 
 On a worn pack outfit the options layer writes every colour, number, finish and shape key it has, the pack value or
 the kept one, so no value another mod set stays on screen. Colours, numbers and finishes go on the material slot's
 dynamic instance (`SetVectorParameterValue`, `SetScalarParameterValue`, `SetTextureParameterValue`), after the
 variant's `Parameters`. Shape keys go on the outfit's mesh with `SetMorphTarget` (`ShapeKeyName`, else `DisplayName`;
 0 takes the curve off). They go on again in the same frame after each wear, map load, cutscene, rest and revive.
+They are read back once a second, as the body shape is, so they come back after gun mode rebuilds her body. Only a
+key that reads 0 for a value away from 0 counts as gone.
 They also go on again after each change. A slot with a pack colour control belongs to the options layer: the Colour
 tab's palette never paints it. `coop off` takes the shape keys off.
 
@@ -407,13 +434,16 @@ A mesh without morph targets cannot be refitted at run time.
 A name EVE's body has goes on her body with `SetMorphTarget`. Every added piece whose mesh has the same name follows
 it: the engine adds the body's morphs to each follower by name. A name her body lacks goes on each added piece that
 has it. A value of 0 takes the name off. The shape goes on again in the same frame after every wear, preview, revert
-and mix again. It also goes on again when a value changes. A look that drops a name takes it off. Her own look
-(`coop closet off`, the None tile on the last piece) and `coop off` take the closet's names off her body. A morph set
-by another mod stays. Nothing changes while Tachy Mode pauses the mix.
+and mix again. It also goes on again when a value changes. Once a second the closet reads its names back with
+`GetMorphTarget`. Gun mode rebuilds her body by putting another body mesh on and hers back in one frame, which empties
+the morph curves. A name that reads 0 is gone and puts the whole shape on again. So does a name that reads the value
+of the pack's shape key on that piece: after the rebuild the options layer writes it back first. A name that reads
+any other value is left alone: another mod wrote it last. A look that drops a name takes it off. Her own look (`coop closet off`, the None tile on the last piece) and `coop off` take the closet's names off her
+body. A morph set by another mod stays. Nothing changes while Tachy Mode pauses the mix.
 
 A shape change is saved at once in `coop-closet-shape.txt`, apart from the look. The menu does not ask "Keep this
-look?" for it. A revert does not undo it. The shape survives a restart. On a controller, B closes the menu
-on a shape row with the value as it was. Reset Stellar Closet sets every value back to 0.
+look?" for it. A revert does not undo it. The shape survives a restart. The pad chord LB + D-pad Left that closes the
+menu on a shape row leaves the value as it was. Reset Stellar Closet sets every value back to 0.
 
 ### The Head tab
 
@@ -482,14 +512,14 @@ logged: the preset still wears. A preset with no head piece (an older file) leav
 
 The ghost's capture (`online/partner/capture.lua`) reads every skeletal mesh component on EVE. Pieces on EVE show on
 the friend's ghost up to the native part's limit of 16 parts (`kMaxParts`, `native/src/game/core.h`). A mod mesh shows
-on the ghost only when `link.mod_assets()` lists it. The native scan (`native/src/link/pak_list.h`) does not read
-`*.stellarcloset.json` yet.
+on the ghost only when `link.mod_assets()` lists it: the assets the installed CNS packs declare (`coop-cns.txt`, from
+the native scan in `native/src/link/pak_list.h`) and those of a mod both players have.
 
 ## The parts probe
 
-`coop closet probe <n>` tests Stellar Blade's own widget parts for the closet menu that is to come. Run one test at a
-time in the game world, out of combat, with the Steam link (the kit needs it). Each check writes
-`probe: PASS <n> <check>` or `probe: FAIL <n> <check>: <why>` to UE4SS.log. The first FAIL ends the test. Each test
+`coop closet probe <n>` tests Stellar Blade's own widget parts that the closet menu is made of (1-5) and the reads
+for its camera and fit maps (6). Run one test at a time in the game world, out of combat, with the Steam link (the
+kit needs it). Each check writes `probe: PASS <n> <check>` or `probe: FAIL <n> <check>: <why>` to UE4SS.log. The first FAIL ends the test. Each test
 ends with `probe: END <n> <passed>/<total>`. `NOTE` lines say what to do or what was seen.
 
 | Test | What it shows | What to do |
@@ -529,39 +559,75 @@ hairs are always there, so 2 hairs or fewer fail too (`no stock hair row read`).
 
 ## Tests
 
-- `tests/lua/closet/off_test.lua` checks that a failure of this module at load turns this module off alone.
-- `tests/lua/closet/closet_test.lua` checks `coop closet`.
-- `tests/lua/closet/colour_test.lua` runs the colour layer on a fake dress and fake components: every slot's role, the
-  swatches, a role on and off with its channels, instances only where a set role reaches, the parameter names, the
-  palette put on again after a wear, Off giving the materials back, the palette file and `coop closet colour`.
-- `tests/lua/closet/shape_test.lua` runs the shape layer on a fake dress and fake components and meshes: the morph
+The Lua tests are in `tests/lua/closet/`. All but `off_test.lua` and `closet_test.lua` run their named checks through
+`run.lua`, with the assertions of `helpers.lua`.
+
+- `off_test.lua` checks that a failure of this module at load turns this module off alone.
+- `closet_test.lua` checks `coop closet`: its status line, the use line and `coop closet thumbs`.
+- `wiring_test.lua` runs `wiring.lua` over stub parts: `coop off` stops each part under a guard of its own, the menu
+  first. The dress and the menu refuse while SBO's own state holds EVE's body, read through its modules' exports.
+- `slots_test.lua` checks the slot list: unique ids, the apply order by layer, each slot's kind and menu, the
+  ghost-part rule, the adult menu, the menu lists, the left and right pairs and each slot's glyph PNG.
+- `fits_test.lua` checks the fit maps: each names every material slot of its mesh once, in known slots and regions,
+  and the lookups.
+- `json_test.lua` runs the JSON decoder: values, escapes, errors by line, a BOM, comments and trailing commas, and no
+  raise on bad text.
+- `cns_import_test.lua` runs the CNS-format import on samples written from the format's docs: the slot of each
+  `FitMeshType`, the variants, `UserConfigs`, the piece hints, bad entries, `CnsImport.should_read` and the merge of
+  packs by `UniqueFitID`.
+- `packs_test.lua` runs the pack catalogue: the DLL's `coop-cns-packs.txt`, the read of each pack, the stamp cache,
+  the log said once and the catalogue by `UniqueFitID`.
+- `dress_test.lua` runs `coop closet wear` over fake UE4SS objects: the plan, the mix on EVE, her own look kept and
+  given back, the watchdog, the body rule, the copy of the ghost's resolve and skeleton guard, and the refusals.
+- `colour_test.lua` runs the colour layer on a fake dress and fake components: every slot's role, the swatches, a
+  role on and off with its channels, instances only where a set role reaches, the parameter names, the palette put on
+  again after a wear, Off giving the materials back, the palette file and `coop closet colour`.
+- `shape_test.lua` runs the shape layer on a fake dress and fake components and meshes: the morph
   names read once per mesh path, the rows the rule allows, the steps from 0 to 100, the values on the body and on the
   pieces for the names the body lacks, the shape put on again after a wear, her own look, the shape file, `coop off`
   and `coop closet shape`.
-- `tests/lua/closet/options_test.lua` runs the options layer on a fake dress: followers, values per outfit and variant
+- `options_test.lua` runs the options layer on a fake dress: followers, values per outfit and variant
   kept only when they differ from the pack, gone values said once, the tick, reset and off. On fake components it
   checks the colours (swatches and Custom channels), a value above its range, the steps, the finishes and a missing
-  texture, the numbers, the shape keys and the values written again after a new look. It runs `coop closet option`
-  too.
-- `tests/lua/closet/presets_test.lua` runs the presets over the real options layer and a fake dress: a save and a
+  texture, the numbers, the shape keys and the values written again after a new look. With the shape layer on the
+  same component and the same name it checks that nothing is written again after the first paint. It runs
+  `coop closet option` too.
+- `presets_test.lua` runs the presets over the real options layer and a fake dress: a save and a
   wear of the outfit, its variant and its values, the numbers after a delete, a rename, a preset of a gone outfit,
   the favourites, the file read back and `coop closet preset` and `coop closet favourite`.
-- `tests/lua/closet/thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
+- `thumbs_test.lua` runs `coop closet thumbs` on a fake game: the queue, one capture a frame, the
   sections, the rig's settings and its removal on each end path, the refusals, a run from the menu that waits for its
   close and the framing.
-- `tests/lua/closet/menu_test.lua` (5 checks) runs the closet menu on the fake kit and parts of
-  `tests/lua/closet/menu_fakes.lua`: what open draws, `coop closet menu`, the close paths and a draw that fails.
-- `tests/lua/closet/head/stock_test.lua` runs the stock read on fake tables and materials: the rows, a missing or
-  raising table, a material row with no index, the cut hairs, the build with a failed read, the colour controls on
-  hair materials only, a colour from a parent, the stock ponytails, a hair that hides the ponytail and rows left out.
-- `tests/lua/closet/head/wear_test.lua` runs the head part on a fake EVE: a stock hair and its ponytail in its colour,
-  a pack hair's AnimBP, cloth collision and hidden ponytails, No ponytail, off, field 6 and the restore (after two
-  wears, a salon hair with nothing worn), the watchdog's re-wear after 2 s, the fight limit, a new EVE, `parts`,
-  `rewear`, a refusal and the hair physics rule, and the made Glasses, Headwear and Mask pieces: worn, one per slot,
-  taken off, swept at the next load, made again on a new EVE.
-- `tests/lua/closet/head/made_test.lua` runs `head/made.lua` on a fake EVE: the head socket and its rotation, the
-  master pose for a piece on the body's skeleton, a component that is not made, the destroy and the sweep.
-- `tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style.
-- `tests/lua/closet/slots_test.lua` (8 checks), `fits_test.lua` (4), `dress_test.lua` (12), `resolver_test.lua` (23),
-  `manifest_test.lua` (13) and `cns_import_test.lua` (15) run their named checks through `tests/lua/closet/run.lua`,
-  with the assertions of `tests/lua/closet/helpers.lua`.
+- `model_test.lua` checks the menu's data model: the tabs, the rows, the tiles and the choice edits.
+- `menu_test.lua` runs the closet menu on the fake kit and parts of `menu_fakes.lua`: what open draws, `coop closet
+  menu`, the close paths, a draw that fails, the rows of each tab, the options page, the presets and the refusals.
+- `camera_test.lua` runs the closet camera over a fake controller, camera manager and EVE: the open, the region
+  framing, the FOV axis, the easing, the free mode's keys and pad, the reset, the camera file, the give-back on every
+  close path and the preview lights on the camera.
+- `lights_test.lua` runs the preview lights on a fake camera actor: each preset's lights, the preset cycle, the
+  intensity steps and limits, a saved preset read back and the lights' end with the camera.
+- `hud_test.lua` runs the HUD entry over a fake UMG: the LB and D-pad Left twins of the pad glyph the game shows
+  (both or none, never D-pad Left alone) or the closet key's keyboard icon and its arrow, the hanger icon, the place
+  at the start of gun mode's row with the room it leaves gun mode (`lead`) and an earlier Lua load's widgets taken
+  again.
+- `probe_test.lua` runs `coop closet probe` over a fake kit and fake widgets: the runner, its console words and the
+  tests of the game's parts.
+- `pin_test.lua` runs the hairpin band (`pin.lua`) over fake UE4SS objects: a worn body with no `SC_HairACC` socket
+  takes the pin on the socket's bone, a body with the socket leaves it, the give-back, a socket that does not read and
+  a pin left on the bone by a reload.
+- `suits_test.lua` runs the game's own suits (`suits.lua`): each NanoSuit row as a Full outfit fit under Original, the
+  colour versions as variants of their base, a variant's mesh, rows on one alias and a step that raises.
+- `head/stock_test.lua` runs the stock read on fake tables and materials: the rows, a missing or raising table, a
+  material row with no index, the cut hairs, the build with a failed read, the colour controls on hair materials only,
+  a colour from a parent, the stock ponytails, a hair that hides the ponytail and rows left out.
+- `head/wear_test.lua` runs the head part on a fake EVE: a stock hair and its ponytail in its colour, a pack hair's
+  AnimBP, cloth collision and hidden ponytails, No ponytail, off, field 6 and the restore (after two wears, a salon hair
+  with nothing worn), the watchdog's re-wear after 2 s, the fight limit, a new EVE, `parts`, `rewear`, a refusal and
+  the hair physics rule, and the made Glasses, Headwear and Mask pieces: worn, one per slot, taken off, swept at the
+  next load, made again on a new EVE.
+- `head/made_test.lua` runs `head/made.lua` on a fake EVE: the head socket and its rotation, the master pose for a
+  piece on the body's skeleton, a component that is not made, the destroy and the sweep.
+
+`tests/tools/closet_icons_test.py` checks each glyph PNG against its SVG: its size, RGBA and the SVG's style. The
+native tests `tests/native/closet/keys_test.cpp` and `tests/native/closet/packs_test.cpp` check the closet's reads as
+the DLL hands them to Lua (`closet/keys.h`) and the CNS pack list (`closet/packs.h`).

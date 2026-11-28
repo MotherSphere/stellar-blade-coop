@@ -279,6 +279,13 @@
 // the player turns on during online play stays on. A fault ends the force for the run: the pass then only puts the kept
 // values back. A second fault stops it with the slots still ours while an option is forced.
 //
+// The closet (closet/): coop_padbits, coop_levels, coop_keys, coop_nav and coop_wheel hand Lua the pads' last poll, the
+// keys held (GetAsyncKeyState) and the mouse wheel's notches (closet/keys.h). For the wheel, closet/wheel_game.inc
+// subclasses SB's game window (UnrealWindow) at coop_wheel's first call with it in front: our window procedure counts
+// WM_MOUSEWHEEL and hands every message on. After coop off nothing is subclassed. coop_tick then gives the window's
+// procedure back. No game memory is read or written. Lua's closet on or off (Command::closet) turns the pad's LB +
+// D-pad Left chord on or off (ui/pad.h's kCloset).
+//
 // This file is one translation unit made of the parts in the module folders and glue/tick/, included below in this
 // order: a part sees what the parts before it declare, and the game thread's parts share one anonymous namespace. Each
 // part is named for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -316,7 +323,6 @@
 #include "online/lobby/loading.h"
 #include "game/memory.h"
 #include "online/session/options.h"
-#include "ui/keys.h"
 #include "ui/pad.h"
 #include "ui/pause_tab.h"
 #include "online/photo/photo_freeze.h"
@@ -345,6 +351,7 @@
 #include "world/teamshop/shop_ui.h"
 #include "world/maps/sboxion/sboxion.h"
 #include "online/modes/photohunt/photohunt.h"
+#include "closet/keys.h"
 #include "game/codec.h"
 #include "game/events.h"
 #include "game/partner/engine.h"
@@ -466,6 +473,7 @@
 #include "glue/tick/status.inc"
 #include "ui/pad_game.inc"
 #include "ui/pad_worker.inc" // After pad_game.inc: its hooks and pad_keys.
+#include "closet/wheel_game.inc"
 
 
 // Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state
@@ -515,90 +523,53 @@ extern "C" __declspec(dllexport) int coop_fkey(void *) noexcept {
   return 0;
 }
 
-// The closet's pad reads, in the same shape: the pads' last poll (coop_pad's), never the game's memory. Never throw,
-// never wait.
-// coop_padbits (Lua passes 8): 1 + ui/pad.h's pad_bits of the buttons held (1 X, 2 L3, 4 R3); 1 when no window of SB's
-// is in front.
+// The closet's reads (closet/), in the same shape: the pads' last poll (coop_pad's), the keyboard and the mouse, never
+// the game's memory. Never throw, never wait.
+// coop_padbits (Lua passes 8): 1 + closet/keys.h's pad_bits of the buttons held (1 X, 2 L3, 4 R3); 1 when no window of
+// SB's is in front.
 extern "C" __declspec(dllexport) int coop_padbits(void *) noexcept {
   using namespace coop::pose;
-  return 1 + (game_in_front() ? coop::pad_bits(pad.held()) : 0);
+  return 1 + (game_in_front() ? coop::closet::pad_bits(pad.held()) : 0);
 }
-// coop_levels (Lua passes 260): one of four levels a call, in turn: ui/pad.h's pad_level, 1 + 65 * which + the level
-// (which 0 the right stick's x, 1 its y, 2 the left trigger, 3 the right one), so each answer says which it is and four
-// calls give all four. A stick axis's level is 0 to 64 (32 at rest), a trigger's 0 to 64 (0 at rest); at rest when no
-// window of SB's is in front. Called by Lua on the game thread only.
+// coop_levels (Lua passes 260): one of four levels a call, in turn: closet/keys.h's pad_level, 1 + 65 * which + the
+// level (which 0 the right stick's x, 1 its y, 2 the left trigger, 3 the right one), so each answer says which it is
+// and four calls give all four. A stick axis's level is 0 to 64 (32 at rest), a trigger's 0 to 64 (0 at rest); at rest
+// when no window of SB's is in front. Called by Lua on the game thread only.
 extern "C" __declspec(dllexport) int coop_levels(void *) noexcept {
   using namespace coop::pose;
   static int which = 0;
-  const int answer = coop::pad_level(game_in_front() ? pad.read() : coop::PadState{}, which);
+  const int answer = coop::closet::pad_level(game_in_front() ? pad.read() : coop::PadState{}, which);
   which = (which + 1) % 4;
   return answer;
 }
-// coop_keys (Lua passes 512): 1 + ui/keys.h's held_keys bits of the keys held now (GetAsyncKeyState): 1 right mouse,
-// 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O; 1 when no window of SB's is in front. The closet
+// coop_keys (Lua passes 512): 1 + closet/keys.h's held_keys bits of the keys held now (GetAsyncKeyState): 1 right
+// mouse, 2 middle mouse, 4 Shift, 8 I, 16 J, 32 K, 64 L, 128 U, 256 O; 1 when no window of SB's is in front. The closet
 // camera's held keys and drags: UE4SS's binds see a key's press only.
-static_assert(coop::kHeldKeys[0] == VK_RBUTTON && coop::kHeldKeys[1] == VK_MBUTTON && coop::kHeldKeys[2] == VK_SHIFT);
+static_assert(coop::closet::kHeldKeys[0] == VK_RBUTTON && coop::closet::kHeldKeys[1] == VK_MBUTTON &&
+              coop::closet::kHeldKeys[2] == VK_SHIFT);
 extern "C" __declspec(dllexport) int coop_keys(void *) noexcept {
   using namespace coop::pose;
   // GetAsyncKeyState reads the physical buttons: with the buttons swapped, the right (logical) one is VK_LBUTTON.
   const bool swapped = GetSystemMetrics(SM_SWAPBUTTON) != 0;
-  return coop::held_keys(game_in_front(), [swapped](int vk) {
+  return coop::closet::held_keys(game_in_front(), [swapped](int vk) {
     return (GetAsyncKeyState(swapped && vk == VK_RBUTTON ? VK_LBUTTON : vk) & 0x8000) != 0;
   });
 }
 
-// coop_nav (Lua passes 4): ui/keys.h's nav_keys of the keys held now (GetAsyncKeyState): 1 + 1 up, + 2 down; 1 when no
-// window of SB's is in front. The closet menu's repeat of a held up or down key.
-static_assert(coop::kNavUp[0] == VK_UP && coop::kNavDown[0] == VK_DOWN);
+// coop_nav (Lua passes 4): closet/keys.h's nav_keys of the keys held now (GetAsyncKeyState): 1 + 1 up, + 2 down; 1 when
+// no window of SB's is in front. The closet menu's repeat of a held up or down key.
+static_assert(coop::closet::kNavUp[0] == VK_UP && coop::closet::kNavDown[0] == VK_DOWN);
 extern "C" __declspec(dllexport) int coop_nav(void *) noexcept {
   using namespace coop::pose;
-  return coop::nav_keys(game_in_front(), [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; });
+  return coop::closet::nav_keys(game_in_front(), [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; });
 }
 
-// The mouse wheel for coop_wheel: GetAsyncKeyState cannot see it. Its first call in front subclasses SB's game window
-// (the foreground window of class UnrealWindow: FWindowsWindow's CreateWindowExW(..., L"UnrealWindow", ...) at
-// 0x142bfb32a in FUN_142bfb0c0, Ghidra, build 26123051, 27 Nov 2026). The new window procedure adds each
-// WM_MOUSEWHEEL's delta to wheel_delta, then hands every message on to the one it replaced. The DLL is pinned
-// (DllMain), so the procedure stays loaded while the window lives. A window gone (IsWindow false) is replaced by the
-// next one in front. Pure Win32: no game memory is read or written.
-namespace {
-std::atomic<int> wheel_delta{0};
-std::atomic<WNDPROC> wheel_next{nullptr};
-HWND wheel_window = nullptr; // Read and written by coop_wheel only, on the game thread.
-LRESULT CALLBACK wheel_proc(HWND window, UINT message, WPARAM w, LPARAM l) {
-  if (message == WM_MOUSEWHEEL)
-    wheel_delta.fetch_add(GET_WHEEL_DELTA_WPARAM(w), std::memory_order_relaxed);
-  return CallWindowProcW(wheel_next.load(std::memory_order_acquire), window, message, w, l);
-}
-// SB's game window in front subclassed once; false while none is (another window of the process, the UE4SS console).
-bool wheel_hooked() {
-  if (wheel_window && IsWindow(wheel_window))
-    return true;
-  wheel_window = nullptr;
-  HWND front = GetForegroundWindow();
-  wchar_t name[16] = {};
-  if (!front || GetClassNameW(front, name, 16) == 0 || lstrcmpW(name, L"UnrealWindow") != 0)
-    return false;
-  // The procedure it has now first, so a wheel message right after the swap is handed on.
-  const auto was = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(front, GWLP_WNDPROC));
-  if (!was || was == &wheel_proc)
-    return false;
-  wheel_next.store(was, std::memory_order_release);
-  if (!SetWindowLongPtrW(front, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&wheel_proc)))
-    return false;
-  wheel_delta.store(0, std::memory_order_relaxed);
-  wheel_window = front;
-  return true;
-}
-} // namespace
-// coop_wheel (Lua passes 130): ui/keys.h's wheel_answer, 65 + the wheel's whole notches since the last call (up
-// positive, -64 to 64); 65 when no window of SB's is in front or its game window could not be subclassed. The closet
-// camera's zoom. Called by Lua on the game thread only. Never throws, never waits.
+// coop_wheel (Lua passes 130): closet/wheel_game.inc's wheel_read, 65 + the wheel's whole notches since the last call
+// (up positive, -64 to 64); 65 when no window of SB's is in front, after coop off or while its game window could not
+// be subclassed. The closet camera's zoom. Called by Lua on the game thread only. Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_wheel(void *) noexcept {
   using namespace coop::pose;
-  static int carry = 0;
-  const bool front = game_in_front() && wheel_hooked();
-  return coop::wheel_answer(front, carry, wheel_delta.exchange(0, std::memory_order_relaxed));
+  return wheel_read(game_in_front());
 }
 
 // Called by Lua on the game thread when the pause menu's Online tab closes the pause menu (package.loadlib(dll,
@@ -616,6 +587,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   using namespace coop::pose;
   LARGE_INTEGER entry;
   QueryPerformanceCounter(&entry);
+  if (blocked) // The closet's subclass of the game window, given back once after coop off.
+    wheel_give_back();
   if (engine_on && !blocked)
     guarded_tick();
   // Her drone for the capture, its own latch: a look each second while her capture is live, none after coop off or its

@@ -223,6 +223,24 @@ run('presets', {
             eq(r.pstore.file, file, 'the file keeps it')
         end)
     end,
+    -- Any UniqueFitID: its file word is Fits.word's, read back as the same id in a favourite and in a preset.
+    any_pack_id_survives_the_file = function()
+        local odd = '1 name=Ocean Maid:v2,(Shadow)+\195\136ve%01\t'
+        Fits.use({[odd] = suit(odd)})
+        local good, why = pcall(function()
+            local r = rig()
+            r.choices = {{fit = odd}}
+            ok(r.p.fav(odd))
+            eq(r.p.save('Look'), 1)
+            local p = r.new()
+            eq(p.is_fav(odd), true, 'the favourite read back')
+            local list = p.list()
+            eq(#list, 1) eq(list[1].fit, odd, 'the preset\'s outfit') eq(list[1].name, 'Look') eq(list[1].gone, false)
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
     favourites_toggle_and_stay = function()
         with_suit(function()
             local r = rig()

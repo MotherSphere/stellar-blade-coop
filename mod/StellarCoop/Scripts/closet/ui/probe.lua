@@ -40,12 +40,22 @@ local GRID='/Game/Art/UI/Widget/HairSalon/WB_HairSalonGridList.WB_HairSalonGridL
 -- ResetProgress read the list that owns the slot: never called on a slot alone.
 local SLOT='/Game/Art/UI/Widget/HairSalon/WB_HairSalon_GridSlot.WB_HairSalon_GridSlot_C'
 local SLOT_W,SLOT_H=198,262
--- The grid slot's own default icon (256x256): the test icon.
+-- The grid slot's own default icon (256x256): the test icon. Its size is read with UTexture2D's Blueprint_GetSizeX
+-- (native entry 0x146684e30, exec 0x144964fb0) and Blueprint_GetSizeY (0x146684e40, exec 0x144964f80; Ghidra, build
+-- 26123051, table of /Script/Engine Texture2D, FUN_1449650f0).
 local ICON='/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_000.Deco_Item_Hair_000'
--- KismetSystemLibrary's default object: CollectGarbage() asks for a GC that runs at a later engine tick.
+-- KismetSystemLibrary's default object: CollectGarbage() asks for a GC that runs at a later engine tick (Ghidra, build
+-- 26123051: native entry 0x1465b5310, exec 0x14480ed30 sets the engine's +0xa64 to 1 and +0xa60 to the time plus 1 s,
+-- the engine at DAT_1470e7eb8).
 local KSL='/Script/Engine.Default__KismetSystemLibrary'
 -- ESlateVisibility.
 local VISIBLE,COLLAPSED,SELF_HIT_TEST_INVISIBLE=0,1,4
+-- UListView's natives (Ghidra, build 26123051: table 0x1461e8710, registered with /Script/UMG ListView by
+-- FUN_143d4bd20), native entry then exec: SetSelectionMode 0x1461e8870 (0x143d4b260), ClearListItems 0x1461e87d0
+-- (0x143d4b3c0), AddItem 0x1461e8710 (0x143d4b710), BP_GetSelectedItem 0x1461e8750 (0x143d4a530), GetIndexForItem
+-- 0x1461e87e0 (0x143d4b3e0), SetSelectedIndex 0x1461e8860 (0x143d4afc0), GetNumItems 0x1461e8810 (0x143d4b500), GetItemAt 0x1461e87f0 (0x143d4b520); the property SelectionMode is the byte at
+-- 0x7fd (params 0x1461e7df8). UListViewBase's GetDisplayedEntryWidgets 0x1461eedf0 (exec 0x143d4cad0; table
+-- 0x1461eede0, FUN_143d4cd50).
 local SINGLE=1 -- ESelectionMode Single (None is 0).
 local ITEMS=8
 
@@ -193,7 +203,9 @@ local TABS=9
 -- The workshop's NanoSuit detail panel: TitleText, DescriptionText, MaterialText1..5 (Text), ItemRarity
 -- (ESBItemRarityType), bEquip, CraftState (ESBUINanoSuitCraftState Enable 0, Disable 1, Complete 2); only
 -- EventNotification('Refresh') acts. Children Text_Name, Badge_Equip, WB_Common_HoldButton (GetCurrnetState, the
--- game's spelling: ESBUIHoldButtonStateType), VerticalBox_Material.
+-- game's spelling: ESBUIHoldButtonStateType), VerticalBox_Material. GetCurrnetState is a native of /Script/SB
+-- SBHoldButton (Ghidra, build 26123051: native entry 0x145e695a0, exec 0x142712220; table 0x145e69590,
+-- FUN_142712510).
 local DETAIL='/Game/Art/UI/Widget/GameMenu/WorkShop/WB_NanoSuit_Detail.WB_NanoSuit_Detail_C'
 local RARE=3 -- ESBItemRarityType Rare.
 -- What the widget JSON says Refresh shows per CraftState: the hold button's state (Ready 3, Lock 5) and the material
@@ -324,9 +336,9 @@ Probe.TESTS['5']={timeout=90,steps={grid_steps[1],grid_steps[2],grid_steps[3],
         if ctx.now()<d.keys then return 'wait' end
         return true
     end},
-    -- The input goes back to the game first, so Schizo can open the map. A UI that hides and comes back with its parts
-    -- was a pause or a game screen, not a map change: the step waits on. After a map change the parts are gone (the
-    -- kit rebuilt its root) and the probe holds no input.
+    -- The input goes back to the game first, so the player can open the map. A UI that hides and comes back with its
+    -- parts was a pause or a game screen, not a map change: the step waits on. After a map change the parts are gone
+    -- (the kit rebuilt its root) and the probe holds no input.
     {frames=0,name='map_change',run=function(ctx)
         local d,kit=ctx.data,ctx.kit
         if not d.phase then

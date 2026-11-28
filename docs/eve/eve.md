@@ -70,6 +70,11 @@ The meshes are in `/Game/Art/Character/PC/`, the hairs under `00_HR/`. Each suit
   it changes, a slot where the game put a material of its own (your hair colour) shows the cut mesh's material.
 - `coop wear off` gives the game's hair and suit back. `coop wear off hair` and `coop wear off suit` give one back.
 
+A suit of `coop wear` refuses while a [Stellar Closet](../closet/closet.md) look is on EVE, or while a kept closet
+look waits to be worn again after a Lua load. `coop closet off` gives her own look back first. Stellar Closet refuses
+the other way round while a `coop wear` suit is on, so the two never set her body mesh against each other. A hair of
+`coop wear` goes on with a closet look: the closet never sets her hair component.
+
 A suit changes the body mesh alone. EVE's animations, face, ponytail and body collision stay as the game set them. The
 ponytail keeps the colour and the cloth collision of what you equipped, so its strands may pass through a long dress.
 

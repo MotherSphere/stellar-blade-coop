@@ -64,8 +64,10 @@ if M.settings then
             {__index=require('main.loader').STUB})
     end
     M.wheel=wheel
-    require('main.loader').build(M,'online.session','create',Ui)
+    -- The closet menu before the host's question (online.session's create step adds it): the question draws over the
+    -- closet and takes its clicks.
     require('main.loader').build(M,'closet','menu',Ui)
+    require('main.loader').build(M,'online.session','create',Ui)
     require('main.loader').build(M,'online.saves','saves',Ui)
     require('main.loader').build(M,'online.lobby','screens',Ui)
 end

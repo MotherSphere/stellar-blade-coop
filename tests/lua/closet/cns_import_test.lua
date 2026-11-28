@@ -5,7 +5,6 @@
 -- no creator's pack is copied into the repo.
 local run=dofile('tests/lua/closet/run.lua')
 local CnsImport = require('closet.cns_import')
-local Resolver = require('closet.resolver')
 local Slots = require('closet.slots')
 
 local function one(json)
@@ -127,11 +126,10 @@ local tests={
         has(out.errors, 'no UniqueFitID') has(out.errors, 'unknown FitMeshType Tail')
         has(out.errors, 'no mesh') has(out.errors, 'UniqueFitID repeats') has(out.errors, 'not an outfit object')
     end,
-    id_with_a_space_rejected = function()
-        -- coop-closet.txt splits worn fits on spaces, so "Foo Suit" could never be worn again after a reload.
-        local out = CnsImport.parse('[{"UniqueFitID":"Foo Suit","OutfitPaths":["/Game/M/A.A"]}]', 'p')
-        eq(#out.items, 0, 'not imported')
-        has(out.errors, 'UniqueFitID Foo Suit has characters other than letters, digits, _ . -')
+    id_with_a_space_imported = function()
+        -- The closet's files write such an id as one word (Fits.word), so "Foo Suit" is worn again after a reload
+        -- (dress_test's any_pack_id_survives_the_file).
+        eq(one('[{"UniqueFitID":"Foo Suit","OutfitPaths":["/Game/M/A.A"]}]').Id, 'cns:Foo Suit')
     end,
     comments_trailing_commas_and_lone_object = function()
         eq(one('// c\n{"UniqueFitID":"a","OutfitPaths":["/Game/M/A.A",],}').Slot, Slots.FULL_OUTFIT)
@@ -163,15 +161,6 @@ local tests={
         same(CnsImport.merge(into, a.items, 'a.json'), {}, 'nothing repeats yet')
         same(CnsImport.merge(into, b.items, 'b.json'), {'b.json: UniqueFitID x repeats a.json, ignored'}, 'flagged')
         eq(into.x.DisplayName, 'A', 'first kept') eq(into.x.File, 'a.json') eq(into.y.File, 'b.json')
-    end,
-    imported_items_work_in_the_resolver = function()
-        local suit = one('[{"UniqueFitID":"s","OutfitPaths":["/Game/M/A.A"]}]')
-        local hair = one('[{"UniqueFitID":"h","FitMeshType":"Hair","OutfitPaths":["/Game/M/H.H"]}]')
-        local w = Resolver.new()
-        w:equip({Id = 'body', Slot = 'BaseBody'}) w:equip(suit) w:equip(hair)
-        local shown = {}
-        for _, e in ipairs(w:resolve()) do shown[e.item.Id] = e.shown end
-        same(shown, {body = false, ['cns:s'] = true, ['cns:h'] = true}, 'suit over body, hair kept')
     end,
 }
 

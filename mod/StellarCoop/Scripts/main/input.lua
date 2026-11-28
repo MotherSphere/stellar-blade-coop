@@ -94,10 +94,9 @@ end
 -- wheel (D-pad Left held 0.3 s, the native part's event 13) opens the emote wheel (eve/ui/wheel.lua) with
 -- emote_pad=dpad_left, in a world with our HUD shown and none of our screens open; otherwise it logs why and does
 -- nothing. While the wheel is open it takes LB and RB (its pages), A (play) and B (cancel); every other word is dropped.
--- closet (D-pad Left tapped, the native part's event 14, after its left) opens the closet menu as closet_key does
--- (closet/ui/menu.lua's toggle), under the bike's refusals and not while spectate watches (D-pad Left switches the
--- member then). A refusal of the menu's own (combat, a cutscene) is logged only: D-pad Left is tapped in play. Open,
--- the tap does nothing: its left moved in the menu. B closes it.
+-- closet (D-pad Left pressed while LB is held, the native part's event 14) runs the closet menu's toggle as closet_key
+-- does (closet/ui/menu.lua). Closed, it opens under the bike's refusals and not while spectate watches (the chord's
+-- left switches the member then), logged only; open, it is the menu's Back, unless the host's question is open.
 M.PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike','refresh','pause_tab','wheel',
     'closet'}
 -- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
@@ -145,18 +144,17 @@ function M.pad_event(what)
         return
     end
     if what=='closet' then
-        if M.closet_menu.is_open() then return end
         local why=M.approval.is_open() and 'one of our screens is open'
-            or not M.hud_shown and 'our HUD is not shown'
-            or (M.lobby.is_open() or M.code_box.is_open() or M.box.is_open() or M.menu.is_open()
-                or M.saves_ui.is_open() or M.open_screen()~=nil) and 'one of our screens is open'
-            or M.kit~=nil and M.kit.paused(true) and 'the game is paused or shows one of its screens'
-            or M.spectate and M.spectate.watching() and 'spectate is watching'
+            or not M.closet_menu.is_open() and (not M.hud_shown and 'our HUD is not shown'
+                or (M.lobby.is_open() or M.code_box.is_open() or M.box.is_open() or M.menu.is_open()
+                    or M.saves_ui.is_open() or M.open_screen()~=nil) and 'one of our screens is open'
+                or M.kit~=nil and M.kit.paused(true) and 'the game is paused or shows one of its screens'
+                or M.spectate and M.spectate.watching() and 'spectate is watching')
         if why then log('pad: closet ignored: '..why); return end
         log('pad: closet')
         if M.off then return M.report(false,M.OFF) end
         local ok,refused=M.closet_menu.toggle()
-        if ok==false then log('pad: closet refused: '..tostring(refused)) end
+        if ok==false then M.report(ok,refused) end
         return
     end
     if M.approval.is_open() then return M.approval.nav(what) end
@@ -164,7 +162,7 @@ function M.pad_event(what)
     if screen and not M.lobby.is_open() then
         if what~='menu' then return screen.nav(what) end
         log('pad: menu')
-        -- On the closet menu View held is its Preview picture (the keyboard's P): B closes it.
+        -- On the closet menu View held is its Preview picture (the keyboard's P): B and the closet chord close it.
         if screen==M.closet_menu then return screen.nav('picture') end
         return screen.close()
     end

@@ -436,7 +436,9 @@ The watchdog has not been tested in game yet.
 Hold F2 to open the emote wheel at the centre of the screen, in the look of the game's own item wheel. Point at an
 emote with the mouse and release F2: EVE plays it, as `coop emote <name>` does. On a controller, hold D-pad Left for
 0.3 s, point with the right stick and release D-pad Left. The game keeps running and the camera stays still while the
-wheel is open.
+wheel is open. While the Stellar Closet module is on, D-pad Left with LB held opens the
+[Stellar Closet](../closet/closet.md#the-closet-menu) menu instead, so that hold opens no wheel. With the module off,
+LB and D-pad Left work as they do without the closet.
 
 | Input | Keyboard and mouse | Controller |
 | --- | --- | --- |

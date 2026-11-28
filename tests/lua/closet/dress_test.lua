@@ -36,8 +36,21 @@ local function component(path, owner)
     addresses = addresses + 1
     c.addr = addresses
     function c:GetAddress() return self.addr end
-    function c:SetSkeletalMesh(m) self.SkeletalMesh = m; self.mats = {}; self.hidden = {} end
-    function c:SetMaterial(i, m) self.mats[i] = m end
+    -- As FUN_14411a4f0 (Ghidra, build 26123051): the mesh it wears again returns at once; a new mesh leaves the
+    -- overrides (OverrideMaterials, self.mats) as they are.
+    function c:SetSkeletalMesh(m)
+        if m == self.SkeletalMesh then return end
+        self.SkeletalMesh = m; self.hidden = {}
+    end
+    -- As FUN_1440df060: the array grows to the index; a nil material is stored as a null entry.
+    c.overrides = 0
+    function c:SetMaterial(i, m)
+        self.mats[i] = m
+        self.overrides = math.max(self.overrides, i + 1)
+    end
+    c.OverrideMaterials = {ForEach = function(_, f)
+        for i = 0, c.overrides - 1 do f(i + 1, {get = function() return c.mats[i] end}) end
+    end}
     function c:GetNumMaterials() return self.SkeletalMesh and #self.SkeletalMesh.Materials or 0 end
     function c:GetMaterial(i)
         return self.mats[i] or (self.SkeletalMesh and self.SkeletalMesh.Materials[i + 1].MaterialInterface)
@@ -211,7 +224,93 @@ local function hidden_at(c)
     return out
 end
 
+-- The slots of c whose override holds a material (OverrideMaterials, as the ghost's capture reads it), rising.
+local function held(c)
+    local out = {}
+    for i = 0, c.overrides - 1 do if c.mats[i] then out[#out + 1] = i end end
+    return out
+end
+
 local tests = {
+    -- Only the slots the look needs carry an override: the ghost's capture (online/partner/capture.lua) sends the first
+    -- 16 that hold a material, so no-op copies of a mesh's own materials would crowd out the colour layer's instances.
+    only_the_slots_a_look_needs_are_overridden = function()
+        local w = world()
+        local body = w.eve.Mesh
+        local X = '/Game/Mods/CNS/M_X.M_X'
+        w.assets[X] = obj(X)
+        body:SetMaterial(2, w.assets[X]) -- Her suit with an override from outside (CNS).
+        assert(w.d.wear(B))
+        same(held(body), {}, 'Kunoichi on her body: no override, hers taken off')
+        eq(fields(w.file)[3], '2=' .. X, 'her one override kept')
+        for i = 15, 47 do body:SetMaterial(i, obj('MID ' .. i)) end -- The colour layer's instances.
+        assert(w.d.wear(B)) -- Worn again on the same mesh: SetSkeletalMesh returns at once.
+        same(held(body), {}, 'the instances of the look before taken off')
+        for i = 15, 47 do body:SetMaterial(i, obj('MID ' .. i)) end -- The colour layer's instances on this look.
+        assert(w.d.off())
+        eq(body.SkeletalMesh.path, OWN) same(held(body), {2}, 'off: her own override only')
+        eq(body:GetMaterial(2).path, X)
+    end,
+    -- Her dynamic instances (CNS colours, the game's) come back as new instances of their parents with her values,
+    -- after off and after a preview turned down. A parent on her mesh's own material is given back too.
+    her_dynamic_instances_come_back_with_their_values = function()
+        for _, how in ipairs({'off', 'revert'}) do
+            local w = world()
+            local body = w.eve.Mesh
+            local MIDC = '/Script/Engine.MaterialInstanceDynamic'
+            local TEX = '/Game/Mods/CNS/T_Lace.T_Lace'
+            w.assets[TEX] = obj(TEX)
+            local function mid(parent, values)
+                local m = obj('MID of ' .. parent.path, values)
+                m.Parent, m.sets = parent, {}
+                function m:IsA(class) return class.path == MIDC end
+                for _, kind in ipairs({'Vector', 'Scalar', 'Texture'}) do
+                    m['Set' .. kind .. 'ParameterValue'] = function(self, n, v)
+                        self.sets[#self.sets + 1] = {kind, n, kind == 'Texture' and v.path or v}
+                    end
+                end
+                return m
+            end
+            function body:CreateDynamicMaterialInstance(i, source)
+                local m = mid(source, {})
+                self:SetMaterial(i, m)
+                return m
+            end
+            local own3 = w.assets[OWN].Materials[4].MaterialInterface
+            w.assets[own3.path] = own3
+            -- An instance over an instance of her slot 3's own material: the nearest value of a name wins.
+            local inner = mid(own3, {VectorParameterValues = {{ParameterInfo = {Name = 'Tint'},
+                ParameterValue = {R = 0, G = 0, B = 1, A = 1}}}})
+            body:SetMaterial(3, mid(inner, {
+                VectorParameterValues = {{ParameterInfo = {Name = 'Tint'}, ParameterValue = {R = 1, G = 0, B = 0, A = 1}}},
+                ScalarParameterValues = {{ParameterInfo = {Name = 'Rough'}, ParameterValue = 0.25}},
+                TextureParameterValues = {{ParameterInfo = {Name = 'Lace'}, ParameterValue = w.assets[TEX]}}}))
+            if how == 'off' then assert(w.d.wear(B)) else assert(w.d.preview(B)) end
+            eq(body:GetMaterial(3).path, KS .. ':M3', how .. ': the look\'s own material on slot 3')
+            eq(fields(w.file)[3], '3=' .. own3.path, how .. ': the slot kept by its parent')
+            assert(w.d[how]())
+            local back = body:GetMaterial(3)
+            eq(back.Parent, own3, how .. ': a new instance of her parent')
+            same(back.sets, {{'Vector', 'Tint', {R = 1, G = 0, B = 0, A = 1}}, {'Scalar', 'Rough', 0.25},
+                {'Texture', 'Lace', TEX}}, how .. ': with her values')
+            same(held(body), {3}, how .. ': her one override')
+        end
+    end,
+    -- An older coop-closet.txt line lists every slot of her suit: the slots on her mesh's own material get no override.
+    an_older_line_with_every_slot_overrides_only_hers = function()
+        local w = world()
+        local X = '/Game/Mods/CNS/M_X.M_X'
+        w.assets[X] = obj(X)
+        w.eve.Mesh:SetSkeletalMesh(w.assets[KS]) -- Kunoichi from the Lua load before.
+        local slots = {}
+        for i = 0, 5 do
+            w.assets[OWN .. ':M' .. i] = w.assets[OWN].Materials[i + 1].MaterialInterface -- Found by its path.
+            slots[#slots + 1] = i .. '=' .. (i == 2 and X or OWN .. ':M' .. i)
+        end
+        w.file = table.concat({w.eve.path, OWN, table.concat(slots, ','), '', ''}, '\t')
+        w.new().tick()
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'her own look back') same(held(w.eve.Mesh), {2}, 'her one override')
+    end,
     toggles_enter_the_plan_and_survive_a_rewear = function()
         with_packs(function(w)
             local plan = assert(w.Dress.plan({{fit = 'p.suit'}}, nil, nil, {['p.suit'] = {[3] = true, [4] = false}}))
@@ -291,7 +390,7 @@ local tests = {
                         end
                     end
                 end
-                c.mats[i] = mids[i]
+                c:SetMaterial(i, mids[i])
                 return mids[i]
             end
             local options
@@ -303,7 +402,8 @@ local tests = {
             ok(options.set_variant('p.suit', 2))
             options.tick()
             eq(body.SkeletalMesh.path, PV2, 'variant 2\'s mesh') eq(d.applied(), applied + 1, 'dressed again')
-            eq(body.mats[0].path, PV2 .. ':M0', 'an empty path keeps the mesh\'s own')
+            eq(body.mats[0], nil, 'an empty path: no override on slot 0')
+            eq(body:GetMaterial(0).path, PV2 .. ':M0', 'an empty path keeps the mesh\'s own')
             same(mids[1].sets, {{'Scalar', 'Roughness', 0.25}, {'Vector', 'Tint', {R = 1, G = 0.5, B = 0, A = 1}}},
                 'the parameters on slot 1\'s instance')
             same(mids[2].sets, {{'Texture', 'Basecolor', TEX}}, 'a texture that loads')
@@ -360,6 +460,31 @@ local tests = {
             assert(w.d.preview({{fit = 'p.suit'}}))
             eq(w.eve.Mesh.SkeletalMesh.path, PV1, 'the first variant\'s mesh')
         end)
+    end,
+    -- SBO's own state that holds EVE's body (closet/wiring.lua's busy: the bike, the Doro look, the rifle, an emote, a
+    -- coop wear suit): wear and preview refuse with its words, nothing on EVE and no file; once it ends they wear.
+    -- worn() (eve/wear.lua refuses on it) also says yes for a kept look the next Lua load has not worn again yet.
+    wear_and_preview_refuse_while_sbo_holds_her_body = function()
+        local w = world()
+        local key
+        local d = w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
+            clock = function() return w.now end, busy = function() return key, key and 'the rifle is out' end})
+        key = 'rifle'
+        local good, line = d.wear(B)
+        eq(good, false, 'wear refused') eq(line, 'closet: not while the rifle is out', 'its line')
+        good, line = d.preview(B)
+        eq(good, false, 'preview refused') eq(line, 'closet: not while the rifle is out', 'its line')
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'her own look') eq(w.file, nil, 'no file')
+        ok(not d.worn(), 'nothing worn')
+        key = nil
+        assert(d.wear(B))
+        ok(d.worn(), 'worn')
+        w.paused = true
+        local again = w.new()
+        ok(again.worn(), 'a kept look waiting for its restore counts as worn')
+        w.paused = false
+        assert(again.off())
+        ok(not again.worn(), 'off: nothing worn')
     end,
     -- The next Lua load has no catalogue until the packs are read: restore reads them (o.packs) before the kept words.
     a_kept_pack_suit_is_worn_again_after_the_packs_are_read = function()
@@ -676,6 +801,27 @@ local tests = {
         local words = {}
         for x in line:gmatch('%S+') do words[#words + 1] = x end
         eq(Dress.words(assert(Dress.parse(words))), line)
+    end,
+    -- A pack's UniqueFitID is any text: each byte outside [A-Za-z0-9_.-] goes into the file as %XX (Fits.word), so the
+    -- next Lua load wears the same outfit again.
+    any_pack_id_survives_the_file = function()
+        local Dress = require('closet.dress')
+        local odd = 'Ocean Maid:v2,(Shadow)+\195\136ve%01\t'
+        local choices = {{fit = odd, slots = {'Chest'}}, {fit = 'Kunoichi(Shadow)'}, {fit = 'AiK_CH46_xSH_14462'}}
+        local line = Dress.words(choices)
+        eq(line, 'Ocean%20Maid%3Av2%2C%28Shadow%29%2B%C3%88ve%2501%09:Chest Kunoichi%28Shadow%29 AiK_CH46_xSH_14462')
+        local words = {}
+        for x in line:gmatch('%S+') do words[#words + 1] = x end
+        same(Dress.parse(words), choices, 'read back')
+        with_packs(function(w)
+            local Fits = require('closet.fits')
+            Fits.use({[odd] = pack_item(odd)})
+            assert(w.d.wear({{fit = odd}}))
+            local d = w.new()
+            d.tick()
+            ok(d.worn(), 'worn again') eq(d.choices()[1].fit, odd) eq(w.eve.Mesh.SkeletalMesh.path, PV1)
+            ok(logged(w, 'worn again'), 'restored')
+        end)
     end,
     the_worn_choices_are_kept = function()
         local w = world()
@@ -1022,6 +1168,65 @@ local tests = {
         w2.d.tick()
         eq(w2.eve.Mesh.SkeletalMesh.path, KS)
     end,
+    -- A wear or preview while restore waits (a Lua reload while the game is paused): the kept look's leftovers go and
+    -- her own look comes back first, so the new look records her own suit and the kept look never comes back over it.
+    a_wear_while_restore_waits_records_her_own_look = function()
+        for _, put in ipairs({'wear', 'preview'}) do
+            local w = world()
+            assert(w.d.wear(B)) -- Kunoichi kept: her body wears its mesh, the file holds her own suit.
+            w.paused = true
+            local d = w.new()
+            d.tick()
+            eq(w.eve.Mesh.SkeletalMesh.path, KS, put .. ': restore waits while paused')
+            assert(d[put]({{fit = MAID}}))
+            eq(w.eve.Mesh.SkeletalMesh.path, OM, put .. ': the new look')
+            eq(fields(w.file)[2], OWN, put .. ': her own suit kept, not the kept look\'s mesh')
+            w.paused = false
+            for _ = 1, 2 do w.now = w.now + 1.01; d.tick() end
+            eq(w.eve.Mesh.SkeletalMesh.path, OM, put .. ': the kept look never comes back over it')
+            ok(not logged(w, 'worn again: ' .. NINJA), put .. ': no restore of the kept look')
+            assert(d.off())
+            eq(w.eve.Mesh.SkeletalMesh.path, OWN, put .. ': off gives her own suit back') eq(w.file, nil)
+        end
+    end,
+    -- A save that fails (a virus scanner holding coop-closet.txt.tmp): the look on EVE and the state stay as they were,
+    -- the old line is written again. off still gives her own look back.
+    a_failed_save_keeps_the_look_on_eve = function()
+        local w = world()
+        assert(w.d.wear(A)) -- Kunoichi's boots on her body, Ocean Maid's top on an added mesh.
+        local before, top = w.file, w.eve.comps[2]
+        local save, fails = w.store.save, 1
+        w.store.save = function(line)
+            if fails > 0 then fails = fails - 1; w.file = nil; return false, 'cannot write coop-closet.txt' end
+            return save(line)
+        end
+        local good, why = w.d.wear({{fit = MAID}})
+        eq(good, false) eq(why, 'coop-closet.txt not written: cannot write coop-closet.txt')
+        ok(w.d.worn(), 'still worn') same(w.d.choices(), A, 'the look before')
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'her body unchanged') ok(top.alive, 'its added mesh still on EVE')
+        eq(w.file, before, 'the old line written again')
+        assert(w.d.off())
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'off gives her own look back') ok(not top.alive, 'the added mesh gone')
+    end,
+    -- The watchdog's mix again that fails keeps the look: the next second tries again.
+    a_failed_mix_again_is_tried_again = function()
+        local w = world()
+        assert(w.d.wear(A))
+        local save, fails = w.store.save, 1
+        w.store.save = function(line)
+            if fails > 0 then fails = fails - 1; return false, 'cannot write coop-closet.txt' end
+            return save(line)
+        end
+        w.eve.Mesh:SetSkeletalMesh(w.assets[OWN]) -- A map load.
+        second(w) second(w)
+        ok(logged(w, 'mix again failed: coop-closet.txt not written'), 'said') ok(w.d.worn(), 'still worn')
+        second(w)
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'mixed again the next second')
+        eq(#w.eve.comps, 2, 'one added mesh')
+        eq(fields(w.file)[2], OWN, 'her own look kept')
+        assert(w.d.off())
+        eq(w.eve.Mesh.SkeletalMesh.path, OWN)
+    end,
     the_kept_line_is_read_once = function()
         local w = world()
         assert(w.d.wear({{fit = 'AiK_CH46_xSH_14462'}}))
@@ -1056,6 +1261,52 @@ local tests = {
         local ok_, why = w.d.wear({{fit = 'AiK_CH27_14595'}})
         eq(ok_, false) ok(why:find('not found'), why)
         eq(w.eve.Mesh.SkeletalMesh.path, OWN) eq(w.file, nil)
+    end,
+    -- The copy of online/partner/puppet.lua's guard: SetSkeletalMesh reads the mesh's Skeleton unchecked, so a mesh with
+    -- none is refused before any engine call, as the body and as an added mesh (puppet_test's No_Skeleton case).
+    a_mesh_with_no_skeleton_is_refused = function()
+        local w = world()
+        w.assets[KS].Skeleton = nil
+        local mesh_, why = w.Dress.usable(KS)
+        eq(mesh_, nil) ok(why:find(KS .. ' has no skeleton', 1, true), why)
+        local set = 0
+        local body = w.eve.Mesh
+        local set_mesh = body.SetSkeletalMesh
+        body.SetSkeletalMesh = function(c, m) set = set + 1; return set_mesh(c, m) end
+        for _, look in ipairs({B, A}) do -- Kunoichi on her body, then Kunoichi's shoes with Ocean Maid's top.
+            local good, said = w.d.wear(look)
+            eq(good, false) ok(said:find(KS .. ' has no skeleton', 1, true), said)
+        end
+        eq(set, 0, 'no SetSkeletalMesh call') eq(#w.eve.comps, 1, 'no added mesh')
+        eq(body.SkeletalMesh.path, OWN, 'her own look') eq(w.file, nil, 'nothing kept')
+        w.assets[OM].Skeleton = nil
+        local good, said = w.d.wear({{fit = MAID, slots = {'Chest'}}, {fit = NINJA, slots = {'BaseBody'}}})
+        eq(good, false) ok(said:find(KS .. ' has no skeleton', 1, true), 'the body is checked first')
+        w.assets[KS].Skeleton = obj('/Game/Art/EVE/Skeleton.Skeleton')
+        good, said = w.d.wear({{fit = MAID, slots = {'Chest'}}, {fit = NINJA, slots = {'BaseBody'}}})
+        eq(good, false) ok(said:find(OM .. ' has no skeleton', 1, true), 'an added mesh is checked too')
+        eq(set, 0, 'still no SetSkeletalMesh call') eq(#w.eve.comps, 1, 'still no added mesh')
+    end,
+    -- The copy of online/partner/puppet.lua's resolve: a mod pack's mesh that is neither in memory nor found by LoadAsset
+    -- (the cooked registry does not list it) is loaded by AssetRegistryHelpers:GetAsset with its path.
+    a_mesh_loadasset_misses_is_found_by_getasset = function()
+        local w = world()
+        local registry, asked, loads = {[KS] = w.assets[KS]}, {}, {}
+        w.assets[KS] = nil
+        local find = StaticFindObject
+        StaticFindObject = function(path)
+            if path ~= '/Script/AssetRegistry.Default__AssetRegistryHelpers' then return find(path) end
+            local helpers = obj(path)
+            function helpers:GetAsset(data) asked[#asked + 1] = data.ObjectPath; return registry[data.ObjectPath] end
+            return helpers
+        end
+        LoadAsset = function(path) loads[#loads + 1] = path end
+        assert(w.d.wear(B))
+        eq(w.eve.Mesh.SkeletalMesh.path, KS, 'worn from GetAsset')
+        same(loads, {KS}, 'LoadAsset tried first') same(asked, {KS}, 'then GetAsset with its path')
+        registry[KS] = nil
+        local good, why = w.d.wear(B)
+        eq(good, false) eq(why, KS .. ' not found', 'nothing found: refused')
     end,
     commands = function()
         local w = world()

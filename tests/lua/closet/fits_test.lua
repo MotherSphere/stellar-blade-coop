@@ -7,7 +7,8 @@ local run = dofile('tests/lua/closet/run.lua')
 local Fits = require('closet.fits')
 local Slots = require('closet.slots')
 
--- Material slot counts of the two meshes, from the spike's slot dump (25 Nov 2026).
+-- Material slot counts of the two meshes, read in game on 25 Nov 2026 (coop closet skin <fit> <n> on refuses an n
+-- past the mesh's last slot).
 local SLOT_COUNT = {AiK_CH27_14595 = 48, AiK_CH46_xSH_14462 = 44}
 
 -- A pack item as closet/cns_import.lua makes it (only the fields Fits.pack reads), with two variants.
