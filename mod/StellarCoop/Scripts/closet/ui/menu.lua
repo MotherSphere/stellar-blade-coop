@@ -53,8 +53,8 @@
 -- and Select (a click on the row too) turn it on or off (colour.turn). A role that is on has a Red, a Green and a Blue
 -- slider row below it (its colour in 0-255): left and right step it (colour.step), a click on the bar sets it there
 -- (colour.channel). The palette is saved at once, apart from the look, so it never asks Keep this look? Its detail says
--- what the role colours and how to change it. The fitting tabs (Head..Body, Intimate) are labelled through
--- closet.beta ("Head (Beta)").
+-- what the role colours and how to change it. The fitting tabs (Torso..Body, Intimate) are labelled through
+-- closet.beta ("Torso (Beta)").
 -- The Head tab's rows of pieces, Hair and Ponytail, list the stock pieces then the packs' (model.tiles). Their None
 -- tile and an empty row read closet.head.own: the game's own piece stays. The stock ponytails are named from
 -- closet.head by fit id, a stock colour row from closet.head.colours. Right on a head row opens the worn piece's

@@ -143,10 +143,10 @@ local tests = {
             {'full', 'colour', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'weapon'}, 'the order')
     end,
 
-    -- The fitting tabs (Head..Body and Intimate) are Beta; Full outfit, Colour and Weapon are not.
+    -- The fitting tabs (Torso..Body and Intimate) are Beta; Full outfit, Colour, Head and Weapon are not.
     fitting_tabs_carry_beta = function()
         local t = new({adult = true}).tabs()
-        same(t.beta, {head = true, torso = true, arms = true, hips = true, intimate = true, legs = true, body = true},
+        same(t.beta, {torso = true, arms = true, hips = true, intimate = true, legs = true, body = true},
             'the Beta tabs')
     end,
 

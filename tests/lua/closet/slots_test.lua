@@ -76,7 +76,7 @@ local tests = {
             if menu[3] then beta[#beta + 1] = menu[1] end
         end
         same(ids, {'full', 'colour', 'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body', 'weapon'}, 'the tabs')
-        same(beta, {'head', 'torso', 'arms', 'hips', 'intimate', 'legs', 'body'}, 'the Beta tabs')
+        same(beta, {'torso', 'arms', 'hips', 'intimate', 'legs', 'body'}, 'the Beta tabs')
         eq(Slots.ADULT_MENU.colour, false, 'not adult')
     end,
     every_slot_has_a_glyph_png = function()

@@ -14,8 +14,8 @@ local T = require('ui.text')
 local Fits = require('closet.fits')
 -- No enemy near EVE in these tests: core/player.lua's engaged walks the game's actors.
 require('core.player').engaged = function() return false end
--- A tab's English label: the fitting tabs (Head..Body and Intimate) go through closet.beta.
-local BETA = {head = true, torso = true, arms = true, hips = true, intimate = true, legs = true, body = true}
+-- A tab's English label: the fitting tabs (Torso..Body and Intimate) go through closet.beta.
+local BETA = {torso = true, arms = true, hips = true, intimate = true, legs = true, body = true}
 local function tab_label(id)
     return BETA[id] and T.en.closet.beta:format(T.en.closet.tabs[id]) or T.en.closet.tabs[id]
 end
@@ -1952,7 +1952,7 @@ local tests = {
         eq((detail(r)), 'Kunoichi Shadow', 'its first outfit by name')
     end,
 
-    -- Colour right after Full outfit; Head..Body and Intimate labelled through closet.beta, the others plain.
+    -- Colour right after Full outfit; Torso..Body and Intimate labelled through closet.beta, the others plain.
     fitting_tabs_carry_beta = function()
         local r = rig({adult = true})
         r.menu.open()
@@ -1966,8 +1966,9 @@ local tests = {
             at(r, 0.1, 'tab_right')
         end
         for i, id in ipairs(ids) do eq(seen[i], tab_label(id), 'tab ' .. i .. ' ' .. id) end
-        eq(T.en.closet.beta:format(T.en.closet.tabs.head), 'Head (Beta)', 'the English Beta word')
+        eq(T.en.closet.beta:format(T.en.closet.tabs.torso), 'Torso (Beta)', 'the English Beta word')
         eq(seen[2], T.en.closet.tabs.colour, 'Colour second, not Beta')
+        eq(seen[3], T.en.closet.tabs.head, 'Head plain, out of Beta')
     end,
 
     the_tab_window_follows_the_focus = function()

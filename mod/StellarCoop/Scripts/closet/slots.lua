@@ -24,7 +24,7 @@ Slots.FULL_OUTFIT = 'FullOutfit'
 -- The menu's tabs, in screen order: {id, adult, beta}. Each is a region that lists its slots. The Colour tab (colour)
 -- lists closet/colour.lua's roles instead. The fitting tabs (beta) are labelled "(Beta)".
 Slots.MENUS = {
-    {'full', false}, {'colour', false}, {'head', false, true}, {'torso', false, true}, {'arms', false, true},
+    {'full', false}, {'colour', false}, {'head', false}, {'torso', false, true}, {'arms', false, true},
     {'hips', false, true}, {'intimate', true, true}, {'legs', false, true}, {'body', false, true}, {'weapon', false},
 }
 
