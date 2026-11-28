@@ -83,7 +83,13 @@ local function usable(path)
     local mesh=resolve(path)
     if not mesh then return nil,path..' not found' end
     local ok,skeleton=pcall(function() return mesh.Skeleton end)
-    if not (ok and valid(skeleton)) then return nil,path..' has no skeleton' end
+    if not (ok and valid(skeleton)) then
+        -- What loaded and how the read went: two pack pieces read this way in game on 27 Nov 2026.
+        local named,full=pcall(function() return text(mesh:GetFullName()) end)
+        local kind=named and full and full:match('^(%S+)') or '?'
+        local got=ok and (skeleton==nil and 'nil' or 'not valid') or 'the read failed: '..tostring(skeleton)
+        return nil,path..' has no skeleton (a '..kind..', Skeleton '..got..')'
+    end
     return mesh
 end
 local function lods(c)

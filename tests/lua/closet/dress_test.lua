@@ -586,6 +586,15 @@ local tests = {
         w.assets[KS] = mesh(KS, 44)
         ok(not w.d.installed('AiK_CH46_xSH_14462'), 'cached')
     end,
+    a_mesh_with_no_skeleton_names_what_loaded = function()
+        -- In game (27 Nov 2026) two pack pieces read "has no skeleton" with nothing to tell why.
+        local w = world()
+        local path = '/Game/OutfitMods/P/Horns.Horns'
+        w.assets[path] = obj(path)
+        local m, why = require('closet.dress').usable(path)
+        eq(m, nil)
+        ok(why:find(path .. ' has no skeleton (a Class, Skeleton nil)', 1, true), why)
+    end,
     plan_puts_the_shoes_outfit_on_the_body = function()
         local Dress = require('closet.dress')
         local plan = assert(Dress.plan({{fit = 'AiK_CH27_14595', slots = {'Chest', 'Legs'}},
