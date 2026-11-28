@@ -115,7 +115,7 @@ function Shape.new(o)
         local has,count,order,body={},{},{},{}
         for i,part in ipairs(parts) do
             has[i]={}
-            for _,name in ipairs(morphs(part)) do
+            for _,name in ipairs(part.head and {} or morphs(part)) do -- A head piece (hair) has no body shape.
                 if not has[i][name] then
                     has[i][name]=true
                     if not count[name] then order[#order+1]=name end

@@ -24,11 +24,11 @@ Slots.FULL_OUTFIT = 'FullOutfit'
 -- The menu's tabs, in screen order: {id, adult, beta}. Each is a region that lists its slots. The Colour tab (colour)
 -- lists closet/colour.lua's roles instead. The fitting tabs (beta) are labelled "(Beta)".
 Slots.MENUS = {
-    {'full', false}, {'colour', false}, {'head', false, true}, {'torso', false, true}, {'arms', false, true},
+    {'full', false}, {'colour', false}, {'head', false}, {'torso', false, true}, {'arms', false, true},
     {'hips', false, true}, {'intimate', true, true}, {'legs', false, true}, {'body', false, true}, {'weapon', false},
 }
 
--- {id, layer, group, kind, menu, glyph}
+-- {id, layer, group, kind, menu, glyph, hidden}
 Slots.LIST = {
     -- Layer 0: the base body and what is painted on it.
     {'BaseBody', 0, 'body', 'body', 'body', 'body'},
@@ -88,24 +88,25 @@ Slots.LIST = {
     {'AnkletL', 3, 'body', 'mesh', 'legs', 'bracelet'},
     {'AnkletR', 3, 'body', 'mesh', 'legs', 'bracelet'},
     -- Head: survives a FullOutfit.
+    -- A trailing true hides the slot from its menu's rows (Slots.in_menu); the slot itself stays.
     {'Face', 3, 'head', 'swap', 'head', 'face'},
     {'Hair', 3, 'head', 'swap', 'head', 'hair'},
     {'Ponytail', 3, 'head', 'swap', 'head', 'ponytail'},
-    {'Ears', 3, 'head', 'swap', 'head', 'ears'},
     {'Eyes', 3, 'head', 'colour', 'head', 'eyes'},
-    {'Makeup', 3, 'head', 'skin', 'head', 'makeup'},
-    {'FaceTattoo', 3, 'head', 'skin', 'head', 'tattoo'},
-    {'HairAccessory', 3, 'head', 'mesh', 'head', 'hair_accessory'},
+    {'EarringL', 3, 'head', 'mesh', 'head', 'earring'},
+    {'Glasses', 3, 'head', 'mesh', 'head', 'glasses'},
     {'Headwear', 3, 'head', 'mesh', 'head', 'headwear'},
     {'Mask', 3, 'head', 'mesh', 'head', 'mask'},
-    {'Glasses', 3, 'head', 'mesh', 'head', 'glasses'},
-    {'EarringL', 3, 'head', 'mesh', 'head', 'earring'},
-    {'EarringR', 3, 'head', 'mesh', 'head', 'earring'},
-    {'BrowPiercing', 3, 'head', 'mesh', 'head', 'piercing'},
-    {'NosePiercing', 3, 'head', 'mesh', 'head', 'piercing'},
-    {'SeptumPiercing', 3, 'head', 'mesh', 'head', 'piercing'},
-    {'LipPiercing', 3, 'head', 'mesh', 'head', 'piercing'},
-    {'TonguePiercing', 3, 'head', 'mesh', 'head', 'piercing'},
+    {'Ears', 3, 'head', 'swap', 'head', 'ears', true},
+    {'Makeup', 3, 'head', 'skin', 'head', 'makeup', true},
+    {'FaceTattoo', 3, 'head', 'skin', 'head', 'tattoo', true},
+    {'HairAccessory', 3, 'head', 'mesh', 'head', 'hair_accessory', true},
+    {'EarringR', 3, 'head', 'mesh', 'head', 'earring', true},
+    {'BrowPiercing', 3, 'head', 'mesh', 'head', 'piercing', true},
+    {'NosePiercing', 3, 'head', 'mesh', 'head', 'piercing', true},
+    {'SeptumPiercing', 3, 'head', 'mesh', 'head', 'piercing', true},
+    {'LipPiercing', 3, 'head', 'mesh', 'head', 'piercing', true},
+    {'TonguePiercing', 3, 'head', 'mesh', 'head', 'piercing', true},
     {'Weapon', 3, 'weapon', 'swap', 'weapon', 'weapon'},
     -- Override
     {Slots.FULL_OUTFIT, 99, 'override', 'mesh', 'full', 'full_outfit'},
@@ -118,7 +119,7 @@ Slots.REGIONS = {'HeadNeck', 'TorsoUpper', 'TorsoLower', 'Pelvis', 'ArmUpper', '
 Slots.BY_ID = {}
 for index, entry in ipairs(Slots.LIST) do
     Slots.BY_ID[entry[1]] = {id = entry[1], layer = entry[2], group = entry[3], kind = entry[4], menu = entry[5],
-        glyph = entry[6], order = index}
+        glyph = entry[6], hidden = entry[7] == true, order = index}
 end
 
 Slots.IS_REGION = {}
@@ -133,17 +134,18 @@ function Slots.group(id) return Slots.BY_ID[id] and Slots.BY_ID[id].group end
 function Slots.order(id) return Slots.BY_ID[id] and Slots.BY_ID[id].order end
 function Slots.kind(id) return Slots.BY_ID[id] and Slots.BY_ID[id].kind end
 function Slots.menu(id) return Slots.BY_ID[id] and Slots.BY_ID[id].menu end
+function Slots.hidden(id) return Slots.BY_ID[id] and Slots.BY_ID[id].hidden end
 function Slots.glyph(id) return Slots.BY_ID[id] and Slots.BY_ID[id].glyph end
 -- Whether a piece in this slot is a component of its own, one of the ghost's parts.
 function Slots.costs_part(id) return Slots.kind(id) == 'mesh' end
 -- Whether the slot sits in the adult menu.
 function Slots.adult(id) return Slots.ADULT_MENU[Slots.menu(id)] == true end
 
--- The slot ids of one menu region, in LIST order (its screen order).
+-- The slot ids of one menu region, in LIST order (its screen order), the hidden slots left out.
 function Slots.in_menu(menu)
     local out = {}
     for _, entry in ipairs(Slots.LIST) do
-        if entry[5] == menu then out[#out + 1] = entry[1] end
+        if entry[5] == menu and not entry[7] then out[#out + 1] = entry[1] end
     end
     return out
 end

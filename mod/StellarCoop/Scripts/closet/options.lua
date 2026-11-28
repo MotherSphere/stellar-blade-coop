@@ -37,11 +37,14 @@
 -- first after the scan (said once, kept in the file).
 -- The values are kept in coop-closet-options.txt (link.store) as words split by tabs, '<fit> variant=<n>' and
 -- '<fit> <variant> <key>=<value>' (on|off, r,g,b,a with custom: before it for a Custom colour, a number), sorted, each
--- fit id as Fits.word gives it. They are read once at new. reset(fit) gives one outfit its pack values back, off() (Reset Stellar Closet) every outfit and
--- clears the file. stop() (coop off) drops the changes not shown yet and removes the shape keys it set: the dress gave
--- EVE her own look back.
+-- fit id as Fits.word gives it. They are read once at new. reset(fit) gives one outfit its pack values back, off()
+-- (Reset Stellar Closet) every outfit and clears the file. stop() (coop off) drops the changes not shown yet and
+-- removes the shape keys it set: the dress gave EVE her own look back.
 -- o: {dress=closet/dress.lua's (plan, again, reshow, loads, applied, parts), store=link.store(Options.FILE), log=,
--- clock= (os.clock)}.
+-- head=closet/head/wear.lua's (rewear, applied, worn), clock= (os.clock)}. A change of a worn head fit (Hair,
+-- Ponytail) puts that piece on again with head.rewear, not dress.again. A stock ponytail worn with a stock hair takes
+-- the hair's variant and values (one set of colours, Schizo's decision, as closet/head/wear.lua's plan): its control
+-- takes the hair's of the same ParamName; with a pack hair it keeps its own.
 --
 -- The game's parts, read in Ghidra (SB-Win64-Shipping.exe, build 26123051) on 26 Nov 2026:
 --   UPrimitiveComponent.GetMaterial, CreateDynamicMaterialInstance and
@@ -56,9 +59,11 @@
 --     0x146659b90 (name 0x1464d8d18), exec 0x14491f120, as closet/shape.lua's comment says: with bRemoveZeroWeight a
 --     value of 0 removes the curve. GetMorphTarget(MorphTargetName FName) -> float: native entry 0x146659830 (name
 --     0x1466546c0), exec 0x14491efb0 answers the name's value in the curves at +0xec8, else 0.
---   A finish's texture: found in memory (StaticFindObject), else after UE4SS's LoadAsset, used only when it is a
---     UTexture2D (closet/ui/view.lua's find and class; its tiles load a texture path through LoadAsset_Blocking,
---     native entry 0x1465b5cb0, name 0x1465a59e8, exec 0x14482cf00, read again).
+--   A finish's texture: found in memory (StaticFindObject), else after UE4SS's LoadAsset, else the asset registry
+--     helpers' GetAsset (a mod pack's asset that the cooked registry does not list: the Rei texture of the Asuka pack
+--     was not found before, 27 Nov 2026), used only when it is a UTexture2D (closet/ui/view.lua's find and class; its
+--     tiles load a texture path through LoadAsset_Blocking, native entry 0x1465b5cb0, name 0x1465a59e8, exec
+--     0x14482cf00, read again). The registry step is a copy of closet/dress.lua's resolve.
 local U=require('core.unreal')
 local Fits=require('closet.fits')
 local Colour=require('closet.colour')
@@ -81,6 +86,20 @@ end
 local function index_of(t)
     local i=type(t)=='table' and type(t.MaterialIndex)=='number' and math.tointeger(t.MaterialIndex)
     return i and i>=0 and i or nil
+end
+-- Every slot a control paints: its MaterialIndices (one control on several alike slots, closet/head/stock.lua's),
+-- else its MaterialIndex.
+local function indices_of(t)
+    local out={}
+    if type(t)=='table' and type(t.MaterialIndices)=='table' then
+        for _,i in ipairs(t.MaterialIndices) do
+            i=type(i)=='number' and math.tointeger(i)
+            if i and i>=0 then out[#out+1]=i end
+        end
+        if #out>0 then return out end
+    end
+    out[1]=index_of(t)
+    return out
 end
 local function num(x,d) return type(x)=='number' and x or d end
 local function copy(x)
@@ -131,7 +150,7 @@ local function control(fit,key)
 end
 
 function Options.new(o)
-    local dress,log=o.dress,o.log or function() end
+    local dress,log,head=o.dress,o.log or function() end,o.head
     local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local self={}
     local values={} -- '<fit> <variant>' -> {[key]=value}, the values that differ from the pack's.
@@ -143,6 +162,7 @@ function Options.new(o)
     local slots,morphs,owned,held={},{},{},{}
     -- changed: grows with each value change; seen, drawn, painted: applied(), changed and Fits.PACKS as last written.
     local changed,seen,drawn,painted=0,nil,nil,nil
+    local seen_head=nil -- head.applied() as last painted.
     local clock,due=o.clock or os.clock,0 -- The next read back of the shape keys written.
     local names,textures={},{} -- FNames by text; finish textures by path (false: does not load).
     local function fname(text)
@@ -244,6 +264,13 @@ function Options.new(o)
             if not x then
                 pcall(LoadAsset,path)
                 x=U.valid(StaticFindObject(path))
+            end
+            if not x then
+                local got,asset=pcall(function()
+                    local helpers=StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers')
+                    return helpers:GetAsset({ObjectPath=FName(path)})
+                end)
+                x=got and U.valid(asset) or nil
             end
             return x and x:IsA(U.find(TEXTURE)) and x or nil
         end)
@@ -489,10 +516,12 @@ function Options.new(o)
         local done,why=pcall(function() s.mid[SETTER[kind]](s.mid,fname(name),value) end)
         if not done then log('options: '..name..' not set on slot '..s.index..': '..tostring(why)) end
     end
-    -- A record still on the worn component (closet/colour.lua's mine).
+    -- A record still on the worn component (closet/colour.lua's mine), its instance still the slot's material: the eye
+    -- colour painted once, then later changes went to an instance no longer on the face (in game, 27 Nov 2026).
     local function mine(s,c)
         local ok,same=pcall(function()
             return U.valid(s.c) and U.valid(s.mid) and U.valid(c) and U.address(s.c)==U.address(c)
+                and U.address(U.valid(c:GetMaterial(s.index)))==U.address(s.mid)
         end)
         return s and ok and same and s or nil
     end
@@ -510,38 +539,60 @@ function Options.new(o)
             if x==lead then return self.get(fit,v,kind..':'..n) end
         end
     end
+    -- The stock hair fit worn in parts, or nil: a stock ponytail follows its variant and values.
+    local function stock_hair(parts)
+        for _,part in ipairs(parts) do
+            local f=part.head and Fits.PACKS[part.fit]
+            if f and f.Slot=='Hair' and f.Origin=='original' then return part.fit,f end
+        end
+    end
     -- Every material value and shape key of each worn pack outfit on its component.
     local function paint(parts)
         local kept,mine_now,held_now,shaped={},{},{},{}
         local wrote=0
+        local hair_fit,hair=stock_hair(parts)
         for i,part in ipairs(parts) do
             local f=part.c and Fits.PACKS[part.fit]
             local cfg=f and f.Controls
+            local follows=part.head and Fits.follows(hair,f)
             local ok,address=pcall(U.address,part.c)
             if cfg and ok then
                 for _,kind in ipairs({'colour','number','finish'}) do
                     local list=type(cfg[LISTS[kind]])=='table' and cfg[LISTS[kind]] or {}
                     for n,c in ipairs(list) do
-                        local index=index_of(c)
-                        local name=index and type(c.ParamName)=='string' and c.ParamName
-                        if name then
-                            local value=value_of(part.fit,f.Variant,kind,list,c)
-                            if kind=='colour' then
-                                held_now[tostring(address)..':'..index]=true
-                                if not alike(value,default(part.fit,'colour:'..n)) then
-                                    mine_now[tostring(address)..':'..index]=true
+                        for _,index in ipairs(indices_of(c)) do
+                            local name=type(c.ParamName)=='string' and c.ParamName
+                            if name then
+                                local lead_fit,lead_n=part.fit,n -- The control whose value it takes.
+                                local value
+                                if follows then
+                                    local theirs=type(hair.Controls)=='table' and hair.Controls[LISTS[kind]] or {}
+                                    for m,h in ipairs(theirs) do
+                                        if type(h)=='table' and h.ParamName==name then
+                                            lead_fit,lead_n=hair_fit,m
+                                            value=value_of(hair_fit,hair.Variant,kind,theirs,h)
+                                            break
+                                        end
+                                    end
                                 end
-                            end
-                            if kind=='colour' then value={R=value.R,G=value.G,B=value.B,A=value.A}
-                            elseif kind=='finish' then
-                                local path=type(c.Textures)=='table' and c.Textures[value+1]
-                                value=type(path)=='string' and texture(path) or nil
-                            end
-                            local key=i..':'..index
-                            local s=kept[key] or mine(slots[key],part.c) or instance(part.c,index)
-                            if s then
-                                kept[key]=s
-                                if value~=nil then put(s,kind,name,value); wrote=wrote+1 end
+                                if value==nil then value=value_of(part.fit,f.Variant,kind,list,c) end
+                                if kind=='colour' then
+                                    held_now[tostring(address)..':'..index]=true
+                                    if not alike(value,default(lead_fit,'colour:'..lead_n)) then
+                                        mine_now[tostring(address)..':'..index]=true
+                                    end
+                                end
+                                if kind=='colour' then value={R=value.R,G=value.G,B=value.B,A=value.A}
+                                elseif kind=='finish' then
+                                    local path=type(c.Textures)=='table' and c.Textures[value+1]
+                                    value=type(path)=='string' and texture(path) or nil
+                                end
+                                local key=i..':'..index
+                                local s=kept[key] or mine(slots[key],part.c) or instance(part.c,index)
+                                if s then
+                                    kept[key]=s
+                                    if value~=nil then put(s,kind,name,value); wrote=wrote+1 end
+                                end
                             end
                         end
                     end
@@ -563,14 +614,16 @@ function Options.new(o)
         slots,morphs,owned,held=kept,shaped,mine_now,held_now
         return wrote
     end
-    -- A variant or toggle change of a worn outfit shown; one that cannot show now is asked again at the next tick.
+    -- A variant or toggle change of a worn outfit shown (a head fit: put on again by head.rewear); one that cannot show
+    -- now is asked again at the next tick.
     local function show()
         if next(redress)==nil and next(reshow)==nil then return end
         local plan=dress.plan()
-        local worn={}
+        local worn,heads={},{}
         if plan then
-            worn[plan.body.fit]=true
+            if plan.body then worn[plan.body.fit]=true end -- A head-only look has no body.
             for _,a in ipairs(plan.added) do worn[a.fit]=true end
+            for _,h in ipairs(plan.head or {}) do heads[h.fit]=true end
         end
         local again,shown=false,false
         for fit in pairs(redress) do again=again or worn[fit]==true end
@@ -578,6 +631,14 @@ function Options.new(o)
         local done,why=true,nil
         if again then done,why=dress.again() elseif shown then done,why=dress.reshow() end
         if not done then return say('options: the change waits: '..tostring(why)) end
+        for fit in pairs(worn) do redress[fit],reshow[fit]=nil,nil end -- Shown: not asked again if a head piece fails.
+        for fit in pairs(heads) do
+            if (redress[fit] or reshow[fit]) and head then
+                done,why=head.rewear(fit)
+                if not done then return say('options: the change waits: '..tostring(why)) end
+                redress[fit],reshow[fit]=nil,nil
+            end
+        end
         redress,reshow={},{}
     end
     -- Whether a shape key written is gone, read back once a second.
@@ -597,27 +658,29 @@ function Options.new(o)
         check()
         show()
         local gen=dress.applied and dress.applied()
+        local put=head and head.applied and head.applied() or 0
         if gen==nil then return end
-        local same=gen==seen and changed==drawn and Fits.PACKS==painted
+        local same=gen==seen and put==seen_head and changed==drawn and Fits.PACKS==painted
         local gone=same and lost()
         if same and not gone then return end
         local parts=dress.parts()
         if not parts then return end -- Paused or stopped: the body wears another look.
-        if gen~=seen then slots,morphs={},{} end -- A new look: its components and instances are new.
+        -- A new look or head piece: its components and instances are new.
+        if gen~=seen or put~=seen_head then slots,morphs={},{} end
         if gone then -- The curves went with a worn mesh put on again: every shape key is written again.
             morphs={}
             log('options: a shape key written is gone (a worn mesh was put on again): written again')
         end
         local wrote=paint(parts)
         paints=paints+1
-        seen,drawn,painted=gen,changed,Fits.PACKS
+        seen,seen_head,drawn,painted=gen,put,changed,Fits.PACKS
         if wrote>0 then log(('options: %d value(s) written'):format(wrote)) end
     end
     -- coop off: the changes not shown yet dropped, the shape keys set removed; the values stay for the next look.
     function self.stop()
         redress,reshow={},{}
         for _,m in pairs(morphs) do morph(m.c,m.name,0) end
-        slots,morphs,owned,held,seen={},{},{},{},nil
+        slots,morphs,owned,held,seen,seen_head={},{},{},{},nil,nil
     end
     return self
 end

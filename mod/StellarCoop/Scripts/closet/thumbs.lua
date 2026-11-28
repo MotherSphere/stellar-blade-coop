@@ -60,6 +60,7 @@
 local U=require('core.unreal')
 local Player=require('core.player')
 local Fits=require('closet.fits')
+local Slots=require('closet.slots')
 local Dress=require('closet.dress')
 local Camera=require('closet.ui.camera')
 local Thumbs={}
@@ -184,6 +185,9 @@ local function same(o,path)
     o=U.valid(o)
     return o and path_of(o)==path and o or nil
 end
+
+-- A head fit (any slot of the head group): worn on her head, never a picture of its own.
+function Thumbs.head(fit) return fit~=nil and Slots.group(fit.Slot)=='head' end
 
 function Thumbs.new(o)
     local log=o.log or function() end
@@ -330,12 +334,18 @@ function Thumbs.new(o)
     function self.run(redo,only,menu)
         if run then return false,'closet thumbs: already running' end
         if only and not fits.get(only) then return false,'closet thumbs: no fit map for '..tostring(only) end
+        if only and Thumbs.head(fits.get(only)) then return false,'closet thumbs: '..only..' is a head piece: no pictures' end
         if only and not o.installed(only) then return false,'closet thumbs: '..only..' is not installed' end
         if not o.folder then return false,'closet thumbs: the mod folder is not known' end
         local why=busy(menu)
         if why then return false,'closet thumbs: '..WHY[why] end
         local ids={}
-        for id in pairs(fits.all()) do if (not only or id==only) and o.installed(id) then ids[#ids+1]=id end end
+        -- The bulk run skips the game's own suits (closet/suits.lua): the game's icon is their picture; a run of one
+        -- (a row's Preview picture) still makes it.
+        for id,fit in pairs(fits.all()) do
+            local stock=not only and fit.Origin=='original' and fit.Slot=='FullOutfit'
+            if (not only or id==only) and not stock and not Thumbs.head(fit) and o.installed(id) then ids[#ids+1]=id end
+        end
         table.sort(ids)
         local jobs,outfits,cached={},0,0
         for _,id in ipairs(ids) do
@@ -387,14 +397,19 @@ function Thumbs.new(o)
         log('closet thumbs: every picture deleted')
         return true
     end
-    -- The closet menu's Preview picture: fit's full.png as the closet camera shows EVE now (shot: the camera's
+    -- The closet menu's Preview picture: fit's full.png (with slot, a head piece's <slot>.png, the picture its tile
+    -- shows) as the closet camera shows EVE now (shot: the camera's
     -- {at, look, tanv}, closet/ui/camera.lua's shot): a SceneCapture2D at the camera looking at its look point, the
     -- whole scene, a SNAP_W x SNAP_H target, exported, then the capture and the target go. The file is there, or why
     -- not.
-    function self.snap(fit,shot)
+    function self.snap(fit,shot,slot)
         if run then return false,'closet thumbs: running' end
         if not o.folder then return false,'closet thumbs: the mod folder is not known' end
         if not (fit and fits.get(fit)) then return false,'closet thumbs: no fit map for '..tostring(fit) end
+        if Thumbs.head(fits.get(fit)) and not slot then
+            return false,'closet thumbs: '..fit..' is a head piece: no pictures'
+        end
+        local name=(slot or Thumbs.FULL)..'.png'
         if not (shot and shot.at and shot.look and shot.tanv) then return false,'closet thumbs: no closet camera' end
         local eve=her()
         if not eve then return false,'closet thumbs: '..WHY.loading end
@@ -412,18 +427,18 @@ function Thumbs.new(o)
             c.FOVAngle=fov
             c:CaptureScene()
             local dir=Thumbs.folder(o.folder,fit)
-            local file=dir..'\\'..Thumbs.FULL..'.png'
-            find(RENDER):ExportRenderTarget(world,rt,dir,Thumbs.FULL..'.png')
+            local file=dir..'\\'..name
+            find(RENDER):ExportRenderTarget(world,rt,dir,name)
             if not fs.exists(file) then -- The export made no folder: made, the picture exported again.
                 fs.mkdir(dir)
-                find(RENDER):ExportRenderTarget(world,rt,dir,Thumbs.FULL..'.png')
+                find(RENDER):ExportRenderTarget(world,rt,dir,name)
             end
             if not fs.exists(file) then error(file..' not written',0) end
         end)
         if rt then pcall(function() find(RENDER):ReleaseRenderTarget2D(rt) end) end
         if a then pcall(function() a:K2_DestroyActor() end) end
         if not ran then return false,'closet thumbs: '..tostring(why) end
-        log('closet thumbs: '..fit..' picture taken')
+        log('closet thumbs: '..fit..' '..name..' picture taken')
         return true
     end
     return self

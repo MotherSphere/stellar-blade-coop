@@ -25,8 +25,10 @@
 -- I/J/K/L held orbit and U/O held zoom at the stick's full rates, Shift + I/J/K/L move the height and the pan, a right
 -- mouse drag orbits (MOUSE deg a layout unit) and a middle drag pans (MPAN cm). In region mode I/J/K/L held (Shift or
 -- not) and a middle drag pan the framing; a right drag goes to free mode first (from the saved free pose, else the
--- framing on screen). Each mouse wheel notch (main/boot.lua's mouse_wheel) zooms by ZOOM, up in, down out; in region
--- mode a turn goes to free mode first, as a right drag does. Turns made while the menu was closed are dropped at the
+-- framing on screen). Each mouse wheel notch (main/boot.lua's mouse_wheel) zooms by ZOOM, up in, down out, once the
+-- camera was moved another way (a drag, a camera key or word, the pad) since the open or the menu's last move
+-- (menu_used); until then the wheel is the menu's (Schizo, 27 Nov 2026). In region mode a zooming turn goes to free
+-- mode first, as a right drag does. Turns made while the menu was closed are dropped at the
 -- open. A right press is Back at its release unless the mouse moved CLICK units (hold_back, take_back).
 -- The mode and the free pose are written to the file at each change (a stick, key or drag move once all are back at
 -- rest) and read once a Lua load: only Reset replaces the pose.
@@ -98,6 +100,9 @@ Camera.MOUSE,Camera.MPAN=0.25,0.25 -- degrees a right drag orbits, cm a middle d
 Camera.CLICK=8 -- layout units: a right press released with less mouse movement is Back.
 Camera.MEASURE=Camera.BLEND+0.1 -- s after an open: the lens is measured once the view is ours.
 Camera.LENS_TOL,Camera.LENS_TRIES=0.1,30 -- A reading's tangent within 10% of an axis rule's; readings before giving up.
+-- Frames in a row whose reading fits the same axis rule before it is taken. In game (27 Nov 2026) one reading in the
+-- view's blend fitted the other rule (tan 1.364 for a 0.767 lens): the camera stood 1.8 times too close.
+Camera.LENS_SAME=3
 -- Each region's framing: {centre, span} in parts of her height from her feet, the span filling the screen's height;
 -- {yaw, pitch} in degrees. Starting values to tune in game. The head was tuned there: her capsule is taller than her
 -- head, so 0.92 aimed above it; her face sits at about 0.80.
@@ -145,6 +150,7 @@ function Camera.new(o)
     local rpan={pan=0,height=0} -- Region mode's pan of the framing, cm along the camera's right and up.
     local clock=0
     local dirty=false -- The stick, a held key or a drag moved the free pose since the last write.
+    local wheel_live=false -- The camera was moved another way since the open or the menu's last move: the wheel zooms.
     -- px, py: the mouse at the last tick while the right or middle button was held, else nil; back: {travel=} a right
     -- press hold_back took, until its release; back_due: that release was a click (Back), until take_back.
     local px,py,back,back_due=nil,nil,nil,false
@@ -326,6 +332,7 @@ function Camera.new(o)
         local ky=(on(8) and 1 or 0)-(on(32) and 1 or 0) -- I up, K down.
         local kz=shift and 0 or (on(256) and 1 or 0)-(on(128) and 1 or 0) -- O out, U in; Shift + U/O are the light's.
         -- A press hold_back took leaves Region mode only once it counts as a drag (CLICK units): jitter stays a Back.
+        if kx~=0 or ky~=0 or kz~=0 or (rmb or mmb) and (dx~=0 or dy~=0) then wheel_live=true end
         if rmb and (dx~=0 or dy~=0) and (not back or back.travel>=Camera.CLICK) then to_free()
         elseif mode~='free' then -- I/J/K/L and a middle drag pan the framing; U/O zoom nothing.
             slide(kx*Camera.SLIDE*dt,ky*Camera.SLIDE*dt)
@@ -346,7 +353,7 @@ function Camera.new(o)
     -- first. Whether the free pose moved.
     local function wheel()
         local n=o.mouse_wheel and o.mouse_wheel() or 0
-        if n==0 then return false end
+        if n==0 or not wheel_live then return false end
         to_free()
         free.dist=free.dist*(1-Camera.ZOOM)^n
         return true
@@ -363,7 +370,8 @@ function Camera.new(o)
     -- The real lens from the engine's projection of the look point T, which place put at tangent cam.k: its screen x
     -- in half widths is k / tan(hfov / 2). Once an open, at the first answer (nil while the kit is hidden: later).
     -- A reading is taken only when its tangent is within LENS_TOL of one an axis rule gives for the FOV:
-    -- tan(fov / 2) for the horizontal axis, times the aspect for the vertical one. That rule's tangent is used.
+    -- tan(fov / 2) for the horizontal axis, times the aspect for the vertical one. That rule's tangent is used once
+    -- LENS_SAME readings in a row fit it.
     -- A reading taken while the view still lagged (in game: x 2.5, tan 0.170 for a 0.767 lens) is skipped. After
     -- LENS_TRIES skipped readings the first lens stays, said once with the last reading.
     -- shortcut: T is this frame's; if the view's pose lags a frame, a pose still easing skews it a little.
@@ -376,6 +384,8 @@ function Camera.new(o)
         for _,t in ipairs(tanh and {cam.t,cam.t*cam.aspect} or {}) do
             if math.abs(tanh/t-1)<Camera.LENS_TOL then fit=t; break end
         end
+        if fit and fit==cam.fit then cam.same=cam.same+1 else cam.fit,cam.same=fit,1 end
+        if fit and cam.same<Camera.LENS_SAME then return end -- A reading in the blend moves frame to frame.
         if not fit then
             cam.tries=(cam.tries or 0)+1
             if cam.tries<Camera.LENS_TRIES then return end
@@ -409,6 +419,7 @@ function Camera.new(o)
         local eve=her()
         if not eve then return end
         local moved=pad(dt)
+        if moved then wheel_live=true end
         moved=keys(dt) or moved
         moved=wheel() or moved
         -- Written once the stick, the keys and the drags are back at rest.
@@ -451,6 +462,7 @@ function Camera.new(o)
             cur,x_held,x_moved,r3_held,l3_held,l3_used,lt_held,rt_held=nil,true,true,true,true,true,true,true
             px,py,back,back_due=nil,nil,nil,false
             if o.mouse_wheel then o.mouse_wheel() end -- Turns made while the menu was closed are dropped.
+            wheel_live=false
             lights.on(d.actor)
             log(string.format('camera: on (%s), FOV %.1f, her height %.0f cm, lights %s x%g',mode,fov,cam.h,
                 lights.preset(),lights.factor()))
@@ -493,8 +505,14 @@ function Camera.new(o)
         dt=math.min(math.max(tonumber(dt) or 0,0),0.1)
         clock=clock+dt
         if r and r~=region then rpan.pan,rpan.height=0,0 end -- A region change clears region mode's pan.
+        first() -- The file read before a write: its pose would be lost.
+        -- A new region other than the whole outfit (the hair row: the head) is framed: region mode, the free pose kept
+        -- for cam_mode (Schizo, 27 Nov 2026).
+        if r and r~=region and r~='full' and mode=='free' then
+            mode='region'
+            write()
+        end
         region=r or region
-        first()
         if dying and clock>=dying.at then
             local d=dying.d
             dying=nil
@@ -518,6 +536,7 @@ function Camera.new(o)
         if w=='light_next' then lights.next(); return write() end
         if w=='light_up' or w=='light_down' then lights.step(w=='light_up' and 1 or -1); return write() end
         if o.held_keys and o.held_keys() then return end -- The held read is live: the held keys move it (tick).
+        if w:find('^cam_') then wheel_live=true end -- A step word moves the camera.
         local s=Camera.STEP
         if mode~='free' then
             if w=='cam_left' then slide(-s,0) elseif w=='cam_right' then slide(s,0)
@@ -553,6 +572,8 @@ function Camera.new(o)
         back_due=false
         return due
     end
+    -- A menu move (closet/ui/menu.lua's nav): the wheel is the menu's again until the next camera move.
+    function self.menu_used() wheel_live=false end
     function self.running() return cam~=nil end
     function self.mode() return mode end
     -- The view as last placed, for the menu's Preview picture (closet/thumbs.lua's snap): {at=the camera, look=its look

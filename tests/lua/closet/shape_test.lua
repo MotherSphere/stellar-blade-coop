@@ -120,6 +120,22 @@ local tests = {
         eq(late.reads, 1, 'read once the component is there')
     end,
 
+    -- A head part (hair, ponytail) sharing a morph with another gives no row and gets no SetMorphTarget.
+    head_parts_get_no_shape_rows = function()
+        local r = rig()
+        local hair_mesh = mesh('/Game/Hair', {'Hips', 'Breasts'})
+        local pony_mesh = mesh('/Game/Pony', {'Hips', 'Breasts'})
+        r.hair, r.pony = component('Hair', hair_mesh), component('Pony', pony_mesh)
+        r.parts = {r.parts[1], {c = r.hair, mesh = '/Game/Hair', slots = {}, head = true},
+            {c = r.pony, mesh = '/Game/Pony', slots = {}, head = true}}
+        r.s.tick()
+        same(r.s.rows(), {'Breasts', 'Butt'}, 'the body names only: Hips is shared by two head parts')
+        r.s.set('Breasts', 50)
+        r.s.tick()
+        eq(r.body.curves.Breasts, 0.5, 'the body shaped')
+        eq(#r.hair.calls, 0, 'no SetMorphTarget on the hair') eq(#r.pony.calls, 0, 'none on the ponytail')
+    end,
+
     rows_only_for_the_names_the_rule_allows = function()
         local r = rig()
         same(r.s.rows(), {}, 'nothing painted yet: no row')

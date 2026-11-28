@@ -6,14 +6,18 @@
 -- (main/commands.lua). Its notices and its reticle words come in the menu's words (ui/text.lua's gun). The bike asks
 -- out() before it starts.
 return {
-uses={},
+uses={'closet'},
 exports={'gun','gunrounds'},
 new=function(M)
 local function log(m) M.print('[StellarCoop][GM] '..tostring(m)..'\n') end
 -- No round store: the magazines are 6b095696's free ones (fight/gunmode/ammo.lua). fight/gunmode/nikke.lua and
 -- rows.lua (SB's Bullet_Nikke as the rifle's rounds) are not started: main.lua's gunrounds stays nil.
 M.gunrounds=nil
+-- The closet's HUD entry (closet/ui/hud.lua's lead()): HUD units it takes at the start of the entry row, so gun
+-- mode's entry starts right of it. nil while the closet is off or its entry is not on the HUD: gun mode's own spot.
+local closet_hud=require('main.loader').get(M,'closet','closet_hud')
 M.gun=require('fight.gunmode.mode').new({log=log,folder=M.folder,words=M.words,
+    lead=function() local h=closet_hud(); return h and h.lead and h.lead() or nil end,
     notice=function(key) M.tell(function(w) return w.gun[key or 'rebuilding'] end) end,
     -- The HUD entry's hook on SB's HUD Construct (fight/gunmode/ui/dpad.lua), once a Lua load (d2de021b). It raises
     -- when UE4SS cannot hook the function. The hook stays registered while the module is off.

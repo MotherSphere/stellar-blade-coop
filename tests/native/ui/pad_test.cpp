@@ -5,7 +5,7 @@
 // direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB, RB and Y, a disconnect,
 // the ring and the Online tab's event posted into it, the slots asked at each poll and PadKeys (the game's
 // controller events as one read); the emote wheel's D-pad Left hold, right stick sector and held buttons; the closet's
-// chord (LB held + D-pad Left) and the X, L3, R3 and trigger reads (closet/keys.h hands them to Lua).
+// D-pad Left tap (with Lua's closet on) and the X, L3, R3 and trigger reads (closet/keys.h hands them to Lua).
 #include "ui/pad.h"
 
 #include <cassert>
@@ -532,65 +532,55 @@ int main() {
     assert(std::string(PadKeys::kNames[PadKeys::kRightX]) == "Gamepad_RightX" &&
            std::string(PadKeys::kNames[PadKeys::kRightY]) == "Gamepad_RightY");
   }
-  { // With Lua's closet on, LB held + D-pad Left pressed: the closet's event once, after its left; never the wheel's,
-    // while LB is held or after LB is let go first. D-pad Left alone still gives the wheel.
+  { // With Lua's closet on, D-pad Left tapped (let go before kPadWheelHoldMs): the closet's event at the release, after
+    // its left. Held that long: the wheel's, then no closet at the release. LB plays no part (LB is the game's combat).
     Pad pad;
     const uint16_t lb = PadState::LEFT_SHOULDER, left = PadState::DPAD_LEFT;
-    pad.step(buttons(lb), 0, true);
-    assert(drain(pad) == V{Pad::kTabLeft});
-    pad.step(buttons(lb | left), 16, true);
-    assert(drain(pad) == (V{Pad::kLeft, Pad::kCloset}));
-    for (uint64_t t = 32; t <= 1000; t += 16)
-      pad.step(buttons(lb | left), t, true);
+    pad.step(buttons(left), 0, true);
+    assert(drain(pad) == V{Pad::kLeft});
+    pad.step(buttons(left), 200, true);
     assert(drain(pad).empty());
-    pad.step(buttons(left), 1016, true); // LB let go first: the chord's D-pad Left hold stays no wheel's.
-    pad.step(buttons(left), 2000, true);
-    assert(drain(pad).empty());
-    pad.step(buttons(0), 2016, true);
-    pad.step(buttons(left), 2032, true), pad.step(buttons(left), 2332, true);
+    pad.step(buttons(0), 216, true);
+    assert(drain(pad) == V{Pad::kCloset});
+    pad.step(buttons(left), 1000, true), pad.step(buttons(left), 1300, true);
     assert(drain(pad) == (V{Pad::kLeft, Pad::kWheel}));
-    pad.step(buttons(0), 2348, true);
-    pad.step(buttons(lb | left), 3000, true); // Both in one step: the chord.
+    pad.step(buttons(0), 1316, true);
+    assert(drain(pad).empty());
+    pad.step(buttons(lb | left), 2000, true); // With LB: the same tap.
+    pad.step(buttons(lb), 2016, true);
     assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kCloset}));
-    pad.step(buttons(0), 3016, true);
-    // D-pad Left held first, LB after: no chord; no wheel while LB is held.
-    pad.step(buttons(left), 4000, true);
-    pad.step(buttons(left | lb), 4100, true), pad.step(buttons(left | lb), 4400, true);
-    pad.step(buttons(left | lb), 5000, true);
-    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft}));
-    // The stick held left is no D-pad: no chord.
-    pad.step(buttons(0), 5016, true);
-    pad.step(PadState{lb, -30000, 0, true}, 5032, true);
-    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft}));
+    pad.step(buttons(0), 2032, true);
+    // A diagonal is no tap: up or down held with it on the way.
+    pad.step(buttons(left | PadState::DPAD_UP), 2500, true), pad.step(buttons(left), 2516, true);
+    pad.step(buttons(0), 2532, true);
+    assert(drain(pad) == (V{Pad::kUp, Pad::kLeft}));
+    // The stick held left is no D-pad: no closet.
+    pad.step(PadState{0, -30000, 0, true}, 3000, true), pad.step(PadState{0, 0, 0, true}, 3016, true);
+    assert(drain(pad) == V{Pad::kLeft});
+    // A disconnect while held is no tap.
+    pad.step(buttons(left), 4000, true), pad.step(PadState{}, 4016, true);
+    assert(drain(pad) == V{Pad::kLeft});
     // From PadKeys as from XInput.
     PadKeys keys;
     for (size_t i = 0; i < PadKeys::kKeys; ++i)
       keys.names[i] = 1000 + i;
-    Pad chord;
-    keys.press(1000 + PadKeys::kLB, 0, false);
-    chord.step(keys.state(), 0, true);
+    Pad tap;
     keys.press(1000 + PadKeys::kDpadLeft, 0, false);
-    chord.step(keys.state(), 16, true), chord.step(keys.state(), 400, true);
-    assert(drain(chord) == (V{Pad::kTabLeft, Pad::kLeft, Pad::kCloset}));
+    tap.step(keys.state(), 0, true);
+    keys.release(1000 + PadKeys::kDpadLeft, 0);
+    tap.step(keys.state(), 100, true);
+    assert(drain(tap) == (V{Pad::kLeft, Pad::kCloset}));
   }
-  { // With Lua's closet off (the closet module off or not loaded), LB and D-pad Left as without the closet: no closet
-    // event, the wheel's after 300 ms with LB held, LB pressed during the hold no cancel.
+  { // With Lua's closet off (the closet module off or not loaded), D-pad Left as without the closet: a tap makes no
+    // closet event, a 300 ms hold the wheel's. Closet on from the next step: the next tap is the closet's.
     Pad pad;
-    const uint16_t lb = PadState::LEFT_SHOULDER, left = PadState::DPAD_LEFT;
-    pad.step(buttons(lb), 0);
-    pad.step(buttons(lb | left), 16), pad.step(buttons(lb | left), 315);
-    assert(drain(pad) == (V{Pad::kTabLeft, Pad::kLeft}));
-    pad.step(buttons(lb | left), 316);
-    assert(drain(pad) == V{Pad::kWheel});
-    pad.step(buttons(0), 400);
-    pad.step(buttons(left), 500), pad.step(buttons(left | lb), 600), pad.step(buttons(left | lb), 800);
-    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kWheel}));
-    pad.step(buttons(0), 900);
-    pad.step(buttons(lb | left), 1000), pad.step(buttons(lb | left), 1300);
-    assert(drain(pad) == (V{Pad::kLeft, Pad::kTabLeft, Pad::kWheel}));
-    // Lua's closet on from the next step: the next D-pad Left press with LB held is the chord's, its hold no wheel's.
-    pad.step(buttons(lb), 1400, true), pad.step(buttons(lb | left), 1416, true);
-    pad.step(buttons(lb | left), 2000, true);
+    const uint16_t left = PadState::DPAD_LEFT;
+    pad.step(buttons(left), 0), pad.step(buttons(0), 100);
+    assert(drain(pad) == V{Pad::kLeft});
+    pad.step(buttons(left), 200), pad.step(buttons(left), 500);
+    assert(drain(pad) == (V{Pad::kLeft, Pad::kWheel}));
+    pad.step(buttons(0), 516);
+    pad.step(buttons(left), 600, true), pad.step(buttons(0), 700, true);
     assert(drain(pad) == (V{Pad::kLeft, Pad::kCloset}));
   }
   { // X, L3 and R3 in the last step's buttons, from XInput's slots and from PadKeys; they make no event.

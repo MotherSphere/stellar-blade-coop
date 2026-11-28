@@ -254,6 +254,32 @@ local tests = {
         ok(dist(last().at, want) < 0.01, 'there after a second')
     end,
 
+    a_new_region_frames_it_from_free_mode = function()
+        -- Focusing a region's row (the hair: the head) goes to region mode, framed on it (Schizo, 27 Nov 2026); the
+        -- free pose is kept, so cam_mode goes back to it, and it stays free until the region changes again.
+        local c = world()
+        c.open()
+        frames(c, 0.1, 'full')
+        c.word('cam_mode')
+        c.word('cam_left')
+        local yaw = fields().yaw
+        eq(c.mode(), 'free', 'free')
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'free', 'the same region: still free')
+        c.tick(1 / 60, 'head')
+        eq(c.mode(), 'region', 'the head row: framed on her head')
+        eq(fields().mode, 'region', 'written')
+        c.word('cam_mode')
+        eq(c.mode(), 'free', 'back to free at once')
+        near(fields().yaw, yaw, 1e-6, 'the free pose kept')
+        frames(c, 0.2, 'head')
+        eq(c.mode(), 'free', 'the same region: stays free')
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'free', 'the whole outfit: free kept')
+        c.tick(1 / 60, 'legs')
+        eq(c.mode(), 'region', 'another region: framed on it')
+    end,
+
     free_mode_steps_and_clamps = function()
         local c = world()
         c.open()
@@ -633,9 +659,11 @@ local tests = {
             'a middle drag pans the framing as it pans the free pose')
     end,
 
-    -- The mouse wheel (notches since the last read, up positive): each notch up zooms in by ZOOM, down out. In region
-    -- mode a turn goes to free mode first, as a right drag does. Turns before the open are dropped.
-    the_mouse_wheel_zooms = function()
+    -- The mouse wheel (notches since the last read, up positive): each notch up zooms in by ZOOM, down out, once the
+    -- camera was moved another way (a drag, a camera key or word, the pad) since the open or the last menu move; until
+    -- then the wheel is the menu's and zooms nothing (Schizo, 27 Nov 2026: it zoomed and scrolled the grid at once).
+    -- In region mode a zooming turn goes to free mode first, as a right drag does. Turns before the open are dropped.
+    the_mouse_wheel_zooms_after_a_camera_move = function()
         local c = world(function(w) w.file = '	free	0	0	300	100	0'; w.wheel = 5 end)
         c.open()
         frames(c, 0.05, 'full')
@@ -643,11 +671,21 @@ local tests = {
         W.wheel = 2
         c.tick(1 / 60, 'full')
         c.tick(1 / 60, 'full')
-        near(fields().dist, 300 * (1 - Camera.ZOOM) ^ 2, 0.01, 'two notches up: in by ZOOM twice')
+        near(fields().dist, 300, 0.01, 'no camera move yet: the wheel stays with the menu')
+        c.word('cam_left')
+        W.wheel = 2
+        c.tick(1 / 60, 'full')
+        c.tick(1 / 60, 'full')
+        near(fields().dist, 300 * (1 - Camera.ZOOM) ^ 2, 0.01, 'after a camera move: in by ZOOM twice')
         W.wheel = -2
         c.tick(1 / 60, 'full')
         c.tick(1 / 60, 'full')
         near(fields().dist, 300, 0.01, 'two notches down: back out')
+        c.menu_used()
+        W.wheel = 2
+        c.tick(1 / 60, 'full')
+        c.tick(1 / 60, 'full')
+        near(fields().dist, 300, 0.01, 'a menu move: the wheel back with the menu')
         c = world(function(w) w.keys = 0 end)
         c.open()
         frames(c, 0.05, 'full')
@@ -655,7 +693,14 @@ local tests = {
         W.wheel = 1
         c.tick(1 / 60, 'full')
         c.tick(1 / 60, 'full')
-        eq(c.mode(), 'free', 'a wheel turn goes to free mode')
+        eq(c.mode(), 'region', 'a wheel turn alone stays in region mode')
+        W.keys = 64 -- L held: in region mode it pans the framing, a camera move.
+        c.tick(1 / 60, 'full')
+        W.keys = 0
+        W.wheel = 1
+        c.tick(1 / 60, 'full')
+        c.tick(1 / 60, 'full')
+        eq(c.mode(), 'free', 'then a wheel turn goes to free mode')
         near(fields().dist, Camera.framing('full', 180, 0.55, TANV).dist * (1 - Camera.ZOOM), 0.01,
             'zoomed in from the region framing')
     end,
@@ -762,6 +807,31 @@ local tests = {
         c.open()
         frames(c, 1, 'full')
         eq(logged(string.format('camera: lens measured, tan(hfov/2)=%.3f', tv * 16 / 9)), 1, 'the vertical rule')
+    end,
+
+    a_lens_reading_must_hold_for_several_frames = function()
+        -- In game (27 Nov 2026) a reading taken in the view's blend fitted the other axis rule: tan 1.364 for a
+        -- 0.767 lens. The camera stood 1.8 times too close with EVE pushed off the right edge.
+        local hfov = 90
+        local tanv = math.tan(math.rad(hfov / 2)) * 9 / 16
+        local calls = 0
+        local c = world(function(w)
+            w.axis, w.fov = 0, 90
+            w.project = function(at)
+                local m = last()
+                if not m then return nil end
+                calls = calls + 1
+                if calls <= Camera.LENS_SAME - 1 then -- k 0.978 at x 0.55: tan 1.778, the vertical rule's.
+                    return {width = 3840, height = 2160, screen = {x = (1 + 0.55) / 2 * 3840, y = 1080}}
+                end
+                local x, y = project(m.at, m.rot, at, hfov, tanv)
+                return {width = 3840, height = 2160, screen = {x = (1 + x) / 2 * 3840, y = (1 - y) / 2 * 2160}}
+            end
+        end)
+        c.open()
+        frames(c, 1, 'full')
+        eq(logged('camera: lens measured, tan(hfov/2)=1.778'), 0, 'the passing reading is never taken')
+        eq(logged('camera: lens measured, tan(hfov/2)=1.000'), 1, 'the lens that holds is taken')
     end,
 
     x_toggles_on_release_only_without_the_stick = function()

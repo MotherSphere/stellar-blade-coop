@@ -41,6 +41,8 @@ local function world()
     function Obj.SetBrushFromTexture(o,t) o.tex=t end
     function Obj.SetBrush(o,b) o.brush=b end
     function Obj.SetBrushSize(o,s) o.bsize=s end
+    function Obj.SetRenderTransformAngle(o,a) o.angle=a end
+    function Obj.SetRenderTranslation(o,t) o.at=t end
     function Obj.IsA(o,c) return c.short==o.class or c.short=='Widget' or (c.short=='UserWidget' and o.user==true) end
     function Obj.SetText(o,t) o.text=t; o.writes=(o.writes or 0)+1 end
     function Obj.RemoveFromParent(o)
@@ -92,6 +94,7 @@ local function world()
     W.kq=W.new('Texture2D',nil,P..'PC/KeyIcon_KeyBoard_Q.KeyIcon_KeyBoard_Q')
     W.kg=W.new('Texture2D',nil,P..'PC/KeyIcon_KeyBoard_G.KeyIcon_KeyBoard_G')
     W.cell_tex=W.new('Texture2D',nil,'/Game/Art/UI/Texture/HUD/btn_PcEmpty.btn_PcEmpty')
+    W.arrow=W.new('Texture2D',nil,'/Game/Art/UI/Texture/Common/theater_subtitle_arrow.theater_subtitle_arrow')
 end
 -- SB's HUD on screen with its D-pad marker, the marker's parts named as in the paks (btn: its key cell). n: the HUD's
 -- number in its name (1 unless given).
@@ -144,6 +147,10 @@ do
     assert(glyph.tex==W.kg and glyph.vis~=1,'the G key icon')
     assert(cell.brush==h.cell.Brush and cell.vis==4,'the G icon on the marker\'s key cell: '..tostring(cell.brush)..' '..cell.vis)
     assert(log:find('dpad: rifle entry built, key cell found',1,true),log)
+    local box=h.overlay.named.gunmoderifleslot
+    local arrow=box.named.gunmoderiflearrow
+    assert(box.kids[2]==arrow and box.kids[3]==box.named.gunmoderifleicon,'the key, the arrow, then the rifle')
+    assert(arrow.tex==W.arrow and arrow.vis==4 and arrow.angle==-90,'the arrow points right, at the rifle')
 end
 do
     local _,cell,glyph,log=entry(true)
@@ -377,6 +384,29 @@ do
     holder.full='SizeBox /Engine/Transient.Other_C_9.SizeBox_1' -- another widget at its address
     d.hide()
     assert((holder.removed or 0)==0,'no call on another object at the old address')
+end
+-- 9. Another entry before ours (the closet's, g.lead): the row starts that many units further right; with no lead (the
+--    closet off) at its own spot again.
+do
+    now=0
+    world()
+    local h=hud()
+    local g=new_g({})
+    local lead=90
+    g.lead=function() return lead end
+    local d=D.new(g)
+    ticks(d,10)
+    local box=h.overlay.named.gunmoderifleslot
+    assert(box.at and math.abs(box.at.X-(256+D.GAP+90))<0.01,'right of the closet entry: '
+        ..tostring(box.at and box.at.X))
+    lead=nil
+    ticks(d,10)
+    assert(math.abs(box.at.X-(256+D.GAP))<0.01,'its own spot with no lead: '..tostring(box.at.X))
+    lead=50
+    ticks(d,10)
+    g.lead=function() error('closet gone',0) end
+    ticks(d,10)
+    assert(math.abs(box.at.X-(256+D.GAP))<0.01,'its own spot when the lead raises')
 end
 os.clock=clock
 print('gunmode dpad_test ok')

@@ -18,7 +18,7 @@ coop::Pad pad;
 coop::PadSlots pad_slots;
 uint64_t pad_next_poll = 0;
 coop::PadKeys pad_keys; // The hooks' record; its names written by the worker before the first swap.
-std::atomic<bool> pad_closet{false}; // Lua's closet on or off (ask_pad_closet): the chord's, off until Lua says on.
+std::atomic<bool> pad_closet{false}; // Lua's closet on or off (ask_pad_closet): the tap's, off until Lua says on.
 
 // The three slots' targets once swapped (ui/pad.h's coop::slate): each records the key into pad_keys, then runs the
 // game's function with the same arguments and returns its result. They never drop or change an event.

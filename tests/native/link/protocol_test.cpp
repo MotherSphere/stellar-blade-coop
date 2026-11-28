@@ -1116,7 +1116,7 @@ int main() {
          !parse_request("popups off\n").on && parse_request("popups off\n").command == Command::popups);
   for (const char *bad : {"popups", "popups On", "popups 1", "popups  on", "popup on", "popups on now"})
     assert(parse_request(bad).command == Command::none);
-  // The closet's pad chord: closet on or off, nothing else.
+  // The closet's pad tap: closet on or off, nothing else.
   assert(parse_request("closet on\n").command == Command::closet && parse_request("closet on").on &&
          parse_request("closet off\r\n").command == Command::closet && !parse_request("closet off").on);
   for (const char *bad :

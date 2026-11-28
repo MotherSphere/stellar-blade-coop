@@ -15,12 +15,13 @@
 --   coop closet menu                                  opens the closet menu, or closes it with the look undone
 --   coop closet thumbs [redo] [<fit>]                 a picture of each piece of every installed outfit (or one),
 --                                                      the ones not cached yet, or all again with redo
---   coop closet probe <1-6|off>                       one in-game test of the game's widget parts or reads (UE4SS.log)
+--   coop closet probe <1-10|off>                      one in-game test of the game's widget parts or reads (UE4SS.log)
 --   coop closet body <auto|shoes|first|<fit>>         the body rule of the next wears in this Lua load (dress.lua)
 --   coop closet skin <fit> <slot> on|off              shows or hides one material slot of that outfit's mesh now,
 --                                                      until the next wear (for trying setups in game)
---   coop closet colour <role> <swatch|off>            one role's colour on every worn piece (closet/colour.lua),
---                                                      kept in coop-closet-colour.txt
+--   coop closet colour <role> <on|off|swatch|r g b>   one role on or off, or on with a named colour or R G B
+--                                                      (0-255) on every worn piece (closet/colour.lua), kept in
+--                                                      coop-closet-colour.txt
 --   coop closet colour off                            every role back to the packs' own colours
 --   coop closet shape <morph> <0-100>                 one body shape value in % (steps of 10) on the worn meshes
 --                                                      (closet/shape.lua), kept in coop-closet-shape.txt
@@ -44,8 +45,8 @@ local Presets=require('closet.presets')
 local Commands={}
 -- main/commands.lua's M.run passes six words, nil-padded: an extra word is a first one that is not nil.
 Commands.USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|thumbs [redo] [<fit>]|'..
-    'probe <1-6|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <swatch|off>|colour off|'..
-    'shape <morph> <0-100>|shape off|rescan|option <fit> variant <n>|option <fit> toggle <slot> on|off|'..
+    'probe <1-10|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <on|off|swatch|r g b>|'..
+    'colour off|shape <morph> <0-100>|shape off|rescan|option <fit> variant <n>|option <fit> toggle <slot> on|off|'..
     'preset save [name]|preset wear|delete <n>|preset rename <n> [name]|favourite <fit>]'
 function Commands.new(o)
     local self={}
@@ -101,10 +102,11 @@ function Commands.new(o)
             end
             return o.dress.skin(fit,tonumber(slot),word=='on')
         elseif sub=='colour' then
-            local role,word=...
+            local role,word,g,b=...
             if role=='off' and word==nil then return o.colour.off() end
-            if not (role and word) or select(3,...)~=nil then return false,Colour.USE end
-            return o.colour.set(role,word)
+            -- One word after the role, or three (R G B).
+            if not (role and word) or (g~=nil)~=(b~=nil) or select(5,...)~=nil then return false,Colour.USE end
+            return o.colour.set(role,word,g,b)
         elseif sub=='shape' then
             local name,word=...
             if name=='off' and word==nil then return o.shape.off() end

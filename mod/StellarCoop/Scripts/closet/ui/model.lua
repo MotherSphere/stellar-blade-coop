@@ -3,10 +3,12 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Stellar Closet: the menu's data model. Pure Lua, no engine calls: what the tabs, rows and tiles list, and the edits
 -- of a list of choices {{fit=<UniqueFitID>, slots=<Slot ids, or nil for every piece the fit shows by default>}}
--- (the shape of Dress.plan's input). Edits never touch their input. The Colour tab lists closet/colour.lua's roles.
+-- (the shape of Dress.plan's input). Edits never touch their input. The Colour tab lists closet/colour.lua's roles,
+-- each role that is on followed by its channels.
 -- The Body tab lists a shape row for each name of o.shapes (closet/shape.lua's rows) right below its Body row.
 -- Full outfit lists every suit of closet/fits.lua's Fits.all (the installed packs' and the hand fits); the fitting tabs
--- list the hand fits' pieces only.
+-- list the hand fits' pieces only. The head slots (Hair, Ponytail) list closet/fits.lua's Fits.heads (stock first,
+-- then the packs') with the None tile first; a head pick leaves the worn suit on.
 local Colour = require('closet.colour')
 local Model = {}
 -- Words (lower case, in a toggle's name) -> the section of a piece with no hand map slot and no piece hint
@@ -27,7 +29,8 @@ end
 -- o = {slots=closet.slots, fits=closet.fits, installed=function(fit)->bool, adult=bool,
 -- shapes=function()->morph names or nil, presets=closet/presets.lua's or nil (no Presets rows, filter or favourite
 -- marks then), filter=function()->the filter row's list: 'all', 'favourites', 'original' (Shift Up's own suits) or
--- 'custom' (the pack and hand outfits), pictures=true with coop closet thumbs (a Clear preview pictures row then)}
+-- 'custom' (the pack and hand outfits), pictures=true with coop closet thumbs (a Clear preview pictures row then),
+-- colour_on=function(role)->bool or nil (a role that is on gets its Red, Green and Blue rows below its row)}
 function Model.new(o)
     local Slots, Fits = o.slots, o.fits
     local m = {}
@@ -60,6 +63,8 @@ function Model.new(o)
         end
         return out
     end
+
+    local function is_head(slot) return Slots.group(slot) == 'head' end
 
     function m.rows(tab)
         local out = {}
@@ -110,7 +115,12 @@ function Model.new(o)
             return out
         end
         if tab == 'colour' then
-            for _, role in ipairs(Colour.ROLES) do out[#out + 1] = {role = role} end
+            for _, role in ipairs(Colour.ROLES) do
+                out[#out + 1] = {role = role}
+                if o.colour_on and o.colour_on(role) then
+                    for _, c in ipairs(Colour.CHANNELS) do out[#out + 1] = {role = role, c = c, depth = 1} end
+                end
+            end
             return out
         end
         for _, slot in ipairs(Slots.in_menu(tab)) do
@@ -118,6 +128,7 @@ function Model.new(o)
             for _, id in ipairs(sorted_fits(Fits, true)) do
                 if m.piece(id, slot) then has = true break end
             end
+            has = has or is_head(slot) and #Fits.heads(slot) > 0
             local state = has and 'pieces' or (Slots.kind(slot) == 'mesh' and 'empty' or 'soon')
             out[#out + 1] = {slot = slot, state = state}
             if slot == 'BaseBody' and o.shapes then
@@ -177,7 +188,8 @@ function Model.new(o)
         local hand, hints = {}, {}
         for index in pairs(fit.Skin or {}) do hand[index] = 'BaseBody' end
         for _, piece in ipairs(fit.Pieces or {}) do
-            for _, index in ipairs(piece.Materials) do hand[index] = piece.Slot end
+            -- A head fit's one piece (closet/fits.lua's Fits.pack) names no materials.
+            for _, index in ipairs(piece.Materials or {}) do hand[index] = piece.Slot end
         end
         for _, h in ipairs(fit.Hints or {}) do hints[h.MaterialIndex] = hints[h.MaterialIndex] or h.Slot end
         local function index_of(t)
@@ -255,6 +267,20 @@ function Model.new(o)
 
     function m.tiles(slot)
         local out = {{none = true}}
+        if is_head(slot) then
+            for _, id in ipairs(Fits.heads(slot)) do
+                local fit = Fits.get(id)
+                -- locked is read on first use, once (as a Full row's): o.installed loads the mesh. An empty Mesh
+                -- (SB.Ponytail_None) has nothing to load: installed.
+                out[#out + 1] = setmetatable({fit = id, name = fit.Pieces[1].Name, outfit = fit.Outfit,
+                    pack = fit.Pack}, {__index = function(tile, k)
+                        if k ~= 'locked' then return nil end
+                        rawset(tile, 'locked', fit.Mesh ~= '' and not o.installed(id))
+                        return tile.locked
+                    end})
+            end
+            return out
+        end
         for _, id in ipairs(sorted_fits(Fits, true)) do
             local piece = m.piece(id, slot)
             if piece then
@@ -275,7 +301,15 @@ function Model.new(o)
         return nil
     end
 
-    function m.whole(fit) return {{fit = fit}} end
+    -- Wearing fit whole: the head choices (Hair, Ponytail fits) of choices stay on.
+    function m.whole(fit, choices)
+        local out = {{fit = fit}}
+        for _, choice in ipairs(choices or {}) do
+            local worn = Fits.get(choice.fit)
+            if worn and is_head(worn.Slot) then out[#out + 1] = choice end
+        end
+        return out
+    end
 
     -- Wear fit's piece in slot (fit=nil: wear nothing there). Every worn piece that uses slot, or a slot the new piece
     -- occupies, comes off, whatever outfit it belongs to. A whole-outfit choice that loses a piece becomes an explicit
@@ -296,7 +330,8 @@ function Model.new(o)
         local out, target = {}, nil
         for _, choice in ipairs(choices) do
             -- A whole outfit with no piece map (a pack fit, closet/fits.lua) cannot be split: it comes off whole.
-            local kept, lost = {}, not choice.slots and #Fits.get(choice.fit).Pieces == 0
+            -- A head pick never takes the suit off: the suit's pieces are not the head's.
+            local kept, lost = {}, not choice.slots and not is_head(slot) and #Fits.get(choice.fit).Pieces == 0
             for _, s in ipairs(slots_of(choice)) do
                 if clashes(choice.fit, s) then lost = true else kept[#kept + 1] = s end
             end

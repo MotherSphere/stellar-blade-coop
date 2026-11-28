@@ -18,8 +18,12 @@
 --            with Skin has the pseudo slot BaseBody, which no piece fills
 --   Pieces   {Slot, Name, Materials = {indexes}, Off = true when the pack hides it by default, Occupies = {slots},
 --            Covers = {regions}: the regions it covers, whose skin slots go when all theirs are covered}
+--   Slot     a head fit's slot ('Hair' or 'Ponytail'; a suit has none, or 'FullOutfit' from a pack), with AnimationBP,
+--            PonyPhysics (the variant's), PhysicsAsset (a stock hair's own), Rotation, HidePonytail and Ponytail (the
+--            fit id of the ponytail it brings) as its item has them; its one piece is {Slot, Name = Outfit}
 --   Unknown  {indexes}: slots whose piece and place are not known yet (no toggle name says it); they stay hidden
 --            when the outfit is worn as pieces
+local Slots = require('closet.slots')
 local Fits = {}
 
 local ALL_SKIN = {'HeadNeck', 'TorsoUpper', 'TorsoLower', 'Pelvis', 'ArmUpper', 'Forearm', 'Hand', 'Thigh', 'Calf',
@@ -103,11 +107,16 @@ function Fits.pack(item, v)
     end
     -- Variants: the item's list (the options page's Variant row); Materials and Parameters: the variant's, which
     -- closet/dress.lua puts on the mesh it wears; Hints: the item's PieceHints (the options page's sections).
-    return {Outfit = item.DisplayName, Pack = hand.Pack or pack_name(item.File or item.Pack), Origin = 'custom',
+    local head = item.Slot ~= nil and item.Slot ~= 'FullOutfit'
+    return {Outfit = item.DisplayName, Pack = hand.Pack or pack_name(item.File or item.Pack),
+        Origin = item.Origin or 'custom', Slot = item.Slot, AnimationBP = item.AnimationBP,
+        PonyPhysics = variant.PonyPhysics, PhysicsAsset = item.PhysicsAsset, Rotation = item.Rotation,
+        HidePonytail = item.HidePonytail, Ponytail = item.Ponytail, Glyph = item.Glyph,
         Mesh = variant.Mesh, Image = item.Image or hand.Image, Variant = v, Hidden = variant.HiddenMats,
         Materials = variant.Materials, Parameters = variant.Parameters, Variants = item.Variants,
-        Toggles = toggles, Controls = item.UserConfigs, Hints = item.PieceHints, Whole = true, Skin = hand.Skin,
-        Pieces = hand.Pieces or {}, Unknown = hand.Unknown}
+        Toggles = toggles, Controls = variant.UserConfigs or item.UserConfigs, Hints = item.PieceHints, Whole = true,
+        Skin = hand.Skin, Pieces = head and {{Slot = item.Slot, Name = item.DisplayName}} or hand.Pieces or {},
+        Unknown = hand.Unknown}
 end
 
 -- The variant chosen for an outfit (closet/options.lua's, Fits.choose), by UniqueFitID; left out: the first. Kept
@@ -116,11 +125,13 @@ Fits.CHOSEN = {}
 -- The suits of the catalogue last given to Fits.use, by UniqueFitID (Fits.choose builds a variant's fit from them).
 Fits.ITEMS = {}
 
--- The catalogue's suits (FitMeshType Body or none) as pack fits in their chosen variant.
+-- The catalogue's suits and head pieces (every slot of the head group) as pack fits in their chosen variant.
 local function packs_of(catalogue)
     local out = {}
     for id, item in pairs(catalogue) do
-        if item.Slot == 'FullOutfit' then out[id] = Fits.pack(item, Fits.CHOSEN[id] or 1) or Fits.pack(item, 1) end
+        if item.Slot == 'FullOutfit' or Slots.group(item.Slot) == 'head' then
+            out[id] = Fits.pack(item, Fits.CHOSEN[id] or 1) or Fits.pack(item, 1)
+        end
     end
     return out
 end
@@ -152,12 +163,31 @@ function Fits.leader(list, control)
     return seen[at] and control or at
 end
 
--- Every fit by UniqueFitID: the hand fits, then the pack fits of catalogue (Fits.PACKS when nil) over them.
+-- Every suit by UniqueFitID: the hand fits, then the pack suits of catalogue (Fits.PACKS when nil) over them.
 function Fits.all(catalogue)
     local out = {}
     for id, fit in pairs(Fits.BY_ID) do out[id] = fit end
-    for id, fit in pairs(catalogue and packs_of(catalogue) or Fits.PACKS) do out[id] = fit end
+    for id, fit in pairs(catalogue and packs_of(catalogue) or Fits.PACKS) do
+        if fit.Slot == nil or fit.Slot == 'FullOutfit' then out[id] = fit end
+    end
     return out
+end
+
+-- The ids of the head fits in a slot ('Hair' or 'Ponytail'): the stock ones (Origin 'original') first, then the packs',
+-- each by name (lower case) then id.
+function Fits.heads(slot)
+    local stock, custom = {}, {}
+    for id, fit in pairs(Fits.PACKS) do
+        if fit.Slot == slot then table.insert(fit.Origin == 'original' and stock or custom, id) end
+    end
+    local function by_name(a, b)
+        local x, y = (Fits.PACKS[a].Outfit or ''):lower(), (Fits.PACKS[b].Outfit or ''):lower()
+        if x ~= y then return x < y end
+        return a < b
+    end
+    table.sort(stock, by_name) table.sort(custom, by_name)
+    table.move(custom, 1, #custom, #stock + 1, stock)
+    return stock
 end
 
 -- The catalogue's pack fits become Fits.PACKS (nil: none).
@@ -181,6 +211,15 @@ function Fits.get(fit_id) return Fits.PACKS[fit_id] or Fits.BY_ID[fit_id] end
 
 -- An outfit's origin: 'original' or 'custom' (the default).
 function Fits.origin(fit_id) return (Fits.get(fit_id) or {}).Origin or 'custom' end
+
+-- Whether a stock ponytail fit takes a stock hair fit's salon colour (the hair's variant and values) instead of its
+-- own: only when the hair has colour controls. Under a cut hair (none) it keeps its own variant, colour and page.
+-- One rule for closet/head/wear.lua, closet/options.lua and closet/ui/menu.lua.
+function Fits.follows(hair, pony)
+    local colours = hair and type(hair.Controls) == 'table' and hair.Controls.VectorControls
+    return type(colours) == 'table' and #colours > 0 and hair.Origin == 'original' and pony ~= nil
+        and pony.Origin == 'original' and pony.Slot == 'Ponytail'
+end
 
 -- The piece of a fit map in a slot, or nil.
 function Fits.piece(fit_id, slot)

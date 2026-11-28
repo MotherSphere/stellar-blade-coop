@@ -138,7 +138,8 @@ end
 
 -- env: {log, folder (the mod folder: coop-settings.txt), read_all (a file's text; io.open's unless given), hook_hud
 -- (path, callback: a hook on the Construct of the widget class at path, registered by fight/gunmode/wiring.lua; nil:
--- the HUD entry looks for the HUD on screen alone)}.
+-- the HUD entry looks for the HUD on screen alone), lead (HUD units another entry takes at the start of the HUD
+-- entry's row, or nil: fight/gunmode/ui/dpad.lua starts its row that far right)}.
 function GunMode.new(env)
     local cfg=Config.DEFAULTS
     local whole=env.read_all or read_all
@@ -147,6 +148,7 @@ function GunMode.new(env)
     local g={}
     function g.log(m) env.log(m) end
     g.hook_hud=env.hook_hud -- (fight/gunmode/ui/dpad.lua's Construct hook on SB's HUD; raises when it fails: d2de021b)
+    g.lead=env.lead -- (fight/gunmode/ui/dpad.lua: the room the closet's HUD entry takes before ours)
     -- ui/text.lua's gun words in the player's language (env.words), English without one.
     function g.words() return (env.words and env.words() or require('ui.text').en).gun end
     local function is_valid(o) return o:IsValid() end

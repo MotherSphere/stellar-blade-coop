@@ -21,6 +21,9 @@ local function wire(raising)
             given.dress = o
             local d = part('dress'); d.installed = function() end; return d
         end},
+        ['closet.head.wear'] = {new = function() return part('head') end},
+        ['closet.head.stock'] = {build = function() return {} end, env = function() end},
+        ['closet.pin'] = {new = function() return {} end},
         ['closet.ui.camera'] = {FILE = 'cam', new = function() return {} end},
         ['closet.ui.menu'] = {new = function(o) given.menu = o; return {open = function() end} end},
         ['closet.options'] = {FILE = 'o', new = function() return part('options') end},
@@ -51,7 +54,7 @@ local function wire(raising)
     return M, stopped, logged, given
 end
 
-local ALL = {'menu', 'dress', 'options', 'colour', 'shape', 'probe', 'thumbs'}
+local ALL = {'menu', 'dress', 'head', 'options', 'colour', 'shape', 'probe', 'thumbs'}
 
 local tests = {
     coop_off_stops_every_part_menu_first = function()

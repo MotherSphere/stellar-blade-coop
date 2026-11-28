@@ -11,7 +11,8 @@
 -- CnsImport.parse(text, source) returns {items=, errors=, warnings=, skipped=}. Each CNS entry becomes one Stellar
 -- Closet item:
 --   Body (or no FitMeshType)  -> FullOutfit
---   Face, Ears, Eyes, Weapon  -> the same slot
+--   Face, Weapon              -> the same slot
+--   Eyes, Ears                -> Mask, Glasses, EarringL or Headwear (CnsImport.head_slot)
 --   Hair                      -> Hair, or Ponytail when MeshSubType is PonyTail (any case)
 -- Its variants (OutfitPaths, or OutfitDatas, which wins when it has entries) stay together on the item, as do its
 -- UserConfigs. Entries for other characters are skipped (Stellar Closet dresses EVE only for now).
@@ -28,6 +29,22 @@ CnsImport.ID_PREFIX = 'cns:'
 
 local SLOT_OF = {body = Slots.FULL_OUTFIT, [''] = Slots.FULL_OUTFIT, face = 'Face', ears = 'Ears', eyes = 'Eyes',
     weapon = 'Weapon', hair = 'Hair'}
+
+-- The slot of a pack's Eyes or Ears item (those kinds hold masks, glasses, earrings and hats alike), by a closet rule
+-- on its name and mesh path in lower case, checked in this order: mask; glass, gla_, goggle; earring; anything else
+-- (hat, horn, cap, helmet, crown included) Headwear. Never Eyes or Ears: both are hidden slots.
+CnsImport.HEAD_WORDS = {{'mask', 'Mask'}, {'glass', 'Glasses'}, {'gla_', 'Glasses'}, {'goggle', 'Glasses'},
+    {'earring', 'EarringL'}}
+-- The name first, the mesh path only when the name has no keyword: AiK's Classic Glasses sit under a
+-- Glasses_For_Mask folder and landed on the Mask row (probe 8 in game, 27 Nov 2026).
+function CnsImport.head_slot(name, mesh)
+    for _, text in ipairs({(name or ''):lower(), (mesh or ''):lower()}) do
+        for _, w in ipairs(CnsImport.HEAD_WORDS) do
+            if text:find(w[1], 1, true) then return w[2] end
+        end
+    end
+    return 'Headwear'
+end
 
 local KNOWN_KEYS = {UniqueFitID = true, Requirement = true, DisplayName = true, Description = true, FitMeshType = true,
     MeshSubType = true, OutfitTypes = true, OutfitImage = true, OutfitPaths = true, OutfitNames = true,
@@ -199,6 +216,9 @@ function CnsImport.parse(text_in, source)
             local slot = SLOT_OF[kind]
             if slot == 'Hair' and (text(entry.MeshSubType) or ''):lower() == 'ponytail' then slot = 'Ponytail' end
             local variants = variants_of(entry)
+            if slot == 'Ears' or slot == 'Eyes' then
+                slot = CnsImport.head_slot(text(entry.DisplayName) or id, variants[1] and variants[1].Mesh)
+            end
             if not id or id == '' then
                 err(where, 'no UniqueFitID')
             elseif seen[id] then

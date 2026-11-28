@@ -26,7 +26,8 @@
 -- once. reread() drops the imported pictures: the next draws import them again (a capture may have made them anew).
 -- v.draw(s), s: {tabs={labels}, tab=focused index, tab_top=the first tab shown (1 when nil), rows={{title, value,
 -- locked, header=drawn as SB's settings category header with its title, swatch={R, G, B} shown right of the row}},
--- row=focused index, show=nil or a row index brought into the window too while row stays in it, tiles=nil or {{name,
+-- row=focused index, grid=true while the grid has the focus (the row then drawn normal), show=nil or a row index
+-- brought into the window too while row stays in it, tiles=nil or {{name,
 -- equipped, locked, picture=a PNG file or nil, image=an object path or nil, icon=its glyph or nil}}, tile=selected
 -- index or nil,
 -- detail={title, desc, equipped, badge='original', 'custom' or nil}, hints={{label, icon, icon2, word=the menu word a
@@ -41,8 +42,14 @@ local View={}
 View.GROUP='closet_menu'
 View.EDGE=2112 -- Kit units: the menu's right edge (55% of 3840).
 View.TABS=7 -- Tab buttons shown at once.
-View.COLUMNS=5 -- Grid tiles a row: GRID_W over the entry width.
+-- Grid tiles a row: the TileView lays out 4 entries a row in GRID_W (Schizo's screenshot of the Head tab, 27 Nov
+-- 2026), not GRID_W over the entry width.
+View.COLUMNS=4
 View.CHECK=0.25 -- s between two looks at the shown tiles' glyphs (v.tick).
+-- A small tile's picture (a pack's head piece) is drawn at this render scale: the slot's Image_Icon keeps a 256x256
+-- brush (its Set calls SetBrushFromTexture with bMatchSize false, widget JSON), so an opaque picture filled the tile
+-- past its frame while the game's hair icons are white art in a clear margin (Schizo's screenshots of 27 Nov 2026).
+View.PICTURE_SCALE=0.55
 View.HOLD=64 -- Hidden kit images that hold the shown tiles' pictures (a grid of 64 tiles).
 -- The glyphs a hidden kit image may hold: None's, the origin badges' and each slot's (closet/slots.lua).
 View.GLYPHS={'none','original','custom'}
@@ -182,13 +189,20 @@ function View.fit(value)
     return table.concat(out)..'...'
 end
 
--- A game object by path: in memory, else after a synchronous LoadAsset (closet/ui/probe.lua's default_find).
+-- A game object by path: in memory, else after a synchronous LoadAsset (closet/ui/probe.lua's default_find), else
+-- the asset registry helpers' GetAsset: a mod pack's asset that the cooked registry does not list (pack outfit images
+-- were not found before, 27 Nov 2026). The registry step is a copy of closet/dress.lua's resolve.
 local function find(path)
     local o=StaticFindObject(path)
     if o and o:IsValid() then return o end
     pcall(LoadAsset,path:match('^(.*)_C$') or path)
     o=StaticFindObject(path)
-    return o and o:IsValid() and o or nil
+    if o and o:IsValid() then return o end
+    local got,asset=pcall(function()
+        local helpers=StaticFindObject('/Script/AssetRegistry.Default__AssetRegistryHelpers')
+        return helpers:GetAsset({ObjectPath=FName(path)})
+    end)
+    return got and asset and asset:IsValid() and asset or nil
 end
 
 function View.new(kit,log)
@@ -198,7 +212,8 @@ function View.new(kit,log)
     kit.add(View.GROUP,{x=0,y=0,w=3840,h=2160,fixed=true,hit=true},function(b)
         b.shade(0,0,SHADE_W,2160,{A=0.72})
         b.image(SHADE_W,0,FADE_W,2160,'shade_left') -- online/lobby/ui/lobby.lua's left gradient: the shade fades out.
-        b.image(0,1860,2560,300,'dither',{A=0.8})
+        -- The dither under the hints ends with the shade: past it, beside EVE, it showed as a dark box.
+        b.image(0,1860,SHADE_W,300,'dither',{A=0.8})
         local zones,swatches={},{}
         for i=1,WINDOW do zones[i]=b.row(ROW_X,ROW_Y+(i-1)*PITCH+27,ROW_W) end
         for i=1,WINDOW do
@@ -244,9 +259,22 @@ function View.new(kit,log)
     -- The word each hint chip runs as last drawn: the menu's (s.hints[i].word), then the camera's (s.camera_hints).
     local words={}
     local grid,tiles_sig,selected,detail,detail_sig,popup
+    -- The grid's data objects as last filled, and their equipped marks (a mark that moves alone is set in place).
+    local tile_items,equip_sig={},nil
     -- glyphed: each tile's glyph as last filled (false: the game icon); checking: a fill not yet seen right;
     -- check_at: the next look; by_brush: a shown tile lacked its glyph once, so every look sets the ones that lack it.
     local glyphed,checking,check_at,by_brush=nil,false,0,false
+    -- scaled: each tile's icon scale as last filled (nil while no tile is small). The TileView hands its entry widgets
+    -- to other tiles as it scrolls, so each look sets every shown entry's scale.
+    local scaled,scale_at=nil,-1
+    -- fills: grid fills since check_fills; fill_note: the last fill's changed tiles; filled_names: its tiles. A grid
+    -- filled more than 3 times in 5 s is said with its last change (the picture glitch of 27 Nov 2026).
+    local fills,fill_note,filled_names,check_fills=0,'',{},0
+    local brushed={} -- Tile indices set by brush since the last fill, each said once.
+    -- show_due: a fill or a move in the grid since the last tick (a look at once); show_at: the next look for slots
+    -- left mid spawn animation; unstuck: such slots said, once a fill.
+    local show_due,show_at,unstuck=false,0,0
+    local has_tiles=false -- The grid's last fill had tiles: the stuck-slot look runs only then.
     local function make(class,x,y,w,h,fill,hit)
         local rec,why=kit.part(View.GROUP,class,x,y,w,h,fill,hit)
         if not rec then error(why,0) end
@@ -295,9 +323,14 @@ function View.new(kit,log)
     -- A cached picture's texture (held by the grid fill), dropped by reread; an outfit's Image when it is a Texture2D
     -- (a cooked asset: the slot loads it again by its path).
     local pics,images,reads={},{},0
+    -- Each import said (a preview picture taken twice showed white, then no tile: Schizo, 27 Nov 2026).
     local function picture(file)
         return texture(pics,file,'the picture '..file,': its tile shows its outfit\'s image or its glyph',
-            function() return import(file) end)
+            function()
+                local x=import(file)
+                if x then log('menu: picture '..file..' imported as '..U.text(x:GetFullName())) end
+                return x
+            end)
     end
     local function image(path)
         return texture(images,path,'the image '..path,': its tiles show their picture or glyph',function()
@@ -372,7 +405,9 @@ function View.new(kit,log)
         sync(rows,View.GROUP,specs,WINDOW)
         for i=1,WINDOW do
             local rec,row=rows[i],s.rows[top+i]
-            if rec and not (row and row.header) then look(rec,top+i==s.row and 'focus' or 'normal') end
+            -- While the grid has the focus (s.grid) the focused tile is the only highlight: the row goes normal.
+            local lit=top+i==s.row and not s.grid
+            if rec and not (row and row.header) then look(rec,lit and 'focus' or 'normal') end
             -- A slider's place, on change only: CurrentPercent (its value text's) and UpdatePercentOffset (its bar).
             local sl=rec and row and row.slider
             if sl and not rec.sized then -- Once a part: its boxes sized to the row (see SLIDER_TITLE).
@@ -392,7 +427,7 @@ function View.new(kit,log)
             if not row or kit.alive(rec) then zones[i].set('','')
             else
                 zones[i].set(row.title,View.fit(row.value or ''),
-                    row.locked and 'disabled' or top+i==s.row and 'focus' or 'normal')
+                    row.locked and 'disabled' or lit and 'focus' or 'normal')
             end
             -- The swatch shows the colour as a tint (linear; an HDR channel shows at 1).
             local c=row and row.swatch
@@ -417,6 +452,7 @@ function View.new(kit,log)
         -- Each tile's texture: its picture, else its image, else its glyph (looked up once a draw a glyph); its path is
         -- in the signature (a texture imported again).
         local names,shown,seen,any,pictured={},{},{},false,{}
+        local small,any_small={},false
         for i,t in ipairs(s.tiles or {}) do
             local g=t.picture and picture(t.picture)
             pictured[i]=g
@@ -426,19 +462,79 @@ function View.new(kit,log)
                 g=seen[t.icon]
             end
             shown[i]=g or false
+            small[i]=t.small and (pictured[i] or t.image and g and g~=seen[t.icon]) and View.PICTURE_SCALE or 1
+            any_small=any_small or small[i]~=1
             any=any or shown[i]~=false
             local path=shown[i] and shown[i].path or ''
-            names[i]=t.name..(t.equipped and '+' or '')..(t.locked and '*' or '')..'@'..path
+            names[i]=t.name..(t.locked and '*' or '')..'@'..path..(small[i]~=1 and '~' or '')
         end
+        -- The equipped marks apart from the rest: a preview moves the mark at each move in the grid, and a fill for
+        -- it built every tile anew, so the tiles blinked (Schizo's video of 27 Nov 2026). WB_HairSalon_GridSlot's
+        -- UpdateEquip(bEquip) sets a shown slot's mark in place (widget JSON).
+        local marks={}
+        for i,t in ipairs(s.tiles or {}) do marks[i]=t.equipped and '+' or '-' end
+        local marks_sig=table.concat(marks)
         local sig=table.concat(names,'|')
+        if sig==tiles_sig and marks_sig~=equip_sig then
+            equip_sig=marks_sig
+            call(grid,'grid equip',function(w)
+                for i,t in ipairs(s.tiles or {}) do
+                    if tile_items[i] then tile_items[i].Equiped=t.equipped==true end
+                end
+                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                    local item=tile_items[entry.Data.Index+1]
+                    if item then entry:UpdateEquip(item.Equiped==true) end
+                end)
+            end)
+        end
+        -- Only pictures changed (the same tiles, names and locks: a preview picture taken, the pictures read again):
+        -- those tiles get theirs in place, through their data objects and shown slots' brushes. A fill made every slot
+        -- replay its spawn animation and left some see-through (Schizo, 27 Nov 2026).
+        if sig~=tiles_sig and tiles_sig and #names>0 and #names==#filled_names then
+            local changed={}
+            for i,n in ipairs(names) do
+                if (n:gsub('@.*$',''))~=(filled_names[i]:gsub('@.*$','')) then changed=nil; break end
+                if n~=filled_names[i] then changed[#changed+1]=i end
+            end
+            if changed then
+                tiles_sig,filled_names=sig,names
+                glyphed,checking,check_at=any and shown or nil,any,0
+                scaled,scale_at=any_small and small or nil,0
+                local view=kit.view(View.GROUP)
+                local now={}
+                for _,i in ipairs(changed) do
+                    now[i]=true
+                    if pictured[i] and view and view.pics[i] then view.pics[i].texture(pictured[i].o) end
+                    if tile_items[i] then tile_items[i].IconAssetPath=shown[i] and shown[i].path or ICON end
+                end
+                call(grid,'grid pictures',function(w)
+                    U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                        local i=entry.Data.Index+1
+                        if now[i] and shown[i] then entry.Image_Icon:SetBrushFromTexture(shown[i].o,false) end
+                    end)
+                end)
+            end
+        end
         if sig~=tiles_sig then
             tiles_sig,selected=sig,nil
+            fills,brushed,show_due,unstuck=fills+1,{},#names>0,0
+            has_tiles=#names>0
+            local changed={}
+            for i=1,math.max(#names,#filled_names) do
+                if names[i]~=filled_names[i] and #changed<4 then
+                    changed[#changed+1]=i..': '..tostring(filled_names[i])..' -> '..tostring(names[i])
+                end
+            end
+            fill_note,filled_names=table.concat(changed,'; '),names
             glyphed,checking,check_at=any and shown or nil,any,0 -- tick looks only at a grid with a glyph.
+            -- A look at once when a tile is small or was (its entries then go back to full size once).
+            scaled,scale_at=any_small and small or nil,(any_small or scaled) and 0 or -1
             local view=kit.view(View.GROUP)
             for i,g in pairs(pictured) do
                 if view and view.pics[i] then view.pics[i].texture(g.o) end
             end
             local filled=false
+            tile_items,equip_sig={},marks_sig
             call(grid,'grid fill',function(w)
                 local tv=w.TileView_ItemList
                 tv:ClearListItems()
@@ -453,6 +549,7 @@ function View.new(kit,log)
                     item.Equiped=t.equipped==true
                     item.RedDotState=0
                     item.Index=i-1
+                    tile_items[i]=item
                     tv:AddItem(item)
                 end
                 filled=true
@@ -461,8 +558,15 @@ function View.new(kit,log)
             if not filled then tiles_sig=nil end
         end
         if s.tiles and s.tile and s.tile~=selected then
-            selected=s.tile
-            call(grid,'grid select',function(w) w.TileView_ItemList:SetSelectedIndex(s.tile-1) end)
+            selected,show_due=s.tile,true
+            -- UListView.ScrollIndexIntoView(Index int): native table entry 0x1461e8850 (name 0x1461e6f90), exec
+            -- 0x143d4b0d0 reads the index, checks it against the list's items (+0x810, count +0x818) and gives that
+            -- item to the Slate list to scroll to (+0x728, then FUN_142e28210) (Ghidra, build 26123051, 27 Nov 2026).
+            -- Without it the focus ran past the rows on screen.
+            call(grid,'grid select',function(w)
+                w.TileView_ItemList:SetSelectedIndex(s.tile-1)
+                w.TileView_ItemList:ScrollIndexIntoView(s.tile-1)
+            end)
         end
     end
 
@@ -551,18 +655,163 @@ function View.new(kit,log)
     -- Each frame while open (closet/ui/menu.lua's tick; t: its time in s). After a fill, a look at the shown tiles each
     -- View.CHECK s until one finds each with its glyph (Slate builds them on later frames). A tile that lacks it (its
     -- path did not load in the slot) gets it on its Image_Icon. From then on every look does that, said once.
+    -- A slot the TileView took back mid ListSpawn (WB_HairSalon_GridSlot's animation: SizeBox_20's RenderOpacity from 0
+    -- and a RenderTransform slide, widget JSON) stays see-through: with no animation playing it is shown whole.
+    -- UUserWidget IsAnyAnimationPlaying (native entry 0x1461fe0c0, exec 0x143d69990: its active players at +0x1c8 > 0),
+    -- UWidget.RenderOpacity, a float at +0xc4 (property params 0x146200c08), read as a property: GetRenderOpacity
+    -- called through UE4SS gave "attempt to call a TrivialObject value" in game. SetRenderOpacity (entry 0x1462030d0,
+    -- exec 0x143d74f80), SetRenderTranslation (entry 0x146203130, exec 0x143d758b0 writes the FVector2D at +0x90)
+    -- (Ghidra, build 26123051, 27 Nov 2026). A refused call is said once and never stops the glyph look.
+    local unstick_said=false
+    local shown_note=nil -- The last 'the grid draws' line.
+    local hidden_before={} -- Tile numbers Hidden at the last look.
+    -- A drawn slot as words: its tile number, then what is off (UWidget Visibility and RenderOpacity, read as
+    -- properties; SizeBox_20's opacity), for the log. ESlateVisibility: Visible 0, Collapsed 1, Hidden 2,
+    -- HitTestInvisible 3, SelfHitTestInvisible 4 (enumerator array 0x1461f6f20, Ghidra, build 26123051).
+    local function slot_note(entry)
+        local ok,i=pcall(function() return entry.Data.Index+1 end)
+        i=ok and tonumber(i) or 0
+        local off={}
+        local function read(f) local r,v=pcall(f); return r and v or nil end
+        local vis=tonumber(read(function() return U.value_of(entry.Visibility) end))
+        if vis and vis~=0 and vis~=3 and vis~=4 then off[#off+1]='vis'..vis end
+        local own=tonumber(read(function() return U.value_of(entry.RenderOpacity) end))
+        if own and own<0.99 then off[#off+1]=string.format('op%.2f',own) end
+        local box=tonumber(read(function() return U.value_of(entry.SizeBox_20.RenderOpacity) end))
+        if box and box<0.99 then off[#off+1]=string.format('box%.2f',box) end
+        -- UWidget.RenderTransform (FWidgetTransform: Translation, Scale), the slot's and SizeBox_20's.
+        for _,x in ipairs({{'slot',function() return entry.RenderTransform end},
+            {'boxt',function() return entry.SizeBox_20.RenderTransform end}}) do
+            local tr=read(x[2])
+            local tx=tr and tonumber(read(function() return tr.Translation.X end)) or 0
+            local ty=tr and tonumber(read(function() return tr.Translation.Y end)) or 0
+            local sx=tr and tonumber(read(function() return tr.Scale.X end)) or 1
+            if tx~=0 or ty~=0 then off[#off+1]=string.format('%s@%.0f,%.0f',x[1],tx,ty) end
+            if sx<0.99 then off[#off+1]=string.format('%sx%.2f',x[1],sx) end
+        end
+        return {i=i,vis=vis,text=#off>0 and i..'('..table.concat(off,',')..')' or tostring(i)}
+    end
+    local function unstick(entry)
+        local ran,why=pcall(function()
+            local box=entry.SizeBox_20
+            if not box or entry:IsAnyAnimationPlaying() then return end
+            local o=tonumber(U.value_of(box.RenderOpacity))
+            -- The slot itself too: a whole hair tile, frame and all, stayed hidden with SizeBox_20 whole (27 Nov 2026).
+            local own=tonumber(U.value_of(entry.RenderOpacity))
+            local moved=box.RenderTransform and box.RenderTransform.Translation
+            local slid=moved and ((tonumber(moved.X) or 0)~=0 or (tonumber(moved.Y) or 0)~=0)
+            local fixed={}
+            if o and o<0.99 then box:SetRenderOpacity(1); fixed[#fixed+1]='SizeBox_20 opacity '..o end
+            if own and own<0.99 then entry:SetRenderOpacity(1); fixed[#fixed+1]='slot opacity '..own end
+            if slid or #fixed>0 then box:SetRenderTranslation({X=0,Y=0}) end
+            if slid then fixed[#fixed+1]='slid '..tostring(moved.X)..','..tostring(moved.Y) end
+            -- The slot's own offset and scale (UWidget SetRenderTranslation, SetRenderScale: entries 0x146203130,
+            -- 0x1462030e0 above): three earring tiles were gaps with every slot visible and opaque (27 Nov 2026).
+            local tr=entry.RenderTransform
+            local t=tr and tr.Translation
+            local sx=tr and tr.Scale and tonumber(tr.Scale.X)
+            if t and ((tonumber(t.X) or 0)~=0 or (tonumber(t.Y) or 0)~=0) then
+                entry:SetRenderTranslation({X=0,Y=0}); fixed[#fixed+1]='slot slid '..tostring(t.X)..','..tostring(t.Y)
+            end
+            if sx and sx<0.99 then entry:SetRenderScale({X=1,Y=1}); fixed[#fixed+1]='slot scale '..sx end
+            if #fixed==0 then return end
+            unstuck=unstuck+1
+            if unstuck==1 then
+                log('menu: tile '..(entry.Data.Index+1)..' was left mid spawn animation ('..table.concat(fixed,', ')
+                    ..'): shown')
+            end
+        end)
+        if not ran and not unstick_said then
+            unstick_said=true
+            log('menu: a stuck slot could not be shown: '..tostring(why))
+        end
+    end
     function v.tick(t)
-        if not (glyphed and (checking or by_brush)) or t<check_at then return end
+        if show_due then show_due,show_at=false,0 end
+        -- Every CHECK s while the grid has tiles, not only 1 s after a change: earring tiles stayed see-through past it
+        -- in game (27 Nov 2026).
+        local show=grid~=nil and has_tiles and t>=show_at
+        if show then show_at=t+View.CHECK end
+        local glyph_look=glyphed and (checking or by_brush) and t>=check_at
+        -- The look for stuck slots, each CHECK s (the glyph look below no longer does it).
+        local read_now=nil -- This tick's displayed entries, read once for both looks.
+        if show then
+            call(grid,'grid show',function(w)
+                local shown,entries,seen_vis={},{},nil
+                read_now=w.TileView_ItemList:GetDisplayedEntryWidgets()
+                U.each(read_now,function(_,entry)
+                    unstick(entry)
+                    local n=slot_note(entry)
+                    shown[#shown+1]=n
+                    entries[#entries+1]={entry=entry,note=n}
+                    if n.vis and n.vis~=1 and n.vis~=2 then seen_vis=seen_vis or n.vis end
+                end)
+                -- A drawn slot Hidden on two looks in a row (0.25 s apart) with no animation playing takes the
+                -- visibility the other slots have: slots are Hidden for a moment while the grid scrolls, one stayed
+                -- so (a missing earring tile, 27 Nov 2026). UWidget SetVisibility(InVisibility): native entry
+                -- 0x146203170 (name 0x1461b8380), exec 0x143d75080 (Ghidra, build 26123051).
+                local now_hidden={}
+                for _,x in ipairs(entries) do
+                    if x.note.vis==2 then
+                        now_hidden[x.note.i]=true
+                        local busy=pcall(function() return x.entry:IsAnyAnimationPlaying() end)
+                            and x.entry:IsAnyAnimationPlaying()
+                        if hidden_before[x.note.i] and seen_vis and not busy then
+                            local done=pcall(function() x.entry:SetVisibility(seen_vis) end)
+                            if done then log('menu: tile '..x.note.i..' stayed hidden: shown') end
+                        end
+                    end
+                end
+                hidden_before=now_hidden
+                table.sort(shown,function(x,y) return x.i<y.i end)
+                local words={}
+                for _,n in ipairs(shown) do words[#words+1]=n.text end
+                local note=table.concat(words,' ')
+                -- Said when it changes: a hair tile stayed missing with no slot left see-through (27 Nov 2026).
+                if note~=shown_note then shown_note=note; log('menu: the grid draws '..#shown..' slots: '..note) end
+            end)
+        end
+        if t>=check_fills then
+            if fills>3 then log('menu: the grid filled '..fills..' times in 5 s; last change '..fill_note) end
+            fills,check_fills=0,t+5
+        end
+        -- UWidget SetRenderScale(Scale) (native entry 0x1462030e0, exec 0x143d75b50 writes the FVector2D at +0x98,
+        -- RenderTransform.Scale; Ghidra, build 26123051, 27 Nov 2026).
+        if scaled and t>=scale_at then
+            scale_at=t+View.CHECK
+            call(grid,'grid scale',function(w)
+                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                    local want=scaled[entry.Data.Index+1] or 1
+                    local icon=entry.Image_Icon
+                    if icon.RenderTransform.Scale.X~=want then icon:SetRenderScale({X=want,Y=want}) end
+                end)
+            end)
+        elseif not scaled and scale_at>=0 then
+            -- The last small tile gone: the entries the TileView keeps go back to full size once.
+            scale_at=-1
+            call(grid,'grid scale',function(w)
+                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                    if entry.Image_Icon.RenderTransform.Scale.X~=1 then entry.Image_Icon:SetRenderScale({X=1,Y=1}) end
+                end)
+            end)
+        end
+        if not glyph_look then return end
         check_at=t+View.CHECK
         local seen,wrong,done=0,0,false
         call(grid,'grid glyphs',function(w)
-            U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+            U.each(read_now or w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
                 local g=glyphed[entry.Data.Index+1]
                 if not g then return end
                 seen=seen+1
                 local now=U.valid(entry.Image_Icon.Brush.ResourceObject)
                 if now and U.text(now:GetFullName())==g.full then return end
                 wrong=wrong+1
+                local i=entry.Data.Index+1
+                if not brushed[i] then
+                    brushed[i]=true
+                    log('menu: tile '..i..' set by brush: it had '..(now and U.text(now:GetFullName()) or 'none')
+                        ..', wants '..g.full..(U.valid(g.o) and '' or ' (gone)'))
+                end
                 entry.Image_Icon:SetBrushFromTexture(g.o,false)
             end)
             done=true
@@ -644,6 +893,7 @@ function View.new(kit,log)
         tabs,tabs_sig,focus,rows,top,hints,count,keys={},nil,nil,{},0,{},0,{}
         tab_top,camera,words=1,{},{}
         grid,tiles_sig,selected,detail,detail_sig,popup=nil,nil,nil,nil,nil,nil
+        tile_items,equip_sig={},nil
         glyphed,checking=nil,false
     end
     return v

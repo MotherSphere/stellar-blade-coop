@@ -126,11 +126,11 @@ void pad_hook_undo(const char *why) {
 }
 } // namespace
 
-// Lua's closet on or off (main/pass.lua: on while the closet module is on): the pad's chord, LB held + D-pad Left, only
-// while on. A change is logged.
+// Lua's closet on or off (main/pass.lua: on while the closet module is on): the pad's closet event, a tap of D-pad
+// Left, only while on. A change is logged.
 void ask_pad_closet(bool on) {
   if (pad_closet.exchange(on) != on)
-    say(on ? std::string("pad: asked closet on, LB held + D-pad Left opens the closet menu")
-           : std::string("pad: asked closet off, LB and D-pad Left as without the closet"));
+    say(on ? std::string("pad: asked closet on, a tap of D-pad Left opens the closet menu")
+           : std::string("pad: asked closet off, D-pad Left as without the closet"));
 }
 } // namespace coop::pose

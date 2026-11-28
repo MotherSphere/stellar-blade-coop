@@ -992,7 +992,7 @@ inline std::string masked(std::string_view text) {
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for SB's HUD under the SBO lobby's screens (main.lua,
 // online/lobby/hud_game.inc) "hud hide on|off"; for the pause menu's Online tab (ui/kit/pause_tab.lua, ui/pause_tab.h)
 // "pausetab on|off"; for the game's tutorial and record popups during online play (online/session/options.h) "popups
-// on|off"; for the closet's pad chord (ui/pad.h's kCloset, main/pass.lua) "closet on|off"; for Doro races' hold on
+// on|off"; for the closet's pad tap (ui/pad.h's kCloset, main/pass.lua) "closet on|off"; for Doro races' hold on
 // EVE (online/modes/race/hold.h) "race hold on|off" (drive.lua: her movement's four fields at 0) and "race tick
 // on|off" (doro.lua: her mesh's tick option); for the day/night cycle
 // (world/daynight/sky.h, world/daynight/daynight.lua) "sky off|hold", "sky cycle <hz> <heading>" and "sky hour <minute>

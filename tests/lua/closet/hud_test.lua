@@ -2,27 +2,19 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Copied from tests/lua/fight/gunmode/dpad_test.lua (November 2026), cut to the closet's entry.
--- The closet's HUD entry: the LB and D-pad Left twins of the pad glyph the game shows (the LB + D-pad Left chord), or
--- the closet key's keyboard icon, then the hanger icon, right of gun mode's entry. The real entry over a fake UMG: on
--- the keyboard the key's glyph sits on the D-pad marker's own key cell; with no such cell or no closet key the entry
--- shows none (an Image with no brush draws a white square). A pad shows both glyphs or none, never D-pad Left alone.
--- After a Lua reload the entry takes an earlier load's widgets again and makes none over them.
+-- The closet's HUD entry: the Left twin of the pad glyph the game shows, or the closet key's keyboard icon, then the
+-- hanger icon, right of gun mode's entry. The real entry over a fake UMG: on the keyboard the key's glyph sits on the
+-- D-pad marker's own key cell; with no such cell or no closet key the entry shows none (an Image with no brush draws a
+-- white square). After a Lua reload the entry takes an earlier load's widgets again and makes none over them.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local H=require('closet.ui.hud')
 local P='/Game/Art/UI/Texture/Interaction/'
--- A pad glyph's path as the paks of 26123051 name it: folder, pad, button.
-local function pad(dir,name,button)
-    local n='KeyIcon_'..name..'_Gamepad_'..button
-    return P..dir..'/'..n..'.'..n
-end
-local left,lb=H.glyph_path(pad('XBOX','XboxOne','DPad_Up'),'F1')
-assert(left==pad('XBOX','XboxOne','DPad_Left') and lb==pad('XBOX','XboxOne','LeftShoulder'),
-    'the pad\'s D-pad Left, then its LB: '..tostring(left)..' '..tostring(lb))
-left,lb=H.glyph_path(pad('DualShock','DualShock4','DPad_Up'),nil)
-assert(left==pad('DualShock','DualShock4','DPad_Left') and lb==pad('DualShock','DualShock4','LeftShoulder'),
-    'the pad glyphs with no key')
-left,lb=H.glyph_path(P..'PC/KeyIcon_KeyBoard_Q.KeyIcon_KeyBoard_Q','F1')
-assert(left==P..'PC/KeyIcon_KeyBoard_F1.KeyIcon_KeyBoard_F1' and lb==nil,'one glyph on the keyboard')
+assert(H.glyph_path(P..'XB/KeyIcon_XboxOne_Gamepad_DPad_Up.KeyIcon_XboxOne_Gamepad_DPad_Up','F1')
+    ==P..'XB/KeyIcon_XboxOne_Gamepad_DPad_Left.KeyIcon_XboxOne_Gamepad_DPad_Left')
+assert(H.glyph_path(P..'PS/KeyIcon_DualShock4_Gamepad_DPad_Up.KeyIcon_DualShock4_Gamepad_DPad_Up',nil)
+    ==P..'PS/KeyIcon_DualShock4_Gamepad_DPad_Left.KeyIcon_DualShock4_Gamepad_DPad_Left','the pad glyph with no key')
+assert(H.glyph_path(P..'PC/KeyIcon_KeyBoard_Q.KeyIcon_KeyBoard_Q','F1')
+    ==P..'PC/KeyIcon_KeyBoard_F1.KeyIcon_KeyBoard_F1')
 assert(H.glyph_path(P..'PC/KeyIcon_KeyBoard_Q.KeyIcon_KeyBoard_Q',nil)==nil,'no keyboard glyph with no closet key')
 assert(H.glyph_path(P..'PC/Something.Something','F1')==nil and H.glyph_path(nil,'F1')==nil)
 assert(H.ICON_FILE:find('closet[\\/]ui[\\/]icons[\\/]full_outfit%.png$'),H.ICON_FILE)
@@ -51,6 +43,7 @@ local function world()
     function Obj.SetBrushFromTexture(o,t) o.tex=t end
     function Obj.SetBrush(o,b) o.brush=b end
     function Obj.SetBrushSize(o,s) o.bsize=s end
+    function Obj.SetRenderTransformAngle(o,a) o.angle=a end
     function Obj.SetRenderTranslation(o,t) o.at=t end
     function Obj.IsA(o,c) return c.short==o.class or c.short=='Widget' or (c.short=='UserWidget' and o.user==true) end
     function Obj.RemoveFromParent(o)
@@ -100,6 +93,7 @@ local function world()
     W.kq=W.new('Texture2D',nil,P..'PC/KeyIcon_KeyBoard_Q.KeyIcon_KeyBoard_Q')
     W.kf1=W.new('Texture2D',nil,P..'PC/KeyIcon_KeyBoard_F1.KeyIcon_KeyBoard_F1')
     W.cell_tex=W.new('Texture2D',nil,'/Game/Art/UI/Texture/HUD/btn_PcEmpty.btn_PcEmpty')
+    W.arrow=W.new('Texture2D',nil,'/Game/Art/UI/Texture/Common/theater_subtitle_arrow.theater_subtitle_arrow')
 end
 -- SB's HUD on screen with its D-pad marker, the marker's parts named as in the paks (btn: its key cell).
 local function hud(n)
@@ -118,7 +112,7 @@ end
 local function parts(h)
     local box=h.overlay.named.closetslot
     local key=box.named.closetkey.named
-    return key.closetkeycell,key.closetkeyglyph,box.named.closeticon,box,box.named.closetpadlb
+    return key.closetkeycell,key.closetkeyglyph,box.named.closeticon,box
 end
 local function new_g(logs)
     local g={log=function(m) logs[#logs+1]=m end}
@@ -147,7 +141,7 @@ local function said(logs,text)
 end
 
 -- 1. The keyboard with F1: the F1 icon on the marker's key cell, the hanger icon from icons/full_outfit.png, the row
---    right of gun mode's entry and its rounds text, on gun mode's row.
+--    (hanger, then key) left of gun mode's entry, on gun mode's row: hanger, F1, gun key, rifle.
 do
     now=0; world()
     local h=hud()
@@ -155,49 +149,38 @@ do
     local g=new_g(logs)
     local d=H.new(g)
     ticks(d,1,'F1')
-    local cell,glyph,img,box,lb=parts(h)
+    local cell,glyph,img,box=parts(h)
     assert(glyph.tex==W.kf1 and glyph.vis==4,'the F1 key icon')
-    assert(lb.vis==1 and not lb.tex,'no LB glyph on the keyboard')
     assert(cell.brush==h.cell.Brush and cell.vis==4,'the F1 icon on the marker\'s key cell')
     assert(img.tex==W.hanger and img.vis==4 and g.imported==H.ICON_FILE,'the hanger icon')
     assert(said(logs,'hud: closet entry built, key cell found')==1,table.concat(logs,'\n'))
-    -- marker 100 wide, key 32 (cell 40), icon 40: 100+6+(40+6+40)+TEXT_ROOM+SPACE
-    local x=100+H.GAP+(32*1.25+H.GAP+40)+H.TEXT_ROOM+H.SPACE
-    assert(box.at and math.abs(box.at.X-x)<0.01 and box.at.Y==80*H.DOWN,'placed right of the gun entry: '
+    local arrow=box.named.closetarrow
+    assert(box.kids[1]==img and box.kids[2]==arrow and box.kids[3]==glyph.outer,'the hanger, the arrow, then the key')
+    assert(arrow.tex==W.arrow and arrow.vis==4 and arrow.angle==90,'the arrow points left, at the hanger')
+    assert(arrow.bsize.X==H.ARROW_W and arrow.bsize.Y==H.ARROW_W/2,'the arrow\'s size')
+    -- marker 100 wide, key 32 (cell 40), icon 40: at gun mode's own start, 100+GAP; gun mode's row moves right by
+    -- lead (the hanger, GAP, the key cell, SPACE)
+    assert(box.at and math.abs(box.at.X-(100+H.GAP))<0.01 and box.at.Y==80*H.DOWN,'placed at gun mode\'s start: '
         ..tostring(box.at and box.at.X))
+    assert(math.abs(d.lead()-(40+H.GAP+H.ARROW_W+H.ARROW_PAD+32*1.25+H.SPACE))<0.01,'its lead: '..tostring(d.lead()))
     assert(h.overlay.named.closetholder and not h.overlay.named.gunmoderifleslot,'Closet-named widgets only')
 end
--- 2. No closet key (none): the keyboard shows neither glyph nor key cell. The pad shows its LB, then its D-pad Left.
+-- 2. No closet key (none): the keyboard shows neither glyph nor key cell. The pad shows its D-pad Left.
 do
     now=0; world()
     local h=hud()
     local d=H.new(new_g({}))
     ticks(d,1,nil)
-    local cell,glyph,img,box,lb=parts(h)
-    assert(glyph.vis==1 and cell.vis==1 and lb.vis==1,'no glyph or key cell on the keyboard without a closet key')
-    local xb_left=W.new('Texture2D',nil,pad('XBOX','XboxOne','DPad_Left'))
-    local xb_lb=W.new('Texture2D',nil,pad('XBOX','XboxOne','LeftShoulder'))
-    W.new('Texture2D',nil,pad('XBOX','XboxOne','DPad_Up'))
+    local cell,glyph=parts(h)
+    assert(glyph.vis==1 and cell.vis==1,'no glyph or key cell on the keyboard without a closet key')
+    local xb_left=W.new('Texture2D',nil,P..'XB/KeyIcon_XboxOne_Gamepad_DPad_Left.KeyIcon_XboxOne_Gamepad_DPad_Left')
+    W.new('Texture2D',nil,P..'XB/KeyIcon_XboxOne_Gamepad_DPad_Up.KeyIcon_XboxOne_Gamepad_DPad_Up')
     h.pad.vis=4
     ticks(d,10,nil)
     assert(glyph.tex==xb_left and glyph.vis==4,'the pad\'s D-pad Left with no closet key')
-    assert(lb.tex==xb_lb and lb.vis==4,'the pad\'s LB with it')
-    assert(box.kids[1]==lb and box.kids[2]==box.named.closetkey and box.kids[3]==img,'LB, D-pad Left, the hanger')
     assert(cell.vis==1,'no key cell on the pad')
-end
--- 2b. A pad whose LB glyph is not found: neither pad glyph shows. D-pad Left alone is the game's, not the closet's.
-do
-    now=0; world()
-    local h=hud()
-    local logs={}
-    local d=H.new(new_g(logs))
-    W.new('Texture2D',nil,pad('DualShock','DualShock4','DPad_Left'))
-    W.new('Texture2D',nil,pad('DualShock','DualShock4','DPad_Up'))
-    h.pad.vis=4
-    ticks(d,10,'F1')
-    local _,glyph,_,_,lb=parts(h)
-    assert(glyph.vis==1 and lb.vis==1,'no D-pad Left glyph alone')
-    assert(said(logs,'hud: no glyph for '..pad('DualShock','DualShock4','LeftShoulder'))==1,table.concat(logs,'\n'))
+    assert(h.overlay.named.closetslot.named.closetarrow.vis==1,'no arrow on the pad: its glyph points by itself')
+    assert(math.abs(d.lead()-(40+H.GAP+32*1.25+H.SPACE))<0.01,'the pad\'s lead has no arrow: '..tostring(d.lead()))
 end
 -- 3. No marker key cell: the glyph shows alone, never an empty cell (a white square).
 do
@@ -246,8 +229,10 @@ do
     local h=hud()
     local d=H.new(new_g({}))
     ticks(d,10,'F1')
+    assert(d.lead(),'a lead while placed')
     d.hide()
     assert(#h.overlay.kids==0,'the entry off the HUD')
+    assert(d.lead()==nil,'no lead after hide: gun mode goes back to its own spot')
     ticks(d,40,'F1')
     assert(#h.overlay.kids==0,'not built again after hide')
     world()

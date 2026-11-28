@@ -97,6 +97,7 @@ local function tileview(events)
     function tv:GetNumItems() return #self.items end
     function tv:GetItemAt(i) return self.items[i + 1] end
     function tv:SetSelectedIndex(i) self.sel = self.items[i + 1] end
+    function tv:ScrollIndexIntoView(i) self.scrolled = i end
     function tv:GetIndexForItem(item)
         for i, it in ipairs(self.items) do if it == item then return i - 1 end end
         return -1
@@ -114,12 +115,26 @@ local function tileview(events)
             local e = self.entries[item]
             if not e then
                 local shown = not self.path_fails and F.by_path[item.IconAssetPath] or F.icon
-                local icon = {Brush = {ResourceObject = shown}, set = {}}
+                local icon = {Brush = {ResourceObject = shown}, set = {}, RenderTransform = {Scale = {X = 1, Y = 1}}}
+                function icon:SetRenderScale(v) self.RenderTransform.Scale = {X = v.X, Y = v.Y} end
                 function icon:SetBrushFromTexture(t, match)
                     self.Brush.ResourceObject = t
                     self.set[#self.set + 1] = {t, match}
                 end
-                e = {Data = item, Image_Icon = icon}
+                -- RenderOpacity is read as a property (a GetRenderOpacity call failed in game).
+                local box = {translation = {X = 0, Y = 0}}
+                box.RenderOpacity = 1
+                function box:SetRenderOpacity(o) self.RenderOpacity = o end
+                function box:SetRenderTranslation(v) self.translation = {X = v.X, Y = v.Y} end
+                e = {Data = item, Image_Icon = icon, equips = {}, SizeBox_20 = box, playing = false, RenderOpacity = 1}
+                function e:SetRenderOpacity(o) self.RenderOpacity = o end
+                e.Visibility = 4 -- SelfHitTestInvisible, as the other slots.
+                function e:SetVisibility(v) self.Visibility = v end
+                e.RenderTransform = {Translation = {X = 0, Y = 0}, Scale = {X = 1, Y = 1}}
+                function e:SetRenderTranslation(v) self.RenderTransform.Translation = {X = v.X, Y = v.Y} end
+                function e:SetRenderScale(v) self.RenderTransform.Scale = {X = v.X, Y = v.Y} end
+                function e:UpdateEquip(on) self.equips[#self.equips + 1] = on end
+                function e:IsAnyAnimationPlaying() return self.playing end
                 self.entries[item] = e
             end
             out[k] = e

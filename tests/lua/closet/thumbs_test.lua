@@ -217,6 +217,69 @@ local tests = {
         ok(Thumbs.stamp(fewer) ~= stamp, 'other pieces, another stamp')
     end,
 
+    -- A hair is worn on her head: no picture of it in a run (even a fit list that holds it), nor a full.png by snap;
+    -- snap with its slot saves <slot>.png (the Preview picture on a head row, Schizo, 27 Nov 2026).
+    every_head_slot_is_a_head_fit = function()
+        for _, slot in ipairs({'Hair', 'Ponytail', 'Face', 'Glasses', 'Mask', 'Headwear', 'EarringL'}) do
+            ok(Thumbs.head({Slot = slot}), slot)
+        end
+        ok(not Thumbs.head({Slot = 'FullOutfit'}) and not Thumbs.head({}) and not Thumbs.head(nil), 'not a suit')
+    end,
+    head_fits_get_no_pictures = function()
+        Fits.use({['h.hair'] = {UniqueFitID = 'h.hair', DisplayName = 'H', Slot = 'Hair',
+            File = '~mods\\H\\h.dekcns.json', Variants = {{Mesh = '/Game/H.H', HiddenMats = {}}},
+            UserConfigs = {MaterialToggles = {}}}})
+        local good, why = pcall(function()
+            local r = game()
+            local own = r.thumbs -- The rig's: its fakes can take a picture.
+            local every = setmetatable({all = function()
+                local out = Fits.all()
+                out['h.hair'] = Fits.get('h.hair')
+                return out
+            end}, {__index = Fits})
+            r.thumbs = Thumbs.new({log = function() end, folder = 'M', fits = every, installed = function() return true end,
+                her = function() return r.eve end, paused = function() return false end,
+                menu_open = function() return false end, world = function() return r.world end})
+            local ok1, line = r.thumbs.run(false)
+            ok(ok1 and line:find('24 picture', 1, true), 'the same 24 pictures: ' .. tostring(line))
+            r.thumbs.stop()
+            ok1, line = r.thumbs.run(false, 'h.hair')
+            ok(not ok1 and line:find('head piece', 1, true), 'run of a hair refused: ' .. tostring(line))
+            ok1, line = r.thumbs.snap('h.hair', {at = {X = 0, Y = 0, Z = 0}, look = {X = 1, Y = 0, Z = 0}, tanv = 0.4})
+            ok(not ok1 and line:find('head piece', 1, true), 'snap of a hair refused: ' .. tostring(line))
+            ok1, line = own.snap('h.hair', {at = {X = 0, Y = 0, Z = 0}, look = {X = 1, Y = 0, Z = 0}, tanv = 0.4},
+                'Hair')
+            ok(ok1, 'snap of a hair with its slot: ' .. tostring(line))
+            same(named(r, 'export')[#named(r, 'export')], {'export', Thumbs.folder('M', 'h.hair'), 'Hair.png'},
+                'saved as Hair.png')
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
+    -- The game's own suits (closet/suits.lua, about 90): the bulk run skips them (their icon is their picture; a run
+    -- of each would load ~131 meshes), a run of one still makes its pictures.
+    stock_suits_are_left_out_of_the_bulk_run = function()
+        Fits.use({['SB.BS_1'] = {UniqueFitID = 'SB.BS_1', DisplayName = 'S', Slot = 'FullOutfit', Origin = 'original',
+            Variants = {{Mesh = '/Game/S/S1.S1', Materials = {}}}, UserConfigs = {MaterialToggles = {}}}})
+        local good, why = pcall(function()
+            local r = game()
+            r.meshes['/Game/S/S1.S1'] = {path = '/Game/S/S1.S1', count = 4}
+            local asked = {}
+            local installed = r.installed
+            r.installed = setmetatable({}, {__index = function(_, id) asked[id] = true return installed[id] end})
+            local ok1, line = r.thumbs.run(false)
+            ok(ok1 and line:find('24 picture', 1, true), 'the hand fits 24 only: ' .. tostring(line))
+            ok(not asked['SB.BS_1'], 'its mesh not checked in the bulk run')
+            r.thumbs.stop()
+            ok1, line = r.thumbs.run(false, 'SB.BS_1')
+            ok(ok1 and line:find('of 1 outfit', 1, true), 'a run of the one suit: ' .. tostring(line))
+            r.thumbs.stop()
+        end)
+        Fits.use(nil)
+        ok(good, why)
+    end,
+
     the_queue_takes_every_installed_fit_and_skips_cached_ones = function()
         local r = game()
         local good, line = r.thumbs.run(false)

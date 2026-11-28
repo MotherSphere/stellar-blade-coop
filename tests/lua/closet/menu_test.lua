@@ -14,8 +14,8 @@ local T = require('ui.text')
 local Fits = require('closet.fits')
 -- No enemy near EVE in these tests: core/player.lua's engaged walks the game's actors.
 require('core.player').engaged = function() return false end
--- A tab's English label: the fitting tabs (Head..Body and Intimate) go through closet.beta.
-local BETA = {head = true, torso = true, arms = true, hips = true, intimate = true, legs = true, body = true}
+-- A tab's English label: the fitting tabs (Torso..Body and Intimate) go through closet.beta.
+local BETA = {torso = true, arms = true, hips = true, intimate = true, legs = true, body = true}
 local function tab_label(id)
     return BETA[id] and T.en.closet.beta:format(T.en.closet.tabs[id]) or T.en.closet.tabs[id]
 end
@@ -42,7 +42,7 @@ local function rig(o)
         world = function() return r.world end, photo = function() return r.photo end,
         status = function() return r.status end, now = function() return r.t end, adult = o.adult,
         camera = o.camera, folder = o.folder, thumbs = o.thumbs, colour = o.colour, shape = o.shape,
-        options = o.options, presets = o.presets, uidev = function() return r.dev end,
+        options = o.options, presets = o.presets, uidev = function() return r.dev end, head = o.head,
         nav_held = function() return r.held end, busy = function() return r.busy, r.busy and 'busy: ' .. r.busy end})
     return r
 end
@@ -62,9 +62,10 @@ local function aria()
             {DisplayName = 'Boots', MaterialIndex = 4, Value = true},
             {DisplayName = 'Bag', MaterialIndex = 6, Value = false}}}}
 end
--- f(r) on a rig with Aria in the catalogue and a real options layer (closet/options.lua) on a fake store.
+-- f(r) on a rig with Aria in the catalogue (o.catalogue: that one) and a real options layer (closet/options.lua) on a
+-- fake store.
 local function with_aria(f, o)
-    Fits.use({[ARIA] = aria()})
+    Fits.use(o and o.catalogue or {[ARIA] = aria()})
     local good, why = pcall(function()
         o = o or {}
         local store = {file = nil}
@@ -166,14 +167,34 @@ local function fake_shape(names)
     s.off = function() s.offs = s.offs + 1; s.values = {}; return true end
     return s
 end
--- A fake colour layer (closet/colour.lua's face): its palette, its steps and offs.
+-- A fake colour layer (closet/colour.lua's face): its palette ({on, R, G, B} a role), its calls (steps) and offs.
 local function fake_colour()
     local Colour = require('closet.colour')
     local c = {palette = {}, steps = {}, offs = 0}
-    c.get = function(role) return c.palette[role] or 'off' end
-    c.step = function(role, dir)
-        c.steps[#c.steps + 1] = role .. ' ' .. dir
-        c.palette[role] = Colour.cycle(c.get(role), dir)
+    local function rec(role)
+        local d = Colour.DEFAULT
+        c.palette[role] = c.palette[role] or {on = false, R = d.R, G = d.G, B = d.B}
+        return c.palette[role]
+    end
+    c.get = function(role)
+        local p = c.palette[role] or Colour.DEFAULT
+        return p.on == true, {R = p.R, G = p.G, B = p.B}
+    end
+    c.turn = function(role, on)
+        c.steps[#c.steps + 1] = role .. (on and ' on' or ' off')
+        rec(role).on = on
+        return true
+    end
+    c.channel = function(role, ch, x)
+        c.steps[#c.steps + 1] = ('%s %s=%g'):format(role, ch, x)
+        local p = rec(role)
+        p.on, p[ch:upper()] = true, math.max(0, math.min(1, x))
+        return true
+    end
+    c.step = function(role, ch, dir)
+        c.steps[#c.steps + 1] = role .. ' ' .. ch .. ' ' .. dir
+        local p = rec(role)
+        p.on, p[ch:upper()] = true, math.max(0, math.min(1, p[ch:upper()] + dir * Colour.STEP))
         return true
     end
     c.off = function() c.offs = c.offs + 1; c.palette = {}; return true end
@@ -195,6 +216,7 @@ local function fake_camera()
     c.held, c.due = false, false
     c.hold_back = function() return c.held end
     c.take_back = function() local d = c.due; c.due = false; return d end
+    c.menu_used = function() c.calls[#c.calls + 1] = 'menu_used' end
     return c
 end
 
@@ -247,6 +269,39 @@ local function on_top(r)
     r.menu.open()
     at(r, 0.05, 'tab_right', 'tab_right', 'tab_right', 'down', 'down', 'down', 'down', 'down')
     eq((detail(r)), 'Top', 'on the Top row')
+end
+-- Head items (closet/head/stock.lua's shape) with two variants and a colour named Root: the stock hair Bob and the long
+-- ponytail (named by its table row only, as in game), a pack hair and ponytail, the No ponytail item (empty Mesh, no
+-- name of its own); Aria too.
+local HAIR, TAIL = 'SB.Hair_001', 'SB.Ponytail_Long'
+local function head_item(slot, id, name, origin)
+    local controls = {VectorControls = {{DisplayName = 'Root', ParamName = 'RootColor', MaterialIndex = 0,
+        Value = {0.5, 0.5, 0.5, 1}}}}
+    local function variant(mesh)
+        return {Mesh = mesh, HiddenMats = {}, Materials = {}, Parameters = {}, UserConfigs = controls}
+    end
+    return {UniqueFitID = id, DisplayName = name, Slot = slot, Origin = origin, File = 'P.dekcns.json',
+        Variants = {variant('/Game/H/' .. name), variant('/Game/H/' .. name .. '2')}, PieceHints = {},
+        UserConfigs = {MaterialToggles = {}}}
+end
+-- with_aria's o for the head items, EVE wearing choices at the open; extra's fields added.
+local function heads(choices, extra)
+    local o = extra or {}
+    o.catalogue = {[ARIA] = aria(), [HAIR] = head_item('Hair', HAIR, 'Bob', 'original'),
+        [TAIL] = head_item('Ponytail', TAIL, 'Hair_Default_Part2', 'original'),
+        ['p.hair'] = head_item('Hair', 'p.hair', 'Pack hair', 'custom'),
+        ['p.tail'] = head_item('Ponytail', 'p.tail', 'Pack tail', 'custom'),
+        ['SB.Ponytail_None'] = {UniqueFitID = 'SB.Ponytail_None', Slot = 'Ponytail', Origin = 'original',
+            DisplayName = 'Ponytail_None', Variants = {{Mesh = '', Materials = {}, UserConfigs = {}}}, PieceHints = {},
+            UserConfigs = {MaterialToggles = {}}}}
+    o.before = function(r) r.choices = choices end
+    return o
+end
+-- The Hair row (the 2nd) of the Head tab (the 3rd), open.
+local function on_hair(r)
+    r.menu.open()
+    at(r, 0.05, 'tab_right', 'tab_right', 'down')
+    eq((detail(r)), 'Hair', 'on the Hair row')
 end
 
 -- Every part dropped, the group hidden, the menu closed; the input given back by a tick 150 ms later.
@@ -308,13 +363,14 @@ local tests = {
         local g = r.kit.groups.closet_menu
         same(g.place, {x = 0, y = 0, w = 3840, h = 2160, fixed = true, hit = true}, 'group place')
         local View = require('closet.ui.view')
-        eq(View.EDGE, 2112, 'the menu edge') eq(View.COLUMNS, 5, 'grid columns')
+        eq(View.EDGE, 2112, 'the menu edge') eq(View.COLUMNS, 4, 'grid columns')
         -- A flat shade to x 2162: past the right tab key's icon (art at 2028 to 2070) by the left one's margin (its
-        -- art starts at x 92). Then the lobby's left gradient to x 2562; the dither under the hints.
+        -- art starts at x 92). Then the lobby's left gradient to x 2562; the dither under the hints, to the shade's edge
+        -- (no dark box beside EVE).
         same(g.shade, {x = 0, y = 0, w = 2162, h = 2160, color = {A = 0.72}}, 'shade')
         eq(g.images[1].tex, 'shade_left', 'gradient') eq(g.images[1].x, 2162, 'gradient x')
         eq(g.images[1].x + g.images[1].w, 2562, 'gradient end')
-        eq(g.images[2].tex, 'dither', 'dither') eq(g.images[2].y, 1860, 'dither y') eq(g.images[2].w, 2560, 'dither w')
+        eq(g.images[2].tex, 'dither', 'dither') eq(g.images[2].y, 1860, 'dither y') eq(g.images[2].w, 2162, 'dither w')
         same(g.images[2].tint, {A = 0.8}, 'dither tint')
         -- The tab row: a window of 7 tab buttons, labelled; the Full outfit tab first and focused.
         local tabs = r.kit.live(F.TAB)
@@ -838,6 +894,13 @@ local tests = {
         local title, desc = detail(r)
         eq(title, 'Kunoichi top', 'locked tile detail')
         ok(desc:find(T.en.closet.row.locked:format('AiK'), 1, true), desc)
+        -- A mesh that loads but names a skeleton the game lacks says so (the Succubus Horns, 27 Nov 2026).
+        r.dress.broken = function(fit) return fit == KUNOICHI end
+        at(r, 0.55, 'left', 'right')
+        desc = select(2, detail(r))
+        ok(desc:find(T.en.closet.row.broken, 1, true), desc)
+        ok(not desc:find(T.en.closet.row.locked:format('AiK'), 1, true), 'not called missing: ' .. desc)
+        r.dress.broken = nil
         tick(r, 1)
         at(r, 1, 'refresh', 'select')
         tick(r, 2)
@@ -1116,9 +1179,9 @@ local tests = {
         r.t = 6
         r.menu.open()
         eq((detail(r)), 'Chest tattoo', 'one poll: the torso tab kept')
-        -- On a Colour row the chord's left steps the role's swatch (colour.step, saved at once): the close steps it
+        -- On a Colour row the chord's left turns the role on or off (colour.turn, saved at once): the close turns it
         -- back, so the palette and coop-closet-colour.txt stay as they were. From the Head tab, LB lands on the Colour
-        -- tab's Primary row: the frames-later left steps the swatch.
+        -- tab's Primary row: the frames-later left turns it.
         local col = fake_colour()
         r = rig({colour = col})
         r.menu.open()
@@ -1126,20 +1189,20 @@ local tests = {
         title = detail(r)
         chord(0.5)
         all_gone(r)
-        eq(#col.steps, 2, 'from the Head tab: the left stepped the swatch, the close stepped it back')
-        eq(col.get('primary'), 'off', 'from the Head tab: the palette as it was')
+        same(col.steps, {'primary on', 'primary off'}, 'from the Head tab: the left turned it on, the close back off')
+        eq((col.get('primary')), false, 'from the Head tab: the palette as it was')
         r.t = 1
         r.menu.open()
         eq((detail(r)), title, 'the Head tab kept')
         -- On the Colour tab, both pressed in one poll: left, tab_left, then closet.
-        col.palette.primary = 'crimson'
+        col.palette.primary = {on = true, R = 0.5, G = 0, B = 0}
         at(r, 1.4, 'tab_left') -- Head, Colour.
         tick(r, 1.45)
         eq((detail(r)), T.en.closet.colour.roles.primary, 'on the Primary row')
         at(r, 1.5, 'left', 'tab_left')
         r.menu.toggle()
         all_gone(r)
-        eq(col.get('primary'), 'crimson', 'one poll on the Colour tab: the palette as it was')
+        eq((col.get('primary')), true, 'one poll on the Colour tab: the palette as it was')
         r.t = 2
         r.menu.open()
         eq((detail(r)), T.en.closet.colour.roles.primary, 'the Colour tab kept')
@@ -1148,7 +1211,19 @@ local tests = {
         tick(r, 2.5)
         r.menu.toggle()
         all_gone(r)
-        eq(col.get('primary'), 'gold', 'left, then F1: the swatch before crimson')
+        eq((col.get('primary')), false, 'left, then F1: the left turned it off')
+        -- On a channel row the chord's left steps it down; the close puts it back.
+        col.palette.primary = {on = true, R = 0.5, G = 0, B = 0}
+        r.t = 3
+        r.menu.open()
+        tick(r, 3.05)
+        at(r, 3.1, 'down') -- Primary's Red row.
+        eq((detail(r)), T.en.closet.options.channels.r, 'on the Red row')
+        at(r, 3.2, 'left', 'tab_left')
+        r.menu.toggle()
+        all_gone(r)
+        eq(col.palette.primary.R, 0.5, 'one poll on a channel row: Red as it was')
+        col.palette.primary = nil
         -- On a shape row of the Body tab, both pressed in one poll: the chord's left stepped the value down (saved at
         -- once); the close sets it back, so the shape and coop-closet-shape.txt stay as they were.
         local sh = fake_shape({'Butt'})
@@ -1239,7 +1314,7 @@ local tests = {
     -- menu without the Keep popup or a revert, so nothing of the closet stays on EVE for its watchdog.
     reset_row_clears_and_stops_the_watchdog = function()
         local col, sh = fake_colour(), fake_shape({'Butt'})
-        col.palette.primary = 'crimson'
+        col.palette.primary = {on = true, R = 0.5, G = 0, B = 0}
         sh.values.Butt = 50
         local r = rig({colour = col, shape = sh, before = function(r) r.choices = {{fit = MAID}} end})
         r.menu.open()
@@ -1264,7 +1339,7 @@ local tests = {
         at(r, 0.5, 'up', 'refresh', 'down', 'select', 'select')
         same(r.previews, {{{fit = MAID}}}, 'previewed before the reset (row 2 by name)')
         eq(r.offs, 1, 'coop closet off ran')
-        eq(col.offs, 1, 'the palette cleared (coop-closet-colour.txt)') eq(col.get('primary'), 'off')
+        eq(col.offs, 1, 'the palette cleared (coop-closet-colour.txt)') eq((col.get('primary')), false)
         eq(sh.offs, 1, 'the shape cleared (coop-closet-shape.txt)') eq(sh.get('Butt'), 0)
         eq(r.reverted + r.confirmed, 0, 'no revert, no confirm')
         same(r.told, {T.en.closet.reset_done}, 'the notice')
@@ -1500,10 +1575,12 @@ local tests = {
         eq(tv.displayed, 2, 'a look CHECK s later')
         for _, e in pairs(tv.entries) do eq(#e.Image_Icon.set, 0, 'nothing set on a right tile') end
         tick(r, 2)
-        eq(tv.displayed, 2, 'no look once every shown tile was right')
+        -- Once every shown tile was right only the stuck-slot look reads them (each CHECK s while the grid shows).
+        eq(tv.displayed, 3, 'only the stuck-slot look once every shown tile was right')
+        for _, e in pairs(tv.entries) do eq(#e.Image_Icon.set, 0, 'still nothing set') end
         at(r, 2, 'down')
         tick(r, 3)
-        eq(tv.displayed, 3, 'a fill looks again')
+        eq(tv.displayed, 4, 'a fill looks again')
         -- The path fails: each shown tile gets its glyph on its Image_Icon (SetBrushFromTexture, no size match),
         -- said once; from then on every look sets the tiles still wrong.
         r = rig()
@@ -1582,6 +1659,22 @@ local tests = {
             Fits.get(MAID).Image = image
             eq(looked, false, 'not looked up')
             eq(grid(r).items[2].IconAssetPath, F.path('top'), 'the glyph')
+            -- A pack's Image that memory and LoadAsset do not find: the asset registry helpers' GetAsset does.
+            local path = Fits.get(MAID).Image
+            F.textures[path] = true
+            local asset = find(path)
+            StaticFindObject = function(p)
+                if p == path then return nil end
+                if p == '/Script/AssetRegistry.Default__AssetRegistryHelpers' then
+                    return {GetAsset = function(_, data) return data.ObjectPath == path and asset or nil end}
+                end
+                return find(p)
+            end
+            r = rig({folder = 'F'})
+            on_top(r)
+            StaticFindObject = find
+            F.textures[path] = nil
+            eq(grid(r).items[2].IconAssetPath, path, 'Ocean Maid: its Image, found through the asset registry')
         end)
         Thumbs.fs.exists = exists
         F.textures = {}
@@ -1626,6 +1719,90 @@ local tests = {
     -- Preview picture: the camera row's last chip (P on the keyboard; on a pad SB's View glyph, held), and the word
     -- picture, take the one whole outfit EVE wears as the screen shows her (thumbs.snap with the camera's shot), tell
     -- it and show it; with pieces or nothing worn they tell why; a failed snap tells it failed.
+    head_rows_read_in_order_with_earrings = function()
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.05, 'tab_right', 'tab_right')
+            local rows = r.kit.live(F.OPTION)
+            table.sort(rows, function(a, c) return a.y < c.y end)
+            local titles = {}
+            for _, row in ipairs(rows) do titles[#titles + 1] = row.o.Text_TitleValue.text end
+            same(titles, {'Face', 'Hair', 'Ponytail', 'Eyes', 'Earrings', 'Glasses', 'Headwear', 'Mask'}, 'head rows')
+        end)
+    end,
+    preview_picture_on_a_head_row_takes_the_worn_piece = function()
+        -- On a head row Preview picture takes the piece EVE wears in that slot, saved as <slot>.png, the picture its
+        -- tile shows: it took the body outfit's full.png (UE4SS.log of 27 Nov 2026, Burnice's hair focused).
+        local Thumbs = require('closet.thumbs')
+        local exists = Thumbs.fs.exists
+        local files = {}
+        Thumbs.fs.exists = function(p) return files[p] == true end
+        local good, why = pcall(function()
+            local snaps = {}
+            local th = {running = function() return false end, clear = function() return true end}
+            th.snap = function(fit, shot, slot)
+                snaps[#snaps + 1] = {fit, shot, slot}
+                return true
+            end
+            local o = heads({{fit = 'p.hair', slots = {'Hair'}}})
+            o.folder, o.thumbs = 'F', th
+            with_aria(function(r)
+                on_hair(r)
+                r.choices = {{fit = MAID}, {fit = 'p.hair', slots = {'Hair'}}} -- A head piece is worn by its slot.
+                at(r, 0.5, 'picture')
+                eq(#snaps, 1, 'a picture taken')
+                eq(snaps[1][1], 'p.hair', 'the worn hair') eq(snaps[1][3], 'Hair', 'saved as its slot\'s picture')
+                r.choices = {{fit = MAID}}
+                at(r, 0.6, 'picture')
+                eq(#snaps, 1, 'no hair worn: no picture') eq(r.told[#r.told], T.en.closet.picture.none, 'told why')
+            end, o)
+        end)
+        Thumbs.fs.exists = exists
+        ok(good, why)
+    end,
+
+    a_new_picture_changes_its_tile_in_place = function()
+        -- A preview picture filled the whole grid again: every slot replayed its spawn animation and some stayed
+        -- see-through (Schizo, 27 Nov 2026). Only the tile whose picture changed gets it, through its data object and
+        -- its shown slot's brush; the grid is not cleared.
+        local Thumbs = require('closet.thumbs')
+        local exists = Thumbs.fs.exists
+        local files = {}
+        Thumbs.fs.exists = function(p) return files[p] == true end
+        local good, why = pcall(function()
+            local th = {running = function() return false end, clear = function() return true end}
+            th.snap = function(fit, _, slot)
+                files[Thumbs.file('F', fit, slot)] = true
+                return true
+            end
+            local o = heads({{fit = 'p.hair', slots = {'Hair'}}})
+            o.folder, o.thumbs = 'F', th
+            with_aria(function(r)
+                on_hair(r)
+                r.choices = {{fit = 'p.hair', slots = {'Hair'}}}
+                at(r, 0.5, 'select')
+                local tv = grid(r)
+                local entries = tv:GetDisplayedEntryWidgets()
+                local cleared = tv.cleared
+                local before = {}
+                for i, item in ipairs(tv.items) do before[i] = item.IconAssetPath end
+                at(r, 0.6, 'picture')
+                tick(r, 1.0)
+                eq(tv.cleared, cleared, 'the grid not cleared')
+                local changed, at_tile = 0, nil
+                for i, item in ipairs(tv.items) do
+                    if item.IconAssetPath ~= before[i] then changed, at_tile = changed + 1, i end
+                end
+                eq(changed, 1, 'one tile changed')
+                local e = entries[at_tile]
+                eq(e.Image_Icon.Brush.ResourceObject:GetFullName():match('^%S+ (.+)$'), tv.items[at_tile].IconAssetPath,
+                    'its shown slot has the new picture')
+            end, o)
+        end)
+        Thumbs.fs.exists = exists
+        ok(good, why)
+    end,
+
     preview_picture_takes_the_worn_outfit = function()
         local Thumbs = require('closet.thumbs')
         local exists = Thumbs.fs.exists
@@ -1648,6 +1825,7 @@ local tests = {
             at(r, 0.6, 'down')
             eq((detail(r)), 'Ocean Maid', 'its row')
             eq(#grid(r).items, 0, 'its new picture in place of the tile')
+            has(r.log, 'imported as', 'the picture\'s import said')
             r.choices = {{fit = MAID, slots = {'Chest'}}}
             at(r, 0.7, 'picture')
             eq(#snaps, 1, 'pieces: no picture') eq(r.told[#r.told], P.none, 'told why')
@@ -1774,7 +1952,7 @@ local tests = {
         eq((detail(r)), 'Kunoichi Shadow', 'its first outfit by name')
     end,
 
-    -- Colour right after Full outfit; Head..Body and Intimate labelled through closet.beta, the others plain.
+    -- Colour right after Full outfit; Torso..Body and Intimate labelled through closet.beta, the others plain.
     fitting_tabs_carry_beta = function()
         local r = rig({adult = true})
         r.menu.open()
@@ -1788,8 +1966,9 @@ local tests = {
             at(r, 0.1, 'tab_right')
         end
         for i, id in ipairs(ids) do eq(seen[i], tab_label(id), 'tab ' .. i .. ' ' .. id) end
-        eq(T.en.closet.beta:format(T.en.closet.tabs.head), 'Head (Beta)', 'the English Beta word')
+        eq(T.en.closet.beta:format(T.en.closet.tabs.torso), 'Torso (Beta)', 'the English Beta word')
         eq(seen[2], T.en.closet.tabs.colour, 'Colour second, not Beta')
+        eq(seen[3], T.en.closet.tabs.head, 'Head plain, out of Beta')
     end,
 
     the_tab_window_follows_the_focus = function()
@@ -1830,7 +2009,7 @@ local tests = {
     -- The Colour tab (after Full outfit): a row for each role of closet/colour.lua, its value the swatch's name. Left,
     -- right, Select and a click on the row pick the swatch; nothing is previewed, so Back asks nothing. The camera
     -- frames her whole body.
-    the_colour_tab_picks_a_swatch_per_role = function()
+    the_colour_tab_turns_roles_on_with_rgb_sliders = function()
         local col, cam = fake_colour(), fake_camera()
         local r = rig({colour = col, camera = cam})
         r.menu.open()
@@ -1862,22 +2041,66 @@ local tests = {
         local hints = {}
         for i, h in ipairs(parts) do hints[i] = h.text end
         same(hints, {T.en.hint.back, T.en.hint.select, T.en.hint.move}, 'Back, Select, Move')
+        local O = T.en.closet.options
+        local function red() return row_value(r, child(1, O.channels.r)) end
+        local all_off = {w.roles.primary .. '=Off', w.roles.secondary .. '=Off', w.roles.accent .. '=Off',
+            w.roles.glow .. '=Off'}
         at(r, 0.5, 'right')
-        eq(rows()[1], w.roles.primary .. '=' .. w.swatches.white, 'right: the next swatch')
+        same(rows(), {w.roles.primary .. '=' .. O.on, w.roles.secondary .. '=Off', w.roles.accent .. '=Off',
+            w.roles.glow .. '=Off'}, 'right: Primary on')
+        eq(#r.kit.live(F.SLIDER), 3, 'its Red, Green and Blue slider rows')
+        eq(red(), '226', 'Red at the default (226)') eq(row_value(r, child(1, O.channels.g)), '226')
+        eq(row_value(r, child(1, O.channels.b)), '226')
+        same(slider(r, child(1, O.channels.r)).o.ItemTextRange, {Min = 0, Max = 255}, 'a slider in 0-255')
+        at(r, 0.5, 'down')
+        title, desc = detail(r)
+        eq(title, O.channels.r, 'the Red row: its detail title has no lead mark')
+        ok(desc:find(w.channel_help, 1, true), desc)
+        parts = {}
+        for _, h in ipairs(r.kit.live(F.HINT)) do
+            local text
+            for _, c in ipairs(h.o.calls) do if c[1] == 'SetText' then text = c[2].text or c[2] end end
+            if h.y == 1990 then parts[#parts + 1] = {x = h.x, text = text} end
+        end
+        table.sort(parts, function(a, b) return a.x > b.x end)
+        hints = {}
+        for i, h in ipairs(parts) do hints[i] = h.text end
+        same(hints, {T.en.hint.back, T.en.closet.hints.change, T.en.hint.move}, 'Back, Change, Move')
+        at(r, 0.5, 'right')
+        eq(red(), '239', 'right: Red one step up')
+        at(r, 0.5, 'left', 'left')
+        eq(red(), '214', 'left twice: one step under the default')
         at(r, 0.5, 'select')
-        eq(rows()[1], w.roles.primary .. '=' .. w.swatches.black, 'Select: the next swatch')
-        at(r, 0.5, 'left')
-        eq(rows()[1], w.roles.primary .. '=' .. w.swatches.white, 'left: the one before')
+        eq(red(), '214', 'Select on a channel changes nothing')
+        at(r, 0.5, 'up', 'select')
+        same(rows(), all_off, 'Select on Primary: off')
+        eq(#r.kit.live(F.SLIDER), 0, 'its sliders gone')
+        at(r, 0.5, 'select')
+        eq(red(), '214', 'on again: the colour kept')
+        at(r, 0.5, 'select')
         at(r, 0.5, 'down', 'left')
-        eq(rows()[2], w.roles.secondary .. '=' .. w.swatches.sand, 'left from Off: the last swatch')
+        eq(rows()[2], w.roles.secondary .. '=' .. O.on, 'left on Secondary: on')
         eq((detail(r)), w.roles.secondary, 'the Secondary row focused')
-        same(col.steps, {'primary 1', 'primary 1', 'primary -1', 'secondary -1'}, 'the steps')
+        same(col.steps, {'primary on', 'primary r 1', 'primary r -1', 'primary r -1', 'primary off', 'primary on',
+            'primary off', 'secondary on'}, 'the calls')
+        -- A click on a channel's slider bar sets it at that place (no options page is open).
+        local View = require('closet.ui.view')
+        local bar = slider(r, child(1, O.channels.r))
+        ok(bar, 'Secondary\'s Red slider row')
+        local zone = r.kit.groups.closet_menu.zones[(bar.y - 300) // 130 + 1]
+        r.kit.pointer = function() return View.SLIDER_X0 + (View.SLIDER_X1 - View.SLIDER_X0) * 0.2, bar.y + 60 end
+        zone.hover = true
+        at(r, 0.55, 'click')
+        zone.hover = false
+        r.kit.pointer = nil
+        eq(row_value(r, child(1, O.channels.r)), '51', 'a click a fifth along the bar: 51 of 255')
+        eq(col.steps[#col.steps], 'secondary r=0.2', 'colour.channel at that place')
         eq(#r.previews, 0, 'nothing previewed')
         tick(r, 0.6)
         eq(cam.ticks[#cam.ticks].region, 'full', 'her whole body framed')
         at(r, 0.7, 'back')
         eq(popups(r), 0, 'no Keep popup') eq(r.menu.is_open(), false, 'closed')
-        eq(col.palette.primary, 'white', 'the palette stays: it is saved apart from the look')
+        eq(col.palette.secondary.on, true, 'the palette stays: it is saved apart from the look')
         -- Without a colour layer the rows show Off and pick nothing.
         r = rig()
         r.menu.open()
@@ -1948,10 +2171,11 @@ local tests = {
         eq(rows()[2]:match('^[^=]+'), w.slots.SkinSuit, 'no layer: no shape row')
     end,
 
-    grid_up_down_walk_rows_of_five = function()
-        -- 9 more outfits with a top: the Top row's grid has 12 tiles (None, Maid, Kunoichi, Top 1-9), 3 rows of 5.
+    grid_up_down_walk_rows_of_four = function()
+        -- 8 more outfits with a top: the Top row's grid has 11 tiles (None, Maid, Kunoichi, Top 1-8), rows of 4
+        -- (View.COLUMNS): 1-4, 5-8 and a shorter last row 9-11.
         local added = {}
-        for i = 1, 9 do
+        for i = 1, 8 do
             local id = 'ZZ_' .. i
             Fits.BY_ID[id] = {Outfit = 'Outfit ' .. i, Pack = 'ZZ', Pieces = {{Slot = 'Chest', Name = 'Top ' .. i}}}
             added[#added + 1] = id
@@ -1962,29 +2186,29 @@ local tests = {
             local tv = grid(r)
             local function on(n, what) eq(tv:GetIndexForItem(tv:BP_GetSelectedItem()) + 1, n, what) end
             at(r, 0.5, 'right', 'right', 'right')
-            eq(#tv.items, 12, 'tiles')
+            eq(#tv.items, 11, 'tiles')
             on(3, 'tile 3')
             at(r, 0.5, 'down')
-            on(8, 'down: tile 8')
+            on(7, 'down: tile 7')
             eq(r.kit.sounds[#r.kit.sounds], 'move', 'move sound')
             at(r, 0.5, 'down')
-            on(12, 'down: tile 12, the last')
+            on(11, 'down: tile 11, the last (its row is short of a tile under 7)')
             at(r, 0.5, 'down')
-            on(12, 'down on the last row stays')
+            on(11, 'down on the last row stays')
             at(r, 0.5, 'up')
             on(7, 'up: tile 7')
             at(r, 0.5, 'up')
-            on(2, 'up: tile 2')
+            on(3, 'up: tile 3')
             at(r, 0.5, 'up')
-            on(2, 'up on the first row stays in the grid')
+            on(3, 'up on the first row stays in the grid')
             ok(r.menu.is_open(), 'open')
             tick(r, 0.8)
-            same(r.previews, {{{fit = MAID, slots = {'Chest'}}}}, 'the tile reached by up and down is previewed')
-            -- Down on the last row, short of its 5th tile, stays: tile 11 has no tile under it.
-            at(r, 1, 'down', 'down', 'left')
-            on(11, 'tile 11, on the last row')
+            same(r.previews, {{{fit = KUNOICHI, slots = {'Chest'}}}}, 'the tile reached by up and down is previewed')
+            -- Tile 8 is over the shorter last row's missing 12th: down takes its last tile.
+            at(r, 1, 'down', 'right')
+            on(8, 'tile 8')
             at(r, 1, 'down')
-            on(11, 'down on the last row stays on tile 11')
+            on(11, 'down to the shorter last row: its last tile')
         end)
         for _, id in ipairs(added) do Fits.BY_ID[id] = nil end
         ok(good, why)
@@ -2636,13 +2860,16 @@ local tests = {
         same(cam.calls, {'open', 'cam_left', 'cam_right', 'cam_up', 'cam_down', 'cam_in', 'cam_out', 'cam_mode',
             'cam_reset', 'light_next', 'light_up', 'light_down'}, 'every camera and light word')
         ok(r.menu.is_open(), 'still open')
+        -- A menu move gives the wheel back to the menu (camera.menu_used); a camera word does not.
+        at(r, 0.15, 'down')
+        eq(cam.calls[#cam.calls], 'menu_used', 'a menu move told')
         -- On the pad, the camera hint row at y 1890 left to right: Preview picture on View (held), the light preset on
         -- L3, the mode on X, Reset on R3.
         r.dev = 3
         tick(r, 0.2)
         local w = T.en.closet
         local function camera_hints() return (camera_row(r)) end
-        same(camera_hints(), {{x = 112, text = w.picture.pad, icon = 'UI_SpecialLeft'},
+        same(camera_hints(), {{x = 112, text = w.picture.pad, icon = 'UI_Scan'},
             {x = 600, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
             {x = 1162, text = w.camera.title:format(w.camera.region), icon = 'UI_FaceButton_Left'},
             {x = 1672, text = w.camera.reset_hint, icon = 'UI_RightThumbstick'}}, 'camera hints')
@@ -2728,7 +2955,7 @@ local tests = {
             r.menu.open()
             local w = T.en.closet
             local parts, texts = camera_row(r)
-            same(parts, {{x = 112, text = w.picture.pad, icon = 'UI_SpecialLeft'},
+            same(parts, {{x = 112, text = w.picture.pad, icon = 'UI_Scan'},
                 {x = 600, text = w.light.title:format(w.light.game), icon = 'UI_LeftThumbstick'},
                 {x = 1162, text = w.camera.title:format(w.camera.region), icon = 'UI_FaceButton_Left'},
                 {x = 1672, text = w.camera.reset_hint, icon = 'UI_RightThumbstick'}}, dev .. ': SB parts')
@@ -2820,7 +3047,12 @@ local tests = {
         local MAPPED = {Negative = true, Positive = true, UI_FaceButton_Top = true, UI_DPad_Up = true,
             UI_DPad_Down = true, UI_LeftShoulder = true, UI_RightShoulder = true}
         local CAMERA = {UI_LeftThumbstick = true, UI_FaceButton_Left = true, UI_RightThumbstick = true,
-            UI_SpecialLeft = true}
+            UI_Scan = true}
+        -- Some of the actions with an entry in SB's /Game/Art/UI/TextureStyleSet/SBCommonBrush, where the hint widget
+        -- reads its icon: an action without one shows the widget's default white circle (btn_ps_00).
+        local BRUSH = {Negative = true, Positive = true, UI_FaceButton_Top = true, UI_FaceButton_Left = true,
+            UI_DPad_Up = true, UI_DPad_Down = true, UI_DPad_Left = true, UI_DPad_Right = true, UI_LeftShoulder = true,
+            UI_RightShoulder = true, UI_LeftThumbstick = true, UI_RightThumbstick = true, UI_Scan = true}
         for _, dev in ipairs({1, 3}) do
             local pad = dev >= 3
             local cam = fake_camera()
@@ -2842,6 +3074,7 @@ local tests = {
                         if c[1] == 'SetText' then text = c[2].text elseif c[1] == 'SetResourceAction' then icon = c[2] end
                     end
                     no_key(text, what .. ' SB part')
+                    ok(BRUSH[icon], what .. ': SB has no icon for ' .. tostring(icon))
                     if pad then ok(MAPPED[icon] or CAMERA[icon], what .. ': pad part ' .. tostring(icon))
                     else ok(MAPPED[icon], what .. ': keyboard part ' .. tostring(icon)) end
                 end
@@ -2928,6 +3161,94 @@ local tests = {
         ok(menu_got.colour == M.closet_colour, 'the menu has the colour layer (its Colour tab)')
         ok(menu_got.shape == M.closet_shape, 'the menu has the shape layer (the Body tab\'s shape rows)')
         ok(menu_got.uidev == M.link.uidev, 'the menu reads SB\'s input device through the link (its prompts follow it)')
+    end,
+
+    the_wiring_gives_the_menu_the_head_part = function()
+        -- In game (27 Nov 2026) the Eyes row opened on Tachy's face: the menu got no head part from closet/wiring.lua.
+        local dress = rig().dress -- First: rig loads the menu again.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.menu', 'closet.wiring'}) do
+            saved[name] = package.loaded[name]
+        end
+        local made
+        package.loaded['closet.dress'] = {new = function(o) made = o.head; return dress end}
+        local menu_got
+        package.loaded['closet.ui.menu'] = {new = function(o) menu_got = o; return {open = function() end} end}
+        package.loaded['closet.wiring'] = nil
+        local W = require('closet.wiring')
+        local M = {print = function() end, kit = F.kit(), words = function() return T.en end, tell = function() end,
+            photo_state = function() return '0' end, closet_thumbs = {run = function() end},
+            closet_colour = fake_colour(), closet_shape = fake_shape(),
+            link = {status = function() return '' end, uidev = function() return 4 end, store = function()
+                return {save = function() return true end, load = function() end, clear = function() end}
+            end}}
+        pcall(W.new, M)
+        local ran, why = pcall(W.build.menu, M)
+        for name, v in pairs(saved) do package.loaded[name] = v end
+        ok(ran, tostring(why))
+        ok(made ~= nil, 'the dress got the head part')
+        ok(menu_got and menu_got.head == made, 'the menu has the same head part')
+    end,
+
+    the_wiring_merges_stock_items = function()
+        -- closet/wiring.lua's scan wrapper: the stock items (Stock.build) join the pack catalogue at Fits.use; a pack
+        -- item with an SB. id is refused with a log line; a failed stock read (items and a why) merges what came back
+        -- and is read again at the next once() in a world.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring', 'closet.packs',
+            'closet.head.stock'}) do saved[name] = package.loaded[name] end
+        package.loaded['closet.dress'] = {new = function()
+            return {tick = function() end, stop = function() end, installed = function() return true end,
+                applied = function() return 0 end, parts = function() return {} end}
+        end}
+        package.loaded['closet.ui.probe'] = {new = function() return {tick = function() end, stop = function() end} end}
+        local Packs = saved['closet.packs'] or require('closet.packs')
+        local function pack(id, extra)
+            local it = {UniqueFitID = id, DisplayName = id, Slot = 'Hair', File = 'P.dekcns.json',
+                Variants = {{Mesh = '/Game/M.M'}}, UserConfigs = {MaterialToggles = {}}}
+            for k, v in pairs(extra or {}) do it[k] = v end
+            return it
+        end
+        package.loaded['closet.packs'] = setmetatable({new = function()
+            return {scan = function() return {b = pack('b'), ['SB.x'] = pack('SB.x')}, {why = 'test'} end}
+        end}, {__index = Packs})
+        local builds, why = 0, 'stock: no table'
+        package.loaded['closet.head.stock'] = {env = function() return {} end, build = function()
+            builds = builds + 1
+            return {['SB.Hair_001'] = pack('SB.Hair_001', {Origin = 'original'})}, why
+        end}
+        package.loaded['closet.wiring'] = nil
+        local Fits = require('closet.fits')
+        local lines = {}
+        local M = {print = function(s) lines[#lines + 1] = s end, guarded = function(_, f, ...) return f(...) end,
+            link = {status = function() return '' end, store = function()
+                return {save = function() return true end, load = function() end, clear = function() end}
+            end}}
+        local ran, err = pcall(function()
+            local commands = require('closet.wiring').new(M)
+            ok(commands.closet('rescan'), 'rescan')
+            ok(Fits.get('SB.Hair_001'), 'the stock item is a fit after the rescan')
+            eq(Fits.get('SB.Hair_001').Origin, 'original')
+            ok(Fits.get('b') and not Fits.get('SB.x'), 'the pack item stays, the SB. pack item is refused')
+            local logged = false
+            for _, l in ipairs(lines) do logged = logged or (l:find('SB.x', 1, true) and l:find('refused', 1, true)) end
+            ok(logged, 'the refusal is logged')
+            eq(builds, 1, 'built once')
+            M.closet_packs.once() -- First call: the scan.
+            eq(builds, 2, 'a failed read is read again by the first scan')
+            M.closet_packs.once()
+            eq(builds, 2, 'not in a world: no new read')
+            M.hud_shown = true
+            why = nil
+            M.closet_packs.once()
+            eq(builds, 3, 'in a world: read again')
+            M.closet_packs.once()
+            eq(builds, 3, 'built: not again')
+            ok(Fits.get('SB.Hair_001'), 'still merged')
+        end)
+        for name, mod in pairs(saved) do package.loaded[name] = mod end
+        Fits.use(nil)
+        ok(ran, tostring(err))
     end,
 
     the_wiring_builds_the_shape_layer = function()
@@ -3027,7 +3348,7 @@ local tests = {
             eq(runs[1], 'dress') eq(runs[2], 'colour', 'the colour tick right after the dress\'s')
             local good, line = commands.closet('colour', 'accent', 'gold', nil, nil, nil)
             ok(good, line)
-            eq(files['coop-closet-colour.txt'], 'accent=gold', 'coop closet colour sets the palette')
+            eq(files['coop-closet-colour.txt'], 'accent=on:0.745,0.456,0.08', 'coop closet colour sets the palette')
             local stop = M.closet_colour.stop
             M.closet_colour.stop = function() runs[#runs + 1] = 'colour stop'; return stop() end
             M.closet.stop()
@@ -3036,6 +3357,43 @@ local tests = {
             ok(stopped, 'coop off stops it')
         end)
         Colour.new = colour_new
+        for name, mod in pairs(saved) do package.loaded[name] = mod end
+        ok(ran, tostring(why))
+    end,
+
+    the_wiring_builds_the_head_part = function()
+        -- closet/wiring.lua's new: the head part (closet/head/wear.lua) given to the dress as o.head, ticked each frame
+        -- right after the dress and before the options layer, stopped by coop off.
+        local saved = {}
+        for _, name in ipairs({'closet.dress', 'closet.ui.probe', 'closet.wiring', 'closet.head.wear'}) do
+            saved[name] = package.loaded[name]
+        end
+        local runs, given = {}, nil
+        local head = {tick = function() runs[#runs + 1] = 'head' end,
+            stop = function() runs[#runs + 1] = 'head stop' end}
+        package.loaded['closet.head.wear'] = {new = function() return head end}
+        package.loaded['closet.dress'] = {new = function(o)
+            given = o.head
+            return {tick = function() runs[#runs + 1] = 'dress' end, stop = function() end,
+                installed = function() return true end, applied = function() return 0 end,
+                parts = function() return {} end}
+        end}
+        package.loaded['closet.ui.probe'] = {new = function() return {tick = function() end, stop = function() end} end}
+        package.loaded['closet.wiring'] = nil
+        local M = {print = function() end, guarded = function(_, f, ...) return f(...) end,
+            link = {status = function() return '' end, store = function()
+                return {save = function() return true end, load = function() end, clear = function() end}
+            end}}
+        local ran, why = pcall(function()
+            require('closet.wiring').new(M)
+            ok(given == head, 'the dress\'s o.head')
+            local tick = M.closet_options.tick
+            M.closet_options.tick = function() runs[#runs + 1] = 'options'; return tick() end
+            M.closet.tick()
+            same({runs[1], runs[2], runs[3]}, {'dress', 'head', 'options'}, 'after the dress, before the options')
+            M.closet.stop()
+            eq(runs[#runs], 'head stop', 'coop off stops it')
+        end)
         for name, mod in pairs(saved) do package.loaded[name] = mod end
         ok(ran, tostring(why))
     end,
@@ -3235,6 +3593,394 @@ local tests = {
             eq(r.options.variant(ARIA), 3, 'Yes: the preset\'s variant kept')
             same(r.options.words(ARIA, 3), {'toggle:4=off'}, 'Yes: its values kept')
         end)
+    end,
+
+    right_on_a_hair_row_opens_its_options = function()
+        with_aria(function(r)
+            on_hair(r)
+            same(menu_hints(r)[3], {T.en.closet.hints.options, 'UI_DPad_Right', 'None'}, 'the Options hint')
+            at(r, 0.5, 'right')
+            same(headers(r), {'Bob'}, 'its name as the header row')
+            eq((detail(r)), T.en.closet.options.variant, 'on its Variant row')
+            local O = T.en.closet.options
+            eq(row_value(r, child(1, T.en.closet.head.colours.RootColor)), O.pack,
+                'its colour row, named from the texts alone')
+            eq(#r.previews, 0, 'worn already: nothing worn')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'right')
+            eq(row_value(r, child(1, 'Root')), T.en.closet.options.pack, "a pack hair's colour: the pack's name")
+        end, heads({{fit = 'p.hair', slots = {'Hair'}}}))
+    end,
+
+    -- The Eyes row (EVE's own eyes, closet/head/stock.lua's SB.Eyes_Own): Right or Select opens its options page with
+    -- no grid; locked with closet.head.eyes_face while the worn face is not hers (closet/head/wear.lua's eyes_locked).
+    eyes_row_opens_its_options_with_no_grid = function()
+        local EYES = 'SB.Eyes_Own'
+        local function eyes_o(locked)
+            local o = heads()
+            local controls = {MaterialToggles = {}, VectorControls = {{DisplayName = 'Iris colour',
+                ParamName = 'IrisHueTint', MaterialIndex = 4, Value = {0.2, 0.4, 0.8, 1}}},
+                ScalarControls = {{DisplayName = 'IrisBrightness', ParamName = 'IrisBrightness', MaterialIndex = 4,
+                    Value = 1, Min = 0, Max = 2}}}
+            o.catalogue[EYES] = {UniqueFitID = EYES, Slot = 'Eyes', Origin = 'original', DisplayName = 'Eyes_Own',
+                HidePonytail = false, Mesh = '', Variants = {{Mesh = '', Materials = {}, UserConfigs = controls}},
+                UserConfigs = controls, PieceHints = {}}
+            o.head = {eyes_locked = function(face) o.asked = face or 'none'; return locked end}
+            return o
+        end
+        local function on_eyes(r)
+            on_hair(r)
+            at(r, 0.1, 'down', 'down')
+            eq((detail(r)), 'Eyes', 'on the Eyes row')
+        end
+        for _, word in ipairs({'right', 'select'}) do
+            with_aria(function(r)
+                on_eyes(r)
+                same(menu_hints(r)[2], {T.en.closet.hints.options, 'UI_DPad_Right', 'None'}, 'the Options hint')
+                at(r, 0.5, word)
+                same(headers(r), {T.en.closet.head.eyes_own}, word .. ': its page, named from the texts')
+                eq(#grid(r).items, 0, word .. ': no grid')
+                eq(r.previews[#r.previews][1].fit, EYES, word .. ': the own eyes worn for the page')
+                local all = {}
+                for _, rec in ipairs(r.kit.live(F.OPTION)) do all[#all + 1] = rec.o.Text_TitleValue.text end
+                for _, rec in ipairs(r.kit.live(F.SLIDER)) do all[#all + 1] = rec.o.TextTitleValue.text end
+                all = table.concat(all, '|')
+                ok(all:find(T.en.closet.head.colours.IrisHueTint, 1, true), 'iris colour named: ' .. all)
+                ok(all:find(T.en.closet.head.params.IrisBrightness, 1, true), 'iris brightness named: ' .. all)
+            end, eyes_o(false))
+        end
+        -- The worn face reaches the head part: a pack face is its id.
+        local o = eyes_o(false)
+        o.catalogue['p.face'] = head_item('Face', 'p.face', 'Pack face', 'custom')
+        o.before = function(r) r.choices = {{fit = 'p.face', slots = {'Face'}}} end
+        with_aria(function(r)
+            on_eyes(r)
+            at(r, 0.5, 'right')
+            eq(o.asked, 'p.face', 'eyes_locked asked with the face worn')
+        end, o)
+        for _, word in ipairs({'right', 'select'}) do
+            with_aria(function(r)
+                on_eyes(r)
+                local _, desc = detail(r)
+                ok(desc:find(T.en.closet.head.eyes_face, 1, true), 'locked: the text: ' .. desc)
+                eq(menu_hints(r)[2] and menu_hints(r)[2][1] ~= T.en.closet.hints.options, true, 'no Options hint')
+                at(r, 0.5, word)
+                eq(#headers(r), 0, word .. ': no page')
+                eq(#r.previews, 0, word .. ': a locked Eyes choice is never sent')
+                eq(#grid(r).items, 0, word .. ': no grid')
+            end, eyes_o(true))
+        end
+    end,
+
+    a_face_known_to_be_on_another_rig_shows_the_note = function()
+        local o = heads()
+        o.catalogue['p.face'] = head_item('Face', 'p.face', 'Pack face', 'custom')
+        o.catalogue['q.face'] = head_item('Face', 'q.face', 'Quick face', 'custom')
+        o.head = {eyes_locked = function() return false end, foreign_faces = function() return {['p.face'] = true} end}
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'tab_right', 'tab_right', 'select') -- The Face row's grid: Game's own first.
+            local names = {}
+            for _, item in ipairs(grid(r).items) do names[#names + 1] = item.ItemName.text end
+            same(names, {T.en.closet.head.own, 'Pack face', 'Quick face'}, "Game's own first, then the packs")
+            at(r, 0.1, 'right')
+            local _, desc = detail(r)
+            ok(desc:find(T.en.closet.head.face_rig, 1, true), 'the foreign face: the note: ' .. desc)
+            at(r, 0.1, 'right')
+            _, desc = detail(r)
+            ok(not desc:find(T.en.closet.head.face_rig, 1, true), 'another face: no note')
+        end, o)
+    end,
+
+    the_row_lets_go_of_its_highlight_in_the_grid = function()
+        -- In the grid the focused tile is the only highlight: the row's white box went on showing focus, so a move
+        -- into the grid changed nothing on screen (Schizo's screenshot, 27 Nov 2026). Back on the rows it is focused.
+        with_aria(function(r)
+            on_hair(r)
+            local function hair_look()
+                for _, rec in ipairs(r.kit.live(F.OPTION)) do
+                    if rec.o.Text_TitleValue.text == 'Hair' then
+                        local last
+                        for _, c in ipairs(rec.o.calls) do if c[1] == 'EventNotification' then last = c[2] end end
+                        return last
+                    end
+                end
+            end
+            eq(hair_look(), 'StateFocus', 'on the rows: the Hair row focused')
+            at(r, 0.5, 'select')
+            eq(hair_look(), 'StateNormal', 'in the grid: the row lets go')
+            at(r, 0.5, 'back')
+            eq(hair_look(), 'StateFocus', 'back on the rows: focused again')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    each_ponytail_has_its_own_glyph = function()
+        -- The ponytail tiles all showed one glyph (Schizo, 27 Nov 2026): Long, Short and No ponytail have their own
+        -- (closet/ui/icons/ponytail_long, _short, _none); a pack ponytail shows the slot's.
+        local o = heads()
+        o.catalogue[TAIL].Glyph = 'ponytail_long'
+        o.catalogue['SB.Ponytail_None'].Glyph = 'ponytail_none'
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'select') -- The Ponytail row, its grid.
+            local tv = grid(r)
+            local by = {}
+            for _, item in ipairs(tv.items) do by[item.ItemName.text] = item.IconAssetPath end
+            local w = T.en.closet.head
+            eq(by[w.no_ponytail], F.path('ponytail_none'), 'No ponytail')
+            eq(by['Pack tail'], F.path('ponytail'), 'a pack ponytail: the slot\'s glyph')
+            local long
+            for name, path in pairs(by) do if path == F.path('ponytail_long') then long = name end end
+            ok(long, 'the long ponytail shows its own glyph')
+        end, o)
+    end,
+
+    custom_head_pictures_shrink_to_the_stock_icon_size = function()
+        -- A pack piece's picture shows on a head row: it filled its whole tile, past the frame, beside the game's hair
+        -- icons (Schizo's screenshots of 27 Nov 2026). Its icon is drawn at View.PICTURE_SCALE; a stock piece's at 1.
+        local View = require('closet.ui.view')
+        local o = heads()
+        o.catalogue['p.hair'].Image = '/Game/P/Portrait.Portrait'
+        o.catalogue[HAIR].Image = '/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_001.Deco_Item_Hair_001'
+        F.textures['/Game/P/Portrait.Portrait'] = true
+        F.textures['/Game/Art/UI/Texture/Hair/HairIcon/Deco_Item_Hair_001.Deco_Item_Hair_001'] = true
+        local good, why = pcall(with_aria, function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            tv:GetDisplayedEntryWidgets() -- Slate builds the shown entries.
+            tick(r, 0.6)
+            local by = {}
+            for _, e in pairs(tv.entries) do by[e.Data.ItemName.text] = e end
+            ok(by['Pack hair'].Data.IconAssetPath ~= F.path('hair'), 'the pack hair shows its picture, not the glyph')
+            eq(by['Pack hair'].Image_Icon.RenderTransform.Scale.X, View.PICTURE_SCALE, 'drawn small')
+            eq(by.Bob.Image_Icon.RenderTransform.Scale.X, 1, 'the stock hair\'s icon at full size')
+            has(r.log, 'set by brush', 'a tile set by brush said')
+        end, o)
+        F.textures = {}
+        ok(good, why)
+    end,
+
+    a_preview_in_the_grid_moves_the_equipped_mark_in_place = function()
+        -- Each move in the grid previews its tile (closet/ui/menu.lua's PREVIEW s), which moves the equipped mark:
+        -- the grid was cleared and filled again for it, so the tiles blinked as they were built anew (Schizo's
+        -- video of 27 Nov 2026). Only the mark changes now, through each shown slot's UpdateEquip.
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            tv:GetDisplayedEntryWidgets() -- Slate builds the shown entries.
+            local cleared = tv.cleared
+            at(r, 0.6, 'right')
+            tick(r, 1.2) -- The preview wears the next tile: the mark moves to it.
+            eq(tv.cleared, cleared, 'the grid not cleared')
+            local moved = false
+            for _, e in pairs(tv.entries) do if #e.equips > 0 then moved = true end end
+            ok(moved, 'UpdateEquip on the shown slots')
+            eq(tv.items[3].Equiped, true, 'the data object marked equipped')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    head_options_rows_name_the_setting_alone = function()
+        -- A head piece's colour and number rows name the setting alone ("Number: Brightness" crowded them,
+        -- Schizo's screenshot of 27 Nov 2026); a stock hair's names come from the texts.
+        local o = heads({{fit = HAIR, slots = {'Hair'}}})
+        for _, v in ipairs(o.catalogue[HAIR].Variants) do
+            v.UserConfigs.ScalarControls = {{DisplayName = 'Brightness', ParamName = 'Brightness', MaterialIndex = 0,
+                Value = 0.7, Min = 0, Max = 1.4}}
+        end
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'right') -- The worn hair's options page.
+            local titles = {}
+            for _, rec in ipairs(r.kit.live(F.OPTION)) do titles[#titles + 1] = rec.o.Text_TitleValue.text end
+            for _, rec in ipairs(r.kit.live(F.SLIDER)) do titles[#titles + 1] = rec.o.TextTitleValue.text end
+            local all = table.concat(titles, '|')
+            ok(all:find(child(2, T.en.closet.head.params.Brightness), 1, true) or
+                all:find(child(1, T.en.closet.head.params.Brightness), 1, true), 'Brightness by name: ' .. all)
+            ok(not all:find(T.en.closet.options.kinds.number, 1, true), 'no Number prefix: ' .. all)
+            ok(not all:find(T.en.closet.options.kinds.colour .. ':', 1, true), 'no Colour prefix: ' .. all)
+        end, o)
+    end,
+
+    a_tile_left_mid_spawn_animation_is_shown = function()
+        -- WB_HairSalon_GridSlot's ListSpawn fades its SizeBox_20 in (RenderOpacity from 0) and slides it; a slot the
+        -- TileView took back mid-animation as the grid scrolled stayed see-through, frame and all (Schizo's screenshot
+        -- of 27 Nov 2026). After a fill or a move in the grid each shown slot with no animation playing is shown whole.
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            local entries = tv:GetDisplayedEntryWidgets()
+            entries[2].SizeBox_20.RenderOpacity, entries[2].SizeBox_20.translation = 0, {X = 0, Y = 40}
+            entries[3].SizeBox_20.RenderOpacity, entries[3].playing = 0.2, true
+            at(r, 0.6, 'right')
+            tick(r, 1.0)
+            eq(entries[2].SizeBox_20.RenderOpacity, 1, 'the stuck slot shown')
+            same(entries[2].SizeBox_20.translation, {X = 0, Y = 0}, 'back in place')
+            eq(entries[3].SizeBox_20.RenderOpacity, 0.2, 'a slot still animating left to its animation')
+            has(r.log, 'mid spawn animation', 'said')
+            -- A slot left Hidden on two looks in a row takes the other slots' visibility (a missing earring tile,
+            -- 27 Nov 2026); one Hidden for a single look is left to the grid.
+            entries[1].Visibility = 2
+            tick(r, 1.3)
+            eq(entries[1].Visibility, 2, 'hidden for one look: left alone')
+            tick(r, 1.56)
+            eq(entries[1].Visibility, 4, 'hidden for two looks: shown as the others')
+            has(r.log, 'stayed hidden', 'said')
+            -- The slot widget itself left see-through (a whole hair tile hidden with SizeBox_20 whole, 27 Nov 2026).
+            entries[1].RenderOpacity = 0
+            at(r, 1.7, 'right')
+            tick(r, 2.0)
+            eq(entries[1].RenderOpacity, 1, 'the see-through slot shown')
+            -- The slot itself slid or shrunk (three earring tiles were gaps, every slot visible, 27 Nov 2026).
+            entries[3].playing = false
+            entries[3].RenderTransform = {Translation = {X = 0, Y = 300}, Scale = {X = 0, Y = 0}}
+            at(r, 2.05, 'left')
+            tick(r, 2.08)
+            same(entries[3].RenderTransform.Translation, {X = 0, Y = 0}, 'the slid slot back in place')
+            eq(entries[3].RenderTransform.Scale.X, 1, 'the shrunk slot full size')
+            -- A refused call never stops the glyph look; it is said once.
+            entries[2].SizeBox_20.RenderOpacity = 0
+            entries[2].SizeBox_20.SetRenderOpacity = 7
+            at(r, 2.1, 'left')
+            tick(r, 2.4)
+            has(r.log, 'could not be shown', 'a refusal said')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    the_grid_scrolls_to_the_focused_tile = function()
+        -- 13 hair tiles in rows of 4 (in game only two rows showed and the focus ran off them, Schizo, 27 Nov 2026):
+        -- each move asks the TileView to bring the focused tile into view.
+        local o = heads()
+        for i = 1, 10 do
+            local id = ('p.hair%02d'):format(i)
+            o.catalogue[id] = head_item('Hair', id, ('Pack hair %02d'):format(i), 'custom')
+        end
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            ok(#tv.items >= 13, 'at least 13 tiles: ' .. #tv.items)
+            eq(tv.scrolled, 0, 'Game\'s own in view')
+            at(r, 0.5, 'down', 'down', 'down')
+            eq(tv:BP_GetSelectedItem(), tv.items[13], 'down three rows of 4: the 13th tile')
+            eq(tv.scrolled, 12, 'scrolled to it')
+            at(r, 0.5, 'up')
+            eq(tv.scrolled, 8, 'up: scrolled back to the 9th tile')
+        end, o)
+    end,
+
+    select_on_a_hair_row_opens_the_grid = function()
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select')
+            local tv = grid(r)
+            eq(tv.items[1].ItemName.text, T.en.closet.head.own, 'None reads Game\'s own')
+            eq(tv:BP_GetSelectedItem(), tv.items[2], 'the worn tile focused')
+            eq((detail(r)), 'Bob', 'its tile')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    right_on_a_hair_row_with_nothing_worn_opens_the_grid = function()
+        with_aria(function(r)
+            on_hair(r)
+            eq((select(2, detail(r))), '', 'her own hair: no detail')
+            eq(row_value(r, 'Hair'), T.en.closet.head.own, 'the row reads Game\'s own')
+            at(r, 0.5, 'right')
+            eq((detail(r)), T.en.closet.head.own, 'the grid, on Game\'s own')
+        end, heads())
+    end,
+
+    the_ponytail_row_follows_a_stock_hair = function()
+        -- A stock ponytail worn with a stock hair takes the hair's colours: Right opens the grid. With a pack hair
+        -- it has its own options page.
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down')
+            eq((detail(r)), 'Ponytail', 'on the Ponytail row')
+            eq(row_value(r, 'Ponytail'), fit(T.en.closet.head.long_ponytail), 'its name from the texts, not its row')
+            at(r, 0.6, 'right')
+            eq((detail(r)), T.en.closet.head.long_ponytail, 'the grid, on the worn tile')
+            eq(headers(r)[1], nil, 'no options page')
+            local tv = grid(r)
+            eq(tv.items[3].ItemName.text, T.en.closet.head.no_ponytail, 'the No ponytail tile')
+        end, heads({{fit = HAIR, slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}}))
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'right')
+            same(headers(r), {'Long ponytail'}, 'with a pack hair: its own page')
+        end, heads({{fit = 'p.hair', slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}}))
+    end,
+
+    the_ponytail_row_under_a_cut_hair_has_its_own_page = function()
+        -- A stock hair with no colour controls (a cut hair): the stock ponytail keeps its own colours (Fits.follows),
+        -- so Right opens its page.
+        local o = heads({{fit = 'SB.Hair_024', slots = {'Hair'}}, {fit = TAIL, slots = {'Ponytail'}}})
+        local cut = head_item('Hair', 'SB.Hair_024', 'Cut', 'original')
+        cut.Variants = {cut.Variants[1]}
+        cut.Variants[1].UserConfigs = {}
+        o.catalogue['SB.Hair_024'] = cut
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'right')
+            same(headers(r), {'Long ponytail'}, 'its own page')
+        end, o)
+    end,
+
+    a_pack_ponytail_says_pack_hairs_carry_their_own = function()
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'down', 'select', 'right', 'right', 'right')
+            local title, desc = detail(r)
+            eq(title, 'Pack tail', 'the pack ponytail tile')
+            ok(desc:find(T.en.closet.head.pack_ponytail, 1, true), 'its line: ' .. desc)
+            at(r, 0.6, 'left')
+            ok(not select(2, detail(r)):find(T.en.closet.head.pack_ponytail, 1, true), 'not on a stock tile')
+        end, heads())
+    end,
+
+    a_hair_tile_wears_beside_the_suit = function()
+        with_aria(function(r)
+            on_hair(r)
+            at(r, 0.5, 'select', 'right', 'select')
+            same(r.previews[1], {{fit = MAID}, {fit = HAIR, slots = {'Hair'}}}, 'the suit stays on')
+        end, heads({{fit = MAID}}))
+    end,
+
+    refresh_on_a_head_tile_wears_nothing = function()
+        with_aria(function(r)
+            on_hair(r)
+            for _, h in ipairs(menu_hints(r)) do ok(h[1] ~= T.en.closet.hints.whole, 'no Whole outfit hint') end
+            at(r, 0.5, 'refresh', 'select', 'right', 'refresh')
+            eq((detail(r)), 'Pack hair', 'on a tile')
+            for _, h in ipairs(menu_hints(r)) do ok(h[1] ~= T.en.closet.hints.whole, 'no Whole outfit hint') end
+            eq(#r.previews, 0, 'nothing worn')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    wearing_a_whole_suit_keeps_the_hair = function()
+        with_aria(function(r)
+            r.menu.open()
+            eq((detail(r)), 'Aria', 'the Full tab')
+            at(r, 0.5, 'right') -- Its options page: worn whole first.
+            same(r.previews[1], {{fit = ARIA}, {fit = HAIR, slots = {'Hair'}}}, 'right: the hair stays')
+            at(r, 0.6, 'back', 'refresh')
+            same(r.previews[2], {{fit = ARIA}, {fit = HAIR, slots = {'Hair'}}}, 'refresh: the hair stays')
+        end, heads({{fit = HAIR, slots = {'Hair'}}}))
+    end,
+
+    preview_picture_ignores_the_hair = function()
+        local snaps = {}
+        with_aria(function(r)
+            r.menu.open()
+            at(r, 0.5, 'picture')
+            eq(snaps[1], MAID, 'the suit\'s picture')
+            eq(r.told[#r.told], T.en.closet.picture.saved:format('Ocean Maid'), 'told')
+        end, heads({{fit = MAID}, {fit = HAIR, slots = {'Hair'}}}, {thumbs = {running = function() return false end,
+            snap = function(fit) snaps[#snaps + 1] = fit; return true end}}))
     end,
 }
 

@@ -21,6 +21,13 @@ local function suit(id)
             {DisplayName = 'Boots', MaterialIndex = 4, Value = true}},
             VectorControls = {{DisplayName = 'Tint', MaterialIndex = 3, ParamName = 'Tint', Value = {1, 1, 1, 1}}}}}
 end
+local function hair(id, slot)
+    return {UniqueFitID = id, DisplayName = id, Slot = slot or 'Hair', File = '~mods\\H\\h.dekcns.json',
+        Variants = {{Mesh = '/Game/H/V1.V1', HiddenMats = {}, Materials = {}, Parameters = {}},
+            {Mesh = '/Game/H/V2.V2', HiddenMats = {}, Materials = {}, Parameters = {}}},
+        PieceHints = {}, UserConfigs = {MaterialToggles = {}, VectorControls = {
+            {DisplayName = 'Tint', MaterialIndex = 3, ParamName = 'Tint', Value = {1, 1, 1, 1}}}}}
+end
 local function store()
     local s = {}
     s.save = function(l) s.file = l; return true end
@@ -102,6 +109,54 @@ run('presets', {
             eq(r.options.variant('s'), 1, 'the variant from before')
             same(r.options.words('s', 2), before, 'the values from before')
             eq(r.options.get('s', 2, 'toggle:4'), true, 'not the preset\'s value')
+        end)
+    end,
+    -- A preset keeps the worn hair as extra items: its slot, variant and values come back with the suit.
+    a_preset_keeps_the_hair = function()
+        with_suit(function()
+            Fits.use({s = suit('s'), h = hair('h')})
+            local r = rig()
+            r.choices = {{fit = 's'}, {fit = 'h', slots = {'Hair'}}}
+            r.options.set_variant('h', 2)
+            r.options.set('h', 2, 'colour:1', {R = 0.5, G = 0.25, B = 1, A = 1, custom = true})
+            eq(r.p.save(), 1, 'saved with the hair')
+            ok(r.pstore.file:find('1 head h Hair 2', 1, true), 'the head item: ' .. r.pstore.file)
+            ok(r.pstore.file:find('1 h:h colour:1=', 1, true), 'the hair value: ' .. r.pstore.file)
+            r.options.reset('h')
+            r.choices = {{fit = 't'}}
+            local p = r.new()
+            ok(p.wear(1))
+            same(r.worn[#r.worn], {{fit = 's'}, {fit = 'h', slots = {'Hair'}}}, 'the suit and the hair put')
+            eq(r.options.variant('h'), 2, 'its variant')
+            same(r.options.get('h', 2, 'colour:1'), {R = 0.5, G = 0.25, B = 1, A = 1, custom = true}, 'its colour')
+            -- A hair pack removed: the suit still wears.
+            Fits.use({s = suit('s')})
+            ok(r.new().wear(1)) same(r.worn[#r.worn], {{fit = 's'}}, 'the gone hair left out')
+            -- Head choices alone are no outfit.
+            r.choices = {{fit = 'h', slots = {'Hair'}}}
+            eq((r.p.save()), nil, 'no suit: no preset')
+        end)
+    end,
+    an_old_preset_leaves_the_worn_hair_alone = function()
+        with_suit(function()
+            Fits.use({s = suit('s'), h = hair('h')})
+            local r = rig()
+            r.p.save()
+            ok(not r.pstore.file:find('head', 1, true), 'no head item with no hair worn')
+            r.choices = {{fit = 'h', slots = {'Hair'}}}
+            ok(r.p.wear(1))
+            same(r.worn[#r.worn], {{fit = 's'}, {fit = 'h', slots = {'Hair'}}}, 'the worn hair stays')
+        end)
+    end,
+    an_old_file_still_reads = function()
+        with_suit(function()
+            local r = rig()
+            r.pstore.file = 'fav s	1 s 2	1 name=Old	1 toggle:4=0'
+            r.p = r.new()
+            local list = r.p.list()
+            eq(#list, 1, 'read') eq(list[1].variant, 2, 'variant') eq(list[1].name, 'Old', 'name')
+            r.p.rename(1, 'New')
+            ok(r.pstore.file:find('1 s 2', 1, true) and not r.pstore.file:find('head', 1, true), r.pstore.file)
         end)
     end,
     save_needs_one_whole_outfit = function()
