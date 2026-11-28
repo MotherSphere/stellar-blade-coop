@@ -316,6 +316,9 @@ function Head.new(o)
     -- physics=, cloth=, rotation=, visible=, put=, count=, key=}>}. eve_path: the EVE they are on.
     local parts,eve_path={},nil
     local list={} -- The choices worn.
+    -- The worn suit's row says bUseHidePonytail (the Bayonetta suits, probe 9): the game hides her ponytail under
+    -- it.
+    local hide_pony=false
     local due,wrong,fights,stopped,applied=0,0,{},false,0
     local said={} -- Variant materials that did not load, said once.
     local unworn={} -- 'fit:slot' -> slot: the choices of list the last wear left off (plan's skipped).
@@ -370,6 +373,8 @@ function Head.new(o)
         elseif pony or hair then
             if pony or hair.f.HidePonytail or not stock_hair then out[PONY]={hide=true,cloth=collision} end
         end
+        -- Under a suit that hides the ponytail only a ponytail picked on purpose shows.
+        if hide_pony and not got.Ponytail then out[PONY]={hide=true,cloth=collision} end
         if out[PONY] then out[SHORT]={hide=true} end
         local own={face and {face,'Face',FACE} or false,ear and {ear,'EarringL',ACC1} or false}
         for _,n in ipairs({'Glasses','Headwear','Mask'}) do own[#own+1]=got[n] and {got[n],n,n} or false end
@@ -620,22 +625,24 @@ function Head.new(o)
         return table.concat(f,'|')
     end
 
-    -- list: {{fit=, slot=}}; {} gives her own head back. The same list again changes nothing.
-    function self.wear(choices)
-        local before=list
+    -- list: {{fit=, slot=}}; {} gives her own head back. The same list again changes nothing. opts: {hide_ponytail=
+    -- true} under a suit whose row hides the ponytail (closet/dress.lua's body fit).
+    function self.wear(choices,opts)
+        local before,hid=list,hide_pony
         local function words(l)
             local w={}
             for _,c in ipairs(l) do w[#w+1]=c.fit..':'..c.slot end
             return table.concat(w,' ')
         end
         list=choices or {}
+        hide_pony=opts~=nil and opts.hide_ponytail==true
         -- A new list starts the fight count again; the dress's mix again with the same list does not.
-        if words(list)~=words(before) then stopped,fights,wrong=false,{},0 end
-        if #list==0 then return self.give_back() end
+        if words(list)~=words(before) or hide_pony~=hid then stopped,fights,wrong=false,{},0 end
+        if #list==0 and not hide_pony then return self.give_back() end
         local eve=her()
-        if not eve then list=before; return nil,'no EVE in the world' end
+        if not eve then list,hide_pony=before,hid; return nil,'no EVE in the world' end
         local ok,changed=dress_up(eve,nil,true)
-        if not ok then list=before; return nil,changed end
+        if not ok then list,hide_pony=before,hid; return nil,changed end
         if changed then applied=applied+1 end
         return true
     end
@@ -843,7 +850,7 @@ function Head.new(o)
     end
     function self.stop()
         self.give_back()
-        list,stopped={},false
+        list,stopped,hide_pony={},false,false
     end
     function self.applied() return applied end
     function self.worn()

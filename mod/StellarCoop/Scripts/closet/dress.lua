@@ -534,7 +534,10 @@ function Dress.new(o)
         if saved==false then state=prev; return nil,'coop-closet.txt not written: '..tostring(e) end
         -- The head first: a head piece that does not load changes nothing. The file goes back to the old look (restore
         -- keeps the kept line it tries again).
-        local headed,why_not=head.wear(plan.head)
+        -- A suit whose row hides the ponytail (the Bayonetta suits' bUseHidePonytail, probe 9) hides it, as the game
+        -- does.
+        local suit=plan.body and fits.get(plan.body.fit)
+        local headed,why_not=head.wear(plan.head,{hide_ponytail=suit~=nil and suit.HidePonytail==true})
         if not headed then
             state=prev
             if prev or not restoring then keep() end

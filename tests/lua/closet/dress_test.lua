@@ -162,7 +162,10 @@ end
 local HAIR = '/Game/H/Hair.Hair'
 local function fake_head()
     local h = {worn = {}, restored = {}, gave_back = 0, out = 'x', stops = 0}
-    function h.wear(list) h.worn[#h.worn + 1] = list; if h.fail then return nil, h.fail end return true end
+    function h.wear(list, opts)
+        h.worn[#h.worn + 1] = list; h.opts = opts
+        if h.fail then return nil, h.fail end return true
+    end
     function h.line() return h.out end
     function h.restore(field) h.restored[#h.restored + 1] = field == nil and 'nil' or field end
     function h.give_back() h.gave_back = h.gave_back + 1; return true end
@@ -1330,6 +1333,16 @@ local tests = {
             eq(w.eve.Mesh.SkeletalMesh.path, PV1) eq(#w.eve.comps, 1) eq(#fields(w.file), 5, 'five fields')
             assert(w.d.wear(HAIR_ONLY))
             eq(w.eve.Mesh.SkeletalMesh.path, OWN, 'a hair-only look after a suit: her own body back')
+        end)
+    end,
+    a_suit_that_hides_the_ponytail_tells_the_head_part = function()
+        -- The Bayonetta suits' rows say bUseHidePonytail (probe 9, 27 Nov 2026).
+        with_head(function(w, h, d)
+            assert(d.wear({{fit = 'p.suit'}}))
+            eq(h.opts and h.opts.hide_ponytail, false, 'a suit without the flag')
+            require('closet.fits').PACKS['p.suit'].HidePonytail = true
+            assert(d.wear({{fit = 'p.suit'}, {fit = 'h.hair'}}))
+            eq(h.opts and h.opts.hide_ponytail, true, 'a suit with the flag')
         end)
     end,
     head_meshes_never_enter_the_sweep = function()

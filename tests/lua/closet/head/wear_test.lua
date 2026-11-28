@@ -330,9 +330,9 @@ local function world(o)
         paused = function() return w.paused end, clock = function() return w.now end,
         tell = function(build) w.told[#w.told + 1] = build(words) end})
     -- closet/dress.lua's order: the file first (field 6), then the head part's wear, then the file again (the marks).
-    function w.wear(list)
+    function w.wear(list, opts)
         w.file = w.head.line(); said('save')
-        local good, why = w.head.wear(list)
+        local good, why = w.head.wear(list, opts)
         if good then w.file = w.head.line(); said('save') end
         return good, why
     end
@@ -448,6 +448,19 @@ local tests = {
         eq(w.eve.pony.visible, true, 'the picked ponytail shows') eq(w.eve.short.visible, false, 'only one')
         eq(w.eve.pony.SkeletalMesh, pony2, 'long, as picked')
         ok(since(n):find('SBPonytail material 0 MI_H07_Tail_TypeA', 1, true), 'its own colour: ' .. since(n))
+    end,
+
+    a_suit_that_hides_the_ponytail_hides_it = function()
+        -- The Bayonetta suits' rows say bUseHidePonytail (probe 9, 27 Nov 2026): the game hides her ponytail under them.
+        local w = world()
+        ok(w.wear({}, {hide_ponytail = true}))
+        eq(w.eve.pony.visible, false, 'hidden under the suit with her own hair')
+        ok(w.wear({hair('SB.Hair_001')}, {hide_ponytail = true}))
+        eq(w.eve.pony.visible, false, 'a stock hair brings no ponytail under it')
+        ok(w.wear({hair('SB.Hair_001'), tail('SB.Ponytail_Long')}, {hide_ponytail = true}))
+        eq(w.eve.pony.visible, true, 'a ponytail picked on purpose shows')
+        ok(w.wear({}))
+        eq(w.eve.pony.visible, true, 'off the suit: her own ponytail again')
     end,
 
     no_ponytail_hides_it = function()
