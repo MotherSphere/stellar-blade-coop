@@ -356,6 +356,12 @@ function Dress.new(o)
     -- keeps five fields.
     local head=o.head or {wear=function() return true end,line=function() end,restore=function() end,
         give_back=function() return true end,parts=function() return {} end,tick=function() end,stop=function() end}
+    -- The hairpin part (closet/pin.lua): fit after each body mesh put on, give_back after her own is back. None: no-op.
+    local pin=o.pin or {fit=function() end,give_back=function() end}
+    local function pinned(f,...)
+        local ran,e=pcall(f,...)
+        if not ran then log('hairpin: '..tostring(e)) end
+    end
     local self={}
     local state -- While a mix is on: {plan=, eve_path=, own=<mesh path>, materials=<line>, added={c,count,show},
                 -- count=, paused=, wrong=}
@@ -470,6 +476,7 @@ function Dress.new(o)
                     if m then pcall(function() body:SetMaterial(tonumber(slot),m) end) end
                 end
                 for lod=0,lods(body)-1 do pcall(function() body:ShowAllMaterialSections(lod) end) end
+                pinned(pin.give_back,body)
             end
         end
         return removed
@@ -536,6 +543,7 @@ function Dress.new(o)
         local mats,count=own_materials(body_mesh)
         if plan.body.whole then plan.body.show=Fits.shows(plan.body.whole,count) end
         body:SetSkeletalMesh(body_mesh,true)
+        pinned(pin.fit,eve,body,own and own~='' and resolve(own) or nil)
         for i=0,count-1 do
             if mats[i] then pcall(function() body:SetMaterial(i,mats[i]) end) end
         end
@@ -973,6 +981,8 @@ function Dress.new(o)
             or state.paused and ', paused (a game look is on)' or '')
     end
     function self.worn() return state~=nil end
+    -- Her own body mesh path that off gives back, or nil with nothing worn (probe 10 reads its SC_HairACC).
+    function self.own() return state and state.own or nil end
     -- The plan on EVE now (Dress.plan's, the preview's or the confirmed look's), or nil: the menu shows its body and
     -- its switched and clips.
     function self.plan() return state and state.plan end

@@ -54,6 +54,7 @@ local function rig(tests, kit)
         clock = function() return r.now end, tests = tests, find = function(path) return r.found[path] end,
         world = function() return r.world end, stock = function() return r.stock() end,
         eve = function() return r.eve end, controller = function() return r.pc end,
+        own = function() return r.own end,
         resolve = function(path) return r.resolved and r.resolved[path] end,
         construct = function(class, outer)
             local item = {class = class, outer = outer, IsValid = function(self) return not self.lost end}
@@ -636,6 +637,38 @@ local tests = {
         ok(not has(r, 'group MG_H'), 'no hair group')
         ok(has(r, 'probe: END 9 3/3'))
     end,
+    test10_notes_the_hairpin_and_both_bodies_sockets = function()
+        local r = rig()
+        local function t() return 'UObject' end -- U.valid reads type(), as UE4SS objects have it.
+        local pin = uobj('ACC_HairPin', {type = t, GetFName = function() return 'ACC_HairPin' end, bVisible = true,
+            bHiddenInGame = false, GetAttachSocketName = function() return 'SC_HairACC' end,
+            GetAttachParent = function()
+                return uobj('CharacterMesh0', {GetFName = function() return 'CharacterMesh0' end})
+            end,
+            RelativeLocation = {X = 0, Y = 0, Z = 0}, RelativeRotation = {Pitch = 0, Yaw = 0, Roll = 0},
+            RelativeScale3D = {X = 1, Y = 1, Z = 1},
+            K2_GetComponentLocation = function() return {X = 0, Y = 0, Z = 0} end})
+        local worn = uobj('/Game/P/V1.V1')
+        local body = uobj('CharacterMesh0', {SkeletalMesh = worn, DoesSocketExist = function() return false end,
+            GetSocketLocation = function() return {X = 0, Y = 0, Z = 150} end})
+        r.eve = uobj('EVE', {Mesh = body, bHidePonyTail = false,
+            K2_GetComponentsByClass = function() return {pin} end})
+        r.found['/Script/Engine.SkeletalMeshComponent'] = uobj('SkeletalMeshComponent')
+        r.own = '/Game/Own.Own'
+        r.resolved = {['/Game/Own.Own'] = uobj('/Game/Own.Own', {FindSocket = function()
+            return uobj('SC_HairACC', {type = t, BoneName = 'Bip001-Ponytail1',
+                RelativeLocation = {X = 1, Y = 2, Z = 3}, RelativeRotation = {Pitch = 0, Yaw = 90, Roll = 0},
+                RelativeScale = {X = 1, Y = 1, Z = 1}})
+        end})}
+        play(r, '10')
+        ok(has(r, 'probe: PASS 10 pony flag: bHidePonyTail=false'))
+        ok(has(r, 'probe: PASS 10 hairpin: bVisible=true bHiddenInGame=false socket=SC_HairACC parent=CharacterMesh0'))
+        ok(has(r, '150.0 cm from the head bone'), 'its distance to the head')
+        ok(has(r, 'probe: PASS 10 worn body socket: /Game/P/V1.V1 DoesSocketExist(SC_HairACC)=false'))
+        ok(has(r, 'probe: PASS 10 own body socket: /Game/Own.Own SC_HairACC on Bip001-Ponytail1'))
+        ok(has(r, '(X=1.00 Y=2.00 Z=3.00)'), 'its relative location')
+        ok(has(r, 'probe: END 10 4/4'))
+    end,
     commands = function()
         local calls = {}
         local probe = {run = function(n) calls[#calls + 1] = 'run ' .. n; return true, 'ran' end,
@@ -649,8 +682,8 @@ local tests = {
         ok((C.closet('probe', 'off', nil, nil, nil, nil)))
         eq((C.closet('probe', '3', 'x', nil, nil, nil)), false)
         same(calls, {'run 3', 'off'})
-        ok(require('closet.commands').USE:find('probe <1-9|off>', 1, true))
-        eq(Probe.USE, 'Use: coop closet probe <1-9|off>')
+        ok(require('closet.commands').USE:find('probe <1-10|off>', 1, true))
+        eq(Probe.USE, 'Use: coop closet probe <1-10|off>')
     end,
 }
 run('probe_test', tests)

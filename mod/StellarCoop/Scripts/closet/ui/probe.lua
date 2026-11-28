@@ -1,8 +1,8 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- coop closet probe <1-9|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts (the
--- piece grid, a grid slot alone, the tab buttons, the detail panel, focus and input), test 6, the reads for the
+-- coop closet probe <1-10|off>: the closet menu design's five in-game tests of Stellar Blade's own widget parts
+-- (the piece grid, a grid slot alone, the tab buttons, the detail panel, focus and input), test 6, the reads for the
 -- camera and fit work (EVE's bones, the camera's FOV, mesh slot names, LODs, skin parameters), and test 7, the live
 -- read of the stock hair tables. One runs at a time, each check a "probe: PASS <n> <check>" or "probe: FAIL <n>
 -- <check>: <why>" line in UE4SS.log. Their results decide how the closet menu builds its piece grid. Tests 1-5 touch
@@ -25,7 +25,7 @@ local Probe={}
 Probe.TIMEOUT=30 -- Seconds a test may run unless it sets its own.
 Probe.WATCH=10 -- Seconds a check watches the mouse.
 Probe.RELEASE_TRIES=600 -- Frames the probe tries again to give the input back (about 10 s).
-Probe.USE='Use: coop closet probe <1-9|off>'
+Probe.USE='Use: coop closet probe <1-10|off>'
 Probe.GROUP='closet_probe'
 Probe.TESTS={}
 -- The game's parts and assets, read in the widget JSON and Ghidra (build 26123051) on 25 Nov 2026.
@@ -774,6 +774,48 @@ Probe.TESTS['9']={timeout=120,steps={
         return #order>0,#order..' variations'
     end}}}
 
+-- Test 10: the hairpin band (closet/pin.lua). EVE's bHidePonyTail; her ACC_HairPin's bVisible, bHiddenInGame, socket,
+-- parent, relative place and its distance to the head bone; whether the worn body mesh has SC_HairACC; her own body
+-- mesh's SC_HairACC (the dress's kept one, else the worn one) with its bone and relative transform. It writes nothing;
+-- her own body mesh loads. The game's parts (SB-Win64-Shipping.exe, build 26123051, read 27 Nov 2026):
+--   bHidePonyTail: character +0x2f88 (property params 0x145d7a840, closet/head/wear.lua's header).
+--   USceneComponent.bVisible (property params 0x146649308) and bHiddenInGame (0x146649420).
+--   USceneComponent.GetAttachParent: entry 0x14664b930 (name 0x146648a90), exec 0x14490cbf0; GetAttachSocketName:
+--     entry 0x14664b940 (name 0x146648ad0), exec 0x143805110.
+--   USceneComponent.K2_GetComponentLocation: entry 0x14664bb30 (name 0x1466488c0), exec 0x14490cf80;
+--     GetSocketLocation(InSocketName): entry 0x14664b9f0 (name 0x146648ca0), exec 0x14490b830.
+--   DoesSocketExist, USkeletalMesh.FindSocket and the socket's fields: closet/pin.lua's header.
+--   The head bone: Bip001-Head (closet/head/made.lua's Made.SOCKET, asset data).
+local Pin=require('closet.pin')
+Probe.TESTS['10']={timeout=60,steps={
+    soft('pony flag',function(ctx)
+        return true,'bHidePonyTail='..word_of(assert(ctx.eve(),'no EVE').bHidePonyTail)
+    end),
+    soft('hairpin',function(ctx)
+        local eve=assert(ctx.eve(),'no EVE')
+        local c=Pin.find(eve,ctx.find(Pin.CLASS))
+        if not c then return false,'EVE has no '..Pin.NAME end
+        local parent=live(c:GetAttachParent())
+        local at=U.value_of(c:K2_GetComponentLocation())
+        local head=U.value_of(her_body(ctx):GetSocketLocation(FName(require('closet.head.made').SOCKET)))
+        return true,string.format('bVisible=%s bHiddenInGame=%s socket=%s parent=%s relative %s %s %s at %s, %.1f cm '
+            ..'from the head bone at %s',word_of(c.bVisible),word_of(c.bHiddenInGame),text(c:GetAttachSocketName()),
+            parent and text(parent:GetFName()) or '-',word_of(c.RelativeLocation),word_of(c.RelativeRotation),
+            word_of(c.RelativeScale3D),word_of(at),U.metres(at,head)*100,word_of(head))
+    end),
+    soft('worn body socket',function(ctx)
+        local body=her_body(ctx)
+        return true,path_of(body.SkeletalMesh)..' DoesSocketExist('..Pin.SOCKET..')='
+            ..tostring(body:DoesSocketExist(FName(Pin.SOCKET)))
+    end),
+    soft('own body socket',function(ctx)
+        local path=ctx.own() or path_of(her_body(ctx).SkeletalMesh)
+        local s,why=Pin.socket(ctx.resolve(path))
+        if not s then return false,path..': '..why end
+        return true,string.format('%s %s on %s relative %s %s %s',path,Pin.SOCKET,s.bone,word_of(s.loc),word_of(s.rot),
+            word_of(s.scale))
+    end)}}
+
 -- A game object by path: in memory, else after a synchronous LoadAsset (a class path loads its asset path without
 -- _C), as ui/kit/kit.lua's load does.
 local function default_find(path)
@@ -796,6 +838,8 @@ function Probe.new(o)
     -- EVE (test 6 reads her body) and the player controller (her camera).
     local eve=o.eve or function() return U.her(U.valid(require('UEHelpers').GetPlayer())) end
     local controller=o.controller or U.controller
+    -- Her own body mesh path the closet keeps (closet/dress.lua's own), nil with nothing worn (test 10).
+    local own=o.own or function() return nil end
     -- The stock head catalogue (test 7), its lines straight to the log.
     local stock=o.stock or function() return Stock.build(Stock.env(o.log)) end
     local self={}
@@ -855,7 +899,7 @@ function Probe.new(o)
             deadline=clock()+(test.timeout or Probe.TIMEOUT),shown=false}
         c.ctx={log=log,find=find,resolve=resolve,construct=construct,data={},kit=kit,now=clock,eve=eve,
             controller=controller,
-            stock=stock}
+            stock=stock,own=own}
         -- A game widget made in the probe's group, kept for the end; it throws when the kit refuses.
         function c.ctx.make(class_path,x,y,w,h,fill,hit)
             local rec,why=kit.part(Probe.GROUP,class_path,x,y,w,h,fill,hit)

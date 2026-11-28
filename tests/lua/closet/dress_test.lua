@@ -1491,5 +1491,29 @@ local tests = {
             ok(not logged(w, 'locked'), 'no locked line')
         end)
     end,
+    -- The hairpin part (closet/pin.lua, o.pin): fit after each body mesh the closet puts on, with her own body mesh;
+    -- give_back after her own mesh is back (off, a head-only look after a mix). One that raises is logged, the look
+    -- stays.
+    the_pin_follows_the_body_mesh = function()
+        with_head(function(w, h)
+            local calls = {}
+            local pin = {fit = function(eve, body, own)
+                calls[#calls + 1] = {'fit', eve == w.eve, body.SkeletalMesh.path, own and own.path}
+            end, give_back = function(body) calls[#calls + 1] = {'give_back', body.SkeletalMesh.path} end}
+            local d = w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
+                clock = function() return w.now end, head = h, pin = pin})
+            assert(d.wear({{fit = 'p.suit'}}))
+            same(calls, {{'fit', true, PV1, OWN}}, 'fit with the suit on and her own mesh')
+            eq(d.own(), OWN, 'her own body mesh path')
+            assert(d.wear(HAIR_ONLY))
+            same(calls[2], {'give_back', OWN}, 'a head-only look gives her body back')
+            assert(d.wear({{fit = 'p.suit'}}))
+            assert(d.off())
+            same(calls[4], {'give_back', OWN}, 'off gives it back with her own mesh on')
+            pin.fit = function() error('boom') end
+            assert(d.wear({{fit = 'p.suit'}}), 'a raising pin never stops the look')
+            ok(logged(w, 'hairpin: '), 'its error logged')
+        end)
+    end,
 }
 run('dress_test', tests)

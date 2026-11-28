@@ -26,7 +26,9 @@ head=require('closet.head.wear').new({log=function(m) print('[StellarCoop][CL] '
     tell=function(build) if M.tell then M.tell(build) end end})
 M.closet=require('closet.dress').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end,
     store=M.link and M.link.store('coop-closet.txt'),paused=function() return M.kit~=nil and M.kit.paused(true) end,
-    packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end,head=head})
+    packs=function() M.closet_packs.once() end,toggles=function() return M.closet_options.toggles() end,head=head,
+    -- The hairpin band (closet/pin.lua) goes on its bone under a body mesh with no SC_HairACC socket.
+    pin=require('closet.pin').new({log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})})
 -- The options layer (closet/options.lua): each pack outfit's variant and piece toggles in coop-closet-options.txt; the
 -- dress's plans take its toggles. Its tick runs each frame right after the dress's, before the colour layer's, so a
 -- variant or toggle change shows before the palette paints. The menu's options page and coop closet option set it.
@@ -59,6 +61,7 @@ M.closet_shape=shape
 -- each under main/frame.lua's guard of its own, so one that raises never skips the others (the menu's guards drop the
 -- game's parts that hold EVE still). coop off stops them with the dress.
 local probe=require('closet.ui.probe').new({kit=function() return M.kit end,world=function() return M.hud_shown end,
+    own=function() return M.closet.own() end,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 -- coop closet thumbs: its rig's path in coop-closet-thumbs.txt; it waits while the menu is open, the game is paused or
 -- shows a screen, or our HUD is not shown (no game world).

@@ -15,7 +15,7 @@
 --   coop closet menu                                  opens the closet menu, or closes it with the look undone
 --   coop closet thumbs [redo] [<fit>]                 a picture of each piece of every installed outfit (or one),
 --                                                      the ones not cached yet, or all again with redo
---   coop closet probe <1-9|off>                       one in-game test of the game's widget parts or reads (UE4SS.log)
+--   coop closet probe <1-10|off>                      one in-game test of the game's widget parts or reads (UE4SS.log)
 --   coop closet body <auto|shoes|first|<fit>>         the body rule of the next wears in this Lua load (dress.lua)
 --   coop closet skin <fit> <slot> on|off              shows or hides one material slot of that outfit's mesh now,
 --                                                      until the next wear (for trying setups in game)
@@ -45,7 +45,7 @@ local Presets=require('closet.presets')
 local Commands={}
 -- main/commands.lua's M.run passes six words, nil-padded: an extra word is a first one that is not nil.
 Commands.USE='Use: coop closet [status|wear <fit>[:<Slot>,...] ...|off|fits|menu|thumbs [redo] [<fit>]|'..
-    'probe <1-9|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <on|off|swatch|r g b>|'..
+    'probe <1-10|off>|body <auto|shoes|first|<fit>>|skin <fit> <slot> on|off|colour <role> <on|off|swatch|r g b>|'..
     'colour off|shape <morph> <0-100>|shape off|rescan|option <fit> variant <n>|option <fit> toggle <slot> on|off|'..
     'preset save [name]|preset wear|delete <n>|preset rename <n> [name]|favourite <fit>]'
 function Commands.new(o)
