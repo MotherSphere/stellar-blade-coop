@@ -488,7 +488,8 @@ function Menu.new(o)
         end
         s.detail={title=shown and (shown.plain or shown.title) or '',desc=''}
         if item and item.whole then
-            s.detail.desc=(item.locked and locked_line(w,item.whole,item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
+            s.detail.desc=(item.locked and locked_line(w,item.whole,item.pack) or w.row.whole)..'\n'
+                ..origin(w,item.whole)
             s.detail.badge=Fits.origin(item.whole)
             s.preview=picture(item.whole,Thumbs.FULL) -- Its picture large, in place of the tile.
             s.tiles=not s.preview and {{name=item.outfit,locked=item.locked,picture=nil,
