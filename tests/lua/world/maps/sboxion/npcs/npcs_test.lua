@@ -301,8 +301,8 @@ npcs.tick(nil)
 -- The district: a pak that holds the rooms only keeps the ten away. With the plate's levels in the pak and
 -- Under_P1_Streets there, EVE beside the gate guard gets the four bodies of that level within NEAR: the guard, the
 -- storyteller and the two stall keepers in the open. The guard talks to her, then the storyteller when she walks up to
--- him, and the resident of the house comes within NEAR there. Those of Under_P1_Shops stay away while that level is
--- not there.
+-- him. There the resident of the house comes within NEAR. Those of Under_P1_Shops stay away while that level is not
+-- there.
 pak=function(umap) return umap:find('/Xion_Rooms_',1,true)~=nil end
 fresh()
 assert(#logs==10 and logs[1]=='npcs: plate_gate_guard stays away: this pak does not hold Under_P1_Streets',logs[1])

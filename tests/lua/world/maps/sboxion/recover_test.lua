@@ -209,8 +209,8 @@ fall()
 pass(r,3)
 assert(#puts==2 and puts[2].at.X==400 and puts[2].at.Z==245,'The new point')
 
--- under_fall: the plate's walk is ground at -1200, the low terrace's level, and a fall under its floor goes back to
--- the point on the walk.
+-- under_fall: the plate's walk is ground at -1200, the low terrace's level. A fall under its floor goes back to the
+-- point on the walk.
 assert(D.UNDER.yaw==40 and D.UNDER.floor==-1275 and D.UNDER.u[1]==-3.25 and D.UNDER.u[2]==57.4
     and D.UNDER.v[1]==25.5 and D.UNDER.v[2]==91.43)
 r=fresh({X=-1746.2,Y=3590.4,Z=-1200}) -- 3 m from the low terrace (grid u 12.0, v 36.8).
