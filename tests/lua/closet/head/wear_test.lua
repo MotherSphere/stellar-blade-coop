@@ -451,7 +451,8 @@ local tests = {
     end,
 
     a_suit_that_hides_the_ponytail_hides_it = function()
-        -- The Bayonetta suits' rows say bUseHidePonytail (probe 9, 27 Nov 2026): the game hides her ponytail under them.
+        -- The Bayonetta suits' rows say bUseHidePonytail (probe 9, 27 Nov 2026): the game hides her ponytail under
+        -- them.
         local w = world()
         ok(w.wear({}, {hide_ponytail = true}))
         eq(w.eve.pony.visible, false, 'hidden under the suit with her own hair')
