@@ -125,7 +125,7 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
-  // The race line, reliable: Lua's text after "SBC29 race ", printable ASCII only, the whole line within kMaxMessage.
+  // The race line, reliable: Lua's text after "SBC30 race ", printable ASCII only, the whole line within kMaxMessage.
   // Anything else is invalid, never cleaned into another line.
   assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
   m = parse_text(race_line("cp 7 1 2 34567"));
@@ -149,7 +149,7 @@ int main() {
     assert(m.kind == Kind::race && m.text == std::string("x") + static_cast<char>(c) + "x");
   }
 
-  // The score attack line, reliable: Lua's text after "SBC29 score ", read as the race line is and never as one.
+  // The score attack line, reliable: Lua's text after "SBC30 score ", read as the race line is and never as one.
   assert(score_line("rank 7 1001:1620:10:win,2002:0:900:dead") == p + " score rank 7 1001:1620:10:win,2002:0:900:dead");
   m = parse_text(score_line("go 4294967295 targets"));
   assert(m.kind == Kind::score && m.text == "go 4294967295 targets");
@@ -479,8 +479,8 @@ int main() {
     alive[vital::max_hp] = 1600, alive[vital::life] = 1;
     for (std::string line : {spot_ask_line(5), spot_line(5, Spot{100, -200, 300, 90}), rest_line("Zone_Xion_10", 1001),
                              vit_line(alive), mode_line("fish go 7 10 1001,2002"), dr_line("go 7 4242 xion_eight"),
-                             std::string("SBC29 ping 1 2")}) {
-      assert(parse_text(line).kind != Kind::invalid && line.rfind("SBC29 ", 0) == 0);
+                             std::string("SBC30 ping 1 2")}) {
+      assert(parse_text(line).kind != Kind::invalid && line.rfind("SBC30 ", 0) == 0);
       for (const char *old : {"24", "25", "26", "27", "28"}) {
         std::string under = line;
         under.replace(3, 2, old);

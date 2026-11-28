@@ -16,7 +16,7 @@
 
 namespace coop::pose {
 
-constexpr size_t kMaxParts = 16, kMaxBones = 1024, kTransformBytes = 48; // FTransform: rotation, translation, scale.
+constexpr size_t kMaxParts = 32, kMaxBones = 1024, kTransformBytes = 48; // FTransform: rotation, translation, scale.
 // A pose carries 6 effect slots of 15 bytes (game/codec.h); an asset is an index into Lua's list of systems, 1 to
 // kMaxEffectAssets: the first kFixedEffects are online/partner/capture.lua's Capture.EFFECTS, which both sides compile
 // in, and the rest the table's fx lines name by path (game/table.h).

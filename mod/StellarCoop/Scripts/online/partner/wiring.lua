@@ -73,7 +73,7 @@ function M.ghost_of(k) return M.ghosts and M.ghosts.get(k) end
         local gone,why=pcall(require('online.partner.puppet').assets_off) -- Her sounds' loaded files.
         if not gone then log('ghost: '..tostring(why)) end
     end
--- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 16 parts.
+-- The capture leaves the bike's part out while EVE does not ride: hidden, it would take one of the ghost's 32 parts.
 -- The bike's idle_part is read at each look: vehicles/bike/wiring.lua builds the bike later. While the bike module is
 -- off, the part an earlier Lua load left on EVE is found by online/partner/bike_part.lua, the partner's own copy.
 local BikePart=require('online.partner.bike_part')

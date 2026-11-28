@@ -179,19 +179,19 @@ assert(published[#published]=='withdrawn')
 tick(); step(2)
 assert(published[#published]:find('^generation 100004\n'))
 
--- The native part's caps: at most 16 parts, the rest left out; a leader of 1 to 1024 bones, one of 0 or more left out
+-- The native part's caps: at most 32 parts, the rest left out; a leader of 1 to 1024 bones, one of 0 or more left out
 -- with its followers, and the last leaders while a pose would pass 16384 bytes (one of 1024 bones would: 219 bytes of
 -- header, 6 effect slots, 4 event slots and world transform, 1 a part, 18 a bone); her main mesh outside them, no table
 -- at all.
 local X='/Game/Art/Character/X/'
 local many={body}
-for k=1,20 do many[#many+1]=her('Extra'..k,X..'X'..k..'.X'..k,{parent=body,bones=1}) end
+for k=1,36 do many[#many+1]=her('Extra'..k,X..'X'..k..'.X'..k,{parent=body,bones=1}) end
 player=eve_of('EVE3',many)
 tick()
 ok,message=step(2)
 t=published[#published]
-assert(ok and message:find('^Capture %d+: 16 parts, ') and select(2,t:gsub('\npart ',''))==16,tostring(message))
-assert(t:find(' Extra15 ',1,true) and not t:find(' Extra16 ',1,true),t)
+assert(ok and message:find('^Capture %d+: 32 parts, ') and select(2,t:gsub('\npart ',''))==32,tostring(message))
+assert(t:find(' Extra31 ',1,true) and not t:find(' Extra32 ',1,true),t)
 local zero=her('Zero',X..'Zero.Zero',{parent=body})
 local huge=her('Huge',X..'Huge.Huge',{parent=body,bones=1025})
 local full=her('Full',X..'Full.Full',{parent=body,bones=894}) -- 897 bones with hers: 219 + 2 + 16146 bytes.
@@ -723,13 +723,13 @@ raw[body].IsMaterialSectionShown=shown_of
 raw[body].state.slots,raw[body].state.hidden=nil,nil
 
 -- SBO's bike (vehicles/bike/ride.lua's part, hidden on EVE while bike=on): leave_out, asked once a look with her
--- address, names it while she does not ride, so an outfit of 16 parts keeps all of them. While she rides it is a part
--- as before, ranked with the leaders in the engine's order; the last follower goes over 16. Getting on or off is a new
+-- address, names it while she does not ride, so an outfit of 32 parts keeps all of them. While she rides it is a part
+-- as before, ranked with the leaders in the engine's order; the last follower goes over 32. Getting on or off is a new
 -- generation. Another component on the same mesh stays a part.
 local BIKE='/Game/Art/Character/ETC/Adam_vehicle_02/Adam_Vehicle_02.Adam_Vehicle_02'
 local bike=her('Bike',BIKE,{parent=body,bones=37,visible=false})
 local outfit={body,bike}
-for k=1,14 do outfit[#outfit+1]=her('Piece'..k,X..'P'..k..'.P'..k,{parent=body,bones=1}) end
+for k=1,30 do outfit[#outfit+1]=her('Piece'..k,X..'P'..k..'.P'..k,{parent=body,bones=1}) end
 outfit[#outfit+1]=her('Ribbon',X..'Ribbon.Ribbon',{leader=body,parent=body})
 local riding,leave_asked=false,{}
 published={}
@@ -743,7 +743,7 @@ tick()
 ok,message=step(2)
 t=published[#published]
 local first=tonumber(t:match('^generation (%d+)\n'))
-assert(ok and message:find('^Capture %d+: 16 parts, ') and select(2,t:gsub('\npart ',''))==16,tostring(message))
+assert(ok and message:find('^Capture %d+: 32 parts, ') and select(2,t:gsub('\npart ',''))==32,tostring(message))
 assert(t:find(' Ribbon ',1,true) and not t:find(BIKE,1,true),t)
 assert(#leave_asked==1 and leave_asked[1]==raw[player].GetAddress(),'Asked once a look, with her address')
 assert(step(0.5)==nil and #leave_asked==1,'No look, no ask')
@@ -751,14 +751,14 @@ assert(step(0.5)==nil and #leave_asked==1,'No look, no ask')
 riding,raw[bike].state.visible=true,true
 ok,message=step(0.5)
 t=published[#published]
-assert(ok and message:find('^Capture '..(first+1)..': 16 parts, ') and #leave_asked==2,tostring(message))
+assert(ok and message:find('^Capture '..(first+1)..': 32 parts, ') and #leave_asked==2,tostring(message))
 assert(t:find('\npart 1 - 0 - 1 37 Bike '..BIKE..'\n',1,true) and not t:find(' Ribbon ',1,true),t)
 assert(step(1)==nil,'Riding on: nothing new')
 -- Off the bike: a new generation without it, the follower back.
 riding,raw[bike].state.visible=false,false
 ok,message=step(1)
 t=published[#published]
-assert(ok and message:find('^Capture '..(first+2)..': 16 parts, '),tostring(message))
+assert(ok and message:find('^Capture '..(first+2)..': 32 parts, '),tostring(message))
 assert(t:find(' Ribbon ',1,true) and not t:find(BIKE,1,true),t)
 -- Another mod's component on the same mesh is a part: only the one leave_out names is left out.
 local copy=her('Bike2',BIKE,{parent=body,bones=37})

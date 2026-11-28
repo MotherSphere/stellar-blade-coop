@@ -202,7 +202,7 @@ host answers with native requests, which Lua writes to `coop-request.txt` like t
   without a new question for as long as the lobby lasts.
 - `deny <SteamID>`, or 60 s with no answer, refuses the player. So does leaving before the answer. The host's
   questions come one at a time, in the order the players joined: a player's minute starts when her question is the
-  first one waiting. The host's game sends each waiting player `SBC29 wait <seconds>`, reliable, at the start and after
+  first one waiting. The host's game sends each waiting player `SBC30 wait <seconds>`, reliable, at the start and after
   each change: what is left of the minute of the player asked now, plus a minute for each player after that one, hers
   included.
   `remove <SteamID>` refuses any player already in (friends included) and puts them on the block list.
@@ -238,7 +238,7 @@ Apart from the wait line, this uses the hello's timing, the ping and the reject.
 
 An online session holds up to 4 players (`max_players`). The host leads every guest:
 
-- The host's game sends each guest past its handshake `SBC29 let <pair> <id>,<id>,... <max>`, reliable, again after
+- The host's game sends each guest past its handshake `SBC30 let <pair> <id>,<id>,... <max>`, reliable, again after
   each change and after each hello of hers. It names the pair, then the guests past the host's handshake in the order
   they came, then the host's `max_players` (2 to 4). A guest greets, reads and accepts a session from the host and the members this line names only. A joiner who
   waits for the host's answer gets nothing from the guests and sends them nothing. A member the line no longer names
@@ -264,7 +264,7 @@ An online session holds up to 4 players (`max_players`). The host leads every gu
   Same-place enemies' `SBE` on channel 1 goes to the pair only. The shared quests run with every member: the host's game
   runs one quest side per guest past the handshake, all fed by one read of its quests each pass. Each guest gets her own
   lines (see [Group play: how it works](group-internals.md#shared-quests)). A guest sends her `SBQ` lines to the host
-  only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ29
+  only and reads the host's only. Lines from any other member are dropped. A quest step a guest makes first (`SBQ30
   step`) is story together's: the host's game takes it from the pair only and logs any other guest's as `a step line
   from guest <SteamID> not taken: her game is not the pair`. A guest out of the pair sends none.
 - In a shared boss fight the pair's `SBF` lines go both ways: the game that runs a boss sends its `bstart`, `phase`
@@ -360,40 +360,40 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC29 ping <seq> <ms>
-SBC29 pong <seq> <ms>
-SBC29 photo <0|1|s|c> <both|notice>
-SBC29 say <text>
-SBC29 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life> <zone type>
-SBC29 pak <hash> <name>
-SBC29 paks <count> <hash>
-SBC29 dlc <app id> <name>
-SBC29 dlcs
-SBC29 cycle <count> <difficulty>
-SBC29 camps? <id>
-SBC29 camps <id> <world> <camp>:<m> ...
-SBC29 camps <id> none <title|loading|nocamp|busy>
-SBC29 spot? <id>
-SBC29 spot <id> <x> <y> <z> <yaw>
-SBC29 spot <id> none <title|loading|air|busy|solo|boss>
-SBC29 rest <zone> <SteamID>
-SBC29 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
-SBC29 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
-SBC29 mark <n> [<text>]
-SBC29 race <text>
-SBC29 score <text>
-SBC29 mode <word> <text>
-SBC29 dr <text>
-SBC29 gift s <id> <item> <count>
-SBC29 gift a <id>
-SBC29 gift n <id> <why>
-SBC29 bike park <map> <x> <y> <z> <pitch> <yaw> <roll>
-SBC29 bike none
-SBC29 start <mode> <map> <seed> <id>,<id>,...
-SBC29 count <1-10|stop>
-SBC29 end
-SBC29 let <pair> <id>,<id>,... <max>
-SBC29 wait <seconds>
+SBC30 ping <seq> <ms>
+SBC30 pong <seq> <ms>
+SBC30 photo <0|1|s|c> <both|notice>
+SBC30 say <text>
+SBC30 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life> <zone type>
+SBC30 pak <hash> <name>
+SBC30 paks <count> <hash>
+SBC30 dlc <app id> <name>
+SBC30 dlcs
+SBC30 cycle <count> <difficulty>
+SBC30 camps? <id>
+SBC30 camps <id> <world> <camp>:<m> ...
+SBC30 camps <id> none <title|loading|nocamp|busy>
+SBC30 spot? <id>
+SBC30 spot <id> <x> <y> <z> <yaw>
+SBC30 spot <id> none <title|loading|air|busy|solo|boss>
+SBC30 rest <zone> <SteamID>
+SBC30 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC30 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
+SBC30 mark <n> [<text>]
+SBC30 race <text>
+SBC30 score <text>
+SBC30 mode <word> <text>
+SBC30 dr <text>
+SBC30 gift s <id> <item> <count>
+SBC30 gift a <id>
+SBC30 gift n <id> <why>
+SBC30 bike park <map> <x> <y> <z> <pitch> <yaw> <roll>
+SBC30 bike none
+SBC30 start <mode> <map> <seed> <id>,<id>,...
+SBC30 count <1-10|stop>
+SBC30 end
+SBC30 let <pair> <id>,<id>,... <max>
+SBC30 wait <seconds>
 ```
 
 ### The photo line
@@ -502,7 +502,7 @@ pass 200 bytes, the notice cuts that name. Nothing is refused.
 
 ### The cycle line
 
-The cycle line gives your game's New Game+ count and difficulty: `SBC29 cycle 1 2` is New Game+ 1 on Hard. The count
+The cycle line gives your game's New Game+ count and difficulty: `SBC30 cycle 1 2` is New Game+ 1 on Hard. The count
 is 0 on a first playthrough and goes up to 99; the difficulty is 0 for Normal, 1 for Story and 2 for Hard. Any other
 value makes the line invalid. The game thread reads both once a second while you are in game: the count is the int32 at
 `+0xe4` of the game object at 0x1470373c8 (the value SB's IsPlayNewGamePlus tests); the difficulty is the one SB gives
@@ -731,7 +731,7 @@ is ignored.
 
 ## Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 29` (sent reliable) and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 30` (sent reliable) and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
@@ -766,7 +766,7 @@ A ghost's events name what her game played by an asset key, 1 to 4096 in a link 
 member:
 
 ```
-SBA29 <k> <kind> <asset> <a> <b>[ <params>]
+SBA30 <k> <kind> <asset> <a> <b>[ <params>]
 ```
 
 - `kind` is `sound`, `niagara`, `cascade`, `decal` or `trail`. A sound's `a` and `b` are its sound class and
@@ -838,6 +838,7 @@ is refused instead of misread:
 | 27 | [Doro races in matches](modes/race-internals.md#races-in-a-match): the `race` match mode under `sbo_mode` and the [dr line](#the-dr-line) on channel 0 (track, cps, go, ready, cp, done, rank and void), which a protocol-26 peer would count invalid. Never released |
 | 28 | The ghost's fidelity: her drone (a free part placed by the pose), six effect slots, four event slots and her morph weights in the pose and the table, with the [asset names](#channel-2-asset-names) (`SBA28 <k> <kind> <asset> <a> <b>`) on channel 2 to every member, which a protocol-27 peer would refuse. Never released |
 | 29 | Shared boss fights ([Shared enemies: how they work](../fight/enemies-internals.md#shared-bosses)): the `fin`, `qte-own` and `spec` lines on channel 2, the host's `boss_finish` as the `bosses` line's last word and a summon's owner in its key. A guest sends the boss lines of a boss her game runs and story together's `SBS` lines of a [boss QTE scene](../story/together-internals.md#boss-qte-scenes) she leads. A protocol-28 peer would count the new lines invalid (this version) |
+| 30 | Ghosts of up to 32 parts: `kMaxParts` 16 to 32 in the component table (`SBT 30`), for outfits worn as pieces (Stellar Closet). A protocol-29 parser refuses a table of more than 16 parts whole. Never released |
 
 ## Link health in the log
 

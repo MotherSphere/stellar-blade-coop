@@ -179,7 +179,7 @@ Gardener's spawn point, spawns that boss as `coop lion` or `coop gardener fight`
 game spawned none there. The fan levers wait for the Lion's death: a save whose Lion died on a build older than these
 levers needs a new run. A boss that never spawns locks nothing: its doors lock on its first fight.
 
-This version uses link protocol 29: both players need a build with the same rows. A co-op save that played in the area
+This version uses link protocol 30: both players need a build with the same rows. A co-op save that played in the area
 can no longer be exported to your own saves ([players/saves.md](../players/saves.md)).
 
 ## Status lines

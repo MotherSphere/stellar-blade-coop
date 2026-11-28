@@ -265,7 +265,7 @@ fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stub
   that a new mailbox (the next game start) gives back, or the log says they could not be given back.
   `main/boot_test` checks that `cutmenus/wiring.lua` hands it `M.tell`;
 - `online/partner/capture_test` also covers SBO's bike left out of the parts while EVE does not ride (`leave_out`, asked
-  once a look): an outfit of 16 parts keeps them all; while she rides the bike is part 1 and the last follower goes;
+  once a look): an outfit of 32 parts keeps them all; while she rides the bike is part 1 and the last follower goes;
   getting on or off starts a new generation; another component on the bike's mesh stays a part; her body on the bike's
   rig (`pose_source`, asked once a look): her main mesh, two followers and a ponytail with no leader give the table
   without the rig except part 0's `read` object, a new generation; on another mesh the rig's bone count, bone names
@@ -1077,7 +1077,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
   lines (places within 10,000,000 cm, a yaw within 360, the six reasons) and the `rest` line (a zone alias, a SteamID
   other than 0) with a fuzz seed each, Lua's `spot?`, `spot`, `rest` and `travel spot` requests,
   `spectate on|off|status|test` and nothing else, a player's life from her vitals (life state 2 read as Coma before
-  the 0 HP rule), then protocol 29 refusing a protocol-28 lobby and line;
+  the 0 HP rule), then protocol 30 refusing a protocol-29 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, a
   mode line before the handshake that never reaches Lua, an
@@ -2057,7 +2057,7 @@ and `tools/install.py` names its program after that path (`tests/native/game/cod
 
 ## Grouped game test: travel, camp rests and solo areas
 
-These rows need the game on two or more PCs. Every PC runs this build (protocol 29). A PC on a protocol-28 build is
+These rows need the game on two or more PCs. Every PC runs this build (protocol 30). A PC on a protocol-29 build is
 refused at the hello. Read `UE4SS.log` and `coop-link.log` on every PC after each row. None of these rows has run yet.
 
 1. Same map, over 150 m apart: the offer shows. F7 puts the guest on the host's last ground point after the game's

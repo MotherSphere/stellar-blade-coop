@@ -349,10 +349,10 @@ int main() {
   // Refused: the good wire table with exactly one defect each.
   const std::string p0 = "part 0 - - - 1 3 CharacterMesh0 " + kBody + "\n", n0 = "names 0 Root Bip001 Bip001-Pelvis\n",
                     flat = " 0 0 0 1 0 0 0 1 1 1\n";
-  std::string sixteen = kWire, seventeen;
-  for (int i = 5; i < 16; ++i)
-    sixteen += "part " + std::to_string(i) + " 0 0 - 1 0 Extra -\nplace " + std::to_string(i) + flat;
-  seventeen = sixteen + "part 16 0 0 - 1 0 Extra -\nplace 16" + flat;
+  std::string full = kWire, over; // kMaxParts parts, and one past them.
+  for (size_t i = 5; i < kMaxParts; ++i)
+    full += "part " + std::to_string(i) + " 0 0 - 1 0 Extra -\nplace " + std::to_string(i) + flat;
+  over = full + "part " + std::to_string(kMaxParts) + " 0 0 - 1 0 Extra -\nplace " + std::to_string(kMaxParts) + flat;
   std::string names_1000 = "names 0";
   for (int b = 0; b < 1000; ++b)
     names_1000 += " b";
@@ -380,7 +380,7 @@ int main() {
            kWire + "bogus\n",                                                                    // an unknown line
            with(kWire, n0, n0 + n0),                                                             // a repeated line
            kSbt + "generation 100001\nmap /game\n",                                              // no parts
-           seventeen,                                                                            // 17 parts
+           over,                                                                                 // kMaxParts + 1 parts
            with(kWire, "part 1 0 0", "part 2 0 0"),                                              // index gap
            with(kWire, "place 1 0", "place 2 0"),                                                // place index
            with(kWire, "part 0 - - -", "part 0 0 - -"),                                          // part 0 a follower
@@ -543,7 +543,7 @@ int main() {
   const std::string map_128 = "/" + std::string(127, 'a');
   assert(wire_table(with(kWire, "/game/art/bg/worldmap/level_p/e04", map_128)).map == map_128);
   assert(parse_table(with(kWire, "map /game/art/bg/worldmap/level_p/e04", "map /"), false));
-  assert(wire_table(sixteen).eve.size() == 16);
+  assert(kMaxParts == 32 && wire_table(full).eve.size() == kMaxParts);
   assert(parse_table(with(kWire, "SBHair", std::string(64, 'n')), false));
   assert(parse_table(with(kWire, "1.5 -2", "100000 -2"), false));
   assert(parse_table(with(kWire, "place 1 0 0 0 1", "place 1 0 0 0 0.95"), false));
@@ -559,7 +559,7 @@ int main() {
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
   // Material lines (5), effect slots (6), channel 2 (7), chat (8), deltas (9), scale (10), same-place enemies (11).
-  assert(kSbt == "SBT 29\n");
+  assert(kSbt == "SBT 30\n");
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);
