@@ -653,6 +653,23 @@ function View.new(kit,log)
     -- exec 0x143d74f80), SetRenderTranslation (entry 0x146203130, exec 0x143d758b0 writes the FVector2D at +0x90)
     -- (Ghidra, build 26123051, 27 Nov 2026). A refused call is said once and never stops the glyph look.
     local unstick_said=false
+    local shown_note=nil -- The last 'the grid draws' line.
+    -- A drawn slot as words: its tile number, then what is off (UWidget Visibility and RenderOpacity, read as
+    -- properties; SizeBox_20's opacity), for the log. ESlateVisibility: Visible 0, Collapsed 1, Hidden 2,
+    -- HitTestInvisible 3, SelfHitTestInvisible 4 (enumerator array 0x1461f6f20, Ghidra, build 26123051).
+    local function slot_note(entry)
+        local ok,i=pcall(function() return entry.Data.Index+1 end)
+        i=ok and tonumber(i) or 0
+        local off={}
+        local function read(f) local r,v=pcall(f); return r and v or nil end
+        local vis=tonumber(read(function() return U.value_of(entry.Visibility) end))
+        if vis and vis~=0 and vis~=3 and vis~=4 then off[#off+1]='vis'..vis end
+        local own=tonumber(read(function() return U.value_of(entry.RenderOpacity) end))
+        if own and own<0.99 then off[#off+1]=string.format('op%.2f',own) end
+        local box=tonumber(read(function() return U.value_of(entry.SizeBox_20.RenderOpacity) end))
+        if box and box<0.99 then off[#off+1]=string.format('box%.2f',box) end
+        return {i=i,text=#off>0 and i..'('..table.concat(off,',')..')' or tostring(i)}
+    end
     local function unstick(entry)
         local ran,why=pcall(function()
             local box=entry.SizeBox_20
@@ -689,7 +706,17 @@ function View.new(kit,log)
         -- A look for stuck slots on its own only when the glyph look below does not run this tick.
         if show and not glyph_look then
             call(grid,'grid show',function(w)
-                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry) unstick(entry) end)
+                local shown={}
+                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                    unstick(entry)
+                    shown[#shown+1]=slot_note(entry)
+                end)
+                table.sort(shown,function(x,y) return x.i<y.i end)
+                local words={}
+                for _,n in ipairs(shown) do words[#words+1]=n.text end
+                local note=table.concat(words,' ')
+                -- Said when it changes: a hair tile stayed missing with no slot left see-through (27 Nov 2026).
+                if note~=shown_note then shown_note=note; log('menu: the grid draws '..#shown..' slots: '..note) end
             end)
         end
         if t>=check_fills then
