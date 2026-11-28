@@ -100,6 +100,9 @@ Camera.MOUSE,Camera.MPAN=0.25,0.25 -- degrees a right drag orbits, cm a middle d
 Camera.CLICK=8 -- layout units: a right press released with less mouse movement is Back.
 Camera.MEASURE=Camera.BLEND+0.1 -- s after an open: the lens is measured once the view is ours.
 Camera.LENS_TOL,Camera.LENS_TRIES=0.1,30 -- A reading's tangent within 10% of an axis rule's; readings before giving up.
+-- Frames in a row whose reading fits the same axis rule before it is taken. In game (27 Nov 2026) one reading in the
+-- view's blend fitted the other rule (tan 1.364 for a 0.767 lens): the camera stood 1.8 times too close.
+Camera.LENS_SAME=3
 -- Each region's framing: {centre, span} in parts of her height from her feet, the span filling the screen's height;
 -- {yaw, pitch} in degrees. Starting values to tune in game. The head was tuned there: her capsule is taller than her
 -- head, so 0.92 aimed above it; her face sits at about 0.80.
@@ -367,7 +370,8 @@ function Camera.new(o)
     -- The real lens from the engine's projection of the look point T, which place put at tangent cam.k: its screen x
     -- in half widths is k / tan(hfov / 2). Once an open, at the first answer (nil while the kit is hidden: later).
     -- A reading is taken only when its tangent is within LENS_TOL of one an axis rule gives for the FOV:
-    -- tan(fov / 2) for the horizontal axis, times the aspect for the vertical one. That rule's tangent is used.
+    -- tan(fov / 2) for the horizontal axis, times the aspect for the vertical one. That rule's tangent is used once
+    -- LENS_SAME readings in a row fit it.
     -- A reading taken while the view still lagged (in game: x 2.5, tan 0.170 for a 0.767 lens) is skipped. After
     -- LENS_TRIES skipped readings the first lens stays, said once with the last reading.
     -- shortcut: T is this frame's; if the view's pose lags a frame, a pose still easing skews it a little.
@@ -380,6 +384,8 @@ function Camera.new(o)
         for _,t in ipairs(tanh and {cam.t,cam.t*cam.aspect} or {}) do
             if math.abs(tanh/t-1)<Camera.LENS_TOL then fit=t; break end
         end
+        if fit and fit==cam.fit then cam.same=cam.same+1 else cam.fit,cam.same=fit,1 end
+        if fit and cam.same<Camera.LENS_SAME then return end -- A reading in the blend moves frame to frame.
         if not fit then
             cam.tries=(cam.tries or 0)+1
             if cam.tries<Camera.LENS_TRIES then return end

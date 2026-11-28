@@ -809,6 +809,31 @@ local tests = {
         eq(logged(string.format('camera: lens measured, tan(hfov/2)=%.3f', tv * 16 / 9)), 1, 'the vertical rule')
     end,
 
+    a_lens_reading_must_hold_for_several_frames = function()
+        -- In game (27 Nov 2026) a reading taken in the view's blend fitted the other axis rule: tan 1.364 for a
+        -- 0.767 lens. The camera stood 1.8 times too close with EVE pushed off the right edge.
+        local hfov = 90
+        local tanv = math.tan(math.rad(hfov / 2)) * 9 / 16
+        local calls = 0
+        local c = world(function(w)
+            w.axis, w.fov = 0, 90
+            w.project = function(at)
+                local m = last()
+                if not m then return nil end
+                calls = calls + 1
+                if calls <= Camera.LENS_SAME - 1 then -- k 0.978 at x 0.55: tan 1.778, the vertical rule's.
+                    return {width = 3840, height = 2160, screen = {x = (1 + 0.55) / 2 * 3840, y = 1080}}
+                end
+                local x, y = project(m.at, m.rot, at, hfov, tanv)
+                return {width = 3840, height = 2160, screen = {x = (1 + x) / 2 * 3840, y = (1 - y) / 2 * 2160}}
+            end
+        end)
+        c.open()
+        frames(c, 1, 'full')
+        eq(logged('camera: lens measured, tan(hfov/2)=1.778'), 0, 'the passing reading is never taken')
+        eq(logged('camera: lens measured, tan(hfov/2)=1.000'), 1, 'the lens that holds is taken')
+    end,
+
     x_toggles_on_release_only_without_the_stick = function()
         local c = world()
         c.open()
