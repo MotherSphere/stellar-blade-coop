@@ -3782,6 +3782,13 @@ local tests = {
             at(r, 1.7, 'right')
             tick(r, 2.0)
             eq(entries[1].RenderOpacity, 1, 'the see-through slot shown')
+            -- The slot itself slid or shrunk (three earring tiles were gaps, every slot visible, 27 Nov 2026).
+            entries[3].playing = false
+            entries[3].RenderTransform = {Translation = {X = 0, Y = 300}, Scale = {X = 0, Y = 0}}
+            at(r, 2.05, 'left')
+            tick(r, 2.08)
+            same(entries[3].RenderTransform.Translation, {X = 0, Y = 0}, 'the slid slot back in place')
+            eq(entries[3].RenderTransform.Scale.X, 1, 'the shrunk slot full size')
             -- A refused call never stops the glyph look; it is said once.
             entries[2].SizeBox_20.RenderOpacity = 0
             entries[2].SizeBox_20.SetRenderOpacity = 7

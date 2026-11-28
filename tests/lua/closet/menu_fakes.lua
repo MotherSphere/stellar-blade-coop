@@ -130,6 +130,9 @@ local function tileview(events)
                 function e:SetRenderOpacity(o) self.RenderOpacity = o end
                 e.Visibility = 4 -- SelfHitTestInvisible, as the other slots.
                 function e:SetVisibility(v) self.Visibility = v end
+                e.RenderTransform = {Translation = {X = 0, Y = 0}, Scale = {X = 1, Y = 1}}
+                function e:SetRenderTranslation(v) self.RenderTransform.Translation = {X = v.X, Y = v.Y} end
+                function e:SetRenderScale(v) self.RenderTransform.Scale = {X = v.X, Y = v.Y} end
                 function e:UpdateEquip(on) self.equips[#self.equips + 1] = on end
                 function e:IsAnyAnimationPlaying() return self.playing end
                 self.entries[item] = e

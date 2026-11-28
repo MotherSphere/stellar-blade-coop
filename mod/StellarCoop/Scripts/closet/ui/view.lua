@@ -669,6 +669,16 @@ function View.new(kit,log)
         if own and own<0.99 then off[#off+1]=string.format('op%.2f',own) end
         local box=tonumber(read(function() return U.value_of(entry.SizeBox_20.RenderOpacity) end))
         if box and box<0.99 then off[#off+1]=string.format('box%.2f',box) end
+        -- UWidget.RenderTransform (FWidgetTransform: Translation, Scale), the slot's and SizeBox_20's.
+        for _,x in ipairs({{'slot',function() return entry.RenderTransform end},
+            {'boxt',function() return entry.SizeBox_20.RenderTransform end}}) do
+            local tr=read(x[2])
+            local tx=tr and tonumber(read(function() return tr.Translation.X end)) or 0
+            local ty=tr and tonumber(read(function() return tr.Translation.Y end)) or 0
+            local sx=tr and tonumber(read(function() return tr.Scale.X end)) or 1
+            if tx~=0 or ty~=0 then off[#off+1]=string.format('%s@%.0f,%.0f',x[1],tx,ty) end
+            if sx<0.99 then off[#off+1]=string.format('%sx%.2f',x[1],sx) end
+        end
         return {i=i,vis=vis,text=#off>0 and i..'('..table.concat(off,',')..')' or tostring(i)}
     end
     local function unstick(entry)
@@ -685,6 +695,15 @@ function View.new(kit,log)
             if own and own<0.99 then entry:SetRenderOpacity(1); fixed[#fixed+1]='slot opacity '..own end
             if slid or #fixed>0 then box:SetRenderTranslation({X=0,Y=0}) end
             if slid then fixed[#fixed+1]='slid '..tostring(moved.X)..','..tostring(moved.Y) end
+            -- The slot's own offset and scale (UWidget SetRenderTranslation, SetRenderScale: entries 0x146203130,
+            -- 0x1462030e0 above): three earring tiles were gaps with every slot visible and opaque (27 Nov 2026).
+            local tr=entry.RenderTransform
+            local t=tr and tr.Translation
+            local sx=tr and tr.Scale and tonumber(tr.Scale.X)
+            if t and ((tonumber(t.X) or 0)~=0 or (tonumber(t.Y) or 0)~=0) then
+                entry:SetRenderTranslation({X=0,Y=0}); fixed[#fixed+1]='slot slid '..tostring(t.X)..','..tostring(t.Y)
+            end
+            if sx and sx<0.99 then entry:SetRenderScale({X=1,Y=1}); fixed[#fixed+1]='slot scale '..sx end
             if #fixed==0 then return end
             unstuck=unstuck+1
             if unstuck==1 then
