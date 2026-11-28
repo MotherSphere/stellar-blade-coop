@@ -404,11 +404,12 @@ function Head.new(o)
             a.mesh,why=Dress.usable(t.mesh)
             if not a.mesh then return nil,why end
         end
-        if t.anim then
+        -- An empty path is none (Bayonetta's hair names "AnimationBP": "": in game, 27 Nov 2026).
+        if t.anim and t.anim~='' then
             a.anim=class_of(t.anim)
             if not a.anim then return nil,name_of(t.anim)..' is missing on this PC' end
         end
-        if t.physics then
+        if t.physics and t.physics~='' then
             a.physics=resolve(t.physics,PHYSICS)
             if not a.physics then return nil,name_of(t.physics)..' is missing on this PC' end
         elseif RIGGED[COMPONENT[t.slot]] and a.mesh and not valid(a.mesh.PhysicsAsset) then
@@ -470,7 +471,12 @@ function Head.new(o)
         if not only_paint then
             if n==PONY and a.cloth then c.OverrideClothPhysicsAsset=a.cloth; w.cloth=path_of(a.cloth) end
             if not p.made then c:SetSkeletalMesh(a.mesh,true) end -- Made.put set it.
-            if a.anim then c:SetAnimClass(a.anim); w.anim=path_of(a.anim) end
+            if a.anim then c:SetAnimClass(a.anim); w.anim=path_of(a.anim)
+            elseif RIGGED[n] then
+                -- A piece with no AnimBP never keeps the last piece's (built for another skeleton). SetAnimClass with
+                -- no class writes 0 to +0x888 (0x14411af10, Ghidra, build 26123051), as give_back's clear does.
+                c:SetAnimClass(nil); w.anim=''
+            end
             if RIGGED[n] then
                 -- The game's rule (FUN_1424c12e0): a cut hair's own asset, else the mesh's own, else its named one.
                 local want=t.physics and a.physics or valid(a.mesh.PhysicsAsset) or a.physics

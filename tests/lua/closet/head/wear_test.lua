@@ -168,6 +168,9 @@ local ITEMS = {
         Variants = {{Mesh = banded.at_path, Materials = {'', '', band.at_path}}}},
     ['p.tri'] = {Slot = 'Hair', Origin = 'custom', Mesh = tri.at_path,
         Variants = {{Mesh = tri.at_path, Materials = {}}}},
+    -- Bayonetta's hair names "AnimationBP": "" (its pack file, 27 Nov 2026).
+    ['p.noanim'] = {Slot = 'Hair', Origin = 'custom', Mesh = tri.at_path, AnimationBP = '', PhysicsAsset = '',
+        Variants = {{Mesh = tri.at_path, Materials = {}}}},
     ['p.hair'] = {Slot = 'Hair', Origin = 'custom', Mesh = ph.at_path, AnimationBP = PACK .. 'PH_BP.PH_BP',
         Variants = {{Mesh = ph.at_path, Materials = {}, PonyPhysics = ph_pony.at_path}}},
     ['p.klukai'] = {Slot = 'Face', Origin = 'custom', Mesh = jali.at_path,
@@ -391,6 +394,19 @@ local tests = {
         ok(trace:find('SBPonytail cloth PH_Pony', 1, true), trace)
         ok(not trace:find('rotation', 1, true), 'its transform left as the component had it: ' .. trace)
         eq(w.eve.pony.OverrideClothPhysicsAsset, ph_pony)
+    end,
+
+    an_empty_animbp_or_physics_is_none = function()
+        -- In game "preview failed:  is missing on this PC" (Bayonetta's hair, 27 Nov 2026): '' was loaded as a class.
+        local w = world()
+        local worn, why = w.wear({hair('p.noanim')})
+        ok(worn, tostring(why))
+        ok(since(0):find('SBHair mesh Tri', 1, true), since(0))
+        -- After a hair with an AnimBP, the next with none never keeps the last one's class.
+        ok(w.wear({hair('p.hair')}))
+        ok(w.eve.hair.AnimClass ~= nil, 'the first hair\'s AnimBP on')
+        ok(w.wear({hair('p.noanim')}))
+        eq(w.eve.hair.AnimClass, nil, 'no AnimBP left from the last hair')
     end,
 
     the_last_hair_s_materials_never_stay_on_the_next = function()
