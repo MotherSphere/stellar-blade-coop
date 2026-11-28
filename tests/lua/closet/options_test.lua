@@ -208,6 +208,29 @@ local tests = {
         Fits.CHOSEN = {}
         ok(good, why)
     end,
+    a_slot_whose_instance_was_taken_off_gets_a_new_one = function()
+        -- In game (27 Nov 2026) the eye colour painted once, then later changes showed nothing: the slot's material
+        -- was put back under the closet's instance, which kept taking the values.
+        local item = stock_item('Hair', 'SB.H', {{name = 'RootColor', index = 0}})
+        Fits.use({['SB.H'] = item})
+        local good, why = pcall(function()
+            local r = rig()
+            local hair = component('Hair', {0})
+            r.dress.applied = function() return 1 end
+            r.dress.parts = function() return {{c = hair, fit = 'SB.H', slots = {[1] = 'Hair'}, head = true}} end
+            ok(r.o.set('SB.H', 1, 'colour:1', {R = 0.2, G = 0.4, B = 0.6, A = 1}))
+            r.o.tick()
+            local first = hair.mats[0]
+            hair.mats[0] = obj('Hair material 0') -- Something put the slot's own material back.
+            ok(r.o.set('SB.H', 1, 'colour:1', {R = 0.9, G = 0.1, B = 0.1, A = 1}))
+            r.o.tick()
+            ok(hair.mats[0] ~= first, 'a new instance on the slot')
+            near(hair.mats[0].values.RootColor, {R = 0.9, G = 0.1, B = 0.1, A = 1}, 'the new colour shows')
+        end)
+        Fits.use(nil)
+        Fits.CHOSEN = {}
+        ok(good, why)
+    end,
     one_control_paints_each_slot_it_lists = function()
         -- A control with MaterialIndices paints every slot it lists: a hair with four slots of one material showed its
         -- every control four times (Schizo's video of 27 Nov 2026).

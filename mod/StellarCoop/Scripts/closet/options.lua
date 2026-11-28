@@ -505,10 +505,12 @@ function Options.new(o)
         local done,why=pcall(function() s.mid[SETTER[kind]](s.mid,fname(name),value) end)
         if not done then log('options: '..name..' not set on slot '..s.index..': '..tostring(why)) end
     end
-    -- A record still on the worn component (closet/colour.lua's mine).
+    -- A record still on the worn component (closet/colour.lua's mine), its instance still the slot's material: the eye
+    -- colour painted once, then later changes went to an instance no longer on the face (in game, 27 Nov 2026).
     local function mine(s,c)
         local ok,same=pcall(function()
             return U.valid(s.c) and U.valid(s.mid) and U.valid(c) and U.address(s.c)==U.address(c)
+                and U.address(U.valid(c:GetMaterial(s.index)))==U.address(s.mid)
         end)
         return s and ok and same and s or nil
     end
