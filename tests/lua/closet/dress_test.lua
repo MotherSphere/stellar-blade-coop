@@ -1499,20 +1499,25 @@ local tests = {
             local calls = {}
             local pin = {fit = function(eve, body, own)
                 calls[#calls + 1] = {'fit', eve == w.eve, body.SkeletalMesh.path, own and own.path}
-            end, give_back = function(body) calls[#calls + 1] = {'give_back', body.SkeletalMesh.path} end}
+            end, give_back = function(body, eve)
+                calls[#calls + 1] = {'give_back', body.SkeletalMesh.path, eve == w.eve}
+            end}
             local d = w.Dress.new({log = function(m) w.log[#w.log + 1] = m end, store = w.store,
                 clock = function() return w.now end, head = h, pin = pin})
             assert(d.wear({{fit = 'p.suit'}}))
             same(calls, {{'fit', true, PV1, OWN}}, 'fit with the suit on and her own mesh')
             eq(d.own(), OWN, 'her own body mesh path')
             assert(d.wear(HAIR_ONLY))
-            same(calls[2], {'give_back', OWN}, 'a head-only look gives her body back')
+            same(calls[2], {'give_back', OWN, true}, 'a head-only look gives her body back')
             assert(d.wear({{fit = 'p.suit'}}))
             assert(d.off())
-            same(calls[4], {'give_back', OWN}, 'off gives it back with her own mesh on')
+            same(calls[4], {'give_back', OWN, true}, 'off gives it back with her own mesh on')
             pin.fit = function() error('boom') end
             assert(d.wear({{fit = 'p.suit'}}), 'a raising pin never stops the look')
-            ok(logged(w, 'hairpin: '), 'its error logged')
+            assert(d.wear({{fit = 'p.suit'}}))
+            local n = 0
+            for _, line in ipairs(w.log) do if line:find('hairpin: ', 1, true) then n = n + 1 end end
+            eq(n, 1, 'its error logged once')
         end)
     end,
 }

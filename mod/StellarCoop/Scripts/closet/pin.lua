@@ -10,8 +10,8 @@
 -- visibility and bHidePonyTail stay the game's (the game shows and hides the pin with SBPonytail from that flag:
 -- FUN_14203bb10 -> FUN_14203bca0, by the component's FName "ACC_HairPin"). A socket, bone or transform that does not
 -- read leaves the pin as it is, said once.
--- shortcut: a Lua reload while the pin sits on the bone forgets its own place; it stays on the bone (the same spot)
--- until the next map load makes a new EVE. Keep its place in coop-closet.txt if that shows in game.
+-- shortcut: a Lua reload while the pin sits on the bone forgets its own place: it is taken as zero (identity) on the
+-- socket, said once. Read it with probe 10 and keep it in coop-closet.txt if her own place is not zero.
 --
 -- The game's parts (SB-Win64-Shipping.exe, build 26123051, read 27 Nov 2026):
 --   USceneComponent.DoesSocketExist(InSocketName): native entry 0x14664b910 (name 0x146648b28), exec 0x14490b540
@@ -80,34 +80,66 @@ function Pin.new(o)
     local function leave(why)
         if not said then said=true; log('hairpin: '..why..': the pin is left as it is') end
     end
-    -- After her own body (or a body with the socket) is on: the pin back on SC_HairACC with its own place.
-    function self.give_back(body)
+    local reload_said=false
+    -- The pin's own place on SC_HairACC when nothing was moved this Lua load. A pin off its socket was left on the
+    -- bone by an earlier Lua load: its place there is the composed one. Her own relative place on the socket is
+    -- assumed zero (identity) until probe 10 reads it. GetAttachSocketName: entry 0x14664b940 (name 0x146648ad0),
+    -- exec 0x143805110.
+    local function own_place(c)
+        if text(c:GetAttachSocketName())~=Pin.SOCKET then
+            if not reload_said then
+                reload_said=true
+                log('hairpin: the pin is off '..Pin.SOCKET..' (an earlier Lua load): its own place is taken as zero')
+            end
+            return {c=c,loc={X=0,Y=0,Z=0},rot={Pitch=0,Yaw=0,Roll=0},scale={X=1,Y=1,Z=1}},true
+        end
+        return {c=c,loc=vec(c.RelativeLocation),rot=rot(c.RelativeRotation),scale=vec(c.RelativeScale3D)},false
+    end
+    local function put_back(m,body)
+        m.c:K2_AttachToComponent(body,FName(Pin.SOCKET),SNAP,SNAP,SNAP,false)
+        m.c:K2_SetRelativeTransform(lib():MakeTransform(m.loc,m.rot,m.scale),false,{},true)
+    end
+    -- After her own body (or a body with the socket) is on: the pin back on SC_HairACC with its own place. moved is
+    -- cleared only once that worked (a raise keeps it for the next call). eve: a pin an earlier Lua load left on the
+    -- bone goes back too.
+    function self.give_back(body,eve)
         local m=moved
+        if m and not valid(m.c) then m,moved=nil,nil end
+        if not m and eve then
+            local c=Pin.find(eve,StaticFindObject(Pin.CLASS))
+            local place,stranded=nil,false
+            if c then place,stranded=own_place(c) end
+            if stranded then m=place end
+        end
+        if not (m and body) then return false end
+        put_back(m,body)
         moved=nil
-        local c=m and valid(m.c)
-        if not (c and body) then return false end
-        c:K2_AttachToComponent(body,FName(Pin.SOCKET),SNAP,SNAP,SNAP,false)
-        c:K2_SetRelativeTransform(lib():MakeTransform(m.loc,m.rot,m.scale),false,{},true)
         log('hairpin: back on '..Pin.SOCKET)
         return true
     end
     -- After the dress put a body mesh on body (CharacterMesh0); own: her own body mesh (the dress's kept one).
     function self.fit(eve,body,own)
         if moved and not valid(moved.c) then moved=nil end -- A new EVE: her new pin sits on its socket.
-        if body:DoesSocketExist(FName(Pin.SOCKET)) then return self.give_back(body) end
+        if body:DoesSocketExist(FName(Pin.SOCKET)) then return self.give_back(body,eve) end
         local pin=Pin.find(eve,StaticFindObject(Pin.CLASS))
         if not pin then return leave('EVE has no '..Pin.NAME) end
         local s,why=Pin.socket(own)
         if not s then return leave('her own body mesh: '..why) end
-        local m=moved or {c=pin,loc=vec(pin.RelativeLocation),rot=rot(pin.RelativeRotation),
-            scale=vec(pin.RelativeScale3D)}
+        local first=not moved
+        local m=moved or own_place(pin)
         local math_lib=lib()
         local t=math_lib:ComposeTransforms(math_lib:MakeTransform(m.loc,m.rot,m.scale),
             math_lib:MakeTransform(s.loc,s.rot,s.scale))
-        pin:K2_AttachToComponent(body,FName(s.bone),SNAP,SNAP,SNAP,false)
-        pin:K2_SetRelativeTransform(t,false,{},true)
-        if not moved then log('hairpin: the worn body has no '..Pin.SOCKET..': on bone '..s.bone) end
-        moved=m
+        moved=m -- Before the attach: a raise below still knows its own place.
+        local done,e=pcall(function()
+            pin:K2_AttachToComponent(body,FName(s.bone),SNAP,SNAP,SNAP,false)
+            pin:K2_SetRelativeTransform(t,false,{},true)
+        end)
+        if not done then
+            if pcall(put_back,m,body) then moved=nil end -- Never stranded on the bone with a zeroed place.
+            error(e,0)
+        end
+        if first then log('hairpin: the worn body has no '..Pin.SOCKET..': on bone '..s.bone) end
         return true
     end
     return self

@@ -358,9 +358,10 @@ function Dress.new(o)
         give_back=function() return true end,parts=function() return {} end,tick=function() end,stop=function() end}
     -- The hairpin part (closet/pin.lua): fit after each body mesh put on, give_back after her own is back. None: no-op.
     local pin=o.pin or {fit=function() end,give_back=function() end}
+    local pin_said=false -- A raise is said once a Lua load: the watchdog's mixes would repeat it.
     local function pinned(f,...)
         local ran,e=pcall(f,...)
-        if not ran then log('hairpin: '..tostring(e)) end
+        if not ran and not pin_said then pin_said=true; log('hairpin: '..tostring(e)) end
     end
     local self={}
     local state -- While a mix is on: {plan=, eve_path=, own=<mesh path>, materials=<line>, added={c,count,show},
@@ -476,7 +477,7 @@ function Dress.new(o)
                     if m then pcall(function() body:SetMaterial(tonumber(slot),m) end) end
                 end
                 for lod=0,lods(body)-1 do pcall(function() body:ShowAllMaterialSections(lod) end) end
-                pinned(pin.give_back,body)
+                pinned(pin.give_back,body,eve)
             end
         end
         return removed
