@@ -937,7 +937,7 @@ Each stands on the floor of its level:
 | `plate_gate_guard` | `Under_P1_Streets` | On the terrace at the foot of the arch stair, (-28, 6334, -596) | `CH_NPC_XionGuard` | You came down the arch stair? Then you found us. |
 | `plate_storyteller` | `Under_P1_Streets` | On the placette, by the cafe tables | `CH_NPC_CitizenMale_B` | Before the city was hung here, this was all falling air. |
 | `plate_porter` | `Under_P1_Shops` | In the porter's store under the yard | `CH_NPC_ScavengerFemale_A` | Everything that comes down, comes down that stair. |
-| `plate_welder` | `Under_P1_Shops` | In the junk yard's court, by the racks | `CH_NPC_EngineerMale` | Stand back from the sparks. |
+| `plate_welder` | `Under_P1_Shops` | In the junk yard's court, facing the rack by its back gate | `CH_NPC_EngineerMale` | Stand back from the sparks. |
 | `plate_stall_keeper_1` | `Under_P1_Streets` | At the stall on crates | `CH_NPC_CitizenFemale_A` | Fresh from the upper streets. |
 | `plate_stall_keeper_2` | `Under_P1_Streets` | At the vending kiosk | `CH_NPC_ScavengerFemale_A` | Cells, cable, anything that still works. |
 | `plate_stall_keeper_3`, the cook | `Under_P1_Shops` | Behind the cantine's counter | `CH_NPC_CitizenMale_C` | Find yourself a seat and I'll be right with you. |
@@ -958,8 +958,7 @@ stands 3.7 m or more under the lower street at G18 (Z -228), past the 3 m of a l
 
 - Nothing ran in game: the walk from E1, the collision of the pieces (2,560 block EVE, 709 let her through), the
   light under SB's own env volumes, the NPC bodies and their lines.
-- The layout's walk check from E1 reached 9 of the 10 NPC places. It did not reach the welder's place in the junk
-  yard's court, so EVE may not come within 3 m of him.
+- The layout's walk check from E1 reached all 10 NPC places. Each NPC stands on a cell EVE walks to.
 - One light copied from SB, in `Under_P1_Streets`, stands at 0 cd and gives no light.
 - `coop xion rooms off` puts G18's pieces back too. With EVE below the gate she then cannot walk out until
   `coop xion rooms on`.
@@ -978,7 +977,7 @@ With the eighth build in `SB/Content/Paks/~mods`, on a co-op save, alone.
    once.
 5. Walk the whole plate: the red stair, the yard landing, the low flights, the placette, the Arch street, the lane,
    the north and low terraces, every shop and both homes. Note the NPCs' feet over the floor, the light and any
-   piece EVE walks through. Try to reach the welder in the junk yard's court.
+   piece EVE walks through. Walk up to the welder in the junk yard's court: his line shows once.
 6. Jump over a rail at the plate's edge. The log has `black:`, then `fall: EVE at ... under the floor of the
    underground district` and `put back: EVE walks`. EVE stands on the plate again.
 7. Walk back up the stairs and out through the gate, then `coop xion leave`.

@@ -69,10 +69,10 @@ Npcs.LIST={
     {name='plate_porter',room='Under_P1_Shops',mesh=asset(SCAVENGER,'CH_NPC_ScavengerFemale_A'),
         clips=clips(SCAVENGER..'Animation/',{'N_Scavenger_Idle3','N_Scavenger_Idle1'}),
         at={X=-664.9,Y=5381.7,Z=-1103.0},yaw=220,frame={X=-766.9,Y=5161.6,yaw=43}},
-    -- The welder in the junk yard's court, by the racks.
+    -- The welder in the junk yard's court, facing the rack by its back gate.
     {name='plate_welder',room='Under_P1_Shops',mesh=asset(ENGINEER,'CH_NPC_EngineerMale'),
         clips=clips(ENGINEER..'Animation/',{'N_Engineer_Work2','N_Engineer_Work1','N_Engineer_Work3'}),
-        at={X=-1017.6,Y=7840.1,Z=-1100.0},yaw=228,frame={X=-220.5,Y=4449.2,yaw=130}},
+        at={X=-649.6,Y=7666.0,Z=-1103.0},yaw=143,frame={X=-220.5,Y=4449.2,yaw=130}},
     -- A stall keeper at the stall on crates.
     {name='plate_stall_keeper_1',room='Under_P1_Streets',mesh=asset(FEMALE,'CH_NPC_CitizenFemale_A'),
         clips=clips(FEMALE..'Animation/',{'N_Citizen_Idle','N_Citizen_Stand_CrossArms','N_Citizen_Stand_Talk_Loop'}),

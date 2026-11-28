@@ -62,7 +62,7 @@ local PLATE={
     plate_gate_guard={'Under_P1_Streets',-27.9,6333.9,-596.0,220,EDGE},
     plate_storyteller={'Under_P1_Streets',-1188.6,6534.8,-1107.0,310,EDGE},
     plate_porter={'Under_P1_Shops',-664.9,5381.7,-1103.0,220,{X=-766.9,Y=5161.6,yaw=43}},
-    plate_welder={'Under_P1_Shops',-1017.6,7840.1,-1100.0,228,EDGE},
+    plate_welder={'Under_P1_Shops',-649.6,7666.0,-1103.0,143,EDGE},
     plate_stall_keeper_1={'Under_P1_Streets',-2437.0,5409.0,-1105.0,198,EDGE},
     plate_stall_keeper_2={'Under_P1_Streets',-584.6,6624.0,-1107.0,159,EDGE},
     plate_stall_keeper_3={'Under_P1_Shops',-1158.5,4445.4,-1104.0,47,{X=-932.7,Y=4242.1,yaw=137}},
