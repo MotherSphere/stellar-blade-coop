@@ -9,7 +9,8 @@
 -- Stock.read(env) -> rows | nil, why: the three live tables as the rows below, each engine call in a pcall.
 --   env = {find(path) -> UDataTable or nil (StaticFindObject-like), load(path) -> object or nil (LoadAsset-like),
 --          text(v) -> string (an FText's words; a string is an ItemStringTable key, closet/head/cut.lua's), log(line)}
--- Stock.build(env) -> items[, why]: Stock.items(Stock.read(env)) plus Cut.items(env). A failed read (or a raise in
+-- Stock.build(env) -> items[, why]: Stock.items(Stock.read(env)), the suits of closet/suits.lua's Suits.items on the
+-- same rows, plus Cut.items(env). A failed read (or a raise in
 -- Stock.items) gives the cut hairs alone and its why. The why and each row left out are logged once a Lua load.
 --
 -- Stock.items(rows) -> items, missing
@@ -61,6 +62,7 @@ local function plain(p)
     if p == '' or p == 'None' then return nil end
     return p
 end
+Stock.plain = plain -- closet/suits.lua reads its rows' paths with it.
 
 -- A package path with its '.Object' part cut: a parent is written either way.
 local function package_of(p) return (plain(p) or ''):gsub('%.[^./]*$', '') end
@@ -505,7 +507,8 @@ function Stock.read(env)
         function(n, row)
             local c = U.value_of(row.Category)
             c = type(c) == 'number' and (CATEGORIES[c] or 'ESBItemCategory_' .. c) or str(c)
-            if c and (c:find('Hair$') or c:find('EarRing$') or c:find('FaceAccessory$')) then
+            -- NanoSuit rows are closet/suits.lua's (Stock.build adds them); Stock.items leaves them out.
+            if c and (c:find('Hair$') or c:find('EarRing$') or c:find('FaceAccessory$') or c:find('NanoSuit$')) then
                 rows.items[n] = copy(row, ITEM_FIELDS, {Category = c, Name = n})
                 local ok, words = pcall(env.text, U.value_of(row.Name))
                 -- The live FText gave back its own ItemStringTable key in game (Item_Hair_003_Name on the tiles, 27
@@ -586,8 +589,9 @@ function Stock.read(env)
         end
         rows.mesh_mats[mesh] = slots
     end
+    -- A suit's mesh is not loaded here (131 suits; no controls of theirs are read): dress loads the one worn.
     for _, it in pairs(rows.items) do
-        local eq = rows.equipment[it.EquipmentAlias or '']
+        local eq = not it.Category:find('NanoSuit$') and rows.equipment[it.EquipmentAlias or '']
         local mesh = eq and plain(eq.MountingResourcePath)
         if mesh and not with_material[eq.MaterialGroup or ''] then load_mesh(mesh) end
     end
@@ -643,7 +647,15 @@ function Stock.build(env)
     local rows, why = Stock.read(env)
     local ok, items, missing = false, nil, nil
     if rows then
-        ok, items, missing = pcall(Stock.items, rows)
+        ok, items, missing = pcall(function()
+            local all, lost = Stock.items(rows)
+            -- Required here: closet/suits.lua requires this file.
+            local suits, gone = require('closet.suits').items(rows)
+            for id, it in pairs(suits) do all[id] = it end
+            table.move(gone, 1, #gone, #lost + 1, lost)
+            table.sort(lost)
+            return all, lost
+        end)
         if not ok then why = 'stock: ' .. tostring(items) end
     end
     -- A failed read leaves the stock rows out; the two cut hairs stay (the spec's one exception).

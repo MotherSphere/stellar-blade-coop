@@ -77,7 +77,8 @@ M.closet_packs=require('closet.packs').new({paks=require('core.pak_gate').paks_o
     list=M.folder and M.folder..'\\coop-cns-packs.txt',read=require('core.link').files.read,
     log=function(m) print('[StellarCoop][CL] '..tostring(m)..'\n') end})
 -- Each scan's suits and head pieces become closet/fits.lua's pack fits (Fits.use): Full outfit lists the suits, the
--- Head tab the rest. The stock hairs and ponytails (closet/head/stock.lua, read from the game's tables) join the pack
+-- Head tab the rest. The stock hairs and ponytails (closet/head/stock.lua, read from the game's tables) and the
+-- stock suits (closet/suits.lua, from the same read) join the pack
 -- catalogue there; a pack item whose id starts with SB. is refused (those ids are the stock's). Stock.build gives the
 -- two cut hairs and a why when its read fails: that is merged and read again at the next once() in a world.
 local Fits=require('closet.fits')

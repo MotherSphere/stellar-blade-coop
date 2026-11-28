@@ -84,6 +84,7 @@ The files in `mod/StellarCoop/Scripts/closet/` are pure Lua, except `dress.lua`,
 | `shape.lua` | `coop closet shape`: the morph names of the worn meshes, the Body tab's shape rows and the morph values on EVE's body and the added pieces |
 | `options.lua` | `coop closet option`: each pack outfit's variant and, per variant, its piece toggles, colours, finishes, numbers and shape keys, kept in `coop-closet-options.txt`, and those values on the worn outfit |
 | `presets.lua` | `coop closet preset` and `coop closet favourite`: the presets and the favourite outfits, kept in `coop-closet-presets.txt` |
+| `suits.lua` | The game's own suits: the NanoSuit rows `head/stock.lua` reads, as Full outfit items under Original. A `_VarN` colour version is a variant of its base suit |
 
 The files in `mod/StellarCoop/Scripts/closet/head/` make the Head tab's pieces. `head/wear.lua` makes engine calls.
 `head/stock.lua` reaches the game only through its reader's env.
@@ -109,7 +110,8 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu and the p
 `wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `presets.lua` as
 `M.closet_presets`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`, `thumbs.lua` as
 `M.closet_thumbs` and `commands.lua`. It builds `head/wear.lua` as the dress's head part (the options layer gets it
-too) and merges the stock hairs of `head/stock.lua` into each pack scan. Its build step `menu`, which
+too) and merges the stock hairs of `head/stock.lua` and the stock suits of `suits.lua` into each pack scan.
+Its build step `menu`, which
 `main/ui.lua` runs with the Steam link only, builds `ui/menu.lua` as `M.closet_menu` (with `M.closet_thumbs` for its
 Make preview pictures row, `M.closet_options` for the options pages, `M.closet_presets` for the Presets rows and
 favourites, `M.closet_colour` for its Colour tab and
