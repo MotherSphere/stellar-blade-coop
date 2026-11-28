@@ -80,7 +80,7 @@
 -- number), brought into the window as far as the focused piece stays in it; left and right still turn the piece. F (refresh, UI_FaceButton_Top) gives the focused row its pack value
 -- back; Select on Reset this outfit gives every one. Back closes an open piece's controls (the focus on the piece),
 -- then the page: the focus goes back to the outfit's row. Up stops on the page's header row. A tab change or an open
--- drops the page; the pad chord's undo keeps it. The page's hints: Back, Change on UI_DPad_Left and UI_DPad_Right,
+-- drops the page; the undo of closet_key keeps it. The page's hints: Back, Change on UI_DPad_Left and UI_DPad_Right,
 -- Reset on UI_FaceButton_Top (Select instead on a piece with controls), Move. The detail's open line and help follow
 -- the device: a device switch draws them again at the next tick.
 -- With presets (o.presets, closet/presets.lua) the Full tab starts with Save look as preset (Select saves the worn
@@ -168,8 +168,8 @@ function Menu.new(o)
     -- unreverted: a close's revert failed (no EVE during a map change), asked again each RETRY s while closed.
     local back_at,owed,unreverted=nil,false,false
     -- frame: ticks so far; undo: the focus before the last tab_left while only left followed it ({tab, row, col, tile,
-    -- tab_top, at=the frame of the last of them}), for the pad chord (self.toggle); stepped: a left on a Colour or
-    -- shape row ({at=its frame, back=what puts the swatch or value back}), given back by the chord.
+    -- tab_top, at=the frame of the last of them}), for closet_key (self.toggle); stepped: a left on a Colour or
+    -- shape row ({at=its frame, back=what puts the swatch or value back}), given back by closet_key.
     local frame,undo,stepped=0,nil,nil
     local listed -- closet/shape.lua's rows as of the last draw: new ones are drawn at the next tick.
     -- page: the options page shown ({fit=<UniqueFitID>, open=<a piece's controls shown, none yet>}) or nil; from_row:
@@ -824,14 +824,12 @@ function Menu.new(o)
 
     function self.is_open() return open end
     -- closet_key (main/keys.lua): closed, open(); open, the Back of the rows level (the popup when the look changed, a
-    -- revert close when not; on the popup, its Back). The pad chord LB + D-pad Left (main/input.lua's closet) reaches
-    -- the open menu as tab_left at LB's press, then left and this toggle in one frame at D-pad Left's (native pad.h;
-    -- both pressed in one poll: left, tab_left, toggle). That toggle first puts the focus back as it was before the
-    -- tab_left, so the chord leaves the tab and row as they were. A swatch or shape value the chord's left took on a
-    -- Colour or shape row (saved at once) is put back, so the palette and the shape stay as they were. Q, then F1 in a
-    -- later frame, keeps Q's tab.
-    -- shortcut: a chord whose D-pad Left comes with no left (D-pad Up or Down held too) keeps LB's tab move; read the
-    -- pad's held LB in Lua if players hit it.
+    -- revert close when not; on the popup, its Back). The controller's D-pad Left tap (main/input.lua's closet) only
+    -- opens the menu. On the open menu it does nothing beyond its normal left. B closes the menu. On the keyboard, a
+    -- tab_left, then a left and this toggle in one frame first put the focus back as it was before the tab_left, so
+    -- the toggle leaves the tab and row as they were. A swatch or shape value that left took on a Colour or shape row
+    -- (saved at once) is put back, so the palette and the shape stay as they were. Q, then F1 in a later frame, keeps
+    -- Q's tab.
     function self.toggle()
         if not open then return self.open() end
         if undo and undo.at==frame then
@@ -868,7 +866,7 @@ function Menu.new(o)
         options.set(fit,v,key,value)
     end
     -- steps left or right (select: right) past variants whose mesh does not load (dress.loads), a section turns all its
-    -- pieces off when every one shows, else on, a piece turns. A left keeps what puts it back for the pad chord.
+    -- pieces off when every one shows, else on, a piece turns. A left keeps what puts it back for closet_key.
     -- A colour takes the choice after or before (closet/options.lua's cycle: Pack colour, the swatches, Custom), a
     -- channel, a number or a shape key steps (options.step), a finish takes the next option whose texture loads.
     local function change(item,word)
@@ -936,7 +934,7 @@ function Menu.new(o)
         if word=='back' and camera and camera.hold_back() then return end
         -- A menu move: the mouse wheel is the menu's again until the camera moves another way (Schizo, 27 Nov 2026).
         if camera and camera.menu_used then camera.menu_used() end
-        if word=='tab_left' then undo={tab,row,col,tile,tab_top,page,from_row,at=frame} -- The pad chord (self.toggle).
+        if word=='tab_left' then undo={tab,row,col,tile,tab_top,page,from_row,at=frame} -- For closet_key (self.toggle).
         elseif word=='left' and undo then undo.at=frame
         else undo=nil end
         if word=='select' and now()<opened+Menu.ARM then return end
@@ -1034,7 +1032,7 @@ function Menu.new(o)
             local role,ch=item.role,item.c
             local _,was=o.colour.get(role)
             o.colour.step(role,ch,word=='left' and -1 or 1)
-            -- For the pad chord (self.toggle).
+            -- For closet_key (self.toggle).
             if word=='left' then stepped={at=frame,back=function() o.colour.channel(role,ch,was[ch:upper()]) end} end
             kit.sound('change')
         elseif item and item.role and not item.c and (word=='left' or word=='right' or word=='select') then
@@ -1042,7 +1040,7 @@ function Menu.new(o)
                 local role=item.role
                 local on=o.colour.get(role)
                 o.colour.turn(role,not on)
-                -- For the pad chord (self.toggle).
+                -- For closet_key (self.toggle).
                 if word=='left' then stepped={at=frame,back=function() o.colour.turn(role,on) end} end
                 kit.sound('change')
             end
@@ -1050,7 +1048,7 @@ function Menu.new(o)
             local name,was=item.morph,o.shape.get(item.morph)
             if word=='select' then o.shape.set(name,was>=100 and 0 or was+Shape.STEP)
             else o.shape.step(name,word=='left' and -1 or 1) end
-            if word=='left' then stepped={at=frame,back=function() o.shape.set(name,was) end} end -- The pad chord.
+            if word=='left' then stepped={at=frame,back=function() o.shape.set(name,was) end} end -- For closet_key.
             kit.sound('change')
         elseif page and item and item.reset_fit and word=='select' then -- Reset this outfit.
             o.options.reset(page.fit)

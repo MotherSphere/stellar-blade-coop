@@ -116,7 +116,7 @@ The files in `mod/StellarCoop/Scripts/closet/ui/` make the closet menu, its HUD 
 | `ui/camera.lua` | The menu's camera: region and free modes, its pose kept in `coop-closet-camera.txt` |
 | `ui/lights.lua` | The preview lights on the menu's camera: the presets, their intensity and places |
 | `ui/probe.lua` | `coop closet probe` |
-| `ui/hud.lua` | The closet's entry in SB's HUD item column, at the start of gun mode's row: the hanger icon, then the closet key's icon with an arrow on the keyboard (none for a key with Shift, Ctrl or Alt) or the LB and D-pad Left glyphs of the LB + D-pad Left chord on a controller |
+| `ui/hud.lua` | The closet's entry in SB's HUD item column, at the start of gun mode's row: the hanger icon, then the closet key's icon with an arrow on the keyboard (none for a key with Shift, Ctrl or Alt) or the D-pad Left glyph on a controller |
 
 `wiring.lua` builds `dress.lua` as `M.closet`, `options.lua` as `M.closet_options`, `presets.lua` as
 `M.closet_presets`, `colour.lua` as `M.closet_colour`, `shape.lua` as `M.closet_shape`, `thumbs.lua` as
@@ -134,10 +134,13 @@ options, colour, shape, probe, thumbs and menu ticks each frame. The HUD entry t
 ## The closet menu
 
 F1 (`closet_key`, which you can change in the co-op menu's Options page or in
-[coop-settings.txt](../players/settings.md#coop-settingstxt)), LB held + D-pad Left on a controller and
-`coop closet menu` open the menu in the game world, the SBO lobby world included. Pressed while the menu is open, F1
-and LB + D-pad Left go back as Esc does. LB + D-pad Left does nothing while you watch a friend after a fall
-(spectate): D-pad Left switches the member you watch then. It needs the Steam link (the kit needs it). It does not
+[coop-settings.txt](../players/settings.md#coop-settingstxt)), D-pad Left tapped alone on a controller and
+`coop closet menu` open the menu in the game world, the SBO lobby world included. A tap is a press let go before 0.3 s
+with no other D-pad direction held. Holding D-pad Left for 0.3 s still opens the emote wheel. The tap opens the closet
+only while the closet module is on. The tap is ignored while spectate watches, where D-pad Left switches the watched
+member. A refusal on a controller (combat, a cutscene and so on) is only logged, because D-pad Left is tapped often in
+play. Pressed while the menu is open, F1 goes back as Esc does. On a controller, B closes the menu. It needs the Steam
+link (the kit needs it). It does not
 open while the UI is not up, outside the game world, while another SBO screen holds the input, while the game is
 paused or shows one of its screens, in photo mode, during a cutscene, in combat, in Tachy Mode, while EVE rides the
 bike, with the Doro look on, with the rifle out, while an emote plays or while a `coop wear` suit is on. One notice
@@ -154,8 +157,8 @@ widget parts in the kit group `closet_menu`:
 | Detail | `WB_NanoSuit_Detail` with its hold button hidden. The origin badge (the Original or Custom glyph) sits right of it, by its title |
 | Key hints | `WB_Common_IndicatorBtnDefault` |
 
-The tab shown is kept until the next Lua load. The first open shows the first tab, Full outfit. LB + D-pad Left that
-closes the menu leaves the tab where it was. While the menu is open it holds the input with the mouse cursor. Q and E
+The tab shown is kept until the next Lua load. The first open shows the first tab, Full outfit. Closing the
+menu leaves the tab where it was. While the menu is open it holds the input with the mouse cursor. Q and E
 (LB and RB) change the tab. Up and down walk the rows. Right or Select on a row of pieces goes into its grid. A tile
 focused for 250 ms is worn on EVE as a live preview. Select or a left click on the tile wears it at once.
 F (the pad's Y) wears the whole outfit of the focused piece. Each grid starts with a None tile that takes that slot's
@@ -320,7 +323,6 @@ it. A revert does not undo it. The palette survives a restart. The file holds on
 (`primary=on:0.515,0.007,0.021`). A word of the earlier swatch file (`primary=crimson`) reads as that swatch's
 colour, on. `coop closet colour <role> <swatch>` still takes the 14 swatch names: White, Black, Charcoal, Silver,
 Gold, Crimson, Wine, Rose, Violet, Navy, Azure, Teal, Emerald and Sand.
-The pad chord LB + D-pad Left that closes the menu on a Colour row leaves the role and its sliders as they were.
 
 On each shown material slot of a worn piece that a set role reaches, the closet makes a dynamic material instance
 (it reuses one the game put there) and sets the role's parameter. `Base Color Tint` multiplies the piece's base
@@ -385,8 +387,7 @@ shows the value's place in its range. A click on the bar sets the value at that 
 The hints show Back, Change on D-pad Left and Right, Reset on F (the pad's Y), then Move. F gives the focused row its
 pack value back (Variant: the first variant). A piece with controls shows Select instead of Reset. The detail shows
 the pack's name and description of the row and how to change it, in the words of the device in use. A device switch
-draws them again. Back closes the page with the focus on the outfit's row. Up stops on the header row. The pad chord
-LB + D-pad Left on the page puts the page back before its Back.
+draws them again. Back closes the page with the focus on the outfit's row. Up stops on the header row.
 
 On a worn pack outfit the options layer writes every colour, number, finish and shape key it has, the pack value or
 the kept one, so no value another mod set stays on screen. Colours, numbers and finishes go on the material slot's
@@ -442,8 +443,8 @@ any other value is left alone: another mod wrote it last. A look that drops a na
 body. A morph set by another mod stays. Nothing changes while Tachy Mode pauses the mix.
 
 A shape change is saved at once in `coop-closet-shape.txt`, apart from the look. The menu does not ask "Keep this
-look?" for it. A revert does not undo it. The shape survives a restart. The pad chord LB + D-pad Left that closes the
-menu on a shape row leaves the value as it was. Reset Stellar Closet sets every value back to 0.
+look?" for it. A revert does not undo it. The shape survives a restart. On a controller, B closes the menu
+on a shape row with the value as it was. Reset Stellar Closet sets every value back to 0.
 
 ### The Head tab
 
@@ -606,10 +607,9 @@ The Lua tests are in `tests/lua/closet/`. All but `off_test.lua` and `closet_tes
   close path and the preview lights on the camera.
 - `lights_test.lua` runs the preview lights on a fake camera actor: each preset's lights, the preset cycle, the
   intensity steps and limits, a saved preset read back and the lights' end with the camera.
-- `hud_test.lua` runs the HUD entry over a fake UMG: the LB and D-pad Left twins of the pad glyph the game shows
-  (both or none, never D-pad Left alone) or the closet key's keyboard icon and its arrow, the hanger icon, the place
-  at the start of gun mode's row with the room it leaves gun mode (`lead`) and an earlier Lua load's widgets taken
-  again.
+- `hud_test.lua` runs the HUD entry over a fake UMG: the D-pad Left twin of the pad glyph the game shows or the
+  closet key's keyboard icon and its arrow, the hanger icon, the place at the start of gun mode's row with the room it
+  leaves gun mode (`lead`) and an earlier Lua load's widgets taken again.
 - `probe_test.lua` runs `coop closet probe` over a fake kit and fake widgets: the runner, its console words and the
   tests of the game's parts.
 - `pin_test.lua` runs the hairpin band (`pin.lua`) over fake UE4SS objects: a worn body with no `SC_HairACC` socket

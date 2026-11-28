@@ -23,7 +23,7 @@ if M.link then
     -- An on or off setting the native part takes through its own ask (hide_popups: popups on or off), asked at the
     -- first pass of a Lua load and at each change of the setting. A request that cannot be written is asked again at
     -- each pass and logged once, as hud_pass does. switch_asked: the value last asked, by key. want, when given,
-    -- stands for the setting (the closet's pad chord: on while the closet module is on).
+    -- stands for the setting (the closet's pad tap: on while the closet module is on).
     local switch_asked,switch_refused={},{}
     local function switch_pass(key,word,want)
         if want==nil then want=M.settings[key]==true end
@@ -43,7 +43,7 @@ if M.link then
         M.guarded('daynight',M.daynight.slow,M.off) -- After coop off too: it asks sky off once.
         M.guarded('pause tab',M.pause_tab.slow) -- Asks pausetab on or off; nothing after coop off.
         if not M.off then M.guarded('popups',switch_pass,'hide_popups','popups') end -- Asks popups on or off.
-        -- Asks closet on or off: LB held + D-pad Left makes the pad's closet event only while the closet module is on.
+        -- Asks closet on or off: a tap of D-pad Left makes the pad's closet event only while the closet module is on.
         if not M.off then
             M.guarded('closet',switch_pass,'closet','closet',not M.off_modules.closet)
         end

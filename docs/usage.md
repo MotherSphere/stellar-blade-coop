@@ -28,10 +28,10 @@ The keys work with or without the console. They need the native part (`StellarCo
 | A tap of D-pad Right (released within 0.4 s), on a controller | The same as F4, except while you watch a friend after a fall (spectate): that tap then switches the member you watch | `coop gun` |
 | F2, held | Open the [emote wheel](players/interface.md#emote-wheel). Point at an emote with the mouse and release F2 to play it | `coop emote <name>` |
 | F1 | Open the [Stellar Closet](closet/closet.md#the-closet-menu) menu in the game world; pressed while it is open, go back as Esc does | `coop closet menu` |
-| LB held + D-pad Left, on a controller | The same as F1. It leaves the closet's tab where it was | `coop closet menu` |
+| A tap of D-pad Left (released within 0.3 s, no other D-pad direction held), on a controller | Open the Stellar Closet menu. It does nothing while the menu is open (B closes it) or while you watch a friend after a fall (spectate). A refusal is only logged | `coop closet menu` |
 | J, L, I, K, U, O, C, Backspace; right stick, LT, RT, X, R3 on a controller | While the Stellar Closet menu is open: move [its camera](closet/closet.md#the-closet-camera) (orbit, zoom), switch region and free (C, X) and reset the free camera (Backspace, R3) | (none) |
 | V, Shift+U, Shift+O; L3, L3 held with LT or RT on a controller | While the Stellar Closet menu is open: take the next [preview light](closet/closet.md#preview-lighting) preset (V, L3 released), step its intensity down and up (Shift+U, Shift+O; L3 held with a pull of LT, RT) | (none) |
-| D-pad Left held 0.3 s, on a controller | Open the emote wheel. Point with the right stick and release D-pad Left to play. A tap of D-pad Left stays the game's. With LB held, D-pad Left opens the Stellar Closet menu instead | `coop emote <name>` |
+| D-pad Left held 0.3 s, on a controller | Open the emote wheel. Point with the right stick and release D-pad Left to play. A tap of D-pad Left opens the Stellar Closet menu | `coop emote <name>` |
 | Left and Right arrows; D-pad or left stick left and right | While you watch a friend after a fall in a shared boss fight ([spectate](fight/enemies.md#down-in-a-boss-fight-spectate)) and no menu, screen or box is open, watch the previous or next member alive on your map | (none) |
 | Enter | During a session or in the SBO lobby, open the [chat](players/interface.md#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
