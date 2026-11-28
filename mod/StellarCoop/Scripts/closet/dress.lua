@@ -84,6 +84,11 @@ local function usable(path)
     local mesh=resolve(path)
     if not mesh then return nil,path..' not found' end
     local ok,skeleton=pcall(function() return mesh.Skeleton end)
+    if not (ok and valid(skeleton)) and type(LoadAsset)=='function' then
+        -- Found in memory before it was loaded whole (the Succubus Horns, 27 Nov 2026): a LoadAsset loads it whole.
+        pcall(LoadAsset,path)
+        ok,skeleton=pcall(function() return mesh.Skeleton end)
+    end
     if not (ok and valid(skeleton)) then
         -- What loaded and how the read went: two pack pieces read this way in game on 27 Nov 2026.
         local named,full=pcall(function() return text(mesh:GetFullName()) end)

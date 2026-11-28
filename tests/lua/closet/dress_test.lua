@@ -603,6 +603,19 @@ local tests = {
         for _, line in ipairs(w.log) do if line:find('has no skeleton', 1, true) then said = said + 1 end end
         ok(said <= 1, 'said once')
     end,
+    a_mesh_found_half_loaded_is_loaded_whole = function()
+        -- In game the Succubus Horns were found in memory with their Skeleton not valid: a LoadAsset of the mesh
+        -- loads it whole (its skeleton with it).
+        local w = world()
+        local path = '/Game/OutfitMods/P/Horns.Horns'
+        local m = obj(path)
+        w.assets[path] = m
+        local load = LoadAsset
+        LoadAsset = function(p) if p == path then m.Skeleton = obj('/Game/Art/EVE/Skeleton.Skeleton') end end
+        local got = require('closet.dress').usable(path)
+        LoadAsset = load
+        ok(got == m, 'loaded whole: usable')
+    end,
     a_mesh_with_no_skeleton_names_what_loaded = function()
         -- In game (27 Nov 2026) two pack pieces read "has no skeleton" with nothing to tell why.
         local w = world()
