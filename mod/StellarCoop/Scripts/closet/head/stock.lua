@@ -63,6 +63,10 @@ local function plain(p)
     return p
 end
 Stock.plain = plain -- closet/suits.lua reads its rows' paths with it.
+-- An ItemStringTable key no table has, as words: Item_BS_Bayonetta_01_Name -> Bayonetta 01 (a suit's BS_ dropped).
+function Stock.key_words(key)
+    return (key:gsub('^Item_', ''):gsub('_Name$', ''):gsub('^BS_', ''):gsub('_', ' '))
+end
 
 -- A package path with its '.Object' part cut: a parent is written either way.
 local function package_of(p) return (plain(p) or ''):gsub('%.[^./]*$', '') end
@@ -515,7 +519,8 @@ function Stock.read(env)
                 -- Nov 2026): such words are looked up as a key, the key kept when the table has no entry.
                 if ok and type(words) == 'string' and words:match('^Item_[%w_]+_Name$') then
                     local found, named = pcall(env.text, words)
-                    if found and named then words = named end
+                    -- A key no table has reads as words (Item_BS_Bayonetta_01_Name on the tiles, 27 Nov 2026).
+                    words = found and named or Stock.key_words(words)
                 end
                 rows.names[n] = ok and words or nil
             end
@@ -603,6 +608,11 @@ end
 -- words, an ItemStringTable key in the player's language through core/unreal.lua's game_text (KismetStringTableLibrary
 -- IsRegisteredTableEntry, then KismetTextLibrary TextFromStringTable, its name string 0x1465b6d28).
 local ITEM_STRINGS = '/Game/Local/Localize/ItemStringTable.ItemStringTable'
+-- The game's other string tables, tried for a key ItemStringTable lacks (the Bayonetta suits' names, 27 Nov 2026):
+-- their names are strings at 0x145bf8a68..0x145bf8be0, loaded from "/Game/Local/Localize/%s.%s" (0x145d4fec8, Ghidra,
+-- build 26123051). One in memory only is asked (game_text needs it found).
+local OTHER_STRINGS = {'StringTable_UI', 'CharacterStringTable', 'StringTable_Seq', 'QuestStringTable',
+    'EffectStringTable', 'SkillStringTable', 'StringTable_Records', 'StringTable_Activity'}
 function Stock.env(log)
     local function find(path) return U.valid(StaticFindObject(path)) end
     return {find = find, log = log,
@@ -613,7 +623,13 @@ function Stock.env(log)
             return find(path)
         end,
         text = function(v)
-            if type(v) == 'string' then return U.game_text(v, ITEM_STRINGS) end
+            if type(v) == 'string' then
+                local words = U.game_text(v, ITEM_STRINGS)
+                for _, t in ipairs(OTHER_STRINGS) do
+                    words = words or U.game_text(v, '/Game/Local/Localize/' .. t .. '.' .. t)
+                end
+                return words
+            end
             return U.text(v)
         end}
 end

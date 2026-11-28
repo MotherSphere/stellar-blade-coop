@@ -149,7 +149,9 @@ local tests = {
         same(r.names, {Hair_001 = 'Sharp Bob', Earring_001 = 'E'}, 'the key looked up')
         env.text = function(v) if type(v) == 'string' then return nil end return v:ToString() end
         r = assert(Stock.read(env))
-        same(r.names, {Hair_001 = 'Item_Hair_001_Name', Earring_001 = 'E'}, 'no entry: the key stays')
+        -- A key no table has reads as words (Item_BS_Bayonetta_01_Name on the tiles in game, 27 Nov 2026).
+        same(r.names, {Hair_001 = 'Hair 001', Earring_001 = 'E'}, 'no entry: the key as words')
+        eq(Stock.key_words('Item_BS_Bayonetta_01_Name'), 'Bayonetta 01', 'a suit key without its BS_')
     end,
     the_reader_loads_a_one_colour_hairs_mesh_materials = function()
         local env = live()
