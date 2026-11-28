@@ -128,6 +128,8 @@ local function tileview(events)
                 function box:SetRenderTranslation(v) self.translation = {X = v.X, Y = v.Y} end
                 e = {Data = item, Image_Icon = icon, equips = {}, SizeBox_20 = box, playing = false, RenderOpacity = 1}
                 function e:SetRenderOpacity(o) self.RenderOpacity = o end
+                e.Visibility = 4 -- SelfHitTestInvisible, as the other slots.
+                function e:SetVisibility(v) self.Visibility = v end
                 function e:UpdateEquip(on) self.equips[#self.equips + 1] = on end
                 function e:IsAnyAnimationPlaying() return self.playing end
                 self.entries[item] = e

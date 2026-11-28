@@ -654,6 +654,7 @@ function View.new(kit,log)
     -- (Ghidra, build 26123051, 27 Nov 2026). A refused call is said once and never stops the glyph look.
     local unstick_said=false
     local shown_note=nil -- The last 'the grid draws' line.
+    local hidden_before={} -- Tile numbers Hidden at the last look.
     -- A drawn slot as words: its tile number, then what is off (UWidget Visibility and RenderOpacity, read as
     -- properties; SizeBox_20's opacity), for the log. ESlateVisibility: Visible 0, Collapsed 1, Hidden 2,
     -- HitTestInvisible 3, SelfHitTestInvisible 4 (enumerator array 0x1461f6f20, Ghidra, build 26123051).
@@ -668,7 +669,7 @@ function View.new(kit,log)
         if own and own<0.99 then off[#off+1]=string.format('op%.2f',own) end
         local box=tonumber(read(function() return U.value_of(entry.SizeBox_20.RenderOpacity) end))
         if box and box<0.99 then off[#off+1]=string.format('box%.2f',box) end
-        return {i=i,text=#off>0 and i..'('..table.concat(off,',')..')' or tostring(i)}
+        return {i=i,vis=vis,text=#off>0 and i..'('..table.concat(off,',')..')' or tostring(i)}
     end
     local function unstick(entry)
         local ran,why=pcall(function()
@@ -703,14 +704,36 @@ function View.new(kit,log)
         local show=grid~=nil and has_tiles and t>=show_at
         if show then show_at=t+View.CHECK end
         local glyph_look=glyphed and (checking or by_brush) and t>=check_at
-        -- A look for stuck slots on its own only when the glyph look below does not run this tick.
-        if show and not glyph_look then
+        -- The look for stuck slots, each CHECK s (the glyph look below no longer does it).
+        local read_now=nil -- This tick's displayed entries, read once for both looks.
+        if show then
             call(grid,'grid show',function(w)
-                local shown={}
-                U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
+                local shown,entries,seen_vis={},{},nil
+                read_now=w.TileView_ItemList:GetDisplayedEntryWidgets()
+                U.each(read_now,function(_,entry)
                     unstick(entry)
-                    shown[#shown+1]=slot_note(entry)
+                    local n=slot_note(entry)
+                    shown[#shown+1]=n
+                    entries[#entries+1]={entry=entry,note=n}
+                    if n.vis and n.vis~=1 and n.vis~=2 then seen_vis=seen_vis or n.vis end
                 end)
+                -- A drawn slot Hidden on two looks in a row (0.25 s apart) with no animation playing takes the
+                -- visibility the other slots have: slots are Hidden for a moment while the grid scrolls, one stayed
+                -- so (a missing earring tile, 27 Nov 2026). UWidget SetVisibility(InVisibility): native entry
+                -- 0x146203170 (name 0x1461b8380), exec 0x143d75080 (Ghidra, build 26123051).
+                local now_hidden={}
+                for _,x in ipairs(entries) do
+                    if x.note.vis==2 then
+                        now_hidden[x.note.i]=true
+                        local busy=pcall(function() return x.entry:IsAnyAnimationPlaying() end)
+                            and x.entry:IsAnyAnimationPlaying()
+                        if hidden_before[x.note.i] and seen_vis and not busy then
+                            local done=pcall(function() x.entry:SetVisibility(seen_vis) end)
+                            if done then log('menu: tile '..x.note.i..' stayed hidden: shown') end
+                        end
+                    end
+                end
+                hidden_before=now_hidden
                 table.sort(shown,function(x,y) return x.i<y.i end)
                 local words={}
                 for _,n in ipairs(shown) do words[#words+1]=n.text end
@@ -747,8 +770,7 @@ function View.new(kit,log)
         check_at=t+View.CHECK
         local seen,wrong,done=0,0,false
         call(grid,'grid glyphs',function(w)
-            U.each(w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
-                if show then unstick(entry) end
+            U.each(read_now or w.TileView_ItemList:GetDisplayedEntryWidgets(),function(_,entry)
                 local g=glyphed[entry.Data.Index+1]
                 if not g then return end
                 seen=seen+1

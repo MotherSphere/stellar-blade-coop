@@ -3769,16 +3769,24 @@ local tests = {
             same(entries[2].SizeBox_20.translation, {X = 0, Y = 0}, 'back in place')
             eq(entries[3].SizeBox_20.RenderOpacity, 0.2, 'a slot still animating left to its animation')
             has(r.log, 'mid spawn animation', 'said')
+            -- A slot left Hidden on two looks in a row takes the other slots' visibility (a missing earring tile,
+            -- 27 Nov 2026); one Hidden for a single look is left to the grid.
+            entries[1].Visibility = 2
+            tick(r, 1.3)
+            eq(entries[1].Visibility, 2, 'hidden for one look: left alone')
+            tick(r, 1.56)
+            eq(entries[1].Visibility, 4, 'hidden for two looks: shown as the others')
+            has(r.log, 'stayed hidden', 'said')
             -- The slot widget itself left see-through (a whole hair tile hidden with SizeBox_20 whole, 27 Nov 2026).
             entries[1].RenderOpacity = 0
-            at(r, 1.1, 'right')
-            tick(r, 1.5)
+            at(r, 1.7, 'right')
+            tick(r, 2.0)
             eq(entries[1].RenderOpacity, 1, 'the see-through slot shown')
             -- A refused call never stops the glyph look; it is said once.
             entries[2].SizeBox_20.RenderOpacity = 0
             entries[2].SizeBox_20.SetRenderOpacity = 7
-            at(r, 1.1, 'left')
-            tick(r, 1.5)
+            at(r, 2.1, 'left')
+            tick(r, 2.4)
             has(r.log, 'could not be shown', 'a refusal said')
         end, heads({{fit = HAIR, slots = {'Hair'}}}))
     end,
