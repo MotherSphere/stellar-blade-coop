@@ -15,7 +15,7 @@
 -- props in front of it are no rows. D111, D109 and D029 name Xion_Rooms_D087 as the level the pak must hold beside
 -- theirs: the fourth full test build holds closed rooms under their names. Each room's door is a waypoint of the test
 -- walk (world/maps/sboxion/data.lua), named after the room, after the four older ones.
--- G18, the gate to the underground district, comes last: the level Under_D1_Arch of the sixth full test build, six
+-- G18, the gate to the underground district, comes last: the level Under_P1_Streets of the eighth full test build, six
 -- rows of E04_Area02_Object_F_04's Actor_1 (two crates, two fence panels, the tarp, a barrel), no door piece and no
 -- wall panel, its waypoint the middle of the gate's plane. With it the list holds 68 rows: 28 whole components and 40
 -- instances of 31 instanced components, in 14 sublevels.
@@ -45,7 +45,7 @@ local ROWS={D011=4,D031=4,D081=4,D107=3,D158=8,D009=4,D049=5,D092=2,D036=3,D106=
     G18=6}
 local ORDER={'D011','D031','D081','D107','D158','D009','D049','D092','D036','D106','D039','D087','D111','D109','D029',
     'G18'}
-local LEVEL={G18='Under_D1_Arch'} -- The rooms' level is Xion_Rooms_<room>.
+local LEVEL={G18='Under_P1_Streets'} -- The rooms' level is Xion_Rooms_<room>.
 assert(#List==16,'Fifteen rooms and G18: '..#List)
 local rows,whole,instances,sum=0,0,0,0
 local seen,components,sublevels={},{},{}

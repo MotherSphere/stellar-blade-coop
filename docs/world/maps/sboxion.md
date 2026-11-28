@@ -30,7 +30,7 @@ mod does not ship it and the repository cannot build it: the map tools stay outs
 The module looks for the pak once a Lua load, in `SB/Content/Paks/~mods`, then in `SB/Content/Paks/LogicMods`. The
 `.utoc` must name `SBO_World` and `Xion_P.umap`, with its `.pak` and `.ucas` beside it.
 
-There are ten builds of the pak, under the same three file names. Only one of them is installed at a time.
+There are eleven builds of the pak, under the same three file names. Only one of them is installed at a time.
 
 | Pak | Packages | Levels listed | `.utoc` | `.ucas` | Version in `coop xion status` |
 | --- | --- | --- | --- | --- | --- |
@@ -44,8 +44,9 @@ There are ten builds of the pak, under the same three file names. Only one of th
 | 26 November 2026, full test, fifth build | `Xion_P` and fifteen room levels | 171 | 2303 bytes | 2,267,202 bytes | `2303_2267202` |
 | 27 November 2026, full test, sixth build | `Xion_P`, the fifteen room levels and the two district levels | 173 | 2560 bytes | 2,610,974 bytes | `2560_2610974` |
 | 27 November 2026, full test, seventh build | `Xion_P`, the fifteen room levels and the two district levels, rebuilt | 173 | 2560 bytes | 2,612,399 bytes | `2560_2612399` |
+| 28 November 2026, full test, eighth build | `Xion_P`, the fifteen room levels and the three plate levels | 174 | 2999 bytes | 4,509,629 bytes | `2999_4509629` |
 
-All ten pass the check above. The module looks for package paths, never for a version: `self.gate()` in
+All eleven pass the check above. The module looks for package paths, never for a version: `self.gate()` in
 `sboxion.lua` hands the version to `coop xion status`, which prints it. Nothing else reads it. Two rebuilds of the
 third full test build, made on 25 November 2026 with pieces turned inside the rooms, read the same version: it is
 made of two sizes. At the first arrival
@@ -65,13 +66,15 @@ The fifth build holds the eleven and four new levels, `D087`, `D111`, `D109` and
 the kind the first eleven rooms use: none names a volume. Three of them carry the level names of closed rooms of the
 fourth build, so the module opens those three only with a pak that also holds `Xion_Rooms_D087.umap`.
 
-The sixth build holds the fifth build's fifteen room levels with the same bytes. It adds the two levels of [the
-underground district](#the-underground-district): `Under_D1_Arch.umap` and `Under_D1_ArchHomes.umap`. Its level line reads
-`173 listed, 139 of 139`. With it the module also opens the gate G18.
+The sixth build holds the fifth build's fifteen room levels with the same bytes. It adds the two levels of a first
+underground district: `Under_D1_Arch.umap` and `Under_D1_ArchHomes.umap`. Its level line reads `173 listed, 139 of
+139`. The seventh build holds the same levels with the two district levels built again. The module no longer asks
+for those two levels, so with either build it opens the fifteen rooms and keeps the gate G18 shut.
 
-The seventh build holds the same levels. Only its two district levels are new. The deck plates sit 13.7 cm higher.
-The deck's north edge has rails along its whole length: 44 in place of 41, which closes a gap of 3.9 m under the arch
-landing. `Xion_P` and the fifteen room levels are the same bytes as in the sixth build.
+The eighth build holds the fifteen room levels with the same bytes as the seventh build. In place of the two
+district levels it holds the three levels of [the underground district](#the-underground-district)'s plate:
+`Under_P1_Streets.umap`, `Under_P1_Shops.umap` and `Under_P1_Blocks.umap`. Its level line reads `174 listed, 140 of
+140`. With it the module also opens the gate G18.
 
 ## Commands
 

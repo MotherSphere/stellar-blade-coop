@@ -7,7 +7,7 @@
 -- SBO Xion's persistent level always loads: five in the paks of build2, eleven in the pak of build3, fifteen in the
 -- fifth full test build. A room has an open doorway of ours where SB's closed door unit and wall panel stand, with
 -- street debris in front. rooms/list.lua names those pieces of SB for fifteen rooms, 62 rows. It also names the six
--- rows of the gate G18, which the sixth full test build opens with the first level of the underground district:
+-- rows of the gate G18, which the eighth full test build opens with the street level of the underground district:
 -- the entry is a room whose level is that district level. This part hides them (world.piece, world.piece_out:
 -- world/maps/sboxion/engine.lua), so EVE walks in through the door with no loading screen. It puts them back with
 -- world.piece_back. Nothing is hidden in any other map and SB's own Xion is never changed: the pieces are objects of
