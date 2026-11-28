@@ -487,7 +487,7 @@ return {
         regions={HeadNeck='Baş ve boyun',TorsoUpper='Üst gövde',TorsoLower='Alt gövde',Pelvis='Leğen',
             ArmUpper='Üst kollar',Forearm='Ön kollar',Hand='Eller',Thigh='Uyluklar',Calf='Baldırlar',Foot='Ayaklar'},
         row={whole='Tüm kıyafeti giy',soon='Yakında',empty='Kurulu hiçbir kıyafette bu yuva için parça yok.',
-            none='Hiçbiri',locked='Kilitli: %s kurulu değil.',reset="Stellar Closet'ı sıfırla",
+            none='Hiçbiri',locked='Kilitli: %s kurulu değil.',broken='Kilitli: bu parça oyunun bu sürümünde yüklenmiyor (iskeleti eksik).',reset="Stellar Closet'ı sıfırla",
             clear_thumbs='Önizleme resimlerini temizle',
             clear_thumbs_desc='Tüm önizleme resimlerini siler. Kutular yeniden kıyafetlerin kendi resimlerini '
                 ..'gösterir. Önizleme resmi birini tekrar çeker.'},

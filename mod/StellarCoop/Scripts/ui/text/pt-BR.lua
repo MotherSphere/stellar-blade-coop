@@ -493,7 +493,8 @@ return {
             Calf='Panturrilhas',Foot='Pés'},
         row={whole='Vestir a roupa completa',soon='Em breve',
             empty='Nenhuma roupa instalada tem uma peça para este espaço.',none='Nada',
-            locked='Bloqueado: %s não está instalado.',reset='Redefinir o Stellar Closet',
+            locked='Bloqueado: %s não está instalado.',
+            broken='Bloqueado: esta peça não carrega nesta versão do jogo (falta o esqueleto dela).',reset='Redefinir o Stellar Closet',
             clear_thumbs='Limpar imagens de prévia',
             clear_thumbs_desc='Apaga todas as imagens de prévia. Os blocos voltam a mostrar as imagens próprias das '
                 ..'roupas. Imagem de prévia tira uma de novo.'},

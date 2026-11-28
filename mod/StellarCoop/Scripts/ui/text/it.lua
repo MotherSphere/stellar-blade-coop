@@ -496,7 +496,8 @@ return {
             ArmUpper='Braccia',Forearm='Avambracci',Hand='Mani',Thigh='Cosce',Calf='Polpacci',Foot='Piedi'},
         row={whole="Indossa l'outfit completo",soon='In arrivo',
             empty='Nessun outfit installato ha un capo per questo slot.',none='Nessuno',
-            locked='Bloccato: %s non è installato.',reset='Reimposta Stellar Closet',
+            locked='Bloccato: %s non è installato.',
+            broken='Bloccato: questo pezzo non si carica in questa versione del gioco (manca il suo scheletro).',reset='Reimposta Stellar Closet',
             clear_thumbs='Cancella anteprime',
             clear_thumbs_desc='Elimina tutte le anteprime. Le caselle mostrano di nuovo le immagini proprie degli '
                 ..'outfit. Anteprima ne scatta una di nuovo.'},

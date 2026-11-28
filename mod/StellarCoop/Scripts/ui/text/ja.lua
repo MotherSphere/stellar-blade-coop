@@ -423,7 +423,7 @@ return {
             Forearm='前腕',Hand='手',Thigh='太もも',Calf='ふくらはぎ',Foot='足'},
         row={whole='衣装一式を着る',soon='近日対応',
             empty='このスロットのパーツがあるインストール済み衣装はありません。',none='なし',
-            locked='ロック中：%sがインストールされていません。',reset='Stellar Closetをリセット',
+            locked='ロック中：%sがインストールされていません。',broken='ロック中：このアイテムはこのゲームバージョンでは読み込めません（スケルトンがありません）。',reset='Stellar Closetをリセット',
             clear_thumbs='プレビュー画像を消去',
             clear_thumbs_desc='すべてのプレビュー画像を削除します。タイルには衣装本来の画像が再び表示されます。プレビュー画像で撮り直せます。'},
         detail={outfit='衣装：%s',slot='スロット：%s',covers='覆う部位：%s',also='他に使うスロット：%s',

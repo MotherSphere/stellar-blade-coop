@@ -496,7 +496,8 @@ return {
             ArmUpper='Haut des bras',Forearm='Avant-bras',Hand='Mains',Thigh='Cuisses',Calf='Mollets',Foot='Pieds'},
         row={whole='Porter la tenue complète',soon='Bientôt',
             empty="Aucune tenue installée n'a de pièce pour cet emplacement.",none='Aucun',
-            locked="Verrouillé : %s n'est pas installé.",reset='Réinitialiser Stellar Closet',
+            locked="Verrouillé : %s n'est pas installé.",
+            broken='Verrouillé : cette pièce ne se charge pas dans cette version du jeu (son squelette manque).',reset='Réinitialiser Stellar Closet',
             clear_thumbs='Effacer les aperçus',
             clear_thumbs_desc='Supprime tous les aperçus. Les vignettes montrent de nouveau les images propres aux '
                 ..'tenues. Aperçu en reprend un.'},

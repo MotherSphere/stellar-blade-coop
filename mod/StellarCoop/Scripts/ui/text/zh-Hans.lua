@@ -385,7 +385,7 @@ return {
         regions={HeadNeck='头颈',TorsoUpper='上躯干',TorsoLower='下躯干',Pelvis='骨盆',ArmUpper='上臂',
             Forearm='前臂',Hand='手',Thigh='大腿',Calf='小腿',Foot='脚'},
         row={whole='穿上整套服装',soon='即将推出',empty='已安装的服装中没有适合此栏位的部件。',none='无',
-            locked='已锁定：未安装%s。',reset='重置Stellar Closet',
+            locked='已锁定：未安装%s。',broken='已锁定：此物品在此游戏版本中无法加载（缺少其骨架）。',reset='重置Stellar Closet',
             clear_thumbs='清除预览图',
             clear_thumbs_desc='删除所有预览图。方块会重新显示服装自带的图片。预览图会再次拍摄一张。'},
         detail={outfit='服装：%s',slot='栏位：%s',covers='覆盖：%s',also='同时占用：%s',off='在所属服装中默认隐藏'},

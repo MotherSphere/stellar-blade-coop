@@ -474,7 +474,8 @@ return {
             ArmUpper='Överarmar',Forearm='Underarmar',Hand='Händer',Thigh='Lår',Calf='Vader',Foot='Fötter'},
         row={whole='Bär hela dräkten',soon='Kommer snart',
             empty='Ingen installerad dräkt har ett plagg för den här platsen.',none='Inget',
-            locked='Låst: %s är inte installerad.',reset='Återställ Stellar Closet',
+            locked='Låst: %s är inte installerad.',
+            broken='Låst: den här delen laddas inte i den här spelversionen (dess skelett saknas).',reset='Återställ Stellar Closet',
             clear_thumbs='Rensa förhandsbilder',
             clear_thumbs_desc='Tar bort alla förhandsbilder. Rutorna visar dräkternas egna bilder igen. Förhandsbild '
                 ..'tar en på nytt.'},

@@ -478,7 +478,8 @@ return {
             ArmUpper='Overarmer',Forearm='Underarmer',Hand='Hender',Thigh='Lår',Calf='Legger',Foot='Føtter'},
         row={whole='Ta på hele antrekket',soon='Kommer snart',
             empty='Ingen installerte antrekk har en del for denne plassen.',none='Ingen',
-            locked='Låst: %s er ikke installert.',reset='Tilbakestill Stellar Closet',
+            locked='Låst: %s er ikke installert.',
+            broken='Låst: denne delen lastes ikke inn i denne spillversjonen (skjelettet mangler).',reset='Tilbakestill Stellar Closet',
             clear_thumbs='Fjern forhåndsvisningsbilder',
             clear_thumbs_desc='Sletter alle forhåndsvisningsbilder. Rutene viser antrekkenes egne bilder igjen. '
                 ..'Forhåndsvisningsbilde tar ett på nytt.'},

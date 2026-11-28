@@ -483,7 +483,8 @@ return {
             Foot='Stopy'},
         row={whole='Załóż cały strój',soon='Wkrótce',
             empty='Żaden zainstalowany strój nie ma elementu na to miejsce.',none='Brak',
-            locked='Zablokowane: %s nie jest zainstalowany.',reset='Zresetuj Stellar Closet',
+            locked='Zablokowane: %s nie jest zainstalowany.',
+            broken='Zablokowane: ten element nie wczytuje się w tej wersji gry (brakuje jego szkieletu).',reset='Zresetuj Stellar Closet',
             clear_thumbs='Wyczyść podglądy',
             clear_thumbs_desc='Usuwa wszystkie podglądy. Kafelki znów pokażą własne obrazy strojów. Podgląd zrobi '
                 ..'jeden ponownie.'},

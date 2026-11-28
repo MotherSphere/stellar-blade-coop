@@ -503,7 +503,8 @@ return {
             ArmUpper='Oberarme',Forearm='Unterarme',Hand='Hände',Thigh='Oberschenkel',Calf='Waden',Foot='Füße'},
         row={whole='Ganzes Outfit tragen',soon='Bald verfügbar',
             empty='Kein installiertes Outfit hat ein Teil für diesen Platz.',none='Nichts',
-            locked='Gesperrt: %s ist nicht installiert.',reset='Stellar Closet zurücksetzen',
+            locked='Gesperrt: %s ist nicht installiert.',
+            broken='Gesperrt: Dieses Teil lädt in dieser Spielversion nicht (sein Skelett fehlt).',reset='Stellar Closet zurücksetzen',
             clear_thumbs='Vorschaubilder löschen',
             clear_thumbs_desc='Löscht alle Vorschaubilder. Die Kacheln zeigen wieder die eigenen Bilder der Outfits. '
                 ..'Vorschaubild nimmt eins neu auf.'},

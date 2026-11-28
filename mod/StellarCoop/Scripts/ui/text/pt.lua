@@ -492,7 +492,8 @@ return {
             Calf='Barrigas das pernas',Foot='Pés'},
         row={whole='Vestir a roupa completa',soon='Em breve',
             empty='Nenhuma roupa instalada tem uma peça para este espaço.',none='Nada',
-            locked='Bloqueado: %s não está instalado.',reset='Repor o Stellar Closet',
+            locked='Bloqueado: %s não está instalado.',
+            broken='Bloqueado: esta peça não carrega nesta versão do jogo (falta o seu esqueleto).',reset='Repor o Stellar Closet',
             clear_thumbs='Limpar pré-visualizações',
             clear_thumbs_desc='Apaga todas as pré-visualizações. Os quadrados voltam a mostrar as imagens próprias '
                 ..'das roupas. Pré-visualização tira uma de novo.'},

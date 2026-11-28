@@ -491,7 +491,8 @@ return {
             ArmUpper='Brazos',Forearm='Antebrazos',Hand='Manos',Thigh='Muslos',Calf='Pantorrillas',Foot='Pies'},
         row={whole='Ponerse el atuendo completo',soon='Próximamente',
             empty='Ningún atuendo instalado tiene una pieza para esta ranura.',none='Nada',
-            locked='Bloqueado: %s no está instalado.',reset='Restablecer Stellar Closet',
+            locked='Bloqueado: %s no está instalado.',
+            broken='Bloqueado: esta pieza no se carga en esta versión del juego (falta su esqueleto).',reset='Restablecer Stellar Closet',
             clear_thumbs='Borrar imágenes de vista previa',
             clear_thumbs_desc='Borra todas las imágenes de vista previa. Las casillas vuelven a mostrar las imágenes '
                 ..'propias de los atuendos. Imagen de vista previa toma una de nuevo.'},

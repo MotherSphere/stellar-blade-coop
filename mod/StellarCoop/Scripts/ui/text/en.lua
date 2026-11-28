@@ -588,7 +588,8 @@ return {
         regions={HeadNeck='Head and neck',TorsoUpper='Upper torso',TorsoLower='Lower torso',Pelvis='Pelvis',
             ArmUpper='Upper arms',Forearm='Forearms',Hand='Hands',Thigh='Thighs',Calf='Calves',Foot='Feet'},
         row={whole='Wear whole outfit',soon='Coming soon',empty='No installed outfit has a piece for this slot.',
-            none='None',locked='Locked: %s is not installed.',reset='Reset Stellar Closet',
+            none='None',locked='Locked: %s is not installed.',
+            broken='Locked: this piece does not load in this game version (its skeleton is missing).',reset='Reset Stellar Closet',
             clear_thumbs='Clear preview pictures',
             clear_thumbs_desc="Deletes every preview picture. The tiles show the outfits' own images again. "
                 ..'Preview picture takes one again.'},

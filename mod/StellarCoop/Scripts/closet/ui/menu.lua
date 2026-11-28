@@ -261,6 +261,12 @@ function Menu.new(o)
     -- A slider row's place: x in lo..hi as 0..1 (a value outside the range shows at its end).
     local function place(x,lo,hi) return hi>lo and math.max(0,math.min(1,(x-lo)/(hi-lo))) or 0 end
     local function is_head(slot) return slot~=nil and Slots.group(slot)=='head' end
+    -- A locked piece's line: its mesh names a skeleton the game lacks (closet/dress.lua's broken), else its pack is
+    -- missing.
+    local function locked_line(w,fit,pack)
+        if fit and dress.broken and dress.broken(fit) then return w.row.broken end
+        return w.row.locked:format(pack)
+    end
     -- The Eyes row has no tiles: EVE's own eyes (closet/head/stock.lua's SB.Eyes_Own, Fits.heads' only Eyes piece) are
     -- one page of colours, worn when it opens. It is locked while the face worn is not hers (closet/head/wear.lua's
     -- eyes_locked): then Right and Select do nothing and no Eyes choice is sent.
@@ -338,7 +344,7 @@ function Menu.new(o)
         if one.covers then out[#out+1]=w.detail.covers:format(names(one.covers,w.regions)) end
         if one.also then out[#out+1]=w.detail.also:format(names(one.also,w.slots)) end
         if one.off then out[#out+1]=w.detail.off end
-        if one.locked then out[#out+1]=w.row.locked:format(one.pack) end
+        if one.locked then out[#out+1]=locked_line(w,one.fit,one.pack) end
         return table.concat(out,'\n')
     end
 
@@ -482,7 +488,7 @@ function Menu.new(o)
         end
         s.detail={title=shown and (shown.plain or shown.title) or '',desc=''}
         if item and item.whole then
-            s.detail.desc=(item.locked and w.row.locked:format(item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
+            s.detail.desc=(item.locked and locked_line(w,item.whole,item.pack) or w.row.whole)..'\n'..origin(w,item.whole)
             s.detail.badge=Fits.origin(item.whole)
             s.preview=picture(item.whole,Thumbs.FULL) -- Its picture large, in place of the tile.
             s.tiles=not s.preview and {{name=item.outfit,locked=item.locked,picture=nil,
@@ -506,7 +512,7 @@ function Menu.new(o)
         elseif item and item.preset then -- Select wears it (not a gone outfit's); F (UI_FaceButton_Top) deletes it.
             local fit=Fits.get(item.fit)
             s.detail.desc=w.detail.outfit:format(fit and fit.Outfit or item.fit)..
-                (item.locked and '\n'..w.row.locked:format(fit and fit.Pack or item.fit) or '')
+                (item.locked and '\n'..locked_line(w,item.fit,fit and fit.Pack or item.fit) or '')
             if not item.locked then s.hints[2]={w.hints.wear,'Positive',word='select'} end
             s.hints[#s.hints+1]={w.hints.delete,'UI_FaceButton_Top',word='refresh'}
         elseif item and item.filter then

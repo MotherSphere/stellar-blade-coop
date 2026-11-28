@@ -487,7 +487,8 @@ return {
             ArmUpper='Bovenarmen',Forearm='Onderarmen',Hand='Handen',Thigh='Dijen',Calf='Kuiten',Foot='Voeten'},
         row={whole='Hele outfit dragen',soon='Binnenkort',
             empty='Geen geïnstalleerde outfit heeft een stuk voor dit vak.',none='Geen',
-            locked='Vergrendeld: %s is niet geïnstalleerd.',reset='Stellar Closet resetten',
+            locked='Vergrendeld: %s is niet geïnstalleerd.',
+            broken='Vergrendeld: dit stuk laadt niet in deze gameversie (het skelet ontbreekt).',reset='Stellar Closet resetten',
             clear_thumbs='Voorbeeldafbeeldingen wissen',
             clear_thumbs_desc='Wist alle voorbeeldafbeeldingen. De tegels tonen weer de eigen afbeeldingen van de '
                 ..'outfits. Voorbeeldafbeelding maakt er een opnieuw.'},

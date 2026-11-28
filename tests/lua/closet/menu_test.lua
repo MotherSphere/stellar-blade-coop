@@ -894,6 +894,13 @@ local tests = {
         local title, desc = detail(r)
         eq(title, 'Kunoichi top', 'locked tile detail')
         ok(desc:find(T.en.closet.row.locked:format('AiK'), 1, true), desc)
+        -- A mesh that loads but names a skeleton the game lacks says so (the Succubus Horns, 27 Nov 2026).
+        r.dress.broken = function(fit) return fit == KUNOICHI end
+        at(r, 0.55, 'left', 'right')
+        desc = select(2, detail(r))
+        ok(desc:find(T.en.closet.row.broken, 1, true), desc)
+        ok(not desc:find(T.en.closet.row.locked:format('AiK'), 1, true), 'not called missing: ' .. desc)
+        r.dress.broken = nil
         tick(r, 1)
         at(r, 1, 'refresh', 'select')
         tick(r, 2)

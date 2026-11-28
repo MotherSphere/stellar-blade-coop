@@ -492,7 +492,8 @@ return {
             Foot='Jalkaterät'},
         row={whole='Pue koko asu',soon='Tulossa pian',
             empty='Millään asennetulla asulla ei ole osaa tähän paikkaan.',none='Ei mitään',
-            locked='Lukittu: %s ei ole asennettu.',reset='Nollaa Stellar Closet',
+            locked='Lukittu: %s ei ole asennettu.',
+            broken='Lukittu: tämä osa ei lataudu tässä peliversiossa (sen luuranko puuttuu).',reset='Nollaa Stellar Closet',
             clear_thumbs='Tyhjennä esikatselukuvat',
             clear_thumbs_desc='Poistaa kaikki esikatselukuvat. Ruudut näyttävät taas asujen omat kuvat. '
                 ..'Esikatselukuva ottaa sen uudelleen.'},

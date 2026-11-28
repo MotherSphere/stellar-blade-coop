@@ -421,7 +421,7 @@ return {
             Forearm='아래팔',Hand='손',Thigh='허벅지',Calf='종아리',Foot='발'},
         row={whole='의상 전체 입기',soon='추후 지원',
             empty='이 슬롯에 맞는 부위가 있는 설치된 의상이 없습니다.',none='없음',
-            locked='잠김: %s이(가) 설치되어 있지 않습니다.',reset='Stellar Closet 초기화',
+            locked='잠김: %s이(가) 설치되어 있지 않습니다.',broken='잠김: 이 아이템은 이 게임 버전에서 불러올 수 없습니다(스켈레톤이 없습니다).',reset='Stellar Closet 초기화',
             clear_thumbs='미리보기 이미지 지우기',
             clear_thumbs_desc='모든 미리보기 이미지를 삭제합니다. 타일에 의상 고유의 이미지가 다시 표시됩니다. 미리보기 이미지로 다시 촬영할 수 있습니다.'},
         detail={outfit='의상: %s',slot='슬롯: %s',covers='가리는 부위: %s',also='함께 차지하는 슬롯: %s',

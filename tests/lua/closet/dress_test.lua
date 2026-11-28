@@ -598,10 +598,12 @@ local tests = {
         local skel = w.assets[KS].Skeleton
         w.assets[KS].Skeleton = nil
         ok(not w.d.installed('AiK_CH46_xSH_14462'), 'no skeleton yet: locked')
+        ok(w.d.broken('AiK_CH46_xSH_14462'), 'locked for its skeleton, not a missing pack')
         w.assets[KS].Skeleton = skel
         local now = w.d.installed('AiK_CH46_xSH_14462')
         Dress.RETRY = retry
         ok(now, 'asked again: the skeleton reads, unlocked')
+        ok(not w.d.broken('AiK_CH46_xSH_14462'), 'no longer broken')
         local said = 0
         for _, line in ipairs(w.log) do if line:find('has no skeleton', 1, true) then said = said + 1 end end
         ok(said <= 1, 'said once')

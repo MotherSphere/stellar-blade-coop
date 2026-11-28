@@ -477,7 +477,8 @@ return {
             ArmUpper='Overarme',Forearm='Underarme',Hand='Hænder',Thigh='Lår',Calf='Lægge',Foot='Fødder'},
         row={whole='Tag hele dragten på',soon='Kommer snart',
             empty='Ingen installeret dragt har en del til denne plads.',none='Ingen',
-            locked='Låst: %s er ikke installeret.',reset='Nulstil Stellar Closet',
+            locked='Låst: %s er ikke installeret.',
+            broken='Låst: denne del indlæses ikke i denne spilversion (dens skelet mangler).',reset='Nulstil Stellar Closet',
             clear_thumbs='Ryd forhåndsvisningsbilleder',
             clear_thumbs_desc='Sletter alle forhåndsvisningsbilleder. Felterne viser dragternes egne billeder igen. '
                 ..'Forhåndsvisningsbillede tager et igen.'},
